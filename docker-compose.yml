@@ -1,0 +1,21 @@
+version: "3"
+
+services:
+  app:
+    build: api/.
+    volumes:
+      - ./api/:/web10   
+    ports:
+      - "5000:5000"
+  auth:
+    build: auth/.
+    volumes:
+      - ./auth/:/web10   
+    ports:
+      - "6000:6000"
+  social:
+    build: social/.
+    volumes:
+      - ./social/:/web10   
+    ports:
+      - "8000:8000"
