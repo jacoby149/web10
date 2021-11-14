@@ -10,12 +10,12 @@ services:
   auth:
     build: auth/.
     volumes:
-      - ./auth/:/web10   
+      - ./auth/:/auth   
     ports:
-      - "6000:6000"
+      - "3000:8000"
   social:
     build: social/.
     volumes:
-      - ./social/:/web10   
+      - ./social/:/social   
     ports:
       - "8000:8000"
