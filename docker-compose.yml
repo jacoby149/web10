@@ -7,8 +7,6 @@ services:
       - ./api/:/web10   
     ports:
       - "5000:5000"
-    environment:
-      - CLIENTURL=mongodb+srv://web10origin:web10origin@cluster0.lyjne.mongodb.net/myFirstDatabase?retryWrites=true&w=majority
   auth:
     build: auth/.
     volumes:
