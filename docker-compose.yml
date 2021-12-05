@@ -4,18 +4,30 @@ services:
   app:
     build: api/.
     volumes:
-      - ./api/:/web10   
+      - ./api/:/web10 
     ports:
-      - "5000:5000"
+      - "5000:8000"
+    environment:
+      VIRTUAL_HOST: api.localhost
   auth:
     build: auth/.
     volumes:
       - ./auth/:/auth   
     ports:
       - "3000:8000"
+    environment:
+      VIRTUAL_HOST: auth.localhost
   social:
     build: social/.
     volumes:
-      - ./social/:/social   
+      - ./social/:/social    
     ports:
       - "8000:8000"
+    environment:
+      VIRTUAL_HOST: social.localhost
+  nginx-proxy:
+    image: jwilder/nginx-proxy
+    ports:
+      - "80:80"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
