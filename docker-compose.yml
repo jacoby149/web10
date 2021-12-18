@@ -25,6 +25,14 @@ services:
       - "8000:8000"
     environment:
       VIRTUAL_HOST: social.localhost
+  crm:
+    build: crm/.
+    volumes:
+      - ./crm/:/crm    
+    ports:
+      - "7000:8000"
+    environment:
+      VIRTUAL_HOST: crm.localhost
   nginx-proxy:
     image: jwilder/nginx-proxy
     ports:

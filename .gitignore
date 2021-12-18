@@ -2,4 +2,5 @@
 api/
 auth/
 social/
+crm/
 .DS_Store
