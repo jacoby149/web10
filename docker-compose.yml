@@ -6,7 +6,7 @@ services:
     volumes:
       - ./api/:/web10 
     ports:
-      - "5000:80"
+      - "5756:80"
     environment:
       VIRTUAL_HOST: api.localhost
     networks:
@@ -46,7 +46,7 @@ services:
     volumes:
       - ./crm/:/crm    
     ports:
-      - "7000:8000"
+      - "7746:8000"
     environment:
       VIRTUAL_HOST: crm.localhost
   nginx-proxy:
