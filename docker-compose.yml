@@ -6,24 +6,33 @@ services:
     volumes:
       - ./api/:/web10 
     ports:
-      - "6000:80"
+      - "5756:80"
     environment:
       VIRTUAL_HOST: api.localhost
     networks:
       default:
         aliases:
           - api.localhost
-  auth:
-    build: auth/client
-    command: ["npm", "start"]
+  api2:
+    build: api/.
     volumes:
-      - ./auth/client:/frontend
-      - node-modules:/frontend/node_modules
-    environment:
-      NODE_ENV: development
-      VIRTUAL_HOST: auth.localhost
+      - ./api/:/web10 
     ports:
-      - '3000:3000'
+      - "6000:80"
+    environment:
+      VIRTUAL_HOST: api2.localhost
+    networks:
+      default:
+        aliases:
+          - api2.localhost
+  auth:
+    build: auth/.
+    volumes:
+      - ./auth/:/auth   
+    ports:
+      - "3000:8000"
+    environment:
+      VIRTUAL_HOST: auth.localhost
   social:
     build: social/.
     volumes:
@@ -47,6 +56,3 @@ services:
     volumes:
       - /var/run/docker.sock:/tmp/docker.sock:ro
       - ./vhost.d/:/etc/nginx/vhost.d
-
-volumes:
-  node-modules:
