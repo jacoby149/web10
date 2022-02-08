@@ -26,9 +26,7 @@ function App() {
           class="box warning"
           style={{ marginTop: "4px", marginLeft: "4px", marginRight: "4px" }}
         >
-          <EditableField curr="curr1"></EditableField>
-          <EditableField curr="curr2"></EditableField>
-          <EditableField curr="curr3"></EditableField>
+          <EditableField field={{ type: "input", data: "Harry" }} />
         </div>
         <EditApproval></EditApproval>
       </div>
@@ -381,24 +379,55 @@ function Branding(props) {
   );
 }
 
-function EditableField({ curr }) {
-  var [updated, setUpdated] = React.useState(curr);
+function EditableField({ field }) {
+  switch (field.type) {
+    case "switch": {
+      return EditableSwitch(field)
+    }
+    case "input": {
+      return EditableInput(field)
+    }
+    case "select": {
+      return EditableDropDown(field)
+    }
+  }
+}
+
+const EditableSwitch = ({data}) => {
+  return (
+    <div>
+      <h1>{data.title}</h1>
+      
+    </div>
+  )
+}
+
+const EditableInput = ({ data }) => {
+  var [updated, setUpdated] = React.useState(data);
   return (
     <div style={{ marginLeft: "4px", marginTop: "4px" }}>
-      field : {curr == updated ? (
+      field : {data == updated ? (
         ""
       ) : (
         <span style={{ color: "firebrick", textDecoration: "line-through" }}>
-          {curr}
+          {data}
         </span>
       )}
       <input
         style={{ color: "#2ECC40" }}
-        defaultValue={curr}
+        defaultValue={data}
         onChange={(event) => setUpdated(event.target.value)}
       ></input>
     </div>
   );
+}
+
+const EditableDropDown = () => {
+  return (
+    <div>
+
+    </div>
+  )
 }
 
 function EditApproval() {
