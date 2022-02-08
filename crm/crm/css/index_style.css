@@ -1,0 +1,115 @@
+body
+{
+    
+    color: black;
+    background-size: cover;
+    background-attachment: fixed;
+    /*background-image:*/
+    background-color: white;
+
+}
+
+td
+{
+    white-space: nowrap;
+}
+
+a {
+    color:#126145;
+
+}
+
+button{
+    background-color:#126145;
+    color:white;
+}
+
+.jum
+{
+    padding-left:30px;
+    padding-bottom: 50px;
+    width: 90%;
+    margin: auto;
+    /* the background container looked jank as hell*/
+    background-color: rgba(0,0,0,0);
+   
+}
+
+.logo{
+text-align:center;
+}
+
+.logo img{
+    width:30%;
+    margin-bottom:-50px;
+}
+
+.icon
+{
+    position: absolute;
+    top: 18px;
+    left: 85%;
+    font-size: 20px;
+    color:black;
+    
+    
+}
+
+.alert
+{
+    display: none;
+}
+
+.btn1
+{
+    margin-bottom: 20px;
+}
+
+.options{
+    padding:10px;
+}
+
+tr.green td{
+    background-color:#3cb37122;
+}
+
+tr.yellow td{
+    background-color:#f0ad4e22;
+    /*background-color:#d9534f33;*/
+}
+
+tr.red td{
+    background-color:#f05a3422;
+    /*background-color:#d9534f33;*/
+}
+
+a.statusbutton { 
+    cursor: pointer; }
+
+
+footer
+{
+    padding-bottom:30px;
+
+}
+
+.ledge {
+    margin:1em;
+}
+
+.ledge p{
+    margin:0;
+    padding:0;
+}
+
+.red {
+    background-color:#f05a3433 !important;
+}
+
+.green {
+    background-color:#3cb37133 !important;
+}
+
+.yellow {
+    background-color:#f0ad4e33 !important;
+}
