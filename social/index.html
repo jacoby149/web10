@@ -1,0 +1,77 @@
+<html>
+
+    <head>
+        <!-- Smartphone Friendly Width-->
+        <meta name="viewport" content="width=device-width">
+
+
+        <!-- CSS Styles. Feel free to customize css. -->
+        <link rel="stylesheet" href="https://jacobhoffman.tk/rectangles/Rectangles.css" />
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.1/css/bulma.min.css">
+        <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.5.0/css/all.css"
+            integrity="sha384-B4dIYHKNBt8Bc12p+WXckhzcICo0wtJAoU8YZTY5qE0Id1GSseTk6S+L3BlXeVIU" crossorigin="anonymous">
+
+
+        <!-- Title -->
+        <title>Web10 Social</title>
+    </head>
+
+    <body>
+
+
+        <!-- Splash Screen -->
+        <link rel="stylesheet" href="https://jacobhoffman.tk/rectangles/splash.css" />
+        <div id="rlc">
+            <div>
+                <img src="alternative.png" />
+                <div style="font-size: 30px;color:yellow">Web10 Social</div>
+            </div>
+            <script>setTimeout(() => rlc.style.display = "none", 1200);</script>
+        </div>
+
+
+        <!-- App -->
+        <div class="app" id="app">
+        </div>
+
+
+        <!-- Babel JS for transpiling -->
+        <script src=" https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+
+        <!-- Core React JS -->
+        <!-- Note: when deploying, replace "development.js" with "production.min.js". -->
+        <script src="https://unpkg.com/react@17/umd/react.development.js" crossorigin></script>
+        <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js" crossorigin></script>
+
+
+        <!-- Non-React JS -->
+        <script src='https://jacobhoffman.tk/rectangles/telescope.js'></script>
+        <script src='https://jacobhoffman.tk/rectangles/loadComp.js'></script>
+
+        <!-- Load Web10 functions  -->
+        <script src='http://auth.localhost/wapi.js'></script>
+        <script src="https://cdn.jsdelivr.net/npm/jwt-decode@3.1.2/build/jwt-decode.js"></script>
+
+
+        <!-- Put JS for your custom components here! -->
+
+
+        <script>
+           
+            /* Load Rectangles */
+            loadComp('https://jacobhoffman.tk/rectangles/Rectangles.js');
+            /* Load Posts */
+            loadComp('Posts.js');
+            /* Load Your Components */
+            loadComp('index.js');
+            /* Start Rectangles */
+            loadComp('https://jacobhoffman.tk/rectangles/startRectangles.js');
+
+
+        </script>
+
+
+    </body>
+
+</html>

@@ -1,0 +1,206 @@
+<html>
+
+<head>
+
+    <link rel="stylesheet" href="crm/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="crm/css/all.min.css" />
+    <link rel="stylesheet" href="crm/css/index_style.css" />
+    <link rel="stylesheet" href="crm/css/modal.css" />
+
+
+
+
+</head>
+
+<body>
+    <div style="position:absolute;right:10px;top:10px;width:120px;">
+        <a href="" id="auth" onclick="event.preventDefault();toggleAuth();"></a>
+    </div>
+
+    <div class="logo">
+        <img src="crm/images/GreenstarBanner.png">
+    </div>
+
+    <div class=" jum">
+
+        <div class=" navbar">
+            <h3> Rolodex <i class="far fa-address-card"></i></h3>
+
+        </div>
+
+
+        <div class="row">
+
+
+            <div class="col-lg-3 inp">
+
+                <input onkeyup="searchFunction()" id="myInput" class="form-control mt-2" placeholder="search">
+                <span class="icon "><i class="fas fa-search"></i></span>
+
+                <h5 class="mt-2">Add New Contact</h5>
+
+                <input class="form-control mb-2 mt-3" placeholder="add name" id="userName">
+                <div id="nameAlert" class="alert alert-danger text-justify p-2 ">Please add name</div>
+
+                <input class="form-control mb-3 mt-3" placeholder="add company" id="userCompany">
+                <div id="companyAlert" class="alert alert-danger text-justify p-2 ">Please add company</div>
+
+                <input class="form-control mb-3" placeholder="add phone" id="userPhone">
+                <div id="phoneAlert" class="alert alert-danger text-justify p-2 ">Please add a valid number</div>
+
+                <input class="form-control mb-3" placeholder="add e-mail" id="userEmail">
+                <div id="mailAlert" class="alert alert-danger text-justify p-2 ">Please add a valid e-mail</div>
+
+                <button onclick="addContact()" class="btn w-100 btn1">Add</button>
+
+
+            </div>
+
+
+            <div class="col-lg-8">
+                <div id="container demo">
+                    <div class="options">
+                        <button id="statusbutton" onclick="toggleStatus()"> Viewing Notes </button>
+                        Green <input type="checkbox" onclick="statusFilter(this)" id="green" checked>
+                        Yellow <input type="checkbox" onclick="statusFilter(this)" id="yellow" checked>
+                        Red <input type="checkbox" id="red" onclick="statusFilter(this)" checked>
+                    </div>
+                    <!-- table-striped class for striped-->
+                    <table id="myTable" class="table text-justify">
+
+                        <thead class="tableh1">
+                            <th class="">Name</th>
+                            <th class="">Company</th>
+                            <th class="">Phone</th>
+                            <th class="">E-mail</th>
+                            <th class="col-1"></th>
+                            <!--
+                            <th class="col-1"></th>
+                            -->
+
+                        </thead>
+
+                        <tbody id="tableBody">
+
+
+
+                        </tbody>
+
+                    </table>
+
+
+                </div>
+
+
+
+            </div>
+        </div>
+
+        <div class="modal right fade" id="notes" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+
+                    <div class="modal-header" id="modalbanner">
+                        <h4 class="modal-title" id="myModalLabel"></h4>
+
+
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span
+                                aria-hidden="true">&times;</span></button>
+                    </div>
+
+                    <div class="modal-body">
+
+
+                        <div class="row">
+                            <div class="col-6">
+                                Scheduled Status Change : <select name="recurring" class="form-control">
+                                    <option value="none">None Scheduled</option>
+                                    <option value="green">Green</option>
+                                    <option value="yellow">Yellow</option>
+                                    <option value="red">Red</option>
+                                </select>
+                            </div>
+                            <div class="col-6"> Change Date : <input class="form-control" type="date" name="date"
+                                    maxlength="10"></div>
+
+                        </div>
+                        <br>
+
+
+
+                        Add Note Here : <textarea name="newnote" id="newnote" cols="50" rows="4" maxlength="500"
+                            placeholder="Add note"></textarea> <br>
+                        <div style="float:right;padding-right:50px;padding-top:10px;"> <button type="submit"
+                                onclick="submitNote()">Create Entry</button> </div>
+                        <br><br>
+                        <div id="note_log"> </div>
+                    </div>
+
+                </div><!-- modal-content -->
+            </div><!-- modal-dialog -->
+        </div><!-- modal -->
+
+
+        <div class="modal right fade" id="ledger" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+
+                    <div class="modal-header" id="modalbanner">
+                        <h4 class="modal-title" id="ledgerlabel"> Ledger </h4>
+
+
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span
+                                aria-hidden="true">&times;</span></button>
+                    </div>
+
+                    <div class="modal-body">
+                        <form id="ledgerform">
+
+                            <div class="row">
+                                <div class="col-6"> Date : <input class="form-control" type="date" name="date"
+                                        maxlength="10"></div>
+                                <div class="col-6">
+                                    Amount ($) : <input class="form-control" type="text" name="amount">
+                                </div>
+                                <div class="col-6">
+                                    Recurring? : <select name="recurring" class="form-control">
+                                        <option value="One">One Time</option>
+                                        <option value="Monthly">Monthly</option>
+                                        <option value="Yearly">Yearly</option>
+                                    </select>
+                                </div>
+                                <div class="col-6">
+                                    Check Number : <input class="form-control" type="text" name="check_number">
+                                </div>
+                                <div class="col-6">
+
+                                    Description : <input class="form-control" type="text" name="description">
+                                </div>
+                                <div class="col-6" style="padding:24px;">
+                                    <button type="button" onclick="submitLedger()">Create Entry</button>
+                                </div>
+
+                                <br><br>
+                        </form>
+                    </div>
+                    <div id="ledger_log"> </div>
+                </div>
+
+            </div><!-- modal-content -->
+        </div><!-- modal-dialog -->
+    </div><!-- modal -->
+
+
+
+    </div>
+
+    <footer class="text-center"> Designed by Greenstar Group Inc. &#169; 2020. <br></footer>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script src="http://auth.localhost/wapi.js"></script>
+    <script src="crm/js/jquery-3.3.1.min.js"></script>
+    <script src="crm/js/popper.min.js"></script>
+    <script src="crm/js/bootstrap.min.js"></script>
+    <script src="crm/js/index.js"></script>
+</body>
+
+</html>
