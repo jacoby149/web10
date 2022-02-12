@@ -1,7 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import { pass, R, C, T } from "https://jacobhoffman.tk/rectangles/Rectangles.js";
-
 /* Plain Pad app made of entirely rectangles.js components */
 function App() {
   const [authStatus, setAuthStatus] = React.useState(false);
