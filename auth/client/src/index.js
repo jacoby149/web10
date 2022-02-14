@@ -1,6 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import { pass, R, C, T } from "https://jacobhoffman.tk/rectangles/Rectangles.js";
+import wapi from './wapi'
+import wapiAuth from './wapiAuth'
+import { pass, R, C, T } from "./Rectangles.js";
 /* Plain Pad app made of entirely rectangles.js components */
 function App() {
   const [authStatus, setAuthStatus] = React.useState(false);
@@ -237,9 +239,9 @@ function SignIn(props) {
           <button
             onClick={() =>
               wapiAuth.logIn(
-                provider.value,
-                username.value,
-                password.value,
+                document.getElementById('provider').value,
+                document.getElementById('username').value,
+                document.getElementById('password').value,
                 setAuthStatus,
                 setStatus
               )
@@ -251,7 +253,9 @@ function SignIn(props) {
           </button>
           <button
             onClick={() =>
-              wapiAuth.signUp(provider.value, username.value, password.value)
+              wapiAuth.signUp(document.getElementById('provider').value,
+              document.getElementById('username').value,
+              document.getElementById('password').value)
             }
             style={{ margin: "0px 5px" }}
             className="button is-info"

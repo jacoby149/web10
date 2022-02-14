@@ -1,3 +1,5 @@
+import axios from 'axios';
+import wapi from './wapi.js'
 
 //Makes the wapiAuth library object
 function wapiAuthInit () {
@@ -5,7 +7,7 @@ function wapiAuthInit () {
 
     //mints a second level token for the referrer site.
     wapiAuth.mintOAuthToken = function(){
-        wapi.getTieredToken(site=document.referrer.slice(0,-1),target=wapi.readToken().provider).then(
+        wapi.getTieredToken(document.referrer.slice(0,-1),wapi.readToken().provider).then(
             function (response) {
                 wapiAuth.oAuthToken = response.data.token
             }
@@ -75,3 +77,5 @@ function wapiAuthInit () {
 }
 //initialize wapiAuth
 var wapiAuth = wapiAuthInit();
+
+export default wapiAuth;
