@@ -66,7 +66,7 @@ function App() {
       </R>
     );
   }
-
+  React.useEffect(()=>eval("startTelescope()"))
   React.useEffect(() => setAuthStatus(wapi.isSignedIn()), []);
   React.useEffect(
     function () {
@@ -460,4 +460,4 @@ function EditApproval() {
 ReactDOM.render(
   <App/>,
   document.getElementById('root')
-);
+)

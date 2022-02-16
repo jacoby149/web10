@@ -1,0 +1,97 @@
+/* chrome */
+html::-webkit-scrollbar {
+    display: none;
+  }
+  /* firefox */
+  html{
+    scrollbar-width: none;
+  }
+  
+  body{
+      padding:0;
+      margin:0;
+      background-color: #000000;
+  }
+  .app{
+      padding:0;
+      margin:0;
+      width:100%;
+      height:100%;
+  }
+  
+  @media only screen and (max-width: 600px) {
+   .mc
+   {display:none;}
+  }
+  @media only screen and (max-height: 600px) {
+   .msc
+   {display:none;}
+  }
+  
+  .R .root{
+      width:100%;
+      height:100%;
+  }
+  .R{
+    font-size:10pt;
+    font-family: apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica Neue,Arial,Noto Sans,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol,Noto Color Emoji;
+    border-width:1px;
+    -webkit-box-sizing: border-box; /* Safari/Chrome, other WebKit */
+    -moz-box-sizing: border-box;    /* Firefox, other Gecko */
+    box-sizing: border-box;         /* Opera/IE 8+ */
+    padding:0;
+    margin:0;
+    overflow: auto;
+  }
+  .R::-webkit-scrollbar {
+    width: 9px;               /* width of the entire scrollbar */
+  }
+  .R::-webkit-scrollbar-track {
+    background: #222222;        /* color of the tracking area */
+  }
+  .R::-webkit-scrollbar-thumb {
+    background-color: black;    /* color of the scroll thumb */
+    border-radius: 20px;       /* roundness of the scroll thumb */
+    border: 1px solid #222222;  /* creates padding around scroll thumb */
+  }
+  
+  .R .brick{
+    color:white;
+  }
+  .R .brick .h:hover{
+    background-color:#580a0a;
+  }
+  .R .brick{
+      background-color:#380606;
+      border-color:#cc9292;
+  }
+  .R .dark{
+    color:white;
+  }
+  .R .dark .h:hover{
+    background-color:#4b5a65;
+  }
+  .R .dark{
+      background-color:#23282c;
+      border-color:#a8b2b9;
+  }
+  .R .light .h:hover{
+    background-color:#a8b2b9;
+  }
+  .R .light{
+      background-color:#ffffff;
+      border-color:#4b5a65;
+  }
+  .R textarea,.R input{
+    font-family:monospace;
+    background-color:#00000000;
+    border: 0pt;
+  }
+  .R input,.R textarea:focus {
+      outline: none !important;
+      border:0px ;
+      box-shadow: 0px;
+  }
+  .R a{
+    color:orange;
+  }
