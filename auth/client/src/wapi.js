@@ -1,3 +1,5 @@
+import axios from 'axios';
+
 //makes a dictionary of cookies
 function cookieDict() {
     return (
@@ -119,7 +121,7 @@ function wapiInit(authUrl) {
     wapi._W10CRUD = function(HTTPRequestFunction,provider,username,service,query=null,value=null){
         provider = provider? provider : wapi.readToken().provider;
         username = username? username : wapi.readToken().username;
-        t = {
+        const t = {
             token:wapi.token,
             query:query,
             value:value
@@ -134,3 +136,4 @@ function wapiInit(authUrl) {
 //initialize wapi
 var wapi = wapiInit("http://auth.localhost");
 
+export default wapi;
