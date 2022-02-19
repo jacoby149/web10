@@ -21,7 +21,7 @@ function serviceChangeRequesterInit(authUrl){
     serviceChangeRequester.requestOnReady = function(servicesToGrant,servicesToRevoke = []) {
         window.addEventListener('message', 
             function(e) {
-                if (e.data.type == "ready") {
+                if (e.data.type === "ready") {
                     window.opener.postMessage(
                         {
                             "type":"services",
@@ -37,7 +37,7 @@ function serviceChangeRequesterInit(authUrl){
     serviceChangeRequester.serviceChangeListen = function(setStatus) {
         window.addEventListener('message', 
             function(e) {
-                if (e.data.type == "status") setStatus(e.data.status)
+                if (e.data.type === "status") setStatus(e.data.status)
             });
         }
 
@@ -79,7 +79,7 @@ function wapiInit(authUrl) {
     wapi.authListen = function(setAuth) {
         window.addEventListener('message', 
             function(e) {
-                if (e.data.type == "auth") {
+                if (e.data.type === "auth") {
                     wapi.setToken(e.data.token);             
                     if (setAuth != null) setAuth(wapi.isSignedIn());
                 }

@@ -1,5 +1,4 @@
 import React from 'react';
-import ReactDOM from 'react-dom';
 
 function pass(props){
     const objectMap = (obj, fn) =>
@@ -77,8 +76,8 @@ function pass(props){
       if (props.h){style=a(style,{});}
   
       /* rect size */
-      const v = (!props.ps || props.ps == "top" || props.ps == "bottom");
-      var [s,ms] = [props.s,props.ms];
+      const v = (!props.ps || props.ps === "top" || props.ps === "bottom");
+      var [s] = [props.s];
   
       if (!props.root){
           if (!s){s="auto";}

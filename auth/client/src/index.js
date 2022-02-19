@@ -95,7 +95,7 @@ function App() {
   /* Theme Color State */
   const [theme, setTheme] = React.useState("dark");
   function toggleTheme() {
-    if (theme == "dark") {
+    if (theme === "dark") {
       setTheme("light");
     } else {
       setTheme("dark");
@@ -411,7 +411,7 @@ const EditableInput = ({ data }) => {
   var [updated, setUpdated] = React.useState(data);
   return (
     <div style={{ marginLeft: "4px", marginTop: "4px" }}>
-      field : {data == updated ? (
+      field : {data === updated ? (
         ""
       ) : (
         <span style={{ color: "firebrick", textDecoration: "line-through" }}>
