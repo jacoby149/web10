@@ -1,6 +1,3 @@
-import axios from 'axios';
-import wapi from './wapi.js'
-
 //Makes the wapiAuth library object
 function wapiAuthInit () {
     const wapiAuth = {};
@@ -75,7 +72,5 @@ function wapiAuthInit () {
     //output the wapiAuth object
     return wapiAuth;
 }
-//initialize wapiAuth
-var wapiAuth = wapiAuthInit();
 
-export default wapiAuth;
+var wapiAuth=wapiAuthInit();

@@ -1,5 +1,3 @@
-import axios from 'axios';
-
 //makes a dictionary of cookies
 function cookieDict() {
     return (
@@ -45,7 +43,7 @@ function serviceChangeRequesterInit(authUrl){
 }
 
 //initializes the wapi library object
-function wapiInit(authUrl) {
+function wapiInit(authUrl="http://auth.localhost") {
     const wapi = {};
     
     //wapi variables
@@ -133,7 +131,5 @@ function wapiInit(authUrl) {
     //output the wapi object
     return wapi;
 }
-//initialize wapi
-var wapi = wapiInit("http://auth.localhost");
 
-export default wapi;
+var wapi = wapiInit();

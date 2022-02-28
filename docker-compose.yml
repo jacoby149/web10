@@ -32,12 +32,11 @@ services:
     ports:
       - "8000:8000"
   wapi:
-    build: auth/client/src/.
+    build: wapi/.
     volumes:
-      - ./auth/client/src:/wapi    
+      - ./wapi:/wapi    
     ports:
       - "5678:8000"
-
     environment:
       VIRTUAL_HOST: wapi.localhost
   crm:
