@@ -1,8 +1,10 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import wapi from './wapi'
-import wapiAuth from './wapiAuth'
 import { pass, R, C, T } from "./Rectangles.js";
+
+var wapi = window.wapi;
+var wapiAuth = window.wapiAuth;
+
 /* Plain Pad app made of entirely rectangles.js components */
 function App() {
   const [authStatus, setAuthStatus] = React.useState(false);
@@ -66,7 +68,8 @@ function App() {
       </R>
     );
   }
-  React.useEffect(()=>eval("startTelescope()"))
+
+  React.useEffect(()=>window.startTelescope())
   React.useEffect(() => setAuthStatus(wapi.isSignedIn()), []);
   React.useEffect(
     function () {
