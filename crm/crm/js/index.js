@@ -52,9 +52,12 @@ function init(){
             wapi.openAuthPortal()
         }
     }
+    var contacts = wapi.get('contacts');
+    if (contacts) loadUserContacts(contacts);
+
 }
-init()
-wapi.get('contacts', {}, loadUserContacts);
+
+init();
 
 function toggleStatus() {
     var button = document.getElementById("statusbutton")

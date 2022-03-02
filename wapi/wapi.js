@@ -117,13 +117,19 @@ function wapiInit(authUrl="http://auth.localhost") {
         return wapi._W10CRUD(axios.delete,provider,username,service,query);
     }
     wapi._W10CRUD = function(HTTPRequestFunction,provider,username,service,query=null,value=null){
+        if (!provider && !wapi.token){
+            console.error("web10 request without provider or token");
+            return;
+        }
         provider = provider? provider : wapi.readToken().provider;
         username = username? username : wapi.readToken().username;
         const t = {
             token:wapi.token,
             query:query,
             value:value
-        };console.log(t);
+        };
+        console.log(provider," - ",username)
+        console.log(t);
         return HTTPRequestFunction(`http://${provider}/${username}/${service}`,t)
     }
     
