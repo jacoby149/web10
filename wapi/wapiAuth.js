@@ -39,7 +39,7 @@ function wapiAuthInit () {
                 username: username,
                 password: password, 
                 token: null,
-                site: window.location.href.slice(0,-1), 
+                site: window.location.host, 
                 target: null,
             })
             .then(

@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from fastapi import FastAPI,Request,status
+from fastapi import FastAPI, Request, status
 from passlib.context import CryptContext
 from fastapi.middleware.cors import CORSMiddleware
 import requests
@@ -24,10 +24,10 @@ app = FastAPI(
 )
 
 app.add_middleware(
-CORSMiddleware,
-allow_credentials=True,
-allow_methods=["*"],
-allow_headers=["*"],
+    CORSMiddleware,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 ####################################################
@@ -36,8 +36,10 @@ allow_headers=["*"],
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
+
 def get_password_hash(password):
     return pwd_context.hash(password)
+
 
 def authenticate_user(username: str, password: str):
     user = mongo.get_user(username)
@@ -51,75 +53,97 @@ def authenticate_user(username: str, password: str):
 ##################################################
 ########### Token Based Authentication ###########
 ##################################################
-def decode_token(token:str,private_key=False) -> models.TokenData:
-    if private_key : payload = jwt.decode(token, settings.PRIVATE_KEY, algorithms=[settings.ALGORITHM])
-    else : payload = jwt.decode(token,verify=False)
+def decode_token(token: str, private_key=False) -> models.TokenData:
+    if private_key:
+        payload = jwt.decode(
+            token, settings.PRIVATE_KEY, algorithms=[settings.ALGORITHM]
+        )
+    else:
+        payload = jwt.decode(token, verify=False)
     token_data = models.TokenData()
     token_data.populate_from_payload(payload)
     return token_data
 
+
 # check if a token can be minted given a submitted token
-def can_mint(submission_token,mint_token): 
-#TODO CHECK FOR PROTOCOL
-    if submission_token.username == mint_token.username: pass
-    else: raise exceptions.MINT
+def can_mint(submission_token, mint_token):
+    print(submission_token)
+    print(mint_token)
+    # TODO CHECK FOR PROTOCOL
+    if submission_token.username == mint_token.username:
+        pass
+    else:
+        raise exceptions.MINT
 
     print(submission_token)
-    cur_site = submission_token.site 
-    if not submission_token.site :pass 
-    elif submission_token.site in settings.CORS_SERVICE_MANAGERS: pass 
-    elif submission_token.site == mint_token.site: pass
-    else: raise exceptions.MINT
-
-
+    cur_site = submission_token.site
+    if not submission_token.site:
+        pass
+    elif submission_token.site in settings.CORS_SERVICE_MANAGERS:
+        pass
+    elif submission_token.site == mint_token.site:
+        pass
+    else:
+        raise exceptions.MINT
 
     if submission_token.provider == settings.PROVIDER:
-        if submission_token.provider == mint_token.provider : pass
-    else: raise exceptions.MINT
-
+        if submission_token.provider == mint_token.provider:
+            pass
+    else:
+        raise exceptions.MINT
 
     return True
 
+
 # certify a web10 token with a remote provider
-def certify_with_remote_provider(token:models.Token):
+def certify_with_remote_provider(token: models.Token):
     decoded = decode_token(token.token)
-    url = f'{decoded.provider}/certify'
+    url = f"{decoded.provider}/certify"
     # print("TRYING AND DYING")
     response = requests.post(url, json=token.json())
-    return (response.status_code == 200)
+    return response.status_code == 200
+
 
 # checks if :
 # a token certifies with it's provider, is targetted to this provider, is cross origin approved, and whitelisted
-def is_permitted(token:models.Token, username, service, action):
-    #TODO ADD WHITELIST AND BLACKLISING
-    
+def is_permitted(token: models.Token, username, service, action):
+    # TODO ADD WHITELIST AND BLACKLISING
+
     decoded = decode_token(token.token)
-    if settings.PROVIDER == decoded.provider: certified = certify(token)
-    else : certified = certify_with_remote_provider(token)
+    if settings.PROVIDER == decoded.provider:
+        certified = certify(token)
+    else:
+        certified = certify_with_remote_provider(token)
 
-    if (certified):
-        decoded = models.dotdict(jwt.decode(token.token, verify = False))
+    if certified:
+        decoded = models.dotdict(jwt.decode(token.token, verify=False))
         if not decoded.target:
-            if (decoded.username == username and decoded.provider == settings.PROVIDER):
-                return True 
-            else : return False
-        elif decoded.target != settings.PROVIDER : return False
+            if decoded.username == username and decoded.provider == settings.PROVIDER:
+                return True
+            else:
+                return False
+        elif decoded.target != settings.PROVIDER:
+            return False
 
-        if mongo.is_in_cross_origins(decoded.site, username, service): 
-            if mongo.get_approved(decoded.username, decoded.provider, username, service, action):
+        if mongo.is_in_cross_origins(decoded.site, username, service):
+            if mongo.get_approved(
+                decoded.username, decoded.provider, username, service, action
+            ):
                 return True
     return False
+
 
 ##############################################
 ############ Web10 Routes For You ############
 ##############################################
 # check that a token is a valid non expired token written by this web10 server.
 @app.post("/certify")
-async def certify_token(token:models.Token):
+async def certify_token(token: models.Token):
     print("WE ARE CERTIFIED\n\n\n")
     return certify(token)
 
-def certify(token:models.Token):
+
+def certify(token: models.Token):
     try:
         token_data = decode_token(token.token, private_key=True)
         if token_data.provider != settings.PROVIDER:
@@ -132,66 +156,74 @@ def certify(token:models.Token):
         raise exceptions.TOKEN
     return True
 
+
 # make a web10 token via. user password flow, or via. submitted token
 @app.post("/web10token", response_model=models.Token)
-async def create_web10_token(form_data:models.TokenForm):
-
+async def create_web10_token(form_data: models.TokenForm):
     token_data = models.TokenData()
-
-
     token_data.populate_from_token_form(form_data)
-
+    print(token_data)
     try:
+        print("Trying!!!")
         if form_data.password:
-
-
             if authenticate_user(form_data.username, form_data.password):
                 pass
         elif form_data.token:
-
+            print(1)
             if certify(models.Token(token=form_data.token)):
-
-
-                if can_mint(decode_token(form_data.token),token_data):
-                    pass      
-        else: 
-            print("4\n\n\n")
-
-            raise exceptions.AUTH
+                print(2)
+                if can_mint(decode_token(form_data.token), token_data):
+                    print(3)
+                    pass
     except Exception as e:
+        print("Dying!!!!")
         raise e
-
-    token_data.expires = (datetime.utcnow() + timedelta(minutes=settings.TOKEN_EXPIRE_MINUTES)).isoformat()
+    print("Living!!!!")
+    token_data.expires = (
+        datetime.utcnow() + timedelta(minutes=settings.TOKEN_EXPIRE_MINUTES)
+    ).isoformat()
     token_data.provider = settings.PROVIDER
-    return  {"token": jwt.encode(token_data.dict(), settings.PRIVATE_KEY, algorithm=settings.ALGORITHM)}
+    return {
+        "token": jwt.encode(
+            token_data.dict(), settings.PRIVATE_KEY, algorithm=settings.ALGORITHM
+        )
+    }
+
 
 # make a new web10 account
 @app.post("/signup")
-async def signup(form_data:models.SignUpForm):
-    return mongo.create_user(models.dotdict(form_data),get_password_hash)
-    
+async def signup(form_data: models.SignUpForm):
+    return mongo.create_user(models.dotdict(form_data), get_password_hash)
+
 
 #####################################################
 ############ Web10 Routes Managed By You ############
 #####################################################
 @app.post("/{user}/{service}", tags=["web10"])
-async def create_records(user,service,token:models.Token):
-    if not is_permitted(token, user, service, "create"): raise exceptions.CRUD
-    return mongo.create(user,service,token.query)    
+async def create_records(user, service, token: models.Token):
+    if not is_permitted(token, user, service, "create"):
+        raise exceptions.CRUD
+    return mongo.create(user, service, token.query)
+
 
 # web10 uses patch for get in CRUD since get requests can't have a secure body
 @app.patch("/{user}/{service}", tags=["web10"])
-async def read_records(user,service,token:models.Token):
-    if not is_permitted(token, user, service, "read"): raise exceptions.CRUD
-    result = mongo.read(user,service,token.query)
+async def read_records(user, service, token: models.Token):
+    if not is_permitted(token, user, service, "read"):
+        raise exceptions.CRUD
+    result = mongo.read(user, service, token.query)
     return result
 
+
 @app.put("/{user}/{service}", tags=["web10"])
-async def update_records(user,service,token:models.Token):
-    if not is_permitted(token, user, service, "update"): raise exceptions.CRUD
-    return mongo.update(user,service,token.query,token.value)
+async def update_records(user, service, token: models.Token):
+    if not is_permitted(token, user, service, "update"):
+        raise exceptions.CRUD
+    return mongo.update(user, service, token.query, token.value)
+
 
 @app.delete("/{user}/{service}", tags=["web10"])
-async def delete_records(user,service,token:models.Token):
-    if not is_permitted(token, user, service, "delete"): raise exceptions.CRUD
-    return mongo.delete(user,service,token.query)
+async def delete_records(user, service, token: models.Token):
+    if not is_permitted(token, user, service, "delete"):
+        raise exceptions.CRUD
+    return mongo.delete(user, service, token.query)
