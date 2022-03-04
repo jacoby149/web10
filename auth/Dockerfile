@@ -1,8 +1,5 @@
-
-FROM python:3.9
-
-WORKDIR /auth
-
-COPY . /auth
-
-CMD ["python", "-m", "http.server"]
+FROM node:12-alpine
+RUN mkdir /frontend
+WORKDIR /frontend
+COPY package.json /frontend/package.json
+RUN npm install

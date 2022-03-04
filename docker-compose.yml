@@ -14,10 +14,10 @@ services:
         aliases:
           - api.localhost
   auth:
-    build: auth/client
+    build: auth
     command: ["npm", "start"]
     volumes:
-      - ./auth/client:/frontend
+      - ./auth:/frontend
       - node-modules:/frontend/node_modules
     environment:
       NODE_ENV: development
