@@ -5,6 +5,20 @@ import { pass, R, C, T } from "./Rectangles.js";
 var wapi = window.wapi;
 var wapiAuth = window.wapiAuth;
 
+
+// function for flattening json
+const flattenJSON = (obj = {}, res = {}, extraKey = '') => {
+  for(const key in obj){
+     if(typeof obj[key] !== 'object'){
+        res[extraKey + key] = obj[key];
+     }else{
+        flattenJSON(obj[key], res, `${extraKey}${key}.`);
+     };
+  };
+  return res;
+};
+
+
 /* Plain Pad app made of entirely rectangles.js components */
 function App() {
   const [authStatus, setAuthStatus] = React.useState(false);
@@ -24,14 +38,23 @@ function App() {
   /* Service Change Component */
   function ServiceChange() {
     const currentService = services[selectedService];
+    const flattenedService = flattenJSON(currentService)
+    const final = Object.keys(flattenedService).map((label, idx) => {
+      return (
+        <EditableField key={idx} field={{type:"input",label:label,data:flattenedService[label]}}></EditableField>
+        );
+    });
+
     return (
       <div>
-        <p>{JSON.stringify(currentService)}</p>
+        <p>FUCKITY{JSON.stringify(currentService)}</p>
         <div
           class="box warning"
           style={{ marginTop: "4px", marginLeft: "4px", marginRight: "4px" }}
         >
-          <EditableField field={{ type: "input", data: "Harry" }} />
+          {final}
+          <EditableField field={{ type: "input",label:"label", data: "Harry" }} />
+          <EditableField field={{ type: "input",label:"label", data: "Harry" }} />
         </div>
         <EditApproval></EditApproval>
       </div>
@@ -372,7 +395,7 @@ function Branding(props) {
     <R l {...pass(props)}>
       <C l p="0 0 0 22" s={"70px"}>
         {/* Plain Pad Logo */}
-        <img src={"key_white.png"} style={{ height: "60%" }} />
+        <img src={"key_white.png"} style={{ height: "80%" }} />
       </C>
 
       <C l ns mc s={"120px"}>
@@ -389,32 +412,25 @@ function Branding(props) {
 
 function EditableField({ field }) {
   switch (field.type) {
-    case "switch": {
-      return EditableSwitch(field)
-    }
     case "input": {
       return EditableInput(field)
     }
-    case "select": {
-      return EditableDropDown(field)
-    }
+    //TBD maybe...
+    // case "switch": {
+    //   return EditableSwitch(field)
+    // }
+    // case "select": {
+    //   return EditableDropDown(field)
+    // }
   }
 }
 
-const EditableSwitch = ({data}) => {
-  return (
-    <div>
-      <h1>{data.title}</h1>
-      
-    </div>
-  )
-}
-
-const EditableInput = ({ data }) => {
+//TO BE IMPLEMENTED
+const EditableInput = ({ label,data }) => {
   var [updated, setUpdated] = React.useState(data);
   return (
     <div style={{ marginLeft: "4px", marginTop: "4px" }}>
-      field : {data === updated ? (
+      {label} : {data === updated ? (
         ""
       ) : (
         <span style={{ color: "firebrick", textDecoration: "line-through" }}>
@@ -428,14 +444,6 @@ const EditableInput = ({ data }) => {
       ></input>
     </div>
   );
-}
-
-const EditableDropDown = () => {
-  return (
-    <div>
-
-    </div>
-  )
 }
 
 function EditApproval() {
