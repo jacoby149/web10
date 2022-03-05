@@ -3,11 +3,11 @@ function adjustToSiblings(tel,sibs,floatSide){
     const telescopicElement = tel[0];         
     if (floatSide == "left" || floatSide == "right")  {
         var remainingWidth = sibs.reduce((accumulator,child)=>accumulator + child.offsetWidth,0);
-        telescopicElement.style.width = `calc(100% - ${remainingWidth}px)`;;
+        telescopicElement.style.width = `calc(100% - ${remainingWidth}px - 2px)`;;
     }
     else if (floatSide == "top" || floatSide == "bottom"){
         var remainingHeight = sibs.reduce((accumulator,child)=>accumulator + child.offsetHeight,0)
-        telescopicElement.style.height = `calc(100% - ${remainingHeight}px)`;;
+        telescopicElement.style.height = `calc(100% - ${remainingHeight}px - 2px)`;;
     }
     else 
         console.error("telescope.js side error, neither horizontal or vertical");

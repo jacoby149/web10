@@ -1,23 +1,23 @@
-import React from 'react';
-import ReactDOM from 'react-dom';
+import React from "react";
+import ReactDOM from "react-dom";
 import { pass, R, C, T } from "./Rectangles.js";
 
 var wapi = window.wapi;
 var wapiAuth = window.wapiAuth;
 
-
 // function for flattening json
-const flattenJSON = (obj = {}, res = {}, extraKey = '') => {
-  for(const key in obj){
-     if(typeof obj[key] !== 'object'){
-        res[extraKey + key] = obj[key];
-     }else{
-        flattenJSON(obj[key], res, `${extraKey}${key}.`);
-     };
-  };
+const flattenJSON = (obj = {}, res = {}, extraKey = "") => {
+  for (const key in obj) {
+    if (typeof obj[key] !== "object") {
+      res[extraKey + key] = obj[key];
+    } else if (Object.keys(obj[key]).length === 0) {
+      res[extraKey + key] = obj[key].constructor == Object ? "{}" : "[]";
+    } else {
+      flattenJSON(obj[key], res, `${extraKey}${key}.`);
+    }
+  }
   return res;
 };
-
 
 /* Plain Pad app made of entirely rectangles.js components */
 function App() {
@@ -38,23 +38,25 @@ function App() {
   /* Service Change Component */
   function ServiceChange() {
     const currentService = services[selectedService];
-    const flattenedService = flattenJSON(currentService)
+    const flattenedService = flattenJSON(currentService);
     const final = Object.keys(flattenedService).map((label, idx) => {
       return (
-        <EditableField key={idx} field={{type:"input",label:label,data:flattenedService[label]}}></EditableField>
-        );
+        <EditableField
+          key={idx}
+          field={{ type: "input", label: label, data: flattenedService[label] }}
+        ></EditableField>
+      );
     });
 
     return (
       <div>
-        <p>FUCKITY{JSON.stringify(currentService)}</p>
         <div
           class="box warning"
           style={{ marginTop: "4px", marginLeft: "4px", marginRight: "4px" }}
         >
           {final}
-          <EditableField field={{ type: "input",label:"label", data: "Harry" }} />
-          <EditableField field={{ type: "input",label:"label", data: "Harry" }} />
+          <br></br>
+          <NewField></NewField>
         </div>
         <EditApproval></EditApproval>
       </div>
@@ -92,7 +94,7 @@ function App() {
     );
   }
 
-  React.useEffect(()=>window.startTelescope())
+  React.useEffect(() => window.startTelescope());
   React.useEffect(() => setAuthStatus(wapi.isSignedIn()), []);
   React.useEffect(
     function () {
@@ -265,9 +267,9 @@ function SignIn(props) {
           <button
             onClick={() =>
               wapiAuth.logIn(
-                document.getElementById('provider').value,
-                document.getElementById('username').value,
-                document.getElementById('password').value,
+                document.getElementById("provider").value,
+                document.getElementById("username").value,
+                document.getElementById("password").value,
                 setAuthStatus,
                 setStatus
               )
@@ -279,9 +281,11 @@ function SignIn(props) {
           </button>
           <button
             onClick={() =>
-              wapiAuth.signUp(document.getElementById('provider').value,
-              document.getElementById('username').value,
-              document.getElementById('password').value)
+              wapiAuth.signUp(
+                document.getElementById("provider").value,
+                document.getElementById("username").value,
+                document.getElementById("password").value
+              )
             }
             style={{ margin: "0px 5px" }}
             className="button is-info"
@@ -413,7 +417,7 @@ function Branding(props) {
 function EditableField({ field }) {
   switch (field.type) {
     case "input": {
-      return EditableInput(field)
+      return EditableInput(field);
     }
     //TBD maybe...
     // case "switch": {
@@ -425,12 +429,39 @@ function EditableField({ field }) {
   }
 }
 
+function NewField() {
+  return (
+    <div style={{ marginTop: "4px", marginLeft: "4px", marginRight: "4px" }}>
+      Add a field : <br></br>
+      flattenedKey :{" "}
+      <input
+        style={{ backgroundColor: "black", color: "lightgreen" }}
+        placeholder={"examplekey.0.red.1"}
+      ></input>
+      <br></br>
+      value :{" "}
+      <input
+        style={{ backgroundColor: "black", color: "lightgreen" }}
+        placeholder={"value"}
+      ></input>
+      <br></br>
+      <button
+        className="button is-small is-primary"
+        style={{marginTop: "4px" }}
+      >
+        Add
+      </button>
+    </div>
+  );
+}
+
 //TO BE IMPLEMENTED
-const EditableInput = ({ label,data }) => {
+const EditableInput = ({ label, data }) => {
   var [updated, setUpdated] = React.useState(data);
   return (
     <div style={{ marginLeft: "4px", marginTop: "4px" }}>
-      {label} : {data === updated ? (
+      {label} :{" "}
+      {data === updated ? (
         ""
       ) : (
         <span style={{ color: "firebrick", textDecoration: "line-through" }}>
@@ -444,7 +475,7 @@ const EditableInput = ({ label,data }) => {
       ></input>
     </div>
   );
-}
+};
 
 function EditApproval() {
   return (
@@ -467,8 +498,4 @@ function EditApproval() {
   );
 }
 
-
-ReactDOM.render(
-  <App/>,
-  document.getElementById('root')
-)
+ReactDOM.render(<App />, document.getElementById("root"));
