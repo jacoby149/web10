@@ -323,7 +323,7 @@ function Auth(props) {
   );
 }
 function OAuth(props) {
-  const serviceString = "this dont make fucking sense anymore";
+  const serviceString = "Add name of service here";
   return (
     <div style={{ width: "250px" }}>
       <div style={{ margin: "5px" }} className="box is-danger is-light">
