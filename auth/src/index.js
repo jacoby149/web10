@@ -39,11 +39,11 @@ function App() {
   function ServiceChange() {
     const currentService = services[selectedService];
     const flattenedService = flattenJSON(currentService);
-    const final = Object.keys(flattenedService).map((label, idx) => {
+    const final = Object.keys(flattenedService).map((field, idx) => {
       return (
         <EditableField
           key={idx}
-          field={{ type: "input", label: label, data: flattenedService[label] }}
+          field={{ type: "input", field: field, value: flattenedService[field] }}
         ></EditableField>
       );
     });
@@ -456,21 +456,22 @@ function NewField() {
 }
 
 //TO BE IMPLEMENTED
-const EditableInput = ({ label, data }) => {
-  var [updated, setUpdated] = React.useState(data);
+const EditableInput = ({ field, value }) => {
+  var [updated, setUpdated] = React.useState(value);
   return (
     <div style={{ marginLeft: "4px", marginTop: "4px" }}>
-      {label} :{" "}
-      {data === updated ? (
+      {field} :{" "}
+      {value === updated ? (
         ""
       ) : (
         <span style={{ color: "firebrick", textDecoration: "line-through" }}>
-          {data}
+          {value}
         </span>
       )}
       <input
         style={{ color: "#2ECC40" }}
-        defaultValue={data}
+        size={String(value).length}
+        defaultValue={value}
         onChange={(event) => setUpdated(event.target.value)}
       ></input>
     </div>
