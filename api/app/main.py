@@ -197,8 +197,38 @@ async def signup(form_data: models.SignUpForm):
 
 
 #####################################################
+############ Web10 Service Management ###############
+#####################################################
+
+# adds service terms and adds the service to the db.
+@app.post("/service")
+async def add_service(service_name, token: models.Token):
+    return
+
+# deletes service terms and deletes the service from the db.
+@app.delete("/service")
+async def delete_service(service_name, token: models.Token):
+    return
+
+# TODO change all terminology to service update request instead of service change request.
+@app.put("/service")
+async def update_service_terms(new_terms, service_name, token: models.Token):
+    return
+
+@app.post("/data")
+async def import_data(data,service_name,token: models.Token):
+    return
+
+# returns all of the records of the service as JSON + service terms
+@app.patch("/data")
+async def export_data(service_name, token: models.Token):
+    return
+
+
+#####################################################
 ############ Web10 Routes Managed By You ############
 #####################################################
+
 @app.post("/{user}/{service}", tags=["web10"])
 async def create_records(user, service, token: models.Token):
     if not is_permitted(token, user, service, "create"):
