@@ -13,7 +13,7 @@ function pass(props){
   
   function T(props){
     return(
-    <C p = "0 15 0 15"{...pass(props)}>
+    <C p = "0px 15px 0px 15px"{...pass(props)}>
       <textarea className = {"R " + props.theme} style={{paddingTop:"18px",height:"100%",width:"100%",resize:"none"}} placeholder={props.children}></textarea>
     </C>
     )
@@ -23,7 +23,7 @@ function pass(props){
   function C(props){
       const ha = props.ha?props.ha:"left";
       const va = props.va?props.va:"center";
-      const p = props.p?props.p:"0 0 0 15";
+      const p = props.p?props.p:"0px 0px 0px 15px";
       return (
           <R {...pass(props)}>
               <R ns = {props.ns} tel t h={props.h}>
