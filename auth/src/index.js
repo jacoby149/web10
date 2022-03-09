@@ -143,7 +143,7 @@ function App() {
           bars
         </Icon>
         <R tel />
-        <R l ns s={"240px"}>
+        <R l ns s={"300px"}>
           <Auth hook={[authStatus, setAuthStatus]}></Auth>
           <Icon>user-circle</Icon>
           <Icon onClick={toggleTheme}>moon</Icon>
