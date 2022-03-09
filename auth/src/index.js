@@ -4,6 +4,7 @@ import { pass, R, C, T } from "./Rectangles.js";
 
 var wapi = window.wapi;
 var wapiAuth = window.wapiAuth;
+var telescope = window.telescope;
 
 // function for flattening json
 const flattenJSON = (obj = {}, res = {}, extraKey = "") => {
@@ -94,7 +95,7 @@ function App() {
     );
   }
 
-  React.useEffect(() => window.startTelescope());
+  React.useEffect(() => telescope.start(window.root));
   React.useEffect(() => setAuthStatus(wapi.isSignedIn()), []);
   React.useEffect(
     function () {
@@ -397,9 +398,9 @@ function Icon(props) {
 function Branding(props) {
   return (
     <R l {...pass(props)}>
-      <C l p="0 0 0 22" s={"70px"}>
+      <C l p="0px 0px 0px 22px" s={"70px"}>
         {/* Plain Pad Logo */}
-        <img src={"key_white.png"} style={{ height: "80%" }} />
+        <img src={"key_white.png"} style={{ height: "60%" }} />
       </C>
 
       <C l ns mc s={"120px"}>
