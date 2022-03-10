@@ -15,7 +15,7 @@ services:
           - api.localhost
   auth:
     build: auth
-    command: ["npm", "start"]
+    command: "npm start"
     volumes:
       - ./auth:/frontend
       - node-modules:/frontend/node_modules
