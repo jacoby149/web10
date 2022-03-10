@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom";
-import { pass, R, C, T } from "./Rectangles.js";
+import { pass, R, C, T } from "rectangles-npm/Rectangles";
 
 var wapi = window.wapi;
 var wapiAuth = window.wapiAuth;

@@ -8,6 +8,7 @@
     "@json-editor/json-editor": "^2.6.1",
     "@mui/material": "^5.4.1",
     "axios": "^0.26.0",
+    "rectangles-npm": "1.0.1",
     "react": "^16.8.3",
     "react-dom": "^16.8.3",
     "react-scripts": "2.1.5"

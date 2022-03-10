@@ -4,3 +4,4 @@ auth/client/package-lock.json
 auth/client/temp/index.js
 auth/client/temp/index.css
 api/app/settings.py
+auth/package-lock.json
