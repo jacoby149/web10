@@ -67,16 +67,11 @@ def decode_token(token: str, private_key=False) -> models.TokenData:
 
 # check if a token can be minted given a submitted token
 def can_mint(submission_token, mint_token):
-    print(submission_token)
-    print(mint_token)
     # TODO CHECK FOR PROTOCOL
     if submission_token.username == mint_token.username:
         pass
     else:
         raise exceptions.MINT
-
-    print(submission_token)
-    cur_site = submission_token.site
     if not submission_token.site:
         pass
     elif submission_token.site in settings.CORS_SERVICE_MANAGERS:
@@ -99,7 +94,6 @@ def can_mint(submission_token, mint_token):
 def certify_with_remote_provider(token: models.Token):
     decoded = decode_token(token.token)
     url = f"{decoded.provider}/certify"
-    # print("TRYING AND DYING")
     response = requests.post(url, json=token.json())
     return response.status_code == 200
 
@@ -139,7 +133,6 @@ def is_permitted(token: models.Token, username, service, action):
 # check that a token is a valid non expired token written by this web10 server.
 @app.post("/certify")
 async def certify_token(token: models.Token):
-    print("WE ARE CERTIFIED\n\n\n")
     return certify(token)
 
 
@@ -162,23 +155,16 @@ def certify(token: models.Token):
 async def create_web10_token(form_data: models.TokenForm):
     token_data = models.TokenData()
     token_data.populate_from_token_form(form_data)
-    print(token_data)
     try:
-        print("Trying!!!")
         if form_data.password:
             if authenticate_user(form_data.username, form_data.password):
                 pass
         elif form_data.token:
-            print(1)
             if certify(models.Token(token=form_data.token)):
-                print(2)
                 if can_mint(decode_token(form_data.token), token_data):
-                    print(3)
                     pass
     except Exception as e:
-        print("Dying!!!!")
         raise e
-    print("Living!!!!")
     token_data.expires = (
         datetime.utcnow() + timedelta(minutes=settings.TOKEN_EXPIRE_MINUTES)
     ).isoformat()
