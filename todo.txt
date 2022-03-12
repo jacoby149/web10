@@ -1,0 +1,6 @@
+add attributes to describe service json ["normal","create","change","delete"]
+trigger appropriate api action from the frontend upon approve and deny changes buttons
+debug the crm
+google cloud kubernetes host
+design social app
+debug social app
