@@ -166,7 +166,7 @@ function Credits(props) {
     <R t {...pass(props)}>
       <C s={"70px"}>
         <div style={{ fontFamily: "monospace" }}>
-          Made by Sato and <a href="https://jacobhoffman.tk">Suzuki</a>
+          Made by <a href="https://jacobhoffman.tk">Jacob Hoffman</a>
         </div>
       </C>
     </R>
