@@ -65,6 +65,7 @@ function App() {
           .get("services", token.username, token.provider)
           .then(function (response) {
             console.log(response.data);
+            //TODO changes and additions here
             setServices(response.data);
           })
           .catch(console.log);
