@@ -1,6 +1,7 @@
-add attributes to describe service json ["normal","create","change","delete"]
-trigger appropriate api action from the frontend upon approve and deny changes buttons
-debug the crm
-google cloud kubernetes host
-design social app
-debug social app
+separate index.js into separate components
+add front end types to services [null,"new","change"]
+color services by their type
+make "approve changes" button trigger web10 requests
+make "deny changes" clear modifications
+recieve the CRM's new service SCR submission in web10 auth.
+debug the crm, and host the thing on google cloud.
