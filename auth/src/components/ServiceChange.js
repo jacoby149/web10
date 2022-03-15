@@ -3,7 +3,7 @@ import flattenJSON from "./flattenJSON.js";
 
 /* Service Change Component */
 function ServiceChange({ services, selectedService }) {
-  const currentService = services[selectedService];
+  const currentService = services[selectedService][0];
   const flattenedService = flattenJSON(currentService);
   const final = Object.keys(flattenedService).map((field, idx) => {
     return (

@@ -11,9 +11,9 @@ var telescope = window.telescope;
 /* Plain Pad app made of entirely rectangles.js components */
 function App() {
   const [authStatus, setAuthStatus] = React.useState(false);
-  const [services, setServices] = React.useState([
-    { body: { service: "log in to manage services" } },
-  ]);
+  const [services, setServices] = React.useState([[
+    { body: { service: "log in to manage services" } },null
+   ] ]);
   const [status, setStatus] = React.useState(
     "log in to authorize apps and manage services"
   );
@@ -36,16 +36,19 @@ function App() {
 
   function Services(props) {
     const final = props.services.map((service, idx) => {
+      const type = service[1];
+      const style = type=="new"?{color:"green"}:
+        type=="change"?{color:"yellow"}:{};
       return (
-        <Service
+        <C bb h s={"40px"}
           key={idx}
           onClick={() => {
             setMode("services");
             setSelectedService(idx);
           }}
         >
-          {service.body.service}
-        </Service>
+          <p style={style}>{service[0].body.service}</p>
+        </C>
       );
     });
     return (
@@ -66,11 +69,17 @@ function App() {
           .then(function (response) {
             console.log(response.data);
             //TODO changes and additions here
-            setServices(response.data);
+            const scr = response.data.map(
+              (service)=>[service,null]);
+            const add = [{body:{service:"addy"}},"new"]
+            const change = [{body:{service:"changey"}},"change"]
+            scr.push(add);
+            scr.push(change); 
+            setServices(scr);
           })
           .catch(console.log);
       } else {
-        setServices([{ body: { service: "log in to manage services" } }]);
+        setServices([[{ body: { service: "log in to manage services" } },null]]);
       }
     },
     [authStatus]
@@ -233,15 +242,6 @@ function OAuth(props) {
         </div>
       </div>
     </div>
-  );
-}
-/* A custom sub class of Content(C). (Which makes it a subclass of (R))
-/* For Custom Rectangle subclasses, make sure to pass props.ps through. */
-function Service(props) {
-  return (
-    <C bb h s={"40px"} {...pass(props)}>
-      {props.children}
-    </C>
   );
 }
 
