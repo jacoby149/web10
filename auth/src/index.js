@@ -1,24 +1,12 @@
 import React from "react";
 import ReactDOM from "react-dom";
-import { pass, R, C, T } from "./Rectangles.js";
+import { pass, R, C, T } from "./components/Rectangles.js";
+import ServiceChange from "./components/ServiceChange.js"
+import SignIn from "./components/SignIn.js"
 
 var wapi = window.wapi;
 var wapiAuth = window.wapiAuth;
 var telescope = window.telescope;
-
-// function for flattening json
-const flattenJSON = (obj = {}, res = {}, extraKey = "") => {
-  for (const key in obj) {
-    if (typeof obj[key] !== "object") {
-      res[extraKey + key] = obj[key];
-    } else if (Object.keys(obj[key]).length === 0) {
-      res[extraKey + key] = obj[key].constructor == Object ? "{}" : "[]";
-    } else {
-      flattenJSON(obj[key], res, `${extraKey}${key}.`);
-    }
-  }
-  return res;
-};
 
 /* Plain Pad app made of entirely rectangles.js components */
 function App() {
@@ -36,40 +24,12 @@ function App() {
   /* index of the selected service to display in the UI */
   const [selectedService, setSelectedService] = React.useState(0);
 
-  /* Service Change Component */
-  function ServiceChange() {
-    const currentService = services[selectedService];
-    const flattenedService = flattenJSON(currentService);
-    const final = Object.keys(flattenedService).map((field, idx) => {
-      return (
-        <EditableField
-          key={idx}
-          field={{ type: "input", field: field, value: flattenedService[field] }}
-        ></EditableField>
-      );
-    });
-
-    return (
-      <div>
-        <div
-          class="box warning"
-          style={{ marginTop: "4px", marginLeft: "4px", marginRight: "4px" }}
-        >
-          {final}
-          <br></br>
-          <NewField></NewField>
-        </div>
-        <EditApproval></EditApproval>
-      </div>
-    );
-  }
-
   function displayBasedOnMode() {
     switch (mode) {
       case "auth":
         return <OAuth />;
       case "services":
-        return <ServiceChange />;
+        return <ServiceChange services={services} selectedService={selectedService} />;
       default:
     }
   }
@@ -186,6 +146,7 @@ function App() {
             <SignIn
               authHook={[authStatus, setAuthStatus]}
               statusHook={[status, setStatus]}
+              wapiAuth={wapiAuth}
             ></SignIn>
           ) : (
             <R bt t>
@@ -208,94 +169,6 @@ function Credits(props) {
         </div>
       </C>
     </R>
-  );
-}
-
-function SignIn(props) {
-  const [authStatus, setAuthStatus] = props.authHook;
-  const [status, setStatus] = props.statusHook;
-  return (
-    <div style={{ width: "300px", height: "210px" }}>
-      <div className="field">
-        <p style={{ margin: "5px 10px" }} className="control has-icons-left">
-          web10provider:{" "}
-          <input
-            id="provider"
-            className="input has-background-white"
-            defaultValue="http://api.localhost"
-            placeholder="http://api.localhost"
-          />
-        </p>
-      </div>
-      <div className="field">
-        <p
-          style={{ margin: "5px 10px" }}
-          className="control has-icons-left has-icons-right"
-        >
-          username:
-          <input
-            id="username"
-            className="input has-background-white"
-            placeholder="Username"
-          />
-        </p>
-      </div>
-      <div className="field">
-        <p style={{ margin: "5px 10px" }} className="control has-icons-left">
-          password:{" "}
-          <input
-            id="password"
-            className="input has-background-white"
-            type="password"
-            placeholder="Password"
-          />
-        </p>
-      </div>
-      {/* <div className="field">
-                <p style = {{"margin":"5px"}} className="control has-icons-left">
-                    <input id = "confirmPassword" className="input has-background-white" type="password" placeholder="Confirm Password"/>
-                </p>
-        </div> */}
-      <div
-        style={{ margin: "5px" }}
-        className="notification is-danger is-light"
-      >
-        {status}
-      </div>
-
-      <div className="field">
-        <p className="control">
-          <button
-            onClick={() =>
-              wapiAuth.logIn(
-                document.getElementById("provider").value,
-                document.getElementById("username").value,
-                document.getElementById("password").value,
-                setAuthStatus,
-                setStatus
-              )
-            }
-            style={{ margin: "0px 10px" }}
-            className="button is-success"
-          >
-            Login
-          </button>
-          <button
-            onClick={() =>
-              wapiAuth.signUp(
-                document.getElementById("provider").value,
-                document.getElementById("username").value,
-                document.getElementById("password").value
-              )
-            }
-            style={{ margin: "0px 5px" }}
-            className="button is-info"
-          >
-            Signup
-          </button>
-        </p>
-      </div>
-    </div>
   );
 }
 
@@ -323,6 +196,8 @@ function Auth(props) {
     </C>
   );
 }
+
+//authorization
 function OAuth(props) {
   const serviceString = "Add name of service here";
   return (
@@ -343,7 +218,7 @@ function OAuth(props) {
             style={{ margin: "0px 5px" }}
             className="button is-warning"
           >
-            Authorize
+            Log In
           </button>
           <br />
 
@@ -351,24 +226,9 @@ function OAuth(props) {
             style={{ margin: "5px" }}
             className="notification is-danger is-light"
           >
-            <a>{document.referrer}</a> would like to add services{" "}
-            <strong>{serviceString}.</strong>
+            <a>{document.referrer}</a> would like to make service changes.{" "}
+            <strong>approve or deny the changes in the left pane.</strong>
           </div>
-
-          <button
-            onClick={wapiAuth.sendToken}
-            style={{ margin: "0px 5px" }}
-            className="button is-warning"
-          >
-            Approve
-          </button>
-          <button
-            onClick={wapiAuth.sendToken}
-            style={{ margin: "0px 5px" }}
-            className="button is-warning"
-          >
-            Deny
-          </button>
         </div>
       </div>
     </div>
@@ -412,91 +272,6 @@ function Branding(props) {
         </div>
       </C>
     </R>
-  );
-}
-
-function EditableField({ field }) {
-  switch (field.type) {
-    case "input": {
-      return EditableInput(field);
-    }
-    //TBD maybe...
-    // case "switch": {
-    //   return EditableSwitch(field)
-    // }
-    // case "select": {
-    //   return EditableDropDown(field)
-    // }
-  }
-}
-
-function NewField() {
-  return (
-    <div style={{ marginTop: "4px", marginLeft: "4px", marginRight: "4px" }}>
-      Add a field : <br></br>
-      flattenedKey :{" "}
-      <input
-        style={{ backgroundColor: "black", color: "lightgreen" }}
-        placeholder={"examplekey.0.red.1"}
-      ></input>
-      <br></br>
-      value :{" "}
-      <input
-        style={{ backgroundColor: "black", color: "lightgreen" }}
-        placeholder={"value"}
-      ></input>
-      <br></br>
-      <button
-        className="button is-small is-primary"
-        style={{marginTop: "4px" }}
-      >
-        Add
-      </button>
-    </div>
-  );
-}
-
-//TO BE IMPLEMENTED
-const EditableInput = ({ field, value }) => {
-  var [updated, setUpdated] = React.useState(value);
-  return (
-    <div style={{ marginLeft: "4px", marginTop: "4px" }}>
-      {field} :{" "}
-      {value === updated ? (
-        ""
-      ) : (
-        <span style={{ color: "firebrick", textDecoration: "line-through" }}>
-          {value}
-        </span>
-      )}
-      <input
-        style={{ color: "#2ECC40" }}
-        size={String(value).length}
-        defaultValue={value}
-        onChange={(event) => setUpdated(event.target.value)}
-      ></input>
-    </div>
-  );
-};
-
-function EditApproval() {
-  return (
-    <div>
-      <button
-        onClick={wapiAuth.sendToken}
-        style={{ margin: "0px 5px" }}
-        className="button is-warning"
-      >
-        Approve Service Changes
-      </button>
-      <button
-        onClick={wapiAuth.sendToken}
-        style={{ margin: "0px 5px" }}
-        className="button is-warning"
-      >
-        Deny Service Changes
-      </button>
-    </div>
   );
 }
 
