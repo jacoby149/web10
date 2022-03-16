@@ -8,7 +8,7 @@ function ServiceChange({ services, selectedService }) {
   const final = Object.keys(flattenedService).map((field, idx) => {
     return (
       <EditableField
-        key={[currentService["body"]["service"],idx]}
+        key={[currentService["body"]["service"], idx]}
         type={"input"}
         field={field}
         value={flattenedService[field]}
@@ -31,10 +31,10 @@ function ServiceChange({ services, selectedService }) {
   );
 }
 
-function EditableField({ type,field,value }) {
+function EditableField({ type, field, value }) {
   switch (type) {
     case "input": {
-      return <EditableInput field={field}value={value}/>;
+      return <EditableInput field={field} value={value} />;
     }
     //TODO add dropdown types and more
   }
@@ -107,7 +107,7 @@ function EditApproval() {
         style={{ margin: "0px 5px" }}
         className="button is-warning"
       >
-        Approve Service Changes
+        Approve Service Addition
       </button>
       <button
         onClick={clear()}

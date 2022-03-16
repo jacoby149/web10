@@ -16,15 +16,14 @@ function serviceChangeRequesterInit(authUrl){
     const serviceChangeRequester = {};
 
     //listens for the auth window to be ready, and sends the stored service change request 
-    serviceChangeRequester.requestOnReady = function(servicesToGrant,servicesToRevoke = []) {
+    serviceChangeRequester.requestOnReady = function(servicesToGrant) {
         window.addEventListener('message', 
             function(e) {
                 if (e.data.type === "ready") {
                     window.opener.postMessage(
                         {
                             "type":"services",
-                            "servicesToGrant": servicesToGrant,
-                            "servicesToRevoke": servicesToRevoke 
+                            "servicesToGrant": servicesToGrant
                         }, 
                         "*");               
                 }
