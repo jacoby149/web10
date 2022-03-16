@@ -1,8 +1,8 @@
 import React from "react";
 import ReactDOM from "react-dom";
 import { pass, R, C, T } from "./components/Rectangles.js";
-import ServiceChange from "./components/ServiceChange.js"
-import SignIn from "./components/SignIn.js"
+import ServiceChange from "./components/ServiceChange.js";
+import SignIn from "./components/SignIn.js";
 
 var wapi = window.wapi;
 var wapiAuth = window.wapiAuth;
@@ -11,9 +11,9 @@ var telescope = window.telescope;
 /* Plain Pad app made of entirely rectangles.js components */
 function App() {
   const [authStatus, setAuthStatus] = React.useState(false);
-  const [services, setServices] = React.useState([[
-    { body: { service: "log in to manage services" } },null
-   ] ]);
+  const [services, setServices] = React.useState([
+    [{ body: { service: "log in to manage services" } }, null],
+  ]);
   const [status, setStatus] = React.useState(
     "log in to authorize apps and manage services"
   );
@@ -29,7 +29,12 @@ function App() {
       case "auth":
         return <OAuth />;
       case "services":
-        return <ServiceChange services={services} selectedService={selectedService} />;
+        return (
+          <ServiceChange
+            services={services}
+            selectedService={selectedService}
+          />
+        );
       default:
     }
   }
@@ -37,10 +42,17 @@ function App() {
   function Services(props) {
     const final = props.services.map((service, idx) => {
       const type = service[1];
-      const style = type=="new"?{color:"green"}:
-        type=="change"?{color:"yellow"}:{};
+      const style =
+        type == "new"
+          ? { color: "#2ECC40" }
+          : type == "change"
+          ? { color: "yellow" }
+          : {};
       return (
-        <C bb h s={"40px"}
+        <C
+          bb
+          h
+          s={"40px"}
           key={idx}
           onClick={() => {
             setMode("services");
@@ -69,17 +81,16 @@ function App() {
           .then(function (response) {
             console.log(response.data);
             //TODO changes and additions here
-            const scr = response.data.map(
-              (service)=>[service,null]);
-            const add = [{body:{service:"addy"}},"new"]
-            const change = [{body:{service:"changey"}},"change"]
+            const scr = response.data.map((service) => [service, null]);
+            const add = [{ body: { service: "addy" } }, "new"];
             scr.push(add);
-            scr.push(change); 
             setServices(scr);
           })
           .catch(console.log);
       } else {
-        setServices([[{ body: { service: "log in to manage services" } },null]]);
+        setServices([
+          [{ body: { service: "log in to manage services" } }, null],
+        ]);
       }
     },
     [authStatus]
@@ -212,9 +223,15 @@ function OAuth(props) {
   const serviceString = "Add name of service here";
   return (
     <div style={{ width: "250px" }}>
-      <div style={{ margin: "5px" }} className="box is-danger is-light">
-        &#123; Log in to continue. &#125;
+
+      <div
+        style={{ margin: "5px" }}
+        className="notification is-warning is-light"
+      >
+        <a>{document.referrer}</a> would like to make service changes.{" "}
+        <strong>approve or deny the changes in the left pane.</strong>
       </div>
+
       <div
         style={{ margin: "5px" }}
         className="notification is-danger is-light"
@@ -230,15 +247,6 @@ function OAuth(props) {
           >
             Log In
           </button>
-          <br />
-
-          <div
-            style={{ margin: "5px" }}
-            className="notification is-danger is-light"
-          >
-            <a>{document.referrer}</a> would like to make service changes.{" "}
-            <strong>approve or deny the changes in the left pane.</strong>
-          </div>
         </div>
       </div>
     </div>
