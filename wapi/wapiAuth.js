@@ -69,9 +69,12 @@ function wapiAuthInit () {
     wapiAuth.changeUsername = function() {}
     wapiAuth.changePassword = function() {}
 
-    //Listen for the SMR
+    //Listen for the SMR and use it to set a web10 auth app state
     wapiAuth.SMRListen = function(setState){
-        return;
+        window.addEventListener('message', 
+        function(e) {
+            if (e.data.type === "smr") setState(e.data);
+        });    
     };
 
     //output the wapiAuth object
