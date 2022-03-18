@@ -1,7 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom";
 import { pass, R, C, T } from "./components/Rectangles.js";
-import ServiceTerms from "./components/ServiceChange.js";
+import ServiceTerms from "./components/ServiceTerms.js";
 import SignIn from "./components/SignIn.js";
 
 var wapi = window.wapi;
