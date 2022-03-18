@@ -1,8 +1,7 @@
-service change state and hook it up to fields.
-adding fields to scr.
-scr approval insert for add and update for change reload.
-make "deny changes" wipe changes.
-make scrs get accepted by web10auth from the referrer.
-debug the crm.
+implement SIR requests in wapi.
+implement SIR in wapiAuth.
+Make SIR Approval button work.
 add web10 beta access code to login.
 set up web10 deploy google autopilot.
+
+
