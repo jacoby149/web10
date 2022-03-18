@@ -69,6 +69,11 @@ function wapiAuthInit () {
     wapiAuth.changeUsername = function() {}
     wapiAuth.changePassword = function() {}
 
+    //Listen for the SMR
+    wapiAuth.SMRListen = function(setState){
+        return;
+    };
+
     //output the wapiAuth object
     return wapiAuth;
 }
