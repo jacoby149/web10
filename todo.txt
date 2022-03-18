@@ -3,4 +3,9 @@ implement SIR in wapiAuth.
 Make SIR Approval button work.
 add web10 beta access code to login.
 set up web10 deploy google autopilot.
-implement services user CRUD
+
+
+
+
+implement service modification addition
+implement service modification deletion
