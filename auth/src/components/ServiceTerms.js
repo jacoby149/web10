@@ -3,9 +3,9 @@ import flattenJSON from "./flattenJSON.js";
 
 /* Service Change Component */
 function ServiceTerms({ services, selectedService, SCRS }) {
-  
   const currentService = services[selectedService][0];
   const flattenedService = flattenJSON(currentService);
+  const updates = {...flattenedService};
   const final = Object.keys(flattenedService).map((field, idx) => {
     return (
       <EditableField
@@ -13,6 +13,7 @@ function ServiceTerms({ services, selectedService, SCRS }) {
         type={"input"}
         field={field}
         value={flattenedService[field]}
+        updates={updates}
       ></EditableField>
     );
   });
@@ -32,15 +33,18 @@ function ServiceTerms({ services, selectedService, SCRS }) {
   );
 }
 
-function EditableField({ type, field, value }) {
+function EditableField({ type, field, value, updates }) {
   switch (type) {
     case "input": {
-      return <EditableInput field={field} value={value} />;
+      return (
+        <EditableInput field={field} value={value} updates={updates} />
+      );
     }
     //TODO add dropdown types and more
   }
 }
 
+//allows CRUDstyle creation of fields
 function NewField() {
   return (
     <div style={{ marginTop: "4px", marginLeft: "4px", marginRight: "4px" }}>
@@ -68,12 +72,13 @@ function NewField() {
 }
 
 //TO BE IMPLEMENTED
-const EditableInput = ({ field, value }) => {
-  var [updated, setUpdated] = React.useState(value);
+const EditableInput = ({ field, value, updates }) => {
+  console.log(updates);
+  const [update, setUpdate] = React.useState(updates[field]);
   return (
     <div style={{ marginLeft: "4px", marginTop: "4px" }}>
       {field} :{" "}
-      {value === updated ? (
+      {value === update ? (
         ""
       ) : (
         <span style={{ color: "firebrick", textDecoration: "line-through" }}>
@@ -82,9 +87,13 @@ const EditableInput = ({ field, value }) => {
       )}
       <input
         style={{ color: "#2ECC40" }}
-        size={String(value).length}
-        defaultValue={value}
-        onChange={(event) => setUpdated(event.target.value)}
+        size={String(update).length}
+        defaultValue={update}
+        onChange={function (event) {
+          var newUpdate = event.target.value;
+          updates[field] = newUpdate;
+          setUpdate(newUpdate);
+        }}
       ></input>
     </div>
   );
