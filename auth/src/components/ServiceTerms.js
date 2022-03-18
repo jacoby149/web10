@@ -4,18 +4,19 @@ import flattenJSON from "./flattenJSON.js";
 /* Service Change Component */
 function ServiceTerms({ services, selectedService, SCRS }) {
   const currentService = services[selectedService][0];
-  const flattenedService = flattenJSON(currentService);
+  const RecordsFormattedService = flattenJSON(currentService);
   //store updates adjacently
-  Object.keys(flattenedService).map(function(key,index){
-    flattenedService[key] = {"value":flattenedService[key],"update":flattenedService[key]}
+  Object.keys(RecordsFormattedService).map(function(key,index){
+    const value = RecordsFormattedService[key]
+    RecordsFormattedService[key] = {"value":value,"update":value}
   })
-  const final = Object.keys(flattenedService).map((field, idx) => {
+  const final = Object.keys(RecordsFormattedService).map((field, idx) => {
     return (
       <EditableField
         key={[currentService["body"]["service"], idx]}
         type={"input"}
         field={field}
-        flattenedService={flattenedService}
+        records={RecordsFormattedService}
       ></EditableField>
     );
   });
@@ -35,11 +36,11 @@ function ServiceTerms({ services, selectedService, SCRS }) {
   );
 }
 
-function EditableField({ type, field, flattenedService }) {
+function EditableField({ type, field, records }) {
   switch (type) {
     case "input": {
       return (
-        <EditableInput field={field} flattenedService={flattenedService} />
+        <EditableInput field={field} records={records} />
       );
     }
     //TODO add dropdown types and more
@@ -74,8 +75,8 @@ function NewField() {
 }
 
 //TO BE IMPLEMENTED
-const EditableInput = ({ field, flattenedService }) => {
-  const record = flattenedService[field];
+const EditableInput = ({ field, records }) => {
+  const record = records[field];
   const [update, setUpdate] = React.useState(record["update"]);
   const value = record["value"];
   return (
