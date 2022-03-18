@@ -12,33 +12,26 @@ function cookieDict() {
     )
 }   
 
-function serviceChangeRequesterInit(authUrl){
-    const serviceChangeRequester = {};
+function serviceModRequesterInit(authUrl){
+    const serviceModRequester = {};
 
     //listens for the auth window to be ready, and sends the stored service change request 
-    serviceChangeRequester.requestOnReady = function(servicesToGrant) {
+    serviceModRequester.requestOnReady = function(sirs,scrs) {
         window.addEventListener('message', 
             function(e) {
                 if (e.data.type === "ready") {
                     window.opener.postMessage(
                         {
-                            "type":"services",
-                            "servicesToGrant": servicesToGrant
-                        }, 
-                        "*");               
+                            "type":"smr",
+                            "sirs": sirs,
+                            "scrs":scrs,
+                        });               
                 }
             });
         }    
 
-    //listens for an approval or denial of service request 
-    serviceChangeRequester.serviceChangeListen = function(setStatus) {
-        window.addEventListener('message', 
-            function(e) {
-                if (e.data.type === "status") setStatus(e.data.status)
-            });
-        }
-
-    return serviceChangeRequester;
+    //TODO add a function that listens for an approval or denial of service request 
+    return serviceModRequester;
 }
 
 //initializes the wapi library object
@@ -82,9 +75,6 @@ function wapiInit(authUrl="http://auth.localhost") {
                 }
             });
         }
-
-    //add service requesting to wapi
-    wapi.serviceChangeRequester = serviceChangeRequesterInit();
 
     wapi.readToken = function(){
         return JSON.parse(atob(wapi.token.split('.')[1]));;
@@ -132,6 +122,8 @@ function wapiInit(authUrl="http://auth.localhost") {
         return HTTPRequestFunction(`http://${provider}/${username}/${service}`,t)
     }
     
+    //add service requesting to wapi
+    wapi.serviceModRequester = serviceModRequesterInit(authUrl);
 
     //output the wapi object
     return wapi;

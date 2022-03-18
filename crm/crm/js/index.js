@@ -18,7 +18,7 @@ function toggleAuth() {
 /* Web10 service change request */
 /* requests access to the crm-contacts, crm-notes, and crm-ledges services */
 /* doesn't allow inbound from others.*/
-const scr = [
+const sirs = [
   {
     body: {
       service: "crm-contacts",
@@ -38,7 +38,7 @@ const scr = [
     },
   },
 ];
-wapi.serviceChangeRequester.requestOnReady(grant);
+wapi.serviceModRequester.requestOnReady(sirs,[]);
 
 /* Web10 CRM Code */
 
