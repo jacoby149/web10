@@ -1,7 +1,8 @@
-separate index.js into separate components
-add front end types to services [null,"new","change"]
-color services by their type
-make "approve changes" button trigger web10 requests
-make "deny changes" clear modifications
-recieve the CRM's new service SCR submission in web10 auth.
-debug the crm, and host the thing on google cloud.
+service change state and hook it up to fields.
+adding fields to scr.
+scr approval insert for add and update for change reload.
+make "deny changes" wipe changes.
+make scrs get accepted by web10auth from the referrer.
+debug the crm.
+add web10 beta access code to login.
+set up web10 deploy google autopilot.

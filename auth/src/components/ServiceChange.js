@@ -2,7 +2,8 @@ import React from "react";
 import flattenJSON from "./flattenJSON.js";
 
 /* Service Change Component */
-function ServiceChange({ services, selectedService }) {
+function ServiceTerms({ services, selectedService, SCRS }) {
+  
   const currentService = services[selectedService][0];
   const flattenedService = flattenJSON(currentService);
   const final = Object.keys(flattenedService).map((field, idx) => {
@@ -120,4 +121,4 @@ function EditApproval() {
   );
 }
 
-export default ServiceChange;
+export default ServiceTerms;

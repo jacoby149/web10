@@ -1,7 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom";
 import { pass, R, C, T } from "./components/Rectangles.js";
-import ServiceChange from "./components/ServiceChange.js";
+import ServiceTerms from "./components/ServiceChange.js";
 import SignIn from "./components/SignIn.js";
 
 var wapi = window.wapi;
@@ -11,9 +11,16 @@ var telescope = window.telescope;
 /* Plain Pad app made of entirely rectangles.js components */
 function App() {
   const [authStatus, setAuthStatus] = React.useState(false);
+
+  //list of all services, and desired to initialize services
   const [services, setServices] = React.useState([
     [{ body: { service: "log in to manage services" } }, null],
   ]);
+
+  //for service changes, NOT initializations
+  const [SCRS, setSCRS] = React.useState({});
+
+  //status message
   const [status, setStatus] = React.useState(
     "log in to authorize apps and manage services"
   );
@@ -30,9 +37,10 @@ function App() {
         return <OAuth />;
       case "services":
         return (
-          <ServiceChange
+          <ServiceTerms
             services={services}
             selectedService={selectedService}
+            SCRS={SCRS}
           />
         );
       default:
@@ -80,11 +88,15 @@ function App() {
           .get("services", token.username, token.provider)
           .then(function (response) {
             console.log(response.data);
-            //TODO changes and additions here
-            const scr = response.data.map((service) => [service, null]);
+            //label service change requests on existing services.
+            const updatedServices = response.data.map((service) => [
+              service,
+              service["body"]["service"] in SCRS ? "change" : null
+            ]);
+            //add service initialization requests.
             const add = [{ body: { service: "addy" } }, "new"];
-            scr.push(add);
-            setServices(scr);
+            updatedServices.push(add);
+            setServices(updatedServices);
           })
           .catch(console.log);
       } else {
@@ -223,7 +235,6 @@ function OAuth(props) {
   const serviceString = "Add name of service here";
   return (
     <div style={{ width: "250px" }}>
-
       <div
         style={{ margin: "5px" }}
         className="notification is-warning is-light"
