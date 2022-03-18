@@ -25,7 +25,7 @@ function serviceModRequesterInit(authUrl){
                             "type":"smr",
                             "sirs": sirs,
                             "scrs":scrs,
-                        });               
+                        },"*");               
                 }
             });
         }    
@@ -93,13 +93,13 @@ function wapiInit(authUrl="http://auth.localhost") {
     }
 
     //CRUD functionality (patch instead of get (secure) since patch can have a body)
-    wapi.get = function(service,username=null,provider=null,query=null){
+    wapi.read = function(service,username=null,provider=null,query=null){
         return wapi._W10CRUD(axios.patch,provider,username,service,query);
     }
-    wapi.post = function(service,username=null,provider=null,query=null){
+    wapi.create = function(service,username=null,provider=null,query=null){
         return wapi._W10CRUD(axios.post,provider,username,service,query);
     }
-    wapi.put = function(service,username=null,provider=null,query=null,value=null){
+    wapi.update = function(service,username=null,provider=null,query=null,value=null){
         return wapi._W10CRUD(axios.put,provider,username,service,query,value)
     }
     wapi.delete = function(service,username=null,provider=null,query=null){
