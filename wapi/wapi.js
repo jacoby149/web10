@@ -15,7 +15,7 @@ function cookieDict() {
 function serviceModRequesterInit(authUrl){
     const serviceModRequester = {};
 
-    //listens for the auth window to be ready, and sends the stored service change request 
+    //listens for the auth window to be ready, and sends the SMR 
     serviceModRequester.requestOnReady = function(sirs,scrs) {
         window.addEventListener('message', 
             function(e) {
@@ -30,7 +30,14 @@ function serviceModRequesterInit(authUrl){
             });
         }    
 
-    //TODO add a function that listens for an approval or denial of service request 
+    //listens for user approval or denial of SMR
+    serviceModRequester.userResponseListen = function(setStatus) {
+        window.addEventListener('message', 
+            function(e) {
+                if (e.data.type === "status") setStatus(e.data.status)
+            });
+        }
+
     return serviceModRequester;
 }
 
