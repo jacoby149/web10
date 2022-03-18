@@ -5,15 +5,17 @@ import flattenJSON from "./flattenJSON.js";
 function ServiceTerms({ services, selectedService, SCRS }) {
   const currentService = services[selectedService][0];
   const flattenedService = flattenJSON(currentService);
-  const updates = {...flattenedService};
+  //store updates adjacently
+  Object.keys(flattenedService).map(function(key,index){
+    flattenedService[key] = {"value":flattenedService[key],"update":flattenedService[key]}
+  })
   const final = Object.keys(flattenedService).map((field, idx) => {
     return (
       <EditableField
         key={[currentService["body"]["service"], idx]}
         type={"input"}
         field={field}
-        value={flattenedService[field]}
-        updates={updates}
+        flattenedService={flattenedService}
       ></EditableField>
     );
   });
@@ -33,11 +35,11 @@ function ServiceTerms({ services, selectedService, SCRS }) {
   );
 }
 
-function EditableField({ type, field, value, updates }) {
+function EditableField({ type, field, flattenedService }) {
   switch (type) {
     case "input": {
       return (
-        <EditableInput field={field} value={value} updates={updates} />
+        <EditableInput field={field} flattenedService={flattenedService} />
       );
     }
     //TODO add dropdown types and more
@@ -72,9 +74,10 @@ function NewField() {
 }
 
 //TO BE IMPLEMENTED
-const EditableInput = ({ field, value, updates }) => {
-  console.log(updates);
-  const [update, setUpdate] = React.useState(updates[field]);
+const EditableInput = ({ field, flattenedService }) => {
+  const record = flattenedService[field];
+  const [update, setUpdate] = React.useState(record["update"]);
+  const value = record["value"];
   return (
     <div style={{ marginLeft: "4px", marginTop: "4px" }}>
       {field} :{" "}
@@ -91,7 +94,7 @@ const EditableInput = ({ field, value, updates }) => {
         defaultValue={update}
         onChange={function (event) {
           var newUpdate = event.target.value;
-          updates[field] = newUpdate;
+          record["update"] = newUpdate;
           setUpdate(newUpdate);
         }}
       ></input>
