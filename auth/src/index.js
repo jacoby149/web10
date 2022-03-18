@@ -80,12 +80,14 @@ function App() {
 
   React.useEffect(() => telescope.start(window.root));
   React.useEffect(() => setAuthStatus(wapi.isSignedIn()), []);
+
+  //web10 read for the services
   React.useEffect(
     function () {
       if (authStatus) {
         const token = wapi.readToken();
         wapi
-          .get("services", token.username, token.provider)
+          .read("services", token.username, token.provider)
           .then(function (response) {
             console.log(response.data);
             //label service change requests on existing services.
