@@ -4,19 +4,18 @@ import flattenJSON from "./flattenJSON.js";
 /* Service Change Component */
 function ServiceTerms({ services, selectedService, SCRS }) {
   const currentService = services[selectedService][0];
-  const RecordsFormattedService = flattenJSON(currentService);
+  const flattenedService = flattenJSON(currentService);
   //store updates adjacently
-  Object.keys(RecordsFormattedService).map(function(key,index){
-    const value = RecordsFormattedService[key]
-    RecordsFormattedService[key] = {"value":value,"update":value}
+  Object.keys(flattenedService).map(function(key,index){
+    flattenedService[key] = {"value":flattenedService[key],"update":flattenedService[key]}
   })
-  const final = Object.keys(RecordsFormattedService).map((field, idx) => {
+  const final = Object.keys(flattenedService).map((field, idx) => {
     return (
       <EditableField
-        key={[currentService["body"]["service"], idx]}
+        key={[currentService["body"]["service"], field]}
         type={"input"}
         field={field}
-        records={RecordsFormattedService}
+        records={flattenedService}
       ></EditableField>
     );
   });
