@@ -117,7 +117,7 @@ function addContact() {
     email: userEmailInp.value,
   };
 
-  wapi.create("crm-contacts", contact, JSPushContact);
+  wapi.create("crm-contacts", contact).then(JSPushContact);
 }
 
 function JSFlipContact(i) {
@@ -139,7 +139,7 @@ function JSFlipContact(i) {
 function flip(i) {
   var contact = userContacts[i];
   console.log("toggling status");
-  wapi.update("crm-contacts", contact, JSFlipContact(i));
+  wapi.update("crm-contacts", contact).then(()=>JSFlipContact(i));
 }
 
 function displayData() {
@@ -261,7 +261,7 @@ function loadNotes(i) {
   currentIndex = i;
   console.log("Index Changed To : " + currentIndex);
   var id = contact.id;
-  wapi.read("crm-notes", { id: id }, fillNotes);
+  wapi.read("crm-notes", { id: id }).then(fillNotes);
 }
 
 function loadLedger(i) {
@@ -276,7 +276,7 @@ function loadLedger(i) {
   currentIndex = i;
   console.log("Index Changed To : " + currentIndex);
   var id = contact.id;
-  wapi.read("crm-ledges", { id: id }, fillLedger);
+  wapi.read("crm-ledges", { id: id }).then(fillLedger);
 }
 
 function loadAll(i) {
@@ -295,9 +295,8 @@ function submitNote() {
 
   wapi.post(
     "crm-notes",
-    { note: note, id: userContacts[currentIndex].id },
-    loadCurrent
-  );
+    { note: note, id: userContacts[currentIndex].id }).then(
+    loadCurrent);
 }
 
 function submitLedger() {
@@ -308,7 +307,7 @@ function submitLedger() {
       form[x.name] = x.value;
     });
   form.id = userContacts[currentIndex].id;
-  wapi.create("crm-ledges", form, loadCurrent);
+  wapi.create("crm-ledges", form).then(loadCurrent);
 }
 
 function clearInputs() {
@@ -321,7 +320,7 @@ function deleteContact(name) {
   var i = 0;
   for (var i = 0; i < userContacts.length; i++) {
     if (userContacts[i].name == name) {
-      wapi.delete("crm-contacts", userContacts[i], console.log);
+      wapi.delete("crm-contacts", userContacts[i]).then(console.log);
       userContacts.splice(i, 1);
     }
   }
