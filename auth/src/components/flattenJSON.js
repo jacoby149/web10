@@ -18,8 +18,8 @@ const flattenJSON = (obj = {}, res = {}, extraKey = "") => {
 //read an object value given a flat key
 const readFlat = (obj = {}, flatKey) => {
   const keyList = flatKey.split(".");
-  const loc = obj;
-  for (const [i, key] of keyList.entries()) {
+  var loc = obj;
+  for (const key in keyList) {
     loc = loc[key];
   }
   return loc;
@@ -28,7 +28,7 @@ const readFlat = (obj = {}, flatKey) => {
 //write an object value given a flat key
 const writeFlat = (obj = {}, flatKey, value) => {
   const keyList = flatKey.split(".");
-  const loc = obj;
+  var loc = obj;
   for (const [i, key] of keyList.entries()) {
     //if the last key, set the value
     if (i === keyList.length - 1) loc[key] = value;
@@ -42,7 +42,7 @@ const writeFlat = (obj = {}, flatKey, value) => {
 const unFlattenJSON = (flattenedJSON) => {
   const obj = {};
   for (const key in flattenedJSON) {
-    const curr = flattenedJSON[key];
+    var curr = flattenedJSON[key];
 
     //in the case the key is for a list or dictionary structure
     if (curr.constructor === Object) {
