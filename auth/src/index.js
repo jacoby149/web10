@@ -18,7 +18,10 @@ function App() {
   ]);
 
   //for service changes, NOT initializations
-  const [SMR, setSMR] = React.useState({"scrs":[],"sirs":[]});
+  const [SMR, setSMR] = React.useState({
+    scrs: [],
+    sirs: [],//[{ body: { service: "addy" } }],
+  });
 
   //status message
   const [status, setStatus] = React.useState(
@@ -40,7 +43,7 @@ function App() {
           <ServiceTerms
             services={services}
             selectedService={selectedService}
-            SMRHook={[SMR,setSMR]}
+            SMRHook={[SMR, setSMR]}
           />
         );
       default:
@@ -93,11 +96,21 @@ function App() {
             //label service change requests on existing services.
             const updatedServices = response.data.map((service) => [
               service,
-              service["body"]["service"] in SMR["scrs"] ? "change" : null
+              service["body"]["service"] in SMR["scrs"] ? "change" : null,
             ]);
             //add service initialization requests.
-            const add = [{ body: { service: "addy" } }, "new"];
-            updatedServices.push(add);
+            const currServices = response.data.map(
+              (service) => service["body"]["service"]
+            );
+            //makes a list of sirs not in the current services, and formats them for the UI correctly
+            const SIRS = SMR["sirs"]
+              .filter(
+                (service) => !(service["body"]["service"] in currServices)
+              )
+              .map((service) => [service, "new"]);
+            //add sirs into the updatedservices
+            updatedServices.push.apply(updatedServices, SIRS);
+            //set the services in the UI
             setServices(updatedServices);
           })
           .catch(console.log);
