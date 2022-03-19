@@ -32,7 +32,7 @@ function ServiceTerms({ services, selectedService, SCRS }) {
         <br></br>
         <NewField></NewField>
       </div>
-      <EditApproval></EditApproval>
+      <EditApproval type={services[selectedService][1]}></EditApproval>
     </div>
   );
 }
@@ -124,20 +124,30 @@ function SCR() {
   return;
 }
 
+  //execute the service initialization req.
+  return;
+}
+
+function userSMR() {
+  //execute the service modification req.
+  return;
+}
+
+
 function clear() {
   //clear the service change form.
   return;
 }
 
-function EditApproval() {
+function EditApproval({type}) {
   return (
     <div>
       <button
-        onClick={SCR()}
+        onClick={type==="new"?SIR():"change"?SCR():userSMR()}
         style={{ margin: "0px 5px" }}
         className="button is-warning"
       >
-        Approve Service Addition
+        Approve {type==="new"?"Service Addition":type==="change"?"Service Change":"Your Changes"}
       </button>
       <button
         onClick={clear()}
