@@ -126,9 +126,14 @@ const EditableInput = ({ record, field }) => {
 };
 
 function SMR(flattenedService, type, SMRIncrement) {
-  //execute the service initialization req.
-  if (type === "add") {
-    const obj = unFlattenJSON(flattenedService);
+  //retrieve the updates for the SMR
+  const updates = {} 
+  Object.keys(flattenedService).map(function(key){
+    return updates[key] = flattenedService[key]["update"]
+  });
+  if (type === "new") {
+    const obj = unFlattenJSON(updates);
+    console.log(obj)
     wapi.create("services", obj,SMRIncrement);
   }
 }
@@ -142,7 +147,7 @@ function EditApproval({ flattenedService, type, SMRIncrement }) {
   return (
     <div>
       <button
-        onClick={SMR(flattenedService, type, SMRIncrement)}
+        onClick={()=>SMR(flattenedService, type, SMRIncrement)}
         style={{ margin: "0px 5px" }}
         className="button is-warning"
       >
