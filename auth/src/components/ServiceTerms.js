@@ -1,21 +1,23 @@
 import React from "react";
-import {flattenJSON,unFlattenJSON} from "./flattenJSON.js";
+import { flattenJSON, unFlattenJSON } from "./flattenJSON.js";
 
 /* Service Change Component */
 function ServiceTerms({ services, selectedService, SCRS }) {
   const currentService = services[selectedService][0];
   const flattenedService = flattenJSON(currentService);
   //store updates adjacently
-  Object.keys(flattenedService).map(function(key,index){
-    return flattenedService[key] = {"value":flattenedService[key],"update":flattenedService[key]}
-  })
+  Object.keys(flattenedService).map(function (key, index) {
+    return (flattenedService[key] = {
+      value: flattenedService[key],
+      update: flattenedService[key],
+    });
+  });
   const final = Object.keys(flattenedService).map((field, idx) => {
     return (
       <EditableField
         key={[currentService["body"]["service"], field]}
-        type={"input"}
+        record={flattenedService[field]}
         field={field}
-        records={flattenedService}
       ></EditableField>
     );
   });
@@ -35,18 +37,19 @@ function ServiceTerms({ services, selectedService, SCRS }) {
   );
 }
 
-function EditableField({ type, field, records }) {
+function EditableField({ record,field }) {
+  var type=null;
+  if(record["update"].constructor === Object) type="obj";
+  
   switch (type) {
-    case "input": {
-      return (
-        <EditableInput field={field} records={records} />
-      );
+    case "obj": {
+      return <StructInput record ={record} field={field} />;
     }
-    default:{
-      return
+    default: {
+      return <EditableInput record={record} field={field} />;
     }
-    //TODO add dropdown types and more
   }
+  //TODO add dropdown types and more
 }
 
 //allows CRUDstyle creation of fields
@@ -76,9 +79,20 @@ function NewField() {
   );
 }
 
+const StructInput = ({record,field}) => {
+  const [type,size] = [record["update"]["type"],record["update"]["size"]];
+  return (
+    <div style={{ marginLeft: "4px", marginTop: "4px",}}>
+      {field} :{" "}
+      <i style={{color:"blue"}}>{
+        type==="list"?`[${size}]↴`:`{${size}}↴`
+      }</i>
+    </div>
+  )
+}
+
 //TO BE IMPLEMENTED
-const EditableInput = ({ field, records }) => {
-  const record = records[field];
+const EditableInput = ({ record,field}) => {
   const [update, setUpdate] = React.useState(record["update"]);
   const value = record["value"];
   return (
