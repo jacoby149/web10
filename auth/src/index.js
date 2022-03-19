@@ -23,6 +23,13 @@ function App() {
     sirs: [],//[{ body: { service: "addy" } }],
   });
 
+  //provides an effect update every time an smr is submitted.
+  //also provides a convenient count of SMRs
+  const [SMRCount, setSMRCount] = React.useState(0);
+  const SMRIncrement = function(){
+    setSMRCount(SMRCount+1);
+  }
+
   React.useEffect(function(){
     wapiAuth.SMRListen((inSMR)=>setSMR(inSMR))
   },[])
@@ -48,6 +55,7 @@ function App() {
             services={services}
             selectedService={selectedService}
             SMRHook={[SMR, setSMR]}
+            SMRIncrement={SMRIncrement}
           />
         );
       default:
@@ -123,7 +131,7 @@ function App() {
         ]);
       }
     },
-    [authStatus]
+    [authStatus,SMRCount]
   );
 
   /* Menu Collapsed State */
