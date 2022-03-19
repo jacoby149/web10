@@ -1,8 +1,10 @@
 import React from "react";
 import { flattenJSON, unFlattenJSON } from "./flattenJSON.js";
 
+var wapi = window.wapi;
+
 /* Service Change Component */
-function ServiceTerms({ services, selectedService, SCRS }) {
+function ServiceTerms({ services, selectedService, SCRS, SMRIncrement }) {
   const currentService = services[selectedService][0];
   const flattenedService = flattenJSON(currentService);
   //store updates adjacently
@@ -32,18 +34,22 @@ function ServiceTerms({ services, selectedService, SCRS }) {
         <br></br>
         <NewField></NewField>
       </div>
-      <EditApproval type={services[selectedService][1]}></EditApproval>
+      <EditApproval
+        flattenedService={flattenedService}
+        type={services[selectedService][1]}
+        SMRIncrement={SMRIncrement}
+      ></EditApproval>
     </div>
   );
 }
 
-function EditableField({ record,field }) {
-  var type=null;
-  if(record["update"].constructor === Object) type="obj";
-  
+function EditableField({ record, field }) {
+  var type = null;
+  if (record["update"].constructor === Object) type = "obj";
+
   switch (type) {
     case "obj": {
-      return <StructInput record ={record} field={field} />;
+      return <StructInput record={record} field={field} />;
     }
     default: {
       return <EditableInput record={record} field={field} />;
@@ -79,20 +85,20 @@ function NewField() {
   );
 }
 
-const StructInput = ({record,field}) => {
-  const [type,size] = [record["update"]["type"],record["update"]["size"]];
+const StructInput = ({ record, field }) => {
+  const [type, size] = [record["update"]["type"], record["update"]["size"]];
   return (
-    <div style={{ marginLeft: "4px", marginTop: "4px",}}>
+    <div style={{ marginLeft: "4px", marginTop: "4px" }}>
       {field} :{" "}
-      <i style={{color:"blue"}}>{
-        type==="list"?`[${size}]↴`:`{${size}}↴`
-      }</i>
+      <i style={{ color: "blue" }}>
+        {type === "list" ? `[${size}]↴` : `{${size}}↴`}
+      </i>
     </div>
-  )
-}
+  );
+};
 
 //TO BE IMPLEMENTED
-const EditableInput = ({ record,field}) => {
+const EditableInput = ({ record, field }) => {
   const [update, setUpdate] = React.useState(record["update"]);
   const value = record["value"];
   return (
@@ -119,35 +125,33 @@ const EditableInput = ({ record,field}) => {
   );
 };
 
-function SCR() {
-  //execute the service change req.
-  return;
-}
-
+function SMR(flattenedService, type, SMRIncrement) {
   //execute the service initialization req.
-  return;
+  if (type === "add") {
+    const obj = unFlattenJSON(flattenedService);
+    wapi.create("services", obj,SMRIncrement);
+  }
 }
-
-function userSMR() {
-  //execute the service modification req.
-  return;
-}
-
 
 function clear() {
   //clear the service change form.
   return;
 }
 
-function EditApproval({type}) {
+function EditApproval({ flattenedService, type, SMRIncrement }) {
   return (
     <div>
       <button
-        onClick={type==="new"?SIR():"change"?SCR():userSMR()}
+        onClick={SMR(flattenedService, type, SMRIncrement)}
         style={{ margin: "0px 5px" }}
         className="button is-warning"
       >
-        Approve {type==="new"?"Service Addition":type==="change"?"Service Change":"Your Changes"}
+        Approve{" "}
+        {type === "new"
+          ? "Service Addition"
+          : type === "change"
+          ? "Service Change"
+          : "Your Changes"}
       </button>
       <button
         onClick={clear()}
