@@ -7,7 +7,7 @@ function ServiceTerms({ services, selectedService, SCRS }) {
   const flattenedService = flattenJSON(currentService);
   //store updates adjacently
   Object.keys(flattenedService).map(function(key,index){
-    flattenedService[key] = {"value":flattenedService[key],"update":flattenedService[key]}
+    return flattenedService[key] = {"value":flattenedService[key],"update":flattenedService[key]}
   })
   const final = Object.keys(flattenedService).map((field, idx) => {
     return (
@@ -41,6 +41,9 @@ function EditableField({ type, field, records }) {
       return (
         <EditableInput field={field} records={records} />
       );
+    }
+    default:{
+      return
     }
     //TODO add dropdown types and more
   }

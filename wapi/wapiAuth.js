@@ -32,7 +32,6 @@ function wapiAuthInit () {
     wapiAuth.logIn =
         function(provider, username, password, setAuth, setStatus) {
 
-            console.log(window.location.href)
             //web10 auth login
             axios.post(`${provider}/web10token`,
             {
