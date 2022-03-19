@@ -38,7 +38,7 @@ const sirs = [
     },
   },
 ];
-wapi.serviceModRequester.requestOnReady(sirs,[]);
+wapi.SMROnReady(sirs,[]);
 
 /* Web10 CRM Code */
 
