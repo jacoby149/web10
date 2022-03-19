@@ -134,7 +134,7 @@ function SMR(flattenedService, type, SMRIncrement) {
   if (type === "new") {
     const obj = unFlattenJSON(updates);
     console.log(obj)
-    wapi.create("services", obj,SMRIncrement);
+    wapi.create("services", obj).then(SMRIncrement).catch(console.log);
   }
 }
 

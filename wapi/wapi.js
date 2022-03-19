@@ -68,34 +68,34 @@ function wapiInit(authUrl = "http://auth.localhost") {
   //CRUD functionality (patch instead of get (secure) since patch can have a body)
   wapi.read = function (
     service,
+    query = null,
     username = null,
     provider = null,
-    query = null
   ) {
     return wapi._W10CRUD(axios.patch, provider, username, service, query);
   };
   wapi.create = function (
     service,
+    query = null,
     username = null,
-    provider = null,
-    query = null
+    provider = null
   ) {
     return wapi._W10CRUD(axios.post, provider, username, service, query);
   };
   wapi.update = function (
-    service,
-    username = null,
-    provider = null,
+    service,    
     query = null,
-    value = null
+    value = null,
+    username = null,
+    provider = null
   ) {
     return wapi._W10CRUD(axios.put, provider, username, service, query, value);
   };
   wapi.delete = function (
     service,
+    query = null,
     username = null,
-    provider = null,
-    query = null
+    provider = null
   ) {
     return wapi._W10CRUD(axios.delete, provider, username, service, query);
   };
@@ -118,7 +118,9 @@ function wapiInit(authUrl = "http://auth.localhost") {
       query: query,
       value: value,
     };
-    return HTTPRequestFunction(`http://${provider}/${username}/${service}`, t);
+    const url = `http://${provider}/${username}/${service}`
+    console.log(url);
+    return HTTPRequestFunction(url, t);
   };
 
   //SMRs
