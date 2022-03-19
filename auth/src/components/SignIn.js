@@ -1,8 +1,7 @@
 import React from "react"
 
 //web10 sign in boxes and buttons
-function SignIn({authHook,statusHook,wapiAuth}) {
-  const [authStatus, setAuthStatus] = authHook;
+function SignIn({setAuthStatus,statusHook,wapiAuth}) {
   const [status, setStatus] = statusHook;
   return (
     <div style={{ width: "300px", height: "210px" }}>

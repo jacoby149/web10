@@ -23,6 +23,10 @@ function App() {
     sirs: [],//[{ body: { service: "addy" } }],
   });
 
+  React.useEffect(function(){
+    wapiAuth.SMRListen((inSMR)=>setSMR(inSMR))
+  },[])
+
   //status message
   const [status, setStatus] = React.useState(
     "log in to authorize apps and manage services"
@@ -54,9 +58,9 @@ function App() {
     const final = props.services.map((service, idx) => {
       const type = service[1];
       const style =
-        type == "new"
+        type === "new"
           ? { color: "#2ECC40" }
-          : type == "change"
+          : type === "change"
           ? { color: "yellow" }
           : {};
       return (
@@ -92,7 +96,6 @@ function App() {
         wapi
           .read("services", token.username, token.provider)
           .then(function (response) {
-            console.log(response.data);
             //label service change requests on existing services.
             const updatedServices = response.data.map((service) => [
               service,
@@ -192,7 +195,7 @@ function App() {
         <R t tel>
           {!authStatus ? (
             <SignIn
-              authHook={[authStatus, setAuthStatus]}
+              setAuthStatus={setAuthStatus}
               statusHook={[status, setStatus]}
               wapiAuth={wapiAuth}
             ></SignIn>
@@ -223,17 +226,17 @@ function Credits(props) {
 function Auth(props) {
   const [authStatus, setAuthStatus] = props.hook;
 
-  const login = <a>please log in</a>;
+  const login = <p>please log in</p>;
 
   const logout = (
-    <a
+    <button style={{backgroundColor:"RGBA(0,0,0,0)",color:"orange",fontFamily:"monospace"}}
       onClick={() => {
         wapi.signOut();
         setAuthStatus(wapi.isSignedIn());
       }}
     >
       log out
-    </a>
+    </button>
   );
 
   return (
@@ -247,14 +250,13 @@ function Auth(props) {
 
 //authorization
 function OAuth(props) {
-  const serviceString = "Add name of service here";
   return (
     <div style={{ width: "250px" }}>
       <div
         style={{ margin: "5px" }}
         className="notification is-warning is-light"
       >
-        <a>{document.referrer}</a> would like to make service changes.{" "}
+        <u>{document.referrer}</u> would like to make service changes.{" "}
         <strong>approve or deny the changes in the left pane.</strong>
       </div>
 
@@ -262,7 +264,7 @@ function OAuth(props) {
         style={{ margin: "5px" }}
         className="notification is-danger is-light"
       >
-        <a>{document.referrer}</a> would like to login.
+        <u>{document.referrer}</u> would like to login.
       </div>
       <div className="field">
         <div className="control">
@@ -295,7 +297,7 @@ function Branding(props) {
     <R l {...pass(props)}>
       <C l p="0px 0px 0px 22px" s={"70px"}>
         {/* Plain Pad Logo */}
-        <img src={"key_white.png"} style={{ height: "60%" }} />
+        <img src={"key_white.png"} alt="web10logo" style={{ height: "60%" }} />
       </C>
 
       <C l ns mc s={"120px"}>
