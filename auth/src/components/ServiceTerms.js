@@ -1,5 +1,5 @@
 import React from "react";
-import flattenJSON from "./flattenJSON.js";
+import {flattenJSON,unFlattenJSON} from "./flattenJSON.js";
 
 /* Service Change Component */
 function ServiceTerms({ services, selectedService, SCRS }) {
