@@ -1,4 +1,4 @@
-Make SIR Approval button work.
+DEBUG
 add web10 beta access code to login.
 set up web10 deploy google autopilot.
 

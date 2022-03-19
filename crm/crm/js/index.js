@@ -60,8 +60,7 @@ function init() {
       wapi.openAuthPortal();
     }
   }
-  var contacts = wapi.read("crm-contacts");
-  if (contacts) loadUserContacts(contacts);
+  wapi.read("crm-contacts").then((response)=>loadUserContacts(response.data));
 }
 
 init();
@@ -117,7 +116,7 @@ function addContact() {
     email: userEmailInp.value,
   };
 
-  wapi.create("crm-contacts", contact).then(JSPushContact);
+  wapi.create("crm-contacts", contact).then((response)=>JSPushContact(response.data));
 }
 
 function JSFlipContact(i) {
@@ -139,7 +138,7 @@ function JSFlipContact(i) {
 function flip(i) {
   var contact = userContacts[i];
   console.log("toggling status");
-  wapi.update("crm-contacts", contact).then(()=>JSFlipContact(i));
+  wapi.update("crm-contacts", contact).then(JSFlipContact(i));
 }
 
 function displayData() {
@@ -261,7 +260,7 @@ function loadNotes(i) {
   currentIndex = i;
   console.log("Index Changed To : " + currentIndex);
   var id = contact.id;
-  wapi.read("crm-notes", { id: id }).then(fillNotes);
+  wapi.read("crm-notes", { id: id }).then((response)=>fillNotes(response.data));
 }
 
 function loadLedger(i) {
@@ -276,7 +275,7 @@ function loadLedger(i) {
   currentIndex = i;
   console.log("Index Changed To : " + currentIndex);
   var id = contact.id;
-  wapi.read("crm-ledges", { id: id }).then(fillLedger);
+  wapi.read("crm-ledges", { id: id }).then((response)=>fillLedger(response.data));
 }
 
 function loadAll(i) {
