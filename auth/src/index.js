@@ -100,9 +100,8 @@ function App() {
   React.useEffect(
     function () {
       if (authStatus) {
-        const token = wapi.readToken();
         wapi
-          .read("services", token.username, token.provider)
+          .read("services")
           .then(function (response) {
             //label service change requests on existing services.
             const updatedServices = response.data.map((service) => [
