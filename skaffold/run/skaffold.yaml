@@ -4,15 +4,15 @@ metadata:
   name: web10
 build:
   artifacts:
-    - image: gcr.io/pure-phalanx-344719/api-dev
+    - image: gcr.io/pure-phalanx-344719/api
       context: ../../api
-    - image: gcr.io/pure-phalanx-344719/auth-dev
+    - image: gcr.io/pure-phalanx-344719/auth
       context: ../../auth
-    - image: gcr.io/pure-phalanx-344719/crm-dev
+    - image: gcr.io/pure-phalanx-344719/crm
       context: ../../crm
-    - image: gcr.io/pure-phalanx-344719/wapi-dev
+    - image: gcr.io/pure-phalanx-344719/wapi
       context: ../../wapi
-    - image: gcr.io/pure-phalanx-344719/social-dev
+    - image: gcr.io/pure-phalanx-344719/social
       context: ../../social
 deploy:
   kubectl:
