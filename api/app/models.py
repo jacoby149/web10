@@ -34,6 +34,7 @@ class TokenData(BaseModel):
 class SignUpForm(BaseModel):
     username: str
     password: str 
+    betacode: str
 
 class TokenForm(BaseModel):
     username: str

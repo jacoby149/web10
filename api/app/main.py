@@ -195,7 +195,10 @@ async def create_web10_token(form_data: models.TokenForm):
 # make a new web10 account
 @app.post("/signup")
 async def signup(form_data: models.SignUpForm):
-    return mongo.create_user(models.dotdict(form_data), get_password_hash)
+    form_data = models.dotdict(form_data)
+    if (form_data.betacode == settings.BETA_CODE):
+        return mongo.create_user(form_data, get_password_hash)
+    raise exceptions.BETA
 
 
 #####################################################
