@@ -10,8 +10,6 @@ build:
       context: ../../auth
     - image: gcr.io/pure-phalanx-344719/crm-dev
       context: ../../crm
-    - image: gcr.io/pure-phalanx-344719/wapi-dev
-      context: ../../wapi
     - image: gcr.io/pure-phalanx-344719/social-dev
       context: ../../social
 deploy:
@@ -20,6 +18,5 @@ deploy:
       - kuberapi.yml
       - kuberauth.yml
       - kubercrm.yml
-      - kuberwapi.yml
       - kubersocial.yml
       
