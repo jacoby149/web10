@@ -49,11 +49,13 @@ function wapiAuthInit() {
   };
 
   //sign up for a new web10 account
-  wapiAuth.signUp = function (provider, username, password) {
+  wapiAuth.signUp = function (provider, username, password,betacode) {
+    provider = new URL(provider);
     axios
-      .post(`http://${provider}/signup`, {
+      .post(`http://${provider.hostname}/signup`, {
         username: username,
         password: password,
+        betacode: betacode
       })
       .then(console.log)
       .catch(console.log);
