@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crm-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: crm-dev
+  template:
+    metadata:
+      labels:
+        app: crm-dev
+    spec:
+      containers:
+        - name: crm-dev
+          image: gcr.io/pure-phalanx-344719/crm-dev
+          ports:
+            - containerPort: 80
+          resources:

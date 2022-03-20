@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wapi-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wapi-dev
+  template:
+    metadata:
+      labels:
+        app: wapi-dev
+    spec:
+      containers:
+        - name: wapi-dev
+          image: gcr.io/pure-phalanx-344719/wapi-dev
+          ports:
+            - containerPort: 80
+          resources:
