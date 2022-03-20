@@ -1,4 +1,5 @@
 import pymongo
+from bson.objectid import ObjectId
 import app.settings as settings
 import app.models as models
 import app.web10records as records
@@ -74,11 +75,12 @@ def update(user,service,query,value):
     return result
 
 def delete(user,service,query):
-    print("AAAAAAAAAAAAAHHHHHHHHHHHHHHHHH......")
-    print(user,service,query)
     #TODO whitelists + blacklist filtering
+    if "_id" in query:
+        query["_id"] = ObjectId(query["_id"])
+    print(query)
     result = db[f'{user}/{service}'].delete_many(query)
-    return result
+    return "success"
 
 
 ##########################

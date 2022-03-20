@@ -97,7 +97,9 @@ function wapiInit(authUrl = "http://auth.localhost") {
     username = null,
     provider = null
   ) {
-    return wapi._W10CRUD(axios.delete, provider, username, service, query);
+    //axios delete is implemented differently
+    const deleteWrapper = (url,data)=>axios.delete(url,{data:data})
+    return wapi._W10CRUD(deleteWrapper, provider, username, service, query);
   };
   wapi._W10CRUD = function (
     HTTPRequestFunction,
