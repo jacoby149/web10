@@ -112,10 +112,11 @@ function App() {
             const currServices = response.data.map(
               (service) => service["body"]["service"]
             );
+            console.log(currServices);
             //makes a list of sirs not in the current services, and formats them for the UI correctly
             const SIRS = SMR["sirs"]
               .filter(
-                (service) => !(service["body"]["service"] in currServices)
+                (service) => !(currServices.includes(service["body"]["service"]))
               )
               .map((service) => [service, "new"]);
             //add sirs into the updatedservices

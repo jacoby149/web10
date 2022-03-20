@@ -54,8 +54,10 @@ def create_user(form_data, hash):
 ##########################
 
 def create(user,service,query):
+    print(query)
     result = db[f'{user}/{service}'].insert_one(query)
-    return result
+    query["_id"]=str(result.inserted_id)
+    return query
 
 def read(user,service,query):
     #TODO whitelists + blacklist filtering
