@@ -12,6 +12,12 @@ AUTH = HTTPException(
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
+BETA = HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Wrong beta code entered",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
 TOKEN = HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect token",

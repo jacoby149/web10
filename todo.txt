@@ -1,20 +1,7 @@
 add web10 beta access code to login.
 set up web10 deploy google autopilot.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-implement service modification addition
-implement service modification deletion
+payment accepting
+charging()
+user services D and C
+user SMR CRUD [Services U]
