@@ -119,7 +119,8 @@ function wapiInit(authUrl = "http://auth.localhost") {
       value: value,
     };
     const url = `http://${provider}/${username}/${service}`
-    console.log(url);
+    console.log("qv: ",query,value);
+    console.log("url: ",url);
     return HTTPRequestFunction(url, t);
   };
 
