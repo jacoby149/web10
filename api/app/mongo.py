@@ -74,6 +74,8 @@ def update(user,service,query,value):
     return result
 
 def delete(user,service,query):
+    print("AAAAAAAAAAAAAHHHHHHHHHHHHHHHHH......")
+    print(user,service,query)
     #TODO whitelists + blacklist filtering
     result = db[f'{user}/{service}'].delete_many(query)
     return result
