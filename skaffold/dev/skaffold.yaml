@@ -6,7 +6,10 @@ build:
   artifacts:
     - image: gcr.io/pure-phalanx-344719/api-dev
       context: ../../api
+    - image: gcr.io/pure-phalanx-344719/auth-dev
+      context: ../../auth
 deploy:
   kubectl:
     manifests:
       - kuberapi.yml
+      - kuberauth.yml
