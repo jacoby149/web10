@@ -4,8 +4,9 @@ function wapiAuthInit() {
 
   //mints a second level token for the referrer site.
   wapiAuth.mintOAuthToken = function () {
+    const referrerURL = new URL(document.referrer);
     wapi
-      .getTieredToken(document.referrer.slice(0, -1), wapi.readToken().provider)
+      .getTieredToken(referrerURL.hostname, wapi.readToken().provider)
       .then(function (response) {
         wapiAuth.oAuthToken = response.data.token;
       })

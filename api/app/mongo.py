@@ -87,6 +87,7 @@ def is_in_cross_origins(site, username, service):
     record = db[f'{username}/services'].find_one({"body.service":service})
     print("AAYYYYYYY!!!!!!!!!!!!!!!!!!!!!!!!!!!")
     print(record)
+    print(site)
     return (site in record["body"]["cross_origins"])
 
 def get_approved(username,provider, owner, service, action):
