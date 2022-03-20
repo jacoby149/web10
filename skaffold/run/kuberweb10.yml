@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web10
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web10
+  template:
+    metadata:
+      labels:
+        app: web10
+    spec:
+      containers:
+        - name: api
+          image: gcr.io/pure-phalanx-344719/api
+          ports:
+            - containerPort: 80
+          resources:
