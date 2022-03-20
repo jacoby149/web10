@@ -1,16 +1,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: web10
+  name: api
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: web10
+      app: api
   template:
     metadata:
       labels:
-        app: web10
+        app: api
     spec:
       containers:
         - name: api

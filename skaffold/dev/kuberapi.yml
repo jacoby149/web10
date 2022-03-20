@@ -1,16 +1,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: web10-dev
+  name: api-dev
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: web10-dev
+      app: api-dev
   template:
     metadata:
       labels:
-        app: web10-dev
+        app: api-dev
     spec:
       containers:
         - name: api-dev
