@@ -40,6 +40,17 @@ function SignIn({setAuthStatus,statusHook,wapiAuth}) {
           />
         </p>
       </div>
+      <div className="field">
+        <p style={{ margin: "5px 10px" }} className="control has-icons-left">
+          betacode :{" "}
+          <input
+            id="betacode"
+            className="input has-background-white"
+            type="password"
+            placeholder="only needed on signup"
+          />
+        </p>
+      </div>
       {/* <div className="field">
                   <p style = {{"margin":"5px"}} className="control has-icons-left">
                       <input id = "confirmPassword" className="input has-background-white" type="password" placeholder="Confirm Password"/>
@@ -74,7 +85,8 @@ function SignIn({setAuthStatus,statusHook,wapiAuth}) {
               wapiAuth.signUp(
                 document.getElementById("provider").value,
                 document.getElementById("username").value,
-                document.getElementById("password").value
+                document.getElementById("password").value,
+                document.getElementById("betacode").value
               )
             }
             style={{ margin: "0px 5px" }}
