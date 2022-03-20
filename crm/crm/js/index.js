@@ -1,7 +1,9 @@
 /* Web10 Login / Log out */
 function setAuth(authStatus) {
-  if (authStatus) auth.innerHTML = "Secure Log Out";
-  else auth.innerHTML = "Secure Login";
+  if (authStatus) {
+    auth.innerHTML = "Secure Log Out";
+    init();
+  } else auth.innerHTML = "Secure Login";
 }
 setAuth(wapi.isSignedIn());
 wapi.authListen(setAuth);
@@ -10,6 +12,7 @@ function toggleAuth() {
   if (wapi.isSignedIn()) {
     wapi.signOut();
     setAuth(false);
+    location.reload();
   } else {
     wapi.openAuthPortal();
   }
@@ -38,7 +41,7 @@ const sirs = [
     },
   },
 ];
-wapi.SMROnReady(sirs,[]);
+wapi.SMROnReady(sirs, []);
 
 /* Web10 CRM Code */
 
@@ -54,16 +57,8 @@ var appStatus = "notes";
 
 //initialize contacts,notes,and ledges from Web10
 function init() {
-  try {
-  } catch (error) {
-    if ("Not Authorized" in error) {
-      wapi.openAuthPortal();
-    }
-  }
-  wapi.read("crm-contacts").then((response)=>loadUserContacts(response.data));
+  wapi.read("crm-contacts").then((response) => loadUserContacts(response.data));
 }
-
-init();
 
 function toggleStatus() {
   var button = document.getElementById("statusbutton");
@@ -79,8 +74,7 @@ function toggleStatus() {
 
 function loadUserContacts(json) {
   console.log("loading data...");
-  //    console.log(json);
-  userContacts = JSON.parse(json);
+  userContacts = json;
   console.log(userContacts);
   displayData();
 }
@@ -116,7 +110,9 @@ function addContact() {
     email: userEmailInp.value,
   };
 
-  wapi.create("crm-contacts", contact).then((response)=>JSPushContact(response.data));
+  wapi
+    .create("crm-contacts", contact)
+    .then((response) => JSPushContact(response.data));
 }
 
 function JSFlipContact(i) {
@@ -161,7 +157,7 @@ function displayData() {
       mail = "-";
     }
 
-    var id = userContacts[i].id;
+    var id = userContacts[i]._id;
     var company = userContacts[i].company;
     var name = userContacts[i].name;
     var status = userContacts[i].color;
@@ -201,7 +197,7 @@ function displayData() {
 }
 
 function fillNotes(notes) {
-  notes = JSON.parse(notes);
+  console.log(notes)
   var log = "";
 
   for (var z = 0; z < notes.length; z++) {
@@ -215,7 +211,6 @@ function fillNotes(notes) {
 }
 
 function fillLedger(entries) {
-  entries = JSON.parse(entries);
   console.log(entries);
   var log = "";
   for (var z = 0; z < entries.length; z++) {
@@ -259,8 +254,10 @@ function loadNotes(i) {
     ")'> &#9851;</a> &#128337;";
   currentIndex = i;
   console.log("Index Changed To : " + currentIndex);
-  var id = contact.id;
-  wapi.read("crm-notes", { id: id }).then((response)=>fillNotes(response.data));
+  var id = contact._id;
+  wapi
+    .read("crm-notes", { id: id })
+    .then((response) => fillNotes(response.data));
 }
 
 function loadLedger(i) {
@@ -274,8 +271,10 @@ function loadLedger(i) {
     ")'> &#9851;</a>";
   currentIndex = i;
   console.log("Index Changed To : " + currentIndex);
-  var id = contact.id;
-  wapi.read("crm-ledges", { id: id }).then((response)=>fillLedger(response.data));
+  var id = contact._id;
+  wapi
+    .read("crm-ledges", { id: id })
+    .then((response) => fillLedger(response.data));
 }
 
 function loadAll(i) {
@@ -292,10 +291,9 @@ function loadCurrent() {
 function submitNote() {
   var note = document.getElementById("newnote").value;
 
-  wapi.post(
-    "crm-notes",
-    { note: note, id: userContacts[currentIndex].id }).then(
-    loadCurrent);
+  wapi
+    .create("crm-notes", { note: note, id: userContacts[currentIndex]._id })
+    .then(loadCurrent);
 }
 
 function submitLedger() {
@@ -305,7 +303,7 @@ function submitLedger() {
     .map(function (x) {
       form[x.name] = x.value;
     });
-  form.id = userContacts[currentIndex].id;
+  form.id = userContacts[currentIndex]._id;
   wapi.create("crm-ledges", form).then(loadCurrent);
 }
 
