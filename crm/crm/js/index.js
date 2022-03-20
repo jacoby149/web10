@@ -116,25 +116,26 @@ function addContact() {
 }
 
 function JSFlipContact(i) {
-  function JSFlipContactInner() {
     console.log(i);
     var contact = userContacts[i];
+    console.log(contact);
     var green = contact.color == "green";
     var yellow = contact.color == "yellow";
     var red = contact.color == "red";
     var new_color = green ? "red" : red ? "yellow" : yellow ? "green" : "NULL";
+    if (new_color === "NULL")new_color="green"; 
     contact.color = new_color;
     modalBannerColor(new_color);
     displayData();
-  }
-  return JSFlipContactInner;
 }
 
 //flips the status of a contact
 function flip(i) {
-  var contact = userContacts[i];
   console.log("toggling status");
-  wapi.update("crm-contacts", contact).then(JSFlipContact(i));
+  const contact = userContacts[i];
+  JSFlipContact(i);
+  const [query,values] = [{_id:contact._id},{$set:{color:contact.color}}]
+  wapi.update("crm-contacts",query,values).then(console.log);
 }
 
 function displayData() {

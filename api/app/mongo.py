@@ -71,8 +71,10 @@ def read(user,service,query):
 
 def update(user,service,query,value):
     #TODO whitelists + blacklist filtering
+    if "_id" in query:
+        query["_id"] = ObjectId(query["_id"])
     result = db[f'{user}/{service}'].update_many(query, value)
-    return result
+    return "success"
 
 def delete(user,service,query):
     #TODO whitelists + blacklist filtering
