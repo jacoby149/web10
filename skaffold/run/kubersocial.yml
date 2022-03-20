@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: social
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: social
+  template:
+    metadata:
+      labels:
+        app: social
+    spec:
+      containers:
+        - name: social
+          image: gcr.io/pure-phalanx-344719/social
+          ports:
+            - containerPort: 80
+          resources:
