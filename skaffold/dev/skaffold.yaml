@@ -9,4 +9,4 @@ build:
 deploy:
   kubectl:
     manifests:
-      - kuberweb10.yml
+      - kuberapi.yml
