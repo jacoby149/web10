@@ -1,3 +1,7 @@
+//wapi can be double loaded. try locally first and if that fails, load from the cdn
+if (typeof wapiAuth==='undefined'){
+
+
 //Makes the wapiAuth library object
 function wapiAuthInit() {
   const wapiAuth = {};
@@ -86,3 +90,5 @@ function wapiAuthInit() {
 }
 
 var wapiAuth = wapiAuthInit();
+
+}
