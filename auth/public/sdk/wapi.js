@@ -1,3 +1,6 @@
+//wapi can be double loaded. try locally first and if that fails, load from the cdn
+if (typeof wapi==='undefined'){
+
 //makes a dictionary of cookies
 function cookieDict() {
   return document.cookie.split(";").reduce((res, c) => {
@@ -153,3 +156,5 @@ function wapiInit(authUrl = "http://auth.localhost") {
 }
 
 var wapi = wapiInit();
+
+}
