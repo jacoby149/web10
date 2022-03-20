@@ -8,8 +8,15 @@ build:
       context: ../../api
     - image: gcr.io/pure-phalanx-344719/auth-dev
       context: ../../auth
+    - image: gcr.io/pure-phalanx-344719/crm-dev
+      context: ../../crm
+    - image: gcr.io/pure-phalanx-344719/wapi-dev
+      context: ../../wapi
 deploy:
   kubectl:
     manifests:
       - kuberapi.yml
       - kuberauth.yml
+      - kubercrm.yml
+      - kuberwapi.yml
+      
