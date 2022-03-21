@@ -3,7 +3,7 @@ if (typeof wapiAuth==='undefined'){
 
 
 //Makes the wapiAuth library object
-function wapiAuthInit() {
+function wapiAuthInit(wapi) {
   const wapiAuth = {};
 
   //mints a second level token for the referrer site.
