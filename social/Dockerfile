@@ -5,4 +5,4 @@ WORKDIR /social
 
 COPY . /social
 
-CMD ["python", "-m", "http.server"]
+CMD ["python", "-m", "http.server", "80"]

@@ -23,27 +23,19 @@ services:
       VIRTUAL_HOST: auth.localhost
       CHOKIDAR_USEPOLLING: "true"
     ports:
-      - '3000:3000'
+      - '3000:80'
   social:
     build: social/.
     volumes:
       - ./social/:/social    
     ports:
-      - "8000:8000"
-  wapi:
-    build: wapi/.
-    volumes:
-      - ./wapi:/wapi    
-    ports:
-      - "5678:8000"
-    environment:
-      VIRTUAL_HOST: wapi.localhost
+      - "8000:80"
   crm:
     build: crm/.
     volumes:
       - ./crm/:/crm    
     ports:
-      - "7746:8000"
+      - "7746:80"
     environment:
       VIRTUAL_HOST: crm.localhost
   nginx-proxy:
