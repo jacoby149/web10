@@ -5,4 +5,4 @@ WORKDIR /crm
 
 COPY . /crm
 
-CMD ["python", "-m", "http.server"]
+CMD ["python", "-m", "http.server", "80"]

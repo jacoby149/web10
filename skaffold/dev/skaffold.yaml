@@ -8,15 +8,16 @@ build:
       context: ../../api
     - image: gcr.io/pure-phalanx-344719/auth-dev
       context: ../../auth
-    - image: gcr.io/pure-phalanx-344719/crm-dev
-      context: ../../crm
-    - image: gcr.io/pure-phalanx-344719/social-dev
-      context: ../../social
+    #- image: gcr.io/pure-phalanx-344719/#crm-dev
+    #  context: ../../crm
+    #- image: gcr.io/pure-phalanx-344719/#social-dev
+    #  context: ../../social
 deploy:
   kubectl:
     manifests:
       - kuberapi.yml
       - kuberauth.yml
-      - kubercrm.yml
-      - kubersocial.yml
-      
+      #- kubercrm.yml
+      #- kubersocial.yml
+
+# crm and social don't need a dev, since it is front end code.
