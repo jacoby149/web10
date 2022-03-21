@@ -154,7 +154,4 @@ function wapiInit(authUrl = "http://auth.localhost") {
   //output the wapi object
   return wapi;
 }
-
-var wapi = wapiInit();
-
 }

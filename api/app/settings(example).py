@@ -5,7 +5,7 @@ PROVIDER = os.environ.get('PROVIDER')
 if PROVIDER==None : PROVIDER = "api.localhost"
 
 CORS_SERVICE_MANAGERS = os.environ.get('CORS_SERVICE_MANAGERS')
-if CORS_SERVICE_MANAGERS==None : CORS_SERVICE_MANAGERS = ["auth.localhost"]
+if CORS_SERVICE_MANAGERS==None : CORS_SERVICE_MANAGERS = ["auth.localhost,auth.web10.app,auth.web10.dev"]
 
 #https://www.mongodb.com/atlas/database
 DB_URL = os.environ.get('DB_URL')

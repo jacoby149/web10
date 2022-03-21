@@ -1,3 +1,6 @@
+/* wapi initialization */
+var wapi = wapiInit('https://auth.web10.app');
+
 /* Web10 Login / Log out */
 function setAuth(authStatus) {
   if (authStatus) {

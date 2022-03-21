@@ -11,6 +11,7 @@ function SignIn({setAuthStatus,statusHook,wapiAuth}) {
           <input
             id="provider"
             className="input has-background-white"
+            defaultValue="https://api.web10.app"
             placeholder="https://api.web10.app"
           />
         </p>

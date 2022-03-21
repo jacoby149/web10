@@ -2,6 +2,8 @@
 import {pass,R,C,T} from 'Rectangles.js'
 import {Posts} from 'Posts.js'
 
+var wapi = window.wapiInit('https://auth.web10.app');
+
 /* Plain Pad app made of entirely rectangles.js components */
 function App(){
 

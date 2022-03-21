@@ -175,7 +175,8 @@ async def create_web10_token(form_data: models.TokenForm):
     try:
         if form_data.password:
             if authenticate_user(form_data.username, form_data.password):
-                pass
+                if form_data.site in settings.CORS_SERVICE_MANAGERS:
+                    pass
         elif form_data.token:
             if certify(models.Token(token=form_data.token)):
                 if can_mint(decode_token(form_data.token), token_data):

@@ -1,3 +1,5 @@
+#check that site making request is the ACTUAL site.
+
 set up web10 deploy google autopilot.
 
 payment accepting
