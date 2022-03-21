@@ -44,11 +44,15 @@
     <script src="https://jacobhoffman.tk/rectangles/telescope.js"></script>
     <script src="sdk/wapi.js"></script>
     <script src="sdk/wapiAuth.js"></script>
+    <script>
+      //initialize wapi in the window
+      var wapi = wapiInit("https://auth.web10.app");
+      var wapiAuth = wapiAuthInit(wapi);
+    </script>
   </head>
   <body>
-
     <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root" ></div>
+    <div id="root"></div>
     <!--
       This HTML file is a template.
       If you open it directly in the browser, you will see an empty page.
