@@ -41,7 +41,7 @@ function wapiAuthInit() {
         username: username,
         password: password,
         token: null,
-        site: window.location.host,
+        site: window.location.hostname,
         target: null,
       })
       .then(function (response) {
@@ -88,7 +88,4 @@ function wapiAuthInit() {
   //output the wapiAuth object
   return wapiAuth;
 }
-
-var wapiAuth = wapiAuthInit();
-
 }
