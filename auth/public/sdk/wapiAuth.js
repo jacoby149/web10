@@ -1,5 +1,5 @@
 //wapi can be double loaded. try locally first and if that fails, load from the cdn
-if (typeof wapiAuth==='undefined'){
+if (typeof wapiAuthInit==='undefined'){
 
 
 //Makes the wapiAuth library object

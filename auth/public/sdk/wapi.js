@@ -1,5 +1,5 @@
 //wapi can be double loaded. try locally first and if that fails, load from the cdn
-if (typeof wapi==='undefined'){
+if (typeof wapiInit==='undefined'){
 
 //makes a dictionary of cookies
 function cookieDict() {
