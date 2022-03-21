@@ -1,8 +1,26 @@
-#check that site making request is the ACTUAL site.
+separate CRM code into functionality
+delete unnecessary fields
+type check fields
+make fields editable
+update crm fields
+note deletion
+ledge deletion
+fix crm dates
 
-set up web10 deploy google autopilot.
+accepting payment through stripe and accrediting web10 credits
+charging web10 credits. (allow negative balances for now, eventually don't)
+make sure users do not have default route usernames or funny characters
+make sure passwords dont have funny characters
+fix notes loading bug on new contact
 
-payment accepting
-charging()
-user services D and C
-user SMR CRUD [Services U]
+
+Feasible cross web10 communication with malicious parties.
+web10 record of charges
+    - master record
+    - charge dictionary (user,service,requester,period)
+    - web10 server record
+    - web10 user record
+service whitelist configurable credit limits (requester,period)
+    - by requester type [web10 user or ip]
+    - regex kind of expression
+web10 backend service for automatic whitelist blacklist management for anti spam
