@@ -90,7 +90,7 @@ def can_mint(submission_token, mint_token):
     else:
         raise exceptions.MINT
     if not submission_token.site:
-        pass
+        raise exceptions.MINT
     elif submission_token.site in settings.CORS_SERVICE_MANAGERS:
         pass
     elif submission_token.site == mint_token.site:

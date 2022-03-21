@@ -55,7 +55,6 @@ def create_user(form_data, hash):
 ##########################
 
 def create(user,service,query):
-    print(query)
     result = db[f'{user}/{service}'].insert_one(query)
     query["_id"]=str(result.inserted_id)
     return query
@@ -80,7 +79,6 @@ def delete(user,service,query):
     #TODO whitelists + blacklist filtering
     if "_id" in query:
         query["_id"] = ObjectId(query["_id"])
-    print(query)
     result = db[f'{user}/{service}'].delete_many(query)
     return "success"
 
@@ -91,14 +89,10 @@ def delete(user,service,query):
 
 def is_in_cross_origins(site, username, service):
     record = db[f'{username}/services'].find_one({"body.service":service})
-    print("AAYYYYYYY!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-    print(record)
-    print(site)
     return (site in record["body"]["cross_origins"])
 
 def get_approved(username,provider, owner, service, action):
     record = db[f'{owner}/services'].find_one({"body.service":service})
-    print(username,owner,provider)
     if (username == owner) and (provider == settings.PROVIDER): return True
 
     def is_approved(e): 

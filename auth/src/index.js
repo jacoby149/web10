@@ -5,7 +5,7 @@ import ServiceTerms from "./components/ServiceTerms.js";
 import SignIn from "./components/SignIn.js";
 
 var wapi = window.wapiInit('https://auth.web10.app');
-var wapiAuth = window.wapiAuthInit();
+var wapiAuth = window.wapiAuthInit(wapi);
 var telescope = window.telescope;
 
 /* Plain Pad app made of entirely rectangles.js components */

@@ -28,19 +28,19 @@ const sirs = [
   {
     body: {
       service: "crm-contacts",
-      cross_origins: ["crm.localhost"],
+      cross_origins: ["crm.localhost","crm.web10.app","crm.web10.dev"],
     },
   },
   {
     body: {
       service: "crm-notes",
-      cross_origins: ["crm.localhost"],
+      cross_origins: ["crm.localhost","crm.web10.app","crm.web10.dev"],
     },
   },
   {
     body: {
       service: "crm-ledges",
-      cross_origins: ["crm.localhost"],
+      cross_origins: ["crm.localhost","crm.web10.app","crm.web10.dev"],
     },
   },
 ];
