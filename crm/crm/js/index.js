@@ -1,5 +1,10 @@
 /* wapi initialization */
-var wapi = wapiInit('https://auth.web10.app');
+var wapi =
+  window.location.hostname == "crm.localhost"
+    ? wapiInit("http://auth.localhost")
+    : window.location.hostname == "crm.web10.dev"
+    ? wapiInit("https://auth.web10.dev")
+    : wapiInit("https://auth.web10.app");
 
 /* Web10 Login / Log out */
 function setAuth(authStatus) {
@@ -28,19 +33,19 @@ const sirs = [
   {
     body: {
       service: "crm-contacts",
-      cross_origins: ["crm.localhost","crm.web10.app","crm.web10.dev"],
+      cross_origins: ["crm.localhost", "crm.web10.app", "crm.web10.dev"],
     },
   },
   {
     body: {
       service: "crm-notes",
-      cross_origins: ["crm.localhost","crm.web10.app","crm.web10.dev"],
+      cross_origins: ["crm.localhost", "crm.web10.app", "crm.web10.dev"],
     },
   },
   {
     body: {
       service: "crm-ledges",
-      cross_origins: ["crm.localhost","crm.web10.app","crm.web10.dev"],
+      cross_origins: ["crm.localhost", "crm.web10.app", "crm.web10.dev"],
     },
   },
 ];
@@ -119,17 +124,17 @@ function addContact() {
 }
 
 function JSFlipContact(i) {
-    console.log(i);
-    var contact = userContacts[i];
-    console.log(contact);
-    var green = contact.color == "green";
-    var yellow = contact.color == "yellow";
-    var red = contact.color == "red";
-    var new_color = green ? "red" : red ? "yellow" : yellow ? "green" : "NULL";
-    if (new_color === "NULL")new_color="green"; 
-    contact.color = new_color;
-    modalBannerColor(new_color);
-    displayData();
+  console.log(i);
+  var contact = userContacts[i];
+  console.log(contact);
+  var green = contact.color == "green";
+  var yellow = contact.color == "yellow";
+  var red = contact.color == "red";
+  var new_color = green ? "red" : red ? "yellow" : yellow ? "green" : "NULL";
+  if (new_color === "NULL") new_color = "green";
+  contact.color = new_color;
+  modalBannerColor(new_color);
+  displayData();
 }
 
 //flips the status of a contact
@@ -137,8 +142,11 @@ function flip(i) {
   console.log("toggling status");
   const contact = userContacts[i];
   JSFlipContact(i);
-  const [query,values] = [{_id:contact._id},{$set:{color:contact.color}}]
-  wapi.update("crm-contacts",query,values).then(console.log);
+  const [query, values] = [
+    { _id: contact._id },
+    { $set: { color: contact.color } },
+  ];
+  wapi.update("crm-contacts", query, values).then(console.log);
 }
 
 function displayData() {
@@ -201,7 +209,7 @@ function displayData() {
 }
 
 function fillNotes(notes) {
-  console.log(notes)
+  console.log(notes);
   var log = "";
 
   for (var z = 0; z < notes.length; z++) {
