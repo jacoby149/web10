@@ -10,6 +10,10 @@ build:
       context: ../../auth
     - image: gcr.io/pure-phalanx-344719/crm
       context: ../../crm
+      sync:
+        infer:
+        - 'crm/.'
+        - 'auth/public/sdk/.'
 deploy:
   kubectl:
     manifests:
