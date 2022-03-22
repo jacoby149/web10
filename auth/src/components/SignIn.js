@@ -1,7 +1,7 @@
-import React from "react"
+import React from "react";
 
 //web10 sign in boxes and buttons
-function SignIn({setAuthStatus,statusHook,wapiAuth}) {
+function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
   const [status, setStatus] = statusHook;
   return (
     <div style={{ width: "300px", height: "210px" }}>
@@ -11,7 +11,13 @@ function SignIn({setAuthStatus,statusHook,wapiAuth}) {
           <input
             id="provider"
             className="input has-background-white"
-            defaultValue="https://api.web10.app"
+            defaultValue={
+              window.location.hostname == "auth.localhost"
+                ? "http://api.localhost"
+                : window.location.hostname == "crm.web10.dev"
+                ? "https://api.web10.dev"
+                : "https://api.web10.app"
+            }
             placeholder="https://api.web10.app"
           />
         </p>
