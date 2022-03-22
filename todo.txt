@@ -1,4 +1,3 @@
-docker-volumes + skaffold-inference to copy wapi.js
 store wapi and wapiauth tokens in cookies.
 refetch tokens if tokens are to old in wapi and wapiauth.
 wipe tokens from cookies on logout.

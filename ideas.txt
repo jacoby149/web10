@@ -52,3 +52,5 @@ forchan, universal access flat
 // (1V1) sender vs. reciever [Modifiability vs. Immutability]
 // (Modification) slate vs. flat [Soloist vs. Chorus] 
 // (Read) limited vs. universal [Colloseum vs. Library]
+
+*todo fix skaffold dev sync inference

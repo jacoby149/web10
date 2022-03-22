@@ -8,18 +8,18 @@ build:
       context: ../../api
       sync:
         infer:
-          - './app'
+          - './app/*'
     - image: gcr.io/pure-phalanx-344719/auth-dev
       context: ../../auth
       sync:
         infer:
-          - '.'
+          - './*'
     - image: gcr.io/pure-phalanx-344719/crm-dev
       context: ../..
       sync:
         infer:
-        - 'crm/.'
-        - 'auth/public/sdk/.'
+        - 'crm/*'
+        - 'auth/public/sdk/*'
       docker:
         dockerfile: crm/Dockerfile
 deploy:
