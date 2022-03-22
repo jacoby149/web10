@@ -6,8 +6,14 @@ build:
   artifacts:
     - image: gcr.io/pure-phalanx-344719/api-dev
       context: ../../api
+      sync:
+        infer:
+          - './app'
     - image: gcr.io/pure-phalanx-344719/auth-dev
       context: ../../auth
+      sync:
+        infer:
+          - '.'
     - image: gcr.io/pure-phalanx-344719/crm-dev
       context: ../..
       sync:
