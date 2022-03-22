@@ -19,5 +19,5 @@ spec:
             - containerPort: 80
           env:
           - name: PROVIDER
-            value: "api.web10.app"
+            value: "api.web10.dev"
           resources:
