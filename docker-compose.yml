@@ -24,12 +24,6 @@ services:
       CHOKIDAR_USEPOLLING: "true"
     ports:
       - '3000:80'
-  social:
-    build: social/.
-    volumes:
-      - ./social/:/social    
-    ports:
-      - "8000:80"
   crm:
     build: crm/.
     volumes:
