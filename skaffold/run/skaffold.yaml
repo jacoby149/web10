@@ -9,7 +9,7 @@ build:
     - image: gcr.io/pure-phalanx-344719/auth
       context: ../../auth
     - image: gcr.io/pure-phalanx-344719/crm
-      context: ../../crm
+      context: ../..
       sync:
         infer:
         - 'crm/.'
