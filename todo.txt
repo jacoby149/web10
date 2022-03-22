@@ -1,8 +1,21 @@
-#check that site making request is the ACTUAL site.
-
-set up web10 deploy google autopilot.
-
-payment accepting
-charging()
-user services D and C
-user SMR CRUD [Services U]
+configure app docker volumes to locally source wapi.js
+configure app kubers to locally source wapi.js
+add skaffold inference based filesync
+check cookie token age in wapi and wapiauth.
+if token too old, get a new token.
+store token in cookies.
+wipe token from cookies on logout.
+Github Version to V1.0.1
+entirely remove CRM ledges
+make CRM notes deletor
+Add CRM web10 mailer display
+Add CRM web10 mailer sending
+Add CRM web10 mailer reading
+Add CRM web10 mailer refreshing
+charging web10 credits. (allow negative balances for now, eventually don't)
+make sure users do not have default route usernames, default service record ones, or funny characters
+make sure passwords dont have funny characters
+Make * service a recordless service.
+Services D
+handle cases for when a service allows for zero authentication.
+Github Version to V1.0.2
