@@ -10,10 +10,6 @@ build:
       context: ../../auth
     - image: gcr.io/pure-phalanx-344719/crm
       context: ../..
-      sync:
-        infer:
-        - 'crm/.'
-        - 'auth/public/sdk/.'
       docker:
         dockerfile: crm/Dockerfile
 deploy:
