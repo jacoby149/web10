@@ -33,3 +33,22 @@ wildcard sets service terms without SMC
 (purely based on your token)
 [maybe token has a list of allowable wildcards]
 // could be convenient to not always require user permission. [especially in extremely well trusted apps]
+
+https://stackoverflow.com/questions/4588303/in-mongodb-how-do-you-remove-an-array-element-by-its-index
+flatjsons may be very powerful...
+// useful for 1.0.1
+
+
+redactables, hypercontrolled access slate
+a NYT article, controlled access slate (read only)
+youtube channel description, universal access slate
+subscription youtube video page, limited access owner dominated
+a youtube video page is a universal owner dominated
+a privacy controlled fb wall, limited access owner managed
+a public fb page universal access owner managed
+gab, limited access flat
+forchan, universal access flat
+3 Dimensional Security
+// (1V1) sender vs. reciever [Modifiability vs. Immutability]
+// (Modification) slate vs. flat [Soloist vs. Chorus] 
+// (Read) limited vs. universal [Colloseum vs. Library]
