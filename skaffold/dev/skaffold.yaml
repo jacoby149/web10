@@ -14,6 +14,8 @@ build:
         infer:
         - 'crm/.'
         - 'auth/public/sdk/.'
+      docker:
+        dockerfile: crm/Dockerfile
 deploy:
   kubectl:
     manifests:
