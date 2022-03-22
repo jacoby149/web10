@@ -1,33 +1,30 @@
-// Github Version to V1.0.0
-Full Localized Web10
-configure app docker-volumes and skaffold-inference to locally source wapi.js
+docker-volumes + skaffold-inference to copy wapi.js
 store wapi and wapiauth tokens in cookies.
 refetch tokens if tokens are to old in wapi and wapiauth.
 wipe tokens from cookies on logout.
-Services Deletion (Optionally wipe data)
+Services Deletion + (Optionally wipe data)
 Service File Export
-Service File Import [by appending beware redundant _id:]
+Service File Import [via appending. beware redundant _id:]
 Service Editor Create_One Mode ($set)
 Service Editor Update_One Mode ($set)
 Service Editor Delete_One Mode ($unset $pull $pullall)
 Service Editor SIR Mode
-Remove SCRs
-// Github Version to V1.0.1
-Full Networked Web10
+Remove all SCR
+Change Password
 remove CRM ledges
 make a CRM notes deletor
 add a CRM notes author field
-Add reciever favored inbox
+Add reciever favored inbox + toggle
 Add sender favored redactables
+handle when a service allows for zero authentication
 Add slates
-handle cases for when a service allows for zero authentication.
-// Github Version to V1.0.2
-Secured Web10 with Payment
-make sure {user}/{services} cant crud the * service (web10 only data)
-submit payments via stripe.
-add web10 credits to account
-show web10 credits to user
-charge web10 credits. (allow negative balances for now, eventually don't)
-make sure users do not have default route usernames, default service record ones, or funny characters
+CRUD {user}/{services} block sensitive services
+make sure usernames are not default routes, or funny characters
 make sure passwords dont have funny characters
-// Github Version to V1.0.3
+submit payments via stripe.
+add web10 credits to account + show
+charge web10 credits. (allow negative balances for now)
+Document wapi SDK + code examples.
+Document Service Editor.
+Document Login/Signup + Settings/Payment
+Document Web10 Record Mechanism
