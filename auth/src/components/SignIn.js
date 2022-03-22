@@ -13,12 +13,12 @@ function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
             className="input has-background-white"
             defaultValue={
               window.location.hostname == "auth.localhost"
-                ? "http://api.localhost"
+                ? "api.localhost"
                 : window.location.hostname == "crm.web10.dev"
-                ? "https://api.web10.dev"
-                : "https://api.web10.app"
+                ? "api.web10.dev"
+                : "api.web10.app"
             }
-            placeholder="https://api.web10.app"
+            placeholder="api.web10.app"
           />
         </p>
       </div>
