@@ -14,7 +14,7 @@ function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
             defaultValue={
               window.location.hostname == "auth.localhost"
                 ? "api.localhost"
-                : window.location.hostname == "crm.web10.dev"
+                : window.location.hostname == "auth.web10.dev"
                 ? "api.web10.dev"
                 : "api.web10.app"
             }
