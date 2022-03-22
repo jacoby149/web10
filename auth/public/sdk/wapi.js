@@ -14,7 +14,7 @@ function cookieDict() {
 }
 
 //initializes the wapi library object
-function wapiInit(authUrl = "http://auth.localhost") {
+function wapiInit(authUrl = `${window.location.protocol}//auth.localhost`) {
   const wapi = {};
 
   //wapi variables
@@ -59,7 +59,7 @@ function wapiInit(authUrl = "http://auth.localhost") {
 
   //get tiered tokens for strong web10 security
   wapi.getTieredToken = function (site, target) {
-    return axios.post(`http://${wapi.readToken().provider}/web10token`, {
+    return axios.post(`${window.location.protocol}//${wapi.readToken().provider}/web10token`, {
       username: wapi.readToken().username,
       password: null,
       token: wapi.token,
@@ -123,7 +123,7 @@ function wapiInit(authUrl = "http://auth.localhost") {
       query: query,
       value: value,
     };
-    const url = `http://${provider}/${username}/${service}`
+    const url = `${window.location.protocol}//${provider}/${username}/${service}`
     console.log("qv: ",query,value);
     console.log("url: ",url);
     return HTTPRequestFunction(url, t);
