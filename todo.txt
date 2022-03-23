@@ -1,4 +1,5 @@
-Today
+Add status on sign up
+Fix not accepting SIR right away and re trying bricking the app
 UI fix SMC Messages + Login Messages
 Services Deletion + (Optionally wipe data)
 Service File Export + AppendingImport[-_id]
@@ -8,19 +9,16 @@ Change Password
 remove CRM ledges
 make a CRM notes deletor
 Add notes author field + inbox + toggle
-
-Thursday
 CRUD API + UI protect the "*" service
 add + display web10 credits via stripe
 stripe recurring payments + display details
 limit CRU calls to CRU_one calls
 charge credits on CRU calls by size. (allow negative balances for now)
-
-Friday
 Document wapi SDK + code examples.
 Document Service Editor.
 Document Login/Signup + Settings/Payment
 Document Web10 Record Mechanism
 UI robustly show backend errors
-Fix Mobile SMR view Issue *
+Fix off by a few pixels height react
+Fix mobile address bar wiggle
 peddle and meddle

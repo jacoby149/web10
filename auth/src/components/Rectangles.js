@@ -78,8 +78,9 @@ function R(props){
     if (props.h){style=a(style,{});}
 
     /* rect size */
-    const v = (!props.ps || props.ps == "top" || props.ps == "bottom");
-    var [s,ms] = [props.s,props.ms];
+    const v = (!props.ps || props.ps === "top" || props.ps === "bottom");
+    var s = props.s;
+    //var ms = props.ms;
 
     if (!props.root){
         if (!s){s="auto";}

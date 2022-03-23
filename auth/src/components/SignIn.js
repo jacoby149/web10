@@ -12,9 +12,9 @@ function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
             id="provider"
             className="input has-background-white"
             defaultValue={
-              window.location.hostname == "auth.localhost"
+              window.location.hostname === "auth.localhost"
                 ? "api.localhost"
-                : window.location.hostname == "auth.web10.dev"
+                : window.location.hostname === "auth.web10.dev"
                 ? "api.web10.dev"
                 : "api.web10.app"
             }
