@@ -16,7 +16,8 @@ services:
   auth:
     build: auth
     volumes:
-      - ./auth:/frontend
+      - ./auth/public:/frontend/public
+      - ./auth/src/components:/frontend/src/components
       - node-modules:/frontend/node_modules
     environment:
       NODE_ENV: development
