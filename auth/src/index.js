@@ -119,7 +119,7 @@ function App() {
   }
   
 
-  React.useEffect(() => {return telescope.start(window.root)});
+  React.useEffect(() => {return telescope.start(window.root)},[]);
   React.useEffect(() => setAuthStatus(wapi.isSignedIn()), []);
 
   //web10 read for the services
