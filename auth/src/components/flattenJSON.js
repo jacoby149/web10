@@ -15,15 +15,15 @@ const flattenJSON = (obj = {}, res = {}, extraKey = "") => {
   return res;
 };
 
-//read an object value given a flat key
-const readFlat = (obj = {}, flatKey) => {
-  const keyList = flatKey.split(".");
-  var loc = obj;
-  for (const key in keyList) {
-    loc = loc[key];
-  }
-  return loc;
-};
+// MAYBE USEFUL!! read an object value given a flat key
+// const readFlat = (obj = {}, flatKey) => {
+//   const keyList = flatKey.split(".");
+//   var loc = obj;
+//   for (const key in keyList) {
+//     loc = loc[key];
+//   }
+//   return loc;
+// };
 
 //write an object value given a flat key
 const writeFlat = (obj = {}, flatKey, value) => {

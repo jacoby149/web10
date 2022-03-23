@@ -1,4 +1,6 @@
 /* wapi initialization */
+//var wapi = wapiInit("https://auth.web10.app")
+
 var wapi =
   window.location.hostname == "crm.localhost"
     ? wapiInit("http://auth.localhost")
