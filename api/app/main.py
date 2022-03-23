@@ -66,7 +66,7 @@ def authenticate_user(username: str, password: str):
     if not user:
         raise exceptions.LOGIN
     if not verify_password(password, user.hashed_password):
-        return exceptions.LOGIN
+        raise exceptions.LOGIN
     return user
 
 
@@ -175,10 +175,15 @@ def certify(token: models.Token):
 async def create_web10_token(form_data: models.TokenForm):
     token_data = models.TokenData()
     token_data.populate_from_token_form(form_data)
+    print(token_data)
+    print(form_data)
+    if ((not form_data.password) and (not form_data.token)): raise exceptions.LOGIN
     try:
         if form_data.password:
             if authenticate_user(form_data.username, form_data.password):
+                print(1)
                 if form_data.site in settings.CORS_SERVICE_MANAGERS:
+                    print(2)
                     pass
         elif form_data.token:
             if certify(models.Token(token=form_data.token)):
