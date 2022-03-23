@@ -39,6 +39,8 @@ function ServiceTerms({ services, selectedService, SMRHook, SMRIncrement }) {
         type={services[selectedService][1]}
         SMRIncrement={SMRIncrement}
       ></EditApproval>
+        <Deletor></Deletor>
+
     </div>
   );
 }
@@ -80,6 +82,26 @@ function NewField() {
         style={{ marginTop: "4px" }}
       >
         Add
+      </button>
+    </div>
+  );
+}
+
+function Deletor(){
+  return (
+    <div style={{ marginTop: "4px", marginLeft: "4px", marginRight: "4px" }}>
+      Delete This Service : <br></br>
+      Type Service Name To Confirm :{" "}
+      <input
+        style={{ backgroundColor: "black", color: "lightgreen" }}
+        placeholder={"examplekey.0.red.1"}
+      ></input>
+      <br></br>
+      <button
+        className="button is-small is-danger"
+        style={{ marginTop: "4px" }}
+      >
+        Delete
       </button>
     </div>
   );
@@ -161,6 +183,9 @@ function EditApproval({ flattenedService, type, SMRIncrement }) {
       >
         Deny Service Changes
       </button>
+      <div>
+      <button className="button is-primary" style={{ margin: "5px 5px" }}>Export Service</button>       <button className="button is-info" style={{ margin: "5px 5px" }}> Import Service</button>
+</div>
     </div>
   );
 }
