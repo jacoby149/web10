@@ -28,9 +28,23 @@ function ServiceTerms({ services, selectedService, SMRHook, SMRIncrement }) {
     <div>
       <div
         className="box warning"
-        style={{ marginTop: "4px", marginLeft: "4px", marginRight: "4px" }}
+        style={{
+          marginTop: "4px",
+          marginLeft: "4px",
+          marginRight: "4px",
+          marginBottom: "4px",
+        }}
       >
-              <h1 style={{fontFamily:"courier new",fontSize:"16px",marginLeft:"15px",color:"orange"}}>{currentService["body"]["service"]}</h1>
+        <h1
+          style={{
+            fontFamily: "courier new",
+            fontSize: "16px",
+            marginLeft: "15px",
+            color: "orange",
+          }}
+        >
+          {currentService["body"]["service"]}
+        </h1>
 
         {final}
         <br></br>
@@ -41,8 +55,12 @@ function ServiceTerms({ services, selectedService, SMRHook, SMRIncrement }) {
         type={services[selectedService][1]}
         SMRIncrement={SMRIncrement}
       ></EditApproval>
+      <div style={{ marginLeft: "5px" }}>
         <Deletor></Deletor>
-
+      </div>
+      <div style={{ marginLeft: "5px",marginTop:"10px" }}>
+        <Wiper></Wiper>
+      </div>
     </div>
   );
 }
@@ -89,10 +107,10 @@ function NewField() {
   );
 }
 
-function Deletor(){
+function Deletor() {
   return (
     <div style={{ marginTop: "4px", marginLeft: "4px", marginRight: "4px" }}>
-      Delete This Service : <br></br>
+      Delete Service Terms Record : <br></br>
       Type Service Name To Confirm :{" "}
       <input
         style={{ backgroundColor: "black", color: "lightgreen" }}
@@ -104,6 +122,30 @@ function Deletor(){
         style={{ marginTop: "4px" }}
       >
         Delete
+      </button>
+    </div>
+  );
+}
+
+function Wiper() {
+  return (
+    <div
+      style={{
+        marginTop: "4px",
+        marginLeft: "4px",
+        marginRight: "4px",
+        color: "crimson",
+      }}
+    >
+      Wipe All Service Data : <br></br>
+      Type Service Name To Confirm :{" "}
+      <input
+        style={{ backgroundColor: "black", color: "lightgreen" }}
+        placeholder={"examplekey.0.red.1"}
+      ></input>
+      <br></br>
+      <button className="button is-small is-black" style={{ marginTop: "4px" }}>
+        Wipe
       </button>
     </div>
   );
@@ -128,9 +170,9 @@ const EditableInput = ({ record, field }) => {
   return (
     <div style={{ marginLeft: "4px", marginTop: "4px" }}>
       {field} :{" "}
-        <span style={{ color: "firebrick", textDecoration: "line-through" }}>
-          {value === update ? "":value}
-        </span>
+      <span style={{ color: "firebrick", textDecoration: "line-through" }}>
+        {value === update ? "" : value}
+      </span>
       <input
         style={{ color: "#2ECC40" }}
         size={String(update).length}
@@ -147,13 +189,13 @@ const EditableInput = ({ record, field }) => {
 
 function SMR(flattenedService, type, SMRIncrement) {
   //retrieve the updates for the SMR
-  const updates = {} 
-  Object.keys(flattenedService).map(function(key){
-    return updates[key] = flattenedService[key]["update"]
+  const updates = {};
+  Object.keys(flattenedService).map(function (key) {
+    return (updates[key] = flattenedService[key]["update"]);
   });
   if (type === "new") {
     const obj = unFlattenJSON(updates);
-    console.log(obj)
+    console.log(obj);
     wapi.create("services", obj).then(SMRIncrement).catch(console.log);
   }
 }
@@ -167,7 +209,7 @@ function EditApproval({ flattenedService, type, SMRIncrement }) {
   return (
     <div>
       <button
-        onClick={()=>SMR(flattenedService, type, SMRIncrement)}
+        onClick={() => SMR(flattenedService, type, SMRIncrement)}
         style={{ margin: "0px 5px" }}
         className="button is-warning"
       >
@@ -186,8 +228,14 @@ function EditApproval({ flattenedService, type, SMRIncrement }) {
         Deny Service Changes
       </button>
       <div>
-      <button className="button is-primary" style={{ margin: "5px 5px" }}>Export Service</button>       <button className="button is-info" style={{ margin: "5px 5px" }}> Import Service</button>
-</div>
+        <button className="button is-primary" style={{ margin: "5px 5px" }}>
+          Export Service
+        </button>{" "}
+        <button className="button is-info" style={{ margin: "5px 5px" }}>
+          {" "}
+          Import Service
+        </button>
+      </div>
     </div>
   );
 }
