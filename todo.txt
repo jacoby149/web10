@@ -1,6 +1,7 @@
 store wapi and wapiauth tokens in cookies.
 refetch tokens if tokens are to old in wapi and wapiauth.
 wipe tokens from cookies on logout.
+
 Services Deletion + (Optionally wipe data)
 Service File Export
 Service File Import [via appending. beware redundant _id:]
