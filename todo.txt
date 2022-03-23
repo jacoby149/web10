@@ -1,4 +1,3 @@
-Fix not accepting SIR right away and re trying bricking the app
 UI fix SMC Messages + Login Messages
 Services Deletion + (Optionally wipe data)
 Service File Export + AppendingImport[-_id]

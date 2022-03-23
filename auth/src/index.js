@@ -50,7 +50,7 @@ function App() {
   function displayBasedOnMode() {
     switch (mode) {
       case "auth":
-        return <OAuth />;
+        return <OAuth SMR={SMR} />;
       case "services":
         return (
           <ServiceTerms
@@ -260,17 +260,20 @@ function Credits(props) {
 }
 
 //authorization
-function OAuth(props) {
+function OAuth({SMR}) {
+  console.log(SMR)
   return (
     <div style={{ width: "250px" }}>
+      {SMR["sirs"].length===0&&SMR["scrs"].length===0?"":
       <div
         style={{ margin: "5px" }}
         className="notification is-warning is-light"
       >
         <u>{document.referrer}</u> would like to make service changes.{" "}
         <strong>approve or deny the changes in the left pane.</strong>
-      </div>
-
+      </div>}
+      {(document.referrer==="")? (
+      <div>
       <div
         style={{ margin: "5px" }}
         className="notification is-danger is-light"
@@ -288,6 +291,8 @@ function OAuth(props) {
           </button>
         </div>
       </div>
+      </div>)
+      :""}
     </div>
   );
 }
