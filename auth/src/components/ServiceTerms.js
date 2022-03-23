@@ -104,13 +104,9 @@ const EditableInput = ({ record, field }) => {
   return (
     <div style={{ marginLeft: "4px", marginTop: "4px" }}>
       {field} :{" "}
-      {value === update ? (
-        ""
-      ) : (
         <span style={{ color: "firebrick", textDecoration: "line-through" }}>
-          {value}
+          {value === update ? "":value}
         </span>
-      )}
       <input
         style={{ color: "#2ECC40" }}
         size={String(update).length}
