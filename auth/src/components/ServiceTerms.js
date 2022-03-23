@@ -58,7 +58,7 @@ function ServiceTerms({ services, selectedService, SMRHook, SMRIncrement }) {
       <div style={{ marginLeft: "5px" }}>
         <Deletor></Deletor>
       </div>
-      <div style={{ marginLeft: "5px",marginTop:"10px" }}>
+      <div style={{ marginLeft: "5px",marginTop:"10px", marginBottom:"10px" }}>
         <Wiper></Wiper>
       </div>
     </div>
