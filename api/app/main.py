@@ -39,12 +39,15 @@ import logging
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-	exc_str = f'{exc}'.replace('\n', ' ').replace('   ', ' ')
-	logging.error(f"{request}: {exc_str}")
-	content = {'status_code': 10422, 'message': exc_str, 'data': None}
-	return JSONResponse(content=content, status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
+    exc_str = f"{exc}".replace("\n", " ").replace("   ", " ")
+    logging.error(f"{request}: {exc_str}")
+    content = {"status_code": 10422, "message": exc_str, "data": None}
+    return JSONResponse(
+        content=content, status_code=status.HTTP_422_UNPROCESSABLE_ENTITY
+    )
 
 
 ####################################################
@@ -194,13 +197,19 @@ async def create_web10_token(form_data: models.TokenForm):
     }
 
 
+def kosher(s):
+    return "/" not in s and "." not in s and "$" not in s
+
+
 # make a new web10 account
 @app.post("/signup")
 async def signup(form_data: models.SignUpForm):
     form_data = models.dotdict(form_data)
-    if (form_data.betacode == settings.BETA_CODE):
-        return mongo.create_user(form_data, get_password_hash)
-    raise exceptions.BETA
+    if not kosher(form_data.username):
+        raise exceptions.BAD_USERNAME
+    if form_data.betacode != settings.BETA_CODE:
+        raise exceptions.BETA
+    return mongo.create_user(form_data, get_password_hash)
 
 
 #####################################################

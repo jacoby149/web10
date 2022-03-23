@@ -18,7 +18,7 @@ function wapiAuthInit(wapi) {
   };
 
   //initialize the oauth token
-  wapi.isSignedIn() ? wapiAuth.mintOAuthToken() : (wapiAuth.oAuthToken = null);
+  wapi.isSignedIn() && document.referrer ? wapiAuth.mintOAuthToken() : (wapiAuth.oAuthToken = null);
 
   //send the apikey back to the oauth requesting site
   wapiAuth.sendToken = function () {

@@ -1,26 +1,28 @@
 import app.settings as settings
 
+
 def star_record():
     return {
-        "whitelist": [], 
+        "whitelist": [],
         "blacklist": [],
         "body": {
-            "service":"*",
+            "service": "*",
             "username": "USERNAME",
             "hashed_password": "PASSWORD",
-            "credits":[],
-            "payment_methods":[]   
+            "credits": [],
+            "payment_methods": [],
         },
     }
 
+
 def services_record():
     return {
-        "whitelist":[],
-        "blacklist":[],
-        "body":{
-            "service":"services",
-            "cross_origins":settings.CORS_SERVICE_MANAGERS,
-            "active" : True,
-            "banlist":[]
-        }  
+        "whitelist": [],
+        "blacklist": [],
+        "body": {
+            "service": "services",
+            "cross_origins": settings.CORS_SERVICE_MANAGERS,
+            "active": True,
+            "banlist": [],
+        },
     }
