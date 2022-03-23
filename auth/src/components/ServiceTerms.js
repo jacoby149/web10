@@ -210,7 +210,7 @@ function EditApproval({ flattenedService, type, SMRIncrement }) {
     <div>
       <button
         onClick={() => SMR(flattenedService, type, SMRIncrement)}
-        style={{ margin: "0px 5px" }}
+        style={{ margin: "5px 5px" }}
         className="button is-warning"
       >
         Approve{" "}
@@ -222,7 +222,7 @@ function EditApproval({ flattenedService, type, SMRIncrement }) {
       </button>
       <button
         onClick={clear()}
-        style={{ margin: "0px 5px" }}
+        style={{ margin: "5px 5px" }}
         className="button is-warning"
       >
         Deny Service Changes
