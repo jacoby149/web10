@@ -25,12 +25,12 @@ function wapiInit(authUrl = `${window.location.protocol}//auth.localhost`) {
   wapi.setToken = function (token) {
     wapi.token = token;
     console.log(wapi.token);
-    //TODO make the token expire at the right time...
-    //document.cookie = `token=${wapi.token};Secure;path=/`;
+    //set the cookie max age to 30 minutes * 60secs = 1800 secs
+    document.cookie = `token=${wapi.token};Secure;path=/;max-age=1800;`;
   };
   //scrub the api keys from wapi and deletes it from cookies
   wapi.scrubToken = function () {
-    document.cookie = "token=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;";
+    document.cookie = "token=;max-age=-1;path=/;";
     wapi.token = null;
   };
 
