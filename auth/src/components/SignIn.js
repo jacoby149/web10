@@ -4,7 +4,7 @@ import React from "react";
 function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
   const [status, setStatus] = statusHook;
   return (
-    <div style={{ width: "300px", height: "210px" }}>
+    <div style={{ width: "300px"}}>
       <div className="field">
         <p style={{ margin: "5px 10px" }} className="control has-icons-left">
           web10provider:{" "}
@@ -62,12 +62,6 @@ function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
                       <input id = "confirmPassword" className="input has-background-white" type="password" placeholder="Confirm Password"/>
                   </p>
           </div> */}
-      <div
-        style={{ margin: "5px" }}
-        className="notification is-danger is-light"
-      >
-        {status}
-      </div>
 
       <div className="field">
         <p className="control">

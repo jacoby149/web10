@@ -37,9 +37,12 @@ function App() {
   }, []);
 
   //status message
-  const [status, setStatus] = React.useState(
-    "log in to authorize apps and manage services"
-  );
+  const [status, setStatus] = React.useState(null);
+  React.useEffect(() => {
+    setStatus(
+      authStatus ? null : "log in to authorize apps and manage services"
+    );
+  }, [authStatus]);
 
   /* display mode of the UI, can be auth or services, */
   const [mode, setMode] = React.useState("auth");
@@ -127,7 +130,9 @@ function App() {
   React.useEffect(() => {
     return telescope.start(window.root);
   }, []);
-  React.useEffect(() => setAuthStatus(wapi.isSignedIn()), []);
+  React.useEffect(() => {
+    setAuthStatus(wapi.isSignedIn());
+  }, []);
 
   //web10 read for the services
   const setSMs = function () {
@@ -179,6 +184,24 @@ function App() {
   }
 
   /* The App Component */
+  console.log("hee");
+  console.log(status);
+  function StatusLog() {
+    return (
+      <div>
+        {status === null ? (
+          <div></div>
+        ) : (
+          <div
+            style={{ marginLeft: "10px",marginTop: "20px",width:"280px" }}
+            className="notification is-danger is-light"
+          >
+            {status}
+          </div>
+        )}
+      </div>
+    );
+  }
   return (
     <R root t bt bb br bl theme={theme}>
       {/* This is the root rectangle ^^^ */}
@@ -240,6 +263,7 @@ function App() {
               {displayBasedOnMode()}
             </R>
           )}
+          <StatusLog/>
         </R>
       </R>
     </R>
