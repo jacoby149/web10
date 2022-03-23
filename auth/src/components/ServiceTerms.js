@@ -30,7 +30,7 @@ function ServiceTerms({ services, selectedService, SMRHook, SMRIncrement }) {
         className="box warning"
         style={{ marginTop: "4px", marginLeft: "4px", marginRight: "4px" }}
       >
-              <h1 style={{fontFamily:"courier new",fontSize:"16px",marginLeft:"10px",color:"orange"}}>{currentService["body"]["service"]}</h1>
+              <h1 style={{fontFamily:"courier new",fontSize:"16px",marginLeft:"15px",color:"orange"}}>{currentService["body"]["service"]}</h1>
 
         {final}
         <br></br>
