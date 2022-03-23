@@ -1,24 +1,13 @@
-store wapi and wapiauth tokens in cookies.
-refetch tokens if tokens are to old in wapi and wapiauth.
-wipe tokens from cookies on logout.
-
 Services Deletion + (Optionally wipe data)
-Service File Export
-Service File Import [via appending. beware redundant _id:]
-Service Editor Create_One Mode ($set)
-Service Editor Update_One Mode ($set)
-Service Editor Delete_One Mode ($unset $pull $pullall)
+Service File Export + AppendingImport[-_id]
+Service Editor CUD Mode ($set $unset $pull)
 Service Editor SIR Mode
 Remove all SCR
 Change Password
 remove CRM ledges
 make a CRM notes deletor
-add a CRM notes author field
-Add reciever favored inbox + toggle
-Add sender favored redactables
-handle when a service allows for zero authentication
-Add slates
-CRUD {user}/{services} block sensitive services
+Add notes author field + inbox + toggle
+CRUD API + UI protect the "*" service
 make sure usernames are not default routes, or funny characters
 make sure passwords dont have funny characters
 submit payments via stripe.

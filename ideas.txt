@@ -54,3 +54,7 @@ forchan, universal access flat
 // (Read) limited vs. universal [Colloseum vs. Library]
 
 *todo fix skaffold dev sync inference
+
+Add sender favored redactables
+handle when a service allows for zero authentication
+Add slates
