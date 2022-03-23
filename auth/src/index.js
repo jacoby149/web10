@@ -50,7 +50,7 @@ function App() {
   function displayBasedOnMode() {
     switch (mode) {
       case "auth":
-        return <OAuth SMR={SMR} />;
+        return <OAuth services={services} />;
       case "services":
         return (
           <ServiceTerms
@@ -160,7 +160,7 @@ function App() {
       setServices([[{ body: { service: "log in to manage services" } }, null]]);
     }
   };
-  React.useEffect(setSMs, [authStatus, SMRCount,SMR]);
+  React.useEffect(setSMs, [authStatus, SMRCount, SMR]);
 
   /* Menu Collapsed State */
   const [collapse, setCollapse] = React.useState(false);
@@ -260,39 +260,46 @@ function Credits(props) {
 }
 
 //authorization
-function OAuth({SMR}) {
-  console.log(SMR)
+function OAuth({ services }) {
   return (
     <div style={{ width: "250px" }}>
-      {SMR["sirs"].length===0&&SMR["scrs"].length===0?"":
-      <div
-        style={{ margin: "5px" }}
-        className="notification is-warning is-light"
-      >
-        <u>{document.referrer}</u> would like to make service changes.{" "}
-        <strong>approve or deny the changes in the left pane.</strong>
-      </div>}
-      {(document.referrer==="")? (
-      <div>
-      <div
-        style={{ margin: "5px" }}
-        className="notification is-danger is-light"
-      >
-        <u>{document.referrer}</u> would like to login.
-      </div>
-      <div className="field">
-        <div className="control">
-          <button
-            onClick={wapiAuth.sendToken}
-            style={{ margin: "0px 5px" }}
-            className="button is-warning"
-          >
-            Log In
-          </button>
+      {services
+        .map((service) => service[1])
+        .filter((status) => status === "new" || status === "change").length ===
+      0 ? (
+        ""
+      ) : (
+        <div
+          style={{ margin: "5px" }}
+          className="notification is-warning is-light"
+        >
+          <u>{document.referrer}</u> would like to make service changes.{" "}
+          <strong>approve or deny the changes in the left pane.</strong>
         </div>
-      </div>
-      </div>)
-      :""}
+      )}
+      {document.referrer !== "" ? (
+        <div>
+          <div
+            style={{ margin: "5px" }}
+            className="notification is-danger is-light"
+          >
+            <u>{document.referrer}</u> would like to login.
+          </div>
+          <div className="field">
+            <div className="control">
+              <button
+                onClick={wapiAuth.sendToken}
+                style={{ margin: "0px 5px" }}
+                className="button is-warning"
+              >
+                Log In
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        ""
+      )}
     </div>
   );
 }
