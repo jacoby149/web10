@@ -4,7 +4,7 @@ import { flattenJSON, unFlattenJSON } from "./flattenJSON.js";
 var wapi = window.wapi;
 
 /* Service Change Component */
-function ServiceTerms({ services, selectedService, SCRS, SMRIncrement }) {
+function ServiceTerms({ services, selectedService, SMRHook, SMRIncrement }) {
   const currentService = services[selectedService][0];
   const flattenedService = flattenJSON(currentService);
   //store updates adjacently
