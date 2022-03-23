@@ -1,4 +1,3 @@
-UI fix SMC Messages + Login Messages
 Services Deletion + (Optionally wipe data)
 Service File Export + AppendingImport[-_id]
 Service Editor CUD Mode ($set $unset $pull)
@@ -19,4 +18,3 @@ Document Web10 Record Mechanism
 UI robustly show backend errors
 Fix off by a few pixels height react
 Fix mobile address bar wiggle
-peddle and meddle
