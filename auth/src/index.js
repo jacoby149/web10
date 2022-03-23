@@ -20,19 +20,21 @@ function App() {
   //for service changes, NOT initializations
   const [SMR, setSMR] = React.useState({
     scrs: [],
-    sirs: [],//[{ body: { service: "addy" } }],
+    sirs: [], //[{ body: { service: "addy" } }],
   });
 
   //provides an effect update every time an smr is submitted.
   //also provides a convenient count of SMRs
   const [SMRCount, setSMRCount] = React.useState(0);
-  const SMRIncrement = function(){
-    setSMRCount(SMRCount+1);
-  }
+  const SMRIncrement = function () {
+    setSMRCount(SMRCount + 1);
+  };
 
-  React.useEffect(function(){
-    wapiAuth.SMRListen((inSMR)=>setSMR(inSMR))
-  },[])
+  React.useEffect(function () {
+    wapiAuth.SMRListen((inSMR) => {
+      setSMR(inSMR);
+    });
+  }, []);
 
   //status message
   const [status, setStatus] = React.useState(
@@ -94,11 +96,15 @@ function App() {
   }
 
   function Auth(props) {
-  
     const login = <p>please log in</p>;
-  
+
     const logout = (
-      <button style={{backgroundColor:"RGBA(0,0,0,0)",color:"orange",fontFamily:"monospace"}}
+      <button
+        style={{
+          backgroundColor: "RGBA(0,0,0,0)",
+          color: "orange",
+          fontFamily: "monospace",
+        }}
         onClick={() => {
           setSelectedService(0);
           wapi.signOut();
@@ -108,7 +114,7 @@ function App() {
         log out
       </button>
     );
-  
+
     return (
       <C s={"80px"} {...pass(props)}>
         <div style={{ fontFamily: "monospace" }}>
@@ -117,48 +123,44 @@ function App() {
       </C>
     );
   }
-  
 
-  React.useEffect(() => {return telescope.start(window.root)},[]);
+  React.useEffect(() => {
+    return telescope.start(window.root);
+  }, []);
   React.useEffect(() => setAuthStatus(wapi.isSignedIn()), []);
 
   //web10 read for the services
-  React.useEffect(
-    function () {
-      if (authStatus) {
-        wapi
-          .read("services")
-          .then(function (response) {
-            //label service change requests on existing services.
-            const updatedServices = response.data.map((service) => [
-              service,
-              service["body"]["service"] in SMR["scrs"] ? "change" : null,
-            ]);
-            //add service initialization requests.
-            const currServices = response.data.map(
-              (service) => service["body"]["service"]
-            );
-            console.log(currServices);
-            //makes a list of sirs not in the current services, and formats them for the UI correctly
-            const SIRS = SMR["sirs"]
-              .filter(
-                (service) => !(currServices.includes(service["body"]["service"]))
-              )
-              .map((service) => [service, "new"]);
-            //add sirs into the updatedservices
-            updatedServices.push.apply(updatedServices, SIRS);
-            //set the services in the UI
-            setServices(updatedServices);
-          })
-          .catch(console.log);
-      } else {
-        setServices([
-          [{ body: { service: "log in to manage services" } }, null],
-        ]);
-      }
-    },
-    [authStatus,SMRCount]
-  );
+  const setSMs = function () {
+    if (authStatus) {
+      wapi
+        .read("services")
+        .then(function (response) {
+          //label service change requests on existing services.
+          const updatedServices = response.data.map((service) => [
+            service,
+            service["body"]["service"] in SMR["scrs"] ? "change" : null,
+          ]);
+          //add service initialization requests.
+          const currServices = response.data.map(
+            (service) => service["body"]["service"]
+          );
+          //makes a list of sirs not in the current services, and formats them for the UI correctly
+          const SIRS = SMR["sirs"]
+            .filter(
+              (service) => !currServices.includes(service["body"]["service"])
+            )
+            .map((service) => [service, "new"]);
+          //add sirs into the updatedservices
+          updatedServices.push.apply(updatedServices, SIRS);
+          //set the services in the UI
+          setServices(updatedServices);
+        })
+        .catch(console.log);
+    } else {
+      setServices([[{ body: { service: "log in to manage services" } }, null]]);
+    }
+  };
+  React.useEffect(setSMs, [authStatus, SMRCount,SMR]);
 
   /* Menu Collapsed State */
   const [collapse, setCollapse] = React.useState(false);
