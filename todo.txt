@@ -1,20 +1,26 @@
+Today
 UI fix SMC Messages + Login Messages
 Services Deletion + (Optionally wipe data)
 Service File Export + AppendingImport[-_id]
 Service Editor CUD Mode ($set $unset $pull)
 Service Editor SIR Mode
-Remove all SCR
 Change Password
 remove CRM ledges
 make a CRM notes deletor
 Add notes author field + inbox + toggle
+
+Thursday
 CRUD API + UI protect the "*" service
 add + display web10 credits via stripe
 stripe recurring payments + display details
 limit CRU calls to CRU_one calls
 charge credits on CRU calls by size. (allow negative balances for now)
+
+Friday
 Document wapi SDK + code examples.
 Document Service Editor.
 Document Login/Signup + Settings/Payment
 Document Web10 Record Mechanism
 UI robustly show backend errors
+Fix Mobile SMR view Issue *
+peddle and meddle

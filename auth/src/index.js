@@ -93,7 +93,33 @@ function App() {
     );
   }
 
-  React.useEffect(() => telescope.start(window.root));
+  function Auth(props) {
+  
+    const login = <p>please log in</p>;
+  
+    const logout = (
+      <button style={{backgroundColor:"RGBA(0,0,0,0)",color:"orange",fontFamily:"monospace"}}
+        onClick={() => {
+          setSelectedService(0);
+          wapi.signOut();
+          setAuthStatus(wapi.isSignedIn());
+        }}
+      >
+        log out
+      </button>
+    );
+  
+    return (
+      <C s={"80px"} {...pass(props)}>
+        <div style={{ fontFamily: "monospace" }}>
+          {authStatus ? logout : login}
+        </div>
+      </C>
+    );
+  }
+  
+
+  React.useEffect(() => telescope.start(window.root),[]);
   React.useEffect(() => setAuthStatus(wapi.isSignedIn()), []);
 
   //web10 read for the services
@@ -163,7 +189,7 @@ function App() {
         </Icon>
         <R tel />
         <R l ns s={"300px"}>
-          <Auth hook={[authStatus, setAuthStatus]}></Auth>
+          <Auth></Auth>
           <Icon>user-circle</Icon>
           <Icon onClick={toggleTheme}>moon</Icon>
           <Icon>cog</Icon>
@@ -228,31 +254,6 @@ function Credits(props) {
         </div>
       </C>
     </R>
-  );
-}
-
-function Auth(props) {
-  const [authStatus, setAuthStatus] = props.hook;
-
-  const login = <p>please log in</p>;
-
-  const logout = (
-    <button style={{backgroundColor:"RGBA(0,0,0,0)",color:"orange",fontFamily:"monospace"}}
-      onClick={() => {
-        wapi.signOut();
-        setAuthStatus(wapi.isSignedIn());
-      }}
-    >
-      log out
-    </button>
-  );
-
-  return (
-    <C s={"80px"} {...pass(props)}>
-      <div style={{ fontFamily: "monospace" }}>
-        {authStatus ? logout : login}
-      </div>
-    </C>
   );
 }
 
