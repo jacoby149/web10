@@ -190,9 +190,9 @@ function App() {
           bars
         </Icon>
         <R tel />
-        <R l ns s={"300px"}>
+        <R l ns s={"200px"}>
           <Auth></Auth>
-          <Icon>user-circle</Icon>
+          {/* <Icon>user-circle</Icon> */}
           <Icon onClick={toggleTheme}>moon</Icon>
           <Icon>cog</Icon>
         </R>
