@@ -1,5 +1,13 @@
 import app.settings as settings
 
+# whitelist example
+# [
+#     {"username":".*",
+#     "provider":".*",
+#         "all":True,
+#     }
+# ]
+
 
 def star_record():
     return {

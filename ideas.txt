@@ -76,3 +76,9 @@ CRM add per user wall
 CRM add declining services
 CRM deleting a contact deletes all of their stuff too.
 Greenstar CRM address UI deletion safety
+
+reserve 'anon' as a username for nonweb10 users
+then you can add anon to the blacklist :)
+
+document that only true values are read on whitelists and blacklists
+document that "all" overrides
