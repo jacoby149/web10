@@ -82,3 +82,7 @@ then you can add anon to the blacklist :)
 
 document that only true values are read on whitelists and blacklists
 document that "all" overrides
+
+discourage the use of mongodb ids in docs, 
+it could break the export and import\
+Address import _ID issues

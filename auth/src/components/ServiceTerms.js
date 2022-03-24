@@ -50,23 +50,32 @@ function ServiceTerms({ services, selectedService, SMRHook, SMRIncrement }) {
         <br></br>
         {currentService["service"] === "*" ? "" : <NewField></NewField>}
       </div>
-      {currentService["service"] === "*" ? "" : 
-      <div>
-        <EditApproval
-          flattenedService={flattenedService}
-          type={services[selectedService][1]}
-          SMRIncrement={SMRIncrement}
-        ></EditApproval>
-        <div style={{ marginLeft: "5px" }}>
-          <Deletor service={currentService["service"]}></Deletor>
+      {currentService["service"] === "*" ? (
+        ""
+      ) : (
+        <div>
+          <EditApproval
+            flattenedService={flattenedService}
+            type={services[selectedService][1]}
+            SMRIncrement={SMRIncrement}
+          />
+          <ImportExport 
+          service={currentService["service"]}
+          />
+          <div style={{ marginLeft: "5px" }}>
+            <Deletor service={currentService["service"]}></Deletor>
+          </div>
+          <div
+            style={{
+              marginLeft: "5px",
+              marginTop: "10px",
+              marginBottom: "10px",
+            }}
+          >
+            <Wiper service={currentService["service"]} />
+          </div>
         </div>
-        <div
-          style={{ marginLeft: "5px", marginTop: "10px", marginBottom: "10px" }}
-        >
-          <Wiper service={currentService["service"]}></Wiper>
-        </div>
-      </div>
-      }
+      )}
     </div>
   );
 }
@@ -211,6 +220,18 @@ function clear() {
   return;
 }
 
+function downloadObjectAsJson(exportObj, exportName) {
+  var dataStr =
+    "data:text/json;charset=utf-8," +
+    encodeURIComponent(JSON.stringify(exportObj));
+  var downloadAnchorNode = document.createElement("a");
+  downloadAnchorNode.setAttribute("href", dataStr);
+  downloadAnchorNode.setAttribute("download", exportName + ".json");
+  document.body.appendChild(downloadAnchorNode); // required for firefox
+  downloadAnchorNode.click();
+  downloadAnchorNode.remove();
+}
+
 function EditApproval({ flattenedService, type, SMRIncrement }) {
   return (
     <div>
@@ -233,15 +254,29 @@ function EditApproval({ flattenedService, type, SMRIncrement }) {
       >
         Deny Service Changes
       </button>
-      <div>
-        <button className="button is-primary" style={{ margin: "5px 5px" }}>
-          Export Service
-        </button>{" "}
-        <button className="button is-info" style={{ margin: "5px 5px" }}>
-          {" "}
-          Import Service
-        </button>
-      </div>
+    </div>
+  );
+}
+
+function ImportExport() {
+  return (
+    <div>
+      <button className="button is-primary" style={{ margin: "5px 5px" }}>
+        {" "}
+        Import Service
+      </button>
+      <button
+        id={"exporter"}
+        className="button is-info"
+        style={{ margin: "5px 5px" }}
+        onClick={() => {
+          //export js files with
+          //downloadObjectAsJson
+          return;
+        }}
+      >
+        Export Service
+      </button>{" "}
     </div>
   );
 }
