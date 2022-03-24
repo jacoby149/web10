@@ -56,10 +56,10 @@ function ServiceTerms({ services, selectedService, SMRHook, SMRIncrement }) {
         SMRIncrement={SMRIncrement}
       ></EditApproval>
       <div style={{ marginLeft: "5px" }}>
-        <Deletor></Deletor>
+        <Deletor service={currentService["body"]["service"]}></Deletor>
       </div>
       <div style={{ marginLeft: "5px",marginTop:"10px", marginBottom:"10px" }}>
-        <Wiper></Wiper>
+        <Wiper service={currentService["body"]["service"]}></Wiper>
       </div>
     </div>
   );
@@ -107,14 +107,14 @@ function NewField() {
   );
 }
 
-function Deletor() {
+function Deletor({service}) {
   return (
     <div style={{ marginTop: "4px", marginLeft: "4px", marginRight: "4px" }}>
       Delete Service Terms Record : <br></br>
       Type Service Name To Confirm :{" "}
       <input
         style={{ backgroundColor: "black", color: "lightgreen" }}
-        placeholder={"examplekey.0.red.1"}
+        placeholder={service}
       ></input>
       <br></br>
       <button
@@ -127,7 +127,7 @@ function Deletor() {
   );
 }
 
-function Wiper() {
+function Wiper({service}) {
   return (
     <div
       style={{
@@ -141,7 +141,7 @@ function Wiper() {
       Type Service Name To Confirm :{" "}
       <input
         style={{ backgroundColor: "black", color: "lightgreen" }}
-        placeholder={"examplekey.0.red.1"}
+        placeholder={service}
       ></input>
       <br></br>
       <button className="button is-small is-black" style={{ marginTop: "4px" }}>
