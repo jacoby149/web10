@@ -2,7 +2,7 @@ version: "3"
 
 services:
   api:
-    build: api/.
+    build: api
     volumes:
       - ./api/:/web10 
     ports:
@@ -24,16 +24,13 @@ services:
       CHOKIDAR_USEPOLLING: "true"
     ports:
       - '3000:80'
-  social:
-    build: social/.
-    volumes:
-      - ./social/:/social    
-    ports:
-      - "8000:80"
   crm:
-    build: crm/.
+    build: 
+      context: .
+      dockerfile: crm/Dockerfile
     volumes:
-      - ./crm/:/crm    
+      - ./crm/:/crm
+      - ./auth/public/sdk/ :/crm/sdk    
     ports:
       - "7746:80"
     environment:

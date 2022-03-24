@@ -1,26 +1,20 @@
-separate CRM code into functionality
-delete unnecessary fields
-type check fields
-make fields editable
-update crm fields
-note deletion
-ledge deletion
-fix crm dates
-
-accepting payment through stripe and accrediting web10 credits
-charging web10 credits. (allow negative balances for now, eventually don't)
-make sure users do not have default route usernames or funny characters
-make sure passwords dont have funny characters
-fix notes loading bug on new contact
-
-
-Feasible cross web10 communication with malicious parties.
-web10 record of charges
-    - master record
-    - charge dictionary (user,service,requester,period)
-    - web10 server record
-    - web10 user record
-service whitelist configurable credit limits (requester,period)
-    - by requester type [web10 user or ip]
-    - regex kind of expression
-web10 backend service for automatic whitelist blacklist management for anti spam
+Services Deletion + (Optionally wipe data)
+Service File Export + AppendingImport[-_id]
+Service Editor CUD Mode ($set $unset $pull)
+Service Editor SIR Mode
+Change Password
+remove CRM ledges
+make a CRM notes deletor
+Add notes author field + inbox + toggle
+CRUD API + UI protect the "*" service
+add + display web10 credits via stripe
+stripe recurring payments + display details
+limit CRU calls to CRU_one calls
+charge credits on CRU calls by size. (allow negative balances for now)
+Document wapi SDK + code examples.
+Document Service Editor.
+Document Login/Signup + Settings/Payment
+Document Web10 Record Mechanism
+UI robustly show backend errors
+Fix off by a few pixels height react
+Fix mobile address bar wiggle

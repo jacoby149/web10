@@ -1,5 +1,5 @@
 //wapi can be double loaded. try locally first and if that fails, load from the cdn
-if (typeof wapi==='undefined'){
+if (typeof wapiInit==='undefined'){
 
 //makes a dictionary of cookies
 function cookieDict() {
@@ -14,7 +14,7 @@ function cookieDict() {
 }
 
 //initializes the wapi library object
-function wapiInit(authUrl = "http://auth.localhost") {
+function wapiInit(authUrl = `${window.location.protocol}//auth.localhost`) {
   const wapi = {};
 
   //wapi variables
@@ -25,12 +25,12 @@ function wapiInit(authUrl = "http://auth.localhost") {
   wapi.setToken = function (token) {
     wapi.token = token;
     console.log(wapi.token);
-    //TODO make the token expire at the right time...
-    //document.cookie = `token=${wapi.token};Secure;path=/`;
+    //set the cookie max age to 30 minutes * 60secs = 1800 secs
+    document.cookie = `token=${wapi.token};Secure;path=/;max-age=1800;`;
   };
   //scrub the api keys from wapi and deletes it from cookies
   wapi.scrubToken = function () {
-    document.cookie = "token=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;";
+    document.cookie = "token=;max-age=-1;path=/;";
     wapi.token = null;
   };
 
@@ -59,7 +59,7 @@ function wapiInit(authUrl = "http://auth.localhost") {
 
   //get tiered tokens for strong web10 security
   wapi.getTieredToken = function (site, target) {
-    return axios.post(`http://${wapi.readToken().provider}/web10token`, {
+    return axios.post(`${window.location.protocol}//${wapi.readToken().provider}/web10token`, {
       username: wapi.readToken().username,
       password: null,
       token: wapi.token,
@@ -123,7 +123,7 @@ function wapiInit(authUrl = "http://auth.localhost") {
       query: query,
       value: value,
     };
-    const url = `http://${provider}/${username}/${service}`
+    const url = `${window.location.protocol}//${provider}/${username}/${service}`
     console.log("qv: ",query,value);
     console.log("url: ",url);
     return HTTPRequestFunction(url, t);

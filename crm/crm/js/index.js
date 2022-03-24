@@ -20,10 +20,14 @@ function crmInit() {
 ///////////////////////
 
 /* wapi initialization */
-var wapi = wapiInit("https://auth.web10.app");
+//var wapi = wapiInit("https://auth.web10.app")
 
-//check if logged in
-if (wapi.isSignedIn()) init();
+var wapi =
+  window.location.hostname == "crm.localhost"
+    ? wapiInit("http://auth.localhost")
+    : window.location.hostname == "crm.web10.dev"
+    ? wapiInit("https://auth.web10.dev")
+    : wapiInit("https://auth.web10.app");
 
 /* Web10 Login / Log out */
 wapi.authListen(crmInit);
