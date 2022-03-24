@@ -4,6 +4,7 @@ import app.settings as settings
 import app.models as models
 import app.web10records as records
 import os
+import re
 
 
 #################################
@@ -22,18 +23,18 @@ db = client["web10"]
 ################################
 
 def get_user(username: str):
-    if f'{username}/services' not in db.list_collection_names():
+    #check if user exists [by checking if they have any service terms]
+    if db[f'{username}']['services'].find().count()==0:
         raise Exception("user does not exist")
     query = {"body.service":"*"}
-    doc = db[f'{username}/services'].find_one(query)
+    doc = db[f'{username}']['services'].find_one(query)
     if (doc == None):
         raise Exception("no (*) service found")
     return models.dotdict(doc["body"])
 
 def create_user(form_data, hash):
     username,password = form_data.username,form_data.password
-
-    if f'{username}/services' in db.list_collection_names():
+    if db[f'{username}']['services'].find().count()==0:
         return "user already exists"
    
 
@@ -46,8 +47,8 @@ def create_user(form_data, hash):
     services_terms = records.services_record()
 
     # insert the records to create / sign up the user
-    db[f'{username}/services'].insert_one(new_user) 
-    db[f'{username}/services'].insert_one(services_terms)
+    db[f'{username}']['services'].insert_one(new_user) 
+    db[f'{username}']['services'].insert_one(services_terms)
     return "success"
 
 ##########################
@@ -56,13 +57,13 @@ def create_user(form_data, hash):
 
 def create(user,service,query,many=False):
     #TODO handle many case
-    result = db[f'{user}/{service}'].insert_one(query)
+    result = db[f'{user}'][f'{service}'].insert_one(query)
     query["_id"]=str(result.inserted_id)
     return query
 
 def read(user,service,query):
     #TODO whitelists + blacklist filtering
-    records = db[f'{user}/{service}'].find(query)
+    records = db[f'{user}'][f'{service}'].find(query)
     records=[record for record in records]
     for record in records : 
         if record["_id"] : 
@@ -73,14 +74,14 @@ def update(user,service,query,value):
     #TODO whitelists + blacklist filtering
     if "_id" in query:
         query["_id"] = ObjectId(query["_id"])
-    result = db[f'{user}/{service}'].update_many(query, value)
+    result = db[f'{user}'][f'{service}'].update_many(query, value)
     return "success"
 
 def delete(user,service,query):
     #TODO whitelists + blacklist filtering
     if "_id" in query:
         query["_id"] = ObjectId(query["_id"])
-    result = db[f'{user}/{service}'].delete_many(query)
+    result = db[f'{user}'][f'{service}'].delete_many(query)
     return "success"
 
 
@@ -89,14 +90,21 @@ def delete(user,service,query):
 ##########################
 
 def is_in_cross_origins(site, username, service):
-    record = db[f'{username}/services'].find_one({"body.service":service})
+    record = db[f'{username}'][f'{service}'].find_one({"body.service":service})
+    if record == None: return False
     return (site in record["body"]["cross_origins"])
 
 def get_approved(username,provider, owner, service, action):
-    record = db[f'{owner}/services'].find_one({"body.service":service})
+    record = db[f'{owner}']['services'].find_one({"body.service":service})
+    if record == None: return False
     if (username == owner) and (provider == settings.PROVIDER): return True
 
-    def is_approved(e): 
-        return ((e["username"] == username or e["username"] == "*") and (e["provider"] == provider) and (e[action] == True))
+    def is_listed(e):
+        list_hit = (bool(re.fullmatch(e["username"],username))) and (bool(re.fullmatch(e["provider"],provider)))
+        action_permitted = action in e and e[action] == True
+        all_permitted = "all" in e and e["all"] == True
+        return list_hit and (action_permitted or all_permitted)
 
-    return (len(list(filter(is_approved, record["body"]["whitelist"]))) > 0)
+    on_whitelist = (len(list(filter(is_listed, record["body"]["whitelist"]))) > 0)
+    on_blacklist =  (len(list(filter(is_listed, record["body"]["blacklist"]))) > 0)
+    return not(on_blacklist) and on_whitelist
