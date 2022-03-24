@@ -3,7 +3,6 @@ kind: Deployment
 metadata:
   name: api-dev
 spec:
-  replicas: 1
   selector:
     matchLabels:
       app: api-dev
@@ -17,4 +16,7 @@ spec:
           image: gcr.io/pure-phalanx-344719/api-dev
           ports:
             - containerPort: 80
+          env:
+          - name: PROVIDER
+            value: "api.web10.dev"
           resources:

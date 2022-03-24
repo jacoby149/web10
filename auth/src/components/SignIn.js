@@ -1,18 +1,24 @@
-import React from "react"
+import React from "react";
 
 //web10 sign in boxes and buttons
-function SignIn({setAuthStatus,statusHook,wapiAuth}) {
+function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
   const [status, setStatus] = statusHook;
   return (
-    <div style={{ width: "300px", height: "210px" }}>
+    <div style={{ width: "300px"}}>
       <div className="field">
         <p style={{ margin: "5px 10px" }} className="control has-icons-left">
           web10provider:{" "}
           <input
             id="provider"
             className="input has-background-white"
-            defaultValue="https://api.web10.app"
-            placeholder="https://api.web10.app"
+            defaultValue={
+              window.location.hostname === "auth.localhost"
+                ? "api.localhost"
+                : window.location.hostname === "auth.web10.dev"
+                ? "api.web10.dev"
+                : "api.web10.app"
+            }
+            placeholder="api.web10.app"
           />
         </p>
       </div>
@@ -56,12 +62,6 @@ function SignIn({setAuthStatus,statusHook,wapiAuth}) {
                       <input id = "confirmPassword" className="input has-background-white" type="password" placeholder="Confirm Password"/>
                   </p>
           </div> */}
-      <div
-        style={{ margin: "5px" }}
-        className="notification is-danger is-light"
-      >
-        {status}
-      </div>
 
       <div className="field">
         <p className="control">
@@ -87,7 +87,7 @@ function SignIn({setAuthStatus,statusHook,wapiAuth}) {
                 document.getElementById("username").value,
                 document.getElementById("password").value,
                 document.getElementById("betacode").value
-              )
+              ).then(()=>setStatus("Successfully Made An Account")).catch((error)=>setStatus("Failed to Sign Up :"+error))
             }
             style={{ margin: "0px 5px" }}
             className="button is-info"

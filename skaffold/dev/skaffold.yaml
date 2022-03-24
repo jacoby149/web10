@@ -6,18 +6,27 @@ build:
   artifacts:
     - image: gcr.io/pure-phalanx-344719/api-dev
       context: ../../api
+      sync:
+        infer:
+          - './app/*'
     - image: gcr.io/pure-phalanx-344719/auth-dev
       context: ../../auth
+      sync:
+        infer:
+          - './*'
     - image: gcr.io/pure-phalanx-344719/crm-dev
-      context: ../../crm
-    - image: gcr.io/pure-phalanx-344719/social-dev
-      context: ../../social
+      context: ../..
+      sync:
+        infer:
+        - 'crm/*'
+        - 'auth/public/sdk/*'
+      docker:
+        dockerfile: crm/Dockerfile
 deploy:
   kubectl:
     manifests:
       - kuberapi.yml
       - kuberauth.yml
       - kubercrm.yml
-      - kubersocial.yml
 
 # crm and social don't need a dev, since it is front end code.

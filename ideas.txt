@@ -1,0 +1,60 @@
+create scoped mongo accts. with collection level priveliges, make rando passwords
+// no good, because how do you charge?
+
+Feasible cross web10 communication with malicious parties.
+web10 record of charges
+    - master record
+    - charge dictionary (user,service,requester,period)
+    - web10 server record
+    - web10 user record
+service whitelist configurable credit limits (requester,period)
+    - by requester type [web10 user or ip]
+    - regex kind of expression
+web10 backend service for automatic whitelist blacklist management for anti spam
+// definitely long sighted future thinking
+
+refactor so there is 1 mongo collection per user, and all services inside of there.
+https://docs.mongodb.com/manual/core/collection-level-access-control/
+// could be more manageable.
+
+double SDK reference with one being relative local path and one being url is good because :
+- web10.app while dockering wont break
+- dockering will run the relative path
+- undockered code will run the deployed sdk
+// counter intuitive triple advantage
+
+make a CRM contacts updator in the modal
+make CRM notes updator
+// being able to update could be cute.
+
+jacoby149/wildcard/service
+special service that doesnt require an init! 
+wildcard sets service terms without SMC
+(purely based on your token)
+[maybe token has a list of allowable wildcards]
+// could be convenient to not always require user permission. [especially in extremely well trusted apps]
+
+https://stackoverflow.com/questions/4588303/in-mongodb-how-do-you-remove-an-array-element-by-its-index
+flatjsons may be very powerful...
+// useful for 1.0.1
+
+
+redactables, hypercontrolled access slate
+a NYT article, controlled access slate (read only)
+youtube channel description, universal access slate
+subscription youtube video page, limited access owner dominated
+a youtube video page is a universal owner dominated
+a privacy controlled fb wall, limited access owner managed
+a public fb page universal access owner managed
+gab, limited access flat
+forchan, universal access flat
+3 Dimensional Security
+// (1V1) sender vs. reciever [Modifiability vs. Immutability]
+// (Modification) slate vs. flat [Soloist vs. Chorus] 
+// (Read) limited vs. universal [Colloseum vs. Library]
+
+*todo fix skaffold dev sync inference
+
+Add sender favored redactables
+handle when a service allows for zero authentication
+Add slates

@@ -1,5 +1,5 @@
 //wapi can be double loaded. try locally first and if that fails, load from the cdn
-if (typeof wapiAuth==='undefined'){
+if (typeof wapiAuthInit==='undefined'){
 
 
 //Makes the wapiAuth library object
@@ -18,7 +18,7 @@ function wapiAuthInit(wapi) {
   };
 
   //initialize the oauth token
-  wapi.isSignedIn() ? wapiAuth.mintOAuthToken() : (wapiAuth.oAuthToken = null);
+  wapi.isSignedIn() && document.referrer ? wapiAuth.mintOAuthToken() : (wapiAuth.oAuthToken = null);
 
   //send the apikey back to the oauth requesting site
   wapiAuth.sendToken = function () {
@@ -37,7 +37,7 @@ function wapiAuthInit(wapi) {
   wapiAuth.logIn = function (provider, username, password, setAuth, setStatus) {
     //web10 auth login
     axios
-      .post(`${provider}/web10token`, {
+      .post(`${window.location.protocol}//${provider}/web10token`, {
         username: username,
         password: password,
         token: null,
@@ -54,15 +54,12 @@ function wapiAuthInit(wapi) {
 
   //sign up for a new web10 account
   wapiAuth.signUp = function (provider, username, password,betacode) {
-    provider = new URL(provider);
-    axios
-      .post(`http://${provider.hostname}/signup`, {
+    return axios
+      .post(`${window.location.protocol}//${provider}/signup`, {
         username: username,
         password: password,
         betacode: betacode
       })
-      .then(console.log)
-      .catch(console.log);
   };
 
   //change web10 username and password

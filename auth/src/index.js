@@ -20,24 +20,29 @@ function App() {
   //for service changes, NOT initializations
   const [SMR, setSMR] = React.useState({
     scrs: [],
-    sirs: [],//[{ body: { service: "addy" } }],
+    sirs: [], //[{ body: { service: "addy" } }],
   });
 
   //provides an effect update every time an smr is submitted.
   //also provides a convenient count of SMRs
   const [SMRCount, setSMRCount] = React.useState(0);
-  const SMRIncrement = function(){
-    setSMRCount(SMRCount+1);
-  }
+  const SMRIncrement = function () {
+    setSMRCount(SMRCount + 1);
+  };
 
-  React.useEffect(function(){
-    wapiAuth.SMRListen((inSMR)=>setSMR(inSMR))
-  },[])
+  React.useEffect(function () {
+    wapiAuth.SMRListen((inSMR) => {
+      setSMR(inSMR);
+    });
+  }, []);
 
   //status message
-  const [status, setStatus] = React.useState(
-    "log in to authorize apps and manage services"
-  );
+  const [status, setStatus] = React.useState(null);
+  React.useEffect(() => {
+    setStatus(
+      authStatus ? null : "log in to authorize apps and manage services"
+    );
+  }, [authStatus]);
 
   /* display mode of the UI, can be auth or services, */
   const [mode, setMode] = React.useState("auth");
@@ -48,7 +53,7 @@ function App() {
   function displayBasedOnMode() {
     switch (mode) {
       case "auth":
-        return <OAuth />;
+        return <OAuth services={services} />;
       case "services":
         return (
           <ServiceTerms
@@ -93,46 +98,74 @@ function App() {
     );
   }
 
-  React.useEffect(() => telescope.start(window.root));
-  React.useEffect(() => setAuthStatus(wapi.isSignedIn()), []);
+  function Auth(props) {
+    const login = <p>please log in</p>;
+
+    const logout = (
+      <button
+        style={{
+          backgroundColor: "RGBA(0,0,0,0)",
+          color: "orange",
+          fontFamily: "monospace",
+        }}
+        onClick={() => {
+          setSelectedService(0);
+          wapi.signOut();
+          setAuthStatus(wapi.isSignedIn());
+        }}
+      >
+        log out
+      </button>
+    );
+
+    return (
+      <C s={"80px"} {...pass(props)}>
+        <div style={{ fontFamily: "monospace" }}>
+          {authStatus ? logout : login}
+        </div>
+      </C>
+    );
+  }
+
+  React.useEffect(() => {
+    return telescope.start(window.root);
+  }, []);
+  React.useEffect(() => {
+    setAuthStatus(wapi.isSignedIn());
+  }, []);
 
   //web10 read for the services
-  React.useEffect(
-    function () {
-      if (authStatus) {
-        wapi
-          .read("services")
-          .then(function (response) {
-            //label service change requests on existing services.
-            const updatedServices = response.data.map((service) => [
-              service,
-              service["body"]["service"] in SMR["scrs"] ? "change" : null,
-            ]);
-            //add service initialization requests.
-            const currServices = response.data.map(
-              (service) => service["body"]["service"]
-            );
-            console.log(currServices);
-            //makes a list of sirs not in the current services, and formats them for the UI correctly
-            const SIRS = SMR["sirs"]
-              .filter(
-                (service) => !(currServices.includes(service["body"]["service"]))
-              )
-              .map((service) => [service, "new"]);
-            //add sirs into the updatedservices
-            updatedServices.push.apply(updatedServices, SIRS);
-            //set the services in the UI
-            setServices(updatedServices);
-          })
-          .catch(console.log);
-      } else {
-        setServices([
-          [{ body: { service: "log in to manage services" } }, null],
-        ]);
-      }
-    },
-    [authStatus,SMRCount]
-  );
+  const setSMs = function () {
+    if (authStatus) {
+      wapi
+        .read("services")
+        .then(function (response) {
+          //label service change requests on existing services.
+          const updatedServices = response.data.map((service) => [
+            service,
+            service["body"]["service"] in SMR["scrs"] ? "change" : null,
+          ]);
+          //add service initialization requests.
+          const currServices = response.data.map(
+            (service) => service["body"]["service"]
+          );
+          //makes a list of sirs not in the current services, and formats them for the UI correctly
+          const SIRS = SMR["sirs"]
+            .filter(
+              (service) => !currServices.includes(service["body"]["service"])
+            )
+            .map((service) => [service, "new"]);
+          //add sirs into the updatedservices
+          updatedServices.push.apply(updatedServices, SIRS);
+          //set the services in the UI
+          setServices(updatedServices);
+        })
+        .catch(console.log);
+    } else {
+      setServices([[{ body: { service: "log in to manage services" } }, null]]);
+    }
+  };
+  React.useEffect(setSMs, [authStatus, SMRCount, SMR]);
 
   /* Menu Collapsed State */
   const [collapse, setCollapse] = React.useState(false);
@@ -151,6 +184,24 @@ function App() {
   }
 
   /* The App Component */
+  console.log("hee");
+  console.log(status);
+  function StatusLog() {
+    return (
+      <div>
+        {status === null ? (
+          <div></div>
+        ) : (
+          <div
+            style={{ marginLeft: "10px",marginTop: "20px",width:"280px" }}
+            className="notification is-danger is-light"
+          >
+            {status}
+          </div>
+        )}
+      </div>
+    );
+  }
   return (
     <R root t bt bb br bl theme={theme}>
       {/* This is the root rectangle ^^^ */}
@@ -162,9 +213,9 @@ function App() {
           bars
         </Icon>
         <R tel />
-        <R l ns s={"300px"}>
-          <Auth hook={[authStatus, setAuthStatus]}></Auth>
-          <Icon>user-circle</Icon>
+        <R l ns s={"200px"}>
+          <Auth></Auth>
+          {/* <Icon>user-circle</Icon> */}
           <Icon onClick={toggleTheme}>moon</Icon>
           <Icon>cog</Icon>
         </R>
@@ -212,6 +263,7 @@ function App() {
               {displayBasedOnMode()}
             </R>
           )}
+          <StatusLog/>
         </R>
       </R>
     </R>
@@ -231,60 +283,47 @@ function Credits(props) {
   );
 }
 
-function Auth(props) {
-  const [authStatus, setAuthStatus] = props.hook;
-
-  const login = <p>please log in</p>;
-
-  const logout = (
-    <button style={{backgroundColor:"RGBA(0,0,0,0)",color:"orange",fontFamily:"monospace"}}
-      onClick={() => {
-        wapi.signOut();
-        setAuthStatus(wapi.isSignedIn());
-      }}
-    >
-      log out
-    </button>
-  );
-
-  return (
-    <C s={"80px"} {...pass(props)}>
-      <div style={{ fontFamily: "monospace" }}>
-        {authStatus ? logout : login}
-      </div>
-    </C>
-  );
-}
-
 //authorization
-function OAuth(props) {
+function OAuth({ services }) {
   return (
     <div style={{ width: "250px" }}>
-      <div
-        style={{ margin: "5px" }}
-        className="notification is-warning is-light"
-      >
-        <u>{document.referrer}</u> would like to make service changes.{" "}
-        <strong>approve or deny the changes in the left pane.</strong>
-      </div>
-
-      <div
-        style={{ margin: "5px" }}
-        className="notification is-danger is-light"
-      >
-        <u>{document.referrer}</u> would like to login.
-      </div>
-      <div className="field">
-        <div className="control">
-          <button
-            onClick={wapiAuth.sendToken}
-            style={{ margin: "0px 5px" }}
-            className="button is-warning"
-          >
-            Log In
-          </button>
+      {services
+        .map((service) => service[1])
+        .filter((status) => status === "new" || status === "change").length ===
+      0 ? (
+        ""
+      ) : (
+        <div
+          style={{ margin: "5px" }}
+          className="notification is-warning is-light"
+        >
+          <u>{document.referrer}</u> would like to make service changes.{" "}
+          <strong>approve or deny the changes in the left pane.</strong>
         </div>
-      </div>
+      )}
+      {document.referrer !== "" ? (
+        <div>
+          <div
+            style={{ margin: "5px" }}
+            className="notification is-danger is-light"
+          >
+            <u>{document.referrer}</u> would like to login.
+          </div>
+          <div className="field">
+            <div className="control">
+              <button
+                onClick={wapiAuth.sendToken}
+                style={{ margin: "0px 5px" }}
+                className="button is-warning"
+              >
+                Log In
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        ""
+      )}
     </div>
   );
 }
