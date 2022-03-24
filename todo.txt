@@ -1,5 +1,4 @@
-https://github.com/AhmadAlshahawii/PhoneBook
-Greenstar Brand the web10 app [find the author too] and host on github pages.
+Host the CRM on crm.greenstargroup.org
 Services Deletion + (Optionally wipe data)
 Service File Export + AppendingImport[-_id]
 Service Editor CUD Mode ($set $unset $pull)
