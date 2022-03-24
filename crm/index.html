@@ -2,30 +2,30 @@
 
 <head>
 
-    <link rel="stylesheet" href="crm/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="crm/css/all.min.css" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" crossorigin="anonymous">
     <link rel="stylesheet" href="crm/css/index_style.css" />
     <link rel="stylesheet" href="crm/css/modal.css" />
 
+    <meta name="viewport" content="width=device-width" />
 
 
 
 </head>
 
 <body>
-    <div style="position:absolute;right:10px;top:10px;width:120px;">
+    <div style="position:fixed;right:10px;top:10px;width:110px;">
         <a href="" id="auth" onclick="event.preventDefault();toggleAuth();"></a>
     </div>
 
     <div class="logo">
-        <img src="crm/images/web10Banner.png"><h2 style="font-family: monospace;">workSPACE</h2>
+        <img src="crm/images/web10Banner.png">
     </div>
 
     <div class=" jum">
 
         <div class=" navbar">
             <h3> Rolodex <i class="far fa-address-card"></i></h3>
-
         </div>
 
 
@@ -51,7 +51,7 @@
                 <input class="form-control mb-3" placeholder="add e-mail" id="userEmail">
                 <div id="mailAlert" class="alert alert-danger text-justify p-2 ">Please add a valid e-mail</div>
 
-                <button onclick="addContact()" class="btn w-100 btn1">Add</button>
+                <button onclick="addContact()" class="btn btn-success w-100 btn1">Add</button>
 
 
             </div>
@@ -96,101 +96,32 @@
             </div>
         </div>
 
-        <div class="modal right fade" id="notes" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
-            <div class="modal-dialog" role="document">
-                <div class="modal-content">
 
-                    <div class="modal-header" id="modalbanner">
-                        <h4 class="modal-title" id="myModalLabel"></h4>
-
-
-                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span
-                                aria-hidden="true">&times;</span></button>
-                    </div>
-
-                    <div class="modal-body">
-
-
-                        <div class="row">
-                            <div class="col-6">
-                                Scheduled Status Change : <select name="recurring" class="form-control">
-                                    <option value="none">None Scheduled</option>
-                                    <option value="green">Green</option>
-                                    <option value="yellow">Yellow</option>
-                                    <option value="red">Red</option>
-                                </select>
-                            </div>
-                            <div class="col-6"> Change Date : <input class="form-control" type="date" name="date"
-                                    maxlength="10"></div>
-
-                        </div>
-                        <br>
-
-
-
-                        Add Note Here : <textarea name="newnote" id="newnote" cols="50" rows="4" maxlength="500"
-                            placeholder="Add note"></textarea> <br>
-                        <div style="float:right;padding-right:50px;padding-top:10px;"> <button type="submit"
-                                onclick="submitNote()">Create Entry</button> </div>
-                        <br><br>
-                        <div id="note_log"> </div>
-                    </div>
-
-                </div><!-- modal-content -->
-            </div><!-- modal-dialog -->
-        </div><!-- modal -->
-
-
-        <div class="modal right fade" id="ledger" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
-            <div class="modal-dialog" role="document">
-                <div class="modal-content">
-
-                    <div class="modal-header" id="modalbanner">
-                        <h4 class="modal-title" id="ledgerlabel"> Ledger </h4>
-
-
-                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span
-                                aria-hidden="true">&times;</span></button>
-                    </div>
-
-                    <div class="modal-body">
-                        <form id="ledgerform">
-
-                            <div class="row">
-                                <div class="col-6"> Date : <input class="form-control" type="date" name="date"
-                                        maxlength="10"></div>
-                                <div class="col-6">
-                                    Amount ($) : <input class="form-control" type="text" name="amount">
-                                </div>
-                                <div class="col-6">
-                                    Recurring? : <select name="recurring" class="form-control">
-                                        <option value="One">One Time</option>
-                                        <option value="Monthly">Monthly</option>
-                                        <option value="Yearly">Yearly</option>
-                                    </select>
-                                </div>
-                                <div class="col-6">
-                                    Check Number : <input class="form-control" type="text" name="check_number">
-                                </div>
-                                <div class="col-6">
-
-                                    Description : <input class="form-control" type="text" name="description">
-                                </div>
-                                <div class="col-6" style="padding:24px;">
-                                    <button type="button" onclick="submitLedger()">Create Entry</button>
-                                </div>
-
-                                <br><br>
-                        </form>
-                    </div>
-                    <div id="ledger_log"> </div>
+    <!-- Modal -->
+    <div class="modal fade right" id="notes" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header" id="modalbanner">
+                    <h5 class="modal-title" id="myModalLabel">Modal title</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
+                <div class="modal-body">
+                    <textarea name="newnote" id="newnote" style="width:100%" rows="4" maxlength="500"
+                    placeholder="Add note"></textarea> <br>
+                <div style="float:right;padding-top:10px;"> <button type="submit"
+                        onclick="submitNote()">Create Entry</button> </div>
+                <br><br>
+                <div id="note_log"> </div>
 
-            </div><!-- modal-content -->
-        </div><!-- modal-dialog -->
-    </div><!-- modal -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Close</button>
+                    <!-- <button type="button" class="btn btn-primary">Save changes</button> -->
+                </div>
+            </div>
+        </div>
     </div>
-    
+
     <footer class="text-center"> web10 &#169; 2022. <br></footer>
     <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
     <script src="sdk/wapi.js"></script>
@@ -198,8 +129,10 @@
     <script src='https://auth.web10.app/sdk/wapi.js'></script>
 
     <script src="crm/js/jquery-3.3.1.min.js"></script>
-    <script src="crm/js/popper.min.js"></script>
-    <script src="crm/js/bootstrap.min.js"></script>
+    <!-- JavaScript Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p"
+        crossorigin="anonymous"></script>
     <script src="crm/js/index.js"></script>
 </body>
 
