@@ -41,3 +41,12 @@ MINT = HTTPException(
     detail="Submitted token can't mint desired token",
     headers={"WWW-Authenticate": "Bearer"},
 )
+
+STAR = HTTPException(
+    status_code=status.HTTP_401_UNAUTHORIZED,
+    detail="Can't modify the star service",
+    headers={"WWW-Authenticate": "Bearer"},
+)
+
+
+
