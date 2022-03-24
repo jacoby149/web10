@@ -36,16 +36,20 @@ function App() {
     });
   }, []);
 
+  /* display mode of the UI, can be auth or services, */
+  const [mode, setMode] = React.useState("auth");
+
   //status message
   const [status, setStatus] = React.useState(null);
   React.useEffect(() => {
     setStatus(
-      authStatus ? null : "log in to authorize apps and manage services"
+      authStatus
+        ? mode === "services"
+          ? null
+          : "welcome! manage your services via. the left pane"
+        : "log in to authorize apps and manage services"
     );
-  }, [authStatus]);
-
-  /* display mode of the UI, can be auth or services, */
-  const [mode, setMode] = React.useState("auth");
+  }, [authStatus, mode]);
 
   /* index of the selected service to display in the UI */
   const [selectedService, setSelectedService] = React.useState(0);
@@ -53,15 +57,23 @@ function App() {
   function displayBasedOnMode() {
     switch (mode) {
       case "auth":
-        return <OAuth services={services} />;
+        return (
+          <div>
+            <StatusLog />
+            <OAuth services={services} />
+          </div>
+        );
       case "services":
         return (
-          <ServiceTerms
-            services={services}
-            selectedService={selectedService}
-            SMRHook={[SMR, setSMR]}
-            SMRIncrement={SMRIncrement}
-          />
+          <div>
+            <ServiceTerms
+              services={services}
+              selectedService={selectedService}
+              SMRHook={[SMR, setSMR]}
+              SMRIncrement={SMRIncrement}
+            />
+            <StatusLog />
+          </div>
         );
       default:
     }
@@ -193,8 +205,8 @@ function App() {
           <div></div>
         ) : (
           <div
-            style={{ marginLeft: "10px",marginTop: "20px",width:"280px" }}
-            className="notification is-danger is-light"
+            style={{ marginLeft: "5px", marginTop: "5px", width: "280px" }}
+            className="notification is-warning is-light"
           >
             {status}
           </div>
@@ -253,17 +265,17 @@ function App() {
         {/* Writing Pane */}
         <R t tel>
           {!authStatus ? (
-            <SignIn
-              setAuthStatus={setAuthStatus}
-              statusHook={[status, setStatus]}
-              wapiAuth={wapiAuth}
-            ></SignIn>
+            <div>
+              <SignIn
+                setAuthStatus={setAuthStatus}
+                statusHook={[status, setStatus]}
+                wapiAuth={wapiAuth}
+              ></SignIn>
+              <StatusLog />
+            </div>
           ) : (
-            <R bt t>
-              {displayBasedOnMode()}
-            </R>
+            <div>{displayBasedOnMode()}</div>
           )}
-          <StatusLog/>
         </R>
       </R>
     </R>
