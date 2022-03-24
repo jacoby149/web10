@@ -1,6 +1,3 @@
 
 .DS_Store
-auth/client/package-lock.json
-auth/client/temp/index.js
-auth/client/temp/index.css
 api/app/settings.py
