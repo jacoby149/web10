@@ -14,7 +14,7 @@ function App() {
 
   //list of all services, and desired to initialize services
   const [services, setServices] = React.useState([
-    [{service: "log in to manage services"}, null],
+    [{ service: "log in to manage services" }, null],
   ]);
 
   //for service changes, NOT initializations
@@ -155,7 +155,11 @@ function App() {
           //label service change requests on existing services.
           const updatedServices = response.data.map((service) => [
             service,
-            service["service"] in SMR["scrs"] ? "change" : null,
+            service["service"] === "*"
+              ? null
+              : service["service"] in SMR["scrs"]
+              ? "change"
+              : null,
           ]);
           //add service initialization requests.
           const currServices = response.data.map(
@@ -163,9 +167,7 @@ function App() {
           );
           //makes a list of sirs not in the current services, and formats them for the UI correctly
           const SIRS = SMR["sirs"]
-            .filter(
-              (service) => !currServices.includes(service["service"])
-            )
+            .filter((service) => (!currServices.includes(service["service"]))&&service["service"]!="*")
             .map((service) => [service, "new"]);
           //add sirs into the updatedservices
           updatedServices.push.apply(updatedServices, SIRS);
