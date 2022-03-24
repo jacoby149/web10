@@ -48,19 +48,25 @@ function ServiceTerms({ services, selectedService, SMRHook, SMRIncrement }) {
 
         {final}
         <br></br>
-        <NewField></NewField>
+        {currentService["service"] === "*" ? "" : <NewField></NewField>}
       </div>
-      <EditApproval
-        flattenedService={flattenedService}
-        type={services[selectedService][1]}
-        SMRIncrement={SMRIncrement}
-      ></EditApproval>
-      <div style={{ marginLeft: "5px" }}>
-        <Deletor service={currentService["service"]}></Deletor>
+      {currentService["service"] === "*" ? "" : 
+      <div>
+        <EditApproval
+          flattenedService={flattenedService}
+          type={services[selectedService][1]}
+          SMRIncrement={SMRIncrement}
+        ></EditApproval>
+        <div style={{ marginLeft: "5px" }}>
+          <Deletor service={currentService["service"]}></Deletor>
+        </div>
+        <div
+          style={{ marginLeft: "5px", marginTop: "10px", marginBottom: "10px" }}
+        >
+          <Wiper service={currentService["service"]}></Wiper>
+        </div>
       </div>
-      <div style={{ marginLeft: "5px",marginTop:"10px", marginBottom:"10px" }}>
-        <Wiper service={currentService["service"]}></Wiper>
-      </div>
+      }
     </div>
   );
 }
@@ -107,7 +113,7 @@ function NewField() {
   );
 }
 
-function Deletor({service}) {
+function Deletor({ service }) {
   return (
     <div style={{ marginTop: "4px", marginLeft: "4px", marginRight: "4px" }}>
       Delete Service Terms Record : <br></br>
@@ -127,7 +133,7 @@ function Deletor({service}) {
   );
 }
 
-function Wiper({service}) {
+function Wiper({ service }) {
   return (
     <div
       style={{
