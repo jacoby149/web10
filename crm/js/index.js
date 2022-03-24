@@ -85,7 +85,7 @@ function loadNotes(i) {
     displayModalBannerColor(c.color);
     document.getElementById(
       "myModalLabel"
-    ).innerHTML = `${c.name}<a class = 'statusbutton' onclick='incrementColor(${i})'>&#9851;</a>`;
+    ).innerHTML = `${c.name}<a style="text-decoration: none;" class = 'statusbutton' onclick='incrementColor(${i})'> &#9851;</a>`;
     contactIndex = i;
     displayNotes(response.data);
   });
@@ -98,7 +98,7 @@ function loadLedger(i) {
     console.log(c.color);
     document.getElementById(
       "ledgerlabel"
-    ).innerHTML = `${c.name}<a class = 'statusbutton' onclick='incrementColor(${i})'> &#9851;</a>`;
+    ).innerHTML = `${c.name}<a style="text-decoration: none;" class = 'statusbutton' onclick='incrementColor(${i})'> &#9851;</a>`;
     contactIndex = i;
     displayLedger(response.data);
   });
@@ -121,6 +121,7 @@ function addContact() {
     company: userCompany.value,
     phone: userPhone.value,
     email: userEmail.value,
+    color: "green"
   };
 
   wapi.create("crm-contacts", contact).then(function (response) {
@@ -238,7 +239,9 @@ function validateEmail() {
 ////////////////////////////////////
 
 function displayModalBannerColor(color) {
-  modalbanner.className = `modal-header ${color}`;
+  notesmodalbanner.className = `${color} modal-header`;
+  ledgermodalbanner.className = `${color} modal-header`;
+
 }
 
 function toggleNoteLedge() {

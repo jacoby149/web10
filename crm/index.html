@@ -63,9 +63,9 @@
                 <div id="container demo">
                     <div class="options">
                         <button id="statusbutton" onclick="toggleNoteLedge()"> Viewing Notes </button>
-                        Green <input type="checkbox" onclick="statusFilter(this)" id="green" checked>
-                        Yellow <input type="checkbox" onclick="statusFilter(this)" id="yellow" checked>
-                        Red <input type="checkbox" id="red" onclick="statusFilter(this)" checked>
+                        Green <input type="checkbox" onclick="colorFilter(this)" id="green" checked>
+                        Yellow <input type="checkbox" onclick="colorFilter(this)" id="yellow" checked>
+                        Red <input type="checkbox" id="red" onclick="colorFilter(this)" checked>
                     </div>
                     <!-- table-striped class for striped-->
                     <table id="myTable" class="table text-justify">
@@ -103,7 +103,7 @@
         <div class="modal fade right" id="notes" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
             <div class="modal-dialog">
                 <div class="modal-content">
-                    <div class="modal-header" id="modalbanner">
+                    <div class="modal-header" id="ledgermodalbanner">
                         <h5 class="modal-title" id="myModalLabel">Modal title</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
@@ -129,7 +129,7 @@
         <div class="modal fade right" id="ledger" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
             <div class="modal-dialog">
                 <div class="modal-content">
-                    <div class="modal-header" id="modalbanner">
+                    <div class="modal-header" id="notesmodalbanner">
                         <h5 class="modal-title" id="ledgerlabel"> Ledger </h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
