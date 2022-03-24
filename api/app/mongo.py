@@ -54,7 +54,8 @@ def create_user(form_data, hash):
 ######### CRUD ###########
 ##########################
 
-def create(user,service,query):
+def create(user,service,query,many=False):
+    #TODO handle many case
     result = db[f'{user}/{service}'].insert_one(query)
     query["_id"]=str(result.inserted_id)
     return query
