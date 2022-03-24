@@ -46,20 +46,6 @@ button {
   padding: 10px;
 }
 
-tr.green td {
-  background-color: #3cb37122;
-}
-
-tr.yellow td {
-  background-color: #f0ad4e22;
-  /*background-color:#d9534f33;*/
-}
-
-tr.red td {
-  background-color: #f05a3422;
-  /*background-color:#d9534f33;*/
-}
-
 a.statusbutton {
   cursor: pointer;
 }
@@ -78,13 +64,13 @@ footer {
 }
 
 .red {
-  background-color: #f05a3433 !important;
+  background-color: #f05a341c !important;
 }
 
 .green {
-  background-color: #3cb37133 !important;
+  background-color: #3cb3711c !important;
 }
 
 .yellow {
-  background-color: #f0ad4e33 !important;
+  background-color: #f0ad4e1c !important;
 }
