@@ -4,7 +4,6 @@
 var contacts = [];
 var contactIndex = -1;
 var viewingType = "notes";
-
 //////////////////////////
 /// CRM Init. functions
 //////////////////////////
@@ -30,12 +29,12 @@ var wapi =
     : wapiInit("https://auth.web10.app");
 
 /* Web10 Login / Log out */
-wapi.authListen(crmInit);
+if (!wapi.isSignedIn()) wapi.authListen(crmInit);
+else crmInit();
 
 function Auth() {
   if (wapi.isSignedIn()) {
     wapi.signOut();
-    setAuth(false);
     location.reload();
   } else {
     wapi.openAuthPortal();
@@ -73,6 +72,8 @@ wapi.SMROnReady(sirs, []);
 
 function loadContacts() {
   wapi.read("crm-contacts").then(function (response) {
+    console.log("heehee");
+    console.log(response);
     contacts = response.data;
     displayContacts();
   });
@@ -81,7 +82,7 @@ function loadContacts() {
 function loadNotes(i) {
   const c = contacts[i];
   wapi.read("crm-notes", { id: c._id }).then(function (response) {
-    modalBannerColor(c.color);
+    displayModalBannerColor(c.color);
     document.getElementById(
       "myModalLabel"
     ).innerHTML = `${c.name}<a class = 'statusbutton' onclick='incrementColor(${i})'>&#9851;</a>`;
@@ -93,10 +94,11 @@ function loadNotes(i) {
 function loadLedger(i) {
   const c = contacts[i];
   wapi.read("crm-ledges", { id: c._id }).then(function (response) {
-    modalBannerColor(c.color);
+    displayModalBannerColor(c.color);
     console.log(c.color);
-    document.getElementById("ledgerlabel").innerHTML =
-      `${c.name}<a class = 'statusbutton' onclick='incrementColor(${i})'> &#9851;</a>`;
+    document.getElementById(
+      "ledgerlabel"
+    ).innerHTML = `${c.name}<a class = 'statusbutton' onclick='incrementColor(${i})'> &#9851;</a>`;
     contactIndex = i;
     displayLedger(response.data);
   });
@@ -127,15 +129,19 @@ function addContact() {
     userName.value = "";
     userCompany.value = "";
     userPhone.value = "";
-    userEmail.value= "";
+    userEmail.value = "";
   });
 }
 
 function submitNote() {
   var note = document.getElementById("newnote").value;
   wapi
-    .create("crm-notes", { note: note, id: contacts[contactIndex]._id, date: new Date()})
-    .then(loadCurrent);
+    .create("crm-notes", {
+      note: note,
+      id: contacts[contactIndex]._id,
+      date: new Date(),
+    })
+    .then(loadModal);
 }
 
 function submitLedger() {
@@ -147,7 +153,7 @@ function submitLedger() {
     });
   form.id = contacts[contactIndex]._id;
   form.date = new Date();
-  wapi.create("crm-ledges", form).then(loadCurrent);
+  wapi.create("crm-ledges", form).then(loadModal);
 }
 
 ////////////////////////////
@@ -164,14 +170,11 @@ function incrementColor(i) {
       ? "yellow"
       : c.color == "yellow"
       ? "green"
-      : "NULL";
-  const [query, values] = [
-    { _id: contact._id },
-    { $set: { color: new_color } },
-  ];
+      : "green";
+  const [query, values] = [{ _id: c._id }, { $set: { color: new_color } }];
   wapi.update("crm-contacts", query, values).then(function () {
     c.color = new_color;
-    modalBannerColor(new_color);
+    displayModalBannerColor(new_color);
     displayContacts();
   });
 }
@@ -182,13 +185,12 @@ function incrementColor(i) {
 
 function deleteContact(id) {
   var i = 0;
-  for (var i = 0; i < contacts.length; i++) {
-    if (contacts[i]._id == id) {
-      wapi.delete("crm-contacts", contacts[i]).then(function(){
-        contacts.splice(i, 1);
-        displayContacts();
-      });
-    }
+  const idx = contacts.map((c) => c._id).indexOf(id);
+  if (idx != -1) {
+    wapi.delete("crm-contacts", contacts[i]).then(function () {
+      contacts.splice(idx, 1);
+      displayContacts();
+    });
   }
 }
 
@@ -253,6 +255,8 @@ function toggleNoteLedge() {
 
 function displayContacts() {
   var temp = ``;
+  console.log("inny");
+  console.log(contacts);
   for (var i = 0; i < contacts.length; i++) {
     const c = contacts[i];
 
@@ -266,11 +270,11 @@ function displayContacts() {
 
     // name link that toggles the modal data viewer
     var name = c.name ? c.name : "-";
-    var nameLink = `<a href="#" data-toggle="modal" data-target="#${viewingType}" 
+    var nameLink = `<a href="#" data-bs-toggle="modal" data-bs-target="#${viewingType}" 
       onclick="contactIndex=${i};loadModal()">${name}</a>`;
 
     // contact deletion link
-    const deleteLink = `<a onclick="deleteContact(${c._id})" class="text-danger"><i class="fas fa-minus-circle"></i></a>`;
+    const deleteLink = `<a onclick="deleteContact('${c._id}')" class="text-danger"><i class="fas fa-minus-circle"></i></a>`;
 
     temp += `<tr class="${c.color}">
     <td>${nameLink}</td>
@@ -360,7 +364,7 @@ function colorFilter() {
 function searchFunction() {
   var input, filter, table, tr, i, currname, currcomp, currphone, curremail;
   //first do color filtering
-  statusFilter();
+  colorFilter();
   input = document.getElementById("myInput");
   filter = input.value.toUpperCase();
   table = document.getElementById("myTable");
