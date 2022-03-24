@@ -1,4 +1,3 @@
-Host the CRM on crm.greenstargroup.org
 Services Deletion + (Optionally wipe data)
 Service File Export + AppendingImport[-_id]
 Service Editor CUD Mode ($set $unset $pull)
