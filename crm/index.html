@@ -15,7 +15,7 @@
 
 <body>
     <div style="position:fixed;right:10px;top:10px;width:110px;">
-        <a href="" id="auth" onclick="event.preventDefault();toggleAuth();"></a>
+        <a href="" id="auth" onclick="event.preventDefault();Auth();"></a>
     </div>
 
     <div class="logo">
@@ -60,7 +60,7 @@
             <div class="col-lg-8">
                 <div id="container demo">
                     <div class="options">
-                        <button id="statusbutton" onclick="toggleStatus()"> Viewing Notes </button>
+                        <button id="statusbutton" onclick="toggleNoteLedge()"> Viewing Notes </button>
                         Green <input type="checkbox" onclick="statusFilter(this)" id="green" checked>
                         Yellow <input type="checkbox" onclick="statusFilter(this)" id="yellow" checked>
                         Red <input type="checkbox" id="red" onclick="statusFilter(this)" checked>
