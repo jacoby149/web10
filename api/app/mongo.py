@@ -3,6 +3,7 @@ from bson.objectid import ObjectId
 import app.settings as settings
 import app.models as models
 import app.web10records as records
+import app.exceptions as exceptions
 import os
 import re
 
@@ -57,6 +58,9 @@ def create_user(form_data, hash):
 
 def create(user,service,query,many=False):
     #TODO handle many case
+    q = [query]
+    if many:q=query
+    if star_found([q]): return False
     result = db[f'{user}'][f'{service}'].insert_one(query)
     query["_id"]=str(result.inserted_id)
     return query
@@ -74,20 +78,37 @@ def update(user,service,query,value):
     #TODO whitelists + blacklist filtering
     if "_id" in query:
         query["_id"] = ObjectId(query["_id"])
-    result = db[f'{user}'][f'{service}'].update_many(query, value)
+    if star_selected(user,service,query):
+        raise exceptions.STAR
+    db[f'{user}'][f'{service}'].update_many(query, value)
     return "success"
 
 def delete(user,service,query):
     #TODO whitelists + blacklist filtering
     if "_id" in query:
         query["_id"] = ObjectId(query["_id"])
-    result = db[f'{user}'][f'{service}'].delete_many(query)
+    if star_selected(user,service,query):
+        raise exceptions.STAR
+    db[f'{user}'][f'{service}'].delete_many(query)
     return "success"
 
 
 ##########################
-######### CRUD ###########
+####### Protection #######
 ##########################
+
+# returns true if star service is inside the input
+def star_found(services_docs):
+    star = list(filter(lambda x:"service" in x and x["service"]=="*",services_docs))
+    if len(star)>0:return True
+    return False
+
+# sees if a mongodb query selects the star service
+def star_selected(user,service,query):
+    if service == "services":
+        records = read(user,service,query)
+        return star_found(records)
+    return False
 
 def is_in_cross_origins(site, username, service):
     record = db[f'{username}']['services'].find_one({"service":service})
