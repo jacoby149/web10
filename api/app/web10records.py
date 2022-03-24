@@ -11,15 +11,14 @@ import app.settings as settings
 
 def star_record():
     return {
-        "whitelist": [],
-        "blacklist": [],
-        "body": {
-            "service": "*",
-            "username": "USERNAME",
-            "hashed_password": "PASSWORD",
-            "credits": [],
-            "payment_methods": [],
-        },
+        "service": "*",
+        "username": "USERNAME",
+        "hashed_password": "PASSWORD",
+        "credits": [],
+        "payment_methods": [],
+        # no whitelist or blacklist...
+        # this is a web10 exclusive document.
+        # TODO implement guarding of this record from all CRUD
     }
 
 
@@ -27,10 +26,7 @@ def services_record():
     return {
         "whitelist": [],
         "blacklist": [],
-        "body": {
-            "service": "services",
-            "cross_origins": settings.CORS_SERVICE_MANAGERS,
-            "active": True,
-            "banlist": [],
-        },
+        "service": "services",
+        "cross_origins": settings.CORS_SERVICE_MANAGERS,
+        "active": True,
     }

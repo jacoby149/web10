@@ -46,22 +46,16 @@ function Auth() {
 /* doesn't allow inbound from others.*/
 const sirs = [
   {
-    body: {
-      service: "crm-contacts",
-      cross_origins: ["crm.localhost", "crm.web10.app", "crm.web10.dev"],
-    },
+    service: "crm-contacts",
+    cross_origins: ["crm.localhost", "crm.web10.app", "crm.web10.dev"],
   },
   {
-    body: {
-      service: "crm-notes",
-      cross_origins: ["crm.localhost", "crm.web10.app", "crm.web10.dev"],
-    },
+    service: "crm-notes",
+    cross_origins: ["crm.localhost", "crm.web10.app", "crm.web10.dev"],
   },
   {
-    body: {
-      service: "crm-ledges",
-      cross_origins: ["crm.localhost", "crm.web10.app", "crm.web10.dev"],
-    },
+    service: "crm-ledges",
+    cross_origins: ["crm.localhost", "crm.web10.app", "crm.web10.dev"],
   },
 ];
 wapi.SMROnReady(sirs, []);
@@ -121,7 +115,7 @@ function addContact() {
     company: userCompany.value,
     phone: userPhone.value,
     email: userEmail.value,
-    color: "green"
+    color: "green",
   };
 
   wapi.create("crm-contacts", contact).then(function (response) {
@@ -186,9 +180,10 @@ function incrementColor(i) {
 
 function deleteContact(id) {
   var i = 0;
-  const idx = contacts.map((c) => c._id).indexOf(id);
+  const ids = contacts.map((c) => c._id)
+  const idx = ids.indexOf(id);
   if (idx != -1) {
-    wapi.delete("crm-contacts", contacts[i]).then(function () {
+    wapi.delete("crm-contacts", contacts[idx]).then(function () {
       contacts.splice(idx, 1);
       displayContacts();
     });
@@ -241,7 +236,6 @@ function validateEmail() {
 function displayModalBannerColor(color) {
   notesmodalbanner.className = `${color} modal-header`;
   ledgermodalbanner.className = `${color} modal-header`;
-
 }
 
 function toggleNoteLedge() {

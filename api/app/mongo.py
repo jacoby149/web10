@@ -24,31 +24,31 @@ db = client["web10"]
 
 def get_user(username: str):
     #check if user exists [by checking if they have any service terms]
-    if db[f'{username}']['services'].find().count()==0:
+    user_col = db[f'{username}']
+    if user_col["services"].count_documents({})==0:
         raise Exception("user does not exist")
-    query = {"body.service":"*"}
-    doc = db[f'{username}']['services'].find_one(query)
+    query = {"service":"*"}
+    doc = user_col['services'].find_one(query)
     if (doc == None):
         raise Exception("no (*) service found")
-    return models.dotdict(doc["body"])
+    return models.dotdict(doc)
 
 def create_user(form_data, hash):
     username,password = form_data.username,form_data.password
-    if db[f'{username}']['services'].find().count()==0:
-        return "user already exists"
-   
-
+    user_col = db[f'{username}']
+    if user_col['services'].count_documents({})!=0:
+        return "user already exists"   
     # (*) record that holds both username and the password
     new_user = records.star_record()
-    new_user["body"]["username"] = username
-    new_user["body"]["hashed_password"] = hash(password)
+    new_user["username"] = username
+    new_user["hashed_password"] = hash(password)
 
     # (services) record that allows auth.localhost to modify service terms
     services_terms = records.services_record()
 
     # insert the records to create / sign up the user
-    db[f'{username}']['services'].insert_one(new_user) 
-    db[f'{username}']['services'].insert_one(services_terms)
+    user_col['services'].insert_one(new_user) 
+    user_col['services'].insert_one(services_terms)
     return "success"
 
 ##########################
@@ -90,12 +90,12 @@ def delete(user,service,query):
 ##########################
 
 def is_in_cross_origins(site, username, service):
-    record = db[f'{username}'][f'{service}'].find_one({"body.service":service})
+    record = db[f'{username}']['services'].find_one({"service":service})
     if record == None: return False
-    return (site in record["body"]["cross_origins"])
+    return (site in record["cross_origins"])
 
 def get_approved(username,provider, owner, service, action):
-    record = db[f'{owner}']['services'].find_one({"body.service":service})
+    record = db[f'{owner}']['services'].find_one({"service":service})
     if record == None: return False
     if (username == owner) and (provider == settings.PROVIDER): return True
 
@@ -105,6 +105,6 @@ def get_approved(username,provider, owner, service, action):
         all_permitted = "all" in e and e["all"] == True
         return list_hit and (action_permitted or all_permitted)
 
-    on_whitelist = (len(list(filter(is_listed, record["body"]["whitelist"]))) > 0)
-    on_blacklist =  (len(list(filter(is_listed, record["body"]["blacklist"]))) > 0)
+    on_whitelist = (len(list(filter(is_listed, record["whitelist"]))) > 0)
+    on_blacklist =  (len(list(filter(is_listed, record["blacklist"]))) > 0)
     return not(on_blacklist) and on_whitelist

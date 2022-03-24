@@ -14,13 +14,13 @@ function App() {
 
   //list of all services, and desired to initialize services
   const [services, setServices] = React.useState([
-    [{ body: { service: "log in to manage services" } }, null],
+    [{service: "log in to manage services"}, null],
   ]);
 
   //for service changes, NOT initializations
   const [SMR, setSMR] = React.useState({
     scrs: [],
-    sirs: [], //[{ body: { service: "addy" } }],
+    sirs: [],
   });
 
   //provides an effect update every time an smr is submitted.
@@ -99,7 +99,7 @@ function App() {
             setSelectedService(idx);
           }}
         >
-          <p style={style}>{service[0].body.service}</p>
+          <p style={style}>{service[0].service}</p>
         </C>
       );
     });
@@ -155,16 +155,16 @@ function App() {
           //label service change requests on existing services.
           const updatedServices = response.data.map((service) => [
             service,
-            service["body"]["service"] in SMR["scrs"] ? "change" : null,
+            service["service"] in SMR["scrs"] ? "change" : null,
           ]);
           //add service initialization requests.
           const currServices = response.data.map(
-            (service) => service["body"]["service"]
+            (service) => service["service"]
           );
           //makes a list of sirs not in the current services, and formats them for the UI correctly
           const SIRS = SMR["sirs"]
             .filter(
-              (service) => !currServices.includes(service["body"]["service"])
+              (service) => !currServices.includes(service["service"])
             )
             .map((service) => [service, "new"]);
           //add sirs into the updatedservices
@@ -174,7 +174,7 @@ function App() {
         })
         .catch(console.log);
     } else {
-      setServices([[{ body: { service: "log in to manage services" } }, null]]);
+      setServices([[{ service: "log in to manage services" }, null]]);
     }
   };
   React.useEffect(setSMs, [authStatus, SMRCount, SMR]);

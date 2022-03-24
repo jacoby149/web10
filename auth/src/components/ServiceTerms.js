@@ -17,7 +17,7 @@ function ServiceTerms({ services, selectedService, SMRHook, SMRIncrement }) {
   const final = Object.keys(flattenedService).map((field, idx) => {
     return (
       <EditableField
-        key={[currentService["body"]["service"], field]}
+        key={[currentService["service"], field]}
         record={flattenedService[field]}
         field={field}
       ></EditableField>
@@ -43,7 +43,7 @@ function ServiceTerms({ services, selectedService, SMRHook, SMRIncrement }) {
             color: "orange",
           }}
         >
-          {currentService["body"]["service"]}
+          {currentService["service"]}
         </h1>
 
         {final}
@@ -56,10 +56,10 @@ function ServiceTerms({ services, selectedService, SMRHook, SMRIncrement }) {
         SMRIncrement={SMRIncrement}
       ></EditApproval>
       <div style={{ marginLeft: "5px" }}>
-        <Deletor service={currentService["body"]["service"]}></Deletor>
+        <Deletor service={currentService["service"]}></Deletor>
       </div>
       <div style={{ marginLeft: "5px",marginTop:"10px", marginBottom:"10px" }}>
-        <Wiper service={currentService["body"]["service"]}></Wiper>
+        <Wiper service={currentService["service"]}></Wiper>
       </div>
     </div>
   );

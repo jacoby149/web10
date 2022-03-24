@@ -2,7 +2,7 @@ import React from "react";
 
 //web10 sign in boxes and buttons
 function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
-  const [status, setStatus] = statusHook;
+  const setStatus = statusHook[1];
   return (
     <div style={{ width: "300px",marginBottom:"10px"}}>
       <div className="field">
