@@ -1,12 +1,15 @@
 Services Deletion + (Optionally wipe data)
 Service File Export + AppendingImport[-_id]
+
 Service Editor CUD Mode ($set $unset $pull)
 Service Editor SIR Mode
 Change Password
+
 Delete ledger functionality
 make a CRM notes deletor
 Add notes author field
 inbox + slate + redactables toggle
+
 CRUD API + UI protect the "*" service
 add + display web10 credits via stripe
 stripe recurring payments + display details
