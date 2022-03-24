@@ -3,6 +3,7 @@ Service File Export + AppendingImport[-_id]
 Service Editor CUD Mode ($set $unset $pull)
 Service Editor SIR Mode
 Change Password
+delete ledger functionality
 make a CRM notes deletor
 Add notes author field + inbox + toggle
 CRUD API + UI protect the "*" service
