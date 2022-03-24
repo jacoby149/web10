@@ -4,7 +4,7 @@ import React from "react";
 function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
   const [status, setStatus] = statusHook;
   return (
-    <div style={{ width: "300px"}}>
+    <div style={{ width: "300px",marginBottom:"10px"}}>
       <div className="field">
         <p style={{ margin: "5px 10px" }} className="control has-icons-left">
           web10provider:{" "}
