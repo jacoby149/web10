@@ -90,3 +90,5 @@ Address import _ID issues
 Change Password
 Document auth portal / service editor.
 add stripe recurring payments
+
+add a data compactor button 
