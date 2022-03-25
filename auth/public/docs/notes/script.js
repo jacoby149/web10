@@ -1,47 +1,36 @@
 /* script.js */
 
-//initialize a wapi object registered for auth with auth.web10.app
-const wapi = wapiInit("https://auth.web10.app")
-
 //conventient failure messages
 const Fs = ([cF, rF, uF, dF] = ["create", "read", "update", "delete"].map(
-  (op) => `failed to ${op} note[s]`
-));
+    (op) => `failed to ${op} note[s]`
+  ));
 
-//make the SIR for the notes service
+/* wapi setup */
+const wapi = wapiInit("https://auth.web10.app")
 const sirs = [
   {
-    // name of the new service
     service: "web10-docs-note-demo",
-
-    // allowed web10 app hostnames[without route specified] that can use this service
     cross_origins: ["auth.web10.app","jacobhoffman.tk"],
   },
 ];
 wapi.SMROnReady(sirs, []);
-
-// make the auth portal open when the log in button is pressed
 authButton.onclick = wapi.openAuthPortal;
 
-// callback function that initializes the app on web10 login
 function initApp() {
-  // make the logout button handle logouts properly on login
   authButton.innerHTML = "log out";
   authButton.onclick = () => {
     wapi.signOut();
     window.location.reload();
   };
-  // simple hello world app, saying hello to the user
   const t = wapi.readToken();
   message.innerHTML = `hello ${t["provider"]}/${t["username"]},<br>`;
   readNotes();
 }
 
-// either initialize the app if logged in, wait for authentication to do so.
 if (wapi.isSignedIn()) initApp();
 else wapi.authListen(initApp);
 
-// CRUD
+/* CRUD Calls */
 function readNotes() {
   wapi
     .read("web10-docs-note-demo", {})
@@ -49,7 +38,6 @@ function readNotes() {
     .catch(() => (message.innerHTML = rF));
 }
 function createNote(note) {
-  //when it's your service, username and provider are optional
   wapi
     .create("web10-docs-note-demo", { note: note ,date:String(new Date())})
     .then(() => {
@@ -72,18 +60,15 @@ function deleteNote(id) {
     .catch(() => (message.innerHTML = dF));
 }
 
-// display functionality
+/* display */
 function displayNotes(data) {
   function contain(note) {
-    return `
-            <br>
-            <div>
-                ${note.date}<br>
+    return `<div>
+                <p style="font-family:monospace;">${note.date}</p><br>
                 <textarea id="${note._id}">${note.note}</textarea>
                 <button onclick="updateNote('${note._id}')">Update</button>
                 <button onclick="deleteNote('${note._id}')">Delete</button>
-            </div>
-            `;
+            </div>`;
   }
-  noteview.innerHTML = data.map(contain).reverse();
+  noteview.innerHTML = data.map(contain).reverse().join(`<br>`);
 }
