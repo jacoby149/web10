@@ -291,7 +291,7 @@ function Credits(props) {
       <C s={"70px"}>
         <div style={{ fontFamily: "monospace" }}>
           Invented by Jacob Hoffman<br></br>
-          <a href="/docs">the web10 SDK docs page</a>
+          <a href="https://docs.web10.app">the web10 SDK docs page</a>
         </div>
       </C>
     </R>

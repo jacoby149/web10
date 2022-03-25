@@ -6,6 +6,8 @@ var wapi = window.wapi;
 /* Service Change Component */
 function ServiceTerms({ services, selectedService, SMRHook, SMRIncrement }) {
   const currentService = services[selectedService][0];
+  const type = services[selectedService][1];
+  console.log("TYPE",type)
   const flattenedService = flattenJSON(currentService);
   //store updates adjacently
   Object.keys(flattenedService).map(function (key, index) {
@@ -59,21 +61,25 @@ function ServiceTerms({ services, selectedService, SMRHook, SMRIncrement }) {
             type={services[selectedService][1]}
             SMRIncrement={SMRIncrement}
           />
-          <ImportExport 
-          service={currentService["service"]}
-          />
-          <div style={{ marginLeft: "5px" }}>
-            <Deletor service={currentService["service"]}></Deletor>
-          </div>
-          <div
-            style={{
-              marginLeft: "5px",
-              marginTop: "10px",
-              marginBottom: "10px",
-            }}
-          >
-            <Wiper service={currentService["service"]} />
-          </div>
+          {type !== null ? (
+            ""
+          ) : (
+            <div>
+              <ImportExport service={currentService["service"]} />
+              <div style={{ marginLeft: "5px" }}>
+                <Deletor service={currentService["service"]}></Deletor>
+              </div>
+              <div
+                style={{
+                  marginLeft: "5px",
+                  marginTop: "10px",
+                  marginBottom: "10px",
+                }}
+              >
+                <Wiper service={currentService["service"]} />
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
