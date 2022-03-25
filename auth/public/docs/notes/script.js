@@ -51,7 +51,7 @@ function readNotes() {
 function createNote(note) {
   //when it's your service, username and provider are optional
   wapi
-    .create("web10-docs-note-demo", { note: note })
+    .create("web10-docs-note-demo", { note: note ,date:String(new Date())})
     .then(() => {
       readNotes();
       curr.value = "";
@@ -78,11 +78,12 @@ function displayNotes(data) {
     return `
             <br>
             <div>
+                ${note.date}<br>
                 <textarea id="${note._id}">${note.note}</textarea>
                 <button onclick="updateNote('${note._id}')">Update</button>
                 <button onclick="deleteNote('${note._id}')">Delete</button>
             </div>
             `;
   }
-  noteview.innerHTML = data.map(contain);
+  noteview.innerHTML = data.map(contain).reverse();
 }
