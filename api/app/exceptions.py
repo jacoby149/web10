@@ -2,50 +2,50 @@ from fastapi import HTTPException, status
 
 LOGIN = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
-    detail="Incorrect username or password",
-    headers={"WWW-Authenticate": "Bearer"},
+    detail="incorrect username or password",
+    headers={"WWW-Authenticate": "Basic"},
 )
 
 AUTH = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
-    detail="Incorrect username or password",
-    headers={"WWW-Authenticate": "Bearer"},
+    detail="incorrect username or password",
+    headers={"WWW-Authenticate": "Basic"},
 )
 
 BAD_USERNAME = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
-    detail="Username with $./ characters",
-    headers={"WWW-Authenticate": "Bearer"},
+    detail="username with $./ characters",
+    headers={"WWW-Authenticate": "Basic"},
 )
 
 BETA = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
-    detail="Wrong beta code entered",
-    headers={"WWW-Authenticate": "Bearer"},
+    detail="wrong beta code entered",
+    headers={"WWW-Authenticate": "Basic"},
 )
 
 TOKEN = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
-    detail="Incorrect token",
-    headers={"WWW-Authenticate": "Bearer"},
+    detail="incorrect token",
+    headers={"WWW-Authenticate": "Basic"},
 )
 
 CRUD = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
-    detail="CRUD access denied",
-    headers={"WWW-Authenticate": "Bearer"},
+    detail="crud access denied",
+    headers={"WWW-Authenticate": "Basic"},
 )
 
 MINT = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
-    detail="Submitted token can't mint desired token",
-    headers={"WWW-Authenticate": "Bearer"},
+    detail="submitted token can't mint desired token",
+    headers={"WWW-Authenticate": "Basic"},
 )
 
 STAR = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
-    detail="Can't modify the star service",
-    headers={"WWW-Authenticate": "Bearer"},
+    detail="can't modify the star service",
+    headers={"WWW-Authenticate": "Basic"},
 )
 
 

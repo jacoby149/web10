@@ -48,7 +48,7 @@ function wapiAuthInit(wapi) {
         setAuth(true);
         wapiAuth.mintOAuthToken();
       })
-      .catch((response) => setStatus(`log in failed ${response}`));
+      .catch((error) => setStatus(`Log in failed : ${error.response.data.detail}`));
   };
 
   //sign up for a new web10 account

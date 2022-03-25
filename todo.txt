@@ -9,8 +9,12 @@ Add notes author field
 inbox + slate + redactables toggle
 add + display web10 credits via stripe
 stripe recurring payments + display details
-charge credits on CRU calls by size. (allow negative balances for now)
+charge for max collection size
+charge for CRUD credits (based on dbtime)
+allow collection size changes, block if cap<size
+negative balances for now)
 Document Service Editor.
 Document Login/Signup + Settings/Payment
 Document Web10 Record Mechanism
 UI robustly show backend errors
+Non approved Services on auth.localhost
