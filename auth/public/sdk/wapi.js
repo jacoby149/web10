@@ -14,7 +14,7 @@ function cookieDict() {
 }
 
 //initializes the wapi library object
-function wapiInit(authUrl = `${window.location.protocol}//auth.localhost`) {
+function wapiInit(authUrl = "https://auth.web10.app") {
   const wapi = {};
 
   //wapi variables
@@ -24,7 +24,6 @@ function wapiInit(authUrl = `${window.location.protocol}//auth.localhost`) {
   //sets the api key in wapi and stores it in cookies
   wapi.setToken = function (token) {
     wapi.token = token;
-    console.log(wapi.token);
     //set the cookie max age to 30 minutes * 60secs = 1800 secs
     document.cookie = `token=${wapi.token};Secure;path=/;max-age=1800;`;
   };
@@ -54,6 +53,7 @@ function wapiInit(authUrl = `${window.location.protocol}//auth.localhost`) {
   };
 
   wapi.readToken = function () {
+    if(!wapi.token) return null;
     return JSON.parse(atob(wapi.token.split(".")[1]));
   };
 
@@ -88,11 +88,11 @@ function wapiInit(authUrl = `${window.location.protocol}//auth.localhost`) {
   wapi.update = function (
     service,    
     query = null,
-    value = null,
+    update = null,
     username = null,
     provider = null
   ) {
-    return wapi._W10CRUD(axios.put, provider, username, service, query, value);
+    return wapi._W10CRUD(axios.put, provider, username, service, query, update);
   };
   wapi.delete = function (
     service,
@@ -110,7 +110,7 @@ function wapiInit(authUrl = `${window.location.protocol}//auth.localhost`) {
     username,
     service,
     query = null,
-    value = null
+    update = null
   ) {
     if (!provider && !wapi.token) {
       console.error("web10 request without provider or token");
@@ -121,11 +121,9 @@ function wapiInit(authUrl = `${window.location.protocol}//auth.localhost`) {
     const t = {
       token: wapi.token,
       query: query,
-      value: value,
+      update: update,
     };
     const url = `${window.location.protocol}//${provider}/${username}/${service}`
-    console.log("qv: ",query,value);
-    console.log("url: ",url);
     return HTTPRequestFunction(url, t);
   };
 

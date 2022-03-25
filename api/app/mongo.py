@@ -74,13 +74,13 @@ def read(user,service,query):
             record["_id"] = str(record["_id"])
     return records
 
-def update(user,service,query,value):
+def update(user,service,query,update):
     #TODO whitelists + blacklist filtering
     if "_id" in query:
         query["_id"] = ObjectId(query["_id"])
     if star_selected(user,service,query):
         raise exceptions.STAR
-    db[f'{user}'][f'{service}'].update_many(query, value)
+    db[f'{user}'][f'{service}'].update_many(query, update)
     return "success"
 
 def delete(user,service,query):

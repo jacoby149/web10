@@ -13,7 +13,7 @@ class dotdict(dict):
 class Token(BaseModel):
     token: str
     query: Optional[dict] = None
-    value: Optional[dict] = None
+    update: Optional[dict] = None
 
 
 class TokenData(BaseModel):

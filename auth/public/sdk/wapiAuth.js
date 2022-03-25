@@ -14,7 +14,6 @@ function wapiAuthInit(wapi) {
       .then(function (response) {
         wapiAuth.oAuthToken = response.data.token;
       })
-      .catch(console.log);
   };
 
   //initialize the oauth token
