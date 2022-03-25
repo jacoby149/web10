@@ -86,3 +86,7 @@ document that "all" overrides
 discourage the use of mongodb ids in docs, 
 it could break the export and import\
 Address import _ID issues
+
+Change Password
+Document auth portal / service editor.
+add stripe recurring payments
