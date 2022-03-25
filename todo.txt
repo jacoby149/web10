@@ -2,17 +2,15 @@ Services Deletion + (Optionally wipe data)
 Service File Export + AppendingImport
 Service Editor CUD Mode ($set $unset $pull)
 Service Editor SIR Mode
-Change Password
 Delete ledger functionality
 make a CRM notes deletor
 Add notes author field
 inbox + slate + redactables toggle
-add + display web10 credits via stripe
-stripe recurring payments + display details
-charge for max collection size
-charge for CRUD credits (on dbtime + env vars)
+add + display web10 plan (storage size , dbtime)
+display usage [storage use, dbtime(used this month)]
+plan updater fields (storage size , dbtime)[update]
+implement dbtime=0 CRUD shutoff
 allow collection size changes, block if cap<size
 negative balances for now)
-Document Service Editor.
-Document Login/Signup + Settings/Payment
-Document Web10 Record Mechanisms
+Document web10 service record rules
+Accept Stripe
