@@ -174,15 +174,15 @@ Below is an example of some html and javascript utilizing all of the above user 
 
 //conventient failure messages
 const Fs = ([cF, rF, uF, dF] = ["create", "read", "update", "delete"].map(
-    (op) => `failed to ${op} note[s]`
-  ));
+  (op) => `failed to ${op} note[s]`
+));
 
 /* wapi setup */
-const wapi = wapiInit("https://auth.web10.app")
+const wapi = wapiInit("https://auth.web10.app");
 const sirs = [
   {
     service: "web10-docs-note-demo",
-    cross_origins: ["docs.web10.app","docs.localhost"],
+    cross_origins: ["docs.web10.app", "docs.localhost"],
   },
 ];
 wapi.SMROnReady(sirs, []);
@@ -207,29 +207,35 @@ function readNotes() {
   wapi
     .read("web10-docs-note-demo", {})
     .then((response) => displayNotes(response.data))
-    .catch(() => (message.innerHTML = rF));
+    .catch((error) => (message.innerHTML = `${rF} : ${error.response.data.detail}`));
 }
 function createNote(note) {
   wapi
-    .create("web10-docs-note-demo", { note: note ,date:String(new Date())})
+    .create("web10-docs-note-demo", { note: note, date: String(new Date()) })
     .then(() => {
       readNotes();
       curr.value = "";
     })
-    .catch(() => (message.innerHTML = cF));
+    .catch(
+      (error) => (message.innerHTML = `${cF} : ${error.response.data.detail}`)
+    );
 }
 function updateNote(id) {
   const entry = String(document.getElementById(id).value);
   wapi
-    .update("web10-docs-note-demo", { _id: id }, { $set:{note: entry }})
+    .update("web10-docs-note-demo", { _id: id }, { $set: { note: entry } })
     .then(readNotes)
-    .catch(() => (message.innerHTML = uF));
+    .catch(
+      (error) => (message.innerHTML = `${uF} : ${error.response.data.detail}`)
+    );
 }
 function deleteNote(id) {
   wapi
-    .delete("web10-docs-note-demo", { "_id": id })
+    .delete("web10-docs-note-demo", { _id: id })
     .then(readNotes)
-    .catch(() => (message.innerHTML = dF));
+    .catch(
+      (error) => (message.innerHTML = `${dF} : ${error.response.data.detail}`)
+    );
 }
 
 /* display */
