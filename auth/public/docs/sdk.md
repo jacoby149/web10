@@ -137,24 +137,6 @@ Below is an example of some html and javascript utilizing all of the above user 
 
 ```html
 <html>
-	<!-- index.html -->
-    <body>
-        <button id="authButton">
-            log in
-        </button>
-        <p id="message">
-            app not started
-        </p>
-    </body>
-    <!-- Installing using CDN -->
-    <script src="https://unpkg.com/axios/dist/axios.min.js" ></script>
-    <script src="https://auth.web10.app/sdk/wapi.js" ></script>
-    <script src="script.js"></script>
-</html>
-```
-
-```html
-<html>
 <!-- index.html -->
 <body>
     <button id="authButton">
