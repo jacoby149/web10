@@ -1,5 +1,3 @@
-Document wapi SDK + code examples
-link in auth UI
 Services Deletion + (Optionally wipe data)
 Service File Export + AppendingImport
 Service Editor CUD Mode ($set $unset $pull)
