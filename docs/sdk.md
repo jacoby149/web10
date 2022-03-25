@@ -1,6 +1,18 @@
-# web10 wapi.js SDK
+# web10 DOCS
 
-<a href ="../">back to web10 auth page</a>
+<a href ="https://auth.web10.app">web10 auth portal</a>
+
+<a href ="https://api.web10.app/docs">web10 API page</a>
+
+
+
+## Featured web10 Apps
+
+<a href ="https://crm.web10.app">Rolodex - by Greenstar Group</a>
+
+
+
+## wapi.js SDK
 
 
 
@@ -50,7 +62,7 @@ once the wapi object is initialized, it provides a variety of functionalities fo
 
 ### Authentication - Hello World Demo
 
-Below is an example of some html and javascript utilizing all of the above authentication functionality to handle login for a simple hello world app. <a href="https://auth.web10.app/docs/hello">**Demo Link**</a>
+Below is an example of some html and javascript utilizing all of the above authentication functionality to handle login for a simple hello world app. <a href="https://auth.web10.app/hello">**Demo Link**</a>
 
 ```html
 <html>
@@ -133,7 +145,7 @@ web10.app services are hosted at :
 
 ### Demo - Note App
 
-Below is an example of some html and javascript utilizing all of the above user owned service management functionality to make a basic notes app. <a href="https://auth.web10.app/docs/notes">**Demo Link**</a>
+Below is an example of some html and javascript utilizing all of the above user owned service management functionality to make a basic notes app. <a href="https://docs.web10.app/notes">**Demo Link**</a>
 
 ```html
 <html>
@@ -170,7 +182,7 @@ const wapi = wapiInit("https://auth.web10.app")
 const sirs = [
   {
     service: "web10-docs-note-demo",
-    cross_origins: ["auth.web10.app","jacobhoffman.tk"],
+    cross_origins: ["docs.web10.app","docs.localhost"],
   },
 ];
 wapi.SMROnReady(sirs, []);
@@ -236,4 +248,5 @@ function displayNotes(data) {
 
 
 
-### thanks for making it to the end :)
+> *End of web10 docs* ...
+
