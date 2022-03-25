@@ -235,7 +235,7 @@ async def read_records(user, service, token: models.Token):
 async def update_records(user, service, token: models.Token):
     if not is_permitted(token, user, service, "update"):
         raise exceptions.CRUD
-    return mongo.update(user, service, token.query, token.value)
+    return mongo.update(user, service, token.query, token.update)
 
 
 @app.delete("/{user}/{service}", tags=["web10"])
