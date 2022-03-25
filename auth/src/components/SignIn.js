@@ -87,7 +87,7 @@ function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
                 document.getElementById("username").value,
                 document.getElementById("password").value,
                 document.getElementById("betacode").value
-              ).then(()=>setStatus("Successfully Made An Account")).catch((error)=>setStatus("Failed to Sign Up :"+error))
+              ).then(()=>setStatus("Successfully Made An Account")).catch((error)=>setStatus("Failed to Sign Up : "+error.response.data.detail))
             }
             style={{ margin: "0px 5px" }}
             className="button is-info"

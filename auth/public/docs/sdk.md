@@ -224,7 +224,7 @@ function deleteNote(id) {
 function displayNotes(data) {
   function contain(note) {
     return `<div>
-                <p style="font-family:monospace;">${note.date}</p><br>
+                <p style="font-family:monospace;">${note.date}</p>
                 <textarea id="${note._id}">${note.note}</textarea>
                 <button onclick="updateNote('${note._id}')">Update</button>
                 <button onclick="deleteNote('${note._id}')">Delete</button>
