@@ -122,7 +122,6 @@ def certify_with_remote_provider(token: models.Token):
 # a token certifies with it's provider, is targetted to this provider, is cross origin approved, and whitelisted
 def is_permitted(token: models.Token, username, service, action):
     # TODO ADD WHITELIST AND BLACKLISING
-
     decoded = decode_token(token.token)
     if settings.PROVIDER == decoded.provider:
         certified = certify(token)
@@ -138,7 +137,9 @@ def is_permitted(token: models.Token, username, service, action):
                 return False
         elif decoded.target != settings.PROVIDER:
             return False
-        if mongo.is_in_cross_origins(decoded.site, username, service):
+        if decoded.site in settings.CORS_SERVICE_MANAGERS or mongo.is_in_cross_origins(
+            decoded.site, username, service
+        ):
             if mongo.get_approved(
                 decoded.username, decoded.provider, username, service, action
             ):
@@ -174,7 +175,8 @@ def certify(token: models.Token):
 async def create_web10_token(form_data: models.TokenForm):
     token_data = models.TokenData()
     token_data.populate_from_token_form(form_data)
-    if ((not form_data.password) and (not form_data.token)): raise exceptions.LOGIN
+    if (not form_data.password) and (not form_data.token):
+        raise exceptions.LOGIN
     try:
         if form_data.password:
             if authenticate_user(form_data.username, form_data.password):

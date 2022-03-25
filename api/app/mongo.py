@@ -78,6 +78,7 @@ def update(user,service,query,update):
     #TODO whitelists + blacklist filtering
     if "_id" in query:
         query["_id"] = ObjectId(query["_id"])
+    print(query,update)
     if star_selected(user,service,query):
         raise exceptions.STAR
     db[f'{user}'][f'{service}'].update_many(query, update)

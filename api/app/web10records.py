@@ -27,6 +27,5 @@ def services_record():
         "whitelist": [],
         "blacklist": [],
         "service": "services",
-        "cross_origins": settings.CORS_SERVICE_MANAGERS,
         "active": True,
     }
