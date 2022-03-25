@@ -62,7 +62,7 @@ once the wapi object is initialized, it provides a variety of functionalities fo
 
 ### Authentication - Hello World Demo
 
-Below is an example of some html and javascript utilizing all of the above authentication functionality to handle login for a simple hello world app. <a href="https://auth.web10.app/hello">**Demo Link**</a>
+Below is an example of some html and javascript utilizing all of the above authentication functionality to handle login for a simple hello world app. <a href="https://docs.web10.app/hello">**Demo Link**</a>
 
 ```html
 <html>
