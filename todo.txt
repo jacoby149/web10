@@ -1,4 +1,3 @@
-Move docs to separate domain name and service.
 Services Deletion + (Optionally wipe data)
 Service File Export + AppendingImport
 Service Editor CUD Mode ($set $unset $pull)
@@ -16,4 +15,4 @@ allow collection size changes, block if cap<size
 negative balances for now)
 Document Service Editor.
 Document Login/Signup + Settings/Payment
-Document Web10 Record Mechanism
+Document Web10 Record Mechanisms
