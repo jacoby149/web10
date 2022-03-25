@@ -1,3 +1,4 @@
+Move docs to separate domain name and service.
 Services Deletion + (Optionally wipe data)
 Service File Export + AppendingImport
 Service Editor CUD Mode ($set $unset $pull)
@@ -10,11 +11,9 @@ inbox + slate + redactables toggle
 add + display web10 credits via stripe
 stripe recurring payments + display details
 charge for max collection size
-charge for CRUD credits (based on dbtime)
+charge for CRUD credits (on dbtime + env vars)
 allow collection size changes, block if cap<size
 negative balances for now)
 Document Service Editor.
 Document Login/Signup + Settings/Payment
 Document Web10 Record Mechanism
-UI robustly show backend errors
-Non approved Services on auth.localhost

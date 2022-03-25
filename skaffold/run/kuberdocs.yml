@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: docs
+spec:
+  selector:
+    matchLabels:
+      app: docs
+  template:
+    metadata:
+      labels:
+        app: docs
+    spec:
+      containers:
+        - name: docs
+          image: gcr.io/pure-phalanx-344719/docs
+          ports:
+            - containerPort: 80
+          resources:

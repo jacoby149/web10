@@ -35,6 +35,14 @@ services:
       - "7746:80"
     environment:
       VIRTUAL_HOST: crm.localhost
+  docs:
+    build: docs 
+    volumes:
+      - ./docs/:/docs
+    ports:
+      - "6969:80"
+    environment:
+      VIRTUAL_HOST: docs.localhost
   nginx-proxy:
     image: jwilder/nginx-proxy
     ports:
