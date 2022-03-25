@@ -9,9 +9,9 @@ inbox + slate + redactables toggle
 add + display web10 plan (storage size , dbtime)
 display usage [storage use, dbtime(used this month)]
 plan updater fields (storage size , dbtime)[update]
-implement dbtime=0 CRUD shutoff
-block CU (by reverting updates) if cap<size
-allow collection size changes, block if cap<size
-negative balances for now)
+implement dbtime=0 CRUD shutoff 
+cap < size CU shutoff
+Give everyone a free tier
 Document web10 service record rules
+Prevent 'web10' as a username
 Accept Stripe

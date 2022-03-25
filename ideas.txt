@@ -91,4 +91,20 @@ Change Password
 Document auth portal / service editor.
 add stripe recurring payments
 
-add a data compactor button 
+add a data compactor button
+
+
+revertable updates
+#copy query over to * backup collection
+username.service.aggregate([ { $match: {query} }, { $out: "username.*.service.updatebackups.exactTimeString" } ])
+#do the update
+username.service.update(query,update)
+size(usernamecollection) - size(username.*) > cap ? //the user has gone over their limit
+#copy collection back to the service
+username.*.service.updatebackups.exactTimeString.aggregate([ { $match: {query} }, { $out: "username.service" } ])
+on revertable updates, store the initial read somewhere safe. (maybe all mongo side, copy to (*) then copy back)
+* doesn't have documents, it has subcollections for the copy operations
+send all the revert update one queries to the db simultaneously in a list
+
+HOW to prevent absolute update query abuse, 1TB worth of updates...
+update_one :)

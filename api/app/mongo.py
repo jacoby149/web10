@@ -81,7 +81,7 @@ def update(user,service,query,update):
     print(query,update)
     if star_selected(user,service,query):
         raise exceptions.STAR
-    db[f'{user}'][f'{service}'].update_many(query, update)
+    db[f'{user}'][f'{service}'].update_one(query, update)
     return "success"
 
 def delete(user,service,query):
