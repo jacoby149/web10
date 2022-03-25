@@ -1,5 +1,11 @@
 # web10 wapi.js SDK
 
+<a href ="../">back to web10 auth page</a>
+
+
+
+### Installation
+
 wapi.js is the javascript file containing the web10 developers SDK. <br>the file can be found at : https://auth.web10.app/sdk/wapi.js
 
 ```html
@@ -44,7 +50,7 @@ once the wapi object is initialized, it provides a variety of functionalities fo
 
 ### Authentication - Hello World Demo
 
-Below is an example of some html and javascript utilizing all of the above authentication functionality to handle login for a simple hello world app.
+Below is an example of some html and javascript utilizing all of the above authentication functionality to handle login for a simple hello world app. <a href="https://auth.web10.app/docs/hello">**Demo Link**</a>
 
 ```html
 <html>
@@ -126,3 +132,126 @@ web10.app services are hosted at :
 
 
 ### Demo - Note App
+
+Below is an example of some html and javascript utilizing all of the above user owned service management functionality to make a basic notes app. <a href="https://auth.web10.app/docs/notes">**Demo Link**</a>
+
+```html
+<html>
+	<!-- index.html -->
+    <body>
+        <button id="authButton">
+            log in
+        </button>
+        <p id="message">
+            app not started
+        </p>
+    </body>
+    <!-- Installing using CDN -->
+    <script src="https://unpkg.com/axios/dist/axios.min.js" ></script>
+    <script src="https://auth.web10.app/sdk/wapi.js" ></script>
+    <script src="script.js"></script>
+</html>
+```
+
+```html
+<html>
+<!-- index.html -->
+<body>
+    <button id="authButton">
+        log in
+    </button>
+    <p id="message">
+        app not started
+    </p>
+    <div>
+        <textarea id="curr" placeholder="write a note here"></textarea>
+        <button onclick="createNote(curr.value)">create note</button>
+    </div>
+    <div id="noteview"></div>
+</body>
+<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+<script src="https://auth.web10.app/sdk/wapi.js"></script>
+<script src="script.js"></script>
+</html>
+```
+
+```javascript
+/* script.js */
+
+//conventient failure messages
+const Fs = ([cF, rF, uF, dF] = ["create", "read", "update", "delete"].map(
+    (op) => `failed to ${op} note[s]`
+  ));
+
+/* wapi setup */
+const wapi = wapiInit("https://auth.web10.app")
+const sirs = [
+  {
+    service: "web10-docs-note-demo",
+    cross_origins: ["auth.web10.app","jacobhoffman.tk"],
+  },
+];
+wapi.SMROnReady(sirs, []);
+authButton.onclick = wapi.openAuthPortal;
+
+function initApp() {
+  authButton.innerHTML = "log out";
+  authButton.onclick = () => {
+    wapi.signOut();
+    window.location.reload();
+  };
+  const t = wapi.readToken();
+  message.innerHTML = `hello ${t["provider"]}/${t["username"]},<br>`;
+  readNotes();
+}
+
+if (wapi.isSignedIn()) initApp();
+else wapi.authListen(initApp);
+
+/* CRUD Calls */
+function readNotes() {
+  wapi
+    .read("web10-docs-note-demo", {})
+    .then((response) => displayNotes(response.data))
+    .catch(() => (message.innerHTML = rF));
+}
+function createNote(note) {
+  wapi
+    .create("web10-docs-note-demo", { note: note ,date:String(new Date())})
+    .then(() => {
+      readNotes();
+      curr.value = "";
+    })
+    .catch(() => (message.innerHTML = cF));
+}
+function updateNote(id) {
+  const entry = String(document.getElementById(id).value);
+  wapi
+    .update("web10-docs-note-demo", { _id: id }, { $set:{note: entry }})
+    .then(readNotes)
+    .catch(() => (message.innerHTML = uF));
+}
+function deleteNote(id) {
+  wapi
+    .delete("web10-docs-note-demo", { "_id": id })
+    .then(readNotes)
+    .catch(() => (message.innerHTML = dF));
+}
+
+/* display */
+function displayNotes(data) {
+  function contain(note) {
+    return `<div>
+                <p style="font-family:monospace;">${note.date}</p><br>
+                <textarea id="${note._id}">${note.note}</textarea>
+                <button onclick="updateNote('${note._id}')">Update</button>
+                <button onclick="deleteNote('${note._id}')">Delete</button>
+            </div>`;
+  }
+  noteview.innerHTML = data.map(contain).reverse().join(`<br>`);
+}
+```
+
+
+
+### thanks for making it to the end :)

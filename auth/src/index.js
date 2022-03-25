@@ -167,7 +167,7 @@ function App() {
           );
           //makes a list of sirs not in the current services, and formats them for the UI correctly
           const SIRS = SMR["sirs"]
-            .filter((service) => (!currServices.includes(service["service"]))&&service["service"]!="*")
+            .filter((service) => (!currServices.includes(service["service"]))&&service["service"]!=="*")
             .map((service) => [service, "new"]);
           //add sirs into the updatedservices
           updatedServices.push.apply(updatedServices, SIRS);
@@ -290,7 +290,8 @@ function Credits(props) {
     <R t {...pass(props)}>
       <C s={"70px"}>
         <div style={{ fontFamily: "monospace" }}>
-          Made by <a href="https://jacobhoffman.tk">Jacob Hoffman</a>
+          Invented by Jacob Hoffman<br></br>
+          <a href="/docs">the web10 SDK docs page</a>
         </div>
       </C>
     </R>
