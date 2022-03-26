@@ -108,3 +108,6 @@ send all the revert update one queries to the db simultaneously in a list
 
 HOW to prevent absolute update query abuse, 1TB worth of updates...
 update_one :)
+
+// for photos and multimedia
+web10 gridFS file storage
