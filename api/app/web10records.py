@@ -1,14 +1,5 @@
 import app.settings as settings
 
-# whitelist example
-# [
-#     {"username":".*",
-#     "provider":".*",
-#         "all":True,
-#     }
-# ]
-
-
 def star_record():
     return {
         "service": "*",
@@ -22,14 +13,10 @@ def star_record():
         "db_time_seconds_owned":0
         # no whitelist or blacklist...
         # this is a web10 exclusive document.
-        # TODO implement guarding of this record from all CRUD
     }
 
 
 def services_record():
     return {
-        "whitelist": [],
-        "blacklist": [],
         "service": "services",
-        "active": True,
     }
