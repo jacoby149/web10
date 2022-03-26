@@ -12,6 +12,8 @@ function ServiceTerms({
   servicesLoad,
   setStatus,
 }) {
+  //dictionary of field value pairs to add to the service.
+  const [additions, setAdditions] = React.useState({});
   //quick check to make sure we dont have a selected service issue
   const [selectedService, setSelectedService] = selectedServiceHook;
   var i = selectedService;
@@ -65,7 +67,12 @@ function ServiceTerms({
 
         {final}
         <br></br>
-        {currentService["service"] === "*" ? "" : <NewField></NewField>}
+        <ToAdd additionsHook={[additions, setAdditions]}></ToAdd>
+        {currentService["service"] === "*" ? (
+          ""
+        ) : (
+          <NewField additionsHook={[additions, setAdditions]}></NewField>
+        )}
       </div>
       {currentService["service"] === "*" ? (
         ""
@@ -126,23 +133,32 @@ function EditableField({ record, field }) {
 }
 
 //allows CRUDstyle creation of fields
-function NewField() {
+function NewField({ additionsHook }) {
+  const [additions, setAdditions] = additionsHook;
   return (
     <div style={{ marginTop: "4px", marginLeft: "4px", marginRight: "4px" }}>
       Add a field : <br></br>
       flattenedKey :{" "}
       <input
+        id="adder-key"
         style={{ backgroundColor: "black", color: "lightgreen" }}
         placeholder={"examplekey.0.red.1"}
       ></input>
       <br></br>
       value :{" "}
       <input
+        id="adder-value"
         style={{ backgroundColor: "black", color: "lightgreen" }}
         placeholder={"value"}
       ></input>
       <br></br>
       <button
+        onClick={() => {
+          const updated = { ...additions };
+          updated[document.getElementById("adder-key").value] =
+            document.getElementById("adder-value").value;
+          setAdditions(updated);
+        }}
         className="button is-small is-primary"
         style={{ marginTop: "4px" }}
       >
@@ -254,7 +270,7 @@ const EditableInput = ({ record, field }) => {
       {field} :{" "}
       <span style={{ color: "firebrick", textDecoration: "line-through" }}>
         {value === update ? "" : value}
-        </span>
+      </span>
       <input
         style={{ color: "#2ECC40" }}
         size={String(update).length}
@@ -264,9 +280,8 @@ const EditableInput = ({ record, field }) => {
           record["update"] = newUpdate;
           setUpdate(newUpdate);
         }}
-      ></input> 
+      ></input>
       {/* <i class='fa fa-trash'></i> <i class="fas fa-undo"></i> */}
-
     </div>
   );
 };
@@ -332,7 +347,7 @@ function EditApproval({ flattenedService, type, servicesLoad, SMRHook }) {
   );
 }
 
-function ImportExport({service}) {
+function ImportExport({ service }) {
   return (
     <div>
       <button
@@ -351,10 +366,14 @@ function ImportExport({service}) {
         onClick={() => {
           wapi
             .read(service, {})
-            .then((response) => downloadObjJSON(response.data, `${service}Data`));
+            .then((response) =>
+              downloadObjJSON(response.data, `${service}Data`)
+            );
           wapi
             .read("services", { service: service })
-            .then((response) => downloadObjJSON(response.data, `${service}Terms`));
+            .then((response) =>
+              downloadObjJSON(response.data, `${service}Terms`)
+            );
           //export js files with
           //downloadObjectAsJson
           return;
@@ -362,6 +381,36 @@ function ImportExport({service}) {
       >
         Export Service
       </button>{" "}
+    </div>
+  );
+}
+
+function ToAdd({ additionsHook }) {
+  const [additions,setAdditions]=additionsHook;
+  function loadAdditions() {
+    return Object.keys(additions).map((field, idx) => {
+      return (
+        <p key={["addy", idx]} style={{ color: "#2ECC40" }}>
+          {field} : {additions[field]} &nbsp;{" "}
+          <i onClick={()=>{
+            const updated = {...additions};
+            delete updated[field];
+            setAdditions(updated);
+          }} style={{ color: "red" }} class="fa fa-trash"></i>
+        </p>
+      );
+    });
+  }
+  var disp = loadAdditions();
+  React.useEffect(() => {
+    disp = loadAdditions();
+  }, [additions]);
+
+  return (
+    <div style={{ marginLeft: "5px" }}>
+      {Object.keys(additions).length === 0 ? "" : <u>will be added :</u>}{" "}
+      <br></br>
+      {disp}
     </div>
   );
 }
