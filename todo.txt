@@ -1,7 +1,6 @@
 implement dbtime=0 CRUD shutoff 
 cap < used CU shutoff
 Document web10 service record rules
-Prevent 'web10' as a username
 regex cross origin domains allowed
 payment page (storage size , dbtime)[update]
 Accept Stripe
