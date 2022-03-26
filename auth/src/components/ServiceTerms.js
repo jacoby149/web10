@@ -17,16 +17,15 @@ function ServiceTerms({
   //dictionary of field value pairs to add to the service.
   const [additions, setAdditions] = React.useState({});
   //quick check to make sure we dont have a selected service issue
-  const [selectedService, setSelectedService] = selectedServiceHook;
-  var i = selectedService;
+  const [_selectedService, setSelectedService] = selectedServiceHook;
+  var selectedService = _selectedService;
   if (selectedService >= services.length) {
-    i = 0;
+    selectedService = 0;
     setSelectedService(0);
   }
 
-  const currentService = services[i][0];
-  const type = services[i][1];
-  console.log("TYPE", type);
+  const currentService = services[selectedService][0];
+  const type = services[selectedService][1];
   const flattenedService = flattenJSON(currentService);
   //store updates adjacently
   Object.keys(flattenedService).map(function (key, index) {
@@ -191,7 +190,7 @@ const EditableInput = ({ record, field }) => {
           value={update}
           onChange={(event)=>setRecord(event.target.value)}
         ></input>{" "}
-        {value === update ? <i style={{ color: "firebrick" }} class="fa fa-trash" onClick={()=>setRecord({type:"delete"})}></i> : undo()}
+        {value === update ? <i style={{ color: "firebrick" }} className="fa fa-trash" onClick={()=>setRecord({type:"delete"})}></i> : undo()}
       </div>
     );
   }
@@ -201,13 +200,13 @@ const EditableInput = ({ record, field }) => {
 
 function submitSMR(flattenedService, type, servicesLoad) {
   //retrieve the updates for the SMR
+  //TODOOOOO
   const updates = {};
   Object.keys(flattenedService).map(function (key) {
     return (updates[key] = flattenedService[key]["update"]);
   });
   if (type === "new") {
     const obj = unFlattenJSON(updates);
-    console.log(obj);
     wapi.create("services", obj).then(servicesLoad).catch(console.error);
   }
 }
@@ -219,8 +218,8 @@ function purgeSMR(type, SMRHook, service) {
   } else if (type === "new" || type === "change") {
     setSMR({
       //TODO clear the bad SCRs
-      scrs: SMR["scrs"],
-      sirs: SMR["sirs"].filter((sir) => sir["service"] !== service),
+      scrs: [...SMR["scrs"]],
+      sirs: [...SMR["sirs"]].filter((sir) => sir["service"] !== service),
     });
   } else {
     console.error("unspecified behavior clearing SMR");
@@ -281,7 +280,7 @@ function EditApproval({ flattenedService, type, servicesLoad, SMRHook }) {
           : "Your Changes"}
       </button>
       <button
-        onClick={purgeSMR(type, SMRHook, flattenedService["service"])}
+        onClick={()=>purgeSMR(type, SMRHook, flattenedService["service"])}
         style={{ margin: "5px 5px" }}
         className="button is-warning"
       >
