@@ -4,7 +4,9 @@ import { downloadObjJSON } from "./importExportJSON.js";
 
 var wapi = window.wapi;
 
-/* Service Change Component */
+/************************* */
+/* Service Terms Component */
+/************************* */
 function ServiceTerms({
   services,
   selectedServiceHook,
@@ -117,6 +119,10 @@ function ServiceTerms({
   );
 }
 
+/***********************
+ * Helper Components
+ ***********************/
+
 function EditableField({ record, field }) {
   var type = null;
   if (record["update"].constructor === Object) type = "obj";
@@ -130,6 +136,77 @@ function EditableField({ record, field }) {
     }
   }
   //TODO add dropdown types and more
+}
+
+const StructInput = ({ record, field }) => {
+  const [type, size] = [record["update"]["type"], record["update"]["size"]];
+  return (
+    <div style={{ marginLeft: "4px", marginTop: "4px" }}>
+      {field} :{" "}
+      <i style={{ color: "blue" }}>
+        {type === "list" ? `[${size}]↴` : `{${size}}↴`}
+      </i>
+    </div>
+  );
+};
+
+//TO BE IMPLEMENTED
+const EditableInput = ({ record, field }) => {
+  const [update, setUpdate] = React.useState(record["update"]);
+  const value = record["value"];
+  return (
+    <div style={{ marginLeft: "4px", marginTop: "4px" }}>
+      {field} :{" "}
+      <span style={{ color: "firebrick", textDecoration: "line-through" }}>
+        {value === update ? "" : value}
+      </span>
+      <input
+        style={{ color: "#2ECC40" }}
+        size={String(update).length}
+        value={update}
+        onChange={function (event) {
+          var newUpdate = event.target.value;
+          record["update"] = newUpdate;
+          setUpdate(newUpdate);
+        }}
+      ></input> {value === update ? "" : <i style={{color:"blue"}} className="fas fa-undo" onClick={
+        ()=>{
+        record["update"] = value;
+        setUpdate(value);}
+      }></i>}<i style={{color:"firebrick"}} class='fa fa-trash'></i>
+      {/*  <i class="fas fa-undo"></i> */}
+    </div>
+  );
+};
+
+function submitSMR(flattenedService, type, servicesLoad) {
+  //retrieve the updates for the SMR
+  const updates = {};
+  Object.keys(flattenedService).map(function (key) {
+    return (updates[key] = flattenedService[key]["update"]);
+  });
+  if (type === "new") {
+    const obj = unFlattenJSON(updates);
+    console.log(obj);
+    wapi.create("services", obj).then(servicesLoad).catch(console.error);
+  }
+}
+
+function purgeSMR(type, SMRHook, service) {
+  const [SMR, setSMR] = SMRHook;
+  if (type === null) {
+    return;
+  } else if (type === "new" || type === "change") {
+    setSMR({
+      //TODO clear the bad SCRs
+      scrs: SMR["scrs"],
+      sirs: SMR["sirs"].filter((sir) => sir["service"] !== service),
+    });
+  } else {
+    console.error("unspecified behavior clearing SMR");
+  }
+  //clear the service change form.
+  return;
 }
 
 //allows CRUDstyle creation of fields
@@ -164,6 +241,106 @@ function NewField({ additionsHook }) {
       >
         Add
       </button>
+    </div>
+  );
+}
+
+function EditApproval({ flattenedService, type, servicesLoad, SMRHook }) {
+  return (
+    <div>
+      <button
+        onClick={() => submitSMR(flattenedService, type, servicesLoad)}
+        style={{ margin: "5px 5px" }}
+        className="button is-warning"
+      >
+        Approve{" "}
+        {type === "new"
+          ? "Service Addition"
+          : type === "change"
+          ? "Service Change"
+          : "Your Changes"}
+      </button>
+      <button
+        onClick={purgeSMR(type, SMRHook, flattenedService["service"])}
+        style={{ margin: "5px 5px" }}
+        className="button is-warning"
+      >
+        Deny{" "}
+        {type === "new"
+          ? "Service Addition"
+          : type === "change"
+          ? "Service Change"
+          : "Your Changes"}
+      </button>
+    </div>
+  );
+}
+
+function ImportExport({ service }) {
+  return (
+    <div>
+      <button
+        title="Import coming soon"
+        className="button is-primary"
+        style={{ margin: "5px 5px" }}
+        disabled
+      >
+        {" "}
+        Import Service
+      </button>
+      <button
+        id={"exporter"}
+        className="button is-info"
+        style={{ margin: "5px 5px" }}
+        onClick={() => {
+          wapi
+            .read(service, {})
+            .then((response) =>
+              downloadObjJSON(response.data, `${service}Data`)
+            );
+          wapi
+            .read("services", { service: service })
+            .then((response) =>
+              downloadObjJSON(response.data, `${service}Terms`)
+            );
+          //export js files with
+          //downloadObjectAsJson
+          return;
+        }}
+      >
+        Export Service
+      </button>{" "}
+    </div>
+  );
+}
+
+function ToAdd({ additionsHook }) {
+  const [additions,setAdditions]=additionsHook;
+  function loadAdditions() {
+    return Object.keys(additions).map((field, idx) => {
+      return (
+        <p key={["addy", idx]} style={{ color: "#2ECC40" }}>
+          {field} : {additions[field]} &nbsp;{" "}
+          <i onClick={()=>{
+            const updated = {...additions};
+            delete updated[field];
+            setAdditions(updated);
+          }} style={{ color: "red" }} class="fa fa-trash"></i>
+        </p>
+      );
+    });
+  }
+  var disp = loadAdditions();
+  React.useEffect(() => {
+    disp = loadAdditions();
+  }, [additions]);
+
+  return (
+      Object.keys(additions).length === 0 ? "" :
+    <div style={{ marginLeft: "5px" }}>
+       <u>will be added :</u>{" "}
+      <br></br>
+      {disp}
     </div>
   );
 }
@@ -249,175 +426,5 @@ function Wiper({ service, setStatus, callback }) {
   );
 }
 
-const StructInput = ({ record, field }) => {
-  const [type, size] = [record["update"]["type"], record["update"]["size"]];
-  return (
-    <div style={{ marginLeft: "4px", marginTop: "4px" }}>
-      {field} :{" "}
-      <i style={{ color: "blue" }}>
-        {type === "list" ? `[${size}]↴` : `{${size}}↴`}
-      </i>
-    </div>
-  );
-};
-
-//TO BE IMPLEMENTED
-const EditableInput = ({ record, field }) => {
-  const [update, setUpdate] = React.useState(record["update"]);
-  const value = record["value"];
-  return (
-    <div style={{ marginLeft: "4px", marginTop: "4px" }}>
-      {field} :{" "}
-      <span style={{ color: "firebrick", textDecoration: "line-through" }}>
-        {value === update ? "" : value}
-      </span>
-      <input
-        style={{ color: "#2ECC40" }}
-        size={String(update).length}
-        value={update}
-        onChange={function (event) {
-          var newUpdate = event.target.value;
-          record["update"] = newUpdate;
-          setUpdate(newUpdate);
-        }}
-      ></input> {value === update ? "" : <i style={{color:"blue"}} className="fas fa-undo" onClick={
-        ()=>{
-        record["update"] = value;
-        setUpdate(value);}
-      }></i>}
-      {/* <i class='fa fa-trash'></i> <i class="fas fa-undo"></i> */}
-    </div>
-  );
-};
-
-function submitSMR(flattenedService, type, servicesLoad) {
-  //retrieve the updates for the SMR
-  const updates = {};
-  Object.keys(flattenedService).map(function (key) {
-    return (updates[key] = flattenedService[key]["update"]);
-  });
-  if (type === "new") {
-    const obj = unFlattenJSON(updates);
-    console.log(obj);
-    wapi.create("services", obj).then(servicesLoad).catch(console.error);
-  }
-}
-
-function clear(type, SMRHook, service) {
-  const [SMR, setSMR] = SMRHook;
-  if (type === null) {
-    return;
-  } else if (type === "new" || type === "change") {
-    setSMR({
-      //TODO clear the bad SCRs
-      scrs: SMR["scrs"],
-      sirs: SMR["sirs"].filter((sir) => sir["service"] !== service),
-    });
-  } else {
-    console.error("unspecified behavior clearing SMR");
-  }
-  //clear the service change form.
-  return;
-}
-
-function EditApproval({ flattenedService, type, servicesLoad, SMRHook }) {
-  return (
-    <div>
-      <button
-        onClick={() => submitSMR(flattenedService, type, servicesLoad)}
-        style={{ margin: "5px 5px" }}
-        className="button is-warning"
-      >
-        Approve{" "}
-        {type === "new"
-          ? "Service Addition"
-          : type === "change"
-          ? "Service Change"
-          : "Your Changes"}
-      </button>
-      <button
-        onClick={clear(type, SMRHook, flattenedService["service"])}
-        style={{ margin: "5px 5px" }}
-        className="button is-warning"
-      >
-        Deny{" "}
-        {type === "new"
-          ? "Service Addition"
-          : type === "change"
-          ? "Service Change"
-          : "Your Changes"}
-      </button>
-    </div>
-  );
-}
-
-function ImportExport({ service }) {
-  return (
-    <div>
-      <button
-        title="Import coming soon"
-        className="button is-primary"
-        style={{ margin: "5px 5px" }}
-        disabled
-      >
-        {" "}
-        Import Service
-      </button>
-      <button
-        id={"exporter"}
-        className="button is-info"
-        style={{ margin: "5px 5px" }}
-        onClick={() => {
-          wapi
-            .read(service, {})
-            .then((response) =>
-              downloadObjJSON(response.data, `${service}Data`)
-            );
-          wapi
-            .read("services", { service: service })
-            .then((response) =>
-              downloadObjJSON(response.data, `${service}Terms`)
-            );
-          //export js files with
-          //downloadObjectAsJson
-          return;
-        }}
-      >
-        Export Service
-      </button>{" "}
-    </div>
-  );
-}
-
-function ToAdd({ additionsHook }) {
-  const [additions,setAdditions]=additionsHook;
-  function loadAdditions() {
-    return Object.keys(additions).map((field, idx) => {
-      return (
-        <p key={["addy", idx]} style={{ color: "#2ECC40" }}>
-          {field} : {additions[field]} &nbsp;{" "}
-          <i onClick={()=>{
-            const updated = {...additions};
-            delete updated[field];
-            setAdditions(updated);
-          }} style={{ color: "red" }} class="fa fa-trash"></i>
-        </p>
-      );
-    });
-  }
-  var disp = loadAdditions();
-  React.useEffect(() => {
-    disp = loadAdditions();
-  }, [additions]);
-
-  return (
-      Object.keys(additions).length === 0 ? "" :
-    <div style={{ marginLeft: "5px" }}>
-       <u>will be added :</u>{" "}
-      <br></br>
-      {disp}
-    </div>
-  );
-}
 
 export default ServiceTerms;
