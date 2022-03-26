@@ -254,7 +254,7 @@ const EditableInput = ({ record, field }) => {
       {field} :{" "}
       <span style={{ color: "firebrick", textDecoration: "line-through" }}>
         {value === update ? "" : value}
-      </span>
+        </span>
       <input
         style={{ color: "#2ECC40" }}
         size={String(update).length}
@@ -264,7 +264,9 @@ const EditableInput = ({ record, field }) => {
           record["update"] = newUpdate;
           setUpdate(newUpdate);
         }}
-      ></input>
+      ></input> 
+      {/* <i class='fa fa-trash'></i> <i class="fas fa-undo"></i> */}
+
     </div>
   );
 };
