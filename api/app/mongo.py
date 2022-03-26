@@ -36,6 +36,7 @@ def get_user(username: str):
 
 def create_user(form_data, hash):
     username,password = form_data.username,form_data.password
+    if (username=="web10"): raise exceptions.RESERVED
     user_col = db[f'{username}']
     if user_col['services'].count_documents({})!=0:
         return "user already exists"   
