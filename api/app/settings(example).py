@@ -29,3 +29,19 @@ if TOKEN_EXPIRE_MINUTES == None:
 BETA_CODE = os.environ.get("BETA_CODE")
 if BETA_CODE == None:
     BETA_CODE = "weeb10beta"
+
+WRITES = os.environ.get("WRITES")
+if WRITES == None:
+    WRITES = 360
+
+READS = os.environ.get("READS")
+if READS == None:
+    READS = 1080
+
+DELETES = os.environ.get("DELETES")
+if DELETES == None:
+    DELETES = 1080
+
+SPACE = os.environ.get("SPACE")
+if SPACE == None:
+    SPACE = 16

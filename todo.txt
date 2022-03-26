@@ -1,5 +1,4 @@
-implement dbtime=0 CRUD shutoff 
-cap < used CU shutoff
+implement has time and has space
 Document web10 service record rules
 regex cross origin domains allowed
 payment page (storage size , dbtime)[update]
