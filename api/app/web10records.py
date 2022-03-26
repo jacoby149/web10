@@ -5,7 +5,7 @@ def star_record():
         "service": "*",
         "username": "USERNAME",
         "hashed_password": "PASSWORD",
-        "storage_capacity_mb_free":10,
+        "storage_capacity_mb_free":64,
         "storage_capacity_mb_paid":0,
         "storage_capacity_mb_used":0,
         "db_time_seconds_monthly":600,
