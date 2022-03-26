@@ -1,7 +1,8 @@
 // function for flattening json
 const flattenJSON = (obj = {}, res = {}, extraKey = "") => {
   for (const key in obj) {
-    if (typeof obj[key] !== "object") {
+    if (obj[key]===null) res[extraKey + key]="null"
+    else if (typeof obj[key] !== "object") {
       res[extraKey + key] = obj[key];
     } else {
       res[extraKey + key] =
