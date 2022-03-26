@@ -274,13 +274,17 @@ const EditableInput = ({ record, field }) => {
       <input
         style={{ color: "#2ECC40" }}
         size={String(update).length}
-        defaultValue={update}
+        value={update}
         onChange={function (event) {
           var newUpdate = event.target.value;
           record["update"] = newUpdate;
           setUpdate(newUpdate);
         }}
-      ></input>
+      ></input> {value === update ? "" : <i style={{color:"blue"}} className="fas fa-undo" onClick={
+        ()=>{
+        record["update"] = value;
+        setUpdate(value);}
+      }></i>}
       {/* <i class='fa fa-trash'></i> <i class="fas fa-undo"></i> */}
     </div>
   );
