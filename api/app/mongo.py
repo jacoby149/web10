@@ -56,17 +56,14 @@ def create_user(form_data, hash):
 ######### CRUD ###########
 ##########################
 
-def create(user,service,query,many=False):
+def create(user,service,query):
     #TODO handle many case
-    q = [query]
-    if many:q=query
-    if star_found([q]): return False
+    if star_found([query]): raise exceptions.DSTAR
     result = db[f'{user}'][f'{service}'].insert_one(query)
     query["_id"]=str(result.inserted_id)
     return query
 
 def read(user,service,query):
-    #TODO whitelists + blacklist filtering
     records = db[f'{user}'][f'{service}'].find(query)
     records=[record for record in records]
     for record in records : 
@@ -75,17 +72,21 @@ def read(user,service,query):
     return records
 
 def update(user,service,query,update):
-    #TODO whitelists + blacklist filtering
     if "_id" in query:
         query["_id"] = ObjectId(query["_id"])
-    print(query,update)
+    
+    #Star Checking !
     if star_selected(user,service,query):
         raise exceptions.STAR
+    print(update)
+    for op in update:
+        for item in update[op]:
+            if item=="service" and update[op][item]=="*" : raise exceptions.DSTAR
+    
     db[f'{user}'][f'{service}'].update_one(query, update)
     return "success"
 
 def delete(user,service,query):
-    #TODO whitelists + blacklist filtering
     if "_id" in query:
         query["_id"] = ObjectId(query["_id"])
     if star_selected(user,service,query):

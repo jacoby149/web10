@@ -87,6 +87,7 @@ function ServiceTerms({
             type={services[selectedService][1]}
             servicesLoad={servicesLoad}
             SMRHook={SMRHook}
+            setStatus={setStatus}
           />
           {type !== null ? (
             ""
@@ -158,6 +159,8 @@ const StructInput = ({ record, field }) => {
 
 //TO BE IMPLEMENTED
 const EditableInput = ({ record, field }) => {
+  //hide the id field
+  if (field==="_id")return (<div></div>)
   const [update, setUpdate] = React.useState(record["update"]);
   const value = record["value"];
   function setRecord(v){
@@ -201,14 +204,14 @@ const EditableInput = ({ record, field }) => {
   return updateMode();
 };
 
-function submitSMR(flattenedService,additions, type, servicesLoad){
+function submitSMR(flattenedService,additions, type, servicesLoad,setStatus){
   console.log(type)
-  if (type==="new")submitSIR(flattenedService,additions, servicesLoad)
-  if (type===null)submitUserSCR(flattenedService,additions, servicesLoad)
+  if (type==="new")submitSIR(flattenedService,additions, servicesLoad,setStatus)
+  if (type===null)submitUserSCR(flattenedService,additions, servicesLoad,setStatus)
   if (type==="change") return; //TODO handle SCR
 }
 
-function submitUserSCR(flattenedService,additions,servicesLoad){
+function submitUserSCR(flattenedService,additions,servicesLoad,setStatus){
   console.log("in")
   const SCR = {"$unset":{},"$set":{}};
 
@@ -230,10 +233,10 @@ function submitUserSCR(flattenedService,additions,servicesLoad){
   });
 
   const q = {"service":flattenedService["service"]["value"]}
-  wapi.update("services",q,SCR).then(servicesLoad).catch(console.error);
+  wapi.update("services",q,SCR).then(servicesLoad).catch((e)=>setStatus(e.response.data.detail));
 }
 
-function submitSIR(flattenedService, additions, servicesLoad) {
+function submitSIR(flattenedService, additions, servicesLoad,setStatus) {
   const updates = {};
   Object.keys(flattenedService).map(function (key) {
     //makes sure deletions arent passed in
@@ -253,7 +256,7 @@ function submitSIR(flattenedService, additions, servicesLoad) {
   const obj = unFlattenJSON(updates);
   console.log(additions)
   console.log(obj)
-  wapi.create("services", obj).then(servicesLoad).catch(console.error);
+  wapi.create("services", obj).then(servicesLoad).catch((e)=>setStatus(e.response.data.detail));
 }
 
 function purgeSMR(type, SMRHook, service) {
@@ -309,11 +312,11 @@ function NewField({ additionsHook }) {
   );
 }
 
-function EditApproval({ flattenedService,additions, type, servicesLoad, SMRHook }) {
+function EditApproval({ flattenedService,additions, type, servicesLoad, SMRHook,setStatus}) {
   return (
     <div>
       <button
-        onClick={() => submitSMR(flattenedService,additions, type, servicesLoad)}
+        onClick={() => submitSMR(flattenedService,additions, type, servicesLoad,setStatus)}
         style={{ margin: "5px 5px" }}
         className="button is-warning"
       >

@@ -48,5 +48,10 @@ STAR = HTTPException(
     headers={"WWW-Authenticate": "Basic"},
 )
 
+DSTAR = HTTPException(
+    status_code=status.HTTP_401_UNAUTHORIZED,
+    detail="can't duplicate the star service",
+    headers={"WWW-Authenticate": "Basic"},
+)
 
 
