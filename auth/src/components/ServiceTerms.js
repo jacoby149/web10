@@ -1,5 +1,6 @@
 import React from "react";
 import { flattenJSON, unFlattenJSON } from "./flattenJSON.js";
+import { downloadObjJSON } from "./importExportJSON.js";
 
 var wapi = window.wapi;
 
@@ -329,7 +330,7 @@ function EditApproval({ flattenedService, type, servicesLoad, SMRHook }) {
   );
 }
 
-function ImportExport() {
+function ImportExport({service}) {
   return (
     <div>
       <button
@@ -346,6 +347,12 @@ function ImportExport() {
         className="button is-info"
         style={{ margin: "5px 5px" }}
         onClick={() => {
+          wapi
+            .read(service, {})
+            .then((response) => downloadObjJSON(response.data, `${service}Data`));
+          wapi
+            .read("services", { service: service })
+            .then((response) => downloadObjJSON(response.data, `${service}Terms`));
           //export js files with
           //downloadObjectAsJson
           return;

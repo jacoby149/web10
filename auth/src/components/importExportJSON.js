@@ -1,24 +1,24 @@
+//IMPORTING
+
+{/* 
+https://gomakethings.com/how-to-upload-and-process-a-json-file-with-vanilla-js/
+<div>
+	<label for="file">File to upload</label>
+	<input type="file" id="importer" accept=".json">
+	<button>Upload</button>
+</div> */}
+
 /**
  * Handle submit events
  * @param  {Event} event The event object
  */
  function handleSubmit (event) {
-
-	// Stop the form from reloading the page
 	event.preventDefault();
-
-	// If there's no file, do nothing
+	var file = document.getElementById("importer")
 	if (!file.value.length) return;
-
-	// Create a new FileReader() object
 	let reader = new FileReader();
-
-	// Setup the callback event to run when the file is read
 	reader.onload = logFile;
-
-	// Read the file
 	reader.readAsText(file.files[0]);
-
 }
 
 /**
@@ -32,15 +32,17 @@
 	console.log('json', json);
 }
 
-//for exports
-function downloadObjJson(obj, name) {
+//exporting
+function downloadObjJSON(obj, name) {
   var dataStr =
     "data:text/json;charset=utf-8," +
-    encodeURIComponent(JSON.stringify(exportObj));
+    encodeURIComponent(JSON.stringify(obj));
   var downloadAnchorNode = document.createElement("a");
   downloadAnchorNode.setAttribute("href", dataStr);
-  downloadAnchorNode.setAttribute("download", exportName + ".json");
+  downloadAnchorNode.setAttribute("download", name + ".json");
   document.body.appendChild(downloadAnchorNode); // required for firefox
   downloadAnchorNode.click();
   downloadAnchorNode.remove();
 }
+
+export {downloadObjJSON}
