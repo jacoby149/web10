@@ -128,6 +128,9 @@ def get_approved(username,provider, owner, service, action):
         all_permitted = "all" in e and e["all"] == True
         return list_hit and (action_permitted or all_permitted)
 
-    on_whitelist = (len(list(filter(is_listed, record["whitelist"]))) > 0)
-    on_blacklist =  (len(list(filter(is_listed, record["blacklist"]))) > 0)
+    if "whitelist" not in record: on_whitelist=False
+    else : on_whitelist = (len(list(filter(is_listed, record["whitelist"]))) > 0)
+
+    if "blacklist" not in record: on_blacklist=False
+    else : on_blacklist =  (len(list(filter(is_listed, record["blacklist"]))) > 0)
     return not(on_blacklist) and on_whitelist

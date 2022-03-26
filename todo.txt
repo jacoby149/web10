@@ -1,4 +1,3 @@
-add localhost to demo notes app
 Delete ledger functionality
 make a CRM notes deletor/updator + contact updator
 Add notes author field

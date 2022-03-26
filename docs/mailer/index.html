@@ -1,0 +1,21 @@
+<html>
+<!-- index.html -->
+<body>
+    <button id="authButton">
+        log in
+    </button>
+    <p id="message">
+        app not started
+    </p>
+    <div>
+        <textarea id="curr" placeholder="write message here"></textarea>
+        <input id="recipient" placeholder="recipient">
+        <input id="web10server" placeholder="web10server">
+        <button onclick="createMail(curr.value,recipient.value,web10server.value)">create mail</button>
+    </div>
+    <div id="mailview"></div>
+</body>
+<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+<script src="https://auth.web10.app/sdk/wapi.js"></script>
+<script src="script.js"></script>
+</html>
