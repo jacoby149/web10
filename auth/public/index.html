@@ -46,7 +46,7 @@
     <script src="sdk/wapiAuth.js"></script>
     <script>
       //initialize wapi in the window
-      var wapi = wapiInit("https://auth.web10.app");
+      var wapi = wapiInit(window.location.origin);
       var wapiAuth = wapiAuthInit(wapi);
     </script>
   </head>

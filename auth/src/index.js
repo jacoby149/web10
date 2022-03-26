@@ -23,13 +23,6 @@ function App() {
     sirs: [],
   });
 
-  //provides an effect update every time an smr is submitted.
-  //also provides a convenient count of SMRs
-  const [SMRCount, setSMRCount] = React.useState(0);
-  const SMRIncrement = function () {
-    setSMRCount(SMRCount + 1);
-  };
-
   React.useEffect(function () {
     wapiAuth.SMRListen((inSMR) => {
       setSMR(inSMR);
@@ -49,7 +42,7 @@ function App() {
           : "welcome! manage your services via. the left pane"
         : "log in to authorize apps and manage services"
     );
-  }, [authStatus, mode]);
+  }, [authStatus, mode, services]);
 
   /* index of the selected service to display in the UI */
   const [selectedService, setSelectedService] = React.useState(0);
@@ -68,9 +61,10 @@ function App() {
           <div>
             <ServiceTerms
               services={services}
-              selectedService={selectedService}
+              selectedServiceHook={[selectedService,setSelectedService]}
               SMRHook={[SMR, setSMR]}
-              SMRIncrement={SMRIncrement}
+              servicesLoad={servicesLoad}
+              setStatus={setStatus}
             />
             <StatusLog />
           </div>
@@ -121,7 +115,6 @@ function App() {
           fontFamily: "monospace",
         }}
         onClick={() => {
-          setSelectedService(0);
           wapi.signOut();
           setAuthStatus(wapi.isSignedIn());
         }}
@@ -147,7 +140,7 @@ function App() {
   }, []);
 
   //web10 read for the services
-  const setSMs = function () {
+  const servicesLoad = function () {
     if (authStatus) {
       wapi
         .read("services")
@@ -179,7 +172,7 @@ function App() {
       setServices([[{ service: "log in to manage services" }, null]]);
     }
   };
-  React.useEffect(setSMs, [authStatus, SMRCount, SMR]);
+  React.useEffect(servicesLoad, [authStatus, SMR]);
 
   /* Menu Collapsed State */
   const [collapse, setCollapse] = React.useState(false);

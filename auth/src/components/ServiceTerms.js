@@ -4,10 +4,17 @@ import { flattenJSON, unFlattenJSON } from "./flattenJSON.js";
 var wapi = window.wapi;
 
 /* Service Change Component */
-function ServiceTerms({ services, selectedService, SMRHook, SMRIncrement }) {
-  const currentService = services[selectedService][0];
-  const type = services[selectedService][1];
-  console.log("TYPE",type)
+function ServiceTerms({ services, selectedServiceHook, SMRHook, servicesLoad, setStatus }) {
+  
+  //quick check to make sure we dont have a selected service issue
+  const [selectedService,setSelectedService]=selectedServiceHook;
+  var i = selectedService;
+  if (selectedService >= services.length) {i=0;setSelectedService(0);}
+
+
+  const currentService = services[i][0];
+  const type = services[i][1];
+  console.log("TYPE", type);
   const flattenedService = flattenJSON(currentService);
   //store updates adjacently
   Object.keys(flattenedService).map(function (key, index) {
@@ -59,7 +66,7 @@ function ServiceTerms({ services, selectedService, SMRHook, SMRIncrement }) {
           <EditApproval
             flattenedService={flattenedService}
             type={services[selectedService][1]}
-            SMRIncrement={SMRIncrement}
+            servicesLoad={servicesLoad}
           />
           {type !== null ? (
             ""
@@ -67,7 +74,7 @@ function ServiceTerms({ services, selectedService, SMRHook, SMRIncrement }) {
             <div>
               <ImportExport service={currentService["service"]} />
               <div style={{ marginLeft: "5px" }}>
-                <Deletor service={currentService["service"]}></Deletor>
+                <Deletor service={currentService["service"]} setStatus={setStatus} callback={servicesLoad}></Deletor>
               </div>
               <div
                 style={{
@@ -76,7 +83,7 @@ function ServiceTerms({ services, selectedService, SMRHook, SMRIncrement }) {
                   marginBottom: "10px",
                 }}
               >
-                <Wiper service={currentService["service"]} />
+                <Wiper service={currentService["service"]} setStatus={setStatus} callback={servicesLoad} />
               </div>
             </div>
           )}
@@ -128,17 +135,32 @@ function NewField() {
   );
 }
 
-function Deletor({ service }) {
+function Deletor({ service, setStatus, callback }) {
   return (
     <div style={{ marginTop: "4px", marginLeft: "4px", marginRight: "4px" }}>
       Delete Service Terms Record : <br></br>
       Type Service Name To Confirm :{" "}
       <input
+        id="deleteConfirmation"
         style={{ backgroundColor: "black", color: "lightgreen" }}
         placeholder={service}
       ></input>
       <br></br>
       <button
+        onClick={() => {
+          if (document.getElementById("deleteConfirmation").value === service) {
+            wapi
+              .delete("services", { service: service })
+              .then((response) => {
+                setStatus("service deletion successful! reloading...");
+                setTimeout(()=>callback(), 1000);
+              })
+              .catch((e) => {
+                setStatus(e.response.data.detail);
+              });
+          }
+          else setStatus("type the name of the service in the delete confirmation box to delete this service")
+        }}
         className="button is-small is-danger"
         style={{ marginTop: "4px" }}
       >
@@ -148,7 +170,7 @@ function Deletor({ service }) {
   );
 }
 
-function Wiper({ service }) {
+function Wiper({ service , setStatus, callback}) {
   return (
     <div
       style={{
@@ -161,11 +183,28 @@ function Wiper({ service }) {
       Wipe All Service Data : <br></br>
       Type Service Name To Confirm :{" "}
       <input
+        id="wipeConfirmation"
         style={{ backgroundColor: "black", color: "lightgreen" }}
         placeholder={service}
       ></input>
       <br></br>
-      <button className="button is-small is-black" style={{ marginTop: "4px" }}>
+      <button 
+              onClick={() => {
+                if (document.getElementById("wipeConfirmation").value === service) {
+                  wapi
+                    .delete(service, {})//empty query means, delete everything
+                    .then((response) => {
+                      setStatus("wipe successful! reloading...");
+                      setTimeout(()=>callback(), 1000);
+                    })
+                    .catch((e) => {
+                      setStatus(e.response.data.detail);
+                    });
+                }
+                else setStatus("type the name of the service in the delete confirmation box to delete this service")
+              }}
+      
+      className="button is-small is-black" style={{ marginTop: "4px" }}>
         Wipe
       </button>
     </div>
@@ -208,7 +247,7 @@ const EditableInput = ({ record, field }) => {
   );
 };
 
-function SMR(flattenedService, type, SMRIncrement) {
+function SMR(flattenedService, type, servicesLoad) {
   //retrieve the updates for the SMR
   const updates = {};
   Object.keys(flattenedService).map(function (key) {
@@ -217,7 +256,7 @@ function SMR(flattenedService, type, SMRIncrement) {
   if (type === "new") {
     const obj = unFlattenJSON(updates);
     console.log(obj);
-    wapi.create("services", obj).then(SMRIncrement).catch(console.log);
+    wapi.create("services", obj).then(servicesLoad).catch(console.log);
   }
 }
 
@@ -226,11 +265,11 @@ function clear() {
   return;
 }
 
-function EditApproval({ flattenedService, type, SMRIncrement }) {
+function EditApproval({ flattenedService, type, servicesLoad }) {
   return (
     <div>
       <button
-        onClick={() => SMR(flattenedService, type, SMRIncrement)}
+        onClick={() => SMR(flattenedService, type, servicesLoad)}
         style={{ margin: "5px 5px" }}
         className="button is-warning"
       >

@@ -1,12 +1,13 @@
 Services Deletion + (Optionally wipe data)
 Service File Export + AppendingImport
 Service Editor CUD Mode ($set $unset $pull)
-Service Editor SIR Mode
 Delete ledger functionality
 make a CRM notes deletor
 Add notes author field
 inbox + slate + redactables toggle
 add + display web10 plan (storage size , dbtime)
+
+
 display usage [storage use, dbtime(used this month)]
 plan updater fields (storage size , dbtime)[update]
 implement dbtime=0 CRUD shutoff 
@@ -15,3 +16,5 @@ Give everyone a free tier
 Document web10 service record rules
 Prevent 'web10' as a username
 Accept Stripe
+
+
