@@ -5,12 +5,11 @@ def star_record():
         "service": "*",
         "username": "USERNAME",
         "hashed_password": "PASSWORD",
-        "storage_capacity_mb_free":64,
-        "storage_capacity_mb_paid":0,
-        "storage_capacity_mb_used":0,
-        "db_time_seconds_monthly":600,
-        "db_time_seconds_monthly_used":0,
-        "db_time_seconds_owned":0
+        "storage_capacity_mb":settings.SPACE,
+        "writes":settings.WRITES,
+        "reads":settings.READS,
+        "deletes":settings.DELETES,
+        "last_refresh":-1,
         # no whitelist or blacklist...
         # this is a web10 exclusive document.
     }
@@ -19,4 +18,6 @@ def star_record():
 def services_record():
     return {
         "service": "services",
+        "whitelist": [],
+        "blacklist": [],
     }

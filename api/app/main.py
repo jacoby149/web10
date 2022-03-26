@@ -217,10 +217,16 @@ async def signup(form_data: models.SignUpForm):
 #####################################################
 ############ Web10 Routes Managed By You ############
 #####################################################
+
+
 @app.post("/{user}/{service}", tags=["web10"])
 async def create_records(user, service, token: models.Token):
     if not is_permitted(token, user, service, "create"):
         raise exceptions.CRUD
+    if mongo.is_empty(user, "writes"):
+        raise exceptions.TIME
+    if not mongo.has_space(user):
+        raise exceptions.SPACE
     return mongo.create(user, service, token.query)
 
 
@@ -229,6 +235,8 @@ async def create_records(user, service, token: models.Token):
 async def read_records(user, service, token: models.Token):
     if not is_permitted(token, user, service, "read"):
         raise exceptions.CRUD
+    if mongo.is_empty(user, "reads"):
+        raise exceptions.TIME
     result = mongo.read(user, service, token.query)
     return result
 
@@ -237,6 +245,10 @@ async def read_records(user, service, token: models.Token):
 async def update_records(user, service, token: models.Token):
     if not is_permitted(token, user, service, "update"):
         raise exceptions.CRUD
+    if mongo.is_empty(user, "writes"):
+        raise exceptions.TIME
+    if not mongo.has_space(user):
+        raise exceptions.SPACE
     return mongo.update(user, service, token.query, token.update)
 
 
@@ -244,4 +256,6 @@ async def update_records(user, service, token: models.Token):
 async def delete_records(user, service, token: models.Token):
     if not is_permitted(token, user, service, "delete"):
         raise exceptions.CRUD
+    if mongo.is_empty(user, "deletes"):
+        raise exceptions.TIME
     return mongo.delete(user, service, token.query)

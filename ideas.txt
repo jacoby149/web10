@@ -115,3 +115,5 @@ web10 gridFS file storage
 todo handle importing...
 
 dont allow updating star record, but also dont allow creation of a star record
+
+mongo dies on alot of collections... how to fix!
