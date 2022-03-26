@@ -1,11 +1,8 @@
-U ui
-D ui
-Service Editor CUD Mode ($set $unset $pull)
+D ui, Service Editor CUD Mode ($set $unset $pull)
 Delete ledger functionality
 make a CRM notes deletor/updator + contact updator
 Add notes author field
 inbox + slate + redactables toggle
-
 add + display web10 plan (storage size , dbtime)
 display usage [storage use, dbtime(used this month)]
 plan updater fields (storage size , dbtime)[update]
