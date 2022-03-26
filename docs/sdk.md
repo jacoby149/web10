@@ -182,7 +182,7 @@ const wapi = wapiInit("https://auth.web10.app");
 const sirs = [
   {
     service: "web10-docs-note-demo",
-    cross_origins: ["docs.web10.app", "docs.localhost"],
+    cross_origins: ["docs.web10.app", "localhost", "docs.localhost"],
   },
 ];
 wapi.SMROnReady(sirs, []);
