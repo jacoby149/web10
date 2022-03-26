@@ -340,14 +340,14 @@ function ToAdd({ additionsHook }) {
     return Object.keys(additions).map((field, idx) => {
       return (
         <p key={["addy", idx]} style={{ color: "#2ECC40" }}>
-          {field} : {additions[field]} &nbsp;{" "}
+          <i style={{color:"black"}}>{field}</i> : {additions[field]} &nbsp;{" "}
           <i
             onClick={() => {
               const updated = { ...additions };
               delete updated[field];
               setAdditions(updated);
             }}
-            style={{ color: "red" }}
+            style={{ color: "firebrick" }}
             class="fa fa-trash"
           ></i>
         </p>
