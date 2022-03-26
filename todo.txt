@@ -1,4 +1,6 @@
-Service Editor + SIR CUD Mode ($set $unset $pull)
+UI block _id mods
+protect the star service from duplication! update and create
+add localhost to demo notes app
 Delete ledger functionality
 make a CRM notes deletor/updator + contact updator
 Add notes author field
