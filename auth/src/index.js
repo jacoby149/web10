@@ -167,7 +167,7 @@ function App() {
           //set the services in the UI
           setServices(updatedServices);
         })
-        .catch(console.log);
+        .catch(console.error);
     } else {
       setServices([[{ service: "log in to manage services" }, null]]);
     }
@@ -191,8 +191,6 @@ function App() {
   }
 
   /* The App Component */
-  console.log("hee");
-  console.log(status);
   function StatusLog() {
     return (
       <div>
