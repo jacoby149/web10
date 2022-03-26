@@ -1,5 +1,6 @@
-Decrement credits.
+implement web10 as one mongodb collection per user [MODIFY ALL CRUD queries]
+implement read write update limits
+implement space limits
 Document web10 service record rules
-regex cross origin domains allowed
-payment page (storage size , dbtime)[update]
-Accept Stripe
+Stripe
+

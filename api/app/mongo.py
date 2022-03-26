@@ -130,7 +130,8 @@ def is_in_cross_origins(site, username, service):
     record = db[f"{username}"]["services"].find_one({"service": service})
     if record == None:
         return False
-    return site in record["cross_origins"]
+    matches = list(filter(lambda x: re.fullmatch(site,x), record["cross_origins"]))
+    return len(matches)>0
 
 
 def get_approved(username, provider, owner, service, action):
