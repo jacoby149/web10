@@ -411,8 +411,9 @@ function ToAdd({ additionsHook }) {
   }, [additions]);
 
   return (
+      Object.keys(additions).length === 0 ? "" :
     <div style={{ marginLeft: "5px" }}>
-      {Object.keys(additions).length === 0 ? "" : <u>will be added :</u>}{" "}
+       <u>will be added :</u>{" "}
       <br></br>
       {disp}
     </div>
