@@ -198,17 +198,37 @@ const EditableInput = ({ record, field }) => {
   return updateMode();
 };
 
-function submitSMR(flattenedService, type, servicesLoad) {
-  //retrieve the updates for the SMR
-  //TODOOOOO
+function submitSMR(flattenedService, type, servicesLoad){
+  if (type==="new")submitSIR(flattenedService, servicesLoad)
+  if (type===null)submitUserSCR(flattenedService, servicesLoad)
+  if (type==="change") return; //TODO handle SCR
+}
+
+function submitUserSCR(flattenedService,servicesLoad){
+  const SCR = {$unset:{},$set:{},};
+  Object.keys(flattenedService).map(function (key) {
+    //makes sure deletions arent passed in
+    const update = flattenedService[key]["update"]
+    if (update.constructor === Object){
+      if (update["type"]==="delete") return SCR["$unset"][key]=""
+    }
+    else return SCR["$set"][key] = JSON.parse(update);
+  });
+  wapi.update("services",{"service":flattenedService["service"]},SCR).then(servicesLoad).catch(console.error);
+}
+
+function submitSIR(flattenedService, servicesLoad) {
   const updates = {};
   Object.keys(flattenedService).map(function (key) {
-    return (updates[key] = flattenedService[key]["update"]);
+    //makes sure deletions arent passed in
+    const update = flattenedService[key]["update"]
+    if (update.constructor === Object){
+      if (update["type"]==="delete") return
+    }
+    return updates[key] = update;
   });
-  if (type === "new") {
-    const obj = unFlattenJSON(updates);
-    wapi.create("services", obj).then(servicesLoad).catch(console.error);
-  }
+  const obj = unFlattenJSON(updates);
+  wapi.create("services", obj).then(servicesLoad).catch(console.error);
 }
 
 function purgeSMR(type, SMRHook, service) {
