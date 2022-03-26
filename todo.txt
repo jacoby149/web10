@@ -1,10 +1,7 @@
-add web10 plan in * (storage_capacity , storage_capacity_used, month_db_time_total, month_db_time_used)
-display usage [storage use, dbtime(used this month)]
-plan updater fields (storage size , dbtime)[update]
 implement dbtime=0 CRUD shutoff 
-cap < size CU shutoff
-Give everyone a free tier
+cap < used CU shutoff
 Document web10 service record rules
 Prevent 'web10' as a username
 regex cross origin domains allowed
+payment page (storage size , dbtime)[update]
 Accept Stripe
