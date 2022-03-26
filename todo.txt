@@ -1,4 +1,4 @@
-Service File Export + AppendingImport
+Service File Export
 Service Editor CUD Mode ($set $unset $pull)
 Delete ledger functionality
 make a CRM notes deletor/updator + contact updator

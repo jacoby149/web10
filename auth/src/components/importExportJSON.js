@@ -33,7 +33,7 @@
 }
 
 //for exports
-function downloadObjectAsJson(exportObj, exportName) {
+function downloadObjJson(obj, name) {
   var dataStr =
     "data:text/json;charset=utf-8," +
     encodeURIComponent(JSON.stringify(exportObj));
