@@ -1,4 +1,4 @@
-Service Editor CUD Mode ($set $unset $pull)
+Service Editor + SIR CUD Mode ($set $unset $pull)
 Delete ledger functionality
 make a CRM notes deletor/updator + contact updator
 Add notes author field
@@ -11,4 +11,5 @@ cap < size CU shutoff
 Give everyone a free tier
 Document web10 service record rules
 Prevent 'web10' as a username
+regex cross origin domains allowed
 Accept Stripe
