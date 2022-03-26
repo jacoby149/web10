@@ -188,14 +188,12 @@ def get_collection_sizes(user):
     collections = list(filter(lambda x: x.split(".")[0] == user, collections))
     return [db.command("collstats", collection)["size"] for collection in collections]
 
-
 def get_star(user):
     return db[f"{user}"]["services"].find_one({"service": "*"})
 
-
 # finds if a user is out of units
 def is_empty(user, type):
-    return get_star(user)[type] <= 0
+    return False #get_star(user)[type] <= 0
 
 
 # computes if a user is out of dbspace
@@ -204,4 +202,4 @@ def has_space(user):
     total_use = sum(use)
     star = get_star(user)
     amt = star["storage_capacity_mb"] * 1024 * 1024
-    return amt > total_use
+    return True#amt > total_use

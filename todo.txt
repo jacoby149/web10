@@ -1,4 +1,4 @@
-implement has time and has space
+Decrement credits.
 Document web10 service record rules
 regex cross origin domains allowed
 payment page (storage size , dbtime)[update]
