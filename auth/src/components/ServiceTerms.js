@@ -125,13 +125,17 @@ function ServiceTerms({
 
 function EditableField({ record, field }) {
   var type = null;
-  if (record["update"].constructor === Object) type = "obj";
+  if (record["update"].constructor === Object) {
+    if (record["update"]["type"] === "delete") type = "delete";
+    else type = "obj";
+  }
 
   switch (type) {
     case "obj": {
       return <StructInput record={record} field={field} />;
     }
     default: {
+      //if type ==null or delete
       return <EditableInput record={record} field={field} />;
     }
   }
@@ -154,29 +158,45 @@ const StructInput = ({ record, field }) => {
 const EditableInput = ({ record, field }) => {
   const [update, setUpdate] = React.useState(record["update"]);
   const value = record["value"];
-  return (
-    <div style={{ marginLeft: "4px", marginTop: "4px" }}>
-      {field} :{" "}
-      <span style={{ color: "firebrick", textDecoration: "line-through" }}>
-        {value === update ? "" : value}
-      </span>
-      <input
-        style={{ color: "#2ECC40" }}
-        size={String(update).length}
-        value={update}
-        onChange={function (event) {
-          var newUpdate = event.target.value;
-          record["update"] = newUpdate;
-          setUpdate(newUpdate);
-        }}
-      ></input> {value === update ? "" : <i style={{color:"blue"}} className="fas fa-undo" onClick={
-        ()=>{
-        record["update"] = value;
-        setUpdate(value);}
-      }></i>}<i style={{color:"firebrick"}} class='fa fa-trash'></i>
-      {/*  <i class="fas fa-undo"></i> */}
-    </div>
-  );
+  function setRecord(v){
+    record["update"] = v;
+    setUpdate(v);
+  }
+  function undo() {
+    return (
+      <i
+        style={{ color: "blue" }}
+        className="fas fa-undo"
+        onClick={() => setRecord(value)}
+      ></i>
+    );
+  }
+  function deleteMode() {
+    return (
+      <div style={{ marginLeft: "4px", marginTop: "4px", color: "red" }}>
+        {field} &nbsp; {undo()}
+      </div>
+    );
+  }
+  function updateMode() {
+    return (
+      <div style={{ marginLeft: "4px", marginTop: "4px" }}>
+        {field} :{" "}
+        <span style={{ color: "firebrick", textDecoration: "line-through" }}>
+          {value === update ? "" : value}
+        </span>
+        <input
+          style={{ color: "#2ECC40" }}
+          size={String(update).length}
+          value={update}
+          onChange={(event)=>setRecord(event.target.value)}
+        ></input>{" "}
+        {value === update ? <i style={{ color: "firebrick" }} class="fa fa-trash" onClick={()=>setRecord({type:"delete"})}></i> : undo()}
+      </div>
+    );
+  }
+  if (record["update"].constructor === Object) {return deleteMode();}
+  return updateMode();
 };
 
 function submitSMR(flattenedService, type, servicesLoad) {
@@ -315,17 +335,21 @@ function ImportExport({ service }) {
 }
 
 function ToAdd({ additionsHook }) {
-  const [additions,setAdditions]=additionsHook;
+  const [additions, setAdditions] = additionsHook;
   function loadAdditions() {
     return Object.keys(additions).map((field, idx) => {
       return (
         <p key={["addy", idx]} style={{ color: "#2ECC40" }}>
           {field} : {additions[field]} &nbsp;{" "}
-          <i onClick={()=>{
-            const updated = {...additions};
-            delete updated[field];
-            setAdditions(updated);
-          }} style={{ color: "red" }} class="fa fa-trash"></i>
+          <i
+            onClick={() => {
+              const updated = { ...additions };
+              delete updated[field];
+              setAdditions(updated);
+            }}
+            style={{ color: "red" }}
+            class="fa fa-trash"
+          ></i>
         </p>
       );
     });
@@ -335,11 +359,11 @@ function ToAdd({ additionsHook }) {
     disp = loadAdditions();
   }, [additions]);
 
-  return (
-      Object.keys(additions).length === 0 ? "" :
+  return Object.keys(additions).length === 0 ? (
+    ""
+  ) : (
     <div style={{ marginLeft: "5px" }}>
-       <u>will be added :</u>{" "}
-      <br></br>
+      <u>will be added :</u> <br></br>
       {disp}
     </div>
   );
@@ -425,6 +449,5 @@ function Wiper({ service, setStatus, callback }) {
     </div>
   );
 }
-
 
 export default ServiceTerms;
