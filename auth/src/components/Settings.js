@@ -4,12 +4,20 @@ function Settings() {
   return (
     <div style={{ marginLeft: "5px" }}>
       {/* <Payment></Payment> */}
+      <Capacity></Capacity>
       <EmailVerify></EmailVerify>
       <ChangeUser></ChangeUser>
       <br></br>
       <ChangePass></ChangePass>
     </div>
   );
+}
+
+function Capacity(){
+  var cap = "X"
+  return(<div>
+    <input style={{width:"230px"}} placeholder={`storage capacity used : ${cap} MB`}></input>
+  </div>)
 }
 
 // Payment component
