@@ -20,19 +20,72 @@ db = client["web10"]
 
 
 ################################
+######### EMULATION ############
+################################
+
+# transforms a db found doc for user reading
+def to_gui(doc):
+    _id = doc["_id"]
+    doc = doc["body"]
+    doc["_id"] = _id
+    return doc
+
+
+# transforms user submitted doc for db writing
+def to_db(_doc, service):
+    doc = {}
+    if "_id" in _doc:
+        doc["_id"] = _doc["_id"]
+        del _doc['_id']
+    doc["service"] = service
+    doc["body"] = _doc
+    return doc
+
+
+# transforms a query/update field name for db
+def to_db_field(field):
+    if field == "_id":
+        return field
+    else:
+        return f"body.{field}"
+
+
+# transforms user query for db
+# safe since ops are for values not fields
+def q_t(_q, service):
+    q = {"service": service}
+    for field in _q:
+        q[to_db_field(field)] = _q[field]
+    return q
+
+
+# transforms users update for db
+# safe because ops are for values not fields
+def u_t(_u):
+    u = {}
+    for op in _u:
+        u[op] = {}
+        for field in _u[op]:
+            u[op][to_db_field(field)] = _u[op][field]
+    return u
+
+
+################################
 ####### USER FUNCTIONS #########
 ################################
 
+# returns the users star service if they exist
+# otherwise returns none
+def _get_user(username):
+    user_col = db[f"{username}"]
+    res = user_col.find_one(q_t({"service": "*"}, "services"))
+    return res
+
 
 def get_user(username: str):
-    # check if user exists [by checking if they have any service terms]
-    user_col = db[f"{username}"]
-    if user_col["services"].count_documents({}) == 0:
-        raise Exception("user does not exist")
-    query = {"service": "*"}
-    doc = user_col["services"].find_one(query)
+    doc = _get_user(username)
     if doc == None:
-        raise Exception("no (*) service found")
+        raise exceptions.NO_USER
     return models.dotdict(doc)
 
 
@@ -40,20 +93,21 @@ def create_user(form_data, hash):
     username, password = form_data.username, form_data.password
     if username == "web10":
         raise exceptions.RESERVED
-    user_col = db[f"{username}"]
-    if user_col["services"].count_documents({}) != 0:
-        return "user already exists"
+    if _get_user(username):
+        raise exceptions.EXISTS
     # (*) record that holds both username and the password
     new_user = records.star_record()
     new_user["username"] = username
     new_user["hashed_password"] = hash(password)
+    new_user = to_db(new_user,"services")
 
     # (services) record that allows auth.localhost to modify service terms
-    services_terms = records.services_record()
+    services_terms = to_db(records.services_record(),"services")
 
     # insert the records to create / sign up the user
-    user_col["services"].insert_one(new_user)
-    user_col["services"].insert_one(services_terms)
+    user_col = db[f"{username}"]
+    user_col.insert_one(new_user)
+    user_col.insert_one(services_terms)
     return "success"
 
 
@@ -62,18 +116,19 @@ def create_user(form_data, hash):
 ##########################
 
 
-def create(user, service, query):
-    # TODO handle many case
-    if star_found([query]):
+def create(user, service, _data):
+    if star_found([data]):
         raise exceptions.DSTAR
-    result = db[f"{user}"][f"{service}"].insert_one(query)
-    query["_id"] = str(result.inserted_id)
-    return query
+    data = to_db(_data,service)
+    result = db[f"{user}"].insert_one(data)
+    _data["_id"] = str(result.inserted_id)
+    return _data
 
 
 def read(user, service, query):
-    records = db[f"{user}"][f"{service}"].find(query)
-    records = [record for record in records]
+    query = q_t(query,service)
+    records = db[f"{user}"].find(query)
+    records = [to_gui(record) for record in records]
     for record in records:
         if record["_id"]:
             record["_id"] = str(record["_id"])
@@ -92,8 +147,9 @@ def update(user, service, query, update):
         for item in update[op]:
             if item == "service" and update[op][item] == "*":
                 raise exceptions.DSTAR
-
-    db[f"{user}"][f"{service}"].update_one(query, update)
+    query=q_t(query,service)
+    update=u_t(update)
+    db[f"{user}"].update_one(query, update)
     return "success"
 
 
@@ -102,12 +158,13 @@ def delete(user, service, query):
         query["_id"] = ObjectId(query["_id"])
     if star_selected(user, service, query):
         raise exceptions.STAR
-    db[f"{user}"][f"{service}"].delete_many(query)
+    query=q_t(query,service)
+    db[f"{user}"].delete_many(query)
     return "success"
 
 
 ##########################
-####### Protection #######
+#### Star Protection #####
 ##########################
 
 # returns true if star service is inside the input
@@ -126,16 +183,26 @@ def star_selected(user, service, query):
     return False
 
 
+##########################
+### General Protection ###
+##########################
+
+def get_term_record(username,service):
+    query = q_t({"service": service},'services')
+    record = db[f"{username}"].find_one(query)
+    if record==None:
+        return None
+    return to_gui(record)
+
 def is_in_cross_origins(site, username, service):
-    record = db[f"{username}"]["services"].find_one({"service": service})
+    record = get_term_record(username,service)
     if record == None:
         return False
-    matches = list(filter(lambda x: re.fullmatch(site,x), record["cross_origins"]))
-    return len(matches)>0
-
+    matches = list(filter(lambda x: re.fullmatch(site, x), record["cross_origins"]))
+    return len(matches) > 0
 
 def get_approved(username, provider, owner, service, action):
-    record = db[f"{owner}"]["services"].find_one({"service": service})
+    record = get_term_record(owner,service)
     if record == None:
         return False
     if (username == owner) and (provider == settings.PROVIDER):
@@ -167,40 +234,38 @@ def get_approved(username, provider, owner, service, action):
 
 
 def decrement(user, type):
-    db[f"{user}"]["services"].update_one({"service": "*"}, {"$inc": {type: -1}})
+    query = q_t({"service": "*"},"services")
+    update = u_t({"$inc": {type: -1}})
+    db[f"{user}"].update_one(query, update)
 
 
 def splash(user):
-    db[f"{user}"]["services"].update_one(
-        {"service": "*"},
-        {
+    query = q_t({"service": "*"},"services")
+    update = u_t({
             "$max": {
                 "writes": settings.WRITES,
                 "reads": settings.READS,
                 "deletes": settings.DELETES,
             },
             "$currentDate": {"last_refresh": ""},
-        },
-    )
+        })
+    db[f"{user}"].update_one(query,update)
 
+def get_collection_size(user):
+    return db.command("collstats", user)["size"]
 
-def get_collection_sizes(user):
-    collections = db.list_collection_names()
-    collections = list(filter(lambda x: x.split(".")[0] == user, collections))
-    return [db.command("collstats", collection)["size"] for collection in collections]
 
 def get_star(user):
-    return db[f"{user}"]["services"].find_one({"service": "*"})
+    return get_term_record(user,"*")
 
 # finds if a user is out of units
 def is_empty(user, type):
-    return False #get_star(user)[type] <= 0
+    return get_star(user)[type] <= 0
 
 
 # computes if a user is out of dbspace
 def has_space(user):
-    use = get_collection_sizes(user)
-    total_use = sum(use)
+    use = get_collection_size(user)
     star = get_star(user)
     amt = star["storage_capacity_mb"] * 1024 * 1024
-    return True#amt > total_use
+    return amt > use
