@@ -4,3 +4,4 @@ stripe integration
 Change Password
 Clean the "Authorize user" button
 Clean the * service SMR
+safeguard against CRUD queries and values of None Type

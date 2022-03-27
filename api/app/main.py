@@ -237,6 +237,7 @@ async def read_records(user, service, token: models.Token):
         raise exceptions.CRUD
     if mongo.is_empty(user, "reads"):
         raise exceptions.TIME
+    if token.query==None:token.query={}
     result = mongo.read(user, service, token.query)
     return result
 
