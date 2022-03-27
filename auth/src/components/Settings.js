@@ -16,8 +16,8 @@ function Settings() {
 // Payment component
 function Payment() {
   return <div style={{marginTop:"10px"}}>
-    <button style={{marginRight:"5px"}} className="button is-primary"> Purchase Credits</button>
-    <button className="button is-primary">Credit Plan</button>
+    <button style={{marginRight:"5px"}} className="button is-small is-primary"> Purchase Credits</button>
+    <button className="button is-small is-primary">Credit Plan</button>
 
   </div>;
 }
@@ -25,7 +25,13 @@ function Payment() {
 // Payment component
 function EmailUnlink() {
   return <div style={{marginTop:"10px"}}>
-    <input placeholder={"name@email.com"}></input><button style={{marginRight:"5px"}} className="button is-small is-danger"> Unlink Email</button>
+    <input           style={{
+            color: "gold",
+            fontSize: "20px",
+            width: "165px",
+            marginTop: "2px",
+          }}
+placeholder={"name@email.com"}></input><button style={{marginRight:"5px"}} className="button is-small is-danger"> Unlink Email</button>
   </div>;
 }
 
@@ -39,12 +45,12 @@ function EmailVerify() {
           style={{
             color: "gold",
             fontSize: "20px",
-            width: "170px",
-            marginTop: "6px",
+            width: "165px",
+            marginTop: "2px",
           }}
           placeholder={"name@email.com"}
         ></input>
-        <button className="button is-warning">Send Verification Email</button>
+        <button className="button is-small is-warning">Send Verification Email</button>
       </div>
       <div style={{ marginTop: "10px" }}>
         <span style={{marginLeft:"2px",color:"lightgray",fontSize:"20px"}}>verification code :</span> <input
@@ -52,12 +58,12 @@ function EmailVerify() {
             color: "gold",
             fontSize: "20px",
             width: "90px",
-            marginTop: "6px",
+            marginTop: "2px",
             marginLeft: "5px",
           }}
           placeholder={"123-456"}
         ></input>
-        <button className="button is-warning">Link Email </button>
+        <button className="button is-small is-warning">Link Email </button>
       </div>
     </div>
   );
