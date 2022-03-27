@@ -49,7 +49,7 @@ if DELETE == None:
 
 FREE_CREDITS = os.environ.get("FREE_CREDITS")
 if FREE_CREDITS == None:
-    FREE_CREDITS = 1
+    FREE_CREDITS = 10
 
 FREE_SPACE = os.environ.get("FREE_SPACE")
 if FREE_SPACE == None:
