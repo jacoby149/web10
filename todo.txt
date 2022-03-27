@@ -1,9 +1,6 @@
-signup add email + twilio verify email
+signup add email && twilio verify email
+stripe purchase + (per seat) handling
 change password & change username
-stripe purchases
-stripe per credit (per seat) billing
-document web10 service record rules
 user-login and gear icon-* hookups
-get legit mongo dbs
-remove "target" web10 server
-debug cross web10 requests
+document web10 service record rules
+/space_usage endpoint (wapiauth only)

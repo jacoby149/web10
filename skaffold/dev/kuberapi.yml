@@ -19,4 +19,6 @@ spec:
           env:
           - name: PROVIDER
             value: "api.web10.dev"
+          - name: DB
+            value: "dev"
           resources:

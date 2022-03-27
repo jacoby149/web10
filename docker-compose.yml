@@ -9,6 +9,7 @@ services:
       - "6000:80"
     environment:
       VIRTUAL_HOST: api.localhost
+      DB: jacobs_local
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80", "--reload"]
     networks:
       default:
