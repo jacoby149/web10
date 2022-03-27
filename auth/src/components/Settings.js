@@ -3,9 +3,8 @@ import React from "react";
 function Settings() {
   return (
     <div style={{ marginLeft: "5px" }}>
-      <Payment></Payment>
+      {/* <Payment></Payment> */}
       <EmailVerify></EmailVerify>
-      <EmailUnlink></EmailUnlink>
       <ChangeUser></ChangeUser>
       <br></br>
       <ChangePass></ChangePass>
@@ -16,64 +15,32 @@ function Settings() {
 // Payment component
 function Payment() {
   return <div style={{marginTop:"10px"}}>
-    <button style={{marginRight:"5px"}} className="button is-small is-primary"> Purchase Credits</button>
-    <button className="button is-small is-primary">Credit Plan</button>
+    <button style={{marginRight:"5px"}} className="button  is-primary"> Purchase Credits</button>
+    <button className="button is-primary">Credit Plan</button>
 
   </div>;
 }
 
 // Payment component
-function EmailUnlink() {
-  return <div style={{marginTop:"10px"}}>
-    <input           style={{
-            color: "gold",
-            fontSize: "20px",
-            width: "165px",
-            marginTop: "2px",
-          }}
-placeholder={"name@email.com"}></input><button style={{marginRight:"5px"}} className="button is-small is-danger"> Unlink Email</button>
-  </div>;
-}
-
-
-// Phone number linking/unlinking component
 function EmailVerify() {
-  return (
-    <div>
-      <div style={{ marginTop: "10px" }}>
-        <input
-          style={{
-            color: "gold",
-            fontSize: "20px",
-            width: "165px",
+  return <div style={{marginTop:"10px"}}>
+    <p style={{marginLeft:"2px"}}>verification code : <input           style={{
+            color: "lightgreen",
+            width: "100px",
             marginTop: "2px",
+            backgroundColor:"black"
           }}
-          placeholder={"name@email.com"}
-        ></input>
-        <button className="button is-small is-warning">Send Verification Email</button>
-      </div>
-      <div style={{ marginTop: "10px" }}>
-        <span style={{marginLeft:"2px",color:"lightgray",fontSize:"20px"}}>verification code :</span> <input
-          style={{
-            color: "gold",
-            fontSize: "20px",
-            width: "90px",
-            marginTop: "2px",
-            marginLeft: "5px",
-          }}
-          placeholder={"123-456"}
-        ></input>
-        <button className="button is-small is-warning">Link Email </button>
-      </div>
-    </div>
-  );
+placeholder={"012-345"}></input></p> 
+<div style={{marginTop:"5px"}}><button style={{marginRight:"5px"}} className="button is-warning"> Send Code </button><button style={{marginRight:"5px"}} className="button is-warning"> Verify Code </button><p style={{color:"orange",marginLeft:"2px",marginTop:"2px"}}>verify your email and recieve free web10 credits</p>
+</div>
+  </div>;
 }
 
 // Changing username and/or password component
 function ChangeUser() {
   return (
-    <div style={{ marginTop: "4px", marginLeft: "4px", marginRight: "4px" }}>
-      Change Username : <br></br>
+    <div style={{ marginTop: "10px", marginLeft: "4px", marginRight: "4px" }}>
+      <u>Change Username</u> <br></br>
       Type New Username :{" "}
       <input
         id="deleteConfirmation"
@@ -127,7 +94,7 @@ function ChangeUser() {
 function ChangePass() {
   return (
     <div style={{ marginTop: "4px", marginLeft: "4px", marginRight: "4px" }}>
-      Change Password : <br></br>
+      <u>Change Password</u><br></br>
       Type New Password :{" "}
       <input
         id="deleteConfirmation"

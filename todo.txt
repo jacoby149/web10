@@ -1,4 +1,4 @@
-twilio verify link & unlink phone to acct.
+signup add email + twilio verify email
 change password & change username
 stripe purchases
 stripe per credit (per seat) billing
