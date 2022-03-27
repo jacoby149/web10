@@ -1,10 +1,10 @@
 
-FROM python:3.9
+FROM joseluisq/static-web-server:latest
 
 WORKDIR /crm
 
-COPY crm/. /crm
+COPY crm/. /crm/public
 
-COPY auth/public/sdk/. /crm/sdk
+COPY auth/public/sdk/. /crm/public/sdk
 
-CMD ["python", "-m", "http.server", "80"]
+ENV SERVER_DIRECTORY_LISTING true

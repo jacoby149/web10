@@ -1,3 +1,5 @@
-//payment component for on the * record here
+// Phone number linking/unlinking component
 
-//changing password on * record here
+// Payment component
+
+// Changing username and/or password component
