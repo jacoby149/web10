@@ -16,7 +16,7 @@ function Settings() {
 function Capacity(){
   var cap = "X"
   return(<div>
-    <input style={{width:"230px"}} placeholder={`storage capacity used : ${cap} MB`}></input>
+    <input style={{width:"230px"}} placeholder={`storage capacity used : ${cap} MB`} readOnly></input>
   </div>)
 }
 
