@@ -127,3 +127,6 @@ collection collision on signup
 why not take out username of the * field
 email collection on signup can't change! (can't delete account either.)
 * record banned field? :)
+
+wapi [target,tieredtoken] dict
+debug cross web10 requests
