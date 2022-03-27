@@ -1,4 +1,4 @@
-implement splash + credit decrementing
+implement credit replenish [python datetimes work]
 document web10 service record rules
 stripe integration
 Change Password

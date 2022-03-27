@@ -217,17 +217,26 @@ async def signup(form_data: models.SignUpForm):
 #####################################################
 ############ Web10 Routes Managed By You ############
 #####################################################
+def check_can_afford(user):
+    if not mongo.has_credits(user):
+        if mongo.should_replenish(user):
+            mongo.replenish(user)
+        else :
+            raise exceptions.TIME
+    if not mongo.has_space(user):
+        raise exceptions.SPACE
+    return True
 
+def charge(resp,user,action):
+    mongo.decrement(user,action)
+    return resp
 
 @app.post("/{user}/{service}", tags=["web10"])
 async def create_records(user, service, token: models.Token):
     if not is_permitted(token, user, service, "create"):
         raise exceptions.CRUD
-    if mongo.is_empty(user, "writes"):
-        raise exceptions.TIME
-    if not mongo.has_space(user):
-        raise exceptions.SPACE
-    return mongo.create(user, service, token.query)
+    check_can_afford(user)
+    return charge(mongo.create(user, service, token.query),user,"create")
 
 
 # web10 uses patch for get in CRUD since get requests can't have a secure body
@@ -235,28 +244,29 @@ async def create_records(user, service, token: models.Token):
 async def read_records(user, service, token: models.Token):
     if not is_permitted(token, user, service, "read"):
         raise exceptions.CRUD
-    if mongo.is_empty(user, "reads"):
-        raise exceptions.TIME
+    if service != "services" : check_can_afford(user)
     if token.query==None:token.query={}
-    result = mongo.read(user, service, token.query)
-    return result
+    res = mongo.read(user, service, token.query)
+    # dont charge for "services"
+    if service =="services": return res
+    return charge(res,user,"read")
 
 
 @app.put("/{user}/{service}", tags=["web10"])
 async def update_records(user, service, token: models.Token):
     if not is_permitted(token, user, service, "update"):
         raise exceptions.CRUD
-    if mongo.is_empty(user, "writes"):
-        raise exceptions.TIME
-    if not mongo.has_space(user):
-        raise exceptions.SPACE
-    return mongo.update(user, service, token.query, token.update)
+    check_can_afford(user)
+    return charge(mongo.update(user, service, token.query, token.update),user,"update")
 
 
 @app.delete("/{user}/{service}", tags=["web10"])
 async def delete_records(user, service, token: models.Token):
     if not is_permitted(token, user, service, "delete"):
         raise exceptions.CRUD
-    if mongo.is_empty(user, "deletes"):
-        raise exceptions.TIME
-    return mongo.delete(user, service, token.query)
+    if service != "services" : check_can_afford(user)
+    res = mongo.delete(user, service, token.query)
+    # dont charge for "services"
+    if service =="services": return res
+    return charge(res,user,"delete")
+

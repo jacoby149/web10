@@ -6,6 +6,7 @@ import app.web10records as records
 import app.exceptions as exceptions
 import os
 import re
+import datetime
 
 
 #################################
@@ -229,19 +230,25 @@ def get_approved(username, provider, owner, service, action):
 #################
 
 
-def decrement(user, type):
+def decrement(user, action):
     query = q_t({"service": "*"},"services")
-    update = u_t({"$inc": {type: - settings.COST[type]}})
+    cost = settings.COST[action]
+    print(cost)
+    update = u_t({"$inc": {"credits": - cost}})
     db[f"{user}"].update_one(query, update)
 
+def should_replenish(user):
+    # user would have to exist at this point ..
+    last_replenish = get_star(user)["last_replenish"]
+    return last_replenish.month != datetime.datetime.now().month
 
-def splash(user):
-    query = q_t({"service": "*"},"services")
+def replenish(user):    
+    query = q_t({"service": "*"},"services")    
     update = u_t({
             "$max": {
                 "credits": settings.FREE_CREDITS,
             },
-            "$currentDate": {"last_refresh": ""},
+            "$currentDate": {"last_replenish": True},
         })
     db[f"{user}"].update_one(query,update)
 
