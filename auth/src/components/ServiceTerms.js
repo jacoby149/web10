@@ -1,7 +1,7 @@
 import React from "react";
 import { flattenJSON, unFlattenJSON } from "./flattenJSON.js";
 import { downloadObjJSON } from "./importExportJSON.js";
-
+import {Settings} from "./Settings.js"
 var wapi = window.wapi;
 
 /************************* */
@@ -78,7 +78,7 @@ function ServiceTerms({
         )}
       </div>
       {currentService["service"] === "*" ? (
-        ""
+        <Settings></Settings>
       ) : (
         <div>
           <EditApproval
