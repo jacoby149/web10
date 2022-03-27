@@ -1,6 +1,9 @@
-implement web10 as one mongodb collection per user [MODIFY ALL CRUD queries]
-implement read write update limits
-implement space limits
-Document web10 service record rules
-Stripe
+one mongodb collection per user 
+enforce read write update limits
+enforce space limits
+document web10 service record rules
 
+stripe integration
+Change Password
+Clean the "Authorize user" button
+Clean the * service SMR
