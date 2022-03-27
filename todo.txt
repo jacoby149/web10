@@ -1,7 +1,5 @@
-implement credit replenish [python datetimes work]
+twilio verify link & unlink phone to acct.
+change password & change username
+stripe
 document web10 service record rules
-stripe integration
-Change Password
-Clean the "Authorize user" button
-Clean the * service SMR
-safeguard against CRUD queries and values of None Type
+user-login and gear icon-* hookups

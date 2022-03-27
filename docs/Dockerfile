@@ -1,8 +1,8 @@
 
-FROM python:3.9
+FROM joseluisq/static-web-server:latest
 
 WORKDIR /docs
 
-COPY . /docs
+ENV SERVER_DIRECTORY_LISTING true
 
-CMD ["python", "-m", "http.server", "80"]
+COPY . /docs/public

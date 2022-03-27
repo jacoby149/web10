@@ -9,6 +9,7 @@ services:
       - "6000:80"
     environment:
       VIRTUAL_HOST: api.localhost
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80", "--reload"]
     networks:
       default:
         aliases:
@@ -18,8 +19,9 @@ services:
     volumes:
       - ./auth:/frontend
       - node-modules:/frontend/node_modules
+    command: ["npm", "run", "start"]
     environment:
-      NODE_ENV: development
+      PORT: 80
       VIRTUAL_HOST: auth.localhost
       CHOKIDAR_USEPOLLING: "true"
     ports:
@@ -29,8 +31,8 @@ services:
       context: .
       dockerfile: crm/Dockerfile
     volumes:
-      - ./crm/:/crm
-      - ./auth/public/sdk/ :/crm/sdk    
+      - ./crm/:/crm/public
+      - ./auth/public/sdk/ :/crm/public/sdk    
     ports:
       - "7746:80"
     environment:
@@ -38,7 +40,7 @@ services:
   docs:
     build: docs 
     volumes:
-      - ./docs/:/docs
+      - ./docs/:/docs/public
     ports:
       - "6969:80"
     environment:
@@ -49,7 +51,6 @@ services:
       - "80:80"
     volumes:
       - /var/run/docker.sock:/tmp/docker.sock:ro
-      - ./vhost.d/:/etc/nginx/vhost.d
 
 volumes:
   node-modules:
