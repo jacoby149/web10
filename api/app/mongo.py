@@ -74,16 +74,19 @@ def u_t(_u):
 ####### USER FUNCTIONS #########
 ################################
 
-# returns the users star service if they exist
-# otherwise returns none
-def _get_user(username):
-    user_col = db[f"{username}"]
-    res = user_col.find_one(q_t({"service": "*"}, "services"))
-    return res
+def get_term_record(username,service):
+    query = q_t({"service": service},'services')
+    record = db[f"{username}"].find_one(query)
+    if record==None:
+        return None
+    return to_gui(record)
+
+def get_star(user):
+    return get_term_record(user,"*")
 
 
 def get_user(username: str):
-    doc = _get_user(username)
+    doc = get_star(username)
     if doc == None:
         raise exceptions.NO_USER
     return models.dotdict(doc)
@@ -93,7 +96,7 @@ def create_user(form_data, hash):
     username, password = form_data.username, form_data.password
     if username == "web10":
         raise exceptions.RESERVED
-    if _get_user(username):
+    if get_star(username):
         raise exceptions.EXISTS
     # (*) record that holds both username and the password
     new_user = records.star_record()
@@ -117,7 +120,7 @@ def create_user(form_data, hash):
 
 
 def create(user, service, _data):
-    if star_found([data]):
+    if star_found([_data]):
         raise exceptions.DSTAR
     data = to_db(_data,service)
     result = db[f"{user}"].insert_one(data)
@@ -142,7 +145,6 @@ def update(user, service, query, update):
     # Star Checking !
     if star_selected(user, service, query):
         raise exceptions.STAR
-    print(update)
     for op in update:
         for item in update[op]:
             if item == "service" and update[op][item] == "*":
@@ -187,12 +189,6 @@ def star_selected(user, service, query):
 ### General Protection ###
 ##########################
 
-def get_term_record(username,service):
-    query = q_t({"service": service},'services')
-    record = db[f"{username}"].find_one(query)
-    if record==None:
-        return None
-    return to_gui(record)
 
 def is_in_cross_origins(site, username, service):
     record = get_term_record(username,service)
@@ -254,9 +250,6 @@ def splash(user):
 def get_collection_size(user):
     return db.command("collstats", user)["size"]
 
-
-def get_star(user):
-    return get_term_record(user,"*")
 
 # finds if a user is out of units
 def is_empty(user, type):
