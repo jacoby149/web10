@@ -1,7 +1,7 @@
+log/in sign/up mode
 signup add email && twilio verify email
 stripe purchase + (per seat) handling
 change password & change username
 user-login and gear icon-* hookups
 document web10 service record rules
 /space_usage endpoint (wapiauth only)
-
