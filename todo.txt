@@ -3,3 +3,6 @@ change password & change username
 stripe
 document web10 service record rules
 user-login and gear icon-* hookups
+get legit mongo dbs
+remove "target" web10 server
+debug cross web10 requests
