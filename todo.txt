@@ -1,8 +1,5 @@
-one mongodb collection per user 
-enforce read write update limits
-enforce space limits
+implement splash + credit decrementing
 document web10 service record rules
-
 stripe integration
 Change Password
 Clean the "Authorize user" button

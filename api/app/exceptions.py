@@ -59,3 +59,15 @@ RESERVED = HTTPException(
     detail="the username 'web10' is reserved",
     headers={"WWW-Authenticate": "Basic"},
 )
+
+NO_USER = HTTPException(
+    status_code=status.HTTP_401_UNAUTHORIZED,
+    detail="the user doesn't exist",
+    headers={"WWW-Authenticate": "Basic"},
+)
+
+EXISTS = HTTPException(
+    status_code=status.HTTP_401_UNAUTHORIZED,
+    detail="the user already exists",
+    headers={"WWW-Authenticate": "Basic"},
+)
