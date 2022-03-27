@@ -118,3 +118,6 @@ dont allow updating star record, but also dont allow creation of a star record
 
 mongo dies on alot of collections... how to fix!
 Refactor so that all is in one collection
+
+def diff_month(d1, d2):
+    return (d1.year - d2.year) * 12 + d1.month - d2.month

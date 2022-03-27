@@ -1,0 +1,37 @@
+.env
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+
+# Ignore dotnet build files
+**/Debug/**
+**/project-cache/**
+**/.vs/**
+**/obj/**
+
+# Dependencies
+node_modules
+package-lock.json
+yarn.lock
+!/yarn.lock
+composer.lock
+
+# Ruby files
+Gemfile.lock
+
+# Python files
+__pycache__
+env
+venv
+
+# PHP files
+vendor
+logs
+
+# Java files
+.settings
+target/
+.classpath
+.factorypath
+.project
+.secrets

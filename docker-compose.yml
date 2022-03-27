@@ -1,50 +1,68 @@
 version: "3"
 
 services:
-  api:
-    build: api
+  # api:
+  #   build: api
+  #   volumes:
+  #     - ./api/:/web10 
+  #   ports:
+  #     - "6000:80"
+  #   environment:
+  #     VIRTUAL_HOST: api.localhost
+  #   command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80", "--reload"]
+  #   networks:
+  #     default:
+  #       aliases:
+  #         - api.localhost
+  # auth:
+  #   build: auth
+  #   volumes:
+  #     - ./auth:/frontend
+  #     - node-modules:/frontend/node_modules
+  #   command: ["npm", "run", "start"]
+  #   environment:
+  #     PORT: 80
+  #     VIRTUAL_HOST: auth.localhost
+  #     CHOKIDAR_USEPOLLING: "true"
+  #   ports:
+  #     - '3000:80'
+  # crm:
+  #   build: 
+  #     context: .
+  #     dockerfile: crm/Dockerfile
+  #   volumes:
+  #     - ./crm/:/crm/public
+  #     - ./auth/public/sdk/ :/crm/public/sdk    
+  #   ports:
+  #     - "7746:80"
+  #   environment:
+  #     VIRTUAL_HOST: crm.localhost
+  # docs:
+  #   build: docs 
+  #   volumes:
+  #     - ./docs/:/docs/public
+  #   ports:
+  #     - "6969:80"
+  #   environment:
+  #     VIRTUAL_HOST: docs.localhost
+  subs:
+    build: subs 
     volumes:
-      - ./api/:/web10 
+      - ./subs/:/subs
     ports:
-      - "6000:80"
+      - "5969:80"
     environment:
-      VIRTUAL_HOST: api.localhost
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80", "--reload"]
-    networks:
-      default:
-        aliases:
-          - api.localhost
-  auth:
-    build: auth
+      VIRTUAL_HOST: subs.localhost
+      FLASK_DEBUG: 1
+  one:
+    build: one 
     volumes:
-      - ./auth:/frontend
-      - node-modules:/frontend/node_modules
-    command: ["npm", "run", "start"]
-    environment:
-      PORT: 80
-      VIRTUAL_HOST: auth.localhost
-      CHOKIDAR_USEPOLLING: "true"
+      - ./one/:/one
     ports:
-      - '3000:80'
-  crm:
-    build: 
-      context: .
-      dockerfile: crm/Dockerfile
-    volumes:
-      - ./crm/:/crm/public
-      - ./auth/public/sdk/ :/crm/public/sdk    
-    ports:
-      - "7746:80"
+      - "4969:80"
     environment:
-      VIRTUAL_HOST: crm.localhost
-  docs:
-    build: docs 
-    volumes:
-      - ./docs/:/docs/public
-    ports:
-      - "6969:80"
-    environment:
-      VIRTUAL_HOST: docs.localhost
+      VIRTUAL_HOST: one.localhost
+      FLASK_DEBUG: 1
   nginx-proxy:
     image: jwilder/nginx-proxy
     ports:

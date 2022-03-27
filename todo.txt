@@ -1,6 +1,7 @@
 twilio verify link & unlink phone to acct.
 change password & change username
-stripe
+stripe purchases
+stripe per credit (per seat) billing
 document web10 service record rules
 user-login and gear icon-* hookups
 get legit mongo dbs
