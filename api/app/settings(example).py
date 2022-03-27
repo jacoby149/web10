@@ -30,18 +30,29 @@ BETA_CODE = os.environ.get("BETA_CODE")
 if BETA_CODE == None:
     BETA_CODE = "weeb10beta"
 
-WRITES = os.environ.get("WRITES")
-if WRITES == None:
-    WRITES = 360
+CREATE = os.environ.get("CREATE")
+if CREATE == None:
+    CREATE = 1.0/360
 
-READS = os.environ.get("READS")
-if READS == None:
-    READS = 1080
+UPDATE = os.environ.get("UPDATE")
+if UPDATE == None:
+    UPDATE = 1.0/360
 
-DELETES = os.environ.get("DELETES")
-if DELETES == None:
-    DELETES = 1080
+READ = os.environ.get("READ")
+if READ == None:
+    READ = 1.0/1800
 
-SPACE = os.environ.get("SPACE")
-if SPACE == None:
-    SPACE = 16
+DELETE = os.environ.get("DELETE")
+if DELETE == None:
+    DELETE = 1.0/5400
+
+
+FREE_CREDITS = os.environ.get("FREE_CREDITS")
+if FREE_CREDITS == None:
+    FREE_CREDITS = 1
+
+FREE_SPACE = os.environ.get("FREE_SPACE")
+if FREE_SPACE == None:
+    FREE_SPACE = 64
+
+COST = {"create":CREATE,"read":READ,"update":UPDATE,"delete":DELETE}

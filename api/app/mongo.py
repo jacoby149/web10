@@ -231,7 +231,7 @@ def get_approved(username, provider, owner, service, action):
 
 def decrement(user, type):
     query = q_t({"service": "*"},"services")
-    update = u_t({"$inc": {type: -1}})
+    update = u_t({"$inc": {type: - settings.COST[type]}})
     db[f"{user}"].update_one(query, update)
 
 
@@ -239,9 +239,7 @@ def splash(user):
     query = q_t({"service": "*"},"services")
     update = u_t({
             "$max": {
-                "writes": settings.WRITES,
-                "reads": settings.READS,
-                "deletes": settings.DELETES,
+                "credits": settings.FREE_CREDITS,
             },
             "$currentDate": {"last_refresh": ""},
         })
@@ -252,8 +250,8 @@ def get_collection_size(user):
 
 
 # finds if a user is out of units
-def is_empty(user, type):
-    return get_star(user)[type] <= 0
+def has_credits(user):
+    return get_star(user)["credits"] >= 0
 
 
 # computes if a user is out of dbspace
