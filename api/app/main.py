@@ -160,6 +160,7 @@ async def verify_code(token: models.Token):
         raise exceptions.EMAIL_MISSING
     code = token.query["code"]
     res = twilio.check_verification(email,code)
+    print(res)
     mongo.set_verified(decoded.username)
     return res
 

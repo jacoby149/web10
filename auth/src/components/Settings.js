@@ -3,6 +3,7 @@ import React from "react";
 var wapiAuth = window.wapiAuth;
 
 function Settings({ verified, setStatus }) {
+  console.log(verified)
   return (
     <div style={{ marginLeft: "5px" }}>
       <Capacity></Capacity>

@@ -45,7 +45,6 @@ function ServiceTerms({
       ></EditableField>
     );
   });
-
   return (
     <div>
       <div
@@ -79,7 +78,7 @@ function ServiceTerms({
       </div>
       {currentService["service"] === "*" ? (
         <Settings
-          verfied={flattenedService["verified"]["value"]}
+          verified={flattenedService["verified"]["value"]}
           setStatus={setStatus}
         ></Settings>
       ) : (
