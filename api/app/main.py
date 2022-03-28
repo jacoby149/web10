@@ -255,7 +255,7 @@ def check_can_afford(user):
     return True
 
 def check_verified(user):
-    if not mongo.is_verified(user):
+    if settings.NEED_TO_VERIFY and not mongo.is_verified(user):
         raise exceptions.VERIFY
     return True
 def charge(resp,user,action):

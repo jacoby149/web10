@@ -56,11 +56,10 @@ function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
               style={{ margin: "5px 0px" }}
               className="control has-icons-left"
             >
-              email:{" "}
-              <input
+              {/* email:{" "} */}
+              <input type="hidden"
                 id="email"
                 className="input has-background-white"
-                type="email"
                 placeholder="Email - only for signup"
               />
             </p>
