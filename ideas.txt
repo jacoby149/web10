@@ -139,3 +139,17 @@ unsubscribe mode,
 a list of subscribed services with a cancel subscription toggle
 cancels the subscription at the next refreshable time
 "if no one heard it was there a sound?"
+
+a macros.py would indicate, what can the settings even be?
+web10 app directory
+
+/per app usage statistics
+
+
+money transfer scheme should be able to facilitate an online poker demo
+subscription requests [subscribe to endpoint]
+user hits yes no on * service page
+user can unsubscribe from things in unsubscribe mode
+developer can check_subscribed:true on service whitelist
+developer can use the check_subscribed function in their business logic servers
+let developers cash out credits [paypal]
