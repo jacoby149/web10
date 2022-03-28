@@ -46,24 +46,6 @@ services:
       - "6969:80"
     environment:
       VIRTUAL_HOST: docs.localhost
-  subs:
-    build: subs 
-    volumes:
-      - ./subs/:/subs
-    ports:
-      - "5969:80"
-    environment:
-      VIRTUAL_HOST: subs.localhost
-      FLASK_DEBUG: 1
-  one:
-    build: one 
-    volumes:
-      - ./one/:/one
-    ports:
-      - "4969:80"
-    environment:
-      VIRTUAL_HOST: one.localhost
-      FLASK_DEBUG: 1
   nginx-proxy:
     image: jwilder/nginx-proxy
     ports:

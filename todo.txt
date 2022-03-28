@@ -1,9 +1,15 @@
 twilio email=>mobile verification
-stripe verify payments
-make mobile verification reliable
+stripe - verify payments
+make reliable mobile verification
 /space_usage hookup (wapiauth only)
 /usage hookup
 /per app usage stats
 user-login and gear icon-* hookups
 document web10 service record rules
 change username
+subscription requests [subscribe to endpoint]
+user hits yes no on * service page
+user can unsubscribe from things in unsubscribe mode
+developer can check_subscribed:true on service whitelist
+developer can use the check_subscribed function in their business logic servers
+let developers cash out credits [paypal]
