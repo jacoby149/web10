@@ -7,7 +7,7 @@ function Settings({ verified, setStatus }) {
   return (
     <div style={{ marginLeft: "5px" }}>
       <Capacity></Capacity>
-      {verified ? <Payment></Payment> : <EmailVerify setStatus={setStatus}></EmailVerify>}
+      {/* {verified ? <Payment></Payment> : <EmailVerify setStatus={setStatus}></EmailVerify>} */}
       {/* <ChangeUser></ChangeUser> */}
       <br></br>
       <ChangePass setStatus={setStatus}></ChangePass>

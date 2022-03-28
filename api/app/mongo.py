@@ -128,10 +128,11 @@ def create_user(form_data, hash):
         raise exceptions.RESERVED
     if get_star(username):
         raise exceptions.EXISTS
-    if email_taken(email):
-        raise exceptions.EMAIL_TAKEN
-    #do this as early as possible TODO dangerous?
-    store_email(email,username)
+    if settings.NEED_EMAIL:
+        if email_taken(email):
+            raise exceptions.EMAIL_TAKEN
+        #do this as early as possible TODO dangerous?
+        store_email(email,username)
     # (*) record that holds both username and the password
     new_user = records.star_record()
     new_user["username"] = username
@@ -279,7 +280,7 @@ def decrement(user, action):
 def should_replenish(user):
     # user would have to exist at this point ..
     star = get_star(user)
-    return is_verified(user) and star["last_replenish"].month != datetime.datetime.now().month
+    return star["last_replenish"].month != datetime.datetime.now().month
 
 def replenish(user):    
     query = q_t({"service": "*"},"services")    
