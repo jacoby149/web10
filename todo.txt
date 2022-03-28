@@ -1,5 +1,9 @@
-make sure one code per try
-stripe purchase + (per seat) handling
+twilio email=>mobile verification
+stripe verify payments
+make mobile verification reliable
 /space_usage hookup (wapiauth only)
+/usage hookup
+/per app usage stats
 user-login and gear icon-* hookups
 document web10 service record rules
+change username
