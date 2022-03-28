@@ -134,3 +134,8 @@ debug cross web10 requests
 change username
 
 meter reads and writes!!! and updates!! to exact file sizes
+
+unsubscribe mode,
+a list of subscribed services with a cancel subscription toggle
+cancels the subscription at the next refreshable time
+"if no one heard it was there a sound?"
