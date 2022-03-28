@@ -52,11 +52,12 @@ function wapiAuthInit(wapi) {
   };
 
   //sign up for a new web10 account
-  wapiAuth.signUp = function (provider, username, password,betacode) {
+  wapiAuth.signUp = function (provider, username, password, email, betacode) {
     return axios
       .post(`${window.location.protocol}//${provider}/signup`, {
         username: username,
         password: password,
+        email: email,
         betacode: betacode
       })
   };
@@ -80,6 +81,15 @@ function wapiAuthInit(wapi) {
       );
     }
   };
+
+  wapiAuth.sendCode = function(){
+    axios.post(`${wapi.defaultAPIProtocol}//${wapi.readToken()["provider"]}/send_code`,{token:wapi.token})
+  }
+
+  wapiAuth.verifyCode = function(code){
+    axios.post(`${wapi.defaultAPIProtocol}//${wapi.readToken()["provider"]}/verify_code`,{token:wapi.token,query:{code:code}})
+  }
+
 
   //output the wapiAuth object
   return wapiAuth;

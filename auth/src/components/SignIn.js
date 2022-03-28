@@ -113,6 +113,7 @@ function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
                     document.getElementById("provider").value,
                     document.getElementById("username").value,
                     document.getElementById("password").value,
+                    document.getElementById("email").value,
                     document.getElementById("betacode").value
                   )
                   .then(() => setStatus("Successfully Made An Account"))

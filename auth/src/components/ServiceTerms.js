@@ -78,7 +78,7 @@ function ServiceTerms({
         )}
       </div>
       {currentService["service"] === "*" ? (
-        <Settings></Settings>
+        <Settings verfied={flattenedService["verified"]["value"]}></Settings>
       ) : (
         <div>
           <EditApproval

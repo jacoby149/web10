@@ -70,6 +70,24 @@ def u_t(_u):
             u[op][to_db_field(field)] = _u[op][field]
     return u
 
+###############################
+###### EMAIL FUNCTIONS ########
+###############################
+
+def store_email(email,username):
+    #TODO if your email is not verified in a week, purge everything...
+    email_collection = db['web10']['email']
+    return email_collection.insert_one({"email":email,"username":username,"date":datetime.datetime.now()})
+
+def fetch_email(username):
+    email_collection = db['web10']['email']
+    res = email_collection.find_one({"username":username})
+    if res: return res["email"]
+    return None
+
+def email_taken(email):
+    email_collection = db['web10']['email']
+    return email_collection.find_one({"email":email})
 
 ################################
 ####### USER FUNCTIONS #########
@@ -94,15 +112,20 @@ def get_user(username: str):
 
 
 def create_user(form_data, hash):
-    username, password = form_data.username, form_data.password
+    username, password, email = form_data.username, form_data.password, form_data.email
     if username == "web10":
         raise exceptions.RESERVED
     if get_star(username):
         raise exceptions.EXISTS
+    if email_taken(email):
+        raise exceptions.EMAIL_TAKEN
+    #do this as early as possible TODO dangerous?
+    store_email(email,username)
     # (*) record that holds both username and the password
     new_user = records.star_record()
     new_user["username"] = username
     new_user["hashed_password"] = hash(password)
+    new_user["email"] = email
     new_user = to_db(new_user,"services")
 
     # (services) record that allows auth.localhost to modify service terms
@@ -267,3 +290,10 @@ def has_space(user):
     star = get_star(user)
     amt = star["storage_capacity_mb"] * 1024 * 1024
     return amt > use
+
+# sets an email address to verified
+def set_verified(user):
+    return db[user].update_one(
+    q_t({"service": "*"},'services'),
+    u_t({"$set":{"verified":True}})
+    )
