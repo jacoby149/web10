@@ -233,6 +233,12 @@ async def signup(form_data: models.SignUpForm):
         raise exceptions.BETA
     return mongo.create_user(form_data, get_password_hash)
 
+# make a new web10 account
+@app.post("/change_pass")
+async def change_pass(form_data: models.SignUpForm):
+    if authenticate_user(form_data.username, form_data.password):
+        return mongo.change_pass(form_data.username,form_data.new_pass,get_password_hash)
+    raise exceptions.LOGIN
 
 #####################################################
 ############ Web10 Routes Managed By You ############
@@ -247,6 +253,10 @@ def check_can_afford(user):
         raise exceptions.SPACE
     return True
 
+def check_verified(user):
+    if not mongo.is_verified(user):
+        raise exceptions.VERIFY
+    return True
 def charge(resp,user,action):
     mongo.decrement(user,action)
     return resp
@@ -255,7 +265,7 @@ def charge(resp,user,action):
 async def create_records(user, service, token: models.Token):
     if not is_permitted(token, user, service, "create"):
         raise exceptions.CRUD
-    check_can_afford(user)
+    check_can_afford(user) and check_verified(user)
     return charge(mongo.create(user, service, token.query),user,"create")
 
 
@@ -264,7 +274,7 @@ async def create_records(user, service, token: models.Token):
 async def read_records(user, service, token: models.Token):
     if not is_permitted(token, user, service, "read"):
         raise exceptions.CRUD
-    if service != "services" : check_can_afford(user)
+    if service != "services" : check_can_afford(user) and check_verified(user)
     if token.query==None:token.query={}
     res = mongo.read(user, service, token.query)
     # dont charge for "services"
@@ -276,7 +286,7 @@ async def read_records(user, service, token: models.Token):
 async def update_records(user, service, token: models.Token):
     if not is_permitted(token, user, service, "update"):
         raise exceptions.CRUD
-    check_can_afford(user)
+    check_can_afford(user) and check_verified(user)
     return charge(mongo.update(user, service, token.query, token.update),user,"update")
 
 
@@ -284,7 +294,7 @@ async def update_records(user, service, token: models.Token):
 async def delete_records(user, service, token: models.Token):
     if not is_permitted(token, user, service, "delete"):
         raise exceptions.CRUD
-    if service != "services" : check_can_afford(user)
+    if service != "services" : check_can_afford(user) and check_verified(user)
     res = mongo.delete(user, service, token.query)
     # dont charge for "services"
     if service =="services": return res

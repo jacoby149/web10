@@ -27,25 +27,25 @@ services:
       CHOKIDAR_USEPOLLING: "true"
     ports:
       - '3000:80'
-  # crm:
-  #   build: 
-  #     context: .
-  #     dockerfile: crm/Dockerfile
-  #   volumes:
-  #     - ./crm/:/crm/public
-  #     - ./auth/public/sdk/ :/crm/public/sdk    
-  #   ports:
-  #     - "7746:80"
-  #   environment:
-  #     VIRTUAL_HOST: crm.localhost
-  # docs:
-  #   build: docs 
-  #   volumes:
-  #     - ./docs/:/docs/public
-  #   ports:
-  #     - "6969:80"
-  #   environment:
-  #     VIRTUAL_HOST: docs.localhost
+  crm:
+    build: 
+      context: .
+      dockerfile: crm/Dockerfile
+    volumes:
+      - ./crm/:/crm/public
+      - ./auth/public/sdk/ :/crm/public/sdk    
+    ports:
+      - "7746:80"
+    environment:
+      VIRTUAL_HOST: crm.localhost
+  docs:
+    build: docs 
+    volumes:
+      - ./docs/:/docs/public
+    ports:
+      - "6969:80"
+    environment:
+      VIRTUAL_HOST: docs.localhost
   subs:
     build: subs 
     volumes:

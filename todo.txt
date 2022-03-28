@@ -1,5 +1,5 @@
-stripe purchase + (per seat) handling
 change password
+stripe purchase + (per seat) handling
+/space_usage hookup (wapiauth only)
 user-login and gear icon-* hookups
 document web10 service record rules
-/space_usage hookup (wapiauth only)

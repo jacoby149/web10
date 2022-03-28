@@ -103,6 +103,17 @@ def get_term_record(username,service):
 def get_star(user):
     return get_term_record(user,"*")
 
+# sets an email address to verified
+def set_verified(user):
+    return db[user].update_one(
+    q_t({"service": "*"},'services'),
+    u_t({"$set":{"verified":True}})
+    )
+
+# sets an email address to verified
+def is_verified(user):
+    return get_star(user)["verified"]
+
 
 def get_user(username: str):
     doc = get_star(username)
@@ -132,11 +143,16 @@ def create_user(form_data, hash):
     services_terms = to_db(records.services_record(),"services")
 
     # insert the records to create / sign up the user
-    user_col = db[f"{username}"]
+    user_col = db[username]
     user_col.insert_one(new_user)
     user_col.insert_one(services_terms)
     return "success"
 
+def change_pass(user,new_pass,hash):
+    q = q_t({"service":"*"},"services")
+    u = u_t({"$set":{"hashed_password":hash(new_pass)}})
+    db[user].update_one(q,u)
+    return "success"
 
 ##########################
 ######### CRUD ###########
@@ -262,8 +278,8 @@ def decrement(user, action):
 
 def should_replenish(user):
     # user would have to exist at this point ..
-    last_replenish = get_star(user)["last_replenish"]
-    return last_replenish.month != datetime.datetime.now().month
+    star = get_star(user)
+    return is_verified(user) and star["last_replenish"].month != datetime.datetime.now().month
 
 def replenish(user):    
     query = q_t({"service": "*"},"services")    
@@ -290,10 +306,3 @@ def has_space(user):
     star = get_star(user)
     amt = star["storage_capacity_mb"] * 1024 * 1024
     return amt > use
-
-# sets an email address to verified
-def set_verified(user):
-    return db[user].update_one(
-    q_t({"service": "*"},'services'),
-    u_t({"$set":{"verified":True}})
-    )
