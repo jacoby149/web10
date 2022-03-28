@@ -1,11 +1,13 @@
 import React from "react";
 
-function Settings() {
+var wapiAuth = window.wapiAuth;
+
+function Settings(verified) {
   return (
     <div style={{ marginLeft: "5px" }}>
-      {/* <Payment></Payment> */}
       <Capacity></Capacity>
-      <EmailVerify></EmailVerify>
+      {verified?<Payment></Payment>:
+      <EmailVerify></EmailVerify>}
       <ChangeUser></ChangeUser>
       <br></br>
       <ChangePass></ChangePass>
@@ -13,35 +15,67 @@ function Settings() {
   );
 }
 
-function Capacity(){
-  var cap = "X"
-  return(<div>
-    <input style={{width:"230px"}} placeholder={`storage capacity used : ${cap} MB`} readOnly></input>
-  </div>)
+function Capacity() {
+  var cap = "X";
+  return (
+    <div>
+      <input
+        style={{ width: "230px" }}
+        placeholder={`storage capacity used : ${cap} MB`}
+        readOnly
+      ></input>
+    </div>
+  );
 }
 
 // Payment component
 function Payment() {
-  return <div style={{marginTop:"10px"}}>
-    <button style={{marginRight:"5px"}} className="button  is-primary"> Purchase Credits</button>
-    <button className="button is-primary">Credit Plan</button>
-
-  </div>;
+  return (
+    <div style={{ marginTop: "10px" }}>
+      <button style={{ marginRight: "5px" }} className="button  is-primary">
+        {" "}
+        Purchase Credits
+      </button>
+      <button className="button is-primary">Credit Plan</button>
+    </div>
+  );
 }
 
 // Payment component
 function EmailVerify() {
-  return <div style={{marginTop:"10px"}}>
-    <p style={{marginLeft:"2px"}}>verification code : <input           style={{
+  return (
+    <div style={{ marginTop: "10px" }}>
+      <p style={{ marginLeft: "2px" }}>
+        verification code :{" "}
+        <input id="code"
+          style={{
             color: "lightgreen",
             width: "100px",
             marginTop: "2px",
-            backgroundColor:"black"
+            backgroundColor: "black",
           }}
-placeholder={"012-345"}></input></p> 
-<div style={{marginTop:"5px"}}><button style={{marginRight:"5px"}} className="button is-warning"> Send Code </button><button style={{marginRight:"5px"}} className="button is-warning"> Verify Code </button><p style={{color:"orange",marginLeft:"2px",marginTop:"2px"}}>verify your email and recieve free web10 credits</p>
-</div>
-  </div>;
+          placeholder={"012345"}
+        ></input>
+      </p>
+      <div style={{ marginTop: "5px" }}>
+        <button
+          style={{ marginRight: "5px" }}
+          className="button is-warning"
+          onClick={() => wapiAuth.sendCode()}
+        >
+          {" "}
+          Send Code{" "}
+        </button>
+        <button onClick={() => wapiAuth.verifyCode(document.getElementById("code").value)} style={{ marginRight: "5px" }} className="button is-warning">
+          {" "}
+          Verify Code{" "}
+        </button>
+        <p style={{ color: "orange", marginLeft: "2px", marginTop: "2px" }}>
+          verify your email and recieve free web10 credits
+        </p>
+      </div>
+    </div>
+  );
 }
 
 // Changing username and/or password component
@@ -70,7 +104,6 @@ function ChangeUser() {
         placeholder={"password"}
       ></input>
       <br></br>
-
       <button
         // onClick={() => {
         //   if (document.getElementById("deleteConfirmation").value === service) {
@@ -97,12 +130,12 @@ function ChangeUser() {
   );
 }
 
-
 // Changing username and/or password component
 function ChangePass() {
   return (
     <div style={{ marginTop: "4px", marginLeft: "4px", marginRight: "4px" }}>
-      <u>Change Password</u><br></br>
+      <u>Change Password</u>
+      <br></br>
       Type New Password :{" "}
       <input
         id="deleteConfirmation"
@@ -124,7 +157,6 @@ function ChangePass() {
         placeholder={"current-password"}
       ></input>
       <br></br>
-
       <button
         // onClick={() => {
         //   if (document.getElementById("deleteConfirmation").value === service) {

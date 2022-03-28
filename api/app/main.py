@@ -10,7 +10,7 @@ import app.docs as docs
 import app.models as models
 import app.mongo as mongo
 import app.exceptions as exceptions
-
+import app.twilio as twilio
 #############################################
 ########### APP INITIALIZATION ##############
 #############################################
@@ -150,6 +150,26 @@ def is_permitted(token: models.Token, username, service, action):
 ##############################################
 ############ Web10 Routes For You ############
 ##############################################
+
+# check that an email verification code is valid
+@app.post("/verify_code")
+async def verify_code(token: models.Token):
+    decoded = decode_token(token.token)
+    email = mongo.fetch_email(decoded.username)
+    if not email:
+        raise exceptions.EMAIL_MISSING
+    code = token.query["code"]
+    res = twilio.check_verification(email,code)
+    mongo.set_verified(decoded.username)
+    return res
+
+# mail an email verification code
+@app.post("/send_code")
+async def send_code(token: models.Token):
+    decoded = decode_token(token.token)
+    email = mongo.fetch_email(decoded.username)
+    return twilio.send_verification(email,decoded.username)
+
 # check that a token is a valid non expired token written by this web10 server.
 @app.post("/certify")
 async def certify_token(token: models.Token):

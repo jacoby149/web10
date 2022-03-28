@@ -17,7 +17,7 @@ if (typeof wapiInit === "undefined") {
     const wapi = {};
 
     // get the default api protocol, which is required to match its auth portals protocol
-    defaultAPIProtocol = new URL(authUrl).protocol;
+    wapi.defaultAPIProtocol = new URL(authUrl).protocol;
 
     //wapi variables
     wapi.childWindow = null;
@@ -63,7 +63,7 @@ if (typeof wapiInit === "undefined") {
     wapi.getTieredToken = function (
       site,
       target,
-      protocol = defaultAPIProtocol
+      protocol = wapi.defaultAPIProtocol
     ) {
       return axios.post(
         `${protocol}//${wapi.readToken().provider}/web10token`,
@@ -83,7 +83,7 @@ if (typeof wapiInit === "undefined") {
       query = null,
       username = null,
       provider = null,
-      protocol = defaultAPIProtocol
+      protocol = wapi.defaultAPIProtocol
     ) {
       return wapi._W10CRUD(
         axios.patch,
@@ -100,7 +100,7 @@ if (typeof wapiInit === "undefined") {
       query = null,
       username = null,
       provider = null,
-      protocol = defaultAPIProtocol
+      protocol = wapi.defaultAPIProtocol
     ) {
       return wapi._W10CRUD(
         axios.post,
@@ -118,7 +118,7 @@ if (typeof wapiInit === "undefined") {
       update = null,
       username = null,
       provider = null,
-      protocol = defaultAPIProtocol
+      protocol = wapi.defaultAPIProtocol
     ) {
       return wapi._W10CRUD(
         axios.put,
@@ -135,7 +135,7 @@ if (typeof wapiInit === "undefined") {
       query = null,
       username = null,
       provider = null,
-      protocol = defaultAPIProtocol
+      protocol = wapi.defaultAPIProtocol
     ) {
       //axios delete is implemented differently
       const deleteWrapper = (url, data) => axios.delete(url, { data: data });
