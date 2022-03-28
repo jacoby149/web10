@@ -1,4 +1,4 @@
-change password
+make sure one code per try
 stripe purchase + (per seat) handling
 /space_usage hookup (wapiauth only)
 user-login and gear icon-* hookups
