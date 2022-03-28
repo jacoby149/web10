@@ -1,7 +1,7 @@
 import React from "react";
 import { flattenJSON, unFlattenJSON } from "./flattenJSON.js";
 import { downloadObjJSON } from "./importExportJSON.js";
-import {Settings} from "./Settings.js"
+import { Settings } from "./Settings.js";
 var wapi = window.wapi;
 
 /************************* */
@@ -24,7 +24,7 @@ function ServiceTerms({
     setSelectedService(0);
   }
 
-  React.useEffect(()=>setAdditions({}),[services])
+  React.useEffect(() => setAdditions({}), [services]);
 
   const currentService = services[selectedService][0];
   const type = services[selectedService][1];
@@ -78,7 +78,10 @@ function ServiceTerms({
         )}
       </div>
       {currentService["service"] === "*" ? (
-        <Settings verfied={flattenedService["verified"]["value"]}></Settings>
+        <Settings
+          verfied={flattenedService["verified"]["value"]}
+          setStatus={setStatus}
+        ></Settings>
       ) : (
         <div>
           <EditApproval
@@ -160,10 +163,10 @@ const StructInput = ({ record, field }) => {
 //TO BE IMPLEMENTED
 const EditableInput = ({ record, field }) => {
   //hide the id field
-  if (field==="_id")return (<div></div>)
+  if (field === "_id") return <div></div>;
   const [update, setUpdate] = React.useState(record["update"]);
   const value = record["value"];
-  function setRecord(v){
+  function setRecord(v) {
     record["update"] = v;
     setUpdate(v);
   }
@@ -194,69 +197,86 @@ const EditableInput = ({ record, field }) => {
           style={{ color: "#2ECC40" }}
           size={String(update).length}
           value={update}
-          onChange={(event)=>setRecord(event.target.value)}
+          onChange={(event) => setRecord(event.target.value)}
         ></input>{" "}
-        {value === update ? <i style={{ color: "firebrick" }} className="fa fa-trash" onClick={()=>setRecord({type:"delete"})}></i> : undo()}
+        {value === update ? (
+          <i
+            style={{ color: "firebrick" }}
+            className="fa fa-trash"
+            onClick={() => setRecord({ type: "delete" })}
+          ></i>
+        ) : (
+          undo()
+        )}
       </div>
     );
   }
-  if (record["update"].constructor === Object) {return deleteMode();}
+  if (record["update"].constructor === Object) {
+    return deleteMode();
+  }
   return updateMode();
 };
 
-function submitSMR(flattenedService,additions, type, servicesLoad,setStatus){
-  console.log(type)
-  if (type==="new")submitSIR(flattenedService,additions, servicesLoad,setStatus)
-  if (type===null)submitUserSCR(flattenedService,additions, servicesLoad,setStatus)
-  if (type==="change") return; //TODO handle SCR
+function submitSMR(flattenedService, additions, type, servicesLoad, setStatus) {
+  console.log(type);
+  if (type === "new")
+    submitSIR(flattenedService, additions, servicesLoad, setStatus);
+  if (type === null)
+    submitUserSCR(flattenedService, additions, servicesLoad, setStatus);
+  if (type === "change") return; //TODO handle SCR
 }
 
-function submitUserSCR(flattenedService,additions,servicesLoad,setStatus){
-  console.log("in")
-  const SCR = {"$unset":{},"$set":{}};
+function submitUserSCR(flattenedService, additions, servicesLoad, setStatus) {
+  console.log("in");
+  const SCR = { $unset: {}, $set: {} };
 
   // Update and Delete
   Object.keys(flattenedService).map(function (key) {
     //makes sure deletions arent passed in
-    if (key==="_id")return
-    const update = flattenedService[key]["update"]
-    if (update.constructor === Object){
-      if (update["type"]==="delete") return SCR["$unset"][key]=""
-    }
-    else return SCR["$set"][key] = update;
+    if (key === "_id") return;
+    const update = flattenedService[key]["update"];
+    if (update.constructor === Object) {
+      if (update["type"] === "delete") return (SCR["$unset"][key] = "");
+    } else return (SCR["$set"][key] = update);
   });
 
   // Create
   Object.keys(additions).map(function (key) {
-    if (key==="_id") return
-    return SCR["$set"][key] = additions[key];
+    if (key === "_id") return;
+    return (SCR["$set"][key] = additions[key]);
   });
 
-  const q = {"service":flattenedService["service"]["value"]}
-  wapi.update("services",q,SCR).then(servicesLoad).catch((e)=>setStatus(e.response.data.detail));
+  const q = { service: flattenedService["service"]["value"] };
+  wapi
+    .update("services", q, SCR)
+    .then(servicesLoad)
+    .catch((e) => setStatus(e.response.data.detail));
 }
 
-function submitSIR(flattenedService, additions, servicesLoad,setStatus) {
+function submitSIR(flattenedService, additions, servicesLoad, setStatus) {
   const updates = {};
   Object.keys(flattenedService).map(function (key) {
     //makes sure deletions arent passed in
-    const update = flattenedService[key]["update"]
-    if (update.constructor === Object){
-      if (update["type"]==="delete") return
+    const update = flattenedService[key]["update"];
+    if (update.constructor === Object) {
+      if (update["type"] === "delete") return;
     }
-    return updates[key] = update;
+    return (updates[key] = update);
   });
 
-    // User Created
-    Object.keys(additions).map(function (key) {
-      if (key==="_id") return
-      return updates[key] = additions[key];
-    });
-  
+  // User Created
+  Object.keys(additions).map(function (key) {
+    if (key === "_id") return;
+    return (updates[key] = additions[key]);
+  });
+
   const obj = unFlattenJSON(updates);
-  console.log(additions)
-  console.log(obj)
-  wapi.create("services", obj).then(servicesLoad).catch((e)=>setStatus(e.response.data.detail));
+  console.log(additions);
+  console.log(obj);
+  wapi
+    .create("services", obj)
+    .then(servicesLoad)
+    .catch((e) => setStatus(e.response.data.detail));
 }
 
 function purgeSMR(type, SMRHook, service) {
@@ -312,11 +332,20 @@ function NewField({ additionsHook }) {
   );
 }
 
-function EditApproval({ flattenedService,additions, type, servicesLoad, SMRHook,setStatus}) {
+function EditApproval({
+  flattenedService,
+  additions,
+  type,
+  servicesLoad,
+  SMRHook,
+  setStatus,
+}) {
   return (
     <div>
       <button
-        onClick={() => submitSMR(flattenedService,additions, type, servicesLoad,setStatus)}
+        onClick={() =>
+          submitSMR(flattenedService, additions, type, servicesLoad, setStatus)
+        }
         style={{ margin: "5px 5px" }}
         className="button is-warning"
       >
@@ -328,7 +357,7 @@ function EditApproval({ flattenedService,additions, type, servicesLoad, SMRHook,
           : "Your Changes"}
       </button>
       <button
-        onClick={()=>purgeSMR(type, SMRHook, flattenedService["service"])}
+        onClick={() => purgeSMR(type, SMRHook, flattenedService["service"])}
         style={{ margin: "5px 5px" }}
         className="button is-warning"
       >
@@ -387,7 +416,7 @@ function ToAdd({ additionsHook }) {
     return Object.keys(additions).map((field, idx) => {
       return (
         <p key={["addy", idx]} style={{ color: "#2ECC40" }}>
-          <i style={{color:"black"}}>{field}</i> : {additions[field]} &nbsp;{" "}
+          <i style={{ color: "black" }}>{field}</i> : {additions[field]} &nbsp;{" "}
           <i
             onClick={() => {
               const updated = { ...additions };

@@ -71,3 +71,10 @@ EXISTS = HTTPException(
     detail="the user already exists",
     headers={"WWW-Authenticate": "Basic"},
 )
+
+VERIFY = HTTPException(
+    status_code=status.HTTP_401_UNAUTHORIZED,
+    detail="please verify your email to do that action",
+    headers={"WWW-Authenticate": "Basic"},
+)
+

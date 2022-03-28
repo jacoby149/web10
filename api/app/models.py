@@ -43,6 +43,8 @@ class SignUpForm(BaseModel):
     password: str
     email: str
     betacode: str
+    new_pass: Optional[str] = None
+
 
 
 class TokenForm(BaseModel):

@@ -87,9 +87,12 @@ function wapiAuthInit(wapi) {
   }
 
   wapiAuth.verifyCode = function(code){
-    axios.post(`${wapi.defaultAPIProtocol}//${wapi.readToken()["provider"]}/verify_code`,{token:wapi.token,query:{code:code}})
+    return axios.post(`${wapi.defaultAPIProtocol}//${wapi.readToken()["provider"]}/verify_code`,{token:wapi.token,query:{code:code}})
   }
 
+  wapiAuth.changePass = function(pass,newPass){
+    return axios.post(`${wapi.defaultAPIProtocol}//${wapi.readToken()["provider"]}/change_pass`,{username:wapi.readToken()["username"],password:pass,new_pass:newPass,betacode:"blanky",email:"blanky"})
+  }
 
   //output the wapiAuth object
   return wapiAuth;
