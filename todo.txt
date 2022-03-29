@@ -1,7 +1,5 @@
-move crm and docs to github pages
 stripe - verify payments
 make verification reliable with good error codes
-make verification type configurable in settings
 /usage statistics hookup
 user-login and gear icon-* hookups
 document web10 service record rules

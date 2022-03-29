@@ -307,7 +307,7 @@ function OAuth({ services }) {
           <strong>approve or deny the changes in the left pane.</strong>
         </div>
       )}
-      {document.referrer !== "" ? (
+      {document.referrer === "" || new URL(document.referrer).origin===window.location.origin ? "":(
         <div>
           <div
             style={{ margin: "5px" }}
@@ -327,8 +327,6 @@ function OAuth({ services }) {
             </div>
           </div>
         </div>
-      ) : (
-        ""
       )}
     </div>
   );

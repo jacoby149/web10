@@ -2,47 +2,98 @@ import React from "react";
 
 var wapiAuth = window.wapiAuth;
 
-function Settings({ verified, setStatus }) {
-  console.log(verified)
+function Settings({ verified, setStatus, servicesLoad }) {
+  console.log(verified);
   return (
     <div style={{ marginLeft: "5px" }}>
       <Capacity></Capacity>
-      {/* {verified ? <Payment></Payment> : <EmailVerify setStatus={setStatus}></EmailVerify>} */}
-      {/* <ChangeUser></ChangeUser> */}
+      {verified ? (
+        <Payment setStatus={setStatus} servicesLoad={servicesLoad}></Payment>
+      ) : (
+        <EmailVerify setStatus={setStatus}></EmailVerify>
+      )}
+      <br></br>
+      <ChangeUser></ChangeUser>
       <br></br>
       <ChangePass setStatus={setStatus}></ChangePass>
+      <br></br>
+      <Cancel></Cancel>
+    </div>
+  );
+}
+
+function Cancel() {
+  return (
+    <div style={{ margin: "5px" }}>
+      <u>Cancel Subscription</u>
+      <br></br>
+      Type username to confirm :{" "}
+      <input
+        id="subcancelconfirm"
+        style={{ backgroundColor: "black", color: "lightgreen" }}
+        placeholder={"username"}
+      ></input>
+      <br></br>
+      <button
+        style={{ marginTop: "5px" }}
+        className="button is-danger is-light is-small"
+        onClick={() => {
+          window.location.href =
+            "https://buy.stripe.com/test_9AQ9BjdTl1n93JKfZ4";
+        }}
+      >
+        {" "}
+        Cancel Subscription
+      </button>
     </div>
   );
 }
 
 function Capacity() {
-  var cap = "X";
+  var cap = "x";
+  var total = 64;
   return (
-    <div>
+    <div style={{ marginLeft: "3px" }}>
       <input
         style={{ width: "230px" }}
-        placeholder={`storage capacity used : ${cap} MB`}
+        placeholder={`plan : web 10 free tier`}
         readOnly
       ></input>
+      <br></br>
+      <p
+        style={{
+          marginLeft: "2px",
+          width: "300px",
+          color: "gray",
+          fontFamily: "monospace",
+        }}
+      >
+        storage capacity utilization : {cap}/{total} mb
+      </p>
     </div>
   );
 }
 
 // Payment component
-function Payment() {
+function Payment({ setStatus, servicesLoad }) {
   return (
-    <div style={{ marginTop: "10px" }}>
-      <button style={{ marginRight: "5px" }} className="button  is-primary">
+    <div style={{ marginTop: "5px", marginLeft: "5px" }}>
+      <button
+        className="button is-primary is-light is-small"
+        onClick={() => {
+          window.location.href =
+            "https://buy.stripe.com/test_9AQ9BjdTl1n93JKfZ4";
+        }}
+      >
         {" "}
-        Purchase Credits
+        Modify Subscription
       </button>
-      <button className="button is-primary">Credit Plan</button>
     </div>
   );
 }
 
 // Payment component
-function EmailVerify({setStatus}) {
+function EmailVerify({ setStatus }) {
   return (
     <div style={{ marginTop: "10px" }}>
       <p style={{ marginLeft: "2px" }}>
@@ -69,7 +120,10 @@ function EmailVerify({setStatus}) {
         </button>
         <button
           onClick={() =>
-            wapiAuth.verifyCode(document.getElementById("code").value).then(setStatus("success")).catch(setStatus("wrong code.."))
+            wapiAuth
+              .verifyCode(document.getElementById("code").value)
+              .then(setStatus("success"))
+              .catch(setStatus("wrong code.."))
           }
           style={{ marginRight: "5px" }}
           className="button is-warning"
@@ -88,7 +142,7 @@ function EmailVerify({setStatus}) {
 // Changing username and/or password component
 function ChangeUser() {
   return (
-    <div style={{ marginTop: "10px", marginLeft: "4px", marginRight: "4px" }}>
+    <div style={{  marginLeft: "4px", marginRight: "4px" }}>
       <u>Change Username</u> <br></br>
       Type New Username :{" "}
       <input
@@ -138,7 +192,7 @@ function ChangeUser() {
 }
 
 // Changing username and/or password component
-function ChangePass({setStatus}) {
+function ChangePass({ setStatus }) {
   return (
     <div style={{ marginTop: "4px", marginLeft: "4px", marginRight: "4px" }}>
       <u>Change Password</u>
@@ -169,7 +223,10 @@ function ChangePass({setStatus}) {
           const pass = document.getElementById("regpass").value;
           const np1 = document.getElementById("newpass1").value;
           const np2 = document.getElementById("newpass2").value;
-          if (np1 == np2) wapiAuth.changePass(pass, np1).then(setStatus("successful password change"));
+          if (np1 == np2)
+            wapiAuth
+              .changePass(pass, np1)
+              .then(setStatus("successful password change"));
           else setStatus("retype is different.");
         }}
         className="button is-small is-info"
