@@ -64,7 +64,7 @@ function ServiceTerms({
             color: "orange",
           }}
         >
-          {currentService["service"]}
+          {currentService["service"] === "*"?<p style={{color:"hotpink"}}>web 10 settings</p>:currentService["service"]}
         </h1>
 
         {final}
@@ -80,6 +80,7 @@ function ServiceTerms({
         <Settings
           verified={flattenedService["verified"]["value"]}
           setStatus={setStatus}
+          servicesLoad={servicesLoad}
         ></Settings>
       ) : (
         <div>
