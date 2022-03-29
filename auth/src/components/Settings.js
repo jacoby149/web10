@@ -16,35 +16,6 @@ function Settings({ verified, setStatus, servicesLoad }) {
       <ChangeUser></ChangeUser>
       <br></br>
       <ChangePass setStatus={setStatus}></ChangePass>
-      <br></br>
-      <Cancel></Cancel>
-    </div>
-  );
-}
-
-function Cancel() {
-  return (
-    <div style={{ margin: "5px" }}>
-      <u>Cancel Subscription</u>
-      <br></br>
-      Type username to confirm :{" "}
-      <input
-        id="subcancelconfirm"
-        style={{ backgroundColor: "black", color: "lightgreen" }}
-        placeholder={"username"}
-      ></input>
-      <br></br>
-      <button
-        style={{ marginTop: "5px" }}
-        className="button is-danger is-light is-small"
-        onClick={() => {
-          window.location.href =
-            "https://buy.stripe.com/test_9AQ9BjdTl1n93JKfZ4";
-        }}
-      >
-        {" "}
-        Cancel Subscription
-      </button>
     </div>
   );
 }
@@ -81,12 +52,26 @@ function Payment({ setStatus, servicesLoad }) {
       <button
         className="button is-primary is-light is-small"
         onClick={() => {
-          window.location.href =
-            "https://buy.stripe.com/test_9AQ9BjdTl1n93JKfZ4";
+          var child = window.open(
+            "https://buy.stripe.com/test_9AQ9BjdTl1n93JKfZ4");
+          var doc = child.document;
+          doc.getElementById("email").value="heehee"
         }}
       >
         {" "}
-        Modify Subscription
+        Modify Plan
+      </button>
+      <button style={{marginLeft:"5px"}}
+        className="button is-success is-light is-small"
+        onClick={() => {
+          var child = window.open(
+            "https://buy.stripe.com/test_9AQ9BjdTl1n93JKfZ4");
+          var doc = child.document;
+          doc.getElementById("email").value="heehee"
+        }}
+      >
+        {" "}
+        Purchase Credits
       </button>
     </div>
   );
