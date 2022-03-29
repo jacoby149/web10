@@ -1,5 +1,7 @@
-stripe - verify payments
-make verification reliable with good error codes
+hook up stripe to front end 
+implement stripe.py
+make email verification reliable with good error codes
+stripe payment server, check subscription on * service load
 /usage statistics hookup
 user-login and gear icon-* hookups
 document web10 service record rules

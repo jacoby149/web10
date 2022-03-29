@@ -50,14 +50,12 @@ function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
       {loginMode ? (
         ""
       ) : (
-        <div style={{margin:"0 10px"}}>
+        <div style={{ margin: "0 10px" }}>
           <div className="field">
-            <p
-              style={{ margin: "5px 0px" }}
-              className="control has-icons-left"
-            >
+            <p style={{ margin: "5px 0px" }} className="control has-icons-left">
               {/* email:{" "} */}
-              <input type="hidden"
+              <input
+                type="hidden"
                 id="email"
                 className="input has-background-white"
                 placeholder="Email - only for signup"
@@ -115,7 +113,15 @@ function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
                     document.getElementById("email").value,
                     document.getElementById("betacode").value
                   )
-                  .then(() => setStatus("Successfully Made An Account"))
+                  .then(() =>
+                    wapiAuth.logIn(
+                      document.getElementById("provider").value,
+                      document.getElementById("username").value,
+                      document.getElementById("password").value,
+                      setAuthStatus,
+                      (m)=>setStatus(`Signed up. ${m}`)
+                    )
+                  )
                   .catch((error) =>
                     setStatus(
                       "Failed to Sign Up : " + error.response.data.detail
