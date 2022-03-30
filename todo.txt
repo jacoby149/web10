@@ -1,6 +1,7 @@
-switch to mobile verification.
 hook up stripe to front end 
+switch to mobile verification.
 make pay and mobile UI reliable
+
 check subscriptions on * service load
 /usage statistics hookup
 user-login and gear icon-* hookups
