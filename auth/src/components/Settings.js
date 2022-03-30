@@ -16,6 +16,28 @@ function Settings({ verified, setStatus, servicesLoad }) {
       <ChangeUser></ChangeUser>
       <br></br>
       <ChangePass setStatus={setStatus}></ChangePass>
+      <br></br>
+      <Unlink></Unlink>
+    </div>
+  );
+}
+
+function Unlink() {
+  return (
+    <div style={{ marginLeft: "4px" }}>
+      <u>Linked Devices / Accounts</u>
+      <br></br>
+      <button style={{marginTop:"4px"}}
+        className="button is-primary is-light is-small"
+        onClick={() => {
+          wapiAuth.portal().then((response) => {
+            window.location.href = response.data["url"];
+          });
+        }}
+      >
+        {" "}
+        Unlink Phone Number
+      </button>
     </div>
   );
 }
@@ -24,26 +46,24 @@ function Settings({ verified, setStatus, servicesLoad }) {
 function Payment({ setStatus, servicesLoad }) {
   return (
     <div style={{ marginTop: "5px", marginLeft: "5px" }}>
-
       <button
         className="button is-primary is-light is-small"
         onClick={() => {
-          var child = window.open(
-            "https://buy.stripe.com/test_9AQ9BjdTl1n93JKfZ4");
-          var doc = child.document;
-          doc.getElementById("email").value="heehee"
+          wapiAuth.portal().then((response) => {
+            window.location.href = response.data["url"];
+          });
         }}
       >
         {" "}
-        Modify Plan
+        Modify Plans
       </button>
-      <button style={{marginLeft:"5px"}}
+      <button
+        style={{ marginLeft: "5px" }}
         className="button is-success is-light is-small"
         onClick={() => {
-          var child = window.open(
-            "https://buy.stripe.com/test_9AQ9BjdTl1n93JKfZ4");
-          var doc = child.document;
-          doc.getElementById("email").value="heehee"
+          wapiAuth.payment().then((response) => {
+            window.location.href = response.data["url"];
+          });
         }}
       >
         {" "}
@@ -128,7 +148,7 @@ function EmailVerify({ setStatus }) {
 // Changing username and/or password component
 function ChangeUser() {
   return (
-    <div style={{  marginLeft: "4px", marginRight: "4px" }}>
+    <div style={{ marginLeft: "4px", marginRight: "4px" }}>
       <u>Change Username</u> <br></br>
       Type New Username :{" "}
       <input

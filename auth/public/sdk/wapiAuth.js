@@ -36,7 +36,7 @@ function wapiAuthInit(wapi) {
   wapiAuth.logIn = function (provider, username, password, setAuth, setStatus) {
     //web10 auth login
     axios
-      .post(`${window.location.protocol}//${provider}/web10token`, {
+      .post(`${wapi.defaultAPIProtocol}//${provider}/web10token`, {
         username: username,
         password: password,
         token: null,
@@ -54,7 +54,7 @@ function wapiAuthInit(wapi) {
   //sign up for a new web10 account
   wapiAuth.signUp = function (provider, username, password, email, betacode) {
     return axios
-      .post(`${window.location.protocol}//${provider}/signup`, {
+      .post(`${wapi.defaultAPIProtocol}//${provider}/signup`, {
         username: username,
         password: password,
         email: email,
@@ -82,17 +82,28 @@ function wapiAuthInit(wapi) {
     }
   };
 
+  const api = ()=> `${wapi.defaultAPIProtocol}//${wapi.readToken()["provider"]}`;
+
   wapiAuth.sendCode = function(){
-    axios.post(`${wapi.defaultAPIProtocol}//${wapi.readToken()["provider"]}/send_code`,{token:wapi.token})
+    axios.post(`${api()}/send_code`,{token:wapi.token})
   }
 
   wapiAuth.verifyCode = function(code){
-    return axios.post(`${wapi.defaultAPIProtocol}//${wapi.readToken()["provider"]}/verify_code`,{token:wapi.token,query:{code:code}})
+    return axios.post(`${api()}/verify_code`,{token:wapi.token,query:{code:code}})
   }
 
   wapiAuth.changePass = function(pass,newPass){
-    return axios.post(`${wapi.defaultAPIProtocol}//${wapi.readToken()["provider"]}/change_pass`,{username:wapi.readToken()["username"],password:pass,new_pass:newPass,betacode:"blanky",email:"blanky"})
+    return axios.post(`${api()}/change_pass`,{username:wapi.readToken()["username"],password:pass,new_pass:newPass,betacode:"blanky",email:"blanky"})
   }
+
+  wapiAuth.payment = function(subscription=true){
+    return axios.post(`${api()}/payment`,{token:wapi.token})
+  }
+
+  wapiAuth.portal = function(subscription=true){
+    return axios.post(`${api()}/portal`,{token:wapi.token})
+  }
+
 
   //output the wapiAuth object
   return wapiAuth;
