@@ -20,35 +20,11 @@ function Settings({ verified, setStatus, servicesLoad }) {
   );
 }
 
-function Capacity() {
-  var cap = "x";
-  var total = 64;
-  return (
-    <div style={{ marginLeft: "3px" }}>
-      <input
-        style={{ width: "230px" }}
-        placeholder={`plan : web 10 free tier`}
-        readOnly
-      ></input>
-      <br></br>
-      <p
-        style={{
-          marginLeft: "2px",
-          width: "300px",
-          color: "gray",
-          fontFamily: "monospace",
-        }}
-      >
-        storage capacity utilization : {cap}/{total} mb
-      </p>
-    </div>
-  );
-}
-
 // Payment component
 function Payment({ setStatus, servicesLoad }) {
   return (
     <div style={{ marginTop: "5px", marginLeft: "5px" }}>
+
       <button
         className="button is-primary is-light is-small"
         onClick={() => {
@@ -73,6 +49,31 @@ function Payment({ setStatus, servicesLoad }) {
         {" "}
         Purchase Credits
       </button>
+    </div>
+  );
+}
+
+function Capacity() {
+  var cap = "x";
+  var total = 64;
+  return (
+    <div style={{ marginLeft: "3px" }}>
+      <input
+        style={{ width: "230px" }}
+        placeholder={`plan : web 10 free tier`}
+        readOnly
+      ></input>
+      <br></br>
+      <p
+        style={{
+          marginLeft: "2px",
+          width: "300px",
+          color: "gray",
+          fontFamily: "monospace",
+        }}
+      >
+        storage capacity utilization : {cap}/{total} mb
+      </p>
     </div>
   );
 }
