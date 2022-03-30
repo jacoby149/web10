@@ -56,3 +56,7 @@ if FREE_SPACE == None:
     FREE_SPACE = 64
 
 COST = {"create":CREATE,"read":READ,"update":UPDATE,"delete":DELETE}
+
+VERIFY = False
+
+PAY = False

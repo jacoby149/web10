@@ -1,7 +1,5 @@
-import os
 import stripe
-import uvicorn
-import settings 
+import app.settings as settings 
 
 stripe.api_key = settings.STRIPE_KEY
 
