@@ -1,9 +1,9 @@
+switch to mobile verification.
 hook up stripe to front end 
-implement stripe.py
-make email verification reliable with good error codes
-stripe payment server, check subscription on * service load
+make pay and mobile UI reliable
+check subscriptions on * service load
 /usage statistics hookup
 user-login and gear icon-* hookups
 document web10 service record rules
 change username
-turn on and off payment/verification
+stripe customer id handle if stripe is down.

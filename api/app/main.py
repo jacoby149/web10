@@ -8,9 +8,13 @@ import jwt
 import app.settings as settings
 import app.docs as docs
 import app.models as models
-import app.mongo as mongo
 import app.exceptions as exceptions
-import app.twilio as twilio
+
+# interfaces
+import app.mongo as db
+import app.twilio as mobile
+import app.stripe as pay
+
 #############################################
 ########### APP INITIALIZATION ##############
 #############################################
@@ -62,7 +66,7 @@ def get_password_hash(password):
 
 
 def authenticate_user(username: str, password: str):
-    user = mongo.get_user(username)
+    user = db.get_user(username)
     if not user:
         raise exceptions.LOGIN
     if not verify_password(password, user.hashed_password):
@@ -137,10 +141,10 @@ def is_permitted(token: models.Token, username, service, action):
                 return False
         elif decoded.target != settings.PROVIDER:
             return False
-        if decoded.site in settings.CORS_SERVICE_MANAGERS or mongo.is_in_cross_origins(
+        if decoded.site in settings.CORS_SERVICE_MANAGERS or db.is_in_cross_origins(
             decoded.site, username, service
         ):
-            if mongo.get_approved(
+            if db.get_approved(
                 decoded.username, decoded.provider, username, service, action
             ):
                 return True
@@ -152,25 +156,42 @@ def is_permitted(token: models.Token, username, service, action):
 ##############################################
 
 # check that an email verification code is valid
-@app.post("/verify_code")
-async def verify_code(token: models.Token):
+@app.post("/verify_code",include_in_schema=False)
+async def verify_mobile_code(token: models.Token):
     decoded = decode_token(token.token)
-    email = mongo.fetch_email(decoded.username)
+    email = db.fetch_email(decoded.username)
     if not email:
         raise exceptions.EMAIL_MISSING
     code = token.query["code"]
-    res = twilio.check_verification(email,code)
+    res = mobile.check_verification(email,code)
     print(res)
-    mongo.set_verified(decoded.username)
+    db.set_verified(decoded.username)
     return res
 
 # mail an email verification code
-@app.post("/send_code")
-async def send_code(token: models.Token):
+@app.get("/link_code",include_in_schema=False)
+async def send_mobile_code(token: models.Token):
     decoded = decode_token(token.token)
-    email = mongo.fetch_email(decoded.username)
-    return twilio.send_verification(email,decoded.username)
+    email = db.fetch_email(decoded.username)
+    return mobile.send_verification(email,decoded.username)
 
+# mail an email verification code
+@app.get("/unlink",include_in_schema=False)
+async def unlink_phone(token: models.Token):
+    decoded = decode_token(token.token)
+    email = db.fetch_email(decoded.username)
+    return mobile.send_verification(email,decoded.username)
+
+
+# gets stripe checkout url
+@app.get("/payment",include_in_schema=False)
+async def checkout(token: models.Token):
+    return 
+
+# gets stripe sub portal url
+@app.get("/portal",include_in_schema=False,tags=["auth"])
+async def manage_web10_plan(token: models.Token):
+    return
 # check that a token is a valid non expired token written by this web10 server.
 @app.post("/certify")
 async def certify_token(token: models.Token):
@@ -232,34 +253,34 @@ async def signup(form_data: models.SignUpForm):
         raise exceptions.BAD_USERNAME
     if form_data.betacode != settings.BETA_CODE:
         raise exceptions.BETA
-    return mongo.create_user(form_data, get_password_hash)
+    return db.create_user(form_data, get_password_hash)
 
 # make a new web10 account
 @app.post("/change_pass")
 async def change_pass(form_data: models.SignUpForm):
     if authenticate_user(form_data.username, form_data.password):
-        return mongo.change_pass(form_data.username,form_data.new_pass,get_password_hash)
+        return db.change_pass(form_data.username,form_data.new_pass,get_password_hash)
     raise exceptions.LOGIN
 
 #####################################################
 ############ Web10 Routes Managed By You ############
 #####################################################
 def check_can_afford(user):
-    if not mongo.has_credits(user):
-        if mongo.should_replenish(user):
-            mongo.replenish(user)
+    if not db.has_credits(user):
+        if db.should_replenish(user):
+            db.replenish(user)
         else :
             raise exceptions.TIME
-    if not mongo.has_space(user):
+    if not db.has_space(user):
         raise exceptions.SPACE
     return True
 
 def check_verified(user):
-    if settings.NEED_TO_VERIFY and not mongo.is_verified(user):
+    if settings.VERIFY and not db.is_verified(user):
         raise exceptions.VERIFY
     return True
 def charge(resp,user,action):
-    mongo.decrement(user,action)
+    db.decrement(user,action)
     return resp
 
 @app.post("/{user}/{service}", tags=["web10"])
@@ -267,7 +288,7 @@ async def create_records(user, service, token: models.Token):
     if not is_permitted(token, user, service, "create"):
         raise exceptions.CRUD
     check_can_afford(user) and check_verified(user)
-    return charge(mongo.create(user, service, token.query),user,"create")
+    return charge(db.create(user, service, token.query),user,"create")
 
 
 # web10 uses patch for get in CRUD since get requests can't have a secure body
@@ -277,7 +298,7 @@ async def read_records(user, service, token: models.Token):
         raise exceptions.CRUD
     if service != "services" : check_can_afford(user) and check_verified(user)
     if token.query==None:token.query={}
-    res = mongo.read(user, service, token.query)
+    res = db.read(user, service, token.query)
     # dont charge for "services"
     if service =="services": return res
     return charge(res,user,"read")
@@ -288,7 +309,7 @@ async def update_records(user, service, token: models.Token):
     if not is_permitted(token, user, service, "update"):
         raise exceptions.CRUD
     check_can_afford(user) and check_verified(user)
-    return charge(mongo.update(user, service, token.query, token.update),user,"update")
+    return charge(db.update(user, service, token.query, token.update),user,"update")
 
 
 @app.delete("/{user}/{service}", tags=["web10"])
@@ -296,7 +317,7 @@ async def delete_records(user, service, token: models.Token):
     if not is_permitted(token, user, service, "delete"):
         raise exceptions.CRUD
     if service != "services" : check_can_afford(user) and check_verified(user)
-    res = mongo.delete(user, service, token.query)
+    res = db.delete(user, service, token.query)
     # dont charge for "services"
     if service =="services": return res
     return charge(res,user,"delete")
