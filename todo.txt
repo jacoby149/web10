@@ -1,10 +1,4 @@
-hook up stripe to front end 
-switch to mobile verification.
-make pay and mobile UI reliable
-
-check subscriptions on * service load
+integrate payment and verification
 /usage statistics hookup
 user-login and gear icon-* hookups
 document web10 service record rules
-change username
-stripe customer id handle if stripe is down.
