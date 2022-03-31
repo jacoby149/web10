@@ -184,16 +184,17 @@ async def unlink_phone(token: models.Token):
 
 
 # gets stripe checkout url
-@app.get("/payment",include_in_schema=False)
+@app.post("/payment",include_in_schema=False)
 async def checkout(token: models.Token):
     decoded = decode_token(token.token)
     return 
 
 # gets stripe sub portal url
-@app.get("/portal",include_in_schema=False,tags=["auth"])
+@app.post("/portal",include_in_schema=False,tags=["auth"])
 async def manage_web10_plan(token: models.Token):
     decoded = decode_token(token.token)
     return
+
 # check that a token is a valid non expired token written by this web10 server.
 @app.post("/certify")
 async def certify_token(token: models.Token):
