@@ -153,3 +153,6 @@ user can unsubscribe from things in unsubscribe mode
 developer can check_subscribed:true on service whitelist
 developer can use the check_subscribed function in their business logic servers
 let developers cash out credits [paypal]
+
+stripe customer id handle if stripe is down.
+change username
