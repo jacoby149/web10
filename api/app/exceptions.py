@@ -72,7 +72,7 @@ EXISTS = HTTPException(
     headers={"WWW-Authenticate": "Basic"},
 )
 
-VERIFY = HTTPException(
+PHONE_NUMBER_TAKEN = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
     detail="please verify your email to do that action",
     headers={"WWW-Authenticate": "Basic"},

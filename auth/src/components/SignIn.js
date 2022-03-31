@@ -53,12 +53,11 @@ function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
         <div style={{ margin: "0 10px" }}>
           <div className="field">
             <p style={{ margin: "5px 0px" }} className="control has-icons-left">
-              {/* email:{" "} */}
               <input
-                type="hidden"
-                id="email"
+                type="tel"
+                id="phone"
                 className="input has-background-white"
-                placeholder="Email - only for signup"
+                placeholder="Phone - only for signup"
               />
             </p>
           </div>
@@ -110,7 +109,7 @@ function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
                     document.getElementById("provider").value,
                     document.getElementById("username").value,
                     document.getElementById("password").value,
-                    document.getElementById("email").value,
+                    document.getElementById("phone").value,
                     document.getElementById("betacode").value
                   )
                   .then(() =>

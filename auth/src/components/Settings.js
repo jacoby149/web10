@@ -10,7 +10,7 @@ function Settings({ verified, setStatus, servicesLoad }) {
       {verified ? (
         <Payment setStatus={setStatus} servicesLoad={servicesLoad}></Payment>
       ) : (
-        <EmailVerify setStatus={setStatus}></EmailVerify>
+        <Verify setStatus={setStatus}></Verify>
       )}
       <br></br>
       <ChangeUser></ChangeUser>
@@ -99,7 +99,7 @@ function Capacity() {
 }
 
 // Payment component
-function EmailVerify({ setStatus }) {
+function Verify({ setStatus }) {
   return (
     <div style={{ marginTop: "10px" }}>
       <p style={{ marginLeft: "2px" }}>
@@ -138,7 +138,7 @@ function EmailVerify({ setStatus }) {
           Verify Code{" "}
         </button>
         <p style={{ color: "orange", marginLeft: "2px", marginTop: "2px" }}>
-          verify your email and recieve free web10 credits
+          verify your phone number and recieve free web10 credits
         </p>
       </div>
     </div>

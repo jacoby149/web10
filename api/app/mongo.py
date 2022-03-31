@@ -71,23 +71,23 @@ def u_t(_u):
     return u
 
 ###############################
-###### EMAIL FUNCTIONS ########
+###### PHONE_NUMBER FUNCTIONS ########
 ###############################
 
-def store_email(email,username):
-    #TODO if your email is not verified in a week, purge everything...
-    email_collection = db['web10']['email']
-    return email_collection.insert_one({"email":email,"username":username,"date":datetime.datetime.now()})
+def store_phone_number(phone_number,username):
+    #TODO if your phone_number is not verified in a week, purge everything...
+    phone_number_collection = db['web10']['phone_number']
+    return phone_number_collection.insert_one({"phone_number":phone_number,"username":username,"date":datetime.datetime.now()})
 
-def fetch_email(username):
-    email_collection = db['web10']['email']
-    res = email_collection.find_one({"username":username})
-    if res: return res["email"]
+def fetch_phone_number(username):
+    phone_number_collection = db['web10']['phone_number']
+    res = phone_number_collection.find_one({"username":username})
+    if res: return res["phone_number"]
     return None
 
-def email_taken(email):
-    email_collection = db['web10']['email']
-    return email_collection.find_one({"email":email})
+def phone_number_taken(phone_number):
+    phone_number_collection = db['web10']['phone_number']
+    return phone_number_collection.find_one({"phone_number":phone_number})
 
 ################################
 ####### USER FUNCTIONS #########
@@ -103,14 +103,14 @@ def get_term_record(username,service):
 def get_star(user):
     return get_term_record(user,"*")
 
-# sets an email address to verified
+# sets an phone_number address to verified
 def set_verified(user):
     return db[user].update_one(
     q_t({"service": "*"},'services'),
     u_t({"$set":{"verified":True}})
     )
 
-# sets an email address to verified
+# sets an phone_number address to verified
 def is_verified(user):
     return get_star(user)["verified"]
 
@@ -123,21 +123,21 @@ def get_user(username: str):
 
 
 def create_user(form_data, hash):
-    username, password, email = form_data.username, form_data.password, form_data.email
+    username, password, phone_number = form_data.username, form_data.password, form_data.phone
     if username == "web10":
         raise exceptions.RESERVED
     if get_star(username):
         raise exceptions.EXISTS
-    if settings.NEED_EMAIL:
-        if email_taken(email):
-            raise exceptions.EMAIL_TAKEN
+    if settings.VERIFY:
+        if phone_number_taken(phone_number):
+            raise exceptions.PHONE_NUMBER_TAKEN
         #do this as early as possible TODO dangerous?
-        store_email(email,username)
+        store_phone_number(phone_number,username)
     # (*) record that holds both username and the password
     new_user = records.star_record()
     new_user["username"] = username
     new_user["hashed_password"] = hash(password)
-    new_user["email"] = email
+    new_user["phone_number"] = phone_number
     new_user = to_db(new_user,"services")
 
     # (services) record that allows auth.localhost to modify service terms

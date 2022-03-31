@@ -6,7 +6,7 @@ def star_record():
         "service": "*",
         "username": "USERNAME",
         "hashed_password": "PASSWORD",
-        "email": "EMAIL",
+        "phone_number": "PHONE_NUMBER",
         "verified":False,
         "storage_capacity_mb":settings.FREE_SPACE,
         "credits":0,

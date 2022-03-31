@@ -155,42 +155,44 @@ def is_permitted(token: models.Token, username, service, action):
 ############ Web10 Routes For You ############
 ##############################################
 
-# check that an email verification code is valid
+# check that an phone_number verification code is valid
 @app.post("/verify_code",include_in_schema=False)
 async def verify_mobile_code(token: models.Token):
     decoded = decode_token(token.token)
-    email = db.fetch_email(decoded.username)
-    if not email:
+    phone_number = db.fetch_phone_number(decoded.username)
+    if not phone_number:
         raise exceptions.EMAIL_MISSING
     code = token.query["code"]
-    res = mobile.check_verification(email,code)
+    res = mobile.check_verification(phone_number,code)
     print(res)
     db.set_verified(decoded.username)
     return res
 
-# mail an email verification code
-@app.get("/link_code",include_in_schema=False)
+# mail an phone_number verification code
+@app.post("/link_code",include_in_schema=False)
 async def send_mobile_code(token: models.Token):
     decoded = decode_token(token.token)
-    email = db.fetch_email(decoded.username)
-    return mobile.send_verification(email,decoded.username)
+    phone_number = db.fetch_phone_number(decoded.username)
+    return mobile.send_verification(phone_number,decoded.username)
 
-# mail an email verification code
+# mail an phone_number verification code
 @app.get("/unlink",include_in_schema=False)
 async def unlink_phone(token: models.Token):
     decoded = decode_token(token.token)
-    email = db.fetch_email(decoded.username)
-    return mobile.send_verification(email,decoded.username)
+    phone_number = db.fetch_phone_number(decoded.username)
+    return mobile.send_verification(phone_number,decoded.username)
 
 
 # gets stripe checkout url
 @app.get("/payment",include_in_schema=False)
 async def checkout(token: models.Token):
+    decoded = decode_token(token.token)
     return 
 
 # gets stripe sub portal url
 @app.get("/portal",include_in_schema=False,tags=["auth"])
 async def manage_web10_plan(token: models.Token):
+    decoded = decode_token(token.token)
     return
 # check that a token is a valid non expired token written by this web10 server.
 @app.post("/certify")
@@ -239,7 +241,6 @@ async def create_web10_token(form_data: models.TokenForm):
             token_data.dict(), settings.PRIVATE_KEY, algorithm=settings.ALGORITHM
         )
     }
-
 
 def kosher(s):
     return "/" not in s and "." not in s and "$" not in s
