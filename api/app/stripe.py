@@ -40,7 +40,7 @@ def create_checkout_session(customer_id,prices,sub=True):
         line_items= prices
     )
     return {
-        "sessionUrl":checkout_session["url"],"customerId":customer_id
+        "url":checkout_session["url"],"customer_id":customer_id
         }
 
 def create_portal_session(customer_id):
