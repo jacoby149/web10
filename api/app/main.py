@@ -186,12 +186,16 @@ async def unlink_phone(token: models.Token):
 # gets stripe checkout url
 @app.post("/payment",include_in_schema=False)
 async def checkout(token: models.Token):
+    # check / make customer id if needed
+    # get the form
     decoded = decode_token(token.token)
-    return 
+    return pay.
 
 # gets stripe sub portal url
 @app.post("/portal",include_in_schema=False,tags=["auth"])
 async def manage_web10_plan(token: models.Token):
+    #check make customer id if needed
+    # get the portal
     decoded = decode_token(token.token)
     return
 
