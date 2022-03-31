@@ -52,12 +52,12 @@ function wapiAuthInit(wapi) {
   };
 
   //sign up for a new web10 account
-  wapiAuth.signUp = function (provider, username, password, email, betacode) {
+  wapiAuth.signUp = function (provider, username, password, phone, betacode) {
     return axios
       .post(`${wapi.defaultAPIProtocol}//${provider}/signup`, {
         username: username,
         password: password,
-        email: email,
+        phone: phone,
         betacode: betacode
       })
   };
@@ -85,7 +85,7 @@ function wapiAuthInit(wapi) {
   const api = ()=> `${wapi.defaultAPIProtocol}//${wapi.readToken()["provider"]}`;
 
   wapiAuth.sendCode = function(){
-    axios.post(`${api()}/send_code`,{token:wapi.token})
+    axios.post(`${api()}/link_code`,{token:wapi.token})
   }
 
   wapiAuth.verifyCode = function(code){
