@@ -7,7 +7,7 @@ def star_record():
         "username": "USERNAME",
         "hashed_password": "PASSWORD",
         "phone_number": "PHONE_NUMBER",
-        "verified":False,
+        "customer_id": False,
         "storage_capacity_mb":settings.FREE_SPACE,
         "credits":0,
         "last_replenish": datetime.datetime(1997,12,28),
