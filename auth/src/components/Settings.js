@@ -13,11 +13,11 @@ function Settings({ verified, setStatus, servicesLoad }) {
         <Verify setStatus={setStatus}></Verify>
       )}
       <br></br>
+      <Unlink></Unlink>
+      <br></br>
       <ChangeUser></ChangeUser>
       <br></br>
       <ChangePass setStatus={setStatus}></ChangePass>
-      <br></br>
-      <Unlink></Unlink>
     </div>
   );
 }
@@ -27,8 +27,16 @@ function Unlink() {
     <div style={{ marginLeft: "4px" }}>
       <u>Linked Devices / Accounts</u>
       <br></br>
-      <button style={{marginTop:"4px"}}
-        className="button is-primary is-light is-small"
+      Phone Number :{" "}
+      <input
+        id="phonechange"
+        style={{ backgroundColor: "black", color: "lightgreen" }}
+        placeholder={"new-username"}
+      ></input>
+      <br></br>
+      <button
+        style={{ marginTop: "4px" }}
+        className="button is-warning is-light is-small"
         onClick={() => {
           wapiAuth.portal().then((response) => {
             window.location.href = response.data["url"];
@@ -36,7 +44,7 @@ function Unlink() {
         }}
       >
         {" "}
-        Unlink Phone Number
+        Change Linked Number
       </button>
     </div>
   );
@@ -49,20 +57,32 @@ function Payment({ setStatus, servicesLoad }) {
       <button
         className="button is-primary is-light is-small"
         onClick={() => {
-          wapiAuth.portal().then((response) => {
-            window.location.href = response.data["url"];
+          wapiAuth.manage_space().then((response) => {
+            window.location.href = response.data;
           });
         }}
       >
         {" "}
-        Modify Plans
+        Space Plan
       </button>
       <button
         style={{ marginLeft: "5px" }}
         className="button is-success is-light is-small"
         onClick={() => {
-          wapiAuth.payment().then((response) => {
-            window.location.href = response.data["url"];
+          wapiAuth.manage_credits().then((response) => {
+            window.location.href = response.data;
+          });
+        }}
+      >
+        {" "}
+        Credit Plan
+      </button>
+      <button
+        style={{ marginLeft: "5px" }}
+        className="button is-info is-light is-small"
+        onClick={() => {
+          wapiAuth.purchase_credits().then((response) => {
+            window.location.href = response.data;
           });
         }}
       >

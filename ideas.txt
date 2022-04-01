@@ -156,3 +156,13 @@ let developers cash out credits [paypal]
 
 stripe customer id handle if stripe is down.
 change username
+
+/usage statistics hookup
+
+possibly make web10 payments through tokens
+
+possibly store payments in a transactions endpoint
+
+possibly store subscription data in the * service.
+have a desubscriber field in the settings
+on reload of the star service, 

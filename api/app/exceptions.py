@@ -78,3 +78,15 @@ PHONE_NUMBER_TAKEN = HTTPException(
     headers={"WWW-Authenticate": "Basic"},
 )
 
+PHONE_NUMBER_MISSING = HTTPException(
+    status_code=status.HTTP_401_UNAUTHORIZED,
+    detail="phone number missing",
+    headers={"WWW-Authenticate": "Basic"},
+)
+
+NOT_ADMIN = HTTPException(
+    status_code=status.HTTP_401_UNAUTHORIZED,
+    detail="your token do not have access to admin functions",
+    headers={"WWW-Authenticate": "Basic"},
+)
+

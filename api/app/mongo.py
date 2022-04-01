@@ -74,15 +74,18 @@ def u_t(_u):
 ###### PHONE_NUMBER FUNCTIONS ########
 ###############################
 
-def store_phone_number(phone_number,username):
+def set_phone_number(phone_number,username):
     #TODO if your phone_number is not verified in a week, purge everything...
     phone_number_collection = db['web10']['phone_number']
-    return phone_number_collection.insert_one({"phone_number":phone_number,"username":username,"date":datetime.datetime.now()})
+    phone_number_collection.insert_one({"phone_number":phone_number,"username":username,"date":datetime.datetime.now()})
+    db[username].udpate_one(q_t({"service":"services"}),u_t({"phone_number":phone_number}))
 
-def fetch_phone_number(username):
+def get_phone_number(username):
     phone_number_collection = db['web10']['phone_number']
     res = phone_number_collection.find_one({"username":username})
-    if res: return res["phone_number"]
+    if res: 
+        if "phone_number" in res : 
+            return res["phone_number"]
     return None
 
 def phone_number_taken(phone_number):
@@ -104,10 +107,10 @@ def get_star(user):
     return get_term_record(user,"*")
 
 # sets an phone_number address to verified
-def set_verified(user):
+def set_verified(user,verified=True):
     return db[user].update_one(
     q_t({"service": "*"},'services'),
-    u_t({"$set":{"verified":True}})
+    u_t({"$set":{"verified":verified}})
     )
 
 # sets an phone_number address to verified
@@ -132,12 +135,11 @@ def create_user(form_data, hash):
         if phone_number_taken(phone_number):
             raise exceptions.PHONE_NUMBER_TAKEN
         #do this as early as possible TODO dangerous?
-        store_phone_number(phone_number,username)
+        set_phone_number(phone_number,username)
     # (*) record that holds both username and the password
     new_user = records.star_record()
     new_user["username"] = username
     new_user["hashed_password"] = hash(password)
-    new_user["phone_number"] = phone_number
     new_user = to_db(new_user,"services")
 
     # (services) record that allows auth.localhost to modify service terms
@@ -146,6 +148,7 @@ def create_user(form_data, hash):
     # insert the records to create / sign up the user
     user_col = db[username]
     user_col.insert_one(new_user)
+    set_phone_number(phone_number,username)
     user_col.insert_one(services_terms)
     return "success"
 
@@ -225,6 +228,21 @@ def star_selected(user, service, query):
         return star_found(records)
     return False
 
+##########################
+# customer id, + numbers
+##########################
+
+def get_customer_id(user):
+    star = get_star(user)
+    if "customer_id" in star:
+        return star["customer_id"]
+    return None
+    
+def set_customer_id(user,customer_id):
+    return db[user].update_one(
+        q_t({"service": "*"},'services'),
+        u_t({"$set":{"customer_id":customer_id}})
+    )
 
 ##########################
 ### General Protection ###

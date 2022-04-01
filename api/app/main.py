@@ -150,6 +150,11 @@ def is_permitted(token: models.Token, username, service, action):
                 return True
     return False
 
+# check if a token is the highest level token
+def check_admin(token:models.Token):    
+    if not is_permitted(token,decode_token(token.token).username,"*",None):
+        raise exceptions.NOT_ADMIN
+
 
 ##############################################
 ############ Web10 Routes For You ############
@@ -158,46 +163,58 @@ def is_permitted(token: models.Token, username, service, action):
 # check that an phone_number verification code is valid
 @app.post("/verify_code",include_in_schema=False)
 async def verify_mobile_code(token: models.Token):
+    check_admin(token)
     decoded = decode_token(token.token)
-    phone_number = db.fetch_phone_number(decoded.username)
-    if not phone_number:
-        raise exceptions.EMAIL_MISSING
+    phone_number = db.get_phone_number(decoded.username)
     code = token.query["code"]
     res = mobile.check_verification(phone_number,code)
-    print(res)
     db.set_verified(decoded.username)
     return res
 
 # mail an phone_number verification code
-@app.post("/link_code",include_in_schema=False)
+@app.post("/send_code",include_in_schema=False)
 async def send_mobile_code(token: models.Token):
+    check_admin(token)
     decoded = decode_token(token.token)
-    phone_number = db.fetch_phone_number(decoded.username)
+    phone_number = db.get_phone_number(decoded.username)
     return mobile.send_verification(phone_number,decoded.username)
 
-# mail an phone_number verification code
-@app.get("/unlink",include_in_schema=False)
-async def unlink_phone(token: models.Token):
+# change a phone number
+@app.get("/change_phone",include_in_schema=False)
+async def change_phone(token: models.Token):
+    check_admin(token)
     decoded = decode_token(token.token)
-    phone_number = db.fetch_phone_number(decoded.username)
+    phone_number = db.set_phone_number(token.query["phone_number"])
+    db.set_verified(decoded.username,False)
     return mobile.send_verification(phone_number,decoded.username)
 
+def mget_customer_id(username):
+    customer_id = db.get_customer_id(username)
+    if not customer_id:
+        customer_id = pay.make_customer()
+        db.set_customer_id(username,customer_id)
+    return customer_id
 
-# gets stripe checkout url
-@app.post("/payment",include_in_schema=False)
-async def checkout(token: models.Token):
-    # check / make customer id if needed
-    # get the form
-    decoded = decode_token(token.token)
-    return pay.
+@app.post("/manage_space",include_in_schema=False)
+async def manage_space(token: models.Token):
+    check_admin(token)    
+    username = decode_token(token.token).username
+    customer_id = mget_customer_id(username)
+    return pay.manage_space(customer_id)
 
-# gets stripe sub portal url
-@app.post("/portal",include_in_schema=False,tags=["auth"])
-async def manage_web10_plan(token: models.Token):
-    #check make customer id if needed
-    # get the portal
-    decoded = decode_token(token.token)
-    return
+@app.post("/manage_credits",include_in_schema=False)
+async def manage_space(token: models.Token):
+    check_admin(token)    
+    username = decode_token(token.token).username
+    customer_id = mget_customer_id(username)
+    return pay.manage_credits(customer_id)
+
+@app.post("/purchase_credits",include_in_schema=False)
+async def manage_space(token: models.Token):
+    check_admin(token)    
+    username = decode_token(token.token).username
+    customer_id = mget_customer_id(username)
+    return pay.purchase_credits(customer_id)
 
 # check that a token is a valid non expired token written by this web10 server.
 @app.post("/certify")
