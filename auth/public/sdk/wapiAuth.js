@@ -85,7 +85,7 @@ function wapiAuthInit(wapi) {
   const api = ()=> `${wapi.defaultAPIProtocol}//${wapi.readToken()["provider"]}`;
 
   wapiAuth.sendCode = function(){
-    axios.post(`${api()}/link_code`,{token:wapi.token})
+    axios.post(`${api()}/send_code`,{token:wapi.token})
   }
 
   wapiAuth.verifyCode = function(code){
@@ -96,14 +96,17 @@ function wapiAuthInit(wapi) {
     return axios.post(`${api()}/change_pass`,{username:wapi.readToken()["username"],password:pass,new_pass:newPass,betacode:"blanky",email:"blanky"})
   }
 
-  wapiAuth.payment = function(subscription=true){
-    return axios.post(`${api()}/payment`,{token:wapi.token})
+  wapiAuth.manage_space = function(subscription=false){
+    return axios.post(`${api()}/manage_space`,{token:wapi.token})
   }
 
-  wapiAuth.portal = function(subscription=true){
-    return axios.post(`${api()}/portal`,{token:wapi.token})
+  wapiAuth.manage_credits = function(subscription=false){
+    return axios.post(`${api()}/manage_credits`,{token:wapi.token})
   }
 
+  wapiAuth.purchase_credits = function(subscription=false){
+    return axios.post(`${api()}/purchase_credits`,{token:wapi.token})
+  }
 
   //output the wapiAuth object
   return wapiAuth;

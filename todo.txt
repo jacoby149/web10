@@ -1,4 +1,6 @@
-integrate payment and verification
-/usage statistics hookup
+
+link other number
 user-login and gear icon-* hookups
 document web10 service record rules
+add web10.transactions [sender,reciever,date,amount]
+add web10.subscriptions / deletion in settings.
