@@ -348,7 +348,7 @@ function Branding(props) {
     <R l {...pass(props)}>
       <C l p="0px 0px 0px 22px" s={"70px"}>
         {/* Plain Pad Logo */}
-        <img src={"key_white.png"} alt="web10logo" style={{ height: "60%" }} />
+        <img src={props.theme==="dark"?"key_white.png":"key_black.png"} alt="web10logo" style={{ height: "60%" }} />
       </C>
 
       <C l ns mc s={"120px"}>
