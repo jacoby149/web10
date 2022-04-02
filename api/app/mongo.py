@@ -78,7 +78,7 @@ def set_phone_number(phone_number,username):
     #TODO if your phone_number is not verified in a week, purge everything...
     phone_number_collection = db['web10']['phone_number']
     phone_number_collection.insert_one({"phone_number":phone_number,"username":username,"date":datetime.datetime.now()})
-    db[username].udpate_one(q_t({"service":"services"}),u_t({"phone_number":phone_number}))
+    db[username].update_one(q_t({"service":"*"},"services"),u_t({"$set":{"phone_number":phone_number}}))
 
 def get_phone_number(username):
     phone_number_collection = db['web10']['phone_number']

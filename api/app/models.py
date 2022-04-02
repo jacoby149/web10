@@ -42,7 +42,6 @@ class SignUpForm(BaseModel):
     username: str
     password: str
     phone: str
-    betacode: str
     new_pass: Optional[str] = None
 
 
