@@ -1,9 +1,12 @@
 import React from "react";
+import PhoneInput from "react-phone-input-2";
+import "react-phone-input-2/lib/bootstrap.css";
 
 //web10 sign in boxes and buttons
 function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
   const setStatus = statusHook[1];
   const [loginMode, setLoginMode] = React.useState(true);
+  const [phone,setPhone] = React.useState("")
   return (
     <div style={{ width: "300px", marginBottom: "10px" }}>
       <div className="field">
@@ -58,9 +61,17 @@ function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
       {loginMode ? (
         ""
       ) : (
-        <div style={{ margin: "0 10px" }}>
-          <PhoneInput></PhoneInput>
-          <div className="field">
+        <div style={{ margin: "10px 10px" }}>
+          <PhoneInput
+      country={"us"}
+      enableSearch={true}
+      inputClass={"input"}
+      dropdownStyle={{color:"black"}}
+      value = {phone}
+      onChange={val=>setPhone(val)}
+    />
+          {/* <MyPhoneInput></MyPhoneInput> */}
+          {/* <div className="field">
             <p
               style={{ margin: "10px 0px" }}
               className="control has-icons-left"
@@ -75,7 +86,7 @@ function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
                 <i className="fas fa-key"></i>
               </span>
             </p>
-          </div>
+          </div> */}
         </div>
       )}
       {/* <div className="field">
@@ -142,33 +153,6 @@ function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
             {loginMode ? "Signup" : "Login"} Mode
           </button>
         </p>
-      </div>
-    </div>
-  );
-}
-
-function PhoneInput() {
-  const [number, setNumber] = React.useState("+1");
-  return (
-    <div class="field-body">
-      <div class="field is-expanded">
-        <div class="field has-addons">
-          <p style={{ marginBottom: "2px" }} class="control">
-            <div class="select is-fullwidth">
-              <select style={{backgroundColor:"#ececec"}}>
-                <option>+1</option>
-              </select>
-            </div>
-          </p>
-          <p class="control is-expanded">
-            <input
-              style={{ backgroundColor: "white" }}
-              class="input"
-              type="tel"
-              placeholder="📞 Phone Number"
-            />
-          </p>
-        </div>
       </div>
     </div>
   );
