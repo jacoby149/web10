@@ -5,24 +5,23 @@ import "react-phone-input-2/lib/bootstrap.css";
 var wapiAuth = window.wapiAuth;
 
 function Settings({ verified, setStatus, servicesLoad }) {
-  console.log(verified);
   return (
     <div style={{ marginLeft: "5px" }}>
       <Capacity></Capacity>
       {verified ? (
         <Payment setStatus={setStatus} servicesLoad={servicesLoad}></Payment>
       ) : (
-        <Verify setStatus={setStatus}></Verify>
+        <Verify setStatus={setStatus} callBack={servicesLoad}></Verify>
       )}
       <br></br>
-      <Unlink setStatus={setStatus}></Unlink>
+      <Unlink setStatus={setStatus} callBack={servicesLoad}></Unlink>
       <br></br>
-      <ChangePass setStatus={setStatus}></ChangePass>
+      <ChangePass setStatus={setStatus} callBack={servicesLoad}></ChangePass>
     </div>
   );
 }
 
-function Unlink({ setStatus }) {
+function Unlink({ setStatus, callBack }) {
   const [phone, setPhone] = React.useState("");
   return (
     <div style={{ marginLeft: "4px" }}>
@@ -30,6 +29,7 @@ function Unlink({ setStatus }) {
       <br></br>
       Type Password to confirm :{" "}
       <input
+        type="password"
         id="phonechange"
         style={{
           backgroundColor: "black",
@@ -53,9 +53,17 @@ function Unlink({ setStatus }) {
         className="button is-warning is-light is-small"
         onClick={() => {
           wapiAuth
-            .changePhone(document.getElementById("phonechange"), phone)
-            .then(() => setStatus("Successfully changed phone number."))
-            .catch((e) => setStatus(e.response));
+            .changePhone(document.getElementById("phonechange").value, phone)
+            .then(() => {
+              setStatus("Successfully changed phone number. reloading...");
+              setTimeout(() => callBack(), 1000);
+            })
+            .catch((e) => {
+              if (e.response) setStatus(String(e.response.data.detail));
+              else {
+                setStatus(String(e));
+              }
+            });
         }}
       >
         {" "}
@@ -142,7 +150,7 @@ function Capacity() {
 }
 
 // Payment component
-function Verify({ setStatus }) {
+function Verify({ setStatus, callBack }) {
   return (
     <div style={{ marginTop: "10px" }}>
       <p style={{ marginLeft: "2px" }}>
@@ -161,7 +169,7 @@ function Verify({ setStatus }) {
       <div style={{ marginTop: "5px" }}>
         <button
           style={{ marginRight: "5px" }}
-          className="button is-warning"
+          className="button is-small is-light is-warning"
           onClick={() => wapiAuth.sendCode()}
         >
           {" "}
@@ -171,11 +179,14 @@ function Verify({ setStatus }) {
           onClick={() =>
             wapiAuth
               .verifyCode(document.getElementById("code").value)
-              .then(() => setStatus("success"))
+              .then(() => {
+                setStatus("success! reloading ...");
+                setTimeout(() => callBack(), 1000);
+              })
               .catch(() => setStatus("wrong code.."))
           }
           style={{ marginRight: "5px" }}
-          className="button is-warning"
+          className="button is-small is-light is-warning"
         >
           {" "}
           Verify Code{" "}
@@ -189,65 +200,50 @@ function Verify({ setStatus }) {
 }
 
 // Changing username and/or password component
-function ChangeUser() {
-  return (
-    <div style={{ marginLeft: "4px", marginRight: "4px" }}>
-      <u>Change Username</u> <br></br>
-      Type New Username :{" "}
-      <input
-        id="deleteConfirmation"
-        style={{ backgroundColor: "black", color: "lightgreen" }}
-        placeholder={"new-username"}
-      ></input>
-      <br></br>
-      Retype New Username :{" "}
-      <input
-        id="deleteConfirmation"
-        style={{ backgroundColor: "black", color: "lightgreen" }}
-        placeholder={"new-username"}
-      ></input>
-      <br></br>
-      Type Password To Confirm :{" "}
-      <input
-        id="deleteConfirmation"
-        style={{ backgroundColor: "black", color: "lightgreen" }}
-        placeholder={"password"}
-      ></input>
-      <br></br>
-      <button
-        // onClick={() => {
-        //   if (document.getElementById("deleteConfirmation").value === service) {
-        //     wapi
-        //       .delete("services", { service: service })
-        //       .then((response) => {
-        //         setStatus("service deletion successful! reloading...");
-        //         setTimeout(() => callback(), 1000);
-        //       })
-        //       .catch((e) => {
-        //         setStatus(e.response.data.detail);
-        //       });
-        //   } else
-        //     setStatus(
-        //       "type the name of the service in the delete confirmation box to delete this service"
-        //     );
-        // }}
-        className="button is-small is-danger"
-        style={{ marginTop: "4px" }}
-      >
-        Change Username
-      </button>
-    </div>
-  );
-}
+// function ChangeUser() {
+//   return (
+//     <div style={{ marginLeft: "4px", marginRight: "4px" }}>
+//       <u>Change Username</u> <br></br>
+//       Type New Username :{" "}
+//       <input
+//         id="deleteConfirmation"
+//         style={{ backgroundColor: "black", color: "lightgreen" }}
+//         placeholder={"new-username"}
+//       ></input>
+//       <br></br>
+//       Retype New Username :{" "}
+//       <input
+//         id="deleteConfirmation"
+//         style={{ backgroundColor: "black", color: "lightgreen" }}
+//         placeholder={"new-username"}
+//       ></input>
+//       <br></br>
+//       Type Password To Confirm :{" "}
+//       <input
+//         id="deleteConfirmation"
+//         style={{ backgroundColor: "black", color: "lightgreen" }}
+//         placeholder={"password"}
+//       ></input>
+//       <br></br>
+//       <button
+//         className="button is-small is-danger"
+//         style={{ marginTop: "4px" }}
+//       >
+//         Change Username
+//       </button>
+//     </div>
+//   );
+// }
 
 // Changing username and/or password component
-function ChangePass({ setStatus }) {
+function ChangePass({ setStatus,callBack }) {
   return (
     <div style={{ marginTop: "4px", marginLeft: "4px", marginRight: "4px" }}>
       <u>Change Password</u>
       <br></br>
       Type New Password :{" "}
       <input
+        type="password"
         id="newpass1"
         style={{ backgroundColor: "black", color: "lightgreen" }}
         placeholder={"new-password"}
@@ -255,6 +251,7 @@ function ChangePass({ setStatus }) {
       <br></br>
       Retype New Password :{" "}
       <input
+        type="password"
         id="newpass2"
         style={{ backgroundColor: "black", color: "lightgreen" }}
         placeholder={"new-password"}
@@ -262,6 +259,7 @@ function ChangePass({ setStatus }) {
       <br></br>
       Type Current Password To Confirm :{" "}
       <input
+        type="password"
         id="regpass"
         style={{ backgroundColor: "black", color: "lightgreen" }}
         placeholder={"current-password"}
@@ -273,9 +271,10 @@ function ChangePass({ setStatus }) {
           const np1 = document.getElementById("newpass1").value;
           const np2 = document.getElementById("newpass2").value;
           if (np1 == np2)
-            wapiAuth
-              .changePass(pass, np1)
-              .then(setStatus("successful password change"));
+            wapiAuth.changePass(pass, np1).then(() => {
+              setStatus("successful password change. reloading...");
+              setTimeout(() => callBack(), 1000);
+            });
           else setStatus("retype is different.");
         }}
         className="button is-small is-info"

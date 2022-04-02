@@ -90,7 +90,8 @@ function wapiAuthInit(wapi) {
   }
 
   wapiAuth.changePhone= function(pass,newPhone){
-    return axios.post(`${api()}/change_phone`,{username:wapi.readToken()["username"],password:pass,new_phone:newPhone})
+    console.log("in : ",pass,newPhone)
+    return axios.post(`${api()}/change_phone`,{username:wapi.readToken()["username"],password:pass,phone:newPhone})
   }
 
 
