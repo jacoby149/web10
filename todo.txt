@@ -1,6 +1,7 @@
-
-link other number
+debug relinking numbers
+hook up production stripe to kubernetes
 user-login and gear icon-* hookups
 document web10 service record rules
 add web10.transactions [sender,reciever,date,amount]
 add web10.subscriptions / deletion in settings.
+add web10 payouts
