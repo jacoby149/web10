@@ -274,8 +274,6 @@ async def signup(form_data: models.SignUpForm):
     form_data = models.dotdict(form_data)
     if not kosher(form_data.username):
         raise exceptions.BAD_USERNAME
-    if form_data.betacode != settings.BETA_CODE:
-        raise exceptions.BETA
     return db.create_user(form_data, get_password_hash)
 
 # make a new web10 account
