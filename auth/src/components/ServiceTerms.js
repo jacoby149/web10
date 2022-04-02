@@ -24,7 +24,7 @@ function ServiceTerms({
     setSelectedService(0);
   }
 
-  React.useEffect(() => setAdditions({}), [services]);
+  React.useEffect(() => {setAdditions({});}, [services]);
 
   const currentService = services[selectedService][0];
   const type = services[selectedService][1];
@@ -165,6 +165,7 @@ const EditableInput = ({ record, field }) => {
   //hide the id field
   if (field === "_id") return <div></div>;
   const [update, setUpdate] = React.useState(record["update"]);
+  React.useEffect(()=>setUpdate(record["update"]), [record])
   const value = record["value"];
   function setRecord(v) {
     record["update"] = v;
@@ -347,7 +348,7 @@ function EditApproval({
           submitSMR(flattenedService, additions, type, servicesLoad, setStatus)
         }
         style={{ margin: "5px 5px" }}
-        className="button is-warning"
+        className="button is-warning "
       >
         Approve{" "}
         {type === "new"
@@ -359,7 +360,7 @@ function EditApproval({
       <button
         onClick={() => purgeSMR(type, SMRHook, flattenedService["service"])}
         style={{ margin: "5px 5px" }}
-        className="button is-warning"
+        className="button is-warning "
       >
         Deny{" "}
         {type === "new"
@@ -377,7 +378,7 @@ function ImportExport({ service }) {
     <div>
       <button
         title="Import coming soon"
-        className="button is-primary"
+        className="button is-primary  is-small"
         style={{ margin: "5px 5px" }}
         disabled
       >
@@ -386,7 +387,7 @@ function ImportExport({ service }) {
       </button>
       <button
         id={"exporter"}
-        className="button is-info"
+        className="button is-info  is-small"
         style={{ margin: "5px 5px" }}
         onClick={() => {
           wapi

@@ -1,3 +1,7 @@
-write change username and changephone
+do timed reloading on settings successes
+settings remove updatable fields
+write changephone
+implement import
 pay stripe subs and payments to users on * load
 production stripe key env vars production
+test & deploy

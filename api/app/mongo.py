@@ -75,20 +75,16 @@ def u_t(_u):
 ###############################
 
 def register_phone_number(phone_number,username):
-    return
+    db['web10']['phone_number'].insert_one({"phone_number":phone_number,"username":username})
 
 def unregister_phone_number(phone_number,username):
-    return
-    
+    db['web10']['phone_number'].delete_one({"phone_number":phone_number,"username":username})
+
 def set_phone_number(phone_number,username):
-    #TODO if your phone_number is not verified in a week, purge everything...
-    phone_number_collection = db['web10']['phone_number']
-    phone_number_collection.insert_one({"phone_number":phone_number,"username":username,"date":datetime.datetime.now()})
     db[username].update_one(q_t({"service":"*"},"services"),u_t({"$set":{"phone_number":phone_number}}))
 
 def get_phone_number(username):
-    phone_number_collection = db['web10']['phone_number']
-    res = phone_number_collection.find_one({"username":username})
+    res = get_star(username)
     if res: 
         if "phone_number" in res : 
             return res["phone_number"]
