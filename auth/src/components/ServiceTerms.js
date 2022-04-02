@@ -38,11 +38,12 @@ function ServiceTerms({
   });
   const final = Object.keys(flattenedService).map((field, idx) => {
     return (
-      <EditableField
+      <Field
         key={[currentService["service"], field]}
         record={flattenedService[field]}
         field={field}
-      ></EditableField>
+        isStar={currentService["service"] === "*"}
+      ></Field>
     );
   });
   return (
@@ -129,11 +130,15 @@ function ServiceTerms({
  * Helper Components
  ***********************/
 
-function EditableField({ record, field }) {
+function Field({ record, field,isStar }) {
   var type = null;
   if (record["update"].constructor === Object) {
     if (record["update"]["type"] === "delete") type = "delete";
     else type = "obj";
+  }
+  
+  if (isStar) {
+    return <UneditableInput record={record} field={field}></UneditableInput>
   }
 
   switch (type) {
@@ -159,6 +164,21 @@ const StructInput = ({ record, field }) => {
     </div>
   );
 };
+
+const UneditableInput = ({record,field})=>{
+    const update=record["update"];
+    return (
+      <div style={{ marginLeft: "4px", marginTop: "4px" }}>
+        {field} :{" "}
+        <input
+          style={{ color: "#2ECC40" }}
+          size={String(update).length}
+          value={update}
+          readOnly
+        ></input>      
+        </div>
+    );
+}
 
 //TO BE IMPLEMENTED
 const EditableInput = ({ record, field }) => {
