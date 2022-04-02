@@ -74,7 +74,7 @@ EXISTS = HTTPException(
 
 PHONE_NUMBER_TAKEN = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
-    detail="please verify your email to do that action",
+    detail="that phone number is already linked to an account",
     headers={"WWW-Authenticate": "Basic"},
 )
 

@@ -116,12 +116,11 @@ function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
           ) : (
             <button
               onClick={() => {
-                const [provider, username, password, retype, phone] = [
+                const [provider, username, password, retype] = [
                   document.getElementById("provider").value,
                   document.getElementById("username").value,
                   document.getElementById("password").value,
-                  document.getElementById("retypepass").value,
-                  phone,
+                  document.getElementById("retypepass").value
                 ];
                 if (password!==retype){
                   setStatus("Failed to Sign Up : Passwords do not match.");

@@ -148,8 +148,8 @@ function Verify({ setStatus }) {
           onClick={() =>
             wapiAuth
               .verifyCode(document.getElementById("code").value)
-              .then(setStatus("success"))
-              .catch(setStatus("wrong code.."))
+              .then(()=>setStatus("success"))
+              .catch(()=>setStatus("wrong code.."))
           }
           style={{ marginRight: "5px" }}
           className="button is-warning"
