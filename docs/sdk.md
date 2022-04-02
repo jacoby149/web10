@@ -254,5 +254,41 @@ function displayNotes(data) {
 
 
 
+## General
+
+
+
+### Service Term Records
+
+Users have a service term record for each active service they actively host with web10.  
+
+| field         | description                                                  |
+| ------------- | ------------------------------------------------------------ |
+| service       | the name of the web10 service                                |
+| cross_origins | websites that users are allowed to make web10 requests to the service from. |
+| whitelist     | a list of users allowed to access the service                |
+| blacklist     | a list of users not allowed to access the service. Overrides user listings on the whitelist. |
+
+```json
+{
+    service : the name of the service 
+    cross_origins : [website1, website2 website3] [regex for exact matching allowed]
+    whitelist : [
+        {
+            user: the name of a web10 user [regex for exact matching allowed]
+            provider : the name of a web10 provider [regex for exact matching allowed]
+            create : true or false
+            read : true or false
+            update : true or false
+            delete : true or false
+            all : true or false
+        }, ... 
+	]
+	blacklist : [ same as whitelist entries ...]
+}
+```
+
+
+
 > *End of web10 docs* ...
 
