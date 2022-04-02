@@ -18,7 +18,7 @@ def send_verification(phone_number,username):
                             'substitutions': {
                                 'username': username
                             }
-                        }, to="+1"+str(phone_number), channel='sms')
+                        }, to="+"+str(phone_number), channel='sms')
 
     return verification.sid
 
