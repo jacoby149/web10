@@ -167,21 +167,14 @@ async def change_pass(form_data: models.SignUpForm):
         return db.change_pass(form_data.username,form_data.new_pass,get_password_hash)
     raise exceptions.LOGIN
 
-# make a new web10 account
-@app.post("/change_username")
-async def change_pass(form_data: models.SignUpForm):
-    if authenticate_user(form_data.username, form_data.password):
-        return db.change_username(form_data.username,form_data.new_pass,get_password_hash)
-    raise exceptions.LOGIN
-
 # change a phone number
-@app.get("/change_phone",include_in_schema=False)
-async def change_phone(token: models.Token):
-    check_admin(token)
-    decoded = decode_token(token.token)
-    phone_number = db.set_phone_number(token.query["phone_number"])
-    db.set_verified(decoded.username,False)
-    return mobile.send_verification(phone_number,decoded.username)
+@app.post("/change_phone",include_in_schema=False)
+async def change_phone(form_data: models.SignUpForm):
+    if authenticate_user(form_data.username, form_data.password):
+        phone_number = db.set_phone_number(form_data.phone)
+        db.set_verified(form_data.username,False)
+        return mobile.send_verification(phone_number,form_data.username)
+    raise exceptions.LOGIN
 
 # check that an phone_number verification code is valid
 @app.post("/verify_code",include_in_schema=False)
