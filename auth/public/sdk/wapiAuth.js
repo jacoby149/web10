@@ -83,26 +83,36 @@ function wapiAuthInit(wapi) {
 
   const api = ()=> `${wapi.defaultAPIProtocol}//${wapi.readToken()["provider"]}`;
 
-  wapiAuth.sendCode = function(){
-    axios.post(`${api()}/send_code`,{token:wapi.token})
-  }
 
-  wapiAuth.verifyCode = function(code){
-    return axios.post(`${api()}/verify_code`,{token:wapi.token,query:{code:code}})
-  }
-
+  //change functionality
   wapiAuth.changePass = function(pass,newPass){
     return axios.post(`${api()}/change_pass`,{username:wapi.readToken()["username"],password:pass,new_pass:newPass,betacode:"blanky",email:"blanky"})
   }
 
+  wapiAuth.changeUsername = function(pass,newUser){
+    return axios.post(`${api()}/change_user`,{username:wapi.readToken()["username"],password:pass,new_username:newUser,betacode:"blanky",email:"blanky"})
+  }
+
+  wapiAuth.changePhone= function(pass,newPhone){
+    return axios.post(`${api()}/change_phone`,{username:wapi.readToken()["username"],password:pass,new_phone:newPhone,betacode:"blanky",email:"blanky"})
+  }
+
+
+  //twilio functionality
+  wapiAuth.sendCode = function(){
+    axios.post(`${api()}/send_code`,{token:wapi.token})
+  }
+  wapiAuth.verifyCode = function(code){
+    return axios.post(`${api()}/verify_code`,{token:wapi.token,query:{code:code}})
+  }
+
+  //stripe functionality
   wapiAuth.manage_space = function(subscription=false){
     return axios.post(`${api()}/manage_space`,{token:wapi.token})
   }
-
   wapiAuth.manage_credits = function(subscription=false){
     return axios.post(`${api()}/manage_credits`,{token:wapi.token})
   }
-
   wapiAuth.purchase_credits = function(subscription=false){
     return axios.post(`${api()}/purchase_credits`,{token:wapi.token})
   }

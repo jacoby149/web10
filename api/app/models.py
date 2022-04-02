@@ -42,7 +42,10 @@ class SignUpForm(BaseModel):
     username: str
     password: str
     phone: str
+    # change variables 
     new_pass: Optional[str] = None
+    new_username: Optional[str] = None
+    new_phone: Optional[str] = None
 
 
 

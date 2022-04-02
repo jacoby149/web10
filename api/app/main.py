@@ -160,6 +160,29 @@ def check_admin(token:models.Token):
 ############ Web10 Routes For You ############
 ##############################################
 
+# make a new web10 account
+@app.post("/change_pass")
+async def change_pass(form_data: models.SignUpForm):
+    if authenticate_user(form_data.username, form_data.password):
+        return db.change_pass(form_data.username,form_data.new_pass,get_password_hash)
+    raise exceptions.LOGIN
+
+# make a new web10 account
+@app.post("/change_username")
+async def change_pass(form_data: models.SignUpForm):
+    if authenticate_user(form_data.username, form_data.password):
+        return db.change_username(form_data.username,form_data.new_pass,get_password_hash)
+    raise exceptions.LOGIN
+
+# change a phone number
+@app.get("/change_phone",include_in_schema=False)
+async def change_phone(token: models.Token):
+    check_admin(token)
+    decoded = decode_token(token.token)
+    phone_number = db.set_phone_number(token.query["phone_number"])
+    db.set_verified(decoded.username,False)
+    return mobile.send_verification(phone_number,decoded.username)
+
 # check that an phone_number verification code is valid
 @app.post("/verify_code",include_in_schema=False)
 async def verify_mobile_code(token: models.Token):
@@ -177,15 +200,6 @@ async def send_mobile_code(token: models.Token):
     check_admin(token)
     decoded = decode_token(token.token)
     phone_number = db.get_phone_number(decoded.username)
-    return mobile.send_verification(phone_number,decoded.username)
-
-# change a phone number
-@app.get("/change_phone",include_in_schema=False)
-async def change_phone(token: models.Token):
-    check_admin(token)
-    decoded = decode_token(token.token)
-    phone_number = db.set_phone_number(token.query["phone_number"])
-    db.set_verified(decoded.username,False)
     return mobile.send_verification(phone_number,decoded.username)
 
 def mget_customer_id(username):
@@ -275,13 +289,6 @@ async def signup(form_data: models.SignUpForm):
     if not kosher(form_data.username):
         raise exceptions.BAD_USERNAME
     return db.create_user(form_data, get_password_hash)
-
-# make a new web10 account
-@app.post("/change_pass")
-async def change_pass(form_data: models.SignUpForm):
-    if authenticate_user(form_data.username, form_data.password):
-        return db.change_pass(form_data.username,form_data.new_pass,get_password_hash)
-    raise exceptions.LOGIN
 
 #####################################################
 ############ Web10 Routes Managed By You ############
