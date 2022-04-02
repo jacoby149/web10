@@ -1,7 +1,9 @@
-debug relinking numbers
-hook up production stripe to kubernetes
+write change username and changephone
+pay stripe subs and payments to users on * load
+production stripe key env vars production
 user-login and gear icon-* hookups
 document web10 service record rules
+
 add web10.transactions [sender,reciever,date,amount]
 add web10.subscriptions / deletion in settings.
 add web10 payouts

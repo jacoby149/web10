@@ -218,11 +218,11 @@ function App() {
           bars
         </Icon>
         <R tel />
-        <R l ns s={"200px"}>
+        <R l ns s={"240px"}>
           <Auth></Auth>
-          {/* <Icon>user-circle</Icon> */}
+          <Icon onClick={()=>{setMode("auth")}}>user-circle</Icon>
           <Icon onClick={toggleTheme}>moon</Icon>
-          <Icon>cog</Icon>
+          <Icon onClick={()=>{setSelectedService(0);setMode("services")}}>cog</Icon>
         </R>
       </R>
 

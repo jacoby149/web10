@@ -1,4 +1,6 @@
 import React from "react";
+import PhoneInput from "react-phone-input-2";
+import "react-phone-input-2/lib/bootstrap.css";
 
 var wapiAuth = window.wapiAuth;
 
@@ -13,7 +15,7 @@ function Settings({ verified, setStatus, servicesLoad }) {
         <Verify setStatus={setStatus}></Verify>
       )}
       <br></br>
-      <Unlink></Unlink>
+      <Unlink setStatus={setStatus}></Unlink>
       <br></br>
       <ChangeUser></ChangeUser>
       <br></br>
@@ -22,25 +24,35 @@ function Settings({ verified, setStatus, servicesLoad }) {
   );
 }
 
-function Unlink() {
+function Unlink({setStatus}) {
+  const [phone, setPhone] = React.useState("");
   return (
     <div style={{ marginLeft: "4px" }}>
       <u>Linked Devices / Accounts</u>
       <br></br>
-      Phone Number :{" "}
+      Type Password to confirm :{" "}
       <input
         id="phonechange"
-        style={{ backgroundColor: "black", color: "lightgreen" }}
-        placeholder={"new-username"}
+        style={{ backgroundColor: "black", color: "lightgreen",marginBottom:"4px"}}
+        placeholder={"password"}
       ></input>
-      <br></br>
+
+      <PhoneInput
+              country={"us"}
+              enableSearch={true}
+              inputClass={"input"}
+              dropdownStyle={{ color: "black" }}
+              value={phone}
+              onChange={(val) => {
+                setPhone(val);
+              }}
+            />
       <button
         style={{ marginTop: "4px" }}
         className="button is-warning is-light is-small"
         onClick={() => {
-          wapiAuth.portal().then((response) => {
-            window.location.href = response.data["url"];
-          });
+          wapiAuth.changeNumber(phone).then(()=>setStatus("Successfully changed phone number."))
+          .catch((e)=>setStatus(e.response.data.detail));
         }}
       >
         {" "}
