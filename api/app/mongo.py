@@ -74,6 +74,12 @@ def u_t(_u):
 ###### PHONE_NUMBER FUNCTIONS ########
 ###############################
 
+def register_phone_number(phone_number,username):
+    return
+
+def unregister_phone_number(phone_number,username):
+    return
+    
 def set_phone_number(phone_number,username):
     #TODO if your phone_number is not verified in a week, purge everything...
     phone_number_collection = db['web10']['phone_number']

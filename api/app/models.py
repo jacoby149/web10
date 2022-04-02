@@ -44,10 +44,6 @@ class SignUpForm(BaseModel):
     phone: str
     # change variables 
     new_pass: Optional[str] = None
-    new_username: Optional[str] = None
-    new_phone: Optional[str] = None
-
-
 
 class TokenForm(BaseModel):
     username: str

@@ -17,14 +17,12 @@ function Settings({ verified, setStatus, servicesLoad }) {
       <br></br>
       <Unlink setStatus={setStatus}></Unlink>
       <br></br>
-      <ChangeUser></ChangeUser>
-      <br></br>
       <ChangePass setStatus={setStatus}></ChangePass>
     </div>
   );
 }
 
-function Unlink({setStatus}) {
+function Unlink({ setStatus }) {
   const [phone, setPhone] = React.useState("");
   return (
     <div style={{ marginLeft: "4px" }}>
@@ -33,26 +31,31 @@ function Unlink({setStatus}) {
       Type Password to confirm :{" "}
       <input
         id="phonechange"
-        style={{ backgroundColor: "black", color: "lightgreen",marginBottom:"4px"}}
+        style={{
+          backgroundColor: "black",
+          color: "lightgreen",
+          marginBottom: "4px",
+        }}
         placeholder={"password"}
       ></input>
-
       <PhoneInput
-              country={"us"}
-              enableSearch={true}
-              inputClass={"input"}
-              dropdownStyle={{ color: "black" }}
-              value={phone}
-              onChange={(val) => {
-                setPhone(val);
-              }}
-            />
+        country={"us"}
+        enableSearch={true}
+        inputClass={"input"}
+        dropdownStyle={{ color: "black" }}
+        value={phone}
+        onChange={(val) => {
+          setPhone(val);
+        }}
+      />
       <button
         style={{ marginTop: "4px" }}
         className="button is-warning is-light is-small"
         onClick={() => {
-          wapiAuth.changeNumber(phone).then(()=>setStatus("Successfully changed phone number."))
-          .catch((e)=>setStatus(e.response.data.detail));
+          wapiAuth
+            .changePhone(document.getElementById("phonechange"), phone)
+            .then(() => setStatus("Successfully changed phone number."))
+            .catch((e) => setStatus(e.response));
         }}
       >
         {" "}
@@ -100,6 +103,14 @@ function Payment({ setStatus, servicesLoad }) {
       >
         {" "}
         Purchase Credits
+      </button>
+      <button
+        style={{ marginLeft: "5px" }}
+        className="button is-secondary is-light is-small"
+        disabled={true}
+      >
+        {" "}
+        Payouts
       </button>
     </div>
   );
@@ -160,8 +171,8 @@ function Verify({ setStatus }) {
           onClick={() =>
             wapiAuth
               .verifyCode(document.getElementById("code").value)
-              .then(()=>setStatus("success"))
-              .catch(()=>setStatus("wrong code.."))
+              .then(() => setStatus("success"))
+              .catch(() => setStatus("wrong code.."))
           }
           style={{ marginRight: "5px" }}
           className="button is-warning"

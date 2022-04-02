@@ -86,15 +86,11 @@ function wapiAuthInit(wapi) {
 
   //change functionality
   wapiAuth.changePass = function(pass,newPass){
-    return axios.post(`${api()}/change_pass`,{username:wapi.readToken()["username"],password:pass,new_pass:newPass,betacode:"blanky",email:"blanky"})
-  }
-
-  wapiAuth.changeUsername = function(pass,newUser){
-    return axios.post(`${api()}/change_user`,{username:wapi.readToken()["username"],password:pass,new_username:newUser,betacode:"blanky",email:"blanky"})
+    return axios.post(`${api()}/change_pass`,{username:wapi.readToken()["username"],password:pass,new_pass:newPass})
   }
 
   wapiAuth.changePhone= function(pass,newPhone){
-    return axios.post(`${api()}/change_phone`,{username:wapi.readToken()["username"],password:pass,new_phone:newPhone,betacode:"blanky",email:"blanky"})
+    return axios.post(`${api()}/change_phone`,{username:wapi.readToken()["username"],password:pass,new_phone:newPhone})
   }
 
 
