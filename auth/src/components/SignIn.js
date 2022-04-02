@@ -6,7 +6,7 @@ import "react-phone-input-2/lib/bootstrap.css";
 function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
   const setStatus = statusHook[1];
   const [loginMode, setLoginMode] = React.useState(true);
-  const [phone,setPhone] = React.useState("")
+  const [phone, setPhone] = React.useState("");
   return (
     <div style={{ width: "300px", marginBottom: "10px" }}>
       <div className="field">
@@ -61,39 +61,39 @@ function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
       {loginMode ? (
         ""
       ) : (
-        <div style={{ margin: "10px 10px" }}>
-          <PhoneInput
-      country={"us"}
-      enableSearch={true}
-      inputClass={"input"}
-      dropdownStyle={{color:"black"}}
-      value = {phone}
-      onChange={val=>setPhone(val)}
-    />
-          {/* <MyPhoneInput></MyPhoneInput> */}
-          {/* <div className="field">
+        <div>
+          <div className="field">
             <p
-              style={{ margin: "10px 0px" }}
+              style={{ margin: "5px 10px" }}
               className="control has-icons-left"
             >
               <input
-                id="betacode"
+                id="retypepass"
                 className="input has-background-white"
                 type="password"
-                placeholder="Beta Code"
+                placeholder="Retype Password"
               />
               <span className="icon is-small is-left">
-                <i className="fas fa-key"></i>
+                <i className="fas fa-lock"></i>
               </span>
             </p>
-          </div> */}
+          </div>
+
+          <div style={{ margin: "10px 10px" }}>
+            <PhoneInput
+              country={"us"}
+              enableSearch={true}
+              inputClass={"input"}
+              dropdownStyle={{ color: "black" }}
+              value={phone}
+              onChange={(val) => {
+                console.log(val);
+                setPhone(val);
+              }}
+            />
+          </div>
         </div>
       )}
-      {/* <div className="field">
-                  <p style = {{"margin":"5px"}} className="control has-icons-left">
-                      <input id = "confirmPassword" className="input has-background-white" type="password" placeholder="Confirm Password"/>
-                  </p>
-          </div> */}
 
       <div className="field">
         <p className="control">
@@ -115,20 +115,25 @@ function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
             </button>
           ) : (
             <button
-              onClick={() =>
+              onClick={() => {
+                const [provider, username, password, retype, phone] = [
+                  document.getElementById("provider").value,
+                  document.getElementById("username").value,
+                  document.getElementById("password").value,
+                  document.getElementById("retypepass").value,
+                  phone,
+                ];
+                if (password!==retype){
+                  setStatus("Failed to Sign Up : Passwords do not match.");
+                  return;
+                }
                 wapiAuth
-                  .signUp(
-                    document.getElementById("provider").value,
-                    document.getElementById("username").value,
-                    document.getElementById("password").value,
-                    document.getElementById("phone").value,
-                    document.getElementById("betacode").value
-                  )
+                  .signUp(provider, username, password, phone)
                   .then(() =>
                     wapiAuth.logIn(
-                      document.getElementById("provider").value,
-                      document.getElementById("username").value,
-                      document.getElementById("password").value,
+                      provider,
+                      username,
+                      password,
                       setAuthStatus,
                       (m) => setStatus(`Signed up. ${m}`)
                     )
@@ -137,8 +142,8 @@ function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
                     setStatus(
                       "Failed to Sign Up : " + error.response.data.detail
                     )
-                  )
-              }
+                  );
+              }}
               style={{ margin: "0px 5px" }}
               className="button is-info"
             >
