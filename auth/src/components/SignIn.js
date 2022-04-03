@@ -78,7 +78,6 @@ function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
               </span>
             </p>
           </div>
-
           <div style={{ margin: "10px 10px" }}>
             <PhoneInput
               country={"us"}
@@ -91,6 +90,22 @@ function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
                 setPhone(val);
               }}
             />
+          </div>
+          <div className="field">
+            <p
+              style={{ margin: "10px 10px" }}
+              className="control has-icons-left"
+            >
+              <input
+                id="betacode"
+                className="input has-background-white"
+                type="password"
+                placeholder="Beta Code"
+              />
+              <span className="icon is-small is-left">
+                <i className="fas fa-key"></i>
+              </span>
+            </p>
           </div>
         </div>
       )}
@@ -116,10 +131,11 @@ function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
           ) : (
             <button
               onClick={() => {
-                const [provider, username, password, retype] = [
+                const [provider, username, password, betacode, retype] = [
                   document.getElementById("provider").value,
                   document.getElementById("username").value,
                   document.getElementById("password").value,
+                  document.getElementById("betacode").value,
                   document.getElementById("retypepass").value
                 ];
                 if (password!==retype){
@@ -127,7 +143,7 @@ function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
                   return;
                 }
                 wapiAuth
-                  .signUp(provider, username, password, phone)
+                  .signUp(provider, username, password, betacode, phone)
                   .then(() =>
                     wapiAuth.logIn(
                       provider,

@@ -10,6 +10,7 @@ def star_record():
         "verified":False,
         "customer_id": None,
         "credits_spent":0,
+        "last_replenish": datetime.datetime(1997,12,28),
     }
 
 
