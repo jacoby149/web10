@@ -185,6 +185,7 @@ async def verify_mobile_code(token: models.Token):
     phone_number = db.get_phone_number(decoded.username)
     code = token.query["code"]
     res = mobile.check_verification(phone_number,code)
+    db.register_phone_number(phone_number,decoded.username)
     db.set_verified(decoded.username)
     return res
 
@@ -287,13 +288,16 @@ async def signup(form_data: models.SignUpForm):
 #####################################################
 ############ Web10 Routes Managed By You ############
 #####################################################
-def check_can_afford(user):
-    if not db.has_credits(user):
+def check_can_afford(user,force=False):
+    if force or not db.has_credits(user):
         if db.should_replenish(user):
             db.replenish(user)
+        # payments = pay.get_payments(user)
+        # db.pay(user)
         else :
             raise exceptions.TIME
-    if not db.has_space(user):
+    if force or not db.has_space(user):
+        #if space_sub > curr_sub
         raise exceptions.SPACE
     return True
 
@@ -301,6 +305,11 @@ def check_verified(user):
     if settings.VERIFY and not db.is_verified(user):
         raise exceptions.VERIFY
     return True
+
+def check(user,force=False):
+    # check verify first to short circuit and not give trial credits.
+    check_verified(user) and check_can_afford(user,force)
+
 def charge(resp,user,action):
     db.decrement(user,action)
     return resp
@@ -309,7 +318,7 @@ def charge(resp,user,action):
 async def create_records(user, service, token: models.Token):
     if not is_permitted(token, user, service, "create"):
         raise exceptions.CRUD
-    check_can_afford(user) and check_verified(user)
+    check(user)
     return charge(db.create(user, service, token.query),user,"create")
 
 
@@ -318,7 +327,7 @@ async def create_records(user, service, token: models.Token):
 async def read_records(user, service, token: models.Token):
     if not is_permitted(token, user, service, "read"):
         raise exceptions.CRUD
-    if service != "services" : check_can_afford(user) and check_verified(user)
+    if service != "services" : check(user)
     if token.query==None:token.query={}
     res = db.read(user, service, token.query)
     # dont charge for "services"
@@ -330,7 +339,7 @@ async def read_records(user, service, token: models.Token):
 async def update_records(user, service, token: models.Token):
     if not is_permitted(token, user, service, "update"):
         raise exceptions.CRUD
-    check_can_afford(user) and check_verified(user)
+    check(user)
     return charge(db.update(user, service, token.query, token.update),user,"update")
 
 
@@ -338,7 +347,7 @@ async def update_records(user, service, token: models.Token):
 async def delete_records(user, service, token: models.Token):
     if not is_permitted(token, user, service, "delete"):
         raise exceptions.CRUD
-    if service != "services" : check_can_afford(user) and check_verified(user)
+    if service != "services" : check(user)
     res = db.delete(user, service, token.query)
     # dont charge for "services"
     if service =="services": return res
