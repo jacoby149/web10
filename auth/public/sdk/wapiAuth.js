@@ -97,7 +97,7 @@ function wapiAuthInit(wapi) {
 
   //twilio functionality
   wapiAuth.sendCode = function(){
-    axios.post(`${api()}/send_code`,{token:wapi.token})
+    return axios.post(`${api()}/send_code`,{token:wapi.token})
   }
   wapiAuth.verifyCode = function(code){
     return axios.post(`${api()}/verify_code`,{token:wapi.token,query:{code:code}})
