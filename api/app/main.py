@@ -281,6 +281,7 @@ def kosher(s):
 @app.post("/signup")
 async def signup(form_data: models.SignUpForm):
     form_data = models.dotdict(form_data)
+    print(form_data.betacode)
     if form_data.betacode != settings.BETA_CODE:
         raise exceptions.BETA
     if not kosher(form_data.username):

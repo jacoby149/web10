@@ -124,7 +124,7 @@ function Capacity({ setStatus }) {
   var cap = "x";
   var total = 64;
   const [plan, setPlan] = React.useState(`Plan : Megabytes/mo. .. , Credits/mo. ..`);
-  const [util,setUtil] = React.useState('')
+  const [util,setUtil] = React.useState(`storage capacity utilization .. / .. MB`)
   wapiAuth
     .getPlan()
     .then((response) => {
