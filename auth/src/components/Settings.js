@@ -236,7 +236,7 @@ function Verify({ setStatus, callBack }) {
 // }
 
 // Changing username and/or password component
-function ChangePass({ setStatus,callBack }) {
+function ChangePass({ setStatus, callBack }) {
   return (
     <div style={{ marginTop: "4px", marginLeft: "4px", marginRight: "4px" }}>
       <u>Change Password</u>
@@ -270,11 +270,14 @@ function ChangePass({ setStatus,callBack }) {
           const pass = document.getElementById("regpass").value;
           const np1 = document.getElementById("newpass1").value;
           const np2 = document.getElementById("newpass2").value;
-          if (np1 == np2)
-            wapiAuth.changePass(pass, np1).then(() => {
-              setStatus("successful password change. reloading...");
-              setTimeout(() => callBack(), 1000);
-            });
+          if (np1 === np2)
+            wapiAuth
+              .changePass(pass, np1)
+              .then(() => {
+                setStatus("successful password change. reloading...");
+                setTimeout(() => callBack(), 1000);
+              })
+              .catch((e) => setStatus("Failed... : " + e.response.data.detail));
           else setStatus("retype is different.");
         }}
         className="button is-small is-info"

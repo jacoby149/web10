@@ -170,3 +170,8 @@ on reload of the star service,
 add web10.transactions [sender,reciever,service,date,amount,label]
 add web10.subscriptions / deletion in service settings.
 web10 payouts
+
+sanitize find, create, and delete via. q_t sanitation
+
+implement import
+test & deploy
