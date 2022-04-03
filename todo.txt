@@ -1,6 +1,6 @@
 implement payment_refresh, space_subscription_check
-wapi.update non atomic null arraypull option
 production stripe key env vars production
+import JSON
+Document array pulls, limitations, and wapi function additional params
 
-import
-stripe connect
+BETA

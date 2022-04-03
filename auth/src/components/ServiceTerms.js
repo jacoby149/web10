@@ -24,7 +24,9 @@ function ServiceTerms({
     setSelectedService(0);
   }
 
-  React.useEffect(() => {setAdditions({});}, [services]);
+  React.useEffect(() => {
+    setAdditions({});
+  }, [services]);
 
   const currentService = services[selectedService][0];
   const type = services[selectedService][1];
@@ -65,7 +67,11 @@ function ServiceTerms({
             color: "orange",
           }}
         >
-          {currentService["service"] === "*"?<p style={{color:"hotpink"}}>web 10 settings</p>:currentService["service"]}
+          {currentService["service"] === "*" ? (
+            <p style={{ color: "hotpink" }}>web 10 settings</p>
+          ) : (
+            currentService["service"]
+          )}
         </h1>
 
         {final}
@@ -130,15 +136,15 @@ function ServiceTerms({
  * Helper Components
  ***********************/
 
-function Field({ record, field,isStar }) {
+function Field({ record, field, isStar }) {
   var type = null;
   if (record["update"].constructor === Object) {
     if (record["update"]["type"] === "delete") type = "delete";
     else type = "obj";
   }
-  
+
   if (isStar) {
-    return <UneditableInput record={record} field={field}></UneditableInput>
+    return <UneditableInput record={record} field={field}></UneditableInput>;
   }
 
   switch (type) {
@@ -154,38 +160,67 @@ function Field({ record, field,isStar }) {
 }
 
 const StructInput = ({ record, field }) => {
-  const [type, size] = [record["update"]["type"], record["update"]["size"]];
+  const [update, setUpdate] = React.useState(record["update"]);
+  const [type, size] = [update["type"], update["size"]];
+  React.useEffect(() => setUpdate(record["update"]), [record]);
+  const value = record["value"];
+  function setRecord(v) {
+    record["update"] = v;
+    setUpdate(v);
+  }
+  function undo() {
+    return (
+      <i
+        style={{ color: "blue" }}
+        className="fas fa-undo"
+        onClick={() => setRecord(value)}
+      ></i>
+    );
+  }
+  function deleteMode() {
+    return (
+      <div style={{ marginLeft: "4px", marginTop: "4px", color: "red" }}>
+        {field} &nbsp; {undo()}
+      </div>
+    );
+  }
+  if (value!==update) return deleteMode();
   return (
     <div style={{ marginLeft: "4px", marginTop: "4px" }}>
       {field} :{" "}
       <i style={{ color: "blue" }}>
         {type === "list" ? `[${size}]↴` : `{${size}}↴`}
       </i>
+      {value["size"]!==0?"":<i
+        style={{ marginLeft:"10px" ,color: "firebrick" }}
+        className="fa fa-trash"
+        onClick={() => setRecord({ type: "delete" })}
+      ></i>}
     </div>
   );
 };
 
-const UneditableInput = ({record,field})=>{
-    const update=record["update"];
-    return (
-      <div style={{ marginLeft: "4px", marginTop: "4px" }}>
-        {field} :{" "}
-        <input
-          style={{ color: "#2ECC40" }}
-          size={String(update).length}
-          value={update}
-          readOnly
-        ></input>      
-        </div>
-    );
-}
+const UneditableInput = ({ record, field }) => {
+  const update = record["update"];
+  return (
+    <div style={{ marginLeft: "4px", marginTop: "4px" }}>
+      {field} :{" "}
+      <input
+        style={{ color: "#2ECC40" }}
+        size={String(update).length}
+        value={update}
+        readOnly
+      ></input>
+    </div>
+  );
+};
 
 //TO BE IMPLEMENTED
 const EditableInput = ({ record, field }) => {
   //hide the id field
   if (field === "_id") return <div></div>;
   const [update, setUpdate] = React.useState(record["update"]);
-  React.useEffect(()=>setUpdate(record["update"]), [record])
+  React.useEffect(() => setUpdate(record["update"]), [record]);
   const value = record["value"];
   function setRecord(v) {
     record["update"] = v;
@@ -249,7 +284,7 @@ function submitSMR(flattenedService, additions, type, servicesLoad, setStatus) {
 
 function submitUserSCR(flattenedService, additions, servicesLoad, setStatus) {
   console.log("in");
-  const SCR = { $unset: {}, $set: {}};
+  const SCR = { PULL: true, $unset: {}, $set: {} };
 
   // Update and Delete
   Object.keys(flattenedService).map(function (key) {
@@ -258,13 +293,16 @@ function submitUserSCR(flattenedService, additions, servicesLoad, setStatus) {
     const update = flattenedService[key]["update"];
     if (update.constructor === Object) {
       if (update["type"] === "delete") return (SCR["$unset"][key] = "");
-    } else return (SCR["$set"][key] = update);
+    } else {
+      console.log(update);
+      return (SCR["$set"][key] = update==="[]"?[]:update==="{}"?{}:update);}
   });
 
   // Create
   Object.keys(additions).map(function (key) {
     if (key === "_id") return;
-    return (SCR["$set"][key] = additions[key]);
+    const newV = additions[key]
+    return (SCR["$set"][key] = newV==="[]"?[]:newV==="{}"?{}:newV);
   });
 
   const q = { service: flattenedService["service"]["value"] };
