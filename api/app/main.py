@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, Request, status, BackgroundTasks
 from passlib.context import CryptContext
 from fastapi.middleware.cors import CORSMiddleware
 import requests
@@ -313,21 +313,18 @@ def check(user):
         raise exceptions.SPACE
     return True
 
-def charge(resp,user,action):
-    db.increment(user,action)
-    return resp
-
 @app.post("/{user}/{service}", tags=["web10"])
-async def create_records(user, service, token: models.Token):
+async def create_records(user, service, token: models.Token,b_t:BackgroundTasks):
     if not is_permitted(token, user, service, "create"):
         raise exceptions.CRUD
     check(user)
-    return charge(db.create(user, service, token.query),user,"create")
-
+    res = db.create(user, service, token.query)
+    b_t.add_task(db.charge,user,"create")
+    return res
 
 # web10 uses patch for get in CRUD since get requests can't have a secure body
 @app.patch("/{user}/{service}", tags=["web10"])
-async def read_records(user, service, token: models.Token):
+async def read_records(user, service, token: models.Token,b_t:BackgroundTasks):
     if not is_permitted(token, user, service, "read"):
         raise exceptions.CRUD
     if service != "services" : check(user)
@@ -335,24 +332,28 @@ async def read_records(user, service, token: models.Token):
     res = db.read(user, service, token.query)
     # dont charge for "services"
     if service =="services": return res
-    return charge(res,user,"read")
+    b_t.add_task(db.charge,user,"read")
+    return res
 
 
 @app.put("/{user}/{service}", tags=["web10"])
-async def update_records(user, service, token: models.Token):
+async def update_records(user, service, token: models.Token,b_t:BackgroundTasks):
     if not is_permitted(token, user, service, "update"):
         raise exceptions.CRUD
     check(user)
-    return charge(db.update(user, service, token.query, token.update),user,"update")
+    res = db.update(user, service, token.query, token.update)
+    b_t.add_task(db.charge,user,"update")
+    return res
+
 
 
 @app.delete("/{user}/{service}", tags=["web10"])
-async def delete_records(user, service, token: models.Token):
+async def delete_records(user, service, token: models.Token,b_t:BackgroundTasks):
     if not is_permitted(token, user, service, "delete"):
         raise exceptions.CRUD
     if service != "services" : check(user)
     res = db.delete(user, service, token.query)
     # dont charge for "services"
     if service =="services": return res
-    return charge(res,user,"delete")
-
+    b_t.add_task(db.charge,user,"delete")
+    return res
