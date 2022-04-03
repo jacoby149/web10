@@ -201,7 +201,7 @@ const StructInput = ({ record, field }) => {
 };
 
 const UneditableInput = ({ record, field }) => {
-  if (field === "_id") return <div></div>;
+  if (["_id","hashed_password","customer_id","service"].includes(field)) return <div></div>;
   const update = record["update"];
   return (
     <div style={{ marginLeft: "4px", marginTop: "4px" }}>
