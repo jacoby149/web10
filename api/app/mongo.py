@@ -309,7 +309,7 @@ def get_approved(username, provider, owner, service, action):
 ### Balance Tracking
 ######################
 
-def increment(user, action):
+def charge(user, action):
     query = q_t({"service": "*"},"services")
     cost = settings.COST[action]
     update = u_t({"$inc": {"credits_spent": cost}})
