@@ -319,8 +319,8 @@ def get_collection_size(user):
     return db.command("collstats", user)["size"]
 
 # finds if a user is out of units
-def spent_credits(user):
-    return get_star(user)["spent_credits"]
+def get_spent_credits(user):
+    return get_star(user)["credits_spent"]
 
 #############
 # Imbursing

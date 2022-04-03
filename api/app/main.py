@@ -290,10 +290,12 @@ async def signup(form_data: models.SignUpForm):
 #####################################################
 
 def get_space(user):
-    return pay.space(user) + settings.FREE_SPACE * 1024
+    customer_id = mget_customer_id(user)
+    return pay.space(customer_id) + settings.FREE_SPACE * 1024
 
 def get_credits(user):
-    return pay.credit(user) + settings.FREE_CREDITS
+    customer_id = mget_customer_id(user)
+    return pay.credit(customer_id) + settings.FREE_CREDITS
 
 # fetches payments and checks if user can afford an operation.
 def check_can_afford(user):
