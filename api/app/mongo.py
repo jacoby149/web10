@@ -197,7 +197,14 @@ def read(user, service, query):
     return records
 
 
-def update(user, service, query, update, pull=False):
+def update(user, service, query, update):
+    # check if the update is with array pulls
+    pull = False
+    if "PULL" in update:
+        if update["PULL"]==True:
+            pull = True
+        del update["PULL"]
+
     if "_id" in query:
         query["_id"] = ObjectId(query["_id"])
 
