@@ -14,11 +14,6 @@ subscription = [{
     "price":settings.STRIPE_SPACE_SUB_ID,"quantity":1,"adjustable_quantity": {
         'enabled': True}
     }]
-purchase = [{
-    "price":settings.STRIPE_CREDIT_ID,"quantity":1,'adjustable_quantity': {
-        'enabled': True,}
-    }]
-
 
 ############################################
 # customer payment / subscription management
@@ -77,9 +72,6 @@ def manage_space(customer_id):
 def manage_credits(customer_id):
     return manage_subscription(customer_id,settings.STRIPE_CREDIT_SUB_ID)
 
-def purchase_credits(customer_id):
-    return create_checkout_session(customer_id,settings.STRIPE_CREDIT_ID,"payment")
-
 ##################################
 # payment registration functions
 ##################################
@@ -88,14 +80,18 @@ def purchase_credits(customer_id):
 def space(customer_id):
     sub_data = get_active_subscription_data(customer_id)
     prices = sub_price_ids(sub_data)
-    idx = prices.find(settings.STRIPE_SPACE_ID)
-    if idx == -1 : return settings.FREE_SPACE * 1024 * 1024
+    idx = -1 
+    if settings.STRIPE_SPACE_SUB_ID in prices:
+        idx = prices.index(settings.STRIPE_SPACE_SUB_ID)
+    if idx == -1 : return 0
     return sub_data[idx]["price"]["quantity"] * 1024 * 1024 * 1024
 
 # gets amount of credits in the customers credit plan
 def credit(customer_id):
     sub_data = get_active_subscription_data(customer_id)
     prices = sub_price_ids(sub_data)
-    idx = prices.find(settings.STRIPE_CREDIT_ID)
+    idx = -1 
+    if settings.STRIPE_CREDIT_SUB_ID in prices:
+        idx = prices.index(settings.STRIPE_CREDIT_SUB_ID)
     if idx == -1 : return 0
     return sub_data[idx]["price"]["quantity"]
