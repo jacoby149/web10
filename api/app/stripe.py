@@ -29,11 +29,15 @@ def make_customer():
     )
     return customer["id"]
 
-def get_active_subscription_prices(customer_id):
+def get_active_subscription_data(customer_id):
     customer = stripe.Customer.retrieve(customer_id, expand=['subscriptions'])
     if "subscriptions" not in customer : return []
     subscriptions = customer["subscriptions"]
-    return [sub["items"]["data"][0]["price"]["id"] for sub in subscriptions]
+    return [sub["items"]["data"][0] for sub in subscriptions]
+
+
+def sub_price_ids(sub_data):
+    return [sub["price"]["id"] for sub in sub_data]
 
 def create_checkout_session(customer_id,price_id,mode="subscription"):
 
@@ -62,7 +66,7 @@ def create_portal_session(customer_id):
 
 # helper function for subscriptions
 def manage_subscription(customer_id,price):
-    prices = get_active_subscription_prices(customer_id)
+    prices = sub_price_ids(get_active_subscription_data(customer_id))
     if price in prices:
         return create_portal_session(customer_id)
     return create_checkout_session(customer_id,price,"subscription")
@@ -75,3 +79,23 @@ def manage_credits(customer_id):
 
 def purchase_credits(customer_id):
     return create_checkout_session(customer_id,settings.STRIPE_CREDIT_ID,"payment")
+
+##################################
+# payment registration functions
+##################################
+
+# gets amount of space in the customers space plan
+def space(customer_id):
+    sub_data = get_active_subscription_data(customer_id)
+    prices = sub_price_ids(sub_data)
+    idx = prices.find(settings.STRIPE_SPACE_ID)
+    if idx == -1 : return settings.FREE_SPACE * 1024 * 1024
+    return sub_data[idx]["price"]["quantity"] * 1024 * 1024 * 1024
+
+# gets amount of credits in the customers credit plan
+def credit(customer_id):
+    sub_data = get_active_subscription_data(customer_id)
+    prices = sub_price_ids(sub_data)
+    idx = prices.find(settings.STRIPE_CREDIT_ID)
+    if idx == -1 : return 0
+    return sub_data[idx]["price"]["quantity"]

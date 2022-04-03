@@ -267,10 +267,9 @@ def set_customer_id(user,customer_id):
         u_t({"$set":{"customer_id":customer_id}})
     )
 
-##########################
-### General Protection ###
-##########################
-
+###############################
+### Service Term Enforcement ##
+###############################
 
 def is_in_cross_origins(site, username, service):
     record = get_term_record(username,service)
@@ -306,45 +305,23 @@ def get_approved(username, provider, owner, service, action):
     return not (on_blacklist) and on_whitelist
 
 
-###################
-### Limits #######
-#################
-
+######################
+### Balance Tracking
+######################
 
 def decrement(user, action):
     query = q_t({"service": "*"},"services")
     cost = settings.COST[action]
-    print(cost)
-    update = u_t({"$inc": {"credits": - cost}})
+    update = u_t({"$inc": {"credits_spent": cost}})
     db[f"{user}"].update_one(query, update)
-
-def should_replenish(user):
-    # user would have to exist at this point ..
-    star = get_star(user)
-    return star["last_replenish"].month != datetime.datetime.now().month
-
-def replenish(user):    
-    query = q_t({"service": "*"},"services")    
-    update = u_t({
-            "$max": {
-                "credits": settings.FREE_CREDITS,
-            },
-            "$currentDate": {"last_replenish": True},
-        })
-    db[f"{user}"].update_one(query,update)
 
 def get_collection_size(user):
     return db.command("collstats", user)["size"]
 
-
 # finds if a user is out of units
-def has_credits(user):
-    return get_star(user)["credits"] >= 0
+def spent_credits(user):
+    return get_star(user)["spent_credits"]
 
-
-# computes if a user is out of dbspace
-def has_space(user):
-    use = get_collection_size(user)
-    star = get_star(user)
-    amt = star["storage_capacity_mb"] * 1024 * 1024
-    return amt > use
+#############
+# Imbursing
+#############

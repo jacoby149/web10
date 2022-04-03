@@ -110,9 +110,6 @@ function wapiAuthInit(wapi) {
   wapiAuth.manage_credits = function(subscription=false){
     return axios.post(`${api()}/manage_credits`,{token:wapi.token})
   }
-  wapiAuth.purchase_credits = function(subscription=false){
-    return axios.post(`${api()}/purchase_credits`,{token:wapi.token})
-  }
 
   //output the wapiAuth object
   return wapiAuth;

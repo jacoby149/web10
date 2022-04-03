@@ -9,11 +9,7 @@ def star_record():
         "phone_number": "PHONE_NUMBER",
         "verified":False,
         "customer_id": None,
-        "storage_capacity_mb":settings.FREE_SPACE,
-        "credits":0,
-        "last_replenish": datetime.datetime(1997,12,28),
-        # no whitelist or blacklist...
-        # this is a web10 exclusive document.
+        "credits_spent":0,
     }
 
 
