@@ -6,7 +6,7 @@ var wapiAuth = window.wapiAuth;
 
 function Settings({ verified, setStatus, servicesLoad }) {
   return (
-    <div style={{ marginLeft: "5px" }}>
+    <div style={{ marginLeft: "5px", marginBottom:"10px" }}>
       <Capacity setStatus={setStatus}></Capacity>
       {verified ? (
         <Payment setStatus={setStatus} servicesLoad={servicesLoad}></Payment>
