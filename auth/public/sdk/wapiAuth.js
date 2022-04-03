@@ -52,11 +52,12 @@ function wapiAuthInit(wapi) {
   };
 
   //sign up for a new web10 account
-  wapiAuth.signUp = function (provider, username, password, phone) {
+  wapiAuth.signUp = function (provider, username, password, betacode, phone) {
     return axios
       .post(`${wapi.defaultAPIProtocol}//${provider}/signup`, {
         username: username,
         password: password,
+        betacode:betacode,
         phone: phone,
       })
   };

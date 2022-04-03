@@ -281,6 +281,8 @@ def kosher(s):
 @app.post("/signup")
 async def signup(form_data: models.SignUpForm):
     form_data = models.dotdict(form_data)
+    if form_data.betacode != settings.BETA_CODE:
+        raise exceptions.BETA
     if not kosher(form_data.username):
         raise exceptions.BAD_USERNAME
     return db.create_user(form_data, get_password_hash)
@@ -305,6 +307,8 @@ def get_credits(user):
 
 # fetches payments and checks if user can afford an operation.
 def check_can_afford(user):
+    if db.should_replenish(user):
+        db.replenish(user)
     if get_credits(user) < db.get_spent_credits(user):
         raise exceptions.TIME    
     if get_space(user) < db.get_collection_size(user):
@@ -321,7 +325,7 @@ def check(user):
     check_verified(user) and check_can_afford(user)
 
 def charge(resp,user,action):
-    db.decrement(user,action)
+    db.increment(user,action)
     return resp
 
 @app.post("/{user}/{service}", tags=["web10"])

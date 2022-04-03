@@ -309,11 +309,26 @@ def get_approved(username, provider, owner, service, action):
 ### Balance Tracking
 ######################
 
-def decrement(user, action):
+def increment(user, action):
     query = q_t({"service": "*"},"services")
     cost = settings.COST[action]
     update = u_t({"$inc": {"credits_spent": cost}})
     db[f"{user}"].update_one(query, update)
+
+def should_replenish(user):
+    # user would have to exist at this point ..
+    star = get_star(user)
+    return star["last_replenish"].month != datetime.datetime.now().month
+
+def replenish(user):    
+    query = q_t({"service": "*"},"services")    
+    update = u_t({
+            "$max": {
+                "credits_spent": 0,
+            },
+            "$currentDate": {"last_replenish": True},
+        })
+    db[f"{user}"].update_one(query,update)
 
 def get_collection_size(user):
     return db.command("collstats", user)["size"]
@@ -321,7 +336,3 @@ def get_collection_size(user):
 # finds if a user is out of units
 def get_spent_credits(user):
     return get_star(user)["credits_spent"]
-
-#############
-# Imbursing
-#############

@@ -84,7 +84,8 @@ def space(customer_id):
     if settings.STRIPE_SPACE_SUB_ID in prices:
         idx = prices.index(settings.STRIPE_SPACE_SUB_ID)
     if idx == -1 : return 0
-    return sub_data[idx]["price"]["quantity"] * 1024 * 1024 * 1024
+    print(sub_data[idx])
+    return sub_data[idx]["quantity"] * 1024 * 1024
 
 # gets amount of credits in the customers credit plan
 def credit(customer_id):
@@ -94,4 +95,4 @@ def credit(customer_id):
     if settings.STRIPE_CREDIT_SUB_ID in prices:
         idx = prices.index(settings.STRIPE_CREDIT_SUB_ID)
     if idx == -1 : return 0
-    return sub_data[idx]["price"]["quantity"]
+    return sub_data[idx]["quantity"]
