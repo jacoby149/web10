@@ -106,7 +106,15 @@ function Payment({ setStatus, servicesLoad }) {
         disabled={true}
       >
         {" "}
-        Payouts
+        Wires
+      </button>
+      <button
+        style={{ marginLeft: "5px" }}
+        className="button is-secondary is-light is-small"
+        disabled={true}
+      >
+        {" "}
+        DevPay
       </button>
     </div>
   );

@@ -220,8 +220,8 @@ function App() {
         <R tel />
         <R l ns s={"240px"}>
           <Auth></Auth>
-          <Icon onClick={()=>{setMode("auth")}}>user-circle</Icon>
           <Icon onClick={toggleTheme}>moon</Icon>
+          <Icon onClick={()=>{setMode("auth")}}>user-circle</Icon>
           <Icon onClick={()=>{setSelectedService(0);setMode("services")}}>cog</Icon>
         </R>
       </R>
@@ -245,9 +245,9 @@ function App() {
             <C s={"100px"}>
               <h4>Services: </h4>
             </C>
-            <T tel ns>
-              {/* Search... */}
-            </T>
+            {/* <T tel ns>
+               Search...
+            </T> */}
           </R>
 
           <Services services={services}></Services>

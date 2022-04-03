@@ -1,8 +1,9 @@
-put beta code back on
-hide approve deny buttons unless there are changes
-production stripe key env vars production
 Document array pulls, limitations, and wapi function additional params
   - when adding lists and dicts, must add them empty, then fill them up.
   - dicts cant have numerical keys
 
+implement mget account
+implement devpay button [make account]
+implement wire requests
+implement manage web10 wires
 stripe connect
