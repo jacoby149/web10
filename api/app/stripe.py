@@ -76,23 +76,20 @@ def manage_credits(customer_id):
 # payment registration functions
 ##################################
 
-# gets amount of space in the customers space plan
-def space(customer_id):
+# get credits and space in customers plans
+def credit_space(customer_id):
     sub_data = get_active_subscription_data(customer_id)
     prices = sub_price_ids(sub_data)
-    idx = -1 
-    if settings.STRIPE_SPACE_SUB_ID in prices:
-        idx = prices.index(settings.STRIPE_SPACE_SUB_ID)
-    if idx == -1 : return 0
-    print(sub_data[idx])
-    return sub_data[idx]["quantity"] * 1024 * 1024
-
-# gets amount of credits in the customers credit plan
-def credit(customer_id):
-    sub_data = get_active_subscription_data(customer_id)
-    prices = sub_price_ids(sub_data)
-    idx = -1 
+    cidx = -1 
     if settings.STRIPE_CREDIT_SUB_ID in prices:
-        idx = prices.index(settings.STRIPE_CREDIT_SUB_ID)
-    if idx == -1 : return 0
-    return sub_data[idx]["quantity"]
+        cidx = prices.index(settings.STRIPE_CREDIT_SUB_ID)
+        c = sub_data[cidx]["quantity"]  + settings.FREE_CREDITS
+    if cidx == -1 : c = settings.FREE_CREDITS
+
+    sidx = -1 
+    if settings.STRIPE_SPACE_SUB_ID in prices:
+        sidx = prices.index(settings.STRIPE_SPACE_SUB_ID)
+        s = sub_data[sidx]["quantity"] * 1024 + settings.FREE_SPACE 
+    if sidx == -1 : s = settings.FREE_SPACE
+    
+    return c,s

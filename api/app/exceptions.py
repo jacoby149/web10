@@ -90,3 +90,20 @@ NOT_ADMIN = HTTPException(
     headers={"WWW-Authenticate": "Basic"},
 )
 
+VERIFY = HTTPException(
+    status_code=status.HTTP_401_UNAUTHORIZED,
+    detail="please verify your phone number to do that.",
+    headers={"WWW-Authenticate": "Basic"},
+)
+
+TIME = HTTPException(
+    status_code=status.HTTP_401_UNAUTHORIZED,
+    detail="ran out of credits",
+    headers={"WWW-Authenticate": "Basic"},
+)
+
+SPACE = HTTPException(
+    status_code=status.HTTP_401_UNAUTHORIZED,
+    detail="ran out of space",
+    headers={"WWW-Authenticate": "Basic"},
+)

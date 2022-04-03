@@ -121,15 +121,13 @@ function Payment({ setStatus, servicesLoad }) {
 }
 
 function Capacity({ setStatus }) {
-  var cap = "x";
-  var total = 64;
   const [plan, setPlan] = React.useState(`MB/mo. .. , Credits/mo. ..`);
   const [util,setUtil] = React.useState(`Storage Utilization : .. / .. MB`)
   wapiAuth
     .getPlan()
     .then((response) => {
       const data = response.data;
-      const [space,credit,used] = [parseFloat(data["space"]/1024).toFixed(2),data["credits"],parseFloat(data["used_space"]/1024).toFixed(2)]
+      const [space,credit,used] = [parseFloat(data["space"]).toFixed(2),data["credits"],parseFloat(data["used_space"]).toFixed(2)]
       setPlan(`MB/mo. ${space} , Credits/mo. ${credit}`);
       setUtil(`Storage Utilization : ${used}/${space} MB`)
     })

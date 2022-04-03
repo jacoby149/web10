@@ -292,38 +292,26 @@ async def signup(form_data: models.SignUpForm):
 def get_plan(token: models.Token):
     check_admin(token)    
     user = decode_token(token.token).username
-    return {"space":get_space(user),"credits":get_credits(user),"used_space":db.get_collection_size(user)}
+    star = db.get_star(user)
+    credit,space = pay.credit_space(star["customer_id"])
+    db.subscription_update(user,credit,space)
+    return {"space":space,"credits":credit,"used_space":db.get_collection_size(user)}
 
 #####################################################
 ############ Web10 Routes Managed By You ############
 #####################################################
 
-def get_space(user):
-    customer_id = mget_customer_id(user)
-    return pay.space(customer_id) + settings.FREE_SPACE * 1024
-
-def get_credits(user):
-    customer_id = mget_customer_id(user)
-    return pay.credit(customer_id) + settings.FREE_CREDITS
-
-# fetches payments and checks if user can afford an operation.
-def check_can_afford(user):
-    if db.should_replenish(user):
+def check(user):
+    star = db.get_star(user)
+    if settings.VERIFY and not star["verified"]:
+        raise exceptions.VERIFY
+    if star["last_replenish"].month != datetime.now().month:
         db.replenish(user)
-    if get_credits(user) < db.get_spent_credits(user):
-        raise exceptions.TIME    
-    if get_space(user) < db.get_collection_size(user):
+    if star["credit_limit"] < star["credits_spent"]:
+        raise exceptions.TIME
+    if star["space_limit"] < db.get_collection_size(user):
         raise exceptions.SPACE
     return True
-
-def check_verified(user):
-    if settings.VERIFY and not db.is_verified(user):
-        raise exceptions.VERIFY
-    return True
-
-def check(user):
-    # check verify first to short circuit and not give trial credits.
-    check_verified(user) and check_can_afford(user)
 
 def charge(resp,user,action):
     db.increment(user,action)

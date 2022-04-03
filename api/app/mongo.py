@@ -228,7 +228,7 @@ def delete(user, service, query):
     if star_selected(user, service, query):
         raise exceptions.STAR
     query=q_t(query,service)
-    db[f"{user}"].delete_many(query)
+    db[f"{user}"].delete_one(query)
     return "success"
 
 
@@ -315,11 +315,6 @@ def increment(user, action):
     update = u_t({"$inc": {"credits_spent": cost}})
     db[f"{user}"].update_one(query, update)
 
-def should_replenish(user):
-    # user would have to exist at this point ..
-    star = get_star(user)
-    return star["last_replenish"].month != datetime.datetime.now().month
-
 def replenish(user):    
     query = q_t({"service": "*"},"services")    
     update = u_t({
@@ -330,9 +325,15 @@ def replenish(user):
         })
     db[f"{user}"].update_one(query,update)
 
-def get_collection_size(user):
-    return db.command("collstats", user)["size"]
+def subscription_update(user,c,s):    
+    query = q_t({"service": "*"},"services")    
+    update = u_t({
+            "$set": {
+                "credit_limit": c,
+                "space_limit": s,
+            },
+        })
+    db[f"{user}"].update_one(query,update)
 
-# finds if a user is out of units
-def get_spent_credits(user):
-    return get_star(user)["credits_spent"]
+def get_collection_size(user):
+    return db.command("collstats", user)["size"]/1024

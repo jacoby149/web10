@@ -144,7 +144,7 @@ function Field({ record, field, isStar }) {
   }
 
   if (isStar) {
-    return <UneditableInput record={record} field={field}></UneditableInput>;
+    return <StarInput record={record} field={field}></StarInput>;
   }
 
   switch (type) {
@@ -184,24 +184,29 @@ const StructInput = ({ record, field }) => {
       </div>
     );
   }
-  if (value!==update) return deleteMode();
+  if (value !== update) return deleteMode();
   return (
     <div style={{ marginLeft: "4px", marginTop: "4px" }}>
       {field} :{" "}
       <i style={{ color: "blue" }}>
         {type === "list" ? `[${size}]↴` : `{${size}}↴`}
       </i>
-      {value["size"]!==0?"":<i
-        style={{ marginLeft:"10px" ,color: "firebrick" }}
-        className="fa fa-trash"
-        onClick={() => setRecord({ type: "delete" })}
-      ></i>}
+      {value["size"] !== 0 ? (
+        ""
+      ) : (
+        <i
+          style={{ marginLeft: "10px", color: "firebrick" }}
+          className="fa fa-trash"
+          onClick={() => setRecord({ type: "delete" })}
+        ></i>
+      )}
     </div>
   );
 };
 
-const UneditableInput = ({ record, field }) => {
-  if (["_id","hashed_password","customer_id","service"].includes(field)) return <div></div>;
+const StarInput = ({ record, field }) => {
+  if (["_id", "hashed_password", "customer_id", "service","credit_limit","space_limit"].includes(field))
+    return <div></div>;
   const update = record["update"];
   return (
     <div style={{ marginLeft: "4px", marginTop: "4px" }}>
@@ -296,14 +301,16 @@ function submitUserSCR(flattenedService, additions, servicesLoad, setStatus) {
       if (update["type"] === "delete") return (SCR["$unset"][key] = "");
     } else {
       console.log(update);
-      return (SCR["$set"][key] = update==="[]"?[]:update==="{}"?{}:update);}
+      return (SCR["$set"][key] =
+        update === "[]" ? [] : update === "{}" ? {} : update);
+    }
   });
 
   // Create
   Object.keys(additions).map(function (key) {
     if (key === "_id") return;
-    const newV = additions[key]
-    return (SCR["$set"][key] = newV==="[]"?[]:newV==="{}"?{}:newV);
+    const newV = additions[key];
+    return (SCR["$set"][key] = newV === "[]" ? [] : newV === "{}" ? {} : newV);
   });
 
   const q = { service: flattenedService["service"]["value"] };
