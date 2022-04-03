@@ -40,7 +40,8 @@
   <!-- stripe payment  -->
   <script src="https://js.stripe.com/v3/"></script>
   <script>
-    const stripe = Stripe("pk_test_51KhyuiFGm9S2yiuxFIRwJgWcP4FacHcU0yJPnz8KLNOK9nNOBX2uTDyyg6AS2y4Li64I5K4kaZVizXNR0L0I6XkF00TeLBKlSI");
+    if (window.location.hostname === "auth.localhost"){const stripe = Stripe("pk_test_51KhyuiFGm9S2yiuxFIRwJgWcP4FacHcU0yJPnz8KLNOK9nNOBX2uTDyyg6AS2y4Li64I5K4kaZVizXNR0L0I6XkF00TeLBKlSI");}
+    else {const stripe = Stripe("pk_live_51KhyuiFGm9S2yiuxJ9ySMLHQGVqOg247eJAvKVgC0GG4bxxfkacirkZ9kCLBIcVtEH8XjnUOYiOXkim200ICMkSE00MBIS0CRk");}
   </script>
 </head>
 
