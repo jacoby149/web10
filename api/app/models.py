@@ -14,6 +14,7 @@ class Token(BaseModel):
     token: str
     query: Optional[dict] = None
     update: Optional[dict] = None
+    pull: Optional[dict] = None
 
 
 class TokenData(BaseModel):
@@ -41,7 +42,7 @@ class TokenData(BaseModel):
 class SignUpForm(BaseModel):
     username: str
     password: str
-    phone: str
+    phone: Optional[str] = None
     # change variables 
     new_pass: Optional[str] = None
 

@@ -1,7 +1,6 @@
-do timed reloading on settings successes
-settings remove updatable fields
-write changephone
-implement import
-pay stripe subs and payments to users on * load
+implement payment_refresh, space_subscription_check
+wapi.update non atomic null arraypull option
 production stripe key env vars production
-test & deploy
+
+import
+stripe connect

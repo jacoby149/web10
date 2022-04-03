@@ -67,8 +67,21 @@ def u_t(_u):
     for op in _u:
         u[op] = {}
         for field in _u[op]:
+            if "$" in "".join(u[op].keys()): raise exceptions.DB_NOT_ALLOWED #dont let fancy updates work yet.
             u[op][to_db_field(field)] = _u[op][field]
     return u
+
+# assumes number fields are only in arrays.
+def get_pull(u):
+    pull = {"$pull":{}}
+    if "$unset" not in u:
+        raise exceptions.BAD_PULL
+    for field in u["$unset"]:
+        split = field.split(".")
+        if split[-1].isdigit(): #is it an array index
+            new_field=".".join(split[0:-1])
+            pull["$pull"][new_field] = None
+    return pull
 
 ###############################
 ###### PHONE_NUMBER FUNCTIONS ########
@@ -184,7 +197,7 @@ def read(user, service, query):
     return records
 
 
-def update(user, service, query, update):
+def update(user, service, query, update, pull=False):
     if "_id" in query:
         query["_id"] = ObjectId(query["_id"])
 
@@ -197,7 +210,8 @@ def update(user, service, query, update):
                 raise exceptions.DSTAR
     query=q_t(query,service)
     update=u_t(update)
-    db[f"{user}"].update_one(query, update)
+    db[user].update_one(query, update)
+    if pull : db[user].update_one(query, get_pull(update))
     return "success"
 
 

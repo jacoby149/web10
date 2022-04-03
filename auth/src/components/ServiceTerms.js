@@ -249,7 +249,7 @@ function submitSMR(flattenedService, additions, type, servicesLoad, setStatus) {
 
 function submitUserSCR(flattenedService, additions, servicesLoad, setStatus) {
   console.log("in");
-  const SCR = { $unset: {}, $set: {} };
+  const SCR = { $unset: {}, $set: {}};
 
   // Update and Delete
   Object.keys(flattenedService).map(function (key) {
