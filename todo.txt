@@ -1,7 +1,5 @@
-web10 plan display credits and space, and utilization
 production stripe key env vars production
 put the beta code back on
-import JSON
 Document array pulls, limitations, and wapi function additional params
   - when adding lists and dicts, must add them empty, then fill them up.
   - dicts cant have numerical keys

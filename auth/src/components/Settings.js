@@ -7,7 +7,7 @@ var wapiAuth = window.wapiAuth;
 function Settings({ verified, setStatus, servicesLoad }) {
   return (
     <div style={{ marginLeft: "5px" }}>
-      <Capacity></Capacity>
+      <Capacity setStatus={setStatus}></Capacity>
       {verified ? (
         <Payment setStatus={setStatus} servicesLoad={servicesLoad}></Payment>
       ) : (
@@ -112,26 +112,32 @@ function Payment({ setStatus, servicesLoad }) {
   );
 }
 
-function Capacity() {
+function Capacity({ setStatus }) {
   var cap = "x";
   var total = 64;
+  const [plan, setPlan] = React.useState(`Plan : Megabytes/mo. .. , Credits/mo. ..`);
+  const [util,setUtil] = React.useState('')
+  wapiAuth
+    .getPlan()
+    .then((response) => {
+      const data = response.data;
+      const [space,credit,used] = [parseFloat(data["space"]/1024).toFixed(2),data["credits"],parseFloat(data["used_space"]/1024).toFixed(2)]
+      setPlan(`Plan : Megabytes/mo. ${space} , Credits/mo. ${credit}`);
+      setUtil(`storage capacity utilization ${used}/${space} MB`)
+    })
+    .catch((e) => setStatus("Failed to get plan info..."));
   return (
     <div style={{ marginLeft: "3px" }}>
-      <input
-        style={{ width: "230px" }}
-        placeholder={`plan : web 10 free tier`}
-        readOnly
-      ></input>
+      <input size={plan.length} placeholder={plan} readOnly></input>
       <br></br>
       <p
         style={{
           marginLeft: "2px",
-          width: "300px",
           color: "gray",
           fontFamily: "monospace",
         }}
       >
-        storage capacity utilization : {cap}/{total} mb
+        {util}
       </p>
     </div>
   );
@@ -158,7 +164,12 @@ function Verify({ setStatus, callBack }) {
         <button
           style={{ marginRight: "5px" }}
           className="button is-small is-light is-warning"
-          onClick={() => wapiAuth.sendCode().then(()=>setStatus("Sent Code!!!")).catch(()=>setStatus("Failed to send code."))}
+          onClick={() =>
+            wapiAuth
+              .sendCode()
+              .then(() => setStatus("Sent Code!!!"))
+              .catch(() => setStatus("Failed to send code."))
+          }
         >
           {" "}
           Send Code{" "}
