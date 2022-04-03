@@ -111,6 +111,10 @@ function wapiAuthInit(wapi) {
     return axios.post(`${api()}/manage_credits`,{token:wapi.token})
   }
 
+  wapiAuth.getPlan = function(){
+    return axios.post(`${api()}/get_plan`,{token:wapi.token})
+  }
+
   //output the wapiAuth object
   return wapiAuth;
 }

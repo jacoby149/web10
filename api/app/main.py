@@ -285,6 +285,12 @@ async def signup(form_data: models.SignUpForm):
         raise exceptions.BAD_USERNAME
     return db.create_user(form_data, get_password_hash)
 
+@app.post("/get_plan",include_in_schema=False)
+def get_plan(token: models.Token):
+    check_admin(token)    
+    user = decode_token(token.token).username
+    return {"space":get_space(user),"credits":get_credits(user),"used_space":db.get_collection_size(user)}
+
 #####################################################
 ############ Web10 Routes Managed By You ############
 #####################################################
