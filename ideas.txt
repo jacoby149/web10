@@ -175,3 +175,7 @@ sanitize find, create, and delete via. q_t sanitation
 
 implement import
 test & deploy
+
+i want to only check for payments if it is necessary
+    - looking at the * OR
+    - out of credits

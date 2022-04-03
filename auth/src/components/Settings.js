@@ -102,18 +102,6 @@ function Payment({ setStatus, servicesLoad }) {
       </button>
       <button
         style={{ marginLeft: "5px" }}
-        className="button is-info is-light is-small"
-        onClick={() => {
-          wapiAuth.purchase_credits().then((response) => {
-            window.location.href = response.data;
-          });
-        }}
-      >
-        {" "}
-        Purchase Credits
-      </button>
-      <button
-        style={{ marginLeft: "5px" }}
         className="button is-secondary is-light is-small"
         disabled={true}
       >
@@ -170,7 +158,7 @@ function Verify({ setStatus, callBack }) {
         <button
           style={{ marginRight: "5px" }}
           className="button is-small is-light is-warning"
-          onClick={() => wapiAuth.sendCode().then(()=>setStatus("Sent Code!!!").catch(()=>setStatus("Failed to send code.")))}
+          onClick={() => wapiAuth.sendCode().then(()=>setStatus("Sent Code!!!")).catch(()=>setStatus("Failed to send code."))}
         >
           {" "}
           Send Code{" "}

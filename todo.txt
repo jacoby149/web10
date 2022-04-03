@@ -1,6 +1,5 @@
-sendcode success notification
-implement payment_refresh, 
-space check (entirely via stripe)
+switch to credits_spent model counting up
+write and implement new function stubs
 production stripe key env vars production
 import JSON
 

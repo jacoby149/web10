@@ -288,16 +288,18 @@ async def signup(form_data: models.SignUpForm):
 #####################################################
 ############ Web10 Routes Managed By You ############
 #####################################################
-def check_can_afford(user,force=False):
-    if force or not db.has_credits(user):
-        if db.should_replenish(user):
-            db.replenish(user)
-        # payments = pay.get_payments(user)
-        # db.pay(user)
-        else :
-            raise exceptions.TIME
-    if force or not db.has_space(user):
-        #if space_sub > curr_sub
+
+def get_space(user):
+    return pay.space(user) + settings.FREE_SPACE * 1024
+
+def get_credits(user):
+    return pay.credit(user) + settings.FREE_CREDITS
+
+# fetches payments and checks if user can afford an operation.
+def check_can_afford(user):
+    if get_credits(user) < db.get_spent_credits(user):
+        raise exceptions.TIME    
+    if get_space(user) < db.get_collection_size(user):
         raise exceptions.SPACE
     return True
 
@@ -306,9 +308,9 @@ def check_verified(user):
         raise exceptions.VERIFY
     return True
 
-def check(user,force=False):
+def check(user):
     # check verify first to short circuit and not give trial credits.
-    check_verified(user) and check_can_afford(user,force)
+    check_verified(user) and check_can_afford(user)
 
 def charge(resp,user,action):
     db.decrement(user,action)
