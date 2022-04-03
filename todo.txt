@@ -1,6 +1,15 @@
-implement payment_refresh, space_subscription_check
+sendcode success notification
+implement payment_refresh, 
+space check (entirely via stripe)
 production stripe key env vars production
 import JSON
+
 Document array pulls, limitations, and wapi function additional params
+  - when adding lists and dicts, must add them empty, then fill them up.
+  - dicts cant have numerical keys
 
 BETA
+
+implement wires
+implement rewires
+implement payouts
