@@ -244,7 +244,7 @@ function App() {
       {/* This is the root rectangle ^^^ */}
 
       {/* Top Pane */}
-      <R l bb s={"70px"}>
+      <R ns l bb s={"70px"}>
         <Branding />
         <Icon
           l
