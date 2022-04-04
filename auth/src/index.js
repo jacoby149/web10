@@ -10,6 +10,18 @@ var telescope = window.telescope;
 
 /* Plain Pad app made of entirely rectangles.js components */
 function App() {
+  const [width, setWidth] = React.useState(window.innerWidth);
+
+  function handleWindowSizeChange() {
+    setWidth(window.innerWidth);
+  }
+  React.useEffect(() => {
+    window.addEventListener("resize", handleWindowSizeChange);
+    return () => {
+      window.removeEventListener("resize", handleWindowSizeChange);
+    };
+  }, []);
+
   const [authStatus, setAuthStatus] = React.useState(false);
 
   //list of all services, and desired to initialize services
@@ -32,9 +44,24 @@ function App() {
   /* display mode of the UI, can be auth or services, */
   const [mode, setMode] = React.useState("auth");
 
+  /* Menu Collapsed State */
+  const [collapse, setCollapse] = React.useState(width < 768);
+  function toggleCollapse() {
+    setCollapse(!collapse);
+  }
+
   //status message
   const [status, setStatus] = React.useState(null);
   React.useEffect(() => {
+    console.log(services);
+    if (
+      authStatus &&
+      services[0][0]["service"] !== "log in to manage services" &&
+      !services[0][0]["verified"]
+    ) {
+      setMode("services-disabled");
+      setCollapse(true);
+    }
     setStatus(
       authStatus
         ? mode === "services"
@@ -57,14 +84,16 @@ function App() {
           </div>
         );
       case "services":
+      case "services-disabled":
         return (
           <div>
             <ServiceTerms
               services={services}
-              selectedServiceHook={[selectedService,setSelectedService]}
+              selectedServiceHook={[selectedService, setSelectedService]}
               SMRHook={[SMR, setSMR]}
               servicesLoad={servicesLoad}
               setStatus={setStatus}
+              mode={mode}
             />
             <StatusLog />
           </div>
@@ -91,6 +120,7 @@ function App() {
           onClick={() => {
             setMode("services");
             setSelectedService(idx);
+            if (props.width < 768) props.toggleCollapse();
           }}
         >
           <p style={style}>{service[0].service}</p>
@@ -124,7 +154,7 @@ function App() {
     );
 
     return (
-      <C s={"80px"} {...pass(props)}>
+      <C s={"70px"} {...pass(props)}>
         <div style={{ fontFamily: "monospace" }}>
           {authStatus ? logout : login}
         </div>
@@ -160,12 +190,17 @@ function App() {
           );
           //makes a list of sirs not in the current services, and formats them for the UI correctly
           const SIRS = SMR["sirs"]
-            .filter((service) => (!currServices.includes(service["service"]))&&service["service"]!=="*")
+            .filter(
+              (service) =>
+                !currServices.includes(service["service"]) &&
+                service["service"] !== "*"
+            )
             .map((service) => [service, "new"]);
           //add sirs into the updatedservices
           updatedServices.push.apply(updatedServices, SIRS);
           //set the services in the UI
           setServices(updatedServices);
+          setMode("services");
         })
         .catch(console.error);
     } else {
@@ -173,12 +208,6 @@ function App() {
     }
   };
   React.useEffect(servicesLoad, [authStatus, SMR]);
-
-  /* Menu Collapsed State */
-  const [collapse, setCollapse] = React.useState(true);
-  function toggleCollapse() {
-    setCollapse(!collapse);
-  }
 
   /* Theme Color State */
   const [theme, setTheme] = React.useState("dark");
@@ -208,7 +237,7 @@ function App() {
     );
   }
   var referrer = window.location.hostname;
-  if (window.document.referrer !== '')
+  if (window.document.referrer !== "")
     referrer = new URL(window.document.referrer).hostname;
   return (
     <R root t bt bb br bl theme={theme}>
@@ -217,35 +246,59 @@ function App() {
       {/* Top Pane */}
       <R l bb s={"70px"}>
         <Branding />
-        <Icon l ns onClick={toggleCollapse}>
+        <Icon
+          l
+          ns
+          onClick={
+            mode === "services-disabled"
+              ? () =>
+                  setStatus("you must verify phone number to access the menu")
+              : toggleCollapse
+          }
+        >
           bars
         </Icon>
         <R tel />
-        <R l ns s={"300px"}>
+        <R l ns s={"240px"}>
           <Auth></Auth>
           <Icon onClick={toggleTheme}>moon</Icon>
-          <Icon onClick={()=>{setMode("auth")}}>user-circle</Icon>
-          <Icon onClick={()=>{setSelectedService(0);setMode("services")}}>cog</Icon>
+          <Icon
+            onClick={() => {
+              setMode("auth");
+            }}
+          >
+            user-circle
+          </Icon>
+          <Icon
+            onClick={() => {
+              setSelectedService(0);
+              setMode("services");
+            }}
+          >
+            cog
+          </Icon>
         </R>
       </R>
 
       {/*Everything Under Top Pane */}
       <R tel l>
         {/* Left Side Pane */}
-        <R t ns br c={collapse} s={"240px"}>
-          { referrer === window.location.hostname?<div></div>:
-          <C
-            bb
-            ha={"center"}
-            s={"50px"}
-            h
-            onClick={() => {
-              setMode("auth");
-            }}
-          >
-            <h4>Authorize User</h4>
-          </C>
-          }
+        <R t ns br c={collapse} s={width > 768 ? "240px" : "100%"}>
+          {referrer === window.location.hostname ? (
+            <div></div>
+          ) : (
+            <C
+              bb
+              ha={"center"}
+              s={"50px"}
+              h
+              onClick={() => {
+                setMode("auth");
+              }}
+            >
+              <h4>Authorize User</h4>
+            </C>
+          )}
           <R l s={"50px"}>
             <C s={"100px"}>
               <h4>Services: </h4>
@@ -255,7 +308,11 @@ function App() {
             </T> */}
           </R>
 
-          <Services services={services}></Services>
+          <Services
+            services={services}
+            width={width}
+            toggleCollapse={toggleCollapse}
+          ></Services>
 
           <Credits />
         </R>
@@ -312,7 +369,10 @@ function OAuth({ services }) {
           <strong>approve or deny the changes in the left pane.</strong>
         </div>
       )}
-      {document.referrer === "" || new URL(document.referrer).origin===window.location.origin ? "":(
+      {document.referrer === "" ||
+      new URL(document.referrer).origin === window.location.origin ? (
+        ""
+      ) : (
         <div>
           <div
             style={{ margin: "5px" }}
@@ -353,7 +413,11 @@ function Branding(props) {
     <R l {...pass(props)}>
       <C l p="0px 0px 0px 22px" s={"70px"}>
         {/* Plain Pad Logo */}
-        <img src={props.theme==="dark"?"key_white.png":"key_black.png"} alt="web10logo" style={{ height: "60%" }} />
+        <img
+          src={props.theme === "dark" ? "key_white.png" : "key_black.png"}
+          alt="web10logo"
+          style={{ height: "60%" }}
+        />
       </C>
 
       <C l ns mc s={"120px"}>
