@@ -13,6 +13,7 @@ function ServiceTerms({
   SMRHook,
   servicesLoad,
   setStatus,
+  mode
 }) {
   //dictionary of field value pairs to add to the service.
   const [additions, setAdditions] = React.useState({});
@@ -88,6 +89,7 @@ function ServiceTerms({
           verified={flattenedService["verified"]["value"]}
           setStatus={setStatus}
           servicesLoad={servicesLoad}
+          mode = {mode}
         ></Settings>
       ) : (
         <div>

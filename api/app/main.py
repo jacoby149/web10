@@ -171,6 +171,8 @@ async def change_pass(form_data: models.SignUpForm):
 @app.post("/change_phone",include_in_schema=False)
 async def change_phone(form_data: models.SignUpForm):
     if authenticate_user(form_data.username, form_data.password):
+        if db.phone_number_taken(form_data.phone):
+            raise exceptions.PHONE_NUMBER_TAKEN
         db.set_phone_number(form_data.phone,form_data.username)
         db.unregister_phone_number(form_data.username)
         db.set_verified(form_data.username,False)
