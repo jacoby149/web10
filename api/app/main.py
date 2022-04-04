@@ -286,7 +286,9 @@ async def signup(form_data: models.SignUpForm):
         raise exceptions.BETA
     if not kosher(form_data.username):
         raise exceptions.BAD_USERNAME
-    return db.create_user(form_data, get_password_hash)
+    res = db.create_user(form_data, get_password_hash)
+    mget_customer_id(form_data.username)
+    return res
 
 @app.post("/get_plan",include_in_schema=False)
 def get_plan(token: models.Token):
@@ -294,6 +296,7 @@ def get_plan(token: models.Token):
     user = decode_token(token.token).username
     star = db.get_star(user)
     credit,space = pay.credit_space(star["customer_id"])
+    # also serves to update subscription details from stripe
     db.subscription_update(user,credit,space)
     return {"space":space,"credits":credit,"used_space":db.get_collection_size(user)}
 
