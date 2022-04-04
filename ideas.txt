@@ -184,3 +184,16 @@ BETA
 implement wires
 implement rewires
 implement payouts
+
+implement mget account
+implement devpay button [make account]
+implement wire requests
+implement manage web10 wires
+stripe connect
+
+what is next for web10?
+built in web10 encryption
+DevPay
+
+make the web10 key a notification button [verify,smrs,log in]
+make "web10 auth" notification txt

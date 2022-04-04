@@ -1,9 +1,8 @@
-Document array pulls, limitations, and wapi function additional params
-  - when adding lists and dicts, must add them empty, then fill them up.
-  - dicts cant have numerical keys
-
-implement mget account
-implement devpay button [make account]
-implement wire requests
-implement manage web10 wires
-stripe connect
+take off beta code
+make authorize user button {hostname} Log In 
+make the menu bar fullscreen on mobile
+make the menu bar collapse on mobile service selection
+sign in auto send mobile code
+force mobile verification screen until verified
+hide all other settings until verified
+hide approve deny changes when no changes
