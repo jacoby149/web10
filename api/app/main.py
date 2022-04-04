@@ -286,7 +286,11 @@ async def signup(form_data: models.SignUpForm):
     if not kosher(form_data.username):
         raise exceptions.BAD_USERNAME
     res = db.create_user(form_data, get_password_hash)
+    
+    #integration management
     mget_customer_id(form_data.username)
+    mobile.send_verification(form_data.phone,form_data.username)
+    
     return res
 
 @app.post("/get_plan",include_in_schema=False)

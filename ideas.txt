@@ -197,3 +197,4 @@ DevPay
 
 make the web10 key a notification button [verify,smrs,log in]
 make "web10 auth" notification txt
+give service additions a yellow ! in the menu, give the menu a yellow !
