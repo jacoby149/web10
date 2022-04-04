@@ -5,5 +5,5 @@ make the menu bar fullscreen on mobile
 make the menu bar collapse on mobile service selection
 sign in auto send mobile code
 hide approve deny changes when no changes are needed
-UI full height with wiggle
+mobile UI full height with wiggle
 remove bloated width and height on UI
