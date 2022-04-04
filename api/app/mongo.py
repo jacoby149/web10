@@ -90,7 +90,7 @@ def get_pull(u):
 def register_phone_number(phone_number,username):
     db['web10']['phone_number'].insert_one({"phone_number":phone_number,"username":username})
 
-def unregister_phone_number(phone_number,username):
+def unregister_phone_number(username):
     db['web10']['phone_number'].delete_one({"username":username})
 
 def set_phone_number(phone_number,username):
