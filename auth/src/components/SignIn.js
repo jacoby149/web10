@@ -91,7 +91,7 @@ function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
               }}
             />
           </div>
-          <div className="field">
+          <div style={{display:"None"}} className="field">
             <p
               style={{ margin: "10px 10px" }}
               className="control has-icons-left"

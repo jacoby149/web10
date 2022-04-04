@@ -207,6 +207,8 @@ function App() {
       </div>
     );
   }
+
+  const referrer = new URL(window.document.referrer).hostname;
   return (
     <R root t bt bb br bl theme={theme}>
       {/* This is the root rectangle ^^^ */}
@@ -230,6 +232,7 @@ function App() {
       <R tel l>
         {/* Left Side Pane */}
         <R t ns br c={collapse} s={"240px"}>
+          { referrer === window.location.hostname?<div></div>:
           <C
             bb
             ha={"center"}
@@ -241,6 +244,7 @@ function App() {
           >
             <h4>Authorize User</h4>
           </C>
+          }
           <R l s={"50px"}>
             <C s={"100px"}>
               <h4>Services: </h4>

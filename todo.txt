@@ -1,8 +1,6 @@
-take off beta code
-make authorize user button {hostname} Log In 
+force mobile verification screen [hide menu] until verified
+hide all other settings until verified
 make the menu bar fullscreen on mobile
 make the menu bar collapse on mobile service selection
 sign in auto send mobile code
-force mobile verification screen until verified
-hide all other settings until verified
-hide approve deny changes when no changes
+hide approve deny changes when no changes are needed
