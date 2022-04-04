@@ -91,7 +91,7 @@ def register_phone_number(phone_number,username):
     db['web10']['phone_number'].insert_one({"phone_number":phone_number,"username":username})
 
 def unregister_phone_number(phone_number,username):
-    db['web10']['phone_number'].delete_one({"phone_number":phone_number,"username":username})
+    db['web10']['phone_number'].delete_one({"username":username})
 
 def set_phone_number(phone_number,username):
     db[username].update_one(q_t({"service":"*"},"services"),u_t({"$set":{"phone_number":phone_number}}))

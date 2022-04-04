@@ -172,7 +172,7 @@ async def change_pass(form_data: models.SignUpForm):
 async def change_phone(form_data: models.SignUpForm):
     if authenticate_user(form_data.username, form_data.password):
         db.set_phone_number(form_data.phone,form_data.username)
-        db.unregister_phone_number(form_data.phone,form_data.username)
+        db.unregister_phone_number(form_data.username)
         db.set_verified(form_data.username,False)
         return mobile.send_verification(form_data.phone,form_data.username)
     raise exceptions.LOGIN
