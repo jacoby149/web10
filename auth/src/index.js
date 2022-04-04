@@ -175,7 +175,7 @@ function App() {
   React.useEffect(servicesLoad, [authStatus, SMR]);
 
   /* Menu Collapsed State */
-  const [collapse, setCollapse] = React.useState(false);
+  const [collapse, setCollapse] = React.useState(true);
   function toggleCollapse() {
     setCollapse(!collapse);
   }
@@ -207,8 +207,9 @@ function App() {
       </div>
     );
   }
-
-  const referrer = new URL(window.document.referrer).hostname;
+  var referrer = window.location.hostname;
+  if (window.document.referrer !== '')
+    referrer = new URL(window.document.referrer).hostname;
   return (
     <R root t bt bb br bl theme={theme}>
       {/* This is the root rectangle ^^^ */}
@@ -220,7 +221,7 @@ function App() {
           bars
         </Icon>
         <R tel />
-        <R l ns s={"240px"}>
+        <R l ns s={"300px"}>
           <Auth></Auth>
           <Icon onClick={toggleTheme}>moon</Icon>
           <Icon onClick={()=>{setMode("auth")}}>user-circle</Icon>

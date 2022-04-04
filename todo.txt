@@ -1,6 +1,9 @@
 force mobile verification screen [hide menu] until verified
 hide all other settings until verified
+give service additions an !!!!! in the menu, give the menu a !!!
 make the menu bar fullscreen on mobile
 make the menu bar collapse on mobile service selection
 sign in auto send mobile code
 hide approve deny changes when no changes are needed
+UI full height with wiggle
+remove bloated width and height on UI
