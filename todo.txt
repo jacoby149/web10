@@ -1,9 +1,6 @@
-force mobile verification screen [hide menu] until verified
-hide all other settings until verified
-give service additions an !!!!! in the menu, give the menu a !!!
+make verify true route front end to settings.
+on menu button click trigger status, must verify to do that.
 make the menu bar fullscreen on mobile
 make the menu bar collapse on mobile service selection
-sign in auto send mobile code
+make menu default open menu on desktop IF verified.
 hide approve deny changes when no changes are needed
-mobile UI full height with wiggle
-remove bloated width and height on UI
