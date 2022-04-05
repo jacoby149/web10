@@ -263,7 +263,7 @@ const StarInput = ({ record, field }) => {
 //TO BE IMPLEMENTED
 const EditableInput = ({ record, field, getChanged }) => {
   //hide the id field
-  if (field === "_id") return <div></div>;
+  if (field === "_id"||field==="service") return <div></div>;
   const [update, setUpdate] = React.useState(record["update"]);
 
   React.useEffect(getChanged,[update]);

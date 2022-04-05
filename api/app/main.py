@@ -295,14 +295,18 @@ async def signup(form_data: models.SignUpForm):
     
     return res
 
-@app.post("/get_plan",include_in_schema=False)
-def get_plan(token: models.Token):
-    check_admin(token)    
-    user = decode_token(token.token).username
+def subscription_update(user):
     star = db.get_star(user)
     credit,space = pay.credit_space(star["customer_id"])
     # also serves to update subscription details from stripe
     db.subscription_update(user,credit,space)
+    return credit,space
+
+@app.post("/get_plan",include_in_schema=False)
+def get_plan(token: models.Token):
+    check_admin(token)    
+    user = decode_token(token.token).username
+    credit,space = subscription_update(user)
     return {"space":space,"credits":credit,"used_space":db.get_collection_size(user)}
 
 #####################################################
@@ -315,6 +319,7 @@ def check(user):
         raise exceptions.VERIFY
     if star["last_replenish"].month != datetime.now().month:
         db.replenish(user)
+        subscription_update(user)
     if star["credit_limit"] < star["credits_spent"]:
         raise exceptions.TIME
     if star["space_limit"] < db.get_collection_size(user):

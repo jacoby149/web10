@@ -198,3 +198,8 @@ DevPay
 make the web10 key a notification button [verify,smrs,log in]
 make "web10 auth" notification txt
 give service additions a yellow ! in the menu, give the menu a yellow !
+
+shouldnt be able to rename services from the backend...
+shouldnt be able to add already existing fields from the backend from service editor
+
+subscription updates at the end of the month or whenever users inspect their plan

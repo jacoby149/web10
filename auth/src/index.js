@@ -146,6 +146,7 @@ function App() {
         onClick={() => {
           wapi.signOut();
           setAuthStatus(wapi.isSignedIn());
+          setMode("auth");
         }}
       >
         log out
@@ -199,7 +200,7 @@ function App() {
           updatedServices.push.apply(updatedServices, SIRS);
           //set the services in the UI
           setServices(updatedServices);
-          setMode("services");
+          //setMode("services");
         })
         .catch(console.error);
     } else {
