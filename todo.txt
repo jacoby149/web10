@@ -1,2 +1,2 @@
-make service names un deletable
-fix bullshit glitches
+re check subscriptions on replenish date
+break out front end code to tidy it up 
