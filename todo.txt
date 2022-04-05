@@ -1,2 +1,3 @@
-re check subscriptions on replenish date
-break out front end code to tidy it up 
+add sign in creating account message
+when out of SMRs, change view to login
+devPay
