@@ -24,21 +24,34 @@ def make_customer():
     )
     return customer["id"]
 
+def make_business():
+    bus = stripe.Account.create(type="express")
+    return bus["id"]
+
+def create_business_session(bus_id):
+    print(bus_id)
+    bus_session = stripe.AccountLink.create(
+    account=bus_id,
+    refresh_url="https://auth.web10.app",
+    return_url="https://auth.web10.app",
+    type="account_onboarding",
+)
+    print(bus_session["url"])
+    return bus_session["url"]
+
 def get_active_subscription_data(customer_id):
     customer = stripe.Customer.retrieve(customer_id, expand=['subscriptions'])
     if "subscriptions" not in customer : return []
     subscriptions = customer["subscriptions"]
     return [sub["items"]["data"][0] for sub in subscriptions]
 
-
 def sub_price_ids(sub_data):
     return [sub["price"]["id"] for sub in sub_data]
 
 def create_checkout_session(customer_id,price_id,mode="subscription"):
-
     checkout_session = stripe.checkout.Session.create(
-        success_url="http://auth.localhost",
-        cancel_url="http://auth.localhost",
+        success_url="https://auth.web10.app",
+        cancel_url="https://auth.web10.app",
         customer=customer_id,
         payment_method_types=["card"],
         mode=mode,
@@ -71,6 +84,9 @@ def manage_space(customer_id):
 
 def manage_credits(customer_id):
     return manage_subscription(customer_id,settings.STRIPE_CREDIT_SUB_ID)
+
+def manage_business(business_id):
+    return create_business_session(business_id)
 
 ##################################
 # payment registration functions

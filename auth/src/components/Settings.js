@@ -114,10 +114,15 @@ function Payment({ setStatus, servicesLoad }) {
       <button
         style={{ marginLeft: "5px" }}
         className="button is-secondary is-light is-small"
-        disabled={true}
+        onClick={() => {
+          wapiAuth.manage_business().then((response) => {
+            window.location.href = response.data;
+          });
+        }}
+
       >
         {" "}
-        DevPay
+        Business
       </button>
     </div>
   );

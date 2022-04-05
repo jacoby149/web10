@@ -9,6 +9,7 @@ def star_record():
         "phone_number": "PHONE_NUMBER",
         "verified":False,
         "customer_id": None,
+        "business_id":None,
         "credit_limit": settings.FREE_CREDITS,
         "space_limit": settings.FREE_SPACE,
         "credits_spent":0,

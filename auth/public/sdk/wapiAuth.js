@@ -105,11 +105,14 @@ function wapiAuthInit(wapi) {
   }
 
   //stripe functionality
-  wapiAuth.manage_space = function(subscription=false){
+  wapiAuth.manage_space = function(){
     return axios.post(`${api()}/manage_space`,{token:wapi.token})
   }
-  wapiAuth.manage_credits = function(subscription=false){
+  wapiAuth.manage_credits = function(){
     return axios.post(`${api()}/manage_credits`,{token:wapi.token})
+  }
+  wapiAuth.manage_business = function(){
+    return axios.post(`${api()}/manage_business`,{token:wapi.token})
   }
 
   wapiAuth.getPlan = function(){

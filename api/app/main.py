@@ -214,18 +214,26 @@ async def manage_space(token: models.Token):
     return pay.manage_space(customer_id)
 
 @app.post("/manage_credits",include_in_schema=False)
-async def manage_space(token: models.Token):
+async def manage_credits(token: models.Token):
     check_admin(token)    
     username = decode_token(token.token).username
     customer_id = mget_customer_id(username)
     return pay.manage_credits(customer_id)
 
-@app.post("/purchase_credits",include_in_schema=False)
-async def manage_space(token: models.Token):
+def mget_business_id(username):
+    business_id = db.get_business_id(username)
+    if not business_id:
+        business_id = pay.make_business()
+        db.set_business_id(username,business_id)
+    return business_id
+
+@app.post("/manage_business",include_in_schema=False)
+async def manage_business(token: models.Token):
     check_admin(token)    
     username = decode_token(token.token).username
-    customer_id = mget_customer_id(username)
-    return pay.purchase_credits(customer_id)
+    bus_id = mget_business_id(username)
+    return pay.manage_business(bus_id)
+
 
 # check that a token is a valid non expired token written by this web10 server.
 @app.post("/certify")
@@ -291,6 +299,7 @@ async def signup(form_data: models.SignUpForm):
     
     #integration management
     mget_customer_id(form_data.username)
+    mget_business_id(form_data.username)
     mobile.send_verification(form_data.phone,form_data.username)
     
     return res
