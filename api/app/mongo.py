@@ -267,6 +267,18 @@ def set_customer_id(user,customer_id):
         u_t({"$set":{"customer_id":customer_id}})
     )
 
+def get_business_id(user):
+    star = get_star(user)
+    if "business_id" in star:
+        return star["business_id"]
+    return None
+    
+def set_business_id(user,business_id):
+    return db[user].update_one(
+        q_t({"service": "*"},'services'),
+        u_t({"$set":{"business_id":business_id}})
+    )
+
 ###############################
 ### Service Term Enforcement ##
 ###############################

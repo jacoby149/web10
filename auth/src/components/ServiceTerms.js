@@ -240,6 +240,7 @@ const StarInput = ({ record, field }) => {
       "_id",
       "hashed_password",
       "customer_id",
+      "business_id",
       "service",
       "credit_limit",
       "space_limit",
