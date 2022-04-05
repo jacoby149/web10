@@ -1,3 +1,1 @@
 hide approve deny changes when 
-num_updates=0
-for adds and changes, num_updates initted to 1.
