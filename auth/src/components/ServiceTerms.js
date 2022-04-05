@@ -13,7 +13,7 @@ function ServiceTerms({
   SMRHook,
   servicesLoad,
   setStatus,
-  mode
+  mode,
 }) {
   //dictionary of field value pairs to add to the service.
   const [additions, setAdditions] = React.useState({});
@@ -39,6 +39,7 @@ function ServiceTerms({
       update: flattenedService[key],
     });
   });
+
   const final = Object.keys(flattenedService).map((field, idx) => {
     return (
       <Field
@@ -49,6 +50,7 @@ function ServiceTerms({
       ></Field>
     );
   });
+
   return (
     <div>
       <div
@@ -89,10 +91,11 @@ function ServiceTerms({
           verified={flattenedService["verified"]["value"]}
           setStatus={setStatus}
           servicesLoad={servicesLoad}
-          mode = {mode}
+          mode={mode}
         ></Settings>
       ) : (
         <div>
+          
           <EditApproval
             flattenedService={flattenedService}
             additions={additions}
@@ -101,6 +104,7 @@ function ServiceTerms({
             SMRHook={SMRHook}
             setStatus={setStatus}
           />
+          
           {type !== null ? (
             ""
           ) : (
@@ -138,7 +142,7 @@ function ServiceTerms({
  * Helper Components
  ***********************/
 
-function Field({ record, field, isStar }) {
+function Field({ record, field, isStar}) {
   var type = null;
   if (record["update"].constructor === Object) {
     if (record["update"]["type"] === "delete") type = "delete";
@@ -151,11 +155,21 @@ function Field({ record, field, isStar }) {
 
   switch (type) {
     case "obj": {
-      return <StructInput record={record} field={field} />;
+      return (
+        <StructInput
+          record={record}
+          field={field}
+        />
+      );
     }
     default: {
       //if type ==null or delete
-      return <EditableInput record={record} field={field} />;
+      return (
+        <EditableInput
+          record={record}
+          field={field}
+        />
+      );
     }
   }
   //TODO add dropdown types and more
@@ -207,7 +221,16 @@ const StructInput = ({ record, field }) => {
 };
 
 const StarInput = ({ record, field }) => {
-  if (["_id", "hashed_password", "customer_id", "service","credit_limit","space_limit"].includes(field))
+  if (
+    [
+      "_id",
+      "hashed_password",
+      "customer_id",
+      "service",
+      "credit_limit",
+      "space_limit",
+    ].includes(field)
+  )
     return <div></div>;
   const update = record["update"];
   return (
@@ -228,7 +251,9 @@ const EditableInput = ({ record, field }) => {
   //hide the id field
   if (field === "_id") return <div></div>;
   const [update, setUpdate] = React.useState(record["update"]);
+
   React.useEffect(() => setUpdate(record["update"]), [record]);
+
   const value = record["value"];
   function setRecord(v) {
     record["update"] = v;
@@ -425,7 +450,7 @@ function EditApproval({
           ? "Service Change"
           : "Your Changes"}
       </button>
-      <button
+      {type!==""?"":<button
         onClick={() => purgeSMR(type, SMRHook, flattenedService["service"])}
         style={{ margin: "5px 5px" }}
         className="button is-warning "
@@ -436,7 +461,7 @@ function EditApproval({
           : type === "change"
           ? "Service Change"
           : "Your Changes"}
-      </button>
+      </button>}
     </div>
   );
 }
