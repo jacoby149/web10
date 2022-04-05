@@ -53,7 +53,6 @@ function App() {
   //status message
   const [status, setStatus] = React.useState(null);
   React.useEffect(() => {
-    console.log(services);
     if (
       authStatus &&
       services[0][0]["service"] !== "log in to manage services" &&

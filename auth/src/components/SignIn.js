@@ -86,7 +86,6 @@ function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
               dropdownStyle={{ color: "black" }}
               value={phone}
               onChange={(val) => {
-                console.log(val);
                 setPhone(val);
               }}
             />

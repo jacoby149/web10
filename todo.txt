@@ -1,1 +1,2 @@
-hide approve deny changes when 
+make service names un deletable
+fix bullshit glitches
