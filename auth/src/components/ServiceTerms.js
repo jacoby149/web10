@@ -25,20 +25,33 @@ function ServiceTerms({
     setSelectedService(0);
   }
 
-  React.useEffect(() => {
-    setAdditions({});
-  }, [services]);
-
   const currentService = services[selectedService][0];
   const type = services[selectedService][1];
   const flattenedService = flattenJSON(currentService);
   //store updates adjacently
+
   Object.keys(flattenedService).map(function (key, index) {
     return (flattenedService[key] = {
       value: flattenedService[key],
       update: flattenedService[key],
     });
   });
+
+  function getChanged() {
+    const len1 = Object.keys(flattenedService).filter((f) => {
+      return flattenedService[f]["value"] !== flattenedService[f]["update"];
+    }).length;
+    const len2 = Object.keys(additions).length;
+    const SMR = ["new","change"].includes(services[selectedService][1]);
+    var event = new CustomEvent("termUpdate", { "detail": len1 + len2 !== 0 || SMR });
+    window.dispatchEvent(event);
+  }
+  getChanged();
+  React.useEffect(() => {
+    setAdditions({});
+    getChanged();
+  }, [selectedService,services]);
+
 
   const final = Object.keys(flattenedService).map((field, idx) => {
     return (
@@ -47,6 +60,7 @@ function ServiceTerms({
         record={flattenedService[field]}
         field={field}
         isStar={currentService["service"] === "*"}
+        getChanged={getChanged}
       ></Field>
     );
   });
@@ -83,7 +97,10 @@ function ServiceTerms({
         {currentService["service"] === "*" ? (
           ""
         ) : (
-          <NewField additionsHook={[additions, setAdditions]}></NewField>
+          <NewField
+            additionsHook={[additions, setAdditions]}
+            getChanged={getChanged}
+          ></NewField>
         )}
       </div>
       {currentService["service"] === "*" ? (
@@ -96,14 +113,14 @@ function ServiceTerms({
       ) : (
         <div>
           
-          <EditApproval
-            flattenedService={flattenedService}
-            additions={additions}
-            type={services[selectedService][1]}
-            servicesLoad={servicesLoad}
-            SMRHook={SMRHook}
-            setStatus={setStatus}
-          />
+            <EditApproval
+              flattenedService={flattenedService}
+              additions={additions}
+              type={services[selectedService][1]}
+              servicesLoad={servicesLoad}
+              SMRHook={SMRHook}
+              setStatus={setStatus}
+            />
           
           {type !== null ? (
             ""
@@ -142,7 +159,7 @@ function ServiceTerms({
  * Helper Components
  ***********************/
 
-function Field({ record, field, isStar}) {
+function Field({ record, field, isStar, getChanged }) {
   var type = null;
   if (record["update"].constructor === Object) {
     if (record["update"]["type"] === "delete") type = "delete";
@@ -156,29 +173,25 @@ function Field({ record, field, isStar}) {
   switch (type) {
     case "obj": {
       return (
-        <StructInput
-          record={record}
-          field={field}
-        />
+        <StructInput record={record} field={field} getChanged={getChanged} />
       );
     }
     default: {
       //if type ==null or delete
       return (
-        <EditableInput
-          record={record}
-          field={field}
-        />
+        <EditableInput record={record} field={field} getChanged={getChanged} />
       );
     }
   }
   //TODO add dropdown types and more
 }
 
-const StructInput = ({ record, field }) => {
+const StructInput = ({ record, field, getChanged }) => {
   const [update, setUpdate] = React.useState(record["update"]);
   const [type, size] = [update["type"], update["size"]];
-  React.useEffect(() => setUpdate(record["update"]), [record]);
+
+  React.useEffect(getChanged,[update]);
+  
   const value = record["value"];
   function setRecord(v) {
     record["update"] = v;
@@ -200,7 +213,8 @@ const StructInput = ({ record, field }) => {
       </div>
     );
   }
-  if (value !== update) return deleteMode();
+
+  if (update["type"] === "delete") return deleteMode();
   return (
     <div style={{ marginLeft: "4px", marginTop: "4px" }}>
       {field} :{" "}
@@ -247,12 +261,12 @@ const StarInput = ({ record, field }) => {
 };
 
 //TO BE IMPLEMENTED
-const EditableInput = ({ record, field }) => {
+const EditableInput = ({ record, field, getChanged }) => {
   //hide the id field
   if (field === "_id") return <div></div>;
   const [update, setUpdate] = React.useState(record["update"]);
 
-  React.useEffect(() => setUpdate(record["update"]), [record]);
+  React.useEffect(getChanged,[update]);
 
   const value = record["value"];
   function setRecord(v) {
@@ -300,14 +314,13 @@ const EditableInput = ({ record, field }) => {
       </div>
     );
   }
-  if (record["update"].constructor === Object) {
+  if (update.constructor === Object) {
     return deleteMode();
   }
   return updateMode();
 };
 
 function submitSMR(flattenedService, additions, type, servicesLoad, setStatus) {
-  console.log(type);
   if (type === "new")
     submitSIR(flattenedService, additions, servicesLoad, setStatus);
   if (type === null)
@@ -316,7 +329,6 @@ function submitSMR(flattenedService, additions, type, servicesLoad, setStatus) {
 }
 
 function submitUserSCR(flattenedService, additions, servicesLoad, setStatus) {
-  console.log("in");
   const SCR = { PULL: true, $unset: {}, $set: {} };
 
   // Update and Delete
@@ -327,7 +339,6 @@ function submitUserSCR(flattenedService, additions, servicesLoad, setStatus) {
     if (update.constructor === Object) {
       if (update["type"] === "delete") return (SCR["$unset"][key] = "");
     } else {
-      console.log(update);
       return (SCR["$set"][key] =
         update === "[]" ? [] : update === "{}" ? {} : update);
     }
@@ -365,8 +376,6 @@ function submitSIR(flattenedService, additions, servicesLoad, setStatus) {
   });
 
   const obj = unFlattenJSON(updates);
-  console.log(additions);
-  console.log(obj);
   wapi
     .create("services", obj)
     .then(servicesLoad)
@@ -391,7 +400,7 @@ function purgeSMR(type, SMRHook, service) {
 }
 
 //allows CRUDstyle creation of fields
-function NewField({ additionsHook }) {
+function NewField({ additionsHook, getChanged }) {
   const [additions, setAdditions] = additionsHook;
   return (
     <div style={{ marginTop: "4px", marginLeft: "4px", marginRight: "4px" }}>
@@ -416,6 +425,7 @@ function NewField({ additionsHook }) {
           updated[document.getElementById("adder-key").value] =
             document.getElementById("adder-value").value;
           setAdditions(updated);
+          getChanged();
         }}
         className="button is-small is-primary"
         style={{ marginTop: "4px" }}
@@ -434,6 +444,20 @@ function EditApproval({
   SMRHook,
   setStatus,
 }) {
+  const [showButtons,setShowButtons]=React.useState(type==="new"||type==="change");
+  
+  function setShowTrigger(e){
+    setShowButtons(e["detail"])
+  }
+
+  React.useEffect(() => {
+    window.addEventListener("termUpdate", setShowTrigger);
+    return () => {
+      window.removeEventListener("termUpdate", setShowTrigger);
+    };
+  }, []);
+
+  if (!showButtons) return <div></div>
   return (
     <div>
       <button
@@ -450,18 +474,22 @@ function EditApproval({
           ? "Service Change"
           : "Your Changes"}
       </button>
-      {type!==""?"":<button
-        onClick={() => purgeSMR(type, SMRHook, flattenedService["service"])}
-        style={{ margin: "5px 5px" }}
-        className="button is-warning "
-      >
-        Deny{" "}
-        {type === "new"
-          ? "Service Addition"
-          : type === "change"
-          ? "Service Change"
-          : "Your Changes"}
-      </button>}
+      {type !== "" ? (
+        ""
+      ) : (
+        <button
+          onClick={() => purgeSMR(type, SMRHook, flattenedService["service"])}
+          style={{ margin: "5px 5px" }}
+          className="button is-warning "
+        >
+          Deny{" "}
+          {type === "new"
+            ? "Service Addition"
+            : type === "change"
+            ? "Service Change"
+            : "Your Changes"}
+        </button>
+      )}
     </div>
   );
 }
