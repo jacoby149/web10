@@ -122,6 +122,15 @@ function wapiAuthInit(wapi) {
     return axios.post(`${api()}/get_plan`,{token:wapi.token})
   }
 
+  wapiAuth.getDevPay = function(){
+    return axios.post(`${api()}/get_dev_pay`,{token:wapi.token})
+  }
+
+  wapiAuth.updateDevPay = function(id,price){
+    return axios.post(`${api()}/update_dev_pay`,{token:wapi.token,query:{"price":price}})
+  }
+
+
   //output the wapiAuth object
   return wapiAuth;
 }
