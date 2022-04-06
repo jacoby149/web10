@@ -10,6 +10,7 @@ def star_record():
         "verified":False,
         "customer_id": None,
         "business_id":None,
+        "dev_pay":None,
         "credit_limit": settings.FREE_CREDITS,
         "space_limit": settings.FREE_SPACE,
         "credits_spent":0,

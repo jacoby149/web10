@@ -1,3 +1,6 @@
 add sign in creating account message
 when out of SMRs, change view to login
-devPay
+implement pay [make update] devPay
+implement db [get set] devPay
+frontend hookup devPay
+make web10 devpay demo

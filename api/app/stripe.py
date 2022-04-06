@@ -28,6 +28,27 @@ def make_business():
     bus = stripe.Account.create(type="express")
     return bus["id"]
 
+def get_active_subscription_data(customer_id):
+    customer = stripe.Customer.retrieve(customer_id, expand=['subscriptions'])
+    if "subscriptions" not in customer : return []
+    subscriptions = customer["subscriptions"]
+    return [sub["items"]["data"][0] for sub in subscriptions]
+
+def sub_price_ids(sub_data):
+    return [sub["price"]["id"] for sub in sub_data]
+
+#TODO
+def make_dev_pay():
+    return
+
+#TODO
+def update_dev_pay():
+    return
+
+###############################################
+#### Session URL creation
+###############################################
+
 def create_business_session(bus_id):
     print(bus_id)
     bus_session = stripe.AccountLink.create(
@@ -39,26 +60,28 @@ def create_business_session(bus_id):
     print(bus_session["url"])
     return bus_session["url"]
 
-def get_active_subscription_data(customer_id):
-    customer = stripe.Customer.retrieve(customer_id, expand=['subscriptions'])
-    if "subscriptions" not in customer : return []
-    subscriptions = customer["subscriptions"]
-    return [sub["items"]["data"][0] for sub in subscriptions]
+def business_login_session(bus_id):
+    return stripe.Account.create_login_link(bus_id)["url"]
 
-def sub_price_ids(sub_data):
-    return [sub["price"]["id"] for sub in sub_data]
+def create_checkout_session(customer_id,price_id,item_type="plan"):
+    # for web10 plans
+    if (item_type=="plan"):
+        line_items = [{
+    "price":price_id,"quantity":1,'adjustable_quantity': {
+        'enabled': True,}
+    }]
 
-def create_checkout_session(customer_id,price_id,mode="subscription"):
+    # for devPay items
+    else: line_items=[{
+    "price":price_id,"quantity":1}]
+
     checkout_session = stripe.checkout.Session.create(
         success_url="https://auth.web10.app",
         cancel_url="https://auth.web10.app",
         customer=customer_id,
         payment_method_types=["card"],
-        mode=mode,
-        line_items= [{
-    "price":price_id,"quantity":1,'adjustable_quantity': {
-        'enabled': True,}
-    }]
+        mode="subscription",
+        line_items= line_items
     )
     return checkout_session["url"]
 
@@ -72,21 +95,18 @@ def create_portal_session(customer_id):
 # button functions
 ##############################
 
-# helper function for subscriptions
-def manage_subscription(customer_id,price):
+# helper function for subscriptions [devPay too]
+def manage_subscription(customer_id,price,item_type="plan"):
     prices = sub_price_ids(get_active_subscription_data(customer_id))
     if price in prices:
         return create_portal_session(customer_id)
-    return create_checkout_session(customer_id,price,"subscription")
+    return create_checkout_session(customer_id,price,item_type)
 
 def manage_space(customer_id):
     return manage_subscription(customer_id,settings.STRIPE_SPACE_SUB_ID)
 
 def manage_credits(customer_id):
     return manage_subscription(customer_id,settings.STRIPE_CREDIT_SUB_ID)
-
-def manage_business(business_id):
-    return create_business_session(business_id)
 
 ##################################
 # payment registration functions
