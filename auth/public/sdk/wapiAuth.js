@@ -114,6 +114,9 @@ function wapiAuthInit(wapi) {
   wapiAuth.manage_business = function(){
     return axios.post(`${api()}/manage_business`,{token:wapi.token})
   }
+  wapiAuth.business_login = function(){
+    return axios.post(`${api()}/business_login`,{token:wapi.token})
+  }
 
   wapiAuth.getPlan = function(){
     return axios.post(`${api()}/get_plan`,{token:wapi.token})

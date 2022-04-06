@@ -6,7 +6,7 @@ var wapiAuth = window.wapiAuth;
 
 function Settings({ verified, setStatus, servicesLoad, mode }) {
   return (
-    <div style={{ marginLeft: "5px", marginBottom:"10px" }}>
+    <div style={{ marginLeft: "5px", marginBottom: "10px" }}>
       <Capacity setStatus={setStatus}></Capacity>
       {verified ? (
         <Payment setStatus={setStatus} servicesLoad={servicesLoad}></Payment>
@@ -15,11 +15,19 @@ function Settings({ verified, setStatus, servicesLoad, mode }) {
       )}
       <br></br>
       <Unlink setStatus={setStatus} callBack={servicesLoad}></Unlink>
-      {mode==="services-disabled"?"":<div>
-      <br></br>
-      <ChangePass setStatus={setStatus} callBack={servicesLoad}></ChangePass>
-      </div>
-    }
+      {mode === "services-disabled" ? (
+        ""
+      ) : (
+        <div>
+          <br></br>
+          <ChangePass
+            setStatus={setStatus}
+            callBack={servicesLoad}
+          ></ChangePass>
+          <br></br>
+          <DevPay></DevPay>
+        </div>
+      )}
     </div>
   );
 }
@@ -111,33 +119,82 @@ function Payment({ setStatus, servicesLoad }) {
         {" "}
         Wires
       </button>
+    </div>
+  );
+}
+
+function DevPay() {
+  return (
+    <div style={{marginLeft:"5px"}}>
+      <u>devPay</u>
+      <br></br>
+      devPay Price ($) :{" "}
+      <input
+        id="sub1"
+        type="number"
+        style={{ backgroundColor: "black", color: "lightgreen",width:"30px" }}
+        placeholder={1}
+      ></input>{" "}
+      <i
+        style={{ color: "orange",marginLeft:"4px" }}
+        className="fas fa-undo"
+      ></i>
+      <div style={{marginTop:"5px"}}>
       <button
-        style={{ marginLeft: "5px" }}
-        className="button is-secondary is-light is-small"
+        className="button is-success is-light is-small"
         onClick={() => {
           wapiAuth.manage_business().then((response) => {
             window.location.href = response.data;
           });
         }}
-
       >
         {" "}
-        Business
+        Bank
       </button>
+      <button
+        style={{ marginLeft: "5px" }}
+        className="button is-success is-light is-small"
+        onClick={() => {
+          wapiAuth.business_login().then((response) => {
+            window.location.href = response.data;
+          });
+        }}
+      >
+        {" "}
+        Stats
+      </button>
+      <button
+        style={{ marginLeft: "5px" }}
+        className="button is-success is-light is-small"
+        onClick={() => {
+          wapiAuth.business_login().then((response) => {
+            window.location.href = response.data;
+          });
+        }}
+      >
+        {" "}
+        Change Prices
+      </button>
+
+      </div>
     </div>
   );
 }
 
 function Capacity({ setStatus }) {
   const [plan, setPlan] = React.useState(`MB/mo. .. , Credits/mo. ..`);
-  const [util,setUtil] = React.useState(`Storage Utilization : .. / .. MB`)
+  const [util, setUtil] = React.useState(`Storage Utilization : .. / .. MB`);
   wapiAuth
     .getPlan()
     .then((response) => {
       const data = response.data;
-      const [space,credit,used] = [parseFloat(data["space"]).toFixed(2),data["credits"],parseFloat(data["used_space"]).toFixed(2)]
+      const [space, credit, used] = [
+        parseFloat(data["space"]).toFixed(2),
+        data["credits"],
+        parseFloat(data["used_space"]).toFixed(2),
+      ];
       setPlan(`MB/mo. ${space} , Credits/mo. ${credit}`);
-      setUtil(`Storage Utilization : ${used}/${space} MB`)
+      setUtil(`Storage Utilization : ${used}/${space} MB`);
     })
     .catch((e) => setStatus("Failed to get plan info..."));
   return (

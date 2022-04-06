@@ -220,6 +220,32 @@ async def manage_credits(token: models.Token):
     customer_id = mget_customer_id(username)
     return pay.manage_credits(customer_id)
 
+
+@app.post("/manage_subscription",include_in_schema=False)
+async def manage_subscription(token: models.Token):
+    certify_token(token)    
+    decoded = decode_token(token.token)
+    sub_id = token.query
+    customer_id = mget_customer_id(decoded.username)
+    return pay.manage_subscription(customer_id,sub_id,"fixed")
+
+def mget_dev_pay_id(username):
+    dev_pay,price = db.get_dev_pay(username)
+    if not dev_pay:
+        dev_pay,price = pay.make_dev_pay()
+        db.set_dev_pay(username,dev_pay,price)
+    return dev_pay,price
+
+@app.post("/update_dev_pay",include_in_schema=False)
+async def update_dev_pay(token: models.Token):
+    check_admin(token)    
+    decoded = decode_token(token.token)
+    dev_pay,_ = mget_dev_pay_id(decoded.username)
+    new_price = token.query
+    pay.update_dev_pay(dev_pay,new_price)
+    db.set_dev_pay(decoded.username,dev_pay,new_price)
+
+
 def mget_business_id(username):
     business_id = db.get_business_id(username)
     if not business_id:
@@ -232,7 +258,14 @@ async def manage_business(token: models.Token):
     check_admin(token)    
     username = decode_token(token.token).username
     bus_id = mget_business_id(username)
-    return pay.manage_business(bus_id)
+    return pay.create_business_session(bus_id)
+
+@app.post("/business_login",include_in_schema=False)
+async def manage_business(token: models.Token):
+    check_admin(token)    
+    username = decode_token(token.token).username
+    bus_id = mget_business_id(username)
+    return pay.business_login_session(bus_id)
 
 
 # check that a token is a valid non expired token written by this web10 server.
