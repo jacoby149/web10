@@ -195,6 +195,10 @@ if (typeof wapiInit === "undefined") {
       });
     };
 
+    wapi.manage_subscription = function(devPay){
+      return axios.post(`${api()}/manage_subscription`,{token:wapi.token,query:{sub:devPay}})
+    }
+  
     //output the wapi object
     return wapi;
   }
