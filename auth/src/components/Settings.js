@@ -7,7 +7,7 @@ var wapiAuth = window.wapiAuth;
 function Settings({ verified, setStatus, servicesLoad, mode }) {
   return (
     <div style={{ marginLeft: "5px", marginBottom: "10px" }}>
-      <Capacity setStatus={setStatus}></Capacity>
+      <Capacity setStatus={setStatus} verified={verified}></Capacity>
       {verified ? (
         <Payment setStatus={setStatus} servicesLoad={servicesLoad}></Payment>
       ) : (
@@ -25,7 +25,7 @@ function Settings({ verified, setStatus, servicesLoad, mode }) {
             callBack={servicesLoad}
           ></ChangePass>
           <br></br>
-          <DevPay></DevPay>
+          <DevPay setStatus={setStatus}></DevPay>
         </div>
       )}
     </div>
@@ -123,23 +123,10 @@ function Payment({ setStatus, servicesLoad }) {
   );
 }
 
-function DevPay() {
+function DevPay({setStatus}) {
   return (
     <div style={{marginLeft:"5px"}}>
-      <u>devPay</u>
-      <br></br>
-      devPay Price ($) :{" "}
-      <input
-        id="sub1"
-        type="number"
-        style={{ backgroundColor: "black", color: "lightgreen",width:"30px" }}
-        placeholder={1}
-      ></input>{" "}
-      <i
-        style={{ color: "orange",marginLeft:"4px" }}
-        className="fas fa-undo"
-      ></i>
-      <div style={{marginTop:"5px"}}>
+      <div style={{marginBottom:"5px"}}><u >web10 devPay</u></div>
       <button
         className="button is-success is-light is-small"
         onClick={() => {
@@ -163,27 +150,13 @@ function DevPay() {
         {" "}
         Stats
       </button>
-      <button
-        style={{ marginLeft: "5px" }}
-        className="button is-success is-light is-small"
-        onClick={() => {
-          wapiAuth.business_login().then((response) => {
-            window.location.href = response.data;
-          });
-        }}
-      >
-        {" "}
-        Change Prices
-      </button>
-
-      </div>
     </div>
   );
 }
 
-function Capacity({ setStatus }) {
-  const [plan, setPlan] = React.useState(`MB/mo. .. , Credits/mo. ..`);
-  const [util, setUtil] = React.useState(`Storage Utilization : .. / .. MB`);
+function Capacity({ verified,setStatus }) {
+  const [plan, setPlan] = React.useState(`MB/mo. 0 , Credits/mo. 0`);
+  const [util, setUtil] = React.useState(`Storage Utilization : _ / 0 MB`);
   wapiAuth
     .getPlan()
     .then((response) => {
@@ -196,7 +169,7 @@ function Capacity({ setStatus }) {
       setPlan(`MB/mo. ${space} , Credits/mo. ${credit}`);
       setUtil(`Storage Utilization : ${used}/${space} MB`);
     })
-    .catch((e) => setStatus("Failed to get plan info..."));
+    .catch((e) => verified?setStatus("Failed to get plan info..."):"");
   return (
     <div style={{ marginLeft: "3px" }}>
       <input size={plan.length} placeholder={plan} readOnly></input>

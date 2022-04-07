@@ -37,14 +37,6 @@ def get_active_subscription_data(customer_id):
 def sub_price_ids(sub_data):
     return [sub["price"]["id"] for sub in sub_data]
 
-#TODO
-def make_dev_pay():
-    return
-
-#TODO
-def update_dev_pay():
-    return
-
 ###############################################
 #### Session URL creation
 ###############################################

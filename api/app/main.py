@@ -229,30 +229,6 @@ async def manage_subscription(token: models.Token):
     customer_id = mget_customer_id(decoded.username)
     return pay.manage_subscription(customer_id,sub_id,"fixed")
 
-def mget_dev_pay(username):
-    dev_pay,price = db.get_dev_pay(username)
-    if not dev_pay:
-        dev_pay,price = pay.make_dev_pay()
-        db.set_dev_pay(username,dev_pay,price)
-    return dev_pay,price
-
-@app.post("/get_dev_pay",include_in_schema=False)
-async def get_dev_pay(token: models.Token):
-    check_admin(token)    
-    decoded = decode_token(token.token)
-    dev_pay,price = mget_dev_pay(decoded.username)
-    return {"dev_pay":dev_pay,"price":price}
-
-@app.post("/update_dev_pay",include_in_schema=False)
-async def update_dev_pay(token: models.Token):
-    check_admin(token)    
-    decoded = decode_token(token.token)
-    dev_pay,_ = mget_dev_pay(decoded.username)
-    new_price = token.query["price"]
-    pay.update_dev_pay(dev_pay,new_price)
-    db.set_dev_pay(decoded.username,dev_pay,new_price)
-
-
 def mget_business_id(username):
     business_id = db.get_business_id(username)
     if not business_id:
@@ -336,12 +312,10 @@ async def signup(form_data: models.SignUpForm):
     if not kosher(form_data.username):
         raise exceptions.BAD_USERNAME
     res = db.create_user(form_data, get_password_hash)
-    
-    #integration management
-    mget_customer_id(form_data.username)
-    mget_business_id(form_data.username)
-    mobile.send_verification(form_data.phone,form_data.username)
-    
+    try : 
+        mobile.send_verification(form_data.phone,form_data.username)
+    except:
+        pass
     return res
 
 def subscription_update(user):

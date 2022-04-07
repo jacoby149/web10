@@ -107,3 +107,9 @@ SPACE = HTTPException(
     detail="ran out of space",
     headers={"WWW-Authenticate": "Basic"},
 )
+
+BAD_NUM = HTTPException(
+    status_code=status.HTTP_401_UNAUTHORIZED,
+    detail="Phone number failure.",
+    headers={"WWW-Authenticate": "Basic"},
+)

@@ -90,7 +90,7 @@ function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
               }}
             />
           </div>
-          <div style={{display:"None"}} className="field">
+          <div style={{ display: "None" }} className="field">
             <p
               style={{ margin: "10px 10px" }}
               className="control has-icons-left"
@@ -113,15 +113,16 @@ function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
         <p className="control">
           {loginMode ? (
             <button
-              onClick={() =>
+              onClick={() => {
+                setStatus("Logging in ...");
                 wapiAuth.logIn(
                   document.getElementById("provider").value,
                   document.getElementById("username").value,
                   document.getElementById("password").value,
                   setAuthStatus,
                   setStatus
-                )
-              }
+                );
+              }}
               style={{ margin: "0px 10px" }}
               className="button is-success"
             >
@@ -135,12 +136,13 @@ function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
                   document.getElementById("username").value,
                   document.getElementById("password").value,
                   document.getElementById("betacode").value,
-                  document.getElementById("retypepass").value
+                  document.getElementById("retypepass").value,
                 ];
-                if (password!==retype){
+                if (password !== retype) {
                   setStatus("Failed to Sign Up : Passwords do not match.");
                   return;
                 }
+                setStatus("Signing Up ...");
                 wapiAuth
                   .signUp(provider, username, password, betacode, phone)
                   .then(() =>

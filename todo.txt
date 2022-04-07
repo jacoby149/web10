@@ -1,5 +1,3 @@
-add sign in creating account message
-when out of SMRs, change view to login
 implement pay [make update] devPay
 implement db [get set] devPay
 frontend hookup devPay
