@@ -1,4 +1,1 @@
-implement pay [make update] devPay
-implement db [get set] devPay
-frontend hookup devPay
-make web10 devpay demo
+make devpay portal opener function
