@@ -221,13 +221,12 @@ async def manage_credits(token: models.Token):
     return pay.manage_credits(customer_id)
 
 
-@app.post("/manage_subscription",include_in_schema=False)
+@app.post("/manage_subscriptions",include_in_schema=False)
 async def manage_subscription(token: models.Token):
     certify_token(token)    
     decoded = decode_token(token.token)
-    sub_id = token.query["sub"]
     customer_id = mget_customer_id(decoded.username)
-    return pay.manage_subscription(customer_id,sub_id,"fixed")
+    return pay.create_portal_session(customer_id)
 
 def mget_business_id(username):
     business_id = db.get_business_id(username)
@@ -244,7 +243,7 @@ async def manage_business(token: models.Token):
     return pay.create_business_session(bus_id)
 
 @app.post("/business_login",include_in_schema=False)
-async def manage_business(token: models.Token):
+async def business_login(token: models.Token):
     check_admin(token)    
     username = decode_token(token.token).username
     bus_id = mget_business_id(username)

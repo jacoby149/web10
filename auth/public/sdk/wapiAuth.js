@@ -105,28 +105,27 @@ function wapiAuthInit(wapi) {
   }
 
   //stripe functionality
-  wapiAuth.manage_space = function(){
+  wapiAuth.manageSpace = function(){
     return axios.post(`${api()}/manage_space`,{token:wapi.token})
   }
-  wapiAuth.manage_credits = function(){
+  wapiAuth.manageCredits = function(){
     return axios.post(`${api()}/manage_credits`,{token:wapi.token})
   }
-  wapiAuth.manage_business = function(){
+  wapiAuth.manageBusiness = function(){
     return axios.post(`${api()}/manage_business`,{token:wapi.token})
   }
-  wapiAuth.business_login = function(){
+
+  wapiAuth.manageSubscriptions = function(){
+    return axios.post(`${api()}/manage_subscriptions`,{token:wapi.token})
+  }
+
+  wapiAuth.businessLogin = function(){
     return axios.post(`${api()}/business_login`,{token:wapi.token})
   }
 
   wapiAuth.getPlan = function(){
     return axios.post(`${api()}/get_plan`,{token:wapi.token})
   }
-
-  }
-  wapiAuth.manageSubscription = function(subId){
-    return axios.post(`${api()}/manage_subscription`,{token:wapi.token,query:{"sub":subId}})
-  }
-
 
   //output the wapiAuth object
   return wapiAuth;
