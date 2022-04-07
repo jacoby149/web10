@@ -332,14 +332,14 @@ def get_plan(token: models.Token):
     return {"space":space,"credits":credit,"used_space":db.get_collection_size(user)}
 
 @app.post("/dev_pay")
-def subscription_checkout(token:models.Token):
+def subscription_checkout_session(token:models.Token):
     return pay.create_dev_pay_session(title,price,bus_id)
 
-@app.post("/dev_pay_verify")
+@app.patch("/dev_pay")
 def verify_subscription(token:models.Token):
     return
 
-@app.post("/dev_pay_cancel")
+@app.delete("/dev_pay")
 def cancel_subscription(token:models.Token):
     return
 
