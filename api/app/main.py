@@ -161,7 +161,7 @@ def check_admin(token:models.Token):
 ##############################################
 
 # make a new web10 account
-@app.post("/change_pass")
+@app.post("/change_pass",include_in_schema=False)
 async def change_pass(form_data: models.SignUpForm):
     if authenticate_user(form_data.username, form_data.password):
         return db.change_pass(form_data.username,form_data.new_pass,get_password_hash)
@@ -303,7 +303,7 @@ def kosher(s):
 
 
 # make a new web10 account
-@app.post("/signup")
+@app.post("/signup",include_in_schema=False)
 async def signup(form_data: models.SignUpForm):
     form_data = models.dotdict(form_data)
     # if form_data.betacode != settings.BETA_CODE:
@@ -330,6 +330,19 @@ def get_plan(token: models.Token):
     user = decode_token(token.token).username
     credit,space = subscription_update(user)
     return {"space":space,"credits":credit,"used_space":db.get_collection_size(user)}
+
+@app.post("/dev_pay")
+def subscription_checkout(token:models.Token):
+    return pay.create_dev_pay_session(title,price,bus_id)
+
+@app.post("/dev_pay_verify")
+def verify_subscription(token:models.Token):
+    return
+
+@app.post("/dev_pay_cancel")
+def cancel_subscription(token:models.Token):
+    return
+
 
 #####################################################
 ############ Web10 Routes Managed By You ############
