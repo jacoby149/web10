@@ -26,8 +26,9 @@ if (typeof wapiInit === "undefined") {
     //sets the api key in wapi and stores it in cookies
     wapi.setToken = function (token) {
       wapi.token = token;
-      //set the cookie max age to 30 minutes * 60secs = 1800 secs
-      document.cookie = `token=${wapi.token};Secure;path=/;max-age=1800;`;
+      //set the cookie max age to 60 days (1 day padding from the true 61 day expiration)
+      const age = 3600 * 24 * 60
+      document.cookie = `token=${wapi.token};Secure;path=/;max-age=${age};`;
     };
     //scrub the api keys from wapi and deletes it from cookies
     wapi.scrubToken = function () {
