@@ -349,11 +349,3 @@ def subscription_update(user,c,s):
 
 def get_collection_size(user):
     return db.command("collstats", user)["size"]/1024
-
-#TODO
-def set_dev_pay(user,new_dev_pay,new_price):
-    return
-
-#TODO
-def get_dev_pay(user):
-    return

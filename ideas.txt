@@ -203,3 +203,4 @@ shouldnt be able to rename services from the backend...
 shouldnt be able to add already existing fields from the backend from service editor
 
 subscription updates at the end of the month or whenever users inspect their plan
+when out of SMRs, change view to login

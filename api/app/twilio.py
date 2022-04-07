@@ -2,6 +2,7 @@
 import os
 from twilio.rest import Client
 import app.settings as settings
+import app.exceptions as exceptions
 
 # Find your Account SID and Auth Token at twilio.com/console
 # and set the environment variables. See http://twil.io/secure
@@ -11,16 +12,19 @@ client = Client(account_sid, auth_token)
 
 # send the verification code
 def send_verification(phone_number,username):
-    verification = client.verify \
-                        .services(settings.TWILIO_SERVICE) \
-                        .verifications \
-                        .create(channel_configuration={
-                            'substitutions': {
-                                'username': username
-                            }
-                        }, to="+"+str(phone_number), channel='sms')
+    try:
+        verification = client.verify \
+                            .services(settings.TWILIO_SERVICE) \
+                            .verifications \
+                            .create(channel_configuration={
+                                'substitutions': {
+                                    'username': username
+                                }
+                            }, to="+"+str(phone_number), channel='sms')
 
-    return verification.sid
+        return verification.sid
+    except:
+        raise exceptions.BAD_NUM
 
 # check the verification code
 def check_verification(phone_number,code):
