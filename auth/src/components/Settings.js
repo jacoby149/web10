@@ -91,7 +91,7 @@ function Payment({ setStatus, servicesLoad }) {
       <button
         className="button is-primary is-light is-small"
         onClick={() => {
-          wapiAuth.manage_space().then((response) => {
+          wapiAuth.manageSpace().then((response) => {
             window.location.href = response.data;
           });
         }}
@@ -103,7 +103,7 @@ function Payment({ setStatus, servicesLoad }) {
         style={{ marginLeft: "5px" }}
         className="button is-success is-light is-small"
         onClick={() => {
-          wapiAuth.manage_credits().then((response) => {
+          wapiAuth.manageCredits().then((response) => {
             window.location.href = response.data;
           });
         }}
@@ -114,10 +114,15 @@ function Payment({ setStatus, servicesLoad }) {
       <button
         style={{ marginLeft: "5px" }}
         className="button is-secondary is-light is-small"
-        disabled={true}
-      >
+        onClick={() => {
+          wapiAuth.manageSubscriptions().then((response) => {
+            window.location.href = response.data;
+          });
+        }}
+
+>
         {" "}
-        Wires
+        Subscriptions
       </button>
     </div>
   );
@@ -130,7 +135,7 @@ function DevPay({setStatus}) {
       <button
         className="button is-success is-light is-small"
         onClick={() => {
-          wapiAuth.manage_business().then((response) => {
+          wapiAuth.manageBusiness().then((response) => {
             window.location.href = response.data;
           });
         }}
@@ -142,7 +147,7 @@ function DevPay({setStatus}) {
         style={{ marginLeft: "5px" }}
         className="button is-success is-light is-small"
         onClick={() => {
-          wapiAuth.business_login().then((response) => {
+          wapiAuth.businessLogin().then((response) => {
             window.location.href = response.data;
           });
         }}
