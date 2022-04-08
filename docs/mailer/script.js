@@ -11,7 +11,7 @@ const sirs = [
   {
     service: "web10-docs-mail-demo",
     cross_origins: ["docs.web10.app", "localhost", "docs.localhost"],
-    whitelist : [{username:".*",provider:".*",create:true}]//allows all users to write to you
+    whitelist: [{ username: ".*", provider: ".*", create: true }], //allows all users to write to you
   },
 ];
 wapi.SMROnReady(sirs, []);
@@ -40,7 +40,10 @@ function displaySubscriberMessage() {
 /* message for users that are not subscribed to onboard them */
 function displayOnboardMessage() {
   subscriptionStatus.innerHTML = `not subscribed! <button id="checkout"> subscribe </button>`;
-  checkout.onclick = () => wapi.checkout(seller, subscriptionTitle, price, url, url);
+  checkout.onclick = () =>
+    wapi.checkout(seller, subscriptionTitle, price, url, url).catch((e) => {
+      message.innerHTML = e.response.data.detail;
+    });
 }
 
 /* a front end weak subscription check [still lucrative!] */
@@ -89,17 +92,25 @@ function readMail() {
     .then((response) => displayMail(response.data))
     .catch((error) => (message.innerHTML = `${rF} : ${error}`));
 }
-function createMail(mail,user,provider) {
+function createMail(mail, user, provider) {
   const t = wapi.readToken();
   wapi
-    .create("web10-docs-mail-demo", { mail: mail, date: String(new Date()),provider:t["provider"],username:t["username"] },user,provider)
+    .create(
+      "web10-docs-mail-demo",
+      {
+        mail: mail,
+        date: String(new Date()),
+        provider: t["provider"],
+        username: t["username"],
+      },
+      user,
+      provider
+    )
     .then(() => {
       readMail();
       curr.value = "";
     })
-    .catch(
-      (error) => (message.innerHTML = `${cF} : ${error}`)
-    );
+    .catch((error) => (message.innerHTML = `${cF} : ${error}`));
 }
 function deleteMail(id) {
   wapi

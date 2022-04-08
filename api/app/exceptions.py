@@ -113,3 +113,9 @@ BAD_NUM = HTTPException(
     detail="Phone number failure.",
     headers={"WWW-Authenticate": "Basic"},
 )
+
+BUSINESS_NOT_READY = HTTPException(
+    status_code=status.HTTP_401_UNAUTHORIZED,
+    detail="Business hasn't filled out their banking details yet.",
+    headers={"WWW-Authenticate": "Basic"},
+)
