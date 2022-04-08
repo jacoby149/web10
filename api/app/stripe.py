@@ -1,5 +1,6 @@
 import stripe
 import app.settings as settings 
+import app.exceptions as exceptions
 
 stripe.api_key = settings.STRIPE_KEY
 
@@ -128,27 +129,32 @@ def credit_space(customer_id):
 #################################
 
 # create dev pay subscription checkout session
-def create_dev_pay_session(title,price,bus_id):
+def create_dev_pay_session(customer_id,bus_id,pay_data):
     checkout_session = stripe.checkout.Session.create(
         success_url="https://auth.web10.app",
         cancel_url="https://auth.web10.app",
+        customer=customer_id,
         payment_method_types=["card"],
         mode="subscription",
         line_items= [{
             "price_data":{
                 "currency":"usd",
-                "unit_amount":price,
+                "unit_amount":pay_data.price,
                 "recurring":{
                     "interval":"month",
                 },
                 "product_data":{
-                    "name":title
+                    "name":pay_data.title
                 },
             },
             "quantity":1,
             }],
         subscription_data= {
-            "metadata":{"title":title,"price":price},
+            "metadata":{
+                "title":pay_data.title,
+                "seller":pay_data.seller,
+                "price":pay_data.price,
+                },
             "transfer_data":{
                 "destination":bus_id,
                 "amount_percent":settings.DEV_PAY_PCT
@@ -157,14 +163,23 @@ def create_dev_pay_session(title,price,bus_id):
     )
     return checkout_session["url"]
 
-# gets the subscription object for devpay customer subscription with input title
-def get_dev_pay_subscription(customer_id,title):
-    return True
-
 # gets the metadata json from customers devpay subscription with the title.
-def get_dev_pay_metadata(cutomer_id,title):
-    return get_dev_pay_subscription
+def get_dev_pay_subscription(customer_id,pay_data):
+    subs = get_active_subscriptions(customer_id)
+    def f(sub):
+        return sub["metadata"]["title"] == pay_data.title and sub["metadata"]["seller"] == pay_data.seller
+    subs = list(filter(f, subs))
+    if len(subs) == 0: return None
+    else : return subs[0]
+
+def get_dev_pay_metadata(customer_id,pay_data):
+    sub = get_dev_pay_subscription(customer_id, pay_data)
+    if sub == None: return None
+    else : return sub["metadata"]
 
 # cancels the customers devpay subscription of given title
-def cancel_dev_pay_subscription(customer_id,title):
-    return True
+def cancel_dev_pay_subscription(customer_id, pay_data):
+    sub = get_dev_pay_subscription(customer_id, pay_data)
+    if sub == None:
+        raise exceptions.NO_SUB
+    stripe.Subscription.delete(sub["id"])
