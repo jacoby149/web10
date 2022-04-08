@@ -254,10 +254,6 @@ function displayNotes(data) {
 
 
 
-## General
-
-
-
 ### Service Term Records
 
 Users have a service term record for each active service they actively host with web10.  
@@ -286,6 +282,220 @@ Users have a service term record for each active service they actively host with
 	]
 	blacklist : [ same as whitelist entries ...]
 }
+```
+
+
+
+### devPay
+
+Developers can accept web10 payment with web10 devPay.
+
+| function                                                  | description                                          |
+| --------------------------------------------------------- | ---------------------------------------------------- |
+| wapi.checkout (seller, title, price,successUrl,cancelUrl) | Opens a subscription checkout portal for a customer. |
+| wapi.verifySubscription (seller, title)                   | Verify that a customer is subscribed.                |
+| wapi.wapi.cancelSubscription (seller, title)              | Cancel a customer subscription                       |
+
+
+
+### Demo - Email App
+
+Below is an email app, highly derived from the code in the notes app. It uses service term regexing to let anyone send you an email, and implements web10 devPay . <a href="https://docs.web10.app/mailer">**Demo Link**</a>
+
+```html
+<html>
+<!-- index.html -->
+
+<head>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.1/css/bulma.min.css" />
+    <link rel="stylesheet" href="style.css" />
+    <meta name="viewport" content="width=device-width" />
+</head>
+
+<body>
+    <div style="margin:5px">
+        <button id="authButton">
+            log in
+        </button>
+        <p id="message">
+            app not started
+        </p>
+        <div id="subscriptionStatus">awaiting subscription check</div>
+        <br>
+        <div>
+            <div>
+                <input class="" id="recipient" placeholder="recipient">
+                <input class="" id="web10server" placeholder="web10server" value="api.web10.app">
+            </div>
+            <div>
+                <textarea id="curr" placeholder="write message here"></textarea>
+            </div>
+            <div>
+                <button onclick="createMail(curr.value,recipient.value,web10server.value)">create mail</button>
+            </div>
+        </div>
+        <div id="mailview"></div>
+    </div>
+</body>
+<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+<script src="https://auth.web10.app/sdk/wapi.js"></script>
+<script src="script.js"></script>
+
+</html>
+```
+
+```css
+div {
+  margin-top:5px;
+}
+
+input{
+  margin-bottom:3px;
+}
+
+textarea{
+  width:100%;
+  height:200px;
+}
+```
+
+```js
+/* script.js */
+
+//conventient failure messages
+const Fs = ([cF, rF, uF, dF] = ["create", "read", "update", "delete"].map(
+  (op) => `failed to ${op} mail[s]`
+));
+
+/* wapi setup */
+const wapi = wapiInit("https://auth.web10.app");
+const sirs = [
+  {
+    service: "web10-docs-mail-demo",
+    cross_origins: ["docs.web10.app", "localhost", "docs.localhost"],
+    whitelist: [{ username: ".*", provider: ".*", create: true }], //allows all users to write to you
+  },
+];
+wapi.SMROnReady(sirs, []);
+authButton.onclick = wapi.openAuthPortal;
+
+/* web10 devPay */
+const [seller, subscriptionTitle, price, url] = [
+  "jacoby149",
+  "mailer-premium",
+  50,
+  window.location.href,
+];
+
+/* message for current subscribers */
+function displaySubscriberMessage() {
+  subscriptionStatus.innerHTML = `subscribed! <button id="cancel"> cancel sub </button>`;
+  cancel.onclick = () =>
+    wapi
+      .cancelSubscription(seller, subscriptionTitle)
+      .then(() => window.location.reload())
+      .catch((e) => {
+        subscriptionStatus.innerHTML = `subscription cancellation failed...`;
+      });
+}
+
+/* message for users that are not subscribed to onboard them */
+function displayOnboardMessage() {
+  subscriptionStatus.innerHTML = `not subscribed! <button id="checkout"> subscribe </button>`;
+  checkout.onclick = () =>
+    wapi.checkout(seller, subscriptionTitle, price, url, url).catch((e) => {
+      message.innerHTML = e.response.data.detail;
+    });
+}
+
+/* a front end weak subscription check [still lucrative!] */
+function validSubscription(subscriptionData) {
+  return (
+    subscriptionData !== null &&
+    parseInt(subscriptionData["price"]) === price &&
+    subscriptionData["seller"] === seller &&
+    subscriptionData["title"] === title
+  );
+}
+
+/* The devpay functionality */
+function devPay() {
+  wapi
+    .verifySubscription(seller, subscriptionTitle)
+    .then((r) => {
+      if (validSubscription(r["data"])) displaySubscriberMessage();
+      else displayOnboardMessage();
+    })
+    .catch(
+      (e) => (subscriptionStatus.innerHTML = `subscription check failed...`)
+    );
+}
+
+function initApp() {
+  authButton.innerHTML = "log out";
+  authButton.onclick = () => {
+    wapi.signOut();
+    window.location.reload();
+    devPay();
+  };
+  const t = wapi.readToken();
+  message.innerHTML = `hello ${t["provider"]}/${t["username"]},<br>`;
+  readMail();
+  devPay();
+}
+
+if (wapi.isSignedIn()) initApp();
+else wapi.authListen(initApp);
+
+/* CRUD Calls */
+function readMail() {
+  wapi
+    .read("web10-docs-mail-demo", {})
+    .then((response) => displayMail(response.data))
+    .catch((error) => (message.innerHTML = `${rF} : ${error}`));
+}
+function createMail(mail, user, provider) {
+  const t = wapi.readToken();
+  wapi
+    .create(
+      "web10-docs-mail-demo",
+      {
+        mail: mail,
+        date: String(new Date()),
+        provider: t["provider"],
+        username: t["username"],
+      },
+      user,
+      provider
+    )
+    .then(() => {
+      readMail();
+      curr.value = "";
+    })
+    .catch((error) => (message.innerHTML = `${cF} : ${error}`));
+}
+function deleteMail(id) {
+  wapi
+    .delete("web10-docs-mail-demo", { _id: id })
+    .then(readMail)
+    .catch(
+      (error) => (message.innerHTML = `${dF} : ${error.response.data.detail}`)
+    );
+}
+
+/* display */
+function displayMail(data) {
+  function contain(mail) {
+    return `<div style="margin-top:40px;margin-left:10px">
+                <p style="font-family:monospace;">${mail.date}</p>
+                <p style="font-family:monospace;">${mail.provider}/${mail.username}</p>                
+                <i id="${mail._id}">${mail.mail}</i>
+                <button onclick="deleteMail('${mail._id}')">Delete</button>
+            </div>`;
+  }
+  mailview.innerHTML = data.map(contain).reverse().join(`<br>`);
+}
+
 ```
 
 
