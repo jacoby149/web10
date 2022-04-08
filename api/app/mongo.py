@@ -257,6 +257,8 @@ def star_selected(user, service, query):
 
 def get_customer_id(user):
     star = get_star(user)
+    if star==None:
+        raise exceptions.NO_USER
     if "customer_id" in star:
         return star["customer_id"]
     return None
@@ -269,6 +271,8 @@ def set_customer_id(user,customer_id):
 
 def get_business_id(user):
     star = get_star(user)
+    if star==None:
+        raise exceptions.NO_USER
     if "business_id" in star:
         return star["business_id"]
     return None
