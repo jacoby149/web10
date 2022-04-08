@@ -16,6 +16,56 @@ const sirs = [
 wapi.SMROnReady(sirs, []);
 authButton.onclick = wapi.openAuthPortal;
 
+/* web10 devPay */
+const [seller, subscriptionTitle, price, url] = [
+  "jacoby149",
+  "notes-app",
+  50,
+  window.location.href,
+];
+
+/* message for current subscribers */
+function displaySubscriberMessage() {
+  subscriptionStatus.innerHTML = `subscribed! <button id="cancel"> cancel sub </button>`;
+  cancel.onclick = () =>
+    wapi
+      .cancelSubscription(seller, title)
+      .then(() => window.location.reload())
+      .catch((e) => {
+        subscriptionStatus.innerHTML = `subscription cancellation failed...`;
+      });
+}
+
+/* message for users that are not subscribed to onboard them */
+function displayOnboardMessage() {
+  subscriptionStatus.innerHTML = `not subscribed! <button id="checkout"> subscribe </button>`;
+  checkout.onclick = () => wapi.checkout(seller, title, price, url, url);
+}
+
+/* a front end weak subscription check [still lucrative!] */
+function validSubscription(subscriptionData) {
+  return (
+    subscriptionData !== null &&
+    parseInt(subscriptionData["price"]) === price &&
+    subscriptionData["seller"] === seller &&
+    subscriptionData["title"] === title
+  );
+}
+
+/* The devpay functionality */
+function devPay() {
+  wapi
+    .verifySubscription(seller, title)
+    .then((r) => {
+      if (validSubscription(r["data"])) displaySubscriberMessage();
+      else displayOnboardMessage();
+    })
+    .catch(
+      (e) => (subscriptionStatus.innerHTML = `subscription check failed...`)
+    );
+}
+
+/* the function that starts up the app functionality */
 function initApp() {
   authButton.innerHTML = "log out";
   authButton.onclick = () => {
@@ -25,33 +75,7 @@ function initApp() {
   const t = wapi.readToken();
   message.innerHTML = `hello ${t["provider"]}/${t["username"]},<br>`;
   readNotes();
-
-  const [seller,title,price,url] = ["jacoby149","notes-app",50,window.location.href]
-  wapi
-    .verifySubscription(seller,title)
-    .then((r) => {
-      const subscriptionData = r["data"];
-      console.log(subscriptionData)
-      if (
-        subscriptionData !== null &&
-        parseInt(subscriptionData["price"]) === price &&
-        subscriptionData["seller"] === seller &&
-        subscriptionData["title"] === title
-      ){
-        subscriptionStatus.innerHTML = `subscribed! <button id="cancel"> cancel sub </button>`;
-        cancel.onclick=()=>wapi.cancelSubscription(seller,title).then(()=>window.location.reload()).catch((e) => {
-          console.log(e)
-          subscriptionStatus.innerHTML= `subscription cancellation failed...`;
-        })
-      }else {
-        subscriptionStatus.innerHTML = `not subscribed! <button id="checkout"> subscribe </button>`;
-        checkout.onclick=()=>wapi.checkout(seller,title,price,url,url)
-      }
-    })
-    .catch((e) => {
-      console.log(e)
-      subscriptionStatus.innerHTML= `subscription check failed...`;
-    });
+  devPay();
 }
 
 if (wapi.isSignedIn()) initApp();
