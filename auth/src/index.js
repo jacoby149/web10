@@ -53,6 +53,8 @@ function App() {
   //status message
   const [status, setStatus] = React.useState(null);
   React.useEffect(() => {
+
+    //check if services need to be disabled
     if (
       authStatus &&
       services[0][0]["service"] !== "log in to manage services" &&
@@ -61,6 +63,15 @@ function App() {
       setMode("services-disabled");
       setCollapse(true);
     }
+
+    //check if services need to be re enabled
+    if (
+      services[0][0]["verified"] === true &&
+      mode === "services-disabled"
+    ){
+      setMode("services");
+    }
+
     setStatus(
       authStatus
         ? mode === "services"
@@ -200,7 +211,7 @@ function App() {
           updatedServices.push.apply(updatedServices, SIRS);
           //set the services in the UI
           setServices(updatedServices);
-          //setMode("services");
+          //let the menu button click if verify phone number...
         })
         .catch(console.error);
     } else {
@@ -249,12 +260,11 @@ function App() {
         <Icon
           l
           ns
-          onClick={
-            mode === "services-disabled"
-              ? () =>
-                  setStatus("you must verify phone number to access the menu")
-              : toggleCollapse
-          }
+          onClick={() => {
+            console.log(mode);
+            return mode === "services-disabled"? setStatus("you must verify phone number to access the menu")
+              : toggleCollapse();
+          }}
         >
           bars
         </Icon>

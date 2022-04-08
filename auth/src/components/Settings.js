@@ -5,6 +5,7 @@ import "react-phone-input-2/lib/bootstrap.css";
 var wapiAuth = window.wapiAuth;
 
 function Settings({ verified, setStatus, servicesLoad, mode }) {
+  console.log(verified)
   return (
     <div style={{ marginLeft: "5px", marginBottom: "10px" }}>
       <Capacity setStatus={setStatus} verified={verified}></Capacity>

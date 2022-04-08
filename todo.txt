@@ -1,1 +1,1 @@
-make devpay portal opener function
+implement mgets for the devpay speedup
