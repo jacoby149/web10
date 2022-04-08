@@ -27,7 +27,7 @@ if (typeof wapiInit === "undefined") {
     wapi.setToken = function (token) {
       wapi.token = token;
       //set the cookie max age to 60 days (1 day padding from the true 61 day expiration)
-      const age = 3600 * 24 * 60
+      const age = 3600 * 24 * 60;
       document.cookie = `token=${wapi.token};Secure;path=/;max-age=${age};`;
     };
     //scrub the api keys from wapi and deletes it from cookies
@@ -196,10 +196,33 @@ if (typeof wapiInit === "undefined") {
       });
     };
 
-    wapi.manage_subscription = function(devPay){
-      return axios.post(`${api()}/manage_subscription`,{token:wapi.token,query:{sub:devPay}})
-    }
-  
+    wapi.checkout = function () {
+      return axios.post(`${api()}/dev_pay`, {
+        token: wapi.token,
+        seller: seller,
+        title: title,
+        price: price,
+      });
+    };
+
+    wapi.verifySubscription = function () {
+      return axios.patch(`${api()}/dev_pay`, {
+        token: wapi.token,
+        seller: seller,
+        title: title,
+        price: price,
+      });
+    };
+
+    wapi.cancelSubscription = function () {
+      return axios.delete(`${api()}/dev_pay`, {
+        token: wapi.token,
+        seller: seller,
+        title: title,
+        price: price,
+      });
+    };
+
     //output the wapi object
     return wapi;
   }

@@ -4,7 +4,6 @@ from typing import Optional
 
 class dotdict(dict):
     """dot.notation access to dictionary attributes"""
-
     __getattr__ = dict.get
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
@@ -15,6 +14,12 @@ class Token(BaseModel):
     query: Optional[dict] = None
     update: Optional[dict] = None
     pull: Optional[dict] = None
+
+class PayData(BaseModel):
+    token: str
+    seller: str
+    title: str
+    price: float
 
 
 class TokenData(BaseModel):

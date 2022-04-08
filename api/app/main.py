@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from re import M
 from fastapi import FastAPI, Request, status, BackgroundTasks
 from passlib.context import CryptContext
 from fastapi.middleware.cors import CORSMiddleware
@@ -223,7 +224,7 @@ async def manage_credits(token: models.Token):
 
 @app.post("/manage_subscriptions",include_in_schema=False)
 async def manage_subscription(token: models.Token):
-    certify_token(token)    
+    check_admin(token)    
     decoded = decode_token(token.token)
     customer_id = mget_customer_id(decoded.username)
     return pay.create_portal_session(customer_id)
@@ -249,6 +250,31 @@ async def business_login(token: models.Token):
     bus_id = mget_business_id(username)
     return pay.business_login_session(bus_id)
 
+
+@app.post("/dev_pay")
+def subscription_checkout_session(pay_data:models.PayData):
+    certify(pay_data.token)
+    decoded = decode_token(pay_data.token)
+    username = decoded.username
+    customer_id = mget_customer_id(username)
+    bus_id = mget_business_id(pay_data.seller)
+    return pay.create_dev_pay_session(customer_id,bus_id,pay_data)
+
+@app.patch("/dev_pay")
+def verify_subscription(pay_data:models.PayData):
+    certify(pay_data.token)
+    decoded = decode_token(pay_data.token)
+    username = decoded.username
+    customer_id = mget_customer_id(username)
+    return pay.get_dev_pay_metadata(customer_id,pay_data)
+
+@app.delete("/dev_pay")
+def cancel_subscription(pay_data:models.PayData):
+    certify(pay_data.token)
+    decoded = decode_token(pay_data.token)
+    username = decoded.username
+    customer_id = mget_customer_id(username)
+    return pay.cancel_dev_pay_subscription(customer_id,pay_data)
 
 # check that a token is a valid non expired token written by this web10 server.
 @app.post("/certify")
@@ -330,19 +356,6 @@ def get_plan(token: models.Token):
     user = decode_token(token.token).username
     credit,space = subscription_update(user)
     return {"space":space,"credits":credit,"used_space":db.get_collection_size(user)}
-
-@app.post("/dev_pay")
-def subscription_checkout_session(token:models.Token):
-    return pay.create_dev_pay_session(title,price,bus_id)
-
-@app.patch("/dev_pay")
-def verify_subscription(token:models.Token):
-    return
-
-@app.delete("/dev_pay")
-def cancel_subscription(token:models.Token):
-    return
-
 
 #####################################################
 ############ Web10 Routes Managed By You ############
