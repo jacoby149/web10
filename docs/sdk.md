@@ -349,7 +349,7 @@ Below is an mail app, highly derived from the code in the notes app. It uses ser
     </div>
 </body>
 <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
-<script src="http://auth.localhost/sdk/wapi.js"></script>
+<script src="https://auth.web10.app/sdk/wapi.js"></script>
 <script src="script.js"></script>
 </html>
 ```
@@ -377,7 +377,7 @@ const Fs = ([cF, rF, uF, dF] = ["create", "read", "update", "delete"].map(
 ));
 
 /* wapi setup */
-const wapi = wapiInit("http://auth.localhost");
+const wapi = wapiInit("https://auth.web10.app");
 const sirs = [
   {
     service: "web10-docs-mail-demo",
