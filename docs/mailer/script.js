@@ -19,7 +19,7 @@ authButton.onclick = wapi.openAuthPortal;
 
 /* web10 devPay */
 const [seller, subscriptionTitle, price, url] = [
-  "jacoby149",
+  "seller-web10-username",
   "mailer-premium",
   50,
   window.location.href,
