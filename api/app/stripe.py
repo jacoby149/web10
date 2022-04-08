@@ -109,7 +109,7 @@ def manage_credits(customer_id):
 def credit_space(customer_id):
     subscriptions = get_active_subscriptions(customer_id)
     prices = get_subscription_price_ids(subscriptions)
-    subscription_data = subscriptions["items"]["data"][0]
+    subscription_data = [s["items"]["data"][0] for s in subscriptions]
     cidx = -1 
     if settings.STRIPE_CREDIT_SUB_ID in prices:
         cidx = prices.index(settings.STRIPE_CREDIT_SUB_ID)

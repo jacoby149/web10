@@ -344,8 +344,7 @@ async def signup(form_data: models.SignUpForm):
     return res
 
 def subscription_update(user):
-    star = db.get_star(user)
-    credit,space = pay.credit_space(star["customer_id"])
+    credit,space = pay.credit_space(mget_customer_id(user))
     # also serves to update subscription details from stripe
     db.subscription_update(user,credit,space)
     return credit,space
