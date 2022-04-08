@@ -204,3 +204,7 @@ shouldnt be able to add already existing fields from the backend from service ed
 
 subscription updates at the end of the month or whenever users inspect their plan
 when out of SMRs, change view to login
+
+implement devPay mgets for stripe deload
+implement web10 anon token [for CRUD without web10 acct.]
+add anon token functionality explanation to the docs
