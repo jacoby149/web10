@@ -142,7 +142,7 @@ def get_user(username: str):
 
 def create_user(form_data, hash):
     username, password, phone_number = form_data.username, form_data.password, form_data.phone
-    if username == "web10":
+    if username in ["web10","anon"]:
         raise exceptions.RESERVED
     if get_star(username):
         raise exceptions.EXISTS

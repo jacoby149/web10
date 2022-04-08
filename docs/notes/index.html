@@ -1,5 +1,8 @@
 <html>
 <!-- index.html -->
+<head>
+    <meta name="viewport" content="width=device-width" />
+</head>
 <body>
     <button id="authButton">
         log in
@@ -7,8 +10,6 @@
     <p id="message">
         app not started
     </p>
-    <div id="subscriptionStatus">awaiting subscription check</div>
-    <br>
     <div>
         <textarea id="curr" placeholder="write a note here"></textarea>
         <button onclick="createNote(curr.value)">create note</button>
