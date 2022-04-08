@@ -261,7 +261,6 @@ function App() {
           l
           ns
           onClick={() => {
-            console.log(mode);
             return mode === "services-disabled"? setStatus("you must verify phone number to access the menu")
               : toggleCollapse();
           }}
