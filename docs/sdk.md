@@ -67,6 +67,10 @@ Below is an example of some html and javascript utilizing all of the above authe
 ```html
 <html>
 	<!-- index.html -->
+    <head>
+        <link rel="shortcut icon" href="#">
+        <meta name="viewport" content="width=device-width" />
+    </head>
     <body>
         <button id="authButton">
             log in
@@ -150,6 +154,10 @@ Below is an example of some html and javascript utilizing all of the above user 
 ```html
 <html>
 <!-- index.html -->
+<head>
+    <link rel="shortcut icon" href="#">
+    <meta name="viewport" content="width=device-width" />
+</head>
 <body>
     <button id="authButton">
         log in
@@ -296,22 +304,25 @@ Developers can accept web10 payment with web10 devPay.
 | wapi.verifySubscription (seller, title)                   | Verify that a customer is subscribed.                |
 | wapi.wapi.cancelSubscription (seller, title)              | Cancel a customer subscription                       |
 
+### anon Users
+
+When not logged into web10 on a website with the wapi.js sdk, you can still utilize the web10 CRUD functionality. When the wapi.js CRUD calls are utilized, the api will consider you as an anon user.
 
 
-### Demo - Email App
 
-Below is an email app, highly derived from the code in the notes app. It uses service term regexing to let anyone send you an email, and implements web10 devPay . <a href="https://docs.web10.app/mailer">**Demo Link**</a>
+### Demo - web10 Mail App
+
+Below is an mail app, highly derived from the code in the notes app. It uses service term regexing to allow all web10 users send you an email. It implements $.50/mo. web10 devPay subscription. when not logged in, you can still send web10 mail as an anon web10 user.  <a href="https://docs.web10.app/mailer">**Demo Link**</a>
 
 ```html
 <html>
 <!-- index.html -->
-
 <head>
+    <link rel="shortcut icon" href="#">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.1/css/bulma.min.css" />
     <link rel="stylesheet" href="style.css" />
     <meta name="viewport" content="width=device-width" />
 </head>
-
 <body>
     <div style="margin:5px">
         <button id="authButton">
@@ -338,24 +349,22 @@ Below is an email app, highly derived from the code in the notes app. It uses se
     </div>
 </body>
 <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
-<script src="https://auth.web10.app/sdk/wapi.js"></script>
+<script src="http://auth.localhost/sdk/wapi.js"></script>
 <script src="script.js"></script>
-
 </html>
 ```
 
 ```css
+/* style.css */
 div {
-  margin-top:5px;
+  margin-top: 5px;
 }
-
-input{
-  margin-bottom:3px;
+input {
+  margin-bottom: 3px;
 }
-
-textarea{
-  width:100%;
-  height:200px;
+textarea {
+  width: 100%;
+  height: 200px;
 }
 ```
 
@@ -368,7 +377,7 @@ const Fs = ([cF, rF, uF, dF] = ["create", "read", "update", "delete"].map(
 ));
 
 /* wapi setup */
-const wapi = wapiInit("https://auth.web10.app");
+const wapi = wapiInit("http://auth.localhost");
 const sirs = [
   {
     service: "web10-docs-mail-demo",
@@ -456,21 +465,23 @@ function readMail() {
 }
 function createMail(mail, user, provider) {
   const t = wapi.readToken();
+  const sender = t===null ? "anon":t["username"]
   wapi
     .create(
       "web10-docs-mail-demo",
       {
         mail: mail,
         date: String(new Date()),
-        provider: t["provider"],
-        username: t["username"],
+        provider: provider,
+        username: sender,
       },
       user,
       provider
     )
     .then(() => {
-      readMail();
+      if (sender!=="anon") readMail();
       curr.value = "";
+      message.innerHTML = "sent message";
     })
     .catch((error) => (message.innerHTML = `${cF} : ${error}`));
 }
@@ -495,7 +506,6 @@ function displayMail(data) {
   }
   mailview.innerHTML = data.map(contain).reverse().join(`<br>`);
 }
-
 ```
 
 

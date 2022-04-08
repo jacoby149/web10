@@ -1,12 +1,11 @@
+/* style.css */
 div {
-  margin-top:5px;
+  margin-top: 5px;
 }
-
-input{
-  margin-bottom:3px;
+input {
+  margin-bottom: 3px;
 }
-
-textarea{
-  width:100%;
-  height:200px;
+textarea {
+  width: 100%;
+  height: 200px;
 }
