@@ -65,8 +65,6 @@ function ServiceTerms({
     );
   });
 
-  console.log("before")
-  console.log(flattenedService)
   return (
     <div>
       <div
