@@ -1,1 +1,5 @@
-implement mgets for the devpay speedup
+implement devPay mgets for stripe deload
+implement messages demo [redactables + mail + slate + devpay]
+implement web10 anon token [for CRUD without web10 acct.]
+add demo to docs
+remove crazy characters from docs pages copy paste

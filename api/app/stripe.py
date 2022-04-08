@@ -190,4 +190,4 @@ def cancel_dev_pay_subscription(customer_id, pay_data):
     sub = get_dev_pay_subscription(customer_id, pay_data)
     if sub == None:
         raise exceptions.NO_SUB
-    stripe.Subscription.delete(sub["id"])
+    stripe.Subscription.delete(sub["id"],prorate=True)
