@@ -127,7 +127,10 @@ def certify_with_remote_provider(token: models.Token):
 # a token certifies with it's provider, is targetted to this provider, is cross origin approved, and whitelisted
 def is_permitted(token: models.Token, username, service, action):
     # TODO ADD WHITELIST AND BLACKLISING
-    decoded = decode_token(token.token)
+    if token.token!=None:
+        decoded = decode_token(token.token)
+    else:
+        decoded=models.TokenData(username="anon",provider=settings.PROVIDER,)
     if settings.PROVIDER == decoded.provider:
         certified = certify(token)
     else:
@@ -284,7 +287,10 @@ async def certify_token(token: models.Token):
 
 def certify(token: models.Token):
     try:
-        token_data = decode_token(token.token, private_key=True)
+        if token.token==None:
+            token_data = models.TokenData(username="anon",provider=settings.PROVIDER,)
+        else:
+            token_data = decode_token(token.token, private_key=True)
         if token_data.provider != settings.PROVIDER:
             raise exceptions.TOKEN
         if token_data.username is None:
