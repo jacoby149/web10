@@ -1,2 +1,0 @@
-sdk.md! - add the messages demo + pay docs + regex
-remove bad whitespace from sdk.md code block
