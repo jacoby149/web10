@@ -1,5 +1,6 @@
 implement devPay mgets for stripe deload
 implement messages demo [redactables + mail + slate + devpay]
+add the messages demo + pay docs + regex clarifications to sdk.md
 implement web10 anon token [for CRUD without web10 acct.]
-add demo to docs
-remove crazy characters from docs pages copy paste
+add anon token functionality explanation to the docs
+remove bad whitespace from sdk.md code blocks
