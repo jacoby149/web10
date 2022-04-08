@@ -138,37 +138,40 @@ def create_dev_pay_session(customer_id,bus_id,pay_data):
     if pay_data.cancel_url != None :
         cancel_url = pay_data.cancel_url
 
-    checkout_session = stripe.checkout.Session.create(
-        success_url=success_url,
-        cancel_url=cancel_url,
-        customer=customer_id,
-        payment_method_types=["card"],
-        mode="subscription",
-        line_items= [{
-            "price_data":{
-                "currency":"usd",
-                "unit_amount":pay_data.price,
-                "recurring":{
-                    "interval":"month",
+    try :
+        checkout_session = stripe.checkout.Session.create(
+            success_url=success_url,
+            cancel_url=cancel_url,
+            customer=customer_id,
+            payment_method_types=["card"],
+            mode="subscription",
+            line_items= [{
+                "price_data":{
+                    "currency":"usd",
+                    "unit_amount":pay_data.price,
+                    "recurring":{
+                        "interval":"month",
+                    },
+                    "product_data":{
+                        "name":pay_data.title
+                    },
                 },
-                "product_data":{
-                    "name":pay_data.title
-                },
-            },
-            "quantity":1,
-            }],
-        subscription_data= {
-            "metadata":{
-                "title":pay_data.title,
-                "seller":pay_data.seller,
-                "price":pay_data.price,
-                },
-            "transfer_data":{
-                "destination":bus_id,
-                "amount_percent":settings.DEV_PAY_PCT
+                "quantity":1,
+                }],
+            subscription_data= {
+                "metadata":{
+                    "title":pay_data.title,
+                    "seller":pay_data.seller,
+                    "price":pay_data.price,
+                    },
+                "transfer_data":{
+                    "destination":bus_id,
+                    "amount_percent":settings.DEV_PAY_PCT
+                }
             }
-        }
-    )
+        )
+    except:
+        raise exceptions.BUSINESS_NOT_READY
     return checkout_session["url"]
 
 # gets the metadata json from customers devpay subscription with the title.
