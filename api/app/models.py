@@ -10,7 +10,7 @@ class dotdict(dict):
 
 
 class Token(BaseModel):
-    token: str
+    token: Optional[str] = None
     query: Optional[dict] = None
     update: Optional[dict] = None
     pull: Optional[dict] = None
