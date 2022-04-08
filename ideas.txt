@@ -208,3 +208,5 @@ when out of SMRs, change view to login
 implement devPay mgets for stripe deload
 implement web10 anon token [for CRUD without web10 acct.]
 add anon token functionality explanation to the docs
+
+CORS security is not enforced for anon accounts [anon is already really low entry...]

@@ -1,2 +1,3 @@
+solve the truthful mail identification problem [encryption?]
 implement devPay mgets for stripe deload
 add whitelist credit limiting
