@@ -272,7 +272,7 @@ def set_customer_id(user,customer_id):
 def get_business_id(user):
     star = get_star(user)
     if star==None:
-        raise exceptions.NO_USER
+        raise exceptions.NO_SELLER
     if "business_id" in star:
         return star["business_id"]
     return None
