@@ -6,7 +6,7 @@ const Fs = ([cF, rF, uF, dF] = ["create", "read", "update", "delete"].map(
 ));
 
 /* wapi setup */
-const wapi = wapiInit("https://auth.web10.app");
+const wapi = wapiInit("http://auth.localhost");
 const sirs = [
   {
     service: "web10-docs-note-demo",
@@ -25,6 +25,33 @@ function initApp() {
   const t = wapi.readToken();
   message.innerHTML = `hello ${t["provider"]}/${t["username"]},<br>`;
   readNotes();
+
+  const [seller,title,price,url] = ["jacoby149","notes-app",50,window.location.href]
+  wapi
+    .verifySubscription(seller,title)
+    .then((r) => {
+      const subscriptionData = r["data"];
+      console.log(subscriptionData)
+      if (
+        subscriptionData !== null &&
+        parseInt(subscriptionData["price"]) === price &&
+        subscriptionData["seller"] === seller &&
+        subscriptionData["title"] === title
+      ){
+        subscriptionStatus.innerHTML = `subscribed! <button id="cancel"> cancel sub </button>`;
+        cancel.onclick=()=>wapi.cancelSubscription(seller,title).then(()=>window.location.reload()).catch((e) => {
+          console.log(e)
+          subscriptionStatus.innerHTML= `subscription cancellation failed...`;
+        })
+      }else {
+        subscriptionStatus.innerHTML = `not subscribed! <button id="checkout"> subscribe </button>`;
+        checkout.onclick=()=>wapi.checkout(seller,title,price,url,url)
+      }
+    })
+    .catch((e) => {
+      console.log(e)
+      subscriptionStatus.innerHTML= `subscription check failed...`;
+    });
 }
 
 if (wapi.isSignedIn()) initApp();
@@ -35,7 +62,9 @@ function readNotes() {
   wapi
     .read("web10-docs-note-demo", {})
     .then((response) => displayNotes(response.data))
-    .catch((error) => (message.innerHTML = `${rF} : ${error.response.data.detail}`));
+    .catch(
+      (error) => (message.innerHTML = `${rF} : ${error.response.data.detail}`)
+    );
 }
 function createNote(note) {
   wapi

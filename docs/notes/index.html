@@ -7,6 +7,8 @@
     <p id="message">
         app not started
     </p>
+    <div id="subscriptionStatus">awaiting subscription check</div>
+    <br>
     <div>
         <textarea id="curr" placeholder="write a note here"></textarea>
         <button onclick="createNote(curr.value)">create note</button>
@@ -14,6 +16,6 @@
     <div id="noteview"></div>
 </body>
 <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
-<script src="https://auth.web10.app/sdk/wapi.js"></script>
+<script src="http://auth.localhost/sdk/wapi.js"></script>
 <script src="script.js"></script>
 </html>
