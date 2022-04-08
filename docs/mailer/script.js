@@ -6,7 +6,7 @@ const Fs = ([cF, rF, uF, dF] = ["create", "read", "update", "delete"].map(
 ));
 
 /* wapi setup */
-const wapi = wapiInit("https://auth.web10.app");
+const wapi = wapiInit("http://auth.localhost");
 const sirs = [
   {
     service: "web10-docs-mail-demo",
@@ -94,21 +94,23 @@ function readMail() {
 }
 function createMail(mail, user, provider) {
   const t = wapi.readToken();
+  const sender = t===null ? "anon":t["username"]
   wapi
     .create(
       "web10-docs-mail-demo",
       {
         mail: mail,
         date: String(new Date()),
-        provider: t["provider"],
-        username: t["username"],
+        provider: provider,
+        username: sender,
       },
       user,
       provider
     )
     .then(() => {
-      readMail();
+      if (sender!=="anon") readMail();
       curr.value = "";
+      message.innerHTML = "sent message";
     })
     .catch((error) => (message.innerHTML = `${cF} : ${error}`));
 }

@@ -122,22 +122,24 @@ def certify_with_remote_provider(token: models.Token):
     response = requests.post(url, json=token.json())
     return response.status_code == 200
 
+def anon_token():
+    return models.TokenData(username="anon",provider=settings.PROVIDER,target=settings.PROVIDER)
 
 # checks if :
 # a token certifies with it's provider, is targetted to this provider, is cross origin approved, and whitelisted
 def is_permitted(token: models.Token, username, service, action):
     # TODO ADD WHITELIST AND BLACKLISING
+    print(token)
     if token.token!=None:
         decoded = decode_token(token.token)
     else:
-        decoded=models.TokenData(username="anon",provider=settings.PROVIDER,)
+        decoded= anon_token()
     if settings.PROVIDER == decoded.provider:
         certified = certify(token)
     else:
         certified = certify_with_remote_provider(token)
 
     if certified:
-        decoded = models.dotdict(jwt.decode(token.token, verify=False))
         if not decoded.target:
             if decoded.username == username and decoded.provider == settings.PROVIDER:
                 return True
@@ -145,7 +147,7 @@ def is_permitted(token: models.Token, username, service, action):
                 return False
         elif decoded.target != settings.PROVIDER:
             return False
-        if decoded.site in settings.CORS_SERVICE_MANAGERS or db.is_in_cross_origins(
+        if decoded.username=="anon" or decoded.site in settings.CORS_SERVICE_MANAGERS or db.is_in_cross_origins(
             decoded.site, username, service
         ):
             if db.get_approved(
@@ -286,16 +288,18 @@ async def certify_token(token: models.Token):
 
 
 def certify(token: models.Token):
+    print("in")
     try:
         if token.token==None:
-            token_data = models.TokenData(username="anon",provider=settings.PROVIDER,)
+            token_data = anon_token()
+            print(token_data)
         else:
             token_data = decode_token(token.token, private_key=True)
         if token_data.provider != settings.PROVIDER:
             raise exceptions.TOKEN
         if token_data.username is None:
             raise exceptions.TOKEN
-        if datetime.utcnow() > datetime.fromisoformat(token_data.expires):
+        if token_data.username!="anon" and datetime.utcnow() > datetime.fromisoformat(token_data.expires):
             raise exceptions.TOKEN
     except:
         raise exceptions.TOKEN

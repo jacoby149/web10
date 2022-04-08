@@ -159,8 +159,13 @@ if (typeof wapiInit === "undefined") {
       update,
       protocol
     ) {
+
+      if ((!username&&!wapi.token) || username==="anon"){
+        console.error("cant CRUD anon accounts");
+        return;
+      }
       if (!provider && !wapi.token) {
-        console.error("web10 request without provider or token");
+        console.error("web10 request without provider and token. need one.");
         return;
       }
       provider = provider ? provider : wapi.readToken().provider;
