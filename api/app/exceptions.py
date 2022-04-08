@@ -66,6 +66,13 @@ NO_USER = HTTPException(
     headers={"WWW-Authenticate": "Basic"},
 )
 
+NO_SELLER = HTTPException(
+    status_code=status.HTTP_401_UNAUTHORIZED,
+    detail="the seller doesn't exist",
+    headers={"WWW-Authenticate": "Basic"},
+)
+
+
 EXISTS = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
     detail="the user already exists",
