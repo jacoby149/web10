@@ -19,8 +19,9 @@ class PayData(BaseModel):
     token: str
     seller: str
     title: str
-    price: float
-
+    price: Optional[int] = None
+    success_url: Optional[str] = None
+    cancel_url: Optional[str] = None
 
 class TokenData(BaseModel):
     username: str = None

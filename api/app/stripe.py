@@ -130,9 +130,17 @@ def credit_space(customer_id):
 
 # create dev pay subscription checkout session
 def create_dev_pay_session(customer_id,bus_id,pay_data):
+    
+    success_url = "https://auth.web10.app"
+    if pay_data.success_url != None :
+        success_url = pay_data.success_url
+    cancel_url = "https://auth.web10.app"
+    if pay_data.cancel_url != None :
+        cancel_url = pay_data.cancel_url
+
     checkout_session = stripe.checkout.Session.create(
-        success_url="https://auth.web10.app",
-        cancel_url="https://auth.web10.app",
+        success_url=success_url,
+        cancel_url=cancel_url,
         customer=customer_id,
         payment_method_types=["card"],
         mode="subscription",

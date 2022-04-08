@@ -196,31 +196,45 @@ if (typeof wapiInit === "undefined") {
       });
     };
 
-    wapi.checkout = function () {
-      return axios.post(`${api()}/dev_pay`, {
-        token: wapi.token,
-        seller: seller,
-        title: title,
-        price: price,
+    wapi.checkout = function (seller, title, price,successUrl,cancelUrl) {
+      return axios.post(
+        `${wapi.defaultAPIProtocol}//${wapi.readToken().provider}/dev_pay`,
+        {
+          token: wapi.token,
+          seller: seller,
+          title: title,
+          price: price,
+          success_url:successUrl,
+          cancel_url:cancelUrl
+        }
+      ).then((response)=>{
+        window.location.href = response.data;
       });
     };
 
-    wapi.verifySubscription = function () {
-      return axios.patch(`${api()}/dev_pay`, {
-        token: wapi.token,
-        seller: seller,
-        title: title,
-        price: price,
-      });
+    wapi.verifySubscription = function (seller, title) {
+      return axios.patch(
+        `${wapi.defaultAPIProtocol}//${wapi.readToken().provider}/dev_pay`,
+        {
+          token: wapi.token,
+          seller: seller,
+          title: title,
+          price:null,
+        }
+      );
     };
 
-    wapi.cancelSubscription = function () {
-      return axios.delete(`${api()}/dev_pay`, {
-        token: wapi.token,
-        seller: seller,
-        title: title,
-        price: price,
-      });
+    wapi.cancelSubscription = function (seller, title) {
+      return axios.delete(
+        `${wapi.defaultAPIProtocol}//${wapi.readToken().provider}/dev_pay`,
+        {
+          data: {
+            token: wapi.token,
+            seller: seller,
+            title: title,
+          },
+        }
+      );
     };
 
     //output the wapi object

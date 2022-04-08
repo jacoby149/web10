@@ -252,8 +252,8 @@ async def business_login(token: models.Token):
 
 
 @app.post("/dev_pay")
-def subscription_checkout_session(pay_data:models.PayData):
-    certify(pay_data.token)
+async def subscription_checkout_session(pay_data:models.PayData):
+    certify(models.Token(token=pay_data.token))
     decoded = decode_token(pay_data.token)
     username = decoded.username
     customer_id = mget_customer_id(username)
@@ -261,16 +261,16 @@ def subscription_checkout_session(pay_data:models.PayData):
     return pay.create_dev_pay_session(customer_id,bus_id,pay_data)
 
 @app.patch("/dev_pay")
-def verify_subscription(pay_data:models.PayData):
-    certify(pay_data.token)
+async def verify_subscription(pay_data:models.PayData):
+    certify(models.Token(token=pay_data.token))
     decoded = decode_token(pay_data.token)
     username = decoded.username
     customer_id = mget_customer_id(username)
     return pay.get_dev_pay_metadata(customer_id,pay_data)
 
 @app.delete("/dev_pay")
-def cancel_subscription(pay_data:models.PayData):
-    certify(pay_data.token)
+async def cancel_subscription(pay_data:models.PayData):
+    certify(models.Token(token=pay_data.token))
     decoded = decode_token(pay_data.token)
     username = decoded.username
     customer_id = mget_customer_id(username)
@@ -350,7 +350,7 @@ def subscription_update(user):
     return credit,space
 
 @app.post("/get_plan",include_in_schema=False)
-def get_plan(token: models.Token):
+async def get_plan(token: models.Token):
     check_admin(token)    
     user = decode_token(token.token).username
     credit,space = subscription_update(user)
