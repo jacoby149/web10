@@ -1,3 +1,4 @@
 .DS_Store
 *.pyc
 api/app/settings.py
+mobile/encryptor/yarn.lock

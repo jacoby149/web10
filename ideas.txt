@@ -210,3 +210,16 @@ implement web10 anon token [for CRUD without web10 acct.]
 add anon token functionality explanation to the docs
 
 CORS security is not enforced for anon accounts [anon is already really low entry...]
+
+add a web10 app store
+
+make a web10 instructional video
+whitelist credit limiting
+
+web10 coin
+web10 encryptor
+web10 
+
+https://web.dev/file-system-access/
+
+web api

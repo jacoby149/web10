@@ -31,5 +31,5 @@ def check_verification(phone_number,code):
     verification_check = client.verify \
                             .services(settings.TWILIO_SERVICE) \
                             .verification_checks \
-                            .create(to="+1"+str(phone_number), code=code)
+                            .create(to="+"+str(phone_number), code=code)
     return verification_check.sid
