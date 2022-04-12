@@ -238,4 +238,3 @@ deleteKey(label) -  deletes a key
 
 data : list of key value pairs
 encryptor mask : key keyname pairs [what keys to decrypt with what keys by label in the keychain]
-
