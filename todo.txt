@@ -1,3 +1,3 @@
-solve the truthful mail identification problem [encryption?]
-implement devPay mgets for stripe deload
-add whitelist credit limiting
+burger left side
+add approve service buttons on the user screen
+disable login until all services approved
