@@ -53,7 +53,6 @@ function App() {
   //status message
   const [status, setStatus] = React.useState(null);
   React.useEffect(() => {
-
     //check if services need to be disabled
     if (
       authStatus &&
@@ -65,20 +64,11 @@ function App() {
     }
 
     //check if services need to be re enabled
-    if (
-      services[0][0]["verified"] === true &&
-      mode === "services-disabled"
-    ){
+    if (services[0][0]["verified"] === true && mode === "services-disabled") {
       setMode("services");
     }
 
-    setStatus(
-      authStatus
-        ? mode === "services"
-          ? null
-          : "welcome! manage your services via. the left pane"
-        : "log in to authorize apps and manage services"
-    );
+    setStatus(null);
   }, [authStatus, mode, services]);
 
   /* index of the selected service to display in the UI */
@@ -90,7 +80,7 @@ function App() {
         return (
           <div>
             <StatusLog />
-            <OAuth services={services} />
+            <OAuth services={services} setSelectedService={setSelectedService} setMode={setMode} />
           </div>
         );
       case "services":
@@ -256,17 +246,19 @@ function App() {
 
       {/* Top Pane */}
       <R ns l bb s={"70px"}>
-        <Branding />
         <Icon
           l
           ns
           onClick={() => {
-            return mode === "services-disabled"? setStatus("you must verify phone number to access the menu")
+            return mode === "services-disabled"
+              ? setStatus("you must verify phone number to access the menu")
               : toggleCollapse();
           }}
         >
           bars
         </Icon>
+
+        <Branding />
         <R tel />
         <R l ns s={"240px"}>
           <Auth></Auth>
@@ -361,21 +353,43 @@ function Credits(props) {
 }
 
 //authorization
-function OAuth({ services }) {
+function OAuth({ services, setSelectedService,setMode}) {
+  const SMRs = services
+    .map((service, idx) => service.concat([idx]))
+    .filter((service) => service[1] === "new" || service[1] === "change")
+    .map((service) => {
+      console.log(service)
+      return (
+        <button
+          style={{ marginTop: "5px" }}
+          className="button is-light is-small"
+          onClick={() => {
+            setSelectedService(service[2]);
+            setMode("services");
+          }}
+        >
+          {" "}
+          review {service[0]["service"]} service request
+        </button>
+      );
+    });
   return (
     <div style={{ width: "250px" }}>
-      {services
-        .map((service) => service[1])
-        .filter((status) => status === "new" || status === "change").length ===
-      0 ? (
+      {SMRs.length === 0 ? (
         ""
       ) : (
-        <div
-          style={{ margin: "5px" }}
-          className="notification is-warning is-light"
-        >
-          <u>{document.referrer}</u> would like to make service changes.{" "}
-          <strong>approve or deny the changes in the left pane.</strong>
+        <div>
+          <div style={{ margin: "5px" }}>
+            <u>Click To Approve The Below SMRs</u>
+            <br></br>[ for {document.referrer} to work ]{SMRs}
+          </div>
+          <div
+            style={{ margin: "5px" }}
+            className="notification is-warning is-light"
+          >
+            <u>{document.referrer}</u> would like to make service changes.{" "}
+            <strong>approve or deny the changes in the left pane.</strong>
+          </div>
         </div>
       )}
       {document.referrer === "" ||
@@ -385,7 +399,7 @@ function OAuth({ services }) {
         <div>
           <div
             style={{ margin: "5px" }}
-            className="notification is-danger is-light"
+            className="notification is-primary is-light"
           >
             <u>{document.referrer}</u> would like to login.
           </div>
@@ -420,7 +434,7 @@ function Icon(props) {
 function Branding(props) {
   return (
     <R l {...pass(props)}>
-      <C l p="0px 0px 0px 22px" s={"70px"}>
+      <C l s={"70px"}>
         {/* Plain Pad Logo */}
         <img
           src={props.theme === "dark" ? "key_white.png" : "key_black.png"}
