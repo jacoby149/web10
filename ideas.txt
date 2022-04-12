@@ -223,3 +223,19 @@ web10
 https://web.dev/file-system-access/
 
 web api
+
+encryption
+web10 encryption works with each hostname differently
+use SECP256K1 !
+also, elliptic diffie helman
+
+pubKey(label) - gets the public key with label from the keychain
+decrypt(data,label) - decrypts data with key from keychain
+mintRegKey(label) - mints public key to the keychain
+initDiffieKey(label, p=largeprime,g=root) - inits diffie helman key, returns the shared secret public key
+mintDiffieKey(label,sharedSecretPubKey) - mints diffie helman key to the keychain
+deleteKey(label) -  deletes a key
+
+data : list of key value pairs
+encryptor mask : key keyname pairs [what keys to decrypt with what keys by label in the keychain]
+
