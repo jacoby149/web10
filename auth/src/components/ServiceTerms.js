@@ -3,6 +3,7 @@ import { flattenJSON, unFlattenJSON } from "./flattenJSON.js";
 import { downloadObjJSON } from "./importExportJSON.js";
 import { Settings } from "./Settings.js";
 var wapi = window.wapi;
+var inc=0;
 
 /************************* */
 /* Service Terms Component */
@@ -34,8 +35,12 @@ function ServiceTerms({
     return (flattenedService[key] = {
       value: flattenedService[key],
       update: flattenedService[key],
+      id: inc + index
     });
   });
+
+  //make sure ids are always unique
+  inc = inc + Object.keys(flattenedService).length;
 
   function getChanged() {
     const len1 = Object.keys(flattenedService).filter((f) => {
@@ -56,7 +61,7 @@ function ServiceTerms({
   const final = Object.keys(flattenedService).map((field, idx) => {
     return (
       <Field
-        key={[currentService["service"], field]}
+        key={flattenedService[field]["id"]}
         record={flattenedService[field]}
         field={field}
         isStar={currentService["service"] === "*"}
@@ -335,7 +340,7 @@ function submitUserSCR(flattenedService, additions, servicesLoad, setStatus) {
   // Update and Delete
   Object.keys(flattenedService).map(function (key) {
     //makes sure deletions arent passed in
-    if (key === "_id") return;
+    if (key === "_id") return null;
     const update = flattenedService[key]["update"];
     if (update.constructor === Object) {
       if (update["type"] === "delete") return (SCR["$unset"][key] = "");
@@ -343,11 +348,12 @@ function submitUserSCR(flattenedService, additions, servicesLoad, setStatus) {
       return (SCR["$set"][key] =
         update === "[]" ? [] : update === "{}" ? {} : update);
     }
+    return null;
   });
 
   // Create
   Object.keys(additions).map(function (key) {
-    if (key === "_id") return;
+    if (key === "_id") return null;
     const newV = additions[key];
     return (SCR["$set"][key] = newV === "[]" ? [] : newV === "{}" ? {} : newV);
   });
@@ -365,14 +371,14 @@ function submitSIR(flattenedService, additions, servicesLoad, setStatus) {
     //makes sure deletions arent passed in
     const update = flattenedService[key]["update"];
     if (update.constructor === Object) {
-      if (update["type"] === "delete") return;
+      if (update["type"] === "delete") return null;
     }
     return (updates[key] = update);
   });
 
   // User Created
   Object.keys(additions).map(function (key) {
-    if (key === "_id") return;
+    if (key === "_id") return null;
     return (updates[key] = additions[key]);
   });
 
