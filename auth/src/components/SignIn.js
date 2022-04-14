@@ -146,6 +146,9 @@ function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
                   setStatus("Failed to Sign Up : Must not leave username or password blank");
                   return 
                 }
+                else if (phone.length<7){
+                  setStatus("Must Enter Phone Number")
+                }
                 setStatus("Signing Up ...");
                 wapiAuth
                   .signUp(provider, username, password, betacode, phone)
