@@ -142,6 +142,10 @@ function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
                   setStatus("Failed to Sign Up : Passwords do not match.");
                   return;
                 }
+                else if (username==="" || password===""){
+                  setStatus("Failed to Sign Up : Must not leave username or password blank");
+                  return 
+                }
                 setStatus("Signing Up ...");
                 wapiAuth
                   .signUp(provider, username, password, betacode, phone)
