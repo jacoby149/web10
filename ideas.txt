@@ -21,3 +21,17 @@ Fix off by a few pixels height react
 Fix mobile address bar wiggle
 Address Per Record Privacy
 debug cross web10 requests
+
+shouldnt be able to rename services from backend
+service editor ui don't allow addition of already existing fields
+make the web10 key a notification button [for verify,smrs,log in]
+meter reads and writes!!! and updates!! to exact file sizes
+dont allow aggregation queries
+Document auth portal / service editor.
+document that only true values are read on whitelists and blacklists
+document that "all" overrides
+
+/per service usage statistics
+
+whitelist credit limiting
+web10 gridFS file storage
