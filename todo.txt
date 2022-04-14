@@ -1,5 +1,4 @@
-fix react key collision issue 
-web10 add "import data
+integrate import functionality
 web10 encryptor app add "export keys" "import keys"
 implement web10 encryptor app side crypto
 implement web10 encryptor app side webrtc
@@ -9,16 +8,3 @@ implement web10 encryptor web side mask
 implement web10 encryptor app side mask
 web10 auth refferer origin -> app store
 app store remove "localhost" containing apps
-whitelist credit limiting
-web10 gridFS file storage
-/per app usage statistics
-web10 gridFS file storage
-
-shouldnt be able to rename services from backend
-service editor ui don't allow addition of already existing fields
-make the web10 key a notification button [for verify,smrs,log in]
-meter reads and writes!!! and updates!! to exact file sizes
-dont allow aggregation queries
-Document auth portal / service editor.
-document that only true values are read on whitelists and blacklists
-document that "all" overrides
