@@ -434,7 +434,7 @@ function Icon(props) {
 function Branding(props) {
   return (
     <R l {...pass(props)}>
-      <C l s={"70px"}>
+      <C l s={"60px"}>
         {/* Plain Pad Logo */}
         <img
           src={props.theme === "dark" ? "key_white.png" : "key_black.png"}
@@ -446,8 +446,8 @@ function Branding(props) {
       <C l ns mc s={"120px"}>
         <div style={{ fontFamily: "monospace" }}>
           <h3>
-            Web 10
-            <br /> Auth
+            web10
+            <br /> auth
           </h3>
         </div>
       </C>

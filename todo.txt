@@ -1,10 +1,22 @@
-integrate import functionality
-web10 encryptor app add "export keys" "import keys"
-implement web10 encryptor app side crypto
+make wapi auth have an web10 store feature 
+store reffererer origins with no 'localhost' in the name
+make a web10 homepage with web10 apps directory
+
+web10 trademark brand pages
+auth.web10.app => web10.app
+webrtc basic datachannel site implementation
+webrtc basic datachannel mobile app implementation
 implement web10 encryptor app side webrtc
-implement web10 encryptor web side crypto
 implement web10 encryptor web side webrtc
-implement web10 encryptor web side mask
-implement web10 encryptor app side mask
-web10 auth refferer origin -> app store
-app store remove "localhost" containing apps
+implement web10 encryptor app side crypto
+implement web10 encryptor web side crypto
+implement forgot credentials phone text
+integrate service import functionality
+web10 encryptor app export keys
+web10 encryptor app import keys
+add emergency email
+add forgot username password : 
+enter verification email or phone number
+implement sending 6 digit pin
+on verification of pin, show associated web10 usernames 
+change password.

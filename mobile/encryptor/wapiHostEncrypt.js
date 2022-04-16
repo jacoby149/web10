@@ -31,7 +31,7 @@ function pubKey(label){
 }
 
 // decrypt data with a key from the keychain
-function decrypt(data,label){
+function decrypt(data,mask,label){
   return;
 }
 
