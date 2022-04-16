@@ -32,7 +32,7 @@ function pushFile (event) {
   var curr = null;
   for (const [i, n] of json.entries()){
     if (curr===null){
-      curr=wapi.create(..)
+      return//curr=wapi.create()
     }
     else curr = curr.then(()=>curr).catch()
   }

@@ -35,3 +35,5 @@ document that "all" overrides
 
 whitelist credit limiting
 web10 gridFS file storage
+
+reactnative fs storage [persists after uninstall?]
