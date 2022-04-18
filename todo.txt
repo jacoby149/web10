@@ -1,22 +1,21 @@
 make wapi auth have an web10 store feature 
 store reffererer origins with no 'localhost' in the name
-make a web10 homepage with web10 apps directory
+make a web10 homepage : 
+ - with web10 apps directory [requested services]
+ - web10 user count
 
-web10 trademark brand pages
-auth.web10.app => web10.app
+web10 encryptor implement mobile login w. twilio [like bumble]
+web10 encryptor settings page (export, import, changepass logout) 
+web10 encryptor hello user
+
 webrtc basic datachannel site implementation
 webrtc basic datachannel mobile app implementation
+webrtc basic datachannel user to user flow
+
 implement web10 encryptor app side webrtc
 implement web10 encryptor web side webrtc
 implement web10 encryptor app side crypto
 implement web10 encryptor web side crypto
-implement forgot credentials phone text
 integrate service import functionality
 web10 encryptor app export keys
 web10 encryptor app import keys
-add emergency email
-add forgot username password : 
-enter verification email or phone number
-implement sending 6 digit pin
-on verification of pin, show associated web10 usernames 
-change password.
