@@ -1,0 +1,43 @@
+/*mobilestyle.css */
+
+@import url("font-awesome.min.css");
+@import url("framework.css");
+
+
+@font-face {
+font-family: "MoneyFont";
+src: url("fonts/lineto-brown-pro-light.woff2") format("woff2");
+}
+
+@font-face {
+font-family: "MoneyFontBold";
+src: url("fonts/lineto-brown-pro-bold.woff2") format("woff2");
+}
+
+/*.text{
+    position:absolute;
+    left:10%";
+    background:rgba(230, 230, 230, 0.5);
+}
+*/
+
+table{
+    color:black;
+    font-family:MoneyFont;
+    font-size:14pt;
+}
+
+h2{
+    margin-bottom:0px;
+}
+
+.pulse {
+    -webkit-animation: pulsate 2.5s ease-out;
+    -webkit-animation-iteration-count: infinite; 
+    opacity: 0.3;
+}
+@-webkit-keyframes pulsate {
+    0% { opacity: 0.3; }
+    50% { opacity: 1.0; }
+    100% { opacity: 0.3; }
+}
