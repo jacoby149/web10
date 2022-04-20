@@ -176,6 +176,8 @@ function App() {
       wapi
         .read("services")
         .then(function (response) {
+          response.sort((a,b)=>a.localeCompare(b));
+
           //label service change requests on existing services.
           const updatedServices = response.data.map((service) => [
             service,
