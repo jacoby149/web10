@@ -33,7 +33,7 @@ services:
       dockerfile: crm/Dockerfile
     volumes:
       - ./crm/:/crm/public
-      - ./auth/public/sdk/ :/crm/public/sdk    
+      - ./auth/public/sdk/:/crm/public/sdk    
     ports:
       - "7746:80"
     environment:
