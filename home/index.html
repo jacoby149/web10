@@ -10,8 +10,8 @@ Licence URI: https://www.os-templates.com/template-terms
 <!-- To declare your language - read more here: https://www.w3.org/International/questions/qa-html-language-declarations -->
 
 <head>
-  <link rel="shortcut icon" href="logo.jpg" type="image/jpg">
-  <title>Uncommon Core</title>
+  <link rel="shortcut icon" href="favicon.ico">
+  <title>web10</title>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <link href="layout/styles/layout.css" rel="stylesheet" type="text/css" media="all">
@@ -28,13 +28,15 @@ Licence URI: https://www.os-templates.com/template-terms
       <header id="header" class="hoc clear">
         <!-- ################################################################################################ -->
         <div id="logo" class="fl_left">
-          <h1><a href="index.html">Uncommon Core</a></h1>
+          <!-- <h1><a href="index.html">Uncommon Core</a></h1> -->
+          <img src="logo_white.png" style="height:50px;margin:12px;padding:0px">
         </div>
         <nav id="mainav" class="fl_right">
           <ul class="clear">
             <li class="active"><a href="#home">Home</a></li>
-            <li><a href="#info">Info</a></li>
-            <li><a href="#team">Team</a></li>
+            <li><a href="apps.html">Apps</a></li>
+            <li><a href="https://docs.web10.app">Docs</a></li>
+            <li><a href="https://auth.web10.app">Manage</a></li>
             <!--<li><a href="uncommoncore.herokuapp.com">Access</a></li>-->
           </ul>
           </li>
@@ -49,15 +51,13 @@ Licence URI: https://www.os-templates.com/template-terms
     <div id="pageintro" class="hoc clear">
       <article>
         <!-- ################################################################################################ -->
-        <h3 class="heading"> Fintech <font color="skyblue">Distributed</font>
+        <h3 class="heading"> The web3 <font color="skyblue">Revolution</font>
         </h3><br>
-        <font size="5pt">Small investment firms
-          outperform big firms
-          in relationships and personal attention. However, big firms have them beat with technology infrastructure. We
-          provide
-          frontier fintech to small investment firms to allow them to compete with the
-          big dogs.
+        <font size="5pt">Users run the servers. They connect to one another with no mediator. User private keys are safe on their local devices. 
         </font>
+        <br><br>
+        <h6><a class="btn" id="access" href="apps.html">Acquire Access </a></h6>
+
 
         <!--<br><br><br>
         
@@ -79,24 +79,21 @@ Licence URI: https://www.os-templates.com/template-terms
       <ul class="nospace group services">
         <li class="one_third first">
           <article><a href="#"><i class="fa fa-2x fa-sitemap"></i></a>
-            <h6 class="heading font-x1">We Value Relationships</h6>
-            <p> We discuss technical and stylistic decisions with you to accomodate individual needs for
-              fintech.</p>
-          </article>
-        </li>
-        <li class="one_third">
-          <article><a href="#"><i class="fa fa-2x fa-chain"></i></a>
-            <h6 class="heading font-x1">Free Updates</h6>
-            <p>Access improvements at no additional cost when we accomodate other small investment
-              firms needs.</p>
+            <h6 class="heading font-x1">Peer to Peer</h6>
+            <p> Enjoy a variety of apps connecting device to device via webRTC datachannel technology</p>
           </article>
         </li>
         <li class="one_third">
           <article><a href="#"><i class="fa fa-2x fa-bank"></i></a>
-            <h6 class="heading font-x1">Sophistication</h6>
-            <p>Not only do we have powerful algorithms. We generate univerally intuitive visuals to show
-              clientelle. (Printable or sendable)
+            <h6 class="heading font-x1">Own Your Data</h6>
+            <p> Enjoy a free tier of credits and storage. If you become a power user, get a monthly credit plan or storage plan.
             </p>
+          </article>
+        </li>
+        <li class="one_third">
+          <article><a href="#"><i class="fa fa-2x fa-chain"></i></a>
+            <h6 class="heading font-x1">SEPC256K1</h6>
+            <p>Enjoy state of the art encryption across apps, be able to participate in cryptos without a mediator</p>
           </article>
         </li>
       </ul>
@@ -105,6 +102,30 @@ Licence URI: https://www.os-templates.com/template-terms
       <div class="clear"></div>
     </main>
   </div>
+
+  <div class="wrapper bgded overlay" style="background-image:url('back3.jpg');background-attachment:fixed;">
+    <div class="hoc container clear">
+      <ul id="stats" class="nospace group">
+        <li class="one_quarter first"><a href="#"><i class="fa fa-3x fa-child"></i></a>
+          <p>Users</p>
+          <p>15</p>
+        </li>
+        <li class="one_quarter"><a href="#"><i class="fa fa-3x fa-slideshare"></i></a>
+          <p>Apps</p>
+          <p> 5 </p>
+        </li>
+        <li class="one_quarter"><a href="#"><i class="fa fa-3x fa-edit"></i></a>
+          <p>Services</p>
+          <p> 15</p>
+        </li>
+        <li class="one_quarter"><a href="#"><i class="fa fa-3x fa-slack"></i></a>
+          <p>Data Liberated</p>
+          <p> 500MB </p>
+        </li>
+      </ul>
+    </div>
+  </div>
+
 
   <!-- ################################################################################################ -->
   <!-- ################################################################################################ -->
@@ -214,6 +235,66 @@ Licence URI: https://www.os-templates.com/template-terms
   </div>
 -->
 
+<div class="wrapper row3">
+  <main class="hoc container clear">
+    <!-- main body -->
+    <!-- ################################################################################################ -->
+    <div class="content">
+      <!-- ################################################################################################ -->
+      <h1>app directory</h1>
+      <!-- <img class="imgr borderedbox inspace-5" src="https://jacoby149.github.io/UCImages/demo/imgr.gif" alt=""> -->
+      <!--<p>Here, you can add students, print packets, and submit grades.</p>-->
+      <div class="scrollable">
+          <i>
+            <div id="message-box" class="<?=$_SESSION['goodbad']?>"><?=$_SESSION['message']?></div>
+          </i>
+          <table id="student-manage-table">
+            <thead>
+              <tr>
+                <th onclick="sortTable('student-manage-table', 0, false)">App URL</th>
+                <th onclick="sortTable('student-manage-table', 1, true)">#Visits</th>
+                <th onclick="sortTable('student-manage-table', 2, false)">Rating</th>
+                <th onclick="sortTable('student-manage-table', 0, false)">Description</th>
+
+              </tr>
+            </thead>
+            <tbody id="student-body">
+              <tr><td>https://crm.web10.app</td><td>43</td><td>TBD</td><td>Contact Manager</td></tr>
+              <tr><td>https://docs.web10.app/notes</td><td>7</td><td>TBD</td><td>Take Notes</td></tr>
+              <tr><td>https://docs.web10.app/mailer</td><td>43</td><td>TBD</td><td>Send/Recieve Mail</td></tr>
+              <tr><td>https://mamafleet.github.io/translator/view.html</td><td>43</td><td>TBD</td><td>Language Translation Viewer</td></tr>
+            </tbody>
+          </table>
+          <table class="nostyle">
+            <form method="post" autocomplete="off" id="add-student-form">
+              <tr class="desktop">
+                <td>
+                  Add Review:
+                </td>
+                <td>
+                  <textarea placeholder="Write Review" id="add_first_name" type="text" size="15" required
+                    autocomplete="off" name='new_student_first_name'></textarea>
+                </td>
+                <td>
+                  <input type=number value=10 min=1 max=10 id="add_page" type="text" required autocomplete="off"
+                    name='new_student_page'>/10
+                </td>
+                <td>
+                  <button class="button button-block" id="add_button" name="add_student">Submit Review</button></td>
+              </tr>
+            </form>
+            <!--            </tbody>-->
+          </table>
+        </div>
+        <br>
+        <!-- ################################################################################################ -->
+      </div>
+      <!-- ################################################################################################ -->
+      <!-- / main body -->
+      <div class="clear"></div>
+  </main>
+</div>
+
 
   <!-- ################################################################################################ -->
   <!-- ################################################################################################ -->
@@ -221,10 +302,10 @@ Licence URI: https://www.os-templates.com/template-terms
   <div class="wrapper bgded overlay" style="background-image:url('sky.jpg');">
     <div class="hoc container testimonials clear">
       <!-- ################################################################################################ -->
-      <blockquote>We pledge to make meaningful research accessible, and through doing so make the world a better place.
+      <blockquote>We pledge to make an internet space in which users lead their internet destiny.
       </blockquote>
-      <h6 class="heading font-x1">- Uncommon Core Team</h6>
-      <em>2020</em></article>
+      <h6 class="heading font-x1">- web10 Team</h6>
+      <em>2022</em></article>
       <!-- ################################################################################################ -->
     </div>
   </div>
@@ -285,9 +366,60 @@ Licence URI: https://www.os-templates.com/template-terms
 
   <!-- ################################################################################################ -->
 
-  <div w3-include-html="layout/footer.html"></div>
-  <script src="template.js"></script>
+<!-- footer.html -->
 
+<div class="wrapper row4">
+  <footer id="footer" class="hoc clear">
+      <!-- ################################################################################################ -->
+      <div class="one_third first">
+          <h6 class="heading">Contact Us</h6>
+          <p>You can contact us by sending us an email at the below email address.
+              <br>Email : jacob@web10.app
+      </div>
+      <div class="one_third">
+          <h6 class="heading">Navigate</h6>
+          <nav>
+              <ul class="nospace">
+                  <li><a href="index.html"><i class="fa fa-lg fa-home"></i></a></li>
+                  <li><a href="apps.html">Apps</a></li>
+                  <li><a href="https://docs.web10.app">Docs</a></li>
+                  <li><a href="https://auth.web10.app">Manage</a></li>
+                    </ul>
+          </nav>
+          <!--<ul class="faico clear">
+      <li><a class="faicon-facebook" href="#"><i class="fa fa-facebook"></i></a></li>
+      <li><a class="faicon-twitter" href="#"><i class="fa fa-twitter"></i></a></li>
+      <li><a class="faicon-dribble" href="#"><i class="fa fa-dribbble"></i></a></li>
+      <li><a class="faicon-linkedin" href="#"><i class="fa fa-linkedin"></i></a></li>
+      <li><a class="faicon-google-plus" href="#"><i class="fa fa-google-plus"></i></a></li>
+      <li><a class="faicon-vk" href="#"><i class="fa fa-vk"></i></a></li>
+    </ul>-->
+      </div>
+      <div class="one_third">
+          <h6 class="heading">Resources</h6>
+          <article>
+              <h2 class="nospace font-x1"><a href="https://docs.web10.app/web10.pdf">Deck</a>
+              </h2>
+              <!--<time class="font-xs" datetime="2015"> 2015</time>-->
+              <p>We are currently raising capital. Contact us if interested in investing.</p>
+          </article>
+      </div>
+      <!-- ################################################################################################ -->
+  </footer>
+</div>
+
+<!-- ################################################################################################ -->
+<!-- ################################################################################################ -->
+<!-- ################################################################################################ -->
+<div class="wrapper row5">
+  <div id="copyright" class="hoc clear">
+      <!-- ################################################################################################ -->
+      <p class="fl_left">Copyright &copy; 2022 - All Rights Reserved - <a href="#">web10</a></p>
+      <p class="fl_right"> Designed With <a target="_blank" href="https://www.os-templates.com/"
+              title="Free Website Templates">OS Temp.</a></p>
+      <!-- ################################################################################################ -->
+  </div>
+</div>
 
   <!-- ################################################################################################ -->
   <!-- ################################################################################################ -->
