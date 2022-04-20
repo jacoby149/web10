@@ -353,6 +353,16 @@ async def signup(form_data: models.SignUpForm):
         pass
     return res
 
+# make a new web10 account
+@app.post("/stats",include_in_schema=False)
+async def stats():
+    return #apps,user_count,data_count
+
+# make a new web10 account
+@app.post("/appstore",include_in_schema=False)
+async def app_store():
+    return #submit app to the appstore...
+
 def subscription_update(user):
     credit,space = pay.credit_space(mget_customer_id(user))
     # also serves to update subscription details from stripe
