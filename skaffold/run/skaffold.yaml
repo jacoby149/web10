@@ -14,10 +14,13 @@ build:
         dockerfile: crm/Dockerfile
     - image: gcr.io/pure-phalanx-344719/docs
       context: ../../docs
+    - image: gcr.io/pure-phalanx-344719/home
+      context: ../../home
 deploy:
   kubectl:
     manifests:
       - kuberapi.yml
       - kuberauth.yml
       - kubercrm.yml
-      - kuberdocs.yml
+      - kuberdocs.yml      
+      - kuberhome.yml

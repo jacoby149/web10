@@ -46,6 +46,14 @@ services:
       - "6969:80"
     environment:
       VIRTUAL_HOST: docs.localhost
+  home:
+    build: home 
+    volumes:
+      - ./home/:/home/public
+    ports:
+      - "6868:80"
+    environment:
+      VIRTUAL_HOST: home.localhost
   nginx-proxy:
     image: jwilder/nginx-proxy
     ports:
