@@ -1,11 +1,12 @@
-make web10 record level filtering [face it writing is fucked.]
-make web10 user service backend access keys
-
 make wapi auth have an web10 store feature 
 store reffererer origins with no 'localhost' in the name
 make a web10 homepage : 
  - with web10 apps directory [requested services]
  - web10 user count
+
+
+make web10 record level filtering [face it writing is fucked.]
+make web10 user service backend access keys
 
 web10 encryptor implement mobile login w. twilio [like bumble]
 web10 encryptor settings page (export, import, changepass logout) 
