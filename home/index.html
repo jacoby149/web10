@@ -107,15 +107,15 @@ Licence URI: https://www.os-templates.com/template-terms
     <div class="hoc container clear">
       <ul id="stats" class="nospace group">
         <li class="one_quarter first"><a href="#"><i class="fa fa-3x fa-child"></i></a>
-          <p>Users</p>
+          <p>Registered Users</p>
           <p>15</p>
         </li>
         <li class="one_quarter"><a href="#"><i class="fa fa-3x fa-slideshare"></i></a>
-          <p>Apps</p>
+          <p>Registered Apps</p>
           <p> 5 </p>
         </li>
         <li class="one_quarter"><a href="#"><i class="fa fa-3x fa-edit"></i></a>
-          <p>Services</p>
+          <p>Registered Services</p>
           <p> 15</p>
         </li>
         <li class="one_quarter"><a href="#"><i class="fa fa-3x fa-slack"></i></a>
@@ -239,33 +239,31 @@ Licence URI: https://www.os-templates.com/template-terms
   <main class="hoc container clear">
     <!-- main body -->
     <!-- ################################################################################################ -->
-    <div class="content">
+    <div class="content" style="text-align: center;">
       <!-- ################################################################################################ -->
       <h1>app directory</h1>
       <!-- <img class="imgr borderedbox inspace-5" src="https://jacoby149.github.io/UCImages/demo/imgr.gif" alt=""> -->
       <!--<p>Here, you can add students, print packets, and submit grades.</p>-->
-      <div class="scrollable">
           <i>
             <div id="message-box" class="<?=$_SESSION['goodbad']?>"><?=$_SESSION['message']?></div>
           </i>
-          <table id="student-manage-table">
+          <table style="margin-left:auto;margin-right:auto">
             <thead>
               <tr>
                 <th onclick="sortTable('student-manage-table', 0, false)">App URL</th>
                 <th onclick="sortTable('student-manage-table', 1, true)">#Visits</th>
-                <th onclick="sortTable('student-manage-table', 2, false)">Rating</th>
-                <th onclick="sortTable('student-manage-table', 0, false)">Description</th>
 
               </tr>
             </thead>
             <tbody id="student-body">
-              <tr><td>https://crm.web10.app</td><td>43</td><td>TBD</td><td>Contact Manager</td></tr>
-              <tr><td>https://docs.web10.app/notes</td><td>7</td><td>TBD</td><td>Take Notes</td></tr>
-              <tr><td>https://docs.web10.app/mailer</td><td>43</td><td>TBD</td><td>Send/Recieve Mail</td></tr>
-              <tr><td>https://mamafleet.github.io/translator/view.html</td><td>43</td><td>TBD</td><td>Language Translation Viewer</td></tr>
+              <tr><td>https://crm.web10.app</td><td>43</td></tr>
+              <tr><td>https://docs.web10.app/notes</td><td>7</td></tr>
+              <tr><td>https://docs.web10.app/mailer</td><td>43</td></tr>
+              <tr><td>https://mamafleet.github.io/translator/view.html</td><td>23</td></tr>
             </tbody>
           </table>
-          <table class="nostyle">
+          
+          <!-- <table class="nostyle">
             <form method="post" autocomplete="off" id="add-student-form">
               <tr class="desktop">
                 <td>
@@ -283,9 +281,8 @@ Licence URI: https://www.os-templates.com/template-terms
                   <button class="button button-block" id="add_button" name="add_student">Submit Review</button></td>
               </tr>
             </form>
-            <!--            </tbody>-->
-          </table>
-        </div>
+          </table> -->
+
         <br>
         <!-- ################################################################################################ -->
       </div>
