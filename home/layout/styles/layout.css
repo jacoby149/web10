@@ -36,7 +36,6 @@ src: url("fonts/lineto-brown-pro-bold.woff2") format("woff2");
 --------------------------------------------------------------------------------------------------------------- */
 #header{}
 
-#header #logo{margin:30px 0 0 0;}
 #header #logo h1{margin:0; padding:0; font-size:22px; text-transform:uppercase;}
 
 
