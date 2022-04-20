@@ -359,7 +359,7 @@ async def stats():
     return #apps,user_count,data_count
 
 # make a new web10 account
-@app.post("/appstore",include_in_schema=False)
+@app.post("/app_store",include_in_schema=False)
 async def app_store():
     return #submit app to the appstore...
 
