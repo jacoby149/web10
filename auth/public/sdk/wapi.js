@@ -242,6 +242,8 @@ if (typeof wapiInit === "undefined") {
       );
     };
 
+    //register the app
+
     //output the wapi object
     return wapi;
   }
