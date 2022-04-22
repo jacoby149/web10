@@ -353,3 +353,21 @@ def subscription_update(user,c,s):
 
 def get_collection_size(user):
     return db.command("collstats", user)["size"]/1024
+
+############################
+#### app store #####
+############################
+
+# appstore stats
+def get_apps():
+    return list(db["web10"]["apps"].find({}))
+def get_user_count():
+    return len(db.listCollections())
+def total_size():
+    return db.command("dbstats")["dataSize"]
+
+# app registration
+def register_app(info):
+    if "url" not in info:
+        return
+    db["web10"]["apps"].upsert({"url":info["url"]},{"$inc":{"visits":1}})

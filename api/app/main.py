@@ -353,15 +353,15 @@ async def signup(form_data: models.SignUpForm):
         pass
     return res
 
-# make a new web10 account
+# gets the homepage stats
 @app.post("/stats",include_in_schema=False)
 async def stats():
-    return #apps,user_count,data_count
+    return db.get_apps(),db.get_user_count(),db.total_size()
 
 # make a new web10 account
-@app.post("/app_store",include_in_schema=False)
-async def app_store():
-    return #submit app to the appstore...
+@app.post("/register_app",include_in_schema=False)
+async def register_app(info:dict):
+    db.register_app(info)
 
 def subscription_update(user):
     credit,space = pay.credit_space(mget_customer_id(user))
