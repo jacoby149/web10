@@ -54,3 +54,5 @@ encryptor connections are inbound ONLY
     - encryptor doesn't need user
 User connections are both ways
     - if a user has multiple apps open, how to handle?
+
+allow devs to put a type on connections for multi device scenarios

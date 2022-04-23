@@ -202,34 +202,35 @@ if (typeof wapiInit === "undefined") {
     };
 
     //RTC
-    wapi.peer=null;
+    wapi.peer = null;
 
-    //initialize the peer and listen for connections
+    // initializes the peer and listens for connections
     wapi.inBound = {}
-    wapi.initP2P = function (onData=null) {
-      //id will be doled by the p2p server
+    wapi.initP2P = function (onInbound = null) {
       wapi.peer = Peer({
         host: 'rtc.localhost',
         secure: true,
         port: 80,
         path: '/',
-        token:wapi.token
+        token: wapi.token
       })
-
-      // if an inbound data onData function is supplied
-      if (onData){
-        peer.on('connection', function(conn) { 
+      if (onInbound) {
+        wapi.peer.on('connection', function (conn) {
           inBound[conn.peer] = conn;
-          conn.on('data', onData); 
+          conn.on('data', (data)=>onInbound(conn,data));
         });
       }
     }
 
-    //send outbound connections
+    // makes outbound connections
     wapi.outBound = {}
-    wapi.P2P = function(provider,user,origin){
-      var conn = peer.connect(`${provider}/${username}/${origin}`);
-      outBound[conn.peer]=conn;
+    wapi.P2P = function (provider, username, origin, meta={},label = "default") {
+      if (!wapi.peer) console.error("not initialized")
+      var conn = wapi.peer.connect(
+        `${provider}/${username}/${origin}/${label}`,
+        {metadata:meta}
+      );
+      outBound[conn.peer] = conn;
     }
 
     //dev pay
