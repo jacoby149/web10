@@ -368,6 +368,10 @@ async def stats():
 # make a new web10 account
 @app.post("/register_app",include_in_schema=False)
 async def register_app(info:dict):
+    if "url" not in info:
+        return
+    if "http://" in info["url"] or "localhost" in info["url"]:
+        return
     db.register_app(info)
 
 def subscription_update(user):

@@ -4,7 +4,7 @@ function display(data){
   var mbs = (data["storage"]/(1024*1024)).toFixed(2);
   liberatedData.innerHTML = `${mbs}MB`;
   appCount.innerHTML = apps.length;
-  totalVisits.innerHTML = apps.reduce((a, b) => a["visits"] + b["visits"], {"visits":0})
+  totalVisits.innerHTML = apps.map((app)=>app["visits"]).reduce((a, b) => a+b, 0)
   displayApps(apps)
 }
 
