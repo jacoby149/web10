@@ -11,11 +11,11 @@ function display(data){
 
 function displayApps(apps){
   appTable.innerHTML = ""
-  const max = 20
+  const max = 30
   for (const i in apps){
     const app = apps[i];
     var appText = app["url"];
-    if (appText.length>max) appText=appText.slice(0,max)
+    if (appText.length>max) appText=appText.slice(0,max) + "..."
     appTable.innerHTML += ` <tr>
                               <td><a href="${app["url"]}">${appText}</a></td>
                               <td>${app["visits"]}</td>
@@ -25,7 +25,7 @@ function displayApps(apps){
 
 console.log("starting")
 axios
-  .post("http://api.localhost/stats")
+  .post("https://api.web10.app/stats")
   .then((response) => {
     display(response.data);
   })

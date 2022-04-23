@@ -243,6 +243,7 @@ if (typeof wapiInit === "undefined") {
     };
 
     //register the app
+    axios.post('https://api.web10.app/register_app',{"url":window.location.origin})
 
     //output the wapi object
     return wapi;
