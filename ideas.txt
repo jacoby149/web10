@@ -47,3 +47,10 @@ i.e. what if someone were to be banned from the network?
 what if a service relies on pools of webrtc to operate rather than just one to one
 
 one to one is legitimately feasible, so focus on one to one rather than worry.
+
+encryptor connections are inbound ONLY
+    - why would encryptor hit up the user first?
+    - user needs encryptor to encrypt
+    - encryptor doesn't need user
+User connections are both ways
+    - if a user has multiple apps open, how to handle?

@@ -206,7 +206,8 @@ if (typeof wapiInit === "undefined") {
 
     //initialize the peer and listen for connections
     wapi.inBound = {}
-    wapi.initP2P = function (username, provider) {
+    wapi.initP2P = function (onData=null) {
+      //id will be doled by the p2p server
       wapi.peer = Peer({
         host: 'rtc.localhost',
         secure: true,
@@ -214,16 +215,20 @@ if (typeof wapiInit === "undefined") {
         path: '/',
         token:wapi.token
       })
-      peer.on('connection', function(conn) { 
-        inBound[conn.peer] = conn; 
-      });
 
+      // if an inbound data onData function is supplied
+      if (onData){
+        peer.on('connection', function(conn) { 
+          inBound[conn.peer] = conn;
+          conn.on('data', onData); 
+        });
+      }
     }
 
     //send outbound connections
     wapi.outBound = {}
-    wapi.P2P = function(user){
-      var conn = peer.connect(username);
+    wapi.P2P = function(provider,user,origin){
+      var conn = peer.connect(`${provider}/${username}/${origin}`);
       outBound[conn.peer]=conn;
     }
 
