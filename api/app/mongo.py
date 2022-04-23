@@ -409,7 +409,5 @@ def total_size():
 
 
 def register_app(info):
-    if "url" not in info:
-        return
     db["web10"]["apps"].update_one({"url": info["url"]}, {
         "$inc": {"visits": 1}}, True)
