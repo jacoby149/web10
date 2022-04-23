@@ -14,7 +14,7 @@ Licence URI: https://www.os-templates.com/template-terms
   <title>web10</title>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <link href="layout/styles/layout.css" rel="stylesheet" type="text/css" media="all">
+  <link href="layouts/styles/layout.css" rel="stylesheet" type="text/css" media="all">
 </head>
 
 <body id="top">
@@ -22,14 +22,14 @@ Licence URI: https://www.os-templates.com/template-terms
   <!-- ################################################################################################ -->
   <!-- ################################################################################################ -->
   <!-- Top Background Image Wrapper -->
-  <div id="home" class="bgded overlay" style="background-image:url('back2.jpg');background-attachment:fixed;">
+  <div id="home" class="bgded overlay" style="background-image:url('layouts/images/back2.jpg');background-attachment:fixed;">
     <!-- ################################################################################################ -->
     <div class="wrapper row1">
       <header id="header" class="hoc clear">
         <!-- ################################################################################################ -->
         <div id="logo" class="fl_left">
           <!-- <h1><a href="index.html">Uncommon Core</a></h1> -->
-          <img src="logo_white.png" style="height:50px;margin:12px;padding:0px">
+          <img src="layouts/images/logo_white.png" style="height:50px;margin:12px;padding:0px">
         </div>
         <nav id="mainav" class="fl_right">
           <ul class="clear">
@@ -102,24 +102,24 @@ Licence URI: https://www.os-templates.com/template-terms
     </main>
   </div>
 
-  <div class="wrapper bgded overlay" style="background-image:url('back3.jpg');background-attachment:fixed;">
+  <div class="wrapper bgded overlay" style="background-image:url('layouts/images/back3.jpg');background-attachment:fixed;">
     <div class="hoc container clear">
       <ul id="stats" class="nospace group">
         <li class="one_quarter first"><a href="#"><i class="fa fa-3x fa-child"></i></a>
           <p>Registered Users</p>
-          <p id="registeredUsers">15</p>
+          <p id="registeredUsers">..</p>
         </li>
         <li class="one_quarter"><a href="#"><i class="fa fa-3x fa-slideshare"></i></a>
           <p>Registered Apps</p>
-          <p id="appCount"> 5 </p>
+          <p id="appCount">..</p>
         </li>
         <li class="one_quarter"><a href="#"><i class="fa fa-3x fa-edit"></i></a>
           <p>Total Web10 App Visits</p>
-          <p id="totalVisits"> 200</p>
+          <p id="totalVisits">..</p>
         </li>
         <li class="one_quarter"><a href="#"><i class="fa fa-3x fa-slack"></i></a>
           <p>Data Liberated</p>
-          <p id="liberatedData"> 500MB </p>
+          <p id="liberatedData">..MB </p>
         </li>
       </ul>
     </div>
@@ -244,7 +244,7 @@ Licence URI: https://www.os-templates.com/template-terms
       <!-- <img class="imgr borderedbox inspace-5" src="https://jacoby149.github.io/UCImages/demo/imgr.gif" alt=""> -->
       <!--<p>Here, you can add students, print packets, and submit grades.</p>-->
           <i>
-            <div id="message-box" class="<?=$_SESSION['goodbad']?>"><?=$_SESSION['message']?></div>
+            <div id="message-box"><?=$_SESSION['message']?></div>
           </i>
           <table style="margin-left:auto;margin-right:auto">
             <thead>
@@ -254,11 +254,8 @@ Licence URI: https://www.os-templates.com/template-terms
 
               </tr>
             </thead>
-            <tbody id="student-body">
-              <tr><td>https://crm.web10.app</td><td>43</td></tr>
-              <tr><td>https://docs.web10.app/notes</td><td>7</td></tr>
-              <tr><td>https://docs.web10.app/mailer</td><td>43</td></tr>
-              <tr><td>https://mamafleet.github.io/translator/view.html</td><td>23</td></tr>
+            <tbody id="appTable">
+              <tr><td>..</td><td>..</td></tr>
             </tbody>
           </table>
           
@@ -416,7 +413,7 @@ Licence URI: https://www.os-templates.com/template-terms
   </div>
 </div>
 <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
-<script src="script.js"></script>
+<script src="layouts/scripts/script.js"></script>
 </body>
 
 </html>

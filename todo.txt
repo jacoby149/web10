@@ -1,24 +1,11 @@
-make wapi auth have an web10 store feature 
-store reffererer origins with no 'localhost' in the name
-make a web10 homepage : 
- - with web10 apps directory [requested services]
- - web10 user count
+web10 [crypto update]
 
-add web10 scrs [ for subcultures hijacking services ]
-
-make web10 record level filtering [face it writing is fucked.]
-make web10 user service backend access keys
-
-
-
-web10 encryptor implement mobile login w. twilio [like bumble]
-web10 encryptor settings page (export, import, changepass logout) 
-web10 encryptor hello user
-
-webrtc basic datachannel site implementation
-webrtc basic datachannel mobile app implementation
+move wapi.js to the web10 homepage
+integrate web10 app store features
+webrtc web10 user to web10 user implementation
+webrtc basic datachannel web implementation
+webrtc basic datachannel mobile implementation
 webrtc basic datachannel user to user flow
-
 implement web10 encryptor app side webrtc
 implement web10 encryptor web side webrtc
 implement web10 encryptor app side crypto
@@ -26,3 +13,9 @@ implement web10 encryptor web side crypto
 integrate service import functionality
 web10 encryptor app export keys
 web10 encryptor app import keys
+
+implement web10 subservices (developer manageable services within a service w/o SMRs)
+add web10 scr flow [ for subcultures hijacking services ]
+make web10 user service backend access keys [ for apis ]
+web10 encryptor implement mobile login w. twilio [like bumble]
+web10 encryptor settings page UI (export, import, changepass logout) 
