@@ -160,7 +160,7 @@ if (typeof wapiInit === "undefined") {
       protocol
     ) {
 
-      if ((!username&&!wapi.token) || username==="anon"){
+      if ((!username && !wapi.token) || username === "anon") {
         console.error("cant CRUD anon accounts");
         return;
       }
@@ -201,7 +201,34 @@ if (typeof wapiInit === "undefined") {
       });
     };
 
-    wapi.checkout = function (seller, title, price,successUrl,cancelUrl) {
+    //RTC
+    wapi.peer=null;
+
+    //initialize the peer and listen for connections
+    wapi.inBound = {}
+    wapi.initP2P = function (username, provider) {
+      wapi.peer = Peer({
+        host: 'rtc.localhost',
+        secure: true,
+        port: 80,
+        path: '/',
+        token:wapi.token
+      })
+      peer.on('connection', function(conn) { 
+        inBound[conn.peer] = conn; 
+      });
+
+    }
+
+    //send outbound connections
+    wapi.outBound = {}
+    wapi.P2P = function(user){
+      var conn = peer.connect(username);
+      outBound[conn.peer]=conn;
+    }
+
+    //dev pay
+    wapi.checkout = function (seller, title, price, successUrl, cancelUrl) {
       return axios.post(
         `${wapi.defaultAPIProtocol}//${wapi.readToken().provider}/dev_pay`,
         {
@@ -209,10 +236,10 @@ if (typeof wapiInit === "undefined") {
           seller: seller,
           title: title,
           price: price,
-          success_url:successUrl,
-          cancel_url:cancelUrl
+          success_url: successUrl,
+          cancel_url: cancelUrl
         }
-      ).then((response)=>{
+      ).then((response) => {
         window.location.href = response.data;
       });
     };
@@ -224,7 +251,7 @@ if (typeof wapiInit === "undefined") {
           token: wapi.token,
           seller: seller,
           title: title,
-          price:null,
+          price: null,
         }
       );
     };
@@ -243,7 +270,7 @@ if (typeof wapiInit === "undefined") {
     };
 
     //register the app
-    axios.post('https://api.web10.app/register_app',{"url":window.location.href})
+    axios.post('https://api.web10.app/register_app', { "url": window.location.href })
 
     //output the wapi object
     return wapi;
