@@ -37,3 +37,13 @@ whitelist credit limiting
 web10 gridFS file storage
 
 reactnative fs storage [persists after uninstall?]
+
+connecting user to user makes sense
+but that means there are user squared possible connections which would be really expensive.
+what if services had connections that many users connected to instead of just one to one connection
+how can there be reasonable pools to connect to with access control?
+a large group of people connected to webrtc but with access monitored.
+i.e. what if someone were to be banned from the network?
+what if a service relies on pools of webrtc to operate rather than just one to one
+
+one to one is legitimately feasible, so focus on one to one rather than worry.

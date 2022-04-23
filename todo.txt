@@ -1,21 +1,23 @@
-web10 [crypto update]
 
-move wapi.js to the web10 homepage
-integrate web10 app store features
-webrtc web10 user to web10 user implementation
-webrtc basic datachannel web implementation
-webrtc basic datachannel mobile implementation
-webrtc basic datachannel user to user flow
-implement web10 encryptor app side webrtc
-implement web10 encryptor web side webrtc
-implement web10 encryptor app side crypto
-implement web10 encryptor web side crypto
+web10 [crypto update]
+peerjs docker container
+add web10 to web10 connect
+add web10 to mobile connect
+add certification
+
+peerjs user to user datachannel implementation
+peerjs user to mobile datachannel implementation
+integerate web10 encryptor app side webrtc
+integrate web10 encryptor web side webrtc
+integrate web10 encryptor app side crypto
+integrate web10 encryptor web side crypto
+
+web10 [usability update]
 integrate service import functionality
 web10 encryptor app export keys
 web10 encryptor app import keys
-
-implement web10 subservices (developer manageable services within a service w/o SMRs)
+web10 encryptor changepass
+web10 encryptor twilio login
+implement web10 subservices (developer manageable stricter services within a service w/o SMRs)
 add web10 scr flow [ for subcultures hijacking services ]
 make web10 user service backend access keys [ for apis ]
-web10 encryptor implement mobile login w. twilio [like bumble]
-web10 encryptor settings page UI (export, import, changepass logout) 

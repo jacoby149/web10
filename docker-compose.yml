@@ -27,6 +27,18 @@ services:
       CHOKIDAR_USEPOLLING: "true"
     ports:
       - '3000:80'
+  rtc:
+    build: rtc
+    volumes:
+      - ./rtc:/rtc
+      - rtc:/rtc/node_modules
+    command: ["nodemon", "index.js"]
+    environment:
+      PORT: 80
+      VIRTUAL_HOST: rtc.localhost
+      CHOKIDAR_USEPOLLING: "true"
+    ports:
+      - '6363:80'
   crm:
     build: 
       context: .
@@ -63,3 +75,4 @@ services:
 
 volumes:
   node-modules:
+  rtc:
