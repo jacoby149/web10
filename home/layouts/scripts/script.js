@@ -1,5 +1,4 @@
 function display(data){
-  console.log(data)
   const apps = data["apps"]
   registeredUsers.innerHTML = data["users"];
   var mbs = (data["storage"]/(1024*1024)).toFixed(2);
@@ -23,7 +22,6 @@ function displayApps(apps){
   }
 }
 
-console.log("starting")
 axios
   .post("https://api.web10.app/stats")
   .then((response) => {
