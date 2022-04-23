@@ -394,7 +394,7 @@ def get_collection_size(user):
 def get_apps():
     apps = [{"url": app["url"],
              "visits":app["visits"]}
-            for app in db["web10"]["apps"].find({})]
+            for app in db["web10"]["apps"].find({}).sort('visits',pymongo.DESCENDING)]
     return apps
 
 
