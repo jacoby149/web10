@@ -356,7 +356,14 @@ async def signup(form_data: models.SignUpForm):
 # gets the homepage stats
 @app.post("/stats",include_in_schema=False)
 async def stats():
-    return db.get_apps(),db.get_user_count(),db.total_size()
+    apps = db.get_apps()
+    users = db.get_user_count()
+    size = db.total_size()
+    return {
+        "apps":apps,
+        "users":users,
+        "storage":size
+        }
 
 # make a new web10 account
 @app.post("/register_app",include_in_schema=False)

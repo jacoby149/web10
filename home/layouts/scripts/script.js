@@ -1,7 +1,9 @@
 function display(data){
+  console.log(data)
   const apps = data["apps"]
   registeredUsers.innerHTML = data["users"];
-  liberatedData.innerHTML = data["storage"];
+  var mbs = (data["storage"]/(1024*1024)).toFixed(2);
+  liberatedData.innerHTML = `${mbs}MB`;
   appCount.innerHTML = apps.length;
   totalVisits.innerHTML = apps.reduce((a, b) => a["visits"] + b["visits"], 0)
   displayApps(apps)
@@ -21,8 +23,9 @@ function displayApps(apps){
   }
 }
 
+console.log("starting")
 axios
-  .post("https://api.web10.app/stats")
+  .post("http://api.localhost/stats")
   .then((response) => {
     display(response.data);
   })

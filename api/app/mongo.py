@@ -362,9 +362,9 @@ def get_collection_size(user):
 def get_apps():
     return list(db["web10"]["apps"].find({}))
 def get_user_count():
-    return len(db.listCollections())
+    return len(db.list_collection_names())
 def total_size():
-    return db.command("dbstats")["dataSize"]
+    return db.command("dbstats")["storageSize"]
 
 # app registration
 def register_app(info):
