@@ -1,6 +1,5 @@
 web10 [crypto update]
-Greenstar CRM remove ledges
-Greenstar CRM update contacts
+Greenstar CRM update/delete contacts
 Greenstar CRM safer delete
 Greenstar CRM udpate/delete notes
 Greenstar CRM SCR

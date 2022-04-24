@@ -1,3 +1,8 @@
+.modContact input,.modContact button{
+  margin-right: 2px;
+  margin-bottom:4px;
+}
+
 td {
   white-space: nowrap;
 }

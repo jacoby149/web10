@@ -73,37 +73,19 @@ function loadContacts() {
   });
 }
 
-function loadNotes(i) {
-  const c = contacts[i];
+function loadNotes() {
+  document.getElementById("newnote").value = "";
+  const c = contacts[contactIndex];
+  console.log(c)
   wapi.read("crm-notes", { id: c._id }).then(function (response) {
     displayModalBannerColor(c.color);
     document.getElementById(
       "myModalLabel"
-    ).innerHTML = `${c.name}<a style="text-decoration: none;" class = 'statusbutton' onclick='incrementColor(${i})'> &#9851;</a>`;
-    contactIndex = i;
+    ).innerHTML = `${c.name}<a style="text-decoration: none;" class = 'statusbutton' onclick='incrementColor(${contactIndex})'> &#9851;</a>`;
     displayNotes(response.data);
   });
 }
 
-function loadLedger(i) {
-  const c = contacts[i];
-  wapi.read("crm-ledges", { id: c._id }).then(function (response) {
-    displayModalBannerColor(c.color);
-    console.log(c.color);
-    document.getElementById(
-      "ledgerlabel"
-    ).innerHTML = `${c.name}<a style="text-decoration: none;" class = 'statusbutton' onclick='incrementColor(${i})'> &#9851;</a>`;
-    contactIndex = i;
-    displayLedger(response.data);
-  });
-}
-
-function loadModal() {
-  document.getElementById("newnote").value = "";
-  document.getElementById("ledgerform").reset();
-  loadNotes(contactIndex);
-  loadLedger(contactIndex);
-}
 
 //////////////////////////////
 //// Add/Create functions
@@ -115,6 +97,7 @@ function addContact() {
     company: userCompany.value,
     phone: userPhone.value,
     email: userEmail.value,
+    web10: userWeb10.value,
     color: "green",
   };
 
@@ -125,6 +108,7 @@ function addContact() {
     userCompany.value = "";
     userPhone.value = "";
     userEmail.value = "";
+    userWeb10.value = "";
   });
 }
 
@@ -136,19 +120,7 @@ function submitNote() {
       id: contacts[contactIndex]._id,
       date: new Date(),
     })
-    .then(loadModal);
-}
-
-function submitLedger() {
-  var form = {};
-  $("#ledgerform")
-    .serializeArray()
-    .map(function (x) {
-      form[x.name] = x.value;
-    });
-  form.id = contacts[contactIndex]._id;
-  form.date = new Date();
-  wapi.create("crm-ledges", form).then(loadModal);
+    .then(loadNotes);
 }
 
 ////////////////////////////
@@ -179,6 +151,7 @@ function incrementColor(i) {
 /////////////////////////////
 
 function deleteContact(id) {
+  // contact deletion link
   var i = 0;
   const ids = contacts.map((c) => c._id)
   const idx = ids.indexOf(id);
@@ -235,19 +208,6 @@ function validateEmail() {
 
 function displayModalBannerColor(color) {
   notesmodalbanner.className = `${color} modal-header`;
-  ledgermodalbanner.className = `${color} modal-header`;
-}
-
-function toggleNoteLedge() {
-  var button = document.getElementById("statusbutton");
-  if (button.innerHTML == "Viewing Ledger") {
-    button.innerHTML = "Viewing Notes";
-    viewingType = "notes";
-  } else {
-    button.innerHTML = "Viewing Ledger";
-    viewingType = "ledger";
-  }
-  displayContacts();
 }
 
 function displayContacts() {
@@ -267,19 +227,17 @@ function displayContacts() {
 
     // name link that toggles the modal data viewer
     var name = c.name ? c.name : "-";
-    var nameLink = `<a href="#" data-bs-toggle="modal" data-bs-target="#${viewingType}" 
-      onclick="contactIndex=${i};loadModal()">${name}</a>`;
+    var nameLink = `<a href="#" data-bs-toggle="modal" data-bs-target="#notes" 
+      onclick="contactIndex=${i};loadNotes()">${name}</a>`;
 
-    // contact deletion link
-    const deleteLink = `<a onclick="deleteContact('${c._id}')" class="text-danger"><i class="fas fa-minus-circle"></i></a>`;
+    var web10 = c.web10 ? c.web10 : "-";
 
     temp += `<tr class="${c.color}">
     <td>${nameLink}</td>
     <td>${c.company ? c.company : "-"}</td>
     <td>${c.phone ? c.phone : "-"}</td>
     <td>${mailLink()}</td>
-    <td>${deleteLink}</td></tr>`;
-  }
+    <td>${web10}</td>`  }
   document.getElementById("tableBody").innerHTML = temp;
   searchFunction();
 }
@@ -295,39 +253,6 @@ function displayNotes(notes) {
   }
 
   document.getElementById("note_log").innerHTML = log;
-}
-
-function displayLedger(entries) {
-  console.log(entries);
-  var log = "";
-  for (var z = 0; z < entries.length; z++) {
-    var description = entries[z].description;
-    var date = entries[z].date;
-    var amount = entries[z].amount;
-    var recurring = entries[z].recurring;
-    var check_number = entries[z].check_number;
-
-    log +=
-      "<div class = 'ledge'>" +
-      "<p><b>" +
-      date +
-      "</b></p><p>" +
-      "Recurring? : " +
-      recurring +
-      "</p><p>" +
-      "Check Num. : " +
-      check_number +
-      "</p><p>" +
-      "Amount ($) : " +
-      amount +
-      "</p><p>" +
-      "Description: " +
-      description +
-      "</p>" +
-      "</div > ";
-  }
-
-  document.getElementById("ledger_log").innerHTML = log;
 }
 
 //////////////////////////////////////////
