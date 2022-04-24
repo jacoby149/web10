@@ -6,7 +6,7 @@ const Fs = ([cF, rF, uF, dF] = ["create", "read", "update", "delete"].map(
 ));
 
 /* wapi setup */
-const wapi = wapiInit("http://auth.localhost","http://rtc.localhost");
+const wapi = wapiInit("https://auth.web10.app");
 const sirs = [
   {
     service: "web10-docs-mail-demo",
