@@ -1,16 +1,11 @@
-
 web10 [crypto update]
-peerjs docker container
-add web10 to web10 connect
-add web10 to mobile connect
-add certification
+user to user messaging test
 
-peerjs user to user datachannel implementation
-peerjs user to mobile datachannel implementation
-integerate web10 encryptor app side webrtc
-integrate web10 encryptor web side webrtc
-integrate web10 encryptor app side crypto
-integrate web10 encryptor web side crypto
+web side encryptor functions
+app side encryptor functions
+encryptor web side webrtc
+encryptor app side webrtc
+encryptor 
 
 web10 [usability update]
 integrate service import functionality

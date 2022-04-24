@@ -13,7 +13,7 @@ if (typeof wapiInit === "undefined") {
   }
 
   //initializes the wapi library object
-  function wapiInit(authUrl = "https://auth.web10.app") {
+  function wapiInit(authUrl = "https://auth.web10.app", rtcUrl = "https://rtc.web10.app") {
     const wapi = {};
 
     // get the default api protocol, which is required to match its auth portals protocol
@@ -22,6 +22,10 @@ if (typeof wapiInit === "undefined") {
     //wapi variables
     wapi.childWindow = null;
     wapi.token = cookieDict()["token"];
+
+    /************ 
+     *** AUTH ***
+     ************/
 
     //sets the api key in wapi and stores it in cookies
     wapi.setToken = function (token) {
@@ -78,7 +82,11 @@ if (typeof wapiInit === "undefined") {
       );
     };
 
-    //CRUD functionality (patch instead of get (secure) since patch can have a body)
+    /**************
+     **** CRUD ****
+     **************/ 
+    
+    //patch instead of get so patch can have an HTTPS E2E encrypted body
     wapi.read = function (
       service,
       query = null,
@@ -201,13 +209,17 @@ if (typeof wapiInit === "undefined") {
       });
     };
 
-    //RTC
+
+    /*************
+     **** P2P ****
+     *************/
+
     wapi.peer = null;
 
-    // initializes the peer and listens for connections
+    // initializes the peer and listens for inbound connections
     wapi.inBound = {}
     wapi.initP2P = function (onInbound = null) {
-      wapi.peer = Peer({
+      wapi.peer = new Peer({
         host: 'rtc.localhost',
         secure: true,
         port: 80,
@@ -224,16 +236,20 @@ if (typeof wapiInit === "undefined") {
 
     // makes outbound connections
     wapi.outBound = {}
-    wapi.P2P = function (provider, username, origin, metaData={},label = "default") {
+    wapi.P2P = function (provider, username, origin, metaData={}) {
       if (!wapi.peer) console.error("not initialized")
       var conn = wapi.peer.connect(
-        `${provider}/${username}/${origin}/${label}`,
+        `${provider}/${username}/${origin}`,
         {metadata:metaData}
       );
       outBound[conn.peer] = conn;
     }
 
-    //dev pay
+    
+    /*************** 
+     *** dev pay ***
+     ***************/
+
     wapi.checkout = function (seller, title, price, successUrl, cancelUrl) {
       return axios.post(
         `${wapi.defaultAPIProtocol}//${wapi.readToken().provider}/dev_pay`,
