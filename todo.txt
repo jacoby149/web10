@@ -1,5 +1,11 @@
 web10 [crypto update]
-user to user messaging test
+Greenstar CRM remove ledges
+Greenstar CRM update contacts
+Greenstar CRM safer delete
+Greenstar CRM udpate/delete notes
+Greenstar CRM SCR
+P2P messaging test
+
 
 web side encryptor functions
 app side encryptor functions
