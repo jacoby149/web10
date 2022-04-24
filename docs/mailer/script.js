@@ -6,7 +6,7 @@ const Fs = ([cF, rF, uF, dF] = ["create", "read", "update", "delete"].map(
 ));
 
 /* wapi setup */
-const wapi = wapiInit("https://auth.web10.app");
+const wapi = wapiInit("http://auth.localhost","http://rtc.localhost");
 const sirs = [
   {
     service: "web10-docs-mail-demo",
@@ -19,7 +19,7 @@ authButton.onclick = wapi.openAuthPortal;
 
 /* web10 devPay */
 const [seller, subscriptionTitle, price, url] = [
-  "seller-web10-username",
+  "jacoby149",
   "mailer-premium",
   50,
   window.location.href,
@@ -27,7 +27,8 @@ const [seller, subscriptionTitle, price, url] = [
 
 /* message for current subscribers */
 function displaySubscriberMessage() {
-  subscriptionStatus.innerHTML = `subscribed! <button id="cancel"> cancel sub </button>`;
+  subscriptionStatus.innerHTML = `subscribed! <button id="cancel"> cancel theme sub </button>`;
+  document.body.style.backgroundColor = "#001111";
   cancel.onclick = () =>
     wapi
       .cancelSubscription(seller, subscriptionTitle)
@@ -39,7 +40,7 @@ function displaySubscriberMessage() {
 
 /* message for users that are not subscribed to onboard them */
 function displayOnboardMessage() {
-  subscriptionStatus.innerHTML = `not subscribed! <button id="checkout"> subscribe </button>`;
+  subscriptionStatus.innerHTML = `not subscribed! <button id="checkout"> subscribe for theme </button>`;
   checkout.onclick = () =>
     wapi.checkout(seller, subscriptionTitle, price, url, url).catch((e) => {
       message.innerHTML = e.response.data.detail;
@@ -52,7 +53,7 @@ function validSubscription(subscriptionData) {
     subscriptionData !== null &&
     parseInt(subscriptionData["price"]) === price &&
     subscriptionData["seller"] === seller &&
-    subscriptionData["title"] === title
+    subscriptionData["title"] === subscriptionTitle
   );
 }
 
@@ -65,7 +66,7 @@ function devPay() {
       else displayOnboardMessage();
     })
     .catch(
-      (e) => (subscriptionStatus.innerHTML = `subscription check failed...`)
+      (e) => {console.log(e);subscriptionStatus.innerHTML = `subscription check failed...`}
     );
 }
 

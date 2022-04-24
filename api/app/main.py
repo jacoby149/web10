@@ -288,7 +288,6 @@ async def certify_token(token: models.Token):
 
 
 def certify(token: models.Token):
-    print("in")
     try:
         if token.token==None:
             token_data = anon_token()

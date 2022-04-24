@@ -553,16 +553,19 @@ Connections that you make to other web10 users are stored in the wapi.outBound d
 
 On web10, peer ids look like 'provider/username/origin/label'
 
-1. provider is the web10 provider of a user of web10 P2P
-2. username is the web10 username of a user of web10 P2P
-3. origin is the origin of the site the user is using to make the web10 P2P connection
-4. label is an extra string a developer can add to the peer id to handle single users being multipeer
+1. *provider* is the web10 provider of a user of web10 P2P
+2. *username* is the web10 username of a user of web10 P2P
+3. *origin* is the origin of the site the user is using to make the web10 P2P connection
+   * when connecting to a mobile encryptor, *origin* is set to "mobile"
+4. *label* is an extra string a developer can add to the peer id to handle single users being multipeer
 
 ### P2P messaging demo (Coming soon)
 
 ```
 (Coming soon)
 ```
+
+
 
 ## Encryption (Coming soon)
 
@@ -574,7 +577,7 @@ web10 does the following to make encryption is as secure as possible :
 
 
 
-### E2E encrypted mail demo (Coming soon)
+### E2E P2P messaging demo (Coming soon)
 
 ```
 (Coming soon)
