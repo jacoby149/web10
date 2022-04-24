@@ -1,4 +1,6 @@
-# web10 DOCS
+# web10 DOCS | SDKs
+
+<a href ="https://web10.app">web10 Home</a>
 
 <a href ="https://auth.web10.app">web10 auth portal</a>
 
@@ -6,17 +8,11 @@
 
 
 
-## Featured web10 Apps
-
-<a href ="https://crm.web10.app">Rolodex - by Greenstar Group</a>
+## Getting Started
 
 
 
-## wapi.js SDK
-
-
-
-### Installation
+### SDK Installation (JS)
 
 wapi.js is the javascript file containing the web10 developers SDK. <br>the file can be found at : https://auth.web10.app/sdk/wapi.js
 
@@ -30,7 +26,7 @@ wapi.js relies on axios to make web10 requests, which is included in the above C
 
 
 
-### Initialization
+### SDK Initialization (JS)
 
 in order to use the web10 SDK, the main SDK object needs to be initialized by the developer. 
 
@@ -45,7 +41,11 @@ const wapi = wapiInit("https://auth.web10.app")
 
 
 
-### Authentication
+## Authentication
+
+
+
+### SDK Functions
 
 once the wapi object is initialized, it provides a variety of functionalities for managing authentication and credentials.
 
@@ -60,9 +60,15 @@ once the wapi object is initialized, it provides a variety of functionalities fo
 
 
 
-### Authentication - Hello World Demo
+### Anonymous Users
 
-Below is an example of some html and javascript utilizing all of the above authentication functionality to handle login for a simple hello world app. <a href="https://docs.web10.app/hello">**Demo Link**</a>
+When not logged into web10 on a website with the wapi.js sdk, you can still utilize the web10 CRUD functionality. The api will register you as the 'anon' user [a user with the name **anon**].
+
+
+
+### Hello World Demo
+
+Below is an example of some html and javascript utilizing all of the above SDK functions to handle login for a simple hello world app. <a href="https://docs.web10.app/hello">**Demo Link**</a>
 
 ```html
 <html>
@@ -115,7 +121,9 @@ else wapi.authListen(initApp)
 
 
 
-### web10 Services
+## Services
+
+
 
 a web10 service is a managed MongoDB collection provided by a web10 provider<br>
 
@@ -125,7 +133,7 @@ web10.app services are hosted at :
 
 
 
-### On Your Own Terms
+### User Consent
 
 > users start new web10 services by accepting SIRs [service initialization requests]
 >
@@ -135,7 +143,7 @@ web10.app services are hosted at :
 
 
 
-### User Owned Service Management
+### SDK Functions
 
 | function                                            | description                                                  |
 | --------------------------------------------------- | ------------------------------------------------------------ |
@@ -147,7 +155,49 @@ web10.app services are hosted at :
 
 
 
-### Demo - Note App
+### Service Terms
+
+Users have a service term record for each active service they actively host with web10.  
+
+| field         | description                                                  |
+| ------------- | ------------------------------------------------------------ |
+| service       | the name of the web10 service                                |
+| cross_origins | websites that users are allowed to make web10 requests to the service from. |
+| whitelist     | a list of users allowed to access the service                |
+| blacklist     | a list of users not allowed to access the service. Overrides user listings on the whitelist. |
+
+```json
+{
+    service : the name of the service 
+    cross_origins : [website1, website2 website3] [regex for exact matching allowed]
+    whitelist : [
+        {
+            user: the name of a web10 user [regex for exact matching allowed]
+            provider : the name of a web10 provider [regex for exact matching allowed]
+            create : true or false
+            read : true or false
+            update : true or false
+            delete : true or false
+            all : true or false
+        }, ... 
+	]
+	blacklist : [ same as whitelist entries ...]
+}
+```
+
+
+
+### Subservices (Coming soon)
+
+Subservices are developer definable services within a service. There properties are :  
+
+1. They can have only stricter rules than the services they are within. 
+2. The rules can never restrict access from the user who owns the service. 
+3. Developers do not need to get user consent to make subservices
+
+
+
+### Note App Demo
 
 Below is an example of some html and javascript utilizing all of the above user owned service management functionality to make a basic notes app. <a href="https://docs.web10.app/notes">**Demo Link**</a>
 
@@ -262,39 +312,7 @@ function displayNotes(data) {
 
 
 
-### Service Term Records
-
-Users have a service term record for each active service they actively host with web10.  
-
-| field         | description                                                  |
-| ------------- | ------------------------------------------------------------ |
-| service       | the name of the web10 service                                |
-| cross_origins | websites that users are allowed to make web10 requests to the service from. |
-| whitelist     | a list of users allowed to access the service                |
-| blacklist     | a list of users not allowed to access the service. Overrides user listings on the whitelist. |
-
-```json
-{
-    service : the name of the service 
-    cross_origins : [website1, website2 website3] [regex for exact matching allowed]
-    whitelist : [
-        {
-            user: the name of a web10 user [regex for exact matching allowed]
-            provider : the name of a web10 provider [regex for exact matching allowed]
-            create : true or false
-            read : true or false
-            update : true or false
-            delete : true or false
-            all : true or false
-        }, ... 
-	]
-	blacklist : [ same as whitelist entries ...]
-}
-```
-
-
-
-### devPay
+## devPay
 
 Developers can accept web10 payment with web10 devPay.
 
@@ -304,15 +322,17 @@ Developers can accept web10 payment with web10 devPay.
 | wapi.verifySubscription (seller, title)                   | Verify that a customer is subscribed.                |
 | wapi.wapi.cancelSubscription (seller, title)              | Cancel a customer subscription                       |
 
-### anon Users
-
-When not logged into web10 on a website with the wapi.js sdk, you can still utilize the web10 CRUD functionality. When the wapi.js CRUD calls are utilized, the api will consider you as an anon user.
-
 
 
 ### Demo - web10 Mail App
 
-Below is an mail app, highly derived from the code in the notes app. It uses service term regexing to allow all web10 users send you an email. It implements $.50/mo. web10 devPay subscription. when not logged in, you can still send web10 mail as an anon web10 user.  <a href="https://docs.web10.app/mailer">**Demo Link**</a>
+Below is a demo mail app. It showcases:
+
+1. service term regexing to allow all web10 users send you an email. 
+2. $.50/mo. web10 devPay subscription. 
+3. sending of web10 mail as an anon web10 user when not logged in. 
+
+<a href="https://docs.web10.app/mailer">**Demo Link**</a>
 
 ```html
 <html>
@@ -506,6 +526,58 @@ function displayMail(data) {
   }
   mailview.innerHTML = data.map(contain).reverse().join(`<br>`);
 }
+```
+
+## P2P (Via. PeerJS) (Coming soon)
+
+web10 peer to peer functionality relies on the PeerJS library. web10 runs it's own webRTC server to keep web10 users secure when using the platform.
+
+### SDK Functions
+
+| Function                                                     | Description                                                  |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
+| wapi.initP2P(onInbound=null)                                 | Initializes the client as a peer, and on recieving inbound connections saves the connections to wapi.inBound. and attaches an event listener that triggers the onInbound(conn,data) function to recieved inbound connections |
+| wapi.P2P(provider, username, origin, metaData={}, label = "default") | Makes a P2P connection with another web10 peer.              |
+
+
+
+### Outbound/Inbound P2P
+
+Connections that other web10 users make to you are stored in the wapi.inBound dictionary under their peer ID.
+
+Connections that you make to other web10 users are stored in the wapi.outBound dictionary under their peer ID.
+
+
+
+### web10 Peer IDs
+
+On web10, peer ids look like 'provider/username/origin/label'
+
+1. provider is the web10 provider of a user of web10 P2P
+2. username is the web10 username of a user of web10 P2P
+3. origin is the origin of the site the user is using to make the web10 P2P connection
+4. label is an extra string a developer can add to the peer id to handle single users being multipeer
+
+### P2P messaging demo (Coming soon)
+
+```
+(Coming soon)
+```
+
+## Encryption (Coming soon)
+
+web10 does the following to make encryption is as secure as possible : 
+
+1. Implements SEPC256K1 encryption for digital signatures, diffie helman, and assymetric encryption
+2. Has a mobile app client to store all of your web10 keys locally on your phone to keep the keys entirely secret.
+3. Creates a P2P tunnel between your phone and web10 using devices to keep your web10 apps secure.
+
+
+
+### E2E encrypted mail demo (Coming soon)
+
+```
+(Coming soon)
 ```
 
 
