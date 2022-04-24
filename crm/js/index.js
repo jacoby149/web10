@@ -66,8 +66,6 @@ wapi.SMROnReady(sirs, []);
 
 function loadContacts() {
   wapi.read("crm-contacts").then(function (response) {
-    console.log("heehee");
-    console.log(response);
     contacts = response.data;
     displayContacts();
   });
@@ -76,7 +74,6 @@ function loadContacts() {
 function loadNotes() {
   document.getElementById("newnote").value = "";
   const c = contacts[contactIndex];
-  console.log(c)
   wapi.read("crm-notes", { id: c._id }).then(function (response) {
     displayModalBannerColor(c.color);
     document.getElementById(
@@ -84,6 +81,26 @@ function loadNotes() {
     ).innerHTML = `${c.name}<a style="text-decoration: none;" class = 'statusbutton' onclick='incrementColor(${contactIndex})'> &#9851;</a>`;
     displayNotes(response.data);
   });
+}
+
+function updateNote(id) {
+  const entry = String(document.getElementById(id).value);
+  wapi
+    .update("crm-notes", { _id: id,
+    }, { $set: { note: entry } })
+    .then(loadNotes)
+    .catch(
+      (error) => (message.innerHTML = `${uF} : ${error.response.data.detail}`)
+    );
+}
+
+function deleteNote(id) {
+  wapi
+    .delete("crm-notes", { _id: id})
+    .then(loadNotes)
+    .catch(
+      (error) => (message.innerHTML = `${dF} : ${error.response.data.detail}`)
+    );
 }
 
 
@@ -156,9 +173,12 @@ function deleteContact(id) {
   const ids = contacts.map((c) => c._id)
   const idx = ids.indexOf(id);
   if (idx != -1) {
-    wapi.delete("crm-contacts", contacts[idx]).then(function () {
+    var contact = contacts[idx];
+    var contactID = contact._id;
+    wapi.delete("crm-contacts", contact).then(function () {
       contacts.splice(idx, 1);
       displayContacts();
+      wapi.delete("crm-notes",{id:contactID})
     });
   }
 }
@@ -244,12 +264,19 @@ function displayContacts() {
 
 function displayNotes(notes) {
   var log = "";
-
+  notes.sort((a,b)=>a.data>b.date).reverse();
   for (var z = 0; z < notes.length; z++) {
     var note = notes[z].note;
     var date = notes[z].date;
+    var id = notes[z]._id;
+    console.log(id)
 
-    log += "<b>" + date + "</b><p>" + note + "</p>";
+    log += `
+      <b>${date}</b>
+      <p>${note}</p>
+      <!--<button onclick="updateNote('${id}')" class="btn btn-info btn-sm">update note</button>-->
+      <button onclick="deleteNote('${id}')" class="btn btn-danger btn-sm">delete note</button>
+      <br><br>`;
   }
 
   document.getElementById("note_log").innerHTML = log;
