@@ -66,6 +66,14 @@ services:
       - "6868:80"
     environment:
       VIRTUAL_HOST: home.localhost
+  mail:
+    build: mail 
+    volumes:
+      - ./mail/:/mail/public
+    ports:
+      - "7171:80"
+    environment:
+      VIRTUAL_HOST: mail.localhost
   nginx-proxy:
     image: jwilder/nginx-proxy
     ports:

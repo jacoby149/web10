@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rtc
+spec:
+  selector:
+    matchLabels:
+      app: rtc
+  template:
+    metadata:
+      labels:
+        app: rtc
+    spec:
+      containers:
+        - name: rtc
+          image: gcr.io/pure-phalanx-344719/rtc
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
