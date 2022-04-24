@@ -25,8 +25,8 @@ var wapi =
   window.location.hostname == "crm.localhost"
     ? wapiInit("http://auth.localhost")
     : window.location.hostname == "crm.web10.dev"
-    ? wapiInit("https://auth.web10.dev")
-    : wapiInit("https://auth.web10.app");
+      ? wapiInit("https://auth.web10.dev")
+      : wapiInit("https://auth.web10.app");
 
 /* Web10 Login / Log out */
 if (!wapi.isSignedIn()) wapi.authListen(crmInit);
@@ -83,25 +83,6 @@ function loadNotes() {
   });
 }
 
-function updateNote(id) {
-  const entry = String(document.getElementById(id).value);
-  wapi
-    .update("crm-notes", { _id: id,
-    }, { $set: { note: entry } })
-    .then(loadNotes)
-    .catch(
-      (error) => (message.innerHTML = `${uF} : ${error.response.data.detail}`)
-    );
-}
-
-function deleteNote(id) {
-  wapi
-    .delete("crm-notes", { _id: id})
-    .then(loadNotes)
-    .catch(
-      (error) => (message.innerHTML = `${dF} : ${error.response.data.detail}`)
-    );
-}
 
 
 //////////////////////////////
@@ -151,16 +132,32 @@ function incrementColor(i) {
     c.color == "green"
       ? "red"
       : c.color == "red"
-      ? "yellow"
-      : c.color == "yellow"
-      ? "green"
-      : "green";
+        ? "yellow"
+        : c.color == "yellow"
+          ? "green"
+          : "green";
   const [query, values] = [{ _id: c._id }, { $set: { color: new_color } }];
   wapi.update("crm-contacts", query, values).then(function () {
     c.color = new_color;
     displayModalBannerColor(new_color);
     displayContacts();
   });
+}
+
+function updateContact() {
+  var contact = {
+    name: userNameUpdate.value,
+    company: userCompanyUpdate.value,
+    phone: userPhoneUpdate.value,
+    email: userEmailUpdate.value,
+    web10: userWeb10Update.value,
+  };
+  wapi
+    .update("crm-contacts", { _id: contacts[contactIndex]._id }, { $set: contact })
+    .then(loadContacts)
+    .catch(
+      (error) => (message.innerHTML = `${uF} : ${error.response.data.detail}`)
+    );
 }
 
 /////////////////////////////
@@ -178,9 +175,18 @@ function deleteContact(id) {
     wapi.delete("crm-contacts", contact).then(function () {
       contacts.splice(idx, 1);
       displayContacts();
-      wapi.delete("crm-notes",{id:contactID})
+      wapi.delete("crm-notes", { id: contactID })
     });
   }
+}
+
+function deleteNote(id) {
+  wapi
+    .delete("crm-notes", { _id: id })
+    .then(loadNotes)
+    .catch(
+      (error) => (message.innerHTML = `${dF} : ${error.response.data.detail}`)
+    );
 }
 
 ////////////////////////////////////////
@@ -232,8 +238,6 @@ function displayModalBannerColor(color) {
 
 function displayContacts() {
   var temp = ``;
-  console.log("inny");
-  console.log(contacts);
   for (var i = 0; i < contacts.length; i++) {
     const c = contacts[i];
 
@@ -257,19 +261,26 @@ function displayContacts() {
     <td>${c.company ? c.company : "-"}</td>
     <td>${c.phone ? c.phone : "-"}</td>
     <td>${mailLink()}</td>
-    <td>${web10}</td>`  }
+    <td>${web10}</td>`
+  }
   document.getElementById("tableBody").innerHTML = temp;
   searchFunction();
 }
 
 function displayNotes(notes) {
+  var contact = contacts[contactIndex];
+  userNameUpdate.value = contact.name;
+  userCompanyUpdate.value = contact.company;
+  userPhoneUpdate.value = contact.phone;
+  userEmailUpdate.value = contact.email;
+  userWeb10Update.value = contact.web10;
+
   var log = "";
-  notes.sort((a,b)=>a.data>b.date).reverse();
+  notes.sort((a, b) => a.data > b.date).reverse();
   for (var z = 0; z < notes.length; z++) {
     var note = notes[z].note;
     var date = notes[z].date;
     var id = notes[z]._id;
-    console.log(id)
 
     log += `
       <b>${date}</b>
