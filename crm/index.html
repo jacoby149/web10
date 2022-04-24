@@ -53,6 +53,9 @@
                 <input class="form-control mb-3" placeholder="add e-mail" id="userEmail">
                 <div id="mailAlert" class="alert alert-danger text-justify p-2 ">Please add a valid e-mail</div>
 
+                <input class="form-control mb-3" placeholder="add web10 username" id="userWeb10">
+                <div id="web10Alert" class="alert alert-danger text-justify p-2 ">Please add a valid web10 username</div>
+
                 <button onclick="addContact()" class="btn btn-success w-100 btn1">Add</button>
 
 
@@ -62,7 +65,6 @@
             <div class="col-lg-8">
                 <div id="container demo">
                     <div class="options">
-                        <button id="statusbutton" onclick="toggleNoteLedge()"> Viewing Notes </button>
                         Green <input type="checkbox" onclick="colorFilter(this)" id="green" checked>
                         Yellow <input type="checkbox" onclick="colorFilter(this)" id="yellow" checked>
                         Red <input type="checkbox" id="red" onclick="colorFilter(this)" checked>
@@ -72,9 +74,10 @@
 
                         <thead class="tableh1">
                             <th class="">Name</th>
-                            <th class="">Company</th>
+                            <th class="">Comp.</th>
                             <th class="">Phone</th>
                             <th class="">E-mail</th>
+                            <th class="">web10</th>
                             <th class="col-1"></th>
                             <!--
                             <th class="col-1"></th>
@@ -103,11 +106,19 @@
         <div class="modal fade right" id="notes" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
             <div class="modal-dialog">
                 <div class="modal-content">
-                    <div class="modal-header" id="ledgermodalbanner">
+                    <div class="modal-header" id="notesmodalbanner">
                         <h5 class="modal-title" id="myModalLabel">Modal title</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        <button id="closer" type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
+                        <div class="modContact">
+                        <input>
+                        <input>
+                        <input>
+                        <input>
+                        <input>
+                        <button class = "btn btn-info btn-sm">Update</button><br>
+                    </div>
                         <textarea name="newnote" id="newnote" style="width:100%" rows="4" maxlength="500"
                             placeholder="Add note"></textarea> <br>
                         <div style="float:right;padding-top:10px;"> <button type="submit" onclick="submitNote()">Create
@@ -117,7 +128,7 @@
 
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Close</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteContact(contacts[contactIndex]._id);closer.click();">Delete Contact</button>
                         <!-- <button type="button" class="btn btn-primary">Save changes</button> -->
                     </div>
                 </div>
@@ -125,54 +136,6 @@
         </div>
 
 
-        <!-- Modal -->
-        <div class="modal fade right" id="ledger" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header" id="notesmodalbanner">
-                        <h5 class="modal-title" id="ledgerlabel"> Ledger </h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-
-                        <form id="ledgerform">
-
-                            <div class="row">
-                                <div class="col-6"> Date : <input class="form-control" type="date" name="date"
-                                        maxlength="10"></div>
-                                <div class="col-6">
-                                    Amount ($) : <input class="form-control" type="text" name="amount">
-                                </div>
-                                <div class="col-6">
-                                    Recurring? : <select name="recurring" class="form-control">
-                                        <option value="One">One Time</option>
-                                        <option value="Monthly">Monthly</option>
-                                        <option value="Yearly">Yearly</option>
-                                    </select>
-                                </div>
-                                <div class="col-6">
-                                    Check Number : <input class="form-control" type="text" name="check_number">
-                                </div>
-                                <div class="col-6">
-
-                                    Description : <input class="form-control" type="text" name="description">
-                                </div>
-                                <div class="col-6" style="padding:24px;">
-                                    <button type="button" onclick="submitLedger()">Create Entry</button>
-                                </div>
-
-                                <br><br>
-                        </form>
-                    </div>
-                    <div id="ledger_log"> </div>
-
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Close</button>
-                    <!-- <button type="button" class="btn btn-primary">Save changes</button> -->
-                </div>
-            </div>
-        </div>
     </div>
 
     <footer class="text-center"> Greenstar Group &#169; 2021 <br>[Based on <a href = "https://github.com/AhmadAlshahawii/PhoneBook">PhoneBook</a>] <br></footer>
