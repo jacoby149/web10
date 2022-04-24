@@ -1,17 +1,13 @@
 web10 [crypto update]
-Greenstar CRM update/delete contacts
-Greenstar CRM safer delete
-Greenstar CRM udpate/delete notes
-Greenstar CRM SCR
+Program the web10.mail.app to work like the crm
 P2P messaging test
-
-
 web side encryptor functions
 app side encryptor functions
 encryptor web side webrtc
 encryptor app side webrtc
 encryptor 
 
+SCRs
 web10 [usability update]
 integrate service import functionality
 web10 encryptor app export keys
