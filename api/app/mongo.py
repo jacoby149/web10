@@ -247,7 +247,7 @@ def delete(user, service, query):
     if star_selected(user, service, query):
         raise exceptions.STAR
     query = q_t(query, service)
-    db[f"{user}"].delete_one(query)
+    db[f"{user}"].delete_many(query)
     return "success"
 
 
