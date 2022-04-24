@@ -1,16 +1,20 @@
 /* script.js */
 
+const URLRecipient = new URLSearchParams(window.location.search).get('web10');
+if (URLRecipient) recipient.value = URLRecipient;
+
+
 //conventient failure messages
 const Fs = ([cF, rF, uF, dF] = ["create", "read", "update", "delete"].map(
   (op) => `failed to ${op} mail[s]`
 ));
 
 /* wapi setup */
-const wapi = wapiInit("http://auth.localhost","http://rtc.localhost");
+const wapi = wapiInit("https://auth.web10.app","https://rtc.web10.app");
 const sirs = [
   {
-    service: "web10-docs-mail-demo",
-    cross_origins: ["docs.web10.app", "localhost", "docs.localhost"],
+    service: "mail",
+    cross_origins: ["docs.web10.app", "localhost", "docs.localhost","mail.web10.app","mail.localhost"],
     whitelist: [{ username: ".*", provider: ".*", create: true }], //allows all users to write to you
   },
 ];
@@ -89,7 +93,7 @@ else wapi.authListen(initApp);
 /* CRUD Calls */
 function readMail() {
   wapi
-    .read("web10-docs-mail-demo", {})
+    .read("mail", {})
     .then((response) => displayMail(response.data))
     .catch((error) => (message.innerHTML = `${rF} : ${error}`));
 }
@@ -98,7 +102,7 @@ function createMail(mail, user, provider) {
   const sender = t===null ? "anon":t["username"]
   wapi
     .create(
-      "web10-docs-mail-demo",
+      "mail",
       {
         mail: mail,
         date: String(new Date()),
@@ -117,7 +121,7 @@ function createMail(mail, user, provider) {
 }
 function deleteMail(id) {
   wapi
-    .delete("web10-docs-mail-demo", { _id: id })
+    .delete("mail", { _id: id })
     .then(readMail)
     .catch(
       (error) => (message.innerHTML = `${dF} : ${error.response.data.detail}`)

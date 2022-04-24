@@ -8,6 +8,10 @@ var viewingType = "notes";
 /// CRM Init. functions
 //////////////////////////
 
+const URLRecipient = new URLSearchParams(window.location.search).get('web10');
+if (URLRecipient) recipient.value = URLRecipient;
+
+
 //change view to logged in and initialize contacts
 function crmInit() {
   auth.innerHTML = "Secure Log Out";
@@ -258,8 +262,10 @@ function displayContacts() {
       onclick="contactIndex=${i};loadNotes()">${name}</a>`;
 
     var web10Link = function(){ 
-      return c.web10 ? `<a title="${c.web10}" href = "https://mail.web10.app?name=${c.web10}"><i class="fas fa-globe"></i></a>` : "-"
+      return c.web10 ? `<a title="${c.web10}" href = "https://mail.web10.app?web10=${c.web10}"><i class="fas fa-globe"></i></a>` : "-"
     };
+
+    var companyShort = function(){}
 
     temp += `<tr class="${c.color}">
     <td>${nameLink}</td>

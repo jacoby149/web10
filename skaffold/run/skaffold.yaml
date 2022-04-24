@@ -6,6 +6,8 @@ build:
   artifacts:
     - image: gcr.io/pure-phalanx-344719/api
       context: ../../api
+    - image: gcr.io/pure-phalanx-344719/rtc
+      context: ../../rtc
     - image: gcr.io/pure-phalanx-344719/auth
       context: ../../auth
     - image: gcr.io/pure-phalanx-344719/crm
@@ -16,11 +18,15 @@ build:
       context: ../../docs
     - image: gcr.io/pure-phalanx-344719/home
       context: ../../home
+    - image: gcr.io/pure-phalanx-344719/mail
+      context: ../../mail
 deploy:
   kubectl:
     manifests:
       - kuberapi.yml
       - kuberauth.yml
-      - kubercrm.yml
+      - kuberrtc.yml
       - kuberdocs.yml      
       - kuberhome.yml
+      - kubercrm.yml
+      - kubermail.yml      
