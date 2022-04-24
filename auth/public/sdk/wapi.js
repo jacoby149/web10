@@ -224,11 +224,11 @@ if (typeof wapiInit === "undefined") {
 
     // makes outbound connections
     wapi.outBound = {}
-    wapi.P2P = function (provider, username, origin, meta={},label = "default") {
+    wapi.P2P = function (provider, username, origin, metaData={},label = "default") {
       if (!wapi.peer) console.error("not initialized")
       var conn = wapi.peer.connect(
         `${provider}/${username}/${origin}/${label}`,
-        {metadata:meta}
+        {metadata:metaData}
       );
       outBound[conn.peer] = conn;
     }

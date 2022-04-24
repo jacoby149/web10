@@ -1,0 +1,37 @@
+<html>
+<!-- index.html -->
+<head>
+    <link rel="shortcut icon" href="#">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.1/css/bulma.min.css" />
+    <link rel="stylesheet" href="style.css" />
+    <meta name="viewport" content="width=device-width" />
+</head>
+<body>
+    <div style="margin:5px">
+        <button id="authButton">
+            log in
+        </button>
+        <p id="message">
+            app not started
+        </p>
+        <div id="subscriptionStatus">awaiting subscription check</div>
+        <br>
+        <div>
+            <div>
+                <input class="" id="recipient" placeholder="recipient">
+                <input class="" id="web10server" placeholder="web10server" value="api.web10.app">
+            </div>
+            <div>
+                <textarea id="curr" placeholder="write message here"></textarea>
+            </div>
+            <div>
+                <button onclick="createMail(curr.value,recipient.value,web10server.value)">create mail</button>
+            </div>
+        </div>
+        <div id="mailview"></div>
+    </div>
+</body>
+<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+<script src="https://auth.web10.app/sdk/wapi.js"></script>
+<script src="script.js"></script>
+</html>

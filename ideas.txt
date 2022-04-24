@@ -4,13 +4,6 @@ service whitelist configurable credit limits (requester,period)
     - regex kind of expression
 web10 backend service for automatic whitelist blacklist management for anti spam
 
-jacoby149/wildcard/service
-special service that doesnt require an init! 
-wildcard sets service terms without SMC
-(purely based on your token)
-[maybe token has a list of allowable wildcards]
-// could be convenient to not always require user approval [especially in extremely well trusted apps]
-
 Documentation discussion of data policies 
 (1V1) sender vs. reciever [Modifiability vs. Immutability]
 (Modification) slate vs. playground [Soloist vs. Chorus] 
