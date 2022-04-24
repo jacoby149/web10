@@ -243,25 +243,30 @@ function displayContacts() {
 
     // make the mail link
     const mailLink = function () {
-      const m = c.email;
-      const max = 25;
-      const short_m = m && m.length > max ? `${m.slice(0, max_len)}...` : m;
-      return m ? `<a href = "mailto:${m}" title = "${m}">${short_m}</a>` : "-";
+      const m = c.email
+      return m ? `<a title="${m}" href = "mailto:${m}" title = "${m}"><i class="fas fa-envelope"></i></a>` : "-";
     };
+
+    const phoneLink = function () {
+      return c.phone ?
+        `<a title="${c.phone}" href = "tel:${c.phone}"><i class="fas fa-phone"></i></a>` : "-"
+    }
 
     // name link that toggles the modal data viewer
     var name = c.name ? c.name : "-";
     var nameLink = `<a href="#" data-bs-toggle="modal" data-bs-target="#notes" 
       onclick="contactIndex=${i};loadNotes()">${name}</a>`;
 
-    var web10 = c.web10 ? c.web10 : "-";
+    var web10Link = function(){ 
+      return c.web10 ? `<a title="${c.web10}" href = "https://mail.web10.app?name=${c.web10}"><i class="fas fa-globe"></i></a>` : "-"
+    };
 
     temp += `<tr class="${c.color}">
     <td>${nameLink}</td>
     <td>${c.company ? c.company : "-"}</td>
-    <td>${c.phone ? c.phone : "-"}</td>
+    <td>${phoneLink()}</td>
     <td>${mailLink()}</td>
-    <td>${web10}</td>`
+    <td>${web10Link()}</td>`
   }
   document.getElementById("tableBody").innerHTML = temp;
   searchFunction();
@@ -336,11 +341,15 @@ function searchFunction() {
     //TODO
     currphone = tr[i].getElementsByTagName("td")[2];
     curremail = tr[i].getElementsByTagName("td")[3];
+    currweb10 = tr[i].getElementsByTagName("td")[4];
 
     if (currname && currcomp) {
       currname = currname.textContent || currname.innerText;
       currcomp = currcomp.textContent || currcomp.innerText;
+      currweb10 = currweb10.textContent || currweb10.innerText;
       if (currname.toUpperCase().indexOf(filter) > -1) {
+        continue;
+      } else if (currcomp.toUpperCase().indexOf(filter) > -1) {
         continue;
       } else if (currcomp.toUpperCase().indexOf(filter) > -1) {
         continue;
