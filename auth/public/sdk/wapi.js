@@ -13,12 +13,11 @@ if (typeof wapiInit === "undefined") {
   }
 
   //initializes the wapi library object
-  function wapiInit(authUrl = "https://auth.web10.app", rtcUrl = "https://rtc.web10.app",protocol=null) {
+  function wapiInit(authUrl = "https://auth.web10.app", rtcUrl = "https://rtc.web10.app") {
     const wapi = {};
 
     // get the default api protocol, which is required to match its auth portals protocol
-    if (protocol) wapi.defaultAPIProtocol = protocol + ":";
-    else wapi.defaultAPIProtocol = new URL(authUrl).protocol;
+    wapi.defaultAPIProtocol = new URL(authUrl).protocol;
 
     //wapi variables
     wapi.childWindow = null;
