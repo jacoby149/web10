@@ -49,3 +49,10 @@ User connections are both ways
     - if a user has multiple apps open, how to handle?
 
 allow devs to put a type on connections for multi device scenarios
+
+web10 subservices are developer manageable stricter services within a service w/o SMRs
+
+make web10 user service backend access keys [ for apis ]
+make python and nodeJS docs for backend hookup
+
+diffie helman encryption

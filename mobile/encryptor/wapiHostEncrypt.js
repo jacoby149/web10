@@ -35,18 +35,8 @@ function decrypt(data,mask,label){
   return;
 }
 
-// mint a regular key on the keychain
-function mintRegKey(label){
-  return;
-}
-
-// init a diffie key on the keychain
-function initDiffieKey(label, p=largeprime,g=root){
-  return;
-}
-
-// mint a diffie key on the keychain
-function mintDiffieKey(label,sharedSecretKey){
+// mint a regular key on the keychain, triggers a client error if already minted
+function mintKey(label){
   return;
 }
 
