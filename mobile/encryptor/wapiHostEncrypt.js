@@ -30,10 +30,15 @@ function pubKey(label){
   return;
 }
 
-// decrypt data with a key from the keychain
-function decrypt(data,mask,label){
+// decrypt data with keys from the keychain
+// the mask holds the labels to the keys and what fields to decrypt
+function decrypt(data,mask){
   return;
 }
+
+// decrypt data with keys from the keychain
+// the mask holds the labels to the keys and what fields to sign
+function sign(data,mask)
 
 // mint a regular key on the keychain, triggers a client error if already minted
 function mintKey(label){
