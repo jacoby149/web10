@@ -1,19 +1,16 @@
-web10 [crypto update]
-Program the web10.mail.app to work like the crm
-P2P messaging test
-web side encryptor functions
-app side encryptor functions
-encryptor web side webrtc
-encryptor app side webrtc
-encryptor 
 
-SCRs
-web10 [usability update]
+P2P messaging integrate / test
+web10 encryptor twilio phone login
+web10 encryptor changepass
+implement service change requests
+web side encryptor functions [no diffie]
+app side encryptor functions [no diffie]
+
+encryptor web side webrtc
+encryptor app side webrtc 
+wapi read add pagination
 integrate service import functionality
 web10 encryptor app export keys
 web10 encryptor app import keys
-web10 encryptor changepass
-web10 encryptor twilio login
-implement web10 subservices (developer manageable stricter services within a service w/o SMRs)
-add web10 scr flow [ for subcultures hijacking services ]
-make web10 user service backend access keys [ for apis ]
+implement web10 subservices
+document P2P, encryption, and subservices
