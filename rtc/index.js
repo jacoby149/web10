@@ -1,5 +1,6 @@
+const axios = require('axios').default;
+var jwt = require('jsonwebtoken');
 const { PeerServer } = require('peer');
-const { axios } = require('axios');
 
 const peerServer = PeerServer({
     port: 80,
@@ -9,24 +10,32 @@ const peerServer = PeerServer({
 
 // check all the invalid conditions, and close the connection if there is an issue
 peerServer.on('connection', (client) => {
-    const decoded = decodeToken(client.token)
-    if (!decoded)
+    console.log("get")
+    if (typeof client.token !== "string") {
         client.socket.close()
+        return
+    }
+    var decoded = jwt.decode(client.token);
+    if (!decoded) {
+        client.socket.close()
+        return
+    }
     else {
-        axios.post(`https://${decoded.provider}/certify`,{token:client.token}).then(
-            (response)=>{
-                if (response.status==200){
-                    if (client.id !== `${token.provider}/${token.username}/${token.site}`)
-                        client.socket.close();
+        axios.post(`https://${decoded.provider}/certify`, { token: client.token }).then(
+            (response) => {
+                if (response.status == 200) {
+                    var id = `${decoded.provider} ${decoded.username} ${decoded.site}`;
+                    id = id.replaceAll(".", "_")
+                    if (client.id === id) {
+                        return
+                    }
                 }
-                else {
-                    client.socket.close();
-                }
+                client.socket.close();
             }
         )
     }
 });
 
-// peerServer.on('disconnect', (client) => {
-//     return
-// });
+peerServer.on('disconnect', (client) => {
+    return
+});

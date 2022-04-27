@@ -70,6 +70,8 @@ services:
     build: mail 
     volumes:
       - ./mail/:/mail/public
+      - ./auth/public/sdk/:/mail/public/sdk    
+
     ports:
       - "7171:80"
     environment:
