@@ -19,7 +19,9 @@ build:
     - image: gcr.io/pure-phalanx-344719/home
       context: ../../home
     - image: gcr.io/pure-phalanx-344719/mail
-      context: ../../mail
+      context: ../..
+      docker:
+        dockerfile: mail/Dockerfile
 deploy:
   kubectl:
     manifests:

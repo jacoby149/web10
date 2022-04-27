@@ -67,7 +67,9 @@ services:
     environment:
       VIRTUAL_HOST: home.localhost
   mail:
-    build: mail 
+    build: 
+      context: .
+      dockerfile: mail/Dockerfile
     volumes:
       - ./mail/:/mail/public
       - ./auth/public/sdk/:/mail/public/sdk    
