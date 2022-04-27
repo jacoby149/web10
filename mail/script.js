@@ -10,7 +10,8 @@ const Fs = ([cF, rF, uF, dF] = ["create", "read", "update", "delete"].map(
 ));
 
 /* wapi setup */
-const wapi = wapiInit("https://auth.web10.app","https://rtc.web10.app");
+
+const wapi = wapiInit("https://auth.web10.app","rtc.localhost");
 const sirs = [
   {
     service: "mail",
@@ -18,6 +19,7 @@ const sirs = [
     whitelist: [{ username: ".*", provider: ".*", create: true }], //allows all users to write to you
   },
 ];
+
 wapi.SMROnReady(sirs, []);
 authButton.onclick = wapi.openAuthPortal;
 
@@ -85,6 +87,7 @@ function initApp() {
   message.innerHTML = `hello ${t["provider"]}/${t["username"]},<br>`;
   readMail();
   devPay();
+  wapi.initP2P(readMail,"messaging-device",false)
 }
 
 if (wapi.isSignedIn()) initApp();
@@ -116,6 +119,7 @@ function createMail(mail, user, provider) {
       if (sender!=="anon") readMail();
       curr.value = "";
       message.innerHTML = "sent message";
+      wapi.send(provider,user,window.location.hostname,"messaging-device","ping")
     })
     .catch((error) => (message.innerHTML = `${cF} : ${error}`));
 }
