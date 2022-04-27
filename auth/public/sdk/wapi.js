@@ -13,7 +13,7 @@ if (typeof wapiInit === "undefined") {
   }
 
   //initializes the wapi library object
-  function wapiInit(authUrl = "https://auth.web10.app", rtcUrl = "https://rtc.web10.app",protocol=null) {
+  function wapiInit(authUrl = "https://auth.web10.app", rtcOrigin = "rtc.web10.app", protocol = null) {
     const wapi = {};
 
     // get the default api protocol, which is required to match its auth portals protocol
@@ -85,8 +85,8 @@ if (typeof wapiInit === "undefined") {
 
     /**************
      **** CRUD ****
-     **************/ 
-    
+     **************/
+
     //patch instead of get so patch can have an HTTPS E2E encrypted body
     wapi.read = function (
       service,
@@ -217,36 +217,50 @@ if (typeof wapiInit === "undefined") {
 
     wapi.peer = null;
 
+    wapi.peerID = function (provider, user, origin, label) {
+      return `${provider} ${user} ${origin} ${label}`.replaceAll(".", "_")
+    }
+
     // initializes the peer and listens for inbound connections
     wapi.inBound = {}
-    wapi.initP2P = function (onInbound = null) {
-      wapi.peer = new Peer({
-        host: 'rtc.localhost',
-        secure: true,
-        port: 80,
+    wapi.initP2P = function (onInbound = null, label = "", secure=true) {
+      const token = wapi.readToken();
+      var id = wapi.peerID(token.provider, token.username, token.site, label)
+      console.log(id)
+      wapi.peer = new Peer(id, {
+        host: rtcOrigin,
+        secure: secure,
+        port: secure?443:80,
         path: '/',
-        token: wapi.token
+        token: `${wapi.token}~${label}`,
       })
       if (onInbound) {
         wapi.peer.on('connection', function (conn) {
-          inBound[conn.peer] = conn;
-          conn.on('data', (data)=>onInbound(conn,data));
+          wapi.inBound[conn.peer] = conn;
+          conn.on('data', (data) => onInbound(conn, data));
         });
       }
     }
 
-    // makes outbound connections
+    // makes outbound connection IF it doesnt already exist
     wapi.outBound = {}
-    wapi.P2P = function (provider, username, origin, metaData={}) {
+    wapi.P2P = function (provider, username, origin,label, metaData = {}) {
       if (!wapi.peer) console.error("not initialized")
-      var conn = wapi.peer.connect(
-        `${provider}/${username}/${origin}`,
-        {metadata:metaData}
-      );
-      outBound[conn.peer] = conn;
+      const id = wapi.peerID(provider, username, origin,label)
+      console.log(id)
+      if (!wapi.outBound[id]) {
+        var conn = wapi.peer.connect(id, { metadata: metaData });
+        wapi.outBound[conn.peer] = conn;
+      }
+      return id
     }
 
-    
+    wapi.send = function (provider, username, origin,label, data) {
+      const id = wapi.P2P(provider,username,origin,label)
+      wapi.outBound[id].send(data)
+    }
+
+
     /*************** 
      *** dev pay ***
      ***************/
@@ -293,7 +307,7 @@ if (typeof wapiInit === "undefined") {
     };
 
     //register the app
-    axios.post('https://api.web10.app/register_app', { "url": window.location.href.split('?')[0]})
+    axios.post('https://api.web10.app/register_app', { "url": window.location.href.split('?')[0] })
 
     //output the wapi object
     return wapi;
