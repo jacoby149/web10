@@ -1,12 +1,9 @@
-mailer app P2P integration
-hook up wapi to mailer app crm style
- 
+mailer app P2P integration 
 web10 encryptor twilio phone login
 web10 encryptor changepass
 implement service change requests
 web side encryptor functions [no diffie]
 app side encryptor functions [no diffie]
-
 encryptor web side webrtc
 encryptor app side webrtc 
 wapi read add pagination

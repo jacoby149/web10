@@ -15,17 +15,22 @@ peerServer.on('connection', (client) => {
         client.socket.close()
         return
     }
-    var decoded = jwt.decode(client.token);
+    // TODO check the length isnt equal to two, 
+    // check if the label has invalid characters in it.
+    const [token,label] = client.token.split("~");
+    var decoded = jwt.decode(token);
     if (!decoded) {
         client.socket.close()
         return
     }
     else {
-        axios.post(`https://${decoded.provider}/certify`, { token: client.token }).then(
+        axios.post(`https://${decoded.provider}/certify`, { token: token }).then(
             (response) => {
                 if (response.status == 200) {
-                    var id = `${decoded.provider} ${decoded.username} ${decoded.site}`;
+                    var id = `${decoded.provider} ${decoded.username} ${decoded.site} ${label}`;
                     id = id.replaceAll(".", "_")
+                    console.log(client.id);
+                    console.log(id)
                     if (client.id === id) {
                         return
                     }
@@ -37,5 +42,6 @@ peerServer.on('connection', (client) => {
 });
 
 peerServer.on('disconnect', (client) => {
+    console.log('disconnected...')
     return
 });

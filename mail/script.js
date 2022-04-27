@@ -11,7 +11,7 @@ const Fs = ([cF, rF, uF, dF] = ["create", "read", "update", "delete"].map(
 
 /* wapi setup */
 
-const wapi = wapiInit("https://auth.web10.app","rtc.localhost",false);
+const wapi = wapiInit("https://auth.web10.app","rtc.localhost");
 const sirs = [
   {
     service: "mail",
@@ -87,7 +87,7 @@ function initApp() {
   message.innerHTML = `hello ${t["provider"]}/${t["username"]},<br>`;
   readMail();
   devPay();
-  wapi.initP2P(readMail,"messaging-device")
+  wapi.initP2P(readMail,"messaging-device",false)
 }
 
 if (wapi.isSignedIn()) initApp();
