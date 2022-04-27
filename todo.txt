@@ -1,5 +1,6 @@
-
-P2P messaging integrate / test
+mailer app P2P integration
+hook up wapi to mailer app crm style
+ 
 web10 encryptor twilio phone login
 web10 encryptor changepass
 implement service change requests

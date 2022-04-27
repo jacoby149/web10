@@ -334,7 +334,7 @@ async def create_web10_token(form_data: models.TokenForm):
     }
 
 def kosher(s):
-    return "/" not in s and "." not in s and "$" not in s and " " not in s
+    return "/" not in s and "." not in s and "$" not in s and " " not in s and "_" not in s
 
 
 # make a new web10 account
