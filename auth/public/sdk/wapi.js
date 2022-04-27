@@ -217,8 +217,8 @@ if (typeof wapiInit === "undefined") {
 
     wapi.peer = null;
 
-    wapi.peerID = function (provider, user, origin) {
-      return `${provider} ${user} ${origin}`.replaceAll(".", "_")
+    wapi.peerID = function (provider, user, origin, label) {
+      return `${provider} ${user} ${origin} ${label}`.replaceAll(".", "_")
     }
 
     // initializes the peer and listens for inbound connections
@@ -226,12 +226,13 @@ if (typeof wapiInit === "undefined") {
     wapi.initP2P = function (onInbound = null, label = "", secure=true) {
       const token = wapi.readToken();
       var id = wapi.peerID(token.provider, token.username, token.site, label)
+      console.log(id)
       wapi.peer = new Peer(id, {
         host: rtcOrigin,
         secure: secure,
         port: secure?443:80,
         path: '/',
-        token: wapi.token,
+        token: `${wapi.token}~${label}`,
       })
       if (onInbound) {
         wapi.peer.on('connection', function (conn) {
@@ -243,9 +244,9 @@ if (typeof wapiInit === "undefined") {
 
     // makes outbound connection IF it doesnt already exist
     wapi.outBound = {}
-    wapi.P2P = function (provider, username, origin, metaData = {}) {
+    wapi.P2P = function (provider, username, origin,label, metaData = {}) {
       if (!wapi.peer) console.error("not initialized")
-      const id = wapi.peerID(provider, username, origin)
+      const id = wapi.peerID(provider, username, origin,label)
       console.log(id)
       if (!wapi.outBound[id]) {
         var conn = wapi.peer.connect(id, { metadata: metaData });
@@ -254,8 +255,8 @@ if (typeof wapiInit === "undefined") {
       return id
     }
 
-    wapi.send = function (provider, username, origin, data) {
-      var id = wapi.P2P(provider,username,origin)
+    wapi.send = function (provider, username, origin,label, data) {
+      const id = wapi.P2P(provider,username,origin,label)
       wapi.outBound[id].send(data)
     }
 
