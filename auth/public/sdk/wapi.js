@@ -237,6 +237,7 @@ if (typeof wapiInit === "undefined") {
         wapi.peer.on('connection', function (conn) {
           wapi.inBound[conn.peer] = conn;
           conn.on('data', (data) => onInbound(conn, data));
+          // ping required to open the inbound connection...
           conn.on('open',()=>conn.send("ping"))
         });
       }
