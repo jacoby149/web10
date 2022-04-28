@@ -87,7 +87,7 @@ function initApp() {
   message.innerHTML = `hello ${t["provider"]}/${t["username"]},<br>`;
   readMail();
   devPay();
-  wapi.initP2P((conn,data)=>{console.log(conn,data);readMail()},"messaging-device")
+  wapi.initP2P(readMail,"messaging-device")
 }
 
 if (wapi.isSignedIn()) initApp();
