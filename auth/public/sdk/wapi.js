@@ -237,26 +237,34 @@ if (typeof wapiInit === "undefined") {
         wapi.peer.on('connection', function (conn) {
           wapi.inBound[conn.peer] = conn;
           conn.on('data', (data) => onInbound(conn, data));
+          conn.on('open',()=>conn.send("ping"))
         });
       }
     }
 
     // makes outbound connection IF it doesnt already exist
+    // else returns the existing connection
     wapi.outBound = {}
     wapi.P2P = function (provider, username, origin,label, metaData = {}) {
       if (!wapi.peer) console.error("not initialized")
       const id = wapi.peerID(provider, username, origin,label)
+      var conn = null;
       if (!wapi.outBound[id]) {
-        var conn = wapi.peer.connect(id, { metadata: metaData });
+        conn = wapi.peer.connect(id, { metadata: metaData });
         wapi.outBound[conn.peer] = conn;
+      } else {
+        conn = wapi.outBound[id]
       }
-      return id
+      return conn
     }
 
     wapi.send = function (provider, username, origin,label, data) {
-      const id = wapi.P2P(provider,username,origin,label)
-      wapi.outBound[id].send(data)
-    }
+      const conn = wapi.P2P(provider,username,origin,label);
+      if (conn.open) conn.send(data)
+      else conn.on('open',()=>{
+        conn.on('data',(data)=>conn.send(data))
+      })
+      }
 
 
     /*************** 

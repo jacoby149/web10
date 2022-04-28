@@ -10,7 +10,6 @@ const peerServer = PeerServer({
 
 // check all the invalid conditions, and close the connection if there is an issue
 peerServer.on('connection', (client) => {
-    console.log("get")
     if (typeof client.token !== "string") {
         client.socket.close()
         return
@@ -42,6 +41,7 @@ peerServer.on('connection', (client) => {
 });
 
 peerServer.on('disconnect', (client) => {
+    client.socket.close();
     console.log('disconnected...')
     return
 });
