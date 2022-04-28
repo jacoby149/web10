@@ -87,7 +87,7 @@ function initApp() {
   message.innerHTML = `hello ${t["provider"]}/${t["username"]},<br>`;
   readMail();
   devPay();
-  wapi.initP2P(readMail,"messaging-device")
+  wapi.initP2P((conn,data)=>{console.log(conn,data);readMail()},"messaging-device")
 }
 
 if (wapi.isSignedIn()) initApp();
@@ -119,7 +119,7 @@ function createMail(mail, user, provider) {
       if (sender!=="anon") readMail();
       curr.value = "";
       message.innerHTML = "sent message";
-      wapi.send(provider,user,window.location.hostname,"messaging-device","ping")
+      wapi.send(provider,user,window.location.hostname,"messaging-device","bump")
     })
     .catch((error) => (message.innerHTML = `${cF} : ${error}`));
 }

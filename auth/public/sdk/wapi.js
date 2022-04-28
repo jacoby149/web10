@@ -237,8 +237,6 @@ if (typeof wapiInit === "undefined") {
         wapi.peer.on('connection', function (conn) {
           wapi.inBound[conn.peer] = conn;
           conn.on('data', (data) => onInbound(conn, data));
-          // ping required to open the inbound connection...
-          conn.on('open',()=>conn.send("ping"))
         });
       }
     }
@@ -262,9 +260,7 @@ if (typeof wapiInit === "undefined") {
     wapi.send = function (provider, username, origin,label, data) {
       const conn = wapi.P2P(provider,username,origin,label);
       if (conn.open) conn.send(data)
-      else conn.on('open',()=>{
-        conn.on('data',(data)=>conn.send(data))
-      })
+      else conn.on('open',()=>conn.send(data))
       }
 
 
