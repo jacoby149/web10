@@ -1,14 +1,26 @@
-mailer app P2P integration 
+4/29/22 weekend
+
+check for really out of bounds usernames
+hit up menachem
+call the schools
+remove authenticator site check
+allow people to make their own authenticator apps
+add wapiAuth.js to the docs
+webRTC handle reconnects smoothly [ in send ]
+SCR's with domain additions
 web10 encryptor twilio phone login
 web10 encryptor changepass
-implement service change requests
-web side encryptor functions [no diffie]
-app side encryptor functions [no diffie]
-encryptor web side webrtc
-encryptor app side webrtc 
+encryptor webrtc connection
+encryptor server side webrtc security
+web side encryptor functions
+app side encryptor functions
 wapi read add pagination
+
+
 integrate service import functionality
 web10 encryptor app export keys
 web10 encryptor app import keys
-implement web10 subservices
-document P2P, encryption, and subservices
+document P2P, encryption
+
+implement subservices
+document subservices

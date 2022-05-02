@@ -333,12 +333,9 @@ async def create_web10_token(form_data: models.TokenForm):
         )
     }
 
+#checks that usernames are alphanumeric + dashes
 def kosher(s):
-    invalid = "/.$ _~"
-    invalid = [c in s for c in invalid]
-    print(invalid)
-    return True not in invalid
-
+    return s == ''.join([c for c in s if c.isalnum() or c in ['-']])
 
 # make a new web10 account
 @app.post("/signup",include_in_schema=False)
@@ -372,7 +369,7 @@ async def stats():
 async def register_app(info:dict):
     if "url" not in info:
         return
-    if "http://" in info["url"] or "localhost" in info["url"] or "file://" in info["url"]:
+    if "http://" in info["url"] or "localhost" in info["url"] or "file://" in info["url"] or "vscode-webview://" in info["url"]:
         return
     db.register_app(info)
 
