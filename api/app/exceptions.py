@@ -14,7 +14,7 @@ AUTH = HTTPException(
 
 BAD_USERNAME = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
-    detail="username with $./ characters",
+    detail="usernames take only alphanumeric characters",
     headers={"WWW-Authenticate": "Basic"},
 )
 
