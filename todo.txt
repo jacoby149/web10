@@ -1,26 +1,24 @@
-4/29/22 weekend
-
-check for really out of bounds usernames
-hit up menachem
-call the schools
-remove authenticator site check
-allow people to make their own authenticator apps
-add wapiAuth.js to the docs
+Phase 1 - working encryption
+implement SCR $addtoset [for cross origin domains]
 webRTC handle reconnects smoothly [ in send ]
-SCR's with domain additions
 web10 encryptor twilio phone login
 web10 encryptor changepass
 encryptor webrtc connection
 encryptor server side webrtc security
 web side encryptor functions
 app side encryptor functions
+build E2E into P2P app
+document P2P, encryption
+IOS app store encryptor
+Android app store encryptor
+
+Phase 2 - working subservices
 wapi read add pagination
-
-
-integrate service import functionality
 web10 encryptor app export keys
 web10 encryptor app import keys
-document P2P, encryption
-
-implement subservices
+api implement subservices
+api set default subservice to ""
+api subservice update endpoint
+wapi update subservice function
 document subservices
+
