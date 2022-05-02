@@ -61,10 +61,6 @@ web10 mediaconnections
 navigator.mediaDevices.getUserMedia({video:true,audio:true})
 
 
-blotch out login button until SMRs are approved
-make the approve service button send you back to login page
-implement SCRs
-
 peerjs certify with remote provider flow
 
 make a webRTC connections robust first person shooter game with web10RTC
@@ -80,3 +76,7 @@ web10 moderator : a service that allows for centralized moderation.
 charged evenly across the web10 accounts using it.
 
 integrate service import data functionality
+
+blotch out login button until SMRs are approved
+make the approve service button send you back to login page
+phone number add ? why we take numbers
