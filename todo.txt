@@ -1,4 +1,3 @@
-add info button
 webRTC handle reconnects smoothly [ in send ]
 FPS multiplayer
 implement SCR $addtoset [for cross origin domains]
