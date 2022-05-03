@@ -1,7 +1,11 @@
-Phase 1 - working encryption
-implement SCR $addtoset [for cross origin domains]
+add info button
 webRTC handle reconnects smoothly [ in send ]
-web10 encryptor twilio phone login
+FPS multiplayer
+implement SCR $addtoset [for cross origin domains]
+web10 encryptor twilio phone login UI
+web10 encryptor changepass UI
+
+web10 encryptor phone login
 web10 encryptor changepass
 encryptor webrtc connection
 encryptor server side webrtc security
@@ -20,5 +24,7 @@ api implement subservices
 api set default subservice to ""
 api subservice update endpoint
 wapi update subservice function
+web10 moneteized python business api example
 document subservices
 
+default insecure pre configured services
