@@ -18,8 +18,8 @@ function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
               window.location.hostname === "auth.localhost"
                 ? "api.localhost"
                 : window.location.hostname === "auth.web10.dev"
-                ? "api.web10.dev"
-                : "api.web10.app"
+                  ? "api.web10.dev"
+                  : "api.web10.app"
             }
             placeholder="Web10 Provider"
           />
@@ -78,18 +78,25 @@ function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
               </span>
             </p>
           </div>
-          <div style={{ margin: "10px 10px" }}>
-            <PhoneInput
-              country={"us"}
-              enableSearch={true}
-              inputClass={"input"}
-              dropdownStyle={{ color: "black" }}
-              value={phone}
-              onChange={(val) => {
-                setPhone(val);
-              }}
-            />
+          <div style={{ margin: "0 10px" }}>
+            <div style={{ width: "calc(100% - 40px)", float:"left" }}>
+              <PhoneInput
+                country={"us"}
+                enableSearch={true}
+                inputClass={"input"}
+                dropdownStyle={{ color: "black" }}
+                preferredCountries={['us', 'il', 'jp']}
+                value={phone}
+                onChange={(val) => {
+                  setPhone(val);
+                }}
+              />
+            </div>
+            <div class="icon" title="web10 uses Twilio to authenticate users" style={{ marginLeft:"10px", marginTop:"6px"}}>
+              <i class="fas fa-lg fa-info-circle"></i>
+            </div>
           </div>
+          <br></br>
           <div style={{ display: "None" }} className="field">
             <p
               style={{ margin: "10px 10px" }}
@@ -142,11 +149,11 @@ function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
                   setStatus("Failed to Sign Up : Passwords do not match.");
                   return;
                 }
-                else if (username==="" || password===""){
+                else if (username === "" || password === "") {
                   setStatus("Failed to Sign Up : Must not leave username or password blank");
-                  return 
+                  return
                 }
-                else if (phone.length<7){
+                else if (phone.length < 7) {
                   setStatus("Must Enter Phone Number")
                 }
                 setStatus("Signing Up ...");
@@ -167,7 +174,7 @@ function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
                     )
                   );
               }}
-              style={{ margin: "0px 5px" }}
+              style={{ margin: "0px 10px" }}
               className="button is-info"
             >
               Signup
@@ -175,7 +182,6 @@ function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
           )}
           <button
             onClick={() => setLoginMode(!loginMode)}
-            style={{ margin: "0px 5px" }}
             className="button is-info is-light is-small"
           >
             {loginMode ? "Signup" : "Login"} Mode
