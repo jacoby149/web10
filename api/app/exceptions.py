@@ -103,6 +103,12 @@ VERIFY = HTTPException(
     headers={"WWW-Authenticate": "Basic"},
 )
 
+WRONG_CODE = HTTPException(
+    status_code=status.HTTP_401_UNAUTHORIZED,
+    detail="entered verification code is wrong",
+    headers={"WWW-Authenticate": "Basic"},
+)
+
 TIME = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
     detail="ran out of credits",

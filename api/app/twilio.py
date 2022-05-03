@@ -32,4 +32,6 @@ def check_verification(phone_number,code):
                             .services(settings.TWILIO_SERVICE) \
                             .verification_checks \
                             .create(to="+"+str(phone_number), code=code)
+    if verification_check.status != "approved":
+        raise exceptions.WRONG_CODE
     return verification_check.sid

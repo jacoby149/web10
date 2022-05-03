@@ -1,11 +1,13 @@
-webRTC handle reconnects smoothly [ in send ]
-FPS multiplayer
+X
+Fix verification bug
 implement SCR $addtoset [for cross origin domains]
 web10 encryptor twilio phone login UI
 web10 encryptor changepass UI
-
 web10 encryptor phone login
 web10 encryptor changepass
+FPS multiplayer
+
+Y
 encryptor webrtc connection
 encryptor server side webrtc security
 web side encryptor functions
@@ -25,5 +27,4 @@ api subservice update endpoint
 wapi update subservice function
 web10 moneteized python business api example
 document subservices
-
 default insecure pre configured services
