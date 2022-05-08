@@ -80,3 +80,17 @@ integrate service import data functionality
 blotch out login button until SMRs are approved
 make the approve service button send you back to login page
 phone number add ? why we take numbers
+
+features :
+web10 auth
+web10 devPay
+web10 services
+
+web10 encryption
+web10 highjacking
+web10 subservices
+
+web10 PBFT 
+web10 ledger
+web10 coin
+web10 reduce [distributed compute framework]

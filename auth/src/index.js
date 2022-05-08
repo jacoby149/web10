@@ -94,6 +94,7 @@ function App() {
               servicesLoad={servicesLoad}
               setStatus={setStatus}
               mode={mode}
+              setMode={setMode}
             />
             <StatusLog />
           </div>
@@ -109,8 +110,8 @@ function App() {
         type === "new"
           ? { color: "#2ECC40" }
           : type === "change"
-          ? { color: "yellow" }
-          : {};
+            ? { color: "yellow" }
+            : {};
       return (
         <C
           bb
@@ -176,7 +177,7 @@ function App() {
       wapi
         .read("services")
         .then(function (response) {
-          response.data.sort((a,b)=>a["_id"].localeCompare(b["_id"]));
+          response.data.sort((a, b) => a["_id"].localeCompare(b["_id"]));
 
           //label service change requests on existing services.
           const updatedServices = response.data.map((service) => [
@@ -184,8 +185,8 @@ function App() {
             service["service"] === "*"
               ? null
               : service["service"] in SMR["scrs"]
-              ? "change"
-              : null,
+                ? "change"
+                : null,
           ]);
           //add service initialization requests.
           const currServices = response.data.map(
@@ -355,7 +356,7 @@ function Credits(props) {
 }
 
 //authorization
-function OAuth({ services, setSelectedService,setMode}) {
+function OAuth({ services, setSelectedService, setMode }) {
   const SMRs = services
     .map((service, idx) => service.concat([idx]))
     .filter((service) => service[1] === "new" || service[1] === "change")
@@ -364,53 +365,47 @@ function OAuth({ services, setSelectedService,setMode}) {
       return (
         <button
           style={{ marginTop: "5px" }}
-          className="button is-light is-small"
+          className="button is-light is-warning is-small"
           onClick={() => {
             setSelectedService(service[2]);
             setMode("services");
           }}
         >
           {" "}
-          review {service[0]["service"]} service request
+          {service[0]["service"]} service request &#9888;
         </button>
       );
     });
   return (
     <div style={{ width: "250px" }}>
+      <div style={{margin:"5px"}}>
+        <i><u>From {document.referrer} : </u></i><br></br>
+        status : {
+            SMRs.length===0?
+            <i style={{color:"lightgreen"}}> ready</i>:
+            <i style={{color:"yellow"}}> requests need approval</i>
+          }
+
+      </div>
       {SMRs.length === 0 ? (
         ""
       ) : (
-        <div>
-          <div style={{ margin: "5px" }}>
-            <u>Click To Approve The Below SMRs</u>
-            <br></br>[ for {document.referrer} to work ]{SMRs}
+          <div style={{marginLeft:"5px"}}>
+            {SMRs}
           </div>
-          <div
-            style={{ margin: "5px" }}
-            className="notification is-warning is-light"
-          >
-            <u>{document.referrer}</u> would like to make service changes.{" "}
-            <strong>approve or deny the changes in the left pane.</strong>
-          </div>
-        </div>
       )}
       {document.referrer === "" ||
-      new URL(document.referrer).origin === window.location.origin ? (
+        new URL(document.referrer).origin === window.location.origin ? (
         ""
       ) : (
-        <div>
-          <div
-            style={{ margin: "5px" }}
-            className="notification is-primary is-light"
-          >
-            <u>{document.referrer}</u> would like to login.
-          </div>
+        <div style={{ marginLeft: "5px" }}>
           <div className="field">
             <div className="control">
               <button
+                style={{marginTop:"5px"}}
                 onClick={wapiAuth.sendToken}
-                style={{ margin: "0px 5px" }}
-                className="button is-warning"
+                className="button is-warning is-small"
+                disabled={SMRs.length !== 0}
               >
                 Log In
               </button>

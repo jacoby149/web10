@@ -1,9 +1,8 @@
-implement SIR $addtoset
+web10 encryption
 web10 encryptor twilio phone login UI
 web10 encryptor changepass UI
 web10 encryptor phone login
 web10 encryptor changepass
-
 encryptor webrtc connection
 encryptor server side webrtc security
 web side encryptor functions
@@ -13,7 +12,8 @@ document P2P, encryption
 IOS app store encryptor
 Android app store encryptor
 
-Phase 2 - working subservices
+Phase 2 - web10 hijacking + subservices
+implement SIR $addtoset
 wapi read add pagination
 web10 encryptor app export keys
 web10 encryptor app import keys
