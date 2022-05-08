@@ -15,6 +15,7 @@ function ServiceTerms({
   servicesLoad,
   setStatus,
   mode,
+  setMode
 }) {
   //dictionary of field value pairs to add to the service.
   const [additions, setAdditions] = React.useState({});
@@ -125,6 +126,7 @@ function ServiceTerms({
               servicesLoad={servicesLoad}
               SMRHook={SMRHook}
               setStatus={setStatus}
+              setMode={setMode}
             />
           
           {type !== null ? (
@@ -450,6 +452,7 @@ function EditApproval({
   servicesLoad,
   SMRHook,
   setStatus,
+  setMode
 }) {
   const [showButtons,setShowButtons]=React.useState(type==="new"||type==="change");
   
@@ -468,8 +471,10 @@ function EditApproval({
   return (
     <div>
       <button
-        onClick={() =>
+        onClick={() =>{
           submitSMR(flattenedService, additions, type, servicesLoad, setStatus)
+          setMode("auth")
+        }
         }
         style={{ margin: "5px 5px" }}
         className="button is-warning "
