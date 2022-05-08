@@ -1,13 +1,9 @@
-X
-Fix verification bug
-implement SCR $addtoset [for cross origin domains]
+implement SIR $addtoset
 web10 encryptor twilio phone login UI
 web10 encryptor changepass UI
 web10 encryptor phone login
 web10 encryptor changepass
-FPS multiplayer
 
-Y
 encryptor webrtc connection
 encryptor server side webrtc security
 web side encryptor functions
