@@ -1,66 +1,100 @@
 import { StatusBar } from "expo-status-bar";
 import React, { useState, useEffect } from "react";
 import { StyleSheet, Text, View, Button, TextInput } from "react-native";
+import PhoneInput from "react-native-phone-number-input";
+import CodeInput from 'react-native-confirmation-code-input';
 
 export default function App() {
   const [auth, setAuth] = useState(false);
+  const [phone, setPhone] = useState("");
   const [provider, setProvider] = useState("api.web10.app");
   const [user, setUser] = useState("jacoby149");
   if (auth)
-    return <Stop user={user} provider={provider} setAuth={setAuth}></Stop>;
-  else return <Login setAuth={setAuth}></Login>;
+    return <Main user={user} provider={provider} setAuth={setAuth} setPhone={setPhone}></Main>;
+  if (phone !== "")
+    return <Verify phone={phone} setPhone={setPhone} setAuth={setAuth}></Verify>
+  else return <PhoneEntry setPhone={setPhone}></PhoneEntry>;
 }
 
-function Login({ setAuth }) {
+function PhoneEntry({ setPhone }) {
+  var num = "";
   return (
     <View style={styles.container}>
       <Text style={{ color: "white" }}>web10 encrytor login</Text>
       <View style={{ margin: 5 }}>
-        <TextInput
-          style={{ backgroundColor: "white", width: 200 }}
-          placeholder=" username"
-        ></TextInput>
+        <PhoneInput defaultCode="US"
+          onChangeFormattedText={(c) => num = c}></PhoneInput>
       </View>
-      <View style={{ marginBottom: 5 }}>
-        <TextInput
-          style={{ backgroundColor: "white", width: 200 }}
-          placeholder=" password"
-        ></TextInput>
+      <View style={{ margin: 5 }}>
+        <Button
+          title="verify Number"
+          onPress={() => setPhone(num)}
+          color="purple"
+        ></Button>
+        <StatusBar style="auto" />
       </View>
-      <Button
-        title="log in"
-        onPress={() => setAuth(true)}
-        color="purple"
-      ></Button>
-      <StatusBar style="auto" />
     </View>
   );
 }
 
-function Stop({ user, provider, setAuth }) {
+function Verify({ phone, setPhone,setAuth }) {
+  return (
+    <View style={styles.container}>
+      <View style={{ position: "absolute", top: 20 }}>
+        <Text style={{ color: "white", marginBottom: 10 }}> {phone}</Text>
+      </View>
+      <View style={{ position: "absolute", top: 50 }}>
+        <Button color="purple"
+          title="change number" onPress={() => setPhone("")}></Button>
+        <StatusBar style="auto" />
+      </View>
+
+      <Text style={{ color: "white" }}>Enter Verification Code</Text>
+      <View style={{ height: 50 }}>
+        <CodeInput
+          keyboardType="numeric"
+          codeLength={6}
+          compareWithCode='123456'
+          autoFocus={false}
+          containerStyle={{ margin: 50 }}
+          codeInputStyle={{ fontWeight: '800' }}
+          onFulfill={(isValid, code) => { 
+            if (isValid) setAuth(true)
+          }}
+      />
+      </View>
+
+      <View style={{ marginTop: 25 }}>
+        <Button title="resend code" onPress={() => setPhone("")}></Button>
+        <StatusBar style="auto" />
+      </View>
+    </View>
+  );
+}
+
+
+function Main({ user, provider, setAuth,setPhone }) {
   return (
     <View style={styles.container}>
       <View style={{ position: "absolute", top: 50, left: 30 }}>
         <Button
           title="export keys"
-          onPress={() => setAuth(true)}
           color="purple"
         ></Button>
       </View>
       <View style={{ position: "absolute", top: 90, left: 30 }}>
         <Button
           title="import keys"
-          onPress={() => setAuth(true)}
           color="teal"
         ></Button>
       </View>
       <View style={{ position: "absolute", bottom: 27 }}>
         <Text style={{ color: "white" }}>Site : docs.web10.app/mailer</Text>
-        </View>
-        <View style={{ position: "absolute", bottom: 10 }}>
+      </View>
+      <View style={{ position: "absolute", bottom: 10 }}>
 
         <Text style={{ color: "white" }}>Shared Secret : x0203049</Text>
-        </View>
+      </View>
 
       <Text style={{ color: "white" }}>
         hello {provider}/{user}
@@ -69,7 +103,10 @@ function Stop({ user, provider, setAuth }) {
       <View style={{ margin: 5 }}>
         <Button
           title="log out"
-          onPress={() => setAuth(false)}
+          onPress={() => {
+            setAuth(false);
+            setPhone("");
+          }}
           color="purple"
         ></Button>
       </View>
