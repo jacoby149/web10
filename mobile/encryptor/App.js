@@ -3,14 +3,19 @@ import React, { useState, useEffect } from "react";
 import { StyleSheet, Text, View, Button, TextInput } from "react-native";
 import PhoneInput from "react-native-phone-number-input";
 import CodeInput from 'react-native-confirmation-code-input';
+import Icon from 'react-native-vector-icons/FontAwesome';
 
 export default function App() {
   const [auth, setAuth] = useState(false);
   const [phone, setPhone] = useState("");
   const [provider, setProvider] = useState("api.web10.app");
   const [user, setUser] = useState("jacoby149");
+  const [mode, setMode] = useState("main")
   if (auth)
-    return <Main user={user} provider={provider} setAuth={setAuth} setPhone={setPhone}></Main>;
+    return (mode === "main" ?
+      <Main user={user} provider={provider} setAuth={setAuth} setMode={setMode} setPhone={setPhone}></Main> :
+      <Settings user={user} provider={provider} setAuth={setAuth} setMode={setMode}></Settings>
+    )
   if (phone !== "")
     return <Verify phone={phone} setPhone={setPhone} setAuth={setAuth}></Verify>
   else return <PhoneEntry setPhone={setPhone}></PhoneEntry>;
@@ -37,7 +42,7 @@ function PhoneEntry({ setPhone }) {
   );
 }
 
-function Verify({ phone, setPhone,setAuth }) {
+function Verify({ phone, setPhone, setAuth }) {
   return (
     <View style={styles.container}>
       <View style={{ position: "absolute", top: 20 }}>
@@ -58,10 +63,10 @@ function Verify({ phone, setPhone,setAuth }) {
           autoFocus={false}
           containerStyle={{ margin: 50 }}
           codeInputStyle={{ fontWeight: '800' }}
-          onFulfill={(isValid, code) => { 
+          onFulfill={(isValid, code) => {
             if (isValid) setAuth(true)
           }}
-      />
+        />
       </View>
 
       <View style={{ marginTop: 25 }}>
@@ -73,20 +78,11 @@ function Verify({ phone, setPhone,setAuth }) {
 }
 
 
-function Main({ user, provider, setAuth,setPhone }) {
+function Main({ user, provider, setAuth, setMode,setPhone}) {
   return (
     <View style={styles.container}>
-      <View style={{ position: "absolute", top: 50, left: 30 }}>
-        <Button
-          title="export keys"
-          color="purple"
-        ></Button>
-      </View>
-      <View style={{ position: "absolute", top: 90, left: 30 }}>
-        <Button
-          title="import keys"
-          color="teal"
-        ></Button>
+      <View style={{ position: "absolute", top: 55, right: 55 }}>
+        <Icon name="cog" size={40} color="#fff" onPress={()=>setMode("settings")} />
       </View>
       <View style={{ position: "absolute", bottom: 27 }}>
         <Text style={{ color: "white" }}>Site : docs.web10.app/mailer</Text>
@@ -114,6 +110,49 @@ function Main({ user, provider, setAuth,setPhone }) {
     </View>
   );
 }
+
+function Settings({ user, provider, setAuth, setMode}) {
+  return (
+    <View style={styles.container}>
+      <View style={{ position: "absolute", top: 50, left: 30 }}>
+        <Button
+          title="export keys"
+          color="purple"
+        ></Button>
+      </View>
+      <View style={{ position: "absolute", top: 90, left: 30 }}>
+        <Button
+          title="import keys"
+          color="teal"
+        ></Button>
+      </View>
+      <View style={{ position: "absolute", top: 55, right: 55 }}>
+        <Icon name="cog" size={40} color="#fff" onPress={()=>setMode("main")} />
+      </View>
+      <View style={{ position: "absolute", bottom: 27 }}>
+        <Text style={{ color: "white" }}>Site : docs.web10.app/mailer</Text>
+      </View>
+      <View style={{ position: "absolute", bottom: 10 }}>
+
+        <Text style={{ color: "white" }}>Shared Secret : x0203049</Text>
+      </View>
+      <Text style={{ color: "white" , marginBottom:4}}>
+        change web10 password : 
+      </Text>
+
+      <TextInput secureTextEntry={true} placeholder=" enter old password" style={{backgroundColor:"white",color:"black",marginBottom:5,width: '50%'}}></TextInput>
+      <TextInput secureTextEntry={true} placeholder=" enter new password" style={{backgroundColor:"white",color:"black",marginBottom:5,width: '50%'}}></TextInput>
+      <TextInput secureTextEntry={true} placeholder=" re-enter new password" style={{backgroundColor:"white",color:"black",marginBottom:5,width: '50%'}}></TextInput>
+      <Button
+          title="change password"
+          color="teal"
+        ></Button>
+
+      <StatusBar style="auto" />
+    </View>
+  );
+}
+
 
 const styles = StyleSheet.create({
   container: {
