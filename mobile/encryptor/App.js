@@ -140,9 +140,9 @@ function Settings({ user, provider, setAuth, setMode}) {
         change web10 password : 
       </Text>
 
-      <TextInput secureTextEntry={true} placeholder=" enter old password" style={{backgroundColor:"white",color:"black",marginBottom:5,width: '50%'}}></TextInput>
-      <TextInput secureTextEntry={true} placeholder=" enter new password" style={{backgroundColor:"white",color:"black",marginBottom:5,width: '50%'}}></TextInput>
-      <TextInput secureTextEntry={true} placeholder=" re-enter new password" style={{backgroundColor:"white",color:"black",marginBottom:5,width: '50%'}}></TextInput>
+      <TextInput secureTextEntry={true} placeholder="enter old password" style={{backgroundColor:"white",color:"black",marginBottom:5,width: '50%',paddingLeft: 8}}></TextInput>
+      <TextInput secureTextEntry={true} placeholder="enter new password" style={{backgroundColor:"white",color:"black",marginBottom:5,width: '50%',paddingLeft: 8}}></TextInput>
+      <TextInput secureTextEntry={true} placeholder="re-enter new password" style={{backgroundColor:"white",color:"black",marginBottom:5,width: '50%',paddingLeft: 8}}></TextInput>
       <Button
           title="change password"
           color="teal"
