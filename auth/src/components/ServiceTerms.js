@@ -54,7 +54,18 @@ function ServiceTerms({
   }
   getChanged();
   React.useEffect(() => {
-    setAdditions({});
+    
+    //cross origin additions
+    var toAdd = {}
+    if (type==="change"){
+      const currOrigins = currentService["cross_origins"]
+      const curr = currentService["service"]
+      const SIROrigins = SMRHook[0]["sirs"].filter((service) => service["service"] === curr)[0]["cross_origins"]
+      SIROrigins.filter(s=>!new Set(currOrigins).has(s)).map((origin,idx)=>{
+        toAdd[`cross_origins.${idx+currOrigins.length}`] = origin
+      })
+    }
+    setAdditions(toAdd);
     getChanged();
   }, [selectedService,services]);
 
@@ -333,7 +344,7 @@ function submitSMR(flattenedService, additions, type, servicesLoad, setStatus) {
     submitSIR(flattenedService, additions, servicesLoad, setStatus);
   if (type === null)
     submitUserSCR(flattenedService, additions, servicesLoad, setStatus);
-  if (type === "change") return; //TODO handle SCR
+  if (type === "change") submitUserSCR(flattenedService, additions, servicesLoad, setStatus);
 }
 
 function submitUserSCR(flattenedService, additions, servicesLoad, setStatus) {

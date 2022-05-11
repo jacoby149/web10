@@ -179,15 +179,6 @@ function App() {
         .then(function (response) {
           response.data.sort((a, b) => a["_id"].localeCompare(b["_id"]));
 
-          //label service change requests on existing services.
-          const updatedServices = response.data.map((service) => [
-            service,
-            service["service"] === "*"
-              ? null
-              : service["service"] in SMR["scrs"]
-                ? "change"
-                : null,
-          ]);
           //add service initialization requests.
           const currServices = response.data.map(
             (service) => service["service"]
@@ -201,6 +192,28 @@ function App() {
             )
             .map((service) => [service, "new"]);
           //add sirs into the updatedservices
+
+
+          //label service change requests on existing services.
+          const updatedServices = response.data.map((service) => {
+            const curr = service["service"];
+            var serviceType = null
+            const _SIRS = SMR["sirs"].map((s)=>s["service"])
+            if (curr === "*") serviceType = null
+            else if (curr in SMR["scrs"]) serviceType = "change"
+            
+            //SIR cross origin convenience SCR
+            else if (_SIRS.includes(curr)) {
+              const currOrigins = service["cross_origins"]
+              const SIROrigins = SMR["sirs"].filter((service) => service["service"] === curr)[0]["cross_origins"]
+              if (SIROrigins.filter(s=>!new Set(currOrigins).has(s)).length>0) serviceType = "change"
+            }
+
+            return [
+              service, serviceType
+            ]
+          });
+
           updatedServices.push.apply(updatedServices, SIRS);
           //set the services in the UI
           setServices(updatedServices);
@@ -361,7 +374,6 @@ function OAuth({ services, setSelectedService, setMode }) {
     .map((service, idx) => service.concat([idx]))
     .filter((service) => service[1] === "new" || service[1] === "change")
     .map((service) => {
-      console.log(service)
       return (
         <button
           style={{ marginTop: "5px" }}
@@ -378,21 +390,21 @@ function OAuth({ services, setSelectedService, setMode }) {
     });
   return (
     <div style={{ width: "250px" }}>
-      <div style={{margin:"5px"}}>
+      <div style={{ margin: "5px" }}>
         <i><u>From {document.referrer} : </u></i><br></br>
         status : {
-            SMRs.length===0?
-            <i style={{color:"lightgreen"}}> ready</i>:
-            <i style={{color:"yellow"}}> requests need approval</i>
-          }
+          SMRs.length === 0 ?
+            <i style={{ color: "lightgreen" }}> ready</i> :
+            <i style={{ color: "yellow" }}> requests need approval</i>
+        }
 
       </div>
       {SMRs.length === 0 ? (
         ""
       ) : (
-          <div style={{marginLeft:"5px"}}>
-            {SMRs}
-          </div>
+        <div style={{ marginLeft: "5px" }}>
+          {SMRs}
+        </div>
       )}
       {document.referrer === "" ||
         new URL(document.referrer).origin === window.location.origin ? (
@@ -402,7 +414,7 @@ function OAuth({ services, setSelectedService, setMode }) {
           <div className="field">
             <div className="control">
               <button
-                style={{marginTop:"5px"}}
+                style={{ marginTop: "5px" }}
                 onClick={wapiAuth.sendToken}
                 className="button is-warning is-small"
                 disabled={SMRs.length !== 0}

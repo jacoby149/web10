@@ -94,3 +94,6 @@ web10 PBFT
 web10 ledger
 web10 coin
 web10 reduce [distributed compute framework]
+
+im fucked,
+i need an easy way to do SCR's for cross origin..
