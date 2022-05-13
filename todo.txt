@@ -1,14 +1,15 @@
-web10 $addtoset
 phone app auth 
 phone app changepass
 phone app encrypt
-build E2E P2P into vulture
 document P2P, encryption
 IOS app store encryptor
 Android app store encryptor
+wapi NPM sdk
 
 wapi read add pagination
 web10 encryptor export/import
+
+
 api implement subservices
 api set default subservice to ""
 api subservice update endpoint

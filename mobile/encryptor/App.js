@@ -2,7 +2,7 @@ import { StatusBar } from "expo-status-bar";
 import React, { useState, useEffect } from "react";
 import { StyleSheet, Text, View, Button, TextInput } from "react-native";
 import PhoneInput from "react-native-phone-number-input";
-import CodeInput from 'react-native-confirmation-code-input';
+import CodeInput from './CodeInput.js';
 import Icon from 'react-native-vector-icons/FontAwesome';
 
 export default function App() {
@@ -61,8 +61,9 @@ function Verify({ phone, setPhone, setAuth }) {
           codeLength={6}
           compareWithCode='123456'
           autoFocus={false}
-          containerStyle={{ margin: 50 }}
+          containerStyle={{ margin: 15 }}
           codeInputStyle={{ fontWeight: '800' }}
+          onCodeChange={()=>{return}}
           onFulfill={(isValid, code) => {
             if (isValid) setAuth(true)
           }}
