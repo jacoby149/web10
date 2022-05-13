@@ -1,0 +1,41 @@
+
+web10 Summary:
+users own the cloud products instead of developers
+developers send requests to users
+users accept the terms, but can change them later
+users can port app data to all apps, meaning a faster evolving app ecosystem.
+video preferences could guide a dating app, the possibilities are endless
+
+Competetive Advantage : Crypto [data permanence - TIE]
+crypto doesn't provide user authority, it provides decentralized data permanence.
+you write data, it is there permanently.
+web10 is building products to guarantee decentralized data permanence
+web10 is building solana integration + in house blockchain products 
+
+Competetive Advantage : Crypto [privacy and temporal data - web10 WINS]
+crypto does not have a mechanism for data management, crypto is by design entirely public and permanent
+what if I want something private or temporary? can't do it with crypto.
+web10 provides FULL user authority
+i have this data, i use these products
+how private or public do i want it to be?
+do I want to delete something?
+web10 CAN do it and crypto can NOT!
+
+Competetive advantage : Cloud [Developer ease, user authority]
+web10 is free for developers and easy to monetize for them.
+web10 takes only 5% of profits.
+web10 has products for : [ auth, payment,  databases, websockets, ]
+web10 is working on products for : [ advanced database management, blockchain ledgers, encryption, consensus algorithms ]
+users pay like a phone plan for their exact usage instead of a flat subscription.
+users get a free tier!
+
+why we need funding:
+still working on : [advanced database managment, blockchain ledgers, encryption, consensus algorithm products] 
+still building an ecosystem, we need to actively work to build the ecosystem.
+need to hire another technical expert, and a front end ecosystem dev
+
+Staff :
+Troy - product marketing, general business
+Me - tech expert AND ecosystem dev AND product manager
+technical expert - demonstrated specialty in enterprise blockchain expertise that I don't cover 
+ecosystem dev - strong front end expertise with some background in sales

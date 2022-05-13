@@ -113,8 +113,7 @@ def get_phone_number(username):
             return res["phone_number"]
     return None
 
-
-def phone_number_taken(phone_number):
+def get_phone_record(phone_number):
     phone_number_collection = db['web10']['phone_number']
     return phone_number_collection.find_one({"phone_number": phone_number})
 
@@ -164,7 +163,7 @@ def create_user(form_data, hash):
     if get_star(username):
         raise exceptions.EXISTS
     if settings.VERIFY:
-        if phone_number_taken(phone_number):
+        if get_phone_record(phone_number):
             raise exceptions.PHONE_NUMBER_TAKEN
         # do this as early as possible TODO dangerous?
         set_phone_number(phone_number, username)

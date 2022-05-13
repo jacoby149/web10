@@ -132,3 +132,9 @@ BUSINESS_NOT_READY = HTTPException(
     detail="Business hasn't filled out their banking details yet.",
     headers={"WWW-Authenticate": "Basic"},
 )
+
+PHONE_NUMBER_NOT_REGISTERED = HTTPException(
+    status_code=status.HTTP_401_UNAUTHORIZED,
+    detail="Phone number isn't registered with a web10 account.",
+    headers={"WWW-Authenticate": "Basic"},
+)

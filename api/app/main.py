@@ -177,7 +177,7 @@ async def change_pass(form_data: models.SignUpForm):
 @app.post("/change_phone",include_in_schema=False)
 async def change_phone(form_data: models.SignUpForm):
     if authenticate_user(form_data.username, form_data.password):
-        if db.phone_number_taken(form_data.phone):
+        if db.get_phone_record(form_data.phone):
             raise exceptions.PHONE_NUMBER_TAKEN
         db.set_phone_number(form_data.phone,form_data.username)
         db.unregister_phone_number(form_data.username)
@@ -196,6 +196,27 @@ async def verify_mobile_code(token: models.Token):
     db.register_phone_number(phone_number,decoded.username)
     db.set_verified(decoded.username)
     return res
+
+# check that an phone_number verification code is valid
+@app.post("/mobile_login",include_in_schema=False)
+async def mobile_login(token: models.Token):
+    code = token.query["code"]
+    phone_number = token.query["phone"]
+    mobile.check_verification(phone_number,code)
+    rec = db.get_phone_record(phone_number)
+    if not rec : raise exceptions.PHONE_NUMBER_NOT_REGISTERED
+    token_data = models.TokenData(
+        username=rec["username"],
+        provider=settings.PROVIDER,
+        site="mobile",
+        expires=(datetime.utcnow() + timedelta(minutes=settings.TOKEN_EXPIRE_MINUTES)).isoformat()
+    )
+    return {
+        "token": jwt.encode(
+            token_data.dict(), settings.PRIVATE_KEY, algorithm=settings.ALGORITHM
+        )
+    }
+
 
 # mail an phone_number verification code
 @app.post("/send_code",include_in_schema=False)
