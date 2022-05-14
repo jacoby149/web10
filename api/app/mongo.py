@@ -381,7 +381,7 @@ def subscription_update(user, c, s):
 
 
 def get_collection_size(user):
-    return db.command("collstats", user)["size"]/1024
+    return db.command("collstats", user)["size"]/(1024*1024)
 
 ############################
 #### app store #####

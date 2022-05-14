@@ -168,8 +168,8 @@ function Capacity({ verified,setStatus }) {
       const data = response.data;
       const [space, credit, used] = [
         parseFloat(data["space"]).toFixed(2),
-        data["credits"],
-        parseFloat(data["used_space"]).toFixed(2),
+        parseFloat(data["credits"]).toFixed(2),
+        parseFloat(data["used_space"]).toFixed(4),
       ];
       setPlan(`MB/mo. ${space} , Credits/mo. ${credit}`);
       setUtil(`Storage Utilization : ${used}/${space} MB`);
