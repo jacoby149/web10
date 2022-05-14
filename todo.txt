@@ -1,15 +1,17 @@
-phone app auth 
-phone app changepass
+wapi change cookie-dict to save-load interface
+    - cookies arent the only way to save.
+wapi web npm package
+npm wapi add react-native switch
+phone app authenticate 
+phone app change pass
 phone app encrypt
 document P2P, encryption
 IOS app store encryptor
 Android app store encryptor
-wapi NPM sdk
+
 
 wapi read add pagination
 web10 encryptor export/import
-
-
 api implement subservices
 api set default subservice to ""
 api subservice update endpoint
