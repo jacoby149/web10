@@ -96,3 +96,35 @@ web10 coin
 web10 reduce [distributed compute framework]
 
 i implemented a hacky way to let devs highjack.
+
+web10 vs. blockchain
+blockchain is really good at one thing.
+it is really good at public and permanent.
+if you want to make a piece of data and put it out their forever.
+blockchain is NOT a technological miracle band aid that will solve every world problem.
+web10 is the centralized backbone to the decentralized internet.
+web10 provides products to enable decentralized social experiences :
+    - User owned cloud products [ databases, APIs ]
+    - User first consent mechanisms
+    - Highly efficient web10 secured peer to peer communication. [ accelerating social experiences in 3D virtual spaces ]
+    - Whatsapp & Signal level encryption available accross all apps.
+users own the cloud products on web10
+users can hold their data privately, and temporarily ( they have the power to delete their internet footprint )
+users can make digital representations of themselves [avatars, etc.]
+users can carry them accross apps with no gatekeepers.
+users can carry their social media usage and network graphs across apps too.
+
+web10 - an internet enzyme
+independent developers design new experiences for users without overcoming corporate MOATs.
+they profit through monetizing access to experiences rather than user data.
+users experience these new experiences by accepting developer requests.
+
+web10 - a melting pot
+users can assemble an experience they want from multiple web10 apps working off the same data
+devs can assemble a user base from connecting unlikely data sources in attractive ways.
+
+web10 provides user authority. computing, that provides full user authority.
+
+web10 provides 
+web10 provides products that allow users to achieve public and permanent, 
+but also private and temporary on the internet.
