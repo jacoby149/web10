@@ -128,3 +128,10 @@ web10 provides user authority. computing, that provides full user authority.
 web10 provides 
 web10 provides products that allow users to achieve public and permanent, 
 but also private and temporary on the internet.
+
+api set default subservice to ""
+api subservice update endpoint
+wapi update subservice function
+web10 moneteized python business api example
+document subservices
+default insecure pre configured services
