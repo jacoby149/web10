@@ -5,16 +5,11 @@ phone app change pass [SCRATCH]
 phone app encrypt [SCRATCH]
 document P2P, encryption
 Android app store encryptor
-polished avatars
-polished messenger
+IOS app store encryptor
 wapi read add pagination
-
-
+wapi register add pagination
+wapi app store favicons + titles + descriptions [by embed tags]
 web10 encryptor export/import
-api implement subservices
-api set default subservice to ""
-api subservice update endpoint
-wapi update subservice function
+implement subservices
 web10 moneteized python business api example
 document subservices
-default insecure pre configured services
