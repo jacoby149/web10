@@ -1,4 +1,4 @@
-// wapi mobile encryption library
+//does all of the encryption via async storage
 
 // Example : https://github.com/enumatech/secp256k1-js
 const crypto = require('crypto')
