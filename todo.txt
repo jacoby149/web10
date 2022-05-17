@@ -2,24 +2,17 @@
 5/18/22
 phone app authenticate
 phone app change pass [SCRATCH]
-
-5/20/22
 phone app encrypt [SCRATCH]
 document P2P, encryption
-
-5/22/22
 Android app store encryptor
 
 5/24/22
+wapi app store favicons + titles + descriptions [by embed tags]
 wapi read add pagination
 wapi register add pagination
-
-5/26/22
-wapi app store favicons + titles + descriptions [by embed tags]
-
-5/27/22
 wapi web npm package
-change all examples to import maps + versionable unkpkg 
+fps switch to wapi npm pack
+wapi npm -> system.js
 
 web10 encryptor export/import
 implement subservices

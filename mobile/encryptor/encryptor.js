@@ -1,7 +1,6 @@
 import axios from 'axios';
 import { Peer } from 'peerJS';
 import crypto from 'crypto';
-import Secp256k1 from '@enumatech/secp256k1-js';
 import { AsyncStorage } from 'react-native';
 
 
@@ -12,6 +11,42 @@ the frontend can do all of it's business with it
 
 function initEncryptor() {
     var encryptor = {};
+
+    /************************
+     **** web10 management **
+     ************************/
+
+    //TODO will it be NULL if not initted?? 
+    encryptor.token = AsyncStorage.getItem(`@manage:token`);
+
+    encryptor.readToken = function () {
+        if (!encryptor.token) return null;
+        return JSON.parse(atob(encryptor.token.split(".")[1]));
+    };
+
+    
+    //TODO is this good enough? should overwrites be allowed?
+    encryptor.setToken = function (token) {
+        encryptor.token = token;
+        await AsyncStorage.setItem(
+            `@keychain:${label}`,
+            token
+        );
+    };
+
+    //TODO is it scrubbed? or should the key be deleted
+    encryptor.scrubToken = function () {
+        await AsyncStorage.setItem(
+            `@keychain:${label}`,
+            null
+        );
+       encryptor.token = null;
+    };
+
+    //checks if wapi is currently signed in
+    wapi.isSignedIn = () => encryptor.token != null;
+    //signs out wapi
+    wapi.signOut = () => encryptor.scrubToken();
 
     //sends a verification code to a phone number
     encryptor.sendCode = function (phoneNumber) {
@@ -46,6 +81,7 @@ function initEncryptor() {
     //import all of the encryptor stored keys.
     encryptor.import() = function () { }
 
+
     /********************************************************
      **** P2P (WARN.. duplicated wapi code. its fine tho! )**
     *********************************************************/
@@ -77,61 +113,69 @@ function initEncryptor() {
         }
     }
 
+
     /************************************* 
      * * Encrpytion woo! ******************
     **************************************/
 
-    encryptor.mintKey = function(label){
-        // Generating private key
-        const privateKeyBuf = crypto.randomBytes(32)
-        const privateKey = Secp256k1.uint256(privateKeyBuf, 16)
-        //TODO check if the key exists... throw an error if it does
+    //gets and sets keys from the keychain
+    //TODO associate tokens with hostname
+    encryptor.getKeyChain = function (label) {
+        AsyncStorage.getItem(`@keychain:${label}`);
+    }
+    encryptor.setKeyChain = function (label, dump) {
+        //should overwrites be allowed???
+        //TODO associate tokens with hostname
         await AsyncStorage.setItem(
             `@keychain:${label}`,
-            privateKey
+            dump
         );
     }
 
-    encryptor.privKey = function(label){
-        const privateKey = await AsyncStorage.getItem(
-            `@keychain:${label}`,
-        );
-        //TODO throw error if private key doesn't exist
-        return privateKey
+    //mint a key
+    encryptor.mintKey = function (label) {
+        const keyPair = crypto.generateKeyPairSync('rsa', {
+            modulusLength: 520,
+            publicKeyEncoding: {
+                type: 'spki',
+                format: 'pem'
+            },
+            privateKeyEncoding: {
+                type: 'pkcs8',
+                format: 'pem',
+                cipher: 'aes-256-cbc',
+                passphrase: ''
+            }
+        });
+        encryptor.setKeyChain(label, keyPair)
     }
 
-    // get a public key from the keychain
-    encryptor.pubKey = function(label) {
-        const privateKey = encryptor.privKey(label)
-        return Secp256k1.generatePublicKeyFromPrivateKeyData(privateKey)
-    }
-
-    // decrypt data with keys from the keychain
-    // the mask holds the labels to the keys and what fields to decrypt
-    function decrypt(data, mask) {
-        data.map((entry)=>{
-            for (key in mask){
-                const privateKey = encryptor.privKey(mask[key])
-                entry[key] = 
+    //decrypt some data via. a keychain mask
+    encryptor.decrypt = function (data, mask) {
+        data.map((entry) => {
+            for (label in mask) {
+                const keyPair = encryptor.getKeyChain(label)
+                entry[label] = crypto.privateDecrypt(keyPair.privateKey, entry[label])
             }
         })
-        return;
+        return data;
     }
 
-    // decrypt data with keys from the keychain
-    // the mask holds the labels to the keys and what fields to sign
-    function sign(data, mask)
-
-    // mint a regular key on the keychain, triggers a client error if already minted
-    function mintKey(label) {
-        return;
+    //sign some data via a keychain mask
+    encryptor.sign = function (data, mask) {
+        data.map((entry) => {
+            for (label in mask) {
+                const keyPair = encryptor.getKeyChain(label)
+                entry[label] = crypto.sign('SHA256', keyPair.privateKey, entry[label])
+            }
+        })
+        return data;
     }
 
-    // delete a key on the keychain
-    function deleteKey(label) {
-        return;
+    //get a public key from the keychain
+    encryptor.getPubKey = function (label) {
+        return encryptor.getKeyChain(label).publicKey
     }
 
     return encryptor
-
 }
