@@ -17,10 +17,10 @@ const pubY = Secp256k1.uint256(publicKey.y, 16)
 // Signing a digest
 const digest = Secp256k1.uint256("483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8", 16)
 const sig = Secp256k1.ecsign(privateKey, digest)
-const sigR = Secp256k1.uint256(sig.r,16)
-const sigS = Secp256k1.uint256(sig.s,16)
 
 // Verifying signature
+const sigR = Secp256k1.uint256(sig.r,16)
+const sigS = Secp256k1.uint256(sig.s,16)
 const isValidSig = Secp256k1.ecverify(pubX, pubY, sigR, sigS, digest)
 assert(isValidSig === true, 'Signature must be valid')
 
