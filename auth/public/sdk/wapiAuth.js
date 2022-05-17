@@ -62,10 +62,6 @@ function wapiAuthInit(wapi) {
       })
   };
 
-  //change web10 username and password
-  wapiAuth.changeUsername = function () {};
-  wapiAuth.changePassword = function () {};
-
   //If there is a referrer, listen for the SMR and use it to set a web10 auth app state
   wapiAuth.SMRListen = function (setState) {
     if (window.opener) {
