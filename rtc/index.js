@@ -16,7 +16,7 @@ peerServer.on('connection', (client) => {
     }
     // TODO check the length isnt equal to two, 
     // check if the label has invalid characters in it.
-    const [token,label] = client.token.split("~");
+    const [token, label] = client.token.split("~");
     var decoded = jwt.decode(token);
     if (!decoded) {
         client.socket.close()

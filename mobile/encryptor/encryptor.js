@@ -24,7 +24,7 @@ function initEncryptor() {
         return JSON.parse(atob(encryptor.token.split(".")[1]));
     };
 
-    
+
     //TODO is this good enough? should overwrites be allowed?
     encryptor.setToken = function (token) {
         encryptor.token = token;
@@ -40,7 +40,7 @@ function initEncryptor() {
             `@keychain:${label}`,
             null
         );
-       encryptor.token = null;
+        encryptor.token = null;
     };
 
     //checks if wapi is currently signed in
@@ -80,39 +80,6 @@ function initEncryptor() {
 
     //import all of the encryptor stored keys.
     encryptor.import() = function () { }
-
-
-    /********************************************************
-     **** P2P (WARN.. duplicated wapi code. its fine tho! )**
-    *********************************************************/
-
-    encryptor.peer = null;
-
-    encryptor.peerID = function (provider, user, origin, label) {
-        return `${provider} ${user} ${origin} ${label}`.replaceAll(".", "_")
-    }
-
-    // initializes the peer and listens for inbound connections
-    encryptor.inBound = {}
-    encryptor.initP2P = function (onInbound = null, label = "mobile", secure = true) {
-        const token = encryptor.readToken();
-        var id = encryptor.peerID(token.provider, token.username, token.site, label)
-        encryptor.peer = new Peer(id, {
-            host: rtcOrigin,
-            secure: secure,
-            port: secure ? 443 : 80,
-            path: '/',
-            token: `${encryptor.token}~${label}`,
-        })
-        if (onInbound) {
-            encryptor.peer.on('connection', function (conn) {
-                encryptor.inBound[conn.peer] = conn;
-                conn.on('data', (data) => onInbound(conn, data));
-                conn.on('close', () => delete encryptor.inBound[conn.peer])
-            });
-        }
-    }
-
 
     /************************************* 
      * * Encrpytion woo! ******************
@@ -176,6 +143,61 @@ function initEncryptor() {
     encryptor.getPubKey = function (label) {
         return encryptor.getKeyChain(label).publicKey
     }
+
+
+    /********************************************************
+ **** P2P (WARN.. duplicated wapi code. its fine tho! )**
+*********************************************************/
+
+    encryptor.peer = null;
+
+    encryptor.peerID = function (provider, user, origin, label) {
+        return `${provider} ${user} ${origin} ${label}`.replaceAll(".", "_")
+    }
+
+    // initializes the peer and listens for inbound connections
+    encryptor.inBound = {}
+    encryptor.initP2P = function (onInbound = null, label = "mobile", secure = true) {
+        const token = encryptor.readToken();
+        var id = encryptor.peerID(token.provider, token.username, token.site, label)
+        encryptor.peer = new Peer(id, {
+            host: rtcOrigin,
+            secure: secure,
+            port: secure ? 443 : 80,
+            path: '/',
+            token: `${encryptor.token}~${label}`,
+        })
+        if (onInbound) {
+            encryptor.peer.on('connection', function (conn) {
+                encryptor.inBound[conn.peer] = conn;
+                conn.on('data', (data) => onInbound(conn, data));
+                conn.on('close', () => delete encryptor.inBound[conn.peer])
+            });
+        }
+    }
+
+    //req is sent as {type:'blah',data:data,mask:mask,label:label}
+    encryptor.listen = function () {
+        const inbound = function (conn, req) {
+            function process() {
+                switch (req["type"]) {
+                    case 'mint':
+                        return encryptor.mintKey(req["label"])
+                    case 'public':
+                        return encryptor.getPubKey(req["label"])
+                    case 'sign':
+                        return encryptor.sign(req["data"], req["mask"])
+                    case 'decrypt':
+                        return encryptor.decrypt(req["data"], req["mask"])
+                    default:
+                        return
+                }
+            }
+            conn.peer(process)
+        }
+        encryptor.initP2P()
+    }
+
 
     return encryptor
 }
