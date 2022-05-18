@@ -1,5 +1,8 @@
 
 5/18/22
+wapi send add an optional ondata function
+wapi add encryptor interface
+
 phone app authenticate
 phone app change pass [SCRATCH]
 phone app encrypt [SCRATCH]
