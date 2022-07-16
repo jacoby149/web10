@@ -1,7 +1,7 @@
                      Server Side Public License
-                     VERSION 1, OCTOBER 16, 2018
+                     VERSION 1, JULY 15, 2022
 
-                    Copyright © 2018 web10, Inc.
+                    Copyright © 2022 web10, Inc.
 
   Everyone is permitted to copy and distribute verbatim copies of this
   license document, but changing it is not allowed.
