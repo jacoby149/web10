@@ -1,23 +1,28 @@
-
-5/18/22
-wapi send add an optional ondata function
-wapi add encryptor interface
-
-phone app authenticate
-phone app change pass [SCRATCH]
-phone app encrypt [SCRATCH]
-document P2P, encryption
-Android app store encryptor
-
-5/24/22
+Server Side Public License 
+web10 whatsapp
 wapi app store favicons + titles + descriptions [by embed tags]
 wapi read add pagination
 wapi register add pagination
 wapi web npm package
 fps switch to wapi npm pack
 wapi npm -> system.js
+Rectangles -> Alternative Social
+
+wapi send add an optional ondata function
+wapi add encryptor interface
+phone app authenticate
+phone app change pass [SCRATCH]
+phone app encrypt [SCRATCH]
+document P2P, encryption
+Android app store encryptor
 
 web10 encryptor export/import
 implement subservices
 web10 moneteized python business api example
 document subservices
+
+web10 service prototyper. [don't need to dev an app just yet]
+prototyping web10 services.
+
+web10 read pay system [pay to read other users stuff.]
+web10 auto PWA
