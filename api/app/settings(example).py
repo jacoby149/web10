@@ -26,10 +26,6 @@ TOKEN_EXPIRE_MINUTES = os.environ.get("TOKEN_EXPIRE_MINUTES")
 if TOKEN_EXPIRE_MINUTES == None:
     TOKEN_EXPIRE_MINUTES = 30
 
-BETA_CODE = os.environ.get("BETA_CODE")
-if BETA_CODE == None:
-    BETA_CODE = "weeb10beta"
-
 CREATE = os.environ.get("CREATE")
 if CREATE == None:
     CREATE = 1.0/360
@@ -57,6 +53,28 @@ if FREE_SPACE == None:
 
 COST = {"create":CREATE,"read":READ,"update":UPDATE,"delete":DELETE}
 
-VERIFY = False
+BETA_CODE = os.environ.get("BETA_CODE")
+if BETA_CODE == None:
+    BETA_CODE = "weeb10beta"
 
-PAY = False
+BETA_REQUIRED = False
+VERIFY_REQUIRED = True
+PAY_REQUIRED = True
+
+# plugin specific settings
+TWILIO_SERVICE=""
+TWILIO_ACCOUNT_SID = ""
+TWILIO_AUTH_TOKEN = ""
+
+# lahu-qxvl-xdxx-kdff-nnog one time stripey
+if PROVIDER == "api.localhost" : 
+    STRIPE_KEY = "sk_test_"
+    STRIPE_CREDIT_SUB_ID = "price_"
+    STRIPE_SPACE_SUB_ID = "price_"
+else : 
+    STRIPE_KEY = "sk_live"
+    STRIPE_CREDIT_SUB_ID = "price_"
+    STRIPE_SPACE_SUB_ID = "price_"
+
+# 5% + 30 cents
+DEV_PAY_PCT = 98
