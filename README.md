@@ -1,3 +1,9 @@
+See an active version / example of web10 :
+
+https://web10.app
+
+https://docs.web10.app
+
 ## web10 deployment and practical use
 
 This guide will : 
