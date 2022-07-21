@@ -12,7 +12,7 @@ This guide will :
 
 ## running web10 locally
 
-web10 is a system that any person can get running Google Cloud + MongoDB Atlas in 15 minutes. 
+web10 is a system that any person can get running Locally + MongoDB Atlas in 15 minutes. 
 
 Step 1 : Clone the GitHub repo locally.
 
@@ -48,8 +48,8 @@ Step 8 : Set BETA_REQUIRED, PAY_REQUIRED, and VERIFY REQUIRED How you please.
 ```python
 # set these all to false.
 BETA_REQUIRED = False
-VERIFY_REQUIRED = True
-PAY_REQUIRED = True
+VERIFY_REQUIRED = False
+PAY_REQUIRED = False
 
 # set these if you enabled verification
 TWILIO_SERVICE=""
@@ -70,23 +70,43 @@ else :
 
 ```
 
-Step 9 : Install docker, in the main directory run docker-compose up --build
+Step 9 : Optionally, make Stripe and Twilio accounts for verification and payments and fill out the above details.
 
-Step 10 : Try running the web10 example application in docs.web10.app/local_notes_demo
+Step 10 : Install docker, in the main directory run docker-compose up --build
+
+Step 11 : Try running the web10 example application in docs.web10.app/local_notes_demo
 
 
 
 ## hosting your own web10 node
 
-web10 is a system that any person can get running Google Cloud + MongoDB Atlas in 15 minutes. 
+Once successfully running the web10 system successfully locally, you can get web10 running successfully from google cloud.
 
-Step 1 : Clone the GitHub repo locally.
+Step 1: Install KubeCTL
 
-Step 2 : Make a Mongo DB Atlas account.
+Step 2 : Install Skaffold
 
+Step 3 : Log into Google Cloud, Start a Google Cloud Kubernetes Autopilot Instance.
 
+Step 4 : CD into the skaffold/run folder
 
+Step 5 : in run.sh, change the variables to your google cloud stuff instead of mine.
 
+Step 6 : in the powershell, or shell, type ./run.sh
+
+Step 7 : In google cloud Kubernetes, open the ports on the containers so they are accessible via web.
+
+Step 8 : get a free domain name from [www.freenom.com]
+
+Step 9 : move the domain name over to cloudflare.com
+
+Step 10 : set A names for the domain 
+
+* api.domain => IP of api service
+* auth.domain => IP of auth service
+* ... => IP of ... service
+
+Step 11 : in settings.py, set the domain names to their respective 
 
 ## features
 
