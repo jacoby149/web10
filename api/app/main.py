@@ -416,8 +416,8 @@ def check(user):
     if settings.VERIFY_REQUIRED and not star["verified"]:
         raise exceptions.VERIFY
     if star["last_replenish"].month != datetime.now().month:
-        db.replenish(user)
         subscription_update(user)
+        db.replenish(user)
     if settings.PAY_REQUIRED and star["credit_limit"] < star["credits_spent"]:
         raise exceptions.TIME
     if settings.PAY_REQUIRED and star["space_limit"] < db.get_collection_size(user):
