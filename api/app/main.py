@@ -362,8 +362,8 @@ def kosher(s):
 @app.post("/signup",include_in_schema=False)
 async def signup(form_data: models.SignUpForm):
     form_data = models.dotdict(form_data)
-    # if form_data.betacode != settings.BETA_CODE:
-    #     raise exceptions.BETA
+    if settings.BETA_REQUIRED and form_data.betacode != settings.BETA_CODE:
+        raise exceptions.BETA
     if not kosher(form_data.username):
         raise exceptions.BAD_USERNAME
     res = db.create_user(form_data, get_password_hash)
@@ -413,14 +413,14 @@ async def get_plan(token: models.Token):
 
 def check(user):
     star = db.get_star(user)
-    if settings.VERIFY and not star["verified"]:
+    if settings.VERIFY_REQUIRED and not star["verified"]:
         raise exceptions.VERIFY
     if star["last_replenish"].month != datetime.now().month:
         db.replenish(user)
         subscription_update(user)
-    if star["credit_limit"] < star["credits_spent"]:
+    if settings.PAY_REQUIRED and star["credit_limit"] < star["credits_spent"]:
         raise exceptions.TIME
-    if star["space_limit"] < db.get_collection_size(user):
+    if settings.PAY_REQUIRED and star["space_limit"] < db.get_collection_size(user):
         raise exceptions.SPACE
     return True
 
