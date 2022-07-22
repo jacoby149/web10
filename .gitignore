@@ -3,3 +3,5 @@
 mobile/encryptor/yarn.lock
 rtc/node_modules
 config.json
+skaffold/run
+skaffold/dev

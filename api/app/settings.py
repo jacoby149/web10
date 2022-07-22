@@ -9,7 +9,7 @@ load_dotenv()
 # checks if they exist and env vars
 # sets the outcomes to python global variables
 config_file = open("config.json")
-config = json.loads("config.json")
+config = json.loads(config_file)
 for key in config :
     val = os.getenv("PROVIDER")
     if val == None:
