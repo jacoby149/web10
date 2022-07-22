@@ -11,3 +11,4 @@ pymongo
 pymongo[srv]
 twilio
 stripe
+dotenv
