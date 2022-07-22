@@ -2,17 +2,25 @@ import stripe
 import app.settings as settings 
 import app.exceptions as exceptions
 
-stripe.api_key = settings.STRIPE_KEY
+if settings.MODE == "deploy":
+    config = settings.STRIPE_LIVE
+else:
+    config = settings.STRIPE_TEST
+
+stripe.api_key = config["STRIPE_KEY"]
+
+CREDIT_SUB_ID = config["CREDIT_SUB_ID"]
+SPACE_SUB_ID = config["SPACE_SUB_ID"]
 
 ################
 # Prices objects
 ################
 subscription = [{
-    "price":settings.STRIPE_CREDIT_SUB_ID,"quantity":1,'adjustable_quantity': {
+    "price":CREDIT_SUB_ID,"quantity":1,'adjustable_quantity': {
         'enabled': True,}
     },
     {
-    "price":settings.STRIPE_SPACE_SUB_ID,"quantity":1,"adjustable_quantity": {
+    "price":SPACE_SUB_ID,"quantity":1,"adjustable_quantity": {
         'enabled': True}
     }]
 
@@ -96,10 +104,10 @@ def manage_subscription(customer_id,price,item_type="plan"):
     return create_checkout_session(customer_id,price,item_type)
 
 def manage_space(customer_id):
-    return manage_subscription(customer_id,settings.STRIPE_SPACE_SUB_ID)
+    return manage_subscription(customer_id,SPACE_SUB_ID)
 
 def manage_credits(customer_id):
-    return manage_subscription(customer_id,settings.STRIPE_CREDIT_SUB_ID)
+    return manage_subscription(customer_id,CREDIT_SUB_ID)
 
 ##################################
 # payment registration functions
@@ -111,14 +119,14 @@ def credit_space(customer_id):
     prices = get_subscription_price_ids(subscriptions)
     subscription_data = [s["items"]["data"][0] for s in subscriptions]
     cidx = -1 
-    if settings.STRIPE_CREDIT_SUB_ID in prices:
-        cidx = prices.index(settings.STRIPE_CREDIT_SUB_ID)
+    if CREDIT_SUB_ID in prices:
+        cidx = prices.index(CREDIT_SUB_ID)
         c = subscription_data[cidx]["quantity"]  + settings.FREE_CREDITS
     if cidx == -1 : c = settings.FREE_CREDITS
 
     sidx = -1 
-    if settings.STRIPE_SPACE_SUB_ID in prices:
-        sidx = prices.index(settings.STRIPE_SPACE_SUB_ID)
+    if SPACE_SUB_ID in prices:
+        sidx = prices.index(SPACE_SUB_ID)
         s = subscription_data[sidx]["quantity"] * 1024 + settings.FREE_SPACE 
     if sidx == -1 : s = settings.FREE_SPACE
     
