@@ -1,4 +1,6 @@
-See an active version / example of web10 :
+web10 discord : https://discord.gg/Dbd4VEDznU
+
+Active version / example of web10 :
 
 https://web10.app
 
