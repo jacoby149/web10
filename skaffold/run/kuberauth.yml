@@ -16,6 +16,9 @@ spec:
           image: gcr.io/pure-phalanx-344719/auth
           ports:
             - containerPort: 80
+          env:
+            - name: API
+              value: "api.web10.app"
           resources:
             requests:
               memory: "512Mi"
