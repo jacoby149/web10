@@ -3,3 +3,4 @@
 api/app/settings.py
 mobile/encryptor/yarn.lock
 rtc/node_modules
+config.json
