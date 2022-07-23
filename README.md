@@ -1,3 +1,11 @@
+## synopsis
+
+web10 is a system for users to own their data on the internet. 
+
+developers can make apps without holding user's data, and use web10 as a backend.
+
+
+
 web10 discord : https://discord.gg/Dbd4VEDznU
 
 Active version / example of web10 :
