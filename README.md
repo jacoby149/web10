@@ -28,7 +28,7 @@ web10 discord : https://discord.gg/Dbd4VEDznU
 
 
 
-![fig_1](figures\fig_1.png)
+![fig_1](figures/fig_1.png)
 
 
 
