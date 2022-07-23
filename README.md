@@ -1,18 +1,36 @@
-## synopsis
-
-web10 is a system for users to own their data on the internet. 
-
-developers can make apps without holding user's data, and use web10 as a backend.
+## What is web10?
 
 
+
+web10 is a system for users to **own their data** on the internet. 
+
+APIs and encryption pipelines **easy enough for grandma !!!**
+
+Fast peer to peer networking !!!
+
+The **social experience** of the future
+
+Not public and permanent like blockchain. **Private and temporary**
+
+Demonopolizes the internet, breaks it up into modules.
+
+*The Modules : app | auth | api | encryption | webrtc*
+
+Active version / example of web10 : https://web10.app | https://docs.web10.app
+
+
+
+## Community
 
 web10 discord : https://discord.gg/Dbd4VEDznU
 
-Active version / example of web10 :
+## Web10 flowchart.
 
-https://web10.app
 
-https://docs.web10.app
+
+![fig_1](C:\Users\jacks\OneDrive\Documents\GitHub\web10\figures\fig_1.png)
+
+
 
 ## web10 deployment and practical use
 
@@ -104,25 +122,29 @@ Step 2 : Install Skaffold
 
 Step 3 : Log into Google Cloud, Start a Google Cloud Kubernetes Autopilot Instance.
 
-Step 4 : CD into the skaffold/run folder
+Step 4 : CD into the skaffold/folder
 
-Step 5 : in run.sh, change the variables to your google cloud stuff instead of mine.
+Step 5 : Make copies of the run_example and dev_example folders respectively called run and dev.
 
-Step 6 : in the powershell, or shell, type ./run.sh
+Step 6 : in run.sh, change the variables to your google cloud stuff instead of mine.
 
-Step 7 : In google cloud Kubernetes, open the ports on the containers so they are accessible via web.
+Step 7 : in the powershell, or shell, type ./run.sh
 
-Step 8 : get a free domain name from [www.freenom.com]
+Step 8 : In google cloud Kubernetes, open the ports on the containers so they are accessible via web.
 
-Step 9 : move the domain name over to cloudflare.com
+Step 9 : get a free domain name from [www.freenom.com]
 
-Step 10 : set A names for the domain 
+Step 10 : move the domain name over to cloudflare.com
+
+Step 11 : set A names for the domain 
 
 * api.domain => IP of api service
 * auth.domain => IP of auth service
 * ... => IP of ... service
 
-Step 11 : in settings.py, set the domain names to their respective 
+Step 12 : in settings.py, set the domain names to their respective
+
+...... TO BE CONTINUED 
 
 ## features
 
