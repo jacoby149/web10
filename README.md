@@ -24,12 +24,6 @@ Active version / example of web10 : https://web10.app | https://docs.web10.app
 
 web10 discord : https://discord.gg/Dbd4VEDznU
 
-## Web10 flowchart.
-
-
-
-![fig_1](figures/fig_1.png)
-
 
 
 ## web10 deployment and practical use
