@@ -2,15 +2,14 @@ import stripe
 import app.settings as settings 
 import app.exceptions as exceptions
 
-if settings.MODE == "deploy":
-    config = settings.STRIPE_LIVE
+if settings.STRIPE_STATUS=="live":
+    stripe.api_key = settings.STRIPE_LIVE_KEY
+    CREDIT_SUB_ID = settings.STRIPE_LIVE_CREDIT_SUB_ID
+    SPACE_SUB_ID = settings.STRIPE_LIVE_SPACE_SUB_ID
 else:
-    config = settings.STRIPE_TEST
-
-stripe.api_key = config["STRIPE_KEY"]
-
-CREDIT_SUB_ID = config["CREDIT_SUB_ID"]
-SPACE_SUB_ID = config["SPACE_SUB_ID"]
+    stripe.api_key = settings.STRIPE_TEST_KEY
+    CREDIT_SUB_ID = settings.STRIPE_TEST_CREDIT_SUB_ID
+    SPACE_SUB_ID = settings.STRIPE_TEST_SPACE_SUB_ID
 
 ################
 # Prices objects

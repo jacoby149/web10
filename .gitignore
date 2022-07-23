@@ -5,3 +5,4 @@ rtc/node_modules
 config.json
 skaffold/run
 skaffold/dev
+api/app/settings.py

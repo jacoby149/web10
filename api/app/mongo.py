@@ -17,7 +17,7 @@ client_url = os.environ.get("DB_URL")
 if not client_url:
     DB_URL = settings.DB_URL
 client = pymongo.MongoClient(DB_URL)
-db = client[settings.MODE]
+db = client[settings.DB]
 
 
 ################################
