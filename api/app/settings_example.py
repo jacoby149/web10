@@ -11,7 +11,7 @@ DB = "jacobs_local"
 DB_URL = "mongodb+srv://web10:jSol....."
 ALGORITHM = "HS256"
 PRIVATE_KEY = "8cbec8....."
-TOKEN_EXPIRE_MINUTES = 87840,
+TOKEN_EXPIRE_MINUTES = 87840
 COST = {
         "create" : 0.000025,
         "update" : 0.000025,
