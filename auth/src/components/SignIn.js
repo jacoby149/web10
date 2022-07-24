@@ -15,7 +15,7 @@ function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
           <input
             id="provider"
             className="input has-background-white"
-            defaultValue={process.env.DEFAULT_API
+            defaultValue={config.DEFAULT_API
             }
             placeholder="Web10 Provider"
           />
