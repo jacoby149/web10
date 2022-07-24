@@ -24,7 +24,6 @@ services:
       PORT: 80
       VIRTUAL_HOST: auth.localhost
       CHOKIDAR_USEPOLLING: "true"
-      REACT_APP_DEFAULT_API: "api.localhost"
     ports:
       - '3000:80'
   rtc:
