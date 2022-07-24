@@ -131,7 +131,11 @@ export {config}
 
 #### Running in Docker
 
-Step 12 : Install docker, in the main directory run docker-compose up --build
+Step 12 : Install docker, in the main directory run 
+
+```bash
+docker-compose up --build
+```
 
 Step 13 : Try running the web10 example application crm.localhost
 
