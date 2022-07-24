@@ -17,7 +17,7 @@ spec:
           ports:
             - containerPort: 80
           env:
-            - name: DEFAULT_API
+            - name: REACT_APP_DEFAULT_API
               value: "api.web10.dev"
           resources:
             requests:
