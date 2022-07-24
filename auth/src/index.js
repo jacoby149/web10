@@ -3,6 +3,7 @@ import ReactDOM from "react-dom";
 import { pass, R, C } from "./components/Rectangles.js";
 import ServiceTerms from "./components/ServiceTerms.js";
 import SignIn from "./components/SignIn.js";
+import config from "./config.js"
 
 var wapi = window.wapi;
 var wapiAuth = window.wapiAuth;
