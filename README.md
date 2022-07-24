@@ -54,9 +54,7 @@ Step 5 : Change the DB_URL settings.py if statement to your Mongo DB atlas DB UR
 
 ```python
 # change this part in the settings.py file you made to your own DB_URL
-if DB_URL == None:
-    DB_URL = "mongodb+srv://web10:jSolBGeumNeIBhuk@cluster0.wsy18.mongodb.net/myFirstDatabase?retryWrites=true&w=majority"
-
+DB_URL = "mongodb+srv://web10:jSol....."
 ```
 
 Step 6 : Go to https://seanwasere.com/generate-random-hex/
@@ -65,44 +63,37 @@ Step 7 : Change PRIVATE_KEY to the number you generated on the website.
 
 ```python
 # change this part in the settings.py file you made to your own PRIVATE_KEY
-PRIVATE_KEY = os.environ.get("PRIVATE_KEY")
-if PRIVATE_KEY == None:
-    PRIVATE_KEY = "8cbec84ebc77c2dd275262a21ba399abfa568123407ec99c9704426cdec95b0a"
-
+PRIVATE_KEY = "8cbec8....."
 ```
 
-Step 8 : Set BETA_REQUIRED, PAY_REQUIRED, and VERIFY REQUIRED How you please. 
+Step 8 : Set BETA_REQUIRED, PAY_REQUIRED, and VERIFY REQUIRED How you please. If you set them all to "False", you can skip step 9.
 
 ```python
-# set these all to false.
+# try setting these all to false. [or however you would like]
 BETA_REQUIRED = False
 VERIFY_REQUIRED = False
 PAY_REQUIRED = False
-
-# set these if you enabled verification
-TWILIO_SERVICE=""
-TWILIO_ACCOUNT_SID = ""
-TWILIO_AUTH_TOKEN = ""
-
-# set these if you enabled payment
-if PROVIDER == "api.localhost" : 
-    STRIPE_KEY = "sk_test_"
-    STRIPE_CREDIT_SUB_ID = "price_"
-    STRIPE_SPACE_SUB_ID = "price_"
-else : 
-    STRIPE_KEY = "sk_live"
-    STRIPE_CREDIT_SUB_ID = "price_"
-    STRIPE_SPACE_SUB_ID = "price_"
-    
-
-
 ```
 
-Step 9 : Optionally, make Stripe and Twilio accounts for verification and payments and fill out the above details.
+Step 9 : Optionally, make Stripe and Twilio accounts for verification and payments and fill out the API keys. Optionally, set a beta code.
+
+```python
+BETA_CODE = "web10betacode"
+TWILIO_SERVICE = "VAbce...."
+TWILIO_ACCOUNT_SID = "AC3594...."
+TWILIO_AUTH_TOKEN = "460d....."
+STRIPE_STATUS = "live"
+STRIPE_TEST_KEY = "sk_test_51Khy....."
+STRIPE_TEST_CREDIT_SUB_ID = "price_1Kh...."
+STRIPE_TEST_SPACE_SUB_ID = "price_1Ki...."
+STRIPE_LIVE_KEY = "sk_live_51Khyui......"
+STRIPE_LIVE_CREDIT_SUB_ID = "price_1Kkb....."
+STRIPE_LIVE_SPACE_SUB_ID = "price_1Kkb7....."  
+```
 
 Step 10 : Install docker, in the main directory run docker-compose up --build
 
-Step 11 : Try running the web10 example application in docs.web10.app/local_notes_demo
+Step 11 : Try running the web10 example application crm.localhost
 
 
 
@@ -120,24 +111,6 @@ Step 4 : CD into the skaffold/folder
 
 Step 5 : Make copies of the run_example and dev_example folders respectively called run and dev.
 
-Step 6 : in run.sh, change the variables to your google cloud stuff instead of mine.
-
-Step 7 : in the powershell, or shell, type ./run.sh
-
-Step 8 : In google cloud Kubernetes, open the ports on the containers so they are accessible via web.
-
-Step 9 : get a free domain name from [www.freenom.com]
-
-Step 10 : move the domain name over to cloudflare.com
-
-Step 11 : set A names for the domain 
-
-* api.domain => IP of api service
-* auth.domain => IP of auth service
-* ... => IP of ... service
-
-Step 12 : in settings.py, set the domain names to their respective
-
 ...... TO BE CONTINUED 
 
 ## features
@@ -149,5 +122,3 @@ Step 12 : in settings.py, set the domain names to their respective
 | TBD [Phone as a Keychain encryption] | Encrypt data on web10 providers without those providers being able to access the data, because the keys are locally stored on your phone. |
 | Data interoperability                | Developers can use data from other apps with web10 user permission. |
 | Free for Developers                  | Users / web10 providers bear the cloud costs.                |
-
-## diagrams
