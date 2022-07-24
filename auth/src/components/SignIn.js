@@ -1,6 +1,7 @@
 import React from "react";
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/bootstrap.css";
+import { config } from "../config";
 
 //web10 sign in boxes and buttons
 function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
@@ -73,8 +74,8 @@ function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
               </span>
             </p>
           </div>
-          <div style={{ margin: "0 10px" }}>
-            <div style={{ width: "calc(100% - 40px)", float:"left" }}>
+          <div style={config.VERIFY_REQUIRED ? { margin: "0 10px" } : { display: "None" }}>
+            <div style={{ width: "calc(100% - 40px)", float: "left" }}>
               <PhoneInput
                 country={"us"}
                 enableSearch={true}
@@ -87,14 +88,14 @@ function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
                 }}
               />
             </div>
-            <div class="icon" title="web10 uses Twilio to authenticate users" style={{ marginLeft:"10px", marginTop:"6px"}}>
+            <div class="icon" title="web10 uses Twilio to authenticate users" style={{ marginLeft: "10px", marginTop: "6px" }}>
               <i class="fas fa-lg fa-info-circle"></i>
             </div>
+            <br></br><br></br>
           </div>
-          <br></br>
-          <div style={{ display: "None" }} className="field">
+          <div style={config.BETA_REQUIRED ? {} : { display: "None" }} className="field">
             <p
-              style={{ margin: "10px 10px" }}
+              style={{ margin: "0px 10px 10px 10px" }}
               className="control has-icons-left"
             >
               <input
