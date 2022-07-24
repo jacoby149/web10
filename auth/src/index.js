@@ -58,7 +58,7 @@ function App() {
     if (
       authStatus &&
       services[0][0]["service"] !== "log in to manage services" &&
-      !services[0][0]["verified"]
+      config.VERIFY_REQUIRED && !services[0][0]["verified"]
     ) {
       setMode("services-disabled");
       setCollapse(true);
