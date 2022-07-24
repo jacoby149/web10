@@ -395,7 +395,10 @@ async def register_app(info:dict):
     db.register_app(info)
 
 def subscription_update(user):
-    credit,space = pay.credit_space(mget_customer_id(user))
+    if settings.PAY_REQUIRED:
+        credit,space = pay.credit_space(mget_customer_id(user))
+    else:
+        credit,space = 100000000,100000000
     # also serves to update subscription details from stripe
     db.subscription_update(user,credit,space)
     return credit,space

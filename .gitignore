@@ -6,3 +6,4 @@ config.json
 skaffold/run
 skaffold/dev
 api/app/settings.py
+auth/src/config.js
