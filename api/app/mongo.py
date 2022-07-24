@@ -162,7 +162,7 @@ def create_user(form_data, hash):
         raise exceptions.RESERVED
     if get_star(username):
         raise exceptions.EXISTS
-    if settings.VERIFY:
+    if settings.VERIFY_REQUIRED:
         if get_phone_record(phone_number):
             raise exceptions.PHONE_NUMBER_TAKEN
         # do this as early as possible TODO dangerous?
