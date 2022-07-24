@@ -3,7 +3,7 @@ import ReactDOM from "react-dom";
 import { pass, R, C } from "./components/Rectangles.js";
 import ServiceTerms from "./components/ServiceTerms.js";
 import SignIn from "./components/SignIn.js";
-import config from "./config.js"
+import {config} from "./config.js"
 
 var wapi = window.wapi;
 var wapiAuth = window.wapiAuth;
@@ -343,6 +343,7 @@ function App() {
                 setAuthStatus={setAuthStatus}
                 statusHook={[status, setStatus]}
                 wapiAuth={wapiAuth}
+                config={config}
               ></SignIn>
               <StatusLog />
             </div>
