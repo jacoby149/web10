@@ -3,6 +3,7 @@ import ReactDOM from "react-dom";
 import { pass, R, C } from "./components/Rectangles.js";
 import ServiceTerms from "./components/ServiceTerms.js";
 import SignIn from "./components/SignIn.js";
+import {config} from "./config.js"
 
 var wapi = window.wapi;
 var wapiAuth = window.wapiAuth;
@@ -57,7 +58,7 @@ function App() {
     if (
       authStatus &&
       services[0][0]["service"] !== "log in to manage services" &&
-      !services[0][0]["verified"]
+      config.VERIFY_REQUIRED && !services[0][0]["verified"]
     ) {
       setMode("services-disabled");
       setCollapse(true);
@@ -342,6 +343,7 @@ function App() {
                 setAuthStatus={setAuthStatus}
                 statusHook={[status, setStatus]}
                 wapiAuth={wapiAuth}
+                config={config}
               ></SignIn>
               <StatusLog />
             </div>
