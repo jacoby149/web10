@@ -1,3 +1,12 @@
+/**********************************************
+ * ServiceTerms.js
+ * Houses the <ServiceTerms> component that :
+ * 1. Lets users approve and deny SMRs [Service Modification Requests]
+ * 2. Change their Service Terms rules
+ * 3. Import and Export their data
+ **********************************************/
+
+
 import React from "react";
 import { flattenJSON, unFlattenJSON } from "./flattenJSON.js";
 import { downloadObjJSON } from "./importExportJSON.js";
