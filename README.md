@@ -2,6 +2,12 @@
 
 
 
+
+
+<img src="auth\public\logo_blue.jpg" alt="logo_black" style="height:75px;" />
+
+
+
 web10 is a system for users to **own their data** on the internet. 
 
 the **social experiences** of the future
@@ -16,7 +22,7 @@ web10 provides **free** databases for developers [users pay for plans]
 
 **make money** as a web10 developer or web10 provider
 
-<img src="auth\public\logo_blue.jpg" alt="logo_black" style="height:75px;" />
+
 
 ## Live Demo
 
