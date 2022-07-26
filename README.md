@@ -1,4 +1,4 @@
-<img src="auth\public\logo_black.png" alt="logo_black" style="zoom:25%;" />
+<img src="auth\public\logo_solid.jpg" alt="logo_black" style="zoom:25%;" />
 
 
 
