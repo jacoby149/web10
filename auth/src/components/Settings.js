@@ -1,9 +1,18 @@
+/**********************************************
+ * Settings.js
+ * Houses the <Settings> component that allows 
+ * users to modify their web10 acct. settings. 
+ **********************************************/
+
 import React from "react";
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/bootstrap.css";
 
 var wapiAuth = window.wapiAuth;
 
+/************************* */
+/* Settings Component */
+/************************* */
 function Settings({ verified, setStatus, servicesLoad, mode }) {
   return (
     <div style={{ marginLeft: "5px", marginBottom: "10px" }}>
@@ -32,60 +41,10 @@ function Settings({ verified, setStatus, servicesLoad, mode }) {
   );
 }
 
-function Unlink({ setStatus, callBack }) {
-  const [phone, setPhone] = React.useState("");
-  return (
-    <div style={{ marginLeft: "4px" }}>
-      <u>Linked Devices / Accounts</u>
-      <br></br>
-      Type Password to confirm :{" "}
-      <input
-        type="password"
-        id="phonechange"
-        style={{
-          backgroundColor: "black",
-          color: "lightgreen",
-          marginBottom: "4px",
-        }}
-        placeholder={"password"}
-      ></input>
-      <PhoneInput
-        country={"us"}
-        enableSearch={true}
-        inputClass={"input"}
-        dropdownStyle={{ color: "black" }}
-        value={phone}
-        onChange={(val) => {
-          setPhone(val);
-        }}
-      />
-      <button
-        style={{ marginTop: "4px" }}
-        className="button is-warning is-light is-small"
-        onClick={() => {
-          wapiAuth
-            .changePhone(document.getElementById("phonechange").value, phone)
-            .then(() => {
-              setStatus("Successfully changed phone number. reloading...");
-              setTimeout(() => callBack(), 1000);
-            })
-            .catch((e) => {
-              if (e.response) setStatus(String(e.response.data.detail));
-              else {
-                setStatus(String(e));
-              }
-            });
-        }}
-      >
-        {" "}
-        Change Linked Number
-      </button>
-    </div>
-  );
-}
-
-// Payment component
-function Payment({ setStatus, servicesLoad }) {
+/*************************************** 
+ *** payment/plan related components *** 
+ ***************************************/ 
+function Payment() {
   return (
     <div style={{ marginTop: "5px", marginLeft: "5px" }}>
       <button
@@ -128,7 +87,7 @@ function Payment({ setStatus, servicesLoad }) {
   );
 }
 
-function DevPay({setStatus}) {
+function DevPay() {
   return (
     <div style={{marginLeft:"5px"}}>
       <div style={{marginBottom:"5px"}}><u >web10 devPay</u></div>
@@ -192,7 +151,10 @@ function Capacity({ verified,setStatus }) {
   );
 }
 
-// Payment component
+
+/************************************************** 
+ *** verification / password related components *** 
+ **************************************************/ 
 function Verify({ setStatus, callBack }) {
   return (
     <div style={{ marginTop: "10px" }}>
@@ -247,43 +209,58 @@ function Verify({ setStatus, callBack }) {
   );
 }
 
-// Changing username and/or password component
-// function ChangeUser() {
-//   return (
-//     <div style={{ marginLeft: "4px", marginRight: "4px" }}>
-//       <u>Change Username</u> <br></br>
-//       Type New Username :{" "}
-//       <input
-//         id="deleteConfirmation"
-//         style={{ backgroundColor: "black", color: "lightgreen" }}
-//         placeholder={"new-username"}
-//       ></input>
-//       <br></br>
-//       Retype New Username :{" "}
-//       <input
-//         id="deleteConfirmation"
-//         style={{ backgroundColor: "black", color: "lightgreen" }}
-//         placeholder={"new-username"}
-//       ></input>
-//       <br></br>
-//       Type Password To Confirm :{" "}
-//       <input
-//         id="deleteConfirmation"
-//         style={{ backgroundColor: "black", color: "lightgreen" }}
-//         placeholder={"password"}
-//       ></input>
-//       <br></br>
-//       <button
-//         className="button is-small is-danger"
-//         style={{ marginTop: "4px" }}
-//       >
-//         Change Username
-//       </button>
-//     </div>
-//   );
-// }
+function Unlink({ setStatus, callBack }) {
+  const [phone, setPhone] = React.useState("");
+  return (
+    <div style={{ marginLeft: "4px" }}>
+      <u>Linked Devices / Accounts</u>
+      <br></br>
+      Type Password to confirm :{" "}
+      <input
+        type="password"
+        id="phonechange"
+        style={{
+          backgroundColor: "black",
+          color: "lightgreen",
+          marginBottom: "4px",
+        }}
+        placeholder={"password"}
+      ></input>
+      <PhoneInput
+        country={"us"}
+        enableSearch={true}
+        inputClass={"input"}
+        dropdownStyle={{ color: "black" }}
+        value={phone}
+        onChange={(val) => {
+          setPhone(val);
+        }}
+      />
+      <button
+        style={{ marginTop: "4px" }}
+        className="button is-warning is-light is-small"
+        onClick={() => {
+          wapiAuth
+            .changePhone(document.getElementById("phonechange").value, phone)
+            .then(() => {
+              setStatus("Successfully changed phone number. reloading...");
+              setTimeout(() => callBack(), 1000);
+            })
+            .catch((e) => {
+              if (e.response) setStatus(String(e.response.data.detail));
+              else {
+                setStatus(String(e));
+              }
+            });
+        }}
+      >
+        {" "}
+        Change Linked Number
+      </button>
+    </div>
+  );
+}
 
-// Changing username and/or password component
 function ChangePass({ setStatus, callBack }) {
   return (
     <div style={{ marginTop: "4px", marginLeft: "4px", marginRight: "4px" }}>
@@ -336,5 +313,6 @@ function ChangePass({ setStatus, callBack }) {
     </div>
   );
 }
+
 
 export { Settings };
