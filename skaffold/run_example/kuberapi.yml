@@ -21,6 +21,8 @@ spec:
               value: "api.web10.app"
             - name: DB
               value: "deploy"
+            - name: STRIPE_STATUS
+              value: "live"
           resources:
             requests:
               memory: "512Mi"
