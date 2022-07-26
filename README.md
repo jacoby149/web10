@@ -2,6 +2,8 @@
 
 
 
+
+
 <img src="auth\public\logo_blue.jpg" alt="logo_black" style="height:75px;" />
 
 
@@ -21,6 +23,8 @@ web10 provides **free** databases for developers [users pay for plans]
 **make money** as a web10 developer or web10 provider
 
 
+
+## Live Demo
 
 **Try a web10 app [contact manager]** : https://crm.web10.app
 
