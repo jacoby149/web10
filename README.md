@@ -1,42 +1,34 @@
-## What is web10?
+<img src="auth\public\logo_black.png" alt="logo_black" style="zoom:25%;" />
 
 
 
 web10 is a system for users to **own their data** on the internet. 
 
-APIs and encryption pipelines **easy enough for grandma !!!**
+the **social experiences** of the future
 
-Fast peer to peer networking !!!
+not public and permanent like blockchain. **private and temporary**
 
-The **social experience** of the future
+**demonopolizes the internet**, breaks it up into modules.
 
-Not public and permanent like blockchain. **Private and temporary**
+bring your data with you **across apps**
 
-Demonopolizes the internet, breaks it up into modules.
+web10 provides **free** databases for developers [users pay for plans]
 
-*The Modules : app | auth | api | encryption | webrtc*
+**make money** as a web10 developer or web10 provider
 
-Active version / example of web10 : https://web10.app | https://docs.web10.app
+
+
+**Try a web10 app [contact manager]** : https://crm.web10.app
+
+The web10 inc. web10 node : https://web10.app 
+
+docs page [for developers] : https://docs.web10.app
 
 
 
 ## Community
 
 web10 discord : https://discord.gg/Dbd4VEDznU
-
-
-
-## What makes web10 cooler than web3 :)
-
-| feature                              | Description                                                  |
-| ------------------------------------ | ------------------------------------------------------------ |
-| Hosting Platform Portability         | It is designed entirely through Docker + Kubernetes + Skaffold deployment mechanisms, meaning it can be ported to any cloud provider with Kubernetes, or deployed on bare metal. |
-| Provider Self Sufficiency            | The web10 host has charging mechanisms to make sure that account holders pay the provider for the bandwidth and storage they use. |
-| Mongo DB Based                       | Web 10 nodes work off of the highly scalable mongo DB framework for Data storage. |
-| WebRTC                               | Web 10 makes it easy to use webRTC, and handles the initial identity verification needed to do webRTC properly. |
-| TBD [Phone as a Keychain encryption] | Encrypt data on web10 providers without those providers being able to access the data, because the keys are locally stored on your phone. |
-| Data interoperability                | Developers can use data from other apps with web10 user permission. |
-| Free for Developers                  | Users / web10 providers bear the cloud costs.                |
 
 
 
@@ -174,3 +166,17 @@ Step 10 : change the env vars in the yml files in the run folder to match the do
 ## enjoy
 
 Have fun with web10, use it responsibly, and please give it a star!
+
+
+
+## What makes web10 cooler than web3 :)
+
+| feature                              | Description                                                  |
+| ------------------------------------ | ------------------------------------------------------------ |
+| Hosting Platform Portability         | It is designed entirely through Docker + Kubernetes + Skaffold deployment mechanisms, meaning it can be ported to any cloud provider with Kubernetes, or deployed on bare metal. |
+| Provider Self Sufficiency            | The web10 host has charging mechanisms to make sure that account holders pay the provider for the bandwidth and storage they use. |
+| Mongo DB Based                       | Web 10 nodes work off of the highly scalable mongo DB framework for Data storage. |
+| WebRTC                               | Web 10 makes it easy to use webRTC, and handles the initial identity verification needed to do webRTC properly. |
+| TBD [Phone as a Keychain encryption] | Encrypt data on web10 providers without those providers being able to access the data, because the keys are locally stored on your phone. |
+| Data interoperability                | Developers can use data from other apps with web10 user permission. |
+| Free for Developers                  | Users / web10 providers bear the cloud costs.                |
