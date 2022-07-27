@@ -19,6 +19,8 @@ spec:
           env:
             - name: REACT_APP_DEFAULT_API
               value: "api.web10.app"
+            - name: PORT
+              value: "80"
           resources:
             requests:
               memory: "512Mi"
