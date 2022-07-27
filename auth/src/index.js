@@ -1,13 +1,12 @@
 import React from "react";
 import ReactDOM from "react-dom";
-import { pass, R, C } from "./components/Rectangles.js";
+import { pass, R, C, T, startRectangles } from "./components/Rectangles.js";
 import ServiceTerms from "./components/ServiceTerms.js";
 import SignIn from "./components/SignIn.js";
 import {config} from "./config.js"
 
 var wapi = window.wapi;
 var wapiAuth = window.wapiAuth;
-var telescope = window.telescope;
 
 /* Plain Pad app made of entirely rectangles.js components */
 function App() {
@@ -164,10 +163,6 @@ function App() {
       </C>
     );
   }
-
-  React.useEffect(() => {
-    return telescope.start(window.root);
-  }, []);
   React.useEffect(() => {
     setAuthStatus(wapi.isSignedIn());
   }, []);
@@ -467,3 +462,4 @@ function Branding(props) {
 }
 
 ReactDOM.render(<App />, document.getElementById("root"));
+startRectangles(document.getElementById("root"));
