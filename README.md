@@ -12,7 +12,7 @@ web10 is a system for users to **own their data** on the internet.
 
 the **social experiences** of the future
 
-not public and permanent like blockchain. **private and temporary**
+not public and permanent like blockchain, allows for **private and temporary**
 
 **demonopolizes the internet**, breaks it up into modules.
 
