@@ -7,7 +7,7 @@ CORS_SERVICE_MANAGERS = [
             "auth.web10.app", 
             "auth.web10.dev"
         ]
-DB = "local"
+DB = "testing"
 DB_URL = "mongodb+srv://web10:jSol....."
 ALGORITHM = "HS256"
 PRIVATE_KEY = "8cbec8....."
