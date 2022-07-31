@@ -456,7 +456,7 @@ function NewField({ additionsHook, getChanged }) {
           setAdditions(updated);
           getChanged();
         }}
-        className="button is-small is-primary"
+        className="button is-small is-warning"
         style={{ marginTop: "4px" }}
       >
         Add
@@ -497,7 +497,7 @@ function EditApproval({
         }
         }
         style={{ margin: "5px 5px" }}
-        className="button is-warning "
+        className="button is-primary "
       >
         Approve{" "}
         {type === "new"
