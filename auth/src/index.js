@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom";
-import { pass, R, C, T, startRectangles } from "./components/Rectangles.js";
+import { pass, R, C, T, startRectangles } from "rectangles-npm";
+import 'rectangles-npm/src/Rectangles.css'
 import ServiceTerms from "./components/ServiceTerms.js";
 import SignIn from "./components/SignIn.js";
 import {config} from "./config.js"
