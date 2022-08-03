@@ -2,8 +2,8 @@
   "name": "web10",
   "version": "1.0.0",
   "description": "web 2 based decentralized internet",
-  "main": "auth/public/sdk/wapi.js",
-  "browser": "auth/public/sdk/wapi.js",
+  "main": "wapi.js",
+  "browser": "wapi.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
