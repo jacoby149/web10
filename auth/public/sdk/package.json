@@ -16,5 +16,8 @@
   "bugs": {
     "url": "https://github.com/jacoby149/web10/issues"
   },
-  "homepage": "https://github.com/jacoby149/web10#readme"
+  "homepage": "https://github.com/jacoby149/web10#readme",
+  "dependencies": {
+    "axios": "^0.27.2"
+  }
 }
