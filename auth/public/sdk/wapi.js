@@ -58,7 +58,7 @@ if (typeof wapiInit === "undefined") {
       }
     });
 
-    wapi.readToken = () => !wapi.token || wapi.token === "undefined" ? null : JSON.parse(atob(wapi.token.split(".")[1]));
+    wapi.readToken = () => !wapi.token ? null : JSON.parse(atob(wapi.token.split(".")[1]));
 
     //get tiered tokens for strong web10 security
     wapi.getTieredToken = (site, target, protocol = wapi.defaultAPIProtocol) => axios
