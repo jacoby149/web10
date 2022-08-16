@@ -3,12 +3,6 @@
 //conventient failure messages
 const Fs = ([cF, rF, uF, dF] = ["create", "read", "update", "delete"].map((op) => `failed to ${op} note[s]`));
 
-const error = console.error;
-console.error = (...args) => {
-  error(...args);
-  message.innerHTML = `${Fs} : ${args.join(" ")}`;
-}
-
 /* wapi setup */
 const wapi = wapiInit("https://auth.web10.app");
 const sirs = [
@@ -40,7 +34,10 @@ function readNotes() {
   wapi
     .read("web10-docs-note-demo", {})
     .then((response) => displayNotes(response.data))
-    .catch(console.error);
+    .catch(error => {
+      console.error(error);
+      message.innerHTML = `${rF} : ${error}`;
+    });
 }
 function createNote(note) {
   wapi
@@ -49,20 +46,29 @@ function createNote(note) {
       readNotes();
       curr.value = "";
     })
-    .catch(console.error);
+    .catch(error => {
+      console.error(error);
+      message.innerHTML = `${cF} : ${error}`;
+    });
 }
 function updateNote(id) {
   const entry = String(document.getElementById(id).value);
   wapi
     .update("web10-docs-note-demo", { _id: id }, { $set: { note: entry } })
     .then(readNotes)
-    .catch(console.error);
+    .catch(error => {
+      console.error(error);
+      message.innerHTML = `${uF} : ${error}`;
+    });
 }
 function deleteNote(id) {
   wapi
     .delete("web10-docs-note-demo", { _id: id })
     .then(readNotes)
-    .catch(console.error);
+    .catch(error => {
+      console.error(error);
+      message.innerHTML = `${dF} : ${error}`;
+    });
 }
 
 /* display */
