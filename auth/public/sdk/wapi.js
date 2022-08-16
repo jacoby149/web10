@@ -17,7 +17,7 @@ if (typeof wapiInit === "undefined") {
     const wapi = {};
 
     // get the default api protocol, which is required to match its auth portals protocol
-    wapi.defaultAPIProtocol = protocol + ":" || new URL(authUrl).protocol;
+    wapi.defaultAPIProtocol = protocol ? protocol + ":" : new URL(authUrl).protocol;
 
     //wapi variables
     wapi.childWindow = null;
@@ -53,7 +53,7 @@ if (typeof wapiInit === "undefined") {
     //listens for an oauth result from the child window
     wapi.authListen = setAuth => window.addEventListener("message", e => {
       if (e.data.type === "auth") {
-        wapi.setToken(e.data.token);
+        wapi.setToken(e.data.token || "");
         if (setAuth != null) setAuth(wapi.isSignedIn());
       }
     });
