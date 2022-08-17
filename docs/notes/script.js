@@ -1,9 +1,7 @@
 /* script.js */
 
 //conventient failure messages
-const Fs = ([cF, rF, uF, dF] = ["create", "read", "update", "delete"].map(
-  (op) => `failed to ${op} note[s]`
-));
+const Fs = ([cF, rF, uF, dF] = ["create", "read", "update", "delete"].map((op) => `failed to ${op} note[s]`));
 
 /* wapi setup */
 const wapi = wapiInit("https://auth.web10.app");
@@ -36,9 +34,10 @@ function readNotes() {
   wapi
     .read("web10-docs-note-demo", {})
     .then((response) => displayNotes(response.data))
-    .catch(
-      (error) => (message.innerHTML = `${rF} : ${error.response.data.detail}`)
-    );
+    .catch(error => {
+      console.error(error);
+      message.innerHTML = `${rF} : ${error}`;
+    });
 }
 function createNote(note) {
   wapi
@@ -47,37 +46,40 @@ function createNote(note) {
       readNotes();
       curr.value = "";
     })
-    .catch(
-      (error) => (message.innerHTML = `${cF} : ${error.response.data.detail}`)
-    );
+    .catch(error => {
+      console.error(error);
+      message.innerHTML = `${cF} : ${error}`;
+    });
 }
 function updateNote(id) {
   const entry = String(document.getElementById(id).value);
   wapi
     .update("web10-docs-note-demo", { _id: id }, { $set: { note: entry } })
     .then(readNotes)
-    .catch(
-      (error) => (message.innerHTML = `${uF} : ${error.response.data.detail}`)
-    );
+    .catch(error => {
+      console.error(error);
+      message.innerHTML = `${uF} : ${error}`;
+    });
 }
 function deleteNote(id) {
   wapi
     .delete("web10-docs-note-demo", { _id: id })
     .then(readNotes)
-    .catch(
-      (error) => (message.innerHTML = `${dF} : ${error.response.data.detail}`)
-    );
+    .catch(error => {
+      console.error(error);
+      message.innerHTML = `${dF} : ${error}`;
+    });
 }
 
 /* display */
 function displayNotes(data) {
   function contain(note) {
     return `<div>
-                <p style="font-family:monospace;">${note.date}</p>
-                <textarea id="${note._id}">${note.note}</textarea>
-                <button onclick="updateNote('${note._id}')">Update</button>
-                <button onclick="deleteNote('${note._id}')">Delete</button>
-            </div>`;
+      <p style="font-family:monospace;">${note.date}</p>
+      <textarea id="${note._id}">${note.note}</textarea>
+      <button onclick="updateNote('${note._id}')">Update</button>
+      <button onclick="deleteNote('${note._id}')">Delete</button>
+    </div>`;
   }
   noteview.innerHTML = data.map(contain).reverse().join(`<br>`);
 }
