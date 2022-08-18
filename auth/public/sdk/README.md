@@ -2,12 +2,12 @@
 ## Getting Started
 ### SDK Installation
 ```
-npm install web10-sdk
+npm install web10-npm
 ```
 ```html
-<script src="sdk/node_modules/axios/dist/axios.min.js"></script>
-<script src="sdk/wapi.js"></script>
-<script src="sdk/wapiAuth.js"></script>
+<script src="./node_modules/axios/dist/axios.min.js"></script>
+<script src="./node_modules/web10-npm/wapi.js"></script>
+<script src="./node_modules/web10-npm/wapiAuth.js"></script>
 ```
 ### Using CDN:
 ```html
