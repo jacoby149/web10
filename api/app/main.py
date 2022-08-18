@@ -388,7 +388,6 @@ async def stats():
 # make a new web10 account
 @app.post("/register_app",include_in_schema=False)
 async def register_app(info:dict):
-    print("HERE'S THE INFO", info)
     if "url" not in info:
         return
     if "http://" in info["url"] or "localhost" in info["url"] or "file://" in info["url"] or "vscode-webview://" in info["url"]:

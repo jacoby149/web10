@@ -23,6 +23,8 @@ spec:
               value: "deploy"
             - name: STRIPE_STATUS
               value: "live"
+            - name: LOCAL_REGISTRATION 
+              value: False
           resources:
             requests:
               memory: "512Mi"
