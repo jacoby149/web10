@@ -23,7 +23,8 @@ function displayApps(apps){
 }
 
 axios
-  .post("https://api.web10.app/stats")
+  //.post(`https://api.web10.app/stats`)
+  .post(`${provider}/stats`)
   .then((response) => {
     display(response.data);
   })

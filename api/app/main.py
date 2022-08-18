@@ -388,10 +388,12 @@ async def stats():
 # make a new web10 account
 @app.post("/register_app",include_in_schema=False)
 async def register_app(info:dict):
+    print("HERE'S THE INFO", info)
     if "url" not in info:
         return
     if "http://" in info["url"] or "localhost" in info["url"] or "file://" in info["url"] or "vscode-webview://" in info["url"]:
-        return
+        if not settings.LOCAL_REGISTRATION:
+            return
     db.register_app(info)
 
 def subscription_update(user):
@@ -443,7 +445,7 @@ async def read_records(user, service, token: models.Token,b_t:BackgroundTasks):
         raise exceptions.CRUD
     if service != "services" : check(user)
     if token.query==None:token.query={}
-    res = db.read(user, service, token.query)
+    res = db.read(user, service, token.query) #should take number per page, sortBy, and page number
     # dont charge for "services"
     if service =="services": return res
     b_t.add_task(db.charge,user,"read")
