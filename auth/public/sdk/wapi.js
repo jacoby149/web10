@@ -13,7 +13,7 @@ if (typeof wapiInit === "undefined") {
   }
 
   //initializes the wapi library object
-  function wapiInit(authUrl = "https://auth.web10.app", rtcOrigin = "rtc.web10.app", protocol = null) {
+  function wapiInit(authUrl = "https://auth.web10.app", rtcOrigin = "rtc.web10.app", protocol = null, registerWith = ["https://api.web10.app", "http://api.localhost"]) {
     const wapi = {};
 
     // get the default api protocol, which is required to match its auth portals protocol
@@ -141,7 +141,7 @@ if (typeof wapiInit === "undefined") {
       if (!wapi.outBound[id]) {
         conn = wapi.peer.connect(id);
         wapi.outBound[conn.peer] = conn;
-        conn.on('close',()=>delete wapi.outBound[conn.peer])
+        conn.on('close', () => delete wapi.outBound[conn.peer])
       } else conn = wapi.outBound[id]
       return conn
     }
@@ -188,11 +188,14 @@ if (typeof wapiInit === "undefined") {
 
     //register the app
     //axios.post('https://api.web10.app/register_app', { "url": window.location.href.split('?')[0] })
-    axios.post('http://api.localhost/register_app', { "url": window.location.href.split('?')[0] })
+    registerWith.forEach((registrationURL) => {
+      axios.post(`${registrationURL}/register_app`, { "url": window.location.href.split('?')[0] })
       .then(function (response) {
         console.log(response)
       })
       .catch(console.log);
+    }
+    )
 
     //output the wapi object
     return wapi;
