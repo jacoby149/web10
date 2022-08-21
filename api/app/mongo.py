@@ -390,10 +390,10 @@ def get_collection_size(user):
 # appstore stats
 
 
-def get_apps():
+def get_apps(per_page = 2, page_num = 0):
     apps = [{"url": app["url"],
              "visits":app["visits"]}
-            for app in db["web10"]["apps"].find({}).sort('visits',pymongo.DESCENDING)]
+            for app in db["web10"]["apps"].find({}).sort('visits',pymongo.DESCENDING).skip(page_num * per_page).limit(per_page)]
     return apps
 
 
