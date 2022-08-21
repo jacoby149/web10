@@ -21,6 +21,8 @@ spec:
             value: "api.web10.dev"
           - name: DB
             value: "dev"
+          - name: LOCAL_REGISTRATION 
+            value: False
           resources:
             requests:
               memory: "512Mi"

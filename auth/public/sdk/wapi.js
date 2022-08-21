@@ -319,7 +319,12 @@ if (typeof wapiInit === "undefined") {
     };
 
     //register the app
-    axios.post('https://api.web10.app/register_app', { "url": window.location.href.split('?')[0] })
+    //axios.post('https://api.web10.app/register_app', { "url": window.location.href.split('?')[0] })
+    axios.post('http://api.localhost/register_app', { "url": window.location.href.split('?')[0] })
+      .then(function (response) {
+        console.log(response)
+      })
+      .catch(console.log);
 
     //output the wapi object
     return wapi;

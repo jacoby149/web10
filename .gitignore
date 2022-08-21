@@ -7,3 +7,4 @@ skaffold/run
 skaffold/dev
 api/app/settings.py
 auth/src/config.js
+home/layouts/scripts/config.js
