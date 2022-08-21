@@ -1,5 +1,5 @@
 {
-  "name": "web10",
+  "name": "web10-npm",
   "version": "1.0.0",
   "description": "web 2 based decentralized internet",
   "main": "wapi.js",
@@ -16,5 +16,8 @@
   "bugs": {
     "url": "https://github.com/jacoby149/web10/issues"
   },
-  "homepage": "https://github.com/jacoby149/web10#readme"
+  "homepage": "https://github.com/jacoby149/web10#readme",
+  "dependencies": {
+    "axios": "^0.27.2"
+  }
 }
