@@ -24,7 +24,7 @@ function displayApps(apps){
 
 axios
   //.post(`https://api.web10.app/stats`)
-  .post(`${provider}/stats`)
+  .post(`${provider}/stats`, {page_num: 0})
   .then((response) => {
     display(response.data);
   })

@@ -1,5 +1,6 @@
 import os
-
+LOCAL_REGISTRATION = True
+APP_STORE_PAGE_NUM = 10
 PROVIDER = "api.localhost"
 CORS_SERVICE_MANAGERS = [   
             "mobile",

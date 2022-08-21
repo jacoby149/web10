@@ -375,8 +375,8 @@ async def signup(form_data: models.SignUpForm):
 
 # gets the homepage stats
 @app.post("/stats",include_in_schema=False)
-async def stats():
-    apps = db.get_apps()
+async def stats(app_stats_form:models.AppStatsForm):
+    apps = db.get_apps(settings.APP_STORE_PAGE_NUM,app_stats_form.page_num)
     users = db.get_user_count()
     size = db.total_size()
     return {
