@@ -19,6 +19,7 @@ services:
     volumes:
       - ./auth:/frontend
       - node-modules:/frontend/node_modules
+      - wapi-node-modules:/frontend/public/sdk/node_modules
     command: ["npm", "run", "start"]
     environment:
       PORT: 80
@@ -86,4 +87,5 @@ services:
 
 volumes:
   node-modules:
+  wapi-node-modules:  
   rtc:
