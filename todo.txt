@@ -7,6 +7,7 @@ write a brand new authenticator v2, with separated logic for :
 email verification
 forgot pass
 beta code admin management pane
+use the router so it is easy to attach google analytics + hotjar
 
 web10 whatsapp
 wapi app store favicons + titles + descriptions [by embed tags]
