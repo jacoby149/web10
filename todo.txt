@@ -1,4 +1,13 @@
-Server Side Public License 
+write a brand new authenticator v2, with separated logic for :
+    - sign in
+    - easy-oauth
+    - services
+    - settings
+    - app store [with homepage stats]
+email verification
+forgot pass
+beta code admin management pane
+
 web10 whatsapp
 wapi app store favicons + titles + descriptions [by embed tags]
 wapi read add pagination
