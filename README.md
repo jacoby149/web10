@@ -119,11 +119,11 @@ Step 13 : Set BETA_REQUIRED, PAY_REQUIRED, and VERIFY REQUIRED to the same value
 
 ```javascript
 var config = {
-    DEFAULT_API: process.env.REACT_APP_DEFAULT_API || "api.localhost",
+    DEFAULT_API: env.REACT_APP_DEFAULT_API || "api.localhost",
     /* change these 3 variables to match step 9 */
-    BETA_REQUIRED: process.env.REACT_APP_BETA_REQUIRED || false,
-    VERIFY_REQUIRED: process.env.REACT_APP_VERIFY_REQUIRED || false,
-    PAY_REQUIRED: process.env.REACT_APP_PAY_REQUIRED || false,
+    BETA_REQUIRED: env.REACT_APP_BETA_REQUIRED || false,
+    VERIFY_REQUIRED: env.REACT_APP_VERIFY_REQUIRED || false,
+    PAY_REQUIRED: env.REACT_APP_PAY_REQUIRED || false,
 }
 
 export {config}

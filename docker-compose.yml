@@ -20,7 +20,7 @@ services:
       - ./auth:/frontend
       - node-modules:/frontend/node_modules
       - wapi-node-modules:/frontend/public/sdk/node_modules
-    command: ["npm", "run", "start"]
+    #command: ["npm", "run", "start"]
     environment:
       PORT: 80
       VIRTUAL_HOST: auth.localhost
