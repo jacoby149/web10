@@ -1,7 +1,7 @@
 import React from "react";
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/bootstrap.css";
-import { env } from "../env";
+import { config } from "../config";
 
 //web10 sign in boxes and buttons
 function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
@@ -15,7 +15,7 @@ function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
           <input
             id="provider"
             className="input has-background-white"
-            defaultValue={env.REACT_APP_DEFAULT_API
+            defaultValue={config.DEFAULT_API
             }
             placeholder="Web10 Provider"
           />
@@ -74,7 +74,7 @@ function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
               </span>
             </p>
           </div>
-          <div style={env.REACT_APP_VERIFY_REQUIRED ? { margin: "0 10px" } : { display: "None" }}>
+          <div style={config.VERIFY_REQUIRED ? { margin: "0 10px" } : { display: "None" }}>
             <div style={{ width: "calc(100% - 40px)", float: "left" }}>
               <PhoneInput
                 country={"us"}
@@ -93,7 +93,7 @@ function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
             </div>
             <br></br><br></br>
           </div>
-          <div style={env.REACT_APP_BETA_REQUIRED ? {} : { display: "None" }} className="field">
+          <div style={config.BETA_REQUIRED ? {} : { display: "None" }} className="field">
             <p
               style={{ margin: "0px 10px 10px 10px" }}
               className="control has-icons-left"
