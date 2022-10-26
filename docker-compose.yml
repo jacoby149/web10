@@ -18,8 +18,9 @@ services:
     build: auth
     volumes:
       - ./auth:/frontend
-      - node-modules:/frontend/node_modules
-      - wapi-node-modules:/frontend/public/sdk/node_modules
+      - web10-build:/frontend/build
+      - web10-node-modules:/frontend/node_modules
+      - web10-wapi-node-modules:/frontend/public/sdk/node_modules
     #command: ["npm", "run", "start"]
     environment:
       PORT: 80
@@ -33,7 +34,7 @@ services:
     build: rtc
     volumes:
       - ./rtc:/rtc
-      - rtc:/rtc/node_modules
+      - web10-rtc:/rtc/node_modules
     command: ["nodemon", "index.js"]
     environment:
       PORT: 80
@@ -88,6 +89,7 @@ services:
       - /var/run/docker.sock:/tmp/docker.sock:ro
 
 volumes:
-  node-modules:
-  wapi-node-modules:  
-  rtc:
+  web10-build:
+  web10-node-modules:
+  web10-wapi-node-modules:  
+  web10-rtc:
