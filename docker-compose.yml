@@ -21,13 +21,11 @@ services:
       - web10-build:/frontend/build
       - web10-node-modules:/frontend/node_modules
       - web10-wapi-node-modules:/frontend/public/sdk/node_modules
-    #command: ["npm", "run", "start"]
+    command: ["npm", "run", "start"]
     environment:
       PORT: 80
       VIRTUAL_HOST: auth.localhost
       CHOKIDAR_USEPOLLING: "true"
-      REACT_APP_DEFAULT_API: "epic_win.localhost"
-
     ports:
       - '3000:80'
   rtc:
