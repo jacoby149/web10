@@ -18,7 +18,6 @@ services:
     build: auth
     volumes:
       - ./auth:/frontend
-      - web10-build:/frontend/build
       - web10-node-modules:/frontend/node_modules
       - web10-wapi-node-modules:/frontend/public/sdk/node_modules
     command: ["npm", "run", "start"]
@@ -87,7 +86,6 @@ services:
       - /var/run/docker.sock:/tmp/docker.sock:ro
 
 volumes:
-  web10-build:
   web10-node-modules:
   web10-wapi-node-modules:  
   web10-rtc:
