@@ -1,18 +1,21 @@
-write a brand new authenticator v2, with separated logic for :
-    - sign in
-    - easy-oauth
-    - services
-    - settings
-    - app store [with homepage stats]
-email verification
-forgot pass
-beta code admin management pane
-use the router so it is easy to attach google analytics + hotjar
-
-web10 whatsapp
+12.15.22
+In the web10 authenticator, add an interface object like the app.
+then, do :
+    make sign up for new apps ONE click.
+    make log in for apps ZERO clicks.
+    twilio enabled forgot password flow.
+    TELLs you your username over text.
+    app store [with homepage stats]
+    in web10, make the SDK importable.
+    put the SDK in the root folder...
 wapi app store favicons + titles + descriptions [by embed tags]
 wapi read add pagination
 wapi register add pagination
+APPLICATION EXPERIENCE GO GO GO
+
+
+
+-----------------------------------------------------------
 wapi web npm package
 fps switch to wapi npm pack
 wapi npm -> system.js

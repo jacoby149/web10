@@ -5,6 +5,7 @@ import 'rectangles-npm/src/Rectangles.css'
 import ServiceTerms from "./components/ServiceTerms.js";
 import SignIn from "./components/SignIn.js";
 import {config} from "./config.js"
+import './index.css'
 
 var wapi = window.wapi;
 var wapiAuth = window.wapiAuth;
