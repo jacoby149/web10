@@ -213,7 +213,7 @@ function Unlink({ setStatus, callBack }) {
   const [phone, setPhone] = React.useState("");
   return (
     <div style={{ marginLeft: "4px" }}>
-      <u>Linked Devices / Accounts</u>
+      <u>Change Linked Devices / Accounts</u>
       <br></br>
       Type Password to confirm :{" "}
       <input
