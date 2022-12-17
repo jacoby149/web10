@@ -18,11 +18,12 @@ services:
     build: 
       context: .
       dockerfile: auth/Dockerfile
+      target: dev
     volumes:
       - ./auth:/auth
       - ./sdk:/auth/public/sdk
-      - web10-node-modules:/auth/node_modules
-      - web10-wapi-node-modules:/auth/public/sdk/node_modules
+      - node-modules:/auth/node_modules
+      - wapi-node-modules:/auth/public/sdk/node_modules
     command: ["npm", "run", "start"]
     environment:
       PORT: 80
@@ -34,7 +35,7 @@ services:
     build: rtc
     volumes:
       - ./rtc:/rtc
-      - web10-rtc:/rtc/node_modules
+      - rtc:/rtc/node_modules
     command: ["nodemon", "index.js"]
     environment:
       PORT: 80
@@ -89,6 +90,6 @@ services:
       - /var/run/docker.sock:/tmp/docker.sock:ro
 
 volumes:
-  web10-node-modules:
-  web10-wapi-node-modules:  
-  web10-rtc:
+  node-modules:
+  wapi-node-modules:  
+  rtc:

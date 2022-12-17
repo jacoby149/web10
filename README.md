@@ -34,9 +34,11 @@ docs page [for developers] : https://docs.web10.app
 
 
 
-## Community
+## Community / Resources
 
 web10 discord : https://discord.gg/Dbd4VEDznU
+
+web10 deployment video tutorial : https://www.youtube.com/watch?v=DgiiakMRRyQ
 
 
 
