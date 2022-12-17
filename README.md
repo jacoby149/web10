@@ -70,7 +70,7 @@ Step 4 : Make a Mongo DB Atlas account. start a free cluster.
 
 Step 5 : Go to the /api/app directory. Duplicate settings_example.py file in the same location, and rename the duplicate to settings.py
 
-Step 6 : Change the DB_URL settings.py if statement to your Mongo DB atlas DB URL
+Step 6 : In your settings.py, change the DB_URL to your Mongo DB atlas DB URL
 
 ```python
 # change this part in the settings.py file you made to your own DB_URL
@@ -115,18 +115,17 @@ STRIPE_LIVE_SPACE_SUB_ID = "price_1Kkb7....."
 
 Step 12 : Go to the /auth/src directory. Duplicate config_example.js file in the same location, and rename the duplicate to config.js
 
-Step 13 : Set BETA_REQUIRED, PAY_REQUIRED, and VERIFY REQUIRED to the same values as you did in step 9 
+Step 13 : In your config.js, Set BETA_REQUIRED, PAY_REQUIRED, and VERIFY REQUIRED to the same values as you did in step 9 
 
 ```javascript
 var config = {
-    DEFAULT_API: env.REACT_APP_DEFAULT_API || "api.localhost",
+    DEFAULT_API: "api.localhost",
     /* change these 3 variables to match step 9 */
-    BETA_REQUIRED: env.REACT_APP_BETA_REQUIRED || false,
-    VERIFY_REQUIRED: env.REACT_APP_VERIFY_REQUIRED || false,
-    PAY_REQUIRED: env.REACT_APP_PAY_REQUIRED || false,
+    BETA_REQUIRED: false,
+    VERIFY_REQUIRED: false,
+    PAY_REQUIRED: false,
 }
 
-export {config}
 ```
 
 #### Running in Docker

@@ -15,11 +15,14 @@ services:
         aliases:
           - api.localhost
   auth:
-    build: auth
+    build: 
+      context: .
+      dockerfile: auth/Dockerfile
     volumes:
-      - ./auth:/frontend
-      - web10-node-modules:/frontend/node_modules
-      - web10-wapi-node-modules:/frontend/public/sdk/node_modules
+      - ./auth:/auth
+      - ./sdk:/auth/public/sdk
+      - web10-node-modules:/auth/node_modules
+      - web10-wapi-node-modules:/auth/public/sdk/node_modules
     command: ["npm", "run", "start"]
     environment:
       PORT: 80
@@ -45,15 +48,15 @@ services:
       dockerfile: crm/Dockerfile
     volumes:
       - ./crm/:/crm/public
-      - ./auth/public/sdk/:/crm/public/sdk    
+      - ./sdk/:/crm/public/sdk    
     ports:
       - "7746:80"
     environment:
       VIRTUAL_HOST: crm.localhost
   docs:
-    build: docs 
+    build: sdk 
     volumes:
-      - ./docs/:/docs/public
+      - ./sdk/:/docs/public
     ports:
       - "6969:80"
     environment:
@@ -72,7 +75,7 @@ services:
       dockerfile: mail/Dockerfile
     volumes:
       - ./mail/:/mail/public
-      - ./auth/public/sdk/:/mail/public/sdk    
+      - ./sdk/:/mail/public/sdk    
 
     ports:
       - "7171:80"

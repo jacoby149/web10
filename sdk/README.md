@@ -12,17 +12,30 @@
 
 
 
-### SDK Installation (JS)
+### SDK Installation (npm)
 
-wapi.js is the javascript file containing the web10 developers SDK. <br>the file can be found at : https://auth.web10.app/sdk/wapi.js
+In your node application, run the following command.
+
+```shell
+npm -i web10-npm
+```
+
+Then, in your application you can import the package at the top.
+
+```js
+import {wapiInit} from 'web10-npm'
+```
+
+
+
+### SDK Installation (CDN Link)
+
+wapi.js is the javascript file containing the web10 developers SDK. <br>the file can be found at : https://unpkg.com/web10-npm/dist/wapi.js
 
 ```html
 <!-- Installing using CDN -->
-<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
-<script src="https://auth.web10.app/sdk/wapi.js"></script>
+<script src="https://unpkg.com/web10-npm/dist/wapi.js"></script>
 ```
-
-wapi.js relies on axios to make web10 requests, which is included in the above CDN links.
 
 
 
@@ -68,7 +81,7 @@ When not logged into web10 on a website with the wapi.js sdk, you can still util
 
 ### Hello World Demo
 
-Below is an example of some html and javascript utilizing all of the above SDK functions to handle login for a simple hello world app. <a href="https://docs.web10.app/hello">**Demo Link**</a>
+Below is an example of some html and javascript utilizing all of the above SDK functions to handle login for a simple hello world app. <a href="/demos/hello">**Demo Link**</a>
 
 ```html
 <html>
@@ -86,8 +99,7 @@ Below is an example of some html and javascript utilizing all of the above SDK f
         </p>
     </body>
     <!-- Installing using CDN -->
-    <script src="https://unpkg.com/axios/dist/axios.min.js" ></script>
-    <script src="https://auth.web10.app/sdk/wapi.js" ></script>
+    <script src="https://unpkg.com/web10-npm/dist/wapi.js" ></script>
     <script src="script.js"></script>
 </html>
 ```
@@ -199,7 +211,7 @@ Subservices are developer definable services within a service. There properties 
 
 ### Note App Demo
 
-Below is an example of some html and javascript utilizing all of the above user owned service management functionality to make a basic notes app. <a href="https://docs.web10.app/notes">**Demo Link**</a>
+Below is an example of some html and javascript utilizing all of the above user owned service management functionality to make a basic notes app. <a href="/demos/notes">**Demo Link**</a>
 
 ```html
 <html>
@@ -221,8 +233,7 @@ Below is an example of some html and javascript utilizing all of the above user 
     </div>
     <div id="noteview"></div>
 </body>
-<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
-<script src="https://auth.web10.app/sdk/wapi.js"></script>
+<script src="https://unpkg.com/web10-npm/dist/wapi.js"></script>
 <script src="script.js"></script>
 </html>
 ```
@@ -332,7 +343,7 @@ Below is a demo mail app. It showcases:
 2. $.50/mo. web10 devPay subscription. 
 3. sending of web10 mail as an anon web10 user when not logged in. 
 
-<a href="https://docs.web10.app/mailer">**Demo Link**</a>
+<a href="/demos/mailer">**Demo Link**</a>
 
 ```html
 <html>
@@ -344,7 +355,7 @@ Below is a demo mail app. It showcases:
     <meta name="viewport" content="width=device-width" />
 </head>
 <body>
-    <div style="margin:5px">
+    <div class="main">
         <button id="authButton">
             log in
         </button>
@@ -368,8 +379,7 @@ Below is a demo mail app. It showcases:
         <div id="mailview"></div>
     </div>
 </body>
-<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
-<script src="https://auth.web10.app/sdk/wapi.js"></script>
+<script src="https://unpkg.com/web10-npm/dist/wapi.js"></script>
 <script src="script.js"></script>
 </html>
 ```

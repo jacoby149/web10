@@ -1,6 +1,4 @@
-//wapi can be double loaded. try locally first and if that fails, load from the cdn
-if (typeof wapiAuthInit==='undefined'){
-
+import axios from 'axios';
 
 //Makes the wapiAuth library object
 function wapiAuthInit(wapi) {
@@ -126,4 +124,5 @@ function wapiAuthInit(wapi) {
   //output the wapiAuth object
   return wapiAuth;
 }
-}
+
+export {wapiAuthInit};
