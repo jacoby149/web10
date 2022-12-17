@@ -10,7 +10,7 @@ build:
         infer:
           - './app/*'
     - image: gcr.io/pure-phalanx-344719/auth-dev
-      context: ../../auth
+      context: ../..
       sync:
         infer:
           - './*'
