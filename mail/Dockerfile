@@ -7,4 +7,4 @@ ENV SERVER_DIRECTORY_LISTING true
 
 COPY mail/. /mail/public
 
-COPY auth/public/sdk/. /mail/public/sdk
+COPY sdk/. /mail/public/sdk
