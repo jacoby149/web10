@@ -9,7 +9,7 @@ build:
     - image: gcr.io/pure-phalanx-344719/rtc
       context: ../../rtc
     - image: gcr.io/pure-phalanx-344719/auth
-      context: ../../auth
+      context: ../..
     - image: gcr.io/pure-phalanx-344719/crm
       context: ../..
       docker:
