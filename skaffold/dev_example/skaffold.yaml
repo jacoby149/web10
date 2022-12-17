@@ -11,6 +11,9 @@ build:
           - './app/*'
     - image: gcr.io/pure-phalanx-344719/auth-dev
       context: ../..
+      docker:
+        dockerfile: auth/Dockerfile
+        target: dev
       sync:
         infer:
           - './*'
@@ -19,7 +22,7 @@ build:
       sync:
         infer:
         - 'crm/*'
-        - 'auth/public/sdk/*'
+        - 'sdk/*'
       docker:
         dockerfile: crm/Dockerfile
 deploy:

@@ -10,6 +10,9 @@ build:
       context: ../../rtc
     - image: gcr.io/pure-phalanx-344719/auth
       context: ../..
+      docker:
+        dockerfile: auth/Dockerfile
+        target: deploy
     - image: gcr.io/pure-phalanx-344719/crm
       context: ../..
       docker:
