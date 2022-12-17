@@ -6,6 +6,6 @@ RUN npm i -g serve
 COPY sdk /auth/public/sdk
 COPY auth/. /auth
 
-FROM dev
+FROM dev as deploy
 RUN npm run build
 CMD npx react-inject-env set && PORT=80 serve -s build
