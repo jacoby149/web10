@@ -1,6 +1,6 @@
 {
   "name": "web10-npm",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "web 2 based decentralized internet",
   "main": "dist/node/wapi.js",
   "browser": "dist/wapi.js",
