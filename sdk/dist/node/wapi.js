@@ -1,6 +1,7 @@
 function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
 
 var axios = _interopDefault(require('axios'));
+var peerjs = require('peerjs');
 
 function wapiAuthInit(wapi) {
   var wapiAuth = {};
@@ -293,7 +294,7 @@ function wapiInit(authUrl, rtcOrigin, protocol) {
     }
     var token = wapi.readToken();
     var id = wapi.peerID(token.provider, token.username, token.site, label);
-    wapi.peer = new Peer(id, {
+    wapi.peer = new peerjs.Peer(id, {
       host: rtcOrigin,
       secure: secure,
       port: secure ? 443 : 80,

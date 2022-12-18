@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { Peer } from "peerjs";
 import {wapiAuthInit} from './wapiAuth'
 
 //helper function for loading relevant cookies on page load.
