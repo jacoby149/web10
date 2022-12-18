@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { Peer } from 'peerjs';
 
 function wapiAuthInit(wapi) {
   var wapiAuth = {};

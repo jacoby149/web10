@@ -23,7 +23,8 @@
   },
   "homepage": "https://github.com/jacoby149/web10#readme",
   "dependencies": {
-    "axios": "^0.27.2"
+    "axios": "^0.27.2",
+    "peerjs": "^1.4.7"
   },
   "devDependencies": {
     "@babel/core": "^7.20.5",
