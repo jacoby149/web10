@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-//Makes the wapiAuth library object
-function wapiAuthInit(wapi) {
+//initializes the sdk for web10 authenticators.
+const wapiAuthInit = function(wapi) {
   const wapiAuth = {};
 
   //mints a second level token for the referrer site.

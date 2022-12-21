@@ -13406,7 +13406,7 @@ Object.defineProperty(exports, "wapiAuthInit", {
     return _wapiAuth.wapiAuthInit;
   }
 });
-exports.wapiInit = wapiInit;
+exports.wapiInit = void 0;
 var _axios = _interopRequireDefault(require("axios"));
 var _peerjs = require("peerjs");
 var _wapiAuth = require("./wapiAuth");
@@ -13435,8 +13435,8 @@ function cookieDict() {
   }, {});
 }
 
-//initializes the wapi library object
-function wapiInit() {
+//initializes the sdk for web10 apps.
+var wapiInit = function wapiInit() {
   var authUrl = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : "https://auth.web10.app";
   var rtcOrigin = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : "rtc.web10.app";
   var protocol = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : null;
@@ -13685,9 +13685,10 @@ function wapiInit() {
 
   //output the wapi object
   return wapi;
-}
+};
 
 //browserify window access
+exports.wapiInit = wapiInit;
 window.wapiInit = wapiInit;
 window.wapiAuthInit = _wapiAuth.wapiAuthInit;
 
@@ -13697,11 +13698,11 @@ window.wapiAuthInit = _wapiAuth.wapiAuthInit;
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.wapiAuthInit = wapiAuthInit;
+exports.wapiAuthInit = void 0;
 var _axios = _interopRequireDefault(require("axios"));
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
-//Makes the wapiAuth library object
-function wapiAuthInit(wapi) {
+//initializes the sdk for web10 authenticators.
+var wapiAuthInit = function wapiAuthInit(wapi) {
   var wapiAuth = {};
 
   //mints a second level token for the referrer site.
@@ -13835,6 +13836,7 @@ function wapiAuthInit(wapi) {
 
   //output the wapiAuth object
   return wapiAuth;
-}
+};
+exports.wapiAuthInit = wapiAuthInit;
 
 },{"axios":5}]},{},[58]);

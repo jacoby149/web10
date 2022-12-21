@@ -14,8 +14,8 @@ function cookieDict() {
   }, {});
 }
 
-//initializes the wapi library object
-function wapiInit(authUrl = "https://auth.web10.app", rtcOrigin = "rtc.web10.app", protocol = null) {
+//initializes the sdk for web10 apps.
+const wapiInit = function(authUrl = "https://auth.web10.app", rtcOrigin = "rtc.web10.app", protocol = null) {
   const wapi = {};
 
   // get the default api protocol, which is required to match its auth portals protocol
