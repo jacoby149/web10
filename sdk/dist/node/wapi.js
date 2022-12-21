@@ -3,7 +3,7 @@ function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'defau
 var axios = _interopDefault(require('axios'));
 var peerjs = require('peerjs');
 
-function wapiAuthInit(wapi) {
+var wapiAuthInit = function wapiAuthInit(wapi) {
   var wapiAuth = {};
   wapiAuth.mintOAuthToken = function () {
     var referrerURL = new URL(document.referrer);
@@ -114,7 +114,7 @@ function wapiAuthInit(wapi) {
     });
   };
   return wapiAuth;
-}
+};
 
 function cookieDict() {
   return window.document.cookie.split(";").reduce(function (res, c) {
@@ -130,7 +130,7 @@ function cookieDict() {
     }
   }, {});
 }
-function wapiInit(authUrl, rtcOrigin, protocol) {
+var wapiInit = function wapiInit(authUrl, rtcOrigin, protocol) {
   if (authUrl === void 0) {
     authUrl = "https://auth.web10.app";
   }
@@ -376,7 +376,7 @@ function wapiInit(authUrl, rtcOrigin, protocol) {
     "url": window.location.href.split('?')[0]
   });
   return wapi;
-}
+};
 window.wapiInit = wapiInit;
 window.wapiAuthInit = wapiAuthInit;
 
