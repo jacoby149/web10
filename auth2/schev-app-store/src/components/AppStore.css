@@ -1,0 +1,61 @@
+.textInput::placeholder{
+    color: #999;
+}
+
+.textInput:focus::placeholder {
+    color: transparent;
+  }
+
+  /**
+ * ==============================================
+ * Dot Fire
+ * ==============================================
+ */
+.dot-fire {
+    position: relative;
+    left: -9999px;
+    width: 10px;
+    height: 10px;
+    border-radius: 5px;
+    background-color: #9880ff;
+    color: #9880ff;
+    box-shadow: 9999px 22.5px 0 -5px #9880ff;
+    animation: dotFire 1.5s infinite linear;
+    animation-delay: -.85s;
+  }
+  
+  .dot-fire::before, .dot-fire::after {
+    content: '';
+    display: inline-block;
+    position: absolute;
+    top: 0;
+    width: 10px;
+    height: 10px;
+    border-radius: 5px;
+    background-color: #9880ff;
+    color: #9880ff;
+  }
+  
+  .dot-fire::before {
+    box-shadow: 9999px 22.5px 0 -5px #9880ff;
+    animation: dotFire 1.5s infinite linear;
+    animation-delay: -1.85s;
+  }
+  
+  .dot-fire::after {
+    box-shadow: 9999px 22.5px 0 -5px #9880ff;
+    animation: dotFire 1.5s infinite linear;
+    animation-delay: -2.85s;
+  }
+  
+  @keyframes dotFire {
+    1% {
+      box-shadow: 9999px 22.5px 0 -5px #9880ff;
+    }
+    50% {
+      box-shadow: 9999px -5.625px 0 2px #9880ff;
+    }
+    100% {
+      box-shadow: 9999px -22.5px 0 -5px #9880ff;
+    }
+  }
