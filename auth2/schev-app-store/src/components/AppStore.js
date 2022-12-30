@@ -8,8 +8,6 @@ import mockPage from './mockAppData';
 /* Plain Pad app made of entirely rectangles.js components */
 function AppStore({ setMode }) {
 
-
-
     /* Menu Collapsed State */
     const [collapse, setCollapse] = React.useState(false);
     function toggleCollapse() {
@@ -44,7 +42,7 @@ function AppStore({ setMode }) {
 
 
                 <C t tel >
-                    <div class="field" style={{ marginLeft: "20px", marginRight: "20px" }}>
+                    <div className="field" style={{ marginLeft: "20px", marginRight: "20px" }}>
                         <div className="control has-icons-left has-icons-right">
                             {/* change the color of the placeholder below */}
                             <input className="input is-success textInput" type="text" placeholder="Search" style={{ color: "white" }} />
@@ -71,12 +69,12 @@ function AppStore({ setMode }) {
                 {/* App Dir */}
                 <R tel t >
                     {appRows}
-                    <div class="columns" style={{ width: "100%" }}>
-                        <div class="column"></div>
-                        <div class="column">
-                            <div class="snippet" data-title=".dot-fire">
-                                <div class="stage">
-                                    <div class="dot-fire"></div>
+                    <div className="columns" style={{ width: "100%" }}>
+                        <div className="column"></div>
+                        <div className="column">
+                            <div className="snippet" data-title=".dot-fire">
+                                <div className="stage">
+                                    <div className="dot-fire"></div>
                                 </div>
                             </div>
                         </div>
@@ -93,14 +91,14 @@ function AppStore({ setMode }) {
 
 function AppRow({titles, descriptions}) {
     return(
-    <div class="columns" style={{ width: "100%" }}>
-        <div class="column">
+    <div className="columns" style={{ width: "100%" }}>
+        <div className="column">
             <AppListing title={titles[0]} description={descriptions[0]}></AppListing>
         </div>
-        <div class="column">
+        <div className="column">
             <AppListing title={titles[1]} description={descriptions[1]}></AppListing>
         </div>
-        <div class="column">
+        <div className="column">
             <AppListing title={titles[2]} description={descriptions[2]}></AppListing>
         </div>
     </div>

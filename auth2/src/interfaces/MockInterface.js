@@ -1,5 +1,6 @@
 import React from 'react';
 // import mockContacts from '../mocks/MockContacts'
+import mockPage from '../mocks/mockAppData';
 
 function useMockInterface() {
     const I = {};
@@ -8,6 +9,8 @@ function useMockInterface() {
     [I.menuCollapsed, I.setMenuCollapsed] = React.useState(true);
     [I.mode, I._setMode] = React.useState("login");
     [I.search, I.setSearch] = React.useState("");
+
+    [I.apps,I.setApps] = React.useState(mockPage);
 
     I.setMode = function (mode) {
         I.setMenuCollapsed(true);
