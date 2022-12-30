@@ -31,10 +31,13 @@ function TopBar(props) {
             </R>
             <C l tel>
             
-                    <Search onClearClick={() => I.runSearch("")} onChange={(v) => I.runSearch(v)} style={{ width: "100%", marginRight: "30px"}} placeholder="Search..." />
+                    <Search onClearClick={() => I.runSearch("")} onChange={(v) => I.runSearch(v)} style={{ width: "100%", marginRight: "10px"}} placeholder="Search..." />
 
             </C>
-            <R t s={"20px"}></R>
+            <C t s={"70px"}>
+                <button className="button is-primary is-small" onClick={()=>I.setMode("login")}>Login</button>
+            </C>
+            <R t s={"30px"}></R>
         </R>
     )
 }

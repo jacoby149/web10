@@ -7,7 +7,7 @@ function useMockInterface() {
 
     [I.theme,I.setTheme] = React.useState("dark");
     [I.menuCollapsed, I.setMenuCollapsed] = React.useState(true);
-    [I.mode, I._setMode] = React.useState("login");
+    [I.mode, I._setMode] = React.useState("appstore");
     [I.search, I.setSearch] = React.useState("");
 
     [I.apps,I.setApps] = React.useState(mockPage);

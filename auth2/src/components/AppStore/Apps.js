@@ -1,4 +1,4 @@
-function AppListing({ title, img }) {
+function AppListing({ title, img,hits }) {
     const placeHolderImg = "https://bulma.io/images/placeholders/128x128.png";
     return (
         <div className="box" style={{ margin: "10px", backgroundColor: "#00000000" }}>
@@ -11,7 +11,7 @@ function AppListing({ title, img }) {
                 <div className="media-content">
                     <div className="content" style={{ marginTop: "10px" }}>
                         <p>
-                            <strong>{title}</strong> <br></br><small>3,193 hits</small>
+                            <strong>{title}</strong> <br></br><small>{hits} hits</small>
                         </p>
                     </div>
                 </div>
@@ -19,18 +19,18 @@ function AppListing({ title, img }) {
         </div>)
 }
 
-function AppRow({ data }) {
-    const apps = data.map((e,index) =>
-        <div key={index } className="column">
-            <AppListing title={e.title} img={e.img}></AppListing>
+function Apps({ I }) {
+    const apps = I.apps.map((e,index) =>
+        <div key={index } style={{width:"150px",display:"inline-block"}}>
+            <AppListing title={e.title} img={e.img} hits={e.hits.toLocaleString()}></AppListing>
         </div>
 
     )
     return (
-        <div className="columns is-mobile" style={{ width: "100%" }}>
+        <div style={{ width: "100%" ,textAlign:"center"}}>
             {apps}
         </div>
     )
 }
 
-export { AppRow };
+export { Apps };
