@@ -16,12 +16,12 @@ function App() {
   window.I = I;
   
   switch (I.mode) {
-    case "app-store": return <AppStore I={I} />;
+    case "appstore": return <AppStore I={I} />;
     case "contracts": return <Contracts I={I} />;
     // case "contract-viewer" : return <ContractViewer I={I} />
     // case "settings": return <Settings I={I} />;
-    // case "log-in": return <Login I={I} />;
-    // case "sign-up": return <SignUp I={I} />;
+    // case "login": return <Login I={I} />;
+    // case "signup": return <SignUp I={I} />;
     // case "forgot-pass": return <ForgotPass I={I} />;
     default: return <AppStore I={I} />;
   }
