@@ -1,7 +1,11 @@
-.credential-form{
-  width:"300px";
-  margin:"auto";
-  margin-top:"100px";
+.R .form-control.input{
+  color:black;
+}
+
+.R .credential-form{
+  width:320px;
+  margin:auto;
+  margin-top:70px;
   padding:10px;
   border: solid;
   border-width: 1px;
