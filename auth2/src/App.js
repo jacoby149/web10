@@ -5,6 +5,7 @@ import React from 'react';
 import './assets/bulma/css/bulma.min.css';
 import Contracts from './components/Contracts/Contracts';
 import AppStore from './components/AppStore/AppStore';
+import CredentialPage from './components/CredentialPage/CredentialPage';
 
 function App() {
 
@@ -20,8 +21,8 @@ function App() {
     case "contracts": return <Contracts I={I} />;
     // case "contract-viewer" : return <ContractViewer I={I} />
     // case "settings": return <Settings I={I} />;
-    // case "login": return <Login I={I} />;
-    // case "signup": return <SignUp I={I} />;
+    case "login": return <CredentialPage I={I} />;
+    case "signup": return <CredentialPage I={I} />;
     // case "forgot-pass": return <ForgotPass I={I} />;
     default: return <AppStore I={I} />;
   }
