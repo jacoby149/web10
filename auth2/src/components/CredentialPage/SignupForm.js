@@ -38,6 +38,7 @@ function SignupForm({ I }) {
                     >
                         Signup
                     </button>
+                    <div style={{ margin: "20px" }}><a onClick={()=>I.setMode("login")}><u>Already have an account?</u></a></div>
                 </div>
             </div>
         </div>
