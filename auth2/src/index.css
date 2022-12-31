@@ -1,29 +1,64 @@
-.R .cs-search .cs-search__input{
-  color:black;
+.statistic {
+  display: inline-block;
+  margin:10px 10px 0px 10px;
+  padding: 0px 5px;
+  font-style: italic;
+  border: solid;
+  border-width: 1px;
+  border-radius: 8px;
 }
 
-.R.dark strong{
-  color:white;
+.app-container {
+  margin-top:12px;
 }
 
-.R.dark strong{
-  color:white;
+.R.dark .statistic {
+  border-color:#566778;
 }
 
-.R.dark small{
-  color:#dddddd;
+.R.light .statistic {
+  border-color:#eeddcc;
 }
 
-.R.dark .input.has-background-white{
-  color:black;
+
+.R.dark .box {
+  border: solid;
+  border-width: 1px;
+  border-radius: 8px;
+  border-color:#263748;
 }
 
- /**
+.center-container {
+  width: 100%;
+  text-align: center;
+}
+
+.R .cs-search .cs-search__input {
+  color: black;
+}
+
+.R.dark strong {
+  color: white;
+}
+
+.R.dark strong {
+  color: white;
+}
+
+.R.dark small {
+  color: #dddddd;
+}
+
+.R.dark .input.has-background-white {
+  color: black;
+}
+
+/**
  * ==============================================
  * Dot Fire
  * ==============================================
  */
- .dot-fire {
+.dot-fire {
   position: relative;
   left: -9999px;
   width: 10px;
@@ -36,7 +71,8 @@
   animation-delay: -.85s;
 }
 
-.dot-fire::before, .dot-fire::after {
+.dot-fire::before,
+.dot-fire::after {
   content: '';
   display: inline-block;
   position: absolute;
@@ -64,9 +100,11 @@
   1% {
     box-shadow: 9950px 0 0 -5px #9880ff;
   }
+
   50% {
     box-shadow: 9975px 0 0 2px #9880ff;
   }
+
   100% {
     box-shadow: 9999px 0 0 -5px #9880ff;
   }

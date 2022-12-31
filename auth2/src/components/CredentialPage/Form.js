@@ -129,7 +129,7 @@ function CredentialForm({ I }) {
                                 onClick={()=>I.setMode("signup")}
                                 style={{ margin: "10px 10px" }}
                                 className="button is-warning">
-                                Sign Up
+                                Create A New Account
                             </button>
                         </div>
                     ) : (
@@ -145,7 +145,7 @@ function CredentialForm({ I }) {
                                 I.signUp(provider, username, password, retype, betacode)
                             }}
                             style={{ margin: "0px 10px" }}
-                            className="button is-info"
+                            className="button is-primary"
                         >
                             Signup
                         </button>
