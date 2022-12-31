@@ -1,7 +1,7 @@
 function AppListing({ title, img,hits }) {
     const placeHolderImg = "https://bulma.io/images/placeholders/128x128.png";
     return (
-        <div className="box" style={{ margin: "10px", backgroundColor: "#00000000" }}>
+        <div className="box" style={{ margin: "0px 10px 20px 10px", backgroundColor: "#00000000" }}>
             <div className="card-image">
                 <figure className="image is-2by2">
                     <img style={{ borderRadius: "10px" }} src={img?img:placeHolderImg} alt="Placeholder image" />
@@ -27,7 +27,7 @@ function Apps({ I }) {
 
     )
     return (
-        <div style={{ width: "100%" ,textAlign:"center"}}>
+        <div className="center-container app-container">
             {apps}
         </div>
     )
