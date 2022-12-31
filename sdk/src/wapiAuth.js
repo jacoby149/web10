@@ -31,9 +31,9 @@ const wapiAuthInit = function(wapi) {
 
   //log into an existing web10 account
   //get tokens for web10 auth, and a parent oauth application.
-  wapiAuth.logIn = function (provider, username, password, setAuth, setStatus) {
+  wapiAuth.logIn = function (provider, username, password) {
     //web10 auth login
-    axios
+    return axios
       .post(`${wapi.defaultAPIProtocol}//${provider}/web10token`, {
         username: username,
         password: password,
@@ -43,10 +43,8 @@ const wapiAuthInit = function(wapi) {
       })
       .then(function (response) {
         wapi.setToken(response.data.token);
-        setAuth(true);
         wapiAuth.mintOAuthToken();
       })
-      .catch((error) => setStatus(`Log in failed : ${error.response.data.detail}`));
   };
 
   //sign up for a new web10 account
