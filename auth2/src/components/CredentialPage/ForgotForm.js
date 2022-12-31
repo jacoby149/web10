@@ -13,6 +13,7 @@ function ForgotForm({ I }) {
 
             <div className="field">
                 <div className="control">
+                    <button onClick={()=>I.setMode("login")} className="button">Cancel</button>
                     <button
                         onClick={() => {
                             const [provider, username, password, betacode, retype] = [
@@ -22,7 +23,7 @@ function ForgotForm({ I }) {
                                 document.getElementById("betacode").value,
                                 document.getElementById("retypepass").value,
                             ];
-                            I.recover(provider,I.phone)
+                            I.recover(provider, I.phone)
                         }}
                         style={{ margin: "0px 10px" }}
                         className="button is-info"
