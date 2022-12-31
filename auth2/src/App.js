@@ -23,7 +23,7 @@ function App() {
     // case "settings": return <Settings I={I} />;
     case "login": return <CredentialPage I={I} />;
     case "signup": return <CredentialPage I={I} />;
-    // case "forgot-pass": return <ForgotPass I={I} />;
+    case "forgot": return <CredentialPage I={I} />;
     default: return <AppStore I={I} />;
   }
 }
