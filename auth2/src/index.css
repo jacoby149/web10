@@ -1,3 +1,22 @@
+.credential-form{
+  width:"300px";
+  margin:"auto";
+  margin-top:"100px";
+  padding:10px;
+  border: solid;
+  border-width: 1px;
+  border-radius: 8px;
+
+}
+
+.R.dark .credential-form {
+  border-color:#566778;
+}
+
+.R.light .credential-form {
+  border-color:#f9e7cf;
+}
+
 .statistic {
   display: inline-block;
   margin:10px 10px 0px 10px;
