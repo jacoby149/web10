@@ -15,22 +15,19 @@ function AppStore({ I }) {
                 <SideBar I={I}></SideBar>
                 <R t tel>
                     <div className="center-container stat-container">
-                    <div className="statistic">120 users </div>
+                        <div className="statistic">120 users </div>
                         <div className="statistic">80 apps</div>
                         <div className="statistic">40,050 hits</div>
                         <div className="statistic">9,000 GB data</div>
                     </div>
                     <Apps I={I}></Apps>
                     <br></br>
-                    <div className="columns" style={{ width: "100%" }}>
-                        <div className="column"></div>
-                        <div className="column">
-                            <div className="snippet" data-title=".dot-fire">
-                                <div className="stage">
-                                    <div className="dot-fire"></div>
-                                    <br></br>
-                                </div>
-                            </div>
+                    <div className="center-container">
+                        <div className="lds-ellipsis">
+                            <div></div>
+                            <div></div>
+                            <div></div>
+                            <div></div>
                         </div>
                     </div>
                 </R>
