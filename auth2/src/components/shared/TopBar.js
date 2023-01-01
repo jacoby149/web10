@@ -30,12 +30,15 @@ function TopBar(props) {
                 <Icon onClick={I.toggleTheme}>moon</Icon>
             </R>
             <C l tel>
-            
-                    <Search onClearClick={() => I.runSearch("")} onChange={(v) => I.runSearch(v)} style={{ width: "100%", marginRight: "10px"}} placeholder="Search..." />
+
+                <Search onClearClick={() => I.runSearch("")} onChange={(v) => I.runSearch(v)} style={{ width: "100%", marginRight: "10px" }} placeholder="Search..." />
 
             </C>
-            <C t s={"70px"}>
-                <button className="button is-primary is-small" onClick={()=>I.setMode("login")}>Login</button>
+            <C t s={"75px"}>
+                {I.mode==="appstore"?
+                    <button className="button is-primary is-small" onClick={() => I.setMode("login")}>Login</button>:
+                    <button className="button is-info is-small" onClick={() => I.setMode("appstore")}>Apps</button>
+                }
             </C>
             <R t s={"30px"}></R>
         </R>
