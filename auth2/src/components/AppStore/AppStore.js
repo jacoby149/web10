@@ -20,6 +20,7 @@ function AppStore({ I }) {
                         <div className="statistic">40,050 hits</div>
                         <div className="statistic">9,000 GB data</div>
                     </div>
+                    <div style={{margin:"10px 0px"}} className="center-container"><b>Top web10 apps.</b></div>
                     <Apps I={I}></Apps>
                     <br></br>
                     <div className="center-container">
