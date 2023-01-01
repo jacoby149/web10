@@ -1,3 +1,8 @@
+.contract{
+  margin:20px;
+  font-weight: bold;
+}
+
 .R .form-control.input{
   color:black;
 }
