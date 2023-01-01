@@ -1,11 +1,11 @@
-Center the Login and Sign up.
-From the Login and Sign Up Pages, add a back to app store button...
 Make an all Services Page
 Make a Services Change Form
-Make a Forgot Password Page.
-
-Find your account
-Please enter your email or mobile number to search for your account.
-Email or Mobile number
-cancel || search
-
+make the app information screen
+    - app icon
+    - app description
+    - views
+    - 
+make status messages, where there is a delay for :
+    logging in
+    signing up
+    account recovery
