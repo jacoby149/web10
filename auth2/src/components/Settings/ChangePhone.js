@@ -31,7 +31,7 @@ function ChangePhone({I}) {
                         <Phone I={I}></Phone>
                         <ConfirmationPass I={I}></ConfirmationPass>
                     </div>
-                    <button style={{ marginTop: "10px" }} className='button is-warning is-small'>Change Phone Number</button>
+                    <button onClick={()=>I.changePhoneNumber()} style={{ marginTop: "10px" }} className='button is-warning is-small'>Change Phone Number</button>
                 </div>
             </div>
         </div>

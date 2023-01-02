@@ -28,6 +28,7 @@ function VerifyPhone({ I }) {
 
                     <div style={{ width: "600px" }}>
                         <VerificationInput
+                            onChange={I.verificationChange}
                             classNames={{
                                 container: "container",
                                 character: "character",

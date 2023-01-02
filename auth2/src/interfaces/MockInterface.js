@@ -20,6 +20,15 @@ function useMockInterface() {
     [I.phone, I.setPhone] = React.useState("13472092325");
 
     [I.auth,I.setAuth] = React.useState(false);
+    [I.verified,I.setVerified] = React.useState(false);
+
+    I.verificationChange = function(value){
+        if (value.length===6) I.setVerified(true)
+    }
+
+    I.changePhoneNumber = function(){
+        I.setVerified(false)
+    }
 
     I.setMode = function (mode) {
         I.setMenuCollapsed(true);
@@ -61,6 +70,10 @@ function useMockInterface() {
     I.signup=function(){
         I.setAuth(true);
         I.setMode("appstore");
+    }
+
+    I.isVerified = function(){
+        return I.verified;
     }
 
 
