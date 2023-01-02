@@ -5,17 +5,10 @@ import { Search } from '@chatscope/chat-ui-kit-react'
 import styles from '@chatscope/chat-ui-kit-styles/dist/default/styles.min.css';
 
 
-function EditButton() {
-    return <i style={{ color: "orange", margin: "10px" }} className={"fa fa-pencil fa-2x font-weight-bold"}></i>
-}
-
-function BackButton() {
-    return <i style={{ color: "orange", margin: "10px" }} className={"fa fa-arrow-rotate-left fa-2z  font-weight-bold"}></i>
-}
-
-
-function EditBulletin() {
-    return <i style={{ color: "pink", margin: "10px" }} className={"fa fa-trash fa-2x font-weight-bold"}></i>
+function AppsButton({ I }) {
+    return (
+        <button className="button is-info is-small" onClick={() => I.setMode("appstore")}>Apps</button>
+    );
 }
 
 /* Top Bar of web10 */
@@ -34,12 +27,22 @@ function TopBar(props) {
                 <Search onClearClick={() => I.runSearch("")} onChange={(v) => I.runSearch(v)} style={{ width: "100%", marginRight: "10px" }} placeholder="Search..." />
 
             </C>
-            <C t s={"75px"}>
-                {I.mode==="appstore"?
-                    <button className="button is-primary is-small" onClick={() => I.setMode("login")}>Login</button>:
-                    <button className="button is-info is-small" onClick={() => I.setMode("appstore")}>Apps</button>
-                }
-            </C>
+            {I.isAuthenticated() ?
+                I.mode === "settings" ?
+                    <C t s={"75px"}>
+                        <AppsButton I={I} />
+                    </C>
+                    :
+                    <Icon onClick={() => I.setMode("settings")}>gear</Icon>
+
+                :
+                <C t s={"75px"}>
+                    {I.mode === "appstore" ?
+                        <button className="button is-primary is-small" onClick={() => I.setMode("login")}>Login</button> :
+                        <AppsButton I={I} />
+                    }
+                </C>
+            }
             <R t s={"30px"}></R>
         </R>
     )
