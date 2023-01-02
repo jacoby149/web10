@@ -1,3 +1,12 @@
+.R.dark{
+  font-family: monospace;
+}
+
+.R.light{
+  font-family: monospace;
+}
+
+
 .contract{
   margin:20px;
   font-weight: bold;

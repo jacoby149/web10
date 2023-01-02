@@ -5,8 +5,8 @@
 import { R } from 'rectangles-npm'
 import TopBar from '../shared/TopBar';
 import SideBar from '../shared/SideBar';
-import Phone from '../CredentialPage/FormInputs/Phone';
-import ConfirmationPass from '../CredentialPage/FormInputs/ConfirmationPass';
+import ChangePhone from './ChangePhone';
+import ChangePass from './ChangePassword';
 
 function Settings({ I }) {
     return (
@@ -15,10 +15,11 @@ function Settings({ I }) {
             <R l tel>
                 <SideBar I={I}></SideBar>
                 <R t tel>
+                    <div style={{margin:"15px 0px 0px 0px"}} className="center-container"><b>Settings - jacoby149</b></div>
                     <div className="card setting">
                         <header class="card-header">
                             <p class="card-header-title">
-                                Account Details
+                                Subscription Details
                             </p>
                             <button class="card-header-icon" aria-label="more options">
                                 <span class="icon">
@@ -28,11 +29,8 @@ function Settings({ I }) {
                         </header>
                         <div class="card-content">
                             <div class="content">
-                                username : <a>jacoby149</a><br></br>
-                                credit plan : <a>2 credits / month</a><br></br>
-                                space plan : <a>1000MB</a><br></br>
-                                credits_spent_this_month : <a>0.19873 credits</a><br></br>
-                                space_utilization : <a>87.24MB</a>
+                                credits_spent_this_month : <a>0.19873 / 2 credits</a><br></br>
+                                space_utilization : <a>87.24MB / 100MB</a>
                             </div>
                         </div>
                         <footer class="card-footer">
@@ -42,10 +40,14 @@ function Settings({ I }) {
                         </footer>
                     </div>
 
+                    <ChangePhone I={I} />
+                    <ChangePass I={I} />
+
+
                     <div className="card setting">
                         <header class="card-header">
                             <p class="card-header-title">
-                                Change Phone Number
+                                DevPay
                             </p>
                             <button class="card-header-icon" aria-label="more options">
                                 <span class="icon">
@@ -53,21 +55,10 @@ function Settings({ I }) {
                                 </span>
                             </button>
                         </header>
-                        <div class="card-content">
-                            <div class="content">
-                                <div style={{ width: "300px" }}>
-                                    <Phone I={I}></Phone>
-                                    <ConfirmationPass I={I}></ConfirmationPass>
-                                </div>
-                                <button className='button is-warning is-small'>Change Phone Number</button>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="box contract">
-                        Password
-                    </div>
-                    <div style={{ backgroundColor: "white" }} className="box contract">
-                        DevPay
+                        <footer class="card-footer">
+                            <a href="#" class="card-footer-item">Connect To Bank</a>
+                            <a href="#" class="card-footer-item">DevPay Stats</a>
+                        </footer>
                     </div>
                 </R>
             </R>
