@@ -30,7 +30,7 @@ function Settings({ I }) {
                         </header>
                         <div class="card-content">
                             <div class="content">
-                                credits_spent_this_month : <a>0.19873 / 2 credits</a><br></br>
+                                spent_this_month : <a>0.19873 / 2 credits</a><br></br>
                                 space_utilization : <a>87.24MB / 100MB</a>
                             </div>
                         </div>
