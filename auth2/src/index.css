@@ -1,3 +1,8 @@
+.card-footer-item:hover{
+  background-color: rgb(255, 247, 240);
+  border-radius: 10px;
+}
+
 .character {
   border: none;
   font-size: 20px;
