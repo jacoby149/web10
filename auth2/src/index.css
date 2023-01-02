@@ -2,7 +2,10 @@
   border: none;
   font-size: 20px;
   border-radius: 8px;
-  width:50px;
+  width:40px;
+  scale:80%;
+  margin:-2px;
+
 
   /* light theme */
   color: #272729;
