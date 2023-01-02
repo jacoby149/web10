@@ -3,6 +3,14 @@
   font-weight: bold;
 }
 
+.setting{
+  margin:20px;
+}
+
+.R .setting a{
+  color:#b05de1;
+}
+
 .R .form-control.input{
   color:black;
 }
