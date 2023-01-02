@@ -7,6 +7,11 @@ function ChangePhone({I}) {
     function toggleHide(){
         setHide(!hide)
     }
+    const [verify,setVerify] = React.useState(true);
+    function toggleVerify(){
+        setVerify(!verify)
+    }
+
     return (
         <div className="card setting">
             <header class="card-header">
@@ -21,6 +26,7 @@ function ChangePhone({I}) {
             </header>
             <div style={hide?{display:"none"}:{}} class="card-content">
                 <div class="content">
+                    
                     <div style={{ width: "300px" }}>
                         <Phone I={I}></Phone>
                         <ConfirmationPass I={I}></ConfirmationPass>

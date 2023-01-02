@@ -7,7 +7,8 @@ import TopBar from '../shared/TopBar';
 import SideBar from '../shared/SideBar';
 import ChangePhone from './ChangePhone';
 import ChangePass from './ChangePassword';
-
+import VerifyPhone
+ from './VerifyPhone';
 function Settings({ I }) {
     return (
         <R root t bt bb br bl theme={I.theme}>
@@ -40,6 +41,7 @@ function Settings({ I }) {
                         </footer>
                     </div>
 
+                    <VerifyPhone I={I}/>
                     <ChangePhone I={I} />
                     <ChangePass I={I} />
 
