@@ -14,6 +14,7 @@ function Contracts({ I }) {
             <R l tel>
                 <SideBar I={I}></SideBar>
                 <R t tel>
+                <div style={{margin:"15px 0px 0px 0px"}} className="center-container"><b>Contracts - jacoby149</b></div>
                 <Contract I={I} service={"contacts"}/>
                 <Contract I={I} service={"posts"} />
                 <Contract I={I} service={"identity"} />

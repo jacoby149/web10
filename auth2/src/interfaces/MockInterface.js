@@ -19,6 +19,8 @@ function useMockInterface() {
     [I.apps,I.setApps] = React.useState(mockPage);
     [I.phone, I.setPhone] = React.useState("13472092325");
 
+    [I.auth,I.setAuth] = React.useState(false);
+
     I.setMode = function (mode) {
         I.setMenuCollapsed(true);
         I.setSearch("")
@@ -36,6 +38,31 @@ function useMockInterface() {
     I.runSearch = function(){
         return;
     }
+
+    I.isAuthenticated=function(){
+        return I.auth
+    }
+
+    I.login=function(){
+        I.setAuth(true);
+        I.setMode("appstore");
+    }
+
+    I.logout=function(){
+        I.setAuth(false);
+        I.setMode("login");
+    }
+
+    I.recover=function(){
+        I.setAuth(true);
+        I.setMode("appstore");
+    }
+
+    I.signup=function(){
+        I.setAuth(true);
+        I.setMode("appstore");
+    }
+
 
     return I;
 }

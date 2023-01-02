@@ -32,7 +32,7 @@ function SignupForm({ I }) {
                                 document.getElementById("betacode").value,
                                 document.getElementById("retypepass").value,
                             ];
-                            I.signUp(provider, username, password, retype, betacode)
+                            I.signup(provider, username, password, retype, betacode)
                         }}
                         style={{ margin: "0px 10px" }}
                         className="button is-primary"
