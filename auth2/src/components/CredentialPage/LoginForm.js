@@ -15,6 +15,7 @@ function LoginForm({ I }) {
                     <div>
                         <button
                             onClick={() => {
+                                I.setMode("appstore")
                                 I.logIn(
                                     document.getElementById("provider").value,
                                     document.getElementById("username").value,

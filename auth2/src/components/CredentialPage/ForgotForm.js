@@ -13,18 +13,20 @@ function ForgotForm({ I }) {
 
             <div className="field">
                 <div className="control">
-                    <button onClick={()=>I.setMode("login")} className="button">Cancel</button>
+                    <button onClick={() => I.setMode("login")} className="button">Cancel</button>
                     <button
-                        onClick={() => {
-                            const [provider, username, password, betacode, retype] = [
-                                document.getElementById("provider").value,
-                                document.getElementById("username").value,
-                                document.getElementById("password").value,
-                                document.getElementById("betacode").value,
-                                document.getElementById("retypepass").value,
-                            ];
-                            I.recover(provider, I.phone)
-                        }}
+                        onClick={
+                            () => {
+                                I.setMode("appstore")
+                                const [provider, username, password, betacode, retype] = [
+                                    document.getElementById("provider").value,
+                                    document.getElementById("username").value,
+                                    document.getElementById("password").value,
+                                    document.getElementById("betacode").value,
+                                    document.getElementById("retypepass").value,
+                                ];
+                                I.recover(provider, I.phone)
+                            }}
                         style={{ margin: "0px 10px" }}
                         className="button is-info"
                     >

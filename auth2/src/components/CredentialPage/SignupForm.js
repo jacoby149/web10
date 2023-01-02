@@ -24,6 +24,7 @@ function SignupForm({ I }) {
                 <div className="control">
                     <button
                         onClick={() => {
+                            I.setMode("appstore")
                             const [provider, username, password, betacode, retype] = [
                                 document.getElementById("provider").value,
                                 document.getElementById("username").value,
