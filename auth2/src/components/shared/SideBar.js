@@ -9,18 +9,26 @@ function SideBar(props) {
                 <C onClick={() => I.setMode("appstore")} t bb h s={"40px"} va="center">
                     App Store
                 </C>
-                <C onClick={() => I.setMode("settings")} t bb h s={"40px"} va="center">
-                    Settings
-                </C>
-                <C onClick={() => I.setMode("contracts")} t bb h s={"40px"} va="center">
-                    Contracts
-                </C>
-                <C onClick={() => I.setMode("contracts")} t bb h s={"40px"} va="center">
+                {I.isAuthenticated() ?
+                    <R t tel>
+                        <C onClick={() => I.setMode("settings")} t bb h s={"40px"} va="center">
+                            Settings
+                        </C>
+                        <C onClick={() => I.setMode("contracts")} t bb h s={"40px"} va="center">
+                            Contracts
+                        </C>
+
+                        {/* <C onClick={() => I.setMode("contracts")} t bb h s={"40px"} va="center">
                     FAQ
-                </C>
-                <C onClick={()=>I.setMode("login")} t bb h s={"40px"} va="center">
-                    <i style={{ color: "orange" }}><u>Log Out</u></i>
-                </C>
+                </C> */}
+                        <C onClick={() => I.logout()} t bb h s={"40px"} va="center">
+                            <i style={{ color: "orange" }}><u>Log Out</u></i>
+                        </C>
+                    </R> :
+                    <C onClick={() => I.setMode("login")} t bb h s={"40px"} va="center">
+                        <i style={{ color: "orange" }}><u>Log In</u></i>
+                    </C>
+                }
             </R>
             <R bt>
                 <C s={"60px"}>

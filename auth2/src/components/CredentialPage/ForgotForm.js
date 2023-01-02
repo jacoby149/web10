@@ -17,14 +17,7 @@ function ForgotForm({ I }) {
                     <button
                         onClick={
                             () => {
-                                I.setMode("appstore")
-                                const [provider, username, password, betacode, retype] = [
-                                    document.getElementById("provider").value,
-                                    document.getElementById("username").value,
-                                    document.getElementById("password").value,
-                                    document.getElementById("betacode").value,
-                                    document.getElementById("retypepass").value,
-                                ];
+                                const provider = document.getElementById("provider").value;
                                 I.recover(provider, I.phone)
                             }}
                         style={{ margin: "0px 10px" }}
