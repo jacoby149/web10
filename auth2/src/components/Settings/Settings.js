@@ -9,6 +9,7 @@ import ChangePhone from './ChangePhone';
 import ChangePass from './ChangePassword';
 import VerifyPhone from './VerifyPhone';
 import Subscription from './Subscription';
+import DevPay from './DevPay';
 
 function Settings({ I }) {
     return (
@@ -17,30 +18,15 @@ function Settings({ I }) {
             <R l tel>
                 <SideBar I={I}></SideBar>
                 <R t tel>
-                    <div style={{margin:"15px 0px 0px 0px"}} className="center-container"><b>Settings - jacoby149</b></div>
-                    
+                    <div style={{ margin: "15px 0px 0px 0px" }} className="center-container"><b>Settings - jacoby149</b></div>
+
                     <Subscription I={I} />
-                    <VerifyPhone I={I}/>
-                    <ChangePhone I={I} />
+                    {I.isVerified() ?
+                        <ChangePhone I={I} /> :
+                        <VerifyPhone I={I} />
+                    }
                     <ChangePass I={I} />
-
-
-                    <div className="card setting">
-                        <header class="card-header">
-                            <p class="card-header-title">
-                                DevPay
-                            </p>
-                            <button class="card-header-icon" aria-label="more options">
-                                <span class="icon">
-                                    <i class="fas fa-angle-down" aria-hidden="true"></i>
-                                </span>
-                            </button>
-                        </header>
-                        <footer class="card-footer">
-                            <a href="#" class="card-footer-item">Connect To Bank</a>
-                            <a href="#" class="card-footer-item">DevPay Stats</a>
-                        </footer>
-                    </div>
+                    <DevPay I={I} />
                 </R>
             </R>
         </R>
