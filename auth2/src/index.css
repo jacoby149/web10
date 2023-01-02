@@ -1,3 +1,11 @@
+.card.setting.change-contract{
+  background-color:#FFE799;
+}
+
+.card.setting.new-contract{
+  background-color:#D7FFEE;
+}
+
 .card-footer-item:hover{
   background-color: rgb(255, 247, 240);
   border-radius: 10px;

@@ -5,6 +5,7 @@
 import { R } from 'rectangles-npm'
 import TopBar from '../shared/TopBar';
 import SideBar from '../shared/SideBar';
+import Contract from './Contract';
 
 function Contracts({ I }) {
     return (
@@ -13,14 +14,9 @@ function Contracts({ I }) {
             <R l tel>
                 <SideBar I={I}></SideBar>
                 <R t tel>
-                <div style={{backgroundColor:"#FFE799"}} className="box contract">
-                        Contacts
-                    </div><div style={{backgroundColor:"#D7FFEE"}} className="box contract">
-                        Posts
-                    </div>
-                    <div style={{backgroundColor:"white"}} className="box contract">
-                        Feed
-                    </div>
+                <Contract I={I} service={"contacts"}/>
+                <Contract I={I} service={"posts"} />
+                <Contract I={I} service={"identity"} />
                 </R>
             </R>
         </R>
