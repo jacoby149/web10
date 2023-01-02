@@ -23,10 +23,9 @@ function Subscription() {
                     space_utilization : <a>87.24MB / 100MB</a>
                 </div>
             </div>
-            <footer class="card-footer">
+            <footer style={hide ? { display: "none" } : {}} class="card-footer">
                 <a href="#" class="card-footer-item">Space Plan</a>
                 <a href="#" class="card-footer-item">Credit Plan</a>
-                <a href="#" class="card-footer-item">Subscriptions</a>
             </footer>
         </div>
     )
