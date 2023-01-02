@@ -1,5 +1,7 @@
 Make an all Services Page
 Make a Services Change Form
+Make the DevPay also collapse.
+
 make the app information screen
     - app icon
     - app description
