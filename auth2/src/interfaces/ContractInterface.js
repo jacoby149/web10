@@ -1,6 +1,6 @@
 import React from 'react';
 
-function useContractInterface(I, post = null) {
+function useContractInterface(I, post = null,request) {
     function initMode(){
         return post === null ? "create" : "view"
     }
