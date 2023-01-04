@@ -1,12 +1,7 @@
-Make an all Services Page
-Make a Services Change Form
-Make the DevPay also collapse.
+Make a service change Approval UI / Deny
+Approve Changes || Deny Changes || Edit
+    - Active requests page
 
-make the app information screen
-    - app icon
-    - app description
-    - views
-    - 
 make status messages, where there is a delay for :
     logging in
     signing up
