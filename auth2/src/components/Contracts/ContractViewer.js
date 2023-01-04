@@ -32,7 +32,7 @@ function PermissionsList({ permissions, title }) {
     })
     return (
         permissions.length > 0 ?
-            <div style={{marginTop:"10px"}}> <u>{title}</u> : <br></br>{permission_items}</div> :
+            <div style={{marginTop:"10px"}}> <div style={{marginBottom:"4px"}}><u>{title}</u> :</div> {permission_items}</div> :
             <></>
     )
 }
