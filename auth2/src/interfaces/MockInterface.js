@@ -1,6 +1,7 @@
 import React from 'react';
 // import mockContacts from '../mocks/MockContacts'
 import mockPage from '../mocks/mockAppData';
+import mockServices from '../mocks/mockServices';
 
 function useMockInterface() {
     const I = {};
@@ -16,6 +17,7 @@ function useMockInterface() {
     [I.mode, I._setMode] = React.useState("appstore");
     [I.search, I.setSearch] = React.useState("");
 
+    [I.services,I.setServices] = React.useState(mockServices);
     [I.apps,I.setApps] = React.useState(mockPage);
     [I.phone, I.setPhone] = React.useState("13472092325");
 
