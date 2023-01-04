@@ -46,7 +46,8 @@ function WhiteList({ permissions }) {
 }
 
 
-function ContractViewer({ I, data }) {
+function ContractViewer({ I, contractI }) {
+    const data = contractI.data;
     //const ContractI = useContractInterface(I);
     const [hide, setHide] = React.useState(true);
     function toggleHide() {
