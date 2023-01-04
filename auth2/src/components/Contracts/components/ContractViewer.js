@@ -77,7 +77,7 @@ function ContractViewer({ I, contractI }) {
                     view data
                     <i style={{ marginLeft: "7px" }} class="fas fa-database" aria-hidden="true"></i>
                 </a>
-                <a href="#" class="card-footer-item">
+                <a href="#" class="card-footer-item" onClick={()=>contractI.edit()}>
                     change terms
                     <i style={{ marginLeft: "7px" }} class="fas fa-pencil" aria-hidden="true"></i></a>
             </footer>
