@@ -8,7 +8,6 @@ import SideBar from '../shared/SideBar';
 import Contract from './Contract';
 
 function Contracts({ I }) {
-    console.log(I.services)
     const contract_items = I.services.map((d,i)=>
         <Contract I={I} key={i} data ={d} />
     )
