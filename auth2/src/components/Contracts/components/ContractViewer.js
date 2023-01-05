@@ -26,9 +26,9 @@ function ContractViewer({ I, contractI }) {
                 </div>
             </div>
             <footer style={hide ? { display: "none" } : {}} className="card-footer">
-                <a href="#" className="card-footer-item">
+                <a style={{color:"gray"}} href="#" className="card-footer-item">
                     view data
-                    <i style={{ marginLeft: "7px" }} className="fas fa-database" aria-hidden="true"></i>
+                    <i style={{ marginLeft: "7px" }} className="fas fa-database" aria-hidden="true"></i> &nbsp; [TBD]
                 </a>
                 <a href="#" className="card-footer-item" onClick={()=>contractI.edit()}>
                     change terms
