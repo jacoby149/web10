@@ -16,10 +16,16 @@ function Requests({ I }) {
     return (
         <>
             <div style={{ margin: "30px 0px 0px 0px" }} className="center-container"><b>Approve crm.web10.app</b>
-                <div style={{ margin: "20px" }}>
+                <div style={{ marginTop:"20px",margin: "10px" }}>
                     <button className="button is-primary"> Approve And Log In </button>
                 </div>
-                <div style={{ marginTop:"30px",margin: "20px" }}> see service terms below </div>
+                <div>
+                    OR
+                </div>
+                <div style={{ margin: "10px" }}>
+                    <button className="button is-danger"> Deny Terms</button>
+                </div>
+                <div style={{ marginTop: "30px", margin: "20px" }}> see service terms below </div>
 
                 <div style={{ margin: "20px" }}>
 
