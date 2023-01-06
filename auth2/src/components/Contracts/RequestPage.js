@@ -6,16 +6,32 @@ import { R } from 'rectangles-npm'
 import TopBar from '../shared/TopBar';
 import SideBar from '../shared/SideBar';
 import Contract from './Contract';
+import React from 'react';
 
 function Requests({ I }) {
-    console.log(I.services)
-    const contract_items = I.services.map((d,i)=>
-        <Contract I={I} key={i} data ={d} />
+    const [mode, setMode] = React.useState("basic")
+    const contract_items = I.services.map((d, i) =>
+        <Contract I={I} key={i} data={d} />
     )
     return (
         <>
-            <div style={{ margin: "15px 0px 0px 0px" }} className="center-container"><b>Contracts - jacoby149</b></div>
-            {contract_items}
+            <div style={{ margin: "30px 0px 0px 0px" }} className="center-container"><b>Approve crm.web10.app</b>
+                <div style={{ margin: "20px" }}>
+                    <button className="button is-primary"> Approve And Log In </button>
+                </div>
+                <div style={{ marginTop:"30px",margin: "20px" }}> see service terms below </div>
+
+                <div style={{ margin: "20px" }}>
+
+                    {mode === "basic" ?
+                        <button onClick={() => setMode("advanced")} className="button is-warning"> Show Terms Of Service &nbsp; <i className={"fa fa-square-plus font-weight-bold"}></i> </button>
+                        :
+                        <button onClick={() => setMode("basic")} className="button is-warning"> Hide Terms of Service &nbsp; <i className={"fa fa-square-minus font-weight-bold"}></i></button>
+                    }
+                </div>
+
+            </div>
+            {mode === "basic" ? "" : contract_items}
         </>
     )
 }
@@ -27,11 +43,11 @@ function RequestPage({ I }) {
             <R l tel>
                 <SideBar I={I}></SideBar>
                 <R t tel>
-                    <Contracts I={I} />
+                    <Requests I={I} />
                 </R>
             </R>
         </R>
     );
 }
 
-export default ContractPage;
+export default RequestPage;

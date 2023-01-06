@@ -17,7 +17,7 @@ function SideBar(props) {
                         <C onClick={() => I.setMode("contracts")} t bb h s={"40px"} va="center">
                             Contracts
                         </C>
-                        <C onClick={() => I.setMode("contracts")} t bb h s={"40px"} va="center">
+                        <C onClick={() => I.setMode("requests")} t bb h s={"40px"} va="center">
                             Active Request
                         </C>
                         {/* <C onClick={() => I.setMode("contracts")} t bb h s={"40px"} va="center">
