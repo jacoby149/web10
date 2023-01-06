@@ -1,7 +1,7 @@
 {/* <div key={i} style={{marginLeft:"15px"}}><a>- {site}</a></div> */ }
 
 function Tag({ text,color }) {
-    return <span style={{ margin: "0px 4px 4px 0px" }} class={`tag is-${color} is-light is-normal`}>{text} {/*<button class="delete is-small"></button>*/}</span>
+    return <span style={{ margin: "0px 4px 4px 0px" }} className={`tag is-${color} is-light is-normal`}>{text} {/*<button className="delete is-small"></button>*/}</span>
 }
 
 function Websites({ contractI }) {

@@ -1,10 +1,22 @@
-make ex-ing out list terms a thing.
+TODO !!!!!
+    on top 
+        - save changes
+        - x to revert
+    in middle
+        make ex-ing out list terms a thing.
+        make ex-ing out websites a thing.
+        make adding websites a thing.
+        make adding list terms a thing.
+THEN FUCKIN FIGURE OUT SIRS SCRs...
+SIRS handle the same exact way...
+SCRs display differently, Don't allow editing.
 
 Make a service change Approval UI / Deny
-Approve Changes || Deny Changes || Edit
+Approve Changes || Deny Changes || Edit Request
     - Active requests page
 
 make status messages, where there is a delay for :
     logging in
     signing up
     account recovery
+

@@ -9,7 +9,7 @@ import Contract from './Contract';
 
 function Contracts({ I }) {
     const contract_items = I.services.map((d,i)=>
-        <Contract I={I} key={i} data ={d} />
+        <Contract I={I} key={i} data ={d} isRequest={false} />
     )
     return (
         <>
