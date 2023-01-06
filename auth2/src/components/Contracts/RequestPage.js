@@ -11,19 +11,13 @@ import React from 'react';
 function Requests({ I }) {
     const [mode, setMode] = React.useState("basic")
     const contract_items = I.services.map((d, i) =>
-        <Contract I={I} key={i} data={d} />
+        <Contract I={I} key={i} isRequest={true} data={d} />
     )
     return (
         <>
             <div style={{ margin: "30px 0px 0px 0px" }} className="center-container"><b>Approve crm.web10.app</b>
-                <div style={{ marginTop:"20px",margin: "10px" }}>
+                <div style={{ marginTop: "20px", margin: "10px" }}>
                     <button className="button is-primary"> Approve And Log In </button>
-                </div>
-                <div>
-                    OR
-                </div>
-                <div style={{ margin: "10px" }}>
-                    <button className="button is-danger"> Deny Terms</button>
                 </div>
                 <div style={{ marginTop: "30px", margin: "20px" }}> see service terms below </div>
 
@@ -37,7 +31,13 @@ function Requests({ I }) {
                 </div>
 
             </div>
-            {mode === "basic" ? "" : contract_items}
+            {mode === "basic" ? "" : <>{contract_items}
+                <div style={{ margin: "30px 0px 0px 0px" }} className="center-container">
+                    <div style={{ marginTop: "10px" }}>
+                        <button className="button is-danger"> Deny And Don't Log In</button>
+                    </div></div></>
+            }
+
         </>
     )
 }
