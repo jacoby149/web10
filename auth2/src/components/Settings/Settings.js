@@ -19,7 +19,7 @@ function Settings({ I }) {
                 <SideBar I={I}></SideBar>
                 <R t tel>
                     <div style={{ margin: "15px 0px 0px 0px" }} className="center-container"><b>Settings - jacoby149</b></div>
-
+                    <div style={{maxWidth:"800px",margin:"auto"}}>
                     <Subscription I={I} />
                     {I.isVerified() ?
                         <ChangePhone I={I} /> :
@@ -27,6 +27,7 @@ function Settings({ I }) {
                     }
                     <ChangePass I={I} />
                     <DevPay I={I} />
+                    </div>
                 </R>
             </R>
         </R>

@@ -7,7 +7,8 @@ function ContractViewer({ I, contractI }) {
         setHide(!hide)
     }
     return (
-        <div className="card setting">
+        <div style={{maxWidth:"800px",margin:"auto"}}>
+        <div className="card setting" style={{margin:"20px"}}>
             <header className="card-header">
                 <p className="card-header-title">
                     {contractI.data.service}
@@ -34,6 +35,7 @@ function ContractViewer({ I, contractI }) {
                     change terms
                     <i style={{ marginLeft: "7px" }} className="fas fa-pencil" aria-hidden="true"></i></a>
             </footer>
+        </div>
         </div>
     )
 }
