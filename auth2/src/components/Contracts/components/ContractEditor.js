@@ -84,10 +84,10 @@ function ContractEditor({ I, contractI }) {
                             <i style={{ marginLeft: "7px" }} className="fas fa-globe" aria-hidden="true"></i> &nbsp;
                         </a>
                         <a href="#" onClick={() => setEditorMode("allow")} className="card-footer-item">
-                            allowed users
+                            allowed
                             <i style={{ marginLeft: "7px" }} className="fas fa-user" aria-hidden="true"></i></a>
                         <a href="#" onClick={() => setEditorMode("block")} className="card-footer-item">
-                            blocked users
+                            blocked
                             <i style={{ marginLeft: "7px" }} className="fas fa-road-barrier" aria-hidden="true"></i></a>
                     </footer> : ""
                 }
