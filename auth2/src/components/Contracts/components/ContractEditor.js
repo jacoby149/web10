@@ -10,7 +10,7 @@ function ContractEditor({ I, contractI }) {
                 <header className="card-header">
                     <p className="card-header-title">
                         {contractI.mode === "edit" ?
-                            <i onClick={contractI.clearChanges} style={{ color: "orange", marginRight: "15px" }} className={"fa fa-2x fa-circle-xmark font-weight-bold"}></i> : ""
+                            <i onClick={contractI.clearChanges} style={{ color: "gray", marginRight: "15px" }} className={"fa fa-2x fa-circle-xmark font-weight-bold"}></i> : ""
                         }
                         {contractI.data.service}
                     </p>
@@ -31,10 +31,27 @@ function ContractEditor({ I, contractI }) {
                 <div style={contractI.hide ? { display: "none" } : {}} className="card-content">
                     <div className="content">
                         <u>Websites/IPs</u> : <Websites contractI={contractI}></Websites>
+                        <div style={{ marginTop: "5px" }}>
+                        </div>
+
                         <WhiteList contractI={contractI} />
+
                         <BlackList contractI={contractI} />
                     </div>
+
                 </div>
+                <footer style={contractI.hide ? { display: "none" } : {}} className="card-footer">
+                    <a  href="#" className="card-footer-item">
+                        add site
+                        <i style={{ marginLeft: "7px" }} className="fas fa-globe" aria-hidden="true"></i> &nbsp;
+                    </a>
+                    <a href="#" className="card-footer-item">
+                        allow-user
+                        <i style={{ marginLeft: "7px" }} className="fas fa-user" aria-hidden="true"></i></a>
+                    <a href="#" className="card-footer-item">
+                        block-user
+                        <i style={{ marginLeft: "7px" }} className="fas fa-road-barrier" aria-hidden="true"></i></a>
+                </footer>
             </div>
         </div>
     )
