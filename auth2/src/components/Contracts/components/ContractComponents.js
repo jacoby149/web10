@@ -39,11 +39,11 @@ function PermissionsList({ permissions, title }) {
 }
 
 function BlackList({ contractI }) {
-    return <PermissionsList permissions={contractI.data.whitelist} title={"Blocked users"} />
+    return <PermissionsList permissions={contractI.data.blacklist} title={"Blocked users"} />
 }
 
 function WhiteList({ contractI }) {
-    return <PermissionsList permissions={contractI.data.blacklist} title={"Allowed users"} />
+    return <PermissionsList permissions={contractI.data.whitelist} title={"Allowed users"} />
 }
 
 export { Websites, BlackList, WhiteList }

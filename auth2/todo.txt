@@ -1,12 +1,9 @@
-TODO !!!!!
-    on top 
-        - save changes
-        - x to revert
-    in middle
-        make ex-ing out list terms a thing.
-        make ex-ing out websites a thing.
-        make adding websites a thing.
-        make adding list terms a thing.
+move editor modes into the contractI
+make ex-ing out list terms a thing.
+make ex-ing out websites a thing.
+make the contract editor dataflow work.
+view SIRs and SCRs
+
 THEN FUCKIN FIGURE OUT SIRS SCRs...
 SIRS handle the same exact way...
 SCRs display differently, Don't allow editing.
