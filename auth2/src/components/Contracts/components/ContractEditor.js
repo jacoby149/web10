@@ -2,7 +2,7 @@
 import React from 'react';
 import { Websites, WhiteList, BlackList } from './ContractComponents';
 import SiteEditor from './SiteEditor';
-import ListEditor from './ListEditor';
+import {WhiteListEditor,BlackListEditor} from './ListEditor';
 
 //return <button onClick={()=>contractI.view()}>back</button>
 function ContractEditor({ I, contractI }) {
@@ -64,7 +64,7 @@ function ContractEditor({ I, contractI }) {
                         "" :
                         <>
                             <WhiteList contractI={contractI} />
-                            <ListEditor contractI={contractI}></ListEditor>
+                            <WhiteListEditor contractI={contractI}></WhiteListEditor>
                         </>
 
                     }
@@ -72,7 +72,7 @@ function ContractEditor({ I, contractI }) {
                         "" :
                         <>
                             <BlackList contractI={contractI} />
-                            <ListEditor contractI={contractI}></ListEditor>
+                            <BlackListEditor contractI={contractI}></BlackListEditor>
                         </>
                     }
 

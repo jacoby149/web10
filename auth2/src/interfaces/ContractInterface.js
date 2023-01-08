@@ -3,7 +3,8 @@ import React from 'react';
 function useContractInterface(I, data = null,isRequest) {
     const contractI = {};
     
-    [contractI.data, contractI.setData] = React.useState(data);
+    contractI.data = data; //=== null ? null : data;
+    [contractI.draftData, contractI.setDraftData] = React.useState(data);
     [contractI.mode,contractI.setMode] = React.useState("view");
     [contractI._isRequest,contractI._setIsRequest] = React.useState(isRequest);
     [contractI.hide,contractI.setHide] = React.useState(true)
