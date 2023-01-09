@@ -1,7 +1,7 @@
 const mockServices = [
     {
         service:"contacts",
-        cross_origins: ["localhost","crm.web10.app","localhost","crm.web10.app","localhost","crm.web10.app","localhost","crm.web10.app",],
+        cross_origins: ["localhost","crm.web10.app","shmocalhost","crm2.web10.app","localhost3","crm3.web10.app"],
         whitelist:[],
         blacklist:[]
     },
