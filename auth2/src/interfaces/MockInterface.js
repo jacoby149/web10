@@ -78,6 +78,16 @@ function useMockInterface() {
         return I.verified;
     }
 
+    I.changeTerms = function(service){
+
+        const newServices = I.services.map(
+            (s)=>{
+                return s.service===service.service ? service : s
+            }
+            )
+        I.setServices(newServices)
+    }
+
 
     return I;
 }
