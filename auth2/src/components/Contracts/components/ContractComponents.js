@@ -9,12 +9,19 @@ function Websites({ contractI }) {
         return (
             <span key={i} style={{ margin: "0px 4px 4px 0px" }} className={`tag is-info is-light is-normal`}>{site} {contractI.mode === "view" ?
                 "" :
-                <button style={{ marginLeft: "5px" }} onClick={()=>contractI.deleteSite(i)} className="delete is-small"></button>
+                <button style={{ marginLeft: "5px" }} onClick={() => contractI.deleteSite(i)} className="delete is-small"></button>
             }
             </span>
         )
     })
-    return (<div style={{ marginLeft: "8px", marginTop: "5px" }}>{site_items}</div>)
+    return (
+        site_items.length > 0 ?
+
+            <div style={{ marginLeft: "8px", marginTop: "5px" }}>{site_items}</div>
+            :
+            <></>
+
+    )
 }
 
 function BlackList({ contractI }) {
@@ -34,7 +41,7 @@ function BlackList({ contractI }) {
                 {update}
                 {del}
                 {contractI.mode == "view" ? "" :
-                    <i onClick={()=>contractI.deleteBlackListEntry(i)} style={{ color: "#ff7e7e", marginLeft: "5px" }} className={"fa fa-trash font-weight-bold"}></i>
+                    <i onClick={() => contractI.deleteBlackListEntry(i)} style={{ color: "#ff7e7e", marginLeft: "5px" }} className={"fa fa-trash font-weight-bold"}></i>
                 }
             </div>
 
@@ -64,7 +71,7 @@ function WhiteList({ contractI }) {
                 {update}
                 {del}
                 {contractI.mode == "view" ? "" :
-                    <i onClick={()=>contractI.deleteWhiteListEntry(i)} style={{ color: "#ff7e7e", marginLeft: "5px" }} className={"fa fa-trash font-weight-bold"}></i>
+                    <i onClick={() => contractI.deleteWhiteListEntry(i)} style={{ color: "#ff7e7e", marginLeft: "5px" }} className={"fa fa-trash font-weight-bold"}></i>
                 }
             </div>
 
