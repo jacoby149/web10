@@ -7,25 +7,25 @@ function Subscription() {
     }
     return (
         <div className="card setting">
-            <header class="card-header">
-                <p class="card-header-title">
+            <header className="card-header">
+                <p className="card-header-title">
                     Subscription Details
                 </p>
-                <button onClick={toggleHide} class="card-header-icon" aria-label="more options">
-                    <span class="icon">
-                        <i class={hide ? "fas fa-angle-right" : "fas fa-angle-down"} aria-hidden="true"></i>
+                <button onClick={toggleHide} className="card-header-icon" aria-label="more options">
+                    <span className="icon">
+                        <i className={hide ? "fas fa-angle-right" : "fas fa-angle-down"} aria-hidden="true"></i>
                     </span>
                 </button>
             </header>
-            <div style={hide ? { display: "none" } : {}} class="card-content">
-                <div class="content">
+            <div style={hide ? { display: "none" } : {}} className="card-content">
+                <div className="content">
                     spent_this_month : <a>0.19873 / 2 credits</a><br></br>
                     space_utilization : <a>87.24MB / 100MB</a>
                 </div>
             </div>
-            <footer style={hide ? { display: "none" } : {}} class="card-footer">
-                <a href="#" class="card-footer-item">Space Plan</a>
-                <a href="#" class="card-footer-item">Credit Plan</a>
+            <footer style={hide ? { display: "none" } : {}} className="card-footer">
+                <a href="#" className="card-footer-item">Space Plan</a>
+                <a href="#" className="card-footer-item">Credit Plan</a>
             </footer>
         </div>
     )

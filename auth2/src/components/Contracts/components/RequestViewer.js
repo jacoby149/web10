@@ -1,7 +1,7 @@
 import React from 'react';
 import { Websites, WhiteList, BlackList } from './ContractComponents';
 
-function ContractViewer({ I, contractI }) {
+function RequestViewer({ I, contractI }) {
     return (
         <div style={{ maxWidth: "800px", margin: "auto" }}>
             <div className="card setting" style={{ margin: "20px" }}>
@@ -22,18 +22,9 @@ function ContractViewer({ I, contractI }) {
                         <BlackList contractI={contractI} />
                     </div>
                 </div>
-                    <footer style={contractI.hide ? { display: "none" } : {}} className="card-footer">
-                        <a style={{ color: "gray" }} href="#" className="card-footer-item">
-                            view data
-                            <i style={{ marginLeft: "7px" }} className="fas fa-database" aria-hidden="true"></i> &nbsp; [TBD]
-                        </a>
-                        <a href="#" className="card-footer-item" onClick={() => contractI.edit()}>
-                            change terms
-                            <i style={{ marginLeft: "7px" }} className="fas fa-pencil" aria-hidden="true"></i></a>
-                    </footer>
             </div>
         </div>
     )
 }
 
-export default ContractViewer;
+export default RequestViewer;
