@@ -10,7 +10,7 @@ import React from 'react';
 
 function Requests({ I }) {
     const [mode, setMode] = React.useState("basic")
-    const contract_items = I.services.map((d, i) =>
+    const contract_items = I.requests.map((d, i) =>
         <Contract I={I} key={i} isRequest={true} data={d} />
     )
     return (

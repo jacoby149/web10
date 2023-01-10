@@ -1,6 +1,7 @@
 import React from 'react';
 // import mockContacts from '../mocks/MockContacts'
 import mockPage from '../mocks/mockAppData';
+import mockRequests from '../mocks/mockRequests';
 import mockServices from '../mocks/mockServices';
 
 function useMockInterface() {
@@ -18,6 +19,7 @@ function useMockInterface() {
     [I.search, I.setSearch] = React.useState("");
 
     [I.services,I.setServices] = React.useState(mockServices);
+    [I.requests,I.setRequests] = React.useState(mockRequests);
     [I.apps,I.setApps] = React.useState(mockPage);
     [I.phone, I.setPhone] = React.useState("13472092325");
 
