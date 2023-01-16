@@ -181,14 +181,14 @@ def create_user(form_data, hash):
     user_col.insert_one(new_user)
     set_phone_number(phone_number, username)
     user_col.insert_one(services_terms)
-    return "success"
+    return "successfully created a new user"
 
 
 def change_pass(user, new_pass, hash):
     q = q_t({"service": "*"}, "services")
     u = u_t({"$set": {"hashed_password": hash(new_pass)}})
     db[user].update_one(q, u)
-    return "success"
+    return "successfully changed your password."
 
 ##########################
 ######### CRUD ###########
@@ -234,10 +234,10 @@ def update(user, service, query, update):
                 raise exceptions.DSTAR
     query = q_t(query, service)
     update = u_t(update)
-    db[user].update_one(query, update)
+    response = db[user].update_one(query, update)
     if pull:
         db[user].update_one(query, get_pull(update))
-    return "success"
+    return response
 
 
 def delete(user, service, query):
@@ -246,8 +246,8 @@ def delete(user, service, query):
     if star_selected(user, service, query):
         raise exceptions.STAR
     query = q_t(query, service)
-    db[f"{user}"].delete_many(query)
-    return "success"
+    return db[f"{user}"].delete_many(query)
+
 
 
 ##########################
