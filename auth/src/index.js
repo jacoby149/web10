@@ -59,7 +59,7 @@ function App() {
     if (
       authStatus &&
       services[0][0]["service"] !== "log in to manage services" &&
-      config.VERIFY_REQUIRED && !services[0][0]["verified"]
+      config.REACT_APP_VERIFY_REQUIRED && !services[0][0]["verified"]
     ) {
       setMode("services-disabled");
       setCollapse(true);
