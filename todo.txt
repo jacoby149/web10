@@ -1,3 +1,5 @@
+modify the docs to explain return output of update and delete.
+
 make the login UI
 make the forgot Pass UI
 make the sign up UI
