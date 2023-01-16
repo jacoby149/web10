@@ -250,7 +250,8 @@ def delete(user, service, query):
         raise exceptions.STAR
     query = q_t(query, service)
     db[f"{user}"].delete_many(query)
-    return "success"
+    # TODO return {deletedCount : response.deleted_count} if possible
+    return "successfully deleted"
 
 
 
