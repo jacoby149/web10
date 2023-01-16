@@ -237,7 +237,10 @@ def update(user, service, query, update):
     response = db[user].update_one(query, update)
     if pull:
         db[user].update_one(query, get_pull(update))
-    return response
+    return {
+        "matchedCount" : response.matched_count,
+        "modifiedCount" : response.modified_count,
+    }
 
 
 def delete(user, service, query):
@@ -246,7 +249,8 @@ def delete(user, service, query):
     if star_selected(user, service, query):
         raise exceptions.STAR
     query = q_t(query, service)
-    return db[f"{user}"].delete_many(query)
+    db[f"{user}"].delete_many(query)
+    return "success"
 
 
 
