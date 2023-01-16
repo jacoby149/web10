@@ -1,12 +1,11 @@
-move editor modes into the contractI
-make ex-ing out list terms a thing.
-make ex-ing out websites a thing.
-make the contract editor dataflow work.
-view SIRs and SCRs
-
-THEN FUCKIN FIGURE OUT SIRS SCRs...
-SIRS handle the same exact way...
-SCRs display differently, Don't allow editing.
+make the editor -> 
+make a delete button with an are you sure modal.
+view SIRs and SCRs ->
+SMR data in the draft data.
+original data for SIR is blank.
+original data for SCR is current contract.
+THEN display it....
+don't allow editing.
 
 Make a service change Approval UI / Deny
 Approve Changes || Deny Changes || Edit Request
