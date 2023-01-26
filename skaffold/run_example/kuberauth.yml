@@ -19,6 +19,10 @@ spec:
           env:
             - name: REACT_APP_DEFAULT_API
               value: "api.web10.app"
+            - name: REACT_APP_VERIFY_REQUIRED
+              value: true
+            - name: REACT_APP_PAY_REQUIRED
+              value: true
             - name: PORT
               value: "80"
           resources:
