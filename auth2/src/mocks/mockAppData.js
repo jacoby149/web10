@@ -3,7 +3,7 @@ import socialImg from "../assets/images/alternative.png"
 import stealthImg from "../assets/images/stealth.jpg"
 import fpsImg from "../assets/images/shooter.jpeg"
 import crmImg from "../assets/images/GreenStarWhite.png"
-
+import boxImg from "../assets/images/building.png"
 
 var mockPage = [
     {
@@ -35,10 +35,10 @@ var mockPage = [
         hits:228,
     },
     {
-        title: "stealth",
+        title: "painter",
         description: "description3",
-        href:"",
-        img : stealthImg,
+        href:"https://threejs.org/examples/webgl_interactive_voxelpainter.html",
+        img : boxImg,
         hits:37,
     },
 ]
