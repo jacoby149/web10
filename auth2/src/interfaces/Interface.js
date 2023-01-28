@@ -1,6 +1,7 @@
 import React from 'react';
 // import mockContacts from '../mocks/MockContacts'
-import { wapiInit, wapiAuthInit } from 'web10-npm';
+import web10AuthAdapterInit from './authAdapter';
+import axios from 'axios'
 
 function useInterface() {
     const I = {};
@@ -23,6 +24,26 @@ function useInterface() {
 
     [I.auth, I.setAuth] = React.useState(false);
     [I.verified, I.setVerified] = React.useState(false);
+
+    I.authAdapter = web10AuthAdapterInit();
+
+    I.initAppStore = function () {
+        //initialize the app store
+        //upon login, initialize the services??? TBD
+        axios.post("https://api.web10.app/stats")
+            .then((response) => {
+                // output the response
+                console.log(response.data)
+            })
+            .catch((error) => console.log(error));
+
+
+    }
+
+    I.initAuthenticator = function () {
+        // ok
+        return
+    }
 
     I.verificationChange = function (value) {
         if (value.length === 6) I.setVerified(true)
@@ -54,7 +75,7 @@ function useInterface() {
         return I.auth
     }
 
-    I.login = function (provider,username,password) {
+    I.login = function (provider, username, password) {
         I.wapiAuth.logIn(
             provider,
             username,
@@ -123,6 +144,7 @@ function useInterface() {
                 )
             );
     }
+    I.initAppStore();
     return I;
 }
 

@@ -11,3 +11,5 @@ function web10AuthAdapterInit() {
     //Log in
     //Sign up
 }
+
+export default web10AuthAdapterInit;

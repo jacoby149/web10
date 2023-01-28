@@ -22,15 +22,20 @@ function ContractViewer({ I, contractI }) {
                         <BlackList contractI={contractI} />
                     </div>
                 </div>
-                    <footer style={contractI.hide ? { display: "none" } : {}} className="card-footer">
-                        <a style={{ color: "gray" }} href="#" className="card-footer-item">
-                            view data
-                            <i style={{ marginLeft: "7px" }} className="fas fa-database" aria-hidden="true"></i> &nbsp; [TBD]
-                        </a>
-                        <a href="#" className="card-footer-item" onClick={() => contractI.edit()}>
-                            change terms
-                            <i style={{ marginLeft: "7px" }} className="fas fa-pencil" aria-hidden="true"></i></a>
-                    </footer>
+                <footer style={contractI.hide ? { display: "none" } : {}} className="card-footer">
+                    <a style={{ color: "gray" }} href="#" className="card-footer-item"  onClick={() => contractI.openEditor()}>
+                        view data
+                        <i style={{ marginLeft: "7px" }} className="fas fa-database" aria-hidden="true"></i> &nbsp; [TBD]
+                    </a>
+                    <a href="#" className="card-footer-item" onClick={() => contractI.edit()}>
+                        change terms
+                        <i style={{ marginLeft: "7px" }} className="fas fa-pencil" aria-hidden="true"></i>
+                    </a>
+                    <a href="#" style={{color:"#bb2124"}} className="card-footer-item" onClick={() => contractI.prepDelete()}>
+                        delete terms [TBD]
+                        <i style={{ marginLeft: "7px" }} className="fas fa-trash" aria-hidden="true"></i>
+                    </a>
+                </footer>
             </div>
         </div>
     )

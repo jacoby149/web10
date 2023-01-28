@@ -12,10 +12,10 @@ import RequestPage from './components/Contracts/RequestPage';
 function App() {
 
   const queryParameters = new URLSearchParams(window.location.search)
-  const real = queryParameters.get("real")
+  const mock = queryParameters.get("mock")
   const mockI = useMockInterface();
   const realI = useInterface();
-  const I = real?realI:mockI;
+  const I = mock?mockI:realI;
   window.I = I;
   
   switch (I.mode) {
