@@ -1,3 +1,12 @@
+get the app store working...
+PWA everything that I can control.
+get login, sign up, and forgot pass working with status messages.
+make the delete button work -> deletecontract subcomponent
+get editing crontacts working data wise.
+get a visual for SCRs.
+get the service terms page working.
+make a gray Don't approve and log in button.
+
 make the editor -> 
 make a delete button with an are you sure modal.
 view SIRs and SCRs ->

@@ -390,7 +390,7 @@ async def stats():
 async def register_app(info:dict):
     if "url" not in info:
         return
-    if "http://" in info["url"] or "localhost" in info["url"] or "file://" in info["url"] or "vscode-webview://" in info["url"]:
+    if "http://" in info["url"] or "localhost" in info["url"] or "file://" in info["url"] or "vscode-webview:/" in info["url"] or "--" in info["url"]:
         return
     db.register_app(info)
 
