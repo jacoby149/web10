@@ -1,7 +1,8 @@
 import React from 'react';
 // import mockContacts from '../mocks/MockContacts'
-import web10AuthAdapterInit from './authAdapter';
+import web10AuthAdapterInit from './authAdapter'
 import axios from 'axios'
+import stealthImg from "../assets/images/stealth.jpg"
 
 function useInterface() {
     const I = {};
@@ -45,7 +46,7 @@ function useInterface() {
                 const apps = response.data.apps
                 const stats = {
                     users: response.data.users.toLocaleString("en-US"),
-                    hits: apps.map((app) => app["visits"]).reduce((a, b) => a + b, 0).toLocaleString("en-US"),
+                    hits: apps.map((app) => app.visits).reduce((a, b) => a + b, 0).toLocaleString("en-US"),
                     apps: response.data.apps.length.toLocaleString("en-US"),
                     data: (response.data.storage / (1024 * 1024)).toFixed(2).toLocaleString("en-US")
                 }
@@ -53,9 +54,15 @@ function useInterface() {
                 return apps;
             })
             .then((apps) => {
-                apps.map((app) => {
-                    console.log(app.url)
+                const appStoreListings = apps.map((app) => {
+                    return {
+                        title : app.url.split("https://")[1].slice(0,10),
+                        hits : app.visits,
+                        img : stealthImg,
+                        href: app.url
+                    }
                 })
+                I.setApps(appStoreListings);
             })
             .catch((error) => console.log(error));
     }
