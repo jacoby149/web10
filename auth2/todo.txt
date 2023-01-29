@@ -3,7 +3,7 @@ get the app store working...
 PWA everything that I can control.
 get forgot pass working with status messages.
 add link to forgot pass in the old authenticator.
-disable new wave buttons in the new authenticator.
+disable auth related buttons in the new authenticator's real interface.
 publish the new home page, clean up!
 
 1.0.6
