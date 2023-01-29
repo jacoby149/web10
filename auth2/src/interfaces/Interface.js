@@ -19,6 +19,14 @@ function useInterface() {
 
     [I.services, I.setServices] = React.useState([]);
     [I.requests, I.setRequests] = React.useState([]);
+    [I.appStoreStats, I.setAppStoreStats] = React.useState(
+        {
+            users: 0,
+            apps: 0,
+            hits: 0,
+            data: 0
+        }
+    );
     [I.apps, I.setApps] = React.useState([]);
     [I.phone, I.setPhone] = React.useState("13472092325");
 
@@ -30,14 +38,26 @@ function useInterface() {
     I.initAppStore = function () {
         //initialize the app store
         //upon login, initialize the services??? TBD
-        axios.post("https://api.web10.app/stats")
+        return axios.post("https://api.web10.app/stats")
             .then((response) => {
-                // output the response
+                // handle the stats
                 console.log(response.data)
+                const apps = response.data.apps
+                const stats = {
+                    users: response.data.users.toLocaleString("en-US"),
+                    hits: apps.map((app) => app["visits"]).reduce((a, b) => a + b, 0).toLocaleString("en-US"),
+                    apps: response.data.apps.length.toLocaleString("en-US"),
+                    data: (response.data.storage / (1024 * 1024)).toFixed(2).toLocaleString("en-US")
+                }
+                I.setAppStoreStats(stats);
+                return apps;
+            })
+            .then((apps) => {
+                apps.map((app) => {
+                    console.log(app.url)
+                })
             })
             .catch((error) => console.log(error));
-
-
     }
 
     I.initAuthenticator = function () {
@@ -144,7 +164,9 @@ function useInterface() {
                 )
             );
     }
-    I.initAppStore();
+    React.useEffect(() => {
+        I.initAppStore();
+    },[])
     return I;
 }
 
