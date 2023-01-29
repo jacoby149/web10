@@ -1,18 +1,5 @@
 modify the docs to explain return output of update and delete.
 
-make the login UI
-make the forgot Pass UI
-make the sign up UI
-Make the app store UI
-Make the settings UI
-Make the contracts menu UI.
-Make the contract modification UI.
-Hook it all up.
-Then, no more UI for a long time.
-
-Replace web10.app with an app store.
-Revamp the authenticator UI...
-
 In the web10 authenticator, add an interface object like the app.
 then, do :
     make sign up for new apps ONE click.
