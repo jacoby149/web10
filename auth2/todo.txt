@@ -9,3 +9,6 @@ publish the new home page, clean up!
 1.0.6
 get the web10 encryptor app working for web10 social messages.
 add information on the encryptor app in the docs page.
+
+1.0.7
+paginate all of the shit I ever wanted to paginate!
