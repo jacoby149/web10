@@ -15,10 +15,10 @@ function AppStore({ I }) {
                 <SideBar I={I}></SideBar>
                 <R t tel>
                     <div className="center-container stat-container">
-                        <div className="statistic">120 users </div>
-                        <div className="statistic">80 apps</div>
-                        <div className="statistic">40,050 hits</div>
-                        <div className="statistic">9,000 GB data</div>
+                        <div className="statistic">{I.appStoreStats.users} users </div>
+                        <div className="statistic">{I.appStoreStats.apps} apps</div>
+                        <div className="statistic">{I.appStoreStats.hits} hits</div>
+                        <div className="statistic">{I.appStoreStats.data}MBs data</div>
                     </div>
                     <div style={{margin:"15px 0px 5px 0px"}} className="center-container"><b><u>Top web10 apps.</u></b></div>
                     <Apps I={I}></Apps>
