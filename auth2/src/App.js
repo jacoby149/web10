@@ -16,6 +16,7 @@ function App() {
   const mockI = useMockInterface();
   const realI = useInterface();
   const I = mock?mockI:realI;
+  I.isMock = mock;
   window.I = I;
   
   switch (I.mode) {
