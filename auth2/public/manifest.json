@@ -1,6 +1,6 @@
 {
-  "short_name": "web10 auth",
-  "name": "web10 auth",
+  "short_name": "web10 hub",
+  "name": "web10 hub",
   "icons": [
     {
       "src": "favicon.ico",
@@ -13,7 +13,7 @@
       "sizes": "192x192"
     },
     {
-      "src": "logo512.png",
+      "src": "home.png",
       "type": "image/png",
       "sizes": "512x512"
     }

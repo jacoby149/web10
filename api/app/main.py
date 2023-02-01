@@ -402,7 +402,8 @@ async def register_app(info:dict):
        "file://",
        "vscode-webview:/",
        "--",
-       ".html"
+       ".html",
+       "web10.dev"
     ] 
     for fragment in fragments:
         if fragment in info["url"]:
