@@ -8,7 +8,7 @@ function SideBar(props) {
             <R t tel>
                 {I.isAuth ?
                     I.isAuthenticated() ?
-                        <R t tel>
+                        <R t s={"200px"}>
                             <C onClick={() => I.setMode("appstore")} t bb h s={"40px"} va="center">
                                 App Store
                             </C>
@@ -33,15 +33,24 @@ function SideBar(props) {
                         </C> :
                     <C></C>
                 }
-                <C onClick={() => window.open("https://docs.web10.app", "_blank")} t bb h s={"40px"} va="center">
-                    <i >Docs</i>
-                </C>
-                <C onClick={() => window.open("https://github.com/jacoby149/web10", "_blank")} t bb h s={"40px"} va="center">
-                    <i >Github</i>
-                </C>
-                <C onClick={() => I.setMode("forgot")} t bb h s={"40px"} va="center">
-                    <i style={{ color: "orange" }}><u>Forgot Pass</u></i>
-                </C>
+                <R t>
+                    {I.isAuth ? <C></C> :
+                        <R t>
+                            <C onClick={() => I.setMode("forgot")} t bb h s={"40px"} va="center">
+                                <i style={{ color: "orange" }}><u>Forgot Password</u></i>
+                            </C>
+                            <C onClick={() => I.setMode("appstore")} t bb h s={"40px"} va="center">
+                                <i >App Store</i>
+                            </C>
+                            <C onClick={() => window.open("https://docs.web10.app", "_blank")} t bb h s={"40px"} va="center">
+                                <i >Docs</i>
+                            </C>
+                            <C onClick={() => window.open("https://github.com/jacoby149/web10", "_blank")} t bb h s={"40px"} va="center">
+                                <i >Host A Node</i>
+                            </C>
+                        </R>
+                    }
+                </R>
             </R>
             <R bt>
                 <C s={"60px"}>

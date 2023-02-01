@@ -5,7 +5,7 @@ function Provider({I}) {
                 <input
                     id="provider"
                     className="input has-background-white"
-                    defaultValue={I.config.REACT_APP_DEFAULT_API
+                    defaultValue={I.config.DEFAULT_API
                     }
                     placeholder="Web10 Provider"
                 />

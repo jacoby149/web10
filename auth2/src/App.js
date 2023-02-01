@@ -14,12 +14,17 @@ function App() {
   const queryParameters = new URLSearchParams(window.location.search)
   const mock = queryParameters.get("mock")
   const auth = queryParameters.get("auth")
+  const forgot = queryParameters.get("forgot")
   const mockI = useMockInterface();
   const realI = useInterface();
   const I = mock?mockI:realI;
   I.isMock = mock;
   I.isAuth = auth;
   window.I = I;
+
+  React.useEffect(()=>{
+    if(forgot) I.setMode("forgot");
+  },[])
   
   switch (I.mode) {
     case "appstore": return <AppStore I={I} />;

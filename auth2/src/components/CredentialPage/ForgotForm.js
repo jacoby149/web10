@@ -11,7 +11,7 @@ function ForgotForm({ I }) {
             <Provider I={I} />
             <Phone I={I} />
 
-            <div className="field">
+            <div className="field" style={{margin:"5px"}}>
                 <div className="control">
                     { I.isAuth?
                         <button onClick={() => I.setMode("login")} className="button">Cancel</button>:

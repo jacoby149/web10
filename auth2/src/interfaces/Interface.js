@@ -29,7 +29,7 @@ function useInterface() {
         }
     );
     [I.apps, I.setApps] = React.useState([]);
-    [I.phone, I.setPhone] = React.useState("13472092325");
+    [I.phone, I.setPhone] = React.useState("");
 
     [I.auth, I.setAuth] = React.useState(false);
     [I.verified, I.setVerified] = React.useState(false);
