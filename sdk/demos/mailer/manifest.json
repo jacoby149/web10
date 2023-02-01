@@ -1,0 +1,16 @@
+{
+    "short_name": "mail demo",
+    "name": "mail demo",
+    "icons": [
+        {
+            "src": "mail.png",
+            "type": "image/png",
+            "sizes": "512x512"
+        }
+    ],
+    "start_url": "./",
+    "background_color": "#000000",
+    "display": "standalone",
+    "theme_color": "#000000",
+    "description": "The web10 portal, manage your web10 account and authenticate"
+}

@@ -385,13 +385,28 @@ async def stats():
         "storage":size
         }
 
-# make a new web10 account
+# gets the homepage stats
+@app.get("/pwa_listing")
+async def stats(url:str):
+    resp = requests.get(url+"manifest.json",{'Accept': 'application/json'})
+    return resp.json()
+
 @app.post("/register_app",include_in_schema=False)
 async def register_app(info:dict):
     if "url" not in info:
         return
-    if "http://" in info["url"] or "localhost" in info["url"] or "file://" in info["url"] or "vscode-webview:/" in info["url"] or "--" in info["url"]:
-        return
+    # fragments of url that disqualify an app from being registered.
+    fragments = [
+       "http://",
+       "localhost", 
+       "file://",
+       "vscode-webview:/",
+       "--",
+       ".html"
+    ] 
+    for fragment in fragments:
+        if fragment in info["url"]:
+            return
     db.register_app(info)
 
 def subscription_update(user):
