@@ -22,6 +22,14 @@ function useMockInterface() {
     [I.requests,I.setRequests] = React.useState(mockRequests);
     [I.apps,I.setApps] = React.useState(mockPage);
     [I.phone, I.setPhone] = React.useState("13472092325");
+    [I.appStoreStats, I.setAppStoreStats] = React.useState(
+        {
+            users: 52,
+            apps: 22,
+            hits: 4437,
+            data: 2.45
+        }
+    );
 
     [I.auth,I.setAuth] = React.useState(false);
     [I.verified,I.setVerified] = React.useState(false);
