@@ -13,10 +13,12 @@ function App() {
 
   const queryParameters = new URLSearchParams(window.location.search)
   const mock = queryParameters.get("mock")
+  const auth = queryParameters.get("auth")
   const mockI = useMockInterface();
   const realI = useInterface();
   const I = mock?mockI:realI;
   I.isMock = mock;
+  I.isAuth = auth;
   window.I = I;
   
   switch (I.mode) {

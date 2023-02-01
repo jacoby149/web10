@@ -13,7 +13,10 @@ function ForgotForm({ I }) {
 
             <div className="field">
                 <div className="control">
-                    <button onClick={() => I.setMode("login")} className="button">Cancel</button>
+                    { I.isAuth?
+                        <button onClick={() => I.setMode("login")} className="button">Cancel</button>:
+                        <button onClick={() => I.setMode("appstore")} className="button">Cancel</button>
+                    }
                     <button
                         onClick={
                             () => {

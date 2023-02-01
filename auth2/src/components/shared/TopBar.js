@@ -38,7 +38,10 @@ function TopBar(props) {
                 :
                 <C t s={"75px"}>
                     {I.mode === "appstore" ?
-                        <button className="button is-primary is-small" onClick={() => I.setMode("login")}>Login</button> :
+                        I.isAuth ?
+                            <button className="button is-primary is-small" onClick={() => I.setMode("login")}>Login</button> :
+                            <></>
+                        :
                         <AppsButton I={I} />
                     }
                 </C>
