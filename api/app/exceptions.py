@@ -12,6 +12,12 @@ AUTH = HTTPException(
     headers={"WWW-Authenticate": "Basic"},
 )
 
+NO_PWA = HTTPException(
+    status_code=status.HTTP_401_UNAUTHORIZED,
+    detail="no manifest.json found.",
+    headers={"WWW-Authenticate": "Basic"},
+)
+
 BAD_USERNAME = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
     detail="usernames take only alphanumeric characters",
