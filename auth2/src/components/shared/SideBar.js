@@ -31,6 +31,12 @@ function SideBar(props) {
                         <i style={{ color: "orange" }}><u>Log In</u></i>
                     </C>
                 }
+                <C onClick={() => I.setMode("login")} t bb h s={"40px"} va="center">
+                    <i >Docs</i>
+                </C>
+                <C onClick={() => I.setMode("login")} t bb h s={"40px"} va="center">
+                    <i >Github</i>
+                </C>
             </R>
             <R bt>
                 <C s={"60px"}>
