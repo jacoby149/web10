@@ -14,8 +14,10 @@ function useAppListingInterface(initApp, I) {
                 .then((r) => {
                     console.log(r.data);
                     const icons = r.data.icons
-                    const icon = icons[icons.length - 1].src
-                    const imgURL = `${initApp.href}${icon}`
+                    const icon = icons && icons.length > 0 ?
+                    icons[icons.length - 1].src:
+                    null;
+                    const imgURL = icon?`${initApp.href}${icon}`:null;
                     appLI.setApp({
                         ...appLI.app,
                         title: r.data.name,
