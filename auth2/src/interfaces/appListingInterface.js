@@ -15,14 +15,18 @@ function useAppListingInterface(initApp, I) {
                     console.log(r.data);
                     const icons = r.data.icons
                     const icon = icons && icons.length > 0 ?
-                    icons[icons.length - 1].src:
-                    null;
-                    const imgURL = icon?`${initApp.href}${icon}`:null;
-                    appLI.setApp({
-                        ...appLI.app,
-                        title: r.data.name,
-                        img: imgURL
-                    })
+                        icons[icons.length - 1].src :
+                        null;
+                    const newListing = icon ?
+                        {
+                            ...appLI.app,
+                            title: r.data.name,
+                            img: `${initApp.href}${icon}`
+                        } : {
+                            ...appLI.app,
+                            title: r.data.name,
+                        }
+                    appLI.setApp(newListing);
                 });
         }
     }, [initApp])
