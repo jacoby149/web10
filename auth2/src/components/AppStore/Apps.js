@@ -1,8 +1,8 @@
 import useAppListingInterface from "../../interfaces/appListingInterface";
 
 // initApp is the app data before pulling the apps website
-function AppListing({ initApp }) {
-    const appI = useAppListingInterface(initApp);
+function AppListing({ initApp, I }) {
+    const appI = useAppListingInterface(initApp,I);
     const app = appI.getApp();
 
     const placeHolderImg = "https://bulma.io/images/placeholders/128x128.png";
@@ -28,7 +28,7 @@ function AppListing({ initApp }) {
 function Apps({ I }) {
     const apps = I.apps.map((initApp,index) =>
         <div key={index } style={{width:"150px",display:"inline-block"}}>
-            <AppListing initApp={initApp}></AppListing>
+            <AppListing initApp={initApp} I={I}></AppListing>
         </div>
 
     )

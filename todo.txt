@@ -1,4 +1,5 @@
 modify the docs to explain return output of update and delete.
+document what disqualifies an app from being registered from the store.
 
 In the web10 authenticator, add an interface object like the app.
 then, do :

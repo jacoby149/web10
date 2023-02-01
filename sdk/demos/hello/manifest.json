@@ -1,0 +1,21 @@
+{
+    "short_name": "hello world",
+    "name": "hello world",
+    "icons": [
+        {
+            "src": "favicon.ico",
+            "sizes": "64x64 32x32 24x24 16x16",
+            "type": "image/x-icon"
+        },
+        {
+            "src": "hello-world.png",
+            "type": "image/png",
+            "sizes": "512x512"
+        }
+    ],
+    "start_url": "./",
+    "background_color": "#000000",
+    "display": "standalone",
+    "theme_color": "#000000",
+    "description": "The web10 portal, manage your web10 account and authenticate"
+}
