@@ -389,7 +389,7 @@ async def stats():
 @app.get("/pwa_listing")
 async def pwa(url:str):
     try:
-        resp = requests.get(url+"manifest.json",{'Accept': 'application/json'})
+        resp = requests.get(url+"manifest.json",{'Accept': 'application/json'},timeout=1)
     except requests.exceptions.RequestException as e:  # This is the correct syntax
         raise exceptions.NO_PWA
     return resp.json()
