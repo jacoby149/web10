@@ -2,7 +2,7 @@ import PhoneInput from "react-phone-input-2";
 
 function Phone({ I }) {
     return (
-        <div style={I.config.REACT_APP_VERIFY_REQUIRED ? { margin: "0 10px" } : { display: "None" }}>
+        <div style={I.config.VERIFY_REQUIRED ? { margin: "0 10px" } : { display: "None" }}>
             <div style={{ width: "calc(100% - 40px)", float: "left" }}>
                 <PhoneInput
                     country={"us"}

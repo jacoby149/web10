@@ -176,14 +176,26 @@ function SignIn({ setAuthStatus, statusHook, wapiAuth }) {
               Signup
             </button>
           )}
-          <button
-            onClick={() => setLoginMode(!loginMode)}
-            className="button is-info is-light is-small"
-          >
-            {loginMode ? "Signup" : "Login"} Mode
-          </button>
+          {loginMode ?
+            <button
+              onClick={() => setLoginMode(!loginMode)}
+              className="button is-info is-light is-small"
+            >Create A New Account
+            </button> : <></>
+          }
         </p>
       </div>
+      {
+        loginMode ?
+          <div style={{ margin: "20px" }}><a onClick={() => {
+            const local = window.location.protocol === "http:";
+            if (local) window.open("http://localhost:3002?forgot=true", "_blank")
+            else window.open("https://web10auth.netlify.app?forgot=true", "_blank")
+          }}><u>Forgot Username or Password?</u></a></div> :
+
+          <div style={{ margin: "20px" }}><a onClick={() => setLoginMode(!loginMode)}>
+            <u>Already Have an Account?</u></a></div>
+      }
     </div>
   );
 }

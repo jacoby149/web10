@@ -1,6 +1,6 @@
 function BetaCode({ I }) {
     return (
-        <div style={I.config.REACT_APP_BETA_REQUIRED ? {} : { display: "None" }} className="field">
+        <div style={I.config.BETA_REQUIRED ? {} : { display: "None" }} className="field">
             <p
                 style={{ margin: "0px 10px 10px 10px" }}
                 className="control has-icons-left"
