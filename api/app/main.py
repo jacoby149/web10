@@ -387,7 +387,7 @@ async def stats():
 
 # gets the homepage stats
 @app.get("/pwa_listing")
-async def stats(url:str):
+async def pwa(url:str):
     try:
         resp = requests.get(url+"manifest.json",{'Accept': 'application/json'})
     except requests.exceptions.RequestException as e:  # This is the correct syntax
