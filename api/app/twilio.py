@@ -39,7 +39,7 @@ def check_verification(phone_number,code):
 
 
 
-########## Forgot Password #########
+########## Forgot Password Prompt #########
 
 # tells the customer how to reset their pass.
 def recovery_prompt():
@@ -54,7 +54,9 @@ def recovery_prompt():
 # https://www.twilio.com/blog/build-secure-twilio-webhook-python-fastapi
 # sends the reset password to the customer. on them typing RESET
 
-def recovery_response(text):
+############ WEBHOOK ################
+
+def recovery_response(number):
     # Start our TwiML response
     resp = MessagingResponse()
     resp.message("Your password has been reset to qopwenzxzm")

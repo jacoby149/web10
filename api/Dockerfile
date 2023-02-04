@@ -1,6 +1,10 @@
 
 FROM python:3.9
 
+RUN apt-get update
+
+RUN apt-get -y install libsasl2-dev python-dev libldap2-dev libssl-dev
+
 WORKDIR /web10
 
 COPY ./requirements.txt /web10/requirements.txt
