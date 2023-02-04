@@ -3,9 +3,9 @@
   "name": "web10 hub",
   "icons": [
     {
-      "src": "hub.jpg",
-      "type": "image/jpg",
-      "sizes": "16x16 32x32 64x64 192x192 512x512"
+      "src": "hub.png",
+      "type": "image/png",
+      "sizes": "512x512"
     }
   ],
   "start_url": ".",
