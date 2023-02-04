@@ -172,7 +172,7 @@ def recover(From):
     password = db.temp_pass(From,get_password_hash)
     return mobile.recovery_response(From,password)
 
-@app.post("/recovery_bot")
+@app.post("/recovery_bot",include_in_schema=False)
 async def recovery_bot(From: str = Form(...), Body: str = Form(...)):
     response = recover(From) if Body=="RESET" else mobile.actionless_response()
 
@@ -397,7 +397,7 @@ async def stats():
         }
 
 # gets the homepage stats
-@app.get("/pwa_listing")
+@app.get("/pwa_listing",include_in_schema=False)
 async def pwa(url:str):
     try:
         resp = requests.get(url+"manifest.json",{'Accept': 'application/json'},timeout=1)
