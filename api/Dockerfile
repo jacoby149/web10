@@ -9,7 +9,7 @@ WORKDIR /web10
 
 COPY ./requirements.txt /web10/requirements.txt
 
-RUN pip install --no-cache-dir --upgrade -r /web10/requirements.txt
+RUN cat requirements.txt | xargs -n 1 -L 1 pip install
 
 COPY ./app /web10/app
 
