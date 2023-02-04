@@ -1,4 +1,4 @@
-const staticApp = "rectangles plainpad"
+const staticApp = "web10 auth"
 const assets = []
 
 self.addEventListener("install", installEvent => {

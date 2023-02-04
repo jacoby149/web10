@@ -1,4 +1,4 @@
-const staticApp = "web10 auth"
+const staticApp = "web10 hub"
 const assets = []
 
 self.addEventListener("install", installEvent => {
