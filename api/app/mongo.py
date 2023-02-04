@@ -7,6 +7,7 @@ import app.exceptions as exceptions
 import os
 import re
 import datetime
+import secrets
 
 
 #################################
@@ -189,6 +190,16 @@ def change_pass(user, new_pass, hash):
     u = u_t({"$set": {"hashed_password": hash(new_pass)}})
     db[user].update_one(q, u)
     return "successfully changed your password."
+
+########################
+### account recovery ###
+########################
+
+def temp_pass(From,hash):
+    new_pass = secrets.token_urlsafe(13)
+    user = get_phone_record(From)["username"] # TODO make get_phone_record secure
+    change_pass(user,new_pass,hash) # TODO put hash algo
+    return new_pass
 
 ##########################
 ######### CRUD ###########

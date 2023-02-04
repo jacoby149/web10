@@ -1,15 +1,14 @@
 1.0.5
 get forgot pass working.
+paginate + search
 get web10 groups working...
+force attach web10_author to web10 records. [prevent spams.]
+force attach created_time to web10 records.
 
 1.0.6
-force attach creator's web10 username to web10 records. [prevent spams.]
 get the web10 encryptor app working for web10 social messages.
 add information on the encryptor app in the docs page.
 
 1.0.7
-paginate all of the shit I ever wanted to paginate!
-
-1.0.8
 eliminate the old authenticator with the new authenticator!
 get the data viewer / exporter / importer working! [perhaps some simple searching.]

@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from re import M
 from fastapi import FastAPI, Request, status, BackgroundTasks
+from fastapi import Form, Response
 from passlib.context import CryptContext
 from fastapi.middleware.cors import CORSMiddleware
 import requests
@@ -165,6 +166,16 @@ def check_admin(token:models.Token):
 ##############################################
 ############ Web10 Routes For You ############
 ##############################################
+
+def recover(From):
+    # DO THE ACTUAL RECOVERY
+    password = db.temp_pass(From,get_password_hash)
+    return mobile.recovery_response(From,password)
+
+@app.post("/recovery_bot")
+async def recovery_bot(From: str = Form(...), Body: str = Form(...)):
+    response = recover(From) if Body=="RESET" else mobile.actionless_response()
+
 
 # make a new web10 account
 @app.post("/change_pass",include_in_schema=False)
