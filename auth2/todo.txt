@@ -1,14 +1,22 @@
+Motivated by selling it.
+
 1.0.5
-get forgot pass working.
-paginate + search
-get web10 groups working...
-force attach web10_author to web10 records. [prevent spams.]
-force attach created_time to web10 records.
+get SMS forgot pass working.
+pagination
+force attach web10_author + web10_created_time to records
+improve verify pass field [ use same thing as auth2... ]
 
 1.0.6
-get the web10 encryptor app working for web10 social messages.
-add information on the encryptor app in the docs page.
+make the subservices service
+    - protect it as follows
+        allow apps to CRUD subservices
+            - for the signed in user
+            - for services the user authorized
+enforce subservice rules.
 
 1.0.7
 eliminate the old authenticator with the new authenticator!
 get the data viewer / exporter / importer working! [perhaps some simple searching.]
+
+1.0.8
+encryptor ?
