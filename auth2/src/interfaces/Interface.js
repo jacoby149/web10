@@ -39,7 +39,11 @@ function useInterface() {
     I.initAppStore = function () {
         //initialize the app store
         //upon login, initialize the services??? TBD
-        return axios.post("https://api.web10.app/stats")
+        const local = window.location.protocol === "http:";
+        const statURL = local ?
+            "http://api.localhost/stats" :
+            "https://api.web10.app/stats"
+        return axios.post(statURL, { data: { skip: 0, limit: 0 } })
             .then((response) => {
                 // handle the stats
                 console.log(response.data)
@@ -56,9 +60,9 @@ function useInterface() {
             .then((apps) => {
                 const appStoreListings = apps.map((app) => {
                     return {
-                        title : app.url.split("https://")[1].slice(0,10),
-                        hits : app.visits,
-                        img : stealthImg,
+                        title: app.url.split("https://")[1].slice(0, 10),
+                        hits: app.visits,
+                        img: stealthImg,
                         href: app.url
                     }
                 })
@@ -173,7 +177,7 @@ function useInterface() {
     }
     React.useEffect(() => {
         I.initAppStore();
-    },[])
+    }, [])
     return I;
 }
 
