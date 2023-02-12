@@ -54,10 +54,13 @@ def to_db_field(field):
 
 # transforms user query for db
 # safe since ops are for values not fields
-def q_t(_q, service):
-    q = {"service": service}
+def q_t( _q, service ):
+    q = { "service": service }
     for field in _q:
-        q[to_db_field(field)] = _q[field]
+        # in web10, fields of a query arent allowed to start with a dollar sign. 
+        # dollar signs have a special meaning for pagination purposes, so we trim them out.
+        if field[0] != "$":
+            q[to_db_field(field)] = _q[field]
     return q
 
 
@@ -216,8 +219,13 @@ def create(user, service, _data):
 
 
 def read(user, service, query):
+    # get the skip sort, and limit values if they are there.
+    skip = query["$skip"] if "$skip" in query else 0
+    sort = query["$sort"] if "$sort" in query else {}
+    limit = query["$limit"] if "$limit" in query else 0
     query = q_t(query, service)
-    records = db[f"{user}"].find(query)
+
+    records = db[f"{user}"].find(query).sort(sort).skip(skip).limit(limit)
     records = [to_gui(record) for record in records]
     for record in records:
         if record["_id"]:
