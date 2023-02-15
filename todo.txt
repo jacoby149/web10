@@ -1,19 +1,39 @@
-1.1.0
+1.1.0 [EDTECH MVP]
+debug the functionality improvements don't break any legacy functionality.
+    - pagination OF app store 
+    - dollar sign stuff with the reads
+    - new wapi library improvements
+    
+add PDF links to the docs :
+    web10 licensing agreement
+    web10 support agreeement
+
+1.1.1
 GET FORGOT PASSWORD WORKING
+improve the verify pass field [ use same thing as auth2... ]
 modify the docs to explain return output of update and delete.
 document registering an app to the store.
 document pagination
-document dollar signs cant be used.
-improve the verify pass field [ use same thing as auth2... ]
-force attach web10_author + web10_created_time to records
+document that dollar signs cant be used.
+
 
 1.1.1
+add custom logo to app store. 
+    [NAME it custom_logo.png]
+    if it is there, use it!
+make a web10 for higher learning page
+    - marketing
+    - sign up
+    - schedule a call.
+force attach web10_author + web10_created_time to records
+
+1.1.2
 make an app review UI for admins to approve / deny apps.
     - settings.py APP_STORE_ADMIN_USERNAME, APP_STORE_ADMIN_PASSWORD
     - app page to see the description of the app + it's review status BEFORE MAKING THE MAIN PAGE.
 make the backend functionality for the app review UI.
 
-1.1.2
+1.1.3
 separate the auth2 from the app store! PWA reasons... [ UNLESS I CAN USE THE PWA SETTINGS ;) ]
 get auth2 SMRs working
 get auth2 data viewer [RAW JSON] / exporter / importer working! [perhaps some simple searching.]
@@ -22,7 +42,7 @@ then, do :
     make log in for apps ZERO clicks.
 eliminate the old authenticator with the new authenticator!
 
-1.1.3
+1.1.4
 make the subservices service
     - protect it as follows
         allow apps to CRUD subservices
@@ -30,7 +50,7 @@ make the subservices service
             - for services the user authorized
 enforce subservice rules.
 
-1.1.4
+1.1.5
 wapi encryption interface
 encryptor PWA
     * encryption
@@ -39,5 +59,5 @@ encryptor PWA
     * google cloud sync/backup
 document encryption
 
-1.1.5
+1.1.6
 web10 read pay system [pay to read other users stuff.]
