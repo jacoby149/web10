@@ -191,6 +191,7 @@ const wapiInit = function(authUrl = "https://auth.web10.app", appStores=["https:
     });
 
   //register with the appStores
+  console.log(appStores)
   for (const [i, appStore] of appStores.entries()) {
     axios.post(appStore+"/register_app", { "url": window.location.href.split('?')[0] })
   }

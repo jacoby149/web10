@@ -15,7 +15,7 @@
     "react-verification-input": "^3.1.1",
     "rectangles-npm": "^1.1.0",
     "web-vitals": "^2.1.4",
-    "web10-npm": "^1.0.4"
+    "web10-npm": "^1.0.5"
   },
   "scripts": {
     "start": "react-scripts start",

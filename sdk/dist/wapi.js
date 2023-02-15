@@ -13411,6 +13411,7 @@ var _axios = _interopRequireDefault(require("axios"));
 var _peerjs = require("peerjs");
 var _wapiAuth = require("./wapiAuth");
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
+function _createForOfIteratorHelper(o, allowArrayLike) { var it = typeof Symbol !== "undefined" && o[Symbol.iterator] || o["@@iterator"]; if (!it) { if (Array.isArray(o) || (it = _unsupportedIterableToArray(o)) || allowArrayLike && o && typeof o.length === "number") { if (it) o = it; var i = 0; var F = function F() {}; return { s: F, n: function n() { if (i >= o.length) return { done: true }; return { done: false, value: o[i++] }; }, e: function e(_e2) { throw _e2; }, f: F }; } throw new TypeError("Invalid attempt to iterate non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); } var normalCompletion = true, didErr = false, err; return { s: function s() { it = it.call(o); }, n: function n() { var step = it.next(); normalCompletion = step.done; return step; }, e: function e(_e3) { didErr = true; err = _e3; }, f: function f() { try { if (!normalCompletion && it["return"] != null) it["return"](); } finally { if (didErr) throw err; } } }; }
 function _defineProperty(obj, key, value) { key = _toPropertyKey(key); if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
 function _toPropertyKey(arg) { var key = _toPrimitive(arg, "string"); return _typeof(key) === "symbol" ? key : String(key); }
 function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input === null) return input; var prim = input[Symbol.toPrimitive]; if (prim !== undefined) { var res = prim.call(input, hint || "default"); if (_typeof(res) !== "object") return res; throw new TypeError("@@toPrimitive must return a primitive value."); } return (hint === "string" ? String : Number)(input); }
@@ -13438,12 +13439,12 @@ function cookieDict() {
 //initializes the sdk for web10 apps.
 var wapiInit = function wapiInit() {
   var authUrl = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : "https://auth.web10.app";
-  var rtcOrigin = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : "rtc.web10.app";
-  var protocol = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : null;
+  var appStores = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : ["https://api.web10.app"];
+  var rtcServer = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : "rtc.web10.app";
   var wapi = {};
 
   // get the default api protocol, which is required to match its auth portals protocol
-  wapi.defaultAPIProtocol = protocol ? protocol + ":" : new URL(authUrl).protocol;
+  wapi.APIProtocol = new URL(authUrl).protocol;
 
   //wapi variables
   wapi.childWindow = null;
@@ -13497,7 +13498,7 @@ var wapiInit = function wapiInit() {
 
   //get tiered tokens for strong web10 security
   wapi.getTieredToken = function (site, target) {
-    var protocol = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : wapi.defaultAPIProtocol;
+    var protocol = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : wapi.APIProtocol;
     return _axios["default"].post("".concat(protocol, "//").concat(wapi.readToken().provider, "/web10token"), {
       username: wapi.readToken().username,
       password: null,
@@ -13516,14 +13517,21 @@ var wapiInit = function wapiInit() {
     var query = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : null;
     var username = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : null;
     var provider = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : null;
-    var protocol = arguments.length > 4 && arguments[4] !== undefined ? arguments[4] : wapi.defaultAPIProtocol;
+    var protocol = arguments.length > 4 && arguments[4] !== undefined ? arguments[4] : wapi.APIProtocol;
+    return wapi._W10CRUD(_axios["default"].patch, provider, username, service, query, null, protocol);
+  };
+  wapi.read = function (service) {
+    var query = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : null;
+    var username = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : null;
+    var provider = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : null;
+    var protocol = arguments.length > 4 && arguments[4] !== undefined ? arguments[4] : wapi.APIProtocol;
     return wapi._W10CRUD(_axios["default"].patch, provider, username, service, query, null, protocol);
   };
   wapi.create = function (service) {
     var query = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : null;
     var username = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : null;
     var provider = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : null;
-    var protocol = arguments.length > 4 && arguments[4] !== undefined ? arguments[4] : wapi.defaultAPIProtocol;
+    var protocol = arguments.length > 4 && arguments[4] !== undefined ? arguments[4] : wapi.APIProtocol;
     return wapi._W10CRUD(_axios["default"].post, provider, username, service, query, null, protocol);
   };
   wapi.update = function (service) {
@@ -13531,7 +13539,7 @@ var wapiInit = function wapiInit() {
     var update = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : null;
     var username = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : null;
     var provider = arguments.length > 4 && arguments[4] !== undefined ? arguments[4] : null;
-    var protocol = arguments.length > 5 && arguments[5] !== undefined ? arguments[5] : wapi.defaultAPIProtocol;
+    var protocol = arguments.length > 5 && arguments[5] !== undefined ? arguments[5] : wapi.APIProtocol;
     return wapi._W10CRUD(_axios["default"].put, provider, username, service, query, update, protocol);
   };
   //axios delete is implemented differently
@@ -13539,7 +13547,7 @@ var wapiInit = function wapiInit() {
     var query = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : null;
     var username = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : null;
     var provider = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : null;
-    var protocol = arguments.length > 4 && arguments[4] !== undefined ? arguments[4] : wapi.defaultAPIProtocol;
+    var protocol = arguments.length > 4 && arguments[4] !== undefined ? arguments[4] : wapi.APIProtocol;
     return wapi._W10CRUD(function (url, data) {
       return _axios["default"]["delete"](url, {
         data: data
@@ -13592,7 +13600,7 @@ var wapiInit = function wapiInit() {
     var token = wapi.readToken();
     var id = wapi.peerID(token.provider, token.username, token.site, label);
     wapi.peer = new _peerjs.Peer(id, {
-      host: rtcOrigin,
+      host: rtcServer,
       secure: secure,
       port: secure ? 443 : 80,
       path: '/',
@@ -13649,7 +13657,7 @@ var wapiInit = function wapiInit() {
    ***************/
 
   wapi.checkout = function (seller, title, price, success_url, cancel_url) {
-    return _axios["default"].post("".concat(wapi.defaultAPIProtocol, "//").concat(wapi.readToken().provider, "/dev_pay"), {
+    return _axios["default"].post("".concat(wapi.APIProtocol, "//").concat(wapi.readToken().provider, "/dev_pay"), {
       token: wapi.token,
       seller: seller,
       title: title,
@@ -13661,7 +13669,7 @@ var wapiInit = function wapiInit() {
     });
   };
   wapi.verifySubscription = function (seller, title) {
-    return _axios["default"].patch("".concat(wapi.defaultAPIProtocol, "//").concat(wapi.readToken().provider, "/dev_pay"), {
+    return _axios["default"].patch("".concat(wapi.APIProtocol, "//").concat(wapi.readToken().provider, "/dev_pay"), {
       token: wapi.token,
       seller: seller,
       title: title,
@@ -13669,7 +13677,7 @@ var wapiInit = function wapiInit() {
     });
   };
   wapi.cancelSubscription = function (seller, title) {
-    return _axios["default"]["delete"]("".concat(wapi.defaultAPIProtocol, "//").concat(wapi.readToken().provider, "/dev_pay"), {
+    return _axios["default"]["delete"]("".concat(wapi.APIProtocol, "//").concat(wapi.readToken().provider, "/dev_pay"), {
       data: {
         token: wapi.token,
         seller: seller,
@@ -13678,12 +13686,26 @@ var wapiInit = function wapiInit() {
     });
   };
 
-  //register the app
-  _axios["default"].post('https://api.web10.app/register_app', {
-    "url": window.location.href.split('?')[0]
-  });
+  //register with the appStores
+  console.log(appStores);
+  var _iterator = _createForOfIteratorHelper(appStores.entries()),
+    _step;
+  try {
+    for (_iterator.s(); !(_step = _iterator.n()).done;) {
+      var _step$value = _slicedToArray(_step.value, 2),
+        i = _step$value[0],
+        appStore = _step$value[1];
+      _axios["default"].post(appStore + "/register_app", {
+        "url": window.location.href.split('?')[0]
+      });
+    }
 
-  //output the wapi object
+    //output the wapi object
+  } catch (err) {
+    _iterator.e(err);
+  } finally {
+    _iterator.f();
+  }
   return wapi;
 };
 
@@ -13727,9 +13749,9 @@ var wapiAuthInit = function wapiAuthInit(wapi) {
 
   //log into an existing web10 account
   //get tokens for web10 auth, and a parent oauth application.
-  wapiAuth.logIn = function (provider, username, password, setAuth, setStatus) {
+  wapiAuth.logIn = function (provider, username, password) {
     //web10 auth login
-    _axios["default"].post("".concat(wapi.defaultAPIProtocol, "//").concat(provider, "/web10token"), {
+    return _axios["default"].post("".concat(wapi.defaultAPIProtocol, "//").concat(provider, "/web10token"), {
       username: username,
       password: password,
       token: null,
@@ -13737,10 +13759,7 @@ var wapiAuthInit = function wapiAuthInit(wapi) {
       target: null
     }).then(function (response) {
       wapi.setToken(response.data.token);
-      setAuth(true);
       wapiAuth.mintOAuthToken();
-    })["catch"](function (error) {
-      return setStatus("Log in failed : ".concat(error.response.data.detail));
     });
   };
 
