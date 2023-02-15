@@ -77,6 +77,11 @@ def u_t(_u):
             u[op][to_db_field(field)] = _u[op][field]
     return u
 
+# changes mongodb query sort syntax to mongodb python sort syntax.
+def sort_t(sort):
+    return [(k,sort[k]) for k in sort]
+
+
 # assumes number fields are only in arrays.
 
 
@@ -220,8 +225,9 @@ def create(user, service, _data):
 
 def read(user, service, query):
     # get the skip sort, and limit values if they are there.
+    # TODO add exceptions for each of the ways the inputs can be bad!!!!
     skip = query["$skip"] if "$skip" in query else 0
-    sort = query["$sort"] if "$sort" in query else {}
+    sort = sort_t(query["$sort"]) if "$sort" in query else [("_id",1)]
     limit = query["$limit"] if "$limit" in query else 0
     query = q_t(query, service)
 

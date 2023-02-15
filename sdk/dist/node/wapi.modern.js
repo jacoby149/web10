@@ -1,6 +1,38 @@
 import axios from 'axios';
 import { Peer } from 'peerjs';
 
+function _unsupportedIterableToArray(o, minLen) {
+  if (!o) return;
+  if (typeof o === "string") return _arrayLikeToArray(o, minLen);
+  var n = Object.prototype.toString.call(o).slice(8, -1);
+  if (n === "Object" && o.constructor) n = o.constructor.name;
+  if (n === "Map" || n === "Set") return Array.from(o);
+  if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _arrayLikeToArray(o, minLen);
+}
+function _arrayLikeToArray(arr, len) {
+  if (len == null || len > arr.length) len = arr.length;
+  for (var i = 0, arr2 = new Array(len); i < len; i++) arr2[i] = arr[i];
+  return arr2;
+}
+function _createForOfIteratorHelperLoose(o, allowArrayLike) {
+  var it = typeof Symbol !== "undefined" && o[Symbol.iterator] || o["@@iterator"];
+  if (it) return (it = it.call(o)).next.bind(it);
+  if (Array.isArray(o) || (it = _unsupportedIterableToArray(o)) || allowArrayLike && o && typeof o.length === "number") {
+    if (it) o = it;
+    var i = 0;
+    return function () {
+      if (i >= o.length) return {
+        done: true
+      };
+      return {
+        done: false,
+        value: o[i++]
+      };
+    };
+  }
+  throw new TypeError("Invalid attempt to iterate non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");
+}
+
 var wapiAuthInit = function wapiAuthInit(wapi) {
   var wapiAuth = {};
   wapiAuth.mintOAuthToken = function () {
@@ -17,8 +49,8 @@ var wapiAuthInit = function wapiAuthInit(wapi) {
     }, "*");
     window.close();
   };
-  wapiAuth.logIn = function (provider, username, password, setAuth, setStatus) {
-    axios.post(wapi.defaultAPIProtocol + "//" + provider + "/web10token", {
+  wapiAuth.logIn = function (provider, username, password) {
+    return axios.post(wapi.defaultAPIProtocol + "//" + provider + "/web10token", {
       username: username,
       password: password,
       token: null,
@@ -26,10 +58,7 @@ var wapiAuthInit = function wapiAuthInit(wapi) {
       target: null
     }).then(function (response) {
       wapi.setToken(response.data.token);
-      setAuth(true);
       wapiAuth.mintOAuthToken();
-    })["catch"](function (error) {
-      return setStatus("Log in failed : " + error.response.data.detail);
     });
   };
   wapiAuth.signUp = function (provider, username, password, betacode, phone) {
@@ -128,18 +157,18 @@ function cookieDict() {
     }
   }, {});
 }
-var wapiInit = function wapiInit(authUrl, rtcOrigin, protocol) {
+var wapiInit = function wapiInit(authUrl, appStores, rtcServer) {
   if (authUrl === void 0) {
     authUrl = "https://auth.web10.app";
   }
-  if (rtcOrigin === void 0) {
-    rtcOrigin = "rtc.web10.app";
+  if (appStores === void 0) {
+    appStores = ["https://api.web10.app"];
   }
-  if (protocol === void 0) {
-    protocol = null;
+  if (rtcServer === void 0) {
+    rtcServer = "rtc.web10.app";
   }
   var wapi = {};
-  wapi.defaultAPIProtocol = protocol ? protocol + ":" : new URL(authUrl).protocol;
+  wapi.APIProtocol = new URL(authUrl).protocol;
   wapi.childWindow = null;
   wapi.token = cookieDict()["token"];
   wapi.setToken = function (token) {
@@ -173,7 +202,7 @@ var wapiInit = function wapiInit(authUrl, rtcOrigin, protocol) {
   };
   wapi.getTieredToken = function (site, target, protocol) {
     if (protocol === void 0) {
-      protocol = wapi.defaultAPIProtocol;
+      protocol = wapi.APIProtocol;
     }
     return axios.post(protocol + "//" + wapi.readToken().provider + "/web10token", {
       username: wapi.readToken().username,
@@ -194,7 +223,22 @@ var wapiInit = function wapiInit(authUrl, rtcOrigin, protocol) {
       provider = null;
     }
     if (protocol === void 0) {
-      protocol = wapi.defaultAPIProtocol;
+      protocol = wapi.APIProtocol;
+    }
+    return wapi._W10CRUD(axios.patch, provider, username, service, query, null, protocol);
+  };
+  wapi.read = function (service, query, username, provider, protocol) {
+    if (query === void 0) {
+      query = null;
+    }
+    if (username === void 0) {
+      username = null;
+    }
+    if (provider === void 0) {
+      provider = null;
+    }
+    if (protocol === void 0) {
+      protocol = wapi.APIProtocol;
     }
     return wapi._W10CRUD(axios.patch, provider, username, service, query, null, protocol);
   };
@@ -209,7 +253,7 @@ var wapiInit = function wapiInit(authUrl, rtcOrigin, protocol) {
       provider = null;
     }
     if (protocol === void 0) {
-      protocol = wapi.defaultAPIProtocol;
+      protocol = wapi.APIProtocol;
     }
     return wapi._W10CRUD(axios.post, provider, username, service, query, null, protocol);
   };
@@ -227,7 +271,7 @@ var wapiInit = function wapiInit(authUrl, rtcOrigin, protocol) {
       provider = null;
     }
     if (protocol === void 0) {
-      protocol = wapi.defaultAPIProtocol;
+      protocol = wapi.APIProtocol;
     }
     return wapi._W10CRUD(axios.put, provider, username, service, query, update, protocol);
   };
@@ -242,7 +286,7 @@ var wapiInit = function wapiInit(authUrl, rtcOrigin, protocol) {
       provider = null;
     }
     if (protocol === void 0) {
-      protocol = wapi.defaultAPIProtocol;
+      protocol = wapi.APIProtocol;
     }
     return wapi._W10CRUD(function (url, data) {
       return axios["delete"](url, {
@@ -293,7 +337,7 @@ var wapiInit = function wapiInit(authUrl, rtcOrigin, protocol) {
     var token = wapi.readToken();
     var id = wapi.peerID(token.provider, token.username, token.site, label);
     wapi.peer = new Peer(id, {
-      host: rtcOrigin,
+      host: rtcServer,
       secure: secure,
       port: secure ? 443 : 80,
       path: '/',
@@ -342,7 +386,7 @@ var wapiInit = function wapiInit(authUrl, rtcOrigin, protocol) {
     }
   };
   wapi.checkout = function (seller, title, price, success_url, cancel_url) {
-    return axios.post(wapi.defaultAPIProtocol + "//" + wapi.readToken().provider + "/dev_pay", {
+    return axios.post(wapi.APIProtocol + "//" + wapi.readToken().provider + "/dev_pay", {
       token: wapi.token,
       seller: seller,
       title: title,
@@ -354,7 +398,7 @@ var wapiInit = function wapiInit(authUrl, rtcOrigin, protocol) {
     });
   };
   wapi.verifySubscription = function (seller, title) {
-    return axios.patch(wapi.defaultAPIProtocol + "//" + wapi.readToken().provider + "/dev_pay", {
+    return axios.patch(wapi.APIProtocol + "//" + wapi.readToken().provider + "/dev_pay", {
       token: wapi.token,
       seller: seller,
       title: title,
@@ -362,7 +406,7 @@ var wapiInit = function wapiInit(authUrl, rtcOrigin, protocol) {
     });
   };
   wapi.cancelSubscription = function (seller, title) {
-    return axios["delete"](wapi.defaultAPIProtocol + "//" + wapi.readToken().provider + "/dev_pay", {
+    return axios["delete"](wapi.APIProtocol + "//" + wapi.readToken().provider + "/dev_pay", {
       data: {
         token: wapi.token,
         seller: seller,
@@ -370,9 +414,14 @@ var wapiInit = function wapiInit(authUrl, rtcOrigin, protocol) {
       }
     });
   };
-  axios.post('https://api.web10.app/register_app', {
-    "url": window.location.href.split('?')[0]
-  });
+  console.log(appStores);
+  for (var _iterator = _createForOfIteratorHelperLoose(appStores.entries()), _step; !(_step = _iterator()).done;) {
+    var _step$value = _step.value,
+      appStore = _step$value[1];
+    axios.post(appStore + "/register_app", {
+      "url": window.location.href.split('?')[0]
+    });
+  }
   return wapi;
 };
 window.wapiInit = wapiInit;

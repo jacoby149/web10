@@ -3,10 +3,6 @@ debug the functionality improvements don't break any legacy functionality.
     - pagination OF app store 
     - dollar sign stuff with the reads
     - new wapi library improvements
-    
-add PDF links to the docs :
-    web10 licensing agreement
-    web10 support agreeement
 
 1.1.1
 GET FORGOT PASSWORD WORKING
@@ -21,10 +17,6 @@ document that dollar signs cant be used.
 add custom logo to app store. 
     [NAME it custom_logo.png]
     if it is there, use it!
-make a web10 for higher learning page
-    - marketing
-    - sign up
-    - schedule a call.
 force attach web10_author + web10_created_time to records
 
 1.1.2
