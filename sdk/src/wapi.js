@@ -15,11 +15,11 @@ function cookieDict() {
 }
 
 //initializes the sdk for web10 apps.
-const wapiInit = function(authUrl = "https://auth.web10.app", rtcOrigin = "rtc.web10.app", protocol = null) {
+const wapiInit = function(authUrl = "https://auth.web10.app", appStores=["https://api.web10.app"], rtcServer = "rtc.web10.app") {
   const wapi = {};
 
   // get the default api protocol, which is required to match its auth portals protocol
-  wapi.defaultAPIProtocol = protocol ? protocol + ":" : new URL(authUrl).protocol;
+  wapi.APIProtocol = new URL(authUrl).protocol;
 
   //wapi variables
   wapi.childWindow = null;
@@ -63,7 +63,7 @@ const wapiInit = function(authUrl = "https://auth.web10.app", rtcOrigin = "rtc.w
   wapi.readToken = () => !wapi.token ? null : JSON.parse(atob(wapi.token.split(".")[1]));
 
   //get tiered tokens for strong web10 security
-  wapi.getTieredToken = (site, target, protocol = wapi.defaultAPIProtocol) => axios
+  wapi.getTieredToken = (site, target, protocol = wapi.APIProtocol) => axios
     .post(`${protocol}//${wapi.readToken().provider}/web10token`, {
       username: wapi.readToken().username,
       password: null,
@@ -77,14 +77,16 @@ const wapiInit = function(authUrl = "https://auth.web10.app", rtcOrigin = "rtc.w
    **************/
 
   //patch instead of get so patch can have an HTTPS E2E encrypted body
-  wapi.read = (service, query = null, username = null, provider = null, protocol = wapi.defaultAPIProtocol) => wapi
+  wapi.read = (service, query = null, username = null, provider = null, protocol = wapi.APIProtocol) => wapi
+  ._W10CRUD(axios.patch, provider, username, service, query, null, protocol);
+  wapi.read = (service, query = null, username = null, provider = null, protocol = wapi.APIProtocol) => wapi
     ._W10CRUD(axios.patch, provider, username, service, query, null, protocol);
-  wapi.create = (service, query = null, username = null, provider = null, protocol = wapi.defaultAPIProtocol) => wapi
+  wapi.create = (service, query = null, username = null, provider = null, protocol = wapi.APIProtocol) => wapi
     ._W10CRUD(axios.post, provider, username, service, query, null, protocol);
-  wapi.update = (service, query = null, update = null, username = null, provider = null, protocol = wapi.defaultAPIProtocol) => wapi
+  wapi.update = (service, query = null, update = null, username = null, provider = null, protocol = wapi.APIProtocol) => wapi
     ._W10CRUD(axios.put, provider, username, service, query, update, protocol);
   //axios delete is implemented differently
-  wapi.delete = (service, query = null, username = null, provider = null, protocol = wapi.defaultAPIProtocol) => wapi
+  wapi.delete = (service, query = null, username = null, provider = null, protocol = wapi.APIProtocol) => wapi
     ._W10CRUD((url, data) => axios.delete(url, { data: data }), provider, username, service, query, null, protocol);
 
   wapi._W10CRUD = function (HTTPRequestFunction, provider, username, service, query, update, protocol) {
@@ -116,7 +118,7 @@ const wapiInit = function(authUrl = "https://auth.web10.app", rtcOrigin = "rtc.w
     const token = wapi.readToken();
     var id = wapi.peerID(token.provider, token.username, token.site, label);
     wapi.peer = new Peer(id, {
-      host: rtcOrigin,
+      host: rtcServer,
       secure: secure,
       port: secure ? 443 : 80,
       path: '/',
@@ -166,7 +168,7 @@ const wapiInit = function(authUrl = "https://auth.web10.app", rtcOrigin = "rtc.w
    ***************/
 
   wapi.checkout = (seller, title, price, success_url, cancel_url) => axios
-    .post(`${wapi.defaultAPIProtocol}//${wapi.readToken().provider}/dev_pay`, {
+    .post(`${wapi.APIProtocol}//${wapi.readToken().provider}/dev_pay`, {
       token: wapi.token,
       seller: seller,
       title,
@@ -176,7 +178,7 @@ const wapiInit = function(authUrl = "https://auth.web10.app", rtcOrigin = "rtc.w
     }).then(response => window.location.href = response.data);
 
   wapi.verifySubscription = (seller, title) => axios
-    .patch(`${wapi.defaultAPIProtocol}//${wapi.readToken().provider}/dev_pay`, {
+    .patch(`${wapi.APIProtocol}//${wapi.readToken().provider}/dev_pay`, {
       token: wapi.token,
       seller,
       title,
@@ -184,12 +186,15 @@ const wapiInit = function(authUrl = "https://auth.web10.app", rtcOrigin = "rtc.w
     });
 
   wapi.cancelSubscription = (seller, title) => axios
-    .delete(`${wapi.defaultAPIProtocol}//${wapi.readToken().provider}/dev_pay`, {
+    .delete(`${wapi.APIProtocol}//${wapi.readToken().provider}/dev_pay`, {
       data: { token: wapi.token, seller, title, }
     });
 
-  //register the app
-  axios.post('https://api.web10.app/register_app', { "url": window.location.href.split('?')[0] })
+  //register with the appStores
+  console.log(appStores)
+  for (const [i, appStore] of appStores.entries()) {
+    axios.post(appStore+"/register_app", { "url": window.location.href.split('?')[0] })
+  }
 
   //output the wapi object
   return wapi;

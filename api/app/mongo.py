@@ -54,10 +54,13 @@ def to_db_field(field):
 
 # transforms user query for db
 # safe since ops are for values not fields
-def q_t(_q, service):
-    q = {"service": service}
+def q_t( _q, service ):
+    q = { "service": service }
     for field in _q:
-        q[to_db_field(field)] = _q[field]
+        # in web10, fields of a query arent allowed to start with a dollar sign. 
+        # dollar signs have a special meaning for pagination purposes, so we trim them out.
+        if field[0] != "$":
+            q[to_db_field(field)] = _q[field]
     return q
 
 
@@ -73,6 +76,11 @@ def u_t(_u):
                 raise exceptions.DB_NOT_ALLOWED
             u[op][to_db_field(field)] = _u[op][field]
     return u
+
+# changes mongodb query sort syntax to mongodb python sort syntax.
+def sort_t(sort):
+    return [(k,sort[k]) for k in sort]
+
 
 # assumes number fields are only in arrays.
 
@@ -216,8 +224,14 @@ def create(user, service, _data):
 
 
 def read(user, service, query):
+    # get the skip sort, and limit values if they are there.
+    # TODO add exceptions for each of the ways the inputs can be bad!!!!
+    skip = query["$skip"] if "$skip" in query else 0
+    sort = sort_t(query["$sort"]) if "$sort" in query else [("_id",1)]
+    limit = query["$limit"] if "$limit" in query else 0
     query = q_t(query, service)
-    records = db[f"{user}"].find(query)
+
+    records = db[f"{user}"].find(query).sort(sort).skip(skip).limit(limit)
     records = [to_gui(record) for record in records]
     for record in records:
         if record["_id"]:
@@ -406,10 +420,10 @@ def get_collection_size(user):
 # appstore stats
 
 
-def get_apps():
+def get_apps(skip=0,limit=0):
     apps = [{"url": app["url"],
              "visits":app["visits"]}
-            for app in db["web10"]["apps"].find({}).sort('visits',pymongo.DESCENDING)]
+            for app in db["web10"]["apps"].find({}).sort('visits',pymongo.DESCENDING).skip(skip).limit(limit)]
     return apps
 
 
