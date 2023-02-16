@@ -43,9 +43,11 @@ wapi.js is the javascript file containing the web10 developers SDK. <br>the file
 
 in order to use the web10 SDK, the main SDK object needs to be initialized by the developer. 
 
-| function           | description                                                  |
-| ------------------ | ------------------------------------------------------------ |
-| wapiInit(authUrl,) | returns a wapi object registered to handle web10 authentication at the auth portal of the given authUrl. |
+| function                                | description                                                  |
+| --------------------------------------- | ------------------------------------------------------------ |
+| wapiInit(authUrl, appStores, rtcServer) | returns a wapi object registered to handle web10 authentication at the auth portal of the given authUrl. It registers the application to the provided list of app stores, and registers for P2P webrtc with the provided web10 webRTC server. |
+
+appStores and rtcServer are optional parameters, set respectively to appStores = ["https://api.web10.app"] and rtcServer = "rtc.web10.app" by default.
 
 ```javascript
 /* simplest way to initialize a wapi object registered for auth with auth.web10.app */
@@ -108,7 +110,7 @@ Below is an example of some html and javascript utilizing all of the above SDK f
         </p>
     </body>
     <!-- Installing using CDN -->
-    <script src="https://unpkg.com/web10-npm/dist/wapi.js" ></script>
+    <script src="https://unpkg.com/web10-npm@1.0.5/dist/wapi.js" ></script>
     <script src="script.js"></script>
 </html>
 ```
@@ -164,15 +166,53 @@ web10.app services are hosted at :
 
 
 
-### SDK Functions
+### SDK CRUD + Service Management Functions
 
 | function                                            | description                                                  |
 | --------------------------------------------------- | ------------------------------------------------------------ |
 | wapi.SMROnReady(sirs,scrs)                          | adds an event listener that waits for the authentication service to send a ready signal. when the authentication service is ready, wapi sends a service modification request [SMR]. an SMR consists of list of service initialization requests [SIRs] and a list of service change requests [SCRs] |
 | wapi.create(service,query,username,provider)        | Runs a MongoDB create on the web10 service at provider/{username}/{service}, and returns the result as an axios promise. |
 | wapi.read(service,query,username,provider)          | Runs a MongoDB read on the web10 service at provider/{username}/{service}, and returns the result as an axios promise. |
-| wapi.update(service,query,update,username,provider) | Runs a MongoDB update on the web10 service at provider/{username}/{service}, and returns the result as an axios promise. *update has an extra special parameter PULL:true that mongo updates don't have, that pulls null array values instead of leaving them. PULL has unspecified behavior on documents holding numerically keyed dictionaries.* |
+| wapi.update(service,query,update,username,provider) | Runs a MongoDB update on the web10 service at provider/{username}/{service}, and returns the result as an axios promise. |
 | wapi.delete(service,query,username,provider)        | Runs a MongoDB delete on the web10 service at provider/{username}/{service}, and returns the result as an axios promise. |
+
+
+
+#### Additional Details about wapi.read(service,query,username,provider) for pagination.
+
+```javascript
+// Additional Detail about wapi.read !!!
+// In web10, keys of documents can't be started with a dollar sign. web10 read queries will ignore dollar signs in query keys, EXCEPT for $sort, $skip, and $limit, which are features built into web10 for pagination, explained below.
+
+// wapi.read adds special parameters to the query parameter for pagination.
+// $sort : {key : 1 or -1 } - lets you pass in 1 or -1 to sort output ascending or descending.
+// $skip : integer - a number of documents to skip in the query, for simple offset pagination
+// $limit : integer - a number of documents to return from the query.
+
+//example: 
+wapi.read("notes",{$skip:10,$limit:10})
+```
+
+
+
+#### Additional details about wapi.update(service, query, update, username, provider).
+
+```javascript
+// Additional Detail about wapi.update !!!
+wapi.update(service, query, update, username, provider) returns
+{
+        "matchedCount" : number of documents that matched the query
+        "modifiedCount" : number of documents modified.
+}
+// This lets a web10 developer upsert via. calling wapi.update. If 0 documents are matched, they can follow up with a wapi.create query.
+
+/* 
+web10 adds an additional helpful parameter to the update argument, PULL. 
+if set to true i.e. PULL:true, it pulls any null array values out of the arrays in web10 documents updated. 
+PULL has unspecified behavior on documents holding numerically keyed dictionaries.
+*/
+
+```
 
 
 
@@ -242,7 +282,7 @@ Below is an example of some html and javascript utilizing all of the above user 
     </div>
     <div id="noteview"></div>
 </body>
-<script src="https://unpkg.com/web10-npm/dist/wapi.js"></script>
+<script src="https://unpkg.com/web10-npm@1.0.5/dist/wapi.js"></script>
 <script src="script.js"></script>
 </html>
 ```
@@ -388,7 +428,7 @@ Below is a demo mail app. It showcases:
         <div id="mailview"></div>
     </div>
 </body>
-<script src="https://unpkg.com/web10-npm/dist/wapi.js"></script>
+<script src="https://unpkg.com/web10-npm@1.0.5/dist/wapi.js"></script>
 <script src="script.js"></script>
 </html>
 ```
@@ -581,7 +621,7 @@ On web10, peer ids look like 'provider/username/origin/label'
 ### P2P messaging demo (Coming soon)
 
 ```
-(Coming soon)
+see https://mail.web10.app
 ```
 
 
