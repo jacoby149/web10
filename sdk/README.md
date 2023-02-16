@@ -43,13 +43,22 @@ wapi.js is the javascript file containing the web10 developers SDK. <br>the file
 
 in order to use the web10 SDK, the main SDK object needs to be initialized by the developer. 
 
-| function          | description                                                  |
-| ----------------- | ------------------------------------------------------------ |
-| wapiInit(authUrl) | returns a wapi object registered to handle web10 authentication at the auth portal of the given authUrl. |
+| function           | description                                                  |
+| ------------------ | ------------------------------------------------------------ |
+| wapiInit(authUrl,) | returns a wapi object registered to handle web10 authentication at the auth portal of the given authUrl. |
 
 ```javascript
-//initialize a wapi object registered for auth with auth.web10.app
+/* simplest way to initialize a wapi object registered for auth with auth.web10.app */
 const wapi = wapiInit("https://auth.web10.app")
+```
+
+```javascript
+/*
+* initializing a wapi object with the optional parameters.
+*      appStores - A list of app stores to register the app with.
+*      rtcServer - A domain name of a web10 webRTC server to use for P2P
+*/
+wapiInit(authUrl = "https://auth.web10.app", appStores=["https://api.web10.app"], rtcServer = "rtc.web10.app")
 ```
 
 
