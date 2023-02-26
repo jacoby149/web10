@@ -56,14 +56,14 @@ def recovery_prompt(phone_number,user):
 
 ############ WEBHOOK ################
 
-def recovery_response(number):
+def recovery_response(password):
     # Start our TwiML response
     resp = MessagingResponse()
-    resp.message("Your password has been reset to qopwenzxzm")
+    resp.message(f"Your password has been reset to {password}")
     return str(resp)
 
 # sends a prompt if a person texts anything that is not RESET
-def actionless_response(number):
+def actionless_response():
     resp = MessagingResponse()
-    resp.message('This is web10 account recovery for PROVIDER/USERNAME. Type "RESET" to reset your password. Otherwise, have a nice day :) ')
+    resp.message('No action was taken., text "RESET" to reset your password. Go to https://web10auth.netlify.app?forgot=true to recover your username too.')
     return str(resp)

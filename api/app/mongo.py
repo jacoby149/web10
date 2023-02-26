@@ -203,9 +203,10 @@ def change_pass(user, new_pass, hash):
 ### account recovery ###
 ########################
 
-def temp_pass(From,hash):
-    new_pass = secrets.token_urlsafe(13)
-    user = get_phone_record(From)["username"] # TODO make get_phone_record secure
+def temp_pass(phone_number,hash):
+    new_pass = secrets.token_urlsafe(6)
+    print("IN TEMP PASS, : ", phone_number)
+    user = get_phone_record(phone_number)["username"] # TODO make get_phone_record secure
     change_pass(user,new_pass,hash) # TODO put hash algo
     return new_pass
 
