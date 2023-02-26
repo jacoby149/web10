@@ -334,43 +334,46 @@ var wapiInit = function wapiInit(authUrl, appStores, rtcServer) {
     if (secure === void 0) {
       secure = true;
     }
-    var token = wapi.readToken();
-    var id = wapi.peerID(token.provider, token.username, token.site, label);
-    wapi.peer = new Peer(id, {
+    var thisWapi = this;
+    var token = thisWapi.readToken();
+    var id = thisWapi.peerID(token.provider, token.username, token.site, label);
+    thisWapi.peer = new Peer(id, {
       host: rtcServer,
       secure: secure,
       port: secure ? 443 : 80,
       path: '/',
-      token: wapi.token + "~" + label
+      token: thisWapi.token + "~" + label
     });
     if (onInbound) {
-      wapi.peer.on('connection', function (conn) {
-        wapi.inBound[conn.peer] = conn;
+      thisWapi.peer.on('connection', function (conn) {
+        thisWapi.inBound[conn.peer] = conn;
         conn.on('data', function (data) {
           return onInbound(conn, data);
         });
         conn.on('close', function () {
-          return delete wapi.inBound[conn.peer];
+          return delete thisWapi.inBound[conn.peer];
         });
       });
     }
   };
   wapi.outBound = {};
   wapi.P2P = function (provider, username, origin, label) {
-    if (!wapi.peer) console.error("not initialized");
-    var id = wapi.peerID(provider, username, origin, label);
+    var thisWapi = this;
+    if (!thisWapi.peer) console.error("not initialized");
+    var id = thisWapi.peerID(provider, username, origin, label);
     var conn = null;
-    if (!wapi.outBound[id]) {
-      conn = wapi.peer.connect(id);
-      wapi.outBound[conn.peer] = conn;
+    if (!thisWapi.outBound[id]) {
+      conn = thisWapi.peer.connect(id);
+      thisWapi.outBound[conn.peer] = conn;
       conn.on('close', function () {
-        return delete wapi.outBound[conn.peer];
+        return delete thisWapi.outBound[conn.peer];
       });
-    } else conn = wapi.outBound[id];
+    } else conn = thisWapi.outBound[id];
     return conn;
   };
   wapi.send = function (provider, username, origin, label, data) {
-    var conn = wapi.P2P(provider, username, origin, label);
+    var thisWapi = this;
+    var conn = thisWapi.P2P(provider, username, origin, label);
     if (conn.open) {
       conn.send(data);
       return {
@@ -414,7 +417,6 @@ var wapiInit = function wapiInit(authUrl, appStores, rtcServer) {
       }
     });
   };
-  console.log(appStores);
   for (var _iterator = _createForOfIteratorHelperLoose(appStores.entries()), _step; !(_step = _iterator()).done;) {
     var _step$value = _step.value,
       appStore = _step$value[1];

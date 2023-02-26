@@ -17,7 +17,7 @@ function cookieDict() {
 //initializes the sdk for web10 apps.
 const wapiInit = function(authUrl = "https://auth.web10.app", appStores=["https://api.web10.app"], rtcServer = "rtc.web10.app") {
   const wapi = {};
-
+  
   // get the default api protocol, which is required to match its auth portals protocol
   wapi.APIProtocol = new URL(authUrl).protocol;
 
@@ -107,7 +107,6 @@ const wapiInit = function(authUrl = "https://auth.web10.app", appStores=["https:
   /*************
    **** P2P ****
    *************/
-
   wapi.peer = null;
 
   wapi.peerID = (provider, user, origin, label) => `${provider} ${user} ${origin} ${label}`.replaceAll(".", "_");
@@ -115,21 +114,21 @@ const wapiInit = function(authUrl = "https://auth.web10.app", appStores=["https:
   // initializes the peer and listens for inbound connections
   wapi.inBound = {}
   wapi.initP2P = function (onInbound = null, label = "", secure = true) {
-    const token = wapi.readToken();
-    var id = wapi.peerID(token.provider, token.username, token.site, label);
-    wapi.peer = new Peer(id, {
+    const thisWapi = this
+    const token = thisWapi.readToken();
+    var id = thisWapi.peerID(token.provider, token.username, token.site, label);
+    thisWapi.peer = new Peer(id, {
       host: rtcServer,
       secure: secure,
       port: secure ? 443 : 80,
       path: '/',
-      token: `${wapi.token}~${label}`,
+      token: `${thisWapi.token}~${label}`,
     });
-
     if (onInbound) {
-      wapi.peer.on('connection', function (conn) {
-        wapi.inBound[conn.peer] = conn;
+      thisWapi.peer.on('connection', function (conn) {
+        thisWapi.inBound[conn.peer] = conn;
         conn.on('data', (data) => onInbound(conn, data));
-        conn.on('close', () => delete wapi.inBound[conn.peer])
+        conn.on('close', () => delete thisWapi.inBound[conn.peer])
       });
     }
   }
@@ -139,19 +138,21 @@ const wapiInit = function(authUrl = "https://auth.web10.app", appStores=["https:
   wapi.outBound = {}
 
   wapi.P2P = function (provider, username, origin, label) {
-    if (!wapi.peer) console.error("not initialized")
-    const id = wapi.peerID(provider, username, origin, label)
+    const thisWapi = this
+    if (!thisWapi.peer) console.error("not initialized")
+    const id = thisWapi.peerID(provider, username, origin, label)
     var conn = null;
-    if (!wapi.outBound[id]) {
-      conn = wapi.peer.connect(id);
-      wapi.outBound[conn.peer] = conn;
-      conn.on('close', () => delete wapi.outBound[conn.peer])
-    } else conn = wapi.outBound[id]
+    if (!thisWapi.outBound[id]) {
+      conn = thisWapi.peer.connect(id);
+      thisWapi.outBound[conn.peer] = conn;
+      conn.on('close', () => delete thisWapi.outBound[conn.peer])
+    } else conn = thisWapi.outBound[id]
     return conn
   }
 
   wapi.send = function (provider, username, origin, label, data) {
-    const conn = wapi.P2P(provider, username, origin, label);
+    const thisWapi = this
+    const conn = thisWapi.P2P(provider, username, origin, label);
     if (conn.open) {
       conn.send(data);
       return { connected: true };
@@ -191,7 +192,6 @@ const wapiInit = function(authUrl = "https://auth.web10.app", appStores=["https:
     });
 
   //register with the appStores
-  console.log(appStores)
   for (const [i, appStore] of appStores.entries()) {
     axios.post(appStore+"/register_app", { "url": window.location.href.split('?')[0] })
   }
