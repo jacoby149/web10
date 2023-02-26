@@ -170,11 +170,13 @@ def check_admin(token:models.Token):
 def recover(From):
     # DO THE ACTUAL RECOVERY
     password = db.temp_pass(From,get_password_hash)
-    return mobile.recovery_response(From,password)
+    return mobile.recovery_response(password)
 
 @app.post("/recovery_bot",include_in_schema=False)
 async def recovery_bot(From: str = Form(...), Body: str = Form(...)):
-    response = recover(From) if Body=="RESET" else mobile.actionless_response(From)
+    print("IN RECOVERY BOT")
+    response = recover(From.replace("+","")) if Body=="RESET" else mobile.actionless_response()
+    return Response(content=str(response), media_type="application/xml")
 
 @app.post("/recovery_prompt")
 async def send_recovery_prompt(phone_form: models.PhoneForm):
