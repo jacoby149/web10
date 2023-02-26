@@ -174,7 +174,7 @@ def recover(From):
 
 @app.post("/recovery_bot",include_in_schema=False)
 async def recovery_bot(From: str = Form(...), Body: str = Form(...)):
-    response = recover(From) if Body=="RESET" else mobile.actionless_response()
+    response = recover(From) if Body=="RESET" else mobile.actionless_response(From)
 
 
 # make a new web10 account
