@@ -1,6 +1,9 @@
 1.1.0 [EDTECH MVP]
-make the three video tutorial lessons.
 fix the social app messaging. WITH WEBRTC...
+remodel the mail demo.
+add some css libs to make the demos tolerable..
+get the three lessons WORKING WORKING on replit.
+make the three video tutorial lessons.
 debug the functionality improvements don't break any legacy functionality.
     - pagination OF app store 
     - dollar sign stuff with the reads
@@ -12,7 +15,7 @@ improve the verify pass field [ use same thing as auth2... ]
 home[web10.app] and education.html to netlify...
 
 1.1.2
-add custom logo to app store. 
+add custom logo for institutional branding to app store. 
     [NAME it custom_logo.png]
     if it is there, use it!
 force attach web10_author + web10_created_time to records
@@ -24,21 +27,22 @@ make an app review UI for admins to approve / deny apps.
 make the backend functionality for the app review UI.
 
 1.1.4
-separate the auth2 from the app store! PWA reasons... [ UNLESS I CAN USE THE PWA SETTINGS ;) ]
-get auth2 SMRs working
-get auth2 data viewer [RAW JSON] / exporter / importer working! [perhaps some simple searching.]
-then, do :
-    make sign up for new apps ONE click.
-    make log in for apps ZERO clicks.
-eliminate the old authenticator with the new authenticator!
-
-1.1.5
+Implement tiered token protection in wapi.js
 make the subservices service
     - protect it as follows
         allow apps to CRUD subservices
             - for the signed in user
             - for services the user authorized
 enforce subservice rules.
+
+1.1.5
+get auth2 SMRs working
+get auth2 data viewer [RAW JSON] / exporter / importer working! [perhaps some simple searching.]
+then, do :
+    make sign up for new apps ONE click.
+    make log in for apps ZERO clicks.
+separate the auth2 from the app store! PWA reasons... [ UNLESS I CAN USE THE PWA SETTINGS ;) ]
+eliminate the old authenticator with the new authenticator!
 
 1.1.6
 wapi encryption interface
