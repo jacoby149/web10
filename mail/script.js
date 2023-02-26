@@ -11,12 +11,16 @@ const Fs = ([cF, rF, uF, dF] = ["create", "read", "update", "delete"].map(
 
 /* wapi setup */
 
-const wapi = wapiInit("https://auth.web10.app","rtc.web10.app");
+const wapi = wapiInit("https://auth.web10.app",undefined,"rtc.web10.app");
 const sirs = [
   {
-    service: "mail",
+    service: "message-inbox",
     cross_origins: ["docs.web10.app", "localhost", "docs.localhost","mail.web10.app","mail.localhost"],
     whitelist: [{ username: ".*", provider: ".*", create: true }], //allows all users to write to you
+  },
+  {
+    service: "message-outbox",
+    cross_origins: ["docs.web10.app", "localhost", "docs.localhost","mail.web10.app","mail.localhost"],
   },
 ];
 

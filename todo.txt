@@ -1,15 +1,12 @@
 1.1.0 [EDTECH MVP]
-fix the social app messaging. WITH WEBRTC...
 remodel the mail demo.
+forgot password.
 add some css libs to make the demos tolerable..
 get the three lessons WORKING WORKING on replit.
-make the three video tutorial lessons.
-debug the functionality improvements don't break any legacy functionality.
-    - pagination OF app store 
-    - dollar sign stuff with the reads
-    - new wapi library improvements
+Lesson 4, import web10-social from github.
 
 1.1.1
+make the three video tutorial lessons.
 GET FORGOT PASSWORD WORKING
 improve the verify pass field [ use same thing as auth2... ]
 home[web10.app] and education.html to netlify...
@@ -55,3 +52,15 @@ document encryption
 
 1.1.7
 web10 read pay system [pay to read other users stuff.]
+
+1.1.8
+TODO get email verification working via. sendgrid.
+fix the null deletion issue
+make a web10 tutorial with a posts integration.
+make a web10 tutorial with a messages integration.
+get searching working.
+web10 should have some kind of groups...
+debug the functionality improvements don't break any legacy functionality.
+    - pagination OF app store 
+    - dollar sign stuff with the reads
+    - new wapi library improvements
