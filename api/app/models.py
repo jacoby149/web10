@@ -59,3 +59,6 @@ class TokenForm(BaseModel):
     token: Optional[str] = None  # authorize via. user pass or token to get a token
     site: Optional[str] = None
     target: Optional[str] = None
+
+class PhoneForm(BaseModel):
+    phone_number:str

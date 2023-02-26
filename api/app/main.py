@@ -176,6 +176,13 @@ def recover(From):
 async def recovery_bot(From: str = Form(...), Body: str = Form(...)):
     response = recover(From) if Body=="RESET" else mobile.actionless_response(From)
 
+@app.post("/recovery_prompt")
+async def send_recovery_prompt(phone_form: models.PhoneForm):
+    phone_number = phone_form.phone_number
+    phone_rec = db.get_phone_record(phone_number)
+    print(phone_rec)
+    user = phone_rec["username"]
+    return mobile.recovery_prompt(phone_form.phone_number,user)
 
 # make a new web10 account
 @app.post("/change_pass",include_in_schema=False)

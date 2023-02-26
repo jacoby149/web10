@@ -42,9 +42,9 @@ def check_verification(phone_number,code):
 ########## Forgot Password Prompt #########
 
 # tells the customer how to reset their pass.
-def recovery_prompt(phone_number):
+def recovery_prompt(phone_number,user):
     message = client.messages.create(
-                                body='This is web10 account recovery. for PROVIDER/USERNAME. to reset your password, text "RESET" . Otherwise, have a nice day :) ',
+                                body=f'This is web10 account recovery. for {settings.PROVIDER}/{user}. to reset your password, text "RESET" . Otherwise, have a nice day :) ',
                                 from_=settings.TWILIO_NUMBER,
                                 to="+"+str(phone_number)
                             )

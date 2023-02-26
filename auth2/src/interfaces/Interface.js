@@ -126,9 +126,8 @@ function useInterface() {
         I.setMode("login");
     }
 
-    I.recover = function () {
-        I.setAuth(true);
-        I.setMode("appstore");
+    I.recover = function (provider,phone) {
+        axios.post(`${window.location.protocol}//${provider}/recovery_prompt`,{phone_number:phone})
     }
 
     I.isVerified = function () {
