@@ -1,6 +1,5 @@
 1.1.0 [EDTECH MVP]
 remodel the mail demo.
-forgot password.
 add some css libs to make the demos tolerable..
 get the three lessons WORKING WORKING on replit.
 Lesson 4, import web10-social from github.
