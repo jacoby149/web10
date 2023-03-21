@@ -372,9 +372,10 @@ function OAuth({ services, setSelectedService, setMode }) {
   const SMRs = services
     .map((service, idx) => service.concat([idx]))
     .filter((service) => service[1] === "new" || service[1] === "change")
-    .map((service) => {
+    .map((service,i) => {
       return (
         <button
+          key={i}
           style={{ marginTop: "5px" }}
           className="button is-light is-warning is-small"
           onClick={() => {
