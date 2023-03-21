@@ -14,13 +14,9 @@ const Fs = ([cF, rF, uF, dF] = ["create", "read", "update", "delete"].map(
 const wapi = wapiInit("https://auth.web10.app",undefined,"rtc.web10.app");
 const sirs = [
   {
-    service: "message-inbox",
+    service: "mail",
     cross_origins: ["docs.web10.app", "localhost", "docs.localhost","mail.web10.app","mail.localhost"],
     whitelist: [{ username: ".*", provider: ".*", create: true }], //allows all users to write to you
-  },
-  {
-    service: "message-outbox",
-    cross_origins: ["docs.web10.app", "localhost", "docs.localhost","mail.web10.app","mail.localhost"],
   },
 ];
 
@@ -91,7 +87,7 @@ function initApp() {
   message.innerHTML = `hello ${t["provider"]}/${t["username"]},<br>`;
   readMail();
   devPay();
-  wapi.initP2P(readMail,"messaging-device")
+  wapi.initP2P(readMail,"mail-device")
 }
 
 if (wapi.isSignedIn()) initApp();
