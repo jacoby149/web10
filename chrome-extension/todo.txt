@@ -1,0 +1,3 @@
+find a react boilerplate for the web extension [for web10 login and logout]
+get the web extension successfully authenticating.
+write the instagram adapter.
