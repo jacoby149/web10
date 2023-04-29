@@ -1,0 +1,50 @@
+version: "3"
+
+services:
+  api:
+    build: api
+    volumes:
+      - ./api/:/web10 
+    ports:
+      - "6000:80"
+    environment:
+      VIRTUAL_HOST: api.localhost
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80", "--reload"]
+    networks:
+      default:
+        aliases:
+          - api.localhost
+  auth:
+    build: 
+      context: .
+      dockerfile: auth/Dockerfile
+      target: dev
+    volumes:
+      - ./auth:/auth
+      - ./sdk:/auth/public/sdk
+      - node-modules:/auth/node_modules
+      - wapi-node-modules:/auth/public/sdk/node_modules
+    command: ["npm", "run", "start"]
+    environment:
+      PORT: 80
+      VIRTUAL_HOST: auth.localhost
+      CHOKIDAR_USEPOLLING: "true"
+    ports:
+      - '3000:80'
+  rtc:
+    build: rtc
+    volumes:
+      - ./rtc:/rtc
+      - rtc:/rtc/node_modules
+    command: ["nodemon", "index.js"]
+    environment:
+      PORT: 80
+      VIRTUAL_HOST: rtc.localhost
+      CHOKIDAR_USEPOLLING: "true"
+    ports:
+      - '6363:80'
+
+volumes:
+  node-modules:
+  wapi-node-modules:  
+  rtc:
