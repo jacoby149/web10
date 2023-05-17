@@ -1,14 +1,21 @@
-1.0.9 [ Good Auth UI + Secure Metadata !!! ]
+1.0.9
+fix errors in the web10 docs
+make the "make a new web10 app" button with dropdown -> replit
+make npx web10 apps
+make 2 videos on the web10 tutorials.
+
+1.0.10
+[ Good Auth UI + Secure Metadata !!! ]
 force attach web10_author + web10_created_time to records
 get auth2 SMRs working
 get auth2 data viewer [RAW JSON] / exporter / importer working! [perhaps some simple searching.]
 then, do :
     make sign up for new apps ONE click.
     make log in for apps ZERO clicks.
-separate the auth2 from the app store! PWA reasons... [ UNLESS I CAN USE THE PWA SETTINGS ;) ]
+separate the auth2 from the app store! PWA reasons... [ UNLESS I CAN USE THE PWA SETTINGS ; ]
 eliminate the old authenticator with the new authenticator!
 
-1.1.0 [Instagram Pilot]
+1.0.11 [Instagram Pilot]
 fix the web10 social glitches. (and add webRTC)
 Implement automatic tiered token protection in wapi.js 
     - so another web10 provider can't impersonate you... because of a dumb dev mistake.
@@ -18,11 +25,6 @@ make the subservices service
             - for the signed in user
             - for services the user authorized
 enforce subservice rules.
-
-1.1.1 [Make devving more clear]
-make 2 videos on the web10 tutorials.
-make the "make a new web10 app" button with dropdown -> replit
-
 
 1.1.2 [Make an app approval process...]
 make an app review UI for admins to approve / deny apps.
@@ -49,3 +51,7 @@ debug the functionality improvements don't break any legacy functionality.
     - dollar sign stuff with the reads
     - new wapi library improvements
 web10 read pay system [pay to read other users stuff.]
+
+1.1.6
+Make a web10 Kafka messaging queue +
+redis cache to speed up redundant web10 reads
