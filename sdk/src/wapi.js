@@ -25,12 +25,15 @@ function cookieDict() {
  * @return {[Object]} [Returns the web10 connector object]
  */
 const wapiInit = function(authUrl = "https://auth.web10.app", appStores=["https://api.web10.app"], rtcServer = "rtc.web10.app") {
-  const wapi = {};
   
-  // get the default api protocol, which is required to match its auth portals protocol
-  wapi.APIProtocol = new URL(authUrl).protocol;
 
-  //wapi variables
+  /********************** 
+   *** Initialization ***
+   **********************/
+
+  const wapi = {};
+  // ** Note ** The API protocol matches the auth protocol. if https, https. if http, http.
+  wapi.APIProtocol = new URL(authUrl).protocol;
   wapi.childWindow = null;
   wapi.token = cookieDict()["token"];
 
@@ -38,7 +41,11 @@ const wapiInit = function(authUrl = "https://auth.web10.app", appStores=["https:
    *** AUTH ***
    ************/
 
-  //sets the api key in wapi and stores it in cookies
+  /**
+    * [setToken sets the web10 connector's token to a given input JWT string.
+    * It also stores the JWT as a token= cookie with a 60 day expiration. ]
+    * @param  {[string]} token [A JWT token]
+    */
   wapi.setToken = function (token) {
     wapi.token = token;
     //set the cookie max age to 60 days (1 day padding from the true 61 day expiration)
@@ -46,22 +53,38 @@ const wapiInit = function(authUrl = "https://auth.web10.app", appStores=["https:
     document.cookie = `token=${wapi.token};Secure;path=/;max-age=${age};`;
   };
 
-  //scrub the api keys from wapi and deletes it from cookies
+  /**
+    * [scrubToken deletes the current token from the web10 connector.
+    * It also deletes the token= cookie if there is one. ]
+    * @param  {[string]} token [A JWT token]
+    */
   wapi.scrubToken = function () {
     document.cookie = "token=;max-age=-1;path=/;";
     wapi.token = null;
   };
 
-  //opens up a child window for auth stuff
+  /**
+    * [openAuthPortal opens up a web10 authenticator window.
+    * stores the window as a child in the web10 connector for back and forth messaging. ]
+    */  
   wapi.openAuthPortal = () => wapi.childWindow = window.open(authUrl, "_blank");
 
-  //checks if wapi is currently signed in
+  /**
+    * [isSignedIn checks if a web10 account is currently signed in with. ]
+    */  
   wapi.isSignedIn = () => wapi.token != null;
 
-  //signs out wapi
+  /**
+    * [signOut signs out the current web10 account IF signed in. ]
+    */  
   wapi.signOut = () => wapi.scrubToken();
 
-  //listens for an oauth result from the child window
+  /**
+    * [authListen inits an event listener for logging.
+    * listens for a web10 authenticator child window to send a JWT auth token
+    * when the JWT is sent, configure the web10 connector to be logged in.]
+    * @param  {[function]} setAuth [A callback function that takes logged in [boolean] as an input.]
+    */  
   wapi.authListen = setAuth => window.addEventListener("message", e => {
     if (e.data.type === "auth") {
       wapi.setToken(e.data.token || "");
@@ -69,6 +92,11 @@ const wapiInit = function(authUrl = "https://auth.web10.app", appStores=["https:
     }
   });
 
+  /**
+    * [readToken if logged in, returns the data portion of the JWT auth token. ]
+    * @param  {[function]} setAuth [A callback function that takes logged in [boolean] as an input.]
+    * @return {[Object]} [JWT auth token data]
+    */  
   wapi.readToken = () => !wapi.token ? null : JSON.parse(atob(wapi.token.split(".")[1]));
 
   //get tiered tokens for strong web10 security
