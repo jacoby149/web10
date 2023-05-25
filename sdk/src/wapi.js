@@ -2,7 +2,10 @@ import axios from 'axios'
 import { Peer } from "peerjs";
 import {wapiAuthInit} from './wapiAuth'
 
-//helper function for loading relevant cookies on page load.
+/**
+ * [cookieDict helper function that gets web cookies as a dictionary.]
+ * @return {[dictionary]} [the current website's cookies.]
+ */
 function cookieDict() {
   return window.document.cookie.split(";").reduce((res, c) => {
     const [key, val] = c.trim().split("=").map(decodeURIComponent);
@@ -14,7 +17,13 @@ function cookieDict() {
   }, {});
 }
 
-//initializes the sdk for web10 apps.
+/**
+ * [wapiInit initializes the SDK for web10 apps.]
+ * @param  {[string]} authUrl [The URL of the web10 authenticator to use]
+ * @param  {[list]} appStores [optional list of appstore URLs to register the app with]
+ * @param  {[string]} rtcServer [The URL of the web10 webRTC server to use for P2P connections.]
+ * @return {[Object]} [Returns the web10 connector object]
+ */
 const wapiInit = function(authUrl = "https://auth.web10.app", appStores=["https://api.web10.app"], rtcServer = "rtc.web10.app") {
   const wapi = {};
   
