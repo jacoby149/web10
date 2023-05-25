@@ -1,4 +1,5 @@
 1.0.9
+JSDoc the web10 code.
 fix errors in the web10 docs
 make the "make a new web10 app" button with dropdown -> replit
 make npx web10 apps
@@ -16,7 +17,8 @@ separate the auth2 from the app store! PWA reasons... [ UNLESS I CAN USE THE PWA
 eliminate the old authenticator with the new authenticator!
 
 1.0.11 [Instagram Pilot]
-fix the web10 social glitches. (and add webRTC)
+fix the web10 social messaging glitches
+add webRTC to the web10 social posts
 Implement automatic tiered token protection in wapi.js 
     - so another web10 provider can't impersonate you... because of a dumb dev mistake.
 make the subservices service
