@@ -60,7 +60,7 @@ const wapi = wapiInit("https://auth.web10.app")
 *      appStores - A list of app stores to register the app with.
 *      rtcServer - A domain name of a web10 webRTC server to use for P2P
 */
-wapiInit(authUrl = "https://auth.web10.app", appStores=["https://api.web10.app"], rtcServer = "rtc.web10.app")
+wapiInit("https://auth.web10.app", ["https://api.web10.app"],"rtc.web10.app")
 ```
 
 
