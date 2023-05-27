@@ -284,9 +284,9 @@ const wapiInit = function(authUrl = "https://auth.web10.app", appStores=["https:
   /**
     * Send data over web10 P2P to another peer.
     * @param  {string} provider [ other's web10 provider. ]
-    * @param  {string} username [ other's web10 username]
-    * @param  {boolean} origin [ web10 app URL]
-    * @param  {boolean} label [ other's label]
+    * @param  {string} username [ other's web10 username ] 
+    * @param  {boolean} origin [ web10 app URL ]
+    * @param  {boolean} label [ other's label ]
     * @param  {object} data [ data to send the other peer ]
   */    
   wapi.send = function (provider, username, origin, label, data) {
@@ -307,6 +307,14 @@ const wapiInit = function(authUrl = "https://auth.web10.app", appStores=["https:
    *** dev pay ***
    ***************/
 
+  /**
+    * Open a stripe checkout window for a web10 app product.
+    * @param  {string} seller [ web10 address of seller ]
+    * @param  {string} title [ title of the item to sell ] 
+    * @param  {boolean} price [ the price of the item ]
+    * @param  {boolean} success_url [ URL to redirect to on success. ]
+    * @param  {object} cancel_url [ URL to redirect to on cancellation. ]
+  */     
   wapi.checkout = (seller, title, price, success_url, cancel_url) => axios
     .post(`${wapi.APIProtocol}//${wapi.readToken().provider}/dev_pay`, {
       token: wapi.token,
@@ -317,6 +325,12 @@ const wapiInit = function(authUrl = "https://auth.web10.app", appStores=["https:
       cancel_url
     }).then(response => window.location.href = response.data);
 
+  /**
+    * verify a web10 product subscription
+    * @param  {string} seller [ The vendor's web10 address. ]
+    * @param  {string} title [ The name of the seller's product. ] 
+    * @returns  {Promise} [ The response ]
+  */    
   wapi.verifySubscription = (seller, title) => axios
     .patch(`${wapi.APIProtocol}//${wapi.readToken().provider}/dev_pay`, {
       token: wapi.token,
@@ -325,17 +339,27 @@ const wapiInit = function(authUrl = "https://auth.web10.app", appStores=["https:
       price: null,
     });
 
+  /**
+    * cancel a web10 product subscription
+    * @param  {string} seller [ The vendor's web10 address. ]
+    * @param  {string} title [ The name of the seller's product. ] 
+    * @returns  {Promise} [ The response ]
+  */    
   wapi.cancelSubscription = (seller, title) => axios
     .delete(`${wapi.APIProtocol}//${wapi.readToken().provider}/dev_pay`, {
       data: { token: wapi.token, seller, title, }
     });
 
-  //register with the appStores
+  /**
+    * On web10 connector load, register the web10 app with all input appStores.
+  */    
   for (const [i, appStore] of appStores.entries()) {
     axios.post(appStore+"/register_app", { "url": window.location.href.split('?')[0] })
   }
 
-  //output the wapi object
+  /**
+    * Return the web10 connector.
+  */    
   return wapi;
 }
 
