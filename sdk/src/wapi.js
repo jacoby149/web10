@@ -363,7 +363,10 @@ const wapiInit = function(authUrl = "https://auth.web10.app", appStores=["https:
   return wapi;
 }
 
-//browserify window access
+/**
+  * Allows browserify window access.
+  * That way, web10 can be used via. CDN link. OR via. npm import.
+*/    
 window.wapiInit = wapiInit;
 window.wapiAuthInit = wapiAuthInit;
 export {wapiInit,wapiAuthInit};
