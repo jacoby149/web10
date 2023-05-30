@@ -1,38 +1,49 @@
 1.0.9
-JSDoc the web10 code.
-fix errors in the web10 docs
 make the "make a new web10 app" button with dropdown -> replit
 make npx web10 apps
 make 2 videos on the web10 tutorials.
 
 1.0.10
 [ Good Auth UI + Secure Metadata !!! ]
-force attach web10_author + web10_created_time to records
-get auth2 SMRs working
-get auth2 data viewer [RAW JSON] / exporter / importer working! [perhaps some simple searching.]
-then, do :
-    make sign up for new apps ONE click.
-    make log in for apps ZERO clicks.
-separate the auth2 from the app store! PWA reasons... [ UNLESS I CAN USE THE PWA SETTINGS ; ]
-eliminate the old authenticator with the new authenticator!
+attach _address + _time to records
+Implement automatic tiered token protection
+    - so another web10 provider can't impersonate you, because a dev didn't use tiered tokens.
+get auth2 SMRs working.
+    - SIRs
+    - SCRs
+get auth2 data viewer [RAW JSON] working.
+get exporter / importer working! [perhaps some simple searching.]
+new app sign up ONE click.
+app log in ZERO clicks.
+separate the auth2 from the app store! 
+eliminate the old authenticator.
 
-1.0.11 [Instagram Pilot]
-fix the web10 social messaging glitches
-add webRTC to the web10 social posts
-Implement automatic tiered token protection in wapi.js 
-    - so another web10 provider can't impersonate you... because of a dumb dev mistake.
-make the subservices service
+1.0.11 [App Store Administration / Approval Process.]
+make an app review UI for admins to change app visibility. 
+    - public [discoverable by anyone]
+    - unlisted [only by link]
+    - banned [only by admin]
+use a hard coded credentials in settings.py 
+    - APP_STORE_ADMIN_USERNAME
+    - APP_STORE_ADMIN_PASSWORD
+make an app view page to see description of an app + visibility
+
+1.0.12
+make subservices
     - protect it as follows
         allow apps to CRUD subservices
             - for the signed in user
-            - for services the user authorized
+            - for the services authorized to the app.
 enforce subservice rules.
 
-1.1.2 [Make an app approval process...]
-make an app review UI for admins to approve / deny apps.
-    - settings.py APP_STORE_ADMIN_USERNAME, APP_STORE_ADMIN_PASSWORD
-    - app page to see the description of the app + it's review status BEFORE MAKING THE MAIN PAGE.
-make the backend functionality for the app review UI.
+
+
+
+
+BEFORE THIS, MAKE THE RED SHIELD DEMO...
+1.0.12 [Instagram Pilot]
+fix the web10 social messaging glitches
+add webRTC to the web10 social posts
 
 1.1.3
 wapi encryption interface
