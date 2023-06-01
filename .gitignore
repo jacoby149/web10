@@ -7,3 +7,8 @@ skaffold/run
 skaffold/dev
 api/app/settings.py
 auth/src/config.js
+auth2/src/config.js
+auth2/src/assets/images/YourOrgsLogo/*.png
+auth2/src/assets/images/YourOrgsLogo/*.jpg
+auth2/src/assets/images/YourOrgsLogo/*.jpeg
+auth2/src/assets/images/YourOrgsLogo/*.psd

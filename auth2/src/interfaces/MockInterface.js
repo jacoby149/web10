@@ -3,15 +3,12 @@ import React from 'react';
 import mockPage from '../mocks/mockAppData';
 import mockRequests from '../mocks/mockRequests';
 import mockServices from '../mocks/mockServices';
+import { config } from '../config';
 
 function useMockInterface() {
     const I = {};
 
-    I.config = {
-        DEFAULT_API : "api.web10.app",
-        VERIFY_REQUIRED : true,
-        BETA_REQUIRED : true,
-    };
+    I.config = config
 
     [I.theme,I.setTheme] = React.useState("dark");
     [I.menuCollapsed, I.setMenuCollapsed] = React.useState(true);
