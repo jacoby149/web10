@@ -8,7 +8,7 @@ import { config } from '../config';
 function useMockInterface() {
     const I = {};
 
-    I.config = config
+    I.config = config;
 
     [I.theme,I.setTheme] = React.useState("dark");
     [I.menuCollapsed, I.setMenuCollapsed] = React.useState(true);
