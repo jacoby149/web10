@@ -3,15 +3,12 @@ import React from 'react';
 import web10AuthAdapterInit from './authAdapter'
 import axios from 'axios'
 import stealthImg from "../assets/images/stealth.jpg"
+import { config } from '../config';
 
 function useInterface() {
     const I = {};
 
-    I.config = {
-        DEFAULT_API: "api.web10.app",
-        VERIFY_REQUIRED: true,
-        BETA_REQUIRED: true,
-    };
+    I.config = config;
 
     [I.theme, I.setTheme] = React.useState("dark");
     [I.menuCollapsed, I.setMenuCollapsed] = React.useState(true);

@@ -144,5 +144,9 @@ The idea, is when you load your posts, should it pull up posts at the private le
 OR, should their be modifiable services.
 subservices? That means every service can be treated as many modifiable services.
 
-
 I want to be able to have institutions customize their app store logos.
+So I had to add it to the auth2 config.
+
+What if I want to run not in a bunch of docker containers?
+What if I want the authenticator + app store on Netlify???
+The answer is a netlify.toml
