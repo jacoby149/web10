@@ -1,15 +1,13 @@
 import { env } from './env'
-import key_white from "./assets/images/key_white.png"
-import key_black from "./assets/images/key_white.png"
 
-var config = {
+const config = {
     DEFAULT_API: "api.localhost",
     BETA_REQUIRED: false,
     VERIFY_REQUIRED: false,
     PAY_REQUIRED: false,
-    LOGO_LIGHT:key_white,
-    LOGO_DARK:key_black,
-    BRAND_TEXT:"web10"
+    LOGO_LIGHT:"/YourOrgsLogo/generic_school_logo_black.png",
+    LOGO_DARK:"/YourOrgsLogo/generic_school_logo_white.png",
+    BRAND_TEXT:"app store"
 }
 
 // prioritizes the env vars if they exist

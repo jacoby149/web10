@@ -2,13 +2,9 @@
 *.pyc
 mobile/encryptor/yarn.lock
 rtc/node_modules
-config.json
 skaffold/run
 skaffold/dev
 api/app/settings.py
 auth/src/config.js
-auth2/src/config.js
-auth2/src/assets/images/YourOrgsLogo/*.png
-auth2/src/assets/images/YourOrgsLogo/*.jpg
-auth2/src/assets/images/YourOrgsLogo/*.jpeg
-auth2/src/assets/images/YourOrgsLogo/*.psd
+auth2/public/YourOrgsLogo/*
+!auth2/public/YourOrgsLogo/generic*

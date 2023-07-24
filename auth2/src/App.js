@@ -1,4 +1,3 @@
-import logo from './logo.svg';
 import useInterface from './interfaces/Interface'
 import useMockInterface from './interfaces/MockInterface'
 import React from 'react';

@@ -11,6 +11,7 @@ function useMockInterface() {
     I.config = config;
 
     [I.theme,I.setTheme] = React.useState("dark");
+    [I.logo,I.setLogo] = React.useState(config.LOGO_DARK);
     [I.menuCollapsed, I.setMenuCollapsed] = React.useState(true);
     [I.mode, I._setMode] = React.useState("appstore");
     [I.search, I.setSearch] = React.useState("");
@@ -50,7 +51,14 @@ function useMockInterface() {
     }
 
     I.toggleTheme = function () {
-        I.theme == "dark" ? I.setTheme("light") : I.setTheme("dark")
+        if(I.theme == "dark") {
+            I.setTheme("light")
+            I.setLogo(I.config.LOGO_LIGHT)
+        }
+        else { 
+            I.setTheme("dark")
+            I.setLogo(I.config.LOGO_DARK)
+        }
     }
 
     I.runSearch = function(){
