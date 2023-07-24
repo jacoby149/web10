@@ -4,14 +4,14 @@ import web10AuthAdapterInit from './authAdapter'
 import axios from 'axios'
 import stealthImg from "../assets/images/stealth.jpg"
 import { config } from '../config';
-import defaultLogo from '../assets/images/key_white.png'
+
 function useInterface() {
     const I = {};
 
     I.config = config;
 
     [I.theme, I.setTheme] = React.useState("dark");
-    [I.logo,I.setLogo] = React.useState(defaultLogo);
+    [I.logo,I.setLogo] = React.useState(config.LOGO_DARK);
     [I.menuCollapsed, I.setMenuCollapsed] = React.useState(true);
     [I.mode, I._setMode] = React.useState("appstore");
     [I.search, I.setSearch] = React.useState("");
