@@ -1,3 +1,26 @@
+DPA Summer Metaverse!
+Improve auth2 to support Custom Logos + Custom Light Dark 
+    - Use clever gitignore type stuff to do it.
+
+Make GIFs of 
+    - the DPA App Store.
+    - A GIF representing adding an app.
+Make GIFs for web10 ThreeJS applications. 
+    - Ball Shooter
+    - Painter
+    - Social App [For those who aren't into 3D]
+Make GIFs for github. 
+    - Repo Creation.
+    - Forking + Starring.
+    - Pull Requesting.
+Make GIFs for netlify
+    - Deploying apps.
+    - My netlify pane of all my Github apps.
+Make GIFs for replit
+    - Making a new repl
+    - Using Templates.
+    - Replit in full glory, with super cool backend app someone else made.
+
 1.0.9
 make the "make a new web10 app" button with dropdown -> replit
 make npx web10 apps
