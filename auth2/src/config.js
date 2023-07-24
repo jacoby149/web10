@@ -5,8 +5,8 @@ const config = {
     BETA_REQUIRED: false,
     VERIFY_REQUIRED: false,
     PAY_REQUIRED: false,
-    LOGO_LIGHT:"/YourOrgsLogo/generic_school_logo_black.png",
-    LOGO_DARK:"/YourOrgsLogo/generic_school_logo_white.png",
+    LOGO_DARK:"/YourOrgsLogo/key_white.png",
+    LOGO_LIGHT:"/YourOrgsLogo/key_black.png",
     BRAND_TEXT:"app store"
 }
 

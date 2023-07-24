@@ -1,4 +1,4 @@
-import authImg from "../assets/images/key_white.png"
+
 import socialImg from "../assets/images/alternative.png"
 import stealthImg from "../assets/images/stealth.jpg"
 import fpsImg from "../assets/images/shooter.jpeg"
@@ -10,7 +10,7 @@ var mockPage = [
         title: "authenticator",
         description: "description1",
         href:"https://auth.web10.app",
-        img : authImg,
+        img : "YourOrgsLogo/key_white.png",
         hits:1194,
     },
     {
