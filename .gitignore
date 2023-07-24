@@ -8,3 +8,4 @@ api/app/settings.py
 auth/src/config.js
 auth2/public/YourOrgsLogo/*
 !auth2/public/YourOrgsLogo/generic*
+!auth2/public/YourOrgsLogo/key_*
