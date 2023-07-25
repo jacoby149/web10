@@ -11,7 +11,7 @@ function useInterface() {
     I.config = config;
 
     [I.theme, I.setTheme] = React.useState("dark");
-    [I.logo,I.setLogo] = React.useState(config.LOGO_DARK);
+    [I.logo,I.setLogo] = React.useState(config.REACT_APP_LOGO_DARK);
     [I.menuCollapsed, I.setMenuCollapsed] = React.useState(true);
     [I.mode, I._setMode] = React.useState("appstore");
     [I.search, I.setSearch] = React.useState("");
@@ -95,11 +95,11 @@ function useInterface() {
     I.toggleTheme = function () {
         if(I.theme == "dark") {
             I.setTheme("light")
-            I.setLogo(I.config.LOGO_LIGHT)
+            I.setLogo(I.config.REACT_APP_LOGO_LIGHT)
         }
         else { 
             I.setTheme("dark")
-            I.setLogo(I.config.LOGO_DARK)
+            I.setLogo(I.config.REACT_APP_LOGO_DARK)
         }
     }
 

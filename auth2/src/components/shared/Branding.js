@@ -8,7 +8,7 @@ function Branding(props) {
             <C l ns mc s={"5px"}></C>
             <C l ns mc s={"100px"}>
                 <img style={{ width: "40px" }} src={I.logo}></img>
-                &nbsp;<div><h3>{I.config.BRAND_TEXT}</h3></div>
+                &nbsp;<div><h3>{I.config.REACT_APP_BRAND_TEXT}</h3></div>
             </C>
             <C l ns mc s={"5px"}></C>
         </R>
