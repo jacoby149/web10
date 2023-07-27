@@ -2,6 +2,17 @@
 <html lang="en">
 
 <head>
+  <!-- Hotjar Tracking Code for https://auth.web10.app -->
+  <script>
+    (function (h, o, t, j, a, r) {
+      h.hj = h.hj || function () { (h.hj.q = h.hj.q || []).push(arguments) };
+      h._hjSettings = { hjid: 3591292, hjsv: 6 };
+      a = o.getElementsByTagName('head')[0];
+      r = o.createElement('script'); r.async = 1;
+      r.src = t + h._hjSettings.hjid + j + h._hjSettings.hjsv;
+      a.appendChild(r);
+    })(window, document, 'https://static.hotjar.com/c/hotjar-', '.js?sv=');
+  </script>
   <meta charset="utf-8" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.1/css/bulma.min.css" />
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.5.0/css/all.css"
@@ -37,8 +48,8 @@
   <!-- stripe payment  -->
   <script src="https://js.stripe.com/v3/"></script>
   <script>
-    if (window.location.hostname === "auth.localhost"){const stripe = Stripe("pk_test_51KhyuiFGm9S2yiuxFIRwJgWcP4FacHcU0yJPnz8KLNOK9nNOBX2uTDyyg6AS2y4Li64I5K4kaZVizXNR0L0I6XkF00TeLBKlSI");}
-    else {const stripe = Stripe("pk_live_51KhyuiFGm9S2yiuxJ9ySMLHQGVqOg247eJAvKVgC0GG4bxxfkacirkZ9kCLBIcVtEH8XjnUOYiOXkim200ICMkSE00MBIS0CRk");}
+    if (window.location.hostname === "auth.localhost") { const stripe = Stripe("pk_test_51KhyuiFGm9S2yiuxFIRwJgWcP4FacHcU0yJPnz8KLNOK9nNOBX2uTDyyg6AS2y4Li64I5K4kaZVizXNR0L0I6XkF00TeLBKlSI"); }
+    else { const stripe = Stripe("pk_live_51KhyuiFGm9S2yiuxJ9ySMLHQGVqOg247eJAvKVgC0GG4bxxfkacirkZ9kCLBIcVtEH8XjnUOYiOXkim200ICMkSE00MBIS0CRk"); }
   </script>
 </head>
 
