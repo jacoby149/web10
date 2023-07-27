@@ -35,7 +35,7 @@ function AppStore({ I }) {
                         </div>
                     </R>
                 </R>
-                <div style={{
+                            <div style={{
                 position: 'absolute',
                 bottom: 5,
                 right: 5,
@@ -54,16 +54,13 @@ function AppStore({ I }) {
                 // hoverable='true'
                 >
                     <Dropdown.Item renderAs="a" value="other">
-                        Wordpress
+                        npx web10-cli
                     </Dropdown.Item>
-                    <Dropdown.Item renderAs="a" value="item">
-                        Xano + Wized + Webflow
+                    <Dropdown.Item renderAs="i" value="other">
+                        Wordpress (TBD)
                     </Dropdown.Item>
-                    <Dropdown.Item renderAs="a" value="other">
-                        Replit
-                    </Dropdown.Item>
-                    <Dropdown.Item renderAs="a" value="other">
-                        npx-create
+                    <Dropdown.Item renderAs="i" value="other">
+                        Replit (TBD)
                     </Dropdown.Item>
                 </Dropdown>
             </div>
