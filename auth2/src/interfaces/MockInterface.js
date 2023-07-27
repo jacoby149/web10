@@ -3,17 +3,15 @@ import React from 'react';
 import mockPage from '../mocks/mockAppData';
 import mockRequests from '../mocks/mockRequests';
 import mockServices from '../mocks/mockServices';
+import { config } from '../config';
 
 function useMockInterface() {
     const I = {};
 
-    I.config = {
-        DEFAULT_API : "api.web10.app",
-        VERIFY_REQUIRED : true,
-        BETA_REQUIRED : true,
-    };
+    I.config = config;
 
     [I.theme,I.setTheme] = React.useState("dark");
+    [I.logo,I.setLogo] = React.useState(config.REACT_APP_LOGO_DARK);
     [I.menuCollapsed, I.setMenuCollapsed] = React.useState(true);
     [I.mode, I._setMode] = React.useState("appstore");
     [I.search, I.setSearch] = React.useState("");
@@ -53,7 +51,14 @@ function useMockInterface() {
     }
 
     I.toggleTheme = function () {
-        I.theme == "dark" ? I.setTheme("light") : I.setTheme("dark")
+        if(I.theme == "dark") {
+            I.setTheme("light")
+            I.setLogo(I.config.REACT_APP_LOGO_LIGHT)
+        }
+        else { 
+            I.setTheme("dark")
+            I.setLogo(I.config.REACT_APP_LOGO_DARK)
+        }
     }
 
     I.runSearch = function(){

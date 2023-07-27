@@ -50,17 +50,21 @@ in order to use the web10 SDK, the main SDK object needs to be initialized by th
 appStores and rtcServer are optional parameters, set respectively to appStores = ["https://api.web10.app"] and rtcServer = "rtc.web10.app" by default.
 
 ```javascript
-/* simplest way to initialize a wapi object registered for auth with auth.web10.app */
+/**
+ * [wapiInit initializes the SDK for web10 apps.]
+ * @param  {string} [authUrl] [The URL of the web10 authenticator to use]
+ * @param  {[list]} [appStores] [optional list of appstore URLs to register the app with]
+ * @param  {string} [rtcServer] [The URL of the web10 webRTC server to use for P2P connections.]
+ * @return {Object} [Returns the web10 connector object]
+ */
 const wapi = wapiInit("https://auth.web10.app")
 ```
 
 ```javascript
 /*
-* initializing a wapi object with the optional parameters.
-*      appStores - A list of app stores to register the app with.
-*      rtcServer - A domain name of a web10 webRTC server to use for P2P
+* initializing a wapi object with the additional optional parameters.
 */
-wapiInit(authUrl = "https://auth.web10.app", appStores=["https://api.web10.app"], rtcServer = "rtc.web10.app")
+const wapi = wapiInit("https://auth.web10.app", ["https://api.web10.app"],"rtc.web10.app")
 ```
 
 

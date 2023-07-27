@@ -1,4 +1,4 @@
-import authImg from "../assets/images/key_white.png"
+
 import socialImg from "../assets/images/alternative.png"
 import stealthImg from "../assets/images/stealth.jpg"
 import fpsImg from "../assets/images/shooter.jpeg"
@@ -7,25 +7,18 @@ import boxImg from "../assets/images/building.png"
 
 var mockPage = [
     {
-        title: "web10 auth",
+        title: "authenticator",
         description: "description1",
-        href:"http://auth.localhost",
-        img : authImg,
+        href:"https://auth.web10.app",
+        img : "YourOrgsLogo/key_white.png",
         hits:1194,
     },
     {
-        title: "web10 social",
+        title: "social app",
         description: "description2",
-        href:"http://localhost:3001",
+        href:"https://web10social.netlify.app",
         img : socialImg,
         hits:785,
-    },
-    {
-        title: "crm",
-        description: "description3",
-        href:"https://crm.web10.app",
-        img : crmImg,
-        hits:535,
     },
     {
         title: "ball shooter",
@@ -41,6 +34,14 @@ var mockPage = [
         img : boxImg,
         hits:37,
     },
+    {
+        title: "crm",
+        description: "description3",
+        href:"https://crm.web10.app",
+        img : crmImg,
+        hits:535,
+    },
+
 ]
 
 export default mockPage;
