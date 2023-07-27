@@ -1,6 +1,6 @@
 1.0.9
-hotjar the web10 auth portal.
 make the "make a new web10 app" button with dropdown -> replit
+deploy hotjar changes to skaffold (without breaking anything...)
 make npx web10 apps
 make gif on how to make a web10 app on replit
 make gif on how to make a web10 app on netlify
