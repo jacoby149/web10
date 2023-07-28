@@ -4,7 +4,8 @@
   "description": "a command line interface with utilities made by web10 inc. in order to make web10 easier to use.",
   "main": "index.js",
   "bin": {
-    "multiply": "bin/index.js"
+    "help":"bin/help.js",
+    "create": "bin/create.js"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
