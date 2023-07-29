@@ -58,7 +58,7 @@ function AppStore({ I }) {
                             href="https://www.npmjs.com/package/web10-cli"
                             target="_blank"
                         >
-                            npx web10-cli
+                            npx web10-cli (TBD)
                         </a>
                     </Dropdown.Item>
                     <Dropdown.Item renderAs="i" value="other">
