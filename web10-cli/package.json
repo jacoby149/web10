@@ -1,0 +1,27 @@
+{
+  "name": "web10-cli",
+  "version": "1.0.0",
+  "description": "a command line interface with utilities made by web10 inc. in order to make web10 easier to use.",
+  "main": "index.js",
+  "bin": {
+    "commands":"bin/commands.js",
+    "create": "bin/create.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jacoby149/web10.git"
+  },
+  "keywords": [
+    "web10",
+    "cli"
+  ],
+  "author": "Jacob Hoffman",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/jacoby149/web10/issues"
+  },
+  "homepage": "https://github.com/jacoby149/web10#readme"
+}

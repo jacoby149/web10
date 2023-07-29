@@ -150,3 +150,12 @@ So I had to add it to the auth2 config.
 What if I want to run not in a bunch of docker containers?
 What if I want the authenticator + app store on Netlify???
 The answer is a netlify.toml
+
+To have a CLI or to not have a CLI, that is the question.
+A CLI is kind of unnecessary. Better to have downloadable projects.
+    - https://download-directory.github.io/
+    Maybe rely on this...
+
+Registration must not be automatic in the long haul, it should be manual.
+
+I need a web10 wordpress theme bundled with a web10 plugin.
