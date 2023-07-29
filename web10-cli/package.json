@@ -1,6 +1,6 @@
 {
   "name": "web10-cli",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "a command line interface with utilities made by web10 inc. in order to make web10 easier to use.",
   "main": "index.js",
   "bin": {

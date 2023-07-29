@@ -11,34 +11,34 @@ import { Box, Dropdown, Icon, DropdownItem } from 'react-bulma-components';
 
 function AppStore({ I }) {
     return (
-            <R root t bt bb br bl theme={I.theme}>
-                <TopBar I={I}></TopBar>
-                <R l tel>
-                    <SideBar I={I}></SideBar>
-                    <R t tel>
-                        <div className="center-container stat-container">
-                            <div className="statistic">{I.appStoreStats.users} users </div>
-                            <div className="statistic">{I.appStoreStats.apps} apps</div>
-                            <div className="statistic">{I.appStoreStats.hits} hits</div>
-                            <div className="statistic">{I.appStoreStats.data}MBs data</div>
+        <R root t bt bb br bl theme={I.theme}>
+            <TopBar I={I}></TopBar>
+            <R l tel>
+                <SideBar I={I}></SideBar>
+                <R t tel>
+                    <div className="center-container stat-container">
+                        <div className="statistic">{I.appStoreStats.users} users </div>
+                        <div className="statistic">{I.appStoreStats.apps} apps</div>
+                        <div className="statistic">{I.appStoreStats.hits} hits</div>
+                        <div className="statistic">{I.appStoreStats.data}MBs data</div>
+                    </div>
+                    <div style={{ margin: "15px 0px 5px 0px" }} className="center-container"><b><u>Top web10 apps.</u></b></div>
+                    <Apps I={I}></Apps>
+                    <br></br>
+                    <div className="center-container">
+                        <div className="lds-ellipsis">
+                            <div></div>
+                            <div></div>
+                            <div></div>
+                            <div></div>
                         </div>
-                        <div style={{ margin: "15px 0px 5px 0px" }} className="center-container"><b><u>Top web10 apps.</u></b></div>
-                        <Apps I={I}></Apps>
-                        <br></br>
-                        <div className="center-container">
-                            <div className="lds-ellipsis">
-                                <div></div>
-                                <div></div>
-                                <div></div>
-                                <div></div>
-                            </div>
-                        </div>
-                    </R>
+                    </div>
                 </R>
-                            <div style={{
+            </R>
+            <div style={{
                 position: 'absolute',
-                bottom: 5,
-                right: 5,
+                bottom: 15,
+                right: 15,
                 // margin: 10,
                 justifyContent: 'center',
                 // // height: 600,
@@ -47,14 +47,19 @@ function AppStore({ I }) {
                 <Dropdown
                     closeOnSelect={true}
                     icon={<Icon><i aria-hidden="true" className="fas fa-angle-up" /></Icon>}
-                    label="Create An App!"
+                    label="Create App"
                     color='info'
                     up='true'
                     right='true'
                 // hoverable='true'
                 >
                     <Dropdown.Item renderAs="a" value="other">
-                        npx web10-cli
+                        <a
+                            href="https://www.npmjs.com/package/web10-cli"
+                            target="_blank"
+                        >
+                            npx web10-cli
+                        </a>
                     </Dropdown.Item>
                     <Dropdown.Item renderAs="i" value="other">
                         Wordpress (TBD)
@@ -65,7 +70,7 @@ function AppStore({ I }) {
                 </Dropdown>
             </div>
 
-            </R>
+        </R>
 
     );
 }
