@@ -1,19 +1,28 @@
-#! /usr/bin/env node
-const args = process.argv.slice(2);
-const helpMSG='Try "npx web10-cli create help" to see possible arguments.\n' 
-if (args.length == 0) {
-  console.error(
-    '\nError : No arguments provided.'
-  );
-  console.error(
-    helpMSG
-  )
-  process.exit(1); //an error occurred
+#!/usr/bin/env node
+
+const readline = require('readline');
+
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
+
+function promptUser() {
+  rl.question('How can I assist you? ', (answer) => {
+    // Process the user's input
+    if (answer.toLowerCase().includes('hello')) {
+      console.log('Hello there!');
+    } else if (answer.toLowerCase().includes('goodbye')) {
+      console.log('Goodbye, have a nice day!');
+      rl.close();
+      return;
+    } else {
+      console.log('I\'m sorry, I don\'t understand. Can you please rephrase?');
+    }
+
+    // Continue the conversation recursively
+    promptUser();
+  });
 }
 
-if (args[0]=="help"){
-  console.log("possible shit...");
-  process.exit(0); //no errors occurred
-}
-
-process.exit(0);
+promptUser();
