@@ -5,7 +5,6 @@ add :
     - Notes App (vanilla HTML, REACT)
     - P2P Messaging App (vanilla HTML, REACT)
     - Snake Game (vanilla HTML, REACT)
-deploy hotjar changes to skaffold (without breaking anything...)
 move mail and crm
 GIF tutorial for using the web10-cli
 
