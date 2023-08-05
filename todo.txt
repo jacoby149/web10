@@ -1,9 +1,8 @@
 1.0.9
-make the "make a new web10 app" button with dropdown -> replit
+( really, just fix what is broken. )
+On the create app tab, finish the NPM utility.
 deploy hotjar changes to skaffold (without breaking anything...)
-make npx web10 apps
-make gif on how to make a web10 app on replit
-make gif on how to make a web10 app on netlify
+add embedded github stars to the web10 pages.
 
 1.0.10
 [ Good Auth UI + Secure Metadata !!! ]
