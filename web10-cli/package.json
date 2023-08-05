@@ -3,7 +3,7 @@
   "version": "1.0.4",
   "description": "a command line interface with utilities made by web10 inc. in order to make web10 easier to use.",
   "bin": {
-    "create": "bin/index.js"
+    "web10-cli": "bin/index.js"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
