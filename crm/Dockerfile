@@ -1,5 +1,5 @@
 
-FROM joseluisq/static-web-server:latest
+FROM --platform=linux/x86_64 joseluisq/static-web-server:latest
 
 WORKDIR /crm
 
