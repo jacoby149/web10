@@ -1,4 +1,6 @@
 1.0.9
+https://github.com/SBoudrias/Inquirer.js
+TODO use inquirer and make the cli an ES module.
 ( really, just fix what is broken. )
 On the create app tab, finish the NPM utility.
 add : 
