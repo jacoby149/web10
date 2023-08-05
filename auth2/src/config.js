@@ -1,7 +1,7 @@
 import { env } from './env'
 
 const config = {
-    REACT_APP_DEFAULT_API: "api.localhost",
+    REACT_APP_DEFAULT_API: "api.web10.app",
     REACT_APP_BETA_REQUIRED: false,
     REACT_APP_VERIFY_REQUIRED: true,
     REACT_APP_PAY_REQUIRED: false,
