@@ -43,7 +43,7 @@ function SideBar(props) {
                                 <i >App Store</i>
                             </C>
                             <C onClick={() => window.open("https://docs.web10.app", "_blank")} t bb h s={"40px"} va="center">
-                                <i >Docs</i>
+                                <i >SDK Docs</i>
                             </C>
                             <C onClick={() => window.open("https://github.com/jacoby149/web10", "_blank")} t bb h s={"40px"} va="center">
                                 <i >Host A Node</i>
@@ -53,10 +53,10 @@ function SideBar(props) {
                 </R>
             </R>
             <R bt>
-                <C s={"60px"}>
+                <C s={"80px"}>
                     <div style={{ fontFamily: "monospace" }}>
-                        Invented by Jacob Hoffman<br></br>
-                        <a href="https://docs.web10.app">the web10 SDK docs page</a>
+                        Invented by <a href="https://jacobhoffman.tk">Jacob Hoffman</a><br></br>
+                        <iframe src="https://ghbtns.com/github-btn.html?user=jacoby149&repo=web10&type=star&count=true&size=large" frameborder="0" scrolling="0" width="170" height="30" title="GitHub" style={{marginTop:"5px"}}></iframe>
                     </div>
                 </C>
 
