@@ -1,8 +1,13 @@
 1.0.9
 ( really, just fix what is broken. )
 On the create app tab, finish the NPM utility.
+add : 
+    - Notes App (vanilla HTML, REACT)
+    - P2P Messaging App (vanilla HTML, REACT)
+    - Snake Game (vanilla HTML, REACT)
 deploy hotjar changes to skaffold (without breaking anything...)
-add embedded github stars to the web10 pages.
+move mail and crm
+GIF tutorial for using the web10-cli
 
 1.0.10
 [ Good Auth UI + Secure Metadata !!! ]

@@ -1,4 +1,4 @@
-FROM node:15-alpine
+FROM --platform=linux/x86_64 node:15-alpine
 RUN mkdir /rtc
 WORKDIR /rtc
 RUN npm i -g nodemon

@@ -1,4 +1,4 @@
-FROM node:14-alpine as dev
+FROM --platform=linux/x86_64 node:14-alpine as dev
 WORKDIR auth
 COPY auth/package.json /auth/package.json
 RUN npm install
