@@ -1,28 +1,21 @@
 #!/usr/bin/env node
 
-const readline = require('readline');
+/* Import other commands */
+const help = require('./help.js');
+const create = require('./create.js');
+const invalid = require('./invalid.js');
 
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout
-});
+const args = process.argv.slice(2);
 
-function promptUser() {
-  rl.question('How can I assist you? ', (answer) => {
-    // Process the user's input
-    if (answer.toLowerCase().includes('hello')) {
-      console.log('Hello there!');
-    } else if (answer.toLowerCase().includes('goodbye')) {
-      console.log('Goodbye, have a nice day!');
-      rl.close();
-      return;
-    } else {
-      console.log('I\'m sorry, I don\'t understand. Can you please rephrase?');
-    }
-
-    // Continue the conversation recursively
-    promptUser();
-  });
+if (args.length==0){
+  invalid.invalid();
+} 
+else if (args[0]=='help'){
+  help.help();
 }
-
-promptUser();
+else if (args[0]=='create'){
+  create.create();
+}
+else {
+  invalid.invalid();
+}
