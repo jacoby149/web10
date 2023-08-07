@@ -1,14 +1,14 @@
 1.0.9
-https://github.com/SBoudrias/Inquirer.js
-TODO use inquirer and make the cli an ES module.
-( really, just fix what is broken. )
-On the create app tab, finish the NPM utility.
+Come up with a CLI JS file templating solution.
+In the CLI,
 add : 
     - Notes App (vanilla HTML, REACT)
     - P2P Messaging App (vanilla HTML, REACT)
     - Snake Game (vanilla HTML, REACT)
-move mail and crm
-GIF tutorial for using the web10-cli
+make a GIF tutorial for using the web10-cli
+Try Replit Templates
+Make a wordpress local dev environment
+
 
 1.0.10
 [ Good Auth UI + Secure Metadata !!! ]
