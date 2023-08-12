@@ -1,5 +1,6 @@
 const inquirer = require('inquirer');
 const chalk = require('chalk');
+const fs = require('fs');
 
 async function create() {
 
@@ -37,16 +38,18 @@ async function create() {
         {
             type: 'input',
             name: 'name',
-            message: 'What will the folder be named?',
+            message: 'What will the folder be named? (app)',
         },
     ]);
-    console.log(`Your folder will be named ${folderAnswser.name}`)
+    const folderName = folderAnswser.name == '' ? 'app' : folderAnswser.name;
+    console.log(`Your folder will be named ${folderName}`)
     console.log('')
 
     /* Final messages */
     const greenCheck = chalk.green('\u2713');
     console.log(`${greenCheck} success.`)
-    console.log(`Creating Folder : (${folderAnswser.name})`);
+    console.log(`Creating Folder : (${folderName})`);
+    fs.mkdirSync(folderName)
     console.log(`Creating your app : (${templateAnswer.selectedOption})`)
     console.log(`App Created in framework : (${frameworkAnswer.selectedOption})`)
     console.log('')
