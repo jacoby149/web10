@@ -185,6 +185,8 @@ def create_dev_pay_session(customer_id,bus_id,pay_data):
 def get_dev_pay_subscription(customer_id,pay_data):
     subs = get_active_subscriptions(customer_id)
     def f(sub):
+        print(sub)
+        if "title" not in sub["metadata"] or "seller" not in sub["metadata"]: return False
         return sub["metadata"]["title"] == pay_data.title and sub["metadata"]["seller"] == pay_data.seller
     subs = list(filter(f, subs))
     if len(subs) == 0: return None
