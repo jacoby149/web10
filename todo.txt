@@ -1,4 +1,8 @@
 1.0.9
+I need to answer the question :
+    What do I want to do for copying the apps?
+    I want to get them as a folder from github...
+    OR - maybe, get the release?
 In the CLI,
 add : 
     - Notes App (vanilla HTML, REACT)
@@ -7,6 +11,7 @@ add :
 make a GIF tutorial for using the web10-cli
 switch the web10 api to pipenv
 config hard links to use a .env file instead of settings.py
+pipenv shell the web10 API!!!
 
 1.0.9.1
 Try Replit Templates

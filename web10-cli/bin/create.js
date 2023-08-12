@@ -51,6 +51,8 @@ async function create() {
     console.log(`Creating Folder : (${folderName})`);
     fs.mkdirSync(folderName)
     console.log(`Creating your app : (${templateAnswer.selectedOption})`)
+    /* TODO create app here */
+
     console.log(`App Created in framework : (${frameworkAnswer.selectedOption})`)
     console.log('')
 }
