@@ -1,11 +1,14 @@
 1.0.9
-Come up with a CLI JS file templating solution.
 In the CLI,
 add : 
     - Notes App (vanilla HTML, REACT)
     - P2P Messaging App (vanilla HTML, REACT)
     - Snake Game (vanilla HTML, REACT)
 make a GIF tutorial for using the web10-cli
+switch the web10 api to pipenv
+config hard links to use a .env file instead of settings.py
+
+1.0.9.1
 Try Replit Templates
 Make a wordpress local dev environment
 
