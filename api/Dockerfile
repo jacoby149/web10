@@ -9,8 +9,8 @@ WORKDIR /web10
 
 COPY ./requirements.txt /web10/requirements.txt
 
-RUN cat requirements.txt | xargs -n 1 -L 1 pip install
+RUN pip install pipenv && pipenv install
 
 COPY ./app /web10/app
 
-CMD gunicorn -b 0.0.0.0:80 -w 4 -k uvicorn.workers.UvicornWorker app.main:app
+CMD pipenv run gunicorn -b 0.0.0.0:80 -w 4 -k uvicorn.workers.UvicornWorker app.main:app
