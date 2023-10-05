@@ -14,7 +14,7 @@ class:
 
 # developer requirements
 
-A developer wants to add the following features to a messaging application they made.
+A developer wants to add features to a messaging application they made.
 1. Instantly show new messages.
 2. Encrypt messages on the phone side.
 3. Charge for premium themes.
@@ -33,7 +33,7 @@ A developer wants to add the following features to a messaging application they 
 
 # value added
 
-1. Instant messages make the app actually usable.
+1. Instant messages make the app more usable.
 2. Encryption attracts privacy oriented users. 
 3. The developer is making money.
 
@@ -41,24 +41,25 @@ A developer wants to add the following features to a messaging application they 
 
 # the developer interface
 
+These features of the web10 SDK enable the previous use case.
 1. web10RTC (webrtc via. peerjs)
 2. web10 encryption
 3. web10 devpay
 
 ---
 
-# authentication
+# web10RTC
 
---- 
-
-# contracts
-
----
-
-# encryption
+1. Enables realtime device to device streaming.
+2. Is authenticated with web10 tokens, so users know who they are connecting to.
+3. web10RTC is just peerJS with a lightweight wrapper.
+4. Learn more @ docs.web10.app
 
 ---
 
-# webrtc via. peerjs
+# web10 encryption
 
---- 
+---
+
+# web10 devpay
+
