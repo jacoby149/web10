@@ -17,25 +17,22 @@ class:
 
 1. A react developer makes a frontend UI concept.
 2. They want to demo it with live data, and don't want to pay for dbs.
-3. They want to list the app / advertise it somewhere.
-4. They want it to be freemium, and charge for premium UI themes.
+3. They want to list the app demo / advertise it somewhere.
 
 ---
 
 # developer use case
 
 1. They import 'web10-npm', and add web10 login.
-3. They add a simple web10 contract
-4. They use web10 as a database to store user messages.
-5. They use devpay to charge for a premium theme.
+2. They add a simple web10 contract
+3. They use web10 as a database to store user messages.
 ---
 
 # value added
 
 1. The app demo is live with a working backend.
 2. It is entirely free for the developer. 
-3. The app is auto listed on the web10 app store.
-4. The developer can charge. (5% processing fee).
+3. The app demo is auto listed on the web10 app store.
 
 ---
 
