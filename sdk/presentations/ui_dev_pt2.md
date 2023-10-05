@@ -12,40 +12,38 @@ class:
 
 ---
 
+# developer requirements
+
+A developer wants to add the following features to a messaging application they made.
+1. Instantly show new messages.
+2. Encrypt messages on the phone side.
+3. Charge for premium themes.
+
+
+---
 
 # developer use case
 
-1. A react developer makes a frontend UI concept.
-2. They want to demo it with live data. 
+1. The developer uses web10RTC to show new messages instantly.
+2. The developer uses web10 encryption to encrypt messages.
+3. The developer charges premium themes with web10 devpay.
 
 ---
 
-# developer use case
-
-1. They import 'web10-npm'.
-2. They add web10 login. [they attach it to a button]
-3. They add a simple web10 contract. [read inbox, write outbox]
-4. They add CRUD management of chat. [including pagination]
-
----
 
 # value added
 
-1. The app has a working backend.
-2. All web10 users are able to log in and live chat on their UI.
-3. Other web10 applications can interoperate on the data.
-4. The app is listed on the web10 app store.
-5. The developer can charge money.
+1. Instant messages make the app actually usable.
+2. Encryption attracts privacy oriented users. 
+3. The developer is making money.
 
 ---
 
 # the developer interface
 
-1. authentication
-2. contracts
-3. encryption
-4. webrtc via. peerjs
-5. crud + pagination
+1. web10RTC (webrtc via. peerjs)
+2. web10 encryption
+3. web10 devpay
 
 ---
 
