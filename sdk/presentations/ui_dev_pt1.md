@@ -15,8 +15,9 @@ class:
 
 # developer requirements
 
-1. A react developer makes a frontend UI concept.
-2. They want to demo it with live data, and don't want to pay for dbs.
+1. A react developer makes a UI.
+2. They want to turn it into a full demo with live data.
+3. They don't want to pay for dbs / backend.
 3. They want to list the app demo / advertise it somewhere.
 
 ---
