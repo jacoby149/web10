@@ -26,7 +26,7 @@ A developer wants to add features to a messaging application they made.
 
 1. The developer uses web10RTC to show new messages instantly.
 2. The developer uses web10 encryption to encrypt messages.
-3. The developer charges premium themes with web10 devpay.
+3. The developer charges for premium themes with web10 devpay.
 
 ---
 

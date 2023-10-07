@@ -40,3 +40,8 @@ class:
 ---
 
 # configuration options
+1. TBD. This still needs work.
+2. Get the user side use case finished nicely.
+3. Then, get the dev side use case finished nicely.
+4. Finally, this case can be fleshed out better.
+5. The value comes from members who want to use it as individuals.
