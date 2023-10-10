@@ -1,7 +1,7 @@
 [USER USE CASE]
 
 1.0.9 (clean up! fix breaks!)
-1. switch the web10 api to pipenv
+1. switch the web10 api to pipenv ***
 2. use .env file with pipenv instead of settings.py
 3. make an app review UI for admins to change app visibility. 
     - public [discoverable by anyone]
