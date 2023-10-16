@@ -9,6 +9,9 @@ gunicorn = "*"
 fastapi = "*"
 twilio = "*"
 passlib = "*"
+pymongo = "*"
+pydantic = "*"
+stripe = "*"
 
 [dev-packages]
 
