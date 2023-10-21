@@ -5,7 +5,7 @@ gets secrets from bitwarden.
 web10 uses bitwarden as a secrets manager.
 """
 import settings
-
+import os
 def get_bitwarden_secrets():
     """
         get the secrets from bitwarden.
