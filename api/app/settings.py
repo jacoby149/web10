@@ -1,5 +1,5 @@
 import os
-
+BITWARDEN_ID = ""
 PROVIDER = "api.localhost"
 CORS_SERVICE_MANAGERS = [   
             "mobile",
