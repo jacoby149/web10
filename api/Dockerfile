@@ -1,5 +1,5 @@
 
-FROM --platform=linux/x86_64 python:3.9
+FROM --platform=linux/x86_64 python3.9-nodejs20
 
 RUN apt-get update
 
