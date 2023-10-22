@@ -1,5 +1,7 @@
 import os
-BITWARDEN_ID = ""
+import bitwarden as secret_manager
+
+BITWARDEN_OBJECT_ID = ""
 PROVIDER = "api.localhost"
 CORS_SERVICE_MANAGERS = [   
             "mobile",
@@ -37,12 +39,23 @@ STRIPE_LIVE_CREDIT_SUB_ID = "price_1Kkb....."
 STRIPE_LIVE_SPACE_SUB_ID = "price_1Kkb7....."    
 DEV_PAY_PCT = 98
 
+# load secrets
+BITWARDEN_OBJECT_ID = os.getenv('BITWARDEN_OBJECT_ID')
+secrets = {}
+if BITWARDEN_OBJECT_ID:
+    secrets = secret_manager.get_secrets()
+
 # goes through the above config variables 
 # checks if env vars of those names exist and sets them if they do
 vars = [v for v in globals()]
 for v in vars :
+    # Load secret variables into settings params.
+    if v in secrets:
+        globals()[v] = secrets[v]
+    # Load environment variables into settings params.
     env_val = os.getenv(v)
     if env_val == None:
         continue
     else:
         globals()[v] = env_val
+        

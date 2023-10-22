@@ -4,15 +4,24 @@ An interface to bitwarden.
 gets secrets from bitwarden.
 web10 uses bitwarden as a secrets manager.
 """
-import settings
+import subprocess
+import json
 import os
-def get_bitwarden_secrets():
+
+def get_secrets():
     """
         get the secrets from bitwarden.
-        uses an object_id + private key from settings.
+        uses a BITWARDEN_OBJECT_ID env var.
+        for this to work, the bitwarden cli needs to be logged in.
     """
-    return {"nah":"nah"}
+    bitwarden_object_id = os.getenv('BITWARDEN_OBJECT_ID')
+    cmd = f"bw get item {bitwarden_object_id}"
+    output = subprocess.check_output(cmd,shell=True ) 
+    output = output.decode("utf-8")
+    bw_cli_response = json.loads(output)
+    fields = bw_cli_response["fields"]
+    secrets = {}
+    for field in fields:
+        secrets[field["name"]]= field["value"]
+    return secrets
 
-# run bitwarden as a test.
-if __name__=="__main__":
-    print(get_bitwarden_secrets())
