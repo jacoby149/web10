@@ -1,25 +1,21 @@
 import os
-import bitwarden as secret_manager
+import app.bitwarden as secret_manager
 
-BITWARDEN_OBJECT_ID = ""
 PROVIDER = "api.localhost"
-CORS_SERVICE_MANAGERS = [   
-            "mobile",
-            "auth.localhost", 
-            "auth.web10.app", 
-            "auth.web10.dev"
-        ]
+CORS_SERVICE_MANAGERS = """
+    auth.localhost, 
+    auth.web10.app, 
+    auth.web10.dev
+"""
 DB = "testing"
 DB_URL = "mongodb+srv://web10:jSol....."
 ALGORITHM = "HS256"
 PRIVATE_KEY = "8cbec8....."
 TOKEN_EXPIRE_MINUTES = 87840
-COST = {
-        "create" : 0.000025,
-        "update" : 0.000025,
-        "read" : 0.000005,
-        "delete" : 0.000002
-    }
+COST_CREATE =  0.000025
+COST_UPDATE = 0.000025
+COST_READ = 0.000005
+COST_DELETE = 0.000002
 FREE_CREDITS = 0.10
 FREE_SPACE = 8
 BETA_REQUIRED = False
@@ -40,10 +36,7 @@ STRIPE_LIVE_SPACE_SUB_ID = "price_1Kkb7....."
 DEV_PAY_PCT = 98
 
 # load secrets
-BITWARDEN_OBJECT_ID = os.getenv('BITWARDEN_OBJECT_ID')
-secrets = {}
-if BITWARDEN_OBJECT_ID:
-    secrets = secret_manager.get_secrets()
+secrets = secret_manager.get_secrets()
 
 # goes through the above config variables 
 # checks if env vars of those names exist and sets them if they do

@@ -1,5 +1,4 @@
-
-FROM --platform=linux/x86_64 python3.9-nodejs20
+FROM --platform=linux/amd64 nikolaik/python-nodejs:python3.9-nodejs18
 
 RUN apt-get update
 
@@ -7,7 +6,9 @@ RUN apt-get -y install libsasl2-dev libldap2-dev libssl-dev
 
 WORKDIR /web10
 
-COPY ./requirements.txt /web10/requirements.txt
+COPY ./Pipfile /web10/Pipfile
+
+COPY ./Pipfile.lock /web10/Pipfile.lock
 
 RUN pip install pipenv && pipenv install
 
