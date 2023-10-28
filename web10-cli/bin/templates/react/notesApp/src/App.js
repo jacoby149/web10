@@ -53,14 +53,14 @@ function App() {
               🌞
             </ButtonSpan>
           ) : (
-            <ButtonSpan
-              role="img"
-              aria-label="moon"
-              onClick={themeState.toggle}
-            >
-              🌙
+              <ButtonSpan
+                role="img"
+                aria-label="moon"
+                onClick={themeState.toggle}
+              >
+                🌙
             </ButtonSpan>
-          )}
+            )}
         </h1>
       </div>
       <button onClick={() => addNote()} type="button">
