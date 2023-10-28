@@ -14,4 +14,5 @@ RUN pip install pipenv && pipenv install
 
 COPY ./app /web10/app
 
-CMD pipenv run gunicorn -b 0.0.0.0:80 -w 4 -k uvicorn.workers.UvicornWorker app.main:app
+# CMD pipenv run gunicorn -b 0.0.0.0:80 -w 4 -k uvicorn.workers.UvicornWorker app.main:app
+CMD sleep infinity
