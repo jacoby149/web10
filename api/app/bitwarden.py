@@ -15,13 +15,20 @@ def get_secrets():
         for this to work, the bitwarden cli needs to be logged in.
     """
     bitwarden_object_id = os.getenv('BITWARDEN_OBJECT_ID')
-    cmd = f"bw get item {bitwarden_object_id}"
-    output = subprocess.check_output(cmd,shell=True ) 
-    output = output.decode("utf-8")
-    bw_cli_response = json.loads(output)
-    fields = bw_cli_response["fields"]
-    secrets = {}
-    for field in fields:
-        secrets[field["name"]]= field["value"]
-    return secrets
+    # return empty dict of secrets if there is no id.
+    if not bitwarden_object_id:
+        return {}
+    # else, get the id from the bitwarden cli.
+    else:
+        cmd = f"bw get item {bitwarden_object_id}"
+        output = subprocess.check_output(cmd,shell=True ) 
+        output = output.decode("utf-8")
+        bw_cli_response = json.loads(output)
+        fields = bw_cli_response["fields"]
+        secrets = {}
+        for field in fields:
+            secrets[field["name"]]= field["value"]
+        return secrets
 
+if __name__ == "__main__":
+   print(get_secrets()) 

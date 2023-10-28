@@ -1,5 +1,11 @@
 [USER USE CASE]
 
+FIX THE ENVIRONMENT VARIABLES!!!!
+  meaning:
+  1. COST_X vars will break the program.
+  2. CORS_SERVICE_PROVIDERS will break the program too.
+  FIX IT!!!!
+
 1.0.9 (clean up! fix breaks!)
 1. switch the web10 api to pipenv ***
 2. use .env file with pipenv instead of settings.py
