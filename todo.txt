@@ -9,6 +9,13 @@ FIX THE ENVIRONMENT VARIABLES!!!!
 1.0.9 (clean up! fix breaks!)
 1. switch the web10 api to pipenv ***
 2. use .env file with pipenv instead of settings.py
+3. get the bitwarden functionality fully working.
+4. fix the .env variables that got expanded out.
+5. host on the rack
+6. point DNS servers to the rack (dev and prod)
+7. get off google cloud.
+
+1.0.10
 3. make an app review UI for admins to change app visibility. 
     - public [discoverable by anyone]
     - unlisted [only by link]
@@ -28,7 +35,7 @@ make an app view page to see description of an app + visibility
     people cant put up some fuckshit on my app store.
     information on "who", and "when" on web10 is reliable.
 
-1.0.10
+1.0.11
 1. wapi encryption interface
 2. encryptor mobile app
     * encryption
@@ -40,7 +47,7 @@ make an app view page to see description of an app + visibility
     user can write notes, and they are safely encrypted on web10.
 
 
-1.0.11
+1.0.12
 3. get auth2 SMRs working.
     - SIRs
     - SCRs
