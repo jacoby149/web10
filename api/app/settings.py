@@ -1,6 +1,11 @@
 import os
 import app.bitwarden as secret_manager
 
+
+#################################
+##### configurable variables ####
+#################################
+
 PROVIDER = "api.localhost"
 CORS_SERVICE_MANAGERS = """
     auth.localhost, 
@@ -51,4 +56,11 @@ for v in vars :
         continue
     else:
         globals()[v] = env_val
-        
+
+# Initiate some quality of life variables around the config.
+CORS_SERVICE_MANAGERS = CORS_SERVICE_MANAGERS.split(",")
+COST = {}
+COST["create"] = COST_CREATE 
+COST["read"] = COST_READ
+COST["update"] = COST_UPDATE
+COST["delete"] = COST_DELETE
