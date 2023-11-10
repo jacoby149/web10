@@ -4,6 +4,8 @@ RUN apt-get update
 
 RUN apt-get -y install libsasl2-dev libldap2-dev libssl-dev
 
+RUN npm install -g @bitwarden/cli
+
 WORKDIR /web10
 
 COPY ./Pipfile /web10/Pipfile
@@ -14,5 +16,4 @@ RUN pip install pipenv && pipenv install
 
 COPY ./app /web10/app
 
-# CMD pipenv run gunicorn -b 0.0.0.0:80 -w 4 -k uvicorn.workers.UvicornWorker app.main:app
-CMD sleep infinity
+CMD pipenv run gunicorn -b 0.0.0.0:80 -w 4 -k uvicorn.workers.UvicornWorker app.main:app
