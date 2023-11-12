@@ -18,4 +18,4 @@ def get_secrets():
     return result
 
 if __name__ == "__main__":
-    print(os.getenv("INFISICAL"))
+    print(get_secrets())

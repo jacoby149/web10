@@ -1,5 +1,5 @@
 import os
-import app.bitwarden as secret_manager
+import app.pyinfisical as secret_manager
 
 
 #################################
@@ -64,3 +64,6 @@ COST["create"] = COST_CREATE
 COST["read"] = COST_READ
 COST["update"] = COST_UPDATE
 COST["delete"] = COST_DELETE
+
+if __name__ == "__main__":
+    print(globals())
