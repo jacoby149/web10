@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "4dd688c302c5b7ebebbd10dfe97d26c1738a95211a42d03488787eaada491300"
+            "sha256": "08376cb46f93bdd857c81d6c6e14a3bcbeb68e86a048f51b1576b377871260fb"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -741,12 +741,21 @@
             "markers": "python_version >= '3.6'",
             "version": "==1.5.0"
         },
+        "python-multipart": {
+            "hashes": [
+                "sha256:e9925a80bb668529f1b67c7fdb0a5dacdd7cbfc6fb0bff3ea443fe22bdd62132",
+                "sha256:ee698bab5ef148b0a760751c261902cd096e57e10558e11aca17646b74ee1c18"
+            ],
+            "index": "pypi",
+            "markers": "python_version >= '3.7'",
+            "version": "==0.0.6"
+        },
         "requests": {
             "hashes": [
                 "sha256:58cd2187c01e70e6e26505bca751777aa9f2ee0b7f4300988b709f44e013003f",
                 "sha256:942c5a758f98d790eaed1a29cb6eefc7ffb0d1cf7af05c3d2791656dbd6ad1e1"
             ],
-            "markers": "python_version >= '3.7'",
+            "markers": "python_version >= '3.0'",
             "version": "==2.31.0"
         },
         "sniffio": {

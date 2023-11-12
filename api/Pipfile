@@ -13,6 +13,7 @@ pymongo = "*"
 pydantic = "*"
 stripe = "*"
 infisical = "*"
+python-multipart = "*"
 
 [dev-packages]
 
