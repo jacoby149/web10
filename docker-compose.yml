@@ -9,7 +9,7 @@ services:
       - "6000:80"
     environment:
       - VIRTUAL_HOST=api.localhost
-      - INFISICA_API_KEY
+      - INFISICAL
     command: ["sleep","infinity"] # ["pipenv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80", "--reload"]
     networks:
       default:

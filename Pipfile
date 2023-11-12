@@ -4,15 +4,6 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-uvicorn = "*"
-gunicorn = "*"
-fastapi = "*"
-twilio = "*"
-passlib = "*"
-pymongo = "*"
-pydantic = "*"
-stripe = "*"
-infisical = "*"
 
 [dev-packages]
 
