@@ -15,6 +15,9 @@ FIX THE ENVIRONMENT VARIABLES!!!!
 6. point DNS servers to the rack (dev and prod)
 7. get off google cloud.
 
+deploy web10.dev
+
+ 
 1.0.10
 3. make an app review UI for admins to change app visibility. 
     - public [discoverable by anyone]
