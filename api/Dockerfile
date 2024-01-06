@@ -4,8 +4,6 @@ RUN apt-get update
 
 RUN apt-get -y install libsasl2-dev libldap2-dev libssl-dev
 
-RUN npm install -g @bitwarden/cli
-
 WORKDIR /web10
 
 COPY ./Pipfile /web10/Pipfile
