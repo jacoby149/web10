@@ -12,9 +12,7 @@ services:
       - INFISICAL
     command: ["pipenv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80", "--reload"]
     networks:
-      default:
-        aliases:
-          - api.localhost
+      - all-spark-proxy
   auth: # The web10 Authenticator, the UI for managing the web10 API
     build: 
       context: .
@@ -82,14 +80,11 @@ services:
       - "7746:80"
     environment:
       VIRTUAL_HOST: crm.localhost
-  nginx-proxy: # A reverse proxy to give all the containers easy names.
-    image: jwilder/nginx-proxy
-    ports:
-      - "80:80"
-    volumes:
-      - /var/run/docker.sock:/tmp/docker.sock:ro
 
 volumes:
   node-modules:
   wapi-node-modules:  
   rtc: 
+networks:
+  all-spark-proxy:
+    external: true
