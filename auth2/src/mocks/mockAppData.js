@@ -23,7 +23,7 @@ var mockPage = [
     {
         title: "ball shooter",
         description: "description3",
-        href:"https://jacobhoffman.tk/fps",
+        href:"https://jacobhoffman.xyz/fps",
         img : fpsImg,
         hits:228,
     },
