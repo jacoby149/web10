@@ -1,0 +1,49 @@
+version: "3"
+
+services:
+  api: # The web10 API, that holds all the data.
+    build: api
+    volumes:
+      - ./api/:/web10 
+    ports:
+      - "10011:80"
+    environment:
+      - VIRTUAL_HOST=api.web10.dev
+      - INFISICAL
+      - PROVIDER=api.web10.dev
+      - DB=dev
+    networks:
+      - all-spark-proxy
+    restart: always
+  auth: # The web10 Authenticator, the UI for managing the web10 API
+    build: 
+      context: .
+      dockerfile: auth/Dockerfile
+      target: deploy
+    environment:
+      PORT: 80
+      VIRTUAL_HOST: auth.web10.dev
+      CHOKIDAR_USEPOLLING: "true"
+      REACT_APP_DEFAULT_API: api.web10.dev
+      REACT_APP_VERIFY_REQURED: "true"
+      REACT_APP_PAY_REQUIRED: "true"
+    networks:
+      - all-spark-proxy
+    ports:
+      - '10012:80'
+    restart: always
+  rtc: # web10 RTC, responsible for webRTC P2P connections on web10.
+    build: rtc
+    environment:
+      PORT: 80
+      VIRTUAL_HOST: rtc.web10.dev
+      CHOKIDAR_USEPOLLING: "true"
+    ports:
+      - '10013:80'
+    networks:
+      - all-spark-proxy
+    restart: always
+
+networks:
+  all-spark-proxy:
+    external: true
