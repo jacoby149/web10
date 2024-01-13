@@ -55,7 +55,7 @@ function SideBar(props) {
             <R bt>
                 <C s={"80px"}>
                     <div style={{ fontFamily: "monospace" }}>
-                        Invented by <a href="https://jacobhoffman.tk">Jacob Hoffman</a><br></br>
+                        Invented by <a href="https://jacobhoffman.xyz">Jacob Hoffman</a><br></br>
                         <iframe src="https://ghbtns.com/github-btn.html?user=jacoby149&repo=web10&type=star&count=true&size=large" frameborder="0" scrolling="0" width="170" height="30" title="GitHub" style={{marginTop:"5px"}}></iframe>
                     </div>
                 </C>
