@@ -1,23 +1,26 @@
 import os
+import app.pyinfisical as secret_manager
+
+
+#################################
+##### configurable variables ####
+#################################
 
 PROVIDER = "api.localhost"
-CORS_SERVICE_MANAGERS = [   
-            "mobile",
-            "auth.localhost", 
-            "auth.web10.app", 
-            "auth.web10.dev"
-        ]
+CORS_SERVICE_MANAGERS = """
+    auth.localhost, 
+    auth.web10.app, 
+    auth.web10.dev
+"""
 DB = "testing"
 DB_URL = "mongodb+srv://web10:jSol....."
 ALGORITHM = "HS256"
 PRIVATE_KEY = "8cbec8....."
 TOKEN_EXPIRE_MINUTES = 87840
-COST = {
-        "create" : 0.000025,
-        "update" : 0.000025,
-        "read" : 0.000005,
-        "delete" : 0.000002
-    }
+COST_CREATE =  0.000025
+COST_UPDATE = 0.000025
+COST_READ = 0.000005
+COST_DELETE = 0.000002
 FREE_CREDITS = 0.10
 FREE_SPACE = 8
 BETA_REQUIRED = False
@@ -37,10 +40,17 @@ STRIPE_LIVE_CREDIT_SUB_ID = "price_1Kkb....."
 STRIPE_LIVE_SPACE_SUB_ID = "price_1Kkb7....."    
 DEV_PAY_PCT = 98
 
+# load secrets
+secrets = secret_manager.get_secrets()
+
 # goes through the above config variables 
 # checks if env vars of those names exist and sets them if they do
 vars = [v for v in globals()]
 for v in vars :
+    # Load secret variables into settings params.
+    if v in secrets:
+        globals()[v] = secrets[v]
+    # Load environment variables into settings params.
     env_val = os.getenv(v)
     if env_val == None:
         continue
@@ -55,6 +65,5 @@ COST["read"] = COST_READ
 COST["update"] = COST_UPDATE
 COST["delete"] = COST_DELETE
 
-print(globals())
 if __name__ == "__main__":
     print(globals())
