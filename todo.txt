@@ -1,49 +1,76 @@
-1.0.9
-I need to answer the question :
-    What do I want to do for copying the apps?
-    I want to get them as a folder from github...
-    OR - maybe, get the release?
-In the CLI,
-add : 
-    - Notes App (vanilla HTML, REACT)
-    - P2P Messaging App (vanilla HTML, REACT)
-    - Snake Game (vanilla HTML, REACT)
-make a GIF tutorial for using the web10-cli
-switch the web10 api to pipenv
-config hard links to use a .env file instead of settings.py
-pipenv shell the web10 API!!!
+[USER USE CASE]
 
-1.0.9.1
-Try Replit Templates
-Make a wordpress local dev environment
+FIX THE ENVIRONMENT VARIABLES!!!!
+  meaning:
+  1. COST_X vars will break the program.
+  2. CORS_SERVICE_PROVIDERS will break the program too.
+  FIX IT!!!!
 
+1.0.9 (clean up! fix breaks!)
+1. switch the web10 api to pipenv ***
+2. use .env file with pipenv instead of settings.py
+3. get the bitwarden functionality fully working.
+4. fix the .env variables that got expanded out.
+5. host on the rack 166.157.099.212
+6. point DNS servers to the rack (dev and prod)
+7. get off google cloud.
 
+deploy web10.dev
+
+ 
 1.0.10
-[ Good Auth UI + Secure Metadata !!! ]
-attach _address + _time to records
-Implement automatic tiered token protection
-    - so another web10 provider can't impersonate you, because a dev didn't use tiered tokens.
-get auth2 SMRs working.
-    - SIRs
-    - SCRs
-get auth2 data viewer [RAW JSON] working.
-get exporter / importer working! [perhaps some simple searching.]
-new app sign up ONE click.
-app log in ZERO clicks.
-separate the auth2 from the app store! 
-eliminate the old authenticator.
-
-1.0.11 [App Store Administration / Approval Process.]
-make an app review UI for admins to change app visibility. 
+3. make an app review UI for admins to change app visibility. 
     - public [discoverable by anyone]
     - unlisted [only by link]
     - banned [only by admin]
-use a hard coded credentials in settings.py 
+    - certified, uncertified toggle too.
+4. use hard coded credentials in settings.py 
     - APP_STORE_ADMIN_USERNAME
     - APP_STORE_ADMIN_PASSWORD
 make an app view page to see description of an app + visibility
+5. make the app store paginated.
+6. make an app description page per app.
+7. attach _address + _time to records
+8. Implement automatic tiered token protection
+    - so another web10 provider can't impersonate you, because a dev didn't use tiered tokens.
+[ At this point, web10 isn't broken... ]
+    web10 env vars are in a good system.
+    people cant put up some fuckshit on my app store.
+    information on "who", and "when" on web10 is reliable.
+
+1.0.11
+1. wapi encryption interface
+2. encryptor mobile app
+    * encryption
+    * P2P connection
+3. email based key recovery
+4. encryptor demo app.
+5. put encrpytor SDK up for download.
+[ At this point, the user use case for web10 is fulfilled.]
+    user can write notes, and they are safely encrypted on web10.
+
 
 1.0.12
+3. get auth2 SMRs working.
+    - SIRs
+    - SCRs
+4. new app sign up ONE click.
+5. app log in ZERO clicks.
+6. separate the auth2 from the app store! 
+7. eliminate the old authenticator.
+8. get exporter / importer working! [perhaps some simple searching.]
+9. get auth2 data viewer [RAW JSON] working.
+[ At this point, the user experience for note taking, the initial use case is SEAMLESS!!! ]
+
+---
+[Dev Use Case]
+- Make a simple todo app.
+- Make a good notes app.
+- Clean up web10 social.
+Bake them into the web10 cli.
+
+---
+
 make subservices
     - protect it as follows
         allow apps to CRUD subservices
@@ -51,20 +78,11 @@ make subservices
             - for the services authorized to the app.
 enforce subservice rules.
 
-
-
-
-
 BEFORE THIS, MAKE THE RED SHIELD DEMO...
 1.0.12 [Instagram Pilot]
 fix the web10 social messaging glitches
 add webRTC to the web10 social posts
 
-1.1.3
-wapi encryption interface
-encryptor PWA
-    * encryption
-    * P2P connection
     * export/import keys
     * google cloud sync/backup
 document encryption

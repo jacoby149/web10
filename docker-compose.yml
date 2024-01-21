@@ -1,20 +1,19 @@
 version: "3"
 
 services:
-  api:
+  api: # The web10 API, that holds all the data.
     build: api
     volumes:
       - ./api/:/web10 
     ports:
       - "6000:80"
     environment:
-      VIRTUAL_HOST: api.localhost
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80", "--reload"]
+      - VIRTUAL_HOST=api.localhost
+      - INFISICAL
+    command: ["pipenv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80", "--reload"]
     networks:
-      default:
-        aliases:
-          - api.localhost
-  auth:
+      - all-spark-proxy
+  auth: # The web10 Authenticator, the UI for managing the web10 API
     build: 
       context: .
       dockerfile: auth/Dockerfile
@@ -31,7 +30,7 @@ services:
       CHOKIDAR_USEPOLLING: "true"
     ports:
       - '3000:80'
-  rtc:
+  rtc: # web10 RTC, responsible for webRTC P2P connections on web10.
     build: rtc
     volumes:
       - ./rtc:/rtc
@@ -43,7 +42,34 @@ services:
       CHOKIDAR_USEPOLLING: "true"
     ports:
       - '6363:80'
-  crm:
+  docs: # web10 docs, the web10 documentation on how to use it as a developer
+    build: sdk 
+    volumes:
+      - ./sdk/:/docs/public
+    ports:
+      - "6969:80"
+    environment:
+      VIRTUAL_HOST: docs.localhost
+  home: # web10 home, the homepage that explains the mission + about web10.
+    build: home 
+    volumes:
+      - ./home/:/home/public
+    ports:
+      - "6868:80"
+    environment:
+      VIRTUAL_HOST: home.localhost
+  mail: # web10 mail, a demo app on web10 to check webRTC + cross communication is working.
+    build: 
+      context: .
+      dockerfile: mail/Dockerfile
+    volumes:
+      - ./mail/:/mail/public
+      - ./sdk/:/mail/public/sdk    
+    ports:
+      - "7171:80"
+    environment:
+      VIRTUAL_HOST: mail.localhost
+  crm: # web10 CRM, a demo app on web10 to check core functionality / data management is working.
     build: 
       context: .
       dockerfile: crm/Dockerfile
@@ -54,42 +80,11 @@ services:
       - "7746:80"
     environment:
       VIRTUAL_HOST: crm.localhost
-  docs:
-    build: sdk 
-    volumes:
-      - ./sdk/:/docs/public
-    ports:
-      - "6969:80"
-    environment:
-      VIRTUAL_HOST: docs.localhost
-  home:
-    build: home 
-    volumes:
-      - ./home/:/home/public
-    ports:
-      - "6868:80"
-    environment:
-      VIRTUAL_HOST: home.localhost
-  mail:
-    build: 
-      context: .
-      dockerfile: mail/Dockerfile
-    volumes:
-      - ./mail/:/mail/public
-      - ./sdk/:/mail/public/sdk    
-
-    ports:
-      - "7171:80"
-    environment:
-      VIRTUAL_HOST: mail.localhost
-  nginx-proxy:
-    image: jwilder/nginx-proxy
-    ports:
-      - "80:80"
-    volumes:
-      - /var/run/docker.sock:/tmp/docker.sock:ro
 
 volumes:
   node-modules:
   wapi-node-modules:  
-  rtc:
+  rtc: 
+networks:
+  all-spark-proxy:
+    external: true

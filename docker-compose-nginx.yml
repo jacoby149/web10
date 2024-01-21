@@ -1,0 +1,15 @@
+version: "3"
+
+services:
+  nginx-proxy: # A reverse proxy to give all the containers easy names.
+    image: jwilder/nginx-proxy
+    ports:
+      - "80:80"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+    restart: always
+    networks:
+      - all-spark-proxy
+networks:
+  all-spark-proxy:
+    external: true
