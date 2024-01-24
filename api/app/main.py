@@ -85,7 +85,7 @@ def decode_token(token: str, private_key=False) -> models.TokenData:
             token, settings.PRIVATE_KEY, algorithms=[settings.ALGORITHM]
         )
     else:
-        payload = jwt.decode(token, verify=False)
+        payload = jwt.decode(token, options={"verify_signature":False})
     token_data = models.TokenData()
     token_data.populate_from_payload(payload)
     return token_data
@@ -100,7 +100,7 @@ def can_mint(submission_token, mint_token):
         raise exceptions.MINT
     if not submission_token.site:
         raise exceptions.MINT
-    elif submission_token.site in settings.CORS_SERVICE_MANAGERS.split(","):
+    elif submission_token.site in settings.CORS_SERVICE_MANAGERS:
         pass
     elif submission_token.site == mint_token.site:
         pass

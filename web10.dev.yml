@@ -12,10 +12,13 @@ services:
       - INFISICAL
       - PROVIDER=api.web10.dev
       - DB=dev
-    command: ["pipenv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80", "--reload"]
     networks:
       - all-spark-proxy
     restart: always
+    deploy:   
+      resources:
+        reservations:
+          memory: 256M
   auth: # The web10 Authenticator, the UI for managing the web10 API
     build: 
       context: .
@@ -28,12 +31,15 @@ services:
       REACT_APP_DEFAULT_API: api.web10.dev
       REACT_APP_VERIFY_REQURED: "true"
       REACT_APP_PAY_REQUIRED: "true"
-    command: ["npm", "run", "start"]
     networks:
       - all-spark-proxy
     ports:
       - '10012:80'
     restart: always
+    deploy:   
+      resources:
+        reservations:
+          memory: 256M
   rtc: # web10 RTC, responsible for webRTC P2P connections on web10.
     build: rtc
     environment:
@@ -45,6 +51,10 @@ services:
     networks:
       - all-spark-proxy
     restart: always
+    deploy:   
+      resources:
+        reservations:
+          memory: 256M
   crm: # web10 CRM, a demo app on web10 to check core functionality / data management is working.
     build: 
       context: .
@@ -59,6 +69,11 @@ services:
     networks:
       - all-spark-proxy
     restart: always
+    deploy:   
+      resources:
+        reservations:
+          memory: 256M
+ 
 networks:
   all-spark-proxy:
     external: true

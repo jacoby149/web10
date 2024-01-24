@@ -58,7 +58,8 @@ for v in vars :
         globals()[v] = env_val
 
 # Initiate some quality of life variables around the config.
-CORS_SERVICE_MANAGERS = CORS_SERVICE_MANAGERS.split(",")
+CORS_SERVICE_MANAGERS = [site.strip() for site in
+                         CORS_SERVICE_MANAGERS.split(",")]
 COST = {}
 COST["create"] = COST_CREATE 
 COST["read"] = COST_READ
