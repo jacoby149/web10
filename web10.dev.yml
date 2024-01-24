@@ -65,7 +65,7 @@ services:
     ports:
       - "10014:80"
     environment:
-      VIRTUAL_HOST: crm.web10.dev,devcrm.localhost
+      VIRTUAL_HOST: crm.web10.dev
     networks:
       - all-spark-proxy
     restart: always

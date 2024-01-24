@@ -20,6 +20,10 @@ services:
         aliases:
           - api.web10.app
     restart: always
+    deploy:   
+      resources:
+        reservations:
+          memory: 256M
   auth: # The web10 Authenticator, the UI for managing the web10 API
     build: 
       context: .
@@ -35,6 +39,10 @@ services:
     ports:
       - '10002:80'
     restart: always
+    deploy:   
+      resources:
+        reservations:
+          memory: 256M
     networks:
       - all-spark-proxy
   rtc: # web10 RTC, responsible for webRTC P2P connections on web10.
@@ -49,6 +57,10 @@ services:
     ports:
       - '10003:80'
     restart: always
+    deploy:   
+      resources:
+        reservations:
+          memory: 256M
     networks:
       - all-spark-proxy
   crm: # web10 CRM, a demo app on web10 to check core functionality / data management is working.
@@ -62,7 +74,14 @@ services:
       - "10004:80"
     environment:
       VIRTUAL_HOST: crm.web10.app
-
+    restart: always
+    deploy:   
+      resources:
+        reservations:
+          memory: 256M
+    networks:
+      - all-spark-proxy
+ 
 networks:
   all-spark-proxy:
     external: true
