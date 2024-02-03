@@ -1,10 +1,8 @@
 version: "3"
 
 services:
-  api: # The web10 API, that holds all the data.
+  api_dev: # The web10 API, that holds all the data.
     build: api
-    volumes:
-      - ./api/:/web10 
     ports:
       - "10011:80"
     environment:
@@ -19,7 +17,7 @@ services:
       resources:
         reservations:
           memory: 256M
-  auth: # The web10 Authenticator, the UI for managing the web10 API
+  auth_dev: # The web10 Authenticator, the UI for managing the web10 API
     build: 
       context: .
       dockerfile: auth/Dockerfile
@@ -40,7 +38,7 @@ services:
       resources:
         reservations:
           memory: 256M
-  rtc: # web10 RTC, responsible for webRTC P2P connections on web10.
+  rtc_dev: # web10 RTC, responsible for webRTC P2P connections on web10.
     build: rtc
     environment:
       PORT: 80
@@ -55,13 +53,10 @@ services:
       resources:
         reservations:
           memory: 256M
-  crm: # web10 CRM, a demo app on web10 to check core functionality / data management is working.
+  crm_dev: # web10 CRM, a demo app on web10 to check core functionality / data management is working.
     build: 
       context: .
       dockerfile: crm/Dockerfile
-    volumes:
-      - ./crm/:/crm/public
-      - ./sdk/:/crm/public/sdk    
     ports:
       - "10014:80"
     environment:
