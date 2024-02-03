@@ -1,10 +1,8 @@
 version: "3"
 
 services:
-  api: # The web10 API, that holds all the data.
+  prod-api: # The web10 API, that holds all the data.
     build: api
-    volumes:
-      - ./api/:/web10 
     ports:
       - "10001:80"
     environment:
@@ -14,17 +12,13 @@ services:
       - DB=deploy
       - STRIPE_STATUS=live
     networks:
-      all-spark-proxy:
-        external: true
-      default:
-        aliases:
-          - api.web10.app
+      - all-spark-proxy
     restart: always
     deploy:   
       resources:
         reservations:
           memory: 256M
-  auth: # The web10 Authenticator, the UI for managing the web10 API
+  prod-auth: # The web10 Authenticator, the UI for managing the web10 API
     build: 
       context: .
       dockerfile: auth/Dockerfile
@@ -45,11 +39,8 @@ services:
           memory: 256M
     networks:
       - all-spark-proxy
-  rtc: # web10 RTC, responsible for webRTC P2P connections on web10.
+  prod-rtc: # web10 RTC, responsible for webRTC P2P connections on web10.
     build: rtc
-    volumes:
-      - ./rtc:/rtc
-      - rtc:/rtc/node_modules
     environment:
       PORT: 80
       VIRTUAL_HOST: rtc.web10.app
@@ -63,17 +54,55 @@ services:
           memory: 256M
     networks:
       - all-spark-proxy
-  crm: # web10 CRM, a demo app on web10 to check core functionality / data management is working.
+  prod-crm: # web10 CRM, a demo app on web10 to check core functionality / data management is working.
     build: 
       context: .
       dockerfile: crm/Dockerfile
-    volumes:
-      - ./crm/:/crm/public
-      - ./sdk/:/crm/public/sdk    
     ports:
       - "10004:80"
     environment:
       VIRTUAL_HOST: crm.web10.app
+    restart: always
+    deploy:   
+      resources:
+        reservations:
+          memory: 256M
+    networks:
+      - all-spark-proxy
+  prod-docs: # web10 docs, the web10 documentation on how to use it as a developer
+    build: sdk 
+    ports:
+      - "10005:80"
+    environment:
+      VIRTUAL_HOST: docs.web10.app
+    restart: always
+    deploy:   
+      resources:
+        reservations:
+          memory: 256M
+    networks:
+      - all-spark-proxy
+  prod-home: # web10 home, the homepage that explains the mission + about web10.
+    build: home 
+    ports:
+      - "10006:80"
+    environment:
+      VIRTUAL_HOST: web10.app
+    restart: always
+    deploy:   
+      resources:
+        reservations:
+          memory: 256M
+    networks:
+      - all-spark-proxy
+  prod-mail: # web10 mail, a demo app on web10 to check webRTC + cross communication is working.
+    build: 
+      context: .
+      dockerfile: mail/Dockerfile
+    ports:
+      - "10007:80"
+    environment:
+      VIRTUAL_HOST: mail.web10.app
     restart: always
     deploy:   
       resources:
