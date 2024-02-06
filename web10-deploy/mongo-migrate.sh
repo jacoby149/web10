@@ -1,14 +1,29 @@
 #!/bin/bash
 
+# source the db connections
+source '.env'
+
+# get the db env variables.
+if [ ! -f ./env ]; then
+    echo ".env is not available. make a .env file from the .env_example, and add DB connections."
+    exit 1
+fi
+
+# checking for the existence of the connections.
+if [ -z "${sourceConnection}" ]; then
+    echo ".env is available, but sourceConnection is unset or set to the empty string."
+    exit 1
+fi
+if [ -z "${destConnection}" ]; then
+    echo ".env is available, but destConnection is unset or set to the empty string."
+    exit 1
+fi
+
 # Check if jq is installed
 if ! command -v jq &> /dev/null; then
     echo "jq is not installed. Please install jq before running this script."
     exit 1
 fi
-
-# Define source and destination connection details
-sourceConnection="mongodb://username:password@sourceHost:sourcePort"
-destConnection="mongodb://username:password@destHost:destPort"
 
 # Iterate through databases
 for database in $(mongo $sourceConnection --quiet --eval "db.adminCommand('listDatabases').databases" | jq -r '.[].name'); do
