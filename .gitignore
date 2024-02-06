@@ -10,3 +10,4 @@ auth2/public/YourOrgsLogo/*
 auth2/.env
 api/.env
 web10-deploy/.env
+web10-deploy/mongo_migrate/.env
