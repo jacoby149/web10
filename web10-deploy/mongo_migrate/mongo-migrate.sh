@@ -1,13 +1,13 @@
 #!/bin/bash
 
-# source the db connections
-source '.env'
-
 # get the db env variables.
-if [ ! -f ./env ]; then
+if [ ! -f ./.env ]; then
     echo ".env is not available. make a .env file from the .env_example, and add DB connections."
     exit 1
 fi
+
+# source the db connections
+source '.env'
 
 # checking for the existence of the connections.
 if [ -z "${sourceConnection}" ]; then
@@ -26,9 +26,9 @@ if ! command -v jq &> /dev/null; then
 fi
 
 # Iterate through databases
-for database in $(mongo $sourceConnection --quiet --eval "db.adminCommand('listDatabases').databases" | jq -r '.[].name'); do
+for database in $(mongosh $sourceConnection --quiet --eval "db.adminCommand('listDatabases').databases" | jq -r '.[].name'); do
     # Iterate through collections in the current database
-    for collection in $(mongo $sourceConnection/$database --quiet --eval "db.getCollectionNames()" | tr -d '[],'); do
+    for collection in $(mongosh $sourceConnection/$database --quiet --eval "db.getCollectionNames()" | tr -d '[],'); do
         # Export collection from sourceConnection
         mongoexport --uri $sourceConnection/$database --collection $collection --out $collection.json
 
