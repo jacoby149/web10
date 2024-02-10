@@ -25,15 +25,19 @@ if ! command -v jq &> /dev/null; then
     exit 1
 fi
 
+# remove the stuff.
+rm -r migration_dir/transfer
+
 # Iterate through databases
-for database in $(mongosh $sourceConnection --quiet --eval "db.adminCommand('listDatabases').databases" | jq -r '.[].name'); do
+for database in $(mongosh $sourceConnection --quiet --eval "db.adminCommand('listDatabases').databases" | perl -pe "s/([a-zA-Z]*):/\"\$1\":/g" | perl -pe 's/\"sizeOnDisk.*?, //g' | perl -pe "s/ //g" | perl -pe "s/'/\"/g" | jq -r '.[].name'); do
     # Iterate through collections in the current database
-    for collection in $(mongosh $sourceConnection/$database --quiet --eval "db.getCollectionNames()" | tr -d '[],'); do
+    for collection in $(mongosh $sourceConnection/$database --quiet --eval "db.getCollectionNames()" | tr -d "[],'"); do
         # Export collection from sourceConnection
-        mongoexport --uri $sourceConnection/$database --collection $collection --out $collection.json
+        mongoexport --uri $sourceConnection/$database --collection $collection --out migration_dir/transfer/$database/$collection.json
 
         # Import collection to destConnection
-        mongoimport --uri $destConnection/$database --collection $collection --file $collection.json
+        mongoimport --uri $destConnection/$database --collection $collection --file migration_dir/transfer/$database/$collection.json
     done
 done
 
+rm -r migration_dir/transfer
