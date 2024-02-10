@@ -5,6 +5,7 @@ made the settings.py file have defaults.
 made configs managed by .env file.
 made CORS_SERVICE_MANAGERS from list to comma sep. strings.
 made COST dict env var type multiple env vars.
+some use case presentations in the sdk folder.
 
 1.0.8 || 11.10.2023
 Made the CHANGELOG
