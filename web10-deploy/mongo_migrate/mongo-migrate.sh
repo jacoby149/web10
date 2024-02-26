@@ -31,7 +31,7 @@ rm -r migration_dir/transfer
 # Iterate through databases
 for database in $(mongosh $sourceConnection --quiet --eval "db.adminCommand('listDatabases').databases" | perl -pe "s/([a-zA-Z]*):/\"\$1\":/g" | perl -pe 's/\"sizeOnDisk.*?, //g' | perl -pe "s/ //g" | perl -pe "s/'/\"/g" | jq -r '.[].name'); do
     # Iterate through collections in the current database
-    for collection in $(mongosh $sourceConnection/$database --quiet --eval "db.getCollectionNames()" | tr -d "[],'"); do
+    for collection in $(mongosh $sourceConnection/$database --quiet --eval "db.getCollectionNames().forEach(name => print(name))"); do
         # Export collection from sourceConnection
         mongoexport --uri $sourceConnection/$database --collection $collection --out migration_dir/transfer/$database/$collection.json
 
