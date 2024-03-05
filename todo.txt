@@ -1,23 +1,16 @@
 [USER USE CASE]
 
-FIX THE ENVIRONMENT VARIABLES!!!!
-  meaning:
-  1. COST_X vars will break the program.
-  2. CORS_SERVICE_PROVIDERS will break the program too.
-  FIX IT!!!!
+1.0.9
+finish the web10 cli (TWO APPs)
+make a really good web10 dev tool docs. i.e. MARKET.
+clean up the web10 readme (Marketing) 
+clean up the web10 docs (Address all changes)
 
-1.0.9 (clean up! fix breaks!)
-1. switch the web10 api to pipenv ***
-2. use .env file with pipenv instead of settings.py
-3. get the bitwarden functionality fully working.
-4. fix the .env variables that got expanded out.
-5. host on the rack 166.157.099.212
-6. point DNS servers to the rack (dev and prod)
-7. get off google cloud.
+1.0.10
+make the get brand new authenicator working.
+delete the old authenticator.
+put web10 - RTC, auth, and API into one container.
 
-deploy web10.dev
-
- 
 1.0.10
 3. make an app review UI for admins to change app visibility. 
     - public [discoverable by anyone]
