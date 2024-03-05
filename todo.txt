@@ -1,8 +1,14 @@
 [USER USE CASE]
 
 1.0.9
-finish the web10 cli (TWO APPs)
-make a really good web10 dev tool docs. i.e. MARKET.
+1. finish the todo app
+  - add a you are not logged in message and lock the todo features.
+    add a text box + log in.
+  - add a fixed anchor bottom right log out.
+2. add the web10 CRM to the CLI.
+3. finish the notes app.
+
+make a really good web10 dev tool page. i.e. MARKET.
 clean up the web10 readme (Marketing) 
 clean up the web10 docs (Address all changes)
 
