@@ -1,0 +1,4 @@
+move the logic of the message alerting to the js rather than the css.
+add the message to log into web10 if not logged in.
+add the message to log out of web10 if logged in...
+add the web10 functionality to all of the todo items.
