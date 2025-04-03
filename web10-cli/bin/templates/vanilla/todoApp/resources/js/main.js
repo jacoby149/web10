@@ -1,5 +1,5 @@
 
-var data = (localStorage.getItem('todoList')) ? JSON.parse(localStorage.getItem('todoList')):{
+var data = (localStorage.getItem('todoList')) ? JSON.parse(localStorage.getItem('todoList')) : {
   todo: [],
   completed: []
 };
@@ -19,21 +19,14 @@ document.getElementById('add').addEventListener('click', function() {
   }
 });
 
-document.getElementById('item').addEventListener('keydown', function (e) {
+document.getElementById('item').addEventListener('keydown', function(e) {
   var value = this.value;
   if ((e.code === 'Enter' || e.code === 'NumpadEnter') && value) {
     addItem(value);
   }
 });
 
-function addItem (value) {
-  addItemToDOM(value);
-  document.getElementById('item').value = '';
-
-  data.todo.push(value);
-  dataObjectUpdated();
-}
-
+// renders the todo list.
 function renderTodoList() {
   if (!data.todo.length && !data.completed.length) return;
 
@@ -48,10 +41,26 @@ function renderTodoList() {
   }
 }
 
+// adds an item to the todo list.
+// TODO web120ify this.
+function addItem(value) {
+  addItemToDOM(value);
+  document.getElementById('item').value = '';
+
+  data.todo.push(value);
+  dataObjectUpdated();
+}
+
+
+// edits a TODO item.
+// TODO web10 ify this too....
+// update....
 function dataObjectUpdated() {
   localStorage.setItem('todoList', JSON.stringify(data));
 }
 
+// removes an item from the todo list all together.
+// TODO add the web10 functionality to do this also.
 function removeItem() {
   var item = this.parentNode.parentNode;
   var parent = item.parentNode;
@@ -68,6 +77,8 @@ function removeItem() {
   parent.removeChild(item);
 }
 
+// adds an item from the todolist to the completed items.
+// TODO add this to web10 functionalities.
 function completeItem() {
   var item = this.parentNode.parentNode;
   var parent = item.parentNode;
@@ -84,15 +95,16 @@ function completeItem() {
   dataObjectUpdated();
 
   // Check if the item should be added to the completed list or to re-added to the todo list
-  var target = (id === 'todo') ? document.getElementById('completed'):document.getElementById('todo');
+  var target = (id === 'todo') ? document.getElementById('completed') : document.getElementById('todo');
 
   parent.removeChild(item);
   target.insertBefore(item, target.childNodes[0]);
 }
 
 // Adds a new item to the todo list
+// TODO add the web10 functionality to do the function on the backend.
 function addItemToDOM(text, completed) {
-  var list = (completed) ? document.getElementById('completed'):document.getElementById('todo');
+  var list = (completed) ? document.getElementById('completed') : document.getElementById('todo');
 
   var item = document.createElement('li');
   item.innerText = text;
@@ -120,3 +132,4 @@ function addItemToDOM(text, completed) {
 
   list.insertBefore(item, list.childNodes[0]);
 }
+

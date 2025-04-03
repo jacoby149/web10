@@ -13,7 +13,7 @@ services:
       - STRIPE_STATUS=live
     networks:
       - all-spark-proxy
-    restart: always
+    restart: unless-stopped
     deploy:   
       resources:
         reservations:
@@ -32,7 +32,7 @@ services:
       REACT_APP_PAY_REQUIRED: "true"
     ports:
       - '10002:80'
-    restart: always
+    restart: unless-stopped
     deploy:   
       resources:
         reservations:
@@ -47,7 +47,7 @@ services:
       CHOKIDAR_USEPOLLING: "true"
     ports:
       - '10003:80'
-    restart: always
+    restart: unless-stopped
     deploy:   
       resources:
         reservations:
@@ -62,7 +62,7 @@ services:
       - "10004:80"
     environment:
       VIRTUAL_HOST: crm.web10.app
-    restart: always
+    restart: unless-stopped
     deploy:   
       resources:
         reservations:
@@ -75,7 +75,7 @@ services:
       - "10005:80"
     environment:
       VIRTUAL_HOST: docs.web10.app
-    restart: always
+    restart: unless-stopped
     deploy:   
       resources:
         reservations:
@@ -88,7 +88,7 @@ services:
       - "10006:80"
     environment:
       VIRTUAL_HOST: web10.app
-    restart: always
+    restart: unless-stopped
     deploy:   
       resources:
         reservations:
@@ -103,7 +103,7 @@ services:
       - "10007:80"
     environment:
       VIRTUAL_HOST: mail.web10.app
-    restart: always
+    restart: unless-stopped
     deploy:   
       resources:
         reservations:

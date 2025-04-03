@@ -12,7 +12,7 @@ services:
       - DB=dev
     networks:
       - all-spark-proxy
-    restart: always
+    restart: unless-stopped
     deploy:   
       resources:
         reservations:
@@ -33,7 +33,7 @@ services:
       - all-spark-proxy
     ports:
       - '10012:80'
-    restart: always
+    restart: unless-stopped
     deploy:   
       resources:
         reservations:
@@ -48,7 +48,7 @@ services:
       - '10013:80'
     networks:
       - all-spark-proxy
-    restart: always
+    restart: unless-stopped
     deploy:   
       resources:
         reservations:
@@ -63,7 +63,7 @@ services:
       VIRTUAL_HOST: crm.web10.dev
     networks:
       - all-spark-proxy
-    restart: always
+    restart: unless-stopped
     deploy:   
       resources:
         reservations:
