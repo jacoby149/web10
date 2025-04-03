@@ -1,0 +1,5 @@
+add the message to log into web10 if not logged in.
+add the message to log out of web10 if logged in...
+add the authentication logic to get the messages properly switching in the app.
+add the logic to disable addition of todos unless the app is initted. via login.
+add the web10 functionality to all of the todo items.

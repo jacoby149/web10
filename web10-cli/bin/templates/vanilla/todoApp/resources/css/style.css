@@ -218,6 +218,10 @@ ul.todo li .buttons button.complete svg .fill {
   fill: #25b99a;
 }
 
+ul.todo#web10auth{
+  padding: 0px 0px 12px 0px;
+}
+  
 ul.todo#completed {
   position: relative;
   padding: 60px 0 0 0;
@@ -253,3 +257,11 @@ ul.todo#completed:after {
   font-size: 12px;
   color: #aaa;
 }
+
+.username{
+    color:green;
+  }
+
+.login{
+    color:red;
+  }
