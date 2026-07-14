@@ -1,14 +1,13 @@
-import pymongo
-from bson.objectid import ObjectId
-import app.settings as settings
-import app.models as models
-import app.web10records as records
-import app.exceptions as exceptions
-import os
 import re
-import datetime
 import secrets
 
+import pymongo
+from bson.objectid import ObjectId
+
+import app.exceptions as exceptions
+import app.models as models
+import app.settings as settings
+import app.web10records as records
 
 #################################
 ####### CONNECTING TO DB ########
@@ -55,7 +54,7 @@ def to_db_field(field):
 def q_t( _q, service ):
     q = { "service": service }
     for field in _q:
-        # in web10, fields of a query arent allowed to start with a dollar sign. 
+        # in web10, fields of a query arent allowed to start with a dollar sign.
         # dollar signs have a special meaning for pagination purposes, so we trim them out.
         if field[0] != "$":
             q[to_db_field(field)] = _q[field]
@@ -132,7 +131,7 @@ def get_phone_record(phone_number):
 def get_term_record(username, service):
     query = q_t({"service": service}, 'services')
     record = db[f"{username}"].find_one(query)
-    if record == None:
+    if record is None:
         return None
     return to_gui(record)
 
@@ -158,7 +157,7 @@ def is_verified(user):
 
 def get_user(username: str):
     doc = get_star(username)
-    if doc == None:
+    if doc is None:
         raise exceptions.NO_USER
     return models.dotdict(doc)
 
@@ -242,7 +241,7 @@ def update(user, service, query, update):
     # check if the update is with array pulls
     pull = False
     if "PULL" in update:
-        if update["PULL"] == True:
+        if update["PULL"]:
             pull = True
         del update["PULL"]
 
@@ -306,7 +305,7 @@ def star_selected(user, service, query):
 
 def get_customer_id(user):
     star = get_star(user)
-    if star == None:
+    if star is None:
         raise exceptions.NO_USER
     if "customer_id" in star:
         return star["customer_id"]
@@ -322,7 +321,7 @@ def set_customer_id(user, customer_id):
 
 def get_business_id(user):
     star = get_star(user)
-    if star == None:
+    if star is None:
         raise exceptions.NO_SELLER
     if "business_id" in star:
         return star["business_id"]
@@ -342,7 +341,7 @@ def set_business_id(user, business_id):
 
 def is_in_cross_origins(site, username, service):
     record = get_term_record(username, service)
-    if record == None:
+    if record is None:
         return False
     matches = list(filter(lambda x: re.fullmatch(
         site, x), record["cross_origins"]))
@@ -351,7 +350,7 @@ def is_in_cross_origins(site, username, service):
 
 def get_approved(username, provider, owner, service, action):
     record = get_term_record(owner, service)
-    if record == None:
+    if record is None:
         return False
     if (username == owner) and (provider == settings.PROVIDER):
         return True
@@ -360,8 +359,8 @@ def get_approved(username, provider, owner, service, action):
         list_hit = (bool(re.fullmatch(e["username"], username))) and (
             bool(re.fullmatch(e["provider"], provider))
         )
-        action_permitted = action in e and e[action] == True
-        all_permitted = "all" in e and e["all"] == True
+        action_permitted = action in e and e[action]
+        all_permitted = "all" in e and e["all"]
         return list_hit and (action_permitted or all_permitted)
 
     if "whitelist" not in record:
