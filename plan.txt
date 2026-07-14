@@ -294,27 +294,36 @@ mcp server (promoted from LATER -- it ships with the sdk):
     same records.
 
 
-PHASE 7 — strip the demo apps
------------------------------
-apps are frontends hosted anywhere. that's the whole point. they don't
-belong inside the node repo.
+PHASE 7 — reorganize the apps (monorepo, but tidy)
+--------------------------------------------------
+revised thinking: the killer app STAYS IN THIS REPO. it's not "an app"
+-- it's the default lens. it ships with every node, renders the
+operator's ad slots, embodies the conventions doc, and during the
+build it's what drives the protocol (aggregate, inbox, lens record
+all get discovered by building against them). schema + api + sdk +
+app need atomic commits. wordpress ships its default theme; mastodon
+ships its web client. same logic.
 
-[ ] new repo: web10-apps (or one repo per app). move crm/, mail/.
-[ ] home/ and docs/ are web10.app marketing + developer docs -- they're
-    web10 inc's website, not part of a node. move them out too (web10-site
-    repo), or at minimum out of the node compose.
-[ ] chrome-extension/, mobile/ -- same treatment, separate repos when
-    they're touched next.
-[ ] node compose after the strip: api(+ui), db, [rtc], [media]. that's a
-    node. everything else lives elsewhere and just talks to it.
-[ ] the web10-apps repo this creates is where phase 8 + 9 live.
+[ ] killer app gets a first-party top-level dir (social/), built and
+    versioned with the node. phase 8 + 9 live HERE.
+[ ] crm/ + mail/ -> examples/ directory: kept in-repo as reference
+    apps for devs, but OUT of the node's default compose. they're
+    documentation that runs.
+[ ] home/ and docs/ are web10 inc's website, not part of a node --
+    out of the node compose; separate repo only if they get heavy.
+[ ] node compose after the tidy: api(+ui), db, social, [rtc],
+    [media]. examples run via an "examples" profile for devs.
+[ ] third-party apps (the ecosystem) live in their own repos and
+    always will -- that's the protocol working. first-party lives
+    here.
 
 
 PHASE 8 — the killer app (all-in-one social)
 --------------------------------------------
 an instagram-shaped social app -- photos, video, streaming, feed, dms --
 that is ALSO the landing zone for everything the exporters pull in. this
-is the thing a normal person opens and gets it. lives in web10-apps,
+is the thing a normal person opens and gets it. lives IN THIS REPO
+(social/ -- it's the default lens, see phase 7),
 built on the phase 6 sdk, media via phase 5, deployed as the default
 lens on every node.
 

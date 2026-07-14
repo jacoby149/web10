@@ -61,12 +61,14 @@ LANE C — greenfield services  (owns: media/, sdk/, mcp/, new dirs)
   C4. P10 backup integrations (drive/dropbox oauth, export/import
       archive -- format comes from D1's conventions doc)
 
-LANE D — docs / apps / mobile (owns: mobile/**, new repos, *.md/txt)
+LANE D — docs / apps / mobile (owns: mobile/**, social/, examples/,
+                               *.md/txt)
   D1. conventions doc (posts/media/contacts/inbox schemas) +
       protocol spec draft (from api/web10.0.md). PURE WRITING,
       zero conflicts, and THREE lanes consume it (C4, D3, D4).
       do it first for exactly that reason.
-  D2. P7 strip demo apps -> web10-apps repo (file moves, cheap)
+  D2. P7 tidy: crm/mail -> examples/, killer app dir (social/)
+      scaffolded as first-party (file moves, cheap)
   D3. P11 mobile encryptor: the expo app can grow toward the real
       keychain (secure enclave, key requests ui) fully in parallel
       -- it talks to the node over the existing api. the rtc key
