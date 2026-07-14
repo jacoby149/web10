@@ -1,5 +1,5 @@
-from pydantic import BaseModel
-from typing import Optional
+
+from pydantic import BaseModel, ConfigDict
 
 
 class dotdict(dict):
@@ -10,18 +10,20 @@ class dotdict(dict):
 
 
 class Token(BaseModel):
-    token: Optional[str] = None
-    query: Optional[dict] = None
-    update: Optional[dict] = None
-    pull: Optional[dict] = None
+    model_config = ConfigDict(extra="allow")
+
+    token: str | None = None
+    query: dict | None = None
+    update: dict | None = None
+    pull: dict | None = None
 
 class PayData(BaseModel):
     token: str
     seller: str
     title: str
-    price: Optional[int] = None
-    success_url: Optional[str] = None
-    cancel_url: Optional[str] = None
+    price: int | None = None
+    success_url: str | None = None
+    cancel_url: str | None = None
 
 class TokenData(BaseModel):
     username: str = None
@@ -48,17 +50,17 @@ class TokenData(BaseModel):
 class SignUpForm(BaseModel):
     username: str
     password: str
-    phone: Optional[str] = None
-    betacode:Optional[str]=None
-    # change variables 
-    new_pass: Optional[str] = None
+    phone: str | None = None
+    betacode:str | None=None
+    # change variables
+    new_pass: str | None = None
 
 class TokenForm(BaseModel):
     username: str
-    password: Optional[str] = None
-    token: Optional[str] = None  # authorize via. user pass or token to get a token
-    site: Optional[str] = None
-    target: Optional[str] = None
+    password: str | None = None
+    token: str | None = None  # authorize via. user pass or token to get a token
+    site: str | None = None
+    target: str | None = None
 
 class PhoneForm(BaseModel):
     phone_number:str
