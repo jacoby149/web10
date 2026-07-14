@@ -309,6 +309,63 @@ v2 (continuous):
     user's own credentials, writes to user's own node)
 
 
+CROSS-CUTTING — quality, testing, security
+------------------------------------------
+not a phase. starts in phase 0 and never stops. a node holds people's
+lives and (eventually) a creator's money -- it has to be boring-reliable
+and hard to pop.
+
+testing:
+[ ] api test suite (pytest): auth flows (signup/login/mint/certify),
+    the full permissions matrix (terms, whitelist/blacklist, cross-
+    origin, anon, remote provider), star protection, metering/billing
+    paths. this is the highest-value test surface in the repo -- the
+    permission logic IS the product.
+[ ] run the api suite against BOTH backends in CI (ferretdb + real
+    mongo) -- that's the phase 1 compatibility guarantee, permanently
+[ ] protocol conformance suite: a black-box test any node must pass
+    (token mint, CRUD, terms enforcement, certify). matters the moment
+    a second implementation or fork exists. federation depends on it.
+[ ] sdk tests (bun test) against a throwaway test node
+[ ] ui + killer app: a few playwright e2e flows (signup -> post ->
+    appears in feed; grant terms -> app reads; revoke -> app can't)
+[ ] ci from phase 0: github actions on every pr -- lint, typecheck,
+    tests, docker builds. nothing merges red.
+
+security:
+[ ] known issues, fix early (phase 0/1 timeframe, before any real users):
+      - remote certify SSRF: validate provider urls (https, public host,
+        sane shape) before POSTing to them
+      - terms matching: exact-match by default, regex opt-in (redos +
+        accidental-wildcard footgun)
+      - CORS: allow_origins=["*"] + allow_credentials=True has to go
+      - bare except in certify() swallows everything -- tighten error
+        handling, no silent auth failures
+      - rate limiting on auth endpoints (login, signup, recovery,
+        verify codes) -- recovery-by-sms especially
+      - print() -> structured logging. never log tokens/secrets.
+[ ] dependabot debt: 913 alerts on the default branch (48 critical).
+    phase 0's upgrades clear most of it; keep dependabot/renovate on
+    and green after.
+[ ] secrets hygiene: signing key generated at setup (phase 3), stored
+    in the data volume, never in git. same for stripe/twilio keys.
+[ ] token revocation story: jwts expire but can't be revoked today.
+    decide: short expiry + refresh, or a jti denylist. matters more
+    once agents/llms hold tokens (lens chatbox, mcp).
+[ ] backups that restore: automated node backup + a scheduled restore
+    drill. a backup you've never restored is a rumor.
+[ ] before the first creator-node pitch: external security review /
+    pen test of the node stack + a responsible disclosure policy.
+    "we've been audited" is a sales document in this business.
+
+quality:
+[ ] ruff + mypy on the api (type the permission logic first),
+    typescript strict on ui/sdk, pre-commit hooks
+[ ] health/readiness endpoints + basic metrics on every service
+    (fleet ops in the white-label future depends on these)
+[ ] error responses: consistent shapes, no stack traces to clients
+
+
 LATER / OPEN QUESTIONS
 ----------------------
 - perf hardening on the api hot path: cache token certs, cache collstats,
