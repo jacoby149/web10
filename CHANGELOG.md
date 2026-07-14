@@ -1,3 +1,16 @@
+1.0.10 || 14.07.2026
+added plan.txt : phased roadmap (0-12) — toolchain modernization, documentdb/
+  ferretdb switch, unified ui + setup wizard, creator admin panel + analytics,
+  media/s3 layer, wapi.js + aggregate verb + mcp, killer social app (first-party,
+  in-repo) + the lens chatbox, social exporters, user backups, e2e encryption,
+  trust & safety. plus cross-cutting quality/testing/security and milestones M0-M3.
+added parallel execution.txt : 4-lane plan for running Conductor workspaces in
+  parallel without merge conflicts (lane ownership + wave-0 test seatbelt).
+added CLAUDE.md, GLOSSARY.md, decisions.md : agent onboarding + shared context.
+documented a CONFIRMED federation security bug : providers don't cryptographically
+  validate each other (HS256 symmetric signing) — fix is HS256 -> RS256/EdDSA + JWKS.
+established five end-to-end security invariants (I1-I5) enforced by the test suite.
+
 1.0.9
 added infisical secrets management.
 added pipenv for api python package management.
