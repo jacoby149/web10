@@ -1,3 +1,12 @@
+1.0.13 || 14.07.2026
+phase 0 typescript migration:
+  - renamed all 34 .jsx files to .tsx (React) or .ts (non-React)
+  - added global.d.ts for Window.I augmentation
+  - fixed dynamic object pattern with Record<string, any> type assertions
+  - fixed document.getElementById casts to HTMLInputElement
+  - fixed .toFixed().toLocaleString() type error
+  - updated index.html entry point to main.tsx
+
 1.0.12 || 14.07.2026
 phase 0 auth2 toolchain modernization:
   - migrated auth2 from create-react-app to vite 6 + bun (index.html entry,

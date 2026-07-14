@@ -3,7 +3,7 @@ import React from "react";
 
 // pulls the app information from the publisher.
 function useAppListingInterface(initApp, I) {
-    const appLI = {};
+    const appLI = {} as Record<string, any>;
     [appLI.app, appLI.setApp] = React.useState(initApp);
     React.useEffect(() => {
         if (!I.isMock) {

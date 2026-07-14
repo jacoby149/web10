@@ -71,7 +71,7 @@ python (api):
 js (ui + sdk):
 [ ] bun as package manager + runtime for all js packages
 [ ] CRA -> vite (auth2/ui first; old auth dies in phase 2 anyway)
-[ ] typescript everywhere, incrementally: allowJs on, new files .ts/.tsx,
+[✓] typescript everywhere, incrementally: allowJs on, new files .ts/.tsx,
     port components as they get touched
 [ ] react 18 -> current, drop dead deps as found
 [ ] rtc service too: it's old node/peerjs and phase 11 makes it

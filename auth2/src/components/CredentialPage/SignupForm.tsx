@@ -26,11 +26,11 @@ function SignupForm({ I }) {
                         onClick={() => {
                             I.setMode("appstore")
                             const [provider, username, password, betacode, retype] = [
-                                document.getElementById("provider").value,
-                                document.getElementById("username").value,
-                                document.getElementById("password").value,
-                                document.getElementById("betacode").value,
-                                document.getElementById("retypepass").value,
+                                (document.getElementById("provider") as HTMLInputElement).value,
+                                (document.getElementById("username") as HTMLInputElement).value,
+                                (document.getElementById("password") as HTMLInputElement).value,
+                                (document.getElementById("betacode") as HTMLInputElement).value,
+                                (document.getElementById("retypepass") as HTMLInputElement).value,
                             ];
                             I.signup(provider, username, password, retype, betacode)
                         }}

@@ -3,7 +3,7 @@ import ContractEditor from "./components/ContractEditor";
 import useContractInterface from "../../interfaces/ContractInterface";
 import RequestViewer from "./components/RequestViewer";
 
-function Contract({ I, data, isRequest}){
+function Contract({ I, data, isRequest, key }) {
     const contractI = useContractInterface(I,data,isRequest)
     if (contractI.isRequest()){
         return <RequestViewer I={I} contractI={contractI} />

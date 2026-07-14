@@ -16,9 +16,9 @@ function LoginForm({ I }) {
                         <button
                             onClick={() => {
                                 I.login(
-                                    document.getElementById("provider").value,
-                                    document.getElementById("username").value,
-                                    document.getElementById("password").value,
+                                    (document.getElementById("provider") as HTMLInputElement).value,
+                                    (document.getElementById("username") as HTMLInputElement).value,
+                                    (document.getElementById("password") as HTMLInputElement).value,
                                 );
                             }}
                             style={{ margin: "0px 10px" }}
