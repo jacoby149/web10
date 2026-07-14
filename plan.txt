@@ -144,6 +144,18 @@ audience analytics (the numbers a sponsor asks for):
 monetization controls:
 [ ] ad/sponsorship slots: define sponsored placements that node-default
     lenses render. operator controls what's promoted.
+[ ] ads are RECORDS the operator owns (creative, link, schedule,
+    weight, price). curated by architecture: nothing renders unless
+    the operator created or approved the record. no programmatic
+    surprise garbage, ever.
+[ ] works at an audience of 100: hand-entered direct deals, affiliate
+    links (operator picks exact products), community/patron slots
+    (a fan or local business buys a slot, operator approves).
+[ ] third-party networks are optional FILL, not the foundation:
+    adapters later for approval-flow marketplaces (passionfroot,
+    beehiiv-ad-network, paved, podcorn are the shape to match --
+    nothing mainstream does exact curation at small scale, which is
+    the gap the web10 sponsor marketplace eventually fills at 3%)
 [ ] sponsor reporting: impressions/interactions per placement, per
     campaign, exportable (this is what justifies podcast-grade CPMs)
 [ ] traffic routing controls: which apps/nodes get promoted placement
