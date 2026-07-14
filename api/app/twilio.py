@@ -1,9 +1,9 @@
 # Download the helper library from https://www.twilio.com/docs/python/install
-import os
 from twilio.rest import Client
-import app.settings as settings
-import app.exceptions as exceptions
 from twilio.twiml.messaging_response import MessagingResponse
+
+import app.exceptions as exceptions
+import app.settings as settings
 
 # Find your Account SID and Auth Token at twilio.com/console
 # and set the environment variables. See http://twil.io/secure

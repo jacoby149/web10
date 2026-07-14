@@ -1,0 +1,34 @@
+[project]
+name = "web10-api"
+version = "0.1.0"
+description = "web10 node API"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "pydantic>=2",
+    "uvicorn[standard]>=0.32",
+    "gunicorn>=23",
+    "PyJWT>=2.9",
+    "pymongo>=4.8",
+    "passlib[bcrypt]>=1.7",
+    "stripe>=11",
+    "twilio>=9",
+    "python-multipart>=0.0.10",
+    "requests>=2.32",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP"]
+ignore = [
+    "E402",   # module level import not at top of file (legacy code pattern)
+    "E501",   # line too long (will fix when touching the code)
+    "E701",   # multiple statements on one line (will fix when touching the code)
+    "E722",   # bare except (will fix when touching the code)
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]

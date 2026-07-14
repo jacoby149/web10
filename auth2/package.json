@@ -1,46 +1,31 @@
 {
-  "name": "auth2",
+  "name": "web10-ui",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest"
+  },
   "dependencies": {
     "@chatscope/chat-ui-kit-react": "^1.9.9",
-    "@testing-library/jest-dom": "^5.16.5",
-    "@testing-library/react": "^13.4.0",
-    "@testing-library/user-event": "^13.5.0",
     "axios": "^1.2.5",
-    "react": "^18.2.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
     "react-bulma-components": "^4.1.0",
-    "react-dom": "^18.2.0",
-    "react-inject-env": "^2.1.0",
     "react-phone-input-2": "^2.15.1",
-    "react-scripts": "5.0.1",
     "react-verification-input": "^3.1.1",
     "rectangles-npm": "^1.1.0",
-    "web-vitals": "^2.1.4",
     "web10-npm": "^1.0.5"
   },
-  "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
+  "devDependencies": {
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^4.5.0",
+    "typescript": "~5.8.2",
+    "vite": "^6.3.1",
+    "vitest": "^3.2.4"
   }
 }
