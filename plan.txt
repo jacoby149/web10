@@ -554,6 +554,10 @@ testing:
 [ ] protocol conformance suite: a black-box test any node must pass
     (token mint, CRUD, terms enforcement, certify). matters the moment
     a second implementation or fork exists. federation depends on it.
+    this suite also MECHANICALLY enforces the security invariants
+    (I1-I5 below): forged tokens rejected, unsigned decode never
+    authorizes, cross-collection access impossible, scoped tokens
+    can't exceed scope. a node that fails these is not a web10 node.
 [ ] write the protocol SPEC as a versioned doc (token format, mint
     rules, certify, terms semantics, CRUD, inbox delivery). the
     conformance suite tests the spec, not the reference impl's
@@ -564,10 +568,50 @@ testing:
 [ ] ci from phase 0: github actions on every pr -- lint, typecheck,
     tests, docker builds. nothing merges red.
 
-security:
-[ ] known issues, fix early (phase 0/1 timeframe, before any real users):
-      - remote certify SSRF: validate provider urls (https, public host,
-        sane shape) before POSTing to them
+security invariants (must hold END TO END, every phase, forever):
+these are the load-bearing truths. every phase, every pr, every new
+endpoint is checked against them. the conformance suite (above) is
+where they get MECHANICALLY enforced so they can't silently rot.
+  I1. a provider can cryptographically verify who issued ANY token,
+      including other providers' tokens, WITHOUT trusting the token's
+      own claims. (this is the one that's broken today -- see below.)
+  I2. authorization decisions are made only on VERIFIED token data,
+      never on an unsigned decode.
+  I3. a request can only ever touch the addressed user's collection.
+      cross-collection access is impossible by construction.
+  I4. private content is unreadable by the node operator (phase 11).
+  I5. every actor (app, agent, llm) acts under a scoped, expiring,
+      revocable token -- least privilege, always.
+
+*** CONFIRMED BUG -- federation provider validation (invariant I1) ***
+today providers do NOT validate each other. the chain:
+  - tokens are signed HS256 (symmetric secret). a provider can only
+    verify tokens IT signed -- it cannot verify another provider's
+    token cryptographically.
+  - so certify_with_remote_provider() phones the other provider's
+    /certify endpoint and trusts a bare HTTP 200.
+  - it picks that endpoint's URL from decoded.provider -- a field in
+    the token that was decoded WITHOUT signature verification.
+  - net: a token's own unverified claim chooses who vouches for it,
+    and a bare 200 from that (attacker-choosable) URL is trusted.
+    nothing proves the token was really minted by the named provider.
+    this is both a spoofing hole and an SSRF vector.
+[ ] FIX: asymmetric signing (RS256 / EdDSA). each provider signs with
+    its private key, publishes its public key at a well-known JWKS URL
+    on its domain. any provider verifies any token OFFLINE by fetching
+    the claimed provider's public key -- a valid signature proves the
+    token came from whoever controls that domain's key. kills the
+    callback, the SSRF, and the spoof at once. (this is how OIDC
+    federation works -- don't invent it.)
+[ ] migration: dual-verify during rollout (accept HS256 legacy +
+    RS256), rotate keys, then drop HS256. PRIVATE_KEY becomes a
+    per-node keypair generated at setup (phase 3).
+[ ] then decode_token's unsigned path (I2) can go away -- verify
+    signature everywhere, using the right key per provider.
+
+other known issues, fix early (phase 0/1, before any real users):
+      - remote certify SSRF: even with I1's fix, validate provider
+        urls (https, public host, sane shape) before any fetch
       - terms matching: exact-match by default, regex opt-in (redos +
         accidental-wildcard footgun)
       - CORS: allow_origins=["*"] + allow_credentials=True has to go

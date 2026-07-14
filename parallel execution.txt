@@ -30,6 +30,13 @@ before running 4-wide, land the thing that protects all 4 lanes:
   except, provider url validation) -- small diffs, huge value, and
   they want to exist BEFORE the refactors bury the context.
 
+  the permission suite must include the security-invariant tests
+  (plan.txt I1-I5): forged-token rejection, no-authz-on-unsigned-
+  decode, cross-collection-access-impossible. these are the seatbelt's
+  seatbelt -- they catch the confirmed federation bug (HS256 -> RS256)
+  and stop any lane from regressing it. the RS256 federation fix
+  itself is a LANE A item (A1/early A), gated by these tests.
+
 
 THE 4 LANES (each is an ordered queue; top of each = in flight now)
 -------------------------------------------------------------------
