@@ -1,7 +1,7 @@
 import React from 'react';
 
 function useContractInterface(I, data = null,isRequest) {
-    const contractI = {};
+    const contractI = {} as Record<string, any>;
     
     contractI._data = data; //=== null ? null : data;
     [contractI.data, contractI.setData] = React.useState(data);

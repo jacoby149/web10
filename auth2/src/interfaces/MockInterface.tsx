@@ -6,7 +6,7 @@ import mockServices from '../mocks/mockServices';
 import { config } from '../config';
 
 function useMockInterface() {
-    const I = {};
+    const I = {} as Record<string, any>;
 
     I.config = config;
 

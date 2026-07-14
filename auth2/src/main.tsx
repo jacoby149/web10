@@ -1,6 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import App from './App.jsx'
+import App from './App'
 import './index.css'
 import {startRectangles} from 'rectangles-npm'
 import 'rectangles-npm/src/Rectangles.css'
