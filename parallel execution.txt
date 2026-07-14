@@ -14,6 +14,11 @@ the two rules that make 4-wide parallelism safe:
 2. MERGE SMALL, MERGE OFTEN: branches live days, not weeks. the
    permission test suite (wave 0) is the seatbelt that makes frequent
    merging safe.
+3. EVERY BRANCH UPDATES THE CHANGELOG: add a CHANGELOG.md line for what
+   you changed (newest at top), tick the plan.txt item you completed,
+   and keep CLAUDE.md/GLOSSARY.md/decisions.md true if you moved them.
+   CHANGELOG.md is lane-neutral (append at top) so it rarely conflicts;
+   if it does, it's a trivial resolve.
 
 
 WAVE 0 — the seatbelt (do this alone, merge fast, ~single branch)

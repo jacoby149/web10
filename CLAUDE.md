@@ -64,6 +64,14 @@ touches auth, the DB layer, or tokens, run those tests and keep them green.
 - **Don't invent crypto or protocols.** Reuse: OIDC/JWKS for federation,
   Signal sender-keys / MLS for group keys, S3 API for blobs.
 - **Match the surrounding code** until a phase explicitly modernizes it.
+- **Update `CHANGELOG.md`.** Any improvement or change to the project gets a
+  line in the changelog (newest entry at top, `version || DD.MM.YYYY`). This
+  is a project rule, not a nicety — do it in the same branch as the change.
+  If your work completes a `plan.txt` item, also tick it there.
+- **Keep the docs true.** If you change the stack, the data model, or the
+  auth flow, update `CLAUDE.md`/`GLOSSARY.md` in the same branch. A big
+  architectural decision gets an entry in `decisions.md`. Stale orientation
+  docs are worse than none.
 
 ## Running it
 `docker-compose.yml` brings the stack up locally (`*.localhost` vhosts).
