@@ -1,21 +1,20 @@
 from datetime import datetime, timedelta
-from re import M
-from fastapi import FastAPI, Request, status, BackgroundTasks
-from fastapi import Form, Response
-from passlib.context import CryptContext
-from fastapi.middleware.cors import CORSMiddleware
-import requests
-import jwt
 
-import app.settings as settings
+import jwt
+import requests
+from fastapi import BackgroundTasks, FastAPI, Form, Request, Response, status
+from fastapi.middleware.cors import CORSMiddleware
+from passlib.context import CryptContext
+
 import app.docs as docs
-import app.models as models
 import app.exceptions as exceptions
+import app.models as models
 
 # interfaces
 import app.mongo as db
-import app.twilio as mobile
+import app.settings as settings
 import app.stripe as pay
+import app.twilio as mobile
 
 #############################################
 ########### APP INITIALIZATION ##############
@@ -42,6 +41,7 @@ app.add_middleware(
 ####################################################
 
 import logging
+
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
@@ -85,7 +85,7 @@ def decode_token(token: str, private_key=False) -> models.TokenData:
             token, settings.PRIVATE_KEY, algorithms=[settings.ALGORITHM]
         )
     else:
-        payload = jwt.decode(token, options={"verify_signature":False})
+        payload = jwt.decode(token, options={"verify_signature": False})
     token_data = models.TokenData()
     token_data.populate_from_payload(payload)
     return token_data
@@ -131,7 +131,7 @@ def anon_token():
 def is_permitted(token: models.Token, username, service, action):
     # TODO ADD WHITELIST AND BLACKLISING
     print(token)
-    if token.token!=None:
+    if token.token is not None:
         decoded = decode_token(token.token)
     else:
         decoded= anon_token()
@@ -158,7 +158,7 @@ def is_permitted(token: models.Token, username, service, action):
     return False
 
 # check if a token is the highest level token
-def check_admin(token:models.Token):    
+def check_admin(token:models.Token):
     if not is_permitted(token,decode_token(token.token).username,"*",None):
         raise exceptions.NOT_ADMIN
 
@@ -233,7 +233,7 @@ async def mobile_login(token: models.Token):
     )
     return {
         "token": jwt.encode(
-            token_data.dict(), settings.PRIVATE_KEY, algorithm=settings.ALGORITHM
+            token_data.model_dump(), settings.PRIVATE_KEY, algorithm=settings.ALGORITHM
         )
     }
 
@@ -255,14 +255,14 @@ def mget_customer_id(username):
 
 @app.post("/manage_space",include_in_schema=False)
 async def manage_space(token: models.Token):
-    check_admin(token)    
+    check_admin(token)
     username = decode_token(token.token).username
     customer_id = mget_customer_id(username)
     return pay.manage_space(customer_id)
 
 @app.post("/manage_credits",include_in_schema=False)
 async def manage_credits(token: models.Token):
-    check_admin(token)    
+    check_admin(token)
     username = decode_token(token.token).username
     customer_id = mget_customer_id(username)
     return pay.manage_credits(customer_id)
@@ -270,7 +270,7 @@ async def manage_credits(token: models.Token):
 
 @app.post("/manage_subscriptions",include_in_schema=False)
 async def manage_subscription(token: models.Token):
-    check_admin(token)    
+    check_admin(token)
     decoded = decode_token(token.token)
     customer_id = mget_customer_id(decoded.username)
     return pay.create_portal_session(customer_id)
@@ -284,14 +284,14 @@ def mget_business_id(username):
 
 @app.post("/manage_business",include_in_schema=False)
 async def manage_business(token: models.Token):
-    check_admin(token)    
+    check_admin(token)
     username = decode_token(token.token).username
     bus_id = mget_business_id(username)
     return pay.create_business_session(bus_id)
 
 @app.post("/business_login",include_in_schema=False)
 async def business_login(token: models.Token):
-    check_admin(token)    
+    check_admin(token)
     username = decode_token(token.token).username
     bus_id = mget_business_id(username)
     return pay.business_login_session(bus_id)
@@ -330,7 +330,7 @@ async def certify_token(token: models.Token):
 
 def certify(token: models.Token):
     try:
-        if token.token==None:
+        if token.token is None:
             token_data = anon_token()
             print(token_data)
         else:
@@ -370,7 +370,7 @@ async def create_web10_token(form_data: models.TokenForm):
     token_data.provider = settings.PROVIDER
     return {
         "token": jwt.encode(
-            token_data.dict(), settings.PRIVATE_KEY, algorithm=settings.ALGORITHM
+            token_data.model_dump(), settings.PRIVATE_KEY, algorithm=settings.ALGORITHM
         )
     }
 
@@ -387,7 +387,7 @@ async def signup(form_data: models.SignUpForm):
     if not kosher(form_data.username):
         raise exceptions.BAD_USERNAME
     res = db.create_user(form_data, get_password_hash)
-    try : 
+    try :
         mobile.send_verification(form_data.phone,form_data.username)
     except:
         pass
@@ -410,7 +410,7 @@ async def stats(skip:int = 0,limit:int = 0):
 async def pwa(url:str):
     try:
         resp = requests.get(url+"manifest.json",{'Accept': 'application/json'},timeout=1)
-    except requests.exceptions.RequestException as e:  # This is the correct syntax
+    except requests.exceptions.RequestException:  # This is the correct syntax
         raise exceptions.NO_PWA
     return resp.json()
 
@@ -421,14 +421,14 @@ async def register_app(info:dict):
     # fragments of url that disqualify an app from being registered.
     fragments = [
        "http://",
-       "localhost", 
+       "localhost",
        "file://",
        "vscode-webview:/",
        "--",
        ".html",
        "web10.dev",
        ".id.repl.co"
-    ] 
+    ]
     for fragment in fragments:
         if fragment in info["url"]:
             return
@@ -445,7 +445,7 @@ def subscription_update(user):
 
 @app.post("/get_plan",include_in_schema=False)
 async def get_plan(token: models.Token):
-    check_admin(token)    
+    check_admin(token)
     user = decode_token(token.token).username
     credit,space = subscription_update(user)
     return {"space":space,"credits":credit,"used_space":db.get_collection_size(user)}
@@ -482,7 +482,7 @@ async def read_records(user, service, token: models.Token,b_t:BackgroundTasks):
     if not is_permitted(token, user, service, "read"):
         raise exceptions.CRUD
     if service != "services" : check(user)
-    if token.query==None:token.query={}
+    if token.query is None:token.query={}
     res = db.read(user, service, token.query)
     # dont charge for "services"
     if service =="services": return res
