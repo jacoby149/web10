@@ -1,7 +1,7 @@
 import React from 'react'
 
 function usePermission() {
-    const permissionI = {};
+    const permissionI = {} as Record<string, any>;
     [permissionI.entry, permissionI.setEntry] = React.useState(
         {
             provider: "",

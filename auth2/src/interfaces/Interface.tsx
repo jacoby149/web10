@@ -6,7 +6,7 @@ import stealthImg from "../assets/images/stealth.jpg"
 import { config } from '../config';
 
 function useInterface() {
-    const I = {};
+    const I = {} as Record<string, any>;
 
     I.config = config;
 
@@ -50,7 +50,7 @@ function useInterface() {
                     users: response.data.users.toLocaleString("en-US"),
                     hits: apps.map((app) => app.visits).reduce((a, b) => a + b, 0).toLocaleString("en-US"),
                     apps: response.data.apps.length.toLocaleString("en-US"),
-                    data: (response.data.storage / (1024 * 1024)).toFixed(2).toLocaleString("en-US")
+                    data: Number((response.data.storage / (1024 * 1024)).toFixed(2)).toLocaleString("en-US")
                 }
                 I.setAppStoreStats(stats);
                 return apps;

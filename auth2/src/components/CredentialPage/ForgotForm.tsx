@@ -20,7 +20,7 @@ function ForgotForm({ I }) {
                     <button
                         onClick={
                             () => {
-                                const provider = document.getElementById("provider").value;
+                                const provider = (document.getElementById("provider") as HTMLInputElement).value;
                                 I.recover(provider, I.phone)
                             }}
                         style={{ margin: "0px 10px" }}
