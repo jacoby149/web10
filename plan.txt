@@ -1,0 +1,323 @@
+web10 plan
+==========
+
+the thesis (why this plan):
+- users own their data in mongo-model collections. apps are just lenses.
+- influencers/creators run nodes. accounts are free for users, paid for by the
+  node operator's marketing revenue. web10 takes a small % of revenue flowing
+  through its rails (dev pay already works this way in stripe.py).
+- the self-host escape hatch has to be EASY or the ownership story isn't
+  credible. one person should be able to stand up a node in minutes with a
+  setup UI, no settings.py copying, no README archaeology.
+- multi-service is fine. it's modular, it's good design. the problem was never
+  the number of services, it's the lack of a setup experience.
+- the stack is years old. fix up first, build features on modern ground.
+- none of it comes together without a killer app: an all-in-one social lens
+  (instagram-shaped, with video + streaming) over services the user owns,
+  and exporters that dump your facebook/insta/youtube life into those
+  services so day one isn't empty. the app proves the thesis; the
+  exporters seed it.
+
+
+PHASE 0 — fix up (modernize the toolchain)
+------------------------------------------
+current state: fastapi 0.68 + pydantic 1.x + PyJWT 1.7 (2019!), auth on
+react 16 + react-scripts 2, auth2 on CRA 5 (CRA is dead), no typescript
+anywhere. do this FIRST so every later phase builds on modern ground.
+
+python (api):
+[ ] switch to uv for package management (pyproject.toml, uv.lock,
+    kill requirements.txt + Pipfile duplication)
+[ ] python 3.12+, fastapi latest, pydantic v2
+    breaking-change hotspots to watch:
+      - pydantic v2: models.py (dotdict, .dict() -> .model_dump(), config)
+      - PyJWT 1.7 -> 2.x: encode returns str not bytes, decode requires
+        algorithms=, options handling changed (main.py decode_token)
+      - passlib/bcrypt version pinning (known friction, test login flow)
+[ ] ruff for lint+format while we're in there
+[ ] prune dead deps (python-ldap? python-gnupg? systematic? "secrets" from
+    pypi is NOT the stdlib secrets module -- remove it)
+
+js (ui + sdk):
+[ ] bun as package manager + runtime for all js packages
+[ ] CRA -> vite (auth2/ui first; old auth dies in phase 2 anyway)
+[ ] typescript everywhere, incrementally: allowJs on, new files .ts/.tsx,
+    port components as they get touched
+[ ] react 18 -> current, drop dead deps as found
+
+[ ] docker images rebuilt on the new toolchains (uv sync / bun install --
+    both are dramatically faster builds, better layer caching)
+
+
+PHASE 1 — switch to documentdb (open db backend)
+------------------------------------------------
+mongodb's SSPL is a problem for the node-operator model (nodes expose
+mongo-ish query semantics as a service). documentdb (MIT, linux foundation,
+postgres extension) + ferretdb (speaks the mongo wire protocol on top of it)
+is the open path. pymongo connects to ferretdb unmodified -- this is mostly
+a DB_URL change, not a rewrite.
+
+[ ] ferretdb (documentdb-backed) in docker-compose as the default db
+[ ] run the api against it, audit the CRUD paths (insert/find/update/delete,
+    $set/$inc/$max/$currentDate/$pull/$unset, sort/skip/limit)
+[ ] metering paths use admin commands -- verify or replace:
+      - get_collection_size (collstats) and total_size (dbstats) are
+        postgres-derived estimates on ferretdb. decide: accept estimates,
+        or track sizes ourselves per-write
+[ ] keep atlas/real-mongo as a supported config (protocol is the standard,
+    backend is the node operator's choice)
+[ ] mongo_migrate in web10-deploy: add a mongo -> ferretdb migration path
+
+
+PHASE 2 — ui (finish auth2, rename, migrate)
+--------------------------------------------
+auth2 is the future. it already has:
+  - CredentialPage (login / signup / forgot)
+  - Contracts (terms viewer/editor -- the user-owned ACL editor)
+  - AppStore
+  - Settings
+
+steps:
+[ ] port auth2 to vite + bun + ts first (phase 0), THEN finish features
+[ ] parity audit: auth/src/components vs auth2/src/components, port
+    anything missing
+[ ] rename: auth2 -> ui. auth stays until cutover, then gets deleted.
+[ ] update docker-compose: service "auth" -> "ui" (keep auth.localhost /
+    auth.web10.app as aliases so existing links + CORS_SERVICE_MANAGERS
+    don't break during migration)
+[ ] update api settings: CORS_SERVICE_MANAGERS to include the ui origin
+[ ] delete auth/ after cutover. one UI, one truth.
+
+
+PHASE 3 — setup wizard (the missing piece)
+------------------------------------------
+first-run experience: docker compose up -> open browser -> setup form ->
+you have a sovereign node. like pocketbase / home assistant onboarding.
+
+api side:
+[ ] first-run detection: if no config exists in the data volume, api boots
+    in "setup mode" and only answers setup endpoints
+[ ] POST /setup: provider domain, admin username+password, optional stripe/
+    twilio keys (all optional except domain + admin account)
+[ ] api generates its own JWT signing key on setup (stop hand-managing
+    PRIVATE_KEY in settings files)
+[ ] config written to the data volume, settings.py becomes fallback/dev only
+
+ui side (lives in the ui, phase 2 dependency):
+[ ] /setup wizard screens: welcome -> node identity -> admin account ->
+    (optional) payments/sms -> done, you're on your node
+[ ] setup only reachable in setup mode, 404s forever after
+
+packaging:
+[ ] multi-stage Dockerfile: bun build ui static -> serve from fastapi
+    (web10 CRUD uses PATCH-for-read, so all GET routes are free for the ui.
+    api + ui share one container, one port, zero route conflicts)
+[ ] compose profiles: core = api(+ui) + db. optional = rtc, media.
+[ ] target: docker run -p 80:80 -v web10:/data web10/node
+
+
+PHASE 4 — admin panel (creator console + analytics)
+---------------------------------------------------
+the node operator's console, inside the ui. this is where "how the creator
+makes money" becomes visible product instead of thesis. this page is the
+thing you demo to an influencer's manager -- make it GOOD.
+
+access:
+[ ] admin role: node operator account(s) flagged at setup
+[ ] admin panel section in ui, only visible to admins
+
+audience analytics (the numbers a sponsor asks for):
+[ ] DAU / WAU / MAU, signups over time, retention curves
+[ ] request volume + storage growth (node health at a glance)
+[ ] per-app usage: which lenses/apps the node's users actually use
+    (register_app + /stats exist in the api -- extend into real
+    time-series, not just counters)
+[ ] top services by activity (posts? dms? what's this community DO?)
+[ ] implementation note: current metering is a mongo $inc on the star
+    record -- fine for billing, useless for analytics. emit per-request
+    events (user, app, service, action, ts) to a metering store. start
+    with a capped collection; clickhouse sidecar when volume justifies
+    it (see LATER). aggregate exhaust only -- individual record contents
+    stay sovereign. that privacy line is a selling point of the ad
+    inventory, keep it bright.
+
+monetization controls:
+[ ] ad/sponsorship slots: define sponsored placements that node-default
+    lenses render. operator controls what's promoted.
+[ ] sponsor reporting: impressions/interactions per placement, per
+    campaign, exportable (this is what justifies podcast-grade CPMs)
+[ ] traffic routing controls: which apps/nodes get promoted placement
+    (the shoutout economy, formalized)
+[ ] revenue dashboard: what came in, what web10's cut was (rails already
+    exist: stripe connect transfer_data + amount_percent in stripe.py)
+
+
+PHASE 5 — media service (the s3 layer)
+--------------------------------------
+records store metadata + url. blobs live in object storage. s3 API is the
+standard (minio self-host, or R2/B2/wasabi hosted) so the vendor is
+swappable per node.
+
+[ ] new service: media/. small fastapi that:
+    - issues presigned upload urls, gated by web10 token permissions
+      (same is_permitted logic as CRUD -- terms records stay the single
+      source of permission truth)
+    - issues short-lived signed read urls for private media
+    - writes a metadata record into the owner's collection on upload
+[ ] minio in compose under the "media" profile for self-hosters
+[ ] config for hosted s3-compatibles (R2/B2) for bigger nodes
+[ ] size accounting: media bytes count against the user's space plan
+
+
+PHASE 6 — wapi.js revamp (the sdk)
+----------------------------------
+wapi.js is how frontend devs build web10 apps. it deserves the same
+glow-up as everything else: right now it's untyped ES with axios and
+peerjs hard-bundled, published as web10-npm.
+
+[ ] rewrite in typescript. full types for the protocol: records, queries
+    ($sort/$skip/$limit), updates, terms/contracts, tokens. typed CRUD:
+    read<T>(service, query): Promise<T[]>
+[ ] drop axios -> native fetch. zero required dependencies.
+[ ] peerjs/rtc becomes an optional subpath export (web10/rtc) so the core
+    stays tiny and tree-shakeable
+[ ] modern packaging: bun build, ESM + types, publish as a clean package
+    (decide: keep web10-npm name or claim something nicer)
+[ ] auth flow ergonomics: the popup/oauth dance in wapiAuth wrapped into
+    one promise-based login()
+[ ] docs generated from the types (typedoc) into the docs site
+[ ] react hooks package later (useRecords(service, query) with live
+    refresh) -- separate small package on top, not in core
+[ ] this sdk is also what an LLM/mcp server drives -- keep the surface
+    small and typed (see mcp in LATER)
+
+
+PHASE 7 — strip the demo apps
+-----------------------------
+apps are frontends hosted anywhere. that's the whole point. they don't
+belong inside the node repo.
+
+[ ] new repo: web10-apps (or one repo per app). move crm/, mail/.
+[ ] home/ and docs/ are web10.app marketing + developer docs -- they're
+    web10 inc's website, not part of a node. move them out too (web10-site
+    repo), or at minimum out of the node compose.
+[ ] chrome-extension/, mobile/ -- same treatment, separate repos when
+    they're touched next.
+[ ] node compose after the strip: api(+ui), db, [rtc], [media]. that's a
+    node. everything else lives elsewhere and just talks to it.
+[ ] the web10-apps repo this creates is where phase 8 + 9 live.
+
+
+PHASE 8 — the killer app (all-in-one social)
+--------------------------------------------
+an instagram-shaped social app -- photos, video, streaming, feed, dms --
+that is ALSO the landing zone for everything the exporters pull in. this
+is the thing a normal person opens and gets it. lives in web10-apps,
+built on the phase 6 sdk, media via phase 5, deployed as the default
+lens on every node.
+
+the schemas come first (this is the real protocol work):
+[ ] web10 social conventions doc: standard service schemas that ALL
+    social apps + exporters share. loose, documented, versioned:
+      - posts     (text, media refs, ts, origin, visibility)
+      - media     (metadata + object-store url, from phase 5)
+      - contacts  (the friend graph: username, provider, labels)
+      - follows   (who i follow, cross-node)
+      - comments  (parent post ref, threading)
+      - reactions (likes etc, target ref)
+      - profile   (display name, avatar ref, bio)
+      - inbox     (the feed. see below.)
+    origin field everywhere: "instagram", "facebook", "web10", ... so
+    imported life and native life coexist in the same services.
+
+the app:
+[ ] profile + grid view (the instagram surface: media-first)
+[ ] posting: photo/video upload via media service, records into posts
+[ ] feed via the INBOX PATTERN: friends' nodes deliver new posts into
+    your inbox service at post time (fan-out on write, a create on a
+    service whose terms whitelist them). reading your feed = one indexed
+    query on your own node. fast, offline-capable, sovereign -- and
+    re-rankable by the user (or their llm. "my feed algorithm is my
+    prompt" lives right here.)
+[ ] follows across nodes: follow alice@othernode -> terms handshake ->
+    her posts land in your inbox. federation made visible + trivial.
+[ ] comments/reactions on posts (cross-node via same terms machinery)
+[ ] dms: rtc for live, records for async (mail demo already proved this)
+[ ] video: upload -> transcode -> hls playback (phase 5 media pipeline)
+[ ] streaming (later milestone in this phase): live via rtc/webrtc small-
+    scale first; hls fan-out for big rooms when a node needs it
+[ ] ad slots: renders the node's sponsored placements (phase 4 admin
+    controls) -- this app is where the node operator's monetization
+    actually displays. default lens = monetized lens. users can swap.
+
+the chatbox (the craziest part -- lead every demo with this):
+your social media experience is totally configurable, in english.
+rotting your brain? reconfig.
+
+[ ] a "lens" service in the user's collection: the feed algorithm +
+    experience config AS A RECORD THE USER OWNS. ranking rules, topic
+    mutes, people-first weights, engagement-bait filters, time budgets,
+    ui toggles (hide like counts, chronological only, grayscale after
+    30 min, whatever). the app reads its behavior from this record.
+[ ] the chatbox: talk to an llm, it edits your lens record. "less
+    politics, more of my actual friends, hide anything that smells
+    like ragebait, cut me off after 20 minutes" -> config diff ->
+    shown to user -> applied. the feed re-ranks instantly because
+    the algorithm was always just your data.
+[ ] the llm's token is scoped to the lens service ONLY (maybe read on
+    posts to help it understand). it can never touch dms/contacts.
+    scoped tokens make "an ai rewrites my feed" safe -- this is the
+    token model earning its keep, say so in the demo.
+[ ] llm backing: node-provided by default (operator pays, it's an
+    acquisition feature), bring-your-own-key for the sovereign.
+[ ] preset lenses to start from: chronological, close-friends-only,
+    detox mode, creator mode. chatbox edits from there.
+[ ] the lens record is portable like everything else: your algorithm
+    moves nodes with you. nobody has ever owned their algorithm before.
+    that's the whole pitch in one feature.
+
+PHASE 9 — the exporters (fill the collections)
+----------------------------------------------
+apps that pull your social media life into your web10 services. paired
+with phase 8: exporters fill, the killer app renders. day one on a node
+= import your old life, see it in the app, in your collections, yours.
+
+design principle: client-side first. the export never touches anyone's
+server -- parse in the browser, write to YOUR node via the sdk. the
+sovereignty story stays intact end to end.
+
+v1 (takeout-file based, works today, no api permission needed):
+[ ] instagram exporter: user requests official data download (json zip),
+    drags it into the exporter app -> parsed in browser -> media to the
+    media service, records into posts/contacts/comments per the
+    conventions doc, origin="instagram"
+[ ] facebook exporter: same shape (their takeout is messier -- start
+    with posts, photos, friends list)
+[ ] youtube exporter: google takeout -> videos + metadata
+[ ] twitter/x, tiktok: same pattern, priority by demand
+[ ] shared exporter core: one package that handles zip parsing, schema
+    mapping, batch record writes, media upload, resume on failure.
+    each platform = a mapping module on top.
+[ ] llm-assisted mapping (optional, later): unknown/changed takeout
+    formats get normalized by an llm instead of a hand-written parser
+    breaking. this is what makes exporters durable.
+
+v2 (continuous):
+[ ] dma / official portability apis where they exist -> scheduled sync
+    instead of one-shot import
+[ ] agent-driven export for platforms with no api (user's own agent,
+    user's own credentials, writes to user's own node)
+
+
+LATER / OPEN QUESTIONS
+----------------------
+- perf hardening on the api hot path: cache token certs, cache collstats,
+  add per-collection index on "service"
+- provider url validation on remote certify (ssrf) + anchor exact-match
+  terms by default, regex opt-in
+- mcp server for web10: token mint + 4 CRUD verbs = talk to your node
+  from an llm. small build, big demo. builds on the phase 6 sdk types.
+  pairs with phase 8: "talk to an llm, change your social media."
+- clickhouse sidecar: graduate phase 4's metering events into clickhouse
+  when volume justifies it. one OLAP store, two products: node ops
+  console + sponsor analytics.
