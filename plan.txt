@@ -377,6 +377,12 @@ design (two modes, because availability is the hard part):
 [ ] recovery story or this kills people's data: encrypted key backup
     (passphrase-wrapped, stored via phase 10 to drive/dropbox) +
     multi-device keys. lost phone must not mean lost life.
+[ ] TRUST SPLITTING, hard invariant: key backups NEVER live on the
+    node that holds the ciphertext. node has ciphertext, no keys.
+    escrow party (drive/dropbox/icloud/usb/a friend's node -- user's
+    choice) has passphrase-wrapped keys, no ciphertext. no single
+    party can read you; collusion + your passphrase is the bar.
+    "joe rogan can't leak your shit" is structural, not policy.
 [ ] prior art to steal from: signal's sender keys, mls (rfc 9420)
     for group key management. don't invent crypto, assemble it.
 [ ] tiers end to end: public (plaintext), friends (wrapped keys),
