@@ -251,8 +251,47 @@ peerjs hard-bundled, published as web10-npm.
 [ ] docs generated from the types (typedoc) into the docs site
 [ ] react hooks package later (useRecords(service, query) with live
     refresh) -- separate small package on top, not in core
-[ ] this sdk is also what an LLM/mcp server drives -- keep the surface
-    small and typed (see mcp in LATER)
+
+the 5th verb -- aggregate (kill the 4-crud bottleneck):
+4 crud ops is too weak a surface to build real apps on. devs should
+get (nearly) the full mongo query language. the original fear was
+injection -- but mongo queries are structured json, not strings.
+walk the pipeline, validate it, sandbox it. flexibility with a
+violation check.
+
+[ ] new api endpoint: aggregate on /{user}/{service}. read-only by
+    construction. terms treat it as "read" (or its own action).
+[ ] sandbox by structure, not by rewriting:
+      server prepends: $match {service} -> $replaceRoot to body.
+      dev's pipeline runs on clean user-space docs and cannot even
+      NAME the service/star fields. scoping is unescapable.
+[ ] operator allowlist: $match/$project/$group/$sort/$skip/$limit/
+    $unwind/$addFields/$count/$facet/$bucket/$sample + full
+    comparison/logical/array operators.
+[ ] hard denylist: $where/$function/$accumulator (js execution),
+    $lookup/$graphLookup/$unionWith (cross-collection read),
+    $out/$merge (cross-collection write).
+[ ] resource caps: maxTimeMS, pipeline length cap, $limit ceiling,
+    allowDiskUse off. regex allowed but bounded by maxTimeMS.
+[ ] widen updates too with the same philosophy: $push/$addToSet/
+    $pull/$mul/arrayFilters through the existing field-prefix
+    transform (u_t already does the prefixing -- grow the allowlist)
+[ ] sdk surface: wapi.aggregate<T>(service, pipeline) fully typed
+[ ] add aggregate to the protocol spec + conformance suite
+
+mcp server (promoted from LATER -- it ships with the sdk):
+[ ] mcp server exposing token mint + crud + aggregate. same typed
+    surface the sdk uses. "talk to your node from claude/any llm."
+[ ] aggregate is what makes the llm story real: 4 crud verbs let an
+    llm fetch your records; aggregate lets it ANALYZE your life
+    ("what did i post most about in 2019?" is one pipeline, not a
+    thousand context-stuffed reads)
+[ ] scoped tokens per mcp connection: user picks which services the
+    llm can touch, same terms machinery as any app
+[ ] high configurability + mcp is the wordpress lesson applied to
+    the llm era: users config via lens, operators via policy/ads,
+    devs via real queries, llms via mcp. every layer talks to the
+    same records.
 
 
 PHASE 7 — strip the demo apps
@@ -556,9 +595,6 @@ LATER / OPEN QUESTIONS
   add per-collection index on "service"
 - provider url validation on remote certify (ssrf) + anchor exact-match
   terms by default, regex opt-in
-- mcp server for web10: token mint + 4 CRUD verbs = talk to your node
-  from an llm. small build, big demo. builds on the phase 6 sdk types.
-  pairs with phase 8: "talk to an llm, change your social media."
 - clickhouse sidecar: graduate phase 4's metering events into clickhouse
   when volume justifies it. one OLAP store, two products: node ops
   console + sponsor analytics.
