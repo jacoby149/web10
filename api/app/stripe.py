@@ -1,6 +1,7 @@
 import stripe
-import app.settings as settings 
+
 import app.exceptions as exceptions
+import app.settings as settings
 
 if settings.STRIPE_STATUS=="live":
     stripe.api_key = settings.STRIPE_LIVE_KEY
@@ -117,18 +118,18 @@ def credit_space(customer_id):
     subscriptions = get_active_subscriptions(customer_id)
     prices = get_subscription_price_ids(subscriptions)
     subscription_data = [s["items"]["data"][0] for s in subscriptions]
-    cidx = -1 
+    cidx = -1
     if CREDIT_SUB_ID in prices:
         cidx = prices.index(CREDIT_SUB_ID)
         c = subscription_data[cidx]["quantity"]  + settings.FREE_CREDITS
     if cidx == -1 : c = settings.FREE_CREDITS
 
-    sidx = -1 
+    sidx = -1
     if SPACE_SUB_ID in prices:
         sidx = prices.index(SPACE_SUB_ID)
-        s = subscription_data[sidx]["quantity"] * 1024 + settings.FREE_SPACE 
+        s = subscription_data[sidx]["quantity"] * 1024 + settings.FREE_SPACE
     if sidx == -1 : s = settings.FREE_SPACE
-    
+
     return c,s
 
 #################################
@@ -137,12 +138,12 @@ def credit_space(customer_id):
 
 # create dev pay subscription checkout session
 def create_dev_pay_session(customer_id,bus_id,pay_data):
-    
+
     success_url = "https://auth.web10.app"
-    if pay_data.success_url != None :
+    if pay_data.success_url is not None :
         success_url = pay_data.success_url
     cancel_url = "https://auth.web10.app"
-    if pay_data.cancel_url != None :
+    if pay_data.cancel_url is not None :
         cancel_url = pay_data.cancel_url
 
     try :
@@ -194,12 +195,12 @@ def get_dev_pay_subscription(customer_id,pay_data):
 
 def get_dev_pay_metadata(customer_id,pay_data):
     sub = get_dev_pay_subscription(customer_id, pay_data)
-    if sub == None: return None
+    if sub is None: return None
     else : return sub["metadata"]
 
 # cancels the customers devpay subscription of given title
 def cancel_dev_pay_subscription(customer_id, pay_data):
     sub = get_dev_pay_subscription(customer_id, pay_data)
-    if sub == None:
+    if sub is None:
         raise exceptions.NO_SUB
     stripe.Subscription.delete(sub["id"],prorate=True)
