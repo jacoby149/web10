@@ -321,6 +321,69 @@ v2 (continuous):
     user's own credentials, writes to user's own node)
 
 
+PHASE 10 — user backups (the escape pod)
+----------------------------------------
+node backups (operator-side) live in cross-cutting. this is the USER'S
+backup: my whole life on this node, in MY google drive / dropbox, next
+to my camera roll. exit rights made tangible -- the backup IS the
+ownership story, in a folder a normal person can see.
+
+[ ] export format: one archive = all my services as json records +
+    media files, versioned against the social conventions doc (so a
+    backup is also a valid import -- backup and migration are the
+    same feature)
+[ ] google drive + dropbox oauth integrations in the ui: connect once,
+    scheduled auto-backup (daily/weekly), backup-now button
+[ ] restore/import flow: point a fresh node (or a new account on
+    another node) at your backup -> your life comes back. this is
+    node migration, demoable.
+[ ] backups of encrypted content stay encrypted (phase 11) -- drive/
+    dropbox hold ciphertext, never plaintext private data
+
+
+PHASE 11 — e2e encryption (your phone is your keychain)
+-------------------------------------------------------
+the node stores ciphertext for private content. keys live on your
+phone. this resolves the deepest tension in the whole model: the
+influencer/operator hosts your data but CANNOT read it. landlord
+holds the building, not your diary.
+
+seeds already in the repo: mobile/encryptor (expo app), sdk/src/
+wapiencrypt.js (secp256k1 experiments), rtc service (the key channel).
+
+the flow (why webrtc is huge):
+  - write a message on your computer -> p2p to your phone (rtc) ->
+    phone encrypts -> ciphertext stored on the node as a record
+  - friend wants to read -> their device asks your phone p2p for
+    the key -> phone checks they're allowed -> hands the key over
+  - the node/operator only ever sees ciphertext. access control is
+    enforced by YOUR DEVICE in real time, not by a server.
+
+design (two modes, because availability is the hard part):
+[ ] wrapped-key mode (default for private posts): phone encrypts
+    content with a content key, wraps that key to each authorized
+    friend's public key, stores wrapped keys as records. friends
+    decrypt WITHOUT your phone being online. a few thousand friends
+    = a few thousand wrapped 32-byte keys = kilobytes. scales fine
+    for an average person's graph.
+[ ] live-handout mode (sensitive/ephemeral tier): key never stored
+    anywhere, handed out p2p per-read from your phone, exactly the
+    original vision. strongest control (revoke = stop answering),
+    costs availability (phone offline = content dark). user picks
+    the tier per service or per record.
+[ ] mobile/encryptor grows into the real keychain app: keys in the
+    phone's secure enclave, approve/deny key requests, see who has
+    keys to what (a live map of your privacy)
+[ ] recovery story or this kills people's data: encrypted key backup
+    (passphrase-wrapped, stored via phase 10 to drive/dropbox) +
+    multi-device keys. lost phone must not mean lost life.
+[ ] prior art to steal from: signal's sender keys, mls (rfc 9420)
+    for group key management. don't invent crypto, assemble it.
+[ ] tiers end to end: public (plaintext), friends (wrapped keys),
+    sensitive (live handout). the lens/apps render all three
+    seamlessly; encryption is a property of the record, not the app.
+
+
 CROSS-CUTTING — quality, testing, security
 ------------------------------------------
 not a phase. starts in phase 0 and never stops. a node holds people's
