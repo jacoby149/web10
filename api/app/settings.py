@@ -1,6 +1,4 @@
 import os
-import app.pyinfisical as secret_manager
-
 
 #################################
 ##### configurable variables ####
@@ -8,8 +6,8 @@ import app.pyinfisical as secret_manager
 
 PROVIDER = "api.localhost"
 CORS_SERVICE_MANAGERS = """
-    auth.localhost, 
-    auth.web10.app, 
+    auth.localhost,
+    auth.web10.app,
     auth.web10.dev
 """
 DB = "testing"
@@ -37,31 +35,20 @@ STRIPE_TEST_CREDIT_SUB_ID = "price_1Kh...."
 STRIPE_TEST_SPACE_SUB_ID = "price_1Ki...."
 STRIPE_LIVE_KEY = "sk_live_51Khyui......"
 STRIPE_LIVE_CREDIT_SUB_ID = "price_1Kkb....."
-STRIPE_LIVE_SPACE_SUB_ID = "price_1Kkb7....."    
+STRIPE_LIVE_SPACE_SUB_ID = "price_1Kkb7....."
 DEV_PAY_PCT = 98
 
-# load secrets
-secrets = secret_manager.get_secrets()
-
-# goes through the above config variables 
-# checks if env vars of those names exist and sets them if they do
-vars = [v for v in globals()]
-for v in vars :
-    # Load secret variables into settings params.
-    if v in secrets:
-        globals()[v] = secrets[v]
-    # Load environment variables into settings params.
+# Load environment variables into settings params.
+for v in list(globals()):
     env_val = os.getenv(v)
-    if env_val == None:
-        continue
-    else:
+    if env_val is not None:
         globals()[v] = env_val
 
 # Initiate some quality of life variables around the config.
 CORS_SERVICE_MANAGERS = [site.strip() for site in
                          CORS_SERVICE_MANAGERS.split(",")]
 COST = {}
-COST["create"] = COST_CREATE 
+COST["create"] = COST_CREATE
 COST["read"] = COST_READ
 COST["update"] = COST_UPDATE
 COST["delete"] = COST_DELETE

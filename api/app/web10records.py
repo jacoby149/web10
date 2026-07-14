@@ -1,5 +1,7 @@
+import datetime
+
 import app.settings as settings
-import datetime 
+
 
 def star_record():
     return {

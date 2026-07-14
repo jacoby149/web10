@@ -1,3 +1,21 @@
+1.0.12 || 14.07.2026
+phase 0 auth2 toolchain modernization:
+  - migrated auth2 from create-react-app to vite 6 + bun (index.html entry,
+    src/main.jsx, vite.config.js, bun.lock; removed react-scripts + package-lock.json)
+  - react 18 -> 19; renamed all components .js -> .jsx; vitest replaces jest
+  - removed react-inject-env + web-vitals; package renamed auth2 -> web10-ui
+  - gitignored auth2/dist/ build output
+
+1.0.11 || 14.07.2026
+phase 0 python toolchain modernization:
+  - switch to uv for package management (pyproject.toml, uv.lock, removed Pipfile + requirements.txt)
+  - python 3.12, fastapi 0.139, pydantic v2, PyJWT 2.13, stripe 15, twilio 9, gunicorn 26, uvicorn 0.51
+  - pydantic v2 migration: .dict() -> .model_dump(), Optional[X] -> X | None, ConfigDict(extra="allow") on Token model
+  - removed infisical dependency (pyinfisical.py, settings.py integration) — env vars only for secrets
+  - pruned dead deps: python-ldap, python-gnupg, systematic, future, secrets (pypi)
+  - Dockerfile: slim python3.12 image with uv (no pipenv, no nodejs base, no apt libsasl/libldap)
+  - added ruff for lint+format (pyproject.toml config, legacy style issues excluded for now)
+
 1.0.10 || 14.07.2026
 added plan.txt : phased roadmap (0-12) — toolchain modernization, documentdb/
   ferretdb switch, unified ui + setup wizard, creator admin panel + analytics,
