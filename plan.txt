@@ -140,6 +140,22 @@ ui side (lives in the ui, phase 2 dependency):
     (optional) payments/sms -> done, you're on your node
 [ ] setup only reachable in setup mode, 404s forever after
 
+node policy (anti-abuse is the NODE'S call, not the protocol's):
+[ ] phone-required signup becomes a policy toggle, not a hardcode.
+    it's an anti-abuse measure -- extreme for a 50-person community
+    node, reasonable for a 5m-user celebrity node. operator picks.
+    (VERIFY_REQUIRED / BETA_REQUIRED flags exist; grow them into a
+    real policy config, editable in the admin panel post-setup)
+[ ] signup gate options: open / invite links / approval queue /
+    beta code / email verify / captcha-turnstile / phone verify.
+    stackable. default for self-host: open or invite. twilio only
+    needed if the operator chooses phone gates.
+[ ] recovery must not assume sms: recovery codes generated at signup
+    (download/print), email recovery, and later the phase 10/11
+    escrow path. sms recovery stays as an option, not the only path.
+[ ] passkeys as a login option once phase 0 lands -- better than
+    passwords, no phone number, phishing-proof. fits the vibe.
+
 packaging:
 [ ] multi-stage Dockerfile: bun build ui static -> serve from fastapi
     (web10 CRUD uses PATCH-for-read, so all GET routes are free for the ui.
