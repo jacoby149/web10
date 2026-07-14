@@ -19,6 +19,36 @@ the thesis (why this plan):
   exporters seed it.
 
 
+MILESTONES (the route through the map)
+--------------------------------------
+the phases below are the map. this is the route -- wedge first, prove
+things in an order that generates demos, users, and revenue. each
+milestone is a stopping point that stands on its own.
+
+M0 "reconfig your feed" (the demo, ~90 days of focused work):
+    phase 0 toolchain + one-container node + setup wizard + a vertical
+    slice of the killer app on ONE node: post, feed, and the lens
+    chatbox. no federation, no payments, no encryption yet.
+    deliverable: a 2-minute video of someone telling an llm to fix
+    their feed and watching it happen. that video is the company.
+
+M1 "import your life" (self-host launch / show hn):
+    + media service, conventions doc, instagram exporter, drive/
+    dropbox backup. deliverable: import your instagram, see it in
+    an app you own, back it up to your own drive, reconfig it.
+
+M2 "the first creator" (first revenue):
+    + admin panel, analytics, ad records, custom domain, hosted-node
+    offering. deliverable: one mid-size creator (100k-500k, recently
+    platform-burned) running a branded node with real sponsors.
+
+M3 "the network" (the protocol earns its name):
+    + federation polish (cross-node follows + inbox delivery), e2e
+    encryption tiers, sponsor marketplace rails, protocol spec +
+    conformance suite public. deliverable: two unrelated nodes,
+    friends across them, private content the operators can't read.
+
+
 PHASE 0 — fix up (modernize the toolchain)
 ------------------------------------------
 current state: fastapi 0.68 + pydantic 1.x + PyJWT 1.7 (2019!), auth on
@@ -44,6 +74,8 @@ js (ui + sdk):
 [ ] typescript everywhere, incrementally: allowJs on, new files .ts/.tsx,
     port components as they get touched
 [ ] react 18 -> current, drop dead deps as found
+[ ] rtc service too: it's old node/peerjs and phase 11 makes it
+    load-bearing (key channel). modernize + typescript it with the rest
 
 [ ] docker images rebuilt on the new toolchains (uv sync / bun install --
     both are dramatically faster builds, better layer caching)
@@ -114,6 +146,9 @@ packaging:
     api + ui share one container, one port, zero route conflicts)
 [ ] compose profiles: core = api(+ui) + db. optional = rtc, media.
 [ ] target: docker run -p 80:80 -v web10:/data web10/node
+[ ] custom domains: a node lives at the operator's own domain with
+    auto-tls (caddy). rogan.social, not rogan.web10.app. this is the
+    wordpress moment -- the brand is theirs, the address is theirs.
 
 
 PHASE 4 — admin panel (creator console + analytics)
@@ -258,6 +293,23 @@ the app:
 [ ] video: upload -> transcode -> hls playback (phase 5 media pipeline)
 [ ] streaming (later milestone in this phase): live via rtc/webrtc small-
     scale first; hls fan-out for big rooms when a node needs it
+
+the boring plumbing social apps die without:
+[ ] notifications: web push first (pwa), mobile push later. new post
+    from a follow, comment on your post, dm, key request (phase 11).
+    notification prefs live in the lens record -- reconfigurable in
+    the chatbox like everything else ("only notify me about dms")
+[ ] realtime: db change streams -> websocket push, surfaced in the
+    sdk as live queries (useRecords with live refresh, phase 6).
+    feed/dms update without refreshing.
+[ ] search: full-text over YOUR OWN collections first (my posts, my
+    dms, my imported history -- the exporters make this instantly
+    valuable: search your whole social media life for the first
+    time ever). cross-node people lookup: alice@node resolves via
+    the protocol; an opt-in directory service for discovery.
+[ ] mobile story: pwa first (installable, push-capable). native
+    wrapper only when the pwa hits a wall. the encryptor app
+    (phase 11) stays native -- it guards keys.
 [ ] ad slots: renders the node's sponsored placements (phase 4 admin
     controls) -- this app is where the node operator's monetization
     actually displays. default lens = monetized lens. users can swap.
@@ -390,6 +442,37 @@ design (two modes, because availability is the hard part):
     seamlessly; encryption is a property of the record, not the app.
 
 
+PHASE 12 — trust & safety (the unglamorous load-bearing wall)
+-------------------------------------------------------------
+the moment a node hosts user media, some of this is LEGALLY REQUIRED,
+not optional. and the moment nodes federate, spam arrives (wordpress's
+pingback system died of exactly this). the white-label business sells
+compliance as part of the product -- an operator's manager asks about
+this before they ask about features.
+
+operator moderation tools (in the admin panel, phase 4):
+[ ] report flow: users flag content/accounts -> operator queue
+[ ] takedown, account suspend/ban, appeal trail
+[ ] dmca flow: registered-agent info, takedown + counter-notice
+    process, repeat-infringer policy (required for safe harbor)
+[ ] csam scanning on hosted media (photodna / safer api class
+    tooling) + ncmec reporting path. non-negotiable for the hosted
+    business. self-hosters get it on by default too.
+
+federation abuse (the pingback lesson):
+[ ] inbox delivery is terms-gated already -- keep default-closed
+[ ] node-level blocklists: drop deliveries from known-bad nodes
+[ ] rate limits on cross-node delivery + per-sender caps
+[ ] new-node reputation: throttle until proven (age, volume shape)
+
+operator legal kit (part of the white-label product):
+[ ] tos + privacy policy templates per node
+[ ] gdpr story -- and say it loud: right-to-erasure and data export
+    are NATIVE here (delete your collection, take your backup).
+    compliance as a feature, not a burden.
+[ ] jurisdiction notes per deployment region (eu nodes, us nodes)
+
+
 CROSS-CUTTING — quality, testing, security
 ------------------------------------------
 not a phase. starts in phase 0 and never stops. a node holds people's
@@ -407,6 +490,10 @@ testing:
 [ ] protocol conformance suite: a black-box test any node must pass
     (token mint, CRUD, terms enforcement, certify). matters the moment
     a second implementation or fork exists. federation depends on it.
+[ ] write the protocol SPEC as a versioned doc (token format, mint
+    rules, certify, terms semantics, CRUD, inbox delivery). the
+    conformance suite tests the spec, not the reference impl's
+    accidents. api/web10.0.md is the seed.
 [ ] sdk tests (bun test) against a throwaway test node
 [ ] ui + killer app: a few playwright e2e flows (signup -> post ->
     appears in feed; grant terms -> app reads; revoke -> app can't)
