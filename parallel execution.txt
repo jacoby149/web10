@@ -1,0 +1,117 @@
+parallel execution
+==================
+
+higher-level companion to plan.txt. that file says WHAT and WHY; this
+file says what can happen AT THE SAME TIME. target: conductor.build
+running 4 workspaces/branches in parallel without merge hell.
+
+the two rules that make 4-wide parallelism safe:
+1. LANE OWNERSHIP: each lane owns its directories. api/app/** belongs
+   to lane A. auth2(ui)/** belongs to lane B. new top-level dirs
+   (media/, sdk rewrite, mobile/, docs) can't conflict with anything.
+   docker-compose.yml + settings are lane A territory -- other lanes
+   that need a compose change queue it as a note for A, don't edit.
+2. MERGE SMALL, MERGE OFTEN: branches live days, not weeks. the
+   permission test suite (wave 0) is the seatbelt that makes frequent
+   merging safe.
+
+
+WAVE 0 — the seatbelt (do this alone, merge fast, ~single branch)
+-----------------------------------------------------------------
+before running 4-wide, land the thing that protects all 4 lanes:
+
+  [seatbelt] github actions ci + the pytest permission-matrix suite
+  written against the CURRENT api (cross-cutting section of plan).
+  every later branch -- especially the P0 dependency upgrades -- gets
+  judged by these tests. writing tests before upgrading deps is what
+  turns "did pydantic v2 break auth?" from a mystery into a red X.
+
+  also fine to slip in here: the tiny security fixes (CORS, bare
+  except, provider url validation) -- small diffs, huge value, and
+  they want to exist BEFORE the refactors bury the context.
+
+
+THE 4 LANES (each is an ordered queue; top of each = in flight now)
+-------------------------------------------------------------------
+
+LANE A — api / backend        (owns: api/**, docker-compose, settings)
+  A1. P0 python: uv + fastapi/pydantic/pyjwt upgrades
+      (the permission suite from wave 0 is the referee)
+  A2. P1 ferretdb/documentdb switch + compose profiles
+  A3. P3 setup wizard api side (setup mode, /setup, key generation,
+      node policy config) + one-container packaging (multi-stage
+      dockerfile -- needs B2's build output, coordinate the handoff)
+  A4. P6 aggregate endpoint (the 5th verb, sandbox validator)
+  A5. P4 metering events (per-request event records for analytics)
+
+LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
+  B1. P0 js: auth2 -> vite + bun + typescript
+  B2. P2 finish auth2 features, parity audit, rename to ui
+  B3. P3 setup wizard screens
+  B4. P4 admin panel: policy config, ad records crud, analytics
+      views (analytics needs A5 merged; build ui against fixtures
+      until then)
+
+LANE C — greenfield services  (owns: media/, sdk/, mcp/, new dirs)
+  C1. P5 media service (presigned urls, minio profile, metadata
+      records) -- zero deps on A/B, start immediately
+  C2. P6 sdk rewrite (typescript, fetch, typed crud; aggregate
+      types land after A4 merges -- everything else doesn't wait)
+  C3. P6 mcp server (thin layer over the C2 surface)
+  C4. P10 backup integrations (drive/dropbox oauth, export/import
+      archive -- format comes from D1's conventions doc)
+
+LANE D — docs / apps / mobile (owns: mobile/**, new repos, *.md/txt)
+  D1. conventions doc (posts/media/contacts/inbox schemas) +
+      protocol spec draft (from api/web10.0.md). PURE WRITING,
+      zero conflicts, and THREE lanes consume it (C4, D3, D4).
+      do it first for exactly that reason.
+  D2. P7 strip demo apps -> web10-apps repo (file moves, cheap)
+  D3. P11 mobile encryptor: the expo app can grow toward the real
+      keychain (secure enclave, key requests ui) fully in parallel
+      -- it talks to the node over the existing api. the rtc key
+      channel + sdk crypto integration waits for A/C, but the APP
+      doesn't.
+  D4. P8 killer app M0 slice: post + feed + lens chatbox. starts
+      on the current wapi if needed; swaps to C2 sdk when it lands.
+  D5. P9 exporter core + instagram mapping (needs D1 conventions;
+      client-side, so no api deps)
+
+
+WHAT MUST STAY SEQUENTIAL (don't try to parallelize these)
+----------------------------------------------------------
+- A1 -> A2: both churn api internals; ferretdb testing against a
+  moving pydantic target is pain for nothing
+- B1 -> B2 -> B3 -> B4: same codebase, one lane, in order
+- wave 0 before A1: tests exist before the upgrade they referee
+- D1 before C4/D4-schemas/D5: everyone imports the conventions
+- P12 trust & safety tooling needs B4's admin panel; but the csam/
+  dmca DECISIONS (vendors, process) are d1-style writing -- can
+  happen any time, and must before M1 ships hosted media
+
+
+INTEGRATION MOMENTS (when lanes must sync)
+------------------------------------------
+M0 "reconfig your feed"  = A3 + B3 + D4 converge. first real
+                           cross-lane assembly; expect a dedicated
+                           integration branch + a day of glue.
+M1 "import your life"    = C1 + C4 + D5 + M0 node.
+M2 "the first creator"   = B4 + A5 + custom domains (A3 packaging).
+M3 "the network"         = encryption integration (A rtc + C2 sdk
+                           crypto + D3 keychain app) + federation
+                           polish. the last big merge.
+
+
+SUGGESTED FIRST CONDUCTOR BOARD (4 workspaces today)
+----------------------------------------------------
+  ws1: wave 0 seatbelt (ci + permission tests + small security fixes)
+  ws2: C1 media service (greenfield, conflicts with nothing)
+  ws3: D1 conventions doc + protocol spec (writing, conflicts with
+       nothing, unblocks three other queues)
+  ws4: D3 mobile encryptor modernization (expo app, own directory)
+
+  when ws1 merges -> replace with A1 (python upgrade, now refereed).
+  when ws3 merges -> replace with B1 (vite/bun/ts port).
+  from then on: pull the top of whichever lane's queue is unblocked.
+  lanes A and B are long marches; C and D are a stream of short
+  branches that keep two slots busy without ever touching A/B files.
