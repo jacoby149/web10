@@ -150,7 +150,13 @@ export function Exporter() {
       startPolling(jid)
     } catch (err) {
       setProgress(prev => ({
-        ...(prev || {}),
+        total_files: 0,
+        processed_files: 0,
+        total_records: 0,
+        written_records: 0,
+        skipped_records: 0,
+        services_summary: {},
+        ...prev,
         phase: 'error',
         message: `Upload failed: ${err}`,
         errors: [String(err)],

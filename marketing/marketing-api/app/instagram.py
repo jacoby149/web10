@@ -1,5 +1,5 @@
 import json
-from .utils import safe_str, safe_num, parse_timestamp, parse_tags, parse_mentions
+from .utils import safe_str, safe_num, parse_timestamp, parse_tags, parse_mentions, find_json_entries
 
 
 def map_instagram_post(post: dict) -> list[dict]:
@@ -16,13 +16,15 @@ def map_instagram_post(post: dict) -> list[dict]:
         try:
             parsed = json.loads(raw_tagged)
             if isinstance(parsed, list):
-                tagged = [{"username": str(u.get("username", "")), "provider": "instagram"}
-                          for u in parsed if isinstance(u, dict) and u.get("username")]
+                tagged = [
+                    {"username": str(u.get("username", "")), "provider": "instagram"}
+                    for u in parsed
+                    if isinstance(u, dict) and u.get("username")
+                ]
         except (json.JSONDecodeError, TypeError):
             pass
 
-    mentions = list({json.dumps(m, sort_keys=True): m
-                     for m in (parse_mentions(text, "instagram") + tagged)}.values())
+    mentions = list({json.dumps(m, sort_keys=True): m for m in (parse_mentions(text, "instagram") + tagged)}.values())
 
     # Location
     location = {}
@@ -57,12 +59,14 @@ def map_instagram_post(post: dict) -> list[dict]:
         if dur is not None:
             media_body["duration_seconds"] = dur
 
-        records.append({
-            "service": "media",
-            "body": media_body,
-            "origin": "instagram",
-            "origin_id": m.get("media_id"),
-        })
+        records.append(
+            {
+                "service": "media",
+                "body": media_body,
+                "origin": "instagram",
+                "origin_id": m.get("media_id"),
+            }
+        )
         media_refs.append("")  # placeholder, filled after write
 
     post_body = {
@@ -79,19 +83,21 @@ def map_instagram_post(post: dict) -> list[dict]:
     if location:
         post_body["location"] = location
 
-    records.append({
-        "service": "posts",
-        "body": post_body,
-        "origin": "instagram",
-        "origin_id": post.get("post_id"),
-    })
+    records.append(
+        {
+            "service": "posts",
+            "body": post_body,
+            "origin": "instagram",
+            "origin_id": post.get("post_id"),
+        }
+    )
 
     # Comments
     for c in comments_list:
         rec = _map_instagram_comment(c, post.get("post_id"))
         if rec:
             records.append(rec)
-        for child in (c.get("child_comments") or []):
+        for child in c.get("child_comments") or []:
             child_rec = _map_instagram_comment(child, post.get("post_id"), c.get("comment_id"))
             if child_rec:
                 records.append(child_rec)
@@ -151,29 +157,31 @@ def map_instagram_follows(relations: list[dict]) -> list[dict]:
         username = safe_str(r.get("username"))
         if not username:
             continue
-        results.append({
-            "service": "contacts",
-            "body": {
-                "username": username,
-                "provider": "instagram",
-                "display_name": safe_str(r.get("full_name")),
-                "added_at": __import__("datetime").datetime.now().isoformat(),
-            },
-            "origin": "instagram",
-            "origin_id": r.get("user_id"),
-        })
+        results.append(
+            {
+                "service": "contacts",
+                "body": {
+                    "username": username,
+                    "provider": "instagram",
+                    "display_name": safe_str(r.get("full_name")),
+                    "added_at": __import__("datetime").datetime.now().isoformat(),
+                },
+                "origin": "instagram",
+                "origin_id": r.get("user_id"),
+            }
+        )
     return results
 
 
 def parse_instagram(zf, entries: list[dict]) -> list[dict]:
     """Parse all Instagram records from ZIP entries."""
-    import zipfile
     records = []
     json_entries = find_json_entries(entries)
 
     # Profile
-    profile_entry = next((e for e in entries
-                          if "index.json" in e["path"] or "your Instagram information.json" in e["path"]), None)
+    profile_entry = next(
+        (e for e in entries if "index.json" in e["path"] or "your Instagram information.json" in e["path"]), None
+    )
     if profile_entry:
         try:
             raw = zf.read(profile_entry["path"]).decode("utf-8")
@@ -185,8 +193,7 @@ def parse_instagram(zf, entries: list[dict]) -> list[dict]:
             pass
 
     # Follows
-    follows_entry = next((e for e in entries
-                          if "list.json" in e["path"] and "relationships" in e["path"]), None)
+    follows_entry = next((e for e in entries if "list.json" in e["path"] and "relationships" in e["path"]), None)
     if follows_entry:
         try:
             raw = zf.read(follows_entry["path"]).decode("utf-8")

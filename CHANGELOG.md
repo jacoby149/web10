@@ -1,3 +1,148 @@
+1.0.40 || 17.07.2026
+wave 0 seatbelt — endpoint-level permission-matrix suite (45 new tests,
+280 total api tests green). runs through the FastAPI app (TestClient)
+so route-level bugs the unit layer misses are caught:
+  - auth flows: signup (success, reserved, bad username, duplicate),
+    web10token login (password, wrong password, no creds)
+  - CRUD routes end-to-end: create/read/update/delete with permission
+    checks (authorized, denied, no token, cross-origin, blacklisted)
+  - aggregate endpoint: valid pipeline, forbidden stage ($out),
+    no permission
+  - star protection (I3): cannot update/delete/create star record,
+    cross-collection access impossible
+  - forged token rejection (I1): tokens signed with wrong key rejected
+    on all CRUD + aggregate routes (JWT error handler added to main.py)
+  - scoped token enforcement (I5): read-only tokens cannot create,
+    no-target tokens: owner allowed, non-owner denied
+  - metering/billing: charge called on create/read, services read
+    unmetered, out-of-credits denied, out-of-space denied
+  - certify endpoint: valid, forged, expired, anon token
+  - system endpoints: stats, get_plan
+  - also: bare exception handler in main.py maps legacy Exception("TOKEN")
+    etc. to proper HTTP 401s; JWT PyJWTError handler catches forged/
+    expired tokens before they hit the bare handler; fixed models.dotdict
+    -> dotdict bug in documentdb.py
+
+1.0.40 || 17.07.2026
+Setup wizard + admin config screen (Phase 3/4 partial, lanes A3/B3/B4):
+  - API: /ready (health check, reports configured status), /setup (GET status,
+    POST first-run wizard), /config (GET current config, PATCH partial update).
+    All endpoints hidden from OpenAPI schema (include_in_schema=False).
+    New services/config.py: node_is_configured(), admin_exists(), save_config(),
+    generate_jwt_keypair(), create_admin(). New models/config.py: SetupRequest,
+    SetupStatus, ConfigUpdate, NodeConfig pydantic schemas.
+  - UI: SetupWizard component — 6-step onboarding flow (Welcome -> Node Identity
+    -> Admin Account -> Access Policy -> Storage -> Complete). Detects unconfigured
+    nodes via /ready and redirects to setup automatically.
+  - UI: ConfigPage component — admin node configuration panel. Editable fields for
+    all node settings: identity, access policy (beta/verify/pay toggles), free tier
+    defaults, S3/media storage, Twilio SMS, Stripe payments. "Node Config" link
+    added to SideBar for authenticated users.
+  - App.tsx: setup detection on mount, "setup" and "config" modes added to router.
+
+1.0.39 || 17.07.2026
+adapter rename: api/app/services/mongo.py -> documentdb.py. the module is
+backend-agnostic (pymongo speaks to either real Mongo or FerretDB/DocumentDB),
+so the name should reflect the storage layer, not the old vendor. all imports,
+test files, and patch paths updated. test files renamed: test_mongo.py ->
+test_documentdb.py, test_mongo_crud.py -> test_documentdb_crud.py,
+test_mongo_aggregate.py -> test_documentdb_aggregate.py. 235 tests green.
+
+1.0.38 || 17.07.2026
+E2: marketing deploy — marketing-api/Dockerfile (multi-stage python 3.12 + uv +
+uvicorn), docker-compose.marketing.yml (standalone compose for marketing-ui +
+marketing-api), ubuntu-deploy.sh full rewrite (marketing compose copy with path
+fixup, Caddy proxy with separate RTC subdomain, auto build+start for node and
+marketing, proper DNS/TLS instructions). both images tested green locally.
+the 5th verb — aggregate (plan phase 6, lane A4). appmakers get (nearly)
+the full mongo query language without losing usage metering:
+  - api: POST /{user}/{service}/aggregate. read-only by construction —
+    the server prepends $match {service, body.service != "*"} ->
+    $addFields body._id (stringified) -> $replaceRoot to body, so the
+    dev's pipeline runs on clean user-space docs and cannot name the
+    service/star fields (I3). terms treat it as "read".
+  - sandbox validator: stage allowlist ($match/$project/$group/$sort/
+    $skip/$limit/$unwind/$addFields/$set/$count/$facet/$bucket/
+    $bucketAuto/$sample/$sortByCount); $where/$function/$accumulator/
+    $lookup/$graphLookup/$unionWith/$out/$merge rejected at ANY nesting
+    depth (deep scan catches $facet sub-pipelines, $group accumulators,
+    expression trees). invalid pipelines 400 before touching the db.
+  - resource caps: maxTimeMS 2000ms, 20-stage cap, $limit/result
+    ceiling 1000 docs, allowDiskUse off.
+  - usage tracking preserved: charge() gains a units param; aggregate
+    is charged per pipeline stage (COST_AGGREGATE 0.000005 x stages)
+    into the same credits_spent ledger, gated by the same credit/space
+    check as the 4 crud verbs.
+  - sdk: wapi.aggregate(service, pipeline) in wapi.js (typed variant
+    comes with the C2 rewrite); cdn + node dist bundles rebuilt.
+  - tests: 28 new api tests (validator, scoping, metering) — 233 green;
+    4 new sdk tests — 52 green. verified live against a real mongo 7:
+    scoping, star invisibility, forbidden-op rejection, per-stage
+    charging, and the http endpoint (200/400/401) all exercised.
+   - protocol-spec.md section 9 updated from "planned" to shipped, with
+     metering table + error rows.
+
+1.0.37 || 17.07.2026
+infra: ubuntu-deployment script + Caddy reverse proxy for Proxmox staging node; LANE E added to parallel execution board.
+
+1.0.36 || 17.07.2026
+ci/cd repair — tests across the WHOLE repo now actually run:
+  - js-ci: dropped the dead exporters job (dir deleted in the 1.0.31
+    migration), added marketing-ui and mobile/encryptor (55 bun tests,
+    previously NO ci at all). the sdk job was dying at bun install
+    (no bun.lock, only package-lock.json) so its 48 tests never ran —
+    bun.lock now committed for sdk + marketing-ui. test failures now
+    report red: continue-on-error removed from the test step (rtc
+    opts out via tests:false — it has no suite yet). test:run script
+    standardized in sdk + encryptor (encryptor's script claimed jest;
+    the suite runs on bun test).
+  - marketing-api: had NO ci, no lockfile, no tests. new workflow
+    (uv sync + ruff + pytest), uv.lock committed, ruff/pytest dev
+    deps, 4 smoke tests (health, pageview, schemas, validate_record).
+    ruff immediately caught two real bugs, now fixed: upload_zip used
+    background_tasks without declaring the BackgroundTasks param (the
+    ZIP upload endpoint crashed on every call) and instagram.py
+    called find_json_entries without importing it (instagram parsing
+    crashed). 7 unused imports cleaned, ruff format applied. the
+    57-test exporter mapper suite is STILL OWED as pytest ports —
+    the smoke tests keep the wiring honest until it lands.
+  - media.yml deleted (media/ merged into api in 1.0.30; the workflow
+    watched a dead path and could never trigger).
+  - docker.yml + cd.yml matrices rebuilt around the Dockerfiles that
+    exist (api, ui, sdk, rtc, marketing-ui); exporters/media/home/
+    crm/mail entries removed — those builds failed on every run since
+    the phase-7 tidy.
+  - marketing-ui: fixed real type errors the old continue-on-error
+    was hiding — missing vite-env.d.ts (css imports + import.meta.env
+    didn't typecheck) and a spread over possibly-null ImportProgress
+    state. typecheck + build green; test:run passes with no tests
+    (--passWithNoTests) until a real suite lands.
+  - .gitignore rewritten (was full of deleted dirs: auth2, exporters,
+    rtc, web10-deploy, skaffold): global node_modules/, __pycache__/,
+    .venv/, *.egg-info/, .expo/, dist for the ui builds, .env.
+    untracked from the index: ui/dist (22 files), mobile/.expo,
+    web10-cli's node_modules remnant. sdk/dist stays committed on
+    purpose — the sdk Dockerfile serves it as the wapi.js cdn.
+  - verified locally end-to-end: api 205 pytest, ui 43, sdk 48,
+    web10-social 172, encryptor 55, marketing-api 4 — all green.
+
+1.0.35 || 17.07.2026
+board sync: fixed plan.txt / parallel execution.txt drift against the
+changelog — C1 (media, landed 1.0.25, merged into api/ 1.0.30-31) and
+D3 (mobile encryptor, landed 1.0.27) were still marked [~] in flight;
+wave-0 status still said github actions ci was open (skeleton landed
+1.0.32); the three cd items in plan.txt were unticked though cd.yml
+shipped in 1.0.32; phase 7's crm/mail item described an examples/ move
+that never happened (they became web10-social sub-apps, 1.0.30); the
+conductor board was a day stale; lane C ownership still claimed the
+deleted media/ dir. CLAUDE.md refreshed: api described by its 1.0.31
+layered layout (models/services/endpoints), auth2 -> ui rename and
+crm/mail integration reflected. drift guard added to ci: changelog.yml
+gains a board-sync step — errors when the newest CHANGELOG version
+isn't strictly greater than every existing entry (duplicate 1.0.30s
+prompted this), warns when CHANGELOG.md changes without a plan.txt /
+parallel execution.txt tick in the same pr.
+
 1.0.34 || 17.07.2026
 Created marketing/ umbrella folder and moved marketing-api/, marketing-ui/,
 web10-cli/, and web10-social/ into it. These four projects share a purpose:

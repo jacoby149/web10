@@ -67,6 +67,7 @@ describe('wapiInit', () => {
     expect(w).toHaveProperty('create')
     expect(w).toHaveProperty('update')
     expect(w).toHaveProperty('delete')
+    expect(w).toHaveProperty('aggregate')
     expect(w).toHaveProperty('peerID')
     expect(w).toHaveProperty('checkout')
     expect(w).toHaveProperty('verifySubscription')
@@ -194,6 +195,18 @@ describe('wapiInit', () => {
       w.delete('posts')
       expect(errSpy).toHaveBeenCalledWith('cant CRUD anon accounts')
     })
+
+    it('aggregate rejects anon username', () => {
+      const w = wapiInit('https://auth.example.com')
+      w.aggregate('posts', [], 'anon')
+      expect(errSpy).toHaveBeenCalledWith('cant CRUD anon accounts')
+    })
+
+    it('aggregate rejects missing token and username', () => {
+      const w = wapiInit('https://auth.example.com')
+      w.aggregate('posts')
+      expect(errSpy).toHaveBeenCalledWith('cant CRUD anon accounts')
+    })
   })
 
   describe('CRUD HTTP calls', () => {
@@ -222,6 +235,35 @@ describe('wapiInit', () => {
       expect(axiosPost).toHaveBeenCalledWith(
         'https://api.example.com/alice/posts',
         { token: jwt, query: { body: 'hello' }, update: null }
+      )
+    })
+
+    it('aggregate calls axios.post on the /aggregate route with the pipeline', async () => {
+      const payload = { username: 'alice', provider: 'api.example.com' }
+      const jwt = makeJwt(payload)
+      axiosPost.mockResolvedValue({ data: [] })
+      setCookie('token', jwt)
+      const w = wapiInit('https://auth.example.com')
+      w.setToken(jwt)
+      const pipeline = [{ $group: { _id: '$tag', n: { $sum: 1 } } }, { $sort: { n: -1 } }]
+      await w.aggregate('posts', pipeline)
+      expect(axiosPost).toHaveBeenCalledWith(
+        'https://api.example.com/alice/posts/aggregate',
+        { token: jwt, pipeline }
+      )
+    })
+
+    it('aggregate defaults to an empty pipeline', async () => {
+      const payload = { username: 'alice', provider: 'api.example.com' }
+      const jwt = makeJwt(payload)
+      axiosPost.mockResolvedValue({ data: [] })
+      setCookie('token', jwt)
+      const w = wapiInit('https://auth.example.com')
+      w.setToken(jwt)
+      await w.aggregate('posts')
+      expect(axiosPost).toHaveBeenCalledWith(
+        'https://api.example.com/alice/posts/aggregate',
+        { token: jwt, pipeline: [] }
       )
     })
 

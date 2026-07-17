@@ -7,7 +7,8 @@ on:
       - ui/**
       - sdk/**
       - marketing/web10-social/**
-      - exporters/**
+      - marketing/marketing-ui/**
+      - mobile/encryptor/**
       - api/rtc/**
       - .github/workflows/js-ci.yml
       - .github/workflows/js.yml
@@ -16,7 +17,8 @@ on:
       - ui/**
       - sdk/**
       - marketing/web10-social/**
-      - exporters/**
+      - marketing/marketing-ui/**
+      - mobile/encryptor/**
       - api/rtc/**
       - .github/workflows/js-ci.yml
       - .github/workflows/js.yml
@@ -41,12 +43,18 @@ jobs:
     with:
       package: marketing/web10-social
 
-  exporters:
+  marketing-ui:
     uses: ./.github/workflows/js.yml
     with:
-      package: exporters
+      package: marketing/marketing-ui
+
+  encryptor:
+    uses: ./.github/workflows/js.yml
+    with:
+      package: mobile/encryptor
 
   rtc:
     uses: ./.github/workflows/js.yml
     with:
       package: api/rtc
+      tests: false

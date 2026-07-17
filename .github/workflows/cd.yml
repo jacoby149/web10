@@ -33,11 +33,8 @@ jobs:
             target: build
           - name: rtc
             context: api/rtc
-          - name: media
-            context: media
-          - name: exporters
-            context: exporters
-            target: build
+          - name: marketing-ui
+            context: marketing/marketing-ui
     steps:
       - uses: actions/checkout@v4
 

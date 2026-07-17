@@ -176,6 +176,27 @@ const wapiInit = function(authUrl = "https://auth.web10.app", appStores=["https:
     ._W10CRUD((url, data) => axios.delete(url, { data: data }), provider, username, service, query, null, protocol);
   
   /**
+    * Runs a MongoDB aggregation pipeline on a web10 service — the 5th verb.
+    * The node scopes the pipeline to the service's records (body-only docs),
+    * validates it against the stage/operator allowlist, and meters it per
+    * pipeline stage. Read-only by construction; permitted as a "read".
+    * @param  {string} service [The name of the web10 user approved service.]
+    * @param  {Object[]} [pipeline] [The aggregation pipeline stages.]
+    * @param  {string} [username] [The web10 username, defaults to yours.]
+    * @param  {string} [provider] [The web10 provider domain, defaults to yours.]
+    * @param  {string} [protocol] [the protocol, :http or the default :https]
+    * @return {Promise} [An axios promise with the aggregation results.]
+    */
+  wapi.aggregate = function (service, pipeline = [], username = null, provider = null, protocol = wapi.APIProtocol) {
+    if ((!username && !wapi.token) || username === "anon") return console.error("cant CRUD anon accounts");
+    if (!provider && !wapi.token) return console.error("web10 request without provider and token. need one.");
+
+    provider = provider || wapi.readToken().provider;
+    username = username || wapi.readToken().username;
+    return axios.post(`${protocol}//${provider}/${username}/${service}/aggregate`, { token: wapi.token, pipeline });
+  };
+
+  /**
   * A helper function for the web10 CRUD functionality.
   * @param  {function} HTTPRequestFunction [The request function to use.]
   * @param  {string} provider [The web10 provider]
