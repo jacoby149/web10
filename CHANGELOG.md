@@ -13,6 +13,30 @@ all checks report pass/fail — no branch protection yet (visibility
 first, gatekeeping is a deliberate later flip).
 
 1.0.31 || 17.07.2026
+Removed chrome-extension/: browser extension was too high a friction
+bar for mainstream adoption. it was fully isolated — zero external
+references, no CI/CD, no backend integration, no docs mentions.
+
+1.0.30 || 17.07.2026
+marketing-api: new FastAPI service — ZIP import pipeline (server-side
+streaming parse, validate, dedup, batch write to user's node), analytics
+endpoints (pageview tracking, funnel events). Exporter UI moved from
+exporters/ into marketing-ui/ (now talks to marketing-api via job polling
+instead of browser-side ZIP parsing). Instagram/Facebook/YouTube mappers
+ported to Python. Legacy home/ and exporters/ dirs deleted, home service
+removed from docker-compose.yml.
+
+1.0.29 || 17.07.2026
+marketing-ui: new project — consolidated home/ + docs/ + App Store into
+one marketing site (Vite + React 19 + TS + Bun + react-router). Home page
+rebuilt from home/index.html (hero, features, stats, team, footer). Docs
+page renders docs/ markdown via remark. App Store moved from ui/ to
+marketing-ui/ (public-facing app discovery belongs on the marketing site,
+not inside the node's auth UI). ui/ default mode changed from "appstore"
+to "contracts"; AppStore component, appListingInterface, mockAppData, and
+related state removed from ui/.
+
+1.0.28 || 17.07.2026
 plan: specced the github actions ci/cd pipeline in full (new
 "CROSS-CUTTING — ci/cd" section in plan.txt). ci: path-filtered
 monorepo jobs (api: uv+ruff+pytest; js: reusable bun+tsc+vitest+
@@ -29,7 +53,7 @@ skeleton is landable today against the 1.0.21 unit tests — it does
 not wait for the endpoint suite. wave 0 in parallel execution.txt
 now points at the spec; workflow ownership follows lane ownership.
 
-1.0.30 || 17.07.2026
+1.0.27 || 17.07.2026
 plan: added phase 6.5 — the dev on-ramp (create-web10). a scaffolder
 published under the npm create-* convention (npm/pnpm/yarn/bun create
 web10, npx create-web10 — one package covers every runner), with a
