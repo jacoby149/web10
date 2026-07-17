@@ -226,8 +226,12 @@ swappable per node.
     - issues presigned upload urls, gated by web10 token permissions
       (same is_permitted logic as CRUD -- terms records stay the single
       source of permission truth)
-    - issues short-lived signed read urls for private media
+    - issues short-lived signed read urls for private media: fresh
+      url per read, 30-60s expiry, issuance logged. check-at-issue-
+      time is an accepted gap -- see D14 in decisions.md.
     - writes a metadata record into the owner's collection on upload
+      (ordinary {service:"media", body} record -- terms/ACLs apply
+      with zero new concepts, see D13)
 [ ] minio in compose under the "media" profile for self-hosters
 [ ] config for hosted s3-compatibles (R2/B2) for bigger nodes
 [ ] size accounting: media bytes count against the user's space plan
@@ -661,11 +665,35 @@ habit (annotate as you go), and one website that waits. split by
 AUDIENCE, not by tool. generated wherever possible -- generated
 docs can't rot.
 
+for everyone -- explanation (lives in marketing-ui, phase 7):
+the missing quadrant: guides say HOW, reference says WHAT, nothing
+says WHY. the architecture (records, tokens, terms, federation)
+already exists, so unlike guides these are writable NOW -- they
+don't wait on milestones. they are the marketing site's core copy.
+[ ] "what is web10" concept pages: the mental model -- node, record
+    ({service, body}), one collection per user, tokens + terms,
+    lens, provider federation. source from GLOSSARY.md/CLAUDE.md/
+    pitch.txt, rewritten public-facing.
+[ ] per-audience "why" pages: as a user (own your data, portable
+    across apps, private/temporary unlike blockchain), as a
+    creator/influencer (run your node, own the audience
+    relationship, monetize -- the wordpress analogy), as a dev
+    (stateless frontends, no backend to run), as a node operator.
+    productize pitch.txt's vs-crypto / vs-cloud arguments here.
+[ ] how-it-works diagrams as code, versioned in-repo (generated
+    docs can't rot applies to diagrams too): token mint/certify
+    flow, request lifecycle, data model, federation between
+    providers, the e2e encryption story. mermaid over plantuml --
+    starlight/docusaurus render it natively at build time, no java
+    toolchain.
+
 for users + creators (lives in marketing-ui, phase 7):
 [ ] guides ARE the marketing content for a saas: get an account,
     reconfig your feed, import your instagram, run a node, monetize
     as a creator. write each guide when its milestone (M0-M3)
     ships, not before -- docs for unshipped features are fiction.
+    (the fiction rule gates GUIDES only -- explanation pages above
+    describe what already exists and don't wait.)
 
 for devs:
 [ ] protocol spec + conventions doc (D1): versioned markdown + JSON

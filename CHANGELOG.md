@@ -1,3 +1,24 @@
+1.0.17 || 16.07.2026
+decisions: D13 — media fits the record abstraction: "service" stays the data
+namespace, no /{user}/{service}/{collection} restructure; media metadata is an
+ordinary {service:"media", body} record so terms/ACLs apply unchanged.
+decisions: D14 — media reads via per-request presigned URLs (30-60s expiry,
+issuance logged); check-at-issue-time gap consciously accepted, API-proxy and
+per-request auth-proxy alternatives rejected (proxy remains a later
+tightening option, not a redesign).
+plan: phase 5 read-url and metadata items tightened to carry the D13/D14
+specifics (per-read issuance, expiry window, logging, record shape).
+
+1.0.16 || 16.07.2026
+plan: CROSS-CUTTING docs gains the missing explanation quadrant — "for
+everyone" block ahead of the guides: "what is web10" concept pages (mental
+model: node, record, tokens+terms, lens, federation), per-audience why pages
+(user / creator-influencer / dev / operator, productizing pitch.txt's
+vs-crypto and vs-cloud arguments), and how-it-works diagrams as code
+(mermaid over plantuml — starlight/docusaurus render it natively). unlike
+guides these aren't milestone-gated: the architecture exists, so they're
+writable now and double as the marketing site's core copy.
+
 1.0.15 || 16.07.2026
 docs: fix D1 consumer list in parallel execution.txt — (C4, D3, D4) → (C4, D4, D5),
 matching the sequencing rule "D1 before C4/D4-schemas/D5" (D3 mobile encryptor
