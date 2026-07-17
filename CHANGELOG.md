@@ -1,3 +1,13 @@
+1.0.28 || 16.07.2026
+plan: added phase 2.5 — the ui makeover. retire the homemade
+rectangles-npm framework from every ui (ui/, web10-social/), replace
+with a mainstream stack (tailwind + shadcn/ui as default candidate),
+plus a story-first product design pass (shared design tokens,
+narrative screens, the M0 demo as the acceptance bar). queued as
+B2.5 (ui/) and D2.5 (web10-social) in parallel execution.txt; B2.5
+sequenced before B3/B4 so wizard + admin panel are built on the new
+stack.
+
 1.0.27 || 16.07.2026
 mobile/encryptor: complete rebuild — foundation, wallet/keyring, UI, and tests.
 Expo 44->52, React 17->18, React Native 0.64->0.76, bun package manager.
