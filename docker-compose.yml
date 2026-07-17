@@ -45,14 +45,6 @@ services:
       - "6969:80"
     environment:
       VIRTUAL_HOST: docs.localhost
-  home: # web10 home, the homepage that explains the mission + about web10.
-    build: home
-    volumes:
-      - ./home/:/home/public
-    ports:
-      - "6868:80"
-    environment:
-      VIRTUAL_HOST: home.localhost
   mail: # web10 mail, a demo app on web10 to check webRTC + cross communication is working.
     build:
       context: .
