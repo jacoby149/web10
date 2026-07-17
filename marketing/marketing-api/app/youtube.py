@@ -6,6 +6,7 @@ def parse_duration(iso: str | None):
     if not iso:
         return None
     import re
+
     m = re.match(r"PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?", iso)
     if not m:
         return None
@@ -48,12 +49,14 @@ def map_youtube_video(video: dict) -> list[dict]:
             "width": thumb.get("width"),
             "height": thumb.get("height"),
         }
-        media_records.append({
-            "service": "media",
-            "body": media_body,
-            "origin": "youtube",
-            "origin_id": f"thumb_{vid_id}",
-        })
+        media_records.append(
+            {
+                "service": "media",
+                "body": media_body,
+                "origin": "youtube",
+                "origin_id": f"thumb_{vid_id}",
+            }
+        )
         media_refs.append("")
 
     post_body = {
@@ -79,12 +82,14 @@ def map_youtube_video(video: dict) -> list[dict]:
     if media_refs:
         post_body["media_refs"] = media_refs
 
-    records.append({
-        "service": "posts",
-        "body": post_body,
-        "origin": "youtube",
-        "origin_id": vid_id,
-    })
+    records.append(
+        {
+            "service": "posts",
+            "body": post_body,
+            "origin": "youtube",
+            "origin_id": vid_id,
+        }
+    )
     records.extend(media_records)
     return records
 

@@ -1,3 +1,4 @@
+import itertools
 import re
 import secrets
 
@@ -75,8 +76,10 @@ def u_t(_u):
     return u
 
 # changes mongodb query sort syntax to mongodb python sort syntax.
+# fields are body-prefixed like query fields — without it, $sort ordered
+# by a nonexistent top-level field and was a silent no-op.
 def sort_t(sort):
-    return [(k,sort[k]) for k in sort]
+    return [(to_db_field(k), sort[k]) for k in sort]
 
 
 # assumes number fields are only in arrays.
@@ -159,7 +162,7 @@ def get_user(username: str):
     doc = get_star(username)
     if doc is None:
         raise exceptions.NO_USER
-    return models.dotdict(doc)
+    return dotdict(doc)
 
 
 def create_user(form_data, hash):
@@ -279,6 +282,83 @@ def delete(user, service, query):
 
 
 ##########################
+###### AGGREGATE #########
+##########################
+
+# the 5th verb. read-only by construction: the server prepends scoping
+# stages so the dev's pipeline runs on clean user-space docs and cannot
+# even name the service/star fields (invariant I3).
+
+# stages a dev's pipeline may use. everything else is rejected.
+AGG_STAGES = {
+    "$match", "$project", "$group", "$sort", "$skip", "$limit",
+    "$unwind", "$addFields", "$set", "$count", "$facet", "$bucket",
+    "$bucketAuto", "$sample", "$sortByCount",
+}
+
+# operators rejected wherever they appear, however deeply nested:
+# js execution, cross-collection reads, cross-collection writes.
+AGG_FORBIDDEN = {
+    "$where", "$function", "$accumulator",
+    "$lookup", "$graphLookup", "$unionWith",
+    "$out", "$merge",
+}
+
+
+# deep-walks every key so forbidden operators can't hide inside
+# $match expressions, $group accumulators, or $facet sub-pipelines.
+def scan_forbidden(node):
+    if isinstance(node, dict):
+        for key, value in node.items():
+            if key in AGG_FORBIDDEN:
+                raise exceptions.PIPELINE
+            scan_forbidden(value)
+    elif isinstance(node, list):
+        for item in node:
+            scan_forbidden(item)
+
+
+def validate_pipeline(pipeline):
+    if not isinstance(pipeline, list):
+        raise exceptions.PIPELINE
+    if len(pipeline) > int(settings.AGG_MAX_STAGES):
+        raise exceptions.PIPELINE_CAP
+    for stage in pipeline:
+        if not isinstance(stage, dict) or len(stage) != 1:
+            raise exceptions.PIPELINE
+        op = next(iter(stage))
+        if op not in AGG_STAGES:
+            raise exceptions.PIPELINE
+        if op == "$limit":
+            if not isinstance(stage["$limit"], int) or stage["$limit"] > int(settings.AGG_MAX_DOCS):
+                raise exceptions.PIPELINE_CAP
+        if op == "$facet":
+            if not isinstance(stage["$facet"], dict):
+                raise exceptions.PIPELINE
+            for sub_pipeline in stage["$facet"].values():
+                validate_pipeline(sub_pipeline)
+    scan_forbidden(pipeline)
+
+
+def aggregate(user, service, pipeline):
+    validate_pipeline(pipeline)
+    # scoping is unescapable: match the service, drop the star record,
+    # then rebase docs to body so the dev's stages start from the same
+    # user-space shape that read() returns.
+    scoped = [
+        {"$match": {"service": service, "body.service": {"$ne": "*"}}},
+        {"$addFields": {"body._id": {"$toString": "$_id"}}},
+        {"$replaceRoot": {"newRoot": "$body"}},
+    ] + pipeline
+    cursor = db[f"{user}"].aggregate(
+        scoped,
+        maxTimeMS=int(settings.AGG_MAX_TIME_MS),
+        allowDiskUse=False,
+    )
+    return list(itertools.islice(cursor, int(settings.AGG_MAX_DOCS)))
+
+
+##########################
 #### Star Protection #####
 ##########################
 
@@ -379,9 +459,11 @@ def get_approved(username, provider, owner, service, action):
 # Balance Tracking
 ######################
 
-def charge(user, action):
+# units scales the flat per-action cost — aggregate passes its
+# pipeline stage count so heavier queries spend more credits.
+def charge(user, action, units=1):
     query = q_t({"service": "*"}, "services")
-    cost = settings.COST[action]
+    cost = float(settings.COST[action]) * units
     update = u_t({"$inc": {"credits_spent": cost}})
     db[f"{user}"].update_one(query, update)
 
@@ -409,7 +491,10 @@ def subscription_update(user, c, s):
 
 
 def get_collection_size(user):
-    return db.command("collstats", user)["size"]/(1024*1024)
+    # camelCase: real mongo accepts both spellings, ferretdb only this one.
+    # on ferretdb/documentdb the size is a postgres-derived estimate --
+    # fine for space gating (decided in plan phase 1).
+    return db.command("collStats", user)["size"]/(1024*1024)
 
 ############################
 #### app store #####

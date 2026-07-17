@@ -29,11 +29,18 @@ STATUS KEY (check before starting anything — don't redo merged work):
 
 WAVE 0 — the seatbelt (do this alone, merge fast, ~single branch)
 -----------------------------------------------------------------
-STATUS: PARTIAL — the unit layer landed (210 tests, 1.0.21: mocked-DB
-pytest for api auth/mongo logic, vitest for auth2 + sdk). still OPEN:
-github actions ci, the endpoint-level permission-matrix suite (FastAPI
-routes, star protection, forged tokens over HTTP), and the small
-security fixes below. that endpoint suite is still the top priority.
+STATUS: PARTIAL — the unit layer landed (1.0.21, expanded to 205
+tests in 1.0.31) and the github actions ci skeleton landed (1.0.32:
+api/js/docker/changelog/cd workflows, visibility-first). 1.0.36
+repaired the pipeline so EVERY existing suite is actually wired and
+reporting red on failure (api 205, ui 43, sdk 48, social 172,
+encryptor 55, marketing-api smoke). 1.0.40 landed the endpoint-level
+permission-matrix suite (45 new tests through FastAPI routes: auth
+flows, CRUD, aggregate, star protection, forged-token rejection,
+scoped-token enforcement, metering/billing, certify, system — 280
+total api tests green). still OPEN: the small security fixes below
+(CORS, bare except, provider url validation), and pytest ports of the
+old 57-test exporter mapper suite (marketing-api).
 
 before running 4-wide, land the thing that protects all 4 lanes:
 
@@ -71,11 +78,12 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
   [✓ 1.0.11] A1. P0 python: uv + fastapi/pydantic/pyjwt upgrades
       (landed BEFORE the wave-0 endpoint suite — that referee is
       still owed; see wave 0 status above)
-  [ ] A2. P1 ferretdb/documentdb switch + compose profiles
-  [ ] A3. P3 setup wizard api side (setup mode, /setup, key generation,
+  [✓ 1.0.39] A2. P1 ferretdb/documentdb switch + compose profiles + rename mongo.py -> documentdb.py
+  [✓ 1.0.40] A3. P3 setup wizard api side (setup mode, /setup, key generation,
       node policy config) + one-container packaging (multi-stage
       dockerfile -- needs B2's build output, coordinate the handoff)
-  [ ] A4. P6 aggregate endpoint (the 5th verb, sandbox validator)
+  [✓ 1.0.38] A4. P6 aggregate endpoint (the 5th verb, sandbox validator;
+      per-stage metering through charge(); wapi.aggregate in legacy sdk)
   [ ] A5. P4 metering events (per-request event records for analytics)
 
 LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
@@ -86,14 +94,16 @@ LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
       stack (tailwind + shadcn/ui candidate, record in decisions.md),
       shared design tokens, story-first narrative pass. do BEFORE
       B3/B4 so wizard + admin panel are born on the new stack.
-  [ ] B3. P3 setup wizard screens
-  [ ] B4. P4 admin panel: policy config, ad records crud, analytics
+  [✓ 1.0.40] B3. P3 setup wizard screens
+  [✓ 1.0.40] B4. P4 admin panel: policy config, ad records crud, analytics
       views (analytics needs A5 merged; build ui against fixtures
       until then)
 
-LANE C — greenfield services  (owns: media/, sdk/, mcp/, new dirs)
-  [~] C1. P5 media service (presigned urls, minio profile, metadata
-      records) -- zero deps on A/B, in flight (workspace, 16.07.2026)
+LANE C — greenfield services  (owns: sdk/, mcp/, new dirs)
+  [✓ 1.0.25] C1. P5 media service (presigned urls, minio profile,
+      metadata records) — landed standalone, then merged into api/
+      as a router in 1.0.30/1.0.31 (standalone media/ dir is gone;
+      media code now lives in api/, which is lane A territory)
   [ ] C2. P6 sdk rewrite (typescript, fetch, typed crud; aggregate
       types land after A4 merges -- everything else doesn't wait)
   [ ] C3. P6 mcp server (thin layer over the C2 surface)
@@ -116,11 +126,10 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       mainstream stack (match B2.5's pick + design tokens), story-
       first pass (empty states, lens/chatbox forward). pairs with
       D4 -- the M0 demo screens are the acceptance bar.
-  [~] D3. P11 mobile encryptor: the expo app can grow toward the real
-      keychain (secure enclave, key requests ui) fully in parallel
-      -- it talks to the node over the existing api. the rtc key
-      channel + sdk crypto integration waits for A/C, but the APP
-      doesn't. in flight (workspace, 16.07.2026)
+  [✓ 1.0.27] D3. P11 mobile encryptor: complete rebuild landed —
+      expo 52, crypto core (hkdf, ed25519/x25519, xchacha20), wallet
+      persistence, tabbed UI, 55 tests. the rtc key channel + sdk
+      crypto integration still waits for A/C (phase 11 proper).
   [ ] D4. P8 killer app M0 slice: post + feed + lens chatbox. starts
       on the current wapi if needed; swaps to C2 sdk when it lands.
   [✓ 1.0.27] D5. P9 exporter core + instagram mapping (needs D1 conventions;
@@ -142,6 +151,18 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         CI, CLAUDE.md). top-level tree clean.
 
 
+
+LANE E — infrastructure / deployment (owns: proxmox provisioning,
+    reverse proxy, CI/CD deploy targets)
+  [ ] E1. proxmox staging node: create fresh Ubuntu VM on 192.168.8.20,
+      deploy web10 node (api + ui + db + rtc + minio) via
+      ubuntu-deployment/ubuntu-deploy.sh. team-accessible internal staging.
+[✓ 1.0.38] E2. marketing deploy: marketing-ui + marketing-api on proxmox,
+       caddy reverse proxy with auto-TLS. internal staging complete.
+  [ ] E3. public domain + auto-TLS for external traffic (when ready)
+  [ ] E4. automated provisioning: terraform or ssh-api script +
+      ansible for idempotent VM/LXC setup. don't rush — manual is
+      fine until E2 works.
 
 WHAT MUST STAY SEQUENTIAL (don't try to parallelize these)
 ----------------------------------------------------------
@@ -169,16 +190,17 @@ M3 "the network"         = encryption integration (A rtc + C2 sdk
                            polish. the last big merge.
 
 
-CURRENT CONDUCTOR BOARD (as of 16.07.2026 — keep this section fresh)
+CURRENT CONDUCTOR BOARD (as of 17.07.2026 — keep this section fresh)
 --------------------------------------------------------------------
-  ws1: wave 0 remainder: ci + ENDPOINT permission-matrix suite +
-       small security fixes (unit layer landed 1.0.21; this is what's
-       left, and it's still the highest-value slot)
-  ws2: C1 media service (in flight)
-  ws3: D3 mobile encryptor (in flight)
-  ws4: next unticked pick — C2 sdk rewrite, D2 tidy, or D5 exporters
-       (D1 merged, so D5 is unblocked); B2 if you want the B lane
-       moving (A1/B1/D1 are DONE — do not pick them again)
+  ws1: wave 0 remainder: ENDPOINT permission-matrix suite + small
+       security fixes (unit layer 1.0.21/1.0.31 and ci skeleton
+       1.0.32 landed; this is what's left, and it's still the
+       highest-value slot)
+  ws2: C2 sdk rewrite (unblocks C3 mcp + C3.5 create-web10)
+  ws3: B2.5 ui makeover in ui/ (records the stack pick in
+       decisions.md; D2.5 in web10-social matches it afterwards)
+ws4: next unticked pick — D4 killer app M0 slice, or A2 ferretdb
+        (A1/B1/B2/C1/D1/D2/D3/D5–D9/E2 are DONE — do not pick them again)
 
   from here on: pull the top unticked item of whichever lane's queue
   is unblocked. lanes A and B are long marches; C and D are a stream

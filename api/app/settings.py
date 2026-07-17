@@ -19,6 +19,10 @@ COST_CREATE =  0.000025
 COST_UPDATE = 0.000025
 COST_READ = 0.000005
 COST_DELETE = 0.000002
+COST_AGGREGATE = 0.000005  # per pipeline stage
+AGG_MAX_STAGES = 20
+AGG_MAX_TIME_MS = 2000
+AGG_MAX_DOCS = 1000
 FREE_CREDITS = 0.10
 FREE_SPACE = 8
 BETA_REQUIRED = False
@@ -63,6 +67,7 @@ COST["create"] = COST_CREATE
 COST["read"] = COST_READ
 COST["update"] = COST_UPDATE
 COST["delete"] = COST_DELETE
+COST["aggregate"] = COST_AGGREGATE
 
 if __name__ == "__main__":
     print(globals())
