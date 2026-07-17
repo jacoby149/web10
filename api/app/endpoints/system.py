@@ -4,7 +4,7 @@ from fastapi import APIRouter
 import app.exceptions as exceptions
 from app.models.auth import Token
 import app.settings as settings
-from app.services import mongo as db
+from app.services import documentdb as db
 from app.services import stripe as pay
 from app.services.auth import check_admin, decode_token
 

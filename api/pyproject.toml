@@ -12,6 +12,9 @@ dependencies = [
     "pymongo>=4.8",
     "boto3>=1.35",
     "passlib[bcrypt]>=1.7",
+    # passlib 1.7.4 (unmaintained) reads bcrypt.__about__, removed in
+    # bcrypt 4.1 -- newer bcrypt makes every signup/login 500.
+    "bcrypt<4.1",
     "stripe>=11",
     "twilio>=9",
     "python-multipart>=0.0.10",

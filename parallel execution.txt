@@ -76,11 +76,12 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
   [✓ 1.0.11] A1. P0 python: uv + fastapi/pydantic/pyjwt upgrades
       (landed BEFORE the wave-0 endpoint suite — that referee is
       still owed; see wave 0 status above)
-  [ ] A2. P1 ferretdb/documentdb switch + compose profiles
+  [✓ 1.0.39] A2. P1 ferretdb/documentdb switch + compose profiles + rename mongo.py -> documentdb.py
   [ ] A3. P3 setup wizard api side (setup mode, /setup, key generation,
       node policy config) + one-container packaging (multi-stage
       dockerfile -- needs B2's build output, coordinate the handoff)
-  [ ] A4. P6 aggregate endpoint (the 5th verb, sandbox validator)
+  [✓ 1.0.38] A4. P6 aggregate endpoint (the 5th verb, sandbox validator;
+      per-stage metering through charge(); wapi.aggregate in legacy sdk)
   [ ] A5. P4 metering events (per-request event records for analytics)
 
 LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
