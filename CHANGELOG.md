@@ -1,4 +1,4 @@
-1.0.26 || 16.07.2026
+1.0.28 || 16.07.2026
 web10-social: full TypeScript + Vite + Bun modernization (Lane D):
   - migrated from CRA 5 (react-scripts) to Vite 6 + bun + TypeScript
   - React 18 -> 19, removed dead deps (install, npm, react-router-dom,
@@ -11,9 +11,50 @@ web10-social: full TypeScript + Vite + Bun modernization (Lane D):
     index-based keys, stale closures, defaultValue on controlled inputs,
     broken typing-indicator ternary, dead mock-data in real interface
   - removed vendored Bulma (~100 files), uses ChatScope styles
-  - vitest suite: 65 tests covering settledHelpers, MockInterface,
-    PostInterface, and mock data shapes
+  - vitest suite: 137 tests across 12 files
 
+1.0.27 || 16.07.2026
+mobile/encryptor: complete rebuild — foundation, wallet/keyring, UI, and tests.
+Expo 44->52, React 17->18, React Native 0.64->0.76, bun package manager.
+crypto.js: pure ESM crypto core (no Expo deps) — HKDF-SHA256 derivation,
+ed25519/x25519 keypairs, xchacha20-poly1305 encrypt/decrypt, grant wrap/unwrap,
+device cert create/verify. wallet.js: SecureStore-backed persistence layer
+wrapping crypto.js. React Navigation v6 tab-based UI: SetupScreen, WalletScreen,
+KeysScreen, GrantsScreen, SettingsScreen. 55 bun tests across 8 files covering
+helpers, key derivation, keyring verbs, signing, encryption, grants, device
+certs, lifecycle — all green. Deleted obsolete encryptor.js and CodeInput.js.
+
+1.0.26 || 16.07.2026
+Phase 2 completion — auth2 parity, rename to ui, delete legacy auth/:
+  - auth2 -> ui/: full rename, docker-compose updated (auth2 context -> ui,
+    legacy auth/ service + volumes removed)
+  - Interface.tsx: complete API integration — wapi/wapiAuth wired from
+    authAdapter, setStatus for status messages, SMR listening via
+    initAuthenticator, servicesLoad to load services from API, changeTerms
+    to persist service updates via wapi.update, submitSIR for new service
+    creation, purgeSMR for request denial, sendToken for OAuth flow,
+    deleteService/wipeServiceData for destructive operations, sendCode/
+    verifyCode for phone verification, changePassword, changePhoneNumber,
+    getPlan for live subscription display, Stripe redirect methods
+    (manageSpace, manageCredits, manageSubscriptions), DevPay methods
+    (manageBusiness, businessLogin)
+  - OAuth flow: OAuthBanner component in App.tsx detects referrer, shows
+    pending SMRs, auto-sends token on login when no requests pending
+  - RequestPage: full rewrite — renders pending SIRs/SCRs from I.SMR,
+    Approve/Deny buttons wired to I.submitSIR/I.purgeSMR
+  - ContractViewer: delete terms and wipe data with confirmation dialogs
+    (previously [TBD] placeholders calling non-existent methods)
+  - Subscription: live plan data from I.getPlan() replacing hardcoded values
+  - VerifyPhone: sendCode/verifyCode wired to wapiAuth, code state tracking
+  - ChangePhone: wired to I.changePhoneNumber(password, phone)
+  - ChangePassword: wired to I.changePassword(current, new, retype)
+  - DevPay: wired to I.manageBusiness() and I.businessLogin()
+  - Form inputs (Phone, ConfirmationPass, NewPassword, ReTypeNewPass):
+    accept value/onChange props for controlled usage in Settings
+  - MockInterface: full parity with Interface shape (all new methods stubbed)
+  - Tests: 44/44 passing (updated login/signup mode assertions: appstore ->
+    contracts, the authenticator's post-login default)
+  - auth/: deleted (legacy CRA React 16 app, superseded by ui/)
 1.0.25 || 16.07.2026
 Phase 5 media service (greenfield, Lane C):
   - media/: new FastAPI service with presigned S3 upload URLs, short-lived
