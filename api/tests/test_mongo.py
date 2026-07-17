@@ -1,19 +1,12 @@
-"""Tests for the pure transformation & query-safety functions in mongo.py.
-
-These functions form the security boundary between user input and MongoDB.
-"""
+"""Tests for the pure transformation & query-safety functions in services/mongo.py."""
 
 from unittest.mock import patch
 
 import pytest
 
-import app.mongo as mongo
+from app.services import mongo
 import app.exceptions as exceptions
 
-
-# ---------------------------------------------------------------------------
-# to_gui / to_db  –  doc transformation
-# ---------------------------------------------------------------------------
 
 class TestToGui:
 
@@ -63,10 +56,6 @@ class TestToDbField:
         assert mongo.to_db_field("meta.tags") == "body.meta.tags"
 
 
-# ---------------------------------------------------------------------------
-# q_t  –  query transformation (security boundary)
-# ---------------------------------------------------------------------------
-
 class TestQTransform:
 
     def test_basic_query(self):
@@ -78,7 +67,6 @@ class TestQTransform:
         assert q == {"service": "posts", "body.title": "hi", "body.count": 5}
 
     def test_dollar_fields_stripped(self):
-        """Fields starting with $ must be stripped – they are MongoDB operators."""
         q = mongo.q_t({"$operator": "bad", "safe": "ok"}, "posts")
         assert "$operator" not in q
         assert "body.$operator" not in q
@@ -92,10 +80,6 @@ class TestQTransform:
         q = mongo.q_t({"a": 1}, "myService")
         assert q["service"] == "myService"
 
-
-# ---------------------------------------------------------------------------
-# u_t  –  update transformation (security boundary)
-# ---------------------------------------------------------------------------
 
 class TestUTransform:
 
@@ -112,19 +96,13 @@ class TestUTransform:
         assert u == {"$set": {"_id": "x"}}
 
     def test_fancy_update_rejected(self):
-        """u_t rejects when a $-prefixed field follows another $ field in the same op."""
         with pytest.raises(Exception):
             mongo.u_t({"$set": {"$first": 1, "$second": 2}})
 
     def test_single_dollar_field_allowed(self):
-        """A single $-prefixed field doesn't trigger the guard (first field check passes)."""
         result = mongo.u_t({"$set": {"$only": 1}})
         assert result == {"$set": {"body.$only": 1}}
 
-
-# ---------------------------------------------------------------------------
-# sort_t
-# ---------------------------------------------------------------------------
 
 class TestSortTransform:
 
@@ -135,10 +113,6 @@ class TestSortTransform:
         result = mongo.sort_t({"a": 1, "b": -1})
         assert len(result) == 2
 
-
-# ---------------------------------------------------------------------------
-# get_pull
-# ---------------------------------------------------------------------------
 
 class TestGetPull:
 
@@ -154,13 +128,8 @@ class TestGetPull:
     def test_non_index_ignored(self):
         u = {"$unset": {"plain": 1}}
         pull = mongo.get_pull(u)
-        # "plain" doesn't end with a digit, so nothing gets pulled
         assert pull == {"$pull": {}}
 
-
-# ---------------------------------------------------------------------------
-# star_found
-# ---------------------------------------------------------------------------
 
 class TestStarFound:
 
@@ -187,14 +156,9 @@ class TestStarFound:
         ]) is True
 
 
-# ---------------------------------------------------------------------------
-# get_approved  –  whitelist / blacklist ACL logic
-# ---------------------------------------------------------------------------
-
 class TestGetApproved:
 
     def test_owner_always_approved(self, mock_db_with_term):
-        """The account owner with the local provider is always approved."""
         assert mongo.get_approved("testuser", "api.localhost", "testuser", "myapi", "read") is True
 
     def test_no_record_returns_false(self, mock_db_term_none):
@@ -204,26 +168,20 @@ class TestGetApproved:
         assert mongo.get_approved("testuser", "api.localhost", "owner", "myapi", "read") is True
 
     def test_whitelist_regex_match(self, mock_db_with_term):
-        """wildcard .* in whitelist should match any username."""
         assert mongo.get_approved("randomuser", "any.provider", "owner", "myapi", "read") is True
 
     def test_blacklist_blocks(self, mock_db_with_term):
-        """banneduser is on the blacklist for read."""
         assert mongo.get_approved("banneduser", "api.localhost", "owner", "myapi", "read") is False
 
     def test_blacklist_regex(self, mock_db_with_term):
-        """Blacklist entry uses exact match; non-matching user passes."""
         assert mongo.get_approved("otheruser", "api.localhost", "owner", "myapi", "read") is True
 
     def test_permission_not_granted(self, mock_db_with_term):
-        """testuser has read+create but NOT delete."""
-        # The wildcard .* entry only grants read, so delete should fail
         assert mongo.get_approved("testuser", "api.localhost", "owner", "myapi", "delete") is False
 
     def test_all_permission(self):
-        """An 'all' key grants every action."""
         with patch(
-            "app.mongo.get_term_record",
+            "app.services.mongo.get_term_record",
             return_value={
                 "service": "svc",
                 "whitelist": [{"username": "u", "provider": "p", "all": True}],
@@ -233,9 +191,8 @@ class TestGetApproved:
             assert mongo.get_approved("u", "p", "owner", "svc", "anything") is True
 
     def test_blacklist_overrides_whitelist(self):
-        """Being on both lists means blacklist wins."""
         with patch(
-            "app.mongo.get_term_record",
+            "app.services.mongo.get_term_record",
             return_value={
                 "service": "svc",
                 "whitelist": [{"username": "u", "provider": "p", "read": True}],
@@ -245,17 +202,15 @@ class TestGetApproved:
             assert mongo.get_approved("u", "p", "owner", "svc", "read") is False
 
     def test_no_whitelist_field(self):
-        """Missing whitelist key means not on whitelist."""
         with patch(
-            "app.mongo.get_term_record",
+            "app.services.mongo.get_term_record",
             return_value={"service": "svc", "blacklist": []},
         ):
             assert mongo.get_approved("u", "p", "owner", "svc", "read") is False
 
     def test_no_blacklist_field(self):
-        """Missing blacklist key means not on blacklist."""
         with patch(
-            "app.mongo.get_term_record",
+            "app.services.mongo.get_term_record",
             return_value={
                 "service": "svc",
                 "whitelist": [{"username": "u", "provider": "p", "read": True}],
@@ -263,10 +218,6 @@ class TestGetApproved:
         ):
             assert mongo.get_approved("u", "p", "owner", "svc", "read") is True
 
-
-# ---------------------------------------------------------------------------
-# is_in_cross_origins
-# ---------------------------------------------------------------------------
 
 class TestIsInCrossOrigins:
 

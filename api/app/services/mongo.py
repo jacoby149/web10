@@ -5,9 +5,9 @@ import pymongo
 from bson.objectid import ObjectId
 
 import app.exceptions as exceptions
-import app.models as models
+from app.models.core import dotdict
 import app.settings as settings
-import app.web10records as records
+from app.services import records as records
 
 #################################
 ####### CONNECTING TO DB ########
@@ -438,3 +438,46 @@ def total_size():
 def register_app(info):
     db["web10"]["apps"].update_one({"url": info["url"]}, {
         "$inc": {"visits": 1}}, True)
+
+
+# --- Media helpers ---
+
+def create_media_record(username: str, record: dict) -> dict:
+    doc = {"service": "media", "body": record}
+    result = db[username].insert_one(doc)
+    record["_id"] = str(result.inserted_id)
+    return record
+
+
+def read_media_records(username: str, query: dict | None = None) -> list[dict]:
+    if query is None:
+        query = {}
+    mongo_query = {"service": "media"}
+    for field, value in query.items():
+        if field.startswith("$"):
+            continue
+        mongo_query[f"body.{field}"] = value
+    records = list(db[username].find(mongo_query).sort("_id", 1))
+    result = []
+    for r in records:
+        body = r.get("body", {})
+        body["_id"] = str(r["_id"])
+        result.append(body)
+    return result
+
+
+def delete_media_records(username: str, query: dict) -> int:
+    mongo_query = {"service": "media"}
+    for field, value in query.items():
+        if field.startswith("$"):
+            continue
+        if field == "_id":
+            mongo_query["_id"] = ObjectId(value)
+        else:
+            mongo_query[f"body.{field}"] = value
+    result = db[username].delete_many(mongo_query)
+    return result.deleted_count
+
+
+def user_collection_exists(username: str) -> bool:
+    return username in db.list_collection_names()
