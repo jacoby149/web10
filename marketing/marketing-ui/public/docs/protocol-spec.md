@@ -223,12 +223,13 @@ These checks are enforced in `mongo.py` and cannot be bypassed by terms records.
 
 Each CRUD operation increments `credits_spent` on the star record:
 
-| Action   | Cost (credits) |
-|----------|---------------|
-| create   | 0.000025      |
-| update   | 0.000025      |
-| read     | 0.000005      |
-| delete   | 0.000002      |
+| Action    | Cost (credits)              |
+|-----------|-----------------------------|
+| create    | 0.000025                    |
+| update    | 0.000025                    |
+| read      | 0.000005                    |
+| delete    | 0.000002                    |
+| aggregate | 0.000005 per pipeline stage |
 
 **Exemption:** read and delete on the `services` service are not charged and
 skip the credit/space check. Create and update on `services` are metered
@@ -239,7 +240,8 @@ Credits are replenished monthly (`last_replenish` month check). Free tier gets
 
 ## 7. Error Responses
 
-All errors return HTTP 401 with a `detail` message. Error codes:
+All errors return HTTP 401 with a `detail` message (except aggregate
+pipeline validation, which returns HTTP 400). Error codes:
 
 | Detail                                      | Meaning                              |
 |---------------------------------------------|--------------------------------------|
@@ -269,9 +271,10 @@ These invariants must hold for every node implementation:
 - **I5.** Every actor (app, agent, LLM) acts under a scoped, expiring,
   revocable token — least privilege, always.
 
-## 9. Aggregate (Planned — Phase 6)
+## 9. Aggregate — the 5th verb
 
-A read-only 5th verb enabling server-side data aggregation:
+A read-only verb enabling server-side data aggregation with (nearly) the
+full MongoDB query language:
 
 ```
 POST /{user}/{service}/aggregate
@@ -281,17 +284,35 @@ Body: { token, pipeline: [ { <stage> }, ... ] }
 (POST rather than GET for the same reason read uses PATCH: GET requests
 cannot carry a secure body.)
 
-**Sandbox:** Server prepends `$match {service}` → `$replaceRoot` to `body`.
-The pipeline runs on scoped, body-only documents. Protected fields are
-unreachable.
+**Permission:** terms treat aggregate as a `read` action.
 
-**Allowlist:** `$match`, `$project`, `$group`, `$sort`, `$skip`, `$limit`,
-`$unwind`, `$addFields`, `$count`, `$facet`, `$bucket`, `$sample`, plus
-comparison/logical/array operators.
+**Sandbox (by structure, not rewriting):** the server prepends
+`$match {service, body.service ≠ "*"}` → `$addFields body._id` (stringified)
+→ `$replaceRoot` to `body`. The dev's pipeline runs on scoped, body-only
+documents shaped exactly like read() results. The wrapper `service` field and
+the star record are unreachable — scoping cannot be escaped by any stage.
 
-**Denylist:** `$where`, `$function`, `$accumulator` (JS execution),
-`$lookup`, `$graphLookup`, `$unionWith` (cross-collection), `$out`, `$merge`
-(cross-collection write).
+**Stage allowlist:** `$match`, `$project`, `$group`, `$sort`, `$skip`,
+`$limit`, `$unwind`, `$addFields`, `$set`, `$count`, `$facet`, `$bucket`,
+`$bucketAuto`, `$sample`, `$sortByCount`, plus the full comparison/logical/
+array operator language inside them. Any other stage is rejected.
 
-**Resource caps:** `maxTimeMS`, pipeline length limit, `$limit` ceiling,
-`allowDiskUse: false`.
+**Operator denylist (rejected at any nesting depth, including `$facet`
+sub-pipelines and `$group` accumulators):** `$where`, `$function`,
+`$accumulator` (JS execution), `$lookup`, `$graphLookup`, `$unionWith`
+(cross-collection read), `$out`, `$merge` (cross-collection write).
+
+**Resource caps:** `maxTimeMS` (2000 ms), pipeline length (20 stages,
+`$facet` sub-pipelines counted independently), `$limit`/result ceiling
+(1000 docs), `allowDiskUse: false`.
+
+**Metering:** charged per pipeline stage — `0.000005` credits × stage count
+(minimum 1) — into the same `credits_spent` ledger as CRUD, gated by the same
+credit/space check.
+
+**Errors:** invalid pipelines return HTTP 400 —
+`aggregation pipeline uses a stage or operator that isn't allowed` or
+`aggregation pipeline exceeds a resource cap`. Validation happens before the
+database is touched.
+
+**SDK:** `wapi.aggregate(service, pipeline, username?, provider?, protocol?)`.

@@ -12,7 +12,7 @@ from app.models.media import (
     UploadResponse,
 )
 import app.settings as settings
-from app.services import mongo as db
+from app.services import documentdb as db
 from app.services.auth import is_permitted
 from app.services.media import ensure_bucket, get_s3_client, make_object_key
 

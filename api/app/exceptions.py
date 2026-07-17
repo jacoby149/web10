@@ -115,6 +115,16 @@ WRONG_CODE = HTTPException(
     headers={"WWW-Authenticate": "Basic"},
 )
 
+PIPELINE = HTTPException(
+    status_code=status.HTTP_400_BAD_REQUEST,
+    detail="aggregation pipeline uses a stage or operator that isn't allowed",
+)
+
+PIPELINE_CAP = HTTPException(
+    status_code=status.HTTP_400_BAD_REQUEST,
+    detail="aggregation pipeline exceeds a resource cap",
+)
+
 TIME = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
     detail="ran out of credits",

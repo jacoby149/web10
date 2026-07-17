@@ -1,15 +1,68 @@
+# web10 node — clone the repo and `docker compose up --build`, then open
+# http://auth.localhost to see the getting-started (signup) screen.
+#
+# Everything a node needs is in here: the vhost proxy, the database
+# (FerretDB speaking the Mongo wire protocol on top of DocumentDB/postgres),
+# S3-compatible blob storage for media, the API, the admin/consent UI, the
+# RTC signaling server, and the wapi.js CDN.
+#
+# Backend choice (plan phase 1): FerretDB/DocumentDB is the default, open
+# backend. Real MongoDB stays a supported config:
+#   DB_URL=mongodb://mongo:27017 docker compose --profile mongo up
+# Atlas or any external Mongo works the same way — just set DB_URL.
+#
+# On a host where something else owns port 80 (e.g. the staging Caddy),
+# set WEB10_HTTP_PORT to move or free the local proxy.
+
 services:
+  proxy: # routes the *.localhost vhosts so the browser experience just works
+    image: nginxproxy/nginx-proxy:1.6
+    ports:
+      - "${WEB10_HTTP_PORT:-80}:80"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+
+  postgres: # DocumentDB — postgres + the documentdb extension, the storage engine
+    image: ghcr.io/ferretdb/postgres-documentdb:17
+    environment:
+      - POSTGRES_USER=web10
+      - POSTGRES_PASSWORD=web10
+      - POSTGRES_DB=postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  ferretdb: # speaks the MongoDB wire protocol on top of DocumentDB
+    image: ghcr.io/ferretdb/ferretdb:2
+    depends_on:
+      - postgres
+    environment:
+      - FERRETDB_POSTGRESQL_URL=postgres://web10:web10@postgres:5432/postgres
+    ports:
+      - "27017:27017"
+
+  mongo: # optional real-MongoDB backend: --profile mongo + DB_URL=mongodb://mongo:27017
+    image: mongo:7
+    profiles: ["mongo"]
+    volumes:
+      - mongo-data:/data/db
+
   api: # The web10 API, that holds all the data.
     build: api
+    depends_on:
+      - ferretdb
+      - minio
     volumes:
       - ./api/:/web10
     ports:
       - "6000:80"
     environment:
-      - VIRTUAL_HOST=api.localhost
+      VIRTUAL_HOST: api.localhost
+      PROVIDER: ${PROVIDER:-api.localhost}
+      DB_URL: ${DB_URL:-mongodb://web10:web10@ferretdb:27017/}
+      DB: ${DB:-web10}
+      S3_ENDPOINT: http://minio.localhost:9000
     command: ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80", "--reload"]
-    networks:
-      - all-spark-proxy
+
   ui: # The web10 Authenticator, the UI for managing the web10 API
     build:
       context: ui
@@ -23,8 +76,11 @@ services:
       PORT: 80
       VIRTUAL_HOST: auth.localhost
       CHOKIDAR_USEPOLLING: "true"
+      REACT_APP_DEFAULT_API: ${PROVIDER:-api.localhost}
+      REACT_APP_VERIFY_REQUIRED: "false"
     ports:
-      - '3000:80'
+      - "3000:80"
+
   rtc: # web10 RTC, responsible for webRTC P2P connections on web10.
     build: api/rtc
     volumes:
@@ -36,39 +92,23 @@ services:
       VIRTUAL_HOST: rtc.localhost
       CHOKIDAR_USEPOLLING: "true"
     ports:
-      - '6363:80'
-  docs: # web10 docs, the web10 documentation on how to use it as a developer
+      - "6363:80"
+
+  sdk: # serves wapi.js as a CDN (dist/) plus the sdk demos
     build: sdk
     volumes:
       - ./sdk/:/docs/public
     ports:
       - "6969:80"
     environment:
-      VIRTUAL_HOST: docs.localhost
-  mail: # web10 mail, a demo app on web10 to check webRTC + cross communication is working.
-    build:
-      context: .
-      dockerfile: mail/Dockerfile
-    volumes:
-      - ./mail/:/mail/public
-      - ./sdk/:/mail/public/sdk
-    ports:
-      - "7171:80"
-    environment:
-      VIRTUAL_HOST: mail.localhost
-  crm: # web10 CRM, a demo app on web10 to check core functionality / data management is working.
-    build:
-      context: .
-      dockerfile: crm/Dockerfile
-    volumes:
-      - ./crm/:/crm/public
-      - ./sdk/:/crm/public/sdk
-    ports:
-      - "7746:80"
-    environment:
-      VIRTUAL_HOST: crm.localhost
+      VIRTUAL_HOST: sdk.localhost,docs.localhost
+
   minio: # S3-compatible object storage for media blobs (Phase 5)
     image: minio/minio:latest
+    networks:
+      default:
+        aliases:
+          - minio.localhost # so presigned URLs work from containers AND the browser
     volumes:
       - minio-data:/data
     ports:
@@ -79,13 +119,10 @@ services:
       - MINIO_ROOT_PASSWORD=minioadmin
       - MINIO_CONSOLE_ADDRESS=:9001
     command: server /data --console-address :9001
-    networks:
-      - all-spark-proxy
 
 volumes:
+  postgres-data:
+  mongo-data:
   rtc-node-modules:
   ui-node-modules:
   minio-data:
-networks:
-  all-spark-proxy:
-    external: true
