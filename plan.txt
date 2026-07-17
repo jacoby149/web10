@@ -1095,7 +1095,57 @@ for devs:
     self-hosted docs.
 
 
-LATER / OPEN QUESTIONS
+CROSS-CUTTING — deployment (proxmox homelab)
+----------------------------------------------
+proxmox host at 192.168.8.20:8006, accessible only over VPN.
+target: host the marketing sites and a web10 node here for
+staging, demos, and eventual public-facing use.
+
+what goes in:
+[ ] web10 node (api + ui + db + rtc + minio): one VM or LXC,
+    docker compose inside. this is the internal staging node
+    for testing before any public deploy. domain TBD (internal
+    DNS or /etc/hosts until a public domain is assigned).
+[ ] marketing-ui: separate container or LXC. serves the public
+    marketing site (landing, docs, app store, exporter UI).
+    own vhost, never inside the node compose.
+[ ] marketing-api: separate container. handles the ZIP import
+    pipeline and analytics for marketing-ui.
+
+networking:
+[ ] VPN gateway must be up for any management access. document
+    the VPN client config so every dev can reach the host.
+[ ] reverse proxy (caddy or nginx) on the proxmox host or a
+    dedicated LXC: terminates TLS, routes to backend containers.
+    auto-TLS via caddy for any public-facing domain later.
+[ ] internal DNS: *.web10.internal or similar for the staging
+    node, so services can reach each other by name.
+
+provisioning:
+[ ] terraform or proxmox-ssh-api script to stand up VMs/LXCs
+    from a template, not manual GUI clicks. idempotent,
+    repeatable. starts with a minimal Ubuntu/Debian container
+    with docker + docker compose pre-installed.
+[ ] ansible (or simple shell + ssh) to configure the provisioned
+    machines: docker compose pull, env vars, reverse proxy config.
+    keep it simple — this is a homelab, not AWS.
+[ ] secrets: vault or at minimum encrypted env files pushed via
+    ansible vault. no secrets in git, ever.
+
+backup:
+[ ] proxmox scheduled VM/LXC backups (daily incremental, weekly
+    full). off-box if possible (another machine on the LAN).
+[ ] docker volume backups: periodic tar of data volumes pushed
+    to off-box storage.
+
+phasing:
+- step 1: get the node running behind VPN, accessible by team.
+  prove docker compose works on the target hardware.
+- step 2: add marketing-ui + marketing-api, wire up the reverse
+  proxy. internal staging is complete.
+- step 3: public domain + auto-TLS (when ready for external traffic).
+- step 4: automated provisioning (terraform/ansible). don't rush
+  this — manual is fine until step 2 works.
 ----------------------
 - perf hardening on the api hot path: cache token certs, cache collstats,
   add per-collection index on "service"

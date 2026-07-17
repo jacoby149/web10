@@ -1,3 +1,6 @@
+1.0.37 || 17.07.2026
+infra: ubuntu-deployment script + Caddy reverse proxy for Proxmox staging node; LANE E added to parallel execution board.
+
 1.0.36 || 17.07.2026
 ci/cd repair — tests across the WHOLE repo now actually run:
   - js-ci: dropped the dead exporters job (dir deleted in the 1.0.31
