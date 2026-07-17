@@ -1,0 +1,38 @@
+after web10 is hooked up, sending photos and videos via private message could be interesting.
+
+add compression to media. [IF IT IS EASY...]
+make an upload limit for the inputs
+if posts > 16MB, shoot an error message from web10 failing.
+say, compress before posting.
+implement automatic client side compression eventually.
+
+in web10, auto attach the creator of web10 data via. request headers.
+
+web10 social needs a centralized place to store posts and their view counts.
+as the demand fluctuates for content, fans need to be assigned to service content at random by the server.
+that way, celebrities can remain on the platform, distribute their costs across their fans.
+
+every message must be!
+first, OR
+single
+contrary to what super snager wanted.
+BECAUSE THE TIMESTAMPS dont work as expected for normal and last.
+TELL SUPER SNAGER !!!!
+
+future idea! add birthday, phone number, + more!
+
+bio breakdown 
+social-identity 
+{
+    pic :
+    name :
+    bio : 
+}
+social-bulletin -> VIA Dom Purify
+{
+    order : 11
+    height : "24px"
+    html : "<>..."
+}
+
+NO REPLIES TO POSTS.
