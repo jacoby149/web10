@@ -1,0 +1,75 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "web10 Media",
+  "description": "Media metadata and object-store URLs. Blobs live in S3-compatible storage.",
+  "type": "object",
+  "required": [
+    "url",
+    "created_at"
+  ],
+  "properties": {
+    "url": {
+      "type": "string",
+      "format": "uri",
+      "description": "Signed or public URL to the blob"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "mime_type": {
+      "type": "string"
+    },
+    "size_bytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "width": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "height": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "duration_seconds": {
+      "type": "number",
+      "description": "For video/audio media"
+    },
+    "thumbnail_url": {
+      "type": "string",
+      "format": "uri"
+    },
+    "hls_manifest_url": {
+      "type": "string",
+      "format": "uri",
+      "description": "HLS manifest for transcoded video"
+    },
+    "caption": {
+      "type": "string"
+    },
+    "alt_text": {
+      "type": "string"
+    },
+    "origin": {
+      "type": "string",
+      "enum": [
+        "web10",
+        "instagram",
+        "facebook",
+        "youtube",
+        "twitter",
+        "tiktok",
+        "other"
+      ]
+    },
+    "origin_id": {
+      "type": "string"
+    },
+    "encrypted": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "additionalProperties": true
+}

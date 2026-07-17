@@ -1,0 +1,88 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "web10 Lens",
+  "description": "The feed algorithm and experience config as a record the user owns.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Lens name: 'chronological', 'close-friends', 'detox mode'..."
+    },
+    "ranking_rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "field": {
+            "type": "string"
+          },
+          "weight": {
+            "type": "number"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "description": "Weighted fields for feed ranking"
+    },
+    "muted_topics": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "muted_users": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "username",
+          "provider"
+        ],
+        "properties": {
+          "username": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "time_budget_minutes": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "ui_toggles": {
+      "type": "object",
+      "properties": {
+        "hide_like_counts": {
+          "type": "boolean"
+        },
+        "chronological_only": {
+          "type": "boolean"
+        },
+        "grayscale_after_minutes": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_by": {
+      "type": "string",
+      "enum": [
+        "user",
+        "chatbox"
+      ],
+      "description": "How the lens was last modified"
+    }
+  },
+  "additionalProperties": true
+}

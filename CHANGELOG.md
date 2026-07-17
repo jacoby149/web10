@@ -1,4 +1,4 @@
-1.0.14 || 16.07.2026
+1.0.21 || 16.07.2026
 unit test infrastructure:
   - api: added pytest suite (118 tests) covering mongo.py transformations
     (q_t, u_t, to_gui, to_db, star_found, get_approved, is_in_cross_origins),
@@ -17,6 +17,102 @@ unit test infrastructure:
   - scope note: this is the UNIT layer only (mocked DB, no HTTP).
     outstanding endpoint-level tests (FastAPI routes, star protection,
     metering, twilio/stripe) are itemized in plan.txt "testing:"
+
+1.0.20 || 16.07.2026
+D1 docs: apply review fixes to protocol-spec.md — cross-origin bypass is on
+username=="anon" (not site); _id is intentionally queryable (only service is
+protected); token-to-token minting checks the submission token's site; array
+pull requires a top-level PULL:true flag; reads/deletes on `services` are
+unmetered; verify-phone error string matches the code exactly (trailing
+period); planned aggregate endpoint is POST, not GET (GET can't carry a body).
+D1 docs: protocol-vs-profile layering — conventions.md now opens with a scope
+note (application profile, NOT protocol; nodes never enforce these schemas;
+only `services` and `*` are reserved); `service` removed from all schemas in
+docs/schemas/ and inline (the service name is the URL path, not a record
+field, so real wire records now validate); new additive-only Versioning rule;
+schemas validate exporter (P9) / killer-app (P8) output while the conformance
+suite tests protocol-spec.md only; follows convention now names the terms
+whitelist (not cross_origins) for cross-node inbox delivery; plan.txt D1 and
+phase-8 wording aligned ("real interop work").
+
+1.0.19 || 16.07.2026
+plan: new LATER item — schema contracts: opt-in, per-service schema enforcement
+via a "schema" field on the service's terms record. Node stays generic (runs
+whatever schema it's handed, like whatever ACL it's handed); no contract means
+no validation. Notes the open design questions (partial updates, grandfathered
+records, additive-only evolution) and flags it as a candidate to promote into
+phase 6 alongside the update-widening work.
+
+1.0.18 || 16.07.2026
+D1 docs: protocol spec (docs/protocol-spec.md) — full specification of the web10
+protocol derived from the codebase: data model (user collections, {service, body}
+envelope, field prefixing), authentication (token format, minting, certification,
+is_permitted authorization, federation migration plan), CRUD API (create/read/
+update/delete with pagination, star protection), metering, error responses,
+security invariants (I1-I5), and the planned aggregate endpoint (sandbox,
+allowlist, denylist, resource caps).
+D1 docs: social conventions doc (docs/conventions.md) + JSON schemas
+(docs/schemas/*.json) — standard service schemas for all social apps and
+exporters: posts, media, contacts, follows, comments, reactions, profile, inbox,
+and lens. Each schema is versioned, loosely-typed (additionalProperties: true),
+and includes origin/origin_id fields for imported content coexistence. The
+conformance suite and exporters will validate against these files.
+
+1.0.17 || 16.07.2026
+decisions: D13 — media fits the record abstraction: "service" stays the data
+namespace, no /{user}/{service}/{collection} restructure; media metadata is an
+ordinary {service:"media", body} record so terms/ACLs apply unchanged.
+decisions: D14 — media reads via per-request presigned URLs (30-60s expiry,
+issuance logged); check-at-issue-time gap consciously accepted, API-proxy and
+per-request auth-proxy alternatives rejected (proxy remains a later
+tightening option, not a redesign).
+plan: phase 5 read-url and metadata items tightened to carry the D13/D14
+specifics (per-read issuance, expiry window, logging, record shape).
+
+1.0.16 || 16.07.2026
+plan: CROSS-CUTTING docs gains the missing explanation quadrant — "for
+everyone" block ahead of the guides: "what is web10" concept pages (mental
+model: node, record, tokens+terms, lens, federation), per-audience why pages
+(user / creator-influencer / dev / operator, productizing pitch.txt's
+vs-crypto and vs-cloud arguments), and how-it-works diagrams as code
+(mermaid over plantuml — starlight/docusaurus render it natively). unlike
+guides these aren't milestone-gated: the architecture exists, so they're
+writable now and double as the marketing site's core copy.
+
+1.0.15 || 16.07.2026
+docs: fix D1 consumer list in parallel execution.txt — (C4, D3, D4) → (C4, D4, D5),
+matching the sequencing rule "D1 before C4/D4-schemas/D5" (D3 mobile encryptor
+has no D1 dependency)
+plan: new CROSS-CUTTING docs section — three doc surfaces, three homes:
+generated OpenAPI reference ships with the api (invest in annotations, optional
+Scalar UI), protocol spec + conventions live in-repo as versioned markdown +
+JSON Schema (conformance suite tests against them), docs/ becomes an MkDocs
+Material site (embeds OpenAPI, mkdocstrings, sdk typedoc; no hosted SaaS docs)
+plan: phase 7 — home/ + docs/ -> marketing-ui/: inc's website + dev docs as ONE
+site (docs are part of a saas marketing site), rebuilt on the ui toolchain
+(vite + react + bun), own vhost, never in the node compose; stays in the
+monorepo by choice (one dev, lean). repo reads api / ui / marketing-ui.
+docs site framework lean updated accordingly: js-native (starlight or
+docusaurus) instead of mkdocs, since it lives inside marketing-ui.
+decisions.md: new D12 recording the api / ui / marketing-ui repo trio.
+plan: docs section simplified — split by audience not tool; adds the missing
+user/creator guides (they ARE the saas marketing content, written per
+milestone as features ship); dev docs = D1 spec + generated references
+
+1.0.14 || 16.07.2026
+phase 0 completion — RTC modernization + docker image rebuild + cleanup:
+  - rtc service: node:15 → bun, index.js → index.ts with types, npm → bun,
+    added tsconfig.json, updated package.json (web10-rtc, ESM, typescript)
+  - auth2/Dockerfile: new multi-stage Dockerfile (bun dev target + static deploy)
+  - auth/Dockerfile: node:14 → bun (legacy UI, deprecated in phase 2)
+  - api/Dockerfile: already modern (uv, python3.12) — no change needed
+  - docker-compose.yml: pipenv → uv, npm → bun, nodemon → bun run dev,
+    added "ui" service (auth2), legacy auth shifted to port 3001,
+    removed version: "3" (deprecated), renamed rtc volume
+
+  - removed docker-compose-lite.yml, docker-compose-nginx.yml, custom.conf
+    (one compose file is enough, people can figure out deployment)
+  - removed web10-deploy/ (stale GCP configs, skaffold k8s manifests)
 
 1.0.13 || 14.07.2026
 phase 0 typescript migration:

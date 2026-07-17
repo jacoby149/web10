@@ -56,28 +56,28 @@ react 16 + react-scripts 2, auth2 on CRA 5 (CRA is dead), no typescript
 anywhere. do this FIRST so every later phase builds on modern ground.
 
 python (api):
-[ ] switch to uv for package management (pyproject.toml, uv.lock,
+[✓] switch to uv for package management (pyproject.toml, uv.lock,
     kill requirements.txt + Pipfile duplication)
-[ ] python 3.12+, fastapi latest, pydantic v2
+[✓] python 3.12+, fastapi latest, pydantic v2
     breaking-change hotspots to watch:
       - pydantic v2: models.py (dotdict, .dict() -> .model_dump(), config)
       - PyJWT 1.7 -> 2.x: encode returns str not bytes, decode requires
         algorithms=, options handling changed (main.py decode_token)
       - passlib/bcrypt version pinning (known friction, test login flow)
-[ ] ruff for lint+format while we're in there
-[ ] prune dead deps (python-ldap? python-gnupg? systematic? "secrets" from
+[✓] ruff for lint+format while we're in there
+[✓] prune dead deps (python-ldap? python-gnupg? systematic? "secrets" from
     pypi is NOT the stdlib secrets module -- remove it)
 
 js (ui + sdk):
-[ ] bun as package manager + runtime for all js packages
-[ ] CRA -> vite (auth2/ui first; old auth dies in phase 2 anyway)
+[✓] bun as package manager + runtime for all js packages
+[✓] CRA -> vite (auth2/ui first; old auth dies in phase 2 anyway)
 [✓] typescript everywhere, incrementally: allowJs on, new files .ts/.tsx,
     port components as they get touched
-[ ] react 18 -> current, drop dead deps as found
-[ ] rtc service too: it's old node/peerjs and phase 11 makes it
+[✓] react 18 -> current, drop dead deps as found
+[✓] rtc service too: it's old node/peerjs and phase 11 makes it
     load-bearing (key channel). modernize + typescript it with the rest
 
-[ ] docker images rebuilt on the new toolchains (uv sync / bun install --
+[✓] docker images rebuilt on the new toolchains (uv sync / bun install --
     both are dramatically faster builds, better layer caching)
 
 
@@ -98,7 +98,8 @@ a DB_URL change, not a rewrite.
         or track sizes ourselves per-write
 [ ] keep atlas/real-mongo as a supported config (protocol is the standard,
     backend is the node operator's choice)
-[ ] mongo_migrate in web10-deploy: add a mongo -> ferretdb migration path
+[ ] add a mongo -> ferretdb migration path (script lives in api/ or a
+    dedicated tools/ dir, not in the deleted web10-deploy)
 
 
 PHASE 2 — ui (finish auth2, rename, migrate)
@@ -225,8 +226,12 @@ swappable per node.
     - issues presigned upload urls, gated by web10 token permissions
       (same is_permitted logic as CRUD -- terms records stay the single
       source of permission truth)
-    - issues short-lived signed read urls for private media
+    - issues short-lived signed read urls for private media: fresh
+      url per read, 30-60s expiry, issuance logged. check-at-issue-
+      time is an accepted gap -- see D14 in decisions.md.
     - writes a metadata record into the owner's collection on upload
+      (ordinary {service:"media", body} record -- terms/ACLs apply
+      with zero new concepts, see D13)
 [ ] minio in compose under the "media" profile for self-hosters
 [ ] config for hosted s3-compatibles (R2/B2) for bigger nodes
 [ ] size accounting: media bytes count against the user's space plan
@@ -309,8 +314,19 @@ ships its web client. same logic.
 [ ] crm/ + mail/ -> examples/ directory: kept in-repo as reference
     apps for devs, but OUT of the node's default compose. they're
     documentation that runs.
-[ ] home/ and docs/ are web10 inc's website, not part of a node --
-    out of the node compose; separate repo only if they get heavy.
+[ ] home/ + docs/ -> marketing-ui/: web10 inc's website, ONE site.
+    docs are a key part of a saas marketing site, so they live
+    together: landing pages + dev docs, one dir, one build. not part
+    of a node -- own vhost, never in the node compose. it STAYS in
+    this monorepo by choice: one dev, one repo, atomic commits
+    across product + site is lean. multi-repo is a later option,
+    not a goal.
+[ ] marketing-ui rebuild: replace home/'s static html (delete the
+    cruft: index - Copy.html) with the same toolchain as ui
+    (vite + react + bun, one stack to maintain).
+[ ] the naming makes the repo read clean: api (the node),
+    ui (the node's admin/consent surface, from auth2 -- phase 2),
+    marketing-ui (inc's website + docs).
 [ ] node compose after the tidy: api(+ui), db, social, [rtc],
     [media]. examples run via an "examples" profile for devs.
 [ ] third-party apps (the ecosystem) live in their own repos and
@@ -327,7 +343,8 @@ is the thing a normal person opens and gets it. lives IN THIS REPO
 built on the phase 6 sdk, media via phase 5, deployed as the default
 lens on every node.
 
-the schemas come first (this is the real protocol work):
+the schemas come first (this is the real interop work -- an application
+profile on top of the protocol, not part of it):
 [ ] web10 social conventions doc: standard service schemas that ALL
     social apps + exporters share. loose, documented, versioned:
       - posts     (text, media refs, ts, origin, visibility)
@@ -549,7 +566,7 @@ testing:
     origin, anon, remote provider), star protection, metering/billing
     paths. this is the highest-value test surface in the repo -- the
     permission logic IS the product.
-    DONE (1.0.14): unit layer -- mongo.py transformations (q_t/u_t/
+    DONE (1.0.21): unit layer -- mongo.py transformations (q_t/u_t/
       to_gui/to_db, star_found), ACL logic (get_approved,
       is_in_cross_origins), auth functions (kosher, can_mint, certify,
       decode_token, is_permitted), pydantic models, record factories.
@@ -654,6 +671,64 @@ quality:
 [ ] error responses: consistent shapes, no stack traces to clients
 
 
+CROSS-CUTTING — docs
+--------------------
+sounds like a lot; it's one writing task (the D1 spec), one coding
+habit (annotate as you go), and one website that waits. split by
+AUDIENCE, not by tool. generated wherever possible -- generated
+docs can't rot.
+
+for everyone -- explanation (lives in marketing-ui, phase 7):
+the missing quadrant: guides say HOW, reference says WHAT, nothing
+says WHY. the architecture (records, tokens, terms, federation)
+already exists, so unlike guides these are writable NOW -- they
+don't wait on milestones. they are the marketing site's core copy.
+[ ] "what is web10" concept pages: the mental model -- node, record
+    ({service, body}), one collection per user, tokens + terms,
+    lens, provider federation. source from GLOSSARY.md/CLAUDE.md/
+    pitch.txt, rewritten public-facing.
+[ ] per-audience "why" pages: as a user (own your data, portable
+    across apps, private/temporary unlike blockchain), as a
+    creator/influencer (run your node, own the audience
+    relationship, monetize -- the wordpress analogy), as a dev
+    (stateless frontends, no backend to run), as a node operator.
+    productize pitch.txt's vs-crypto / vs-cloud arguments here.
+[ ] how-it-works diagrams as code, versioned in-repo (generated
+    docs can't rot applies to diagrams too): token mint/certify
+    flow, request lifecycle, data model, federation between
+    providers, the e2e encryption story. mermaid over plantuml --
+    starlight/docusaurus render it natively at build time, no java
+    toolchain.
+
+for users + creators (lives in marketing-ui, phase 7):
+[ ] guides ARE the marketing content for a saas: get an account,
+    reconfig your feed, import your instagram, run a node, monetize
+    as a creator. write each guide when its milestone (M0-M3)
+    ships, not before -- docs for unshipped features are fiction.
+    (the fiction rule gates GUIDES only -- explanation pages above
+    describe what already exists and don't wait.)
+
+for devs:
+[✓] protocol spec + conventions doc (D1): versioned markdown + JSON
+    Schema, in-repo, framework-less. two layers: the conformance
+    suite tests the protocol spec; the schemas are an application
+    profile (not protocol) that validates the exporters (P9) and the
+    killer app (P8) in their own test suites. the source of truth.
+    lives in docs/protocol-spec.md + docs/conventions.md + docs/schemas/*.json
+[ ] api reference: already generated -- fastapi emits openapi at
+    /docs on every node, grows with the api for free. the habit
+    that keeps it good: route tags (auth/crud/terms/billing),
+    summaries, response_model on every route, examples on the
+    pydantic models. (optional cosmetic: swagger ui -> scalar.)
+[ ] sdk reference: typedoc from the types (phase 6 item)
+[ ] dev docs pages in marketing-ui render the in-repo spec verbatim
+    + embed the generated references. js-native framework (starlight
+    or docusaurus) since marketing-ui is js. build this when there's
+    a killer app to document, not before.
+[ ] no hosted saas docs (mintlify/readme): self-hostable project,
+    self-hosted docs.
+
+
 LATER / OPEN QUESTIONS
 ----------------------
 - perf hardening on the api hot path: cache token certs, cache collstats,
@@ -663,3 +738,19 @@ LATER / OPEN QUESTIONS
 - clickhouse sidecar: graduate phase 4's metering events into clickhouse
   when volume justifies it. one OLAP store, two products: node ops
   console + sponsor analytics.
+- schema contracts: opt-in, per-service schema enforcement. a user (or
+  their service manager app) attaches a JSON Schema to a service's
+  terms record (a "schema" field next to whitelist/cross_origins); the
+  node validates create/update bodies against it and rejects
+  violations. the node stays generic -- it runs whatever schema it's
+  handed, exactly like it runs whatever ACL it's handed -- but a
+  collection gains protection from buggy/hostile apps and agents that
+  hold a create-scoped token. NOT protocol-mandatory: no contract, no
+  validation, wild west by default. design questions to settle before
+  building: partial updates ($set/$inc/$unset can't be fully validated
+  without read-modify-validate), pre-existing records are grandfathered
+  (validate writes going forward only), schema evolution (additive-only,
+  same rule as the conventions doc). the social schemas in docs/schemas/
+  become drop-in contracts for free. candidate to promote into phase 6
+  alongside the update-widening work (same write path, same philosophy:
+  flexibility with a violation check).

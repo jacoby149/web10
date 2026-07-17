@@ -9,6 +9,48 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D14 — Media reads use per-request presigned URLs with tight expiry [decided]
+S3-class stores can't express the terms model per object (bucket policies are
+bucket-level, object ACLs are coarse and deprecated). Rather than proxy every
+media read through the API to get live terms enforcement, the media service
+checks `is_permitted` **at issue time** and returns a presigned URL that is
+issued fresh on every read, expires in 30–60 seconds, and is logged on
+issuance. This consciously accepts a gap: a presigned URL is
+check-once-then-open until expiry — terms revocation inside that window is
+not enforced. The window is the safety net, and it's tiny. Rejects: streaming
+all blobs through the API (node becomes a media proxy — bandwidth and scaling
+cost); a per-request auth proxy in front of S3 (rebuilds the media CRUD
+surface we're avoiding). If a real threat model demands live revocation
+later, the proxy option remains open as a tightening, not a redesign.
+
+### D13 — Media fits the record abstraction; "service" stays the namespace [decided]
+`/{user}/{service}` keeps meaning "a data namespace in the user's collection"
+— it is not a running service, and media does not change that. The media
+service (a literal running service) gets no new URL hierarchy: uploads and
+reads are gated by the same `is_permitted` machinery against
+`service="media"`, and each blob's metadata is an ordinary
+`{service:"media", body}` record in the owner's collection, so terms/ACLs,
+portability, and the user-owns-the-policies story apply to media with zero
+new concepts. Rejects: restructuring URLs to `/{user}/{service}/{collection}`
+(breaks every existing route and app for a naming itch); renaming "service"
+(same churn, no capability gained). If the namespace word still grates later,
+that's a docs/glossary fix, not an API fix.
+
+### D12 — Repo trio: api / ui / marketing-ui; docs live in marketing-ui [decided]
+`home/` + `docs/` merge into **`marketing-ui/`** — web10 Inc's website as one
+site (landing + dev docs, one build), because docs are a key part of a SaaS
+marketing site. With phase 2's auth2→`ui` rename, the repo reads clean:
+`api` (the node), `ui` (the node's admin/consent surface), `marketing-ui`
+(Inc's site). Everything stays in this monorepo by choice — one dev, atomic
+commits — multi-repo is a later option, not a goal. Doc surfaces split three
+ways: generated OpenAPI ships with the api (every node self-documents),
+protocol spec + conventions stay in-repo as versioned markdown/JSON Schema
+(the conformance suite tests those files), the rendered docs site is
+presentation inside marketing-ui (js-native framework: Starlight or
+Docusaurus). Rejects: docs inside the node's `ui` (ships Inc's content with
+every node); hosted SaaS docs (off-message for a self-hosting product);
+separate marketing/docs repos now.
+
 ### D11 — Killer app is first-party, in this repo (not a separate repo) [decided]
 The social app is the **default lens**: it ships with every node, renders the
 operator's ad slots, and embodies the conventions doc. Building it is how the
