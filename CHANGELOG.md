@@ -1,3 +1,43 @@
+1.0.20 || 16.07.2026
+D1 docs: apply review fixes to protocol-spec.md — cross-origin bypass is on
+username=="anon" (not site); _id is intentionally queryable (only service is
+protected); token-to-token minting checks the submission token's site; array
+pull requires a top-level PULL:true flag; reads/deletes on `services` are
+unmetered; verify-phone error string matches the code exactly (trailing
+period); planned aggregate endpoint is POST, not GET (GET can't carry a body).
+D1 docs: protocol-vs-profile layering — conventions.md now opens with a scope
+note (application profile, NOT protocol; nodes never enforce these schemas;
+only `services` and `*` are reserved); `service` removed from all schemas in
+docs/schemas/ and inline (the service name is the URL path, not a record
+field, so real wire records now validate); new additive-only Versioning rule;
+schemas validate exporter (P9) / killer-app (P8) output while the conformance
+suite tests protocol-spec.md only; follows convention now names the terms
+whitelist (not cross_origins) for cross-node inbox delivery; plan.txt D1 and
+phase-8 wording aligned ("real interop work").
+
+1.0.19 || 16.07.2026
+plan: new LATER item — schema contracts: opt-in, per-service schema enforcement
+via a "schema" field on the service's terms record. Node stays generic (runs
+whatever schema it's handed, like whatever ACL it's handed); no contract means
+no validation. Notes the open design questions (partial updates, grandfathered
+records, additive-only evolution) and flags it as a candidate to promote into
+phase 6 alongside the update-widening work.
+
+1.0.18 || 16.07.2026
+D1 docs: protocol spec (docs/protocol-spec.md) — full specification of the web10
+protocol derived from the codebase: data model (user collections, {service, body}
+envelope, field prefixing), authentication (token format, minting, certification,
+is_permitted authorization, federation migration plan), CRUD API (create/read/
+update/delete with pagination, star protection), metering, error responses,
+security invariants (I1-I5), and the planned aggregate endpoint (sandbox,
+allowlist, denylist, resource caps).
+D1 docs: social conventions doc (docs/conventions.md) + JSON schemas
+(docs/schemas/*.json) — standard service schemas for all social apps and
+exporters: posts, media, contacts, follows, comments, reactions, profile, inbox,
+and lens. Each schema is versioned, loosely-typed (additionalProperties: true),
+and includes origin/origin_id fields for imported content coexistence. The
+conformance suite and exporters will validate against these files.
+
 1.0.17 || 16.07.2026
 decisions: D13 — media fits the record abstraction: "service" stays the data
 namespace, no /{user}/{service}/{collection} restructure; media metadata is an
