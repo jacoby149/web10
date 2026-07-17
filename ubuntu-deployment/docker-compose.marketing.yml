@@ -1,0 +1,12 @@
+services:
+  marketing-ui:
+    build: marketing/marketing-ui
+    ports:
+      - "5173:80"
+    restart: unless-stopped
+
+  marketing-api:
+    build: marketing/marketing-api
+    ports:
+      - "8000:80"
+    restart: unless-stopped

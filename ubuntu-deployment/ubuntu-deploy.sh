@@ -73,7 +73,7 @@ info "Setting up web10 node..."
 NODE_DIR="/opt/web10-node"
 mkdir -p "$NODE_DIR"
 
-# Copy compose + api + ui + rtc
+# Copy compose + source dirs needed for node
 cp "$DEPLOY_DIR/docker-compose.yml" "$NODE_DIR/docker-compose.yml"
 cp -r "$DEPLOY_DIR/api" "$NODE_DIR/"
 cp -r "$DEPLOY_DIR/ui" "$NODE_DIR/"
@@ -86,16 +86,22 @@ DB_PORT=27017
 EOF
 
 # ── 6. Set up marketing ───────────────────────────────────────────────
-info "Setting up marketing site..."
+info "Setting up marketing services..."
 MKTG_DIR="/opt/web10-marketing"
 mkdir -p "$MKTG_DIR"
 
+# Copy the marketing compose and source dirs
+cp "$DEPLOY_DIR/ubuntu-deployment/docker-compose.marketing.yml" "$MKTG_DIR/docker-compose.yml"
 if [ -d "$DEPLOY_DIR/marketing/marketing-ui" ]; then
   cp -r "$DEPLOY_DIR/marketing/marketing-ui" "$MKTG_DIR/marketing-ui"
 fi
 if [ -d "$DEPLOY_DIR/marketing/marketing-api" ]; then
-  cp -r "$DEPLOY_DIR/marketing/marketing-api" "$MKTG_DIR/marketing-api"
+  cp -r "$DEPLOY_DIR/marketing/marketing-api" "$MKTG_DIR/marketing"
 fi
+
+# Fix up compose paths to point at local dirs
+sed -i 's|context: marketing/marketing-ui|context: ./marketing-ui|' "$MKTG_DIR/docker-compose.yml"
+sed -i 's|context: marketing/marketing-api|context: ./marketing|' "$MKTG_DIR/docker-compose.yml"
 
 # ── 7. Configure Caddy ────────────────────────────────────────────────
 info "Configuring Caddy reverse proxy..."
@@ -104,22 +110,25 @@ cat > /etc/caddy/Caddyfile <<EOF
 	email $ADMIN_EMAIL
 }
 
-# Web10 node services
+# Web10 node — API (serves UI static files too once multi-stage Dockerfile lands)
 $NODE_DOMAIN {
-	reverse_proxy /api* localhost:6000
-	reverse_proxy /auth* localhost:3000
-	reverse_proxy /rtc* localhost:6363
-	reverse_proxy /media* localhost:9000
+	reverse_proxy localhost:6000
 	encode gzip
 }
 
-# Marketing site
+# Web10 node — RTC signaling
+rtc.$NODE_DOMAIN {
+	reverse_proxy localhost:6363
+	encode gzip
+}
+
+# Marketing site (Vite preview / nginx static)
 $MARKETING_DOMAIN {
 	reverse_proxy localhost:5173
 	encode gzip
 }
 
-# Marketing API
+# Marketing API (import pipeline + analytics)
 api.$MARKETING_DOMAIN {
 	reverse_proxy localhost:8000
 	encode gzip
@@ -128,14 +137,28 @@ EOF
 
 systemctl reload caddy
 
-# ── 8. Done ───────────────────────────────────────────────────────────
+# ── 8. Build & start services ─────────────────────────────────────────
+info "Building web10 node images..."
+cd "$NODE_DIR"
+docker compose up -d --build
+
+info "Building marketing images..."
+cd "$MKTG_DIR"
+docker compose up -d --build
+
+# ── 9. Done ───────────────────────────────────────────────────────────
 info "=== Deployment complete ==="
 info ""
-info "Next steps:"
-info "  1. cd $NODE_DIR && docker compose up -d"
-info "  2. Configure DNS: point $NODE_DOMAIN and $MARKETING_DOMAIN to this VM's IP"
-info "  3. Caddy will auto-provision TLS certs once DNS resolves"
-info "  4. Access the node setup wizard at https://$NODE_DOMAIN"
+info "Services running:"
+info "  Node API:    https://$NODE_DOMAIN"
+info "  Node RTC:    https://rtc.$NODE_DOMAIN"
+info "  Marketing:   https://$MARKETING_DOMAIN"
+info "  Marketing API: https://api.$MARKETING_DOMAIN"
 info ""
-info "Logs: journalctl -u caddy -f"
-info "Docker: cd $NODE_DIR && docker compose logs -f"
+info "DNS: point $NODE_DOMAIN, rtc.$NODE_DOMAIN, $MARKETING_DOMAIN, and"
+info "api.$MARKETING_DOMAIN to this VM's IP. Caddy will auto-provision TLS."
+info ""
+info "Logs:"
+info "  Node:     cd $NODE_DIR && docker compose logs -f"
+info "  Marketing: cd $MKTG_DIR && docker compose logs -f"
+info "  Caddy:    journalctl -u caddy -f"
