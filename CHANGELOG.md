@@ -1,3 +1,20 @@
+1.0.27 || 16.07.2026
+Lane D5 — multi-platform social import engine (Instagram, Facebook, YouTube):
+  - exporters/src/: full implementation — zip parsing (@zip.js/zip.js),
+    platform detection, schema mapping, AJV validation, wapi batch writer,
+    import engine orchestration (parse -> map -> validate -> write)
+  - Instagram mapping: posts (text, media, comments, tags, mentions,
+    location), profile, follows/contacts from Meta takeout JSON
+  - Facebook mapping: posts (text, privacy, location, attachments),
+    photos (dimensions, description, privacy), friends list, comments
+  - YouTube mapping: videos (title, description, duration, stats,
+    thumbnails, privacy), comments (threaded replies), channel profile
+  - React UI: platform selector cards, per-platform guided takeout
+    checklists (6 steps each), drag-and-drop ZIP upload, live progress
+    bar, per-service write summary table, error details
+  - 57 tests (15 Instagram, 18 Facebook, 14 YouTube, 10 validation)
+  - Vite + Bun + React 19 + TypeScript, multi-stage Dockerfile
+
 1.0.26 || 16.07.2026
 Phase 2 completion — auth2 parity, rename to ui, delete legacy auth/:
   - auth2 -> ui/: full rename, docker-compose updated (auth2 context -> ui,
