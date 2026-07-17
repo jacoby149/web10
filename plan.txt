@@ -150,8 +150,8 @@ the swap:
 [ ] rip rectangles-npm out of ui/ (main.tsx startRectangles + css;
     AppStore, Contracts, CredentialPage, Settings, shared/*) --
     component by component, no feature regression
-[ ] rip rectangles-npm out of web10-social/ (index.js; Bio, Feed,
-    Chat, Contacts, Login, shared/*)
+[ ] rip rectangles-npm out of marketing/web10-social/ (index.js; Bio, Feed,
+      Chat, Contacts, Login, shared/*)
 [ ] drop the dependency from both package.jsons. rectangles is
     retired everywhere, permanently -- no new ui may import it.
 
@@ -420,8 +420,8 @@ all get discovered by building against them). schema + api + sdk +
 app need atomic commits. wordpress ships its default theme; mastodon
 ships its web client. same logic.
 
-[✓] killer app gets a first-party top-level dir (social/), built and
-     versioned with the node. phase 8 + 9 live HERE.
+[✓] killer app gets a first-party top-level dir (marketing/social/), built and
+      versioned with the node. phase 8 + 9 live HERE.
 [✓] crm/ + mail/ -> examples/ directory: kept in-repo as reference
      apps for devs, but OUT of the node's default compose. they're
      documentation that runs.
@@ -437,7 +437,7 @@ ships its web client. same logic.
     (vite + react + bun, one stack to maintain).
 [ ] the naming makes the repo read clean: api (the node),
     ui (the node's admin/consent surface, from auth2 -- phase 2),
-    marketing-ui (inc's website + docs).
+    marketing-ui (inc's website + docs), web10-cli, web10-social.
 [✓] node compose after the tidy: api(+ui), db, social, [rtc],
     [media]. examples run via an "examples" profile for devs.
 [ ] third-party apps (the ecosystem) live in their own repos and
