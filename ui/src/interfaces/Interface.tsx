@@ -1,7 +1,6 @@
 import React from 'react';
 import web10AuthAdapterInit from './authAdapter'
 import axios from 'axios'
-import stealthImg from "../assets/images/stealth.jpg"
 import { config } from '../config';
 
 function useInterface() {
@@ -12,20 +11,11 @@ function useInterface() {
     [I.theme, I.setTheme] = React.useState("dark");
     [I.logo,I.setLogo] = React.useState(config.REACT_APP_LOGO_DARK);
     [I.menuCollapsed, I.setMenuCollapsed] = React.useState(true);
-    [I.mode, I._setMode] = React.useState("appstore");
+    [I.mode, I._setMode] = React.useState("contracts");
     [I.search, I.setSearch] = React.useState("");
 
     [I.services, I.setServices] = React.useState([]);
     [I.requests, I.setRequests] = React.useState([]);
-    [I.appStoreStats, I.setAppStoreStats] = React.useState(
-        {
-            users: 0,
-            apps: 0,
-            hits: 0,
-            data: 0
-        }
-    );
-    [I.apps, I.setApps] = React.useState([]);
     [I.phone, I.setPhone] = React.useState("");
 
     [I.auth, I.setAuth] = React.useState(false);
@@ -36,38 +26,6 @@ function useInterface() {
     const adapter = web10AuthAdapterInit();
     I.wapi = adapter.wapi;
     I.wapiAuth = adapter.wapiAuth;
-
-    I.initAppStore = function () {
-        const local = window.location.protocol === "http:";
-        const statURL = local ?
-            "http://api.localhost/stats" :
-            "https://api.web10.app/stats"
-        return axios.post(statURL, { data: { skip: 0, limit: 0 } })
-            .then((response) => {
-                console.log(response.data)
-                const apps = response.data.apps
-                const stats = {
-                    users: response.data.users.toLocaleString("en-US"),
-                    hits: apps.map((app) => app.visits).reduce((a, b) => a + b, 0).toLocaleString("en-US"),
-                    apps: response.data.apps.length.toLocaleString("en-US"),
-                    data: Number((response.data.storage / (1024 * 1024)).toFixed(2)).toLocaleString("en-US")
-                }
-                I.setAppStoreStats(stats);
-                return apps;
-            })
-            .then((apps) => {
-                const appStoreListings = apps.map((app) => {
-                    return {
-                        title: app.url.split("https://")[1].slice(0, 10),
-                        hits: app.visits,
-                        img: stealthImg,
-                        href: app.url
-                    }
-                })
-                I.setApps(appStoreListings);
-            })
-            .catch((error) => console.log(error));
-    }
 
     I.initAuthenticator = function () {
         I.wapiAuth.SMRListen((inSMR) => {
@@ -359,10 +317,6 @@ function useInterface() {
 
     const [, authTick] = React.useState(0);
     const [, smrTick] = React.useState(0);
-
-    React.useEffect(() => {
-        I.initAppStore();
-    }, [])
 
     React.useEffect(() => {
         if (I.auth) {
