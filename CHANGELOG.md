@@ -1,3 +1,28 @@
+1.0.40 || 17.07.2026
+wave 0 seatbelt — endpoint-level permission-matrix suite (45 new tests,
+280 total api tests green). runs through the FastAPI app (TestClient)
+so route-level bugs the unit layer misses are caught:
+  - auth flows: signup (success, reserved, bad username, duplicate),
+    web10token login (password, wrong password, no creds)
+  - CRUD routes end-to-end: create/read/update/delete with permission
+    checks (authorized, denied, no token, cross-origin, blacklisted)
+  - aggregate endpoint: valid pipeline, forbidden stage ($out),
+    no permission
+  - star protection (I3): cannot update/delete/create star record,
+    cross-collection access impossible
+  - forged token rejection (I1): tokens signed with wrong key rejected
+    on all CRUD + aggregate routes (JWT error handler added to main.py)
+  - scoped token enforcement (I5): read-only tokens cannot create,
+    no-target tokens: owner allowed, non-owner denied
+  - metering/billing: charge called on create/read, services read
+    unmetered, out-of-credits denied, out-of-space denied
+  - certify endpoint: valid, forged, expired, anon token
+  - system endpoints: stats, get_plan
+  - also: bare exception handler in main.py maps legacy Exception("TOKEN")
+    etc. to proper HTTP 401s; JWT PyJWTError handler catches forged/
+    expired tokens before they hit the bare handler; fixed models.dotdict
+    -> dotdict bug in documentdb.py
+
 1.0.39 || 17.07.2026
 adapter rename: api/app/services/mongo.py -> documentdb.py. the module is
 backend-agnostic (pymongo speaks to either real Mongo or FerretDB/DocumentDB),

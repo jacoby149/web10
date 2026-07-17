@@ -34,11 +34,13 @@ tests in 1.0.31) and the github actions ci skeleton landed (1.0.32:
 api/js/docker/changelog/cd workflows, visibility-first). 1.0.36
 repaired the pipeline so EVERY existing suite is actually wired and
 reporting red on failure (api 205, ui 43, sdk 48, social 172,
-encryptor 55, marketing-api smoke). still OPEN: the endpoint-level
-permission-matrix suite (FastAPI routes, star protection, forged
-tokens over HTTP), the small security fixes below, and pytest ports
-of the old 57-test exporter mapper suite (marketing-api). that
-endpoint suite is still the top priority.
+encryptor 55, marketing-api smoke). 1.0.40 landed the endpoint-level
+permission-matrix suite (45 new tests through FastAPI routes: auth
+flows, CRUD, aggregate, star protection, forged-token rejection,
+scoped-token enforcement, metering/billing, certify, system — 280
+total api tests green). still OPEN: the small security fixes below
+(CORS, bare except, provider url validation), and pytest ports of the
+old 57-test exporter mapper suite (marketing-api).
 
 before running 4-wide, land the thing that protects all 4 lanes:
 

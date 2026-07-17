@@ -162,7 +162,7 @@ def get_user(username: str):
     doc = get_star(username)
     if doc is None:
         raise exceptions.NO_USER
-    return models.dotdict(doc)
+    return dotdict(doc)
 
 
 def create_user(form_data, hash):
