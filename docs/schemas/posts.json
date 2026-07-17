@@ -1,0 +1,101 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "web10 Post",
+  "description": "User-authored content: text, media, links. The primary content type for social apps.",
+  "type": "object",
+  "required": [
+    "created_at"
+  ],
+  "properties": {
+    "text": {
+      "type": "string",
+      "maxLength": 10000
+    },
+    "media_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "References to media service record _id values"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "origin": {
+      "type": "string",
+      "enum": [
+        "web10",
+        "instagram",
+        "facebook",
+        "youtube",
+        "twitter",
+        "tiktok",
+        "other"
+      ],
+      "description": "Source platform of the original content"
+    },
+    "origin_id": {
+      "type": "string",
+      "description": "Original platform's content ID"
+    },
+    "visibility": {
+      "type": "string",
+      "enum": [
+        "public",
+        "friends",
+        "private"
+      ],
+      "default": "public"
+    },
+    "location": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "lat": {
+          "type": "number"
+        },
+        "lon": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "mentions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "username",
+          "provider"
+        ],
+        "properties": {
+          "username": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "encrypted": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "additionalProperties": true
+}

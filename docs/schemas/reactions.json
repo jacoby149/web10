@@ -1,0 +1,41 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "web10 Reaction",
+  "description": "Likes, emojis, and other reactions on posts and comments.",
+  "type": "object",
+  "required": [
+    "target_service",
+    "target_id",
+    "type",
+    "created_at"
+  ],
+  "properties": {
+    "target_service": {
+      "type": "string",
+      "enum": [
+        "posts",
+        "comments"
+      ],
+      "description": "Which service the target record lives in"
+    },
+    "target_id": {
+      "type": "string",
+      "description": "The _id of the target record"
+    },
+    "type": {
+      "type": "string",
+      "description": "Reaction type: like, love, haha, wow, sad, angry, or custom emoji"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "author_username": {
+      "type": "string"
+    },
+    "author_provider": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}
