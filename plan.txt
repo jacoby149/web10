@@ -178,16 +178,16 @@ first-run experience: docker compose up -> open browser -> setup form ->
 you have a sovereign node. like pocketbase / home assistant onboarding.
 
 api side:
-[ ] first-run detection: if no config exists in the data volume, api boots
+[✓] first-run detection: if no config exists in the data volume, api boots
     in "setup mode" and only answers setup endpoints
-[ ] POST /setup: provider domain, admin username+password, optional stripe/
+[✓] POST /setup: provider domain, admin username+password, optional stripe/
     twilio keys (all optional except domain + admin account)
-[ ] api generates its own JWT signing key on setup (stop hand-managing
+[✓] api generates its own JWT signing key on setup (stop hand-managing
     PRIVATE_KEY in settings files)
-[ ] config written to the data volume, settings.py becomes fallback/dev only
+[✓] config written to the data volume, settings.py becomes fallback/dev only
 
 ui side (lives in the ui, phase 2 dependency):
-[ ] /setup wizard screens: welcome -> node identity -> admin account ->
+[✓] /setup wizard screens: welcome -> node identity -> admin account ->
     (optional) payments/sms -> done, you're on your node
 [ ] setup only reachable in setup mode, 404s forever after
 
@@ -225,8 +225,8 @@ makes money" becomes visible product instead of thesis. this page is the
 thing you demo to an influencer's manager -- make it GOOD.
 
 access:
-[ ] admin role: node operator account(s) flagged at setup
-[ ] admin panel section in ui, only visible to admins
+[✓] admin role: node operator account(s) flagged at setup
+[✓] admin panel section in ui, only visible to admins
 
 audience analytics (the numbers a sponsor asks for):
 [ ] DAU / WAU / MAU, signups over time, retention curves

@@ -79,7 +79,7 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       (landed BEFORE the wave-0 endpoint suite — that referee is
       still owed; see wave 0 status above)
   [✓ 1.0.39] A2. P1 ferretdb/documentdb switch + compose profiles + rename mongo.py -> documentdb.py
-  [ ] A3. P3 setup wizard api side (setup mode, /setup, key generation,
+  [✓ 1.0.40] A3. P3 setup wizard api side (setup mode, /setup, key generation,
       node policy config) + one-container packaging (multi-stage
       dockerfile -- needs B2's build output, coordinate the handoff)
   [✓ 1.0.38] A4. P6 aggregate endpoint (the 5th verb, sandbox validator;
@@ -94,8 +94,8 @@ LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
       stack (tailwind + shadcn/ui candidate, record in decisions.md),
       shared design tokens, story-first narrative pass. do BEFORE
       B3/B4 so wizard + admin panel are born on the new stack.
-  [ ] B3. P3 setup wizard screens
-  [ ] B4. P4 admin panel: policy config, ad records crud, analytics
+  [✓ 1.0.40] B3. P3 setup wizard screens
+  [✓ 1.0.40] B4. P4 admin panel: policy config, ad records crud, analytics
       views (analytics needs A5 merged; build ui against fixtures
       until then)
 
@@ -157,8 +157,8 @@ LANE E — infrastructure / deployment (owns: proxmox provisioning,
   [ ] E1. proxmox staging node: create fresh Ubuntu VM on 192.168.8.20,
       deploy web10 node (api + ui + db + rtc + minio) via
       ubuntu-deployment/ubuntu-deploy.sh. team-accessible internal staging.
-  [ ] E2. marketing deploy: marketing-ui + marketing-api on proxmox,
-      caddy reverse proxy with auto-TLS. internal staging complete.
+[✓ 1.0.38] E2. marketing deploy: marketing-ui + marketing-api on proxmox,
+       caddy reverse proxy with auto-TLS. internal staging complete.
   [ ] E3. public domain + auto-TLS for external traffic (when ready)
   [ ] E4. automated provisioning: terraform or ssh-api script +
       ansible for idempotent VM/LXC setup. don't rush — manual is
@@ -199,8 +199,8 @@ CURRENT CONDUCTOR BOARD (as of 17.07.2026 — keep this section fresh)
   ws2: C2 sdk rewrite (unblocks C3 mcp + C3.5 create-web10)
   ws3: B2.5 ui makeover in ui/ (records the stack pick in
        decisions.md; D2.5 in web10-social matches it afterwards)
-  ws4: next unticked pick — D4 killer app M0 slice, or A2 ferretdb
-       (A1/B1/B2/C1/D1/D2/D3/D5–D9 are DONE — do not pick them again)
+ws4: next unticked pick — D4 killer app M0 slice, or A2 ferretdb
+        (A1/B1/B2/C1/D1/D2/D3/D5–D9/E2 are DONE — do not pick them again)
 
   from here on: pull the top unticked item of whichever lane's queue
   is unblocked. lanes A and B are long marches; C and D are a stream

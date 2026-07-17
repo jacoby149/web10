@@ -23,6 +23,23 @@ so route-level bugs the unit layer misses are caught:
     expired tokens before they hit the bare handler; fixed models.dotdict
     -> dotdict bug in documentdb.py
 
+1.0.40 || 17.07.2026
+Setup wizard + admin config screen (Phase 3/4 partial, lanes A3/B3/B4):
+  - API: /ready (health check, reports configured status), /setup (GET status,
+    POST first-run wizard), /config (GET current config, PATCH partial update).
+    All endpoints hidden from OpenAPI schema (include_in_schema=False).
+    New services/config.py: node_is_configured(), admin_exists(), save_config(),
+    generate_jwt_keypair(), create_admin(). New models/config.py: SetupRequest,
+    SetupStatus, ConfigUpdate, NodeConfig pydantic schemas.
+  - UI: SetupWizard component — 6-step onboarding flow (Welcome -> Node Identity
+    -> Admin Account -> Access Policy -> Storage -> Complete). Detects unconfigured
+    nodes via /ready and redirects to setup automatically.
+  - UI: ConfigPage component — admin node configuration panel. Editable fields for
+    all node settings: identity, access policy (beta/verify/pay toggles), free tier
+    defaults, S3/media storage, Twilio SMS, Stripe payments. "Node Config" link
+    added to SideBar for authenticated users.
+  - App.tsx: setup detection on mount, "setup" and "config" modes added to router.
+
 1.0.39 || 17.07.2026
 adapter rename: api/app/services/mongo.py -> documentdb.py. the module is
 backend-agnostic (pymongo speaks to either real Mongo or FerretDB/DocumentDB),
@@ -32,6 +49,16 @@ test_documentdb.py, test_mongo_crud.py -> test_documentdb_crud.py,
 test_mongo_aggregate.py -> test_documentdb_aggregate.py. 235 tests green.
 
 1.0.38 || 17.07.2026
+<<<<<<< HEAD
+=======
+E2: marketing deploy — marketing-api/Dockerfile (multi-stage python 3.12 + uv +
+uvicorn), docker-compose.marketing.yml (standalone compose for marketing-ui +
+marketing-api), ubuntu-deploy.sh full rewrite (marketing compose copy with path
+fixup, Caddy proxy with separate RTC subdomain, auto build+start for node and
+marketing, proper DNS/TLS instructions). both images tested green locally.
+
+1.0.38 || 17.07.2026
+>>>>>>> origin/dev
 the 5th verb — aggregate (plan phase 6, lane A4). appmakers get (nearly)
 the full mongo query language without losing usage metering:
   - api: POST /{user}/{service}/aggregate. read-only by construction —
@@ -59,6 +86,10 @@ the full mongo query language without losing usage metering:
     charging, and the http endpoint (200/400/401) all exercised.
   - protocol-spec.md section 9 updated from "planned" to shipped, with
     metering table + error rows.
+<<<<<<< HEAD
+=======
+>>>>>>> origin/dev
+>>>>>>> origin/dev
 
 1.0.37 || 17.07.2026
 infra: ubuntu-deployment script + Caddy reverse proxy for Proxmox staging node; LANE E added to parallel execution board.
