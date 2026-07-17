@@ -1,3 +1,14 @@
+1.0.27 || 16.07.2026
+mobile/encryptor: complete rebuild — foundation, wallet/keyring, UI, and tests.
+Expo 44->52, React 17->18, React Native 0.64->0.76, bun package manager.
+crypto.js: pure ESM crypto core (no Expo deps) — HKDF-SHA256 derivation,
+ed25519/x25519 keypairs, xchacha20-poly1305 encrypt/decrypt, grant wrap/unwrap,
+device cert create/verify. wallet.js: SecureStore-backed persistence layer
+wrapping crypto.js. React Navigation v6 tab-based UI: SetupScreen, WalletScreen,
+KeysScreen, GrantsScreen, SettingsScreen. 55 bun tests across 8 files covering
+helpers, key derivation, keyring verbs, signing, encryption, grants, device
+certs, lifecycle — all green. Deleted obsolete encryptor.js and CodeInput.js.
+
 1.0.26 || 16.07.2026
 Phase 2 completion — auth2 parity, rename to ui, delete legacy auth/:
   - auth2 -> ui/: full rename, docker-compose updated (auth2 context -> ui,
