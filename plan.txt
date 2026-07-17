@@ -111,15 +111,15 @@ auth2 is the future. it already has:
   - Settings
 
 steps:
-[ ] port auth2 to vite + bun + ts first (phase 0), THEN finish features
-[ ] parity audit: auth/src/components vs auth2/src/components, port
+[✓] port auth2 to vite + bun + ts first (phase 0), THEN finish features
+[✓] parity audit: auth/src/components vs auth2/src/components, port
     anything missing
-[ ] rename: auth2 -> ui. auth stays until cutover, then gets deleted.
-[ ] update docker-compose: service "auth" -> "ui" (keep auth.localhost /
+[✓] rename: auth2 -> ui. auth stays until cutover, then gets deleted.
+[✓] update docker-compose: service "auth" -> "ui" (keep auth.localhost /
     auth.web10.app as aliases so existing links + CORS_SERVICE_MANAGERS
     don't break during migration)
 [ ] update api settings: CORS_SERVICE_MANAGERS to include the ui origin
-[ ] delete auth/ after cutover. one UI, one truth.
+[✓] delete auth/ after cutover. one UI, one truth.
 
 
 PHASE 3 — setup wizard (the missing piece)

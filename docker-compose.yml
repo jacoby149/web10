@@ -12,11 +12,11 @@ services:
       - all-spark-proxy
   ui: # The web10 Authenticator, the UI for managing the web10 API
     build:
-      context: auth2
+      context: ui
       dockerfile: Dockerfile
       target: dev
     volumes:
-      - ./auth2:/ui
+      - ./ui:/ui
       - ui-node-modules:/ui/node_modules
     command: ["bun", "run", "dev"]
     environment:
@@ -25,23 +25,6 @@ services:
       CHOKIDAR_USEPOLLING: "true"
     ports:
       - '3000:80'
-  auth: # The web10 Authenticator (legacy), deprecated — will be removed in phase 2
-    build:
-      context: .
-      dockerfile: auth/Dockerfile
-      target: dev
-    volumes:
-      - ./auth:/auth
-      - ./sdk:/auth/public/sdk
-      - node-modules:/auth/node_modules
-      - wapi-node-modules:/auth/public/sdk/node_modules
-    command: ["bun", "run", "start"]
-    environment:
-      PORT: 80
-      VIRTUAL_HOST: auth.localhost
-      CHOKIDAR_USEPOLLING: "true"
-    ports:
-      - '3001:80'
   rtc: # web10 RTC, responsible for webRTC P2P connections on web10.
     build: rtc
     volumes:
@@ -127,8 +110,6 @@ services:
       - media-network
 
 volumes:
-  node-modules:
-  wapi-node-modules:
   rtc-node-modules:
   ui-node-modules:
   minio-data:
