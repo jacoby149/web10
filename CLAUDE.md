@@ -19,12 +19,12 @@ web10 Inc. takes a small % of revenue through its payment rails.
     `stripe.py`/`twilio.py` payment+sms interfaces; `settings.py` config.
 - `auth2/` — React admin/consent UI (becoming `ui/`). `auth/` is the old one.
 - `sdk/` — `wapi.js`, the frontend library apps are built with.
-- `rtc/` — WebRTC signaling (becomes load-bearing for e2e encryption).
+- `api/rtc/` — WebRTC signaling (merged into api, becomes load-bearing for e2e encryption).
 - `mobile/encryptor/` — Expo app, the seed of the phone-as-keychain.
 - `crm/`, `mail/` — demo apps (moving to `examples/`).
-- `home/`, `docs/` — marketing + dev docs (web10 Inc.'s site, not the node).
 - `marketing-ui/` — web10 Inc.'s site: landing page + docs + App Store + Exporter UI.
     Vite + React 19 + TS + Bun + react-router. Own vhost, never in node compose.
+    Dev docs (protocol-spec, conventions, schemas) live in `marketing-ui/public/docs/`.
 - `marketing-api/` — FastAPI backend for marketing-ui: ZIP import pipeline
     (server-side parse, validate, dedup, batch write), analytics (pageview, funnel).
 

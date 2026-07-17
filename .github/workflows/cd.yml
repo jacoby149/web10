@@ -32,7 +32,7 @@ jobs:
             context: ui
             target: build
           - name: rtc
-            context: rtc
+            context: api/rtc
           - name: media
             context: media
           - name: exporters

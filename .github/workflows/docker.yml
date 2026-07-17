@@ -9,7 +9,7 @@ on:
       - ui/**
       - sdk/**
       - exporters/**
-      - rtc/**
+      - api/rtc/**
       - media/**
       - home/**
       - crm/**
@@ -22,7 +22,7 @@ on:
       - ui/**
       - sdk/**
       - exporters/**
-      - rtc/**
+      - api/rtc/**
       - media/**
       - home/**
       - crm/**
@@ -53,7 +53,7 @@ jobs:
             context: exporters
             target: build
           - name: rtc
-            context: rtc
+            context: api/rtc
           - name: media
             context: media
           - name: home

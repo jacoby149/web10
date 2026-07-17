@@ -26,9 +26,9 @@ services:
     ports:
       - '3000:80'
   rtc: # web10 RTC, responsible for webRTC P2P connections on web10.
-    build: rtc
+    build: api/rtc
     volumes:
-      - ./rtc:/rtc
+      - ./api/rtc:/rtc
       - rtc-node-modules:/rtc/node_modules
     command: ["bun", "run", "dev"]
     environment:

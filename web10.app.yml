@@ -40,7 +40,7 @@ services:
     networks:
       - all-spark-proxy
   prod-rtc: # web10 RTC, responsible for webRTC P2P connections on web10.
-    build: rtc
+    build: api/rtc
     environment:
       PORT: 80
       VIRTUAL_HOST: rtc.web10.app

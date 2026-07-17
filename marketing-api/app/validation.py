@@ -1,8 +1,8 @@
 import json
 from pathlib import Path
 
-# Load schemas from docs/schemas/ (same source of truth as the conventions doc)
-_SCHEMAS_DIR = Path(__file__).parent.parent.parent / "docs" / "schemas"
+# Load schemas from marketing-ui/public/docs/schemas/ (same source of truth as the conventions doc)
+_SCHEMAS_DIR = Path(__file__).parent.parent.parent / "marketing-ui" / "public" / "docs" / "schemas"
 
 # Simple JSON Schema validation (lightweight, no ajv dependency)
 # For the marketing-api, we do basic structural validation:
