@@ -1,3 +1,10 @@
+1.0.38 || 17.07.2026
+E2: marketing deploy — marketing-api/Dockerfile (multi-stage python 3.12 + uv +
+uvicorn), docker-compose.marketing.yml (standalone compose for marketing-ui +
+marketing-api), ubuntu-deploy.sh full rewrite (marketing compose copy with path
+fixup, Caddy proxy with separate RTC subdomain, auto build+start for node and
+marketing, proper DNS/TLS instructions). both images tested green locally.
+
 1.0.37 || 17.07.2026
 infra: ubuntu-deployment script + Caddy reverse proxy for Proxmox staging node; LANE E added to parallel execution board.
 
