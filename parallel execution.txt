@@ -155,8 +155,8 @@ LANE E — infrastructure / deployment (owns: proxmox provisioning,
   [ ] E1. proxmox staging node: create fresh Ubuntu VM on 192.168.8.20,
       deploy web10 node (api + ui + db + rtc + minio) via
       ubuntu-deployment/ubuntu-deploy.sh. team-accessible internal staging.
-  [ ] E2. marketing deploy: marketing-ui + marketing-api on proxmox,
-      caddy reverse proxy with auto-TLS. internal staging complete.
+[✓ 1.0.38] E2. marketing deploy: marketing-ui + marketing-api on proxmox,
+       caddy reverse proxy with auto-TLS. internal staging complete.
   [ ] E3. public domain + auto-TLS for external traffic (when ready)
   [ ] E4. automated provisioning: terraform or ssh-api script +
       ansible for idempotent VM/LXC setup. don't rush — manual is
@@ -197,8 +197,8 @@ CURRENT CONDUCTOR BOARD (as of 17.07.2026 — keep this section fresh)
   ws2: C2 sdk rewrite (unblocks C3 mcp + C3.5 create-web10)
   ws3: B2.5 ui makeover in ui/ (records the stack pick in
        decisions.md; D2.5 in web10-social matches it afterwards)
-  ws4: next unticked pick — D4 killer app M0 slice, or A2 ferretdb
-       (A1/B1/B2/C1/D1/D2/D3/D5–D9 are DONE — do not pick them again)
+ws4: next unticked pick — D4 killer app M0 slice, or A2 ferretdb
+        (A1/B1/B2/C1/D1/D2/D3/D5–D9/E2 are DONE — do not pick them again)
 
   from here on: pull the top unticked item of whichever lane's queue
   is unblocked. lanes A and B are long marches; C and D are a stream
