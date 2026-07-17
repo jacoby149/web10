@@ -88,7 +88,7 @@ LANE C — greenfield services  (owns: media/, sdk/, mcp/, new dirs)
       archive -- format comes from D1's conventions doc)
 
 LANE D — docs / apps / mobile (owns: mobile/**, social/, examples/,
-                               *.md/txt)
+                                *.md/txt)
   [✓ 1.0.18, 1.0.20] D1. conventions doc (posts/media/contacts/inbox
       schemas) + protocol spec draft. docs/protocol-spec.md,
       docs/conventions.md, docs/schemas/*.json — C4/D4/D5 now unblocked.
@@ -103,6 +103,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, social/, examples/,
       on the current wapi if needed; swaps to C2 sdk when it lands.
   [ ] D5. P9 exporter core + instagram mapping (needs D1 conventions;
       client-side, so no api deps)
+  [✓ 1.0.26] D6. web10-social: full TS + Vite + Bun revamp + 65 vitest tests
 
 
 WHAT MUST STAY SEQUENTIAL (don't try to parallelize these)
