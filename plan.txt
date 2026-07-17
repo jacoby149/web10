@@ -310,8 +310,19 @@ ships its web client. same logic.
 [ ] crm/ + mail/ -> examples/ directory: kept in-repo as reference
     apps for devs, but OUT of the node's default compose. they're
     documentation that runs.
-[ ] home/ and docs/ are web10 inc's website, not part of a node --
-    out of the node compose; separate repo only if they get heavy.
+[ ] home/ + docs/ -> marketing-ui/: web10 inc's website, ONE site.
+    docs are a key part of a saas marketing site, so they live
+    together: landing pages + dev docs, one dir, one build. not part
+    of a node -- own vhost, never in the node compose. it STAYS in
+    this monorepo by choice: one dev, one repo, atomic commits
+    across product + site is lean. multi-repo is a later option,
+    not a goal.
+[ ] marketing-ui rebuild: replace home/'s static html (delete the
+    cruft: index - Copy.html) with the same toolchain as ui
+    (vite + react + bun, one stack to maintain).
+[ ] the naming makes the repo read clean: api (the node),
+    ui (the node's admin/consent surface, from auth2 -- phase 2),
+    marketing-ui (inc's website + docs).
 [ ] node compose after the tidy: api(+ui), db, social, [rtc],
     [media]. examples run via an "examples" profile for devs.
 [ ] third-party apps (the ecosystem) live in their own repos and
@@ -641,6 +652,38 @@ quality:
 [ ] health/readiness endpoints + basic metrics on every service
     (fleet ops in the white-label future depends on these)
 [ ] error responses: consistent shapes, no stack traces to clients
+
+
+CROSS-CUTTING — docs
+--------------------
+sounds like a lot; it's one writing task (the D1 spec), one coding
+habit (annotate as you go), and one website that waits. split by
+AUDIENCE, not by tool. generated wherever possible -- generated
+docs can't rot.
+
+for users + creators (lives in marketing-ui, phase 7):
+[ ] guides ARE the marketing content for a saas: get an account,
+    reconfig your feed, import your instagram, run a node, monetize
+    as a creator. write each guide when its milestone (M0-M3)
+    ships, not before -- docs for unshipped features are fiction.
+
+for devs:
+[ ] protocol spec + conventions doc (D1): versioned markdown + JSON
+    Schema, in-repo, framework-less. the conformance suite tests
+    these FILES, and the schemas double as validators for the
+    exporters (P9) and the killer app (P8). the source of truth.
+[ ] api reference: already generated -- fastapi emits openapi at
+    /docs on every node, grows with the api for free. the habit
+    that keeps it good: route tags (auth/crud/terms/billing),
+    summaries, response_model on every route, examples on the
+    pydantic models. (optional cosmetic: swagger ui -> scalar.)
+[ ] sdk reference: typedoc from the types (phase 6 item)
+[ ] dev docs pages in marketing-ui render the in-repo spec verbatim
+    + embed the generated references. js-native framework (starlight
+    or docusaurus) since marketing-ui is js. build this when there's
+    a killer app to document, not before.
+[ ] no hosted saas docs (mintlify/readme): self-hostable project,
+    self-hosted docs.
 
 
 LATER / OPEN QUESTIONS

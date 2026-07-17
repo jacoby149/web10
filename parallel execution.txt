@@ -77,7 +77,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, social/, examples/,
                                *.md/txt)
   D1. conventions doc (posts/media/contacts/inbox schemas) +
       protocol spec draft (from api/web10.0.md). PURE WRITING,
-      zero conflicts, and THREE lanes consume it (C4, D3, D4).
+      zero conflicts, and THREE lanes consume it (C4, D4, D5).
       do it first for exactly that reason.
   D2. P7 tidy: crm/mail -> examples/, killer app dir (social/)
       scaffolded as first-party (file moves, cheap)
