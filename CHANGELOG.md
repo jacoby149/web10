@@ -1,3 +1,8 @@
+1.0.30 || 17.07.2026
+Removed chrome-extension/: browser extension was too high a friction
+bar for mainstream adoption. it was fully isolated — zero external
+references, no CI/CD, no backend integration, no docs mentions.
+
 1.0.29 || 16.07.2026
 plan: added phase 2.5 — the ui makeover. retire the homemade
 rectangles-npm framework from every ui (ui/, web10-social/), replace
