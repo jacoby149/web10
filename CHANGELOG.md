@@ -1,3 +1,20 @@
+1.0.25 || 16.07.2026
+Phase 5 media service (greenfield, Lane C):
+  - media/: new FastAPI service with presigned S3 upload URLs, short-lived
+    presigned read URLs (60s expiry, per-read issuance, logged per D14),
+    metadata record creation in user's collection (ordinary {service:"media",
+    body} per D13), and media record listing/deletion
+  - Auth mirrors api's is_permitted/certify logic against the "media" service;
+    terms/ACLs are the single source of permission truth with zero new concepts
+  - S3 config supports any S3-compatible backend (MinIO self-hosted, R2, B2,
+    Wasabi) via env vars; MinIO added to docker-compose on a dedicated
+    media-network
+  - pyproject.toml (uv, python 3.12, boto3), Dockerfile, models.py (upload,
+    read, metadata schemas), settings.py, mongo.py (terms lookup, CRUD),
+    auth.py (token verify, is_permitted), main.py (5 endpoints)
+  - docker-compose: media service (port 6001, media.localhost) + minio
+    (port 9000, console 9001) with minio-data volume
+
 1.0.24 || 16.07.2026
 agent task-status hygiene (agents were re-attempting merged work):
   - parallel execution.txt: lane queues now carry live status markers —
