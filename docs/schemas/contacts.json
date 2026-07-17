@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "web10 Contact",
+  "description": "Friend graph: people you know. Labels let the user organize relationships.",
+  "type": "object",
+  "required": [
+    "username",
+    "provider"
+  ],
+  "properties": {
+    "username": {
+      "type": "string"
+    },
+    "provider": {
+      "type": "string",
+      "description": "The provider where this person's node lives"
+    },
+    "display_name": {
+      "type": "string"
+    },
+    "labels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "User-defined labels: close-friends, family, colleagues..."
+    },
+    "added_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "note": {
+      "type": "string",
+      "description": "Private note about this contact"
+    }
+  },
+  "additionalProperties": true
+}

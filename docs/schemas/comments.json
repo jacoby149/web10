@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "web10 Comment",
+  "description": "Threaded replies to posts.",
+  "type": "object",
+  "required": [
+    "post_id",
+    "text",
+    "created_at"
+  ],
+  "properties": {
+    "post_id": {
+      "type": "string",
+      "description": "The _id of the post being commented on"
+    },
+    "text": {
+      "type": "string",
+      "maxLength": 10000
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "parent_id": {
+      "type": "string",
+      "description": "The _id of the parent comment (for threading)"
+    },
+    "author_username": {
+      "type": "string"
+    },
+    "author_provider": {
+      "type": "string"
+    },
+    "origin": {
+      "type": "string",
+      "enum": [
+        "web10",
+        "instagram",
+        "facebook",
+        "youtube",
+        "twitter",
+        "tiktok",
+        "other"
+      ]
+    },
+    "origin_id": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}

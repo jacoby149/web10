@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "web10 Inbox",
+  "description": "The feed. Fan-out on write: friends' nodes deliver new posts into your inbox at post time.",
+  "type": "object",
+  "required": [
+    "author_username",
+    "author_provider",
+    "post_id",
+    "delivered_at"
+  ],
+  "properties": {
+    "author_username": {
+      "type": "string"
+    },
+    "author_provider": {
+      "type": "string"
+    },
+    "post_id": {
+      "type": "string",
+      "description": "The _id of the original post on the author's node"
+    },
+    "delivered_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "post_body": {
+      "type": "object",
+      "description": "A copy of the post's body for local reading"
+    },
+    "read": {
+      "type": "boolean",
+      "default": false
+    },
+    "score": {
+      "type": "number",
+      "description": "Lens-assigned ranking score"
+    },
+    "origin": {
+      "type": "string",
+      "enum": [
+        "web10",
+        "instagram",
+        "facebook",
+        "youtube",
+        "twitter",
+        "tiktok",
+        "other"
+      ]
+    }
+  },
+  "additionalProperties": true
+}

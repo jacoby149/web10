@@ -14,3 +14,4 @@ web10-deploy/mongo_migrate/.env
 
 # build output
 auth2/dist/
+api/*.egg-info/

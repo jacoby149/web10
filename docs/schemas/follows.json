@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "web10 Follow",
+  "description": "Who you follow. Cross-node by design \u2014 the federation primitive.",
+  "type": "object",
+  "required": [
+    "username",
+    "provider",
+    "status"
+  ],
+  "properties": {
+    "username": {
+      "type": "string"
+    },
+    "provider": {
+      "type": "string",
+      "description": "The provider where the followed person's node lives"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "active",
+        "rejected",
+        "blocked"
+      ],
+      "description": "Follow request state"
+    },
+    "followed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "notify": {
+      "type": "boolean",
+      "default": true,
+      "description": "Receive push notifications for their posts"
+    }
+  },
+  "additionalProperties": true
+}

@@ -1,4 +1,4 @@
-1.0.19 || 16.07.2026
+1.0.23 || 16.07.2026
 plan: phase 11 gains "the keyring api" — the record-model discipline applied
 to keys: user-named keys (audience = any string, like a service name), cheap
 one-call minting (hkdf from the master seed), principals are pubkeys not
@@ -13,7 +13,7 @@ decisions: D18 — keyring is generic like the record model; named keys +
 closed verb set; node grows zero key-specific endpoints.
 glossary: keyring.
 
-1.0.18 || 16.07.2026
+1.0.22 || 16.07.2026
 plan: phase 11 (e2e encryption) fleshed out from sketch to full design —
 phone-as-wallet key hierarchy (one master seed, HKDF-derived identity +
 per-service keys, key manifest record), WhatsApp-Desktop device linking over
@@ -31,6 +31,66 @@ to standards — X25519/Ed25519, HPKE, XChaCha20-Poly1305, Argon2id, MLS as
 graduation path; no web3, no invented crypto).
 glossary: wallet, device linking / device cert, audience key / epoch, grant,
 key manifest, live handout.
+
+1.0.21 || 16.07.2026
+unit test infrastructure:
+  - api: added pytest suite (118 tests) covering mongo.py transformations
+    (q_t, u_t, to_gui, to_db, star_found, get_approved, is_in_cross_origins),
+    main.py auth logic (kosher, can_mint, certify, decode_token, is_permitted),
+    models.py pydantic schemas, and web10records.py factories
+  - auth2: added vitest + @testing-library suite (config, contractInterface,
+    mockInterface, mocks) with jsdom environment and setup file
+  - sdk: added vitest suite (48 tests) covering wapiInit (token management,
+    CRUD guards & HTTP calls, peerID, authListen, SMR, P2P init, dev pay)
+    and wapiAuthInit (login, signup, changePass/Phone, send/verify code,
+    Stripe mgmt endpoints, SMRListen, sendToken, mintOAuthToken)
+  - review fixes: gitignored api/*.egg-info build artifacts, removed a
+    broken/unused conftest fixture and an ineffective import.meta stub,
+    tightened a tautological is_permitted assertion, moved
+    @testing-library/dom to auth2 devDependencies
+  - scope note: this is the UNIT layer only (mocked DB, no HTTP).
+    outstanding endpoint-level tests (FastAPI routes, star protection,
+    metering, twilio/stripe) are itemized in plan.txt "testing:"
+
+1.0.20 || 16.07.2026
+D1 docs: apply review fixes to protocol-spec.md — cross-origin bypass is on
+username=="anon" (not site); _id is intentionally queryable (only service is
+protected); token-to-token minting checks the submission token's site; array
+pull requires a top-level PULL:true flag; reads/deletes on `services` are
+unmetered; verify-phone error string matches the code exactly (trailing
+period); planned aggregate endpoint is POST, not GET (GET can't carry a body).
+D1 docs: protocol-vs-profile layering — conventions.md now opens with a scope
+note (application profile, NOT protocol; nodes never enforce these schemas;
+only `services` and `*` are reserved); `service` removed from all schemas in
+docs/schemas/ and inline (the service name is the URL path, not a record
+field, so real wire records now validate); new additive-only Versioning rule;
+schemas validate exporter (P9) / killer-app (P8) output while the conformance
+suite tests protocol-spec.md only; follows convention now names the terms
+whitelist (not cross_origins) for cross-node inbox delivery; plan.txt D1 and
+phase-8 wording aligned ("real interop work").
+
+1.0.19 || 16.07.2026
+plan: new LATER item — schema contracts: opt-in, per-service schema enforcement
+via a "schema" field on the service's terms record. Node stays generic (runs
+whatever schema it's handed, like whatever ACL it's handed); no contract means
+no validation. Notes the open design questions (partial updates, grandfathered
+records, additive-only evolution) and flags it as a candidate to promote into
+phase 6 alongside the update-widening work.
+
+1.0.18 || 16.07.2026
+D1 docs: protocol spec (docs/protocol-spec.md) — full specification of the web10
+protocol derived from the codebase: data model (user collections, {service, body}
+envelope, field prefixing), authentication (token format, minting, certification,
+is_permitted authorization, federation migration plan), CRUD API (create/read/
+update/delete with pagination, star protection), metering, error responses,
+security invariants (I1-I5), and the planned aggregate endpoint (sandbox,
+allowlist, denylist, resource caps).
+D1 docs: social conventions doc (docs/conventions.md) + JSON schemas
+(docs/schemas/*.json) — standard service schemas for all social apps and
+exporters: posts, media, contacts, follows, comments, reactions, profile, inbox,
+and lens. Each schema is versioned, loosely-typed (additionalProperties: true),
+and includes origin/origin_id fields for imported content coexistence. The
+conformance suite and exporters will validate against these files.
 
 1.0.17 || 16.07.2026
 decisions: D13 — media fits the record abstraction: "service" stays the data

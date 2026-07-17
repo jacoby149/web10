@@ -343,7 +343,8 @@ is the thing a normal person opens and gets it. lives IN THIS REPO
 built on the phase 6 sdk, media via phase 5, deployed as the default
 lens on every node.
 
-the schemas come first (this is the real protocol work):
+the schemas come first (this is the real interop work -- an application
+profile on top of the protocol, not part of it):
 [ ] web10 social conventions doc: standard service schemas that ALL
     social apps + exporters share. loose, documented, versioned:
       - posts     (text, media refs, ts, origin, visibility)
@@ -734,11 +735,23 @@ lives and (eventually) a creator's money -- it has to be boring-reliable
 and hard to pop.
 
 testing:
-[ ] api test suite (pytest): auth flows (signup/login/mint/certify),
+[~] api test suite (pytest): auth flows (signup/login/mint/certify),
     the full permissions matrix (terms, whitelist/blacklist, cross-
     origin, anon, remote provider), star protection, metering/billing
     paths. this is the highest-value test surface in the repo -- the
     permission logic IS the product.
+    DONE (1.0.21): unit layer -- mongo.py transformations (q_t/u_t/
+      to_gui/to_db, star_found), ACL logic (get_approved,
+      is_in_cross_origins), auth functions (kosher, can_mint, certify,
+      decode_token, is_permitted), pydantic models, record factories.
+      mocked DB, no HTTP.
+    OUTSTANDING: endpoint-level tests through the FastAPI app (httpx
+      test client is already a test dep) -- signup/login/change_pass
+      flows, CRUD routes end-to-end, star protection via the routes
+      (star_selected), metering/billing (check/charge/replenish),
+      twilio/stripe interfaces (conftest has mock fixtures ready),
+      remote-provider certification path. the permission matrix is
+      only covered at the function level so far.
 [ ] run the api suite against BOTH backends in CI (ferretdb + real
     mongo) -- that's the phase 1 compatibility guarantee, permanently
 [ ] protocol conformance suite: a black-box test any node must pass
@@ -870,10 +883,12 @@ for users + creators (lives in marketing-ui, phase 7):
     describe what already exists and don't wait.)
 
 for devs:
-[ ] protocol spec + conventions doc (D1): versioned markdown + JSON
-    Schema, in-repo, framework-less. the conformance suite tests
-    these FILES, and the schemas double as validators for the
-    exporters (P9) and the killer app (P8). the source of truth.
+[✓] protocol spec + conventions doc (D1): versioned markdown + JSON
+    Schema, in-repo, framework-less. two layers: the conformance
+    suite tests the protocol spec; the schemas are an application
+    profile (not protocol) that validates the exporters (P9) and the
+    killer app (P8) in their own test suites. the source of truth.
+    lives in docs/protocol-spec.md + docs/conventions.md + docs/schemas/*.json
 [ ] api reference: already generated -- fastapi emits openapi at
     /docs on every node, grows with the api for free. the habit
     that keeps it good: route tags (auth/crud/terms/billing),
@@ -897,3 +912,19 @@ LATER / OPEN QUESTIONS
 - clickhouse sidecar: graduate phase 4's metering events into clickhouse
   when volume justifies it. one OLAP store, two products: node ops
   console + sponsor analytics.
+- schema contracts: opt-in, per-service schema enforcement. a user (or
+  their service manager app) attaches a JSON Schema to a service's
+  terms record (a "schema" field next to whitelist/cross_origins); the
+  node validates create/update bodies against it and rejects
+  violations. the node stays generic -- it runs whatever schema it's
+  handed, exactly like it runs whatever ACL it's handed -- but a
+  collection gains protection from buggy/hostile apps and agents that
+  hold a create-scoped token. NOT protocol-mandatory: no contract, no
+  validation, wild west by default. design questions to settle before
+  building: partial updates ($set/$inc/$unset can't be fully validated
+  without read-modify-validate), pre-existing records are grandfathered
+  (validate writes going forward only), schema evolution (additive-only,
+  same rule as the conventions doc). the social schemas in docs/schemas/
+  become drop-in contracts for free. candidate to promote into phase 6
+  alongside the update-widening work (same write path, same philosophy:
+  flexibility with a violation check).
