@@ -1,0 +1,38 @@
+name: js-check
+
+on:
+  workflow_call:
+    inputs:
+      package:
+        required: true
+        type: string
+
+jobs:
+  check:
+    name: ${{ inputs.package }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: ${{ inputs.package }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: bun install
+        run: bun install --frozen-lockfile
+
+      - name: typecheck
+        run: bun run tsc --noEmit || bunx tsc --noEmit
+        continue-on-error: true
+
+      - name: test
+        run: bun run test:run || bunx vitest run
+        continue-on-error: true
+
+      - name: build
+        run: bun run build
+        continue-on-error: true

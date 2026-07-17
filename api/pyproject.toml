@@ -10,6 +10,7 @@ dependencies = [
     "gunicorn>=23",
     "PyJWT>=2.9",
     "pymongo>=4.8",
+    "boto3>=1.35",
     "passlib[bcrypt]>=1.7",
     "stripe>=11",
     "twilio>=9",

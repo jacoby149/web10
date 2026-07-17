@@ -1,0 +1,52 @@
+name: js-ci
+
+on:
+  push:
+    branches: [dev, main]
+    paths:
+      - ui/**
+      - sdk/**
+      - web10-social/**
+      - exporters/**
+      - rtc/**
+      - .github/workflows/js-ci.yml
+      - .github/workflows/js.yml
+  pull_request:
+    paths:
+      - ui/**
+      - sdk/**
+      - web10-social/**
+      - exporters/**
+      - rtc/**
+      - .github/workflows/js-ci.yml
+      - .github/workflows/js.yml
+
+concurrency:
+  group: js-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ui:
+    uses: ./.github/workflows/js.yml
+    with:
+      package: ui
+
+  sdk:
+    uses: ./.github/workflows/js.yml
+    with:
+      package: sdk
+
+  web10-social:
+    uses: ./.github/workflows/js.yml
+    with:
+      package: web10-social
+
+  exporters:
+    uses: ./.github/workflows/js.yml
+    with:
+      package: exporters
+
+  rtc:
+    uses: ./.github/workflows/js.yml
+    with:
+      package: rtc
