@@ -1,3 +1,12 @@
+1.0.33 || 17.07.2026
+Consolidated rtc/ into api/rtc/ (WebRTC signaling is a backend service,
+not a top-level dir) and docs/ into marketing-ui/public/docs/ (dev docs
+belong on the marketing site, not as a standalone dir). Updated all
+references: docker-compose.yml, web10.app.yml, web10.dev.yml, CI workflows
+(docker.yml, js-ci.yml, cd.yml), marketing-api validation.py schema path,
+CLAUDE.md directory listing. Top-level tree is now clean: api, ui,
+marketing-ui, marketing-api, sdk, mobile, web10-social, web10-cli.
+
 1.0.32 || 17.07.2026
 ci/cd: implemented the github actions pipeline (wave 0 skeleton). seven
 workflow files: api.yml (uv sync, ruff check+format, pytest, path-filtered

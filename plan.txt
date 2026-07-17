@@ -438,7 +438,7 @@ ships its web client. same logic.
 [ ] the naming makes the repo read clean: api (the node),
     ui (the node's admin/consent surface, from auth2 -- phase 2),
     marketing-ui (inc's website + docs).
-[ ] node compose after the tidy: api(+ui), db, social, [rtc],
+[✓] node compose after the tidy: api(+ui), db, social, [rtc],
     [media]. examples run via an "examples" profile for devs.
 [ ] third-party apps (the ecosystem) live in their own repos and
     always will -- that's the protocol working. first-party lives
