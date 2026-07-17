@@ -72,7 +72,7 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
 LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
   [✓ 1.0.12-1.0.14] B1. P0 js: auth2 -> vite + bun + typescript
       (react 19, vitest, multi-stage dockerfiles, rtc to bun too)
-  [ ] B2. P2 finish auth2 features, parity audit, rename to ui
+  [✓ 1.0.26] B2. P2 finish auth2 features, parity audit, rename to ui
   [ ] B3. P3 setup wizard screens
   [ ] B4. P4 admin panel: policy config, ad records crud, analytics
       views (analytics needs A5 merged; build ui against fixtures

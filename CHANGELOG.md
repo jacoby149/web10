@@ -1,3 +1,35 @@
+1.0.26 || 16.07.2026
+Phase 2 completion — auth2 parity, rename to ui, delete legacy auth/:
+  - auth2 -> ui/: full rename, docker-compose updated (auth2 context -> ui,
+    legacy auth/ service + volumes removed)
+  - Interface.tsx: complete API integration — wapi/wapiAuth wired from
+    authAdapter, setStatus for status messages, SMR listening via
+    initAuthenticator, servicesLoad to load services from API, changeTerms
+    to persist service updates via wapi.update, submitSIR for new service
+    creation, purgeSMR for request denial, sendToken for OAuth flow,
+    deleteService/wipeServiceData for destructive operations, sendCode/
+    verifyCode for phone verification, changePassword, changePhoneNumber,
+    getPlan for live subscription display, Stripe redirect methods
+    (manageSpace, manageCredits, manageSubscriptions), DevPay methods
+    (manageBusiness, businessLogin)
+  - OAuth flow: OAuthBanner component in App.tsx detects referrer, shows
+    pending SMRs, auto-sends token on login when no requests pending
+  - RequestPage: full rewrite — renders pending SIRs/SCRs from I.SMR,
+    Approve/Deny buttons wired to I.submitSIR/I.purgeSMR
+  - ContractViewer: delete terms and wipe data with confirmation dialogs
+    (previously [TBD] placeholders calling non-existent methods)
+  - Subscription: live plan data from I.getPlan() replacing hardcoded values
+  - VerifyPhone: sendCode/verifyCode wired to wapiAuth, code state tracking
+  - ChangePhone: wired to I.changePhoneNumber(password, phone)
+  - ChangePassword: wired to I.changePassword(current, new, retype)
+  - DevPay: wired to I.manageBusiness() and I.businessLogin()
+  - Form inputs (Phone, ConfirmationPass, NewPassword, ReTypeNewPass):
+    accept value/onChange props for controlled usage in Settings
+  - MockInterface: full parity with Interface shape (all new methods stubbed)
+  - Tests: 44/44 passing (updated login/signup mode assertions: appstore ->
+    contracts, the authenticator's post-login default)
+  - auth/: deleted (legacy CRA React 16 app, superseded by ui/)
+
 1.0.25 || 16.07.2026
 Phase 5 media service (greenfield, Lane C):
   - media/: new FastAPI service with presigned S3 upload URLs, short-lived
