@@ -1,3 +1,8 @@
+1.0.32 || 17.07.2026
+Removed chrome-extension/: browser extension was too high a friction
+bar for mainstream adoption. it was fully isolated — zero external
+references, no CI/CD, no backend integration, no docs mentions.
+
 1.0.31 || 17.07.2026
 marketing-api: new FastAPI service — ZIP import pipeline (server-side
 streaming parse, validate, dedup, batch write to user's node), analytics
