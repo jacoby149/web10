@@ -1,4 +1,4 @@
-from app.services.mongo import (
+from app.services.documentdb import (
     get_star,
     get_term_record,
     is_in_cross_origins,
@@ -11,6 +11,8 @@ from app.services.mongo import (
     read,
     update,
     delete,
+    aggregate,
+    validate_pipeline,
     to_gui,
     to_db,
     to_db_field,

@@ -143,25 +143,25 @@ def mock_term_record():
 
 @pytest.fixture
 def mock_db_with_star(mock_star_record):
-    with patch("app.services.mongo.get_star", return_value=mock_star_record) as m:
+    with patch("app.services.documentdb.get_star", return_value=mock_star_record) as m:
         yield m
 
 
 @pytest.fixture
 def mock_db_with_term(mock_term_record):
-    with patch("app.services.mongo.get_term_record", return_value=mock_term_record) as m:
+    with patch("app.services.documentdb.get_term_record", return_value=mock_term_record) as m:
         yield m
 
 
 @pytest.fixture
 def mock_db_star_none():
-    with patch("app.services.mongo.get_star", return_value=None):
+    with patch("app.services.documentdb.get_star", return_value=None):
         yield
 
 
 @pytest.fixture
 def mock_db_term_none():
-    with patch("app.services.mongo.get_term_record", return_value=None):
+    with patch("app.services.documentdb.get_term_record", return_value=None):
         yield
 
 

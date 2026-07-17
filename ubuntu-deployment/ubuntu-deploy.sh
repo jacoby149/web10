@@ -79,10 +79,11 @@ cp -r "$DEPLOY_DIR/api" "$NODE_DIR/"
 cp -r "$DEPLOY_DIR/ui" "$NODE_DIR/"
 
 # Create .env for the node
+# DB_URL defaults to the compose-internal ferretdb service; Caddy owns
+# port 80 on this host, so park the compose vhost proxy elsewhere.
 cat > "$NODE_DIR/.env" <<EOF
 PROVIDER=$NODE_DOMAIN
-DB_HOST=mongo
-DB_PORT=27017
+WEB10_HTTP_PORT=8080
 EOF
 
 # ── 6. Set up marketing ───────────────────────────────────────────────

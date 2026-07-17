@@ -1,9 +1,47 @@
+1.0.39 || 17.07.2026
+adapter rename: api/app/services/mongo.py -> documentdb.py. the module is
+backend-agnostic (pymongo speaks to either real Mongo or FerretDB/DocumentDB),
+so the name should reflect the storage layer, not the old vendor. all imports,
+test files, and patch paths updated. test files renamed: test_mongo.py ->
+test_documentdb.py, test_mongo_crud.py -> test_documentdb_crud.py,
+test_mongo_aggregate.py -> test_documentdb_aggregate.py. 235 tests green.
+
 1.0.38 || 17.07.2026
 E2: marketing deploy — marketing-api/Dockerfile (multi-stage python 3.12 + uv +
 uvicorn), docker-compose.marketing.yml (standalone compose for marketing-ui +
 marketing-api), ubuntu-deploy.sh full rewrite (marketing compose copy with path
 fixup, Caddy proxy with separate RTC subdomain, auto build+start for node and
 marketing, proper DNS/TLS instructions). both images tested green locally.
+
+1.0.38 || 17.07.2026
+the 5th verb — aggregate (plan phase 6, lane A4). appmakers get (nearly)
+the full mongo query language without losing usage metering:
+  - api: POST /{user}/{service}/aggregate. read-only by construction —
+    the server prepends $match {service, body.service != "*"} ->
+    $addFields body._id (stringified) -> $replaceRoot to body, so the
+    dev's pipeline runs on clean user-space docs and cannot name the
+    service/star fields (I3). terms treat it as "read".
+  - sandbox validator: stage allowlist ($match/$project/$group/$sort/
+    $skip/$limit/$unwind/$addFields/$set/$count/$facet/$bucket/
+    $bucketAuto/$sample/$sortByCount); $where/$function/$accumulator/
+    $lookup/$graphLookup/$unionWith/$out/$merge rejected at ANY nesting
+    depth (deep scan catches $facet sub-pipelines, $group accumulators,
+    expression trees). invalid pipelines 400 before touching the db.
+  - resource caps: maxTimeMS 2000ms, 20-stage cap, $limit/result
+    ceiling 1000 docs, allowDiskUse off.
+  - usage tracking preserved: charge() gains a units param; aggregate
+    is charged per pipeline stage (COST_AGGREGATE 0.000005 x stages)
+    into the same credits_spent ledger, gated by the same credit/space
+    check as the 4 crud verbs.
+  - sdk: wapi.aggregate(service, pipeline) in wapi.js (typed variant
+    comes with the C2 rewrite); cdn + node dist bundles rebuilt.
+  - tests: 28 new api tests (validator, scoping, metering) — 233 green;
+    4 new sdk tests — 52 green. verified live against a real mongo 7:
+    scoping, star invisibility, forbidden-op rejection, per-stage
+    charging, and the http endpoint (200/400/401) all exercised.
+  - protocol-spec.md section 9 updated from "planned" to shipped, with
+    metering table + error rows.
+>>>>>>> origin/dev
 
 1.0.37 || 17.07.2026
 infra: ubuntu-deployment script + Caddy reverse proxy for Proxmox staging node; LANE E added to parallel execution board.
