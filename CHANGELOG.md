@@ -1,3 +1,12 @@
+1.0.41 || 17.07.2026
+lens chatbox llm backing re-planned (plan.txt phase 8): BYOK-only —
+v1 key stays client-side, chatbox calls go browser -> provider direct
+so the node never sees the key or the chat; presets work with zero llm;
+phase 11 upgrade puts the key in the phone wallet as an e2e-encrypted
+record the phone beams to the apps the user picks; node-provided
+inference demoted to a capped operator opt-in, never the default.
+new decision D19 in decisions.md.
+
 1.0.40 || 17.07.2026
 wave 0 seatbelt — endpoint-level permission-matrix suite (45 new tests,
 280 total api tests green). runs through the FastAPI app (TestClient)
