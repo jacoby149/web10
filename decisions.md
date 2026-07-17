@@ -9,6 +9,27 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D19 — Chatbox LLM is BYOK-only; the key is a wallet secret the phone beams to chosen apps [decided]
+The phase-8 lens chatbox never runs on operator-paid inference by default: a
+free-signup node exposing a server-side LLM endpoint is a free API proxy, and
+the abuse lands on the operator's bill — exactly the surprise cost that kills
+hobbyist self-hosting. v1 is bring-your-own-key, held client-side
+(localStorage) and calling the provider directly from the browser, so the
+node never sees the key or the conversation. Presets (chronological, detox,
+close-friends) need zero LLM, so the "own your algorithm" pitch works without
+a key. Phase 11 graduates the key into the phone wallet: an e2e-encrypted
+record (ciphertext on the node, portable like everything else) that the phone
+beams only to the web10 apps the user picks at provisioning — the keyring's
+`agent:lens-llm` naming already anticipates this (D18). True revocation is
+rotating the key at the provider; device revocation only stops future
+provisioning. Node-provided inference may return later as an operator OPT-IN
+with hard per-user caps, never the default. The LLM's web10 token stays
+scoped to the lens service regardless (I5) — who pays for inference is
+independent of what the token can touch. Rejects: operator-pays-by-default,
+proxying chat through the node, storing the key as a plaintext record, and
+routing every chat call through the phone (D15: the phone is the root of
+trust, not a proxy).
+
 ### D18 — The keyring is generic like the record model: named keys, a small closed verb set [decided]
 The same discipline that made `{service, body}` survive: no hardcoded schema.
 Audiences are user-named keys (any string — a circle, a single record, an LLM

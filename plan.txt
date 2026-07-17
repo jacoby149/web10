@@ -535,8 +535,19 @@ rotting your brain? reconfig.
     posts to help it understand). it can never touch dms/contacts.
     scoped tokens make "an ai rewrites my feed" safe -- this is the
     token model earning its keep, say so in the demo.
-[ ] llm backing: node-provided by default (operator pays, it's an
-    acquisition feature), bring-your-own-key for the sovereign.
+[ ] llm backing: bring-your-own-key ONLY. v1: user pastes a key, it
+    stays client-side (localStorage), chatbox calls go browser ->
+    provider directly -- the node never sees the key or the chat.
+    never store the key as a plain record (operator-readable until
+    e2e). presets need zero llm, so "own your algorithm" works
+    without a key. phase 11 upgrade: the key lives in the phone
+    wallet as an e2e-encrypted record and the phone BEAMS it to the
+    web10 apps the user picks at provisioning (per-app; true
+    revocation = rotate the key at the provider). node-provided
+    inference is at most a later operator OPT-IN with hard per-user
+    caps, never the default: a free-signup node with a server-side
+    llm endpoint is a free api proxy, and the abuse lands on the
+    operator's bill. (D19)
 [ ] preset lenses to start from: chronological, close-friends-only,
     detox mode, creator mode. chatbox edits from there.
 [ ] the lens record is portable like everything else: your algorithm
@@ -638,6 +649,11 @@ the key hierarchy (what's in the wallet):
 [ ] storage: hardware-backed where the platform allows; enclave-
     wrapped at rest otherwise (ios secure enclave won't do x25519 --
     wrap the sodium keys under an enclave key, don't fight it).
+[ ] the wallet guards opaque secrets too, not just derived keys: the
+    byok llm api key (phase 8 chatbox) is an e2e-encrypted record
+    the phone beams only to the apps the user picks -- the node
+    holds ciphertext, the operator can never read or exfiltrate it,
+    and it moves nodes with you like any record. (D19)
 
 the keyring api (design it like the record api -- generic or dead):
 the record model survived because it never hardcoded a schema:
