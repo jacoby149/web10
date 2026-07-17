@@ -222,7 +222,7 @@ records store metadata + url. blobs live in object storage. s3 API is the
 standard (minio self-host, or R2/B2/wasabi hosted) so the vendor is
 swappable per node.
 
-[ ] new service: media/. small fastapi that:
+[✓] new service: media/. small fastapi that:
     - issues presigned upload urls, gated by web10 token permissions
       (same is_permitted logic as CRUD -- terms records stay the single
       source of permission truth)
@@ -232,8 +232,9 @@ swappable per node.
     - writes a metadata record into the owner's collection on upload
       (ordinary {service:"media", body} record -- terms/ACLs apply
       with zero new concepts, see D13)
-[ ] minio in compose under the "media" profile for self-hosters
-[ ] config for hosted s3-compatibles (R2/B2) for bigger nodes
+    - list and delete media metadata records
+[✓] minio in compose under the "media" profile for self-hosters
+[✓] config for hosted s3-compatibles (R2/B2) for bigger nodes
 [ ] size accounting: media bytes count against the user's space plan
 
 
