@@ -8,6 +8,7 @@ class Token(BaseModel):
     query: dict | None = None
     update: dict | None = None
     pull: dict | None = None
+    pipeline: list | None = None
 
 
 class TokenData(BaseModel):
