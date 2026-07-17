@@ -7,7 +7,7 @@ import app.exceptions as exceptions
 from app.models.auth import PhoneForm, SignUpForm, Token, TokenData, TokenForm
 from app.models.core import dotdict
 import app.settings as settings
-from app.services import mongo as db
+from app.services import documentdb as db
 from app.services import twilio as mobile
 from app.services.auth import (
     authenticate_user,

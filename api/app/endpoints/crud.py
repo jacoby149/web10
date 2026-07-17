@@ -5,7 +5,7 @@ from fastapi import APIRouter, BackgroundTasks
 import app.exceptions as exceptions
 from app.models.auth import Token
 import app.settings as settings
-from app.services import mongo as db
+from app.services import documentdb as db
 from app.services.auth import check_admin, decode_token, is_permitted
 from app.services import stripe as pay
 
@@ -73,6 +73,18 @@ async def read_records(user: str, service: str, token: Token, b_t: BackgroundTas
     if service == "services":
         return res
     b_t.add_task(db.charge, user, "read")
+    return res
+
+
+@router.post("/{user}/{service}/aggregate", tags=["web10"])
+async def aggregate_records(user: str, service: str, token: Token, b_t: BackgroundTasks):
+    # read-only by construction; terms treat it as a read.
+    if not is_permitted(token, user, service, "read"):
+        raise exceptions.CRUD
+    check(user)
+    pipeline = token.pipeline if token.pipeline is not None else []
+    res = db.aggregate(user, service, pipeline)
+    b_t.add_task(db.charge, user, "aggregate", max(1, len(pipeline)))
     return res
 
 

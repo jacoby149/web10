@@ -5,7 +5,8 @@ import requests
 from passlib.context import CryptContext
 
 from app.models.auth import Token, TokenData
-from app.services.mongo import get_approved, get_user, is_in_cross_origins
+from app.services.documentdb import get_approved, get_user, is_in_cross_origins
+import app.exceptions as exceptions
 import app.settings as settings
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

@@ -1,14 +1,96 @@
 import requests
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 import app.exceptions as exceptions
-from app.models.auth import Token
 import app.settings as settings
-from app.services import mongo as db
+from app.models.auth import Token
+from app.models.config import ConfigUpdate, SetupRequest, SetupStatus
+from app.services import config as config_svc
+from app.services import documentdb as db
 from app.services import stripe as pay
-from app.services.auth import check_admin, decode_token
+from app.services.auth import check_admin, decode_token, get_password_hash
 
 router = APIRouter()
+
+
+# --- Setup wizard ---
+
+@router.get("/setup", include_in_schema=False)
+async def get_setup_status() -> SetupStatus:
+    """Returns whether the node has been configured."""
+    return SetupStatus(
+        configured=config_svc.node_is_configured(),
+        has_admin=config_svc.admin_exists(),
+    )
+
+
+@router.post("/setup", include_in_schema=False)
+async def post_setup(req: SetupRequest):
+    """First-run setup: generates JWT key, saves config, creates admin."""
+    if config_svc.admin_exists():
+        raise HTTPException(status_code=400, detail="Node already configured")
+
+    # Generate JWT key
+    key_data = config_svc.generate_jwt_keypair()
+    key_data["ts"] = __import__("datetime").datetime.utcnow().isoformat()
+    config_svc.save_jwt_key(key_data)
+
+    # Build config body
+    config_body = req.model_dump(exclude_none=True)
+    config_body["private_key"] = key_data["key"]
+    config_body["algorithm"] = "HS256"
+    config_svc.save_config(config_body)
+
+    # Create admin
+    config_svc.create_admin(
+        req.admin_username,
+        get_password_hash(req.admin_password),
+        phone="",
+    )
+
+    return {
+        "status": "configured",
+        "message": "Node setup complete. You can now log in.",
+        "key_id": key_data["kid"],
+    }
+
+
+# --- Config management ---
+
+@router.get("/config", include_in_schema=False)
+async def get_config(token: Token):
+    """Returns the current node config (admin only)."""
+    check_admin(token)
+    cfg = config_svc.get_config()
+    # Strip sensitive fields
+    safe = {k: v for k, v in cfg.items() if k not in (
+        "private_key", "s3_secret_key", "twilio_auth_token",
+        "stripe_test_key", "stripe_live_key",
+    )}
+    return safe
+
+
+@router.patch("/config", include_in_schema=False)
+async def patch_config(token: Token, update: ConfigUpdate):
+    """Partially update node config (admin only)."""
+    check_admin(token)
+    current = config_svc.get_config()
+    changes = update.model_dump(exclude_none=True)
+    current.update(changes)
+    config_svc.save_config(current)
+    return {"status": "updated", "changed": list(changes.keys())}
+
+
+# --- Health ---
+
+@router.get("/ready", include_in_schema=False)
+async def ready():
+    """Health check — returns 200 if DB is reachable."""
+    try:
+        db.client.admin.command("ping")
+        return {"status": "ok", "configured": config_svc.node_is_configured()}
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"DB unreachable: {e}")
 
 
 @router.post("/stats", include_in_schema=False)

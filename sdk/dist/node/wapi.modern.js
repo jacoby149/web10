@@ -227,21 +227,6 @@ var wapiInit = function wapiInit(authUrl, appStores, rtcServer) {
     }
     return wapi._W10CRUD(axios.patch, provider, username, service, query, null, protocol);
   };
-  wapi.read = function (service, query, username, provider, protocol) {
-    if (query === void 0) {
-      query = null;
-    }
-    if (username === void 0) {
-      username = null;
-    }
-    if (provider === void 0) {
-      provider = null;
-    }
-    if (protocol === void 0) {
-      protocol = wapi.APIProtocol;
-    }
-    return wapi._W10CRUD(axios.patch, provider, username, service, query, null, protocol);
-  };
   wapi.create = function (service, query, username, provider, protocol) {
     if (query === void 0) {
       query = null;
@@ -294,6 +279,28 @@ var wapiInit = function wapiInit(authUrl, appStores, rtcServer) {
       });
     }, provider, username, service, query, null, protocol);
   };
+  wapi.aggregate = function (service, pipeline, username, provider, protocol) {
+    if (pipeline === void 0) {
+      pipeline = [];
+    }
+    if (username === void 0) {
+      username = null;
+    }
+    if (provider === void 0) {
+      provider = null;
+    }
+    if (protocol === void 0) {
+      protocol = wapi.APIProtocol;
+    }
+    if (!username && !wapi.token || username === "anon") return console.error("cant CRUD anon accounts");
+    if (!provider && !wapi.token) return console.error("web10 request without provider and token. need one.");
+    provider = provider || wapi.readToken().provider;
+    username = username || wapi.readToken().username;
+    return axios.post(protocol + "//" + provider + "/" + username + "/" + service + "/aggregate", {
+      token: wapi.token,
+      pipeline: pipeline
+    });
+  };
   wapi._W10CRUD = function (HTTPRequestFunction, provider, username, service, query, update, protocol) {
     if (!username && !wapi.token || username === "anon") return console.error("cant CRUD anon accounts");
     if (!provider && !wapi.token) return console.error("web10 request without provider and token. need one.");
@@ -320,10 +327,11 @@ var wapiInit = function wapiInit(authUrl, appStores, rtcServer) {
     });
   };
   wapi.peer = null;
+  wapi.outBound = {};
+  wapi.inBound = {};
   wapi.peerID = function (provider, user, origin, label) {
     return (provider + " " + user + " " + origin + " " + label).replaceAll(".", "_");
   };
-  wapi.inBound = {};
   wapi.initP2P = function (onInbound, label, secure) {
     if (onInbound === void 0) {
       onInbound = null;
@@ -356,7 +364,6 @@ var wapiInit = function wapiInit(authUrl, appStores, rtcServer) {
       });
     }
   };
-  wapi.outBound = {};
   wapi.P2P = function (provider, username, origin, label) {
     var thisWapi = this;
     if (!thisWapi.peer) console.error("not initialized");

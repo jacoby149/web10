@@ -48,10 +48,7 @@ def map_facebook_post(post: dict) -> dict | None:
 
     attachments = _parse_json_field(post.get("Post attachments"))
     if attachments:
-        body["media_refs"] = [
-            str(a.get("url", "")) if isinstance(a, dict) and "url" in a else ""
-            for a in attachments
-        ]
+        body["media_refs"] = [str(a.get("url", "")) if isinstance(a, dict) and "url" in a else "" for a in attachments]
 
     return {
         "service": "posts",
@@ -133,6 +130,7 @@ def map_facebook_comment(comment: dict) -> dict | None:
         body["post_id"] = post_id
     elif comment.get("Comment post URL"):
         import re
+
         m = re.search(r"/posts/(\d+)", str(comment["Comment post URL"]))
         if m:
             body["post_id"] = m.group(1)

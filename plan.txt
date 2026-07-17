@@ -89,17 +89,18 @@ postgres extension) + ferretdb (speaks the mongo wire protocol on top of it)
 is the open path. pymongo connects to ferretdb unmodified -- this is mostly
 a DB_URL change, not a rewrite.
 
-[ ] ferretdb (documentdb-backed) in docker-compose as the default db
-[ ] run the api against it, audit the CRUD paths (insert/find/update/delete,
+[✓] ferretdb (documentdb-backed) in docker-compose as the default db
+[✓] run the api against it, audit the CRUD paths (insert/find/update/delete,
     $set/$inc/$max/$currentDate/$pull/$unset, sort/skip/limit)
-[ ] metering paths use admin commands -- verify or replace:
+[✓] metering paths use admin commands -- verify or replace:
       - get_collection_size (collstats) and total_size (dbstats) are
-        postgres-derived estimates on ferretdb. decide: accept estimates,
-        or track sizes ourselves per-write
-[ ] keep atlas/real-mongo as a supported config (protocol is the standard,
+        postgres-derived estimates on ferretdb. decided: accept estimates
+[✓] keep atlas/real-mongo as a supported config (protocol is the standard,
     backend is the node operator's choice)
 [ ] add a mongo -> ferretdb migration path (script lives in api/ or a
     dedicated tools/ dir, not in the deleted web10-deploy)
+[✓] rename mongo.py -> documentdb.py (adapter is backend-agnostic; pymongo
+    speaks to either real Mongo or FerretDB/DocumentDB)
 
 
 PHASE 2 — ui (finish auth2, rename, migrate)
@@ -177,16 +178,16 @@ first-run experience: docker compose up -> open browser -> setup form ->
 you have a sovereign node. like pocketbase / home assistant onboarding.
 
 api side:
-[ ] first-run detection: if no config exists in the data volume, api boots
+[✓] first-run detection: if no config exists in the data volume, api boots
     in "setup mode" and only answers setup endpoints
-[ ] POST /setup: provider domain, admin username+password, optional stripe/
+[✓] POST /setup: provider domain, admin username+password, optional stripe/
     twilio keys (all optional except domain + admin account)
-[ ] api generates its own JWT signing key on setup (stop hand-managing
+[✓] api generates its own JWT signing key on setup (stop hand-managing
     PRIVATE_KEY in settings files)
-[ ] config written to the data volume, settings.py becomes fallback/dev only
+[✓] config written to the data volume, settings.py becomes fallback/dev only
 
 ui side (lives in the ui, phase 2 dependency):
-[ ] /setup wizard screens: welcome -> node identity -> admin account ->
+[✓] /setup wizard screens: welcome -> node identity -> admin account ->
     (optional) payments/sms -> done, you're on your node
 [ ] setup only reachable in setup mode, 404s forever after
 
@@ -224,8 +225,8 @@ makes money" becomes visible product instead of thesis. this page is the
 thing you demo to an influencer's manager -- make it GOOD.
 
 access:
-[ ] admin role: node operator account(s) flagged at setup
-[ ] admin panel section in ui, only visible to admins
+[✓] admin role: node operator account(s) flagged at setup
+[✓] admin panel section in ui, only visible to admins
 
 audience analytics (the numbers a sponsor asks for):
 [ ] DAU / WAU / MAU, signups over time, retention curves
@@ -285,6 +286,9 @@ swappable per node.
 [✓] minio in compose under the "media" profile for self-hosters
 [✓] config for hosted s3-compatibles (R2/B2) for bigger nodes
 [ ] size accounting: media bytes count against the user's space plan
+    NOTE (1.0.30): the standalone media/ service was merged into api/
+    as a router — same routes and auth, one app on port 6000, no
+    separate container. only minio remains in compose for blobs.
 
 
 PHASE 6 — wapi.js revamp (the sdk)
@@ -314,25 +318,31 @@ injection -- but mongo queries are structured json, not strings.
 walk the pipeline, validate it, sandbox it. flexibility with a
 violation check.
 
-[ ] new api endpoint: aggregate on /{user}/{service}. read-only by
+[✓] new api endpoint: aggregate on /{user}/{service}. read-only by
     construction. terms treat it as "read" (or its own action).
-[ ] sandbox by structure, not by rewriting:
+[✓] sandbox by structure, not by rewriting:
       server prepends: $match {service} -> $replaceRoot to body.
       dev's pipeline runs on clean user-space docs and cannot even
       NAME the service/star fields. scoping is unescapable.
-[ ] operator allowlist: $match/$project/$group/$sort/$skip/$limit/
+      (star record also excluded via body.service != "*".)
+[✓] operator allowlist: $match/$project/$group/$sort/$skip/$limit/
     $unwind/$addFields/$count/$facet/$bucket/$sample + full
     comparison/logical/array operators.
-[ ] hard denylist: $where/$function/$accumulator (js execution),
+[✓] hard denylist: $where/$function/$accumulator (js execution),
     $lookup/$graphLookup/$unionWith (cross-collection read),
-    $out/$merge (cross-collection write).
-[ ] resource caps: maxTimeMS, pipeline length cap, $limit ceiling,
+    $out/$merge (cross-collection write). enforced at any nesting
+    depth ($facet sub-pipelines, $group accumulators, expressions).
+[✓] resource caps: maxTimeMS, pipeline length cap, $limit ceiling,
     allowDiskUse off. regex allowed but bounded by maxTimeMS.
+    metering: charge() scales per pipeline stage -- same
+    credits_spent ledger and credit/space gate as the 4 verbs.
 [ ] widen updates too with the same philosophy: $push/$addToSet/
     $pull/$mul/arrayFilters through the existing field-prefix
     transform (u_t already does the prefixing -- grow the allowlist)
 [ ] sdk surface: wapi.aggregate<T>(service, pipeline) fully typed
-[ ] add aggregate to the protocol spec + conformance suite
+    (untyped wapi.aggregate shipped in legacy wapi.js 1.0.38; the
+    typed variant lands with the C2 rewrite)
+[✓] add aggregate to the protocol spec + conformance suite
 
 mcp server (promoted from LATER -- it ships with the sdk):
 [ ] mcp server exposing token mint + crud + aggregate. same typed
@@ -422,9 +432,10 @@ ships its web client. same logic.
 
 [✓] killer app gets a first-party top-level dir (marketing/social/), built and
       versioned with the node. phase 8 + 9 live HERE.
-[✓] crm/ + mail/ -> examples/ directory: kept in-repo as reference
-     apps for devs, but OUT of the node's default compose. they're
-     documentation that runs.
+[✓] crm/ + mail/: resolved differently than planned — integrated as
+     sub-apps INSIDE web10-social (CRM Rolodex + Mail inbox, 1.0.30)
+     and the standalone dirs deleted. no examples/ dir was created;
+     the killer app itself is now the reference implementation.
 [✓] home/ + docs/ -> marketing-ui/: web10 inc's website, ONE site.
     docs are a key part of a saas marketing site, so they live
     together: landing pages + dev docs, one dir, one build. not part
@@ -846,7 +857,7 @@ lives and (eventually) a creator's money -- it has to be boring-reliable
 and hard to pop.
 
 testing:
-[~] api test suite (pytest): auth flows (signup/login/mint/certify),
+[✓] api test suite (pytest): auth flows (signup/login/mint/certify),
     the full permissions matrix (terms, whitelist/blacklist, cross-
     origin, anon, remote provider), star protection, metering/billing
     paths. this is the highest-value test surface in the repo -- the
@@ -856,13 +867,14 @@ testing:
       is_in_cross_origins), auth functions (kosher, can_mint, certify,
       decode_token, is_permitted), pydantic models, record factories.
       mocked DB, no HTTP.
-    OUTSTANDING: endpoint-level tests through the FastAPI app (httpx
-      test client is already a test dep) -- signup/login/change_pass
-      flows, CRUD routes end-to-end, star protection via the routes
-      (star_selected), metering/billing (check/charge/replenish),
-      twilio/stripe interfaces (conftest has mock fixtures ready),
-      remote-provider certification path. the permission matrix is
-      only covered at the function level so far.
+    DONE (1.0.40): endpoint-level tests through the FastAPI app
+      (TestClient, 45 new tests) -- signup/login flows, CRUD routes
+      end-to-end, star protection via routes (star_selected,
+      star_found), metering/billing (check/charge, out-of-credits,
+      out-of-space), forged-token rejection (I1), scoped-token
+      enforcement (I5), cross-collection access impossible (I3),
+      aggregate pipeline validation, certify endpoint, system
+      endpoints. 280 total api tests green.
 [ ] run the api suite against BOTH backends in CI (ferretdb + real
     mongo) -- that's the phase 1 compatibility guarantee, permanently
 [ ] protocol conformance suite: a black-box test any node must pass
@@ -963,7 +975,7 @@ CROSS-CUTTING — ci/cd (github actions: the referee)
 referee -- and to start it SHOWS the score rather than stopping the
 game: checks report pass/fail on every pr, merging stays a human
 call. it is landable TODAY against the tests that already exist
-(210 api unit tests, vitest suites in ui/sdk/web10-social/exporters)
+(205 api unit tests, vitest suites in ui/sdk/web10-social/exporters)
 -- do NOT wait for the endpoint permission suite to start reporting.
 ci first makes every later branch safer; the suites plug into an
 existing pipeline the day they land. this is the top of wave 0.
@@ -1010,16 +1022,16 @@ ci — runs on every pr + push to dev/main (.github/workflows/):
 
 cd — runs on merge to main + version tags (starts small, grows
 with the phases that give it something to ship):
-[ ] ghcr.io image publishing: on merge to main, build + push every
+[✓] ghcr.io image publishing: on merge to main, build + push every
     service image (api, ui, rtc, media, social) tagged {sha, latest}.
     phase 3's one-container web10/node image publishes from the same
     workflow on version tags -- `docker run web10/node` needs a
     registry to pull from, and this is it. multi-arch (amd64+arm64)
     because self-hosters live on raspberry pis and mac minis.
-[ ] npm publishing on version tags: the sdk (phase 6) and
+[✓] npm publishing on version tags: the sdk (phase 6) and
     create-web10 (phase 6.5), built with bun IN ci, published with
     provenance. releases come from the pipeline, never a laptop.
-[ ] github release notes generated from the CHANGELOG.md entries
+[✓] github release notes generated from the CHANGELOG.md entries
     since the last tag (the changelog is the board -- it's also
     the release notes, free).
 [ ] hosted-node deploy (web10.app) stays manual / compose-pull for
@@ -1091,7 +1103,57 @@ for devs:
     self-hosted docs.
 
 
-LATER / OPEN QUESTIONS
+CROSS-CUTTING — deployment (proxmox homelab)
+----------------------------------------------
+proxmox host at 192.168.8.20:8006, accessible only over VPN.
+target: host the marketing sites and a web10 node here for
+staging, demos, and eventual public-facing use.
+
+what goes in:
+[ ] web10 node (api + ui + db + rtc + minio): one VM or LXC,
+    docker compose inside. this is the internal staging node
+    for testing before any public deploy. domain TBD (internal
+    DNS or /etc/hosts until a public domain is assigned).
+[ ] marketing-ui: separate container or LXC. serves the public
+    marketing site (landing, docs, app store, exporter UI).
+    own vhost, never inside the node compose.
+[ ] marketing-api: separate container. handles the ZIP import
+    pipeline and analytics for marketing-ui.
+
+networking:
+[ ] VPN gateway must be up for any management access. document
+    the VPN client config so every dev can reach the host.
+[ ] reverse proxy (caddy or nginx) on the proxmox host or a
+    dedicated LXC: terminates TLS, routes to backend containers.
+    auto-TLS via caddy for any public-facing domain later.
+[ ] internal DNS: *.web10.internal or similar for the staging
+    node, so services can reach each other by name.
+
+provisioning:
+[ ] terraform or proxmox-ssh-api script to stand up VMs/LXCs
+    from a template, not manual GUI clicks. idempotent,
+    repeatable. starts with a minimal Ubuntu/Debian container
+    with docker + docker compose pre-installed.
+[ ] ansible (or simple shell + ssh) to configure the provisioned
+    machines: docker compose pull, env vars, reverse proxy config.
+    keep it simple — this is a homelab, not AWS.
+[ ] secrets: vault or at minimum encrypted env files pushed via
+    ansible vault. no secrets in git, ever.
+
+backup:
+[ ] proxmox scheduled VM/LXC backups (daily incremental, weekly
+    full). off-box if possible (another machine on the LAN).
+[ ] docker volume backups: periodic tar of data volumes pushed
+    to off-box storage.
+
+phasing:
+- step 1: get the node running behind VPN, accessible by team.
+  prove docker compose works on the target hardware.
+- step 2: add marketing-ui + marketing-api, wire up the reverse
+  proxy. internal staging is complete.
+- step 3: public domain + auto-TLS (when ready for external traffic).
+- step 4: automated provisioning (terraform/ansible). don't rush
+  this — manual is fine until step 2 works.
 ----------------------
 - perf hardening on the api hot path: cache token certs, cache collstats,
   add per-collection index on "service"
