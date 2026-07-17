@@ -2,46 +2,32 @@
   "name": "web10-social",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest",
+    "test:run": "vitest run"
+  },
   "dependencies": {
-    "@chatscope/chat-ui-kit-react": "^1.9.8",
-    "@testing-library/jest-dom": "^5.16.5",
-    "@testing-library/react": "^13.4.0",
-    "@testing-library/user-event": "^13.5.0",
-    "axios": "^1.2.1",
-    "dompurify": "^2.4.1",
-    "install": "^0.13.0",
-    "npm": "^9.1.2",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-router-dom": "^6.4.4",
-    "react-scripts": "5.0.1",
-    "react-usestateref": "^1.0.8",
+    "@chatscope/chat-ui-kit-react": "^1.9.9",
+    "dompurify": "^3.2.4",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
     "rectangles-npm": "^1.0.9",
-    "web-vitals": "^2.1.4",
     "web10-npm": "^1.0.8"
   },
-  "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^4.5.0",
+    "jsdom": "^29.1.1",
+    "typescript": "~5.8.2",
+    "vite": "^6.3.1",
+    "vitest": "^4.1.10"
   }
 }
