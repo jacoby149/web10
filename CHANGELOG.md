@@ -1,3 +1,12 @@
+1.0.34 || 17.07.2026
+Created marketing/ umbrella folder and moved marketing-api/, marketing-ui/,
+web10-cli/, and web10-social/ into it. These four projects share a purpose:
+making web10 accessible (marketing site, import pipeline, CLI tool, social
+lens app). Updated all path references: js-ci.yml workflow paths + package,
+marketing-api validation.py schema path, CLAUDE.md directory listing,
+decisions.md D12, plan.txt phase 2.5/7/8 references, parallel execution.txt
+lane D ownership. Top-level tree now: api, ui, marketing, sdk, mobile.
+
 1.0.33 || 17.07.2026
 Consolidated rtc/ into api/rtc/ (WebRTC signaling is a backend service,
 not a top-level dir) and docs/ into marketing-ui/public/docs/ (dev docs

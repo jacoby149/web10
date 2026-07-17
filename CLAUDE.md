@@ -22,11 +22,14 @@ web10 Inc. takes a small % of revenue through its payment rails.
 - `api/rtc/` — WebRTC signaling (merged into api, becomes load-bearing for e2e encryption).
 - `mobile/encryptor/` — Expo app, the seed of the phone-as-keychain.
 - `crm/`, `mail/` — demo apps (moving to `examples/`).
-- `marketing-ui/` — web10 Inc.'s site: landing page + docs + App Store + Exporter UI.
-    Vite + React 19 + TS + Bun + react-router. Own vhost, never in node compose.
-    Dev docs (protocol-spec, conventions, schemas) live in `marketing-ui/public/docs/`.
-- `marketing-api/` — FastAPI backend for marketing-ui: ZIP import pipeline
-    (server-side parse, validate, dedup, batch write), analytics (pageview, funnel).
+- `marketing/` — everything that makes web10 accessible:
+    - `marketing-ui/` — web10 Inc.'s site: landing page + docs + App Store + Exporter UI.
+        Vite + React 19 + TS + Bun + react-router. Own vhost, never in node compose.
+        Dev docs (protocol-spec, conventions, schemas) live in `marketing/marketing-ui/public/docs/`.
+    - `marketing-api/` — FastAPI backend for marketing-ui: ZIP import pipeline
+        (server-side parse, validate, dedup, batch write), analytics (pageview, funnel).
+    - `web10-cli/` — CLI tool for web10.
+    - `web10-social/` — the killer app: all-in-one social lens (instagram-shaped, video + streaming).
 
 ## How the data model works (know this cold before touching mongo.py)
 - One MongoDB collection **per user**, named by username.
