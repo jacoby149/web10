@@ -32,3 +32,38 @@ jobs:
               echo "No code files changed — changelog check skipped"
             fi
           fi
+
+      # Board-sync guard: the changelog, plan.txt, and 'parallel execution.txt'
+      # together are the task board (no external PM). This step keeps them from
+      # drifting apart mechanically — agents forget, ci doesn't.
+      - name: Board sync check (versions + lane ticks)
+        run: |
+          changed=$(git diff --name-only ${{ github.event.pull_request.base.sha }}..HEAD)
+          if ! echo "$changed" | grep -qx 'CHANGELOG.md'; then
+            echo "CHANGELOG.md untouched — board sync check skipped"
+            exit 0
+          fi
+
+          # 1) Version monotonicity (error): the newest entry's version must be
+          #    strictly greater than every existing entry. Catches duplicate
+          #    version numbers (three 1.0.30s exist historically) and
+          #    out-of-order entries at the top.
+          versions=$(grep -oE '^[0-9]+\.[0-9]+\.[0-9]+' CHANGELOG.md)
+          top=$(echo "$versions" | head -1)
+          top_count=$(echo "$versions" | grep -cx "$top")
+          highest=$(echo "$versions" | sort -V | tail -1)
+          if [ "$top_count" -gt 1 ] || [ "$top" != "$highest" ]; then
+            echo "::error::CHANGELOG.md top entry ($top) must be strictly greater than every existing version (highest is $highest, $top appears ${top_count}x)."
+            echo "::error::Bump past the highest version — duplicate/out-of-order versions break the board."
+            exit 1
+          fi
+          echo "version check OK: $top is the unique highest"
+
+          # 2) Lane-tick reminder (warning only, visibility-first): a changelog
+          #    entry usually means a plan/lane item moved — the ticks should
+          #    move in the same branch.
+          if ! echo "$changed" | grep -qE '^(plan\.txt|parallel execution\.txt)$'; then
+            echo "::warning::CHANGELOG.md changed but neither plan.txt nor 'parallel execution.txt' did. If this PR completes (or starts) a plan/lane item, tick it [✓ x.y.z] / mark it [~] in the same branch — stale board status causes redone work."
+          else
+            echo "lane ticks touched — OK"
+          fi
