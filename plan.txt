@@ -482,15 +482,15 @@ server -- parse in the browser, write to YOUR node via the sdk. the
 sovereignty story stays intact end to end.
 
 v1 (takeout-file based, works today, no api permission needed):
-[ ] instagram exporter: user requests official data download (json zip),
+[✓] instagram exporter: user requests official data download (json zip),
     drags it into the exporter app -> parsed in browser -> media to the
     media service, records into posts/contacts/comments per the
     conventions doc, origin="instagram"
-[ ] facebook exporter: same shape (their takeout is messier -- start
+[✓] facebook exporter: same shape (their takeout is messier -- start
     with posts, photos, friends list)
-[ ] youtube exporter: google takeout -> videos + metadata
+[✓] youtube exporter: google takeout -> videos + metadata
 [ ] twitter/x, tiktok: same pattern, priority by demand
-[ ] shared exporter core: one package that handles zip parsing, schema
+[✓] shared exporter core: one package that handles zip parsing, schema
     mapping, batch record writes, media upload, resume on failure.
     each platform = a mapping module on top.
 [ ] llm-assisted mapping (optional, later): unknown/changed takeout
