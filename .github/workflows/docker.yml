@@ -1,0 +1,91 @@
+name: docker
+
+on:
+  push:
+    branches: [dev, main]
+    paths:
+      - '**/Dockerfile'
+      - api/**
+      - ui/**
+      - sdk/**
+      - exporters/**
+      - rtc/**
+      - media/**
+      - home/**
+      - crm/**
+      - mail/**
+      - .github/workflows/docker.yml
+  pull_request:
+    paths:
+      - '**/Dockerfile'
+      - api/**
+      - ui/**
+      - sdk/**
+      - exporters/**
+      - rtc/**
+      - media/**
+      - home/**
+      - crm/**
+      - mail/**
+      - .github/workflows/docker.yml
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: docker build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - name: api
+            context: api
+          - name: ui
+            context: ui
+            target: build
+          - name: sdk
+            context: sdk
+          - name: exporters
+            context: exporters
+            target: build
+          - name: rtc
+            context: rtc
+          - name: media
+            context: media
+          - name: home
+            context: home
+          - name: crm
+            context: .
+            dockerfile: crm/Dockerfile
+          - name: mail
+            context: .
+            dockerfile: mail/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache-${{ matrix.service.name }}
+          key: ${{ runner.os }}-buildx-${{ matrix.service.name }}-${{ hashFiles(format('{0}/**', matrix.service.context)) }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-${{ matrix.service.name }}-
+
+      - name: Build ${{ matrix.service.name }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.service.context }}
+          file: ${{ matrix.service.dockerfile || format('{0}/Dockerfile', matrix.service.context) }}
+          target: ${{ matrix.service.target }}
+          push: false
+          load: false
+          cache-from: type=local,src=/tmp/.buildx-cache-${{ matrix.service.name }}
+          cache-to: type=local,dest=/tmp/.buildx-cache-${{ matrix.service.name }},mode=max
+          platforms: linux/amd64

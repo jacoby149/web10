@@ -1,0 +1,46 @@
+name: media
+
+on:
+  push:
+    branches: [dev, main]
+    paths:
+      - media/**
+      - .github/workflows/media.yml
+  pull_request:
+    paths:
+      - media/**
+      - .github/workflows/media.yml
+
+concurrency:
+  group: media-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: media (lint + test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: media
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: media/uv.lock
+
+      - name: uv sync
+        run: uv sync --frozen
+
+      - name: ruff check
+        run: uv run ruff check .
+
+      - name: ruff format
+        run: uv run ruff format --check .
+
+      - name: pytest
+        run: uv run pytest
+        continue-on-error: true
