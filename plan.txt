@@ -481,45 +481,219 @@ influencer/operator hosts your data but CANNOT read it. landlord
 holds the building, not your diary.
 
 seeds already in the repo: mobile/encryptor (expo app), sdk/src/
-wapiencrypt.js (secp256k1 experiments), rtc service (the key channel).
+wapiencrypt.js (secp256k1 experiments), rtc service (the key
+channel -- note: rtc's current check is jwt.decode-without-verify
+plus trust-a-remote-200, the I1 bug in miniature. it gets the same
+JWKS fix before it carries keys).
 
-the flow (why webrtc is huge):
-  - write a message on your computer -> p2p to your phone (rtc) ->
-    phone encrypts -> ciphertext stored on the node as a record
-  - friend wants to read -> their device asks your phone p2p for
-    the key -> phone checks they're allowed -> hands the key over
-  - the node/operator only ever sees ciphertext. access control is
-    enforced by YOUR DEVICE in real time, not by a server.
+the mental model (whatsapp, not web3):
+  the phone is the WALLET: it holds the root keys for your whole
+  life -- one identity key plus per-service keys for all your apps.
+  laptops and other devices are LINKED COMPANIONS (the whatsapp
+  desktop move): the phone provisions them ONCE over p2p webrtc,
+  then they encrypt/decrypt on their own. day-to-day traffic never
+  routes through the phone -- the phone is the root of trust, not a
+  proxy. two balanced goals, stated plainly: (a) the operator never
+  sees private content, (b) sharing is real but REVOCABLE. every
+  primitive here is boring standardized crypto -- x25519/ed25519,
+  hpke (rfc 9180), xchacha20-poly1305, argon2id, the signal/mls
+  playbook. no chains, no coins, no invented crypto. (D15-D18)
 
-design (two modes, because availability is the hard part):
-[ ] wrapped-key mode (default for private posts): phone encrypts
-    content with a content key, wraps that key to each authorized
-    friend's public key, stores wrapped keys as records. friends
-    decrypt WITHOUT your phone being online. a few thousand friends
-    = a few thousand wrapped 32-byte keys = kilobytes. scales fine
-    for an average person's graph.
-[ ] live-handout mode (sensitive/ephemeral tier): key never stored
-    anywhere, handed out p2p per-read from your phone, exactly the
-    original vision. strongest control (revoke = stop answering),
+the key hierarchy (what's in the wallet):
+[ ] one master seed (random 32 bytes). hkdf-derive from it: the
+    identity keypair (ed25519 -- signs everything), the exchange
+    keypair (x25519), and per-service app keys. deterministic
+    derivation means backup is ONE secret, and "a bunch of elliptic
+    curve keys for all your different apps" costs nothing to mint.
+[ ] keys friends send you (grants, below) are a cache, not
+    precious: re-fetchable as records from their nodes.
+[ ] key manifest: a public self-signed record ({service:"keys"}) in
+    your collection listing your current public keys, device certs,
+    and audience epoch numbers. friends fetch it to encrypt TO you
+    -- a jwks-for-people / signal prekey bundle. trust-on-first-use,
+    with optional qr safety-number verification for the careful.
+[ ] storage: hardware-backed where the platform allows; enclave-
+    wrapped at rest otherwise (ios secure enclave won't do x25519 --
+    wrap the sodium keys under an enclave key, don't fight it).
+
+the keyring api (design it like the record api -- generic or dead):
+the record model survived because it never hardcoded a schema:
+{service, body}, any name, four verbs. the keyring gets the same
+discipline. if audiences were an enum ("friends"/"close") or grants
+only went to humans, the first unanticipated use case kills it.
+[ ] named keys, user-chosen names, exactly like services. an
+    audience is just a key name: "friends", "gym-circle",
+    "post:8f3a" (one record), "agent:lens-llm" (an llm's key),
+    "hls:live" (a stream). no built-in circle list, no specials.
+[ ] minting is ONE call and free: mint(name) hkdf-derives from the
+    master seed. a key per app, per post, per mood -- as cheap as
+    naming a service is today.
+[ ] two key types only: keypair (x25519+ed25519) and secret
+    (symmetric). every named key is (name, type, epoch). epochs
+    exist on ALL keys uniformly -- rotation is never a special
+    feature of one kind of key.
+[ ] principals are PUBLIC KEYS, not usernames. a grantee can be a
+    friend's identity, a linked device, an llm agent's session
+    key, a future thing we haven't met. human identity binds ON
+    TOP via the key manifest + signatures -- never baked into the
+    primitive.
+[ ] wrap targets are pubkeys OR other named keys. this one rule
+    is the composability engine:
+      content key wrapped under an audience key    (sharing)
+      audience key wrapped to a member's pubkey    (membership)
+      audience key wrapped under another audience  (nested circles)
+      master seed wrapped under a passphrase key   (backup -- not
+      a special subsystem, the same verb)
+[ ] the verb set (small, closed, composes -- the 4-crud lesson):
+      mint(name)               create/derive a named key
+      rotate(name)             bump epoch, return the new one
+      wrap(name, to, meta)     issue a grant (meta: expires, epochs)
+      unwrap(blob)             consume a grant
+      encrypt / decrypt (name, epoch, data)
+      sign / verify (name, data)
+      list(filter)             who holds what, until when
+      handout(name, session)   live-mode release, never persisted
+    revoke(name, grantee) = terms-drop + rotate + rewrap: a
+    COMPOSITION of the verbs above, not a new primitive.
+[ ] everything the keyring persists is ordinary records
+    ({service:"keys", body}): manifests, grants, revocations.
+    terms gate who fetches a grant; crud moves them; phase 10
+    backups and node migration carry them untouched. the node
+    grows ZERO key-specific endpoints -- it stays a dumb
+    ciphertext + records host. (D18)
+[ ] crypto agility or screwed-later: every wrapped blob, grant,
+    and manifest carries {v, suite} ids. D17 pins today's suite;
+    the format must survive the day it rotates (a broken
+    primitive, post-quantum kex). version fields are free now, a
+    migration crisis later.
+[ ] scope guard: the keyring does keys, not policy. no roles, no
+    acl language inside grants -- authorization stays terms (node
+    layer) + possession (crypto layer). the moment keys grow a
+    policy dsl we've rebuilt kerberos badly.
+[ ] the futureproof checklist (design review gate -- ALL of these
+    must be expressible with the verbs above, no new primitives):
+    one person; a circle; a circle-of-circles; a single record; a
+    whole service; an llm agent on a 1-hour grant; a second
+    device; an hls stream with rotating segment keys; a
+    multi-admin group (mls later -- record shapes must not
+    preclude it); a full node migration with keys intact.
+[ ] seed in repo: encryptor.js's listen() switch {mint, public,
+    sign, decrypt} is this verb set, embryonic. grow that surface,
+    keep it closed. the wallet exposes it locally + over the
+    linking channel; wapi mirrors it so apps never touch raw keys.
+
+device linking (whatsapp desktop -- the webrtc payoff #1):
+[ ] laptop generates its own device keypair and shows a qr: its
+    pubkey + rtc peer id + a short pairing secret. phone scans,
+    dials it p2p through the rtc service, runs a handshake bound to
+    the qr secret so the signaling server can't mitm.
+[ ] phone signs a DEVICE CERT {device pubkey, device id, expires}
+    with the identity key and syncs current audience keys + grants
+    over the channel. from then on the laptop encrypts and decrypts
+    ALONE -- viewing on your laptop never touches your phone.
+[ ] revoke a device: signed revocation in the key manifest + epoch
+    bump (below). lost laptop != lost account; phone stays root.
+[ ] the rtc server stays untrusted by construction: it brokers
+    dials, never sees key material (payloads sealed to the qr-
+    exchanged keys on top of dtls).
+
+content encryption (envelope, per record/blob):
+[ ] every private record/blob gets a fresh random content key
+    (xchacha20-poly1305). ciphertext is stored as an ordinary
+    record, or in s3 via the media service -- node and bucket only
+    ever hold ciphertext. D13/D14 machinery unchanged.
+[ ] the content key is wrapped under an AUDIENCE KEY, not per-
+    friend-per-post. audiences are the user's circles: friends,
+    close-friends, a group, a service.
+
+audience keys, epochs, revocation (the "flavor" on shared keys):
+[ ] an audience key is (audience id, epoch n): a symmetric key per
+    circle per epoch. membership = that key hpke-wrapped to the
+    member's public key, stored as a GRANT record in YOUR
+    collection, terms-gated so only that member can fetch it. this
+    is the diffie-hellman friends-exchange-keys story, done with a
+    standard (hpke) instead of hand-rolled ecdh.
+[ ] grants are SIGNED by the owner's identity key; readers verify
+    grant -> device cert -> identity. a malicious node can withhold
+    data but can never silently add a reader (itself included).
+[ ] revoking bob is LAYERED, and honest about physics:
+      1. node layer, instant: terms drop bob -> he can no longer
+         fetch the ciphertext records or get presigned media urls.
+         enforced now, logged, works with existing machinery.
+      2. crypto layer, forward: bump the epoch -> new audience key
+         wrapped to everyone-but-bob. everything posted after the
+         revoke is unreadable to him even if he obtains ciphertext
+         (node compromise, leaked backup).
+      3. optional deep-clean: lazy background re-encryption of old
+         content under the new epoch, for the paranoid tier.
+    what no system can do: make bob un-know a key he already has or
+    unsee content he already saw. signal/whatsapp/mls all rotate
+    forward rather than pretend otherwise; so do we.
+[ ] epochs are independent random keys, NOT a hash chain -- a
+    derivable chain would let an old epoch compute new ones and
+    break revocation. granting history to a new member = wrapping
+    the specific old epochs you choose; "sees history" vs "new
+    content only" membership falls out for free.
+[ ] scale check: thousands of friends x 32-byte wraps = kilobytes
+    per epoch bump. pairwise hpke is fine for a human graph. mls
+    (rfc 9420) tree groups are the graduation path if huge groups /
+    heavy churn demand log(n) rotation -- adopt, don't invent.
+
+timed access (the api's clock, not magic keys):
+[ ] grant records carry expires; the node stops serving both the
+    grant and the ciphertext past it (same is_permitted machinery
+    -- terms gain a time dimension). presigned media urls already
+    expire in 30-60s (D14). net: "alice can see this for 48 hours"
+    is one field on the grant.
+[ ] explicitly rejected: cryptographically self-expiring keys.
+    without trusted hardware on every reader they don't exist;
+    pretending is how you reinvent drm badly. node-enforced expiry
+    + epoch rotation covers the real threat; the sensitive tier
+    covers the rest.
+[ ] live-handout mode (sensitive/ephemeral tier -- webrtc payoff
+    #2): key never stored anywhere, handed out p2p per-read from
+    your phone, exactly the original vision. strongest control
+    (revoke = stop answering; expiry = your phone enforces it),
     costs availability (phone offline = content dark). user picks
     the tier per service or per record.
-[ ] mobile/encryptor grows into the real keychain app: keys in the
-    phone's secure enclave, approve/deny key requests, see who has
-    keys to what (a live map of your privacy)
-[ ] recovery story or this kills people's data: encrypted key backup
-    (passphrase-wrapped, stored via phase 10 to drive/dropbox) +
-    multi-device keys. lost phone must not mean lost life.
+
+media + s3 (the double door):
+[ ] private blobs are encrypted client-side BEFORE upload; media
+    service and bucket never see plaintext. a reader needs BOTH
+    doors: a fresh presigned url (node acl -- instant revoke,
+    timed, logged) AND the key (crypto -- epoch-revocable). D14's
+    check-at-issue window now leaks at most ciphertext.
+[ ] hls video: encrypt segments; key delivery rides grants (or the
+    live-handout channel for the sensitive tier).
+
+backup + recovery (or this kills people's data):
+[ ] wallet backup = master seed + key manifest snapshot, encrypted
+    under argon2id(passphrase), pushed over the phase 10 rails to
+    drive/dropbox/icloud/usb/a friend's node. owned keys re-derive
+    from the seed; received grants re-fetch.
 [ ] TRUST SPLITTING, hard invariant: key backups NEVER live on the
     node that holds the ciphertext. node has ciphertext, no keys.
-    escrow party (drive/dropbox/icloud/usb/a friend's node -- user's
-    choice) has passphrase-wrapped keys, no ciphertext. no single
-    party can read you; collusion + your passphrase is the bar.
-    "joe rogan can't leak your shit" is structural, not policy.
-[ ] prior art to steal from: signal's sender keys, mls (rfc 9420)
-    for group key management. don't invent crypto, assemble it.
+    escrow party has passphrase-wrapped keys, no ciphertext. no
+    single party can read you; collusion + your passphrase is the
+    bar. "joe rogan can't leak your shit" is structural, not policy.
+[ ] multi-device is also recovery: any linked device can bless a
+    new phone (device cert chain), so lost phone != lost life.
+
+what the operator still sees (say it, don't oversell it):
+    ciphertext sizes, timing, service names, and the social graph
+    implied by grants. e2e hides CONTENT, not existence. metadata
+    minimization (padding, private grant delivery) is later work.
+
+app + sdk surface:
+[ ] mobile/encryptor grows into the real keychain app: the wallet,
+    approve/deny linking + key requests, and the grants map -- who
+    can see what, until when, with revoke buttons that actually run
+    the layered dance above. a live map of your privacy.
+[ ] sdk: encryption is a property of the record, not the app --
+    wapi handles tiering on create/read so lens + killer app render
+    all three tiers seamlessly.
 [ ] tiers end to end: public (plaintext), friends (wrapped keys),
-    sensitive (live handout). the lens/apps render all three
-    seamlessly; encryption is a property of the record, not the app.
+    sensitive (live handout).
 
 
 PHASE 12 — trust & safety (the unglamorous load-bearing wall)

@@ -9,6 +9,73 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D18 — The keyring is generic like the record model: named keys, a small closed verb set [decided]
+The same discipline that made `{service, body}` survive: no hardcoded schema.
+Audiences are user-named keys (any string — a circle, a single record, an LLM
+agent, an HLS stream), minting is one cheap call (HKDF from the master seed),
+and principals are **public keys, not usernames** (humans bind on top via the
+key manifest + signatures), so grantees can be friends, devices, agents, or
+things that don't exist yet. One composability rule does the heavy lifting:
+wrap targets are pubkeys OR other named keys — which makes membership, nested
+circles, and backup (seed wrapped under a passphrase key) the *same verb*.
+The verb set is small and closed: mint / rotate / wrap / unwrap / encrypt /
+decrypt / sign / verify / list / handout; revoke is a **composition**
+(terms-drop + rotate + rewrap), not a primitive. Everything the keyring
+persists is an ordinary `{service:"keys"}` record, so terms/CRUD/portability
+apply unchanged and the node grows zero key-specific endpoints. Every wrapped
+blob carries `{v, suite}` ids for crypto agility. Scope guard: keys do keys,
+not policy — no roles or ACL language inside grants; authorization stays
+terms (node) + possession (crypto). A futureproof checklist in plan.txt
+phase 11 gates the design review. Rejects: enum'd circle types,
+username-bound grants, a backup-specific subsystem, unversioned wire formats,
+and a policy DSL inside the keyring.
+
+### D17 — Crypto suite is pinned to boring standards; no blockchain, no invented crypto [decided]
+E2E encryption (phase 11) assembles existing, audited primitives: X25519 +
+Ed25519 (identity/devices, HKDF-derived from one master seed), HPKE (RFC 9180)
+for wrapping keys to people, XChaCha20-Poly1305 for content, Argon2id for
+passphrase-wrapped backups, and Signal-style QR safety numbers for optional
+verification. MLS (RFC 9420) is the pre-chosen graduation path when group
+size/churn outgrows pairwise wraps. Explicitly rejected: anything web3-shaped
+(chains, tokens, "decentralized key registries"), hand-rolled ECDH (the
+secp256k1 experiments in `sdk/src/wapiencrypt.js` are a seed, not a
+direction), and cryptographically self-expiring keys (without trusted
+hardware on every reader they don't exist — timed access is the node's job,
+see D16).
+
+### D16 — Revocation is layered: node gating (instant) + epoch rotation (forward) [decided]
+Sharing is by **audience keys with epochs** — a symmetric key per circle per
+epoch, HPKE-wrapped to each member's public key and stored as a signed,
+terms-gated **grant** record in the owner's collection. Revoking someone is
+two enforced layers plus an optional third: (1) node layer, instant — terms
+drop them, so they can't fetch ciphertext or presigned URLs anymore; (2)
+crypto layer, forward — bump the epoch, rewrap to everyone-but-them, so all
+future content is unreadable to them even if they obtain ciphertext; (3)
+optional lazy re-encryption of history. Epochs are independent random keys
+(a derivable hash chain would let old epochs compute new ones). Timed access
+= an `expires` field on the grant, enforced by the node's `is_permitted`
+machinery + 30–60s presigned URLs (D14); the sensitive tier (live handout
+from the phone) gives true real-time control. Honestly stated limit: no
+system can make someone un-know a key or unsee content they already
+downloaded — Signal/WhatsApp/MLS rotate forward rather than pretend, and so
+do we. Rejects: per-friend-per-post wrapping (no revocation unit), DRM-style
+expiring keys, and re-encrypt-everything-on-every-unfriend as a requirement.
+
+### D15 — Multi-device: phone is root of trust, companions are linked, traffic never proxies through the phone [decided]
+The WhatsApp Desktop model. The phone (wallet) holds the master seed and
+identity key; a laptop generates its own device keypair and is provisioned
+ONCE over a P2P WebRTC channel (QR pairing secret so the rtc signaling
+server can't MITM; rtc stays untrusted by construction). The phone signs a
+**device cert** {device pubkey, id, expires} with the identity key and syncs
+current audience keys — after linking, the companion encrypts/decrypts alone.
+Day-to-day reads/writes on a laptop never route through the phone; the phone
+is only in the loop for root operations (link, revoke a device, epoch bumps,
+live-handout tier). Device revocation = signed revocation in the key
+manifest + epoch bump; any linked device can bless a replacement phone, so
+lost phone ≠ lost life. Rejects: phone-as-proxy for all traffic (kills
+availability and battery, the original phase-11 sketch implied it), and
+server-side device provisioning (node could insert readers).
+
 ### D14 — Media reads use per-request presigned URLs with tight expiry [decided]
 S3-class stores can't express the terms model per object (bucket policies are
 bucket-level, object ACLs are coarse and deprecated). Rather than proxy every
