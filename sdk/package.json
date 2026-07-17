@@ -6,7 +6,8 @@
   "browser": "dist/node/wapi.js",
   "source": "src/wapi.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "wapi-cdn": "browserify src/wapi.js -o dist/wapi.js -t [ babelify --presets [ @babel/preset-env @babel/preset-react ] --plugins [ @babel/plugin-proposal-class-properties ] ]",
     "node-build": "microbundle-crl --no-compress --format modern,cjs",
     "build": "npm run wapi-cdn && npm run node-build",
@@ -32,7 +33,9 @@
     "@babel/preset-env": "^7.20.2",
     "@babel/preset-react": "^7.18.6",
     "babelify": "^10.0.0",
+    "jsdom": "^26.1.0",
     "microbundle-crl": "^0.13.11",
-    "nodemon": "^2.0.20"
+    "nodemon": "^2.0.20",
+    "vitest": "^3.2.4"
   }
 }
