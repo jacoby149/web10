@@ -56,28 +56,28 @@ react 16 + react-scripts 2, auth2 on CRA 5 (CRA is dead), no typescript
 anywhere. do this FIRST so every later phase builds on modern ground.
 
 python (api):
-[ ] switch to uv for package management (pyproject.toml, uv.lock,
+[✓] switch to uv for package management (pyproject.toml, uv.lock,
     kill requirements.txt + Pipfile duplication)
-[ ] python 3.12+, fastapi latest, pydantic v2
+[✓] python 3.12+, fastapi latest, pydantic v2
     breaking-change hotspots to watch:
       - pydantic v2: models.py (dotdict, .dict() -> .model_dump(), config)
       - PyJWT 1.7 -> 2.x: encode returns str not bytes, decode requires
         algorithms=, options handling changed (main.py decode_token)
       - passlib/bcrypt version pinning (known friction, test login flow)
-[ ] ruff for lint+format while we're in there
-[ ] prune dead deps (python-ldap? python-gnupg? systematic? "secrets" from
+[✓] ruff for lint+format while we're in there
+[✓] prune dead deps (python-ldap? python-gnupg? systematic? "secrets" from
     pypi is NOT the stdlib secrets module -- remove it)
 
 js (ui + sdk):
-[ ] bun as package manager + runtime for all js packages
-[ ] CRA -> vite (auth2/ui first; old auth dies in phase 2 anyway)
+[✓] bun as package manager + runtime for all js packages
+[✓] CRA -> vite (auth2/ui first; old auth dies in phase 2 anyway)
 [✓] typescript everywhere, incrementally: allowJs on, new files .ts/.tsx,
     port components as they get touched
-[ ] react 18 -> current, drop dead deps as found
-[ ] rtc service too: it's old node/peerjs and phase 11 makes it
+[✓] react 18 -> current, drop dead deps as found
+[✓] rtc service too: it's old node/peerjs and phase 11 makes it
     load-bearing (key channel). modernize + typescript it with the rest
 
-[ ] docker images rebuilt on the new toolchains (uv sync / bun install --
+[✓] docker images rebuilt on the new toolchains (uv sync / bun install --
     both are dramatically faster builds, better layer caching)
 
 
@@ -98,7 +98,8 @@ a DB_URL change, not a rewrite.
         or track sizes ourselves per-write
 [ ] keep atlas/real-mongo as a supported config (protocol is the standard,
     backend is the node operator's choice)
-[ ] mongo_migrate in web10-deploy: add a mongo -> ferretdb migration path
+[ ] add a mongo -> ferretdb migration path (script lives in api/ or a
+    dedicated tools/ dir, not in the deleted web10-deploy)
 
 
 PHASE 2 — ui (finish auth2, rename, migrate)

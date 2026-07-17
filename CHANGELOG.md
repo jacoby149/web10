@@ -1,3 +1,18 @@
+1.0.14 || 16.07.2026
+phase 0 completion — RTC modernization + docker image rebuild + cleanup:
+  - rtc service: node:15 → bun, index.js → index.ts with types, npm → bun,
+    added tsconfig.json, updated package.json (web10-rtc, ESM, typescript)
+  - auth2/Dockerfile: new multi-stage Dockerfile (bun dev target + static deploy)
+  - auth/Dockerfile: node:14 → bun (legacy UI, deprecated in phase 2)
+  - api/Dockerfile: already modern (uv, python3.12) — no change needed
+  - docker-compose.yml: pipenv → uv, npm → bun, nodemon → bun run dev,
+    added "ui" service (auth2), legacy auth shifted to port 3001,
+    removed version: "3" (deprecated), renamed rtc volume
+
+  - removed docker-compose-lite.yml, docker-compose-nginx.yml, custom.conf
+    (one compose file is enough, people can figure out deployment)
+  - removed web10-deploy/ (stale GCP configs, skaffold k8s manifests)
+
 1.0.13 || 14.07.2026
 phase 0 typescript migration:
   - renamed all 34 .jsx files to .tsx (React) or .ts (non-React)

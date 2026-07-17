@@ -1,8 +1,12 @@
-FROM --platform=linux/x86_64 node:15-alpine
+FROM oven/bun:1-alpine
+
 RUN mkdir /rtc
 WORKDIR /rtc
-RUN npm i -g nodemon
-COPY package.json /rtc/package.json
-RUN npm install
-COPY . /rtc
-CMD node index.js
+
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile
+
+COPY tsconfig.json index.ts ./
+
+EXPOSE 80
+CMD ["bun", "run", "index.ts"]
