@@ -1,3 +1,23 @@
+1.0.15 || 16.07.2026
+docs: fix D1 consumer list in parallel execution.txt — (C4, D3, D4) → (C4, D4, D5),
+matching the sequencing rule "D1 before C4/D4-schemas/D5" (D3 mobile encryptor
+has no D1 dependency)
+plan: new CROSS-CUTTING docs section — three doc surfaces, three homes:
+generated OpenAPI reference ships with the api (invest in annotations, optional
+Scalar UI), protocol spec + conventions live in-repo as versioned markdown +
+JSON Schema (conformance suite tests against them), docs/ becomes an MkDocs
+Material site (embeds OpenAPI, mkdocstrings, sdk typedoc; no hosted SaaS docs)
+plan: phase 7 — home/ + docs/ -> marketing-ui/: inc's website + dev docs as ONE
+site (docs are part of a saas marketing site), rebuilt on the ui toolchain
+(vite + react + bun), own vhost, never in the node compose; stays in the
+monorepo by choice (one dev, lean). repo reads api / ui / marketing-ui.
+docs site framework lean updated accordingly: js-native (starlight or
+docusaurus) instead of mkdocs, since it lives inside marketing-ui.
+decisions.md: new D12 recording the api / ui / marketing-ui repo trio.
+plan: docs section simplified — split by audience not tool; adds the missing
+user/creator guides (they ARE the saas marketing content, written per
+milestone as features ship); dev docs = D1 spec + generated references
+
 1.0.14 || 16.07.2026
 phase 0 completion — RTC modernization + docker image rebuild + cleanup:
   - rtc service: node:15 → bun, index.js → index.ts with types, npm → bun,
