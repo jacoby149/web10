@@ -1,7 +1,26 @@
-1.0.30 || 17.07.2026
+1.0.32 || 17.07.2026
 Removed chrome-extension/: browser extension was too high a friction
 bar for mainstream adoption. it was fully isolated — zero external
 references, no CI/CD, no backend integration, no docs mentions.
+
+1.0.31 || 17.07.2026
+marketing-api: new FastAPI service — ZIP import pipeline (server-side
+streaming parse, validate, dedup, batch write to user's node), analytics
+endpoints (pageview tracking, funnel events). Exporter UI moved from
+exporters/ into marketing-ui/ (now talks to marketing-api via job polling
+instead of browser-side ZIP parsing). Instagram/Facebook/YouTube mappers
+ported to Python. Legacy home/ and exporters/ dirs deleted, home service
+removed from docker-compose.yml.
+
+1.0.30 || 17.07.2026
+marketing-ui: new project — consolidated home/ + docs/ + App Store into
+one marketing site (Vite + React 19 + TS + Bun + react-router). Home page
+rebuilt from home/index.html (hero, features, stats, team, footer). Docs
+page renders docs/ markdown via remark. App Store moved from ui/ to
+marketing-ui/ (public-facing app discovery belongs on the marketing site,
+not inside the node's auth UI). ui/ default mode changed from "appstore"
+to "contracts"; AppStore component, appListingInterface, mockAppData, and
+related state removed from ui/.
 
 1.0.29 || 16.07.2026
 plan: added phase 2.5 — the ui makeover. retire the homemade
