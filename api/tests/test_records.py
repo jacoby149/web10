@@ -1,8 +1,8 @@
-"""Tests for record factory functions in web10records.py."""
+"""Tests for record factory functions in services/records.py."""
 
 import datetime
 
-import app.web10records as records
+from app.services import records
 import app.settings as settings
 
 
