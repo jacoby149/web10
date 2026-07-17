@@ -15,6 +15,9 @@ function SideBar(props) {
                             <C onClick={() => I.setMode("settings")} t bb h s={"40px"} va="center">
                                 Settings
                             </C>
+                            <C onClick={() => I.setMode("config")} t bb h s={"40px"} va="center">
+                                Node Config
+                            </C>
                             <C onClick={() => I.setMode("contracts")} t bb h s={"40px"} va="center">
                                 Contracts
                             </C>

@@ -77,7 +77,7 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       (landed BEFORE the wave-0 endpoint suite — that referee is
       still owed; see wave 0 status above)
   [✓ 1.0.39] A2. P1 ferretdb/documentdb switch + compose profiles + rename mongo.py -> documentdb.py
-  [ ] A3. P3 setup wizard api side (setup mode, /setup, key generation,
+  [✓ 1.0.40] A3. P3 setup wizard api side (setup mode, /setup, key generation,
       node policy config) + one-container packaging (multi-stage
       dockerfile -- needs B2's build output, coordinate the handoff)
   [✓ 1.0.38] A4. P6 aggregate endpoint (the 5th verb, sandbox validator;
@@ -92,8 +92,8 @@ LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
       stack (tailwind + shadcn/ui candidate, record in decisions.md),
       shared design tokens, story-first narrative pass. do BEFORE
       B3/B4 so wizard + admin panel are born on the new stack.
-  [ ] B3. P3 setup wizard screens
-  [ ] B4. P4 admin panel: policy config, ad records crud, analytics
+  [✓ 1.0.40] B3. P3 setup wizard screens
+  [✓ 1.0.40] B4. P4 admin panel: policy config, ad records crud, analytics
       views (analytics needs A5 merged; build ui against fixtures
       until then)
 
