@@ -91,7 +91,7 @@ LANE C — greenfield services  (owns: media/, sdk/, mcp/, new dirs)
   [ ] C4. P10 backup integrations (drive/dropbox oauth, export/import
       archive -- format comes from D1's conventions doc)
 
-LANE D — docs / apps / mobile (owns: mobile/**, social/, examples/,
+LANE D — docs / apps / mobile (owns: mobile/**, social/, examples/, marketing-ui/
                                 *.md/txt)
   [✓ 1.0.18, 1.0.20] D1. conventions doc (posts/media/contacts/inbox
       schemas) + protocol spec draft. docs/protocol-spec.md,
@@ -113,7 +113,18 @@ LANE D — docs / apps / mobile (owns: mobile/**, social/, examples/,
   [✓ 1.0.27] D5. P9 exporter core + instagram mapping (needs D1 conventions;
        client-side, so no api deps) — also includes Facebook + YouTube
        mapping, multi-platform UI with takeout checklists, 57 tests
-  [✓ 1.0.28] D6. web10-social: full TS + Vite + Bun revamp + 137 vitest tests
+   [✓ 1.0.28] D6. web10-social: full TS + Vite + Bun revamp + 137 vitest tests
+   [✓ 1.0.30] D7. P7 marketing-ui: consolidated home/ + docs/ + App Store
+       into marketing-ui/ (Vite + React 19 + TS + Bun + react-router).
+       App Store moved out of ui/ — public-facing discovery belongs on
+       the marketing site, not the node's auth UI.
+   [✓ 1.0.31] D8. P7 marketing-api + exporter migration: new FastAPI
+       service for ZIP import pipeline (server-side streaming parse,
+       validate, dedup, batch write) + analytics (pageview, funnel).
+       Exporter UI moved from exporters/ into marketing-ui/ (now polls
+       marketing-api jobs instead of browser-side ZIP parsing). Legacy
+       home/ and exporters/ dirs deleted.
+
 
 
 WHAT MUST STAY SEQUENTIAL (don't try to parallelize these)

@@ -364,14 +364,14 @@ ships its web client. same logic.
 [✓] crm/ + mail/ -> examples/ directory: kept in-repo as reference
      apps for devs, but OUT of the node's default compose. they're
      documentation that runs.
-[ ] home/ + docs/ -> marketing-ui/: web10 inc's website, ONE site.
+[✓] home/ + docs/ -> marketing-ui/: web10 inc's website, ONE site.
     docs are a key part of a saas marketing site, so they live
     together: landing pages + dev docs, one dir, one build. not part
     of a node -- own vhost, never in the node compose. it STAYS in
     this monorepo by choice: one dev, one repo, atomic commits
     across product + site is lean. multi-repo is a later option,
     not a goal.
-[ ] marketing-ui rebuild: replace home/'s static html (delete the
+[✓] marketing-ui rebuild: replace home/'s static html (delete the
     cruft: index - Copy.html) with the same toolchain as ui
     (vite + react + bun, one stack to maintain).
 [ ] the naming makes the repo read clean: api (the node),
