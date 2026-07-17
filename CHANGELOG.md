@@ -1,3 +1,20 @@
+1.0.40 || 17.07.2026
+Setup wizard + admin config screen (Phase 3/4 partial, lanes A3/B3/B4):
+  - API: /ready (health check, reports configured status), /setup (GET status,
+    POST first-run wizard), /config (GET current config, PATCH partial update).
+    All endpoints hidden from OpenAPI schema (include_in_schema=False).
+    New services/config.py: node_is_configured(), admin_exists(), save_config(),
+    generate_jwt_keypair(), create_admin(). New models/config.py: SetupRequest,
+    SetupStatus, ConfigUpdate, NodeConfig pydantic schemas.
+  - UI: SetupWizard component — 6-step onboarding flow (Welcome -> Node Identity
+    -> Admin Account -> Access Policy -> Storage -> Complete). Detects unconfigured
+    nodes via /ready and redirects to setup automatically.
+  - UI: ConfigPage component — admin node configuration panel. Editable fields for
+    all node settings: identity, access policy (beta/verify/pay toggles), free tier
+    defaults, S3/media storage, Twilio SMS, Stripe payments. "Node Config" link
+    added to SideBar for authenticated users.
+  - App.tsx: setup detection on mount, "setup" and "config" modes added to router.
+
 1.0.39 || 17.07.2026
 adapter rename: api/app/services/mongo.py -> documentdb.py. the module is
 backend-agnostic (pymongo speaks to either real Mongo or FerretDB/DocumentDB),
