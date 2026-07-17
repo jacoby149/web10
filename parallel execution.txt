@@ -73,6 +73,10 @@ LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
   [✓ 1.0.12-1.0.14] B1. P0 js: auth2 -> vite + bun + typescript
       (react 19, vitest, multi-stage dockerfiles, rtc to bun too)
   [✓ 1.0.26] B2. P2 finish auth2 features, parity audit, rename to ui
+  [ ] B2.5. P2.5 ui makeover in ui/: rectangles-npm -> mainstream
+      stack (tailwind + shadcn/ui candidate, record in decisions.md),
+      shared design tokens, story-first narrative pass. do BEFORE
+      B3/B4 so wizard + admin panel are born on the new stack.
   [ ] B3. P3 setup wizard screens
   [ ] B4. P4 admin panel: policy config, ad records crud, analytics
       views (analytics needs A5 merged; build ui against fixtures
@@ -94,6 +98,10 @@ LANE D — docs / apps / mobile (owns: mobile/**, social/, examples/,
       docs/conventions.md, docs/schemas/*.json — C4/D4/D5 now unblocked.
   [ ] D2. P7 tidy: crm/mail -> examples/, killer app dir (social/)
       scaffolded as first-party (file moves, cheap)
+  [ ] D2.5. P2.5 ui makeover in web10-social: rectangles-npm ->
+      mainstream stack (match B2.5's pick + design tokens), story-
+      first pass (empty states, lens/chatbox forward). pairs with
+      D4 -- the M0 demo screens are the acceptance bar.
   [~] D3. P11 mobile encryptor: the expo app can grow toward the real
       keychain (secure enclave, key requests ui) fully in parallel
       -- it talks to the node over the existing api. the rtc key
@@ -103,7 +111,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, social/, examples/,
       on the current wapi if needed; swaps to C2 sdk when it lands.
   [ ] D5. P9 exporter core + instagram mapping (needs D1 conventions;
       client-side, so no api deps)
-  [✓ 1.0.26] D6. web10-social: full TS + Vite + Bun revamp + 65 vitest tests
+  [✓ 1.0.28] D6. web10-social: full TS + Vite + Bun revamp + 137 vitest tests
 
 
 WHAT MUST STAY SEQUENTIAL (don't try to parallelize these)

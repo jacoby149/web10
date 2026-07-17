@@ -1,3 +1,13 @@
+1.0.29 || 16.07.2026
+plan: added phase 2.5 — the ui makeover. retire the homemade
+rectangles-npm framework from every ui (ui/, web10-social/), replace
+with a mainstream stack (tailwind + shadcn/ui as default candidate),
+plus a story-first product design pass (shared design tokens,
+narrative screens, the M0 demo as the acceptance bar). queued as
+B2.5 (ui/) and D2.5 (web10-social) in parallel execution.txt; B2.5
+sequenced before B3/B4 so wizard + admin panel are built on the new
+stack.
+
 1.0.28 || 16.07.2026
 web10-social: full TypeScript + Vite + Bun modernization (Lane D):
   - migrated from CRA 5 (react-scripts) to Vite 6 + bun + TypeScript
