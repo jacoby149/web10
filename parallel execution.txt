@@ -16,13 +16,25 @@ the two rules that make 4-wide parallelism safe:
    merging safe.
 3. EVERY BRANCH UPDATES THE CHANGELOG: add a CHANGELOG.md line for what
    you changed (newest at top), tick the plan.txt item you completed,
-   and keep CLAUDE.md/GLOSSARY.md/decisions.md true if you moved them.
+   tick your lane item in THIS file's queues below, and keep
+   CLAUDE.md/GLOSSARY.md/decisions.md true if you moved them.
    CHANGELOG.md is lane-neutral (append at top) so it rarely conflicts;
    if it does, it's a trivial resolve.
+
+STATUS KEY (check before starting anything — don't redo merged work):
+  [✓ x.y.z] = merged, see that CHANGELOG.md entry.  [~] = in flight in
+  another workspace.  [ ] = open. this file is ticked on merge, so also
+  scan the top of CHANGELOG.md for anything newer than the ticks here.
 
 
 WAVE 0 — the seatbelt (do this alone, merge fast, ~single branch)
 -----------------------------------------------------------------
+STATUS: PARTIAL — the unit layer landed (210 tests, 1.0.21: mocked-DB
+pytest for api auth/mongo logic, vitest for auth2 + sdk). still OPEN:
+github actions ci, the endpoint-level permission-matrix suite (FastAPI
+routes, star protection, forged tokens over HTTP), and the small
+security fixes below. that endpoint suite is still the top priority.
+
 before running 4-wide, land the thing that protects all 4 lanes:
 
   [seatbelt] github actions ci + the pytest permission-matrix suite
@@ -47,48 +59,49 @@ THE 4 LANES (each is an ordered queue; top of each = in flight now)
 -------------------------------------------------------------------
 
 LANE A — api / backend        (owns: api/**, docker-compose, settings)
-  A1. P0 python: uv + fastapi/pydantic/pyjwt upgrades
-      (the permission suite from wave 0 is the referee)
-  A2. P1 ferretdb/documentdb switch + compose profiles
-  A3. P3 setup wizard api side (setup mode, /setup, key generation,
+  [✓ 1.0.11] A1. P0 python: uv + fastapi/pydantic/pyjwt upgrades
+      (landed BEFORE the wave-0 endpoint suite — that referee is
+      still owed; see wave 0 status above)
+  [ ] A2. P1 ferretdb/documentdb switch + compose profiles
+  [ ] A3. P3 setup wizard api side (setup mode, /setup, key generation,
       node policy config) + one-container packaging (multi-stage
       dockerfile -- needs B2's build output, coordinate the handoff)
-  A4. P6 aggregate endpoint (the 5th verb, sandbox validator)
-  A5. P4 metering events (per-request event records for analytics)
+  [ ] A4. P6 aggregate endpoint (the 5th verb, sandbox validator)
+  [ ] A5. P4 metering events (per-request event records for analytics)
 
 LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
-  B1. P0 js: auth2 -> vite + bun + typescript
-  B2. P2 finish auth2 features, parity audit, rename to ui
-  B3. P3 setup wizard screens
-  B4. P4 admin panel: policy config, ad records crud, analytics
+  [✓ 1.0.12-1.0.14] B1. P0 js: auth2 -> vite + bun + typescript
+      (react 19, vitest, multi-stage dockerfiles, rtc to bun too)
+  [ ] B2. P2 finish auth2 features, parity audit, rename to ui
+  [ ] B3. P3 setup wizard screens
+  [ ] B4. P4 admin panel: policy config, ad records crud, analytics
       views (analytics needs A5 merged; build ui against fixtures
       until then)
 
 LANE C — greenfield services  (owns: media/, sdk/, mcp/, new dirs)
-  C1. P5 media service (presigned urls, minio profile, metadata
-      records) -- zero deps on A/B, start immediately
-  C2. P6 sdk rewrite (typescript, fetch, typed crud; aggregate
+  [~] C1. P5 media service (presigned urls, minio profile, metadata
+      records) -- zero deps on A/B, in flight (workspace, 16.07.2026)
+  [ ] C2. P6 sdk rewrite (typescript, fetch, typed crud; aggregate
       types land after A4 merges -- everything else doesn't wait)
-  C3. P6 mcp server (thin layer over the C2 surface)
-  C4. P10 backup integrations (drive/dropbox oauth, export/import
+  [ ] C3. P6 mcp server (thin layer over the C2 surface)
+  [ ] C4. P10 backup integrations (drive/dropbox oauth, export/import
       archive -- format comes from D1's conventions doc)
 
 LANE D — docs / apps / mobile (owns: mobile/**, social/, examples/,
                                *.md/txt)
-  D1. conventions doc (posts/media/contacts/inbox schemas) +
-      protocol spec draft (from api/web10.0.md). PURE WRITING,
-      zero conflicts, and THREE lanes consume it (C4, D4, D5).
-      do it first for exactly that reason.
-  D2. P7 tidy: crm/mail -> examples/, killer app dir (social/)
+  [✓ 1.0.18, 1.0.20] D1. conventions doc (posts/media/contacts/inbox
+      schemas) + protocol spec draft. docs/protocol-spec.md,
+      docs/conventions.md, docs/schemas/*.json — C4/D4/D5 now unblocked.
+  [ ] D2. P7 tidy: crm/mail -> examples/, killer app dir (social/)
       scaffolded as first-party (file moves, cheap)
-  D3. P11 mobile encryptor: the expo app can grow toward the real
+  [~] D3. P11 mobile encryptor: the expo app can grow toward the real
       keychain (secure enclave, key requests ui) fully in parallel
       -- it talks to the node over the existing api. the rtc key
       channel + sdk crypto integration waits for A/C, but the APP
-      doesn't.
-  D4. P8 killer app M0 slice: post + feed + lens chatbox. starts
+      doesn't. in flight (workspace, 16.07.2026)
+  [ ] D4. P8 killer app M0 slice: post + feed + lens chatbox. starts
       on the current wapi if needed; swaps to C2 sdk when it lands.
-  D5. P9 exporter core + instagram mapping (needs D1 conventions;
+  [ ] D5. P9 exporter core + instagram mapping (needs D1 conventions;
       client-side, so no api deps)
 
 
@@ -116,16 +129,18 @@ M3 "the network"         = encryption integration (A rtc + C2 sdk
                            polish. the last big merge.
 
 
-SUGGESTED FIRST CONDUCTOR BOARD (4 workspaces today)
-----------------------------------------------------
-  ws1: wave 0 seatbelt (ci + permission tests + small security fixes)
-  ws2: C1 media service (greenfield, conflicts with nothing)
-  ws3: D1 conventions doc + protocol spec (writing, conflicts with
-       nothing, unblocks three other queues)
-  ws4: D3 mobile encryptor modernization (expo app, own directory)
+CURRENT CONDUCTOR BOARD (as of 16.07.2026 — keep this section fresh)
+--------------------------------------------------------------------
+  ws1: wave 0 remainder: ci + ENDPOINT permission-matrix suite +
+       small security fixes (unit layer landed 1.0.21; this is what's
+       left, and it's still the highest-value slot)
+  ws2: C1 media service (in flight)
+  ws3: D3 mobile encryptor (in flight)
+  ws4: next unticked pick — C2 sdk rewrite, D2 tidy, or D5 exporters
+       (D1 merged, so D5 is unblocked); B2 if you want the B lane
+       moving (A1/B1/D1 are DONE — do not pick them again)
 
-  when ws1 merges -> replace with A1 (python upgrade, now refereed).
-  when ws3 merges -> replace with B1 (vite/bun/ts port).
-  from then on: pull the top of whichever lane's queue is unblocked.
-  lanes A and B are long marches; C and D are a stream of short
-  branches that keep two slots busy without ever touching A/B files.
+  from here on: pull the top unticked item of whichever lane's queue
+  is unblocked. lanes A and B are long marches; C and D are a stream
+  of short branches that keep two slots busy without touching A/B
+  files.

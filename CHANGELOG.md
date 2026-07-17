@@ -1,3 +1,37 @@
+1.0.25 || 16.07.2026
+Phase 5 media service (greenfield, Lane C):
+  - media/: new FastAPI service with presigned S3 upload URLs, short-lived
+    presigned read URLs (60s expiry, per-read issuance, logged per D14),
+    metadata record creation in user's collection (ordinary {service:"media",
+    body} per D13), and media record listing/deletion
+  - Auth mirrors api's is_permitted/certify logic against the "media" service;
+    terms/ACLs are the single source of permission truth with zero new concepts
+  - S3 config supports any S3-compatible backend (MinIO self-hosted, R2, B2,
+    Wasabi) via env vars; MinIO added to docker-compose on a dedicated
+    media-network
+  - pyproject.toml (uv, python 3.12, boto3), Dockerfile, models.py (upload,
+    read, metadata schemas), settings.py, mongo.py (terms lookup, CRUD),
+    auth.py (token verify, is_permitted), main.py (5 endpoints)
+  - docker-compose: media service (port 6001, media.localhost) + minio
+    (port 9000, console 9001) with minio-data volume
+
+1.0.24 || 16.07.2026
+agent task-status hygiene (agents were re-attempting merged work):
+  - parallel execution.txt: lane queues now carry live status markers —
+    [✓ x.y.z] merged (A1, B1, D1 ticked with their changelog versions),
+    [~] in flight (C1, D3), [ ] open; wave 0 marked PARTIAL (unit layer
+    landed in 1.0.21, endpoint permission-matrix suite + CI still owed);
+    rule 3 extended: tick your lane item in this file on merge; stale
+    "suggested first board" replaced with a dated current board
+  - added AGENTS.md: orientation entry point for non-Claude agents
+    (codex/qwen read AGENTS.md, not CLAUDE.md) — points to CLAUDE.md and
+    states the check-before-you-start + tick-on-finish rules; QWEN.md
+    pointer added too (Qwen Code's default context file)
+  - added .conductor/settings.toml with a repo-wide general prompt
+    reminding conductor agents to check done-status before starting
+  - CLAUDE.md: new "check it isn't already done" convention; changelog
+    convention now includes ticking the parallel execution.txt lane
+
 1.0.23 || 16.07.2026
 plan: phase 11 gains "the keyring api" — the record-model discipline applied
 to keys: user-named keys (audience = any string, like a service name), cheap

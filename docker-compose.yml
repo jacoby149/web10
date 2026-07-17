@@ -92,12 +92,48 @@ services:
       - "7746:80"
     environment:
       VIRTUAL_HOST: crm.localhost
+  media: # web10 media service - S3 presigned URLs and metadata records (Phase 5)
+    build: media
+    volumes:
+      - ./media/:/web10
+    ports:
+      - "6001:80"
+    environment:
+      - VIRTUAL_HOST=media.localhost
+      - PROVIDER=api.localhost
+      - DB_URL=mongodb://api:27017
+      - S3_ENDPOINT=http://minio:9000
+      - S3_ACCESS_KEY=minioadmin
+      - S3_SECRET_KEY=minioadmin
+    command: ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80", "--reload"]
+    networks:
+      - all-spark-proxy
+      - media-network
+    depends_on:
+      - minio
+  minio: # S3-compatible object storage for media blobs (Phase 5)
+    image: minio/minio:latest
+    volumes:
+      - minio-data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+      - MINIO_CONSOLE_ADDRESS=:9001
+    command: server /data --console-address :9001
+    networks:
+      - media-network
 
 volumes:
   node-modules:
   wapi-node-modules:
   rtc-node-modules:
   ui-node-modules:
+  minio-data:
 networks:
   all-spark-proxy:
     external: true
+  media-network:
+    driver: bridge
