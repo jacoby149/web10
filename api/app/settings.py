@@ -38,6 +38,17 @@ STRIPE_LIVE_CREDIT_SUB_ID = "price_1Kkb....."
 STRIPE_LIVE_SPACE_SUB_ID = "price_1Kkb7....."
 DEV_PAY_PCT = 98
 
+# S3-compatible object storage (media service)
+S3_ENDPOINT = os.getenv("S3_ENDPOINT", "http://minio:9000")
+S3_BUCKET = os.getenv("S3_BUCKET", "web10-media")
+S3_ACCESS_KEY = os.getenv("S3_ACCESS_KEY", "minioadmin")
+S3_SECRET_KEY = os.getenv("S3_SECRET_KEY", "minioadmin")
+S3_REGION = os.getenv("S3_REGION", "us-east-1")
+S3_USE_SSL = os.getenv("S3_USE_SSL", "false").lower() == "true"
+UPLOAD_URL_EXPIRY = int(os.getenv("UPLOAD_URL_EXPIRY", "300"))
+READ_URL_EXPIRY = int(os.getenv("READ_URL_EXPIRY", "60"))
+MAX_UPLOAD_SIZE = int(os.getenv("MAX_UPLOAD_SIZE", "524288000"))
+
 # Load environment variables into settings params.
 for v in list(globals()):
     env_val = os.getenv(v)

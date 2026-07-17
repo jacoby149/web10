@@ -13,11 +13,27 @@ all checks report pass/fail — no branch protection yet (visibility
 first, gatekeeping is a deliberate later flip).
 
 1.0.31 || 17.07.2026
+Restructured api/ into a clean layered layout: models/ (Pydantic schemas),
+services/ (business logic — auth, mongo, media, stripe, twilio, records),
+endpoints/ (routers — auth, crud, media, payments, system). main.py is now
+just app init + middleware + router includes. Test suite expanded from 118
+to 205 tests: added media models, media services, mongo CRUD + media helpers,
+stripe pure logic, twilio pure logic, auth service gaps (authenticate_user,
+certify_with_remote_provider, check_admin, password hash/verify).
+
+1.0.30 || 17.07.2026
+Merged media service into api/ as a single FastAPI router. The standalone
+media/ service (port 6001, media.localhost) is gone — media routes now
+live at api/ (port 6000) under the same app, auth, and CORS config.
+api/app/media.py carries the router; models, mongo helpers, S3 settings,
+and boto3 are consolidated into api/. docker-compose.yml no longer
+spins up the media container; minio stays on the all-spark-proxy network
+for the api to reach directly.
+
 Removed chrome-extension/: browser extension was too high a friction
 bar for mainstream adoption. it was fully isolated — zero external
 references, no CI/CD, no backend integration, no docs mentions.
 
-1.0.30 || 17.07.2026
 marketing-api: new FastAPI service — ZIP import pipeline (server-side
 streaming parse, validate, dedup, batch write to user's node), analytics
 endpoints (pageview tracking, funnel events). Exporter UI moved from
