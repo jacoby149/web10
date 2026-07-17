@@ -149,6 +149,18 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
 
 
 
+LANE E — infrastructure / deployment (owns: proxmox provisioning,
+    reverse proxy, CI/CD deploy targets)
+  [ ] E1. proxmox staging node: create fresh Ubuntu VM on 192.168.8.20,
+      deploy web10 node (api + ui + db + rtc + minio) via
+      ubuntu-deployment/ubuntu-deploy.sh. team-accessible internal staging.
+  [ ] E2. marketing deploy: marketing-ui + marketing-api on proxmox,
+      caddy reverse proxy with auto-TLS. internal staging complete.
+  [ ] E3. public domain + auto-TLS for external traffic (when ready)
+  [ ] E4. automated provisioning: terraform or ssh-api script +
+      ansible for idempotent VM/LXC setup. don't rush — manual is
+      fine until E2 works.
+
 WHAT MUST STAY SEQUENTIAL (don't try to parallelize these)
 ----------------------------------------------------------
 - A1 -> A2: both churn api internals; ferretdb testing against a

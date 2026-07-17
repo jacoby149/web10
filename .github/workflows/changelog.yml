@@ -16,6 +16,8 @@ jobs:
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-changelog')"
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Check CHANGELOG.md was modified
         run: |
