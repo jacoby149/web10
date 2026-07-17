@@ -104,7 +104,7 @@ LANE C — greenfield services  (owns: media/, sdk/, mcp/, new dirs)
   [ ] C4. P10 backup integrations (drive/dropbox oauth, export/import
       archive -- format comes from D1's conventions doc)
 
-LANE D — docs / apps / mobile (owns: mobile/**, social/, examples/, marketing-ui/
+LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
                                 *.md/txt)
   [✓ 1.0.18, 1.0.20] D1. conventions doc (posts/media/contacts/inbox
       schemas) + protocol spec draft. docs/protocol-spec.md,

@@ -6,7 +6,7 @@ on:
     paths:
       - ui/**
       - sdk/**
-      - web10-social/**
+      - marketing/web10-social/**
       - exporters/**
       - api/rtc/**
       - .github/workflows/js-ci.yml
@@ -15,7 +15,7 @@ on:
     paths:
       - ui/**
       - sdk/**
-      - web10-social/**
+      - marketing/web10-social/**
       - exporters/**
       - api/rtc/**
       - .github/workflows/js-ci.yml
@@ -39,7 +39,7 @@ jobs:
   web10-social:
     uses: ./.github/workflows/js.yml
     with:
-      package: web10-social
+      package: marketing/web10-social
 
   exporters:
     uses: ./.github/workflows/js.yml
