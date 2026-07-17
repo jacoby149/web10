@@ -1,3 +1,20 @@
+1.0.35 || 17.07.2026
+board sync: fixed plan.txt / parallel execution.txt drift against the
+changelog — C1 (media, landed 1.0.25, merged into api/ 1.0.30-31) and
+D3 (mobile encryptor, landed 1.0.27) were still marked [~] in flight;
+wave-0 status still said github actions ci was open (skeleton landed
+1.0.32); the three cd items in plan.txt were unticked though cd.yml
+shipped in 1.0.32; phase 7's crm/mail item described an examples/ move
+that never happened (they became web10-social sub-apps, 1.0.30); the
+conductor board was a day stale; lane C ownership still claimed the
+deleted media/ dir. CLAUDE.md refreshed: api described by its 1.0.31
+layered layout (models/services/endpoints), auth2 -> ui rename and
+crm/mail integration reflected. drift guard added to ci: changelog.yml
+gains a board-sync step — errors when the newest CHANGELOG version
+isn't strictly greater than every existing entry (duplicate 1.0.30s
+prompted this), warns when CHANGELOG.md changes without a plan.txt /
+parallel execution.txt tick in the same pr.
+
 1.0.34 || 17.07.2026
 Created marketing/ umbrella folder and moved marketing-api/, marketing-ui/,
 web10-cli/, and web10-social/ into it. These four projects share a purpose:

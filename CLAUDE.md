@@ -14,14 +14,15 @@ creators (influencers) run nodes and monetize; user accounts are free;
 web10 Inc. takes a small % of revenue through its payment rails.
 
 ## The stack (as of now — being modernized, see plan.txt phase 0)
-- `api/` — FastAPI. The node. All data + auth + billing. Entry: `api/app/main.py`.
-  - `main.py` routes + auth logic; `mongo.py` DB layer; `models.py` schemas;
-    `stripe.py`/`twilio.py` payment+sms interfaces; `settings.py` config.
-- `auth2/` — React admin/consent UI (becoming `ui/`). `auth/` is the old one.
+- `api/` — FastAPI. The node. All data + auth + billing + media. Entry: `api/app/main.py`.
+  - Layered (since 1.0.31): `main.py` app init + middleware + router includes;
+    `models/` Pydantic schemas; `services/` business logic (auth, mongo, media,
+    stripe, twilio, records); `endpoints/` routers (auth, crud, media, payments,
+    system); `settings.py` config.
+- `ui/` — React admin/consent UI (renamed from `auth2/` in 1.0.26; legacy `auth/` deleted).
 - `sdk/` — `wapi.js`, the frontend library apps are built with.
 - `api/rtc/` — WebRTC signaling (merged into api, becomes load-bearing for e2e encryption).
 - `mobile/encryptor/` — Expo app, the seed of the phone-as-keychain.
-- `crm/`, `mail/` — demo apps (moving to `examples/`).
 - `marketing/` — everything that makes web10 accessible:
     - `marketing-ui/` — web10 Inc.'s site: landing page + docs + App Store + Exporter UI.
         Vite + React 19 + TS + Bun + react-router. Own vhost, never in node compose.
@@ -29,7 +30,8 @@ web10 Inc. takes a small % of revenue through its payment rails.
     - `marketing-api/` — FastAPI backend for marketing-ui: ZIP import pipeline
         (server-side parse, validate, dedup, batch write), analytics (pageview, funnel).
     - `web10-cli/` — CLI tool for web10.
-    - `web10-social/` — the killer app: all-in-one social lens (instagram-shaped, video + streaming).
+    - `web10-social/` — the killer app: all-in-one social lens (instagram-shaped,
+        video + streaming). CRM and Mail live here as sub-apps (since 1.0.30).
 
 ## How the data model works (know this cold before touching mongo.py)
 - One MongoDB collection **per user**, named by username.
