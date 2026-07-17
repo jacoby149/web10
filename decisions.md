@@ -103,17 +103,17 @@ new concepts. Rejects: restructuring URLs to `/{user}/{service}/{collection}`
 (same churn, no capability gained). If the namespace word still grates later,
 that's a docs/glossary fix, not an API fix.
 
-### D12 — Repo trio: api / ui / marketing-ui; docs live in marketing-ui [decided]
-`home/` + `docs/` merge into **`marketing-ui/`** — web10 Inc's website as one
+### D12 — Repo trio: api / ui / marketing/marketing-ui; docs live in marketing/marketing-ui [decided]
+`home/` + `docs/` merge into **`marketing/marketing-ui/`** — web10 Inc's website as one
 site (landing + dev docs, one build), because docs are a key part of a SaaS
 marketing site. With phase 2's auth2→`ui` rename, the repo reads clean:
-`api` (the node), `ui` (the node's admin/consent surface), `marketing-ui`
+`api` (the node), `ui` (the node's admin/consent surface), `marketing/marketing-ui`
 (Inc's site). Everything stays in this monorepo by choice — one dev, atomic
 commits — multi-repo is a later option, not a goal. Doc surfaces split three
 ways: generated OpenAPI ships with the api (every node self-documents),
 protocol spec + conventions stay in-repo as versioned markdown/JSON Schema
 (the conformance suite tests those files), the rendered docs site is
-presentation inside marketing-ui (js-native framework: Starlight or
+presentation inside marketing/marketing-ui (js-native framework: Starlight or
 Docusaurus). Rejects: docs inside the node's `ui` (ships Inc's content with
 every node); hosted SaaS docs (off-message for a self-hosting product);
 separate marketing/docs repos now.
