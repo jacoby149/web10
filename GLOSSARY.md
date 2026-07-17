@@ -70,4 +70,26 @@ in `api/app/main.py` and `api/app/mongo.py` is the source of truth.
   user's phone; the operator *cannot* read private content.
 - **trust splitting** — key backups live with a party (Drive/Dropbox)
   separate from the node that holds the ciphertext. No single party can read you.
+- **wallet** — the keychain app on the phone (grows out of
+  `mobile/encryptor`): one master seed, HKDF-derived identity + per-service
+  keys, received grants. Root of trust for all the user's devices.
+- **keyring** — the wallet's generic key API (D18): named keys (any string,
+  like service names), a small closed verb set (mint / rotate / wrap /
+  unwrap / encrypt / decrypt / sign / verify / list / handout). Revoke is a
+  composition, not a primitive. Persists only as `{service:"keys"}` records.
+- **device linking / device cert** — a companion device (laptop) gets its
+  own keypair, provisioned once from the phone over P2P WebRTC; the phone
+  signs a device cert with the identity key. After linking the companion
+  encrypts/decrypts alone — traffic never proxies through the phone (D15).
+- **audience key / epoch** — the symmetric key for a sharing circle
+  ("friends", "close friends", a group), versioned by epoch. Revoking a
+  member = bump the epoch and rewrap to everyone else (D16).
+- **grant** — an audience key HPKE-wrapped to one member's public key,
+  stored as a signed, terms-gated record in the owner's collection, with an
+  optional node-enforced `expires`. "Who can see what, until when."
+- **key manifest** — a public self-signed `{service:"keys"}` record listing
+  a user's current public keys, device certs, and epoch numbers — what
+  friends fetch to encrypt *to* you (a JWKS-for-people / prekey bundle).
+- **live handout** — the sensitive tier: keys are never stored, handed out
+  P2P per-read by the phone; revoke = stop answering.
 - **wapi.js** — the JS SDK apps are built with (`sdk/`).

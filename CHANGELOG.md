@@ -1,3 +1,37 @@
+1.0.23 || 16.07.2026
+plan: phase 11 gains "the keyring api" — the record-model discipline applied
+to keys: user-named keys (audience = any string, like a service name), cheap
+one-call minting (hkdf from the master seed), principals are pubkeys not
+usernames, wrap targets are pubkeys OR other named keys (membership, nested
+circles, and backup become the same verb), a small closed verb set with
+revoke as a composition, {v, suite} version ids on every wire format, a
+no-policy-in-keys scope guard, and a futureproof checklist that gates the
+design review (person / circle / circle-of-circles / single record / whole
+service / llm agent on timed grant / device / hls stream / multi-admin
+group / node migration).
+decisions: D18 — keyring is generic like the record model; named keys +
+closed verb set; node grows zero key-specific endpoints.
+glossary: keyring.
+
+1.0.22 || 16.07.2026
+plan: phase 11 (e2e encryption) fleshed out from sketch to full design —
+phone-as-wallet key hierarchy (one master seed, HKDF-derived identity +
+per-service keys, key manifest record), WhatsApp-Desktop device linking over
+P2P WebRTC (companions encrypt/decrypt alone, traffic never proxies through
+the phone), envelope encryption with audience keys + epochs, layered
+revocation (node gating instant / epoch rotation forward / optional
+re-encrypt), node-enforced timed grants, media double door (presigned URL +
+key), backup/recovery via trust splitting, honest operator-metadata section.
+also flags rtc's unsigned-decode + trust-a-200 check as the I1 bug in
+miniature (gets the JWKS fix before carrying keys).
+decisions: D15 (multi-device: phone is root, linked companions, no
+phone-proxying), D16 (revocation layered: node gating + epoch rotation;
+timed access is the node's clock, not magic keys), D17 (crypto suite pinned
+to standards — X25519/Ed25519, HPKE, XChaCha20-Poly1305, Argon2id, MLS as
+graduation path; no web3, no invented crypto).
+glossary: wallet, device linking / device cert, audience key / epoch, grant,
+key manifest, live handout.
+
 1.0.21 || 16.07.2026
 unit test infrastructure:
   - api: added pytest suite (118 tests) covering mongo.py transformations
