@@ -1,3 +1,13 @@
+1.0.29 || 16.07.2026
+plan: added phase 2.5 — the ui makeover. retire the homemade
+rectangles-npm framework from every ui (ui/, web10-social/), replace
+with a mainstream stack (tailwind + shadcn/ui as default candidate),
+plus a story-first product design pass (shared design tokens,
+narrative screens, the M0 demo as the acceptance bar). queued as
+B2.5 (ui/) and D2.5 (web10-social) in parallel execution.txt; B2.5
+sequenced before B3/B4 so wizard + admin panel are built on the new
+stack.
+
 1.0.27 || 16.07.2026
 Lane D5 — multi-platform social import engine (Instagram, Facebook, YouTube):
   - exporters/src/: full implementation — zip parsing (@zip.js/zip.js),
@@ -14,6 +24,32 @@ Lane D5 — multi-platform social import engine (Instagram, Facebook, YouTube):
     bar, per-service write summary table, error details
   - 57 tests (15 Instagram, 18 Facebook, 14 YouTube, 10 validation)
   - Vite + Bun + React 19 + TypeScript, multi-stage Dockerfile
+
+1.0.28 || 16.07.2026
+web10-social: full TypeScript + Vite + Bun modernization (Lane D):
+  - migrated from CRA 5 (react-scripts) to Vite 6 + bun + TypeScript
+  - React 18 -> 19, removed dead deps (install, npm, react-router-dom,
+    react-usestateref, web-vitals, react-scripts, axios)
+  - all 21 components, 5 interfaces, 8 mocks converted to .ts/.tsx with
+    full type definitions (AppInterface, Post, Message, Contact, etc.)
+  - eliminated giant mutable I={} anti-pattern — proper React hooks with
+    typed return objects
+  - fixed: Math.random(1e15) no-op, var declarations, loose equality,
+    index-based keys, stale closures, defaultValue on controlled inputs,
+    broken typing-indicator ternary, dead mock-data in real interface
+  - removed vendored Bulma (~100 files), uses ChatScope styles
+  - vitest suite: 137 tests across 12 files
+
+1.0.27 || 16.07.2026
+mobile/encryptor: complete rebuild — foundation, wallet/keyring, UI, and tests.
+Expo 44->52, React 17->18, React Native 0.64->0.76, bun package manager.
+crypto.js: pure ESM crypto core (no Expo deps) — HKDF-SHA256 derivation,
+ed25519/x25519 keypairs, xchacha20-poly1305 encrypt/decrypt, grant wrap/unwrap,
+device cert create/verify. wallet.js: SecureStore-backed persistence layer
+wrapping crypto.js. React Navigation v6 tab-based UI: SetupScreen, WalletScreen,
+KeysScreen, GrantsScreen, SettingsScreen. 55 bun tests across 8 files covering
+helpers, key derivation, keyring verbs, signing, encryption, grants, device
+certs, lifecycle — all green. Deleted obsolete encryptor.js and CodeInput.js.
 
 1.0.26 || 16.07.2026
 Phase 2 completion — auth2 parity, rename to ui, delete legacy auth/:
@@ -46,7 +82,6 @@ Phase 2 completion — auth2 parity, rename to ui, delete legacy auth/:
   - Tests: 44/44 passing (updated login/signup mode assertions: appstore ->
     contracts, the authenticator's post-login default)
   - auth/: deleted (legacy CRA React 16 app, superseded by ui/)
-
 1.0.25 || 16.07.2026
 Phase 5 media service (greenfield, Lane C):
   - media/: new FastAPI service with presigned S3 upload URLs, short-lived

@@ -122,6 +122,55 @@ steps:
 [✓] delete auth/ after cutover. one UI, one truth.
 
 
+PHASE 2.5 — the ui makeover (rectangles out, product in)
+--------------------------------------------------------
+rectangles-npm is our homemade layout framework. it got the project
+here, but it's a dependency only one person on earth understands, and
+uis built on it read as an engineering tool, not a product. this phase
+retires it from every ui in the repo, replaces it with a boring,
+very mainstream stack -- and uses the forced rewrite to give every
+surface a real product design pass.
+
+this is a mindset phase as much as a code phase. our uis have always
+been built protocol-first: screens that expose records, tokens, terms.
+the makeover flips them story-first: every screen answers "what does
+this let ME do with MY data", and the protocol machinery recedes into
+the walls. think product in a way we never have before.
+
+sequencing: do this BEFORE the phase 3 wizard screens and phase 4
+admin panel are built, so those get written on the new stack once
+instead of on rectangles and then rewritten.
+
+the swap:
+[ ] pick the mainstream stack + record it in decisions.md. default
+    candidate: tailwind + shadcn/ui (native to our vite + react + ts
+    toolchain, huge community, accessible radix primitives, themeable
+    -- which the phase 4 white-label creators will need). the bar is
+    "boring and mainstream", not clever.
+[ ] rip rectangles-npm out of ui/ (main.tsx startRectangles + css;
+    AppStore, Contracts, CredentialPage, Settings, shared/*) --
+    component by component, no feature regression
+[ ] rip rectangles-npm out of web10-social/ (index.js; Bio, Feed,
+    Chat, Contacts, Login, shared/*)
+[ ] drop the dependency from both package.jsons. rectangles is
+    retired everywhere, permanently -- no new ui may import it.
+
+the makeover (story-first, not a screen-by-screen reskin):
+[ ] one small shared design language (tokens: type scale, spacing,
+    color, dark mode) used by ui + social + (later) marketing-ui.
+    themeable from day one -- a creator's node wears THEIR brand.
+[ ] narrative pass on ui/: login -> consent -> app store -> terms
+    should read as a story ("this is your node. these are your
+    contracts. this is what apps may touch.") -- not admin CRUD.
+[ ] narrative pass on web10-social: it has to feel like a place
+    you'd live. first-run empty states that point at the exporters
+    ("import your life"), the lens/chatbox front and center. this
+    app IS the pitch; it has to look like one.
+[ ] the demo test: every M0-facing screen is judged by "would this
+    look credible in the 2-minute video" (M0 deliverable). a screen
+    that can't appear in the demo isn't done.
+
+
 PHASE 3 — setup wizard (the missing piece)
 ------------------------------------------
 first-run experience: docker compose up -> open browser -> setup form ->
