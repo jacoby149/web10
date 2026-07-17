@@ -1,4 +1,29 @@
 1.0.40 || 17.07.2026
+wave 0 seatbelt — endpoint-level permission-matrix suite (45 new tests,
+280 total api tests green). runs through the FastAPI app (TestClient)
+so route-level bugs the unit layer misses are caught:
+  - auth flows: signup (success, reserved, bad username, duplicate),
+    web10token login (password, wrong password, no creds)
+  - CRUD routes end-to-end: create/read/update/delete with permission
+    checks (authorized, denied, no token, cross-origin, blacklisted)
+  - aggregate endpoint: valid pipeline, forbidden stage ($out),
+    no permission
+  - star protection (I3): cannot update/delete/create star record,
+    cross-collection access impossible
+  - forged token rejection (I1): tokens signed with wrong key rejected
+    on all CRUD + aggregate routes (JWT error handler added to main.py)
+  - scoped token enforcement (I5): read-only tokens cannot create,
+    no-target tokens: owner allowed, non-owner denied
+  - metering/billing: charge called on create/read, services read
+    unmetered, out-of-credits denied, out-of-space denied
+  - certify endpoint: valid, forged, expired, anon token
+  - system endpoints: stats, get_plan
+  - also: bare exception handler in main.py maps legacy Exception("TOKEN")
+    etc. to proper HTTP 401s; JWT PyJWTError handler catches forged/
+    expired tokens before they hit the bare handler; fixed models.dotdict
+    -> dotdict bug in documentdb.py
+
+1.0.40 || 17.07.2026
 Setup wizard + admin config screen (Phase 3/4 partial, lanes A3/B3/B4):
   - API: /ready (health check, reports configured status), /setup (GET status,
     POST first-run wizard), /config (GET current config, PATCH partial update).
@@ -24,6 +49,8 @@ test_documentdb.py, test_mongo_crud.py -> test_documentdb_crud.py,
 test_mongo_aggregate.py -> test_documentdb_aggregate.py. 235 tests green.
 
 1.0.38 || 17.07.2026
+<<<<<<< HEAD
+=======
 E2: marketing deploy — marketing-api/Dockerfile (multi-stage python 3.12 + uv +
 uvicorn), docker-compose.marketing.yml (standalone compose for marketing-ui +
 marketing-api), ubuntu-deploy.sh full rewrite (marketing compose copy with path
@@ -31,6 +58,7 @@ fixup, Caddy proxy with separate RTC subdomain, auto build+start for node and
 marketing, proper DNS/TLS instructions). both images tested green locally.
 
 1.0.38 || 17.07.2026
+>>>>>>> origin/dev
 the 5th verb — aggregate (plan phase 6, lane A4). appmakers get (nearly)
 the full mongo query language without losing usage metering:
   - api: POST /{user}/{service}/aggregate. read-only by construction —
@@ -58,6 +86,9 @@ the full mongo query language without losing usage metering:
     charging, and the http endpoint (200/400/401) all exercised.
   - protocol-spec.md section 9 updated from "planned" to shipped, with
     metering table + error rows.
+<<<<<<< HEAD
+=======
+>>>>>>> origin/dev
 >>>>>>> origin/dev
 
 1.0.37 || 17.07.2026
