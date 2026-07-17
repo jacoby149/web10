@@ -1,20 +1,32 @@
-version: "3"
-
 services:
   api: # The web10 API, that holds all the data.
     build: api
     volumes:
-      - ./api/:/web10 
+      - ./api/:/web10
     ports:
       - "6000:80"
     environment:
       - VIRTUAL_HOST=api.localhost
-      - INFISICAL
-    command: ["pipenv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80", "--reload"]
+    command: ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80", "--reload"]
     networks:
       - all-spark-proxy
-  auth: # The web10 Authenticator, the UI for managing the web10 API
-    build: 
+  ui: # The web10 Authenticator, the UI for managing the web10 API
+    build:
+      context: auth2
+      dockerfile: Dockerfile
+      target: dev
+    volumes:
+      - ./auth2:/ui
+      - ui-node-modules:/ui/node_modules
+    command: ["bun", "run", "dev"]
+    environment:
+      PORT: 80
+      VIRTUAL_HOST: auth.localhost
+      CHOKIDAR_USEPOLLING: "true"
+    ports:
+      - '3000:80'
+  auth: # The web10 Authenticator (legacy), deprecated — will be removed in phase 2
+    build:
       context: .
       dockerfile: auth/Dockerfile
       target: dev
@@ -23,19 +35,19 @@ services:
       - ./sdk:/auth/public/sdk
       - node-modules:/auth/node_modules
       - wapi-node-modules:/auth/public/sdk/node_modules
-    command: ["npm", "run", "start"]
+    command: ["bun", "run", "start"]
     environment:
       PORT: 80
       VIRTUAL_HOST: auth.localhost
       CHOKIDAR_USEPOLLING: "true"
     ports:
-      - '3000:80'
+      - '3001:80'
   rtc: # web10 RTC, responsible for webRTC P2P connections on web10.
     build: rtc
     volumes:
       - ./rtc:/rtc
-      - rtc:/rtc/node_modules
-    command: ["nodemon", "index.js"]
+      - rtc-node-modules:/rtc/node_modules
+    command: ["bun", "run", "dev"]
     environment:
       PORT: 80
       VIRTUAL_HOST: rtc.localhost
@@ -43,7 +55,7 @@ services:
     ports:
       - '6363:80'
   docs: # web10 docs, the web10 documentation on how to use it as a developer
-    build: sdk 
+    build: sdk
     volumes:
       - ./sdk/:/docs/public
     ports:
@@ -51,7 +63,7 @@ services:
     environment:
       VIRTUAL_HOST: docs.localhost
   home: # web10 home, the homepage that explains the mission + about web10.
-    build: home 
+    build: home
     volumes:
       - ./home/:/home/public
     ports:
@@ -59,23 +71,23 @@ services:
     environment:
       VIRTUAL_HOST: home.localhost
   mail: # web10 mail, a demo app on web10 to check webRTC + cross communication is working.
-    build: 
+    build:
       context: .
       dockerfile: mail/Dockerfile
     volumes:
       - ./mail/:/mail/public
-      - ./sdk/:/mail/public/sdk    
+      - ./sdk/:/mail/public/sdk
     ports:
       - "7171:80"
     environment:
       VIRTUAL_HOST: mail.localhost
   crm: # web10 CRM, a demo app on web10 to check core functionality / data management is working.
-    build: 
+    build:
       context: .
       dockerfile: crm/Dockerfile
     volumes:
       - ./crm/:/crm/public
-      - ./sdk/:/crm/public/sdk    
+      - ./sdk/:/crm/public/sdk
     ports:
       - "7746:80"
     environment:
@@ -83,8 +95,9 @@ services:
 
 volumes:
   node-modules:
-  wapi-node-modules:  
-  rtc: 
+  wapi-node-modules:
+  rtc-node-modules:
+  ui-node-modules:
 networks:
   all-spark-proxy:
     external: true
