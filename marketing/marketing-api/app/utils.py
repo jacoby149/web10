@@ -1,5 +1,4 @@
 import re
-from typing import Any
 
 
 def safe_str(val) -> str | None:
@@ -23,6 +22,7 @@ def parse_timestamp(ts: str | None) -> str | None:
         return None
     try:
         from datetime import datetime
+
         return datetime.fromisoformat(ts.replace("Z", "+00:00")).isoformat()
     except (ValueError, TypeError):
         return None

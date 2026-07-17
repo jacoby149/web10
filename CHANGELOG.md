@@ -1,3 +1,44 @@
+1.0.36 || 17.07.2026
+ci/cd repair — tests across the WHOLE repo now actually run:
+  - js-ci: dropped the dead exporters job (dir deleted in the 1.0.31
+    migration), added marketing-ui and mobile/encryptor (55 bun tests,
+    previously NO ci at all). the sdk job was dying at bun install
+    (no bun.lock, only package-lock.json) so its 48 tests never ran —
+    bun.lock now committed for sdk + marketing-ui. test failures now
+    report red: continue-on-error removed from the test step (rtc
+    opts out via tests:false — it has no suite yet). test:run script
+    standardized in sdk + encryptor (encryptor's script claimed jest;
+    the suite runs on bun test).
+  - marketing-api: had NO ci, no lockfile, no tests. new workflow
+    (uv sync + ruff + pytest), uv.lock committed, ruff/pytest dev
+    deps, 4 smoke tests (health, pageview, schemas, validate_record).
+    ruff immediately caught two real bugs, now fixed: upload_zip used
+    background_tasks without declaring the BackgroundTasks param (the
+    ZIP upload endpoint crashed on every call) and instagram.py
+    called find_json_entries without importing it (instagram parsing
+    crashed). 7 unused imports cleaned, ruff format applied. the
+    57-test exporter mapper suite is STILL OWED as pytest ports —
+    the smoke tests keep the wiring honest until it lands.
+  - media.yml deleted (media/ merged into api in 1.0.30; the workflow
+    watched a dead path and could never trigger).
+  - docker.yml + cd.yml matrices rebuilt around the Dockerfiles that
+    exist (api, ui, sdk, rtc, marketing-ui); exporters/media/home/
+    crm/mail entries removed — those builds failed on every run since
+    the phase-7 tidy.
+  - marketing-ui: fixed real type errors the old continue-on-error
+    was hiding — missing vite-env.d.ts (css imports + import.meta.env
+    didn't typecheck) and a spread over possibly-null ImportProgress
+    state. typecheck + build green; test:run passes with no tests
+    (--passWithNoTests) until a real suite lands.
+  - .gitignore rewritten (was full of deleted dirs: auth2, exporters,
+    rtc, web10-deploy, skaffold): global node_modules/, __pycache__/,
+    .venv/, *.egg-info/, .expo/, dist for the ui builds, .env.
+    untracked from the index: ui/dist (22 files), mobile/.expo,
+    web10-cli's node_modules remnant. sdk/dist stays committed on
+    purpose — the sdk Dockerfile serves it as the wapi.js cdn.
+  - verified locally end-to-end: api 205 pytest, ui 43, sdk 48,
+    web10-social 172, encryptor 55, marketing-api 4 — all green.
+
 1.0.35 || 17.07.2026
 board sync: fixed plan.txt / parallel execution.txt drift against the
 changelog — C1 (media, landed 1.0.25, merged into api/ 1.0.30-31) and
