@@ -17,7 +17,7 @@ describe('useMockInterface', () => {
     const { result } = renderHook(() => useMockInterface())
 
     expect(result.current.theme).toBe('dark')
-    expect(result.current.mode).toBe('appstore')
+    expect(result.current.mode).toBe('contracts')
     expect(result.current.menuCollapsed).toBe(true)
     expect(result.current.search).toBe('')
     expect(result.current.auth).toBe(false)
@@ -38,18 +38,7 @@ describe('useMockInterface', () => {
     expect(result.current.requests).toHaveLength(3)
   })
 
-  it('has app store stats', () => {
-    const { result } = renderHook(() => useMockInterface())
-
-    expect(result.current.appStoreStats).toEqual({
-      users: 52,
-      apps: 22,
-      hits: 4437,
-      data: 2.45,
-    })
-  })
-
-  it('login sets auth to true and mode to appstore', () => {
+  it('login sets auth to true and mode to contracts', () => {
     const { result } = renderHook(() => useMockInterface())
 
     act(() => {
@@ -74,7 +63,7 @@ describe('useMockInterface', () => {
     expect(result.current.mode).toBe('login')
   })
 
-  it('recover sets auth to true and mode to appstore', () => {
+  it('recover sets auth to true and mode to contracts', () => {
     const { result } = renderHook(() => useMockInterface())
 
     act(() => {
@@ -82,7 +71,7 @@ describe('useMockInterface', () => {
     })
 
     expect(result.current.auth).toBe(true)
-    expect(result.current.mode).toBe('appstore')
+    expect(result.current.mode).toBe('contracts')
   })
 
   it('signup sets auth to true and mode to contracts', () => {

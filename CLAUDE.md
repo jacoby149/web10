@@ -23,6 +23,10 @@ web10 Inc. takes a small % of revenue through its payment rails.
 - `mobile/encryptor/` — Expo app, the seed of the phone-as-keychain.
 - `crm/`, `mail/` — demo apps (moving to `examples/`).
 - `home/`, `docs/` — marketing + dev docs (web10 Inc.'s site, not the node).
+- `marketing-ui/` — web10 Inc.'s site: landing page + docs + App Store + Exporter UI.
+    Vite + React 19 + TS + Bun + react-router. Own vhost, never in node compose.
+- `marketing-api/` — FastAPI backend for marketing-ui: ZIP import pipeline
+    (server-side parse, validate, dedup, batch write), analytics (pageview, funnel).
 
 ## How the data model works (know this cold before touching mongo.py)
 - One MongoDB collection **per user**, named by username.

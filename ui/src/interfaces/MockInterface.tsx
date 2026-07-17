@@ -1,5 +1,4 @@
 import React from 'react';
-import mockPage from '../mocks/mockAppData';
 import mockRequests from '../mocks/mockRequests';
 import mockServices from '../mocks/mockServices';
 import { config } from '../config';
@@ -12,21 +11,12 @@ function useMockInterface() {
     [I.theme, I.setTheme] = React.useState("dark");
     [I.logo, I.setLogo] = React.useState(config.REACT_APP_LOGO_DARK);
     [I.menuCollapsed, I.setMenuCollapsed] = React.useState(true);
-    [I.mode, I._setMode] = React.useState("appstore");
+    [I.mode, I._setMode] = React.useState("contracts");
     [I.search, I.setSearch] = React.useState("");
 
     [I.services, I.setServices] = React.useState(mockServices);
     [I.requests, I.setRequests] = React.useState(mockRequests);
-    [I.apps, I.setApps] = React.useState(mockPage);
     [I.phone, I.setPhone] = React.useState("13472092325");
-    [I.appStoreStats, I.setAppStoreStats] = React.useState(
-        {
-            users: 52,
-            apps: 22,
-            hits: 4437,
-            data: 2.45
-        }
-    );
 
     [I.auth, I.setAuth] = React.useState(false);
     [I.verified, I.setVerified] = React.useState(false);
@@ -85,7 +75,7 @@ function useMockInterface() {
 
     I.recover = function () {
         I.setAuth(true);
-        I.setMode("appstore");
+        I.setMode("contracts");
     }
 
     I.signup = function () {
