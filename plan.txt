@@ -544,11 +544,23 @@ lives and (eventually) a creator's money -- it has to be boring-reliable
 and hard to pop.
 
 testing:
-[ ] api test suite (pytest): auth flows (signup/login/mint/certify),
+[~] api test suite (pytest): auth flows (signup/login/mint/certify),
     the full permissions matrix (terms, whitelist/blacklist, cross-
     origin, anon, remote provider), star protection, metering/billing
     paths. this is the highest-value test surface in the repo -- the
     permission logic IS the product.
+    DONE (1.0.14): unit layer -- mongo.py transformations (q_t/u_t/
+      to_gui/to_db, star_found), ACL logic (get_approved,
+      is_in_cross_origins), auth functions (kosher, can_mint, certify,
+      decode_token, is_permitted), pydantic models, record factories.
+      mocked DB, no HTTP.
+    OUTSTANDING: endpoint-level tests through the FastAPI app (httpx
+      test client is already a test dep) -- signup/login/change_pass
+      flows, CRUD routes end-to-end, star protection via the routes
+      (star_selected), metering/billing (check/charge/replenish),
+      twilio/stripe interfaces (conftest has mock fixtures ready),
+      remote-provider certification path. the permission matrix is
+      only covered at the function level so far.
 [ ] run the api suite against BOTH backends in CI (ferretdb + real
     mongo) -- that's the phase 1 compatibility guarantee, permanently
 [ ] protocol conformance suite: a black-box test any node must pass

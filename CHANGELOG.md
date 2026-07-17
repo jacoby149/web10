@@ -1,3 +1,23 @@
+1.0.14 || 16.07.2026
+unit test infrastructure:
+  - api: added pytest suite (118 tests) covering mongo.py transformations
+    (q_t, u_t, to_gui, to_db, star_found, get_approved, is_in_cross_origins),
+    main.py auth logic (kosher, can_mint, certify, decode_token, is_permitted),
+    models.py pydantic schemas, and web10records.py factories
+  - auth2: added vitest + @testing-library suite (config, contractInterface,
+    mockInterface, mocks) with jsdom environment and setup file
+  - sdk: added vitest suite (48 tests) covering wapiInit (token management,
+    CRUD guards & HTTP calls, peerID, authListen, SMR, P2P init, dev pay)
+    and wapiAuthInit (login, signup, changePass/Phone, send/verify code,
+    Stripe mgmt endpoints, SMRListen, sendToken, mintOAuthToken)
+  - review fixes: gitignored api/*.egg-info build artifacts, removed a
+    broken/unused conftest fixture and an ineffective import.meta stub,
+    tightened a tautological is_permitted assertion, moved
+    @testing-library/dom to auth2 devDependencies
+  - scope note: this is the UNIT layer only (mocked DB, no HTTP).
+    outstanding endpoint-level tests (FastAPI routes, star protection,
+    metering, twilio/stripe) are itemized in plan.txt "testing:"
+
 1.0.13 || 14.07.2026
 phase 0 typescript migration:
   - renamed all 34 .jsx files to .tsx (React) or .ts (non-React)

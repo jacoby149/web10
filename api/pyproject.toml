@@ -17,6 +17,14 @@ dependencies = [
     "requests>=2.32",
 ]
 
+[project.optional-dependencies]
+test = [
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
+    "httpx>=0.27",
+    "pytest-mock>=3.12",
+]
+
 [tool.ruff]
 target-version = "py312"
 line-length = 120
@@ -32,3 +40,8 @@ ignore = [
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+pythonpath = ["."]
