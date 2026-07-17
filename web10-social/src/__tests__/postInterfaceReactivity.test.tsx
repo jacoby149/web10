@@ -1,26 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import usePostInterface from '../interfaces/PostInterface';
-import type { AppInterface, Post } from '../types';
-
-const createMockI = (overrides?: Partial<AppInterface>): AppInterface => {
-  const savedPosts: Post[] = [];
-  const createdPosts: Post[] = [];
-
-  return {
-    feedPosts: [],
-    wallPosts: [],
-    identity: { web10: 'test/user', name: 'Test', pic: '', bio: '' },
-    savePostChanges: vi.fn((post) => savedPosts.push(post)),
-    deletePost: vi.fn(),
-    createPost: vi.fn((post) => createdPosts.push(post)),
-    ...overrides,
-  };
-};
+import type { Post } from '../types';
+import { createMockI } from './mockAppInterface';
 
 describe('PostInterface reactivity', () => {
   it('resets draft when post changes', () => {
-    const mockI = createMockI() as AppInterface;
+    const mockI = createMockI();
     const post1: Post = {
       _id: '1',
       html: '<p>Post 1</p>',
@@ -48,7 +34,7 @@ describe('PostInterface reactivity', () => {
   });
 
   it('resets mode when post changes from null to post', () => {
-    const mockI = createMockI() as AppInterface;
+    const mockI = createMockI();
     const post: Post = {
       _id: '1',
       html: '<p>Post</p>',
@@ -69,7 +55,7 @@ describe('PostInterface reactivity', () => {
   });
 
   it('resets mode when post changes from post to null', () => {
-    const mockI = createMockI() as AppInterface;
+    const mockI = createMockI();
     const post: Post = {
       _id: '1',
       html: '<p>Post</p>',
@@ -90,7 +76,7 @@ describe('PostInterface reactivity', () => {
   });
 
   it('handles rapid mode toggles', () => {
-    const mockI = createMockI() as AppInterface;
+    const mockI = createMockI();
     const post: Post = {
       _id: '1',
       html: '<p>Post</p>',
@@ -110,7 +96,7 @@ describe('PostInterface reactivity', () => {
   });
 
   it('handles rapid media deletions', () => {
-    const mockI = createMockI() as AppInterface;
+    const mockI = createMockI();
     const { result } = renderHook(() => usePostInterface(mockI));
 
     act(() =>
@@ -133,7 +119,7 @@ describe('PostInterface reactivity', () => {
   });
 
   it('createPost then clearChanges resets to empty', () => {
-    const mockI = createMockI() as AppInterface;
+    const mockI = createMockI();
     const { result } = renderHook(() => usePostInterface(mockI));
 
     act(() =>

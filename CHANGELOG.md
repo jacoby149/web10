@@ -42,7 +42,16 @@ instead of browser-side ZIP parsing). Instagram/Facebook/YouTube mappers
 ported to Python. Legacy home/ and exporters/ dirs deleted, home service
 removed from docker-compose.yml.
 
-1.0.29 || 17.07.2026
+1.0.30 || 17.07.2026
+web10-social: CRM and Mail integrated as sub-apps in the social super
+app. CRM (Rolodex) has contact CRUD, color-coded priority, per-contact
+notes, search, and color filtering. Mail has compose, inbox, send/receive
+via the mail web10 service. Both use the existing wapi adapter with new
+crm-contacts, crm-notes, and mail service registrations. 35 new vitest
+tests (20 CRM, 15 Mail). Old standalone crm/ and mail/ folders removed.
+Shared mock factory (mockAppInterface.ts) created for all test files.
+
+1.0.30 || 17.07.2026
 marketing-ui: new project — consolidated home/ + docs/ + App Store into
 one marketing site (Vite + React 19 + TS + Bun + react-router). Home page
 rebuilt from home/index.html (hero, features, stats, team, footer). Docs

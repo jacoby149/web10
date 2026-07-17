@@ -1,25 +1,12 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import usePostInterface from '../interfaces/PostInterface';
-import type { AppInterface, Post } from '../types';
-
-const createMockI = (): Partial<AppInterface> => {
-  const savedPosts: Post[] = [];
-  const createdPosts: Post[] = [];
-
-  return {
-    feedPosts: [],
-    wallPosts: [],
-    identity: { web10: 'test/user', name: 'Test', pic: '', bio: '' },
-    savePostChanges: vi.fn((post) => savedPosts.push(post)),
-    deletePost: vi.fn((id) => {}),
-    createPost: vi.fn((post) => createdPosts.push(post)),
-  };
-};
+import type { Post } from '../types';
+import { createMockI } from './mockAppInterface';
 
 describe('PostInterface', () => {
   it('initializes in create mode when no post provided', () => {
-    const mockI = createMockI() as AppInterface;
+    const mockI = createMockI();
     const { result } = renderHook(() => usePostInterface(mockI));
 
     expect(result.current.mode).toBe('create');
@@ -28,7 +15,7 @@ describe('PostInterface', () => {
   });
 
   it('initializes in view mode when post is provided', () => {
-    const mockI = createMockI() as AppInterface;
+    const mockI = createMockI();
     const post: Post = {
       _id: '1',
       html: '<p>Hello</p>',
@@ -43,7 +30,7 @@ describe('PostInterface', () => {
   });
 
   it('toggles between view and edit mode', () => {
-    const mockI = createMockI() as AppInterface;
+    const mockI = createMockI();
     const post: Post = {
       _id: '1',
       html: '<p>Hello</p>',
@@ -62,7 +49,7 @@ describe('PostInterface', () => {
   });
 
   it('does not toggle from create mode', () => {
-    const mockI = createMockI() as AppInterface;
+    const mockI = createMockI();
     const { result } = renderHook(() => usePostInterface(mockI));
     expect(result.current.mode).toBe('create');
 
@@ -71,7 +58,7 @@ describe('PostInterface', () => {
   });
 
   it('updates draft post html', () => {
-    const mockI = createMockI() as AppInterface;
+    const mockI = createMockI();
     const { result } = renderHook(() => usePostInterface(mockI));
 
     act(() =>
@@ -85,7 +72,7 @@ describe('PostInterface', () => {
   });
 
   it('deletes media by index', () => {
-    const mockI = createMockI() as AppInterface;
+    const mockI = createMockI();
     const { result } = renderHook(() => usePostInterface(mockI));
 
     act(() =>
@@ -107,7 +94,7 @@ describe('PostInterface', () => {
   });
 
   it('clears changes and toggles back to view', () => {
-    const mockI = createMockI() as AppInterface;
+    const mockI = createMockI();
     const post: Post = {
       _id: '1',
       html: '<p>Original</p>',
@@ -133,7 +120,7 @@ describe('PostInterface', () => {
   });
 
   it('saves changes and toggles back to view', () => {
-    const mockI = createMockI() as AppInterface;
+    const mockI = createMockI();
     const post: Post = {
       _id: '1',
       html: '<p>Original</p>',
@@ -160,7 +147,7 @@ describe('PostInterface', () => {
   });
 
   it('creates a post with correct metadata', () => {
-    const mockI = createMockI() as AppInterface;
+    const mockI = createMockI();
     const { result } = renderHook(() => usePostInterface(mockI));
 
     act(() =>
@@ -181,7 +168,7 @@ describe('PostInterface', () => {
   });
 
   it('deletes a post by id', () => {
-    const mockI = createMockI() as AppInterface;
+    const mockI = createMockI();
     const post: Post = {
       _id: 'abc123',
       html: '<p>Delete me</p>',

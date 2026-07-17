@@ -3,6 +3,8 @@ import Chat from './components/Chat/Chat';
 import Bio from './components/Bio/Bio';
 import StandAloneFeed from './components/Feed/StandAloneFeed';
 import Login from './components/Login/Login';
+import Crm from './components/Crm/Crm';
+import Mail from './components/Mail/Mail';
 import useInterface from './interfaces/Interface';
 import useMockInterface from './interfaces/MockInterface';
 import '@chatscope/chat-ui-kit-styles/dist/default/styles.min.css';
@@ -29,6 +31,10 @@ function App() {
       return <StandAloneFeed I={I} />;
     case 'login':
       return <Login I={I} />;
+    case 'crm':
+      return <Crm I={I} />;
+    case 'mail':
+      return <Mail I={I} />;
     default:
       return <Contacts I={I} />;
   }

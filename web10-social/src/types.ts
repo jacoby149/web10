@@ -9,7 +9,36 @@ export type Mode =
   | "my-bio"
   | "bio-edit"
   | "bulletin-edit"
-  | "feed";
+  | "feed"
+  | "crm"
+  | "mail";
+
+export type CrmColor = "green" | "yellow" | "red";
+
+export interface CrmContact {
+  _id?: string;
+  name: string;
+  company?: string;
+  phone?: string;
+  email?: string;
+  web10?: string;
+  color: CrmColor;
+}
+
+export interface CrmNote {
+  _id?: string;
+  note: string;
+  id: string;
+  date: string;
+}
+
+export interface MailMessage {
+  _id?: string;
+  mail: string;
+  date: string;
+  provider: string;
+  username: string;
+}
 
 export interface Identity {
   web10: string;
@@ -101,6 +130,16 @@ export interface AppInterface {
   selectedMessages: Message[];
   typingIndicator: string;
 
+  // CRM state
+  crmContacts: CrmContact[];
+  crmSearch: string;
+  crmColorFilter: { green: boolean; yellow: boolean; red: boolean };
+  crmSelectedContact: CrmContact | null;
+  crmNotes: CrmNote[];
+
+  // Mail state
+  mailMessages: MailMessage[];
+
   setTheme: React.Dispatch<React.SetStateAction<Theme>>;
   setMenuCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
   setContacts: React.Dispatch<React.SetStateAction<Contact[]>>;
@@ -114,6 +153,16 @@ export interface AppInterface {
   setCurrentMessages: React.Dispatch<React.SetStateAction<Message[]>>;
   setSelectedMessages: React.Dispatch<React.SetStateAction<Message[]>>;
   setTypingIndicator: React.Dispatch<React.SetStateAction<string>>;
+
+  // CRM setters
+  setCrmContacts: React.Dispatch<React.SetStateAction<CrmContact[]>>;
+  setCrmSearch: React.Dispatch<React.SetStateAction<string>>;
+  setCrmColorFilter: React.Dispatch<React.SetStateAction<{ green: boolean; yellow: boolean; red: boolean }>>;
+  setCrmSelectedContact: React.Dispatch<React.SetStateAction<CrmContact | null>>;
+  setCrmNotes: React.Dispatch<React.SetStateAction<CrmNote[]>>;
+
+  // Mail setters
+  setMailMessages: React.Dispatch<React.SetStateAction<MailMessage[]>>;
 
   login: () => void;
   logout: () => void;
@@ -136,6 +185,21 @@ export interface AppInterface {
   deleteSelectedMessages: () => void;
   resetSelectedMessages: () => void;
   sendMessage: (messageString: string) => void;
+
+  // CRM actions
+  crmAddContact: (contact: CrmContact) => void;
+  crmUpdateContact: (contact: CrmContact) => void;
+  crmDeleteContact: (contact: CrmContact) => void;
+  crmIncrementColor: (contact: CrmContact) => void;
+  crmAddNote: (note: string) => void;
+  crmDeleteNote: (noteId: string) => void;
+  crmLoadNotes: (contactId: string) => void;
+
+  // Mail actions
+  mailSend: (recipient: string, server: string, message: string) => void;
+  mailDelete: (id: string) => void;
+  mailLoad: () => void;
+
   setMode: (mode: Mode) => void;
   toggleMenuCollapsed: () => void;
   toggleTheme: () => void;

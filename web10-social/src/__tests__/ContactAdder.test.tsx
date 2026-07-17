@@ -2,63 +2,8 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import ContactAdder from '../components/Contacts/ContactAdder';
-import type { AppInterface, Contact } from '../types';
-
-const createMockI = (overrides?: Partial<AppInterface>): AppInterface => ({
-  theme: 'dark',
-  menuCollapsed: true,
-  mode: 'contacts',
-  search: '',
-  contacts: [],
-  currentContact: null,
-  searchContact: null,
-  feedPosts: [],
-  wallPosts: [],
-  bulletin: [],
-  identity: { web10: 'test/user', name: 'Test', pic: '', bio: '' },
-  draftIdentity: { web10: 'test/user', name: 'Test', pic: '', bio: '' },
-  currentMessages: [],
-  selectedMessages: [],
-  typingIndicator: '',
-  setTheme: vi.fn(),
-  setMenuCollapsed: vi.fn(),
-  setContacts: vi.fn(),
-  setCurrentContact: vi.fn(),
-  setSearchContact: vi.fn(),
-  setFeedPosts: vi.fn(),
-  setWallPosts: vi.fn(),
-  setBulletin: vi.fn(),
-  setIdentity: vi.fn(),
-  setDraftIdentity: vi.fn(),
-  setCurrentMessages: vi.fn(),
-  setSelectedMessages: vi.fn(),
-  setTypingIndicator: vi.fn(),
-  login: vi.fn(),
-  logout: vi.fn(),
-  runSearch: vi.fn(),
-  getPosts: vi.fn(),
-  getContact: vi.fn(),
-  isMe: vi.fn(),
-  savePostChanges: vi.fn(),
-  deletePost: vi.fn(),
-  createPost: vi.fn(),
-  addContact: vi.fn(),
-  deleteCurrentContact: vi.fn(),
-  cancelIdentityChanges: vi.fn(),
-  saveIdentityChanges: vi.fn(),
-  deleteBulletin: vi.fn(),
-  getMessages: vi.fn(),
-  chat: vi.fn(),
-  selectMessage: vi.fn(),
-  deSelectMessage: vi.fn(),
-  deleteSelectedMessages: vi.fn(),
-  resetSelectedMessages: vi.fn(),
-  sendMessage: vi.fn(),
-  setMode: vi.fn(),
-  toggleMenuCollapsed: vi.fn(),
-  toggleTheme: vi.fn(),
-  ...overrides,
-});
+import type { Contact } from '../types';
+import { createMockI } from './mockAppInterface';
 
 describe('ContactAdder', () => {
   it('shows default "add a contact" text when no search', () => {
