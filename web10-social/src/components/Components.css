@@ -1,0 +1,110 @@
+.contacts.dark {
+    background-color: #23282c;
+}
+
+.contacts.dark:hover {
+    background-color: #4b5a65;
+}
+
+.dark .cs-conversation__name {
+    color: white;
+}
+
+.dark .cs-conversation__info {
+    color: white;
+}
+
+.dark .cs-conversation__last-sender {
+    color: white;
+}
+
+.R a {
+    color: white;
+}
+
+.cs-conversation-header.dark {
+    background-color: #23282c;
+}
+
+.cs-conversation-header.dark .cs-conversation-header__info {
+    background-color: #23282c;
+    color: white;
+}
+
+.cs-conversation-header.dark .cs-conversation-header__user-name {
+    background-color: #23282c;
+    color: white;
+}
+
+.cs-message-list.dark {
+    background-color: #23282c;
+}
+
+.cs-message-list.dark .cs-message-separator {
+    background-color: #23282c;
+    color: white;
+}
+
+.cs-message-list.dark .cs-typing-indicator {
+    background-color: #23282c;
+    color: white;
+}
+
+.cs-message-input.dark {
+    background-color: #23282c;
+}
+
+.cs-conversation-header.dark .fa {
+    color: azure;
+}
+
+.cs-conversation-header.dark .fa:hover {
+    color: rgb(130, 130, 140);
+}
+
+
+.cs-conversation-header.dark svg {
+    color: azure;
+}
+
+.cs-message.dark .cs-message__sent-time {
+    color: azure;
+}
+
+.cs-message.dark .cs-message__sender-name {
+    color: azure;
+}
+
+.cs-message.selected .cs-message__content{
+    background-color:orange;
+}
+
+.cs-message.selected.cs-message--first .cs-message__content{
+    background-color:orange;
+}
+
+
+.card-footer-item.post {
+    color: #222244;
+}
+
+.card-footer-item:hover {
+    background-color: #f7f7ff;
+}
+
+.post-container.light {
+    background-color: #eeeeee;
+}
+
+.control .textarea {
+    background-color: #eeeeee;
+    color: black;
+}
+
+.control .textarea::placeholder {
+    color: #666666;
+}
+
+.R .cs-search .cs-search__input{
+    color:black;
+}
