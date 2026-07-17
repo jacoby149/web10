@@ -285,6 +285,9 @@ swappable per node.
 [✓] minio in compose under the "media" profile for self-hosters
 [✓] config for hosted s3-compatibles (R2/B2) for bigger nodes
 [ ] size accounting: media bytes count against the user's space plan
+    NOTE (1.0.30): the standalone media/ service was merged into api/
+    as a router — same routes and auth, one app on port 6000, no
+    separate container. only minio remains in compose for blobs.
 
 
 PHASE 6 — wapi.js revamp (the sdk)
@@ -422,9 +425,10 @@ ships its web client. same logic.
 
 [✓] killer app gets a first-party top-level dir (marketing/social/), built and
       versioned with the node. phase 8 + 9 live HERE.
-[✓] crm/ + mail/ -> examples/ directory: kept in-repo as reference
-     apps for devs, but OUT of the node's default compose. they're
-     documentation that runs.
+[✓] crm/ + mail/: resolved differently than planned — integrated as
+     sub-apps INSIDE web10-social (CRM Rolodex + Mail inbox, 1.0.30)
+     and the standalone dirs deleted. no examples/ dir was created;
+     the killer app itself is now the reference implementation.
 [✓] home/ + docs/ -> marketing-ui/: web10 inc's website, ONE site.
     docs are a key part of a saas marketing site, so they live
     together: landing pages + dev docs, one dir, one build. not part
@@ -963,7 +967,7 @@ CROSS-CUTTING — ci/cd (github actions: the referee)
 referee -- and to start it SHOWS the score rather than stopping the
 game: checks report pass/fail on every pr, merging stays a human
 call. it is landable TODAY against the tests that already exist
-(210 api unit tests, vitest suites in ui/sdk/web10-social/exporters)
+(205 api unit tests, vitest suites in ui/sdk/web10-social/exporters)
 -- do NOT wait for the endpoint permission suite to start reporting.
 ci first makes every later branch safer; the suites plug into an
 existing pipeline the day they land. this is the top of wave 0.
@@ -1010,16 +1014,16 @@ ci — runs on every pr + push to dev/main (.github/workflows/):
 
 cd — runs on merge to main + version tags (starts small, grows
 with the phases that give it something to ship):
-[ ] ghcr.io image publishing: on merge to main, build + push every
+[✓] ghcr.io image publishing: on merge to main, build + push every
     service image (api, ui, rtc, media, social) tagged {sha, latest}.
     phase 3's one-container web10/node image publishes from the same
     workflow on version tags -- `docker run web10/node` needs a
     registry to pull from, and this is it. multi-arch (amd64+arm64)
     because self-hosters live on raspberry pis and mac minis.
-[ ] npm publishing on version tags: the sdk (phase 6) and
+[✓] npm publishing on version tags: the sdk (phase 6) and
     create-web10 (phase 6.5), built with bun IN ci, published with
     provenance. releases come from the pipeline, never a laptop.
-[ ] github release notes generated from the CHANGELOG.md entries
+[✓] github release notes generated from the CHANGELOG.md entries
     since the last tag (the changelog is the board -- it's also
     the release notes, free).
 [ ] hosted-node deploy (web10.app) stays manual / compose-pull for

@@ -1,12 +1,9 @@
-import os
 import uuid
-import time
 import zipfile
 import tempfile
 import asyncio
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 import requests as http_requests
 from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks
@@ -14,10 +11,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from .models import (
-    Phase, ImportJob, ImportJobCreate,
-    PageView, FunnelEventCreate, FunnelEvent,
+    Phase,
+    ImportJob,
+    ImportJobCreate,
+    PageView,
+    FunnelEventCreate,
 )
-from .utils import detect_platform, find_json_entries
+from .utils import detect_platform
 from .instagram import parse_instagram
 from .facebook import parse_facebook
 from .youtube import parse_youtube
@@ -186,7 +186,7 @@ async def _run_pipeline(
                         await asyncio.sleep(0.05)
 
                 total_written += written
-                job["skipped_records"] = (job.get("skipped_records", 0) + svc_skipped)
+                job["skipped_records"] = job.get("skipped_records", 0) + svc_skipped
                 services_summary[service] = {"written": written, "skipped": svc_skipped}
                 jobs[job_id] = job
 
@@ -237,7 +237,7 @@ async def create_import_job(
 
 
 @app.post("/import/{job_id}/upload")
-async def upload_zip(job_id: str, file: UploadFile = File(...)):
+async def upload_zip(job_id: str, background_tasks: BackgroundTasks, file: UploadFile = File(...)):
     """Upload the ZIP file for an import job. Triggers background processing."""
     if job_id not in jobs:
         raise HTTPException(404, "Job not found")
@@ -295,25 +295,29 @@ analytics_events: list[dict] = []
 @app.post("/analytics/pageview")
 async def track_pageview(event: PageView):
     """Track a page view."""
-    analytics_events.append({
-        "type": "pageview",
-        "path": event.path,
-        "referrer": event.referrer,
-        "user_agent": event.user_agent,
-        "timestamp": datetime.utcnow().isoformat(),
-    })
+    analytics_events.append(
+        {
+            "type": "pageview",
+            "path": event.path,
+            "referrer": event.referrer,
+            "user_agent": event.user_agent,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+    )
     return {"status": "ok"}
 
 
 @app.post("/analytics/funnel")
 async def track_funnel(event: FunnelEventCreate):
     """Track a funnel event (landing, export started, export complete, etc.)."""
-    analytics_events.append({
-        "type": "funnel",
-        "event": event.event,
-        "metadata": event.metadata,
-        "timestamp": datetime.utcnow().isoformat(),
-    })
+    analytics_events.append(
+        {
+            "type": "funnel",
+            "event": event.event,
+            "metadata": event.metadata,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+    )
     return {"status": "ok"}
 
 
