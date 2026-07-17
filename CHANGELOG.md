@@ -1,3 +1,44 @@
+1.0.32 || 17.07.2026
+ci/cd: implemented the github actions pipeline (wave 0 skeleton). seven
+workflow files: api.yml (uv sync, ruff check+format, pytest, path-filtered
+on api/**), media.yml (same for media/**), js.yml (reusable: bun install,
+tsc, vitest, build — continue-on-error for visibility-first), js-ci.yml
+(calls js.yml per package for ui/sdk/web10-social/exporters/rtc),
+docker.yml (buildx matrix for all 9 Dockerfiles, gha layer cache,
+linux/amd64), changelog.yml (flags PRs that touch code without updating
+CHANGELOG.md, skippable with label), cd.yml (ghcr.io multi-arch push
+on merge to main, npm publish with provenance on tags, release notes
+from CHANGELOG). replaced stale github-packages.yml and npm.yml.
+all checks report pass/fail — no branch protection yet (visibility
+first, gatekeeping is a deliberate later flip).
+
+1.0.31 || 17.07.2026
+plan: specced the github actions ci/cd pipeline in full (new
+"CROSS-CUTTING — ci/cd" section in plan.txt). ci: path-filtered
+monorepo jobs (api: uv+ruff+pytest; js: reusable bun+tsc+vitest+
+build workflow per package; docker buildx with layer cache),
+visibility-first: checks report pass/fail but do NOT block merging
+— branch protection is a deliberate later flip once suites earn
+trust (I1-I5 checks graduate to required first). changelog-check
+job (prs touching code should touch CHANGELOG.md), fork-safe (no
+secrets, mocked stripe/twilio), permission/conformance suites join
+the pipeline when they land. cd: ghcr.io multi-arch images on merge + the
+web10/node image on tags, npm publish (sdk, create-web10) with
+provenance on tags, release notes generated from CHANGELOG entries.
+skeleton is landable today against the 1.0.21 unit tests — it does
+not wait for the endpoint suite. wave 0 in parallel execution.txt
+now points at the spec; workflow ownership follows lane ownership.
+
+1.0.30 || 17.07.2026
+plan: added phase 6.5 — the dev on-ramp (create-web10). a scaffolder
+published under the npm create-* convention (npm/pnpm/yarn/bun create
+web10, npx create-web10 — one package covers every runner), with a
+5-minute time-to-first-record acceptance bar, vanilla-ts + react
+templates on the phase 6 sdk, a node story (sandbox node default,
+local docker, or any --node url), ci that scaffolds+builds templates
+so they can't rot, and an explicit no-persistent-cli-yet scope guard.
+queued as C3.5 in parallel execution.txt, sequenced after C2 (sdk).
+
 1.0.29 || 16.07.2026
 plan: added phase 2.5 — the ui makeover. retire the homemade
 rectangles-npm framework from every ui (ui/, web10-social/), replace

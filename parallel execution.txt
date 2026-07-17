@@ -39,6 +39,15 @@ before running 4-wide, land the thing that protects all 4 lanes:
 
   [seatbelt] github actions ci + the pytest permission-matrix suite
   written against the CURRENT api (cross-cutting section of plan).
+  the ci/cd pipeline is now specced in full in plan.txt
+  ("CROSS-CUTTING — ci/cd"): the skeleton (path-filtered api/js/
+  docker jobs) is landable TODAY against the 1.0.21 unit tests --
+  it does not wait for the endpoint suite. checks REPORT pass/fail
+  only; merging stays a human call (branch protection is a
+  deliberate later flip once the suites earn trust). workflow
+  ownership follows lane ownership: one workflow file per lane
+  under .github/workflows/, a lane edits only its own yaml (the
+  shared reusable js workflow is wave-0/ws1 territory).
   every later branch -- especially the P0 dependency upgrades -- gets
   judged by these tests. writing tests before upgrading deps is what
   turns "did pydantic v2 break auth?" from a mystery into a red X.
@@ -88,6 +97,10 @@ LANE C — greenfield services  (owns: media/, sdk/, mcp/, new dirs)
   [ ] C2. P6 sdk rewrite (typescript, fetch, typed crud; aggregate
       types land after A4 merges -- everything else doesn't wait)
   [ ] C3. P6 mcp server (thin layer over the C2 surface)
+  [ ] C3.5. P6.5 create-web10 scaffolder (needs C2's sdk -- templates
+      are written on the typed sdk, never legacy wapi; node story
+      improves when A3's one-container node + sandbox exist, but
+      --node <url> works from day one)
   [ ] C4. P10 backup integrations (drive/dropbox oauth, export/import
       archive -- format comes from D1's conventions doc)
 
@@ -121,6 +134,8 @@ WHAT MUST STAY SEQUENTIAL (don't try to parallelize these)
   moving pydantic target is pain for nothing
 - B1 -> B2 -> B3 -> B4: same codebase, one lane, in order
 - wave 0 before A1: tests exist before the upgrade they referee
+- C2 -> C3.5: the scaffolder's templates are built on the new sdk;
+  scaffolding legacy-wapi apps would poison the dev on-ramp
 - D1 before C4/D4-schemas/D5: everyone imports the conventions
 - P12 trust & safety tooling needs B4's admin panel; but the csam/
   dmca DECISIONS (vendors, process) are d1-style writing -- can
