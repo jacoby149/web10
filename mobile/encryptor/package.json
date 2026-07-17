@@ -8,7 +8,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "test": "jest"
+    "test": "bun test",
+    "test:run": "bun test"
   },
   "dependencies": {
     "@noble/ciphers": "^2.2.0",

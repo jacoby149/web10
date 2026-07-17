@@ -11,7 +11,8 @@
     "wapi-cdn": "browserify src/wapi.js -o dist/wapi.js -t [ babelify --presets [ @babel/preset-env @babel/preset-react ] --plugins [ @babel/plugin-proposal-class-properties ] ]",
     "node-build": "microbundle-crl --no-compress --format modern,cjs",
     "build": "npm run wapi-cdn && npm run node-build",
-    "start": "nodemon --watch src --exec npm run build"
+    "start": "nodemon --watch src --exec npm run build",
+    "test:run": "vitest run"
   },
   "repository": {
     "type": "git",

@@ -6,6 +6,12 @@ on:
       package:
         required: true
         type: string
+      tests:
+        # rtc has no test suite yet — callers set this false rather than
+        # letting the test step fail on a package with nothing to run
+        required: false
+        type: boolean
+        default: true
 
 jobs:
   check:
@@ -30,8 +36,8 @@ jobs:
         continue-on-error: true
 
       - name: test
-        run: bun run test:run || bunx vitest run
-        continue-on-error: true
+        if: ${{ inputs.tests }}
+        run: bun run test:run
 
       - name: build
         run: bun run build

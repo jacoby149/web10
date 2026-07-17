@@ -1,21 +1,34 @@
+# OS / editor
 .DS_Store
+
+# dependencies — never commit installed packages
+node_modules/
+
+# python
+__pycache__/
 *.pyc
-mobile/encryptor/yarn.lock
-rtc/node_modules
-skaffold/run
-skaffold/dev
-auth2/public/YourOrgsLogo/*
-!auth2/public/YourOrgsLogo/generic*
-!auth2/public/YourOrgsLogo/key_*
-auth2/.env
-api/.env
-web10-deploy/.env
-web10-deploy/mongo_migrate/.env
+.venv/
+*.egg-info/
 
+# js build output
+# (sdk/dist is the deliberate exception: it stays committed because the
+#  sdk Dockerfile serves it directly as the wapi.js CDN)
+ui/dist/
+marketing/marketing-ui/dist/
+marketing/web10-social/dist/
+
+# expo
+.expo/
+
+# test / coverage output
+coverage/
+*.tsbuildinfo
+
+# secrets / local config — env files never get committed
 .env
+.env.local
 
-# build output
-auth2/dist/
-api/*.egg-info/
-exporters/node_modules/
-exporters/bun.lock
+# org logo overrides (keep the generic defaults)
+ui/public/YourOrgsLogo/*
+!ui/public/YourOrgsLogo/generic*
+!ui/public/YourOrgsLogo/key_*
