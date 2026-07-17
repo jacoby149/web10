@@ -96,8 +96,9 @@ LANE D — docs / apps / mobile (owns: mobile/**, social/, examples/,
   [✓ 1.0.18, 1.0.20] D1. conventions doc (posts/media/contacts/inbox
       schemas) + protocol spec draft. docs/protocol-spec.md,
       docs/conventions.md, docs/schemas/*.json — C4/D4/D5 now unblocked.
-  [ ] D2. P7 tidy: crm/mail -> examples/, killer app dir (social/)
-      scaffolded as first-party (file moves, cheap)
+  [✓ 1.0.30] D2. P7 tidy: crm/mail integrated as sub-apps inside
+      web10-social (CRM Rolodex + Mail inbox), old crm/ and mail/
+      folders removed. 35 new tests, shared mock factory.
   [ ] D2.5. P2.5 ui makeover in web10-social: rectangles-npm ->
       mainstream stack (match B2.5's pick + design tokens), story-
       first pass (empty states, lens/chatbox forward). pairs with

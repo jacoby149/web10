@@ -1,25 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import usePostInterface from '../interfaces/PostInterface';
-import type { AppInterface, Post } from '../types';
-
-const createMockI = (): Partial<AppInterface> => {
-  const savedPosts: Post[] = [];
-  const createdPosts: Post[] = [];
-
-  return {
-    feedPosts: [],
-    wallPosts: [],
-    identity: { web10: 'test/user', name: 'Test', pic: '', bio: '' },
-    savePostChanges: vi.fn((post) => savedPosts.push(post)),
-    deletePost: vi.fn((id) => {}),
-    createPost: vi.fn((post) => createdPosts.push(post)),
-  };
-};
+import type { Post } from '../types';
+import { createMockI } from './mockAppInterface';
 
 describe('PostInterface edge cases', () => {
   it('handles null post gracefully', () => {
-    const mockI = createMockI() as AppInterface;
+    const mockI = createMockI();
     const { result } = renderHook(() => usePostInterface(mockI, null));
 
     expect(result.current.mode).toBe('create');
@@ -29,7 +16,7 @@ describe('PostInterface edge cases', () => {
   });
 
   it('handles post with undefined _id for delete - skips call', () => {
-    const mockI = createMockI() as AppInterface;
+    const mockI = createMockI();
     const post: Post = {
       html: '<p>Test</p>',
       media: [],
@@ -43,7 +30,7 @@ describe('PostInterface edge cases', () => {
   });
 
   it('handles empty media array deletion', () => {
-    const mockI = createMockI() as AppInterface;
+    const mockI = createMockI();
     const { result } = renderHook(() => usePostInterface(mockI));
 
     act(() => result.current.deleteMedia(0));
@@ -51,7 +38,7 @@ describe('PostInterface edge cases', () => {
   });
 
   it('handles deleteMedia with out-of-bounds index', () => {
-    const mockI = createMockI() as AppInterface;
+    const mockI = createMockI();
     const { result } = renderHook(() => usePostInterface(mockI));
 
     act(() =>
@@ -66,7 +53,7 @@ describe('PostInterface edge cases', () => {
   });
 
   it('createPost includes correct web10 from identity', () => {
-    const mockI = createMockI() as AppInterface;
+    const mockI = createMockI();
     const { result } = renderHook(() => usePostInterface(mockI));
 
     act(() => result.current.createPost());
@@ -76,7 +63,7 @@ describe('PostInterface edge cases', () => {
   });
 
   it('createPost includes timestamp', () => {
-    const mockI = createMockI() as AppInterface;
+    const mockI = createMockI();
     const { result } = renderHook(() => usePostInterface(mockI));
 
     act(() => result.current.createPost());
@@ -86,7 +73,7 @@ describe('PostInterface edge cases', () => {
   });
 
   it('saveChanges calls I.savePostChanges then toggles mode', () => {
-    const mockI = createMockI() as AppInterface;
+    const mockI = createMockI();
     const post: Post = {
       _id: '1',
       html: '<p>Original</p>',
@@ -111,7 +98,7 @@ describe('PostInterface edge cases', () => {
   });
 
   it('clearChanges resets draft to original post', () => {
-    const mockI = createMockI() as AppInterface;
+    const mockI = createMockI();
     const post: Post = {
       _id: '1',
       html: '<p>Original</p>',
@@ -137,7 +124,7 @@ describe('PostInterface edge cases', () => {
   });
 
   it('handles multiple media items', () => {
-    const mockI = createMockI() as AppInterface;
+    const mockI = createMockI();
     const { result } = renderHook(() => usePostInterface(mockI));
 
     act(() =>

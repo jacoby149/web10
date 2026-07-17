@@ -87,6 +87,19 @@ const web10SocialAdapterInit = (): Web10SocialAdapter => {
       cross_origins: ['localhost', 'web10social.netlify.app', 'social.web10.app'],
       whitelist: [{ provider: '.*', username: '.*', read: true }],
     },
+    {
+      service: 'crm-contacts',
+      cross_origins: ['localhost', 'web10social.netlify.app', 'social.web10.app'],
+    },
+    {
+      service: 'crm-notes',
+      cross_origins: ['localhost', 'web10social.netlify.app', 'social.web10.app'],
+    },
+    {
+      service: 'mail',
+      cross_origins: ['localhost', 'web10social.netlify.app', 'social.web10.app'],
+      whitelist: [{ username: '.*', provider: '.*', create: true }],
+    },
   ];
   adapter.SMROnReady(sirs, []);
 

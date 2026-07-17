@@ -359,11 +359,11 @@ all get discovered by building against them). schema + api + sdk +
 app need atomic commits. wordpress ships its default theme; mastodon
 ships its web client. same logic.
 
-[ ] killer app gets a first-party top-level dir (social/), built and
-    versioned with the node. phase 8 + 9 live HERE.
-[ ] crm/ + mail/ -> examples/ directory: kept in-repo as reference
-    apps for devs, but OUT of the node's default compose. they're
-    documentation that runs.
+[✓] killer app gets a first-party top-level dir (social/), built and
+     versioned with the node. phase 8 + 9 live HERE.
+[✓] crm/ + mail/ -> examples/ directory: kept in-repo as reference
+     apps for devs, but OUT of the node's default compose. they're
+     documentation that runs.
 [ ] home/ + docs/ -> marketing-ui/: web10 inc's website, ONE site.
     docs are a key part of a saas marketing site, so they live
     together: landing pages + dev docs, one dir, one build. not part

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { AppInterface, Bulletin, Contact, Identity, Message, Mode, Post, Theme } from '../types';
+import type { AppInterface, Bulletin, Contact, CrmColor, CrmContact, CrmNote, Identity, MailMessage, Message, Mode, Post, Theme } from '../types';
 import web10SocialAdapterInit from './Web10SocialAdapter';
 import defaultIdentity from '../mocks/defaultIdentity';
 import { onlySettled, sortSettled } from './settledHelpers';
@@ -30,6 +30,14 @@ const useInterface = (): AppInterface => {
   const currentMessagesRef = useRef<Message[]>([]);
   const [selectedMessages, setSelectedMessages] = useState<Message[]>([]);
   const [typingIndicator, setTypingIndicator] = useState('');
+
+  const [crmContacts, setCrmContacts] = useState<CrmContact[]>([]);
+  const [crmSearch, setCrmSearch] = useState('');
+  const [crmColorFilter, setCrmColorFilter] = useState<{ green: boolean; yellow: boolean; red: boolean }>({ green: true, yellow: true, red: true });
+  const [crmSelectedContact, setCrmSelectedContact] = useState<CrmContact | null>(null);
+  const [crmNotes, setCrmNotes] = useState<CrmNote[]>([]);
+
+  const [mailMessages, setMailMessages] = useState<MailMessage[]>([]);
 
   useEffect(() => { currentContactRef.current = currentContact; }, [currentContact]);
   useEffect(() => { currentMessagesRef.current = currentMessages; }, [currentMessages]);
@@ -79,6 +87,12 @@ const useInterface = (): AppInterface => {
     socialAdapter.loadMyPosts().then((response) => {
       setWallPosts(response.data.reverse());
     });
+
+    // Load CRM contacts
+    loadCrmContacts();
+
+    // Load mail
+    mailLoad();
   };
 
   const login = () => {
@@ -211,6 +225,97 @@ const useInterface = (): AppInterface => {
     });
   };
 
+  // CRM actions
+  const crmAddContact = (contact: CrmContact) => {
+    if (!socialAdapter) return;
+    socialAdapter.create('crm-contacts', contact).then((response) => {
+      setCrmContacts((prev) => [...prev, response.data as CrmContact]);
+    });
+  };
+
+  const crmUpdateContact = (contact: CrmContact) => {
+    if (!socialAdapter || !contact._id) return;
+    socialAdapter.update('crm-contacts', { _id: contact._id }, { $set: contact }).then(() => {
+      setCrmContacts((prev) => prev.map((c) => c._id === contact._id ? contact : c));
+    });
+  };
+
+  const crmDeleteContact = (contact: CrmContact) => {
+    if (!socialAdapter || !contact._id) return;
+    const contactID = contact._id;
+    socialAdapter.delete('crm-contacts', { _id: contactID }).then(() => {
+      setCrmContacts((prev) => prev.filter((c) => c._id !== contactID));
+      socialAdapter.delete('crm-notes', { id: contactID });
+    });
+  };
+
+  const crmIncrementColor = (contact: CrmContact) => {
+    if (!contact._id) return;
+    const colorOrder: CrmColor[] = ['green', 'yellow', 'red'];
+    const nextColor = colorOrder[(colorOrder.indexOf(contact.color) + 1) % 3];
+    const updated = { ...contact, color: nextColor };
+    crmUpdateContact(updated);
+  };
+
+  const loadCrmNotes = (contactId?: string) => {
+    if (!socialAdapter) return;
+    const id = contactId || crmSelectedContact?._id;
+    if (!id) return;
+    socialAdapter.read('crm-notes', { id }).then((response) => {
+      setCrmNotes(response.data as CrmNote[]);
+    });
+  };
+
+  const crmAddNote = (noteText: string) => {
+    if (!socialAdapter || !crmSelectedContact?._id) return;
+    socialAdapter.create('crm-notes', {
+      note: noteText,
+      id: crmSelectedContact._id,
+      date: new Date().toISOString(),
+    }).then(() => loadCrmNotes());
+  };
+
+  const crmDeleteNote = (noteId: string) => {
+    if (!socialAdapter) return;
+    socialAdapter.delete('crm-notes', { _id: noteId }).then(() => loadCrmNotes());
+  };
+
+  const crmLoadNotes = (contactId?: string) => loadCrmNotes(contactId);
+
+  const loadCrmContacts = () => {
+    if (!socialAdapter) return;
+    socialAdapter.read('crm-contacts').then((response) => {
+      setCrmContacts(response.data as CrmContact[]);
+    });
+  };
+
+  // Mail actions
+  const mailSend = (recipient: string, server: string, message: string) => {
+    if (!socialAdapter) return;
+    const token = socialAdapter.readToken();
+    const sender = token ? token.username : 'anon';
+    socialAdapter.create('mail', {
+      mail: message,
+      date: String(new Date()),
+      provider: server,
+      username: sender,
+    }, recipient, server).then(() => {
+      mailLoad();
+    });
+  };
+
+  const mailDelete = (id: string) => {
+    if (!socialAdapter) return;
+    socialAdapter.delete('mail', { _id: id }).then(mailLoad);
+  };
+
+  const mailLoad = () => {
+    if (!socialAdapter) return;
+    socialAdapter.read('mail').then((response) => {
+      setMailMessages(response.data as MailMessage[]);
+    });
+  };
+
   useEffect(() => {
     const adapter = web10SocialAdapterInit();
     _socialAdapter.current = adapter;
@@ -273,9 +378,33 @@ const useInterface = (): AppInterface => {
     deleteSelectedMessages,
     resetSelectedMessages,
     sendMessage,
+    crmAddContact,
+    crmUpdateContact,
+    crmDeleteContact,
+    crmIncrementColor,
+    crmAddNote,
+    crmDeleteNote,
+    crmLoadNotes,
+    mailSend,
+    mailDelete,
+    mailLoad,
     setMode,
     toggleMenuCollapsed,
     toggleTheme,
+    // CRM state
+    crmContacts,
+    crmSearch,
+    crmColorFilter,
+    crmSelectedContact,
+    crmNotes,
+    setCrmContacts,
+    setCrmSearch,
+    setCrmColorFilter,
+    setCrmSelectedContact,
+    setCrmNotes,
+    // Mail state
+    mailMessages,
+    setMailMessages,
   };
 };
 

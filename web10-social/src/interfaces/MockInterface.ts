@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { AppInterface, Bulletin, Contact, Identity, Message, Mode, Post, Theme } from '../types';
+import type { AppInterface, Bulletin, Contact, CrmContact, CrmNote, Identity, MailMessage, Message, Mode, Post, Theme } from '../types';
 import mockContacts from '../mocks/MockContacts';
 import mockFeed from '../mocks/MockFeed';
 import mockWall from '../mocks/MockWall';
@@ -30,6 +30,24 @@ const useMockInterface = (): AppInterface => {
   const [currentMessages, setCurrentMessages] = useState<Message[]>(mockChat);
   const [selectedMessages, setSelectedMessages] = useState<Message[]>([]);
   const [typingIndicator, setTypingIndicator] = useState('');
+
+  const [crmContacts, setCrmContacts] = useState<CrmContact[]>([
+    { _id: 'mock1', name: 'Alice Johnson', company: 'TechCorp', phone: '+1-555-0101', email: 'alice@techcorp.com', web10: 'api.web10.app/alice', color: 'green' },
+    { _id: 'mock2', name: 'Bob Smith', company: 'DesignHub', phone: '+1-555-0102', email: 'bob@designhub.com', color: 'yellow' },
+    { _id: 'mock3', name: 'Carol White', company: 'DataFlow', phone: '+1-555-0103', email: 'carol@dataflow.io', web10: 'api.web10.app/carol', color: 'red' },
+  ]);
+  const [crmSearch, setCrmSearch] = useState('');
+  const [crmColorFilter, setCrmColorFilter] = useState<{ green: boolean; yellow: boolean; red: boolean }>({ green: true, yellow: true, red: true });
+  const [crmSelectedContact, setCrmSelectedContact] = useState<CrmContact | null>(null);
+  const [crmNotes, setCrmNotes] = useState<CrmNote[]>([
+    { _id: 'note1', note: 'Met at conference, interested in partnership', id: 'mock1', date: '2024-01-15T10:30:00Z' },
+    { _id: 'note2', note: 'Follow up on Q2 proposal', id: 'mock1', date: '2024-02-01T14:00:00Z' },
+  ]);
+
+  const [mailMessages, setMailMessages] = useState<MailMessage[]>([
+    { _id: 'mail1', mail: 'Hey, great meeting you at the conference!', date: '2024-03-01T09:00:00Z', provider: 'api.web10.app', username: 'alice' },
+    { _id: 'mail2', mail: 'Can we schedule a call next week to discuss the project?', date: '2024-03-05T11:30:00Z', provider: 'api.web10.app', username: 'bob' },
+  ]);
 
   const setMode = (m: Mode) => {
     setMenuCollapsed(true);
@@ -149,6 +167,46 @@ const useMockInterface = (): AppInterface => {
     setCurrentMessages((prev) => [...prev, message]);
   };
 
+  // CRM mock actions
+  const crmAddContact = (contact: CrmContact) => {
+    const newContact = { ...contact, _id: generateId(), color: 'green' as const };
+    setCrmContacts((prev) => [...prev, newContact]);
+  };
+  const crmUpdateContact = (contact: CrmContact) => {
+    setCrmContacts((prev) => prev.map((c) => c._id === contact._id ? contact : c));
+  };
+  const crmDeleteContact = (contact: CrmContact) => {
+    setCrmContacts((prev) => prev.filter((c) => c._id !== contact._id));
+    setCrmNotes((prev) => prev.filter((n) => n.id !== contact._id));
+  };
+  const crmIncrementColor = (contact: CrmContact) => {
+    const colorOrder = ['green', 'yellow', 'red'] as const;
+    const next = colorOrder[(colorOrder.indexOf(contact.color) + 1) % 3];
+    crmUpdateContact({ ...contact, color: next });
+  };
+  const crmAddNote = (noteText: string) => {
+    if (!crmSelectedContact?._id) return;
+    const note: CrmNote = { _id: generateId(), note: noteText, id: crmSelectedContact._id, date: new Date().toISOString() };
+    setCrmNotes((prev) => [...prev, note]);
+  };
+  const crmDeleteNote = (noteId: string) => {
+    setCrmNotes((prev) => prev.filter((n) => n._id !== noteId));
+  };
+  const crmLoadNotes = (contactId?: string) => {
+    const id = contactId || crmSelectedContact?._id;
+    setCrmNotes(id ? (mockContacts as unknown as CrmNote[]).filter((n: CrmNote) => n.id === id) : []);
+  };
+
+  // Mail mock actions
+  const mailSend = (_recipient: string, _server: string, message: string) => {
+    const msg: MailMessage = { _id: generateId(), mail: message, date: String(new Date()), provider: 'api.web10.app', username: identity.web10.split('/')[1] };
+    setMailMessages((prev) => [...prev, msg]);
+  };
+  const mailDelete = (id: string) => {
+    setMailMessages((prev) => prev.filter((m) => m._id !== id));
+  };
+  const mailLoad = () => {};
+
   return {
     theme,
     menuCollapsed,
@@ -199,9 +257,33 @@ const useMockInterface = (): AppInterface => {
     deleteSelectedMessages,
     resetSelectedMessages,
     sendMessage,
+    crmAddContact,
+    crmUpdateContact,
+    crmDeleteContact,
+    crmIncrementColor,
+    crmAddNote,
+    crmDeleteNote,
+    crmLoadNotes,
+    mailSend,
+    mailDelete,
+    mailLoad,
     setMode,
     toggleMenuCollapsed,
     toggleTheme,
+    // CRM state
+    crmContacts,
+    crmSearch,
+    crmColorFilter,
+    crmSelectedContact,
+    crmNotes,
+    setCrmContacts,
+    setCrmSearch,
+    setCrmColorFilter,
+    setCrmSelectedContact,
+    setCrmNotes,
+    // Mail state
+    mailMessages,
+    setMailMessages,
   };
 };
 
