@@ -1,0 +1,15 @@
+{
+  "short_name": "web10 hub",
+  "name": "web10 hub",
+  "icons": [
+    {
+      "src": "hub.png",
+      "type": "image/png",
+      "sizes": "256x256"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#000000",
+  "background_color": "#000000"
+}
