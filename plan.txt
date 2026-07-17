@@ -349,6 +349,67 @@ mcp server (promoted from LATER -- it ships with the sdk):
     same records.
 
 
+PHASE 6.5 — the dev on-ramp (create-web10)
+------------------------------------------
+"stateless frontends, no backend to run" is the dev pitch, but today
+getting started means reading this repo. fix that with a scaffolder:
+one command -> a working web10 app talking to a node. the acceptance
+bar for the whole phase: time-to-first-record under five minutes.
+
+how it ships (be realistic about how devs start projects now):
+[ ] publish as `create-web10`, NOT a global cli. the npm create-*
+    naming convention means every runner works for free from ONE
+    package: `npm create web10@latest`, `pnpm create web10`,
+    `yarn create web10`, `bun create web10`, `npx create-web10`.
+    this is how vite/astro/next onboard devs -- zero install,
+    always latest, nothing global to go stale. built + published
+    with bun like the rest of phase 6. claim the npm name early
+    (same errand as the phase 6 package-name decision).
+[ ] the interactive flow (plus flags for the impatient and for CI:
+    --template, --node, -y): app name -> template -> node to talk
+    to. writes .env with node url + provider, prints the three next
+    lines (cd / bun install / bun dev), and nothing else.
+[ ] templates (few and excellent beats many and rotting):
+      - vanilla-ts: vite + typescript + sdk only. the protocol with
+        zero framework noise: login -> create a record -> read it.
+      - react (the default): vite + react + the phase 6 hooks
+        (useRecords live query).
+      later, by demand: a lens-app template (reads/writes a lens
+      record -- the phase 8 chatbox pattern as a starter kit).
+    every template: sdk login(), one service round-trip, and the
+    consent screen appears on FIRST run -- terms are the product,
+    the hello-world should show them.
+[ ] the node story (a scaffold with nothing to talk to is dead on
+    arrival). the node prompt offers:
+      - an existing node url (your node, a creator's node)
+      - local: docker run web10/node (phase 3's one-container node;
+        until that exists, point at this repo's compose stack)
+      - the web10 sandbox node: hosted by inc, throwaway accounts,
+        wiped weekly. cheap to run, and it's an acquisition funnel.
+    default: sandbox -- zero local deps for hello world. graduating
+    to a real node is editing one env var.
+[ ] templates cannot rot: ci scaffolds each template, installs,
+    typechecks, builds, and runs the record round-trip against a
+    throwaway node on every pr (same harness as the sdk tests).
+    a failing template blocks merge like any other red test.
+[ ] docs: the dev quickstart in marketing-ui IS this command. the
+    dev "why" page ends with `npm create web10@latest`. (guides-
+    fiction rule applies: write it when this ships.)
+[ ] explicitly NOT building (yet): a persistent `web10` cli (dev
+    servers, deploys, codegen). vite covers dev, the node is
+    `docker run` (phase 3), apps deploy as static files anywhere.
+    a real cli earns its way in later if recurring workflows
+    demand it -- likely first candidates: minting scoped tokens
+    for agents/mcp, and generating types from the conventions-doc
+    schemas. scaffolder first: 90% of the value, 10% of the
+    surface to maintain.
+
+sequencing: after the phase 6 sdk rewrite -- templates are written
+on the typed sdk, never on legacy wapi (a scaffold that teaches the
+old way poisons the well). the sandbox + local-node options improve
+as phase 3 lands, but --node <url> works from day one.
+
+
 PHASE 7 — reorganize the apps (monorepo, but tidy)
 --------------------------------------------------
 revised thinking: the killer app STAYS IN THIS REPO. it's not "an app"
@@ -819,7 +880,8 @@ testing:
 [ ] ui + killer app: a few playwright e2e flows (signup -> post ->
     appears in feed; grant terms -> app reads; revoke -> app can't)
 [ ] ci from phase 0: github actions on every pr -- lint, typecheck,
-    tests, docker builds. nothing merges red.
+    tests, docker builds. nothing merges red. (specced in full in
+    CROSS-CUTTING — ci/cd below; landable today, don't wait.)
 
 security invariants (must hold END TO END, every phase, forever):
 these are the load-bearing truths. every phase, every pr, every new
@@ -893,6 +955,82 @@ quality:
 [ ] health/readiness endpoints + basic metrics on every service
     (fleet ops in the white-label future depends on these)
 [ ] error responses: consistent shapes, no stack traces to clients
+
+
+CROSS-CUTTING — ci/cd (github actions: the referee)
+---------------------------------------------------
+"nothing merges red" has been a rule without a referee. this is the
+referee -- and to start it SHOWS the score rather than stopping the
+game: checks report pass/fail on every pr, merging stays a human
+call. it is landable TODAY against the tests that already exist
+(210 api unit tests, vitest suites in ui/sdk/web10-social/exporters)
+-- do NOT wait for the endpoint permission suite to start reporting.
+ci first makes every later branch safer; the suites plug into an
+existing pipeline the day they land. this is the top of wave 0.
+
+ci — runs on every pr + push to dev/main (.github/workflows/):
+[✓] monorepo path filtering: each job triggers only when its dirs
+    changed (api job on api/**, ui job on ui/**, ...). a docs-only
+    pr costs seconds, not a full matrix. one workflow file per lane
+    so workflow ownership follows directory ownership -- a lane
+    edits its own yaml, never another lane's.
+[✓] api job: uv sync --frozen, ruff check + ruff format --check,
+    pytest. uv cache keyed on uv.lock. (mypy joins the gate when
+    the quality item types the permission logic.)
+[✓] js jobs (ui, sdk, web10-social, exporters, rtc): bun install
+    --frozen-lockfile, tsc --noEmit, vitest run, vite build. write
+    ONE reusable workflow and call it per package -- five diverging
+    copies of the same yaml is how ci rots.
+[✓] docker job: buildx build for every Dockerfile whose context
+    changed, with gha layer caching. images that only build on
+    laptops are how "works on my machine" comes back.
+[ ] the endpoint permission-matrix suite + conformance suite join
+    the pipeline the day they exist (wave 0 finishes here -- forged
+    tokens, star protection, I1-I5 checked on every pr). phase 1
+    then adds the db matrix: same suite against BOTH a mongo
+    service container and ferretdb.
+[✓] visibility first, NOT gatekeeping: all checks report pass/fail
+    on the pr (green tick / red x) but nothing blocks merging yet.
+    seeing what broke, per lane, per pr, is the immediate value.
+    LATER, by explicit choice: flip on branch protection (required
+    status checks, no direct pushes) once the suites have earned
+    trust -- it's a github setting, not a code change, and that
+    flip is the moment "nothing merges red" becomes literal. the
+    security-invariant checks (I1-I5) should be first to graduate
+    to required.
+[✓] changelog check: a tiny job flags any pr that touches code but
+    not CHANGELOG.md (an explicit skip label for the rare genuine
+    exception). the board stays true MECHANICALLY -- agents forget,
+    ci doesn't. same job can warn on plan.txt/lane-tick drift later.
+[✓] hygiene: concurrency groups with cancel-in-progress per branch
+    (parallel agents push often -- don't queue dead runs), timeout
+    on every job, actions pinned to major versions. tests need NO
+    repo secrets (stripe/twilio are mocked -- keep it that way so
+    prs from forks stay safe to run).
+
+cd — runs on merge to main + version tags (starts small, grows
+with the phases that give it something to ship):
+[ ] ghcr.io image publishing: on merge to main, build + push every
+    service image (api, ui, rtc, media, social) tagged {sha, latest}.
+    phase 3's one-container web10/node image publishes from the same
+    workflow on version tags -- `docker run web10/node` needs a
+    registry to pull from, and this is it. multi-arch (amd64+arm64)
+    because self-hosters live on raspberry pis and mac minis.
+[ ] npm publishing on version tags: the sdk (phase 6) and
+    create-web10 (phase 6.5), built with bun IN ci, published with
+    provenance. releases come from the pipeline, never a laptop.
+[ ] github release notes generated from the CHANGELOG.md entries
+    since the last tag (the changelog is the board -- it's also
+    the release notes, free).
+[ ] hosted-node deploy (web10.app) stays manual / compose-pull for
+    now. automate it when M2's hosted offering exists -- a deploy
+    job with no real target is fiction (same rule as guides).
+
+sequencing: one branch, ws1-sized. skeleton (path filters + api +
+js + docker jobs) first and merged fast; the changelog check and
+cd jobs are safe follow-ups; branch protection is a deliberate
+later flip, not part of the build. every lane benefits from the
+day the skeleton lands.
 
 
 CROSS-CUTTING — docs
