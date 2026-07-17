@@ -1,4 +1,4 @@
-1.0.24 || 16.07.2026
+1.0.25 || 16.07.2026
 Phase 5 media service (greenfield, Lane C):
   - media/: new FastAPI service with presigned S3 upload URLs, short-lived
     presigned read URLs (60s expiry, per-read issuance, logged per D14),
@@ -14,6 +14,23 @@ Phase 5 media service (greenfield, Lane C):
     auth.py (token verify, is_permitted), main.py (5 endpoints)
   - docker-compose: media service (port 6001, media.localhost) + minio
     (port 9000, console 9001) with minio-data volume
+
+1.0.24 || 16.07.2026
+agent task-status hygiene (agents were re-attempting merged work):
+  - parallel execution.txt: lane queues now carry live status markers —
+    [✓ x.y.z] merged (A1, B1, D1 ticked with their changelog versions),
+    [~] in flight (C1, D3), [ ] open; wave 0 marked PARTIAL (unit layer
+    landed in 1.0.21, endpoint permission-matrix suite + CI still owed);
+    rule 3 extended: tick your lane item in this file on merge; stale
+    "suggested first board" replaced with a dated current board
+  - added AGENTS.md: orientation entry point for non-Claude agents
+    (codex/qwen read AGENTS.md, not CLAUDE.md) — points to CLAUDE.md and
+    states the check-before-you-start + tick-on-finish rules; QWEN.md
+    pointer added too (Qwen Code's default context file)
+  - added .conductor/settings.toml with a repo-wide general prompt
+    reminding conductor agents to check done-status before starting
+  - CLAUDE.md: new "check it isn't already done" convention; changelog
+    convention now includes ticking the parallel execution.txt lane
 
 1.0.23 || 16.07.2026
 plan: phase 11 gains "the keyring api" — the record-model discipline applied

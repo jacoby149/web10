@@ -55,6 +55,10 @@ touches auth, the DB layer, or tokens, run those tests and keep them green.
       revocable token. Least privilege.
 
 ## Working conventions for parallel agents
+- **Check it isn't already done.** Before starting a plan/lane item, check
+  the lane queues in `parallel execution.txt` (`[✓ x.y.z]` = merged,
+  `[~]` = in flight elsewhere), the `[✓]` ticks in plan.txt, and the top
+  of `CHANGELOG.md`. If it's done, say so and pick the next unticked item.
 - **Stay in your lane.** `parallel execution.txt` assigns directory
   ownership. Don't edit another lane's files; if you need a change there
   (e.g. `docker-compose.yml`, `settings`), leave a note, don't reach in.
@@ -67,7 +71,9 @@ touches auth, the DB layer, or tokens, run those tests and keep them green.
 - **Update `CHANGELOG.md`.** Any improvement or change to the project gets a
   line in the changelog (newest entry at top, `version || DD.MM.YYYY`). This
   is a project rule, not a nicety — do it in the same branch as the change.
-  If your work completes a `plan.txt` item, also tick it there.
+  If your work completes a `plan.txt` item, tick it there AND tick your
+  lane item in `parallel execution.txt` — that file is the parallel
+  agents' task board and stale status there causes redone work.
 - **Keep the docs true.** If you change the stack, the data model, or the
   auth flow, update `CLAUDE.md`/`GLOSSARY.md` in the same branch. A big
   architectural decision gets an entry in `decisions.md`. Stale orientation
