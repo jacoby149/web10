@@ -1253,7 +1253,7 @@ testing:
     conformance suite tests the spec, not the reference impl's
     accidents. api/web10.0.md is the seed.
 [ ] sdk tests (bun test) against a throwaway test node
-[ ] browser e2e suite: playwright, in a container, against the real
+[✓] browser e2e suite: playwright, in a container, against the real
     compose stack, covering ALL THREE uis (ui, web10-social,
     marketing-ui). the vitest/jsdom suites can't catch routing
     breaks, white-screens, vhost/CORS misconfig, or "the api changed
