@@ -14,7 +14,11 @@ Also in this branch, dev unbroke: LadderCard.tsx type-only import fixed
 bun.lock regenerated (frozen-lockfile install failed on every CI run,
 skipping its tests entirely). web10-social's tsc build stays red with
 pre-existing @/-alias + legacy rectangles-npm import errors, masked by
-continue-on-error in CI (the known 1.0.48 gap) — left for lane D.
+continue-on-error in CI (the known 1.0.48 gap) — left for lane D; its
+4 unresolvable legacy tests (BioBottom/ContactAdder/Crm/Mail, imports
+D2.5 removed from package.json) excluded in vite.config.ts with a note,
+so the test step reports signal again (181 passing) instead of failing
+on dead code.
 plan.txt recovery item extended: forgot-password must be smooth, phone
 AND email as first-class reset channels. Board hygiene: #117 and #118
 raced for version 1.0.55 and both merged with it — A6 (merged second)
