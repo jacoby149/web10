@@ -18,15 +18,6 @@ declare module '*.svg' {
   export default content;
 }
 
-declare module 'rectangles-npm' {
-  import type { FC, ReactNode } from 'react';
-
-  export const R: FC<Record<string, unknown>>;
-  export const C: FC<Record<string, unknown>>;
-  export function pass(props: Record<string, unknown>): Record<string, unknown>;
-  export function startRectangles(root: HTMLElement | null): void;
-}
-
 declare module 'web10-npm' {
   export function wapiInit(
     authUrl: string,

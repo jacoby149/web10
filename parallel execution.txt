@@ -152,11 +152,11 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
   [✓ 1.0.30] D2. P7 tidy: crm/mail integrated as sub-apps inside
       web10-social (CRM Rolodex + Mail inbox), old crm/ and mail/
       folders removed. 35 new tests, shared mock factory.
-  [ ] D2.5. P2.5 ui makeover in web10-social: rectangles-npm ->
-      mainstream stack (match B2.5's pick + design tokens), story-
-      first pass (empty states point at exporters; kick/twitch-grade
-      slick is the visual bar -- THE STORY beat 5, D20). pairs with
-      D4 -- credible-in-a-creator-pitch is the acceptance bar.
+[✓ 1.0.51] D2.5. P2.5 ui makeover in web10-social: rectangles-npm ->
+       mainstream stack (tailwind v4 + Radix UI primitives + Lucide),
+       story-first pass (empty states point at exporters; kick/twitch-grade
+       slick is the visual bar -- THE STORY beat 5, D20). pairs with
+       D4 -- credible-in-a-creator-pitch is the acceptance bar.
   [✓ 1.0.27] D3. P11 mobile encryptor: complete rebuild landed —
       expo 52, crypto core (hkdf, ed25519/x25519, xchacha20), wallet
       persistence, tabbed UI, 55 tests. the rtc key channel + sdk
