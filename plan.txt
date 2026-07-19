@@ -416,13 +416,19 @@ the three items below are PARALLEL — disjoint directories:
     build-time env instead of the hardcodes in authAdapter.ts/
     config.ts (staging ships a bundle calling api.web10.app — see
     ubuntu-deployment/AGENT-OPS.md §4.1).
-[ ] level-up web10-social to the design.md standard (lane D, item
-    D12): this is the deck screenshot next to kick/twitch. wire the
-    missing @tailwindcss/vite plugin, actually load inter (declared,
-    never loaded), media-forward feed cards, composer that feels like
-    publishing, profile as creator page, story-first empty states,
-    finish evicting the excluded rectangles/@chatscope legacy
-    components, retire the fontawesome CDN kit for lucide.
+[✓ 1.0.64] level-up web10-social to the design.md standard (lane D,
+    item D12): wired @tailwindcss/vite, self-hosted Inter + Space
+    Grotesk (@fontsource-variable), retired the FontAwesome CDN kit,
+    media-forward feed (wired to real reaction/comment counts + a
+    working like-toggle and inline comments), a composer that feels
+    like publishing (drag-drop attach, error state), profile as a
+    creator page (banner, tabular-nums stats), skeleton loading states,
+    data-testid + 44px touch targets + a real focus-visible ring
+    throughout. Also fixed a load-bearing tsconfig bug (`@/*` path
+    alias was never declared — `tsc -b` had ~90 pre-existing errors)
+    and the legacy Crm/Mail/Bio vitest excludes (files no longer
+    exist). 193 tests green, tsc+build clean. See decisions.md D24 for
+    the alternative.png brand-asset correction (shared with D13).
 [✓ 1.0.63] rebuild marketing-ui on the design system (lane D, item D13):
     bulma OUT entirely (already rejected in D22), tailwind v4 +
     design.md tokens, dark cinematic landing (lockup hero, reach-gap

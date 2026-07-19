@@ -12,24 +12,31 @@ import type { Mode } from '@/types';
 
 function LoginScreen({ onLogin }: { onLogin: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-background px-6">
-      <div className="w-full max-w-sm text-center space-y-8">
-        <div className="space-y-2">
-          <h1 className="text-4xl font-bold tracking-tight text-foreground">
+    <div className="relative flex flex-col items-center justify-center min-h-screen bg-background px-6 overflow-hidden">
+      {/* design.md §4 — the one permitted decorative flourish: a soft brand glow behind the mark. */}
+      <div
+        className="pointer-events-none absolute top-1/2 left-1/2 h-80 w-80 -translate-x-1/2 -translate-y-[60%] rounded-full bg-brand/20 blur-3xl"
+        aria-hidden="true"
+      />
+      <div className="relative w-full max-w-sm text-center space-y-8">
+        <div className="space-y-3">
+          <img src="/alternative.png" alt="" className="h-14 w-14 mx-auto" aria-hidden="true" />
+          <h1 className="font-display text-4xl font-bold tracking-tight text-foreground">
             web<span className="text-brand">10</span>
           </h1>
-          <p className="text-muted-foreground">Your social network. Your data. Your rules.</p>
+          <p className="text-muted-foreground">Own your audience. No shadow ban.</p>
         </div>
         <Button
           variant="brand"
           size="lg"
+          data-testid="login-button"
           className="w-full h-12 text-base font-semibold"
           onClick={onLogin}
         >
           Log in
         </Button>
         <p className="text-xs text-muted-foreground">
-          Powered by your own node. No shadow bans. 100% delivery.
+          Powered by your own node. 100% delivery by architecture.
         </p>
       </div>
     </div>

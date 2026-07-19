@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as wapi from '../../data/wapi';
 import * as reactions from '../../data/reactions';
+import type { ReactionRecord } from '../../data/types';
 
 function mockWapi() {
   const mock = {
@@ -48,7 +49,7 @@ describe('reactions data layer', () => {
 
   describe('createReaction', () => {
     it('creates a reaction', async () => {
-      const reaction = { target_service: 'posts', target_id: 'p1', type: 'like', created_at: '2026-07-18T00:00:00Z' };
+      const reaction: Omit<ReactionRecord, '_id'> = { target_service: 'posts', target_id: 'p1', type: 'like', created_at: '2026-07-18T00:00:00Z' };
       const created = { _id: 'r1', ...reaction };
       mock.create.mockResolvedValue(created);
       const result = await reactions.createReaction(reaction);
