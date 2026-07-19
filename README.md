@@ -2,33 +2,39 @@
 
 <img src="ui/public/logo512.png" alt="web10 logo" height="75" />
 
-web10 is a system for users to **own their data** on the internet.
+web10 starts from one premise: **what you make is yours.**
 
 Every user gets their own database collection. Every record is
-`{service, body}`. Apps are stateless frontends — *lenses* — that hold a
-scoped, expiring token and talk to the user's collection over a tiny CRUD
-API. The data outlives any app.
+`{service, body}`. Apps are stateless frontends — *lenses* — that borrow
+access through a scoped, expiring token, do their work, and step aside.
+The data outlives any app, because the data was never the app's to keep.
 
-The product built on top of it is a **platform for creators**: run your own
-node, own your audience, and reach 100% of your followers by architecture —
-posts are delivered to every follower's inbox (fan-out on write), so there is
-no algorithm to throttle you and no shadow ban to fear. It's not a policy
-promise; it's how the system is built.
+On that protocol stands the product: **a platform for creators who refuse
+to rent their own audience.** Today a creator with a million subscribers
+reaches three hundred thousand — not by accident, but by design. The
+platform withholds your reach so it can sell it back to you. web10 removes
+the landlord. On your own node, a post reaches 100% of your followers,
+delivered to each one's inbox the moment you publish. There is no algorithm
+to please, no throttle to buy your way past, no shadow ban to fear. This
+is not a promise written in a policy that can be revised. It is the
+architecture, and architecture cannot be quietly revoked.
 
-**Think: WordPress for social media.** Open, self-hostable nodes; creators
-run them and monetize; user accounts are free; web10 takes a small % of
-revenue through its payment rails.
+The model is WordPress, applied to social media: open, self-hostable
+nodes. Creators run them, under their own name and their own domain, and
+keep what they earn. Accounts are free for their audience. web10 takes a
+small percentage of the revenue that moves through its payment rails —
+paid for value delivered, not for permission granted.
 
-## Why it's different
+## The premise, made concrete
 
 | | |
 | --- | --- |
-| **You own your data** | One collection per user. Export it, delete it, take it to another node. Delete means delete. |
-| **No shadow ban** | The inbox pattern delivers every post to every follower. Chronological feed, no ranking algorithm. |
-| **Apps are lenses** | Any app can read/write your data — with your permission, under a scoped, expiring, revocable token. |
-| **Federated identity** | Identity is `(username, provider)`, like email. Nodes verify each other's tokens. |
-| **Private, not permanent** | Unlike blockchain: your data can be private, temporary, and deletable. E2E encryption (phone-as-keychain) is in progress. |
-| **Self-hostable** | One `docker compose up` runs a whole node on your own hardware or any cloud. |
+| **You own your data** | One collection per user — the record of your own life, held by you. Export it, move it, erase it. Delete means delete. |
+| **No shadow ban** | Every post reaches every follower, by construction (fan-out on write). The feed is chronological, because a feed should report — not editorialize. |
+| **Apps are lenses** | An app earns access through a scoped, expiring, revocable token. It never owns what it touches. |
+| **Federated identity** | Identity is `(username, provider)`, like email. No central registry to petition, no account that can be taken from you. |
+| **Private, not permanent** | Unlike a blockchain, your data can be private, temporary, and deletable. E2E encryption (phone-as-keychain) is in progress — we don't claim what isn't built. |
+| **Self-hostable** | One `docker compose up` runs a node on hardware you own. The escape hatch is real, and that is what makes the ownership real. |
 
 ## Run a node locally
 
@@ -40,11 +46,11 @@ cd web10
 docker compose up --build
 ```
 
-Then open **http://auth.localhost** to sign up on your local node.
+Then open **http://auth.localhost** and sign up on your own node.
 
-That's it — no config files to copy. Settings are environment variables
-(see `api/app/settings.py` for the full list and defaults). The compose
-stack includes:
+No config archaeology — settings are environment variables, with working
+defaults (see `api/app/settings.py` for the full list). The compose stack
+includes:
 
 - **api** — the node itself: data, auth, billing, media (`api.localhost`)
 - **ui** — signup/login, consent, contracts, admin (`auth.localhost`)
@@ -67,7 +73,7 @@ something else owns port 80 on your machine, set `WEB10_HTTP_PORT`.
 
 `ubuntu-deployment/` has a one-shot deploy script for a fresh Ubuntu VM:
 Docker, Caddy with automatic TLS, and the full node stack. Point your DNS
-at the box and certs provision themselves. See
+at the box and the certificates provision themselves. See
 [`ubuntu-deployment/README.md`](ubuntu-deployment/README.md).
 
 ## What's in this repo
@@ -99,4 +105,6 @@ at the box and certs provision themselves. See
 - Discord: https://discord.gg/Dbd4VEDznU
 - Live node: https://web10.app
 
-Have fun with web10, use it responsibly, and please give the repo a star.
+web10 is built for people whose work carries their name. If the idea
+earns your respect, star the repo. Better — run a node, and build
+something you'd sign.
