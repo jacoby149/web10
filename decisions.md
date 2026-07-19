@@ -38,6 +38,7 @@ stack (tailwind + shadcn was the named default in plan.txt). Rejects: keeping
 rectangles-npm (one-person framework, reads as engineering tool not product),
 keeping @chatscope (heavy, opinionated, incompatible with the new design
 language), waiting on B2.5 (M0 timeline doesn't allow it).
+
 ### D21 — User billing is stripped; metering survives as operator-set quotas (anti-abuse), and the money screen is in M0 [decided]
 Users are never charged (D5: accounts free, paid by the operator's revenue),
 so the legacy per-user billing surface (plans, user subscriptions, per-account

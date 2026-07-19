@@ -1,3 +1,12 @@
+1.0.54 || 19.07.2026
+README rewritten to match the current stack: dead references removed
+(auth/ dir, settings_example.py copying, skaffold/GKE deploy, hex-key
+website), replaced with the real quickstart (docker compose up --build →
+auth.localhost, env-var settings, FerretDB default + mongo profile),
+the creator-platform framing (D20: no shadow ban by architecture, inbox
+pattern), the actual repo map (ui/, marketing/*, ubuntu-deployment/),
+and pointers to plan.txt / GLOSSARY.md / decisions.md / SECURITY.md.
+
 1.0.53 || 19.07.2026
 outreach batch 1 fully enriched: 20 API-verified prospects via YouTube
 Data API v3 (outreach_sourcer.py). all burn events verified by video
@@ -31,6 +40,7 @@ Empty states point at exporters ("Import your Instagram"). Dark-first
 design tokens, responsive layout with sidebar + mobile bottom nav.
 12 new component tests (226 total green, 4 legacy skipped).
 Stack pick recorded in decisions.md (D2.5-stack).
+
 1.0.51 || 18.07.2026
 CLAUDE.md: new working convention — "hand off the next task": after a merge,
 agents end their final message with the next unticked lane item and a
