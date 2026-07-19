@@ -1,5 +1,10 @@
 import React from 'react';
 import axios from 'axios';
+import { Check } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 const STEPS = [
   "Welcome",
@@ -12,17 +17,17 @@ const STEPS = [
 
 function StepIndicator({ current, total }: { current: number; total: number }) {
   return (
-    <div className="flex gap-2 mb-8 justify-center">
+    <div className="mb-8 flex justify-center gap-2" data-testid="wizard-step-indicator">
       {STEPS.slice(0, total).map((step, i) => (
         <div
-          key={i}
-          className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all"
-          style={{
-            background: i < current ? 'var(--color-primary-600)' : i === current ? 'var(--color-primary-600)' : 'var(--color-neutral-700)',
-            color: '#fff',
-          }}
+          key={step}
+          title={step}
+          className={cn(
+            'flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold transition-colors',
+            i <= current ? 'bg-brand text-brand-foreground' : 'bg-elevated text-muted-foreground',
+          )}
         >
-          {i < current ? '✓' : i + 1}
+          {i < current ? <Check className="h-4 w-4" strokeWidth={2} /> : i + 1}
         </div>
       ))}
     </div>
@@ -32,19 +37,15 @@ function StepIndicator({ current, total }: { current: number; total: number }) {
 function WelcomeStep({ onNext }: { onNext: () => void }) {
   return (
     <div className="text-center">
-      <h1 className="text-3xl font-bold mb-4" style={{ color: 'var(--color-text)' }}>Welcome to web10</h1>
-      <p className="max-w-[500px] mx-auto mb-8 leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
+      <h1 className="mb-4 font-display text-3xl font-bold text-foreground">Welcome to web10</h1>
+      <p className="mx-auto mb-8 max-w-[500px] leading-relaxed text-muted-foreground">
         Set up your sovereign social node in a few minutes.
         Your node stores your data, runs your apps, and belongs to you.
       </p>
       <div className="flex justify-center">
-        <button
-          className="px-10 py-3 text-base font-semibold rounded-lg text-white transition-colors hover:opacity-90"
-          style={{ backgroundColor: 'var(--color-primary-600)' }}
-          onClick={onNext}
-        >
+        <Button variant="brand" size="lg" data-testid="wizard-welcome-get-started" onClick={onNext}>
           Get Started
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -58,59 +59,47 @@ function NodeIdentityStep({ data, onChange, onNext, onBack }: {
 }) {
   return (
     <div>
-      <h2 className="text-xl font-semibold mb-6 text-center" style={{ color: 'var(--color-text)' }}>Node Identity</h2>
-      <div className="max-w-[400px] mx-auto space-y-4">
+      <h2 className="mb-6 text-center font-display text-xl font-medium text-foreground">Node Identity</h2>
+      <div className="mx-auto max-w-[400px] space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Provider Domain</label>
-          <input
-            className="w-full px-3 py-2 rounded-lg border text-base"
-            style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
+          <Label className="mb-1 block text-muted-foreground">Provider Domain</Label>
+          <Input
             value={data.provider}
             onChange={e => onChange("provider", e.target.value)}
             placeholder="api.example.com"
+            data-testid="wizard-provider-domain"
           />
-          <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>The domain your node will be reachable at</p>
+          <p className="mt-1 text-xs text-muted-foreground">The domain your node will be reachable at</p>
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Brand Name</label>
-          <input
-            className="w-full px-3 py-2 rounded-lg border text-base"
-            style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
+          <Label className="mb-1 block text-muted-foreground">Brand Name</Label>
+          <Input
             value={data.brand_text}
             onChange={e => onChange("brand_text", e.target.value)}
             placeholder="web10"
+            data-testid="wizard-brand-name"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Database URL</label>
-          <input
-            className="w-full px-3 py-2 rounded-lg border text-base"
-            style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
+          <Label className="mb-1 block text-muted-foreground">Database URL</Label>
+          <Input
             value={data.db_url}
             onChange={e => onChange("db_url", e.target.value)}
             placeholder="mongodb://ferretdb:27017"
+            data-testid="wizard-db-url"
           />
-          <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>MongoDB or FerretDB connection string</p>
+          <p className="mt-1 text-xs text-muted-foreground">MongoDB or FerretDB connection string</p>
         </div>
       </div>
-      <div className="flex justify-center gap-2 mt-8">
-        <button
-          className="px-4 py-2 text-sm font-medium rounded-lg border transition-colors hover:opacity-80"
-          style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
-          onClick={onBack}
-        >
+      <div className="mt-8 flex justify-center gap-2">
+        <Button variant="outline" data-testid="wizard-node-identity-back" onClick={onBack}>
           Back
-        </button>
-        <button
-          className="px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors hover:opacity-90 disabled:opacity-50"
-          style={{ backgroundColor: 'var(--color-primary-600)' }}
-          onClick={onNext}
-          disabled={!data.provider}
-        >
+        </Button>
+        <Button variant="brand" data-testid="wizard-node-identity-next" onClick={onNext} disabled={!data.provider}>
           Next
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -125,62 +114,55 @@ function AdminAccountStep({ data, onChange, onNext, onBack }: {
   const passwordsMatch = data.admin_password === data.admin_password_confirm;
   return (
     <div>
-      <h2 className="text-xl font-semibold mb-6 text-center" style={{ color: 'var(--color-text)' }}>Admin Account</h2>
-      <div className="max-w-[400px] mx-auto space-y-4">
+      <h2 className="mb-6 text-center font-display text-xl font-medium text-foreground">Admin Account</h2>
+      <div className="mx-auto max-w-[400px] space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Username</label>
-          <input
-            className="w-full px-3 py-2 rounded-lg border text-base"
-            style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
+          <Label className="mb-1 block text-muted-foreground">Username</Label>
+          <Input
             value={data.admin_username}
             onChange={e => onChange("admin_username", e.target.value)}
             placeholder="admin"
+            data-testid="wizard-admin-username"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Password</label>
-          <input
-            className="w-full px-3 py-2 rounded-lg border text-base"
-            style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
+          <Label className="mb-1 block text-muted-foreground">Password</Label>
+          <Input
             type="password"
             value={data.admin_password}
             onChange={e => onChange("admin_password", e.target.value)}
             placeholder="••••••••"
+            data-testid="wizard-admin-password"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Confirm Password</label>
-          <input
-            className="w-full px-3 py-2 rounded-lg border text-base"
-            style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
+          <Label className="mb-1 block text-muted-foreground">Confirm Password</Label>
+          <Input
             type="password"
             value={data.admin_password_confirm}
             onChange={e => onChange("admin_password_confirm", e.target.value)}
             placeholder="••••••••"
+            data-testid="wizard-admin-password-confirm"
           />
           {data.admin_password_confirm && !passwordsMatch && (
-            <p className="text-xs mt-1" style={{ color: 'var(--color-danger)' }}>Passwords do not match</p>
+            <p className="mt-1 text-xs text-danger" data-testid="wizard-password-mismatch">Passwords do not match</p>
           )}
         </div>
       </div>
-      <div className="flex justify-center gap-2 mt-8">
-        <button
-          className="px-4 py-2 text-sm font-medium rounded-lg border transition-colors hover:opacity-80"
-          style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
-          onClick={onBack}
-        >
+      <div className="mt-8 flex justify-center gap-2">
+        <Button variant="outline" data-testid="wizard-admin-account-back" onClick={onBack}>
           Back
-        </button>
-        <button
-          className="px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors hover:opacity-90 disabled:opacity-50"
-          style={{ backgroundColor: 'var(--color-primary-600)' }}
+        </Button>
+        <Button
+          variant="brand"
+          data-testid="wizard-admin-account-next"
           onClick={onNext}
           disabled={!data.admin_username || !data.admin_password || !passwordsMatch}
         >
           Next
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -195,95 +177,84 @@ function AccessPolicyStep({ data, onChange, onNext, onBack }: {
   const toggle = (key: string) => onChange(key, !data[key]);
   return (
     <div>
-      <h2 className="text-xl font-semibold mb-6 text-center" style={{ color: 'var(--color-text)' }}>Access Policy</h2>
-      <div className="max-w-[500px] mx-auto">
-        <p className="text-center mb-6" style={{ color: 'var(--color-text-secondary)' }}>
+      <h2 className="mb-6 text-center font-display text-xl font-medium text-foreground">Access Policy</h2>
+      <div className="mx-auto max-w-[500px]">
+        <p className="mb-6 text-center text-muted-foreground">
           Control who can join your node and how.
         </p>
 
-        <div className="flex justify-between items-center py-3 border-b" style={{ borderColor: 'var(--color-border)' }}>
+        <div className="flex items-center justify-between border-b border-border py-3">
           <div>
-            <div className="font-medium">Beta Code Required</div>
-            <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Users need a valid beta code to sign up</div>
+            <div className="text-sm font-medium text-foreground">Beta Code Required</div>
+            <div className="text-xs text-muted-foreground">Users need a valid beta code to sign up</div>
           </div>
           <label className="switch">
-            <input type="checkbox" checked={data.beta_required} onChange={() => toggle("beta_required")} />
+            <input type="checkbox" checked={data.beta_required} onChange={() => toggle("beta_required")} data-testid="wizard-toggle-beta-required" />
             <span className="slider round"></span>
           </label>
         </div>
 
         {data.beta_required && (
-          <div className="pl-5 mb-2 mt-3">
-            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Beta Code</label>
-            <input
-              className="w-full px-3 py-2 rounded-lg border text-base"
-              style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
+          <div className="mb-2 mt-3 pl-5">
+            <Label className="mb-1 block text-muted-foreground">Beta Code</Label>
+            <Input
               value={data.beta_code}
               onChange={e => onChange("beta_code", e.target.value)}
               placeholder="web10betacode"
+              data-testid="wizard-beta-code"
             />
           </div>
         )}
 
-        <div className="flex justify-between items-center py-3 border-b" style={{ borderColor: 'var(--color-border)' }}>
+        <div className="flex items-center justify-between border-b border-border py-3">
           <div>
-            <div className="font-medium">Phone Verification</div>
-            <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Require phone number on signup</div>
+            <div className="text-sm font-medium text-foreground">Phone Verification</div>
+            <div className="text-xs text-muted-foreground">Require phone number on signup</div>
           </div>
           <label className="switch">
-            <input type="checkbox" checked={data.verify_required} onChange={() => toggle("verify_required")} />
+            <input type="checkbox" checked={data.verify_required} onChange={() => toggle("verify_required")} data-testid="wizard-toggle-verify-required" />
             <span className="slider round"></span>
           </label>
         </div>
 
-        <div className="flex justify-between items-center py-3 border-b" style={{ borderColor: 'var(--color-border)' }}>
+        <div className="flex items-center justify-between border-b border-border py-3">
           <div>
-            <div className="font-medium">Payment Required</div>
-            <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Users must subscribe to use the node</div>
+            <div className="text-sm font-medium text-foreground">Payment Required</div>
+            <div className="text-xs text-muted-foreground">Users must subscribe to use the node</div>
           </div>
           <label className="switch">
-            <input type="checkbox" checked={data.pay_required} onChange={() => toggle("pay_required")} />
+            <input type="checkbox" checked={data.pay_required} onChange={() => toggle("pay_required")} data-testid="wizard-toggle-pay-required" />
             <span className="slider round"></span>
           </label>
         </div>
 
         <div className="mt-5">
-          <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Free Credits / Month</label>
-          <input
-            className="w-full px-3 py-2 rounded-lg border text-base"
-            style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
+          <Label className="mb-1 block text-muted-foreground">Free Credits / Month</Label>
+          <Input
             type="number"
             value={data.free_credits}
             onChange={e => onChange("free_credits", parseFloat(e.target.value) || 0)}
+            data-testid="wizard-free-credits"
           />
         </div>
 
         <div className="mt-4">
-          <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Free Space (MB) / Month</label>
-          <input
-            className="w-full px-3 py-2 rounded-lg border text-base"
-            style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
+          <Label className="mb-1 block text-muted-foreground">Free Space (MB) / Month</Label>
+          <Input
             type="number"
             value={data.free_space}
             onChange={e => onChange("free_space", parseInt(e.target.value) || 0)}
+            data-testid="wizard-free-space"
           />
         </div>
       </div>
-      <div className="flex justify-center gap-2 mt-8">
-        <button
-          className="px-4 py-2 text-sm font-medium rounded-lg border transition-colors hover:opacity-80"
-          style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
-          onClick={onBack}
-        >
+      <div className="mt-8 flex justify-center gap-2">
+        <Button variant="outline" data-testid="wizard-access-policy-back" onClick={onBack}>
           Back
-        </button>
-        <button
-          className="px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors hover:opacity-90"
-          style={{ backgroundColor: 'var(--color-primary-600)' }}
-          onClick={onNext}
-        >
+        </Button>
+        <Button variant="brand" data-testid="wizard-access-policy-next" onClick={onNext}>
           Next
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -297,111 +268,99 @@ function StorageStep({ data, onChange, onNext, onBack }: {
 }) {
   return (
     <div>
-      <h2 className="text-xl font-semibold mb-6 text-center" style={{ color: 'var(--color-text)' }}>Media Storage</h2>
-      <div className="max-w-[500px] mx-auto">
-        <p className="text-center mb-6" style={{ color: 'var(--color-text-secondary)' }}>
+      <h2 className="mb-6 text-center font-display text-xl font-medium text-foreground">Media Storage</h2>
+      <div className="mx-auto max-w-[500px]">
+        <p className="mb-6 text-center text-muted-foreground">
           Configure S3-compatible storage for media files.
           MinIO is included by default for self-hosting.
         </p>
 
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>S3 Endpoint</label>
-            <input
-              className="w-full px-3 py-2 rounded-lg border text-base"
-              style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
+            <Label className="mb-1 block text-muted-foreground">S3 Endpoint</Label>
+            <Input
               value={data.s3_endpoint}
               onChange={e => onChange("s3_endpoint", e.target.value)}
               placeholder="http://minio:9000"
+              data-testid="wizard-s3-endpoint"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Bucket Name</label>
-            <input
-              className="w-full px-3 py-2 rounded-lg border text-base"
-              style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
+            <Label className="mb-1 block text-muted-foreground">Bucket Name</Label>
+            <Input
               value={data.s3_bucket}
               onChange={e => onChange("s3_bucket", e.target.value)}
               placeholder="web10-media"
+              data-testid="wizard-s3-bucket"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Access Key</label>
-            <input
-              className="w-full px-3 py-2 rounded-lg border text-base"
-              style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
+            <Label className="mb-1 block text-muted-foreground">Access Key</Label>
+            <Input
               value={data.s3_access_key}
               onChange={e => onChange("s3_access_key", e.target.value)}
               placeholder="minioadmin"
+              data-testid="wizard-s3-access-key"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Secret Key</label>
-            <input
-              className="w-full px-3 py-2 rounded-lg border text-base"
-              style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
+            <Label className="mb-1 block text-muted-foreground">Secret Key</Label>
+            <Input
               type="password"
               value={data.s3_secret_key}
               onChange={e => onChange("s3_secret_key", e.target.value)}
               placeholder="minioadmin"
+              data-testid="wizard-s3-secret-key"
             />
           </div>
 
           <details className="mt-4">
-            <summary className="cursor-pointer text-sm font-medium" style={{ color: 'var(--color-primary-600)' }}>Advanced: Twilio (SMS)</summary>
+            <summary className="cursor-pointer text-sm font-medium text-brand-300" data-testid="wizard-advanced-twilio">Advanced: Twilio (SMS)</summary>
             <div className="mt-2 space-y-3">
               <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Twilio Service SID</label>
-                <input className="w-full px-3 py-2 rounded-lg border text-base" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }} value={data.twilio_service} onChange={e => onChange("twilio_service", e.target.value)} />
+                <Label className="mb-1 block text-muted-foreground">Twilio Service SID</Label>
+                <Input value={data.twilio_service} onChange={e => onChange("twilio_service", e.target.value)} data-testid="wizard-twilio-service" />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Account SID</label>
-                <input className="w-full px-3 py-2 rounded-lg border text-base" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }} value={data.twilio_account_sid} onChange={e => onChange("twilio_account_sid", e.target.value)} />
+                <Label className="mb-1 block text-muted-foreground">Account SID</Label>
+                <Input value={data.twilio_account_sid} onChange={e => onChange("twilio_account_sid", e.target.value)} data-testid="wizard-twilio-account-sid" />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Auth Token</label>
-                <input className="w-full px-3 py-2 rounded-lg border text-base" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }} type="password" value={data.twilio_auth_token} onChange={e => onChange("twilio_auth_token", e.target.value)} />
+                <Label className="mb-1 block text-muted-foreground">Auth Token</Label>
+                <Input type="password" value={data.twilio_auth_token} onChange={e => onChange("twilio_auth_token", e.target.value)} data-testid="wizard-twilio-auth-token" />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Phone Number</label>
-                <input className="w-full px-3 py-2 rounded-lg border text-base" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }} value={data.twilio_number} onChange={e => onChange("twilio_number", e.target.value)} placeholder="+1234567890" />
+                <Label className="mb-1 block text-muted-foreground">Phone Number</Label>
+                <Input value={data.twilio_number} onChange={e => onChange("twilio_number", e.target.value)} placeholder="+1234567890" data-testid="wizard-twilio-number" />
               </div>
             </div>
           </details>
 
           <details className="mt-2">
-            <summary className="cursor-pointer text-sm font-medium" style={{ color: 'var(--color-primary-600)' }}>Advanced: Stripe (Payments)</summary>
+            <summary className="cursor-pointer text-sm font-medium text-brand-300" data-testid="wizard-advanced-stripe">Advanced: Stripe (Payments)</summary>
             <div className="mt-2 space-y-3">
               <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Test API Key</label>
-                <input className="w-full px-3 py-2 rounded-lg border text-base" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }} type="password" value={data.stripe_test_key} onChange={e => onChange("stripe_test_key", e.target.value)} />
+                <Label className="mb-1 block text-muted-foreground">Test API Key</Label>
+                <Input type="password" value={data.stripe_test_key} onChange={e => onChange("stripe_test_key", e.target.value)} data-testid="wizard-stripe-test-key" />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Live API Key</label>
-                <input className="w-full px-3 py-2 rounded-lg border text-base" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }} type="password" value={data.stripe_live_key} onChange={e => onChange("stripe_live_key", e.target.value)} />
+                <Label className="mb-1 block text-muted-foreground">Live API Key</Label>
+                <Input type="password" value={data.stripe_live_key} onChange={e => onChange("stripe_live_key", e.target.value)} data-testid="wizard-stripe-live-key" />
               </div>
             </div>
           </details>
         </div>
       </div>
-      <div className="flex justify-center gap-2 mt-8">
-        <button
-          className="px-4 py-2 text-sm font-medium rounded-lg border transition-colors hover:opacity-80"
-          style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
-          onClick={onBack}
-        >
+      <div className="mt-8 flex justify-center gap-2">
+        <Button variant="outline" data-testid="wizard-storage-back" onClick={onBack}>
           Back
-        </button>
-        <button
-          className="px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors hover:opacity-90"
-          style={{ backgroundColor: 'var(--color-primary-600)' }}
-          onClick={onNext}
-        >
+        </Button>
+        <Button variant="brand" data-testid="wizard-storage-next" onClick={onNext}>
           Next
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -410,20 +369,16 @@ function StorageStep({ data, onChange, onNext, onBack }: {
 function CompleteStep({ message, error, onLogin }: { message: string; error: string | null; onLogin: () => void }) {
   return (
     <div className="text-center">
-      <h2 className="mb-4 text-3xl font-bold" style={{ color: error ? 'var(--color-danger)' : 'var(--color-success)' }}>
+      <h2 className={cn('mb-4 font-display text-3xl font-bold', error ? 'text-danger' : 'text-success')}>
         {error ? "Setup Failed" : "You're All Set!"}
       </h2>
-      <p className="max-w-[500px] mx-auto mb-8 leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
+      <p className="mx-auto mb-8 max-w-[500px] leading-relaxed text-muted-foreground">
         {error || message || "Your node is configured and ready to use."}
       </p>
       <div className="flex justify-center">
-        <button
-          className="px-10 py-3 text-base font-semibold rounded-lg text-white transition-colors hover:opacity-90"
-          style={{ backgroundColor: 'var(--color-primary-600)' }}
-          onClick={onLogin}
-        >
+        <Button variant="brand" size="lg" data-testid="wizard-complete-login" onClick={onLogin}>
           Go to Login
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -528,21 +483,21 @@ function SetupWizard({ I }: { I: Record<string, any> }) {
   };
 
   return (
-    <div className={`min-h-screen flex flex-col ${I.theme === 'dark' ? 'dark' : ''}`} style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)' }}>
-      <div className="max-w-[600px] mx-auto px-5 py-16 flex-1 flex flex-col justify-center">
-        <div className="flex justify-center mb-2">
+    <div className="flex min-h-screen flex-col bg-background text-foreground" data-testid="setup-wizard">
+      <div className="mx-auto flex w-full max-w-[600px] flex-1 flex-col justify-center px-5 py-16">
+        <div className="mb-2 flex justify-center">
           <img
             src={I.logo}
             alt="web10"
-            className="h-10 mb-5"
+            className="mb-5 h-10"
           />
         </div>
         {!done && step > 0 && step < 6 && (
           <StepIndicator current={step} total={6} />
         )}
         {loading ? (
-          <div className="text-center py-10">
-            <div className="text-lg" style={{ color: 'var(--color-text-secondary)' }}>Configuring your node...</div>
+          <div className="py-10 text-center" data-testid="wizard-loading">
+            <div className="text-lg text-muted-foreground">Configuring your node…</div>
           </div>
         ) : (
           renderStep()
