@@ -1,3 +1,14 @@
+1.0.53 || 19.07.2026
+outreach batch 1 fully enriched: 20 API-verified prospects via YouTube
+Data API v3 (outreach_sourcer.py). all burn events verified by video
+title + timestamp, subscriber counts from channel statistics endpoint.
+5 prospects have biz emails. M0 fit corrected to signal-based scoring:
+10 YES fits (recipes, crafts, tutorials, fashion, finance, podcasts,
+nutrition, fitness), 4 PARTIAL, 3 POOR (animation, cinematic, vlogs).
+6 false positives filtered (gaming shadowbans, advice videos,
+third-party references). ~2,100 quota units used (21% of free daily
+tier). script reusable for batches 2-5.
+
 1.0.52 || 18.07.2026
 B2.5: ui makeover — rectangles-npm and react-bulma-components ripped out
 of ui/; replaced with Tailwind CSS v4 + CSS variable design tokens
