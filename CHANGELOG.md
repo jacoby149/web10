@@ -1,3 +1,11 @@
+1.0.71 || 19.07.2026
+Queued E9 (deploy → github feedback loop): Portainer CE has no
+outbound "I deployed" notification, so a box-side script will poll
+each git-stack's deployed commit SHA, run smoke.sh, and POST a
+GitHub Deployment + status (repo Environments panel shows prod/dev
+sha + green/red, dev included since it runs on the box). Below
+priority zero — after A7/B6.
+
 1.0.70 || 19.07.2026
 PRIORITY ZERO declared at the top of plan.txt (operator): the
 deployed product must WORK AT A BASELINE — baseline fixes outrank

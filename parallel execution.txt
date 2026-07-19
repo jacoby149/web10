@@ -467,6 +467,18 @@ LANE E — infrastructure / deployment (owns: proxmox provisioning,
       signing certs/provisioning, review. NOT now (post-M0, gated on
       the encryptor actually doing e2e key management) — parked here
       so it's on the board, not lost.
+  [ ] E9. deploy → github feedback loop (operator, 19.07: "would be
+      cool if portainer alerted github it deployed"). portainer CE
+      has NO outbound deploy notification — build it: a small script
+      on the box (scripts/, cron or systemd timer) polls the
+      portainer API for each git-stack's DEPLOYED COMMIT SHA; on
+      change, run scripts/smoke.sh, then POST a github Deployment +
+      status (repo Environments panel shows prod/dev: sha + green/
+      red). GH token (deployments scope only) lives in the box .env,
+      never git. covers the VPN-only dev env too (runs on the box).
+      alt considered: an Actions-side poller against a public
+      /version marker — rejected as primary (can't see dev off-VPN).
+      below PRIORITY ZERO — do after A7/B6.
 
 WHAT MUST STAY SEQUENTIAL (don't try to parallelize these)
 ----------------------------------------------------------
