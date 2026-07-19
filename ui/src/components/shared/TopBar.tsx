@@ -1,54 +1,77 @@
-import { R, C, pass } from "rectangles-npm"
-import Branding from "./Branding"
-import { Icon } from "./Icon"
-import { Search } from '@chatscope/chat-ui-kit-react'
-import styles from '@chatscope/chat-ui-kit-styles/dist/default/styles.min.css';
+import Branding from "./Branding";
+import { Icon } from "./Icon";
+import { Search } from '@chatscope/chat-ui-kit-react';
+import '@chatscope/chat-ui-kit-styles/dist/default/styles.min.css';
 
-
-function AppsButton({ I }) {
-    return (
-        <button className="button is-info is-small" onClick={() => I.setMode("appstore")}>Apps</button>
-    );
+interface TopBarProps {
+  I: Record<string, any>;
 }
 
-/* Top Bar of web10 */
-function TopBar(props) {
-    const I = props.I;
+function AppsButton({ I }: { I: Record<string, any> }) {
+  return (
+    <button
+      className="px-3 py-1.5 text-sm font-medium rounded-lg text-white transition-colors hover:opacity-90"
+      style={{ backgroundColor: 'var(--color-info)' }}
+      onClick={() => I.setMode("appstore")}
+    >
+      Apps
+    </button>
+  );
+}
 
-    return (
-        <R l bb s={"55px"} {...pass(props)}>
-            <Branding I={I} />
-            <R l s={"110px"}>
-                <Icon onClick={I.toggleMenuCollapsed}>bars</Icon>
-                <Icon onClick={I.toggleTheme}>moon</Icon>
-            </R>
-            <C l tel>
+function TopBar({ I }: TopBarProps) {
+  return (
+    <div
+      className="flex items-center justify-between px-4 border-b"
+      style={{ height: "55px", borderColor: 'var(--color-border)' }}
+    >
+      <Branding I={I} />
 
-                <Search onClearClick={() => I.runSearch("")} onChange={(v) => I.runSearch(v)} style={{ width: "100%", marginRight: "10px" }} placeholder="Search..." />
+      <div className="flex items-center gap-2">
+        <Icon onClick={I.toggleMenuCollapsed}>bars</Icon>
+        <Icon onClick={I.toggleTheme}>moon</Icon>
+      </div>
 
-            </C>
-            {I.isAuthenticated() ?
-                I.mode === "settings" ?
-                    <C t s={"75px"}>
-                        <AppsButton I={I} />
-                    </C>
-                    :
-                    <Icon onClick={() => I.setMode("settings")}>gear</Icon>
+      <div className="flex-1 mx-4" style={{ maxWidth: "300px" }}>
+        <Search
+          onClearClick={() => I.runSearch("")}
+          onChange={(v) => I.runSearch(v)}
+          placeholder="Search..."
+          style={{ width: "100%" }}
+        />
+      </div>
 
-                :
-                <C t s={"75px"}>
-                    {I.mode === "appstore" ?
-                        I.isAuth ?
-                            <button className="button is-primary is-small" onClick={() => I.setMode("login")}>Login</button> :
-                            <></>
-                        :
-                        <AppsButton I={I} />
-                    }
-                </C>
-            }
-            <R t s={"30px"}></R>
-        </R>
-    )
+      <div className="flex items-center gap-2">
+        {I.isAuthenticated() ? (
+          I.mode === "settings" ? (
+            <div className="w-[75px]"><AppsButton I={I} /></div>
+          ) : (
+            <Icon onClick={() => I.setMode("settings")}>gear</Icon>
+          )
+        ) : (
+          <div className="w-[75px]">
+            {I.mode === "appstore" ? (
+              I.isAuth ? (
+                <></>
+              ) : (
+                <button
+                  className="px-3 py-1.5 text-sm font-medium rounded-lg text-white transition-colors hover:opacity-90"
+                  style={{ backgroundColor: 'var(--color-primary-600)' }}
+                  onClick={() => I.setMode("login")}
+                >
+                  Login
+                </button>
+              )
+            ) : (
+              <AppsButton I={I} />
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="w-[30px]" />
+    </div>
+  );
 }
 
 export default TopBar;

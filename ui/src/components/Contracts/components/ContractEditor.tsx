@@ -1,99 +1,83 @@
-
 import React from 'react';
 import { Websites, WhiteList, BlackList } from './ContractComponents';
 import SiteEditor from './SiteEditor';
-import {WhiteListEditor,BlackListEditor} from './ListEditor';
+import { WhiteListEditor, BlackListEditor } from './ListEditor';
 
-//return <button onClick={()=>contractI.view()}>back</button>
-function ContractEditor({ I, contractI }) {
-    // all site allow block
-    const [editorMode, setEditorMode] = React.useState("all")
-    return (
-        <div style={{ maxWidth: "800px", margin: "auto" }}>
-            <div className="card setting" style={{ margin: "20px" }}>
-                <header className="card-header">
-                    <p className="card-header-title">
-                        {contractI.mode === "edit" && editorMode === "all" ?
-                            <i onClick={contractI.clearChanges} style={{ color: "gray", marginRight: "15px" }} className={"fa fa-2x fa-circle-xmark font-weight-bold"}></i> : ""
-                        }
-                        {contractI.data.service}
-                    </p>
-                    {contractI.mode === "edit" ?
-                        editorMode === "all" ?
-                            <div>
-                                <button onClick={contractI.saveChanges} style={{ margin: "15px", width: "130px" }} className={"button is-primary is-small"}>Save Changes
-                                    <i style={{ marginLeft: "10px" }} className={"fa fa-check font-weight-bold"}></i>
-                                </button>
-                            </div> :
-                            <div>
-                                <button onClick={() => setEditorMode("all")} style={{ margin: "15px", width: "100px" }} className={"button is-warning is-small"}>Go Back
-                                    <i style={{ marginLeft: "10px" }} className={"fa fa-rotate-left font-weight-bold"}></i>
-                                </button>
-                            </div>
-                        :
-                        <button onClick={contractI.toggleHide} className="card-header-icon" aria-label="more options">
-                            <span className="icon">
-                                <i className={contractI.hide ? "fas fa-angle-right" : "fas fa-angle-down"} aria-hidden="true"></i>
-                            </span>
-                        </button>
-                    }
-                </header>
-                <div style={contractI.hide ? { display: "none" } : {}} className="card-content">
-                    {editorMode !== "all" ?
-                        "" :
-                        <div className="content">
-                            <u>Websites/IPs</u> : <Websites contractI={contractI}></Websites>
-                            <div style={{ marginTop: "5px" }}>
-                            </div>
-
-                            <WhiteList contractI={contractI} />
-
-                            <BlackList contractI={contractI} />
-                        </div>
-                    }
-                    {editorMode !== "site" ?
-                        "" :
-                        <div className="content">
-                            <u>Websites/IPs</u> : <Websites contractI={contractI}></Websites>
-                            <div style={{ marginTop: "5px" }}>
-                            </div>
-                            <SiteEditor contractI={contractI} />
-                        </div>
-                    }
-                    {editorMode !== "allow" ?
-                        "" :
-                        <>
-                            <WhiteList contractI={contractI} />
-                            <WhiteListEditor contractI={contractI}></WhiteListEditor>
-                        </>
-
-                    }
-                    {editorMode !== "block" ?
-                        "" :
-                        <>
-                            <BlackList contractI={contractI} />
-                            <BlackListEditor contractI={contractI}></BlackListEditor>
-                        </>
-                    }
-
-                </div>
-                {editorMode === "all" ?
-                    <footer style={contractI.hide ? { display: "none" } : {}} className="card-footer">
-                        <a href="#" onClick={() => setEditorMode("site")} className="card-footer-item">
-                            sites
-                            <i style={{ marginLeft: "7px" }} className="fas fa-globe" aria-hidden="true"></i> &nbsp;
-                        </a>
-                        <a href="#" onClick={() => setEditorMode("allow")} className="card-footer-item">
-                            allowed
-                            <i style={{ marginLeft: "7px" }} className="fas fa-user" aria-hidden="true"></i></a>
-                        <a href="#" onClick={() => setEditorMode("block")} className="card-footer-item">
-                            blocked
-                            <i style={{ marginLeft: "7px" }} className="fas fa-road-barrier" aria-hidden="true"></i></a>
-                    </footer> : ""
-                }
-            </div>
+function ContractEditor({ I, contractI }: { I: Record<string, any>, contractI: Record<string, any> }) {
+  const [editorMode, setEditorMode] = React.useState("all");
+  return (
+    <div className="max-w-[800px] mx-auto">
+      <div className="rounded-lg border overflow-hidden mb-4" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}>
+        <div className="px-4 py-3 flex justify-between items-center border-b" style={{ borderColor: 'var(--color-border)' }}>
+          <div className="flex items-center gap-2">
+            {contractI.mode === "edit" && editorMode === "all" ?
+              <i onClick={contractI.clearChanges} className="fa fa-2x fa-circle-xmark font-weight-bold cursor-pointer hover:opacity-70" style={{ color: 'var(--color-text-muted)' }}></i> : ""
+            }
+            <span className="font-medium">{contractI.data.service}</span>
+          </div>
+          {contractI.mode === "edit" ?
+            editorMode === "all" ?
+              <button onClick={contractI.saveChanges} className="px-4 py-1.5 text-sm font-medium rounded-lg text-white transition-colors hover:opacity-90" style={{ backgroundColor: 'var(--color-primary-600)' }}>
+                Save Changes <i className="fa fa-check ml-2.5 font-weight-bold"></i>
+              </button> :
+              <button onClick={() => setEditorMode("all")} className="px-4 py-1.5 text-sm font-medium rounded-lg border transition-colors hover:opacity-80" style={{ borderColor: 'var(--color-warning)', color: 'var(--color-warning)' }}>
+                Go Back <i className="fa fa-rotate-left ml-2.5 font-weight-bold"></i>
+              </button>
+            :
+            <button onClick={contractI.toggleHide} className="p-1 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors">
+              <i className={contractI.hide ? "fas fa-angle-right" : "fas fa-angle-down"}></i>
+            </button>
+          }
         </div>
-    )
+        {!contractI.hide && (
+          <div className="p-4">
+            {editorMode !== "site" ? "" :
+              <div>
+                <span className="text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}><u>Websites/IPs</u> :</span>
+                <Websites contractI={contractI} />
+                <div className="mt-1.5" />
+                <SiteEditor contractI={contractI} />
+              </div>
+            }
+            {editorMode !== "all" ? "" :
+              <div>
+                <span className="text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}><u>Websites/IPs</u> :</span>
+                <Websites contractI={contractI} />
+                <div className="mt-1.5" />
+                <WhiteList contractI={contractI} />
+                <BlackList contractI={contractI} />
+              </div>
+            }
+            {editorMode !== "allow" ? "" :
+              <>
+                <WhiteList contractI={contractI} />
+                <WhiteListEditor contractI={contractI} />
+              </>
+            }
+            {editorMode !== "block" ? "" :
+              <>
+                <BlackList contractI={contractI} />
+                <BlackListEditor contractI={contractI} />
+              </>
+            }
+          </div>
+        )}
+        {editorMode === "all" ?
+          <div className="px-4 py-2.5 border-t flex flex-wrap gap-2" style={{ borderColor: 'var(--color-border)' }}>
+            <button className="text-sm font-medium hover:opacity-80" style={{ color: 'var(--color-primary-600)' }} onClick={() => setEditorMode("site")}>
+              sites <i className="fas fa-globe ml-1.5"></i>
+            </button>
+            <button className="text-sm font-medium hover:opacity-80" style={{ color: 'var(--color-primary-600)' }} onClick={() => setEditorMode("allow")}>
+              allowed <i className="fas fa-user ml-1.5"></i>
+            </button>
+            <button className="text-sm font-medium hover:opacity-80" style={{ color: 'var(--color-primary-600)' }} onClick={() => setEditorMode("block")}>
+              blocked <i className="fas fa-road-barrier ml-1.5"></i>
+            </button>
+          </div> : ""
+        }
+      </div>
+    </div>
+  );
 }
 
 export default ContractEditor;

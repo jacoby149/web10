@@ -1,3 +1,13 @@
+1.0.52 || 18.07.2026
+B2.5: ui makeover — rectangles-npm and react-bulma-components ripped out
+of ui/; replaced with Tailwind CSS v4 + CSS variable design tokens
+(ui/src/styles/tokens.css: color palette, type scale, spacing, radius,
+dark mode). All ui/ screens restyled: login/signup/forgot, contracts,
+requests, settings, setup wizard, config page. Shared components
+(SideBar, TopBar, Icon, Branding) rewritten on Tailwind. Card pattern
+replaces Bulma cards everywhere. Form inputs use consistent rounded
+inputs with icon prefixes. 43/43 vitest tests green.
+
 1.0.51 || 18.07.2026
 CLAUDE.md: new working convention — "hand off the next task": after a merge,
 agents end their final message with the next unticked lane item and a
