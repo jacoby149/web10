@@ -90,8 +90,21 @@ a wrong logo is worse than no logo.
 
 | Asset | File (today) | What it is | Use |
 |---|---|---|---|
-| **Full lockup** | `marketing/marketing-ui/public/layouts/images/logo_white.png` (1200×400) | Keys-on-keyring mark + lowercase thin-outline "web10" wordmark, white on transparent | Navbars, footers, hero, og-image. Dark backgrounds ONLY (it is white). Min height 24px; keep clear space ≥ the height of the "w" on all sides. |
-| **Square mark** | `marketing/web10-social/public/alternative.png` (842×854) | The keys mark alone, white on transparent | Avatars, favicons, PWA icons, app-store tiles, anywhere square. Dark backgrounds only. Also the default profile picture in web10-social. |
+| **Full lockup** | `marketing/marketing-ui/public/brand/logo-lockup.png` (1200×400, moved from `layouts/images/logo_white.png` by D13) | Keys-on-keyring mark + lowercase thin-outline "web10" wordmark, white on transparent | Navbars, footers, hero, og-image. Dark backgrounds ONLY (it is white). Min height 24px; keep clear space ≥ the height of the "w" on all sides. |
+| **Square mark** | `.context/brand-assets/keys-mark-source-transparent.png` (369×389, white on transparent, corrected by D13 — see below) | The keys mark alone, cropped from the full lockup | Avatars, favicons, PWA icons, app-store tiles, anywhere square. Dark backgrounds only. Also the default profile picture in web10-social. |
+
+**Correction (D13, 19.07.2026):** this table used to point the square mark
+at `marketing/web10-social/public/alternative.png` (842×854). That file
+does **not** contain the keys mark — it's an unrelated white-line
+illustration of a person playing guitar (white on transparent, so it
+renders as a blank square on a white background, which is how the wrong
+asset went unnoticed). Never use `alternative.png` as a logo. The
+corrected square mark above was derived by cropping the keys glyph out of
+the full lockup, trimming to its bounding box, and padding to a square —
+"from existing files," not a redrawn approximation. `web10-social`'s
+default profile picture / PWA icons still need to be repointed at this
+file or a proper crop of it (lane D12/B5 — D13 doesn't edit those apps'
+code, only dropped ready-made icon PNGs in `.context/brand-assets/`).
 
 Rules of use:
 - Never stretch, recolor, outline, shadow, or rotate the marks.

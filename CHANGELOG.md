@@ -1,3 +1,45 @@
+1.0.63 || 19.07.2026
+D13: marketing-ui rebuilt on the design.md standard — the pitch site now
+reads as a company. Bulma removed entirely (react-bulma-components +
+vendored bulma.min.css gone); Tailwind v4 + @tailwindcss/vite, the
+canonical design.md §13 token block, cva/clsx/tailwind-merge, and a
+components/ui primitives kit (Button/Card/Input/Textarea/Label/Badge/
+Dialog) copying the web10-social idiom. Self-hosted Inter/Space Grotesk/
+JetBrains Mono via @fontsource-variable — no font CDN. Lucide replaces
+every invisible `fa fa-*` class (FontAwesome was referenced with no kit
+loaded; icons were literally invisible before this). Landing page is a
+full rewrite: hero is the real keys-lockup mark on #09090b with the one
+permitted violet glow + a declarative headline, a reach-gap proof section
+rendering THE STORY's 1M-followers/300k-shown mechanic as two HTML/CSS
+bars (math extracted to lib/reachGap.ts and unit-tested), and a 3-step
+"how it works" (inbox pattern = 100% delivery by architecture) — no fake
+testimonials, no stock photos, no team/funding copy. Docs pages restyled
+to 65-75ch prose measure with Space Grotesk headings and JetBrains Mono
+code blocks (markdown pipeline unchanged). App Store rebuilt as "Built on
+web10" — curated first-party app cards (web10 social, node console, CRM,
+Mail, importer) instead of an unverified third-party catalog, plus one
+"Build on web10" CTA into the docs. Exporter/Navbar/ReportBug restyled on
+tokens (ReportBug now a Radix Dialog; e2e-relevant strings and
+data-testid hooks preserved). Education-era debris deleted from
+public/layouts/ (university logos, old backgrounds, thumbnail, the
+FontAwesome webfont dir) — logo_white.png survives, moved to
+public/brand/logo-lockup.png. Paid the design.md §3 asset debt for all
+three apps: favicon.ico + 192/512 PNG + apple-touch-icon derived from the
+keys mark on #09090b, and a shared 1200x630 og-image (lockup + glow) —
+dropped in .context/brand-assets/ for lanes B/D12 to apply, with a note
+flagging that marketing/web10-social/public/alternative.png (design.md's
+documented source for the square mark) does not actually contain the
+keys mark — it's an unrelated illustration — so the icons were derived by
+cropping the keys glyph out of the lockup instead; design.md §3 needs a
+follow-up correction. SVG vectorization of both marks stays open (no
+tracing tool — potrace/inkscape/rsvg-convert — available in this
+environment; shipping a redrawn approximation was explicitly out of
+bounds, so it's documented debt, not guessed art). Fixed the stale
+og:image path in index.html (pointed at a nonexistent /images/ path).
+19 component/unit tests green, production build green, screenshots taken
+at 1280 and 375 for all four routes plus the mobile nav and report-bug
+dialog states.
+
 1.0.62 || 19.07.2026
 environments + ops + e2e depth. plan.txt CROSS-CUTTING deployment now
 specs TWO full-ecosystem environments on the ubuntu-deployment box:
