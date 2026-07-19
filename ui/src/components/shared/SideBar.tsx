@@ -25,6 +25,7 @@ function SideBar({ I }: SideBarProps) {
               <div className={menuItemClass} onClick={() => I.setMode("requests")}>Active Requests</div>
               <div className={menuItemClass} onClick={() => I.setMode("settings")}>Settings</div>
               <div className={menuItemClass} onClick={() => I.setMode("config")}>Node Config</div>
+              <div className={menuItemClass} onClick={() => I.setMode("studio")}>Studio</div>
               <div
                 className={menuItemClass}
                 onClick={() => I.logout()}

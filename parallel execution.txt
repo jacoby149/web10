@@ -107,7 +107,7 @@ LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
   [✓ 1.0.40] B4. P4 admin panel: policy config, ad records crud, analytics
       views (analytics needs A5 merged; build ui against fixtures
       until then)
-  [ ] B4.5. P4 the STUDIO respec (post-B2.5, on the new stack):
+  [✓ 1.0.55] B4.5. P4 the STUDIO respec (post-B2.5, on the new stack):
       youtube-studio frame, monetization menu as one-button cards
       with the YPP-style unlock ladder, amazon adapter v1 (tag
       card, render-time tagging, compliance chips, 3-sales
