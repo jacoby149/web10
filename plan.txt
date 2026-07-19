@@ -1599,10 +1599,11 @@ target: host the marketing sites and a web10 node here for
 staging, demos, and eventual public-facing use.
 
 what goes in:
-[ ] web10 node (api + ui + db + rtc + minio): one VM or LXC,
-    docker compose inside. this is the internal staging node
-    for testing before any public deploy. domain TBD (internal
-    DNS or /etc/hosts until a public domain is assigned).
+[✓ 1.0.60] web10 node (api + ui + db + rtc + minio): Portainer + Nginx
+    Proxy Manager approach (prep-vm.sh, self-contained staging compose,
+    Cloudflare DNS plan). ubuntu-deploy.sh replaced — stacks managed
+    through Portainer UI, reverse proxy + TLS through NPM.
+    STAGING-RUNBOOK.md documents the operational procedures.
 [ ] marketing-ui: separate container or LXC. serves the public
     marketing site (landing, docs, app store, exporter UI).
     own vhost, never inside the node compose.

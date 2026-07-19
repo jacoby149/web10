@@ -203,9 +203,11 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
 
 LANE E — infrastructure / deployment (owns: proxmox provisioning,
     reverse proxy, CI/CD deploy targets)
-  [ ] E1. proxmox staging node: create fresh Ubuntu VM on 192.168.8.20,
-      deploy web10 node (api + ui + db + rtc + minio) via
-      ubuntu-deployment/ubuntu-deploy.sh. team-accessible internal staging.
+[✓ 1.0.60] E1. proxmox staging node: Portainer + Nginx Proxy Manager
+       infra (prep-vm.sh, docker-compose.staging.yml self-contained stack,
+       Cloudflare DNS plan). ubuntu-deploy.sh replaced by Portainer UI
+       approach. STAGING-RUNBOOK.md updated. Awaiting SSH + CF creds to
+       deploy. team-accessible internal staging.
 [✓ 1.0.38] E2. marketing deploy: marketing-ui + marketing-api on proxmox,
        caddy reverse proxy with auto-TLS. internal staging complete.
   [ ] E3. public domain + auto-TLS for external traffic (when ready)
