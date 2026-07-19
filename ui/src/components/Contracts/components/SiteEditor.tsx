@@ -1,19 +1,21 @@
 import React from 'react';
 
-function SiteEditor({ contractI }) {
-    const [value, setValue] = React.useState("");
-    const addSite = function () {
-        if (value !== "") {
-            contractI.addSite(value)
-            setValue("");
-        }
+function SiteEditor({ contractI }: { contractI: Record<string, any> }) {
+  const [value, setValue] = React.useState("");
+  const addSite = () => {
+    if (value !== "") {
+      contractI.addSite(value);
+      setValue("");
     }
-    return (
-        <div style={{ marginTop: "10px" }}>
-            <input value={value} onChange={(e) => { setValue(e.target.value) }} style={{ marginLeft: "10px", color: "black", width: "140px" }} placeholder="website.com" type="text"></input>
-            <button onClick={addSite} style={{ marginLeft: "5px" }}><i style={{ color: "#99aacc", marginRight: "3px" }} className={"fa fa-circle-plus font-weight-bold"}></i>add</button>
-        </div>
-    )
+  };
+  return (
+    <div className="mt-2.5 flex items-center gap-2">
+      <input value={value} onChange={(e) => setValue(e.target.value)} className="w-[140px] ml-2.5 px-2 py-1 rounded border text-sm" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }} placeholder="website.com" />
+      <button onClick={addSite} className="text-sm font-medium hover:opacity-80" style={{ color: 'var(--color-primary-600)' }}>
+        <i className="fa fa-circle-plus mr-0.5 font-weight-bold" style={{ color: '#99aacc' }}></i>add
+      </button>
+    </div>
+  );
 }
 
 export default SiteEditor;

@@ -14,14 +14,13 @@
     "@chatscope/chat-ui-kit-react": "^1.9.9",
     "axios": "^1.2.5",
     "react": "^19.1.0",
-    "react-bulma-components": "^4.1.0",
     "react-dom": "^19.1.0",
     "react-phone-input-2": "^2.15.1",
     "react-verification-input": "^3.1.1",
-    "rectangles-npm": "^1.1.0",
     "web10-npm": "^1.0.5"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
@@ -29,6 +28,7 @@
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^4.5.0",
     "jsdom": "^26.1.0",
+    "tailwindcss": "^4.3.3",
     "typescript": "~5.8.2",
     "vite": "^6.3.1",
     "vitest": "^3.2.4"
