@@ -1,3 +1,218 @@
+1.0.46 || 18.07.2026
+D21: user billing stripped — users are never charged; credits/space
+metering repurposed as OPERATOR-SET quotas (rate/abuse throttle +
+storage caps, also closing the import-storage gap); stripe stays for
+the creator economy only. the studio monetization-menu screen
+(rung-0 cards) promoted INTO the M0 slice — the video shows the
+money screen (new lane items A6 + B4.5 M0-slice note; M0 milestone
+and timeline week 2 updated). outreach story-ammo gains the x
+examples (rev-share pauses, link throttling, reach-suppression as
+stated policy) — x-native creators are a fresh burn segment.
+KNOWN GAPS gains exporter battle-testing: D5 mappers are fixture-
+tested not mess-tested (week 3 real-takeout seeding = first battle
+test; promote llm-assisted mapping on first real break; white-glove
+absorbs the mess through M2); pitch-honesty facts recorded — youtube
+takeout exports content but in 50GB chunks from days-long jobs, the
+audience never ports from any platform (content ports, audiences
+are pointed), imported video plays direct-mp4 until transcode.
+imported-identity relinking recorded as a two-tier accepted
+tradeoff: ghost comments with origin provenance now; lazy
+claim-by-matching later (joiner's own takeout contains their
+comments — match origin+timestamp+text against ghosts and link
+automatically, no oauth/verification infra needed).
+timeline.md: dated M0→M2 execution schedule. weeks 0-4: B2.5 stack
+pick + D4 slice + integration + themed/seeded demo node on the colo
+box → M0 gate week (video shot by ~aug 17). weeks 5-10: the rule of
+100 (10-15 founder-sent/wk) in parallel with the creator-#1 minimum
+build (memberships + amazon tag card, hosted DR floor). verdict
+~oct 1; M2 oct-nov if green; breakeven ~mar-apr 2027. two tracks
+(machine vs founder) with founder attention named as the gating
+resource; ws2 repointed from C2 sdk (not M0-critical) to D4.
+
+1.0.45 || 18.07.2026
+the user's side of THE STORY (plan.txt): fans are a CONVERSION
+MULTIPLIER on the creator sale, not a second wedge — first sentence
+"never miss a post from [creator] + inner-circle status", quiet
+second sentence safety (delete deletes, expiry later via D16, not
+mined/sold); M0 is creator-community-shaped, not friend-graph-shaped.
+wannabe-creator segment added: we never out-dopamine tiktok (no
+lottery, no algorithm); the pitch is the LADDER — play the platform
+lottery, bank every win here where the house can't take it back —
+and since every account is creator-shaped, the user base IS the
+creator pipeline (the wordpress flywheel). aspirant psychology
+recorded: users want to BE seen, not just see — "your number is
+real here" (100% delivery flatters small accounts most; 5k = 5k),
+local fame via human curation (creator spotlights, never an
+algorithm), own-space-at-signup onboarding; manifesto.md gains the
+"you're not just in the crowd" block. THE RISE added: the aspirant's
+five-step rise-to-fame arc (free on a creator's node -> real numbers
+-> local fame -> pop off -> graduate to your own node, audience
+intact) with the economic rule "nobody pays before fame pays them
+first" (people can't afford infra until fame pops). GRADUATION added
+as a phase 10 item (mastodon Move-style follower auto-migration,
+fully live at M3; M3 deliverable gains the graduation demo). ranked
+communities added to phase 4 monetization: terms ACLs natively
+express membership tiers/ranks (the skool/whop paid-community model
+on existing machinery, ~97% payout); paid-community sellers added to
+outreach.md as a founding-creator segment (already charge members,
+most ban-prone segment); rule recorded: serve the mechanics, never
+the aesthetic — gamification layers are post-M2. THE RISE gains its
+failure branch: not popping off? switch nodes — identity/content/
+followers move sideways (same phase 10 mechanism), scene-market fit
+becomes searchable, nodes compete for rising talent, and operators
+stay honest because mistreated members walk with their followers.
+CLAUDE.md gains the D20 strategic orientation: social platform first,
+protocol second — protocol decisions judged by whether they make the
+creator platform better; generality for its own sake goes to later.md.
+KNOWN GAPS block added to the milestones: the video gap (founding
+creators #1-3 must be ones M0's format serves), memberships live
+before creator #1 (hard M2 prerequisite), a production hosted-ops
+floor before the first white-glove yes, and the dmca/csam t&s gate
+as pre-creator-#1 under white-glove hosting. adult-content fork
+decided in phase 12 (the wordpress answer, forced by stripe's terms):
+inc-hosted nodes + inc rails are clean-only; self-hosted nodes with
+their own processor are the operator's business under D10. onlyfans
+recorded as market proof (fans pay creators directly at ~$6B/yr, 20%
+take vs our ~3%, aug 2021 tried-to-evict-its-own-creators story) —
+mechanics yes, positioning never; outreach.md gains the story-ammo
+objection entry. phase 4 monetization menu researched + specced
+(07.2026 landscape): unlock ladder rung 0-4 — memberships/affiliate
+(levanta-class) day one, privacy-safe contextual fill (ethicalads-
+class; mediavine journey from ~1k sessions), sponsor-marketplace
+adapters (paved 30% / kit 23.5-30% takes = our 3% undercuts 10x),
+tracking programmatic opt-in-if-ever (manifesto constraint), and the
+M3 marketplace's nano tier ($20 promos at 5k followers — THE RISE
+stage 3 gets a paycheck; fame starts paying at 5k here, not 100k).
+phase 4 reframed as the STUDIO (youtube-studio mental model): one
+pane for post + analytics + revenue + the monetization menu rendered
+as a YPP-style unlock ladder (creators already read "X more to
+unlock Y"); creator-studio and operator-console personas designed
+as separable tabs from day one. zero-friction rule added: every menu
+option is a one-button card, adapters do the paperwork (qualify-
+gating, media-kit prefill from owned analytics, status tracking);
+rung 0 gains auto-affiliate-everything (skimlinks/sovrn pattern —
+links rewrite to earn at render); metric = time-to-first-dollar.
+composer-level monetization added (phase 8 posting flow): one-tap
+attach-product / mark-sponsored / member-gate (terms ACL on the
+record) / tips — the youtube-product-tags pattern, earning as part
+of the posting habit. amazon adapter v1 specced (07.2026 rules
+verified): paste-tag card, render-time /dp/ASIN + ?tag= rewriting
+(never cloaked), poster's-tag-wins-else-house-tag revenue routing,
+compliance baked in (disclosure chip, no email tags, no stale
+prices, 3-qualifying-sales-in-180-days countdown surfaced), pa-api
+picker deferred (gated on sales history), levanta/influencer-
+storefront as upgrade rungs. lane board gains B4.5: the STUDIO
+respec on the post-makeover stack — highest-stakes ui in the repo.
+AI product suggester specced (phase 4): scoped read-only llm on
+posts profiles the niche → studio suggestions feed + composer-time
+attach chips, always human-approved, v1 needs no pa-api; works from
+follower #1 (the wannabe gets an ai revenue manager); same profiling
+engine becomes the M3 marketplace's sponsor-matching brain; funded
+hosted-tier / byok (D19 pattern). first ai feature in the product is
+the money assistant — passes the D20 oracle where the chatbox didn't.
+new business-plan.md (v1): the lean company plan — automattic model
+(free software / hosted subscription / 3% rails / marketplace),
+proposed pricing tiers ($49/$199/$499 + 3%; founding creators free
+12mo; self-host free forever), unit economics (~$289 rev vs $70-200
+COGS per hosted creator), breakeven at ~5-10 paying creators, burn
+<$1.5k/mo, bootstrap-through-M2 funding posture, competition answers,
+top-5 risks, and milestone gates as kill tests. all numbers marked
+as estimates to falsify; pricing marked PROPOSED pending M2. CAC
+staged by tier: founder-sends-every-message for 100k-1M creators
+permanently (ai-sdr tools rejected for this tier — pattern-matched
+as spam; the in-house agent fleet runs the sdr back office instead:
+sourcing, enrichment, gap computation, draft-for-review), instantly/
+clay-class volume infra only for the post-M2 starter tier, flywheel
+as the scale CAC machine; outreach.md gains the agent-assisted-
+founder-sent division of labor. financial projections built out
+(§6a-e): 24-month bear/base/bull table (bear caps at ~$12k sunk;
+base breakeven ~month 9-10, ~$170k ARR month 24; bull ~$1M ARR),
+cumulative cash view ($0 outside capital required), KPI funnel
+dashboard, sensitivity ranking (close rate #1), and a "where this
+model lies" section (churn/LTV invented, $3k creator-revenue
+assumption, flywheel-shaped growth, founder time at $0). funding
+section expanded (§8a-c): no-investment path itemized (~$10-13k
+to breakeven), with-investment path ranked by leverage (creator
+guarantees — the substack-pro play — then designer, t&s, growth
+infra; pre-seed ~$350-500k compresses timeline ~12mo), and the
+raise trigger: never before the M0 gate, window opens at early M2
+traction, raise to accelerate a working machine, never to discover
+if it works. cost model corrected to real numbers: $200/wk tokens,
+$100/mo colo (64gb xeon hosts ~10-30 early nodes → ~$5-15 COGS/
+creator, 90%+ early margins), c-corp + trademark already done,
+founder-made demo video; ~$10k total to breakeven at ~$1k/mo burn.
+honest infra caveats recorded: single-box SPOF (off-box backups +
+restore drill for founding period, redundancy by paying tiers; colo
+bandwidth = video ceiling, R2 offload first) and the $6 dmca
+designated-agent registration as the one immediate legal spend.
+ec2/cloud compute explicitly rejected in the plan (4x compute cost,
+egress pricing is poison for a social/media platform, off-message
+for the ownership company); DR pattern = restore to hetzner-class
+dedicated on failure, second box at paying tiers, one-container
+node keeps infra reversible. horizontal-xeon scale path recorded
+(creator nodes are independent → embarrassingly parallel, failure
+domain 1/N per box, same-facility caveat → off-site DR floor).
+kill test upgraded to the RULE OF 100 (plan.txt M0, outreach.md,
+business-plan): 20 sends carry ~36% false-kill risk at a true 1/20
+close rate (0.95^20) — the verdict needs 100 sends, run in batches
+of 20 (batch one iterates the pitch), ~10-15 founder-sent per week
+(agent-drafted) over 8-10 weeks, segment split ~35/35/30, gate
+counts only with a meaningful video-watch share.
+business-plan §11 added: strategic alignments + exit posture —
+the open documentdb/ferretdb stack alignment as a NOW distribution
+asset (vendor devrel amplification; the M0 video travels to warm
+senior relationships as a progress note); plausible 5-year
+strategic homes described in loose terms only (public repo — no
+named companies or contacts in exit speculation); rule:
+bought-not-sold, roadmap never bends toward an acquirer.
+new manifesto.md: the fan-facing join-page manifesto every node ships
+(templated per creator, "you're not the product here — you're the
+point", no unshipped promises). site architecture settled in the docs
+cross-cutting section: ONE creator-first marketing site (web10.app,
+hero = THE STORY, cta = founding creator); fans convert on the
+creator's node via the manifesto page (wordpress/shopify pattern);
+no users tab, just a thin "powered by web10" footer explainer.
+
+1.0.44 || 18.07.2026
+outreach.md: the sales kit for M0's kill test (D20) — list-building
+queries (creators self-identify: shadowban/demonetization complaints,
+announced substack/rumble moves), cold email + DM + manager + call
+copy, cadence, and objection cheat sheet. core frames: lead with
+THEIR subs-vs-views gap; the ask is ADD not MOVE ("you already post
+to 5 platforms — this is #6, except you own it"), ~24h back-catalog
+onboarding via the exporters, 3 white-glove founding-creator slots,
+one per niche. plan.txt STORY beat 4 sharpened to the add-not-move
+frame. list-building has no prerequisites; sending waits on the M0
+slice + demo video.
+
+1.0.43 || 18.07.2026
+plan refactor (D20): the proposition is creator ownership — "own your
+audience, no shadow ban, this is a product for influencers." plan.txt
+gains THE STORY (the influencer pitch: subs-vs-views reach gap, AI-
+influencer urgency, 100%-delivery-by-architecture, hedge-not-exodus,
+kick/twitch-grade slick — never fediverse jank); thesis rewritten to
+lead with it. M0 redefined: "stands on its own" — post, feed
+(chronological + sort dropdown ONLY), profile, dms; deliverable = the
+pitch (story deck + demo video for creators), kill test = twenty
+creator pitches, not a viral video. feed customizability, preset
+lenses, the lens record, and the llm chatbox CUT from the roadmap to
+later.md (promotion bar recorded there; D19's byok architecture
+stands if it returns). lane board D4/D2.5 updated so no agent builds
+the chatbox; GLOSSARY lens entry updated. new decision D20 in
+decisions.md.
+
+1.0.42 || 18.07.2026
+later.md: new parking lot for far-out ideas that are deliberately NOT
+roadmap — vibe-coded apps/themes (the "real gutenberg"; no template
+dsl ever, tiers are theme-record now / generated apps far-later),
+the amorphous generative-ui app (shell + surfaces, generate-once-
+then-harden), and the conference-paper angle (lens as user-owned
+algorithm, scoped llm tokens; www/cscw/soups-class venues). each
+entry records why it's good AND why it's parked, with a promotion
+bar: m0 video shipped + a creator asked for it. distilled from a
+strategy review of plan.txt (killer-app-vs-protocol dependency,
+creator p&l, m0-first focus).
+
 1.0.41 || 17.07.2026
 lens chatbox llm backing re-planned (plan.txt phase 8): BYOK-only —
 v1 key stays client-side, chatbox calls go browser -> provider direct
