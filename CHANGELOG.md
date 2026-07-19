@@ -10,6 +10,12 @@ implementations for ui/ integration. Dead rectangles-npm cleanup:
 21 dead components and 6 dead test files removed (superseded by
 D2.5/B2.5 Tailwind migration). Social test suite now 193 passed, 0
 failures (was 4 pre-existing failures from dead code).
+A5: P4 per-request metering events. emit_event() in documentdb.py writes
+user/action/service/site/ts to a capped web10.metering_events collection
+(100k max, METERING_EVENTS_MAX). Wired into all CRUD/aggregate endpoints
+in crud.py as fire-and-forget (try/except — never crashes the request).
+5 new endpoint tests verify events on create/read/update/delete/aggregate.
+279 api tests green.
 
 1.0.57 || 19.07.2026
 PR + changelog workflow hardening for the parallel-agent conveyor.

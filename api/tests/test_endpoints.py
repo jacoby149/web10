@@ -105,9 +105,10 @@ def db_patched():
          patch("app.services.documentdb.read", return_value=[{"_id": "1", "title": "hello"}]), \
          patch("app.services.documentdb.update", return_value={"matchedCount": 1, "modifiedCount": 1}), \
          patch("app.services.documentdb.delete", return_value="successfully deleted"), \
-         patch("app.services.documentdb.charge"), \
-         patch("app.services.documentdb.replenish"), \
-         patch("app.services.documentdb.aggregate", return_value=[{"_id": "1", "title": "hello"}]):
+patch("app.services.documentdb.charge"), \
+          patch("app.services.documentdb.replenish"), \
+          patch("app.services.documentdb.aggregate", return_value=[{"_id": "1", "title": "hello"}]), \
+          patch("app.services.documentdb.emit_event"):
         yield {"create": m_create}
 
 
@@ -551,7 +552,8 @@ class TestMetering:
              patch("app.services.documentdb.user_collection_exists", return_value=True), \
              patch("app.services.documentdb.get_collection_size", return_value=1), \
              patch("app.services.documentdb.create", return_value={"_id": "1", "title": "hi"}), \
-             patch("app.services.documentdb.charge") as m_charge:
+             patch("app.services.documentdb.charge") as m_charge, \
+             patch("app.services.documentdb.emit_event"):
             resp = client.post(
                 "/alice/posts",
                 json={"token": _owner_token("alice"), "query": {"title": "hi"}},
@@ -565,7 +567,8 @@ class TestMetering:
              patch("app.services.documentdb.user_collection_exists", return_value=True), \
              patch("app.services.documentdb.get_collection_size", return_value=1), \
              patch("app.services.documentdb.read", return_value=[{"_id": "1"}]), \
-             patch("app.services.documentdb.charge") as m_charge:
+             patch("app.services.documentdb.charge") as m_charge, \
+             patch("app.services.documentdb.emit_event"):
             resp = client.patch(
                 "/alice/posts",
                 json={"token": _owner_token("alice"), "query": {}},
@@ -579,13 +582,15 @@ class TestMetering:
              patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM), \
              patch("app.services.documentdb.user_collection_exists", return_value=True), \
              patch("app.services.documentdb.read", return_value=[]), \
-             patch("app.services.documentdb.charge") as m_charge:
+             patch("app.services.documentdb.charge") as m_charge, \
+             patch("app.services.documentdb.emit_event") as m_emit:
             resp = client.patch(
                 "/alice/services",
                 json={"token": _owner_token("alice"), "query": {}},
             )
         assert resp.status_code == 200
         assert not m_charge.called
+        assert not m_emit.called
 
     def test_out_of_credits_denied(self, client):
         with patch("app.services.documentdb.get_star") as m_star, \
@@ -594,6 +599,7 @@ class TestMetering:
              patch("app.services.documentdb.read", return_value=[{"_id": "1"}]), \
              patch("app.services.documentdb.charge"), \
              patch("app.services.documentdb.subscription_update"), \
+             patch("app.services.documentdb.emit_event"), \
              patch("app.endpoints.crud.settings") as m_settings:
             m_settings.VERIFY_REQUIRED = False
             m_star.return_value = {**MOCK_STAR, "credit_limit": 0, "credits_spent": 1}
@@ -610,6 +616,7 @@ class TestMetering:
              patch("app.services.documentdb.read", return_value=[{"_id": "1"}]), \
              patch("app.services.documentdb.charge"), \
              patch("app.services.documentdb.subscription_update"), \
+             patch("app.services.documentdb.emit_event"), \
              patch("app.endpoints.crud.settings") as m_settings:
             m_settings.VERIFY_REQUIRED = False
             m_star.return_value = {**MOCK_STAR, "space_limit": 1}
@@ -618,6 +625,103 @@ class TestMetering:
                 json={"token": _owner_token("alice"), "query": {}},
             )
         assert resp.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# 10. METERING EVENTS
+# ---------------------------------------------------------------------------
+
+class TestMeteringEvents:
+
+    def test_event_emitted_on_create(self, client):
+        with patch("app.services.documentdb.get_star", return_value=MOCK_STAR), \
+             patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM), \
+             patch("app.services.documentdb.user_collection_exists", return_value=True), \
+             patch("app.services.documentdb.get_collection_size", return_value=1), \
+             patch("app.services.documentdb.create", return_value={"_id": "1", "title": "hi"}), \
+             patch("app.services.documentdb.charge"), \
+             patch("app.services.documentdb.emit_event") as m_emit:
+            resp = client.post(
+                "/alice/posts",
+                json={"token": _owner_token("alice"), "query": {"title": "hi"}},
+            )
+        assert resp.status_code == 200
+        assert m_emit.called
+        call_args = m_emit.call_args[0]
+        assert call_args[0] == "alice"
+        assert call_args[1] == "create"
+        assert call_args[2] == "posts"
+        assert call_args[3] == "auth.localhost"
+
+    def test_event_emitted_on_read(self, client):
+        with patch("app.services.documentdb.get_star", return_value=MOCK_STAR), \
+             patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM), \
+             patch("app.services.documentdb.user_collection_exists", return_value=True), \
+             patch("app.services.documentdb.get_collection_size", return_value=1), \
+             patch("app.services.documentdb.read", return_value=[{"_id": "1"}]), \
+             patch("app.services.documentdb.charge"), \
+             patch("app.services.documentdb.emit_event") as m_emit:
+            resp = client.patch(
+                "/alice/posts",
+                json={"token": _app_token("bob", "myapp.example.com"), "query": {}},
+            )
+        assert resp.status_code == 200
+        assert m_emit.called
+        call_args = m_emit.call_args[0]
+        assert call_args[0] == "alice"
+        assert call_args[1] == "read"
+        assert call_args[2] == "posts"
+        assert call_args[3] == "myapp.example.com"
+
+    def test_event_emitted_on_aggregate(self, client):
+        with patch("app.services.documentdb.get_star", return_value=MOCK_STAR), \
+             patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM), \
+             patch("app.services.documentdb.user_collection_exists", return_value=True), \
+             patch("app.services.documentdb.get_collection_size", return_value=1), \
+             patch("app.services.documentdb.aggregate", return_value=[{"_id": "1"}]), \
+             patch("app.services.documentdb.charge"), \
+             patch("app.services.documentdb.emit_event") as m_emit:
+            resp = client.post(
+                "/alice/posts/aggregate",
+                json={"token": _owner_token("alice"), "pipeline": [{"$match": {}}]},
+            )
+        assert resp.status_code == 200
+        assert m_emit.called
+        assert m_emit.call_args[0][1] == "aggregate"
+
+    def test_event_emitted_on_update(self, client):
+        with patch("app.services.documentdb.get_star", return_value=MOCK_STAR), \
+             patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM), \
+             patch("app.services.documentdb.user_collection_exists", return_value=True), \
+             patch("app.services.documentdb.get_collection_size", return_value=1), \
+             patch("app.services.documentdb.update", return_value={"matchedCount": 1, "modifiedCount": 1}), \
+             patch("app.services.documentdb.charge"), \
+             patch("app.services.documentdb.emit_event") as m_emit:
+            resp = client.put(
+                "/alice/posts",
+                json={"token": _owner_token("alice"), "query": {"_id": "1"}, "update": {"$set": {"x": 1}}},
+            )
+        assert resp.status_code == 200
+        assert m_emit.called
+        assert m_emit.call_args[0][1] == "update"
+
+    def test_event_emitted_on_delete(self, client):
+        with patch("app.services.documentdb.get_star", return_value=MOCK_STAR), \
+             patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM), \
+             patch("app.services.documentdb.user_collection_exists", return_value=True), \
+             patch("app.services.documentdb.get_collection_size", return_value=1), \
+             patch("app.services.documentdb.delete", return_value="successfully deleted"), \
+             patch("app.services.documentdb.charge"), \
+             patch("app.services.documentdb.emit_event") as m_emit:
+            resp = client.request(
+                "DELETE",
+                "/alice/posts",
+                content=_json.dumps({"token": _owner_token("alice"), "query": {"_id": "1"}}),
+                headers={"content-type": "application/json"},
+            )
+        assert resp.status_code == 200
+        assert m_emit.called
+        assert m_emit.call_args[0][1] == "delete"
 
 
 # ---------------------------------------------------------------------------
