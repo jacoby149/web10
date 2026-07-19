@@ -1,3 +1,9 @@
+1.0.51 || 18.07.2026
+CLAUDE.md: new working convention — "hand off the next task": after a merge,
+agents end their final message with the next unticked lane item and a
+paste-ready kickoff prompt (task verbatim, gates, owned dirs, acceptance
+bar) for a fresh workspace.
+
 1.0.50 || 18.07.2026
 D4: web10-social data layer — full conventions-schema stack for the M0
 killer app slice. new src/data/ with typed modules: posts (CRUD + media
