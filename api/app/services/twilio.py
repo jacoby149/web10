@@ -25,7 +25,7 @@ def send_verification(phone_number,username):
                             }, to="+"+str(phone_number), channel='sms')
 
         return verification.sid
-    except (TwilioRestException, Exception):
+    except Exception:
         raise exceptions.BAD_NUM
 
 # check the verification code

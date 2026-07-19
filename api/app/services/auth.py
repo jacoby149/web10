@@ -87,7 +87,7 @@ def _validate_provider_url(url: str) -> str:
         raise Exception("TOKEN")
     if _is_private_ip(host):
         raise Exception("TOKEN")
-    return f"{parsed.scheme}://{host}"
+    return f"{parsed.scheme}://{parsed.netloc}{parsed.path}".rstrip("/")
 
 
 def certify_with_remote_provider(token: Token) -> bool:
