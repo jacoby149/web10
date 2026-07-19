@@ -1,3 +1,12 @@
+1.0.47 || 18.07.2026
+board refresh: CURRENT CONDUCTOR BOARD in parallel execution.txt
+re-cut for the D20/D21 pivot + timeline.md week 0 — ws1 B2.5 stack
+pick/tokens, ws2 REPOINTED from C2 sdk (off the M0 critical path)
+to D4 data layer, ws3 wave-0 security fixes then A6, ws4 outreach
+batch 1 or E1. merge-order notes added (lane A single-branch,
+D2.5 waits on B2.5 tokens, B4.5 M0 slice follows B2.5). stale
+17.07 board was pointing agents at pre-pivot work.
+
 1.0.46 || 18.07.2026
 D21: user billing stripped — users are never charged; credits/space
 metering repurposed as OPERATOR-SET quotas (rate/abuse throttle +
