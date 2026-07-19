@@ -1,32 +1,76 @@
-1.0.50 || 19.07.2026
+1.0.53 || 19.07.2026
 outreach batch 1 fully enriched: 20 API-verified prospects via YouTube
 Data API v3 (outreach_sourcer.py). all burn events verified by video
 title + timestamp, subscriber counts from channel statistics endpoint.
-5 prospects have biz emails. segment split: 3 right-coded, 2 left-coded,
-15 wildcard (YouTube demonetization pool in 100k-500k band is dominated
-by niche creators; political creators tend to be macro-tier or already
-migrated to Rumble). 6 false positives filtered (gaming shadowbans,
-advice videos, third-party references). ~1,087 quota units used (11% of
-free daily tier). script reusable for batches 2-5.
+5 prospects have biz emails. M0 fit corrected to signal-based scoring:
+10 YES fits (recipes, crafts, tutorials, fashion, finance, podcasts,
+nutrition, fitness), 4 PARTIAL, 3 POOR (animation, cinematic, vlogs).
+6 false positives filtered (gaming shadowbans, advice videos,
+third-party references). ~2,100 quota units used (21% of free daily
+tier). script reusable for batches 2-5.
+
+1.0.52 || 18.07.2026
+B2.5: ui makeover — rectangles-npm and react-bulma-components ripped out
+of ui/; replaced with Tailwind CSS v4 + CSS variable design tokens
+(ui/src/styles/tokens.css: color palette, type scale, spacing, radius,
+dark mode). All ui/ screens restyled: login/signup/forgot, contracts,
+requests, settings, setup wizard, config page. Shared components
+(SideBar, TopBar, Icon, Branding) rewritten on Tailwind. Card pattern
+replaces Bulma cards everywhere. Form inputs use consistent rounded
+inputs with icon prefixes. 43/43 vitest tests green.
+
+1.0.51 || 18.07.2026
+CLAUDE.md: new working convention — "hand off the next task": after a merge,
+agents end their final message with the next unticked lane item and a
+paste-ready kickoff prompt (task verbatim, gates, owned dirs, acceptance
+bar) for a fresh workspace.
+
+1.0.50 || 18.07.2026
+D4: web10-social data layer — full conventions-schema stack for the M0
+killer app slice. new src/data/ with typed modules: posts (CRUD + media
+upload via API presigned URLs), feed (chronological inbox + sort dropdown:
+newest/oldest/most_reacted via aggregate), profile (read/upsert), contacts
+(conventions schema CRUD + search), dms (records-based, deterministic
+conversation service names), comments (threaded), reactions (toggle,
+aggregate counts). wapi.ts: thin typed fetch wrapper over legacy wapi.js.
+Web10SocialAdapter wired with all 30+ new data-layer methods alongside
+legacy adapter (backward compat). SMR terms extended for profile, contacts,
+inbox, comments, reactions, media services. 55 new vitest tests (227 total,
+all green). screens deferred to D2.5 post-B2.5 tokens.
 
 1.0.49 || 18.07.2026
-outreach batch 1 enriched: 5 Gemini-provided names pre-filled (#1 Lilly
-Gaddis, #2 Salty Cracker, #8 Edukale, #9 Lady of the Library, #10 Smooth
-McGroove) with burn events, segment labels, opener drafts. 15 template
-slots remain for founder browser search. 3 prospects verified out-of-band
-and excluded: Carl Benjamin (967K subs, above band), RGMGFitness (16.7K,
-below band), Jens Lennartsson (9K, below band). search engine rate-limiting
-prevented full enrichment; founder fills sub counts, contact routes, gap %,
-finalizes openers.
+wave-0 security fixes: CORS tightened — allow_origins=["*"] replaced
+with origins derived from CORS_SERVICE_MANAGERS + PROVIDER settings;
+bare except clauses removed (twilio.py catches TwilioRestException,
+stripe.py catches StripeError, auth.py certify() catches only
+PyJWTError/ValueError/TypeError); provider URL validation added to
+certify_with_remote_provider (scheme allowlist, private-IP/localhost
+SSRF guard, length cap, 10s fetch timeout). 280 api tests green.
 
 1.0.48 || 18.07.2026
-outreach batch 1 template: outreach_batch1.md — 20-slot prospect list
-(7 right-coded, 7 left-coded, 6 wildcard), segment-specific opener
-templates, founder fill-in checklist, sourcing queries, and 3 pre-fill
-candidates found during research (RGMGFitness, Smooth McGroove, Lilly
-Gaddis) with burn events but unenriched (search engines rate-limited
-automated access). founder fills names from browser search; agent fleet
-then enriches gap %, contact routes, and finalizes openers.
+plan: ui stability specced end to end. the thin playwright line in
+CROSS-CUTTING quality/testing expanded into a real item: playwright-
+in-docker against the compose stack, ~6-10 smoke journeys across all
+three uis (ui signup/login/consent, social post->feed + grant/revoke
+terms, marketing-ui route smoke), selenium rejected (flake + grid
+drift), visual regression explicitly deferred until B2.5/D2.5
+makeovers settle. two ci gaps recorded as items: marketing-ui has
+ZERO component tests (--passWithNoTests masks it — backfill item)
+and the shared js workflow runs typecheck + build with continue-on-
+error (a non-compiling ui shows a green check — fix item under
+ci/cd, also noted in wave-0 status). new report-a-bug loop item as
+the explicit counterweight to a thin e2e layer: feedback endpoint in
+marketing-api + <=2-click report affordance + error boundaries in
+all three uis so white-screens convert to reports, not bounces.
+ux telemetry item added with the privacy split: marketing-ui gets
+full funnel analytics + self-hosted replay (posthog/openreplay --
+never third-party saas); platform uis (ui, social) get content-free
+aggregate events + a js error beacon ONLY -- session-recording js
+there is ruled out by the manifesto ("nobody is mining you") and
+phase-11 e2e encryption; replay-grade insight on the platform is
+opt-in dogfood/design-partner sessions, consent as the feature.
+board: lane C gains C5 (e2e/ harness), lane D gains D10 (report-a-
+bug loop) and D11 (ux telemetry).
 
 1.0.47 || 18.07.2026
 board refresh: CURRENT CONDUCTOR BOARD in parallel execution.txt

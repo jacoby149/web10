@@ -97,6 +97,14 @@ touches auth, the DB layer, or tokens, run those tests and keep them green.
   auth flow, update `CLAUDE.md`/`GLOSSARY.md` in the same branch. A big
   architectural decision gets an entry in `decisions.md`. Stale orientation
   docs are worse than none.
+- **Hand off the next task.** After your work merges (or the PR is up), end
+  your final message with the next unticked item in your lane from
+  `parallel execution.txt` AND a paste-ready kickoff prompt for a fresh
+  workspace: the task text verbatim, its gates (what must merge first —
+  check the lane file), the directories that lane owns, and the acceptance
+  bar. If the next item is gated on unmerged work, say so in the kickoff so
+  the next agent checks the gate before building. This keeps the parallel
+  conveyor moving without the operator re-deriving state.
 
 ## Running it
 `docker-compose.yml` brings the stack up locally (`*.localhost` vhosts).

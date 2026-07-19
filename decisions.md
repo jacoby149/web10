@@ -9,6 +9,23 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D22 — UI stack: Tailwind CSS + shadcn/ui, replacing rectangles-npm [decided]
+rectangles-npm is a homemade layout framework only one person understands;
+uis built on it read as engineering prototypes, not products. The replacement
+must be boring and mainstream so any frontend dev can contribute, and it must
+be themeable from day one because creator nodes wear their brand (phase 4
+white-label). Tailwind CSS + shadcn/ui is the pick: native to our Vite +
+React 19 + TypeScript toolchain, huge ecosystem, accessible Radix primitives,
+CSS variable–based theming (creator branding = swapping CSS vars), and the
+design-token layer maps directly to Tailwind's `tailwind.config.css`. The
+shared tokens (type scale, spacing, color, radius, dark mode) live in
+`ui/src/styles/tokens.css` as CSS custom properties consumed by both the
+node's `ui/` and `marketing/web10-social/` (D2.5). Rejects: CSS-in-JS
+(emotion/styled-components — runtime cost, SSR headaches, another abstraction),
+Bulma (the old vendor we're already ripping out), and any framework that
+requires a build-step for theming (creator themes must be hot-swappable CSS
+vars, not rebuilds).
+
 ### D21 — User billing is stripped; metering survives as operator-set quotas (anti-abuse), and the money screen is in M0 [decided]
 Users are never charged (D5: accounts free, paid by the operator's revenue),
 so the legacy per-user billing surface (plans, user subscriptions, per-account
