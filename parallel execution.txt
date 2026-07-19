@@ -135,7 +135,7 @@ LANE C — greenfield services  (owns: sdk/, mcp/, new dirs)
       --node <url> works from day one)
   [ ] C4. P10 backup integrations (drive/dropbox oauth, export/import
       archive -- format comes from D1's conventions doc)
-  [ ] C5. browser e2e harness (new top-level e2e/ dir + its ci
+  [✓ 1.0.59] C5. browser e2e harness (new top-level e2e/ dir + its ci
       workflow): playwright-in-docker against the compose stack,
       ~6-10 smoke journeys across ui + web10-social + marketing-ui
       (specced in plan.txt CROSS-CUTTING quality/testing). touches

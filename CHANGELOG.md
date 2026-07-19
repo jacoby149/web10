@@ -1,3 +1,18 @@
+1.0.59 || 19.07.2026
+C5: browser e2e harness — new top-level e2e/ dir with Playwright smoke
+suite (10 journeys across marketing-ui, ui auth, web10-social). new
+e2e/docker-compose.yml (full stack: api + ferretdb + ui + social +
+marketing-ui + rtc + minio behind nginx-proxy), e2e/Dockerfile.social
+(dev-mode, sidesteps tsc errors from incomplete D2.5 rectangles-npm
+cleanup), e2e/wait-for-stack.sh (local health check), new
+.github/workflows/e2e.yml (path-filtered CI: compose up → wait →
+playwright → traces on failure). local run: E2E_HTTP_PORT=8880 docker
+compose -f e2e/docker-compose.yml up --build -d && E2E_HTTP_PORT=8880
+npx playwright test. auth UI full-browser flows deferred (CORS: dev
+containers resolve api.localhost:80, not :8880 — API-level signup/login/
+certify flows cover the money paths; full browser flows land when the
+stack consolidates to a single port).
+
 1.0.58 || 19.07.2026
 D10: report-a-bug loop — feedback endpoint in marketing-api (POST
 /feedback, GET /feedback, 6 new tests, 10 total smoke green),
