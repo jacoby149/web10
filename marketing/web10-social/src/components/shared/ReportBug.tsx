@@ -72,15 +72,19 @@ export function ReportBug({ trigger, onClose }: ReportBugProps) {
 
   if (sent) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 animate-overlay-in"
+        onClick={onClose}
+      >
         <div
-          className="w-full max-w-md bg-card border border-border rounded-xl p-6 space-y-4"
+          className="w-full max-w-md bg-card border border-border rounded-lg p-6 space-y-4 animate-panel-in"
           onClick={e => e.stopPropagation()}
+          data-testid="report-bug-dialog"
         >
-          <div className="flex items-center justify-center w-12 h-12 mx-auto rounded-full bg-green-500/10">
-            <CheckCircle className="w-6 h-6 text-green-500" />
+          <div className="flex items-center justify-center w-12 h-12 mx-auto rounded-full bg-success/10">
+            <CheckCircle className="w-6 h-6 text-success" />
           </div>
-          <h3 className="text-lg font-semibold text-foreground text-center">Thanks for the report</h3>
+          <h3 className="font-display text-lg font-semibold text-foreground text-center">Thanks for the report</h3>
           <p className="text-sm text-muted-foreground text-center">
             We'll look into it. Your feedback helps make web10 better.
           </p>
@@ -93,10 +97,14 @@ export function ReportBug({ trigger, onClose }: ReportBugProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 animate-overlay-in"
+      onClick={onClose}
+    >
       <div
-        className="w-full max-w-md bg-card border border-border rounded-xl p-6 space-y-4"
+        className="w-full max-w-md bg-card border border-border rounded-lg p-6 space-y-4 animate-panel-in"
         onClick={e => e.stopPropagation()}
+        data-testid="report-bug-dialog"
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -105,17 +113,17 @@ export function ReportBug({ trigger, onClose }: ReportBugProps) {
             ) : (
               <Bug className="w-5 h-5 text-muted-foreground" />
             )}
-            <h3 className="text-lg font-semibold text-foreground">
+            <h3 className="font-display text-lg font-semibold text-foreground">
               {trigger === 'error-boundary' ? 'Something broke' : 'Report a bug'}
             </h3>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose}>
+          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close" data-testid="report-bug-close">
             <X className="w-4 h-4" />
           </Button>
         </div>
 
         {trigger === 'error-boundary' && (
-          <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm text-destructive">
+          <div className="p-3 rounded-sm bg-destructive/10 border border-destructive/20 text-sm text-destructive">
             The app crashed. Your report will include the crash details automatically.
           </div>
         )}
@@ -131,6 +139,7 @@ export function ReportBug({ trigger, onClose }: ReportBugProps) {
               placeholder="Describe what you were doing when the bug occurred..."
               rows={4}
               className="resize-none"
+              data-testid="report-textarea"
             />
           </div>
 
@@ -143,6 +152,7 @@ export function ReportBug({ trigger, onClose }: ReportBugProps) {
               onChange={e => setContact(e.target.value)}
               placeholder="email or username"
               type="text"
+              data-testid="report-input"
             />
           </div>
         </div>
@@ -152,14 +162,14 @@ export function ReportBug({ trigger, onClose }: ReportBugProps) {
             <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
               Crash details (auto-captured)
             </summary>
-            <pre className="mt-2 p-2 rounded bg-muted/50 overflow-x-auto whitespace-pre-wrap font-mono text-[10px]">
+            <pre className="mt-2 p-2 rounded-sm bg-elevated/50 overflow-x-auto whitespace-pre-wrap font-mono text-[10px]">
               {stackTrace}
             </pre>
           </details>
         )}
 
         {error && (
-          <p className="text-sm text-destructive">{error}</p>
+          <p className="text-sm text-destructive" role="alert">{error}</p>
         )}
 
         <div className="flex gap-2">
@@ -171,6 +181,7 @@ export function ReportBug({ trigger, onClose }: ReportBugProps) {
             className="flex-1 gap-2"
             onClick={sendReport}
             disabled={sending || !message.trim()}
+            data-testid="report-bug-submit"
           >
             <Send className="w-4 h-4" />
             {sending ? 'Sending...' : 'Send Report'}
