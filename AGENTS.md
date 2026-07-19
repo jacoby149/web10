@@ -41,12 +41,15 @@ your branch and push.)
 After ANY merge that touched `CHANGELOG.md`:
 
 1. Look at the top of the file — all entries should be intact, none
-   duplicated or interleaved. Union merge is line-based; eyeball it.
-2. If another entry now holds your version number, renumber YOURS to
-   the next free number (strictly above the highest anywhere in the
-   file — the changelog CI check enforces this), and update any
-   `[✓ x.y.z]` / `[~]` refs you made in `plan.txt` and
-   `parallel execution.txt` to match.
+   duplicated or interleaved. Union merge is line-based, and it dedupes
+   identical lines: two entries claiming the same version collapse into
+   ONE header with both bodies concatenated under it.
+2. If you collided on a version number: the already-merged entry keeps
+   it. Renumber YOURS to the next free number (strictly above the
+   highest anywhere in the file — the changelog CI check enforces
+   this), restore the other entry's header and the blank line between
+   entries, and update any `[✓ x.y.z]` / `[~]` refs you made in
+   `plan.txt` and `parallel execution.txt` to match.
 3. Never rewrite, reorder, or renumber someone else's entry.
 
 ## After opening a PR: conflicts first, then EVERY check green

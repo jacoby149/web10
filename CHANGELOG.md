@@ -1,4 +1,4 @@
-1.0.55 || 19.07.2026
+1.0.56 || 19.07.2026
 PR + changelog workflow hardening for the parallel-agent conveyor.
 AGENTS.md/CLAUDE.md (and the Conductor prompt) now require, right after
 gh pr create: (1) an immediate conflict check (gh pr view --json
@@ -9,6 +9,8 @@ reporting the PR ready. Changelog conflicts defused: .gitattributes sets
 CHANGELOG.md merge=union so parallel branches' entries union instead of
 conflicting on local merges, with a documented renumber-after-merge step
 (top entry must stay the unique highest; changelog CI already enforces).
+
+1.0.55 || 19.07.2026
 B4.5 M0 slice: Studio monetization-menu screen — the money shot for the M0
 demo video. New ui/src/components/Studio/ with YouTube-Studio mental model:
 YPP-style unlock ladder (rungs 0-4, rung 0 unlocked, rungs 1-4 locked with
