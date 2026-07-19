@@ -5,7 +5,7 @@
 > prod) from one parameterized `docker-compose.ecosystem.yml`, which
 > replaced both `docker-compose.staging.yml` and
 > `docker-compose.marketing.yml`. Current operational truth lives in
-> `STAGING-RUNBOOK.md` + `AGENT-OPS.md`; this file remains as the
+> `README.md` + `AGENT-OPS.md`; this file remains as the
 > architecture rationale (why Portainer + NPM + Cloudflare).
 
 Replaces the `ubuntu-deploy.sh` approach. Homelab infra is managed
@@ -102,7 +102,7 @@ include all services inline (no `-f base -f overlay` chaining).
 | `docker-compose.staging.yml` | Rewrite as self-contained stack (no overlay) |
 | `docker-compose.ui-prod.yml` | **Delete** (merged into staging stack) |
 | `docker-compose.rtc-prod.yml` | **Delete** (merged into staging stack) |
-| `STAGING-RUNBOOK.md` | Update for Portainer/NPM workflow |
+| `README.md` | Update for Portainer/NPM workflow |
 | `README.md` | Update to reflect Portainer approach |
 | `docker-compose.marketing.yml` | Keep as-is |
 

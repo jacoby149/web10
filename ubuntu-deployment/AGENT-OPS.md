@@ -1,4 +1,4 @@
-# AGENT-OPS.md — field manual for agents operating the staging box
+# AGENT-OPS.md — field manual for agents operating the box
 
 You are an agent with SSH access to a LIVE machine serving real
 domains. This file is written to be followed literally, step by step.
@@ -6,9 +6,10 @@ Do not improvise. If a step fails twice, STOP, write what happened in
 `OPS-LOG.md` (§8), and report back to the operator — a wrong guess on
 a live box costs more than a paused task.
 
-Read `README.md` (security model) before your first session. This
-file is the "what do I actually type" companion to it and to
-`STAGING-RUNBOOK.md` (day-2 procedures).
+Read `README.md` before your first session — it is the single
+human-facing doc (URL map, environments, procedures, security
+model). This file is its "what do I actually type" companion for
+agents.
 
 ## 0. Prime directives
 
@@ -18,7 +19,7 @@ file is the "what do I actually type" companion to it and to
    rule of the whole deployment.
 2. **Never** delete a Docker volume, run `docker system prune -a`,
    or wipe data unless the task explicitly says so AND
-   `STAGING-RUNBOOK.md` has a procedure for it. Prefer restart >
+   `README.md` has a procedure for it. Prefer restart >
    rebuild > redeploy > wipe, in that order.
 3. **Never** commit secrets: no IPs beyond what's already public DNS,
    no passwords, no tokens, no key material. Secrets live in
@@ -80,8 +81,8 @@ private side is enforced"):
 | NPM admin | `http://$VM_IP:81` | proxy hosts, TLS certs |
 | Minio console | `http://$VM_IP:9001` | S3 buckets (rarely needed) |
 
-Remote tunnel pattern: `ssh -L 9000:localhost:9000 root@$VM_IP`, then
-open `http://localhost:9000`.
+Remote tunnel pattern: `ssh -L 9000:localhost:9000 $SSH_USER@$VM_IP`,
+then open `http://localhost:9000`.
 
 ## 2. Map of the box
 
@@ -110,7 +111,7 @@ open `http://localhost:9000`.
 
 Domain map (zone `web10.app`; `{env}` = staging / dev — dev DNS
 points at the LAN IP and only works on VPN; prod uses bare zone
-names, see STAGING-RUNBOOK.md):
+names, see README.md):
 
 | Public URL | NPM forwards to | What |
 |---|---|---|
@@ -190,14 +191,14 @@ Read this before re-diagnosing; these are already understood:
 3. **CORS**: the API's `CORS_SERVICE_MANAGERS` must include
    `auth.staging.web10.app` (bare hostname, comma-separated —
    Portainer → stack → env vars). Unverified on the live stack;
-   check when the UI fix lands. See STAGING-RUNBOOK.md.
+   check when the UI fix lands. See README.md.
 4. **Marketing + social are not deployed yet.** The compose work is
    DONE — `docker-compose.ecosystem.yml` contains social,
    marketing-ui and marketing-api. What remains is box execution:
    repaste the staging stack from the ecosystem compose (full env
    set per `env.staging.example`), create the `web10-dev` +
    `web10-prod` stacks (E5/E3), add their NPM proxy hosts + DNS
-   records per §2/STAGING-RUNBOOK.md. Note: social/ui bundles stay
+   records per §2/README.md. Note: social/ui bundles stay
    mis-originated until known-issue #1's app-side fixes merge.
 5. **The live edge is NOT NPM yet (found 19.07.2026 evening).** The
    19.07 staging deploy diverged from the runbook: 80/443 are held
@@ -247,7 +248,7 @@ box's PUBLIC IP (`VM_PUBLIC_IP` in `.env`), **proxy status: DNS
 only**. For the VPN-only dev env (E5): same names s/staging/dev/,
 but content = the box's INTERNAL LAN IP (`VM_IP`) — those records
 are intentionally useless off-VPN, and their TLS certs must use the
-DNS-01 challenge (see STAGING-RUNBOOK.md).
+DNS-01 challenge (see README.md).
 
 ```bash
 # list records (sanity check what exists):

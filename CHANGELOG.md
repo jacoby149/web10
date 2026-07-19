@@ -43,6 +43,11 @@ edge stack); Caddy→NPM migration procedure in AGENT-OPS.md §4.5;
 account, not root). AGENT-OPS also gains the everything-box
 guardrail: the host is a personal machine — agents manage ONLY
 the edge/web10-* stacks, never other containers.
+Doc consolidation: STAGING-RUNBOOK.md folded into ubuntu-
+deployment/README.md — the name was stale (it covers three
+environments) and README is what GitHub renders when you browse
+the folder; one human doc (URL map first) + AGENT-OPS for agents +
+OPS-LOG ledger. All references repointed.
 
 1.0.62 || 19.07.2026
 environments + ops + e2e depth. plan.txt CROSS-CUTTING deployment now
