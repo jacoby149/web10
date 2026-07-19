@@ -1,3 +1,28 @@
+1.0.48 || 18.07.2026
+plan: ui stability specced end to end. the thin playwright line in
+CROSS-CUTTING quality/testing expanded into a real item: playwright-
+in-docker against the compose stack, ~6-10 smoke journeys across all
+three uis (ui signup/login/consent, social post->feed + grant/revoke
+terms, marketing-ui route smoke), selenium rejected (flake + grid
+drift), visual regression explicitly deferred until B2.5/D2.5
+makeovers settle. two ci gaps recorded as items: marketing-ui has
+ZERO component tests (--passWithNoTests masks it — backfill item)
+and the shared js workflow runs typecheck + build with continue-on-
+error (a non-compiling ui shows a green check — fix item under
+ci/cd, also noted in wave-0 status). new report-a-bug loop item as
+the explicit counterweight to a thin e2e layer: feedback endpoint in
+marketing-api + <=2-click report affordance + error boundaries in
+all three uis so white-screens convert to reports, not bounces.
+ux telemetry item added with the privacy split: marketing-ui gets
+full funnel analytics + self-hosted replay (posthog/openreplay --
+never third-party saas); platform uis (ui, social) get content-free
+aggregate events + a js error beacon ONLY -- session-recording js
+there is ruled out by the manifesto ("nobody is mining you") and
+phase-11 e2e encryption; replay-grade insight on the platform is
+opt-in dogfood/design-partner sessions, consent as the feature.
+board: lane C gains C5 (e2e/ harness), lane D gains D10 (report-a-
+bug loop) and D11 (ux telemetry).
+
 1.0.47 || 18.07.2026
 board refresh: CURRENT CONDUCTOR BOARD in parallel execution.txt
 re-cut for the D20/D21 pivot + timeline.md week 0 — ws1 B2.5 stack
