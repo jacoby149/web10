@@ -1,87 +1,74 @@
-{/* <div key={i} style={{marginLeft:"15px"}}><a>- {site}</a></div> */ }
-
-function Tag({ text, color }) {
-    return <span style={{ margin: "0px 4px 4px 0px" }} className={`tag is-${color} is-light is-normal`}>{text} {/*<button className="delete is-small"></button>*/}</span>
+function Tag({ text, color }: { text: string; color: string }) {
+  const colorMap: Record<string, { bg: string; text: string }> = {
+    primary: { bg: 'var(--color-primary-100)', text: 'var(--color-primary-700)' },
+    info: { bg: 'var(--color-info-bg)', text: 'var(--color-info)' },
+    warning: { bg: 'var(--color-warning-bg)', text: 'var(--color-warning)' },
+    danger: { bg: 'var(--color-danger-bg)', text: 'var(--color-danger)' },
+  };
+  const c = colorMap[color] || colorMap.info;
+  return (
+    <span className="inline-block px-2 py-0.5 text-xs rounded-full mr-1 mb-1" style={{ backgroundColor: c.bg, color: c.text }}>
+      {text}
+    </span>
+  );
 }
 
-function Websites({ contractI }) {
-    const site_items = contractI.data.cross_origins.map((site, i) => {
-        return (
-            <span key={i} style={{ margin: "0px 4px 4px 0px" }} className={`tag is-info is-light is-normal`}>{site} {contractI.mode === "view" ?
-                "" :
-                <button style={{ marginLeft: "5px" }} onClick={() => contractI.deleteSite(i)} className="delete is-small"></button>
-            }
-            </span>
-        )
-    })
-    return (
-        site_items.length > 0 ?
-
-            <div style={{ marginLeft: "8px", marginTop: "5px" }}>{site_items}</div>
-            :
-            <></>
-
-    )
+function Websites({ contractI }: { contractI: Record<string, any> }) {
+  const site_items = contractI.data.cross_origins.map((site: string, i: number) => (
+    <span key={i} className="inline-block px-2 py-0.5 text-xs rounded-full mr-1 mb-1" style={{ backgroundColor: 'var(--color-info-bg)', color: 'var(--color-info)' }}>
+      {site}
+      {contractI.mode === "view" ? "" :
+        <button style={{ marginLeft: "5px" }} onClick={() => contractI.deleteSite(i)} className="text-xs hover:opacity-70">×</button>
+      }
+    </span>
+  ));
+  return site_items.length > 0 ? <div className="ml-2 mt-1">{site_items}</div> : <></>;
 }
 
-function BlackList({ contractI }) {
-    const permissions = contractI.data.blacklist
-    const permission_items = permissions.map((p, i) => {
-        const create = p.create ? <Tag text="create" color="primary" /> : ""
-        const read = p.read ? <Tag text="read" color="info" /> : ""
-        const update = p.update ? <Tag text="update" color="warning" /> : ""
-        const del = p.delete ? <Tag text="delete" color="danger" /> : ""
-
-        return (
-
-            <div key={i}>
-                <a style={{ marginLeft: "15px" }}> {p.provider}/{p.username} : </a>
-                {create}
-                {read}
-                {update}
-                {del}
-                {contractI.mode == "view" ? "" :
-                    <i onClick={() => contractI.deleteBlackListEntry(i)} style={{ color: "#ff7e7e", marginLeft: "5px" }} className={"fa fa-trash font-weight-bold"}></i>
-                }
-            </div>
-
-        )
-    })
-    return (
-        permissions.length > 0 ?
-            <div style={{ marginTop: "10px" }}> <div style={{ marginBottom: "4px" }}><u>{"Blocked Users"}</u> :</div> {permission_items}</div> :
-            <></>
-    )
+function BlackList({ contractI }: { contractI: Record<string, any> }) {
+  const permissions = contractI.data.blacklist;
+  const permission_items = permissions.map((p: any, i: number) => (
+    <div key={i} className="flex items-center gap-2 flex-wrap">
+      <span className="ml-3.5 text-sm" style={{ color: 'var(--color-text-secondary)' }}>{p.provider}/{p.username} :</span>
+      {p.create && <Tag text="create" color="primary" />}
+      {p.read && <Tag text="read" color="info" />}
+      {p.update && <Tag text="update" color="warning" />}
+      {p.delete && <Tag text="delete" color="danger" />}
+      {contractI.mode == "view" ? "" :
+        <i onClick={() => contractI.deleteBlackListEntry(i)} className="cursor-pointer hover:opacity-70" style={{ color: '#ff7e7e' }}>
+          <i className="fa fa-trash font-weight-bold"></i>
+        </i>
+      }
+    </div>
+  ));
+  return permissions.length > 0 ?
+    <div className="mt-2.5">
+      <div className="mb-1 text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}><u>Blocked Users</u> :</div>
+      {permission_items}
+    </div> : <></>;
 }
 
-function WhiteList({ contractI }) {
-    const permissions = contractI.data.whitelist
-    const permission_items = permissions.map((p, i) => {
-        const create = p.create ? <Tag text="create" color="primary" /> : ""
-        const read = p.read ? <Tag text="read" color="info" /> : ""
-        const update = p.update ? <Tag text="update" color="warning" /> : ""
-        const del = p.delete ? <Tag text="delete" color="danger" /> : ""
-
-        return (
-
-            <div key={i}>
-                <a style={{ marginLeft: "15px" }}> {p.provider}/{p.username} : </a>
-                {create}
-                {read}
-                {update}
-                {del}
-                {contractI.mode == "view" ? "" :
-                    <i onClick={() => contractI.deleteWhiteListEntry(i)} style={{ color: "#ff7e7e", marginLeft: "5px" }} className={"fa fa-trash font-weight-bold"}></i>
-                }
-            </div>
-
-        )
-    })
-    return (
-        permissions.length > 0 ?
-            <div style={{ marginTop: "10px" }}> <div style={{ marginBottom: "4px" }}><u>{"Allowed Users"}</u> :</div> {permission_items}</div> :
-            <></>
-    )
+function WhiteList({ contractI }: { contractI: Record<string, any> }) {
+  const permissions = contractI.data.whitelist;
+  const permission_items = permissions.map((p: any, i: number) => (
+    <div key={i} className="flex items-center gap-2 flex-wrap">
+      <span className="ml-3.5 text-sm" style={{ color: 'var(--color-text-secondary)' }}>{p.provider}/{p.username} :</span>
+      {p.create && <Tag text="create" color="primary" />}
+      {p.read && <Tag text="read" color="info" />}
+      {p.update && <Tag text="update" color="warning" />}
+      {p.delete && <Tag text="delete" color="danger" />}
+      {contractI.mode == "view" ? "" :
+        <i onClick={() => contractI.deleteWhiteListEntry(i)} className="cursor-pointer hover:opacity-70" style={{ color: '#ff7e7e' }}>
+          <i className="fa fa-trash font-weight-bold"></i>
+        </i>
+      }
+    </div>
+  ));
+  return permissions.length > 0 ?
+    <div className="mt-2.5">
+      <div className="mb-1 text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}><u>Allowed Users</u> :</div>
+      {permission_items}
+    </div> : <></>;
 }
 
-export { Websites, BlackList, WhiteList }
+export { Websites, BlackList, WhiteList };

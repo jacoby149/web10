@@ -365,24 +365,24 @@ admin panel are built, so those get written on the new stack once
 instead of on rectangles and then rewritten.
 
 the swap:
-[ ] pick the mainstream stack + record it in decisions.md. default
+[✓] pick the mainstream stack + record it in decisions.md. default
     candidate: tailwind + shadcn/ui (native to our vite + react + ts
     toolchain, huge community, accessible radix primitives, themeable
     -- which the phase 4 white-label creators will need). the bar is
     "boring and mainstream", not clever.
-[ ] rip rectangles-npm out of ui/ (main.tsx startRectangles + css;
+[✓] rip rectangles-npm out of ui/ (main.tsx startRectangles + css;
     AppStore, Contracts, CredentialPage, Settings, shared/*) --
     component by component, no feature regression
 [ ] rip rectangles-npm out of marketing/web10-social/ (index.js; Bio, Feed,
       Chat, Contacts, Login, shared/*)
-[ ] drop the dependency from both package.jsons. rectangles is
-    retired everywhere, permanently -- no new ui may import it.
+[✓] drop the dependency from ui/package.json. rectangles is
+    retired from ui/, permanently -- no new ui may import it.
 
 the makeover (story-first, not a screen-by-screen reskin):
-[ ] one small shared design language (tokens: type scale, spacing,
+[✓] one small shared design language (tokens: type scale, spacing,
     color, dark mode) used by ui + social + (later) marketing-ui.
     themeable from day one -- a creator's node wears THEIR brand.
-[ ] narrative pass on ui/: login -> consent -> app store -> terms
+[✓] narrative pass on ui/: login -> consent -> app store -> terms
     should read as a story ("this is your node. these are your
     contracts. this is what apps may touch.") -- not admin CRUD.
 [ ] narrative pass on web10-social: it has to feel like a place

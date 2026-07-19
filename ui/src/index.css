@@ -1,133 +1,25 @@
-.card.setting.change-contract{
-  background-color:#FFE799;
+@import "tailwindcss";
+@import "./styles/tokens.css";
+
+/* ── Base reset ── */
+*, *::before, *::after {
+  box-sizing: border-box;
 }
 
-.card.setting.new-contract{
-  background-color:#D7FFEE;
+html {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-.card-footer-item:hover{
-  background-color: rgb(255, 247, 240);
-  border-radius: 10px;
+body {
+  margin: 0;
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  line-height: var(--leading-normal);
 }
 
-.character {
-  border: none;
-  font-size: 20px;
-  border-radius: 8px;
-  width:40px;
-  scale:80%;
-  margin:-2px;
-
-
-  /* light theme */
-  color: #272729;
-  background-color: #f6f5fa;
-  box-shadow: 0 2px 0 #e4e2f5;
-
- }
-
-.R.dark{
-  font-family: monospace;
-}
-
-.R.light{
-  font-family: monospace;
-}
-
-
-.contract{
-  margin:20px;
-  font-weight: bold;
-}
-
-.setting{
-  margin:20px;
-}
-
-.R .setting a{
-  color:#b05de1;
-}
-
-.R .form-control.input{
-  color:black;
-}
-
-.R .credential-form{
-  width:320px;
-  margin:auto;
-  margin-top:70px;
-  padding:10px;
-  border: solid;
-  border-width: 1px;
-  border-radius: 8px;
-
-}
-
-.R.dark .credential-form {
-  border-color:#566778;
-}
-
-.R.light .credential-form {
-  border-color:#f9e7cf;
-}
-
-.statistic {
-  display: inline-block;
-  margin:10px 10px 0px 10px;
-  padding: 0px 5px;
-  font-style: italic;
-  border: solid;
-  border-width: 1px;
-  border-radius: 8px;
-}
-
-.app-container {
-  margin-top:12px;
-}
-
-.R.dark .statistic {
-  border-color:#566778;
-}
-
-.R.light .statistic {
-  border-color:#eeddcc;
-}
-
-
-.R.dark .box {
-  border: solid;
-  border-width: 1px;
-  border-radius: 8px;
-  border-color:#263748;
-}
-
-.center-container {
-  width: 100%;
-  text-align: center;
-}
-
-.R .cs-search .cs-search__input {
-  color: black;
-}
-
-.R.dark strong {
-  color: white;
-}
-
-.R.dark strong {
-  color: white;
-}
-
-.R.dark small {
-  color: #dddddd;
-}
-
-.R.dark .input.has-background-white {
-  color: black;
-}
-
-/*ELIPSIS*/
+/* ── Ellipsis loader (preserved from index.css) ── */
 .lds-ellipsis {
   display: inline-block;
   position: relative;
@@ -139,7 +31,7 @@
   width: 13px;
   height: 13px;
   border-radius: 50%;
-  background: #ccc;
+  background: var(--color-neutral-400);
   animation-timing-function: cubic-bezier(0, 1, 1, 0);
 }
 .lds-ellipsis div:nth-child(1) {
@@ -159,26 +51,73 @@
   animation: lds-ellipsis3 0.6s infinite;
 }
 @keyframes lds-ellipsis1 {
-  0% {
-    transform: scale(0);
-  }
-  100% {
-    transform: scale(1);
-  }
+  0% { transform: scale(0); }
+  100% { transform: scale(1); }
 }
 @keyframes lds-ellipsis3 {
-  0% {
-    transform: scale(1);
-  }
-  100% {
-    transform: scale(0);
-  }
+  0% { transform: scale(1); }
+  100% { transform: scale(0); }
 }
 @keyframes lds-ellipsis2 {
-  0% {
-    transform: translate(0, 0);
-  }
-  100% {
-    transform: translate(24px, 0);
-  }
+  0% { transform: translate(0, 0); }
+  100% { transform: translate(24px, 0); }
+}
+
+/* ── Verification input (react-verification-input) ── */
+.character {
+  border: 1px solid var(--color-border);
+  font-size: var(--type-xl);
+  border-radius: var(--radius-md);
+  width: 40px;
+  height: 40px;
+  color: var(--color-text);
+  background-color: var(--color-surface-2);
+  box-shadow: 0 2px 0 var(--color-border);
+}
+.character--selected {
+  border-color: var(--color-primary-500);
+  box-shadow: 0 0 0 2px var(--color-primary-100);
+}
+.character--inactive {
+  color: var(--color-text-muted);
+}
+
+/* ── Toggle switch (used in SetupWizard / ConfigPage) ── */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 26px;
+}
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: var(--color-neutral-600);
+  transition: var(--transition-normal);
+}
+.slider.round {
+  border-radius: var(--radius-full);
+}
+.slider::before {
+  position: absolute;
+  content: "";
+  height: 20px;
+  width: 20px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: var(--transition-normal);
+  border-radius: 50%;
+}
+input:checked + .slider {
+  background-color: var(--color-primary-600);
+}
+input:checked + .slider::before {
+  transform: translateX(24px);
 }
