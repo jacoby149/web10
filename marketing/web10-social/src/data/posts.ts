@@ -81,7 +81,7 @@ export async function uploadMedia(request: MediaUploadRequest): Promise<MediaRec
   }
 
   // 3. Return the media record (already created by the API)
-  return mediaRecord as MediaRecord;
+  return mediaRecord as unknown as MediaRecord;
 }
 
 /**

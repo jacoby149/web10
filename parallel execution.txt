@@ -235,7 +235,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       events + the error beacon ONLY -- no session-recording js
       on ui/ or social, ever (manifesto line). self-hosted
       posthog/openreplay deploy, if adopted, is lane E territory.
-  [ ] D12. level-up web10-social to the design.md standard (READ
+  [✓ 1.0.63] D12. level-up web10-social to the design.md standard (READ
       design.md FIRST — repo root). owns marketing/web10-social/**
       only — runs parallel to D13, disjoint dirs. this is the deck
       screenshot next to kick/twitch: wire the missing
@@ -244,7 +244,10 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       creator page, story-first empty states (point at the
       importer), finish evicting excluded rectangles/@chatscope
       legacy components, fontawesome CDN kit out for lucide.
-      acceptance: design.md §12.
+      acceptance: design.md §12. also fixed tsconfig's missing `@/*`
+      path alias (tsc -b had ~90 pre-existing errors) and the
+      alternative.png-isn't-the-keys-mark bug (decisions.md D24,
+      converged with D13).
   [ ] D13. rebuild marketing-ui on the design system (READ design.md
       FIRST — repo root). owns marketing/marketing-ui/** only — runs
       parallel to D12, disjoint dirs. bulma OUT entirely (D22),
@@ -325,8 +328,9 @@ staging actually deployed. the three beautify items are parallel-safe
 (disjoint directories).
 
   ws1: B5  level-up ui/ to design.md (lane B — ui/**)
-  ws2: D12 level-up web10-social to design.md (lane D —
-       marketing/web10-social/** only)
+  ws2: [✓ 1.0.63] D12 level-up web10-social to design.md (lane D —
+       marketing/web10-social/** only) — PR up, see decisions.md D24
+       for the alternative.png asset correction (shared with D13).
   ws3: D13 rebuild marketing-ui on the design system, bulma out
        (lane D — marketing/marketing-ui/** only) + pays the shared
        brand asset debt (design.md §3)

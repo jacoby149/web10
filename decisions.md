@@ -9,6 +9,30 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D24 — design.md §3 correction: `web10-social/public/alternative.png` was never the keys mark [decided]
+D12 (web10-social level-up) and D13 (marketing-ui rebuild) independently
+discovered the same bug while paying the asset debt design.md §3 queued:
+`marketing/web10-social/public/alternative.png` — the file design.md's
+canonical table names as "the keys mark alone, white on transparent" — is
+actually an unrelated line-art illustration of a person playing guitar.
+White-on-transparent on a white background renders blank, which is why it
+went unnoticed. Decision: derive the real square mark from the existing
+lockup (`marketing-ui/public/brand/logo-lockup.png`, formerly
+`layouts/images/logo_white.png`) by cropping the keys glyph to its bounding
+box and padding to a square — "from existing files," not a redrawn
+approximation. D13 generated `.context/brand-assets/` (keys-mark-source-
+transparent.png, icon-192/512.png and favicon.ico composited on `#09090b`,
+apple-touch-icon.png) for B5 and D12 to apply inside their own directories;
+D12 applied them in `marketing/web10-social/public/` (replacing
+`alternative.png`, `logo192.png`, `logo512.png`, `favicon.ico`, adding
+`apple-touch-icon.png`). design.md §3's table still names `alternative.png`
+as the canonical square mark — that entry is now correct again in content,
+but the file's provenance (derived crop, not vectorized) should be updated
+there by whoever next touches design.md's asset section. SVG vectorization
+remains unpaid debt (no bitmap-tracing tool was available in-sandbox).
+Rejects: shipping the guitar illustration knowingly mislabeled, and
+inventing a new mark from scratch (design.md explicitly forbids this).
+
 ### D23 — One design language, dark-first violet, design.md is the law [decided]
 The three frontends had drifted into three styling worlds (ui/: light-first
 blue Tailwind + inline styles; web10-social: dark shadcn violet; marketing-ui:

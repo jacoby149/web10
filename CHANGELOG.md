@@ -1,3 +1,35 @@
+1.0.63 || 19.07.2026
+D12: web10-social level-up to the design.md standard. Wiring fixes first:
+@tailwindcss/vite was missing from vite.config.ts so the v4 pipeline never
+ran (app shipped un/partially styled — verified via a real production
+build, confirmed brand tokens now compile); Inter + Space Grotesk are
+self-hosted via @fontsource-variable/* (no CDN) and actually loaded from
+main.tsx; the FontAwesome kit script is gone (Lucide only, already the
+case in code — index.html was the leak); tsconfig.json was missing the
+`@/*` path alias entirely, so `tsc -b` had ~90 pre-existing errors across
+every file that imports it — fixed, plus a handful of real type bugs
+(MediaRecord/PostRecord casts, a generic-inference test, `global` → 
+`globalThis`) it had been masking; the legacy Crm/Mail/Bio exclude list in
+vitest config was stale (those components no longer exist) and is now
+gone. Screens: Feed rebuilt as media-forward cards (wired to real
+reaction/comment counts + a working like-toggle and inline comment thread,
+previously dead state), Composer restyled to feel like publishing (avatar,
+drag-and-drop attach, error state), Profile gained a creator-page banner +
+tabular-nums stats row (new optional ProfileRecord.banner_ref field),
+DMs/Layout got skeleton loading states, data-testid hooks, 44px touch
+targets, and a real focus-visible ring everywhere (global, brand-toned).
+Deleted a duplicate dead FeedScreen and legacy CRA boilerplate (logo.svg,
+unused images, a stray manifest.json.bak, the CRA README). Brand asset
+fix: `public/alternative.png` was documented as the canonical square keys
+mark but actually contained an unrelated guitar-player illustration
+(invisible white-on-white, which is how it went unnoticed) — discovered
+independently in this lane and in D13, converged on the same fix (see
+decisions.md D24): derived the real mark from the existing lockup and
+applied D13's generated icon set (logo192/512.png, favicon.ico,
+apple-touch-icon.png) in this app's public/. 193 vitest tests stay green,
+`tsc -b && vite build` passes clean (previously broken), screens verified
+via vite preview + Playwright screenshots at 1280 and 375.
+
 1.0.62 || 19.07.2026
 environments + ops + e2e depth. plan.txt CROSS-CUTTING deployment now
 specs TWO full-ecosystem environments on the ubuntu-deployment box:

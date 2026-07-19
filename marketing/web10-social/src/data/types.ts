@@ -64,6 +64,10 @@ export interface ProfileRecord {
   _id?: string;
   display_name?: string;
   avatar_ref?: string;
+  // Creator-page banner (design.md §10 level-up). Not yet in
+  // marketing-ui/public/docs/schemas/profile.json but that schema declares
+  // additionalProperties: true, so this is forward-compatible.
+  banner_ref?: string;
   bio?: string;
   website?: string;
   location?: string;
