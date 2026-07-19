@@ -97,19 +97,28 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
   [ ] A7. connect the node to the EXISTING production MongoDB on the
       ubuntu box (~208 real users + historical data + registered
       apps from the original web10) instead of the empty ferretdb
-      the stacks ship with. we already speak the mongo wire protocol
+      the stacks ship with. IMPORTANT (operator, 19.07): this mongo
+      runs NATIVELY on the host — it is NOT a docker container and
+      that's fine, leave it as-is. so the node's containers reach it
+      NOT by a compose service name but via the host: DB_URL points
+      at the host gateway (add `host.docker.internal:host-gateway`
+      to the api service's extra_hosts, or use the box LAN ip
+      192.168.8.25) : mongo's port (27017), assuming it binds a
+      reachable interface — confirm the bind + any auth creds, keep
+      them in the box .env, coordinate the compose var/extra_hosts
+      with lane E. we already speak the mongo wire protocol
       (documentdb.py), so this is mainly config + verification, not
-      a rewrite: point DB_URL/DB at the real mongo (a stack env var,
-      keep it in the box .env, coordinate the compose var with
-      lane E), confirm the {service,body} + star-record shape
+      a rewrite: confirm the {service,body} + star-record shape
       matches what our code expects (older records may predate
       to_gui/to_db conventions — write a read-only audit first,
       then a migration/adapter if the shape drifted), and make sure
       star protection + scoped queries behave against real data.
       gate: do NOT point PROD at the real mongo until a login works
       against a COPY in dev (dump/restore into web10-dev's db, or a
-      read-only replica). deliverable: dev logs in as a real
-      historical user, and the honest report of any shape drift.
+      read-only connection). deliverable: dev logs in as a real
+      historical user; total-users + total-apps counts computed from
+      the real data and surfaced like the original web10 (feeds the
+      D16 app-store stats); and the honest report of any shape drift.
       unblocks B6 (real login to test against) and D16 (real apps).
 
 LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
@@ -340,7 +349,43 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       restoring it IS the "looks like a real company" goal, not a
       distraction. record this reversal in decisions.md when D16
       lands.
-
+  [✓ 1.0.70] D16.1. fix the /docs/* 404 — marketing-ui nginx served
+      /docs/ via an alias block that shadowed the SPA fallback, so
+      /docs/protocol-spec 404'd (it's a client-side route that
+      fetches /docs/<slug>.md). added try_files ... /index.html to
+      the /docs/ location. (small live-prod fix done alongside the
+      planning.)
+  [ ] D17. RESTORE THE DEV DOCS (operator, 19.07 — "docs are lacking,
+      were sharp before with demo apps"). NOT LOST — recoverable from
+      git: the old rich docs lived in auth/public/docs/ and were
+      removed in 82667060 ("moving of docs to separate endpoint").
+      recover from `82667060^:auth/public/docs/`:
+      - hello/ and notes/ — the two live DEMO APPS (index.html +
+        script.js each) that made the docs sharp.
+      - sdk.md + sdk.pdf — the SDK guide.
+      bring these into marketing-ui's docs (the new home,
+      marketing/marketing-ui/public/docs + src/pages/Docs.tsx), on
+      the design.md standard, as runnable demo apps + an SDK page.
+      also: the old app store had a "make your own web10 app with the
+      web10 CLI" call-to-action (old AppStore.js, commit cc548b68) —
+      the CLI still exists (marketing/web10-cli/) but is invisible;
+      restore that CTA (ties to D16's "Build on web10" card) and
+      write a CLI quickstart doc. acceptance: /docs shows demo apps +
+      SDK + CLI quickstart; the app store links devs to "build your
+      own". gate: none (docs), but the SDK doc should reflect C2's
+      typed sdk once it lands (don't teach legacy wapi as the future
+      — see C2/C3.5 parking note).
+  [ ] D18. DOCUMENT + LINK THE WEB10 SDK (operator, 19.07: GitHub
+      shows 4 built packages, none is the SDK; docs never mention it
+      or link to it). the sdk lives in sdk/ (web10-npm) and cd.yml
+      already publishes it to npm on a v* tag. work: (1) add an SDK
+      section/link to the docs + a badge/link from marketing-ui and
+      the README; (2) confirm the npm publish actually fires and the
+      package is public + discoverable; (3) plan.txt CI/CD note:
+      publish the sdk to npm whenever it changes (today it's
+      tag-gated — decide if a version-bump-on-merge should trigger
+      it). coordinate the doc voice with C2 (typed sdk) so we link
+      the RIGHT sdk. small; not M0-gating but cheap credibility.
 
 
 LANE E — infrastructure / deployment (owns: proxmox provisioning,
@@ -409,6 +454,19 @@ LANE E — infrastructure / deployment (owns: proxmox provisioning,
       per-env build-on-box stays correct until a runtime-config
       refactor; the api/rtc images are env-agnostic and could
       switch to pulls anytime.
+  [ ] E7. SDK npm publish flow (with C2/D18): cd.yml publishes sdk/
+      to npm on a v* tag today — confirm it fires + the package is
+      public, and decide whether a version bump on merge to dev/main
+      should auto-publish so the sdk stays fresh (operator, 19.07:
+      "publish the web10 sdk to npm if it updates"). small.
+  [ ] E8. MOBILE ENCRYPTOR → app stores (future, operator 19.07 —
+      "just dont want to lose track"): mobile/encryptor is an Expo
+      app (the phone-as-keychain seed, D3/D6). when it's ready,
+      deploying to the Apple App Store + Google Play becomes real
+      work: expo eas build + submit pipeline, store listings,
+      signing certs/provisioning, review. NOT now (post-M0, gated on
+      the encryptor actually doing e2e key management) — parked here
+      so it's on the board, not lost.
 
 WHAT MUST STAY SEQUENTIAL (don't try to parallelize these)
 ----------------------------------------------------------
@@ -439,11 +497,16 @@ M3 "the network"         = encryption integration (A rtc + C2 sdk
 CURRENT CONDUCTOR BOARD (as of 19.07.2026 — keep this section fresh)
 --------------------------------------------------------------------
 we are in timeline.md WEEK 0/1 — the M0 sprint (video by ~aug 17).
-the data layers, studio M0 slice, e2e harness, and deploy infra are
-all merged. THIS WEEK'S PUSH: the design level-up (design.md landed
-as the binding ui standard — every ui agent reads it first) + getting
-dev and prod actually deployed. the three beautify items are
-parallel-safe (disjoint directories).
+the beautify wave (B5/D12/D13/D14) and the FULL DEPLOYMENT (E3/E5 —
+both envs live behind NPM with TLS + GitOps polling) are merged.
+PRIORITY ZERO (plan.txt, top): the deployed product must WORK AT A
+BASELINE — auth is broken, docs 404'd (fixed in D16.1), the node
+points at an empty db. baseline fixes outrank polish, in this order:
+  ws-A: A7 connect the real host mongo (unblocks everything)
+  ws-B: B6 authenticator revamp (login must complete; playwright
+        guard) — logo + obvious breakage can start before A7
+  ws-C: C6 e2e deep sweep (now can also run against dev)
+  ws-D: D17 restore the dev docs + D16 real app store (after A7)
 
   ws1: [✓ 1.0.65] B5 level-up ui/ to design.md (lane B — ui/**) — merged
   ws2: [✓ 1.0.64] D12 level-up web10-social to design.md (lane D —
