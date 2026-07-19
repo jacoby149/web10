@@ -1,3 +1,20 @@
+1.0.70 || 19.07.2026
+PRIORITY ZERO declared at the top of plan.txt (operator): the
+deployed product must WORK AT A BASELINE — baseline fixes outrank
+polish; the chain is A7 (real data) → B6 (auth works) → docs
+reachable → D16 (real store). Conductor board reordered around it.
+Live-prod fix: /docs/* 404'd (e.g. /docs/protocol-spec) — marketing-
+ui's nginx /docs/ alias block shadowed the SPA fallback; now
+try_files → index.html (D16.1). Recovered-work capture: the old
+sharp dev docs are NOT lost — two runnable demo apps (hello/,
+notes/) + sdk.md/sdk.pdf live at git `82667060^:auth/public/docs/`;
+queued D17 to restore them into marketing-ui docs + revive the "make
+your own web10 app with the web10 CLI" store CTA (the CLI exists at
+marketing/web10-cli/ but is invisible). Queued D18+E7: document/link
+the web10 sdk (github packages shows 4, none the sdk) and confirm/
+extend the npm publish flow. Queued E8 (parked): mobile encryptor →
+Apple/Google app stores via expo eas, post-M0.
+
 1.0.69 || 19.07.2026
 Plan refinement (A7): the legacy production MongoDB (~208 real users)
 runs NATIVELY on the ubuntu host, not in Docker — captured in

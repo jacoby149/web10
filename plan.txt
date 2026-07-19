@@ -1,6 +1,19 @@
 web10 plan
 ==========
 
+PRIORITY ZERO (operator, 19.07.2026): MAKE IT WORK AT A BASELINE.
+it is embarrassing that the deployed product does not work right
+now — the authenticator is broken (login doesn't complete, the logo
+renders broken), the docs 404, the app store is hollow, and the live
+node points at an empty database instead of the 208 real users.
+polish, beautification, new features, and docs prose all rank BELOW
+"a person can sign up, log in, use the apps, and read the docs
+without hitting something broken." when choosing between a shiny
+addition and a baseline fix, take the baseline fix. the current
+baseline chain, in order: A7 (real data) → B6 (auth actually works)
+→ D16.1/D17 (docs reachable) → D16 (store shows real apps). the
+C5/C6 e2e suite is the referee for "works."
+
 the thesis (why this plan):
 - THIS IS A PRODUCT FOR INFLUENCERS. the proposition is OWNERSHIP ON
   THE INTERNET: own your node, your brand, your domain, your audience
@@ -484,6 +497,26 @@ the original data changes what "done" looks like for these):
     — that assumed an empty catalog; with 208 real users and real
     apps reconnected, restoring the store IS the "real company"
     goal. log the reversal in decisions.md when it lands.
+[✓ 1.0.70] docs 404 fix (lane D, D16.1): /docs/protocol-spec 404'd
+    live — marketing-ui's nginx /docs/ alias block shadowed the SPA
+    fallback. try_files → index.html added.
+[ ] RESTORE THE DEV DOCS (lane D, item D17): the old sharp docs —
+    two runnable demo apps (hello/, notes/) + sdk.md/sdk.pdf — are
+    NOT lost; they live in git at `82667060^:auth/public/docs/`.
+    bring them into marketing-ui's docs on the design.md standard,
+    and restore the app store's "make your own web10 app with the
+    web10 CLI" call-to-action (the CLI still exists at
+    marketing/web10-cli/ but is invisible) + a CLI quickstart.
+    don't teach legacy wapi as the future — align with C2.
+[ ] SDK visibility + publish flow (lane D item D18 + lane E item
+    E7): github shows 4 packages, none is the sdk; docs never link
+    it. document + link the sdk everywhere it should be, confirm
+    cd.yml's npm publish fires (today tag-gated; decide if updates
+    should auto-publish).
+[ ] mobile encryptor → app stores (lane E item E8, parked): expo
+    eas build/submit, listings, signing. post-M0, gated on the
+    encryptor doing real e2e key management — on the board so it
+    isn't lost.
 
 
 PHASE 3 — setup wizard (the missing piece)
