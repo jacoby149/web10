@@ -7,6 +7,7 @@ import { FileText } from 'lucide-react'
 const DOC_PAGES = [
   { slug: 'protocol-spec', title: 'Protocol Spec', file: '/docs/protocol-spec.md' },
   { slug: 'conventions', title: 'Conventions', file: '/docs/conventions.md' },
+  { slug: 'sdk', title: 'SDK', file: '/docs/sdk.md' },
 ]
 
 function DocsSidebar() {

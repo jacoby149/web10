@@ -1,3 +1,16 @@
+1.0.72 || 19.07.2026
+D18: SDK visibility + publish flow. New sdk.md docs page in
+marketing-ui/public/docs/ with install instructions, API overview,
+and a note on the upcoming C2 typed rewrite. Wired into Docs.tsx
+sidebar. SDK link added to Home.tsx footer. npm badge + SDK link
+added to README.md. npm publish verified: web10-npm@1.0.8 public on
+npmjs.com, cd.yml `npm` job fires on v* tags with provenance +
+`--access public`. Publish flow decision: stays tag-gated
+(decisions.md D26) — auto-publish on merge rejected while C2's typed
+rewrite is in flight; a v* tag forces a deliberate release decision,
+preventing legacy wapi.js from drowning npm with versions nobody
+should install.
+
 1.0.71 || 19.07.2026
 Queued E9 (deployment status page): one URL per env
 (status.web10.app / status.dev.web10.app) showing what's live — the
