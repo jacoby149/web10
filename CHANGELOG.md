@@ -19,6 +19,18 @@ requests, settings, setup wizard, config page. Shared components
 replaces Bulma cards everywhere. Form inputs use consistent rounded
 inputs with icon prefixes. 43/43 vitest tests green.
 
+1.0.51 || 19.07.2026
+D2.5: web10-social UI makeover — rectangles-npm and @chatscope retired,
+replaced with tailwindcss v4 + Radix UI primitives + Lucide icons. New
+M0 screens on the D4 data layer: Feed (chronological + sort dropdown:
+newest/oldest/most_reacted via readFeed), Profile (display name, avatar,
+bio, post/media grid via readProfile + readMyPosts + resolveMediaRefs),
+DMs (conversation list + message thread via listConversations/readDms/
+sendDm), Post Composer (text + photo upload via createPost/uploadMedia).
+Empty states point at exporters ("Import your Instagram"). Dark-first
+design tokens, responsive layout with sidebar + mobile bottom nav.
+12 new component tests (226 total green, 4 legacy skipped).
+Stack pick recorded in decisions.md (D2.5-stack).
 1.0.51 || 18.07.2026
 CLAUDE.md: new working convention — "hand off the next task": after a merge,
 agents end their final message with the next unticked lane item and a
