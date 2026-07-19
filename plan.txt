@@ -416,8 +416,8 @@ the three items below are PARALLEL — disjoint directories:
     build-time env instead of the hardcodes in authAdapter.ts/
     config.ts (staging ships a bundle calling api.web10.app — see
     ubuntu-deployment/AGENT-OPS.md §4.1).
-[✓] level-up web10-social to the design.md standard (lane D, item
-    D12, 1.0.63): wired @tailwindcss/vite, self-hosted Inter + Space
+[✓ 1.0.64] level-up web10-social to the design.md standard (lane D,
+    item D12): wired @tailwindcss/vite, self-hosted Inter + Space
     Grotesk (@fontsource-variable), retired the FontAwesome CDN kit,
     media-forward feed (wired to real reaction/comment counts + a
     working like-toggle and inline comments), a composer that feels
@@ -429,15 +429,22 @@ the three items below are PARALLEL — disjoint directories:
     and the legacy Crm/Mail/Bio vitest excludes (files no longer
     exist). 193 tests green, tsc+build clean. See decisions.md D24 for
     the alternative.png brand-asset correction (shared with D13).
-[ ] rebuild marketing-ui on the design system (lane D, item D13):
+[✓ 1.0.63] rebuild marketing-ui on the design system (lane D, item D13):
     bulma OUT entirely (already rejected in D22), tailwind v4 +
     design.md tokens, dark cinematic landing (lockup hero, reach-gap
-    proof section, real product screenshots), docs pages readable
-    (prose measure, mono code), app store on house cards,
-    education-era imagery + university logos deleted, and the brand
-    asset debt paid for all three apps (svg marks, dark-on-light
-    variants, favicons/pwa icons from the keys mark, shared og-image
-    — design.md §3).
+    proof section built as tested HTML/CSS bars — no real product
+    screenshots exist yet, so that sub-item is deferred rather than
+    faked), docs pages readable (prose measure, mono code), app store
+    on house cards (first-party proof, not a catalog), education-era
+    imagery + university logos deleted. brand asset debt PARTIALLY
+    paid for all three apps: favicons/pwa icons + shared og-image
+    generated from the keys mark (design.md §3) and dropped in
+    .context/brand-assets/ for lanes B/D12 to apply; svg vectorization
+    and dark-on-light variants still open (no tracing tool available —
+    see .context/brand-assets/NOTE.md). also found: design.md §3's
+    documented square-mark file (web10-social/public/alternative.png)
+    does not contain the keys mark — flagged for a design.md fix, not
+    corrected in this PR (out of lane).
 
 
 PHASE 3 — setup wizard (the missing piece)

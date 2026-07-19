@@ -235,7 +235,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       events + the error beacon ONLY -- no session-recording js
       on ui/ or social, ever (manifesto line). self-hosted
       posthog/openreplay deploy, if adopted, is lane E territory.
-  [✓ 1.0.63] D12. level-up web10-social to the design.md standard (READ
+  [✓ 1.0.64] D12. level-up web10-social to the design.md standard (READ
       design.md FIRST — repo root). owns marketing/web10-social/**
       only — runs parallel to D13, disjoint dirs. this is the deck
       screenshot next to kick/twitch: wire the missing
@@ -248,16 +248,20 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       path alias (tsc -b had ~90 pre-existing errors) and the
       alternative.png-isn't-the-keys-mark bug (decisions.md D24,
       converged with D13).
-  [ ] D13. rebuild marketing-ui on the design system (READ design.md
-      FIRST — repo root). owns marketing/marketing-ui/** only — runs
-      parallel to D12, disjoint dirs. bulma OUT entirely (D22),
-      tailwind v4 + design.md §13 tokens, dark cinematic landing
-      (lockup hero, reach-gap proof section, real screenshots), docs
-      readable (65-75ch prose, mono code), app store on house cards,
-      education-era imagery + university logos deleted. also pays
-      the brand asset debt for all three apps (svg marks, dark
-      variants, favicons/pwa icons from the keys mark, shared
-      og-image — design.md §3). acceptance: design.md §12.
+  [✓ 1.0.63] D13. rebuild marketing-ui on the design system. bulma OUT
+      entirely (D22), tailwind v4 + design.md §13 tokens, dark
+      cinematic landing (lockup hero, tested reach-gap proof section —
+      "real product screenshots" deferred, none exist yet to be
+      honest about), docs readable (65-75ch prose, mono code), app
+      store on house cards (first-party proof, not a catalog),
+      education-era imagery + university logos deleted. brand asset
+      debt for all three apps PARTIALLY paid: favicons/pwa icons +
+      shared og-image from the keys mark dropped in
+      .context/brand-assets/ for lanes B/D12 to apply (D13 doesn't
+      reach into ui/ or web10-social/ code); svg vectorization + dark
+      variants still open, no tracing tool in-environment. flagged:
+      design.md §3's alternative.png does not contain the keys mark —
+      needs a design.md correction (not done here, out of lane).
 
 
 
@@ -328,12 +332,14 @@ staging actually deployed. the three beautify items are parallel-safe
 (disjoint directories).
 
   ws1: B5  level-up ui/ to design.md (lane B — ui/**)
-  ws2: [✓ 1.0.63] D12 level-up web10-social to design.md (lane D —
-       marketing/web10-social/** only) — PR up, see decisions.md D24
+  ws2: [✓ 1.0.64] D12 level-up web10-social to design.md (lane D —
+       marketing/web10-social/** only) — merged, see decisions.md D24
        for the alternative.png asset correction (shared with D13).
-  ws3: D13 rebuild marketing-ui on the design system, bulma out
-       (lane D — marketing/marketing-ui/** only) + pays the shared
-       brand asset debt (design.md §3)
+  ws3: [✓ 1.0.63] D13 rebuild marketing-ui on the design system, bulma
+       out (lane D — marketing/marketing-ui/** only) + partially pays
+       the shared brand asset debt (design.md §3) — icons + og-image
+       done and dropped in .context/brand-assets/ for B5/D12 to apply;
+       svg vectorization still open (no tracing tool available).
   ws4: staging IS deployed (19.07.2026 — auth.staging.web10.app is
        live but broken-on-arrival). first job: triage the live
        staging against ubuntu-deployment/AGENT-OPS.md (ssh in, read

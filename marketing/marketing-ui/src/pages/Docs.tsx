@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, Link, useLocation } from 'react-router-dom'
 import { remark } from 'remark'
 import remarkHtml from 'remark-html'
+import { FileText } from 'lucide-react'
 
 const DOC_PAGES = [
   { slug: 'protocol-spec', title: 'Protocol Spec', file: '/docs/protocol-spec.md' },
@@ -13,22 +14,24 @@ function DocsSidebar() {
   const currentPage = location.pathname.split('/').pop()
 
   return (
-    <aside style={{ width: '250px', flexShrink: 0, padding: '2rem 1rem', borderRight: '1px solid #eee' }}>
-      <h3 className="title is-5">Documentation</h3>
-      <nav>
+    <aside className="w-full shrink-0 border-b border-border px-4 py-6 sm:px-6 md:w-56 md:border-b-0 md:border-r md:py-10">
+      <h3 className="mb-3 text-[0.75rem] font-medium uppercase tracking-[0.04em] text-muted-foreground">
+        Documentation
+      </h3>
+      <nav className="flex flex-col gap-1">
         {DOC_PAGES.map(page => (
-          <div key={page.slug} style={{ marginBottom: '0.5rem' }}>
-            <Link
-              to={`/docs/${page.slug}`}
-              style={{
-                color: currentPage === page.slug ? '#3273dc' : 'inherit',
-                fontWeight: currentPage === page.slug ? 'bold' : 'normal',
-                textDecoration: 'none',
-              }}
-            >
-              {page.title}
-            </Link>
-          </div>
+          <Link
+            key={page.slug}
+            to={`/docs/${page.slug}`}
+            className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors duration-150 ease-out ${
+              currentPage === page.slug
+                ? 'bg-brand-muted font-medium text-brand-300'
+                : 'text-muted-foreground hover:bg-elevated hover:text-foreground'
+            }`}
+          >
+            <FileText className="h-4 w-4 shrink-0" strokeWidth={1.5} />
+            {page.title}
+          </Link>
         ))}
       </nav>
     </aside>
@@ -73,21 +76,25 @@ function DocsContent() {
   }, [page])
 
   return (
-    <div style={{ flex: 1, padding: '2rem 3rem', maxWidth: '900px' }}>
-      <h1 className="title">{title}</h1>
-      {loading && <p>Loading...</p>}
-      <article
-        className="content"
-        dangerouslySetInnerHTML={{ __html: content }}
-      />
+    <div className="flex-1 px-4 py-10 sm:px-8 md:px-12">
+      {loading ? (
+        <div className="docs-prose animate-pulse">
+          <div className="mb-4 h-8 w-2/3 rounded bg-elevated" />
+          <div className="mb-2 h-4 w-full rounded bg-elevated" />
+          <div className="mb-2 h-4 w-5/6 rounded bg-elevated" />
+          <div className="h-4 w-3/4 rounded bg-elevated" />
+        </div>
+      ) : (
+        <article className="docs-prose" aria-label={title} dangerouslySetInnerHTML={{ __html: content }} />
+      )}
     </div>
   )
 }
 
 function Docs() {
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#fafafa' }}>
-      <div style={{ display: 'flex' }}>
+    <div className="min-h-screen bg-background text-foreground">
+      <div className="mx-auto flex max-w-6xl flex-col md:flex-row">
         <DocsSidebar />
         <DocsContent />
       </div>

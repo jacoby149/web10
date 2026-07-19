@@ -1,5 +1,18 @@
 import { useState, useCallback, useEffect } from 'react';
+import { CheckCircle2 } from 'lucide-react';
 import { useErrorBoundaryContext } from './ErrorBoundary';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from './ui/dialog';
+import { Label } from './ui/label';
+import { Input } from './ui/input';
+import { Textarea } from './ui/textarea';
+import { Button } from './ui/button';
 
 const MARKETING_API =
   (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('marketing_api')) ||
@@ -67,99 +80,91 @@ export function ReportBug({ trigger, onClose }: ReportBugProps) {
     }
   }, [message, contact, stackTrace]);
 
+  const handleOpenChange = (open: boolean) => {
+    if (!open) onClose();
+  };
+
   if (sent) {
     return (
-      <div className="modal is-active" onClick={onClose}>
-        <div className="modal-background" />
-        <div className="modal-card" onClick={e => e.stopPropagation()}>
-          <section className="modal-card-body has-text-centered is-vcentered">
-            <span className="icon is-large has-text-success mb-4">
-              <i className="fas fa-check-circle fa-3x" />
-            </span>
-            <h2 className="title is-4">Thanks for the report</h2>
-            <p className="subtitle is-6 has-text-grey">
+      <Dialog open onOpenChange={handleOpenChange}>
+        <DialogContent className="max-w-sm text-center">
+          <div className="flex flex-col items-center gap-3 py-2">
+            <CheckCircle2 className="h-10 w-10 text-success" strokeWidth={1.5} />
+            <h2 className="font-display text-lg font-medium">Thanks for the report</h2>
+            <p className="text-sm text-muted-foreground">
               We'll look into it. Your feedback helps make web10 better.
             </p>
-            <button className="button is-fullwidth is-light mt-4" onClick={onClose}>
+            <Button variant="outline" className="mt-2 w-full" onClick={onClose}>
               Close
-            </button>
-          </section>
-        </div>
-      </div>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     );
   }
 
   return (
-    <div className="modal is-active" onClick={onClose}>
-      <div className="modal-background" />
-      <div className="modal-card" onClick={e => e.stopPropagation()}>
-        <header className="modal-card-head">
-          <p className="modal-card-title">
-            {trigger === 'error-boundary' ? 'Something broke' : 'Report a bug'}
-          </p>
-          <button className="delete" onClick={onClose} />
-        </header>
-        <section className="modal-card-body">
+    <Dialog open onOpenChange={handleOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{trigger === 'error-boundary' ? 'Something broke' : 'Report a bug'}</DialogTitle>
           {trigger === 'error-boundary' && (
-            <div className="notification is-danger is-light mb-4">
-              <p>The app crashed. Your report will include the crash details automatically.</p>
-            </div>
+            <DialogDescription className="rounded-md border border-danger-muted bg-danger-muted/40 px-3 py-2 text-danger">
+              The app crashed. Your report will include the crash details automatically.
+            </DialogDescription>
           )}
+        </DialogHeader>
 
-          <div className="field">
-            <label className="label">
-              What happened? <span className="has-text-grey is-size-7">(required)</span>
-            </label>
-            <div className="control">
-              <textarea
-                className="textarea"
-                value={message}
-                onChange={e => setMessage(e.target.value)}
-                placeholder="Describe what you were doing when the bug occurred..."
-                data-testid="report-textarea"
-              />
-            </div>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="report-message">
+              What happened? <span className="text-muted-foreground">(required)</span>
+            </Label>
+            <Textarea
+              id="report-message"
+              value={message}
+              onChange={e => setMessage(e.target.value)}
+              placeholder="Describe what you were doing when the bug occurred..."
+              data-testid="report-textarea"
+            />
           </div>
 
-          <div className="field">
-            <label className="label">
-              Contact <span className="has-text-grey is-size-7">(optional)</span>
-            </label>
-            <div className="control">
-              <input
-                className="input"
-                value={contact}
-                onChange={e => setContact(e.target.value)}
-                placeholder="email or username"
-                data-testid="report-input"
-              />
-            </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="report-contact">
+              Contact <span className="text-muted-foreground">(optional)</span>
+            </Label>
+            <Input
+              id="report-contact"
+              value={contact}
+              onChange={e => setContact(e.target.value)}
+              placeholder="email or username"
+              data-testid="report-input"
+            />
           </div>
 
           {stackTrace && (
-            <details className="mt-4">
-              <summary className="has-text-grey-dark">Crash details (auto-captured)</summary>
-              <pre className="mt-2 p-2 bg-grey-lighter rounded overflow-auto" style={{ fontSize: '10px' }}>
+            <details>
+              <summary className="cursor-pointer text-sm text-muted-foreground">
+                Crash details (auto-captured)
+              </summary>
+              <pre className="mt-2 max-h-40 overflow-auto rounded-md bg-elevated p-2 font-mono text-[11px] text-muted-foreground">
                 {stackTrace}
               </pre>
             </details>
           )}
 
-          {error && <p className="has-text-danger mt-2">{error}</p>}
-        </section>
-        <footer className="modal-card-foot is-justify-content-space-between">
-          <button className="button is-light" onClick={onClose}>
+          {error && <p className="text-sm text-danger">{error}</p>}
+        </div>
+
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            className="button is-primary"
-            onClick={sendReport}
-            disabled={sending || !message.trim()}
-          >
+          </Button>
+          <Button variant="brand" onClick={sendReport} disabled={sending || !message.trim()}>
             {sending ? 'Sending...' : 'Send Report'}
-          </button>
-        </footer>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

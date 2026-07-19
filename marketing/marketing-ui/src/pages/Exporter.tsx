@@ -1,4 +1,8 @@
 import { useState, useCallback, useRef } from 'react'
+import { ArrowLeft, Camera, Users, Video, UploadCloud, CheckCircle2, AlertTriangle } from 'lucide-react'
+import { Button } from '../components/ui/button'
+import { Input } from '../components/ui/input'
+import { Card } from '../components/ui/card'
 
 const API_URL = (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('api')) ||
   ((import.meta as any).env?.VITE_API_URL || 'https://api.web10.app')
@@ -21,10 +25,13 @@ interface ImportProgress {
   services_summary: Record<string, { written: number; skipped: number }>
 }
 
-const PLATFORMS: Array<{ key: Platform; label: string; icon: string; color: string }> = [
-  { key: 'instagram', label: 'Instagram', icon: 'fab fa-instagram', color: '#E1306C' },
-  { key: 'facebook', label: 'Facebook', icon: 'fab fa-facebook', color: '#1877F2' },
-  { key: 'youtube', label: 'YouTube', icon: 'fab fa-youtube', color: '#FF0000' },
+// lucide-react dropped brand/social marks (trademark upkeep) — generic
+// icons stand in rather than shipping a redrawn Instagram/Facebook/YouTube
+// glyph we have no right to.
+const PLATFORMS: Array<{ key: Platform; label: string; icon: typeof Camera; color: string }> = [
+  { key: 'instagram', label: 'Instagram', icon: Camera, color: '#E1306C' },
+  { key: 'facebook', label: 'Facebook', icon: Users, color: '#1877F2' },
+  { key: 'youtube', label: 'YouTube', icon: Video, color: '#FF0000' },
 ]
 
 function track(event: string) {
@@ -198,81 +205,65 @@ export function Exporter() {
   track('exporter_view')
 
   return (
-    <div className="container" style={{ maxWidth: '800px', marginTop: '48px', marginBottom: '96px' }}>
-      <h1 className="title" style={{ fontSize: '28px', marginBottom: '8px' }}>
-        Import Your Social Life
-      </h1>
-      <p className="subtitle" style={{ color: '#7a7a7a', marginBottom: '32px' }}>
+    <div className="mx-auto min-h-screen max-w-2xl px-4 pt-12 pb-24 text-foreground sm:px-6">
+      <h1 className="font-display text-3xl font-bold tracking-[-0.02em]">Import Your Social Life</h1>
+      <p className="mt-2 mb-8 text-muted-foreground">
         Bring your posts, photos, comments, and contacts from any platform into your web10 node.
       </p>
 
       {!isSignedIn ? (
-        <div className="notification is-warning">
-          <strong>Sign in required.</strong> You need a web10 account to import data.
-          <div style={{ marginTop: '12px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            <a className="button is-primary" href="https://auth.web10.app">
-              Sign In via web10
-            </a>
-            <button className="button is-light" onClick={handleSignIn}>
+        <Card className="border-warning/40 bg-warning/10 p-5">
+          <p className="text-sm">
+            <strong className="font-medium text-foreground">Sign in required.</strong>{' '}
+            <span className="text-muted-foreground">You need a web10 account to import data.</span>
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Button asChild variant="brand">
+              <a href="https://auth.web10.app">Sign In via web10</a>
+            </Button>
+            <Button variant="outline" onClick={handleSignIn}>
               Paste JWT Token
-            </button>
+            </Button>
           </div>
-        </div>
+        </Card>
       ) : (
         <div>
-          <div style={{ marginBottom: '24px', display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
-            <p style={{ color: '#7a7a7a', margin: 0 }}>
-              Signed in as <strong>{username}</strong>
+          <div className="mb-6 flex flex-wrap items-center gap-4">
+            <p className="text-sm text-muted-foreground">
+              Signed in as <strong className="font-medium text-foreground">{username}</strong>
             </p>
-            <div style={{ flex: 1, minWidth: '200px' }}>
-              <input
-                className="input is-small"
+            <div className="min-w-[200px] flex-1">
+              <Input
                 type="text"
                 placeholder="Node API URL"
                 value={nodeUrl}
                 onChange={e => setNodeUrl(e.target.value)}
               />
             </div>
-            <button className="button is-small is-text" onClick={() => { setIsSignedIn(false); setTokenInput('') }}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { setIsSignedIn(false); setTokenInput('') }}
+            >
               Sign Out
-            </button>
+            </Button>
           </div>
 
           {!selectedPlatform && (
             <div>
-              <h2 className="title is-size-5" style={{ marginBottom: '16px' }}>
-                Choose a Platform
-              </h2>
-              <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+              <h2 className="mb-4 font-display text-lg font-medium">Choose a Platform</h2>
+              <div className="flex flex-wrap gap-4">
                 {PLATFORMS.map(p => (
                   <button
                     key={p.key}
                     onClick={() => selectPlatform(p.key)}
-                    style={{
-                      flex: '1 1 200px',
-                      border: '2px solid #dbdbdb',
-                      borderRadius: '8px',
-                      padding: '24px',
-                      cursor: 'pointer',
-                      background: 'white',
-                      textAlign: 'center',
-                      transition: 'all 0.2s',
-                    }}
-                    onMouseEnter={e => {
-                      const el = e.currentTarget as HTMLElement
-                      el.style.borderColor = p.color
-                      el.style.background = p.color + '08'
-                    }}
-                    onMouseLeave={e => {
-                      const el = e.currentTarget as HTMLElement
-                      el.style.borderColor = '#dbdbdb'
-                      el.style.background = 'white'
-                    }}
+                    className="flex min-w-[160px] flex-1 flex-col items-center gap-3 rounded-lg border border-border bg-surface p-6 text-center transition-colors duration-150 ease-out hover:border-brand-muted hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    <span style={{ fontSize: '32px', color: p.color, display: 'block', marginBottom: '12px' }}>
-                      <i className={p.icon}></i>
-                    </span>
-                    <strong style={{ fontSize: '18px', color: '#363636' }}>{p.label}</strong>
+                    {/* platform accent color: the source platform's own
+                        identity color, not a web10 token — used only to
+                        tell the three import choices apart at a glance */}
+                    <p.icon className="h-8 w-8" style={{ color: p.color }} strokeWidth={1.5} />
+                    <strong className="text-base font-medium">{p.label}</strong>
                   </button>
                 ))}
               </div>
@@ -281,18 +272,19 @@ export function Exporter() {
 
           {selectedPlatform && (
             <div>
-              <button
-                className="button is-small is-text"
+              <Button
+                variant="ghost"
+                size="sm"
+                className="mb-4 -ml-2"
                 onClick={() => {
                   setSelectedPlatform(null)
                   setShowChecklist(false)
                   setChecklistDone(false)
                 }}
-                style={{ marginBottom: '16px' }}
               >
-                <span className="icon is-small"><i className="fas fa-arrow-left"></i></span>
-                <span>Back to platforms</span>
-              </button>
+                <ArrowLeft className="h-4 w-4" strokeWidth={1.75} />
+                Back to platforms
+              </Button>
 
               {showChecklist && (
                 <TakeoutChecklist
@@ -307,85 +299,77 @@ export function Exporter() {
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onClick={() => fileInputRef.current?.click()}
-                  style={{
-                    border: dragOver ? '3px solid #485fc7' : '2px dashed #dbdbdb',
-                    borderRadius: '8px',
-                    padding: '64px 24px',
-                    textAlign: 'center',
-                    cursor: 'pointer',
-                    background: dragOver ? '#f5f7ff' : '#fafafa',
-                    transition: 'all 0.2s',
-                  }}
+                  className={`flex flex-col items-center gap-2 rounded-lg border-2 border-dashed px-6 py-16 text-center transition-colors duration-150 ease-out ${
+                    dragOver ? 'border-brand bg-brand-muted/30' : 'border-border bg-surface hover:bg-elevated'
+                  }`}
                 >
                   <input
                     ref={fileInputRef}
                     type="file"
                     accept=".zip"
                     onChange={handleInputChange}
-                    style={{ display: 'none' }}
+                    className="hidden"
                   />
-                  <p style={{ fontSize: '20px', margin: '0 0 8px' }}>
-                    {dragOver ? 'Drop your ZIP here' : 'Drag your ZIP here'}
-                  </p>
-                  <p style={{ color: '#7a7a7a', margin: 0 }}>
-                    or click to browse files
-                  </p>
+                  <UploadCloud className="h-8 w-8 text-muted-foreground" strokeWidth={1.5} />
+                  <p className="text-lg">{dragOver ? 'Drop your ZIP here' : 'Drag your ZIP here'}</p>
+                  <p className="text-sm text-muted-foreground">or click to browse files</p>
                 </div>
               )}
 
-              {progress && progress.phase !== 'idle' && progress.phase !== 'complete' && (
-                <div style={{ marginTop: '24px' }}>
-                  <div className="tags">
-                    <span className="tag is-info is-light">{progress.phase}</span>
-                  </div>
-                  <p style={{ color: '#7a7a7a', fontSize: '14px', marginTop: '8px' }}>
-                    {progress.message}
-                  </p>
+              {progress && progress.phase !== 'idle' && progress.phase !== 'complete' && progress.phase !== 'error' && (
+                <div className="mt-6">
+                  <span className="rounded-full bg-brand-muted px-2.5 py-0.5 text-xs font-medium uppercase tracking-wide text-brand-300">
+                    {progress.phase}
+                  </span>
+                  <p className="mt-2 text-sm text-muted-foreground">{progress.message}</p>
                   {progress.total_records > 0 && (
-                    <progress
-                      className="progress is-small is-primary"
-                      value={progress.written_records + progress.processed_files}
-                      max={progress.total_records}
-                      style={{ marginTop: '8px' }}
-                    />
+                    <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-elevated">
+                      <div
+                        className="h-full rounded-full bg-brand transition-[width] duration-150 ease-out"
+                        style={{
+                          width: `${Math.min(100, Math.round(((progress.written_records + progress.processed_files) / progress.total_records) * 100))}%`,
+                        }}
+                      />
+                    </div>
                   )}
                   {progress.errors.length > 0 && (
-                    <div className="notification is-warning is-light" style={{ fontSize: '13px', marginTop: '12px' }}>
-                      <strong>Warnings ({progress.errors.length}):</strong>
-                      <ul style={{ margin: '8px 0 0', paddingLeft: '20px' }}>
+                    <Card className="mt-3 border-warning/40 bg-warning/10 p-4 text-sm">
+                      <strong className="font-medium">Warnings ({progress.errors.length}):</strong>
+                      <ul className="mt-2 list-disc pl-5 text-muted-foreground">
                         {progress.errors.slice(0, 5).map((e, i) => (
                           <li key={i}>{e}</li>
                         ))}
                       </ul>
-                    </div>
+                    </Card>
                   )}
                 </div>
               )}
 
               {progress && progress.phase === 'complete' && (
-                <div style={{ marginTop: '24px' }}>
-                  <div className="notification is-success is-light">
-                    <strong>
+                <div className="mt-6">
+                  <Card className="flex items-start gap-3 border-success/40 bg-success/10 p-4">
+                    <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" strokeWidth={1.75} />
+                    <strong className="font-medium">
                       Import complete — {progress.written_records} records written
                       {progress.skipped_records > 0 && `, ${progress.skipped_records} skipped`}
                     </strong>
-                  </div>
+                  </Card>
 
                   {Object.keys(progress.services_summary).length > 0 && (
-                    <table className="table is-fullwidth is-hoverable" style={{ marginTop: '12px' }}>
+                    <table className="mt-3 w-full text-sm">
                       <thead>
-                        <tr>
-                          <th>Service</th>
-                          <th>Written</th>
-                          <th>Skipped</th>
+                        <tr className="border-b border-border text-left text-muted-foreground">
+                          <th className="py-2 font-medium">Service</th>
+                          <th className="py-2 font-medium">Written</th>
+                          <th className="py-2 font-medium">Skipped</th>
                         </tr>
                       </thead>
                       <tbody>
                         {Object.entries(progress.services_summary).map(([service, stats]: [string, any]) => (
-                          <tr key={service}>
-                            <td>{service}</td>
-                            <td>{stats.written}</td>
-                            <td>{stats.skipped}</td>
+                          <tr key={service} className="border-b border-border">
+                            <td className="py-2">{service}</td>
+                            <td className="py-2 font-mono tabular-nums">{stats.written}</td>
+                            <td className="py-2 font-mono tabular-nums">{stats.skipped}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -393,11 +377,11 @@ export function Exporter() {
                   )}
 
                   {progress.errors.length > 0 && (
-                    <details style={{ marginTop: '12px' }}>
-                      <summary style={{ cursor: 'pointer', color: '#7a7a7a' }}>
+                    <details className="mt-3">
+                      <summary className="cursor-pointer text-sm text-muted-foreground">
                         Show {progress.errors.length} errors
                       </summary>
-                      <ul style={{ fontSize: '13px', color: '#7a7a7a', marginTop: '8px', paddingLeft: '20px' }}>
+                      <ul className="mt-2 list-disc pl-5 text-sm text-muted-foreground">
                         {progress.errors.slice(0, 20).map((e, i) => (
                           <li key={i}>{e}</li>
                         ))}
@@ -405,12 +389,12 @@ export function Exporter() {
                     </details>
                   )}
 
-                  <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
-                    <button className="button is-primary" onClick={resetImporter}>
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    <Button variant="brand" onClick={resetImporter}>
                       Import From Another Platform
-                    </button>
-                    <button
-                      className="button is-light"
+                    </Button>
+                    <Button
+                      variant="outline"
                       onClick={() => {
                         setProgress(null)
                         setChecklistDone(false)
@@ -419,28 +403,31 @@ export function Exporter() {
                       }}
                     >
                       Import Another {selected ? selected.label : 'Platform'} Archive
-                    </button>
+                    </Button>
                   </div>
                 </div>
               )}
 
               {progress && progress.phase === 'error' && (
-                <div style={{ marginTop: '24px' }}>
-                  <div className="notification is-danger is-light">
-                    <strong>Import failed</strong>
-                    {progress.message && <p style={{ marginTop: '8px' }}>{progress.message}</p>}
-                  </div>
+                <div className="mt-6">
+                  <Card className="flex items-start gap-3 border-danger/40 bg-danger-muted/50 p-4">
+                    <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-danger" strokeWidth={1.75} />
+                    <div>
+                      <strong className="font-medium">Import failed</strong>
+                      {progress.message && <p className="mt-1 text-sm text-muted-foreground">{progress.message}</p>}
+                    </div>
+                  </Card>
                   {progress.errors.length > 0 && (
-                    <ul style={{ fontSize: '13px', color: '#7a7a7a', paddingLeft: '20px' }}>
+                    <ul className="mt-3 list-disc pl-5 text-sm text-muted-foreground">
                       {progress.errors.slice(0, 10).map((e, i) => (
                         <li key={i}>{e}</li>
                       ))}
                     </ul>
                   )}
-                  <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
-                    <button className="button is-primary" onClick={resetImporter}>
+                  <div className="mt-4">
+                    <Button variant="brand" onClick={resetImporter}>
                       Try Again
-                    </button>
+                    </Button>
                   </div>
                 </div>
               )}
@@ -461,7 +448,7 @@ function TakeoutChecklist({ platform, onDone }: { platform: Platform; onDone: ()
       { title: 'Go to Settings', description: 'Profile > Settings and privacy > Your information > Download your information.' },
       { title: 'Request Export', description: 'Click "Request Download". Choose "Complete copy".' },
       { title: 'Choose JSON Format', description: 'Select "JSON" format (required). Choose "Highest" quality.' },
-      { title: 'Wait for Meta (1-3 days)', description: 'You\'ll get a notification when ready.' },
+      { title: 'Wait for Meta (1-3 days)', description: "You'll get a notification when ready." },
       { title: 'Download the ZIP', description: 'Download the ZIP file when Meta notifies you.' },
     ],
     facebook: [
@@ -469,7 +456,7 @@ function TakeoutChecklist({ platform, onDone }: { platform: Platform; onDone: ()
       { title: 'Go to Settings', description: 'Settings & Privacy > Settings > Your information > Download your information.' },
       { title: 'Create a File', description: 'Click "Create File". Select all time range, JSON format, highest quality.' },
       { title: 'Select Data Types', description: 'Select Posts, Photos, and Friends. Click "Next" and confirm.' },
-      { title: 'Wait for Meta (1-3 days)', description: 'You\'ll get a notification and email when ready.' },
+      { title: 'Wait for Meta (1-3 days)', description: "You'll get a notification and email when ready." },
       { title: 'Download the ZIP', description: 'Click "Download" when ready.' },
     ],
     youtube: [
@@ -496,95 +483,66 @@ function TakeoutChecklist({ platform, onDone }: { platform: Platform; onDone: ()
   }
 
   return (
-    <div style={{ marginBottom: '32px' }}>
-      <div className="box">
-        <h2 className="title is-size-5">
-          Getting Your {platformLabel} Data
-        </h2>
-        <p style={{ color: '#7a7a7a', marginBottom: '16px' }}>
-          {platform === 'youtube'
-            ? 'Google requires you to request your data export through Google Takeout.'
-            : `${platformLabel} requires you to request your data export through their app or website.`}
-          {' '}Follow these steps, then come back here with the ZIP file.
-        </p>
+    <Card className="mb-8 p-5">
+      <h2 className="font-display text-lg font-medium">Getting Your {platformLabel} Data</h2>
+      <p className="mb-4 mt-1 text-sm text-muted-foreground">
+        {platform === 'youtube'
+          ? 'Google requires you to request your data export through Google Takeout.'
+          : `${platformLabel} requires you to request your data export through their app or website.`}
+        {' '}Follow these steps, then come back here with the ZIP file.
+      </p>
 
-        {steps.map((step, idx) => (
-          <div
-            key={idx}
-            onClick={() => toggleStep(idx)}
-            style={{
-              display: 'flex',
-              gap: '16px',
-              alignItems: 'flex-start',
-              padding: '12px 16px',
-              marginBottom: idx < steps.length - 1 ? '8px' : 0,
-              borderRadius: '6px',
-              cursor: 'pointer',
-              background: checked.has(idx) ? '#f0faf0' : 'transparent',
-              borderLeft: checked.has(idx) ? '3px solid #48c78e' : '3px solid transparent',
-            }}
-          >
-            <span
-              style={{
-                width: '24px',
-                height: '24px',
-                minWidth: '24px',
-                borderRadius: '50%',
-                border: checked.has(idx) ? '2px solid #48c78e' : '2px solid #dbdbdb',
-                background: checked.has(idx) ? '#48c78e' : 'transparent',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: checked.has(idx) ? 'white' : 'transparent',
-                fontSize: '12px',
-                marginTop: '2px',
-              }}
+      <div className="flex flex-col gap-2">
+        {steps.map((step, idx) => {
+          const done = checked.has(idx)
+          return (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => toggleStep(idx)}
+              className={`flex items-start gap-4 rounded-md border-l-2 px-4 py-3 text-left transition-colors duration-150 ease-out ${
+                done ? 'border-l-success bg-success/10' : 'border-l-transparent hover:bg-elevated'
+              }`}
             >
-              {checked.has(idx) ? '✓' : ''}
-            </span>
-            <div>
-              <strong style={{ fontSize: '15px' }}>
-                {idx + 1}. {step.title}
-              </strong>
-              <p style={{ margin: '4px 0 0', color: '#7a7a7a', fontSize: '14px' }}>
-                {step.description}
-              </p>
-            </div>
-          </div>
-        ))}
-
-        {allDone && (
-          <div style={{ marginTop: '16px', textAlign: 'center' }}>
-            <button className="button is-primary is-medium" onClick={onDone}>
-              I Have My ZIP File — Continue to Import
+              <span
+                className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 ${
+                  done ? 'border-success bg-success text-background' : 'border-border text-transparent'
+                }`}
+              >
+                {done && <CheckCircle2 className="h-4 w-4" strokeWidth={2} />}
+              </span>
+              <span>
+                <strong className="block text-sm font-medium">
+                  {idx + 1}. {step.title}
+                </strong>
+                <span className="mt-1 block text-sm text-muted-foreground">{step.description}</span>
+              </span>
             </button>
-          </div>
-        )}
+          )
+        })}
+      </div>
 
-        {!allDone && (
-          <div style={{ marginTop: '16px', textAlign: 'center' }}>
-            <span style={{ color: '#7a7a7a', fontSize: '14px' }}>
+      <div className="mt-4 text-center">
+        {allDone ? (
+          <Button variant="brand" onClick={onDone}>
+            I Have My ZIP File — Continue to Import
+          </Button>
+        ) : (
+          <>
+            <span className="text-sm text-muted-foreground">
               Check off each step as you complete it ({checked.size}/{steps.length})
             </span>
             <br />
             <button
               onClick={onDone}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#485fc7',
-                cursor: 'pointer',
-                fontSize: '14px',
-                marginTop: '8px',
-                textDecoration: 'underline',
-              }}
+              className="mt-2 text-sm text-brand-300 underline-offset-4 hover:text-brand-400 hover:underline"
             >
               Skip checklist — I already have my ZIP
             </button>
-          </div>
+          </>
         )}
       </div>
-    </div>
+    </Card>
   )
 }
 
