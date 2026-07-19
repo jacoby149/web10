@@ -320,14 +320,19 @@ a DB_URL change, not a rewrite.
 [ ] CONNECT THE REAL DATA (A7, added 19.07.2026): the ubuntu box
     already runs the ORIGINAL production MongoDB — ~208 real users,
     historical usage stats, and the registered apps from web10's
-    live app-store era. the new stacks ship an empty ferretdb; point
-    the node at the real mongo instead of starting from zero. we
-    already speak the wire protocol, so it's config + verification
-    (shape audit for pre-convention records, star protection against
-    real data), NOT a rewrite. gate: prove a real historical user
-    can log in against a COPY in dev before pointing prod at it.
-    this is the data foundation for the auth revamp (B6) and the
-    app-store restoration (D16) below.
+    live app-store era. it runs NATIVELY on the host (not a docker
+    container — leave it that way), so the node's containers reach it
+    via the host gateway / box LAN ip, not a compose service name.
+    the new stacks ship an empty ferretdb; point the node at the real
+    mongo instead of starting from zero. we already speak the wire
+    protocol, so it's config + verification (shape audit for pre-
+    convention records, star protection against real data), NOT a
+    rewrite. gate: prove a real historical user can log in against a
+    COPY in dev before pointing prod at it. deliverable also includes
+    the total-users + total-apps counts surfaced like the original
+    web10 (the numbers that made it feel alive). this is the data
+    foundation for the auth revamp (B6) and the app-store
+    restoration (D16) below.
 
 
 PHASE 2 — ui (finish auth2, rename, migrate)

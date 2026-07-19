@@ -1,3 +1,12 @@
+1.0.69 || 19.07.2026
+Plan refinement (A7): the legacy production MongoDB (~208 real users)
+runs NATIVELY on the ubuntu host, not in Docker — captured in
+plan.txt + the lane file so whoever wires it reaches it via the host
+gateway / box LAN ip (not a compose service name) and keeps it
+as-is. Added the explicit deliverable of surfacing total-users +
+total-apps counts from the real data, like the original web10 (feeds
+the D16 app-store stats).
+
 1.0.68 || 19.07.2026
 E3 + E5 EXECUTED — the whole ecosystem is LIVE on the box. Both
 environments run as Portainer git-backed stacks (branch dev, 5-min

@@ -97,19 +97,28 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
   [ ] A7. connect the node to the EXISTING production MongoDB on the
       ubuntu box (~208 real users + historical data + registered
       apps from the original web10) instead of the empty ferretdb
-      the stacks ship with. we already speak the mongo wire protocol
+      the stacks ship with. IMPORTANT (operator, 19.07): this mongo
+      runs NATIVELY on the host — it is NOT a docker container and
+      that's fine, leave it as-is. so the node's containers reach it
+      NOT by a compose service name but via the host: DB_URL points
+      at the host gateway (add `host.docker.internal:host-gateway`
+      to the api service's extra_hosts, or use the box LAN ip
+      192.168.8.25) : mongo's port (27017), assuming it binds a
+      reachable interface — confirm the bind + any auth creds, keep
+      them in the box .env, coordinate the compose var/extra_hosts
+      with lane E. we already speak the mongo wire protocol
       (documentdb.py), so this is mainly config + verification, not
-      a rewrite: point DB_URL/DB at the real mongo (a stack env var,
-      keep it in the box .env, coordinate the compose var with
-      lane E), confirm the {service,body} + star-record shape
+      a rewrite: confirm the {service,body} + star-record shape
       matches what our code expects (older records may predate
       to_gui/to_db conventions — write a read-only audit first,
       then a migration/adapter if the shape drifted), and make sure
       star protection + scoped queries behave against real data.
       gate: do NOT point PROD at the real mongo until a login works
       against a COPY in dev (dump/restore into web10-dev's db, or a
-      read-only replica). deliverable: dev logs in as a real
-      historical user, and the honest report of any shape drift.
+      read-only connection). deliverable: dev logs in as a real
+      historical user; total-users + total-apps counts computed from
+      the real data and surfaced like the original web10 (feeds the
+      D16 app-store stats); and the honest report of any shape drift.
       unblocks B6 (real login to test against) and D16 (real apps).
 
 LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
