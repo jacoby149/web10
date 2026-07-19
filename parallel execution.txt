@@ -96,7 +96,7 @@ LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
   [✓ 1.0.12-1.0.14] B1. P0 js: auth2 -> vite + bun + typescript
       (react 19, vitest, multi-stage dockerfiles, rtc to bun too)
   [✓ 1.0.26] B2. P2 finish auth2 features, parity audit, rename to ui
-  [ ] B2.5. P2.5 ui makeover in ui/: rectangles-npm -> mainstream
+  [✓ 1.0.48] B2.5. P2.5 ui makeover in ui/: rectangles-npm -> mainstream
       stack (tailwind + shadcn/ui candidate, record in decisions.md),
       shared design tokens, story-first narrative pass. do BEFORE
       B3/B4 so wizard + admin panel are born on the new stack.

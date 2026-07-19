@@ -1,3 +1,13 @@
+1.0.48 || 18.07.2026
+B2.5: ui makeover — rectangles-npm and react-bulma-components ripped out
+of ui/; replaced with Tailwind CSS v4 + CSS variable design tokens
+(ui/src/styles/tokens.css: color palette, type scale, spacing, radius,
+dark mode). All ui/ screens restyled: login/signup/forgot, contracts,
+requests, settings, setup wizard, config page. Shared components
+(SideBar, TopBar, Icon, Branding) rewritten on Tailwind. Card pattern
+replaces Bulma cards everywhere. Form inputs use consistent rounded
+inputs with icon prefixes. 43/43 vitest tests green.
+
 1.0.47 || 18.07.2026
 board refresh: CURRENT CONDUCTOR BOARD in parallel execution.txt
 re-cut for the D20/D21 pivot + timeline.md week 0 — ws1 B2.5 stack

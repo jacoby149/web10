@@ -1,6 +1,5 @@
 import React from 'react';
 import axios from 'axios';
-import { R, C } from 'rectangles-npm';
 
 const STEPS = [
   "Welcome",
@@ -11,162 +10,201 @@ const STEPS = [
   "Complete",
 ];
 
-function StepIndicator({ current, total }) {
+function StepIndicator({ current, total }: { current: number; total: number }) {
   return (
-    <div style={{ display: "flex", gap: "8px", marginBottom: "30px", justifyContent: "center" }}>
+    <div className="flex gap-2 mb-8 justify-center">
       {STEPS.slice(0, total).map((step, i) => (
         <div
           key={i}
+          className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all"
           style={{
-            width: "40px",
-            height: "40px",
-            borderRadius: "50%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: i < current ? "#0066ff" : i === current ? "#0066ff" : "#333",
-            color: "#fff",
-            fontWeight: "bold",
-            fontSize: "14px",
-            transition: "all 0.3s",
+            background: i < current ? 'var(--color-primary-600)' : i === current ? 'var(--color-primary-600)' : 'var(--color-neutral-700)',
+            color: '#fff',
           }}
         >
-          {i < current ? "✓" : i + 1}
+          {i < current ? '✓' : i + 1}
         </div>
       ))}
     </div>
   );
 }
 
-function WelcomeStep({ onNext }) {
+function WelcomeStep({ onNext }: { onNext: () => void }) {
   return (
-    <R t>
-      <h1 style={{ fontSize: "32px", marginBottom: "16px", textAlign: "center" }}>Welcome to web10</h1>
-      <p style={{ textAlign: "center", color: "#aaa", maxWidth: "500px", margin: "0 auto 30px", lineHeight: "1.6" }}>
+    <div className="text-center">
+      <h1 className="text-3xl font-bold mb-4" style={{ color: 'var(--color-text)' }}>Welcome to web10</h1>
+      <p className="max-w-[500px] mx-auto mb-8 leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
         Set up your sovereign social node in a few minutes.
         Your node stores your data, runs your apps, and belongs to you.
       </p>
-      <C t>
+      <div className="flex justify-center">
         <button
-          className="button is-primary is-large"
+          className="px-10 py-3 text-base font-semibold rounded-lg text-white transition-colors hover:opacity-90"
+          style={{ backgroundColor: 'var(--color-primary-600)' }}
           onClick={onNext}
-          style={{ padding: "12px 40px", fontSize: "16px" }}
         >
           Get Started
         </button>
-      </C>
-    </R>
+      </div>
+    </div>
   );
 }
 
-function NodeIdentityStep({ data, onChange, onNext, onBack }) {
+function NodeIdentityStep({ data, onChange, onNext, onBack }: {
+  data: Record<string, any>;
+  onChange: (key: string, value: any) => void;
+  onNext: () => void;
+  onBack: () => void;
+}) {
   return (
-    <R t>
-      <h2 style={{ marginBottom: "24px", textAlign: "center" }}>Node Identity</h2>
-      <R t style={{ maxWidth: "400px", margin: "0 auto" }}>
-        <label className="label">Provider Domain</label>
-        <input
-          className="input"
-          value={data.provider}
-          onChange={e => onChange("provider", e.target.value)}
-          placeholder="api.example.com"
-        />
-        <p className="help">The domain your node will be reachable at</p>
+    <div>
+      <h2 className="text-xl font-semibold mb-6 text-center" style={{ color: 'var(--color-text)' }}>Node Identity</h2>
+      <div className="max-w-[400px] mx-auto space-y-4">
+        <div>
+          <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Provider Domain</label>
+          <input
+            className="w-full px-3 py-2 rounded-lg border text-base"
+            style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
+            value={data.provider}
+            onChange={e => onChange("provider", e.target.value)}
+            placeholder="api.example.com"
+          />
+          <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>The domain your node will be reachable at</p>
+        </div>
 
-        <label className="label" style={{ marginTop: "16px" }}>Brand Name</label>
-        <input
-          className="input"
-          value={data.brand_text}
-          onChange={e => onChange("brand_text", e.target.value)}
-          placeholder="web10"
-        />
+        <div>
+          <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Brand Name</label>
+          <input
+            className="w-full px-3 py-2 rounded-lg border text-base"
+            style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
+            value={data.brand_text}
+            onChange={e => onChange("brand_text", e.target.value)}
+            placeholder="web10"
+          />
+        </div>
 
-        <label className="label" style={{ marginTop: "16px" }}>Database URL</label>
-        <input
-          className="input"
-          value={data.db_url}
-          onChange={e => onChange("db_url", e.target.value)}
-          placeholder="mongodb://ferretdb:27017"
-        />
-        <p className="help">MongoDB or FerretDB connection string</p>
-      </R>
-      <C t style={{ marginTop: "30px", gap: "10px" }}>
-        <button className="button is-light" onClick={onBack}>Back</button>
+        <div>
+          <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Database URL</label>
+          <input
+            className="w-full px-3 py-2 rounded-lg border text-base"
+            style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
+            value={data.db_url}
+            onChange={e => onChange("db_url", e.target.value)}
+            placeholder="mongodb://ferretdb:27017"
+          />
+          <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>MongoDB or FerretDB connection string</p>
+        </div>
+      </div>
+      <div className="flex justify-center gap-2 mt-8">
         <button
-          className="button is-primary"
+          className="px-4 py-2 text-sm font-medium rounded-lg border transition-colors hover:opacity-80"
+          style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+          onClick={onBack}
+        >
+          Back
+        </button>
+        <button
+          className="px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors hover:opacity-90 disabled:opacity-50"
+          style={{ backgroundColor: 'var(--color-primary-600)' }}
           onClick={onNext}
           disabled={!data.provider}
         >
           Next
         </button>
-      </C>
-    </R>
+      </div>
+    </div>
   );
 }
 
-function AdminAccountStep({ data, onChange, onNext, onBack }) {
+function AdminAccountStep({ data, onChange, onNext, onBack }: {
+  data: Record<string, any>;
+  onChange: (key: string, value: any) => void;
+  onNext: () => void;
+  onBack: () => void;
+}) {
   const passwordsMatch = data.admin_password === data.admin_password_confirm;
   return (
-    <R t>
-      <h2 style={{ marginBottom: "24px", textAlign: "center" }}>Admin Account</h2>
-      <R t style={{ maxWidth: "400px", margin: "0 auto" }}>
-        <label className="label">Username</label>
-        <input
-          className="input"
-          value={data.admin_username}
-          onChange={e => onChange("admin_username", e.target.value)}
-          placeholder="admin"
-        />
+    <div>
+      <h2 className="text-xl font-semibold mb-6 text-center" style={{ color: 'var(--color-text)' }}>Admin Account</h2>
+      <div className="max-w-[400px] mx-auto space-y-4">
+        <div>
+          <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Username</label>
+          <input
+            className="w-full px-3 py-2 rounded-lg border text-base"
+            style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
+            value={data.admin_username}
+            onChange={e => onChange("admin_username", e.target.value)}
+            placeholder="admin"
+          />
+        </div>
 
-        <label className="label" style={{ marginTop: "16px" }}>Password</label>
-        <input
-          className="input"
-          type="password"
-          value={data.admin_password}
-          onChange={e => onChange("admin_password", e.target.value)}
-          placeholder="••••••••"
-        />
+        <div>
+          <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Password</label>
+          <input
+            className="w-full px-3 py-2 rounded-lg border text-base"
+            style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
+            type="password"
+            value={data.admin_password}
+            onChange={e => onChange("admin_password", e.target.value)}
+            placeholder="••••••••"
+          />
+        </div>
 
-        <label className="label" style={{ marginTop: "16px" }}>Confirm Password</label>
-        <input
-          className="input"
-          type="password"
-          value={data.admin_password_confirm}
-          onChange={e => onChange("admin_password_confirm", e.target.value)}
-          placeholder="••••••••"
-        />
-        {data.admin_password_confirm && !passwordsMatch && (
-          <p className="help" style={{ color: "red" }}>Passwords do not match</p>
-        )}
-      </R>
-      <C t style={{ marginTop: "30px", gap: "10px" }}>
-        <button className="button is-light" onClick={onBack}>Back</button>
+        <div>
+          <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Confirm Password</label>
+          <input
+            className="w-full px-3 py-2 rounded-lg border text-base"
+            style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
+            type="password"
+            value={data.admin_password_confirm}
+            onChange={e => onChange("admin_password_confirm", e.target.value)}
+            placeholder="••••••••"
+          />
+          {data.admin_password_confirm && !passwordsMatch && (
+            <p className="text-xs mt-1" style={{ color: 'var(--color-danger)' }}>Passwords do not match</p>
+          )}
+        </div>
+      </div>
+      <div className="flex justify-center gap-2 mt-8">
         <button
-          className="button is-primary"
+          className="px-4 py-2 text-sm font-medium rounded-lg border transition-colors hover:opacity-80"
+          style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+          onClick={onBack}
+        >
+          Back
+        </button>
+        <button
+          className="px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors hover:opacity-90 disabled:opacity-50"
+          style={{ backgroundColor: 'var(--color-primary-600)' }}
           onClick={onNext}
           disabled={!data.admin_username || !data.admin_password || !passwordsMatch}
         >
           Next
         </button>
-      </C>
-    </R>
+      </div>
+    </div>
   );
 }
 
-function AccessPolicyStep({ data, onChange, onNext, onBack }) {
-  const toggle = (key) => onChange(key, !data[key]);
+function AccessPolicyStep({ data, onChange, onNext, onBack }: {
+  data: Record<string, any>;
+  onChange: (key: string, value: any) => void;
+  onNext: () => void;
+  onBack: () => void;
+}) {
+  const toggle = (key: string) => onChange(key, !data[key]);
   return (
-    <R t>
-      <h2 style={{ marginBottom: "24px", textAlign: "center" }}>Access Policy</h2>
-      <R t style={{ maxWidth: "500px", margin: "0 auto" }}>
-        <p style={{ color: "#aaa", marginBottom: "24px", textAlign: "center" }}>
+    <div>
+      <h2 className="text-xl font-semibold mb-6 text-center" style={{ color: 'var(--color-text)' }}>Access Policy</h2>
+      <div className="max-w-[500px] mx-auto">
+        <p className="text-center mb-6" style={{ color: 'var(--color-text-secondary)' }}>
           Control who can join your node and how.
         </p>
 
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: "1px solid #333" }}>
+        <div className="flex justify-between items-center py-3 border-b" style={{ borderColor: 'var(--color-border)' }}>
           <div>
-            <div style={{ fontWeight: "bold" }}>Beta Code Required</div>
-            <div style={{ color: "#888", fontSize: "13px" }}>Users need a valid beta code to sign up</div>
+            <div className="font-medium">Beta Code Required</div>
+            <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Users need a valid beta code to sign up</div>
           </div>
           <label className="switch">
             <input type="checkbox" checked={data.beta_required} onChange={() => toggle("beta_required")} />
@@ -175,21 +213,22 @@ function AccessPolicyStep({ data, onChange, onNext, onBack }) {
         </div>
 
         {data.beta_required && (
-          <R t style={{ paddingLeft: "20px", marginBottom: "10px" }}>
-            <label className="label">Beta Code</label>
+          <div className="pl-5 mb-2 mt-3">
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Beta Code</label>
             <input
-              className="input"
+              className="w-full px-3 py-2 rounded-lg border text-base"
+              style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
               value={data.beta_code}
               onChange={e => onChange("beta_code", e.target.value)}
               placeholder="web10betacode"
             />
-          </R>
+          </div>
         )}
 
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: "1px solid #333" }}>
+        <div className="flex justify-between items-center py-3 border-b" style={{ borderColor: 'var(--color-border)' }}>
           <div>
-            <div style={{ fontWeight: "bold" }}>Phone Verification</div>
-            <div style={{ color: "#888", fontSize: "13px" }}>Require phone number on signup</div>
+            <div className="font-medium">Phone Verification</div>
+            <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Require phone number on signup</div>
           </div>
           <label className="switch">
             <input type="checkbox" checked={data.verify_required} onChange={() => toggle("verify_required")} />
@@ -197,10 +236,10 @@ function AccessPolicyStep({ data, onChange, onNext, onBack }) {
           </label>
         </div>
 
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: "1px solid #333" }}>
+        <div className="flex justify-between items-center py-3 border-b" style={{ borderColor: 'var(--color-border)' }}>
           <div>
-            <div style={{ fontWeight: "bold" }}>Payment Required</div>
-            <div style={{ color: "#888", fontSize: "13px" }}>Users must subscribe to use the node</div>
+            <div className="font-medium">Payment Required</div>
+            <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Users must subscribe to use the node</div>
           </div>
           <label className="switch">
             <input type="checkbox" checked={data.pay_required} onChange={() => toggle("pay_required")} />
@@ -208,136 +247,192 @@ function AccessPolicyStep({ data, onChange, onNext, onBack }) {
           </label>
         </div>
 
-        <label className="label" style={{ marginTop: "20px" }}>Free Credits / Month</label>
-        <input
-          className="input"
-          type="number"
-          value={data.free_credits}
-          onChange={e => onChange("free_credits", parseFloat(e.target.value) || 0)}
-        />
+        <div className="mt-5">
+          <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Free Credits / Month</label>
+          <input
+            className="w-full px-3 py-2 rounded-lg border text-base"
+            style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
+            type="number"
+            value={data.free_credits}
+            onChange={e => onChange("free_credits", parseFloat(e.target.value) || 0)}
+          />
+        </div>
 
-        <label className="label" style={{ marginTop: "16px" }}>Free Space (MB) / Month</label>
-        <input
-          className="input"
-          type="number"
-          value={data.free_space}
-          onChange={e => onChange("free_space", parseInt(e.target.value) || 0)}
-        />
-      </R>
-      <C t style={{ marginTop: "30px", gap: "10px" }}>
-        <button className="button is-light" onClick={onBack}>Back</button>
-        <button className="button is-primary" onClick={onNext}>Next</button>
-      </C>
-    </R>
+        <div className="mt-4">
+          <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Free Space (MB) / Month</label>
+          <input
+            className="w-full px-3 py-2 rounded-lg border text-base"
+            style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
+            type="number"
+            value={data.free_space}
+            onChange={e => onChange("free_space", parseInt(e.target.value) || 0)}
+          />
+        </div>
+      </div>
+      <div className="flex justify-center gap-2 mt-8">
+        <button
+          className="px-4 py-2 text-sm font-medium rounded-lg border transition-colors hover:opacity-80"
+          style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+          onClick={onBack}
+        >
+          Back
+        </button>
+        <button
+          className="px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors hover:opacity-90"
+          style={{ backgroundColor: 'var(--color-primary-600)' }}
+          onClick={onNext}
+        >
+          Next
+        </button>
+      </div>
+    </div>
   );
 }
 
-function StorageStep({ data, onChange, onNext, onBack }) {
+function StorageStep({ data, onChange, onNext, onBack }: {
+  data: Record<string, any>;
+  onChange: (key: string, value: any) => void;
+  onNext: () => void;
+  onBack: () => void;
+}) {
   return (
-    <R t>
-      <h2 style={{ marginBottom: "24px", textAlign: "center" }}>Media Storage</h2>
-      <R t style={{ maxWidth: "500px", margin: "0 auto" }}>
-        <p style={{ color: "#aaa", marginBottom: "24px", textAlign: "center" }}>
+    <div>
+      <h2 className="text-xl font-semibold mb-6 text-center" style={{ color: 'var(--color-text)' }}>Media Storage</h2>
+      <div className="max-w-[500px] mx-auto">
+        <p className="text-center mb-6" style={{ color: 'var(--color-text-secondary)' }}>
           Configure S3-compatible storage for media files.
           MinIO is included by default for self-hosting.
         </p>
 
-        <label className="label">S3 Endpoint</label>
-        <input
-          className="input"
-          value={data.s3_endpoint}
-          onChange={e => onChange("s3_endpoint", e.target.value)}
-          placeholder="http://minio:9000"
-        />
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>S3 Endpoint</label>
+            <input
+              className="w-full px-3 py-2 rounded-lg border text-base"
+              style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
+              value={data.s3_endpoint}
+              onChange={e => onChange("s3_endpoint", e.target.value)}
+              placeholder="http://minio:9000"
+            />
+          </div>
 
-        <label className="label" style={{ marginTop: "16px" }}>Bucket Name</label>
-        <input
-          className="input"
-          value={data.s3_bucket}
-          onChange={e => onChange("s3_bucket", e.target.value)}
-          placeholder="web10-media"
-        />
+          <div>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Bucket Name</label>
+            <input
+              className="w-full px-3 py-2 rounded-lg border text-base"
+              style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
+              value={data.s3_bucket}
+              onChange={e => onChange("s3_bucket", e.target.value)}
+              placeholder="web10-media"
+            />
+          </div>
 
-        <label className="label" style={{ marginTop: "16px" }}>Access Key</label>
-        <input
-          className="input"
-          value={data.s3_access_key}
-          onChange={e => onChange("s3_access_key", e.target.value)}
-          placeholder="minioadmin"
-        />
+          <div>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Access Key</label>
+            <input
+              className="w-full px-3 py-2 rounded-lg border text-base"
+              style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
+              value={data.s3_access_key}
+              onChange={e => onChange("s3_access_key", e.target.value)}
+              placeholder="minioadmin"
+            />
+          </div>
 
-        <label className="label" style={{ marginTop: "16px" }}>Secret Key</label>
-        <input
-          className="input"
-          type="password"
-          value={data.s3_secret_key}
-          onChange={e => onChange("s3_secret_key", e.target.value)}
-          placeholder="minioadmin"
-        />
+          <div>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Secret Key</label>
+            <input
+              className="w-full px-3 py-2 rounded-lg border text-base"
+              style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
+              type="password"
+              value={data.s3_secret_key}
+              onChange={e => onChange("s3_secret_key", e.target.value)}
+              placeholder="minioadmin"
+            />
+          </div>
 
-        <details style={{ marginTop: "20px" }}>
-          <summary style={{ cursor: "pointer", color: "#0066ff" }}>Advanced: Twilio (SMS)</summary>
-          <R t style={{ marginTop: "10px" }}>
-            <label className="label">Twilio Service SID</label>
-            <input className="input" value={data.twilio_service} onChange={e => onChange("twilio_service", e.target.value)} />
-            <label className="label" style={{ marginTop: "12px" }}>Account SID</label>
-            <input className="input" value={data.twilio_account_sid} onChange={e => onChange("twilio_account_sid", e.target.value)} />
-            <label className="label" style={{ marginTop: "12px" }}>Auth Token</label>
-            <input className="input" type="password" value={data.twilio_auth_token} onChange={e => onChange("twilio_auth_token", e.target.value)} />
-            <label className="label" style={{ marginTop: "12px" }}>Phone Number</label>
-            <input className="input" value={data.twilio_number} onChange={e => onChange("twilio_number", e.target.value)} placeholder="+1234567890" />
-          </R>
-        </details>
+          <details className="mt-4">
+            <summary className="cursor-pointer text-sm font-medium" style={{ color: 'var(--color-primary-600)' }}>Advanced: Twilio (SMS)</summary>
+            <div className="mt-2 space-y-3">
+              <div>
+                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Twilio Service SID</label>
+                <input className="w-full px-3 py-2 rounded-lg border text-base" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }} value={data.twilio_service} onChange={e => onChange("twilio_service", e.target.value)} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Account SID</label>
+                <input className="w-full px-3 py-2 rounded-lg border text-base" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }} value={data.twilio_account_sid} onChange={e => onChange("twilio_account_sid", e.target.value)} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Auth Token</label>
+                <input className="w-full px-3 py-2 rounded-lg border text-base" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }} type="password" value={data.twilio_auth_token} onChange={e => onChange("twilio_auth_token", e.target.value)} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Phone Number</label>
+                <input className="w-full px-3 py-2 rounded-lg border text-base" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }} value={data.twilio_number} onChange={e => onChange("twilio_number", e.target.value)} placeholder="+1234567890" />
+              </div>
+            </div>
+          </details>
 
-        <details style={{ marginTop: "10px" }}>
-          <summary style={{ cursor: "pointer", color: "#0066ff" }}>Advanced: Stripe (Payments)</summary>
-          <R t style={{ marginTop: "10px" }}>
-            <label className="label">Test API Key</label>
-            <input className="input" type="password" value={data.stripe_test_key} onChange={e => onChange("stripe_test_key", e.target.value)} />
-            <label className="label" style={{ marginTop: "12px" }}>Live API Key</label>
-            <input className="input" type="password" value={data.stripe_live_key} onChange={e => onChange("stripe_live_key", e.target.value)} />
-          </R>
-        </details>
-      </R>
-      <C t style={{ marginTop: "30px", gap: "10px" }}>
-        <button className="button is-light" onClick={onBack}>Back</button>
-        <button className="button is-primary" onClick={onNext}>Next</button>
-      </C>
-    </R>
+          <details className="mt-2">
+            <summary className="cursor-pointer text-sm font-medium" style={{ color: 'var(--color-primary-600)' }}>Advanced: Stripe (Payments)</summary>
+            <div className="mt-2 space-y-3">
+              <div>
+                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Test API Key</label>
+                <input className="w-full px-3 py-2 rounded-lg border text-base" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }} type="password" value={data.stripe_test_key} onChange={e => onChange("stripe_test_key", e.target.value)} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Live API Key</label>
+                <input className="w-full px-3 py-2 rounded-lg border text-base" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }} type="password" value={data.stripe_live_key} onChange={e => onChange("stripe_live_key", e.target.value)} />
+              </div>
+            </div>
+          </details>
+        </div>
+      </div>
+      <div className="flex justify-center gap-2 mt-8">
+        <button
+          className="px-4 py-2 text-sm font-medium rounded-lg border transition-colors hover:opacity-80"
+          style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+          onClick={onBack}
+        >
+          Back
+        </button>
+        <button
+          className="px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors hover:opacity-90"
+          style={{ backgroundColor: 'var(--color-primary-600)' }}
+          onClick={onNext}
+        >
+          Next
+        </button>
+      </div>
+    </div>
   );
 }
 
-function CompleteStep({ message, error, onLogin }) {
+function CompleteStep({ message, error, onLogin }: { message: string; error: string | null; onLogin: () => void }) {
   return (
-    <R t>
-      <h2 style={{
-        marginBottom: "16px",
-        textAlign: "center",
-        color: error ? "#ff4444" : "#00cc66",
-        fontSize: "36px",
-      }}>
+    <div className="text-center">
+      <h2 className="mb-4 text-3xl font-bold" style={{ color: error ? 'var(--color-danger)' : 'var(--color-success)' }}>
         {error ? "Setup Failed" : "You're All Set!"}
       </h2>
-      <p style={{ textAlign: "center", color: "#aaa", maxWidth: "500px", margin: "0 auto 30px", lineHeight: "1.6" }}>
+      <p className="max-w-[500px] mx-auto mb-8 leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
         {error || message || "Your node is configured and ready to use."}
       </p>
-      <C t>
+      <div className="flex justify-center">
         <button
-          className="button is-primary is-large"
+          className="px-10 py-3 text-base font-semibold rounded-lg text-white transition-colors hover:opacity-90"
+          style={{ backgroundColor: 'var(--color-primary-600)' }}
           onClick={onLogin}
-          style={{ padding: "12px 40px", fontSize: "16px" }}
         >
           Go to Login
         </button>
-      </C>
-    </R>
+      </div>
+    </div>
   );
 }
 
-function SetupWizard({ I }) {
+function SetupWizard({ I }: { I: Record<string, any> }) {
   const [step, setStep] = React.useState(0);
   const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState(null);
+  const [error, setError] = React.useState<string | null>(null);
   const [done, setDone] = React.useState(false);
 
   const [formData, setFormData] = React.useState({
@@ -367,7 +462,7 @@ function SetupWizard({ I }) {
     stripe_live_key: "",
   });
 
-  const onChange = (key, value) => setFormData(prev => ({ ...prev, [key]: value }));
+  const onChange = (key: string, value: any) => setFormData(prev => ({ ...prev, [key]: value }));
 
   const nextStep = () => {
     if (step === 5) {
@@ -413,7 +508,7 @@ function SetupWizard({ I }) {
 
       setDone(true);
       setStep(6);
-    } catch (e) {
+    } catch (e: any) {
       setError(e.response?.data?.detail || String(e));
     } finally {
       setLoading(false);
@@ -433,65 +528,27 @@ function SetupWizard({ I }) {
   };
 
   return (
-    <R root t bt bb br bl theme={I.theme}>
-      <style>{`
-        .switch {
-          position: relative;
-          display: inline-block;
-          width: 50px;
-          height: 26px;
-        }
-        .switch input { opacity: 0; width: 0; height: 0; }
-        .slider {
-          position: absolute;
-          cursor: pointer;
-          top: 0; left: 0; right: 0; bottom: 0;
-          background-color: #444;
-          transition: 0.3s;
-        }
-        .slider.round { border-radius: 26px; }
-        .slider:before {
-          position: absolute;
-          content: "";
-          height: 20px;
-          width: 20px;
-          left: 3px;
-          bottom: 3px;
-          background-color: white;
-          transition: 0.3s;
-          border-radius: 50%;
-        }
-        input:checked + .slider { background-color: #0066ff; }
-        input:checked + .slider:before { transform: translateX(24px); }
-      `}</style>
-      <div style={{
-        maxWidth: "600px",
-        margin: "0 auto",
-        padding: "60px 20px",
-        minHeight: "80vh",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-      }}>
-        <C t style={{ marginBottom: "10px" }}>
+    <div className={`min-h-screen flex flex-col ${I.theme === 'dark' ? 'dark' : ''}`} style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)' }}>
+      <div className="max-w-[600px] mx-auto px-5 py-16 flex-1 flex flex-col justify-center">
+        <div className="flex justify-center mb-2">
           <img
             src={I.logo}
             alt="web10"
-            style={{ height: "40px", marginBottom: "20px" }}
+            className="h-10 mb-5"
           />
-        </C>
+        </div>
         {!done && step > 0 && step < 6 && (
           <StepIndicator current={step} total={6} />
         )}
         {loading ? (
-          <C t style={{ padding: "40px", color: "#aaa" }}>
-            <div style={{ fontSize: "18px" }}>Configuring your node...</div>
-          </C>
+          <div className="text-center py-10">
+            <div className="text-lg" style={{ color: 'var(--color-text-secondary)' }}>Configuring your node...</div>
+          </div>
         ) : (
           renderStep()
         )}
       </div>
-    </R>
+    </div>
   );
 }
 
