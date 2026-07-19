@@ -38,9 +38,19 @@ operator):
 
 ```
 VM_IP=...          # the box's LAN IP (VPN/LAN reachable)
+VM_PUBLIC_IP=...   # public IP (staging/prod DNS target)
+SSH_USER=...       # login user (NOT root on this box)
 CF_ZONE=web10.app
 CF_API_TOKEN=...   # Cloudflare DNS edits
 ```
+
+THE BOX IS THE OPERATOR'S EVERYTHING BOX — a personal machine
+(hostname `all-spark`) that also runs unrelated services and
+desktop software. Extra prime directive: you manage ONLY the
+`edge` and `web10-*` stacks and their volumes. Never stop,
+restart, prune, or reconfigure any container, volume, network, or
+service you didn't deploy from this directory — no matter how
+broken it looks. Report, don't touch.
 
 ```bash
 # 1. read the env file — if it doesn't exist, STOP and ask the
@@ -48,14 +58,17 @@ CF_API_TOKEN=...   # Cloudflare DNS edits
 cat ubuntu-deployment/.env
 
 # 2. ssh in (key auth; the operator's key must already be installed)
-ssh root@$VM_IP
+ssh $SSH_USER@$VM_IP
 
 # 3. prove you're on the right box before touching anything:
+hostname                      # expect: all-spark
 docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}'
-# expect: portainer, nginx-proxy-manager (or npm_app), and the
-# web10-staging stack services (api, ui, rtc, minio, ferretdb,
-# postgres). if you don't see these, you are on the wrong machine
-# — disconnect and report.
+# expect portainer + the edge/web10 stack containers among OTHERS —
+# it's a shared box. if hostname is wrong, disconnect and report.
+# if `docker ps` says permission denied, $SSH_USER isn't in the
+# docker group yet — STOP and ask the operator to run
+# `sudo usermod -aG docker $SSH_USER` (agents have no sudo).
+# the repo's deploy clone lives at /opt/web10 (owned by $SSH_USER).
 ```
 
 Admin UIs (from LAN/VPN, or via SSH tunnel — see README §"How the
@@ -74,24 +87,26 @@ open `http://localhost:9000`.
 
 - Everything runs as Docker containers on the shared external
   `proxy` network (created by `prep-vm.sh`).
-- App stacks are **Portainer stacks** — up to three (`web10-staging`,
-  `web10-dev`, `web10-prod`), ALL pasted from the ONE canonical
-  compose, `docker-compose.ecosystem.yml`, differing only in their
-  stack env vars (`env.staging.example` / `env.dev.example` /
+- Everything web10 runs as **Portainer stacks** (so the whole map is
+  visible in the Portainer UI from the VPN): the `edge` stack (NPM,
+  from `docker-compose.edge.yml` — proxy mappings live in its
+  `npm-data` volume, certs in `npm-letsencrypt`) plus up to three
+  app stacks (`web10-staging`, `web10-dev`, `web10-prod`), ALL
+  pasted from the ONE canonical compose,
+  `docker-compose.ecosystem.yml`, differing only in their stack env
+  vars (`env.staging.example` / `env.dev.example` /
   `env.prod.example` document them). Build contexts are `../api`,
-  `../ui`, `../api/rtc`, `../marketing/*` — Portainer has a clone of
-  this repo for that; the repo on the box is a deploy artifact,
-  never a place to develop.
+  `../ui`, `../api/rtc`, `../marketing/*` — the repo clone on the
+  box (`/opt/web10`) is a deploy artifact, never a place to develop.
 - NPM terminates TLS on 80/443 and forwards over the `proxy` network
   BY STACK-PREFIXED ALIAS (`web10-staging-api`), never by bare
   service name — with several stacks on one network, a bare `api`
   resolves ambiguously across environments and routes traffic
   cross-env.
-- The live `web10-staging` stack may predate the ecosystem compose
-  (deployed from the deleted `docker-compose.staging.yml`, services
-  answering to bare names). If NPM shows bare-name targets, that's
-  why; the next staging redeploy should paste the ecosystem compose +
-  full env set and update the NPM targets to the prefixed aliases.
+- REALITY CHECK before assuming the above: as of 19.07.2026 the live
+  box still runs the pre-runbook edge (root-managed Caddy, bare-name
+  targets) and the old staging compose — see §4 issues #4 and #5 for
+  the migration procedure.
 
 Domain map (zone `web10.app`; `{env}` = staging / dev — dev DNS
 points at the LAN IP and only works on VPN; prod uses bare zone
@@ -184,6 +199,25 @@ Read this before re-diagnosing; these are already understood:
    `web10-prod` stacks (E5/E3), add their NPM proxy hosts + DNS
    records per §2/STAGING-RUNBOOK.md. Note: social/ui bundles stay
    mis-originated until known-issue #1's app-side fixes merge.
+5. **The live edge is NOT NPM yet (found 19.07.2026 evening).** The
+   19.07 staging deploy diverged from the runbook: 80/443 are held
+   by a root-managed **Caddy** container (config
+   `/opt/caddy/Caddyfile`, DNS-01 via a Cloudflare token, proxying
+   BARE service names `api`/`ui`/`rtc`/`minio`). Two problems:
+   (a) the operator's chosen design is NPM-as-Portainer-stack (UI
+   for the mappings, config in the `npm-data` volume) — the Caddy
+   setup has no UI and no managed volume; (b) that Caddyfile is
+   WORLD-READABLE and contains a live CF API token — the operator
+   must `chmod 600` it and ROTATE the token in Cloudflare
+   (consider it burned). MIGRATION (one change at a time, §0.5):
+   deploy the `edge` stack (`docker-compose.edge.yml`) — it will
+   fail to bind 80/443 while Caddy holds them, so: recreate the
+   four staging proxy hosts in NPM first via the :81 UI (they'll
+   go live the moment NPM binds), stop+disable the Caddy
+   container, deploy/restart the edge stack, verify §3-D, THEN
+   the bare-name forward targets must be repointed to
+   stack-prefixed aliases when staging is repasted (issue #4).
+   Expect a few minutes of staging downtime; log it.
 
 When one of these is fixed, update this section in the same PR.
 

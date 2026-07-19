@@ -377,7 +377,11 @@ staging actually deployed. the three beautify items are parallel-safe
        ecosystem compose, create web10-dev (VPN-only, DNS→LAN ip,
        DNS-01 certs) + web10-prod stacks, NPM hosts + DNS records,
        smoke test each. auth-ui/social bundles stay mis-originated
-       until B5/D12 merge — rebuild the stacks after.
+       until B5/D12 merge — rebuild the stacks after. FIRST though:
+       migrate the edge — the live box runs a root-managed Caddy on
+       80/443, not NPM; deploy the edge stack + move the 4 staging
+       vhosts per AGENT-OPS.md §4.5 (and the operator must rotate
+       the CF token exposed in the world-readable Caddyfile).
   ws5: C6 e2e deep sweep + bug hunt (lane C — e2e/** only; local
        stack, no deploy gate). signup-as-a-test + persona seed
        fixtures; the honest bug list is the deliverable.

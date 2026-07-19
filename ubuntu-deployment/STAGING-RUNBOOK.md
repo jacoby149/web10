@@ -84,8 +84,15 @@ and deploys Portainer + Nginx Proxy Manager.
 ### After prep — Portainer + NPM setup
 
 1. **Portainer**: `http://{vm-lan-ip}:9000` — create admin account (from LAN/VPN)
-2. **NPM**: `http://{vm-lan-ip}:81` — create admin account (from LAN/VPN)
-3. **NPM SSL provider**: Settings → SSL → Providers → Add
+2. **The `edge` stack (NPM itself)**: Stacks → Add stack → name it
+   `edge` → paste `docker-compose.edge.yml` → deploy. The proxy runs
+   as a Portainer stack on purpose: every mapping is inspectable in
+   the NPM UI, and all reverse-proxy config persists in the
+   `npm-data` volume (certs in `npm-letsencrypt`) — redeploys and
+   reboots keep the routing.
+3. **NPM**: `http://{vm-lan-ip}:81` — first login
+   `admin@example.com` / `changeme`, change both immediately. Then
+   Settings → SSL → Providers → Add
    - Provider: `cloudflare`
    - API Token: (Cloudflare API token with DNS edit scope for your zone)
 4. **Portainer stack, one per environment**: Stacks → Add stack →
@@ -178,8 +185,8 @@ After ANY redeploy: run the smoke test (below) against that env.
 |----------|----------|
 | Docker volume `{stack}_postgres-data` | FerretDB/DocumentDB data (one per stack) |
 | Docker volume `{stack}_minio-data` | Media blobs (one per stack) |
-| Docker volume `npm-data` | NPM config (proxy rules, certs) |
-| Docker volume `npm-letsencrypt` | Let's Encrypt certificates |
+| Docker volume `edge_npm-data` | ALL reverse-proxy config (NPM proxy hosts + its db) |
+| Docker volume `edge_npm-letsencrypt` | Let's Encrypt certificates |
 | Docker volume `portainer-data` | Portainer database |
 
 Portainer prefixes volume names with the stack name — the three

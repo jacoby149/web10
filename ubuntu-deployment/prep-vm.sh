@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
-# prep-vm.sh — prepare a fresh Ubuntu VM for Portainer + NPM
+# prep-vm.sh — prepare a fresh Ubuntu box: Docker + Portainer + the
+# shared "proxy" network. Everything else (the NPM edge proxy, the
+# web10 env stacks) deploys as Portainer stacks so it's all visible
+# in the Portainer UI.
 #
-# Run this ONCE on a new VM. After it finishes, access Portainer at
-# http://{vm-ip}:9000 and Nginx Proxy Manager at http://{vm-ip}:81.
-# Then import stacks from ubuntu-deployment/ in the Portainer UI.
+# Run this ONCE on a new box. After it finishes, access Portainer at
+# http://{vm-ip}:9000 and deploy the "edge" stack first
+# (docker-compose.edge.yml), then the web10-* stacks.
 #
 # Usage:
 #   curl -fsSL <url> | sudo bash
@@ -19,7 +22,7 @@ NC='\033[0m'
 info() { echo -e "${GREEN}[prep]${NC} $*"; }
 warn() { echo -e "${YELLOW}[warn]${NC} $*"; }
 
-info "=== web10 VM prep (Docker + Portainer + NPM) ==="
+info "=== web10 box prep (Docker + Portainer + proxy network) ==="
 
 export DEBIAN_FRONTEND=noninteractive
 
@@ -44,8 +47,8 @@ else
 fi
 
 # ── 3. Create the shared "proxy" network ──────────────────────────────
-# Nginx Proxy Manager and web10 stacks share this network so NPM can
-# forward traffic to containers by service name.
+# The edge proxy (NPM stack) and web10 stacks share this network so
+# NPM can forward traffic to containers by stack-prefixed alias.
 if ! docker network inspect proxy &>/dev/null; then
   info "Creating shared 'proxy' network..."
   docker network create proxy
@@ -65,20 +68,10 @@ docker run -d \
   portainer/portainer-ce:latest
 
 # ── 5. Nginx Proxy Manager ───────────────────────────────────────────
-info "Deploying Nginx Proxy Manager..."
-docker volume create npm-data
-docker volume create npm-letsencrypt
-
-docker run -d \
-  --name npm \
-  --restart unless-stopped \
-  --network proxy \
-  -p 80:80 \
-  -p 443:443 \
-  -p 81:81 \
-  -v npm-data:/data \
-  -v npm-letsencrypt:/etc/letsencrypt \
-  jc21/nginx-proxy-manager:latest
+# NOT deployed here — NPM runs as the FIRST Portainer stack ("edge",
+# from docker-compose.edge.yml) so the proxy itself is visible and
+# manageable in the Portainer UI and its config/certs live in named
+# volumes. See the runbook.
 
 # ── 6. Cloudflare CLI (optional, for DNS management) ──────────────────
 info "Installing cloudflare CLI..."
@@ -92,16 +85,16 @@ info ""
 info "=== VM prep complete ==="
 info ""
 info "Portainer:      http://$(hostname -I | awk '{print $1}'):9000"
-info "Nginx Proxy Mgr: http://$(hostname -I | awk '{print $1}'):81"
 info ""
 info "Next steps:"
 info "  1. Log into Portainer (create admin account)"
-info "  2. Log into Nginx Proxy Manager (create admin account)"
-info "  3. In NPM: Settings → SSL → Providers → add Cloudflare DNS provider"
-info "     (API token with DNS edit scope for your zone)"
-info "  4. In Portainer: Stacks → Add stack (web10-staging/-dev/-prod) →"
+info "  2. In Portainer: Stacks → Add stack → name 'edge' → paste"
+info "     docker-compose.edge.yml → deploy. Then log into NPM at :81"
+info "     (admin@example.com/changeme — change immediately) and add the"
+info "     Cloudflare DNS provider under Settings → SSL"
+info "  3. In Portainer: Stacks → Add stack (web10-staging/-dev/-prod) →"
 info "     paste docker-compose.ecosystem.yml + env vars from env.{env}.example"
-info "  5. In NPM: Proxy Hosts → add forward hosts for each subdomain"
+info "  4. In NPM: Proxy Hosts → add forward hosts for each subdomain"
 info "     (target = stack-prefixed alias e.g. web10-dev-api, port = 80,"
 info "     SSL + Let's Encrypt; DNS-01 challenge for VPN-only dev vhosts)"
 info ""

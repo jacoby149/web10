@@ -30,6 +30,19 @@ the stacks, NPM hosts, DNS records; rebuild after B5/D12 land.
 Also queued E6 push-to-deploy CI/CD (dev push → dev stack, release
 → prod stack): Portainer GitOps polling first, Cloudflare-Tunnel'd
 stack webhooks later — NO self-hosted runner (public repo).
+Box recon (19.07 evening, SSH as the operator's user): the live
+edge is NOT NPM — a root-managed Caddy container holds 80/443 with
+bare-name targets and a world-readable Caddyfile embedding a live
+CF API token (operator: chmod 600 + ROTATE). Operator's chosen
+design = NPM-as-a-Portainer-stack (UI for every mapping, config in
+a volume): NEW docker-compose.edge.yml (npm-data volume = all
+proxy config, npm-letsencrypt = certs); prep-vm.sh now installs
+only Docker + Portainer + the proxy network (NPM comes from the
+edge stack); Caddy→NPM migration procedure in AGENT-OPS.md §4.5;
+.env.example gains SSH_USER/VM_PUBLIC_IP (box SSH is a user
+account, not root). AGENT-OPS also gains the everything-box
+guardrail: the host is a personal machine — agents manage ONLY
+the edge/web10-* stacks, never other containers.
 
 1.0.62 || 19.07.2026
 environments + ops + e2e depth. plan.txt CROSS-CUTTING deployment now

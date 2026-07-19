@@ -17,6 +17,7 @@ the rules. Log every session in `OPS-LOG.md`.
 | `AGENT-OPS.md` | Field manual for agents operating the box (SSH, diagnose, redeploy, guardrails) |
 | `OPS-LOG.md` | Append-only ledger of box changes — read before ops, write after |
 | `prep-vm.sh` | One-shot VM prep: Docker + Portainer + NPM + shared `proxy` network |
+| `docker-compose.edge.yml` | The `edge` stack: NPM itself as a Portainer stack — proxy mappings in the `npm-data` volume, visible/editable in the NPM UI |
 | `docker-compose.ecosystem.yml` | THE stack file — one parameterized compose, deployed as three Portainer stacks (staging / dev / prod), whole ecosystem (node + social + marketing) |
 | `env.staging.example` / `env.dev.example` / `env.prod.example` | Per-stack env vars to paste into Portainer (one file per environment) |
 | `.env.example` | Template for local secrets (`CF_API_TOKEN`, zone, VM IPs). Copy to `.env` — gitignored |
@@ -32,14 +33,18 @@ the rules. Log every session in `OPS-LOG.md`.
 sudo bash prep-vm.sh          # Docker + Portainer + NPM + "proxy" network
 
 # 2. Portainer — http://{vm-lan-ip}:9000  (from LAN/VPN only, see below)
-#    Create the admin account, then: Stacks → Add stack → name it per
-#    environment (web10-staging / web10-dev / web10-prod) → paste
-#    docker-compose.ecosystem.yml → set the env vars from the matching
-#    env.{env}.example file (ALL of them — the stack refuses to deploy
-#    with any missing, by design) → Deploy.
+#    Create the admin account, then deploy the stacks IN ORDER:
+#      a. "edge" — paste docker-compose.edge.yml (NPM itself; its
+#         config lives in the npm-data volume)
+#      b. one per environment (web10-staging / web10-dev / web10-prod)
+#         — paste docker-compose.ecosystem.yml + env vars from the
+#         matching env.{env}.example file (ALL of them — the stack
+#         refuses to deploy with any missing, by design)
 
 # 3. Nginx Proxy Manager — http://{vm-lan-ip}:81  (LAN/VPN only)
-#    Create the admin account, then add proxy hosts (SSL tab: Force
+#    First login admin@example.com / changeme — change both. Then
+#    add the Cloudflare DNS provider (Settings → SSL) and the proxy
+#    hosts (SSL tab: Force
 #    HTTPS + a Let's Encrypt cert on each; DNS-01 challenge for the
 #    VPN-only dev vhosts). Forward targets use the stack-prefixed
 #    aliases — full per-env tables in STAGING-RUNBOOK.md, e.g. staging:
