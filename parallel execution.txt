@@ -288,7 +288,7 @@ LANE E — infrastructure / deployment (owns: proxmox provisioning,
        ops procedures: ubuntu-deployment/AGENT-OPS.md + OPS-LOG.md.
 [✓ 1.0.38] E2. marketing deploy: marketing-ui + marketing-api on proxmox,
        caddy reverse proxy with auto-TLS. internal staging complete.
-  [~] E3. PROD env — the whole ecosystem public (specced in plan.txt
+  [✓ 1.0.68] E3. PROD env — the whole ecosystem public (specced in plan.txt
       CROSS-CUTTING deployment "environments"): prod marketing-ui +
       marketing-api + node (api, ui, social, rtc, minio, db) behind
       NPM with public cloudflare DNS + router-forwarded 80/443 +
@@ -300,7 +300,7 @@ LANE E — infrastructure / deployment (owns: proxmox provisioning,
       hosts + DNS per README.md and AGENT-OPS.md §4.2 migration
       order (needs SSH/.env + CF creds; watch the
       api.web10.app/auth.web10.app cutover caution).
-  [~] E5. DEV env — the SAME whole ecosystem, VPN-only, on the same
+  [✓ 1.0.68] E5. DEV env — the SAME whole ecosystem, VPN-only, on the same
       linux box ubuntu-deployment/ preps (parallel to E3, and to
       the B5/D12/D13 ui revamp): cloudflare DNS for dev vhosts
       (*.dev.web10.app or similar) pointing at the box's INTERNAL

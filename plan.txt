@@ -1690,7 +1690,7 @@ volumes, env file) — never two divergent composes. (a public staging
 env was considered and CUT the same day — overkill on one lean box;
 the short-lived legacy *.staging deploy gets decommissioned during
 the box migration, AGENT-OPS.md §4):
-[~] PROD env — the whole ecosystem public: marketing-ui +
+[✓ 1.0.68] PROD env — the whole ecosystem public: marketing-ui +
     marketing-api + the node (api, ui, social, rtc, minio, db).
     public Cloudflare DNS -> router-forwarded 80/443 -> NPM with
     real TLS certs (DNS-01 via cloudflare). this is E3 executed:
@@ -1698,7 +1698,7 @@ the box migration, AGENT-OPS.md §4):
     (repo side merged 1.0.66: docker-compose.ecosystem.yml +
     env.prod.example + social prod Dockerfile. remaining: box
     execution per README.md — lane E queue has detail.)
-[~] DEV env — the SAME whole ecosystem, VPN-only: cloudflare DNS
+[✓ 1.0.68] DEV env — the SAME whole ecosystem, VPN-only: cloudflare DNS
     records (dev.web10.app / *.dev.web10.app or similar) pointing
     at the box's INTERNAL LAN ip. the records resolve publicly but
     route nowhere unless you're on the VPN — zero exposure, no
