@@ -47,7 +47,54 @@ DEFAULT_QUERIES = [
     "youtube strike",
 ]
 
-# Title patterns that indicate the creator's OWN burn (not just discussing the topic)
+# M0 fit assessment: M0 serves photo/text/community-first creators.
+# YES = content that naturally lives as photo/text/community
+# POOR = pure-video formats with no text equivalent
+# PARTIAL = mixed; some content translates, some doesn't
+M0_YES_SIGNALS = [
+    "recipe", "cooking", "food", "diet", "keto", "carnivore", "meal",
+    "craft", "diy", "homemade", "homemaking", "knit", "sew", "paint",
+    "fashion", "style", "thrif", "outfit", "wardrobe",
+    "tutorial", "how to", "learn", "education", "analytics", "data",
+    "tableau", "excel", "sql", "programming", "code",
+    "photography", "photo", "illustration", "drawing", "art",
+    "lifestyle", "home decor", "interior", "garden", "plant",
+    "travel", "guide", "tips", "review",
+    "podcast", "show notes", "interview",
+    "book", "reading", "literature", "essay", "writing",
+    "fitness", "workout", "yoga", "health", "nutrition",
+    "finance", "investing", "crypto", "business", "economics",
+    "newsletter", "blog", "text", "community", "forum",
+    "substack", "patreon", "skool", "whop",
+]
+M0_POOR_SIGNALS = [
+    "gaming", "gameplay", "warzone", "roblox", "minecraft", "fortnite",
+    "reaction", "react to", "reacting",
+    "music video", "cover song", "remix", "dj",
+    "sports highlight", "esports",
+    "prank", "challenge", "stunt",
+    "vlog", "daily vlog", "day in my life",  # pure video diary
+    "animation", "animated",  # video-only medium
+    "cinematic", "film", "movie",
+    "ai-generated visuals", "ai video",
+]
+
+
+def assess_m0_fit(title: str, description: str) -> str:
+    """Assess whether a creator's content format fits M0 (photo/text/community-first)."""
+    text = (title + " " + description).lower()
+    yes_score = sum(1 for s in M0_YES_SIGNALS if s in text)
+    poor_score = sum(1 for s in M0_POOR_SIGNALS if s in text)
+
+    if yes_score >= 2:
+        return "YES"
+    if yes_score >= 1 and poor_score == 0:
+        return "YES"
+    if poor_score >= 2:
+        return "POOR"
+    if poor_score >= 1 and yes_score == 0:
+        return "POOR"
+    return "PARTIAL"
 BURN_PATTERNS = [
     "i got", "i've got", "my channel", "my video", "my content",
     "i was banned", "i got banned", "they banned", "got demonetized",
@@ -417,10 +464,7 @@ def main():
             "contactHints": contact_hints,
             "description": ch.get("description", "")[:200],
             "sourceQuery": v["_query"],
-            "m0Fit": "POOR" if "video" in (v["title"] + ch.get("description", "")).lower() and not any(
-                k in ch.get("description", "").lower()
-                for k in ["text", "blog", "newsletter", "community", "forum", "substack", "patreon"]
-            ) else "PARTIAL",
+            "m0Fit": assess_m0_fit(v["title"], ch.get("description", "")),
         })
 
     # Deduplicate by channel (keep the video with highest views as the burn signal)
