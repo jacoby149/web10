@@ -9,6 +9,17 @@ reporting the PR ready. Changelog conflicts defused: .gitattributes sets
 CHANGELOG.md merge=union so parallel branches' entries union instead of
 conflicting on local merges, with a documented renumber-after-merge step
 (top entry must stay the unique highest; changelog CI already enforces).
+B4.5 M0 slice: Studio monetization-menu screen — the money shot for the M0
+demo video. New ui/src/components/Studio/ with YouTube-Studio mental model:
+YPP-style unlock ladder (rungs 0-4, rung 0 unlocked, rungs 1-4 locked with
+progress bars showing "X more to unlock Y"). Three rung-0 one-button cards:
+(1) Memberships & Tips — wired to Stripe Connect rails, one-click enable,
+~97% payout chip; (2) Amazon Associates — paste-tag persistence (localStorage
++ wapi.create fallback), compliance chips (affiliate disclosure auto, no
+cloaking, 3-sales/180-days countdown); (3) Direct Deals — operator-entered
+deal form (title, sponsor, amount, description), publish, persist to
+localStorage + ads collection fallback. Studio link in SideBar, "studio"
+mode in App.tsx router. 30 new vitest tests (73 total, all green).
 
 1.0.54 || 19.07.2026
 README rewritten to match the current stack: dead references removed
