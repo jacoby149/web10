@@ -1,3 +1,35 @@
+1.0.64 || 19.07.2026
+B5: ui/ leveled up to the design.md standard + the urgent staging
+origin unblock. Staging fix: authAdapter.ts/config.ts no longer
+hardcode api/auth/rtc.web10.app — backend origins are build-time env
+(REACT_APP_*/VITE_* both accepted, prod values as fallbacks) wired
+through ui/Dockerfile ARGs; .context/laneE-ui-build-args.md documents
+the exact build args for docker-compose.staging.yml (fixes
+AGENT-OPS.md §4.1 known issue #1). Design level-up: tokens.css
+migrated verbatim to design.md §13 (dark-first zinc + violet, "sync
+don't fork" header); self-hosted Inter/Space Grotesk/JetBrains Mono
+via @fontsource-variable (no font CDN); components/ui primitive kit
+(Button/Input/Label copied from web10-social's idiom + Card/Badge/
+Skeleton/Dialog built in it); ALL inline style={{}} burned down across
+every screen (SetupWizard alone had 72); SideBar's literal
+"style={{...}}"-string-in-className bug fixed; dead vendored Bulma
+(ui/src/assets/bulma/) and dead images deleted; invisible FontAwesome
+fa-* icons (never loaded) replaced with Lucide; chatscope dependency
+dropped (Search → house Input); ghbtns iframe → token-styled link.
+Screens: Studio restyled first (tabular-nums, success-green reserved
+for money), auth as centered one-column narrative ("this is your
+node"), consent/contracts with explicit permission Badges and
+destructive confirmations that got MORE explicit, Settings/Config on
+Card sections with skeleton loading states; new MobileNav bottom bar
+(design.md §9) on all app screens. Brand: hub.png/hub.jpg (Apple's App
+Store logo — trademark) and react-atom logo512/192 replaced with D13's
+keys-mark icon set (NOTE: design.md §3's alternative.png row is wrong —
+that file is a guitar-player illustration, not the keys mark; D13
+flagged, follow-up edit to design.md queued). Pre-existing bugs fixed
+in passing: SignupForm betacode null-deref, Subscription plan shown
+via placeholder, Wipe button styled neutral. 73/73 tests green, clean
+tsc+vite build; screenshots at 1280+375 for all 7 screens in PR.
+
 1.0.62 || 19.07.2026
 environments + ops + e2e depth. plan.txt CROSS-CUTTING deployment now
 specs TWO full-ecosystem environments on the ubuntu-deployment box:

@@ -120,7 +120,7 @@ LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
       window so the demo video shows the money screen -- visually
       complete + rung-0 functional; deeper wiring (unlock ladder,
       adapters) follows in weeks 5-10.
-  [ ] B5. level-up ui/ to the design.md standard (READ design.md
+  [✓ 1.0.64] B5. level-up ui/ to the design.md standard (READ design.md
       FIRST — repo root; it is the law for all ui work). tokens.css
       migrated to design.md §13 (dark-first violet), inline styles
       out, dead vendored bulma dir deleted, SideBar.tsx className/

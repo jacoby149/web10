@@ -405,7 +405,7 @@ keys marks), the canonical token set, and the ui definition of done
 (the screenshot test; pr screenshots at desktop + 375px). every ui
 agent reads it before working, every time (CLAUDE.md/AGENTS.md gate).
 the three items below are PARALLEL — disjoint directories:
-[ ] level-up ui/ to the design.md standard (lane B, item B5):
+[✓ 1.0.64] level-up ui/ to the design.md standard (lane B, item B5):
     tokens.css migrated to design.md §13 (dark-first violet), inline-
     style habit burned down, dead vendored bulma dir deleted,
     SideBar.tsx className/style bug fixed, components/ui primitives
