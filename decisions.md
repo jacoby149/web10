@@ -9,6 +9,30 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D23 — One design language, dark-first violet, design.md is the law [decided]
+The three frontends had drifted into three styling worlds (ui/: light-first
+blue Tailwind + inline styles; web10-social: dark shadcn violet; marketing-ui:
+Bulma with hardcoded hex), the "shared tokens" existed only as a comment, and
+the repo shipped boilerplate as brand — the React atom as logo512.png and
+Apple's App Store glyph as hub.png (a trademark problem, not a taste problem).
+Decision: a single binding standard, `design.md` at the repo root, that every
+agent must read before touching any user-facing surface (gated in CLAUDE.md +
+AGENTS.md). Its calls: dark-first everywhere (the only real logos are
+white-on-transparent; the creator world — Kick/Twitch/OBS/Discord — lives
+dark; D20's bar is Kick/Twitch-grade slick); brand accent is the violet
+already in web10-social (#8b5cf6 on zinc #09090b); canonical marks are the
+keys lockup (`marketing-ui/.../logo_white.png`) and square keys mark
+(`web10-social/public/alternative.png`) — files named `logo*.png` are NOT
+logos and get purged; type is self-hosted Inter (UI) + Space Grotesk
+(display) + JetBrains Mono (code), never Google-CDN'd; tokens are one
+Tailwind v4 @theme block (design.md §13) copied verbatim per app; marketing-ui
+migrates off Bulma entirely (already rejected in D22); quality is enforced by
+the screenshot test + PR screenshots (desktop + 375px) in design.md §12.
+Rejects: per-app palettes, light-first defaults, a shared npm package for
+tokens (premature — verbatim copies with a sync header), FontAwesome (CDN
+kit = privacy leak; Lucide only), and treating brand assets as "just images"
+— shipping someone else's trademark is a legal bug.
+
 ### D22 — UI stack: Tailwind CSS + shadcn/ui, replacing rectangles-npm [decided]
 rectangles-npm is a homemade layout framework only one person understands;
 uis built on it read as engineering prototypes, not products. The replacement
