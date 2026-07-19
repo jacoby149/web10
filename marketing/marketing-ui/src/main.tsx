@@ -4,7 +4,8 @@ import { BrowserRouter, useLocation } from 'react-router-dom'
 import App from './App.tsx'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ReportBug } from './components/ReportBug'
-import './assets/bulma/css/bulma.min.css'
+import { Button } from './components/ui/button'
+import './index.css'
 
 const MARKETING_API = (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('marketing_api')) ||
   (import.meta.env?.VITE_MARKETING_API || 'http://marketing-api.localhost')
@@ -27,12 +28,14 @@ function AnalyticsTracker() {
 
 function ErrorFallback({ onReport, onReload }: { onReport: () => void; onReload: () => void }) {
   return (
-    <div className="section has-text-centered">
-      <h1 className="title is-3">Something went wrong</h1>
-      <p className="subtitle is-5 has-text-grey">The page crashed. You can report what happened or try reloading.</p>
-      <div className="buttons is-centered">
-        <button className="button is-light" onClick={onReload}>Reload</button>
-        <button className="button is-primary" onClick={onReport}>Send Report</button>
+    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background px-6 text-center text-foreground">
+      <h1 className="font-display text-2xl font-bold">Something went wrong</h1>
+      <p className="max-w-md text-muted-foreground">
+        The page crashed. You can report what happened or try reloading.
+      </p>
+      <div className="flex gap-3">
+        <Button variant="outline" onClick={onReload}>Reload</Button>
+        <Button variant="brand" onClick={onReport}>Send Report</Button>
       </div>
     </div>
   )
