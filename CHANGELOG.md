@@ -1,3 +1,12 @@
+1.0.49 || 18.07.2026
+wave-0 security fixes: CORS tightened — allow_origins=["*"] replaced
+with origins derived from CORS_SERVICE_MANAGERS + PROVIDER settings;
+bare except clauses removed (twilio.py catches TwilioRestException,
+stripe.py catches StripeError, auth.py certify() catches only
+PyJWTError/ValueError/TypeError); provider URL validation added to
+certify_with_remote_provider (scheme allowlist, private-IP/localhost
+SSRF guard, length cap, 10s fetch timeout). 280 api tests green.
+
 1.0.48 || 18.07.2026
 plan: ui stability specced end to end. the thin playwright line in
 CROSS-CUTTING quality/testing expanded into a real item: playwright-

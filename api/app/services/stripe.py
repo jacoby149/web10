@@ -178,7 +178,7 @@ def create_dev_pay_session(customer_id,bus_id,pay_data):
                 }
             }
         )
-    except:
+    except stripe.error.StripeError:
         raise exceptions.BUSINESS_NOT_READY
     return checkout_session["url"]
 
