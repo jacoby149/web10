@@ -1,3 +1,11 @@
+1.0.58 || 19.07.2026
+A5: P4 per-request metering events. emit_event() in documentdb.py writes
+user/action/service/site/ts to a capped web10.metering_events collection
+(100k max, METERING_EVENTS_MAX). Wired into all CRUD/aggregate endpoints
+in crud.py as fire-and-forget (try/except — never crashes the request).
+5 new endpoint tests verify events on create/read/update/delete/aggregate.
+279 api tests green.
+
 1.0.57 || 19.07.2026
 PR + changelog workflow hardening for the parallel-agent conveyor.
 AGENTS.md/CLAUDE.md (and the Conductor prompt) now require, right after
