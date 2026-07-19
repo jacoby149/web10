@@ -1,4 +1,4 @@
-1.0.48 || 18.07.2026
+1.0.49 || 18.07.2026
 B2.5: ui makeover — rectangles-npm and react-bulma-components ripped out
 of ui/; replaced with Tailwind CSS v4 + CSS variable design tokens
 (ui/src/styles/tokens.css: color palette, type scale, spacing, radius,
@@ -8,7 +8,7 @@ requests, settings, setup wizard, config page. Shared components
 replaces Bulma cards everywhere. Form inputs use consistent rounded
 inputs with icon prefixes. 43/43 vitest tests green.
 
-1.0.49 || 18.07.2026
+1.0.48 || 18.07.2026
 plan: ui stability specced end to end. the thin playwright line in
 CROSS-CUTTING quality/testing expanded into a real item: playwright-
 in-docker against the compose stack, ~6-10 smoke journeys across all

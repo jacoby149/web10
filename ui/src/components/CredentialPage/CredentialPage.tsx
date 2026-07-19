@@ -1,4 +1,3 @@
-import { R } from 'rectangles-npm'
 import TopBar from '../shared/TopBar';
 import SideBar from '../shared/SideBar';
 import LoginForm from './LoginForm';
