@@ -38,10 +38,10 @@ encryptor 55, marketing-api smoke). 1.0.40 landed the endpoint-level
 permission-matrix suite (45 new tests through FastAPI routes: auth
 flows, CRUD, aggregate, star protection, forged-token rejection,
 scoped-token enforcement, metering/billing, certify, system — 280
-total api tests green). still OPEN: the small security fixes below
-(CORS, bare except, provider url validation), pytest ports of the
-old 57-test exporter mapper suite (marketing-api), and the js
-workflow's typecheck/build escape hatches (both run continue-on-
+total api tests green). 1.0.49 landed the small security fixes (CORS
+tightened, bare excepts removed, provider URL SSRF guard). still OPEN:
+pytest ports of the old 57-test exporter mapper suite (marketing-api),
+and the js workflow's typecheck/build escape hatches (both run continue-on-
 error -- tests report red, a non-compiling build doesn't; see
 plan.txt ci/cd).
 
@@ -161,7 +161,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       expo 52, crypto core (hkdf, ed25519/x25519, xchacha20), wallet
       persistence, tabbed UI, 55 tests. the rtc key channel + sdk
       crypto integration still waits for A/C (phase 11 proper).
-  [✓ 1.0.48] D4. P8 killer app M0 slice (data layer): post + feed
+  [✓ 1.0.50] D4. P8 killer app M0 slice (data layer): post + feed
       (chronological + sort dropdown ONLY -- lens/chatbox is CUT to
       later.md, D20) + profile + dms. full conventions-schema data
       layer in src/data/ (posts, feed, profile, contacts, dms,

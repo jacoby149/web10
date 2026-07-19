@@ -1,4 +1,4 @@
-1.0.49 || 18.07.2026
+1.0.50 || 18.07.2026
 D4: web10-social data layer — full conventions-schema stack for the M0
 killer app slice. new src/data/ with typed modules: posts (CRUD + media
 upload via API presigned URLs), feed (chronological inbox + sort dropdown:
@@ -10,6 +10,15 @@ Web10SocialAdapter wired with all 30+ new data-layer methods alongside
 legacy adapter (backward compat). SMR terms extended for profile, contacts,
 inbox, comments, reactions, media services. 55 new vitest tests (227 total,
 all green). screens deferred to D2.5 post-B2.5 tokens.
+
+1.0.49 || 18.07.2026
+wave-0 security fixes: CORS tightened — allow_origins=["*"] replaced
+with origins derived from CORS_SERVICE_MANAGERS + PROVIDER settings;
+bare except clauses removed (twilio.py catches TwilioRestException,
+stripe.py catches StripeError, auth.py certify() catches only
+PyJWTError/ValueError/TypeError); provider URL validation added to
+certify_with_remote_provider (scheme allowlist, private-IP/localhost
+SSRF guard, length cap, 10s fetch timeout). 280 api tests green.
 
 1.0.48 || 18.07.2026
 plan: ui stability specced end to end. the thin playwright line in
