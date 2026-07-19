@@ -128,18 +128,20 @@ LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
       nav shell, hub.png (apple's app store logo — trademark,
       replace) + react-atom icons swapped for the real keys marks
       (design.md §3). studio = the money screen, highest stakes.
-      ALSO (urgent, staging is live-broken on this): parameterize
-      the ui's backend origins — ui/src/interfaces/authAdapter.ts +
-      ui/src/config.ts hardcode api.web10.app/auth.web10.app for
-      prod builds, so auth.staging.web10.app ships a bundle calling
-      the wrong api (see ubuntu-deployment/AGENT-OPS.md §4.1).
+      ALSO (urgent, the dev/prod deploys are gated on this):
+      parameterize the ui's backend origins —
+      ui/src/interfaces/authAdapter.ts + ui/src/config.ts hardcode
+      api.web10.app/auth.web10.app for prod builds, so any deployed
+      env ships a bundle calling the wrong api (see
+      ubuntu-deployment/AGENT-OPS.md §4.1).
       build-time env (REACT_APP_*/VITE_* both allowed by
-      vite.config.js) + Dockerfile ARG; leave a .context note for
-      lane E to pass the args in docker-compose.staging.yml.
+      vite.config.js) + Dockerfile ARG. LANDED with the names
+      REACT_APP_API_ORIGIN / REACT_APP_AUTH_ORIGIN /
+      REACT_APP_RTC_ORIGIN (full origins) + REACT_APP_DEFAULT_API
+      (host); docker-compose.ecosystem.yml passes exactly these.
       acceptance: design.md §12 (screenshot test, pr screenshots
-      desktop + 375px, tokens-only, all states designed) + a
-      staging rebuild can point at staging domains without a code
-      edit.
+      desktop + 375px, tokens-only, all states designed) + an env
+      rebuild can point at dev/prod domains without a code edit.
 
 LANE C — greenfield services  (owns: sdk/, mcp/, new dirs)
   [✓ 1.0.25] C1. P5 media service (presigned urls, minio profile,
@@ -262,6 +264,17 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       variants still open, no tracing tool in-environment. flagged:
       design.md §3's alternative.png does not contain the keys mark —
       needs a design.md correction (not done here, out of lane).
+  [ ] D14. parameterize web10-social's backend origins (small,
+      gates the dev/prod social deploys the same way B5's origins
+      fix gates the auth ui): Web10SocialAdapter.ts hardcodes
+      auth.web10.app/rtc.web10.app for non-local builds. read
+      VITE_API_ORIGIN / VITE_AUTH_ORIGIN / VITE_RTC_ORIGIN from
+      import.meta.env with the current values as fallbacks — the
+      Dockerfile ARGs already exist and
+      ubuntu-deployment/docker-compose.ecosystem.yml already passes
+      them (see AGENT-OPS.md §4.1). acceptance: an env rebuild
+      points social at dev/prod domains without a code edit; tests
+      stay green.
 
 
 
@@ -270,7 +283,7 @@ LANE E — infrastructure / deployment (owns: proxmox provisioning,
 [✓ 1.0.60] E1. proxmox staging node: Portainer + Nginx Proxy Manager
        infra (prep-vm.sh, docker-compose.staging.yml self-contained stack,
        Cloudflare DNS plan). ubuntu-deploy.sh replaced by Portainer UI
-       approach. STAGING-RUNBOOK.md updated. DEPLOYED 19.07.2026:
+       approach. README.md updated. DEPLOYED 19.07.2026:
        api live at staging.web10.app, ui serves at
        auth.staging.web10.app but is broken by hardcoded origins
        (lane B fix queued in B5); rtc/minio DNS records missing;
@@ -278,12 +291,19 @@ LANE E — infrastructure / deployment (owns: proxmox provisioning,
        ops procedures: ubuntu-deployment/AGENT-OPS.md + OPS-LOG.md.
 [✓ 1.0.38] E2. marketing deploy: marketing-ui + marketing-api on proxmox,
        caddy reverse proxy with auto-TLS. internal staging complete.
-  [ ] E3. PROD env — the whole ecosystem public (specced in plan.txt
+  [~] E3. PROD env — the whole ecosystem public (specced in plan.txt
       CROSS-CUTTING deployment "environments"): prod marketing-ui +
       marketing-api + node (api, ui, social, rtc, minio, db) behind
       NPM with public cloudflare DNS + router-forwarded 80/443 +
       real TLS. infra panels stay LAN/VPN-only (E1 security model).
-  [ ] E5. DEV env — the SAME whole ecosystem, VPN-only, on the same
+      REPO SIDE DONE (1.0.66): docker-compose.ecosystem.yml (one
+      parameterized compose, dev + prod — the staging env was cut),
+      env.prod.example, social prod Dockerfile, runbook. REMAINING:
+      box execution — create the web10-prod Portainer stack + NPM
+      hosts + DNS per README.md and AGENT-OPS.md §4.2 migration
+      order (needs SSH/.env + CF creds; watch the
+      api.web10.app/auth.web10.app cutover caution).
+  [~] E5. DEV env — the SAME whole ecosystem, VPN-only, on the same
       linux box ubuntu-deployment/ preps (parallel to E3, and to
       the B5/D12/D13 ui revamp): cloudflare DNS for dev vhosts
       (*.dev.web10.app or similar) pointing at the box's INTERNAL
@@ -291,10 +311,39 @@ LANE E — infrastructure / deployment (owns: proxmox provisioning,
       port-forwards, TLS still works (DNS-01 needs no inbound).
       second Portainer stack from the same parameterized compose,
       own volumes + env file. promotion flow (dev soak -> prod
-      redeploy) documented in STAGING-RUNBOOK.md.
+      redeploy) documented in README.md.
+      REPO SIDE DONE (1.0.66): compose + env.dev.example + DNS-01
+      procedure + promotion flow all in README.md.
+      REMAINING: box execution — web10-dev stack, *.dev DNS records
+      pointing at the LAN ip, DNS-01 certs. ui/social bundles wire
+      to dev origins only after B5/D12's env fixes merge (compose
+      already passes the build args).
   [ ] E4. automated provisioning: terraform or ssh-api script +
       ansible for idempotent VM/LXC setup. don't rush — manual is
       fine until E2 works.
+  [ ] E6. push-to-deploy CI/CD (gated on E5/E3 stacks existing):
+      push to dev -> web10-dev redeploys, release on main ->
+      web10-prod redeploys. the repo is PUBLIC, so NO self-hosted
+      github runner (github's own guidance; fork PRs + a runner in
+      the docker group on the box = remote root). two sanctioned
+      designs, in order:
+      (1) NOW, zero new surface: Portainer git-backed stacks with
+          GitOps polling — point each stack at the repo (ref dev /
+          main, compose path ubuntu-deployment/
+          docker-compose.ecosystem.yml), auto-update ~5min. push
+          merges, box pulls. no inbound, no GH secrets, ~10 min of
+          Portainer clicking.
+      (2) LATER, instant deploys: Portainer stack webhooks exposed
+          ONLY through a Cloudflare Tunnel (cloudflared, outbound-
+          only — the 80/443-only router rule stays intact) + a tiny
+          deploy job appended to ci (curl the webhook on push to
+          dev / release). never a public proxy host to :9000 (prime
+          directive 1).
+      note: cd.yml's GHCR images can NOT serve the frontends across
+      envs yet — ui/social/marketing bake origins at BUILD time, so
+      per-env build-on-box stays correct until a runtime-config
+      refactor; the api/rtc images are env-agnostic and could
+      switch to pulls anytime.
 
 WHAT MUST STAY SEQUENTIAL (don't try to parallelize these)
 ----------------------------------------------------------
@@ -325,11 +374,11 @@ M3 "the network"         = encryption integration (A rtc + C2 sdk
 CURRENT CONDUCTOR BOARD (as of 19.07.2026 — keep this section fresh)
 --------------------------------------------------------------------
 we are in timeline.md WEEK 0/1 — the M0 sprint (video by ~aug 17).
-the data layers, studio M0 slice, e2e harness, and staging infra are
+the data layers, studio M0 slice, e2e harness, and deploy infra are
 all merged. THIS WEEK'S PUSH: the design level-up (design.md landed
 as the binding ui standard — every ui agent reads it first) + getting
-staging actually deployed. the three beautify items are parallel-safe
-(disjoint directories).
+dev and prod actually deployed. the three beautify items are
+parallel-safe (disjoint directories).
 
   ws1: [✓ 1.0.65] B5 level-up ui/ to design.md (lane B — ui/**) — merged
   ws2: [✓ 1.0.64] D12 level-up web10-social to design.md (lane D —
@@ -340,12 +389,19 @@ staging actually deployed. the three beautify items are parallel-safe
        the shared brand asset debt (design.md §3) — icons + og-image
        done and dropped in .context/brand-assets/ for B5/D12 to apply;
        svg vectorization still open (no tracing tool available).
-  ws4: staging IS deployed (19.07.2026 — auth.staging.web10.app is
-       live but broken-on-arrival). first job: triage the live
-       staging against ubuntu-deployment/AGENT-OPS.md (ssh in, read
-       container logs, fix or file). then E5 dev env (VPN-only,
-       whole ecosystem — cloudflare DNS -> internal ip) and E3 prod
-       env (public marketing-ui + ui + social) on the same box.
+  ws4: E5/E3 REPO side merged in 1.0.66 (one parameterized
+       docker-compose.ecosystem.yml for dev/prod incl. social +
+       marketing, env.{dev,prod}.example, edge NPM stack, runbook
+       in README.md). staging as an env was CUT 19.07 (dev + prod
+       only). what's left is BOX EXECUTION, the full ordered
+       migration in AGENT-OPS.md §4.2: stop legacy caddy → edge NPM
+       stack → dev/prod DNS (dev → LAN ip, DNS-01 certs) →
+       web10-dev + web10-prod stacks + NPM hosts → smoke tests →
+       decommission the legacy *.staging stack/records/caddy.
+       B5's ui origins fix is MERGED (1.0.65) — a fresh stack build
+       serves per-env origins; only social still needs D14. operator
+       prerequisites: docker group for the ssh user, rotate the CF
+       token exposed in the world-readable Caddyfile.
   ws5: C6 e2e deep sweep + bug hunt (lane C — e2e/** only; local
        stack, no deploy gate). signup-as-a-test + persona seed
        fixtures; the honest bug list is the deliverable.

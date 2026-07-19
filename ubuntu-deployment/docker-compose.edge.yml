@@ -1,0 +1,45 @@
+# edge stack — Nginx Proxy Manager as a Portainer stack.
+#
+# Deploy this FIRST (Portainer → Stacks → Add stack → name: edge),
+# before any web10-* stack. Running NPM as a Portainer stack (instead
+# of a raw `docker run`) is deliberate: every proxy mapping is
+# visible/editable in a UI (NPM admin :81), the stack itself shows in
+# Portainer, and ALL reverse-proxy config + TLS certs persist in the
+# two named volumes — the edge survives redeploys and box reboots
+# with zero re-clicking.
+#
+#   :80/:443  public (router forwards ONLY these)
+#   :81       NPM admin UI — LAN/VPN only BY THE ROUTER RULE; never
+#             forward it, never give it DNS (prime directive 1)
+#
+# NPM reaches app containers over the external "proxy" network by
+# their stack-prefixed aliases (web10-dev-api etc — see
+# docker-compose.ecosystem.yml header for why bare names are unsafe).
+#
+# First-boot login: admin@example.com / changeme — change BOTH
+# immediately. Then Settings → SSL → add the Cloudflare DNS-01
+# provider (needed for the VPN-only dev vhosts).
+
+services:
+  npm:
+    image: jc21/nginx-proxy-manager:latest
+    ports:
+      - "80:80"
+      - "443:443"
+      - "81:81"
+    volumes:
+      - npm-data:/data
+      - npm-letsencrypt:/etc/letsencrypt
+    restart: unless-stopped
+    networks:
+      - proxy
+
+volumes:
+  # all proxy-host mappings + NPM's own db — THE config volume
+  npm-data:
+  # issued certs + ACME account keys
+  npm-letsencrypt:
+
+networks:
+  proxy:
+    external: true

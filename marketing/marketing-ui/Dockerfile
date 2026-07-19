@@ -3,6 +3,17 @@ WORKDIR /app
 COPY package.json bun.lock* ./
 RUN bun install --frozen-lockfile || bun install
 COPY . .
+
+# Backend origins are baked at build time (vite). Passed per env by
+# ubuntu-deployment/docker-compose.ecosystem.yml; empty args fall
+# back to the in-code localhost defaults.
+ARG VITE_API_URL
+ARG VITE_MARKETING_API
+ARG VITE_GIT_COMMIT
+ENV VITE_API_URL=$VITE_API_URL \
+    VITE_MARKETING_API=$VITE_MARKETING_API \
+    VITE_GIT_COMMIT=$VITE_GIT_COMMIT
+
 RUN bun run build
 
 FROM nginx:alpine

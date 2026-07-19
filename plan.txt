@@ -412,10 +412,10 @@ the three items below are PARALLEL — disjoint directories:
     kit, mobile bottom-nav shell, hub.png (apple's app store logo —
     a trademark, replace it) + react-atom icons swapped for the real
     keys marks. the studio screen is the money shot — highest stakes.
-    includes the urgent staging unblock: backend origins become
+    includes the urgent deployment unblock: backend origins become
     build-time env instead of the hardcodes in authAdapter.ts/
-    config.ts (staging ships a bundle calling api.web10.app — see
-    ubuntu-deployment/AGENT-OPS.md §4.1).
+    config.ts (any deployed env ships a bundle calling
+    api.web10.app — see ubuntu-deployment/AGENT-OPS.md §4.1).
 [✓ 1.0.64] level-up web10-social to the design.md standard (lane D,
     item D12): wired @tailwindcss/vite, self-hosted Inter + Space
     Grotesk (@fontsource-variable), retired the FontAwesome CDN kit,
@@ -1669,14 +1669,14 @@ CROSS-CUTTING — deployment (proxmox homelab)
 ----------------------------------------------
 proxmox host at 192.168.8.20:8006, accessible only over VPN.
 target: host the marketing sites and a web10 node here for
-staging, demos, and eventual public-facing use.
+dev soak, demos, and public-facing use.
 
 what goes in:
 [✓ 1.0.60] web10 node (api + ui + db + rtc + minio): Portainer + Nginx
     Proxy Manager approach (prep-vm.sh, self-contained staging compose,
     Cloudflare DNS plan). ubuntu-deploy.sh replaced — stacks managed
     through Portainer UI, reverse proxy + TLS through NPM.
-    STAGING-RUNBOOK.md documents the operational procedures.
+    README.md documents the operational procedures.
 [ ] marketing-ui: separate container or LXC. serves the public
     marketing site (landing, docs, app store, exporter UI).
     own vhost, never inside the node compose.
@@ -1686,13 +1686,19 @@ what goes in:
 environments (added 19.07.2026): TWO full stacks on the linux box
 that ubuntu-deployment/ preps, both managed as Portainer stacks on
 the same host, one compose file parameterized by env (domain prefix,
-volumes, env file) — never two divergent composes:
-[ ] PROD env — the whole ecosystem public: marketing-ui +
+volumes, env file) — never two divergent composes. (a public staging
+env was considered and CUT the same day — overkill on one lean box;
+the short-lived legacy *.staging deploy gets decommissioned during
+the box migration, AGENT-OPS.md §4):
+[~] PROD env — the whole ecosystem public: marketing-ui +
     marketing-api + the node (api, ui, social, rtc, minio, db).
     public Cloudflare DNS -> router-forwarded 80/443 -> NPM with
     real TLS certs (DNS-01 via cloudflare). this is E3 executed:
     prod marketing ui, prod ui, prod social ui.
-[ ] DEV env — the SAME whole ecosystem, VPN-only: cloudflare DNS
+    (repo side merged 1.0.66: docker-compose.ecosystem.yml +
+    env.prod.example + social prod Dockerfile. remaining: box
+    execution per README.md — lane E queue has detail.)
+[~] DEV env — the SAME whole ecosystem, VPN-only: cloudflare DNS
     records (dev.web10.app / *.dev.web10.app or similar) pointing
     at the box's INTERNAL LAN ip. the records resolve publicly but
     route nowhere unless you're on the VPN — zero exposure, no
@@ -1700,11 +1706,19 @@ volumes, env file) — never two divergent composes:
     TLS (DNS-01 challenge needs no inbound traffic), CORS, and
     vhost routing behave exactly like prod. dev is where merged
     work soaks before prod promotion; wipe+reseed procedures per
-    STAGING-RUNBOOK.md. follows the E1 security model: infra
+    README.md. follows the E1 security model: infra
     panels stay LAN/VPN-only regardless of env.
-[ ] promotion flow documented in STAGING-RUNBOOK.md: merge to dev
-    branch -> dev env redeploy (Portainer re-pull), tag/release ->
-    prod redeploy. keep it manual-button simple until E4.
+    (repo side merged 1.0.66: same compose + env.dev.example +
+    DNS-01 cert procedure. remaining: box execution.)
+[✓ 1.0.66] promotion flow documented in README.md: merge
+    to dev branch -> dev env redeploy (Portainer re-pull),
+    tag/release -> prod redeploy. keep it manual-button simple
+    until E4.
+[ ] push-to-deploy automation (E6, gated on the stacks existing):
+    dev push -> web10-dev redeploy, main release -> web10-prod.
+    repo is public => no self-hosted runner; use Portainer GitOps
+    polling first, Cloudflare-Tunnel'd stack webhooks for instant
+    deploys later. lane E queue has the full design.
 
 networking:
 [ ] VPN gateway must be up for any management access. document
@@ -1712,8 +1726,8 @@ networking:
 [ ] reverse proxy (caddy or nginx) on the proxmox host or a
     dedicated LXC: terminates TLS, routes to backend containers.
     auto-TLS via caddy for any public-facing domain later.
-[ ] internal DNS: *.web10.internal or similar for the staging
-    node, so services can reach each other by name.
+[ ] internal DNS: *.web10.internal or similar for the node box,
+    so services can reach each other by name.
 
 provisioning:
 [ ] terraform or proxmox-ssh-api script to stand up VMs/LXCs
