@@ -32,8 +32,9 @@
 #
 # Frontends bake their backend origins at BUILD time (vite). The
 # build args below are the lane-E side of the contract; the app-side
-# ARG/env plumbing lives in each app's Dockerfile (marketing-ui: done;
-# ui: lane B / B5; web10-social adapter env-read: lane D / D14).
+# ARG/env plumbing is DONE for ui (B5, REACT_APP_* names) and
+# marketing-ui (VITE_* names); web10-social's adapter env-read is
+# still open (lane D / D14 — its Dockerfile ARGs already exist).
 # Changing an origin means re-BUILDING the stack, not just restarting.
 
 services:
@@ -116,12 +117,10 @@ services:
       context: ../ui
       dockerfile: Dockerfile
       args:
-        # consumed once lane B (B5) lands the origin-parameterization
-        # fix (ARG + env read in ui/); unknown args are a warning, not
-        # an error, so this is safe to pass before that merges.
-        VITE_API_ORIGIN: ${API_ORIGIN:?e.g. https://dev.web10.app}
-        VITE_AUTH_ORIGIN: ${AUTH_ORIGIN:?e.g. https://auth.dev.web10.app}
-        VITE_RTC_HOST: ${RTC_HOST:?host only, e.g. rtc.dev.web10.app}
+        # names must match ui/Dockerfile's declared ARGs (B5, 1.0.65)
+        REACT_APP_API_ORIGIN: ${API_ORIGIN:?e.g. https://dev.web10.app}
+        REACT_APP_AUTH_ORIGIN: ${AUTH_ORIGIN:?e.g. https://auth.dev.web10.app}
+        REACT_APP_RTC_ORIGIN: ${RTC_ORIGIN:?e.g. https://rtc.dev.web10.app}
         REACT_APP_DEFAULT_API: ${API_HOST:?host only, e.g. dev.web10.app}
     environment:
       PORT: "80"
@@ -153,7 +152,7 @@ services:
         # consumed today (ReportBug).
         VITE_API_ORIGIN: ${API_ORIGIN}
         VITE_AUTH_ORIGIN: ${AUTH_ORIGIN}
-        VITE_RTC_HOST: ${RTC_HOST}
+        VITE_RTC_ORIGIN: ${RTC_ORIGIN}
         VITE_MARKETING_API: ${MARKETING_API_ORIGIN:?e.g. https://marketing-api.dev.web10.app}
     restart: unless-stopped
     networks:

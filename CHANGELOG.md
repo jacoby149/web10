@@ -1,4 +1,4 @@
-1.0.65 || 19.07.2026
+1.0.66 || 19.07.2026
 E3/E5 repo side: the whole ecosystem is deployable. NEW
 ubuntu-deployment/docker-compose.ecosystem.yml — ONE parameterized
 compose for all three environments (web10-staging / web10-dev /
@@ -63,6 +63,8 @@ the tsconfig `@/*` alias this file had worked around; build
 verified green), and NEW lane item D14 queued — web10-social's
 adapter origins are still hardcoded (never in D12's scope); the
 compose/Dockerfile side already passes the args.
+
+1.0.65 || 19.07.2026
 B5: ui/ leveled up to the design.md standard + the urgent staging
 origin unblock. Staging fix: authAdapter.ts/config.ts no longer
 hardcode api/auth/rtc.web10.app — backend origins are build-time env

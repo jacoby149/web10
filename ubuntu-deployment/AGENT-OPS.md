@@ -160,22 +160,20 @@ Symptom → likely cause (check in this order, stop at first hit):
 
 Read this before re-diagnosing; these are already understood:
 
-1. **Frontend bundles hardcode their backend origins.** The auth UI
-   (`ui/src/interfaces/authAdapter.ts`, `ui/src/config.ts`) bakes
-   `https://api.web10.app` / `https://auth.web10.app` into any
-   production build; web10-social's adapter does the same. That
-   makes the UI unusable in ANY env whose API isn't literally at
-   those URLs (this is why the legacy staging auth UI is dead, and
-   why the DEV env's UI will be broken until fixed).
-   **The fix is app code (lane B / B5 for ui, lane D / D14 for
-   social):** read origins from build-time env + Dockerfile `ARG`s.
-   The compose side is DONE — `docker-compose.ecosystem.yml`
-   already passes `VITE_API_ORIGIN`, `VITE_AUTH_ORIGIN`,
-   `VITE_RTC_HOST`, `REACT_APP_DEFAULT_API` build args (harmless
-   warnings until the Dockerfiles declare them). An ops agent
-   CANNOT fix this on the box — do not try; rebuilding the same
-   code reproduces the same bundle. After those lanes merge:
-   redeploy both stacks with rebuild.
+1. **Frontend origin parameterization — ui DONE, social PENDING.**
+   The auth UI's fix MERGED (B5, 1.0.65): `ui/Dockerfile` declares
+   `REACT_APP_API_ORIGIN` / `REACT_APP_AUTH_ORIGIN` /
+   `REACT_APP_RTC_ORIGIN` / `REACT_APP_DEFAULT_API` ARGs and
+   `docker-compose.ecosystem.yml` passes them — a fresh stack build
+   serves the right origins per env; prod values remain the
+   fallback when args are empty. web10-social's adapter
+   (`Web10SocialAdapter.ts`) still hardcodes `auth.web10.app` /
+   `rtc.web10.app` for non-local builds — that's lane D item D14
+   (its Dockerfile `VITE_*` ARGs + compose args already exist).
+   Until D14 merges, the social app in dev talks to prod's
+   auth/rtc. An ops agent CANNOT fix this on the box — do not try;
+   rebuilding the same code reproduces the same bundle. When D14
+   merges: redeploy stacks with rebuild.
 2. **The live box runs the LEGACY deployment, due for teardown.**
    What's there today: a root-managed **Caddy** container holding
    80/443 (config `/opt/caddy/Caddyfile` — WORLD-READABLE with a

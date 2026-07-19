@@ -1695,7 +1695,7 @@ the box migration, AGENT-OPS.md §4):
     public Cloudflare DNS -> router-forwarded 80/443 -> NPM with
     real TLS certs (DNS-01 via cloudflare). this is E3 executed:
     prod marketing ui, prod ui, prod social ui.
-    (repo side merged 1.0.65: docker-compose.ecosystem.yml +
+    (repo side merged 1.0.66: docker-compose.ecosystem.yml +
     env.prod.example + social prod Dockerfile. remaining: box
     execution per README.md — lane E queue has detail.)
 [~] DEV env — the SAME whole ecosystem, VPN-only: cloudflare DNS
@@ -1708,9 +1708,9 @@ the box migration, AGENT-OPS.md §4):
     work soaks before prod promotion; wipe+reseed procedures per
     README.md. follows the E1 security model: infra
     panels stay LAN/VPN-only regardless of env.
-    (repo side merged 1.0.65: same compose + env.dev.example +
+    (repo side merged 1.0.66: same compose + env.dev.example +
     DNS-01 cert procedure. remaining: box execution.)
-[✓ 1.0.65] promotion flow documented in README.md: merge
+[✓ 1.0.66] promotion flow documented in README.md: merge
     to dev branch -> dev env redeploy (Portainer re-pull),
     tag/release -> prod redeploy. keep it manual-button simple
     until E4.
