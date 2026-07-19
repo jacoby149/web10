@@ -84,6 +84,12 @@ touches auth, the DB layer, or tokens, run those tests and keep them green.
 - **Merge small, merge often.** Days-long branches, not weeks.
 - **Tests are the seatbelt.** The permission-matrix suite must exist and
   pass before/through the phase-0 dependency upgrades. Nothing merges red.
+- **A PR isn't done at creation.** Right after `gh pr create`: check for
+  merge conflicts (`gh pr view --json mergeable,mergeStateStatus`) and
+  resolve them, then watch ALL CI checks (`gh pr checks --watch`) — optional
+  checks count too; `UNSTABLE` is red, not green — and fix failures until
+  everything passes. Never report "ready to go" with any check failing.
+  Full procedure in `AGENTS.md`.
 - **Don't invent crypto or protocols.** Reuse: OIDC/JWKS for federation,
   Signal sender-keys / MLS for group keys, S3 API for blobs.
 - **Match the surrounding code** until a phase explicitly modernizes it.
@@ -93,6 +99,9 @@ touches auth, the DB layer, or tokens, run those tests and keep them green.
   If your work completes a `plan.txt` item, tick it there AND tick your
   lane item in `parallel execution.txt` — that file is the parallel
   agents' task board and stale status there causes redone work.
+  Version collisions between parallel branches are expected: CHANGELOG.md
+  union-merges (`.gitattributes`), and after merging `origin/dev` you
+  renumber your own entry past the highest — procedure in `AGENTS.md`.
 - **Keep the docs true.** If you change the stack, the data model, or the
   auth flow, update `CLAUDE.md`/`GLOSSARY.md` in the same branch. A big
   architectural decision gets an entry in `decisions.md`. Stale orientation
