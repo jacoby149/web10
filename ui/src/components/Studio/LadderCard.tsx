@@ -1,3 +1,6 @@
+import { DollarSign, LayoutGrid, Handshake, TrendingUp, Globe, Check, Lock } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 import { type LadderRung, formatNumber, progressPercent } from './studio-data';
 
 interface LadderCardProps {
@@ -5,107 +8,82 @@ interface LadderCardProps {
   onClick?: () => void;
 }
 
-function IconFor(name: string) {
-  const icons: Record<string, string> = {
-    'dollar-sign': '$',
-    'layout-grid': '⊞',
-    'handshake': '🤝',
-    'trending-up': '↑',
-    'globe': '◉',
-  };
-  return icons[name] || '●';
-}
+const ICONS: Record<string, typeof DollarSign> = {
+  'dollar-sign': DollarSign,
+  'layout-grid': LayoutGrid,
+  'handshake': Handshake,
+  'trending-up': TrendingUp,
+  'globe': Globe,
+};
 
 export function LadderCard({ rung, onClick }: LadderCardProps) {
   const pct = rung.unlocked ? 100 : progressPercent(rung.current, rung.target);
+  const Icon = ICONS[rung.icon] ?? DollarSign;
 
   return (
     <div
-      className={`relative rounded-xl border p-4 transition-all ${
+      className={cn(
+        'relative rounded-lg border p-4 transition-colors',
         rung.unlocked
-          ? 'cursor-pointer hover:shadow-md hover:border-transparent'
-          : 'opacity-60 cursor-not-allowed'
-      }`}
-      style={{
-        borderColor: rung.unlocked ? 'var(--color-primary-500)' : 'var(--color-border)',
-        backgroundColor: rung.unlocked
-          ? 'linear-gradient(135deg, var(--color-surface) 0%, var(--color-primary-50) 100%)'
-          : 'var(--color-surface-2)',
-      }}
-      onClick={rung.unlocked ? onClick : undefined}
-    >
-      {rung.unlocked ? (
-        <div
-          className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-xs text-white font-bold shadow-sm"
-          style={{ backgroundColor: 'var(--color-success)' }}
-        >
-          ✓
-        </div>
-      ) : (
-        <div
-          className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
-          style={{ backgroundColor: 'var(--color-neutral-300)', color: 'var(--color-neutral-600)' }}
-        >
-          🔒
-        </div>
+          ? 'border-brand/40 bg-brand-muted/20 cursor-pointer hover:border-brand/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+          : 'border-border bg-card opacity-70',
       )}
+      onClick={rung.unlocked ? onClick : undefined}
+      role={rung.unlocked && onClick ? 'button' : undefined}
+      tabIndex={rung.unlocked && onClick ? 0 : undefined}
+    >
+      <div
+        className={cn(
+          'absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full',
+          rung.unlocked ? 'bg-success text-white' : 'bg-elevated text-muted-foreground',
+        )}
+        aria-hidden="true"
+      >
+        {rung.unlocked ? <Check className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
+      </div>
 
       <div className="flex items-start gap-3">
         <div
-          className="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-lg"
-          style={{
-            backgroundColor: rung.unlocked
-              ? 'var(--color-primary-100)'
-              : 'var(--color-neutral-200)',
-            color: rung.unlocked ? 'var(--color-primary-600)' : 'var(--color-neutral-500)',
-          }}
+          className={cn(
+            'flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg',
+            rung.unlocked ? 'bg-brand-muted text-brand-300' : 'bg-elevated text-muted-foreground',
+          )}
         >
-          {IconFor(rung.icon)}
+          <Icon className="h-5 w-5" strokeWidth={1.5} />
         </div>
 
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>
+            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Rung {rung.id}
             </span>
-            {rung.unlocked && (
-              <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ backgroundColor: 'var(--color-success-bg)', color: 'var(--color-success)' }}>
-                UNLOCKED
-              </span>
-            )}
+            {rung.unlocked && <Badge variant="success">UNLOCKED</Badge>}
           </div>
 
-          <h3 className="font-semibold mt-0.5" style={{ color: 'var(--color-text)' }}>
-            {rung.title}
-          </h3>
+          <h3 className="mt-0.5 font-medium text-foreground">{rung.title}</h3>
 
-          <p className="text-sm mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>
-            {rung.description}
-          </p>
+          <p className="mt-0.5 text-sm text-muted-foreground">{rung.description}</p>
 
           {!rung.unlocked && (
             <div className="mt-3">
-              <div className="flex justify-between items-center text-xs mb-1">
-                <span style={{ color: 'var(--color-text-muted)' }}>
-                  {formatNumber(rung.current)} / {formatNumber(rung.target)} {rung.target > 1 ? 'sessions' : ''}
+              <div className="mb-1 flex items-center justify-between text-xs tabular-nums text-muted-foreground">
+                <span>
+                  {formatNumber(rung.current)} / {formatNumber(rung.target)}
+                  {rung.target > 1 ? ' sessions' : ''}
                 </span>
-                <span style={{ color: 'var(--color-text-muted)' }}>{rung.threshold}</span>
+                <span>{rung.threshold}</span>
               </div>
-              <div
-                className="w-full h-2 rounded-full overflow-hidden"
-                style={{ backgroundColor: 'var(--color-neutral-200)' }}
-              >
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-elevated">
                 <div
-                  className="h-full rounded-full transition-all duration-500"
-                  style={{
-                    width: `${pct}%`,
-                    backgroundColor: 'var(--color-primary-400)',
-                  }}
+                  className="h-full rounded-full bg-brand transition-all duration-500 ease-out"
+                  style={{ width: `${pct}%` }}
                 />
               </div>
-              <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
-                {pct < 100 ? `${100 - pct}% more to unlock ${rung.title}` : ''}
-              </p>
+              {pct < 100 && (
+                <p className="mt-1 text-xs tabular-nums text-muted-foreground">
+                  {100 - pct}% more to unlock {rung.title}
+                </p>
+              )}
             </div>
           )}
         </div>

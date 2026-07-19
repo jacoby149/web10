@@ -1,7 +1,8 @@
+import { Search as SearchIcon } from 'lucide-react';
 import Branding from "./Branding";
 import { Icon } from "./Icon";
-import { Search } from '@chatscope/chat-ui-kit-react';
-import '@chatscope/chat-ui-kit-styles/dist/default/styles.min.css';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 interface TopBarProps {
   I: Record<string, any>;
@@ -9,67 +10,50 @@ interface TopBarProps {
 
 function AppsButton({ I }: { I: Record<string, any> }) {
   return (
-    <button
-      className="px-3 py-1.5 text-sm font-medium rounded-lg text-white transition-colors hover:opacity-90"
-      style={{ backgroundColor: 'var(--color-info)' }}
-      onClick={() => I.setMode("appstore")}
-    >
+    <Button variant="brand" size="sm" onClick={() => I.setMode("appstore")} data-testid="topbar-apps-button">
       Apps
-    </button>
+    </Button>
   );
 }
 
 function TopBar({ I }: TopBarProps) {
   return (
-    <div
-      className="flex items-center justify-between px-4 border-b"
-      style={{ height: "55px", borderColor: 'var(--color-border)' }}
-    >
+    <div className="flex h-14 items-center justify-between gap-2 border-b border-border bg-surface px-4">
       <Branding I={I} />
 
-      <div className="flex items-center gap-2">
-        <Icon onClick={I.toggleMenuCollapsed}>bars</Icon>
-        <Icon onClick={I.toggleTheme}>moon</Icon>
+      <div className="hidden items-center gap-1 sm:flex">
+        <Icon onClick={I.toggleMenuCollapsed} label="Toggle menu">bars</Icon>
+        <Icon onClick={I.toggleTheme} label="Toggle theme">moon</Icon>
       </div>
 
-      <div className="flex-1 mx-4" style={{ maxWidth: "300px" }}>
-        <Search
-          onClearClick={() => I.runSearch("")}
-          onChange={(v) => I.runSearch(v)}
-          placeholder="Search..."
-          style={{ width: "100%" }}
+      <div className="relative mx-2 max-w-[300px] flex-1">
+        <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" strokeWidth={1.5} />
+        <Input
+          className="pl-8"
+          placeholder="Search…"
+          aria-label="Search"
+          onChange={(e) => I.runSearch(e.target.value)}
+          data-testid="topbar-search"
         />
       </div>
 
       <div className="flex items-center gap-2">
         {I.isAuthenticated() ? (
           I.mode === "settings" ? (
-            <div className="w-[75px]"><AppsButton I={I} /></div>
+            <AppsButton I={I} />
           ) : (
-            <Icon onClick={() => I.setMode("settings")}>gear</Icon>
+            <Icon onClick={() => I.setMode("settings")} label="Settings">gear</Icon>
+          )
+        ) : I.mode === "appstore" ? (
+          I.isAuth ? null : (
+            <Button variant="brand" size="sm" onClick={() => I.setMode("login")}>
+              Log In
+            </Button>
           )
         ) : (
-          <div className="w-[75px]">
-            {I.mode === "appstore" ? (
-              I.isAuth ? (
-                <></>
-              ) : (
-                <button
-                  className="px-3 py-1.5 text-sm font-medium rounded-lg text-white transition-colors hover:opacity-90"
-                  style={{ backgroundColor: 'var(--color-primary-600)' }}
-                  onClick={() => I.setMode("login")}
-                >
-                  Login
-                </button>
-              )
-            ) : (
-              <AppsButton I={I} />
-            )}
-          </div>
+          <AppsButton I={I} />
         )}
       </div>
-
-      <div className="w-[30px]" />
     </div>
   );
 }

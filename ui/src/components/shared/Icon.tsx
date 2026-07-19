@@ -1,29 +1,37 @@
+import { Menu, Moon, Settings as GearIcon, type LucideIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+// design.md §8: Lucide only — this used to render `fa fa-*` classes with
+// no FontAwesome ever loaded (invisible icons).
+const ICONS: Record<string, LucideIcon> = {
+  bars: Menu,
+  moon: Moon,
+  gear: GearIcon,
+};
+
 interface IconProps {
   children: string;
   onClick?: () => void;
   className?: string;
+  label?: string;
 }
 
-function Icon({ children, onClick, className = "" }: IconProps) {
-  const iconClass = `fa-${children}`;
+function Icon({ children, onClick, className = "", label }: IconProps) {
+  const Glyph = ICONS[children] ?? Menu;
   return (
     <button
+      type="button"
       onClick={onClick}
-      className={`inline-flex items-center justify-center w-10 h-10 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors ${className}`}
-      style={{ cursor: onClick ? 'pointer' : 'default' }}
+      aria-label={label ?? children}
+      className={cn(
+        'inline-flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-elevated hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
+        onClick ? 'cursor-pointer' : 'cursor-default',
+        className,
+      )}
     >
-      <i className={`fa ${iconClass} fa-2x font-weight-bold`} style={{ color: 'var(--color-text-secondary)' }}></i>
+      <Glyph className="h-5 w-5" strokeWidth={1.5} />
     </button>
   );
 }
 
-function RawIcon({ children, onClick, className = "" }: IconProps) {
-  const iconClass = `fa-${children}`;
-  return (
-    <div onClick={onClick} className={`inline-flex items-center justify-center w-[25px] h-[25px] m-1.5 ${className}`}>
-      <i className={`fa ${iconClass} fa-2x font-weight-bold`}></i>
-    </div>
-  );
-}
-
-export { Icon, RawIcon };
+export { Icon };
