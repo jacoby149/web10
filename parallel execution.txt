@@ -230,9 +230,10 @@ path (ws2 repointed to D4 per timeline.md week 0).
        provider url validation) — land these BEFORE A6 churns the
        billing code. then A6 (D21 strip user billing -> operator
        quotas, timeline week 2) takes this lane-A slot.
-  ws4: outreach list batch 1 (20 enriched creator names, outreach.md
-       week-0 founder item) or E1 proxmox staging node (rehearses
-       the week-3 colo deploy).
+ws4: [✓ 1.0.48] outreach list batch 1 template (20-slot prospect list,
+        outreach_batch1.md, 3 pre-fill candidates found, founder fills
+        remaining 17 names from browser search) or E1 proxmox staging
+        node (rehearses the week-3 colo deploy).
 
   merge-order notes: lane A stays single-branch (security fixes ->
   A6 -> A5). D2.5 starts the moment B2.5's tokens merge. B4.5 M0

@@ -1,3 +1,12 @@
+1.0.48 || 18.07.2026
+outreach batch 1 template: outreach_batch1.md — 20-slot prospect list
+(7 right-coded, 7 left-coded, 6 wildcard), segment-specific opener
+templates, founder fill-in checklist, sourcing queries, and 3 pre-fill
+candidates found during research (RGMGFitness, Smooth McGroove, Lilly
+Gaddis) with burn events but unenriched (search engines rate-limited
+automated access). founder fills names from browser search; agent fleet
+then enriches gap %, contact routes, and finalizes openers.
+
 1.0.47 || 18.07.2026
 board refresh: CURRENT CONDUCTOR BOARD in parallel execution.txt
 re-cut for the D20/D21 pivot + timeline.md week 0 — ws1 B2.5 stack
