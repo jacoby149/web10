@@ -1,9 +1,10 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
 import path from 'path'
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   // config.ts reads REACT_APP_* overrides from import.meta.env — vite only
   // exposes VITE_* unless the prefix is widened, so without this the
   // docker-compose env vars (REACT_APP_DEFAULT_API etc.) never arrive.

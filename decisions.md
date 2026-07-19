@@ -9,19 +9,35 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
-### D2.5-stack — web10-social: tailwind v4 + shadcn/ui primitives (Radix) + Lucide icons [decided]
+### D22 — UI stack: Tailwind CSS + shadcn/ui, replacing rectangles-npm [decided]
+rectangles-npm is a homemade layout framework only one person understands;
+uis built on it read as engineering prototypes, not products. The replacement
+must be boring and mainstream so any frontend dev can contribute, and it must
+be themeable from day one because creator nodes wear their brand (phase 4
+white-label). Tailwind CSS + shadcn/ui is the pick: native to our Vite +
+React 19 + TypeScript toolchain, huge ecosystem, accessible Radix primitives,
+CSS variable–based theming (creator branding = swapping CSS vars), and the
+design-token layer maps directly to Tailwind's `tailwind.config.css`. The
+shared tokens (type scale, spacing, color, radius, dark mode) live in
+`ui/src/styles/tokens.css` as CSS custom properties consumed by both the
+node's `ui/` and `marketing/web10-social/` (D2.5). Rejects: CSS-in-JS
+(emotion/styled-components — runtime cost, SSR headaches, another abstraction),
+Bulma (the old vendor we're already ripping out), and any framework that
+requires a build-step for theming (creator themes must be hot-swappable CSS
+vars, not rebuilds).
+
+### D2.5-stack — web10-social: tailwind v4 + Radix UI + Lucide icons [decided]
 B2.5 had not merged when D2.5 started, so the stack pick was made independently
 in web10-social. Tailwind CSS v4 (native PostCSS-free, @theme directives),
 Radix UI primitives (react-slot, react-avatar, react-dropdown-menu, react-label),
 Lucide React icons, class-variance-authority for component variants, clsx +
 tailwind-merge for className composition. Dark-first design tokens matching
 the existing dark theme. rectangles-npm and @chatscope/chat-ui-kit retired
-from web10-social. When B2.5 merges with its own pick, web10-social will
-already be on the same stack (tailwind + shadcn was the named default in
-plan.txt). Rejects: keeping rectangles-npm (one-person framework, reads as
-engineering tool not product), keeping @chatscope (heavy, opinionated,
-incompatible with the new design language), waiting on B2.5 (M0 timeline
-doesn't allow it).
+from web10-social. When B2.5 merged, web10-social was already on the same
+stack (tailwind + shadcn was the named default in plan.txt). Rejects: keeping
+rectangles-npm (one-person framework, reads as engineering tool not product),
+keeping @chatscope (heavy, opinionated, incompatible with the new design
+language), waiting on B2.5 (M0 timeline doesn't allow it).
 
 ### D21 — User billing is stripped; metering survives as operator-set quotas (anti-abuse), and the money screen is in M0 [decided]
 Users are never charged (D5: accounts free, paid by the operator's revenue),

@@ -1,3 +1,24 @@
+1.0.53 || 19.07.2026
+outreach batch 1 fully enriched: 20 API-verified prospects via YouTube
+Data API v3 (outreach_sourcer.py). all burn events verified by video
+title + timestamp, subscriber counts from channel statistics endpoint.
+5 prospects have biz emails. M0 fit corrected to signal-based scoring:
+10 YES fits (recipes, crafts, tutorials, fashion, finance, podcasts,
+nutrition, fitness), 4 PARTIAL, 3 POOR (animation, cinematic, vlogs).
+6 false positives filtered (gaming shadowbans, advice videos,
+third-party references). ~2,100 quota units used (21% of free daily
+tier). script reusable for batches 2-5.
+
+1.0.52 || 18.07.2026
+B2.5: ui makeover — rectangles-npm and react-bulma-components ripped out
+of ui/; replaced with Tailwind CSS v4 + CSS variable design tokens
+(ui/src/styles/tokens.css: color palette, type scale, spacing, radius,
+dark mode). All ui/ screens restyled: login/signup/forgot, contracts,
+requests, settings, setup wizard, config page. Shared components
+(SideBar, TopBar, Icon, Branding) rewritten on Tailwind. Card pattern
+replaces Bulma cards everywhere. Form inputs use consistent rounded
+inputs with icon prefixes. 43/43 vitest tests green.
+
 1.0.51 || 19.07.2026
 D2.5: web10-social UI makeover — rectangles-npm and @chatscope retired,
 replaced with tailwindcss v4 + Radix UI primitives + Lucide icons. New
@@ -10,6 +31,12 @@ Empty states point at exporters ("Import your Instagram"). Dark-first
 design tokens, responsive layout with sidebar + mobile bottom nav.
 12 new component tests (226 total green, 4 legacy skipped).
 Stack pick recorded in decisions.md (D2.5-stack).
+
+1.0.51 || 18.07.2026
+CLAUDE.md: new working convention — "hand off the next task": after a merge,
+agents end their final message with the next unticked lane item and a
+paste-ready kickoff prompt (task verbatim, gates, owned dirs, acceptance
+bar) for a fresh workspace.
 
 1.0.50 || 18.07.2026
 D4: web10-social data layer — full conventions-schema stack for the M0

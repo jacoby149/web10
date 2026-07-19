@@ -1,18 +1,29 @@
-import {C,pass} from "rectangles-npm"
-
-/* Custom Rectangles.js Icon Component */
-function Icon(props){
-    const iconClass = "fa-"+props.children;
-    return(
-        <C s={"50px"} {...pass(props)}>
-            <i className={"fa "+ iconClass +" fa-2x font-weight-bold"}></i>
-        </C>
-    )
+interface IconProps {
+  children: string;
+  onClick?: () => void;
+  className?: string;
 }
 
-function RawIcon(props){
-    const iconClass = "fa-"+props.children;
-    return <div onClick={props.onClick} style={{width:"25px",height:"25px",margin:"6px"}}><i className={"fa "+ iconClass +" fa-2x font-weight-bold"}></i></div>
+function Icon({ children, onClick, className = "" }: IconProps) {
+  const iconClass = `fa-${children}`;
+  return (
+    <button
+      onClick={onClick}
+      className={`inline-flex items-center justify-center w-10 h-10 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors ${className}`}
+      style={{ cursor: onClick ? 'pointer' : 'default' }}
+    >
+      <i className={`fa ${iconClass} fa-2x font-weight-bold`} style={{ color: 'var(--color-text-secondary)' }}></i>
+    </button>
+  );
 }
 
-export {Icon,RawIcon};
+function RawIcon({ children, onClick, className = "" }: IconProps) {
+  const iconClass = `fa-${children}`;
+  return (
+    <div onClick={onClick} className={`inline-flex items-center justify-center w-[25px] h-[25px] m-1.5 ${className}`}>
+      <i className={`fa ${iconClass} fa-2x font-weight-bold`}></i>
+    </div>
+  );
+}
+
+export { Icon, RawIcon };
