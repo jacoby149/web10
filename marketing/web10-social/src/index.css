@@ -1,43 +1,129 @@
 @import "tailwindcss";
 
+/* SOURCE OF TRUTH: /design.md §13 — sync, don't fork */
 @theme {
+  /* neutrals — zinc, dark-first (§4) */
   --color-background: #09090b;
   --color-foreground: #fafafa;
-  --color-card: #111113;
-  --color-card-foreground: #fafafa;
-  --color-popover: #111113;
-  --color-popover-foreground: #fafafa;
-  --color-primary: #fafafa;
-  --color-primary-foreground: #111113;
-  --color-secondary: #27272a;
-  --color-secondary-foreground: #fafafa;
-  --color-muted: #27272a;
-  --color-muted-foreground: #a1a1aa;
-  --color-accent: #27272a;
-  --color-accent-foreground: #fafafa;
-  --color-destructive: #7f1d1d;
-  --color-destructive-foreground: #fafafa;
+  --color-surface: #111113;
+  --color-elevated: #18181b;
   --color-border: #27272a;
   --color-input: #27272a;
-  --color-ring: #3f3f46;
+  --color-ring: #8b5cf6;
+  --color-muted: #18181b;
+  --color-muted-foreground: #a1a1aa;
+
+  /* brand — violet (§4) */
+  --color-brand-300: #c4b5fd;
+  --color-brand-400: #a78bfa;
   --color-brand: #8b5cf6;
-  --color-brand-foreground: #fafafa;
+  --color-brand-600: #7c3aed;
   --color-brand-muted: #2e1065;
+  --color-brand-foreground: #fafafa;
+
+  /* semantic (§4) */
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  --color-danger-muted: #450a0a;
+
+  /* shadcn compatibility layer */
+  --color-card: #111113;
+  --color-card-foreground: #fafafa;
+  --color-popover: #18181b;
+  --color-popover-foreground: #fafafa;
+  --color-primary: #fafafa;
+  --color-primary-foreground: #09090b;
+  --color-secondary: #27272a;
+  --color-secondary-foreground: #fafafa;
+  --color-accent: #27272a;
+  --color-accent-foreground: #fafafa;
+  --color-destructive: #ef4444;
+
+  /* type (§5) */
+  --font-sans: 'Inter Variable', 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Space Grotesk Variable', 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* radius (§6) */
+  --radius-sm: 0.5rem;
   --radius: 0.75rem;
-  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --radius-lg: 1rem;
+  --radius-full: 9999px;
 }
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-body {
-  background: var(--color-background);
-  color: var(--color-foreground);
-  font-family: var(--font-sans);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  margin: 0;
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    background: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    margin: 0;
+  }
+
+  /* design.md §8 — focus-visible everywhere, 2px brand ring, 2px offset */
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  /* design.md §7 — reduced motion collapses transitions to instant */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }
 
-* {
-  border-color: var(--color-border);
+@layer utilities {
+  /* design.md §5 — numbers in stats/tables use tabular-nums */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* design.md §7 — panels (drawers, modals, dropdowns): 200-250ms ease-out in */
+  @keyframes panel-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @keyframes overlay-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .animate-panel-in {
+    animation: panel-in 220ms ease-out;
+  }
+
+  .animate-overlay-in {
+    animation: overlay-in 200ms ease-out;
+  }
 }

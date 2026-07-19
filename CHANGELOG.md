@@ -29,6 +29,78 @@ flagged, follow-up edit to design.md queued). Pre-existing bugs fixed
 in passing: SignupForm betacode null-deref, Subscription plan shown
 via placeholder, Wipe button styled neutral. 73/73 tests green, clean
 tsc+vite build; screenshots at 1280+375 for all 7 screens in PR.
+D12: web10-social level-up to the design.md standard. Wiring fixes first:
+@tailwindcss/vite was missing from vite.config.ts so the v4 pipeline never
+ran (app shipped un/partially styled — verified via a real production
+build, confirmed brand tokens now compile); Inter + Space Grotesk are
+self-hosted via @fontsource-variable/* (no CDN) and actually loaded from
+main.tsx; the FontAwesome kit script is gone (Lucide only, already the
+case in code — index.html was the leak); tsconfig.json was missing the
+`@/*` path alias entirely, so `tsc -b` had ~90 pre-existing errors across
+every file that imports it — fixed, plus a handful of real type bugs
+(MediaRecord/PostRecord casts, a generic-inference test, `global` → 
+`globalThis`) it had been masking; the legacy Crm/Mail/Bio exclude list in
+vitest config was stale (those components no longer exist) and is now
+gone. Screens: Feed rebuilt as media-forward cards (wired to real
+reaction/comment counts + a working like-toggle and inline comment thread,
+previously dead state), Composer restyled to feel like publishing (avatar,
+drag-and-drop attach, error state), Profile gained a creator-page banner +
+tabular-nums stats row (new optional ProfileRecord.banner_ref field),
+DMs/Layout got skeleton loading states, data-testid hooks, 44px touch
+targets, and a real focus-visible ring everywhere (global, brand-toned).
+Deleted a duplicate dead FeedScreen and legacy CRA boilerplate (logo.svg,
+unused images, a stray manifest.json.bak, the CRA README). Brand asset
+fix: `public/alternative.png` was documented as the canonical square keys
+mark but actually contained an unrelated guitar-player illustration
+(invisible white-on-white, which is how it went unnoticed) — discovered
+independently in this lane and in D13, converged on the same fix (see
+decisions.md D24): derived the real mark from the existing lockup and
+applied D13's generated icon set (logo192/512.png, favicon.ico,
+apple-touch-icon.png) in this app's public/. 193 vitest tests stay green,
+`tsc -b && vite build` passes clean (previously broken), screens verified
+via vite preview + Playwright screenshots at 1280 and 375.
+
+1.0.63 || 19.07.2026
+D13: marketing-ui rebuilt on the design.md standard — the pitch site now
+reads as a company. Bulma removed entirely (react-bulma-components +
+vendored bulma.min.css gone); Tailwind v4 + @tailwindcss/vite, the
+canonical design.md §13 token block, cva/clsx/tailwind-merge, and a
+components/ui primitives kit (Button/Card/Input/Textarea/Label/Badge/
+Dialog) copying the web10-social idiom. Self-hosted Inter/Space Grotesk/
+JetBrains Mono via @fontsource-variable — no font CDN. Lucide replaces
+every invisible `fa fa-*` class (FontAwesome was referenced with no kit
+loaded; icons were literally invisible before this). Landing page is a
+full rewrite: hero is the real keys-lockup mark on #09090b with the one
+permitted violet glow + a declarative headline, a reach-gap proof section
+rendering THE STORY's 1M-followers/300k-shown mechanic as two HTML/CSS
+bars (math extracted to lib/reachGap.ts and unit-tested), and a 3-step
+"how it works" (inbox pattern = 100% delivery by architecture) — no fake
+testimonials, no stock photos, no team/funding copy. Docs pages restyled
+to 65-75ch prose measure with Space Grotesk headings and JetBrains Mono
+code blocks (markdown pipeline unchanged). App Store rebuilt as "Built on
+web10" — curated first-party app cards (web10 social, node console, CRM,
+Mail, importer) instead of an unverified third-party catalog, plus one
+"Build on web10" CTA into the docs. Exporter/Navbar/ReportBug restyled on
+tokens (ReportBug now a Radix Dialog; e2e-relevant strings and
+data-testid hooks preserved). Education-era debris deleted from
+public/layouts/ (university logos, old backgrounds, thumbnail, the
+FontAwesome webfont dir) — logo_white.png survives, moved to
+public/brand/logo-lockup.png. Paid the design.md §3 asset debt for all
+three apps: favicon.ico + 192/512 PNG + apple-touch-icon derived from the
+keys mark on #09090b, and a shared 1200x630 og-image (lockup + glow) —
+dropped in .context/brand-assets/ for lanes B/D12 to apply, with a note
+flagging that marketing/web10-social/public/alternative.png (design.md's
+documented source for the square mark) does not actually contain the
+keys mark — it's an unrelated illustration — so the icons were derived by
+cropping the keys glyph out of the lockup instead; design.md §3 needs a
+follow-up correction. SVG vectorization of both marks stays open (no
+tracing tool — potrace/inkscape/rsvg-convert — available in this
+environment; shipping a redrawn approximation was explicitly out of
+bounds, so it's documented debt, not guessed art). Fixed the stale
+og:image path in index.html (pointed at a nonexistent /images/ path).
+19 component/unit tests green, production build green, screenshots taken
+at 1280 and 375 for all four routes plus the mobile nav and report-bug
+dialog states.
 
 1.0.62 || 19.07.2026
 environments + ops + e2e depth. plan.txt CROSS-CUTTING deployment now
