@@ -5,7 +5,7 @@
 web10 starts from one premise: **what you make is yours.**
 
 Every user gets their own database collection. Every record is
-`{service, body}`. Apps are stateless frontends — *lenses* — that borrow
+`{service, body}`. Apps are stateless frontends that borrow
 access through a scoped, expiring token, do their work, and step aside.
 The data outlives any app, because the data was never the app's to keep.
 
@@ -31,7 +31,7 @@ paid for value delivered, not for permission granted.
 | --- | --- |
 | **You own your data** | One collection per user — the record of your own life, held by you. Export it, move it, erase it. Delete means delete. |
 | **No shadow ban** | Every post reaches every follower, by construction (fan-out on write). The feed is chronological, because a feed should report — not editorialize. |
-| **Apps are lenses** | An app earns access through a scoped, expiring, revocable token. It never owns what it touches. |
+| **Apps are just frontends** | An app earns access through a scoped, expiring, revocable token. It never owns what it touches. |
 | **Federated identity** | Identity is `(username, provider)`, like email. No central registry to petition, no account that can be taken from you. |
 | **Private, not permanent** | Unlike a blockchain, your data can be private, temporary, and deletable. E2E encryption (phone-as-keychain) is in progress — we don't claim what isn't built. |
 | **Self-hostable** | One `docker compose up` runs a node on hardware you own. The escape hatch is real, and that is what makes the ownership real. |
@@ -84,7 +84,7 @@ at the box and the certificates provision themselves. See
 | `api/rtc/` | WebRTC signaling server. |
 | `ui/` | React admin/consent UI (signup, login, contracts, settings). |
 | `sdk/` | `wapi.js`, the frontend library web10 apps are built with. |
-| `marketing/web10-social/` | The killer app: all-in-one social lens (feed, profiles, DMs, media). CRM and Mail live here as sub-apps. |
+| `marketing/web10-social/` | The killer app: all-in-one social app (feed, profiles, DMs, media). CRM and Mail live here as sub-apps. |
 | `marketing/marketing-ui/` | web10 Inc.'s site: landing page, docs, App Store, Exporter UI. |
 | `marketing/marketing-api/` | Backend for the marketing site: ZIP import pipeline (bring your Instagram/Facebook/YouTube data), analytics. |
 | `marketing/web10-cli/` | CLI tool for web10. |
@@ -94,7 +94,7 @@ at the box and the certificates provision themselves. See
 ## Learn more
 
 - **[`plan.txt`](plan.txt)** — the roadmap and the why.
-- **[`GLOSSARY.md`](GLOSSARY.md)** — the vocabulary (node, provider, service, lens, token…).
+- **[`GLOSSARY.md`](GLOSSARY.md)** — the vocabulary (node, provider, service, record, token…).
 - **[`decisions.md`](decisions.md)** — why the big calls were made.
 - **[`manifesto.md`](manifesto.md)** — the fan-facing pitch that ships on every node.
 - **Developer docs** — protocol spec, conventions, schemas: `marketing/marketing-ui/public/docs/`.
