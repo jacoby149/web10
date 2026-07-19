@@ -1,43 +1,89 @@
-import Contacts from './components/Contacts/Contacts';
-import Chat from './components/Chat/Chat';
-import Bio from './components/Bio/Bio';
-import StandAloneFeed from './components/Feed/StandAloneFeed';
-import Login from './components/Login/Login';
-import Crm from './components/Crm/Crm';
-import Mail from './components/Mail/Mail';
-import useInterface from './interfaces/Interface';
-import useMockInterface from './interfaces/MockInterface';
-import '@chatscope/chat-ui-kit-styles/dist/default/styles.min.css';
-import './components/Components.css';
+import { useEffect, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import web10SocialAdapterInit from '@/interfaces/Web10SocialAdapter';
+import Layout from '@/components/Social/Layout';
+import FeedScreen from '@/components/Feed/FeedScreen';
+import ProfileScreen from '@/components/Bio/ProfileScreen';
+import DmsScreen from '@/components/Chat/DmsScreen';
+import PostComposer from '@/components/Feed/PostComposer';
+import type { Mode } from '@/types';
+
+function LoginScreen({ onLogin }: { onLogin: () => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-background px-6">
+      <div className="w-full max-w-sm text-center space-y-8">
+        <div className="space-y-2">
+          <h1 className="text-4xl font-bold tracking-tight text-foreground">
+            web<span className="text-brand">10</span>
+          </h1>
+          <p className="text-muted-foreground">Your social network. Your data. Your rules.</p>
+        </div>
+        <Button
+          variant="brand"
+          size="lg"
+          className="w-full h-12 text-base font-semibold"
+          onClick={onLogin}
+        >
+          Log in
+        </Button>
+        <p className="text-xs text-muted-foreground">
+          Powered by your own node. No shadow bans. 100% delivery.
+        </p>
+      </div>
+    </div>
+  );
+}
 
 function App() {
-  const queryParameters = new URLSearchParams(window.location.search);
-  const mock = queryParameters.get('mock');
-  const mockI = useMockInterface();
-  const realI = useInterface();
-  const I = mock ? mockI : realI;
-  window.I = I;
+  const [mode, setMode] = useState<Mode>('login');
+  const [signedIn, setSignedIn] = useState(false);
+  const [adapter, setAdapter] = useState<ReturnType<typeof web10SocialAdapterInit> | null>(null);
 
-  switch (I.mode) {
-    case 'chat':
-    case 'chat-edit':
-      return <Chat I={I} />;
-    case 'bio':
-    case 'my-bio':
-    case 'bio-edit':
-    case 'bulletin-edit':
-      return <Bio I={I} />;
-    case 'feed':
-      return <StandAloneFeed I={I} />;
-    case 'login':
-      return <Login I={I} />;
-    case 'crm':
-      return <Crm I={I} />;
-    case 'mail':
-      return <Mail I={I} />;
-    default:
-      return <Contacts I={I} />;
+  useEffect(() => {
+    const a = web10SocialAdapterInit();
+    setAdapter(a);
+
+    if (a.isSignedIn()) {
+      setSignedIn(true);
+      setMode('feed');
+    } else {
+      a.authListen(() => {
+        setSignedIn(true);
+        setMode('feed');
+      });
+    }
+  }, []);
+
+  function handleLogin() {
+    adapter?.login();
   }
+
+  function handleLogout() {
+    adapter?.signOut();
+    setSignedIn(false);
+    setMode('login');
+  }
+
+  function handleMode(m: Mode) {
+    setMode(m);
+  }
+
+  if (!signedIn) {
+    return <LoginScreen onLogin={handleLogin} />;
+  }
+
+  return (
+    <Layout mode={mode} setMode={handleMode} onLogout={handleLogout}>
+      {mode === 'feed' && (
+        <>
+          <PostComposer onPostCreated={() => {}} />
+          <FeedScreen />
+        </>
+      )}
+      {mode === 'my-bio' && <ProfileScreen />}
+      {(mode === 'chat' || mode === 'chat-edit') && <DmsScreen />}
+    </Layout>
+  );
 }
 
 export default App;
