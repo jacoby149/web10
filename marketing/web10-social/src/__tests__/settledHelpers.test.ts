@@ -76,7 +76,7 @@ describe('sortSettled', () => {
       [{ time: '2024-01-01T10:00:00Z', name: 'a' }],
       [{ time: '2024-01-02T10:00:00Z', name: 'b' }],
     ];
-    const result = sortSettled(data);
+    const result = sortSettled<{ time: string; name: string }>(data);
     expect(result.map((d) => d.name)).toEqual(['c', 'b', 'a']);
   });
 

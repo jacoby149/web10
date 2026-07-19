@@ -23,11 +23,11 @@ COST_AGGREGATE = 0.000005  # per pipeline stage
 AGG_MAX_STAGES = 20
 AGG_MAX_TIME_MS = 2000
 AGG_MAX_DOCS = 1000
+METERING_EVENTS_MAX = 100000
 FREE_CREDITS = 0.10
 FREE_SPACE = 8
 BETA_REQUIRED = False
 VERIFY_REQUIRED = False
-PAY_REQUIRED = False
 BETA_CODE = "web10betacode"
 TWILIO_SERVICE = "VAbce...."
 TWILIO_ACCOUNT_SID = "AC3594...."
@@ -35,11 +35,7 @@ TWILIO_AUTH_TOKEN = "460d....."
 TWILIO_NUMBER = "+12764004437"
 STRIPE_STATUS = "live"
 STRIPE_TEST_KEY = "sk_test_51Khy....."
-STRIPE_TEST_CREDIT_SUB_ID = "price_1Kh...."
-STRIPE_TEST_SPACE_SUB_ID = "price_1Ki...."
 STRIPE_LIVE_KEY = "sk_live_51Khyui......"
-STRIPE_LIVE_CREDIT_SUB_ID = "price_1Kkb....."
-STRIPE_LIVE_SPACE_SUB_ID = "price_1Kkb7....."
 DEV_PAY_PCT = 98
 
 # S3-compatible object storage (media service)

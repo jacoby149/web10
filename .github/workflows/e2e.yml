@@ -1,0 +1,64 @@
+name: e2e
+
+on:
+  push:
+    branches: [dev, main]
+    paths:
+      - e2e/**
+      - ui/**
+      - marketing/web10-social/**
+      - marketing/marketing-ui/**
+      - api/**
+      - docker-compose.yml
+      - .github/workflows/e2e.yml
+  pull_request:
+    paths:
+      - e2e/**
+      - ui/**
+      - marketing/web10-social/**
+      - marketing/marketing-ui/**
+      - api/**
+      - docker-compose.yml
+      - .github/workflows/e2e.yml
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: e2e smoke (playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build & start e2e stack
+        run: docker compose -f e2e/docker-compose.yml up --build -d
+
+      - name: Wait for stack health
+        run: bash e2e/wait-for-stack.sh
+        env:
+          TIMEOUT: 180
+
+      - name: Setup Playwright
+        working-directory: e2e
+        run: |
+          npm install
+          npx playwright install --with-deps chromium
+
+      - name: Run Playwright tests
+        working-directory: e2e
+        run: npx playwright test
+
+      - name: Upload Playwright traces on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: e2e/test-results/
+          retention-days: 7
+
+      - name: Tear down stack
+        if: always()
+        run: docker compose -f e2e/docker-compose.yml down -v

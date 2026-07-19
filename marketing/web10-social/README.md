@@ -1,70 +1,47 @@
-# Getting Started with Create React App
+# web10-social
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+The killer app: an all-in-one social lens (instagram-shaped, video +
+streaming) built on the web10 data layer. Feed, profile, DMs — a creator
+owns every byte, on a screen that holds up next to Kick and Twitch (see
+`/design.md` at the repo root — the binding UI/brand standard).
 
-## Available Scripts
+## Stack
 
-In the project directory, you can run:
+Vite + React 19 + TypeScript, Tailwind CSS v4 (`@tailwindcss/vite`),
+Radix UI primitives + `class-variance-authority` (the shadcn/ui idiom —
+see `src/components/ui/`), Lucide icons, self-hosted variable fonts
+(`@fontsource-variable/*` — never a Google Fonts / CDN font). The frontend
+talks to a user's node over `web10-npm` (`wapi`); see `src/data/` for the
+conventions-schema data layer (posts, feed, profile, contacts, dms,
+comments, reactions).
 
-### `npm start`
+## Scripts
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+```
+bun install       # or npm install
+bun run dev       # vite dev server, :3000
+bun run build     # tsc -b && vite build
+bun run preview   # serve the production build
+bun run test:run  # vitest, single run
+```
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Structure
 
-### `npm test`
+- `src/components/Social/Layout.tsx` — the app shell: desktop sidebar +
+  mobile bottom-nav (design.md §9).
+- `src/components/Feed/`, `src/components/Bio/`, `src/components/Chat/` —
+  feed/composer, profile, DMs.
+- `src/components/ui/` — the shadcn-style primitive kit. Extend this idiom;
+  don't fork a parallel one.
+- `src/data/` — the data layer (one file per service), typed against
+  `marketing/marketing-ui/public/docs/schemas/`.
+- `src/interfaces/` — legacy pre-D4 interface layer (`Interface.ts`,
+  `MockInterface.ts`, `PostInterface.ts`) kept alive by its own tests;
+  `Web10SocialAdapter.ts` is the real auth/session adapter `App.tsx` uses.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Design tokens
 
-### `npm run build`
-
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
-
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
-
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
-
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+`src/index.css`'s `@theme` block is a verbatim copy of `/design.md` §13 —
+sync it from there, don't fork local values. Colors, fonts, and radii
+come through tokens; a hardcoded hex or `font-family` in a component is a
+design review rejection.

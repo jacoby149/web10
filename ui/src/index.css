@@ -10,13 +10,30 @@ html {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  color-scheme: dark;
 }
 
 body {
   margin: 0;
-  background-color: var(--color-surface);
-  color: var(--color-text);
-  line-height: var(--leading-normal);
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  line-height: 1.5;
+  font-size: 0.9375rem;
+}
+
+/* numbers in stats/tables — tabular-nums per design.md §5 */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Reduced motion (design.md §7) ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* ── Ellipsis loader (preserved from index.css) ── */
@@ -31,7 +48,7 @@ body {
   width: 13px;
   height: 13px;
   border-radius: 50%;
-  background: var(--color-neutral-400);
+  background: var(--color-muted-foreground);
   animation-timing-function: cubic-bezier(0, 1, 1, 0);
 }
 .lds-ellipsis div:nth-child(1) {
@@ -66,28 +83,29 @@ body {
 /* ── Verification input (react-verification-input) ── */
 .character {
   border: 1px solid var(--color-border);
-  font-size: var(--type-xl);
-  border-radius: var(--radius-md);
+  font-size: 1.25rem;
+  font-family: var(--font-mono);
+  border-radius: var(--radius-sm);
   width: 40px;
   height: 40px;
-  color: var(--color-text);
-  background-color: var(--color-surface-2);
+  color: var(--color-foreground);
+  background-color: var(--color-elevated);
   box-shadow: 0 2px 0 var(--color-border);
 }
 .character--selected {
-  border-color: var(--color-primary-500);
-  box-shadow: 0 0 0 2px var(--color-primary-100);
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 2px var(--color-brand-muted);
 }
 .character--inactive {
-  color: var(--color-text-muted);
+  color: var(--color-muted-foreground);
 }
 
 /* ── Toggle switch (used in SetupWizard / ConfigPage) ── */
 .switch {
   position: relative;
   display: inline-block;
-  width: 50px;
-  height: 26px;
+  width: 44px;
+  height: 24px;
 }
 .switch input {
   opacity: 0;
@@ -98,8 +116,9 @@ body {
   position: absolute;
   cursor: pointer;
   top: 0; left: 0; right: 0; bottom: 0;
-  background-color: var(--color-neutral-600);
-  transition: var(--transition-normal);
+  background-color: var(--color-elevated);
+  border: 1px solid var(--color-border);
+  transition: background-color 150ms ease-out, border-color 150ms ease-out;
 }
 .slider.round {
   border-radius: var(--radius-full);
@@ -107,17 +126,22 @@ body {
 .slider::before {
   position: absolute;
   content: "";
-  height: 20px;
-  width: 20px;
-  left: 3px;
-  bottom: 3px;
-  background-color: white;
-  transition: var(--transition-normal);
+  height: 18px;
+  width: 18px;
+  left: 2px;
+  bottom: 2px;
+  background-color: var(--color-foreground);
+  transition: transform 150ms ease-out;
   border-radius: 50%;
 }
 input:checked + .slider {
-  background-color: var(--color-primary-600);
+  background-color: var(--color-brand);
+  border-color: var(--color-brand);
 }
 input:checked + .slider::before {
-  transform: translateX(24px);
+  transform: translateX(20px);
+}
+input:focus-visible + .slider {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
 }

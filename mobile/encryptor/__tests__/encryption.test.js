@@ -71,7 +71,15 @@ describe('encrypt / decrypt', () => {
   it('tampered ciphertext fails to decrypt', () => {
     const key = crypto.mint(SEED, 'enc-key', 'secret');
     const enc = crypto.encrypt(key, 'original', randomNonce());
-    const tampered = { ...enc, ciphertext: enc.ciphertext.slice(0, -1) + 'x' };
+    // Flip an early base64 char to a guaranteed-different value: the
+    // old slice(0, -1) + 'x' approach was flaky — 1 in 64 runs the
+    // last char already IS 'x' (and trailing chars can carry ignored
+    // padding bits), so nothing was actually tampered.
+    const flipped = enc.ciphertext[3] === 'A' ? 'B' : 'A';
+    const tampered = {
+      ...enc,
+      ciphertext: enc.ciphertext.slice(0, 3) + flipped + enc.ciphertext.slice(4),
+    };
     expect(() => crypto.decrypt(key, tampered)).toThrow();
   });
 

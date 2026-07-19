@@ -87,13 +87,39 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       dockerfile -- needs B2's build output, coordinate the handoff)
   [✓ 1.0.38] A4. P6 aggregate endpoint (the 5th verb, sandbox validator;
       per-stage metering through charge(); wapi.aggregate in legacy sdk)
-  [ ] A5. P4 metering events (per-request event records for analytics)
-  [ ] A6. D21 strip user billing → quotas: remove user-facing
+[✓ 1.0.58] A5. P4 metering events (per-request event records for analytics)
+  [✓ 1.0.56] A6. D21 strip user billing → quotas: remove user-facing
       plans/subscriptions/per-account stripe; repurpose credits/
       space + charge() as OPERATOR-SET per-user quotas (credits =
       rate/abuse throttle, space = storage caps incl. imports).
       stripe stays for the creator economy only (memberships,
       rails). keep the permission-matrix tests green through it.
+  [ ] A7. connect the node to the EXISTING production MongoDB on the
+      ubuntu box (~208 real users + historical data + registered
+      apps from the original web10) instead of the empty ferretdb
+      the stacks ship with. IMPORTANT (operator, 19.07): this mongo
+      runs NATIVELY on the host — it is NOT a docker container and
+      that's fine, leave it as-is. so the node's containers reach it
+      NOT by a compose service name but via the host: DB_URL points
+      at the host gateway (add `host.docker.internal:host-gateway`
+      to the api service's extra_hosts, or use the box LAN ip
+      192.168.8.25) : mongo's port (27017), assuming it binds a
+      reachable interface — confirm the bind + any auth creds, keep
+      them in the box .env, coordinate the compose var/extra_hosts
+      with lane E. we already speak the mongo wire protocol
+      (documentdb.py), so this is mainly config + verification, not
+      a rewrite: confirm the {service,body} + star-record shape
+      matches what our code expects (older records may predate
+      to_gui/to_db conventions — write a read-only audit first,
+      then a migration/adapter if the shape drifted), and make sure
+      star protection + scoped queries behave against real data.
+      gate: do NOT point PROD at the real mongo until a login works
+      against a COPY in dev (dump/restore into web10-dev's db, or a
+      read-only connection). deliverable: dev logs in as a real
+      historical user; total-users + total-apps counts computed from
+      the real data and surfaced like the original web10 (feeds the
+      D16 app-store stats); and the honest report of any shape drift.
+      unblocks B6 (real login to test against) and D16 (real apps).
 
 LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
   [✓ 1.0.12-1.0.14] B1. P0 js: auth2 -> vite + bun + typescript
@@ -107,7 +133,7 @@ LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
   [✓ 1.0.40] B4. P4 admin panel: policy config, ad records crud, analytics
       views (analytics needs A5 merged; build ui against fixtures
       until then)
-  [ ] B4.5. P4 the STUDIO respec (post-B2.5, on the new stack):
+  [✓ 1.0.55] B4.5. P4 the STUDIO respec (post-B2.5, on the new stack):
       youtube-studio frame, monetization menu as one-button cards
       with the YPP-style unlock ladder, amazon adapter v1 (tag
       card, render-time tagging, compliance chips, 3-sales
@@ -120,6 +146,47 @@ LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
       window so the demo video shows the money screen -- visually
       complete + rung-0 functional; deeper wiring (unlock ladder,
       adapters) follows in weeks 5-10.
+  [✓ 1.0.65] B5. level-up ui/ to the design.md standard (READ design.md
+      FIRST — repo root; it is the law for all ui work). tokens.css
+      migrated to design.md §13 (dark-first violet), inline styles
+      out, dead vendored bulma dir deleted, SideBar.tsx className/
+      style bug fixed, components/ui primitives kit, mobile bottom-
+      nav shell, hub.png (apple's app store logo — trademark,
+      replace) + react-atom icons swapped for the real keys marks
+      (design.md §3). studio = the money screen, highest stakes.
+      ALSO (urgent, the dev/prod deploys are gated on this):
+      parameterize the ui's backend origins —
+      ui/src/interfaces/authAdapter.ts + ui/src/config.ts hardcode
+      api.web10.app/auth.web10.app for prod builds, so any deployed
+      env ships a bundle calling the wrong api (see
+      ubuntu-deployment/AGENT-OPS.md §4.1).
+      build-time env (REACT_APP_*/VITE_* both allowed by
+      vite.config.js) + Dockerfile ARG. LANDED with the names
+      REACT_APP_API_ORIGIN / REACT_APP_AUTH_ORIGIN /
+      REACT_APP_RTC_ORIGIN (full origins) + REACT_APP_DEFAULT_API
+      (host); docker-compose.ecosystem.yml passes exactly these.
+      acceptance: design.md §12 (screenshot test, pr screenshots
+      desktop + 375px, tokens-only, all states designed) + an env
+      rebuild can point at dev/prod domains without a code edit.
+  [ ] B6. AUTHENTICATOR REVAMP — the ui/ auth flow is broken in
+      both look AND function (operator report, 19.07: "looks
+      retarded and straight up doesnt work", web10 logo on auth is
+      "hella broken"). B5 restyled the shell but the actual
+      login/consent flow is still wrong. this is a from-the-user's-
+      seat fix, not just tokens: (1) the web10 logo renders broken —
+      audit the asset path/import (design.md §3 names the real
+      marks; a deployed build serves from the app root, so a
+      dev-only path breaks in prod), (2) drive the REAL login flow
+      end to end against dev once A7's mongo is connected — signup,
+      login, the auth portal popup/redirect, token handoff to a
+      consuming app — and fix what's actually broken (the c5/c6
+      playwright harness + data-testid hooks exist; write the auth
+      journey as a test so it can't regress), (3) make it look like
+      design.md §12. gate: A7 (need real users to log in as) helps
+      but the logo + obvious-broken bits can start now. acceptance:
+      a human can sign up and log in on auth.dev.web10.app without
+      hitting a broken screen; playwright covers the journey;
+      screenshots desktop + 375px.
 
 LANE C — greenfield services  (owns: sdk/, mcp/, new dirs)
   [✓ 1.0.25] C1. P5 media service (presigned urls, minio profile,
@@ -135,7 +202,7 @@ LANE C — greenfield services  (owns: sdk/, mcp/, new dirs)
       --node <url> works from day one)
   [ ] C4. P10 backup integrations (drive/dropbox oauth, export/import
       archive -- format comes from D1's conventions doc)
-  [ ] C5. browser e2e harness (new top-level e2e/ dir + its ci
+  [✓ 1.0.59] C5. browser e2e harness (new top-level e2e/ dir + its ci
       workflow): playwright-in-docker against the compose stack,
       ~6-10 smoke journeys across ui + web10-social + marketing-ui
       (specced in plan.txt CROSS-CUTTING quality/testing). touches
@@ -143,6 +210,23 @@ LANE C — greenfield services  (owns: sdk/, mcp/, new dirs)
       by coordination, never reach-in edits). marketing-ui smoke +
       ui auth flows are landable now; social post->feed firms up
       with D4.
+  [ ] C6. e2e deep sweep + bug hunt (specced in plan.txt CROSS-
+      CUTTING quality/testing, "e2e deep sweep"): C5's harness
+      exists — now really exercise the ecosystem locally and find
+      what doesn't work (assume plenty doesn't). expand playwright
+      across the money paths + lane seams: signup -> consent ->
+      grant; social post w/ media -> feed -> comment -> dm; terms
+      revoke actually cuts the app off; exporter upload ->
+      marketing-api job -> records; app store -> launch -> token
+      handoff; studio w/ real metering. TEST ACCOUNTS are part of
+      the harness: signup IS a test (fresh account per run), plus
+      a seed script of persona fixtures (creator + fans + granted/
+      revoked terms) for flows needing existing state — same seed
+      powers dev-env wipe+reseed. no secrets in git; per-env creds
+      via env files. every failure triaged: small fixes land with
+      the suite, lane-owned breakage -> .context/ note + lane
+      queue item, never a silent skip. deliverable = the enlarged
+      suite AND the honest bug list.
 
 LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
                                 *.md/txt)
@@ -184,7 +268,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
     [✓ 1.0.33] D9. P7 final tidy: rtc/ -> api/rtc/, docs/ ->
         marketing-ui/public/docs/. all references updated (compose,
         CI, CLAUDE.md). top-level tree clean.
-  [ ] D10. report-a-bug loop: feedback endpoint in marketing-api +
+  [✓ 1.0.58] D10. report-a-bug loop: feedback endpoint in marketing-api +
       "report a bug" affordance and error boundaries in social +
       marketing-ui (specced in plan.txt CROSS-CUTTING quality/
       testing). the ui/ app's button is lane B territory --
@@ -198,20 +282,191 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       events + the error beacon ONLY -- no session-recording js
       on ui/ or social, ever (manifesto line). self-hosted
       posthog/openreplay deploy, if adopted, is lane E territory.
-
+  [✓ 1.0.64] D12. level-up web10-social to the design.md standard (READ
+      design.md FIRST — repo root). owns marketing/web10-social/**
+      only — runs parallel to D13, disjoint dirs. this is the deck
+      screenshot next to kick/twitch: wire the missing
+      @tailwindcss/vite plugin, actually load inter, media-forward
+      feed cards, composer that feels like publishing, profile as
+      creator page, story-first empty states (point at the
+      importer), finish evicting excluded rectangles/@chatscope
+      legacy components, fontawesome CDN kit out for lucide.
+      acceptance: design.md §12. also fixed tsconfig's missing `@/*`
+      path alias (tsc -b had ~90 pre-existing errors) and the
+      alternative.png-isn't-the-keys-mark bug (decisions.md D24,
+      converged with D13).
+  [✓ 1.0.63] D13. rebuild marketing-ui on the design system. bulma OUT
+      entirely (D22), tailwind v4 + design.md §13 tokens, dark
+      cinematic landing (lockup hero, tested reach-gap proof section —
+      "real product screenshots" deferred, none exist yet to be
+      honest about), docs readable (65-75ch prose, mono code), app
+      store on house cards (first-party proof, not a catalog),
+      education-era imagery + university logos deleted. brand asset
+      debt for all three apps PARTIALLY paid: favicons/pwa icons +
+      shared og-image from the keys mark dropped in
+      .context/brand-assets/ for lanes B/D12 to apply (D13 doesn't
+      reach into ui/ or web10-social/ code); svg vectorization + dark
+      variants still open, no tracing tool in-environment. flagged:
+      design.md §3's alternative.png does not contain the keys mark —
+      needs a design.md correction (not done here, out of lane).
+  [✓ 1.0.67] D14. parameterize web10-social's backend origins:
+      src/lib/origins.ts reads VITE_API_ORIGIN / VITE_AUTH_ORIGIN /
+      VITE_RTC_ORIGIN with the prod values as fallbacks; adapter +
+      wapi wrapper + bare-username default provider use it, and the
+      15 repeated cross_origins lists collapsed to one that also
+      includes the serving hostname (a deploy authorizes itself).
+      verified: env-arg build bakes dev origins into the bundle,
+      195 tests green.
+  [ ] D16. APP STORE — restore it as a real, curated marketplace
+      (gated on A7's mongo; the original web10 had live registered
+      apps + real usage stats, so this is RESTORATION of real
+      assets, not the speculative empty-catalog the D20 thread
+      warned against — see decisions.md, reconciled below). the
+      current marketing-ui AppStore is first-party-only "proof"
+      cards; make it the real thing:
+      (1) read the registered apps from the connected mongo (A7),
+          not hardcoded cards.
+      (2) LAYOUT: the killer app (web10-social) stays promoted up
+          top — do NOT bury it; registered third-party apps go in a
+          lower section. one hero, then the catalog.
+      (3) CURATION: web10 Inc. controls the store. anyone can
+          register an app, but it needs ADMIN APPROVAL to appear.
+          needs an api/admin side: an approval flag on app records +
+          an admin-only approve action (coordinate with lane A/B —
+          the admin panel is B4; the record shape + gate is lane A
+          territory). unapproved = registered but hidden.
+      (4) surface the historical stats that made it feel alive
+          (user count, app count) — real numbers from the mongo,
+          never faked.
+      acceptance: design.md §12; store shows web10-social first +
+      real approved apps below; registering an app is possible but
+      admin-gated; no hardcoded catalog.
+      NOTE — reconciles with the D20/app-store decision (which said
+      "don't build a speculative ecosystem, keep it as proof"): that
+      call assumed an EMPTY catalog would read as fediverse-jank.
+      with 208 real users and real registered apps from the original
+      web10 now reconnected (A7), the catalog is genuinely alive, so
+      restoring it IS the "looks like a real company" goal, not a
+      distraction. record this reversal in decisions.md when D16
+      lands.
+  [✓ 1.0.70] D16.1. fix the /docs/* 404 — marketing-ui nginx served
+      /docs/ via an alias block that shadowed the SPA fallback, so
+      /docs/protocol-spec 404'd (it's a client-side route that
+      fetches /docs/<slug>.md). added try_files ... /index.html to
+      the /docs/ location. (small live-prod fix done alongside the
+      planning.)
+  [ ] D17. RESTORE THE DEV DOCS (operator, 19.07 — "docs are lacking,
+      were sharp before with demo apps"). NOT LOST — recoverable from
+      git: the old rich docs lived in auth/public/docs/ and were
+      removed in 82667060 ("moving of docs to separate endpoint").
+      recover from `82667060^:auth/public/docs/`:
+      - hello/ and notes/ — the two live DEMO APPS (index.html +
+        script.js each) that made the docs sharp.
+      - sdk.md + sdk.pdf — the SDK guide.
+      bring these into marketing-ui's docs (the new home,
+      marketing/marketing-ui/public/docs + src/pages/Docs.tsx), on
+      the design.md standard, as runnable demo apps + an SDK page.
+      also: the old app store had a "make your own web10 app with the
+      web10 CLI" call-to-action (old AppStore.js, commit cc548b68) —
+      the CLI still exists (marketing/web10-cli/) but is invisible;
+      restore that CTA (ties to D16's "Build on web10" card) and
+      write a CLI quickstart doc. acceptance: /docs shows demo apps +
+      SDK + CLI quickstart; the app store links devs to "build your
+      own". gate: none (docs), but the SDK doc should reflect C2's
+      typed sdk once it lands (don't teach legacy wapi as the future
+      — see C2/C3.5 parking note).
+  [ ] D18. DOCUMENT + LINK THE WEB10 SDK (operator, 19.07: GitHub
+      shows 4 built packages, none is the SDK; docs never mention it
+      or link to it). the sdk lives in sdk/ (web10-npm) and cd.yml
+      already publishes it to npm on a v* tag. work: (1) add an SDK
+      section/link to the docs + a badge/link from marketing-ui and
+      the README; (2) confirm the npm publish actually fires and the
+      package is public + discoverable; (3) plan.txt CI/CD note:
+      publish the sdk to npm whenever it changes (today it's
+      tag-gated — decide if a version-bump-on-merge should trigger
+      it). coordinate the doc voice with C2 (typed sdk) so we link
+      the RIGHT sdk. small; not M0-gating but cheap credibility.
 
 
 LANE E — infrastructure / deployment (owns: proxmox provisioning,
     reverse proxy, CI/CD deploy targets)
-  [ ] E1. proxmox staging node: create fresh Ubuntu VM on 192.168.8.20,
-      deploy web10 node (api + ui + db + rtc + minio) via
-      ubuntu-deployment/ubuntu-deploy.sh. team-accessible internal staging.
+[✓ 1.0.60] E1. proxmox staging node: Portainer + Nginx Proxy Manager
+       infra (prep-vm.sh, docker-compose.staging.yml self-contained stack,
+       Cloudflare DNS plan). ubuntu-deploy.sh replaced by Portainer UI
+       approach. README.md updated. DEPLOYED 19.07.2026:
+       api live at staging.web10.app, ui serves at
+       auth.staging.web10.app but is broken by hardcoded origins
+       (lane B fix queued in B5); rtc/minio DNS records missing;
+       marketing/social not in the stack yet. live triage +
+       ops procedures: ubuntu-deployment/AGENT-OPS.md + OPS-LOG.md.
 [✓ 1.0.38] E2. marketing deploy: marketing-ui + marketing-api on proxmox,
        caddy reverse proxy with auto-TLS. internal staging complete.
-  [ ] E3. public domain + auto-TLS for external traffic (when ready)
+  [✓ 1.0.68] E3. PROD env — the whole ecosystem public (specced in plan.txt
+      CROSS-CUTTING deployment "environments"): prod marketing-ui +
+      marketing-api + node (api, ui, social, rtc, minio, db) behind
+      NPM with public cloudflare DNS + router-forwarded 80/443 +
+      real TLS. infra panels stay LAN/VPN-only (E1 security model).
+      REPO SIDE DONE (1.0.66): docker-compose.ecosystem.yml (one
+      parameterized compose, dev + prod — the staging env was cut),
+      env.prod.example, social prod Dockerfile, runbook. REMAINING:
+      box execution — create the web10-prod Portainer stack + NPM
+      hosts + DNS per README.md and AGENT-OPS.md §4.2 migration
+      order (needs SSH/.env + CF creds; watch the
+      api.web10.app/auth.web10.app cutover caution).
+  [✓ 1.0.68] E5. DEV env — the SAME whole ecosystem, VPN-only, on the same
+      linux box ubuntu-deployment/ preps (parallel to E3, and to
+      the B5/D12/D13 ui revamp): cloudflare DNS for dev vhosts
+      (*.dev.web10.app or similar) pointing at the box's INTERNAL
+      LAN ip — resolves publicly, unreachable off-VPN, zero
+      port-forwards, TLS still works (DNS-01 needs no inbound).
+      second Portainer stack from the same parameterized compose,
+      own volumes + env file. promotion flow (dev soak -> prod
+      redeploy) documented in README.md.
+      REPO SIDE DONE (1.0.66): compose + env.dev.example + DNS-01
+      procedure + promotion flow all in README.md.
+      REMAINING: box execution — web10-dev stack, *.dev DNS records
+      pointing at the LAN ip, DNS-01 certs. ui/social bundles wire
+      to dev origins only after B5/D12's env fixes merge (compose
+      already passes the build args).
   [ ] E4. automated provisioning: terraform or ssh-api script +
       ansible for idempotent VM/LXC setup. don't rush — manual is
       fine until E2 works.
+  [ ] E6. push-to-deploy CI/CD (gated on E5/E3 stacks existing):
+      push to dev -> web10-dev redeploys, release on main ->
+      web10-prod redeploys. the repo is PUBLIC, so NO self-hosted
+      github runner (github's own guidance; fork PRs + a runner in
+      the docker group on the box = remote root). two sanctioned
+      designs, in order:
+      (1) NOW, zero new surface: Portainer git-backed stacks with
+          GitOps polling — point each stack at the repo (ref dev /
+          main, compose path ubuntu-deployment/
+          docker-compose.ecosystem.yml), auto-update ~5min. push
+          merges, box pulls. no inbound, no GH secrets, ~10 min of
+          Portainer clicking.
+      (2) LATER, instant deploys: Portainer stack webhooks exposed
+          ONLY through a Cloudflare Tunnel (cloudflared, outbound-
+          only — the 80/443-only router rule stays intact) + a tiny
+          deploy job appended to ci (curl the webhook on push to
+          dev / release). never a public proxy host to :9000 (prime
+          directive 1).
+      note: cd.yml's GHCR images can NOT serve the frontends across
+      envs yet — ui/social/marketing bake origins at BUILD time, so
+      per-env build-on-box stays correct until a runtime-config
+      refactor; the api/rtc images are env-agnostic and could
+      switch to pulls anytime.
+  [ ] E7. SDK npm publish flow (with C2/D18): cd.yml publishes sdk/
+      to npm on a v* tag today — confirm it fires + the package is
+      public, and decide whether a version bump on merge to dev/main
+      should auto-publish so the sdk stays fresh (operator, 19.07:
+      "publish the web10 sdk to npm if it updates"). small.
+  [ ] E8. MOBILE ENCRYPTOR → app stores (future, operator 19.07 —
+      "just dont want to lose track"): mobile/encryptor is an Expo
+      app (the phone-as-keychain seed, D3/D6). when it's ready,
+      deploying to the Apple App Store + Google Play becomes real
+      work: expo eas build + submit pipeline, store listings,
+      signing certs/provisioning, review. NOT now (post-M0, gated on
+      the encryptor actually doing e2e key management) — parked here
+      so it's on the board, not lost.
 
 WHAT MUST STAY SEQUENTIAL (don't try to parallelize these)
 ----------------------------------------------------------
@@ -239,34 +494,53 @@ M3 "the network"         = encryption integration (A rtc + C2 sdk
                            polish. the last big merge.
 
 
-CURRENT CONDUCTOR BOARD (as of 18.07.2026 — keep this section fresh)
+CURRENT CONDUCTOR BOARD (as of 19.07.2026 — keep this section fresh)
 --------------------------------------------------------------------
-we are in timeline.md WEEK 0 — the M0 sprint (video by ~aug 17).
-the D20/D21 pivot re-cut this board; C2 sdk is OFF the M0 critical
-path (ws2 repointed to D4 per timeline.md week 0).
+we are in timeline.md WEEK 0/1 — the M0 sprint (video by ~aug 17).
+the beautify wave (B5/D12/D13/D14) and the FULL DEPLOYMENT (E3/E5 —
+both envs live behind NPM with TLS + GitOps polling) are merged.
+PRIORITY ZERO (plan.txt, top): the deployed product must WORK AT A
+BASELINE — auth is broken, docs 404'd (fixed in D16.1), the node
+points at an empty db. baseline fixes outrank polish, in this order:
+  ws-A: A7 connect the real host mongo (unblocks everything)
+  ws-B: B6 authenticator revamp (login must complete; playwright
+        guard) — logo + obvious breakage can start before A7
+  ws-C: C6 e2e deep sweep (now can also run against dev)
+  ws-D: D17 restore the dev docs + D16 real app store (after A7)
 
-  ws1: B2.5 ui makeover in ui/ — stack pick (tailwind + shadcn is
-       the named default; record in decisions.md) + shared design
-       tokens. gates D2.5 and D4's screens; merge the pick fast.
-  ws2: D4 killer app M0 slice, DATA LAYER first — posts, feed
-       (chronological + sort dropdown ONLY, lens/chatbox cut per
-       D20), profile, dms on current wapi against docs/schemas.
-       logic doesn't wait for B2.5; screens do.
-  ws3: wave 0 remainder: small security fixes (CORS, bare except,
-       provider url validation) — land these BEFORE A6 churns the
-       billing code. then A6 (D21 strip user billing -> operator
-       quotas, timeline week 2) takes this lane-A slot.
-ws4: [✓ 1.0.50] outreach list batch 1 fully enriched: 20 API-verified
-         prospects via YouTube Data API (outreach_sourcer.py), all burn
-         events verified, 5 with biz emails, 6 false positives filtered.
-         script reusable for batches 2-5. or E1 proxmox staging node
+  ws1: [✓ 1.0.65] B5 level-up ui/ to design.md (lane B — ui/**) — merged
+  ws2: [✓ 1.0.64] D12 level-up web10-social to design.md (lane D —
+       marketing/web10-social/** only) — merged, see decisions.md D24
+       for the alternative.png asset correction (shared with D13).
+  ws3: [✓ 1.0.63] D13 rebuild marketing-ui on the design system, bulma
+       out (lane D — marketing/marketing-ui/** only) + partially pays
+       the shared brand asset debt (design.md §3) — icons + og-image
+       done and dropped in .context/brand-assets/ for B5/D12 to apply;
+       svg vectorization still open (no tracing tool available).
+  ws4: E5/E3 REPO side merged in 1.0.66 (one parameterized
+       docker-compose.ecosystem.yml for dev/prod incl. social +
+       marketing, env.{dev,prod}.example, edge NPM stack, runbook
+       in README.md). staging as an env was CUT 19.07 (dev + prod
+       only). what's left is BOX EXECUTION, the full ordered
+       migration in AGENT-OPS.md §4.2: stop legacy caddy → edge NPM
+       stack → dev/prod DNS (dev → LAN ip, DNS-01 certs) →
+       web10-dev + web10-prod stacks + NPM hosts → smoke tests →
+       decommission the legacy *.staging stack/records/caddy.
+       B5's ui origins fix is MERGED (1.0.65) — a fresh stack build
+       serves per-env origins; only social still needs D14. operator
+       prerequisites: docker group for the ssh user, rotate the CF
+       token exposed in the world-readable Caddyfile.
+  ws5: C6 e2e deep sweep + bug hunt (lane C — e2e/** only; local
+       stack, no deploy gate). signup-as-a-test + persona seed
+       fixtures; the honest bug list is the deliverable.
 
-  merge-order notes: lane A stays single-branch (security fixes ->
-  A6 -> A5). D2.5 starts the moment B2.5's tokens merge. B4.5 M0
-  slice (studio monetization-menu screen, rung-0 cards) follows
-  B2.5 in lane B — it's week 2's money shot. C2/C3/C3.5 parked
-  until after M0.
-  (A1/B1/B2/B3/B4/C1/D1/D2/D3/D5–D9/E2 are DONE — don't re-pick.)
+  merge-order notes: B5/D12/D13 don't gate each other; merge each as
+  it passes design.md §12. D13 owns the cross-app asset generation
+  (svg marks, favicons) but replacing assets INSIDE ui/ is B5's to
+  apply — D13 leaves the files + a .context note, doesn't reach in.
+  C2/C3/C3.5 still parked until after M0.
+  (A1/B1/B2/B3/B4/B4.5/C1/C5/D1/D2/D2.5/D3/D4/D5–D10/E1-infra/E2
+  are DONE — don't re-pick.)
 
   from here on: pull the top unticked item of whichever lane's queue
   is unblocked. lanes A and B are long marches; C and D are a stream

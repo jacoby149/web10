@@ -1,34 +1,43 @@
-import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/bootstrap.css";
 import Provider from "./FormInputs/Provider";
 import Phone from "./FormInputs/Phone";
+import { Button } from '@/components/ui/button';
 
 function ForgotForm({ I }: { I: Record<string, any> }) {
   return (
-    <div className="w-[320px] mx-auto mt-[70px] p-6 rounded-xl border" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}>
-      <p className="text-sm mb-3" style={{ color: 'var(--color-text-secondary)' }}>
-        Please enter your web10 provider and mobile number to recover your account.
-      </p>
-      <Provider I={I} />
-      <Phone I={I} />
-      <div className="flex justify-center gap-2 mt-3" style={{ margin: '5px' }}>
-        <button
-          onClick={() => I.isAuth ? I.setMode("login") : I.setMode("appstore")}
-          className="px-3 py-1.5 text-sm font-medium rounded-lg border transition-colors hover:opacity-80"
-          style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
-        >
-          Cancel
-        </button>
-        <button
-          onClick={() => {
-            const provider = (document.getElementById("provider") as HTMLInputElement).value;
-            I.recover(provider, I.phone);
-          }}
-          className="px-3 py-1.5 text-sm font-medium rounded-lg text-white transition-colors hover:opacity-90"
-          style={{ backgroundColor: 'var(--color-info)' }}
-        >
-          Recover Account
-        </button>
+    <div className="w-full max-w-sm">
+      <div className="rounded border border-border bg-card p-6 sm:p-8">
+        <h1 className="font-display text-xl font-semibold text-foreground">Recover your account</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Enter your web10 provider and mobile number to recover your account.
+        </p>
+
+        <div className="mt-6 space-y-1">
+          <Provider I={I} />
+          <Phone I={I} />
+        </div>
+
+        <div className="mt-2 flex gap-2">
+          <Button
+            variant="outline"
+            className="flex-1"
+            onClick={() => I.isAuth ? I.setMode("login") : I.setMode("appstore")}
+            data-testid="forgot-cancel"
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="brand"
+            className="flex-1"
+            data-testid="forgot-submit"
+            onClick={() => {
+              const provider = (document.getElementById("provider") as HTMLInputElement).value;
+              I.recover(provider, I.phone);
+            }}
+          >
+            Recover account
+          </Button>
+        </div>
       </div>
     </div>
   );
