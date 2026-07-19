@@ -160,20 +160,15 @@ Symptom → likely cause (check in this order, stop at first hit):
 
 Read this before re-diagnosing; these are already understood:
 
-1. **Frontend origin parameterization — ui DONE, social PENDING.**
-   The auth UI's fix MERGED (B5, 1.0.65): `ui/Dockerfile` declares
-   `REACT_APP_API_ORIGIN` / `REACT_APP_AUTH_ORIGIN` /
-   `REACT_APP_RTC_ORIGIN` / `REACT_APP_DEFAULT_API` ARGs and
-   `docker-compose.ecosystem.yml` passes them — a fresh stack build
-   serves the right origins per env; prod values remain the
-   fallback when args are empty. web10-social's adapter
-   (`Web10SocialAdapter.ts`) still hardcodes `auth.web10.app` /
-   `rtc.web10.app` for non-local builds — that's lane D item D14
-   (its Dockerfile `VITE_*` ARGs + compose args already exist).
-   Until D14 merges, the social app in dev talks to prod's
-   auth/rtc. An ops agent CANNOT fix this on the box — do not try;
-   rebuilding the same code reproduces the same bundle. When D14
-   merges: redeploy stacks with rebuild.
+1. **Frontend origin parameterization — DONE for all three
+   frontends.** ui (B5, 1.0.65: `REACT_APP_*` ARGs), web10-social
+   (D14, 1.0.67: `VITE_*` ARGs read in `src/lib/origins.ts`) and
+   marketing-ui (`VITE_*` ARGs) all take their backend origins from
+   build args that `docker-compose.ecosystem.yml` passes per env;
+   the production origins remain the fallback when args are empty.
+   A fresh stack BUILD (not just restart) serves the right origins.
+   The legacy staging deployment predates all of this — its bundles
+   stay wrong until decommissioned (issue #2).
 2. **The live box runs the LEGACY deployment, due for teardown.**
    What's there today: a root-managed **Caddy** container holding
    80/443 (config `/opt/caddy/Caddyfile` — WORLD-READABLE with a

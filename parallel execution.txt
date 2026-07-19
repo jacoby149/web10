@@ -264,17 +264,14 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       variants still open, no tracing tool in-environment. flagged:
       design.md §3's alternative.png does not contain the keys mark —
       needs a design.md correction (not done here, out of lane).
-  [ ] D14. parameterize web10-social's backend origins (small,
-      gates the dev/prod social deploys the same way B5's origins
-      fix gates the auth ui): Web10SocialAdapter.ts hardcodes
-      auth.web10.app/rtc.web10.app for non-local builds. read
-      VITE_API_ORIGIN / VITE_AUTH_ORIGIN / VITE_RTC_ORIGIN from
-      import.meta.env with the current values as fallbacks — the
-      Dockerfile ARGs already exist and
-      ubuntu-deployment/docker-compose.ecosystem.yml already passes
-      them (see AGENT-OPS.md §4.1). acceptance: an env rebuild
-      points social at dev/prod domains without a code edit; tests
-      stay green.
+  [✓ 1.0.67] D14. parameterize web10-social's backend origins:
+      src/lib/origins.ts reads VITE_API_ORIGIN / VITE_AUTH_ORIGIN /
+      VITE_RTC_ORIGIN with the prod values as fallbacks; adapter +
+      wapi wrapper + bare-username default provider use it, and the
+      15 repeated cross_origins lists collapsed to one that also
+      includes the serving hostname (a deploy authorizes itself).
+      verified: env-arg build bakes dev origins into the bundle,
+      195 tests green.
 
 
 
