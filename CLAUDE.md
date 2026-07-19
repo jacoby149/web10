@@ -13,6 +13,16 @@ a tiny CRUD API. The data outlives any app. The long-term vision:
 creators (influencers) run nodes and monetize; user accounts are free;
 web10 Inc. takes a small % of revenue through its payment rails.
 
+**Strategic orientation (D20, 18.07.2026): social platform first, protocol
+second.** The product is a platform for influencers — own your audience, no
+shadow ban (100% delivery by architecture) — and the protocol exists to make
+that ownership possible. Protocol/feature decisions are judged by whether
+they make the creator platform better (the pitch truer, the creator P&L
+stronger, fan conversion higher); generality for its own sake goes to
+`later.md`. Read THE STORY at the top of `plan.txt` before touching product
+surfaces; the fan-facing voice lives in `manifesto.md`, the creator pitch in
+`outreach.md`.
+
 ## The stack (as of now — being modernized, see plan.txt phase 0)
 - `api/` — FastAPI. The node. All data + auth + billing + media. Entry: `api/app/main.py`.
   - Layered (since 1.0.31): `main.py` app init + middleware + router includes;
@@ -23,7 +33,6 @@ web10 Inc. takes a small % of revenue through its payment rails.
 - `sdk/` — `wapi.js`, the frontend library apps are built with.
 - `api/rtc/` — WebRTC signaling (merged into api, becomes load-bearing for e2e encryption).
 - `mobile/encryptor/` — Expo app, the seed of the phone-as-keychain.
-
 - `marketing/` — everything that makes web10 accessible:
     - `marketing-ui/` — web10 Inc.'s site: landing page + docs + App Store + Exporter UI.
         Vite + React 19 + TS + Bun + react-router. Own vhost, never in node compose.

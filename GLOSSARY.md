@@ -61,9 +61,10 @@ in `api/app/main.py` and `api/app/mongo.py` is the source of truth.
   web10 taking a percentage cut (`stripe.py`). The seed of the node revenue rail.
 
 ## Vision-era terms (not all built yet — see plan.txt)
-- **lens** — an app is a "lens" over data the user owns. The **lens record**
-  is the user's feed algorithm + experience config, stored as a record they
-  own and edit (including via the chatbox / an LLM).
+- **lens** — an app is a "lens" over data the user owns. (The **lens
+  record** — feed algorithm + experience config as a user-owned record,
+  editable via an LLM chatbox — was cut from the roadmap to `later.md`
+  in D20; the feed ships chronological + a sort dropdown.)
 - **inbox pattern** — feeds via fan-out-on-write: friends' nodes deliver
   posts into a collection you own, so reading your feed is one local query.
 - **zero-knowledge hosting** — the node stores ciphertext; keys live on the

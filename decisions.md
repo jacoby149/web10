@@ -9,6 +9,69 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D21 — User billing is stripped; metering survives as operator-set quotas (anti-abuse), and the money screen is in M0 [decided]
+Users are never charged (D5: accounts free, paid by the operator's revenue),
+so the legacy per-user billing surface (plans, user subscriptions, per-account
+Stripe) is stripped from the product. The metering machinery it rode on
+(credits/space, `charge()`, the star-record ledger) is NOT deleted — it is
+repurposed as node policy: operator-set per-user quotas, where credits =
+rate/abuse throttle and space = storage caps (which also solves the
+import-storage-lands-on-the-creator gap). Stripe remains for the creator
+economy only (memberships, rails, marketplace). Second half of the decision:
+the Studio's monetization-menu screen (the rung-0 cards — memberships,
+Amazon tag, direct deals) is an M0 deliverable, because the pitch to
+creators is money and the demo video must SHOW the money screen, not
+describe it. Rejects: charging end users anything, deleting the metering
+code (it's the quota system), and shipping an M0 demo whose economics are
+a slide instead of a screen.
+
+### D20 — The proposition is creator ownership + no shadow ban; the killer app stands on its own; lens/customizability cut to later.md [decided]
+This is a product for influencers, and largely a story business. The pitch
+("THE STORY" in plan.txt) has to land as "oh shit... this is the only way":
+(1) you already don't own your audience — 1M subs and the video does 300k;
+subs are not delivery, and the reach gap IS the shadow ban, visible in your
+own analytics; (2) urgency — AI influencers are arriving in volume and the
+algorithm has no loyalty to humans; own your persona and channel NOW;
+(3) ownership is the only structural defense: the inbox pattern (fan-out on
+write) delivers to 100% of followers BY ARCHITECTURE — it can't be quietly
+revoked because it isn't a policy; (4) it's a hedge, not an exodus — the home
+base is owned, platforms become distribution; (5) it must be THE COOL THING:
+Kick/Twitch-grade slick, never fediverse jank (PeerTube, even Mastodon) — if
+it looks like a protest app, the pitch dies on the first screenshot.
+Consequences: the killer app must stand on its own as a plain good social app
+(post, feed, DMs, media); the feed is chronological + a sort dropdown — "no
+algorithm" IS the feed feature and costs zero code beyond the inbox pattern.
+Feed customizability, preset lenses, the lens record, and the LLM chatbox are
+cut from the roadmap to later.md (<5% of users touch settings; retention
+comes from defaults; "the customizable social network" was Ello/Vero's pitch
+and it doesn't travel). M0's kill test becomes twenty creator pitches, not a
+viral consumer video. D19's BYOK architecture stands ready if the chatbox
+earns its way back (promotion bar in later.md). Rejects: "own your algorithm"
+as the lead pitch, feed customizability as a launch feature, the
+consumer-demo wedge as primary distribution, and fediverse-adjacent
+positioning/aesthetics.
+
+### D19 — Chatbox LLM is BYOK-only; the key is a wallet secret the phone beams to chosen apps [decided]
+The phase-8 lens chatbox never runs on operator-paid inference by default: a
+free-signup node exposing a server-side LLM endpoint is a free API proxy, and
+the abuse lands on the operator's bill — exactly the surprise cost that kills
+hobbyist self-hosting. v1 is bring-your-own-key, held client-side
+(localStorage) and calling the provider directly from the browser, so the
+node never sees the key or the conversation. Presets (chronological, detox,
+close-friends) need zero LLM, so the "own your algorithm" pitch works without
+a key. Phase 11 graduates the key into the phone wallet: an e2e-encrypted
+record (ciphertext on the node, portable like everything else) that the phone
+beams only to the web10 apps the user picks at provisioning — the keyring's
+`agent:lens-llm` naming already anticipates this (D18). True revocation is
+rotating the key at the provider; device revocation only stops future
+provisioning. Node-provided inference may return later as an operator OPT-IN
+with hard per-user caps, never the default. The LLM's web10 token stays
+scoped to the lens service regardless (I5) — who pays for inference is
+independent of what the token can touch. Rejects: operator-pays-by-default,
+proxying chat through the node, storing the key as a plaintext record, and
+routing every chat call through the phone (D15: the phone is the root of
+trust, not a proxy).
+
 ### D18 — The keyring is generic like the record model: named keys, a small closed verb set [decided]
 The same discipline that made `{service, body}` survive: no hardcoded schema.
 Audiences are user-named keys (any string — a circle, a single record, an LLM
