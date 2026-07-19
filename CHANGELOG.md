@@ -1,4 +1,4 @@
-1.0.55 || 19.07.2026
+1.0.59 || 19.07.2026
 C5: browser e2e harness — new top-level e2e/ dir with Playwright smoke
 suite (10 journeys across marketing-ui, ui auth, web10-social). new
 e2e/docker-compose.yml (full stack: api + ferretdb + ui + social +
@@ -12,6 +12,55 @@ npx playwright test. auth UI full-browser flows deferred (CORS: dev
 containers resolve api.localhost:80, not :8880 — API-level signup/login/
 certify flows cover the money paths; full browser flows land when the
 stack consolidates to a single port).
+
+1.0.58 || 19.07.2026
+D10: report-a-bug loop — feedback endpoint in marketing-api (POST
+/feedback, GET /feedback, 6 new tests, 10 total smoke green),
+"Report a bug" affordance + React error boundaries in web10-social
+(Tailwind/Radix modal, sidebar button, console error capture, 11 new
+component tests) and marketing-ui (Bulma modal, Navbar button, 11 new
+component tests, --passWithNoTests removed). Lane B note in
+.context/laneB-report-a-bug.md with endpoint contract + reference
+implementations for ui/ integration. Dead rectangles-npm cleanup:
+21 dead components and 6 dead test files removed (superseded by
+D2.5/B2.5 Tailwind migration). Social test suite now 193 passed, 0
+failures (was 4 pre-existing failures from dead code).
+A5: P4 per-request metering events. emit_event() in documentdb.py writes
+user/action/service/site/ts to a capped web10.metering_events collection
+(100k max, METERING_EVENTS_MAX). Wired into all CRUD/aggregate endpoints
+in crud.py as fire-and-forget (try/except — never crashes the request).
+5 new endpoint tests verify events on create/read/update/delete/aggregate.
+279 api tests green.
+
+1.0.57 || 19.07.2026
+PR + changelog workflow hardening for the parallel-agent conveyor.
+AGENTS.md/CLAUDE.md (and the Conductor prompt) now require, right after
+gh pr create: (1) an immediate conflict check (gh pr view --json
+mergeable,mergeStateStatus) with local merge of origin/dev to resolve,
+then (2) watching ALL checks — optional ones included, UNSTABLE is red,
+not "ready to go" — and fixing until every check is green before
+reporting the PR ready. Changelog conflicts defused: .gitattributes sets
+CHANGELOG.md merge=union so parallel branches' entries union instead of
+conflicting on local merges, with a documented renumber-after-merge step
+(top entry must stay the unique highest; changelog CI already enforces).
+Also in this branch, dev unbroke: LadderCard.tsx type-only import fixed
+(ui docker build was red on dev after #118) and marketing/web10-social
+bun.lock regenerated (frozen-lockfile install failed on every CI run,
+skipping its tests entirely). web10-social's tsc build stays red with
+pre-existing @/-alias + legacy rectangles-npm import errors, masked by
+continue-on-error in CI (the known 1.0.48 gap) — left for lane D; its
+4 unresolvable legacy tests (BioBottom/ContactAdder/Crm/Mail, imports
+D2.5 removed from package.json) excluded in vite.config.ts with a note,
+so the test step reports signal again (181 passing) instead of failing
+on dead code.
+plan.txt recovery item extended: forgot-password must be smooth, phone
+AND email as first-class reset channels. New plan.txt ci item: the api
+(lint + test) job has never gone green — uv sync --frozen installs
+neither ruff nor pytest, and beneath the spawn error sit 104 ruff
+errors + 26 unformatted files; one lane-A branch fixes workflow + debt
+together. Board hygiene: #117 and #118
+raced for version 1.0.55 and both merged with it — A6 (merged second)
+renumbered to 1.0.56 here, lane tick updated to match.
 
 1.0.54 || 19.07.2026
 README rewritten to match the current stack: dead references removed

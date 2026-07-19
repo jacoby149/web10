@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import web10SocialAdapterInit from '@/interfaces/Web10SocialAdapter';
 import Layout from '@/components/Social/Layout';
@@ -6,6 +6,8 @@ import FeedScreen from '@/components/Feed/FeedScreen';
 import ProfileScreen from '@/components/Bio/ProfileScreen';
 import DmsScreen from '@/components/Chat/DmsScreen';
 import PostComposer from '@/components/Feed/PostComposer';
+import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
+import { ReportBug } from '@/components/shared/ReportBug';
 import type { Mode } from '@/types';
 
 function LoginScreen({ onLogin }: { onLogin: () => void }) {
@@ -34,10 +36,35 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
   );
 }
 
+function ErrorFallback({ onReport, onReload }: { onReport: () => void; onReload: () => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-background px-6">
+      <div className="w-full max-w-sm text-center space-y-6">
+        <div className="space-y-2">
+          <h2 className="text-xl font-semibold text-foreground">Something went wrong</h2>
+          <p className="text-sm text-muted-foreground">
+            The app crashed. You can report what happened or try reloading.
+          </p>
+        </div>
+        <div className="flex gap-3">
+          <Button variant="outline" className="flex-1" onClick={onReload}>
+            Reload
+          </Button>
+          <Button variant="brand" className="flex-1" onClick={onReport}>
+            Send Report
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [mode, setMode] = useState<Mode>('login');
   const [signedIn, setSignedIn] = useState(false);
   const [adapter, setAdapter] = useState<ReturnType<typeof web10SocialAdapterInit> | null>(null);
+  const [showReportBug, setShowReportBug] = useState(false);
+  const [reportTrigger, setReportTrigger] = useState<'button' | 'error-boundary'>('button');
 
   useEffect(() => {
     const a = web10SocialAdapterInit();
@@ -68,21 +95,49 @@ function App() {
     setMode(m);
   }
 
+  const handleReportBug = useCallback((trigger: 'button' | 'error-boundary' = 'button') => {
+    setReportTrigger(trigger);
+    setShowReportBug(true);
+  }, []);
+
+  const handleBoundaryFallback = useCallback(
+    ({ error: _err, stackTrace: _st }: { error: Error; stackTrace: string | null }) => (
+      <ErrorFallback
+        onReport={() => handleReportBug('error-boundary')}
+        onReload={() => window.location.reload()}
+      />
+    ),
+    [handleReportBug],
+  );
+
   if (!signedIn) {
     return <LoginScreen onLogin={handleLogin} />;
   }
 
   return (
-    <Layout mode={mode} setMode={handleMode} onLogout={handleLogout}>
-      {mode === 'feed' && (
-        <>
-          <PostComposer onPostCreated={() => {}} />
-          <FeedScreen />
-        </>
+    <ErrorBoundary fallback={handleBoundaryFallback}>
+      <Layout
+        mode={mode}
+        setMode={handleMode}
+        onLogout={handleLogout}
+        onReportBug={() => handleReportBug('button')}
+      >
+        {mode === 'feed' && (
+          <>
+            <PostComposer onPostCreated={() => {}} />
+            <FeedScreen />
+          </>
+        )}
+        {mode === 'my-bio' && <ProfileScreen />}
+        {(mode === 'chat' || mode === 'chat-edit') && <DmsScreen />}
+      </Layout>
+      {showReportBug && (
+        <ReportBug
+          trigger={reportTrigger}
+          onClose={() => setShowReportBug(false)}
+        />
       )}
-      {mode === 'my-bio' && <ProfileScreen />}
-      {(mode === 'chat' || mode === 'chat-edit') && <DmsScreen />}
-    </Layout>
+    </ErrorBoundary>
   );
 }
 

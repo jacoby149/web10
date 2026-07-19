@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { Home, User, MessageSquare, PlusCircle, LogOut } from 'lucide-react';
+import { Home, User, MessageSquare, PlusCircle, LogOut, Bug } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { Mode } from '@/types';
 
@@ -7,6 +7,7 @@ interface LayoutProps {
   mode: Mode;
   setMode: (m: Mode) => void;
   onLogout: () => void;
+  onReportBug: () => void;
   children: React.ReactNode;
 }
 
@@ -16,7 +17,7 @@ const navItems = [
   { mode: 'chat' as const, icon: MessageSquare, label: 'Messages' },
 ];
 
-export default function Layout({ mode, setMode, onLogout, children }: LayoutProps) {
+export default function Layout({ mode, setMode, onLogout, onReportBug, children }: LayoutProps) {
   return (
     <div className="flex min-h-screen bg-background">
       {/* Sidebar - desktop */}
@@ -53,7 +54,15 @@ export default function Layout({ mode, setMode, onLogout, children }: LayoutProp
             New Post
           </button>
         </nav>
-        <div className="p-4 border-t border-border">
+        <div className="p-4 border-t border-border space-y-1">
+          <Button
+            variant="ghost"
+            className="w-full justify-start gap-3 text-muted-foreground hover:text-foreground"
+            onClick={onReportBug}
+          >
+            <Bug className="w-5 h-5" />
+            Report a bug
+          </Button>
           <Button
             variant="ghost"
             className="w-full justify-start gap-3 text-muted-foreground hover:text-foreground"

@@ -1,0 +1,7 @@
+# Parallel branches all prepend to CHANGELOG.md; union merge keeps both
+# sides' entries instead of conflicting. After any merge that touches the
+# changelog, renumber your entry to the unique highest version — see
+# AGENTS.md ("CHANGELOG.md in parallel branches"). Note: GitHub's merge
+# button ignores custom drivers; this applies to local merges (the
+# documented conflict-resolution path: git merge origin/dev).
+CHANGELOG.md merge=union

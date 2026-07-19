@@ -7,6 +7,7 @@ import Settings from './components/Settings/Settings';
 import RequestPage from './components/Contracts/RequestPage';
 import SetupWizard from './components/SetupWizard/SetupWizard';
 import ConfigPage from './components/Config/ConfigPage';
+import StudioPage from './components/Studio/StudioPage';
 
 function StatusBar({ I }: { I: Record<string, any> }) {
   if (!I.status) return null;
@@ -139,6 +140,7 @@ function App() {
           case "requests": return <RequestPage I={I} />;
           case "settings": return <Settings I={I} />;
           case "config": return <ConfigPage I={I} />;
+          case "studio": return <StudioPage I={I} />;
           case "login": return <CredentialPage I={I} />;
           case "signup": return <CredentialPage I={I} />;
           case "forgot": return <CredentialPage I={I} />;

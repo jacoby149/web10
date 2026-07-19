@@ -1,4 +1,4 @@
-"""Tests for stripe pure logic (credit_space, get_subscription_price_ids, dev_pay helpers)."""
+"""Tests for stripe pure logic (dev_pay helpers only — user billing stripped per D21)."""
 
 from unittest.mock import patch
 
@@ -20,45 +20,6 @@ class TestGetSubscriptionPriceIds:
         ]
         result = stripe.get_subscription_price_ids(subs)
         assert result == ["price_1", "price_2"]
-
-
-class TestCreditSpace:
-
-    def test_no_subscriptions_returns_free(self):
-        with patch.object(stripe, "get_active_subscriptions", return_value=[]):
-            c, s = stripe.credit_space("cus_123")
-            assert c == stripe.settings.FREE_CREDITS
-            assert s == stripe.settings.FREE_SPACE
-
-    def test_with_credit_subscription(self):
-        mock_subs = [
-            {
-                "items": {
-                    "data": [
-                        {"price": {"id": stripe.CREDIT_SUB_ID}, "quantity": 5}
-                    ]
-                }
-            }
-        ]
-        with patch.object(stripe, "get_active_subscriptions", return_value=mock_subs):
-            c, s = stripe.credit_space("cus_123")
-            assert c == 5 + stripe.settings.FREE_CREDITS
-            assert s == stripe.settings.FREE_SPACE
-
-    def test_with_space_subscription(self):
-        mock_subs = [
-            {
-                "items": {
-                    "data": [
-                        {"price": {"id": stripe.SPACE_SUB_ID}, "quantity": 2}
-                    ]
-                }
-            }
-        ]
-        with patch.object(stripe, "get_active_subscriptions", return_value=mock_subs):
-            c, s = stripe.credit_space("cus_123")
-            assert c == stripe.settings.FREE_CREDITS
-            assert s == 2 * 1024 + stripe.settings.FREE_SPACE
 
 
 class TestGetDevPaySubscription:
@@ -119,29 +80,3 @@ class TestGetDevPayMetadata:
         with patch.object(stripe, "get_dev_pay_subscription", return_value=None):
             result = stripe.get_dev_pay_metadata("cus_123", pay_data)
             assert result is None
-
-
-class TestManageSubscription:
-
-    def test_existing_subscription_returns_portal(self):
-        mock_subs = [
-            {
-                "items": {
-                    "data": [
-                        {"price": {"id": stripe.CREDIT_SUB_ID}}
-                    ]
-                }
-            }
-        ]
-        with patch.object(stripe, "get_active_subscriptions", return_value=mock_subs):
-            with patch.object(stripe, "create_portal_session", return_value="https://portal.url") as mock_portal:
-                result = stripe.manage_subscription("cus_123", stripe.CREDIT_SUB_ID)
-                assert result == "https://portal.url"
-                mock_portal.assert_called_once_with("cus_123")
-
-    def test_new_subscription_returns_checkout(self):
-        with patch.object(stripe, "get_active_subscriptions", return_value=[]):
-            with patch.object(stripe, "create_checkout_session", return_value="https://checkout.url") as mock_checkout:
-                result = stripe.manage_subscription("cus_123", stripe.CREDIT_SUB_ID)
-                assert result == "https://checkout.url"
-                mock_checkout.assert_called_once()
