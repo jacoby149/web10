@@ -498,14 +498,14 @@ monetization controls:
     leaderboards) are post-M2 product, not now.
 [ ] ad/sponsorship slots: define sponsored placements that node-default
     lenses render. operator controls what's promoted.
-[ ] ads are RECORDS the operator owns (creative, link, schedule,
+[✓] ads are RECORDS the operator owns (creative, link, schedule,
     weight, price). curated by architecture: nothing renders unless
     the operator created or approved the record. no programmatic
     surprise garbage, ever.
-[ ] works at an audience of 100: hand-entered direct deals, affiliate
+[✓] works at an audience of 100: hand-entered direct deals, affiliate
     links (operator picks exact products), community/patron slots
     (a fan or local business buys a slot, operator approves).
-[ ] the monetization MENU (the weakest point, researched 07.2026:
+[✓] the monetization MENU (the weakest point, researched 07.2026:
     easy instant deals for a self-hosted node, as a ladder that
     unlocks as the node grows -- the networks already gate by
     traffic/revenue, so the unlock ladder maps to reality):
