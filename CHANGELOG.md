@@ -1,3 +1,13 @@
+1.0.49 || 18.07.2026
+outreach batch 1 enriched: 5 Gemini-provided names pre-filled (#1 Lilly
+Gaddis, #2 Salty Cracker, #8 Edukale, #9 Lady of the Library, #10 Smooth
+McGroove) with burn events, segment labels, opener drafts. 15 template
+slots remain for founder browser search. 3 prospects verified out-of-band
+and excluded: Carl Benjamin (967K subs, above band), RGMGFitness (16.7K,
+below band), Jens Lennartsson (9K, below band). search engine rate-limiting
+prevented full enrichment; founder fills sub counts, contact routes, gap %,
+finalizes openers.
+
 1.0.48 || 18.07.2026
 outreach batch 1 template: outreach_batch1.md — 20-slot prospect list
 (7 right-coded, 7 left-coded, 6 wildcard), segment-specific opener
