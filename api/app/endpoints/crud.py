@@ -7,18 +7,18 @@ from app.models.auth import Token
 import app.settings as settings
 from app.services import documentdb as db
 from app.services.auth import check_admin, decode_token, is_permitted
-from app.services import stripe as pay
 
 router = APIRouter()
 
 
-def subscription_update(user):
-    if settings.PAY_REQUIRED:
-        credit, space = pay.credit_space(mget_customer_id(user))
-    else:
-        credit, space = 100000000, 100000000
-    db.subscription_update(user, credit, space)
-    return credit, space
+def _emit(user, service, token, action):
+    """Emit a per-request metering event (fire-and-forget, never crashes the request)."""
+    try:
+        decoded = decode_token(token.token) if token.token else None
+        site = decoded.site if decoded else None
+        db.emit_event(user, action, service, site)
+    except Exception:
+        pass
 
 
 def check(user):
@@ -26,29 +26,13 @@ def check(user):
     if settings.VERIFY_REQUIRED and not star["verified"]:
         raise exceptions.VERIFY
     if star["last_replenish"].month != datetime.now().month:
-        subscription_update(user)
+        db.subscription_update(user, settings.FREE_CREDITS, settings.FREE_SPACE)
         db.replenish(user)
-    if settings.PAY_REQUIRED and star["credit_limit"] < star["credits_spent"]:
+    if star["credit_limit"] < star["credits_spent"]:
         raise exceptions.TIME
-    if settings.PAY_REQUIRED and star["space_limit"] < db.get_collection_size(user):
+    if star["space_limit"] < db.get_collection_size(user):
         raise exceptions.SPACE
     return True
-
-
-def mget_customer_id(username):
-    customer_id = db.get_customer_id(username)
-    if not customer_id:
-        customer_id = pay.make_customer()
-        db.set_customer_id(username, customer_id)
-    return customer_id
-
-
-def mget_business_id(username):
-    business_id = db.get_business_id(username)
-    if not business_id:
-        business_id = pay.make_business()
-        db.set_business_id(username, business_id)
-    return business_id
 
 
 @router.post("/{user}/{service}", tags=["web10"])
@@ -58,6 +42,7 @@ async def create_records(user: str, service: str, token: Token, b_t: BackgroundT
     check(user)
     res = db.create(user, service, token.query)
     b_t.add_task(db.charge, user, "create")
+    _emit(user, service, token, "create")
     return res
 
 
@@ -73,18 +58,19 @@ async def read_records(user: str, service: str, token: Token, b_t: BackgroundTas
     if service == "services":
         return res
     b_t.add_task(db.charge, user, "read")
+    _emit(user, service, token, "read")
     return res
 
 
 @router.post("/{user}/{service}/aggregate", tags=["web10"])
 async def aggregate_records(user: str, service: str, token: Token, b_t: BackgroundTasks):
-    # read-only by construction; terms treat it as a read.
     if not is_permitted(token, user, service, "read"):
         raise exceptions.CRUD
     check(user)
     pipeline = token.pipeline if token.pipeline is not None else []
     res = db.aggregate(user, service, pipeline)
     b_t.add_task(db.charge, user, "aggregate", max(1, len(pipeline)))
+    _emit(user, service, token, "aggregate")
     return res
 
 
@@ -95,6 +81,7 @@ async def update_records(user: str, service: str, token: Token, b_t: BackgroundT
     check(user)
     res = db.update(user, service, token.query, token.update)
     b_t.add_task(db.charge, user, "update")
+    _emit(user, service, token, "update")
     return res
 
 
@@ -108,4 +95,5 @@ async def delete_records(user: str, service: str, token: Token, b_t: BackgroundT
     if service == "services":
         return res
     b_t.add_task(db.charge, user, "delete")
+    _emit(user, service, token, "delete")
     return res

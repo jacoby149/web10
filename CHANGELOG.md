@@ -1,3 +1,132 @@
+1.0.62 || 19.07.2026
+environments + ops + e2e depth. plan.txt CROSS-CUTTING deployment now
+specs TWO full-ecosystem environments on the ubuntu-deployment box:
+PROD (public: marketing-ui + marketing-api + node incl. social, CF DNS
+→ forwarded 80/443 → NPM TLS) and DEV (same stack, VPN-only: cloudflare
+DNS pointing at the INTERNAL LAN ip — resolves publicly, unreachable
+off-VPN, no dev port-forwards, TLS via DNS-01) with a documented
+dev→prod promotion flow; lane items E3 (prod) recast + E5 (dev) added.
+New C6 (lane C): e2e deep sweep + bug hunt — expand C5's playwright
+harness across money paths and lane seams, signup-as-a-test (fresh
+accounts every run) + persona seed fixtures (creator, fans, granted/
+revoked terms) that also power dev-env wipe+reseed; deliverable = the
+enlarged suite AND the honest bug list. Staging went LIVE and was
+triaged remotely: api healthy at staging.web10.app, auth UI broken by
+hardcoded origins (authAdapter.ts/config.ts bake api.web10.app into
+prod builds — env-parameterization fix queued into B5, urgent),
+rtc/minio DNS records missing, marketing/social not in the stack.
+New ubuntu-deployment/AGENT-OPS.md: field manual for (weaker) ops
+agents — SSH-in procedure off the gitignored .env, box map, ordered
+diagnosis sequence with symptom table, KNOWN ISSUES from the live
+triage, redeploy + CF DNS procedures, may/may-not boundaries — plus
+OPS-LOG.md, an append-only coordination ledger seeded with the triage;
+README.md points agents at both. Conductor board: ws4 = staging
+triage + E5/E3, ws5 = C6.
+
+1.0.61 || 19.07.2026
+design.md: the binding UI/brand standard for all user-facing surfaces —
+brand essence (keys mark, dark-first, restrained voice), canonical asset
+inventory (logo_white.png lockup + alternative.png square mark ARE the
+logos; logo512/192.png are the React atom, hub.png is Apple's App Store
+glyph — purge list + asset debt queued), full token spec (zinc + violet
+#8b5cf6, Tailwind v4 @theme block in §13), type (self-hosted Inter /
+Space Grotesk / JetBrains Mono — never Google CDN), spacing/radius/
+elevation/motion rules, component + responsive standards, a11y, and the
+UI definition of done (§12: screenshot test, PR screenshots at desktop +
+375px, tokens-only colors). CLAUDE.md + AGENTS.md now gate every UI task
+on reading design.md first. New parallel beautification items queued:
+B5 (ui/ level-up), D12 (web10-social level-up), D13 (marketing-ui
+rebuild, Bulma out — per D22/D23) in plan.txt phase 2.5 + lane queues;
+conductor board refreshed (ws4 = execute E1 staging deploy, blocked on
+SSH + Cloudflare creds). decisions.md D23 records the design-language
+call.
+
+1.0.60 || 19.07.2026
+E1: staging node deployment infrastructure — Portainer + Nginx Proxy
+Manager approach. ubuntu-deploy.sh replaced by prep-vm.sh (installs
+Docker, creates shared "proxy" network, deploys Portainer + NPM).
+docker-compose.staging.yml rewritten as self-contained stack (no overlay
+chain: gunicorn API, built UI, no hot-reload, all services on proxy
+network). Old docker-compose.ui-prod.yml + rtc-prod.yml deleted.
+DEPLOYMENT-PLAN.md: full architecture (Portainer + NPM + Cloudflare DNS
+challenge). STAGING-RUNBOOK.md: Portainer/NPM workflow (deploy, redeploy,
+volumes, wipe+reseed, e2e test, troubleshooting). README.md rewritten
+as the how-to with an explicit public-vs-admin security model (the
+WordPress split: app admin public behind its own auth like wp-admin;
+infra panels Portainer/NPM-admin/Minio-console LAN/VPN-only like
+cPanel — no DNS records, no proxy hosts, only 80/443 router-forwarded;
+SSH tunnel for remote access). Minio public proxy corrected to the S3
+API (:9000) — the console (:9001) was previously proxied to the
+internet with default creds. MINIO_PASSWORD is now a required stack
+env var (S3 API is internet-facing; sets both the Minio root password
+and the API's S3_SECRET_KEY). Awaiting SSH + Cloudflare creds to
+deploy. Prepares for timeline week 3 demo-node deploy (same stack,
+different domain).
+
+1.0.59 || 19.07.2026
+C5: browser e2e harness — new top-level e2e/ dir with Playwright smoke
+suite (10 journeys across marketing-ui, ui auth, web10-social). new
+e2e/docker-compose.yml (full stack: api + ferretdb + ui + social +
+marketing-ui + rtc + minio behind nginx-proxy), e2e/Dockerfile.social
+(dev-mode, sidesteps tsc errors from incomplete D2.5 rectangles-npm
+cleanup), e2e/wait-for-stack.sh (local health check), new
+.github/workflows/e2e.yml (path-filtered CI: compose up → wait →
+playwright → traces on failure). local run: E2E_HTTP_PORT=8880 docker
+compose -f e2e/docker-compose.yml up --build -d && E2E_HTTP_PORT=8880
+npx playwright test. auth UI full-browser flows deferred (CORS: dev
+containers resolve api.localhost:80, not :8880 — API-level signup/login/
+certify flows cover the money paths; full browser flows land when the
+stack consolidates to a single port).
+
+1.0.58 || 19.07.2026
+D10: report-a-bug loop — feedback endpoint in marketing-api (POST
+/feedback, GET /feedback, 6 new tests, 10 total smoke green),
+"Report a bug" affordance + React error boundaries in web10-social
+(Tailwind/Radix modal, sidebar button, console error capture, 11 new
+component tests) and marketing-ui (Bulma modal, Navbar button, 11 new
+component tests, --passWithNoTests removed). Lane B note in
+.context/laneB-report-a-bug.md with endpoint contract + reference
+implementations for ui/ integration. Dead rectangles-npm cleanup:
+21 dead components and 6 dead test files removed (superseded by
+D2.5/B2.5 Tailwind migration). Social test suite now 193 passed, 0
+failures (was 4 pre-existing failures from dead code).
+A5: P4 per-request metering events. emit_event() in documentdb.py writes
+user/action/service/site/ts to a capped web10.metering_events collection
+(100k max, METERING_EVENTS_MAX). Wired into all CRUD/aggregate endpoints
+in crud.py as fire-and-forget (try/except — never crashes the request).
+5 new endpoint tests verify events on create/read/update/delete/aggregate.
+279 api tests green.
+
+1.0.57 || 19.07.2026
+PR + changelog workflow hardening for the parallel-agent conveyor.
+AGENTS.md/CLAUDE.md (and the Conductor prompt) now require, right after
+gh pr create: (1) an immediate conflict check (gh pr view --json
+mergeable,mergeStateStatus) with local merge of origin/dev to resolve,
+then (2) watching ALL checks — optional ones included, UNSTABLE is red,
+not "ready to go" — and fixing until every check is green before
+reporting the PR ready. Changelog conflicts defused: .gitattributes sets
+CHANGELOG.md merge=union so parallel branches' entries union instead of
+conflicting on local merges, with a documented renumber-after-merge step
+(top entry must stay the unique highest; changelog CI already enforces).
+Also in this branch, dev unbroke: LadderCard.tsx type-only import fixed
+(ui docker build was red on dev after #118) and marketing/web10-social
+bun.lock regenerated (frozen-lockfile install failed on every CI run,
+skipping its tests entirely). web10-social's tsc build stays red with
+pre-existing @/-alias + legacy rectangles-npm import errors, masked by
+continue-on-error in CI (the known 1.0.48 gap) — left for lane D; its
+4 unresolvable legacy tests (BioBottom/ContactAdder/Crm/Mail, imports
+D2.5 removed from package.json) excluded in vite.config.ts with a note,
+so the test step reports signal again (181 passing) instead of failing
+on dead code.
+plan.txt recovery item extended: forgot-password must be smooth, phone
+AND email as first-class reset channels. New plan.txt ci item: the api
+(lint + test) job has never gone green — uv sync --frozen installs
+neither ruff nor pytest, and beneath the spawn error sit 104 ruff
+errors + 26 unformatted files; one lane-A branch fixes workflow + debt
+together. Board hygiene: #117 and #118
+raced for version 1.0.55 and both merged with it — A6 (merged second)
+renumbered to 1.0.56 here, lane tick updated to match.
+
 1.0.54 || 19.07.2026
 README rewritten to match the current stack: dead references removed
 (auth/ dir, settings_example.py copying, skaffold/GKE deploy, hex-key

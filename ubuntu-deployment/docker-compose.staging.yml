@@ -1,0 +1,103 @@
+# web10 staging stack — self-contained compose for Portainer
+#
+# Production-mode services: gunicorn API, built UI (static nginx),
+# no hot-reload. Nginx Proxy Manager handles reverse proxy + TLS
+# on the host — no internal proxy service needed.
+#
+# Portainer import: paste this file as a new stack.
+# NPM forwarding: services are reachable by name on the shared
+# "proxy" network. Map proxy hosts in NPM to these targets:
+#
+#   staging.{zone}    → api:80
+#   auth.staging.{zone} → ui:80
+#   rtc.staging.{zone}  → rtc:80
+#   minio.staging.{zone} → minio:9000   (S3 API — NOT 9001; the
+#                          console stays LAN/VPN-only, see README)
+
+services:
+  postgres:
+    image: ghcr.io/ferretdb/postgres-documentdb:17
+    environment:
+      POSTGRES_USER: web10
+      POSTGRES_PASSWORD: web10
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - proxy
+
+  ferretdb:
+    image: ghcr.io/ferretdb/ferretdb:2
+    depends_on:
+      - postgres
+    environment:
+      FERRETDB_POSTGRESQL_URL: postgres://web10:web10@postgres:5432/postgres
+    restart: unless-stopped
+    networks:
+      - proxy
+
+  minio:
+    image: minio/minio:latest
+    volumes:
+      - minio-data:/data
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      # Required stack env var — the S3 API is internet-facing via NPM,
+      # so the default minioadmin password must never ship.
+      MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD:?set MINIO_PASSWORD in the stack env vars}
+      MINIO_CONSOLE_ADDRESS: ":9001"
+    command: server /data --console-address :9001
+    restart: unless-stopped
+    networks:
+      proxy:
+        aliases:
+          - minio.${PROVIDER:-staging.web10.local}
+
+  api:
+    build:
+      context: ../api
+      dockerfile: Dockerfile
+    depends_on:
+      - ferretdb
+      - minio
+    environment:
+      PROVIDER: ${PROVIDER:-staging.web10.local}
+      DB_URL: mongodb://web10:web10@ferretdb:27017/
+      DB: web10
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY: minioadmin
+      S3_SECRET_KEY: ${MINIO_PASSWORD:?set MINIO_PASSWORD in the stack env vars}
+    command: ["uv", "run", "gunicorn", "-b", "0.0.0.0:80", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "app.main:app"]
+    restart: unless-stopped
+    networks:
+      - proxy
+
+  ui:
+    build:
+      context: ../ui
+      dockerfile: Dockerfile
+    environment:
+      PORT: "80"
+    restart: unless-stopped
+    networks:
+      - proxy
+
+  rtc:
+    build:
+      context: ../api/rtc
+      dockerfile: Dockerfile
+    command: ["bun", "run", "index.ts"]
+    environment:
+      PORT: "80"
+    restart: unless-stopped
+    networks:
+      - proxy
+
+volumes:
+  postgres-data:
+  minio-data:
+
+networks:
+  proxy:
+    external: true

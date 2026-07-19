@@ -59,3 +59,16 @@ class FunnelEvent(str, Enum):
 class FunnelEventCreate(BaseModel):
     event: FunnelEvent
     metadata: dict = Field(default_factory=dict)
+
+
+class FeedbackCreate(BaseModel):
+    """User bug report / feedback submission."""
+
+    message: str = Field(..., min_length=1, max_length=5000)
+    contact: Optional[str] = Field(None, max_length=200)
+    app: str = Field(..., description="App name: web10-social, marketing-ui, etc.")
+    route: str = Field(..., description="Current URL path")
+    version: Optional[str] = Field(None, description="App version or git commit")
+    user_agent: Optional[str] = Field(None, max_length=500)
+    console_errors: list[str] = Field(default_factory=list, description="Recent console errors captured client-side")
+    stack_trace: Optional[str] = Field(None, max_length=10000, description="From error boundary catch")

@@ -396,6 +396,43 @@ the makeover (story-first, not a screen-by-screen reskin):
     deliverable: THE STORY + demo video). a screen that can't
     appear in the pitch isn't done.
 
+the level-up (added 19.07.2026 — design.md is the law):
+the first makeover got the stack right and stripped rectangles, but
+the surfaces still read prototype, not product — and the repo was
+shipping the react atom and apple's app store glyph as its own logos.
+design.md (repo root) now defines the brand (dark-first, violet, the
+keys marks), the canonical token set, and the ui definition of done
+(the screenshot test; pr screenshots at desktop + 375px). every ui
+agent reads it before working, every time (CLAUDE.md/AGENTS.md gate).
+the three items below are PARALLEL — disjoint directories:
+[ ] level-up ui/ to the design.md standard (lane B, item B5):
+    tokens.css migrated to design.md §13 (dark-first violet), inline-
+    style habit burned down, dead vendored bulma dir deleted,
+    SideBar.tsx className/style bug fixed, components/ui primitives
+    kit, mobile bottom-nav shell, hub.png (apple's app store logo —
+    a trademark, replace it) + react-atom icons swapped for the real
+    keys marks. the studio screen is the money shot — highest stakes.
+    includes the urgent staging unblock: backend origins become
+    build-time env instead of the hardcodes in authAdapter.ts/
+    config.ts (staging ships a bundle calling api.web10.app — see
+    ubuntu-deployment/AGENT-OPS.md §4.1).
+[ ] level-up web10-social to the design.md standard (lane D, item
+    D12): this is the deck screenshot next to kick/twitch. wire the
+    missing @tailwindcss/vite plugin, actually load inter (declared,
+    never loaded), media-forward feed cards, composer that feels like
+    publishing, profile as creator page, story-first empty states,
+    finish evicting the excluded rectangles/@chatscope legacy
+    components, retire the fontawesome CDN kit for lucide.
+[ ] rebuild marketing-ui on the design system (lane D, item D13):
+    bulma OUT entirely (already rejected in D22), tailwind v4 +
+    design.md tokens, dark cinematic landing (lockup hero, reach-gap
+    proof section, real product screenshots), docs pages readable
+    (prose measure, mono code), app store on house cards,
+    education-era imagery + university logos deleted, and the brand
+    asset debt paid for all three apps (svg marks, dark-on-light
+    variants, favicons/pwa icons from the keys mark, shared og-image
+    — design.md §3).
+
 
 PHASE 3 — setup wizard (the missing piece)
 ------------------------------------------
@@ -429,6 +466,12 @@ node policy (anti-abuse is the NODE'S call, not the protocol's):
 [ ] recovery must not assume sms: recovery codes generated at signup
     (download/print), email recovery, and later the phase 10/11
     escrow path. sms recovery stays as an option, not the only path.
+    forgot-password must be SMOOTH (jacob, 19.07.2026): phone number
+    AND email as first-class reset channels — enter either, get a
+    code, set a new password, done. the phone flow exists; email
+    needs an smtp/provider hookup in api/ plus the same code flow in
+    the ui CredentialPage. losing a password must never feel like
+    losing the account.
 [ ] passkeys as a login option once phase 0 lands -- better than
     passwords, no phone number, phishing-proof. fits the vibe.
 
@@ -498,14 +541,14 @@ monetization controls:
     leaderboards) are post-M2 product, not now.
 [ ] ad/sponsorship slots: define sponsored placements that node-default
     lenses render. operator controls what's promoted.
-[ ] ads are RECORDS the operator owns (creative, link, schedule,
+[✓] ads are RECORDS the operator owns (creative, link, schedule,
     weight, price). curated by architecture: nothing renders unless
     the operator created or approved the record. no programmatic
     surprise garbage, ever.
-[ ] works at an audience of 100: hand-entered direct deals, affiliate
+[✓] works at an audience of 100: hand-entered direct deals, affiliate
     links (operator picks exact products), community/patron slots
     (a fan or local business buys a slot, operator approves).
-[ ] the monetization MENU (the weakest point, researched 07.2026:
+[✓] the monetization MENU (the weakest point, researched 07.2026:
     easy instant deals for a self-hosted node, as a ladder that
     unlocks as the node grows -- the networks already gate by
     traffic/revenue, so the unlock ladder maps to reality):
@@ -1253,7 +1296,7 @@ testing:
     conformance suite tests the spec, not the reference impl's
     accidents. api/web10.0.md is the seed.
 [ ] sdk tests (bun test) against a throwaway test node
-[ ] browser e2e suite: playwright, in a container, against the real
+[✓] browser e2e suite: playwright, in a container, against the real
     compose stack, covering ALL THREE uis (ui, web10-social,
     marketing-ui). the vitest/jsdom suites can't catch routing
     breaks, white-screens, vhost/CORS misconfig, or "the api changed
@@ -1282,13 +1325,36 @@ testing:
     lands. visual-regression screenshots are explicitly LATER --
     real value, but baselines churn while B2.5/D2.5 restyle the
     world; revisit after the makeovers settle.
-[ ] marketing-ui vitest backfill: it has ZERO component tests today
+[ ] e2e deep sweep (added 19.07.2026 — C5's harness makes this
+    possible; expect it to hurt): the 10 smoke journeys prove the
+    stack boots; now actually EXERCISE the ecosystem locally
+    (e2e/docker-compose.yml) end to end and find out what doesn't
+    work — the working assumption is that plenty doesn't. expand
+    playwright coverage across the real money paths and the seams
+    between lanes: full signup -> consent -> grant on ui/; social
+    post with media -> feed -> comment/react -> dm round trip;
+    profile edit; terms revoke actually cutting an app off;
+    marketing-ui exporter upload -> marketing-api job -> records
+    in the node; app store -> launch app -> token handoff; studio
+    screens load with real metering data (A5). test accounts are
+    part of the harness: account CREATION is itself a test (every
+    run signs up fresh users), and a seed script provides persona
+    fixtures (a creator, fans, granted + revoked app terms, posted
+    content) for flows that need existing state — the same seed
+    powers the dev env's wipe+reseed. per-env test credentials via
+    env files, never in git. every failure found
+    gets triaged: small fixes land with the suite (tick the fix in
+    the changelog), lane-owned breakage gets filed as a .context/
+    note + lane queue item, never a silent skip. deliverable is
+    the enlarged suite AND the honest bug list. visual-regression
+    baselines still wait for the design level-up to settle
+    (B5/D12/D13), but functional coverage doesn't wait on pretty.
     and its test script is `vitest --passWithNoTests`, so a green
     ci check there certifies nothing. test the surfaces with logic
     (exporter/import ui, funnel events), then drop the
     --passWithNoTests flag so an empty suite can never look green
     again.
-[ ] report-a-bug loop -- the explicit counterweight to keeping the
+[✓] report-a-bug loop -- the explicit counterweight to keeping the
     e2e suite small: ~10 smoke journeys guarantee the money paths,
     so REAL USERS are the coverage for everything else, and that
     only works if telling us something broke costs them almost
@@ -1453,6 +1519,15 @@ ci — runs on every pr + push to dev/main (.github/workflows/):
     red). make both steps report honestly; merging stays a human
     call as before. the browser e2e suite (quality/testing section)
     joins as its own path-filtered job the day it lands.
+[ ] the api job has never actually gone green (found 19.07.2026 via
+    #117): uv sync --frozen installs neither ruff (not a dependency
+    anywhere in pyproject) nor pytest (lives in the test extra), so
+    "uv run ruff check" dies on spawn before anything lints or
+    tests. fix in ONE lane-A branch so the check lands green, not
+    red: add ruff to a dev dependency group + sync with --extra
+    test in api.yml, then pay the debt the spawn error was hiding
+    -- 104 ruff errors and 26 files ruff-format would rewrite
+    across api/ (measured with ruff 0.15.22).
 [✓] docker job: buildx build for every Dockerfile whose context
     changed, with gha layer caching. images that only build on
     laptops are how "works on my machine" comes back.
@@ -1584,15 +1659,39 @@ target: host the marketing sites and a web10 node here for
 staging, demos, and eventual public-facing use.
 
 what goes in:
-[ ] web10 node (api + ui + db + rtc + minio): one VM or LXC,
-    docker compose inside. this is the internal staging node
-    for testing before any public deploy. domain TBD (internal
-    DNS or /etc/hosts until a public domain is assigned).
+[✓ 1.0.60] web10 node (api + ui + db + rtc + minio): Portainer + Nginx
+    Proxy Manager approach (prep-vm.sh, self-contained staging compose,
+    Cloudflare DNS plan). ubuntu-deploy.sh replaced — stacks managed
+    through Portainer UI, reverse proxy + TLS through NPM.
+    STAGING-RUNBOOK.md documents the operational procedures.
 [ ] marketing-ui: separate container or LXC. serves the public
     marketing site (landing, docs, app store, exporter UI).
     own vhost, never inside the node compose.
 [ ] marketing-api: separate container. handles the ZIP import
     pipeline and analytics for marketing-ui.
+
+environments (added 19.07.2026): TWO full stacks on the linux box
+that ubuntu-deployment/ preps, both managed as Portainer stacks on
+the same host, one compose file parameterized by env (domain prefix,
+volumes, env file) — never two divergent composes:
+[ ] PROD env — the whole ecosystem public: marketing-ui +
+    marketing-api + the node (api, ui, social, rtc, minio, db).
+    public Cloudflare DNS -> router-forwarded 80/443 -> NPM with
+    real TLS certs (DNS-01 via cloudflare). this is E3 executed:
+    prod marketing ui, prod ui, prod social ui.
+[ ] DEV env — the SAME whole ecosystem, VPN-only: cloudflare DNS
+    records (dev.web10.app / *.dev.web10.app or similar) pointing
+    at the box's INTERNAL LAN ip. the records resolve publicly but
+    route nowhere unless you're on the VPN — zero exposure, no
+    port-forwards for dev vhosts, and still real domain names so
+    TLS (DNS-01 challenge needs no inbound traffic), CORS, and
+    vhost routing behave exactly like prod. dev is where merged
+    work soaks before prod promotion; wipe+reseed procedures per
+    STAGING-RUNBOOK.md. follows the E1 security model: infra
+    panels stay LAN/VPN-only regardless of env.
+[ ] promotion flow documented in STAGING-RUNBOOK.md: merge to dev
+    branch -> dev env redeploy (Portainer re-pull), tag/release ->
+    prod redeploy. keep it manual-button simple until E4.
 
 networking:
 [ ] VPN gateway must be up for any management access. document

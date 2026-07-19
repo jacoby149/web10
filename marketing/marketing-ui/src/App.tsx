@@ -5,10 +5,10 @@ import Docs from './pages/Docs'
 import AppStore from './pages/AppStore'
 import Exporter from './pages/Exporter'
 
-function App() {
+function App({ onReportBug }: { onReportBug: () => void }) {
   return (
     <>
-      <Navbar />
+      <Navbar onReportBug={onReportBug} />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/docs" element={<Docs />} />
