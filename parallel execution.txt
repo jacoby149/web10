@@ -120,6 +120,16 @@ LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
       window so the demo video shows the money screen -- visually
       complete + rung-0 functional; deeper wiring (unlock ladder,
       adapters) follows in weeks 5-10.
+  [ ] B5. level-up ui/ to the design.md standard (READ design.md
+      FIRST — repo root; it is the law for all ui work). tokens.css
+      migrated to design.md §13 (dark-first violet), inline styles
+      out, dead vendored bulma dir deleted, SideBar.tsx className/
+      style bug fixed, components/ui primitives kit, mobile bottom-
+      nav shell, hub.png (apple's app store logo — trademark,
+      replace) + react-atom icons swapped for the real keys marks
+      (design.md §3). studio = the money screen, highest stakes.
+      acceptance: design.md §12 (screenshot test, pr screenshots
+      desktop + 375px, tokens-only, all states designed).
 
 LANE C — greenfield services  (owns: sdk/, mcp/, new dirs)
   [✓ 1.0.25] C1. P5 media service (presigned urls, minio profile,
@@ -198,6 +208,26 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       events + the error beacon ONLY -- no session-recording js
       on ui/ or social, ever (manifesto line). self-hosted
       posthog/openreplay deploy, if adopted, is lane E territory.
+  [ ] D12. level-up web10-social to the design.md standard (READ
+      design.md FIRST — repo root). owns marketing/web10-social/**
+      only — runs parallel to D13, disjoint dirs. this is the deck
+      screenshot next to kick/twitch: wire the missing
+      @tailwindcss/vite plugin, actually load inter, media-forward
+      feed cards, composer that feels like publishing, profile as
+      creator page, story-first empty states (point at the
+      importer), finish evicting excluded rectangles/@chatscope
+      legacy components, fontawesome CDN kit out for lucide.
+      acceptance: design.md §12.
+  [ ] D13. rebuild marketing-ui on the design system (READ design.md
+      FIRST — repo root). owns marketing/marketing-ui/** only — runs
+      parallel to D12, disjoint dirs. bulma OUT entirely (D22),
+      tailwind v4 + design.md §13 tokens, dark cinematic landing
+      (lockup hero, reach-gap proof section, real screenshots), docs
+      readable (65-75ch prose, mono code), app store on house cards,
+      education-era imagery + university logos deleted. also pays
+      the brand asset debt for all three apps (svg marks, dark
+      variants, favicons/pwa icons from the keys mark, shared
+      og-image — design.md §3). acceptance: design.md §12.
 
 
 
@@ -241,34 +271,34 @@ M3 "the network"         = encryption integration (A rtc + C2 sdk
                            polish. the last big merge.
 
 
-CURRENT CONDUCTOR BOARD (as of 18.07.2026 — keep this section fresh)
+CURRENT CONDUCTOR BOARD (as of 19.07.2026 — keep this section fresh)
 --------------------------------------------------------------------
-we are in timeline.md WEEK 0 — the M0 sprint (video by ~aug 17).
-the D20/D21 pivot re-cut this board; C2 sdk is OFF the M0 critical
-path (ws2 repointed to D4 per timeline.md week 0).
+we are in timeline.md WEEK 0/1 — the M0 sprint (video by ~aug 17).
+the data layers, studio M0 slice, e2e harness, and staging infra are
+all merged. THIS WEEK'S PUSH: the design level-up (design.md landed
+as the binding ui standard — every ui agent reads it first) + getting
+staging actually deployed. the three beautify items are parallel-safe
+(disjoint directories).
 
-  ws1: B2.5 ui makeover in ui/ — stack pick (tailwind + shadcn is
-       the named default; record in decisions.md) + shared design
-       tokens. gates D2.5 and D4's screens; merge the pick fast.
-  ws2: D4 killer app M0 slice, DATA LAYER first — posts, feed
-       (chronological + sort dropdown ONLY, lens/chatbox cut per
-       D20), profile, dms on current wapi against docs/schemas.
-       logic doesn't wait for B2.5; screens do.
-  ws3: wave 0 remainder: small security fixes (CORS, bare except,
-       provider url validation) — land these BEFORE A6 churns the
-       billing code. then A6 (D21 strip user billing -> operator
-       quotas, timeline week 2) takes this lane-A slot.
-ws4: [✓ 1.0.50] outreach list batch 1 fully enriched: 20 API-verified
-         prospects via YouTube Data API (outreach_sourcer.py), all burn
-         events verified, 5 with biz emails, 6 false positives filtered.
-         script reusable for batches 2-5. or E1 proxmox staging node
+  ws1: B5  level-up ui/ to design.md (lane B — ui/**)
+  ws2: D12 level-up web10-social to design.md (lane D —
+       marketing/web10-social/** only)
+  ws3: D13 rebuild marketing-ui on the design system, bulma out
+       (lane D — marketing/marketing-ui/** only) + pays the shared
+       brand asset debt (design.md §3)
+  ws4: E1 EXECUTE the staging deploy (infra merged in 1.0.60,
+       BLOCKED on operator input: SSH access + Cloudflare creds —
+       see STAGING-RUNBOOK.md). deploys marketing-ui + marketing-api
+       + the node stack incl. web10-social to staging. then E3
+       public domain when ready.
 
-  merge-order notes: lane A stays single-branch (security fixes ->
-  A6 -> A5). D2.5 starts the moment B2.5's tokens merge. B4.5 M0
-  slice (studio monetization-menu screen, rung-0 cards) follows
-  B2.5 in lane B — it's week 2's money shot. C2/C3/C3.5 parked
-  until after M0.
-  (A1/B1/B2/B3/B4/C1/D1/D2/D3/D5–D9/E2 are DONE — don't re-pick.)
+  merge-order notes: B5/D12/D13 don't gate each other; merge each as
+  it passes design.md §12. D13 owns the cross-app asset generation
+  (svg marks, favicons) but replacing assets INSIDE ui/ is B5's to
+  apply — D13 leaves the files + a .context note, doesn't reach in.
+  C2/C3/C3.5 still parked until after M0.
+  (A1/B1/B2/B3/B4/B4.5/C1/C5/D1/D2/D2.5/D3/D4/D5–D10/E1-infra/E2
+  are DONE — don't re-pick.)
 
   from here on: pull the top unticked item of whichever lane's queue
   is unblocked. lanes A and B are long marches; C and D are a stream

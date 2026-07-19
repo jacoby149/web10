@@ -1,3 +1,21 @@
+1.0.61 || 19.07.2026
+design.md: the binding UI/brand standard for all user-facing surfaces —
+brand essence (keys mark, dark-first, restrained voice), canonical asset
+inventory (logo_white.png lockup + alternative.png square mark ARE the
+logos; logo512/192.png are the React atom, hub.png is Apple's App Store
+glyph — purge list + asset debt queued), full token spec (zinc + violet
+#8b5cf6, Tailwind v4 @theme block in §13), type (self-hosted Inter /
+Space Grotesk / JetBrains Mono — never Google CDN), spacing/radius/
+elevation/motion rules, component + responsive standards, a11y, and the
+UI definition of done (§12: screenshot test, PR screenshots at desktop +
+375px, tokens-only colors). CLAUDE.md + AGENTS.md now gate every UI task
+on reading design.md first. New parallel beautification items queued:
+B5 (ui/ level-up), D12 (web10-social level-up), D13 (marketing-ui
+rebuild, Bulma out — per D22/D23) in plan.txt phase 2.5 + lane queues;
+conductor board refreshed (ws4 = execute E1 staging deploy, blocked on
+SSH + Cloudflare creds). decisions.md D23 records the design-language
+call.
+
 1.0.60 || 19.07.2026
 E1: staging node deployment infrastructure — Portainer + Nginx Proxy
 Manager approach. ubuntu-deploy.sh replaced by prep-vm.sh (installs
