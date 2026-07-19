@@ -1,3 +1,29 @@
+1.0.70 || 19.07.2026
+PRIORITY ZERO declared at the top of plan.txt (operator): the
+deployed product must WORK AT A BASELINE — baseline fixes outrank
+polish; the chain is A7 (real data) → B6 (auth works) → docs
+reachable → D16 (real store). Conductor board reordered around it.
+Live-prod fix: /docs/* 404'd (e.g. /docs/protocol-spec) — marketing-
+ui's nginx /docs/ alias block shadowed the SPA fallback; now
+try_files → index.html (D16.1). Recovered-work capture: the old
+sharp dev docs are NOT lost — two runnable demo apps (hello/,
+notes/) + sdk.md/sdk.pdf live at git `82667060^:auth/public/docs/`;
+queued D17 to restore them into marketing-ui docs + revive the "make
+your own web10 app with the web10 CLI" store CTA (the CLI exists at
+marketing/web10-cli/ but is invisible). Queued D18+E7: document/link
+the web10 sdk (github packages shows 4, none the sdk) and confirm/
+extend the npm publish flow. Queued E8 (parked): mobile encryptor →
+Apple/Google app stores via expo eas, post-M0.
+
+1.0.69 || 19.07.2026
+Plan refinement (A7): the legacy production MongoDB (~208 real users)
+runs NATIVELY on the ubuntu host, not in Docker — captured in
+plan.txt + the lane file so whoever wires it reaches it via the host
+gateway / box LAN ip (not a compose service name) and keeps it
+as-is. Added the explicit deliverable of surfacing total-users +
+total-apps counts from the real data, like the original web10 (feeds
+the D16 app-store stats). Recorded decisions.md D25 — DB backend is per-env config, not baked: dev = all-in-one containerized FerretDB (docker compose up works out of the box), prod = bootstrap on the host mongo via the db_url config item (real 208-user data, zero migration risk), with an eventual mongodump->container migration so prod is also self-contained + SSPL-clean. Corollary: the WordPress-style first-run panel already largely exists (setup wizard + NodeConfig with nice defaults); noted the gap that ConfigUpdate doesn't expose db_url yet (kept a guarded action by design) — plan.txt setup section + a new panel item updated.
+
 1.0.68 || 19.07.2026
 E3 + E5 EXECUTED — the whole ecosystem is LIVE on the box. Both
 environments run as Portainer git-backed stacks (branch dev, 5-min

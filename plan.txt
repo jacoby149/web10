@@ -1,6 +1,19 @@
 web10 plan
 ==========
 
+PRIORITY ZERO (operator, 19.07.2026): MAKE IT WORK AT A BASELINE.
+it is embarrassing that the deployed product does not work right
+now — the authenticator is broken (login doesn't complete, the logo
+renders broken), the docs 404, the app store is hollow, and the live
+node points at an empty database instead of the 208 real users.
+polish, beautification, new features, and docs prose all rank BELOW
+"a person can sign up, log in, use the apps, and read the docs
+without hitting something broken." when choosing between a shiny
+addition and a baseline fix, take the baseline fix. the current
+baseline chain, in order: A7 (real data) → B6 (auth actually works)
+→ D16.1/D17 (docs reachable) → D16 (store shows real apps). the
+C5/C6 e2e suite is the referee for "works."
+
 the thesis (why this plan):
 - THIS IS A PRODUCT FOR INFLUENCERS. the proposition is OWNERSHIP ON
   THE INTERNET: own your node, your brand, your domain, your audience
@@ -320,14 +333,19 @@ a DB_URL change, not a rewrite.
 [ ] CONNECT THE REAL DATA (A7, added 19.07.2026): the ubuntu box
     already runs the ORIGINAL production MongoDB — ~208 real users,
     historical usage stats, and the registered apps from web10's
-    live app-store era. the new stacks ship an empty ferretdb; point
-    the node at the real mongo instead of starting from zero. we
-    already speak the wire protocol, so it's config + verification
-    (shape audit for pre-convention records, star protection against
-    real data), NOT a rewrite. gate: prove a real historical user
-    can log in against a COPY in dev before pointing prod at it.
-    this is the data foundation for the auth revamp (B6) and the
-    app-store restoration (D16) below.
+    live app-store era. it runs NATIVELY on the host (not a docker
+    container — leave it that way), so the node's containers reach it
+    via the host gateway / box LAN ip, not a compose service name.
+    the new stacks ship an empty ferretdb; point the node at the real
+    mongo instead of starting from zero. we already speak the wire
+    protocol, so it's config + verification (shape audit for pre-
+    convention records, star protection against real data), NOT a
+    rewrite. gate: prove a real historical user can log in against a
+    COPY in dev before pointing prod at it. deliverable also includes
+    the total-users + total-apps counts surfaced like the original
+    web10 (the numbers that made it feel alive). this is the data
+    foundation for the auth revamp (B6) and the app-store
+    restoration (D16) below.
 
 
 PHASE 2 — ui (finish auth2, rename, migrate)
@@ -479,6 +497,26 @@ the original data changes what "done" looks like for these):
     — that assumed an empty catalog; with 208 real users and real
     apps reconnected, restoring the store IS the "real company"
     goal. log the reversal in decisions.md when it lands.
+[✓ 1.0.70] docs 404 fix (lane D, D16.1): /docs/protocol-spec 404'd
+    live — marketing-ui's nginx /docs/ alias block shadowed the SPA
+    fallback. try_files → index.html added.
+[ ] RESTORE THE DEV DOCS (lane D, item D17): the old sharp docs —
+    two runnable demo apps (hello/, notes/) + sdk.md/sdk.pdf — are
+    NOT lost; they live in git at `82667060^:auth/public/docs/`.
+    bring them into marketing-ui's docs on the design.md standard,
+    and restore the app store's "make your own web10 app with the
+    web10 CLI" call-to-action (the CLI still exists at
+    marketing/web10-cli/ but is invisible) + a CLI quickstart.
+    don't teach legacy wapi as the future — align with C2.
+[ ] SDK visibility + publish flow (lane D item D18 + lane E item
+    E7): github shows 4 packages, none is the sdk; docs never link
+    it. document + link the sdk everywhere it should be, confirm
+    cd.yml's npm publish fires (today tag-gated; decide if updates
+    should auto-publish).
+[ ] mobile encryptor → app stores (lane E item E8, parked): expo
+    eas build/submit, listings, signing. post-M0, gated on the
+    encryptor doing real e2e key management — on the board so it
+    isn't lost.
 
 
 PHASE 3 — setup wizard (the missing piece)
@@ -499,6 +537,21 @@ ui side (lives in the ui, phase 2 dependency):
 [✓] /setup wizard screens: welcome -> node identity -> admin account ->
     (optional) payments/sms -> done, you're on your node
 [ ] setup only reachable in setup mode, 404s forever after
+[ ] the WORDPRESS-STYLE config panel (operator direction, 19.07;
+    D25): first run is a panel where you CAN set everything —
+    provider, DB, S3, policy, stripe/twilio, branding (NodeConfig
+    already models all of it) — but sane DEFAULTS mean `docker
+    compose up` just works for a dev out of the box (db_url ->
+    containerized ferretdb, minio, open signup). the SetupRequest
+    defaults already do this. config is stored IN THE DB
+    (web10.config collection, wordpress-wp_options-style — already
+    built, api/app/services/config.py), NOT a flat file. the one
+    field that can't be panel-editable is db_url itself (chicken-and-
+    egg: you need it to reach the db that stores config), so it stays
+    a bootstrap/stack-env input — that's WHY ConfigUpdate omits it,
+    correctly. everything else is db-backed + panel-editable. pairs
+    with B6 (the panel/auth ui must actually work + look like
+    design.md).
 
 node policy (anti-abuse is the NODE'S call, not the protocol's):
 [ ] phone-required signup becomes a policy toggle, not a hardcode.
