@@ -18,7 +18,8 @@ vi.mock('lucide-react', () => {
     'Heart', 'MessageCircle', 'ArrowUp', 'ArrowDown', 'Flame', 'Clock',
     'ClockArrowDown', 'Sparkles', 'Send', 'Image', 'X', 'Loader2',
     'User', 'MapPin', 'Globe', 'Link', 'Camera', 'Edit3', 'Check',
-    'ChevronLeft', 'MessageSquare', 'Home', 'PlusCircle', 'LogOut',
+    'ChevronLeft', 'MessageSquare', 'Home', 'PlusCircle', 'LogOut', 'Bug',
+    'AlertTriangle', 'CheckCircle',
   ].forEach(name => { icons[name] = iconFactory(name); });
   return icons;
 });
@@ -164,7 +165,7 @@ describe('Layout', () => {
   it('renders sidebar nav items', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     render(
-      <Layout mode="feed" setMode={() => {}} onLogout={() => {}}>
+      <Layout mode="feed" setMode={() => {}} onLogout={() => {}} onReportBug={() => {}}>
         <div>Content</div>
       </Layout>,
     );
@@ -177,17 +178,28 @@ describe('Layout', () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     const onLogout = vi.fn();
     render(
-      <Layout mode="feed" setMode={() => {}} onLogout={onLogout}>
+      <Layout mode="feed" setMode={() => {}} onLogout={onLogout} onReportBug={() => {}}>
         <div>Content</div>
       </Layout>,
     );
     expect(screen.getByText('Log out')).toBeInTheDocument();
   });
 
+  it('renders report a bug button', async () => {
+    const { default: Layout } = await import('@/components/Social/Layout');
+    const onReportBug = vi.fn();
+    render(
+      <Layout mode="feed" setMode={() => {}} onLogout={() => {}} onReportBug={onReportBug}>
+        <div>Content</div>
+      </Layout>,
+    );
+    expect(screen.getByText('Report a bug')).toBeInTheDocument();
+  });
+
   it('renders web10 branding', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     render(
-      <Layout mode="feed" setMode={() => {}} onLogout={() => {}}>
+      <Layout mode="feed" setMode={() => {}} onLogout={() => {}} onReportBug={() => {}}>
         <div>Content</div>
       </Layout>,
     );

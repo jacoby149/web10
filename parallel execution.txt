@@ -87,8 +87,8 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       dockerfile -- needs B2's build output, coordinate the handoff)
   [✓ 1.0.38] A4. P6 aggregate endpoint (the 5th verb, sandbox validator;
       per-stage metering through charge(); wapi.aggregate in legacy sdk)
-  [ ] A5. P4 metering events (per-request event records for analytics)
-  [ ] A6. D21 strip user billing → quotas: remove user-facing
+[✓ 1.0.58] A5. P4 metering events (per-request event records for analytics)
+  [✓ 1.0.56] A6. D21 strip user billing → quotas: remove user-facing
       plans/subscriptions/per-account stripe; repurpose credits/
       space + charge() as OPERATOR-SET per-user quotas (credits =
       rate/abuse throttle, space = storage caps incl. imports).
@@ -107,7 +107,7 @@ LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
   [✓ 1.0.40] B4. P4 admin panel: policy config, ad records crud, analytics
       views (analytics needs A5 merged; build ui against fixtures
       until then)
-  [ ] B4.5. P4 the STUDIO respec (post-B2.5, on the new stack):
+  [✓ 1.0.55] B4.5. P4 the STUDIO respec (post-B2.5, on the new stack):
       youtube-studio frame, monetization menu as one-button cards
       with the YPP-style unlock ladder, amazon adapter v1 (tag
       card, render-time tagging, compliance chips, 3-sales
@@ -135,7 +135,7 @@ LANE C — greenfield services  (owns: sdk/, mcp/, new dirs)
       --node <url> works from day one)
   [ ] C4. P10 backup integrations (drive/dropbox oauth, export/import
       archive -- format comes from D1's conventions doc)
-  [ ] C5. browser e2e harness (new top-level e2e/ dir + its ci
+  [✓ 1.0.59] C5. browser e2e harness (new top-level e2e/ dir + its ci
       workflow): playwright-in-docker against the compose stack,
       ~6-10 smoke journeys across ui + web10-social + marketing-ui
       (specced in plan.txt CROSS-CUTTING quality/testing). touches
@@ -184,7 +184,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
     [✓ 1.0.33] D9. P7 final tidy: rtc/ -> api/rtc/, docs/ ->
         marketing-ui/public/docs/. all references updated (compose,
         CI, CLAUDE.md). top-level tree clean.
-  [ ] D10. report-a-bug loop: feedback endpoint in marketing-api +
+  [✓ 1.0.58] D10. report-a-bug loop: feedback endpoint in marketing-api +
       "report a bug" affordance and error boundaries in social +
       marketing-ui (specced in plan.txt CROSS-CUTTING quality/
       testing). the ui/ app's button is lane B territory --
@@ -203,7 +203,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
 
 LANE E — infrastructure / deployment (owns: proxmox provisioning,
     reverse proxy, CI/CD deploy targets)
-[✓ 1.0.55] E1. proxmox staging node: Portainer + Nginx Proxy Manager
+[✓ 1.0.60] E1. proxmox staging node: Portainer + Nginx Proxy Manager
        infra (prep-vm.sh, docker-compose.staging.yml self-contained stack,
        Cloudflare DNS plan). ubuntu-deploy.sh replaced by Portainer UI
        approach. STAGING-RUNBOOK.md updated. Awaiting SSH + CF creds to

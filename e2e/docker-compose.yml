@@ -1,0 +1,113 @@
+# E2E compose — brings up the full web10 stack for Playwright smoke tests.
+# Usage: docker compose -f e2e/docker-compose.yml up --build -d
+# Then: cd e2e && npx playwright test
+
+services:
+  proxy:
+    image: nginxproxy/nginx-proxy:1.6
+    ports:
+      - "${E2E_HTTP_PORT:-80}:80"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+    networks:
+      - e2e-net
+
+  postgres:
+    image: ghcr.io/ferretdb/postgres-documentdb:17
+    environment:
+      - POSTGRES_USER=web10
+      - POSTGRES_PASSWORD=web10
+      - POSTGRES_DB=postgres
+    networks:
+      - e2e-net
+
+  ferretdb:
+    image: ghcr.io/ferretdb/ferretdb:2
+    depends_on:
+      - postgres
+    environment:
+      - FERRETDB_POSTGRESQL_URL=postgres://web10:web10@postgres:5432/postgres
+    networks:
+      - e2e-net
+
+  api:
+    build: ../api
+    depends_on:
+      - ferretdb
+      - minio
+    volumes:
+      - ../api:/web10
+    environment:
+      VIRTUAL_HOST: api.localhost
+      PROVIDER: api.localhost
+      DB_URL: mongodb://web10:web10@ferretdb:27017/
+      DB: web10
+      S3_ENDPOINT: http://minio:9000
+    command: ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80", "--reload"]
+    networks:
+      - e2e-net
+
+  ui:
+    build:
+      context: ../ui
+      dockerfile: Dockerfile
+      target: dev
+    volumes:
+      - ../ui:/ui
+      - ui-node-modules:/ui/node_modules
+    command: ["bun", "run", "dev"]
+    environment:
+      PORT: "80"
+      VIRTUAL_HOST: auth.localhost
+      CHOKIDAR_USEPOLLING: "true"
+      REACT_APP_DEFAULT_API: api.localhost
+      REACT_APP_VERIFY_REQUIRED: "false"
+    networks:
+      - e2e-net
+
+  rtc:
+    build: ../api/rtc
+    volumes:
+      - ../api/rtc:/rtc
+    command: ["bun", "run", "dev"]
+    environment:
+      PORT: "80"
+      VIRTUAL_HOST: rtc.localhost
+      CHOKIDAR_USEPOLLING: "true"
+    networks:
+      - e2e-net
+
+  minio:
+    image: minio/minio:latest
+    volumes:
+      - minio-data:/data
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    command: server /data --console-address :9001
+    networks:
+      - e2e-net
+
+  marketing-ui:
+    build: ../marketing/marketing-ui
+    environment:
+      VIRTUAL_HOST: marketing.localhost
+    networks:
+      - e2e-net
+
+  web10-social:
+    build:
+      context: ../marketing/web10-social
+      dockerfile: ../../e2e/Dockerfile.social
+    environment:
+      VIRTUAL_HOST: social.localhost
+      VIRTUAL_PORT: "3000"
+    networks:
+      - e2e-net
+
+volumes:
+  minio-data:
+  ui-node-modules:
+
+networks:
+  e2e-net:

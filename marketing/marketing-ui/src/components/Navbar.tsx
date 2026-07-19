@@ -7,7 +7,7 @@ const navItems = [
   { path: '/import', label: 'Import Your Life' },
 ]
 
-function Navbar() {
+function Navbar({ onReportBug }: { onReportBug: () => void }) {
   const location = useLocation()
 
   return (
@@ -38,6 +38,10 @@ function Navbar() {
           <div className="navbar-end">
             <div className="navbar-item">
               <div className="buttons">
+                <button className="button is-warning is-outlined" onClick={onReportBug}>
+                  <span className="icon"><i className="fas fa-bug" /></span>
+                  <span>Report bug</span>
+                </button>
                 <a className="button is-primary" href="https://auth.web10.app">
                   <strong>Sign In</strong>
                 </a>

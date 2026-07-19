@@ -1,3 +1,4 @@
+import datetime
 import itertools
 import re
 import secrets
@@ -495,6 +496,28 @@ def get_collection_size(user):
     # on ferretdb/documentdb the size is a postgres-derived estimate --
     # fine for space gating (decided in plan phase 1).
     return db.command("collStats", user)["size"]/(1024*1024)
+
+
+def emit_event(user, action, service, site):
+    """Emit a per-request metering event to the capped web10.metering_events collection.
+
+    Aggregate exhaust only — individual record contents stay sovereign.
+    """
+    _ensure_capped("metering_events", settings.METERING_EVENTS_MAX)
+    db["web10"]["metering_events"].insert_one({
+        "user": user,
+        "action": action,
+        "service": service,
+        "site": site,
+        "ts": datetime.datetime.utcnow(),
+    })
+
+
+def _ensure_capped(name, max_docs):
+    """Create a capped collection if it doesn't already exist."""
+    existing = set(db.list_collection_names())
+    if name not in existing:
+        db.create_collection(name, capped=True, size=1048576, max=max_docs)
 
 ############################
 #### app store #####

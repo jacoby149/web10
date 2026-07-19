@@ -7,8 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "test": "vitest --passWithNoTests",
-    "test:run": "vitest run --passWithNoTests"
+    "test": "vitest",
+    "test:run": "vitest run"
   },
   "dependencies": {
     "react": "^19.1.0",
@@ -21,9 +21,13 @@
     "axios": "^1.2.5"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^4.5.0",
+    "jsdom": "^29.1.1",
     "typescript": "~5.8.2",
     "vite": "^6.3.1",
     "vitest": "^3.2.4"
