@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { AppInterface, Bulletin, Contact, CrmColor, CrmContact, CrmNote, Identity, MailMessage, Message, Mode, Post, Theme } from '../types';
 import web10SocialAdapterInit from './Web10SocialAdapter';
+import { API_HOST } from '../lib/origins';
 import defaultIdentity from '../mocks/defaultIdentity';
 import { onlySettled, sortSettled } from './settledHelpers';
 
@@ -109,7 +110,8 @@ const useInterface = (): AppInterface => {
 
   const runSearch = (query: string) => {
     if (mode === 'contacts') {
-      const web10 = query.includes('/') ? query : `api.web10.app/${query}`;
+      // bare usernames default to this deployment's own provider
+      const web10 = query.includes('/') ? query : `${API_HOST}/${query}`;
       const [provider, user] = web10.split('/');
       if (!socialAdapter) return;
       socialAdapter

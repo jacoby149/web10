@@ -1,3 +1,18 @@
+1.0.67 || 19.07.2026
+D14: web10-social backend origins parameterized — the last app-side
+deploy gate. New src/lib/origins.ts reads VITE_API_ORIGIN /
+VITE_AUTH_ORIGIN / VITE_RTC_ORIGIN at build time (prod origins as
+fallbacks, ?local=true still wins); Web10SocialAdapter + the typed
+wapi wrapper + Interface.ts's bare-username default provider all use
+it. The 15 identical hardcoded cross_origins lists collapsed into one
+that also includes the serving hostname, so a dev/prod deploy
+authorizes its own vhost without a per-env code edit. Stale
+"pending D14" notes cleared from the ecosystem compose, social
+Dockerfile, and AGENT-OPS §4.1 (origin parameterization now DONE for
+all three frontends). Verified: 195 vitest green (2 new origin
+tests), `bun run build` clean, and an arg-set build bakes the dev
+origins into the bundle (grepped the emitted JS).
+
 1.0.66 || 19.07.2026
 E3/E5 repo side: the whole ecosystem is deployable. NEW
 ubuntu-deployment/docker-compose.ecosystem.yml — ONE parameterized

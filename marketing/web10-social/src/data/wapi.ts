@@ -1,4 +1,5 @@
 import { wapiInit } from 'web10-npm';
+import { AUTH_ORIGIN, RTC_HOST } from '../lib/origins';
 
 // Thin typed wrapper around the legacy wapi.js SDK.
 // All CRUD operations return the raw record body (no axios envelope).
@@ -76,8 +77,8 @@ export function createWapiWrapper(authUrl?: string, rtcServer?: string): WapiWra
 
   const queryParameters = new URLSearchParams(window.location.search);
   const local = queryParameters.get('local');
-  const resolvedAuthUrl = authUrl ?? (local ? 'http://auth.localhost' : 'https://auth.web10.app');
-  const resolvedRtcServer = rtcServer ?? (local ? 'rtc.localhost' : 'rtc.web10.app');
+  const resolvedAuthUrl = authUrl ?? (local ? 'http://auth.localhost' : AUTH_ORIGIN);
+  const resolvedRtcServer = rtcServer ?? (local ? 'rtc.localhost' : RTC_HOST);
 
   const wapi = wapiInit(resolvedAuthUrl, undefined, resolvedRtcServer);
 
