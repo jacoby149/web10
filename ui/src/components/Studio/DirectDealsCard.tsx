@@ -1,4 +1,9 @@
 import React from 'react';
+import { Handshake, X as XIcon } from 'lucide-react';
+import { Badge, type BadgeProps } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 const STORAGE_KEY = 'web10_direct_deals';
 
@@ -16,6 +21,12 @@ interface DirectDealsCardProps {
   I: Record<string, any>;
   onStatus: (msg: string) => void;
 }
+
+const STATUS_VARIANT: Record<DirectDeal['status'], BadgeProps['variant']> = {
+  published: 'success',
+  draft: 'warning',
+  completed: 'brand',
+};
 
 export function DirectDealsCard({ I, onStatus }: DirectDealsCardProps) {
   const [deals, setDeals] = React.useState<DirectDeal[]>(() => {
@@ -79,62 +90,37 @@ export function DirectDealsCard({ I, onStatus }: DirectDealsCardProps) {
     onStatus('Deal removed');
   };
 
-  const statusColors: Record<string, { bg: string; text: string }> = {
-    published: { bg: 'var(--color-success-bg)', text: 'var(--color-success)' },
-    draft: { bg: 'var(--color-warning-bg)', text: 'var(--color-warning)' },
-    completed: { bg: 'var(--color-info-bg)', text: 'var(--color-info)' },
-  };
-
   return (
-    <div
-      className="rounded-xl border p-5 transition-all hover:shadow-md"
-      style={{
-        borderColor: 'var(--color-border)',
-        backgroundColor: 'var(--color-surface)',
-      }}
-    >
-      <div className="flex items-start justify-between">
+    <div className="rounded border border-border bg-card p-5 transition-colors hover:border-brand/50" data-testid="studio-direct-deals-card">
+      <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-3">
-          <div
-            className="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
-            style={{ backgroundColor: 'var(--color-success-bg)' }}
-          >
-            🤝
+          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded bg-elevated text-muted-foreground">
+            <Handshake className="h-6 w-6" strokeWidth={1.5} />
           </div>
           <div>
-            <h3 className="font-semibold text-lg" style={{ color: 'var(--color-text)' }}>
-              Direct Deals
-            </h3>
-            <p className="text-sm mt-1" style={{ color: 'var(--color-text-secondary)' }}>
+            <h3 className="font-display text-lg font-medium text-foreground">Direct Deals</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
               Operator-entered sponsor deals. Type it, publish it — curated by architecture.
             </p>
-            <div className="flex flex-wrap gap-2 mt-3">
-              <span className="text-xs px-2 py-1 rounded-md font-medium" style={{ backgroundColor: 'var(--color-primary-50)', color: 'var(--color-primary-600)' }}>
-                Works at 100 followers
-              </span>
-              <span className="text-xs px-2 py-1 rounded-md font-medium" style={{ backgroundColor: 'var(--color-info-bg)', color: 'var(--color-info)' }}>
-                Curated, never programmatic
-              </span>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Badge variant="outline">Works at 100 followers</Badge>
+              <Badge variant="outline">Curated, never programmatic</Badge>
             </div>
           </div>
         </div>
 
-        <button
-          className="px-3 py-1.5 text-sm font-medium rounded-lg text-white transition-colors hover:opacity-90"
-          style={{ backgroundColor: 'var(--color-primary-600)' }}
-          onClick={() => setShowForm(!showForm)}
-        >
+        <Button variant="brand" size="sm" onClick={() => setShowForm(!showForm)}>
           {showForm ? 'Cancel' : '+ New Deal'}
-        </button>
+        </Button>
       </div>
 
       {showForm && (
-        <div className="mt-4 p-4 rounded-lg border space-y-3" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface-2)' }}>
+        <div className="mt-4 space-y-3 rounded-sm border border-border bg-elevated p-4">
           <div>
-            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Deal Title *</label>
-            <input
-              className="w-full px-3 py-2 rounded-lg border text-sm"
-              style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
+            <Label htmlFor="deal-title">Deal Title *</Label>
+            <Input
+              id="deal-title"
+              className="mt-1"
               placeholder="e.g. Sponsored: Acme Widget Review"
               value={title}
               onChange={e => setTitle(e.target.value)}
@@ -142,20 +128,20 @@ export function DirectDealsCard({ I, onStatus }: DirectDealsCardProps) {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Sponsor</label>
-              <input
-                className="w-full px-3 py-2 rounded-lg border text-sm"
-                style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
+              <Label htmlFor="deal-sponsor">Sponsor</Label>
+              <Input
+                id="deal-sponsor"
+                className="mt-1"
                 placeholder="Brand name"
                 value={sponsor}
                 onChange={e => setSponsor(e.target.value)}
               />
             </div>
             <div>
-              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Amount</label>
-              <input
-                className="w-full px-3 py-2 rounded-lg border text-sm"
-                style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
+              <Label htmlFor="deal-amount">Amount</Label>
+              <Input
+                id="deal-amount"
+                className="mt-1 tabular-nums"
                 placeholder="e.g. $500"
                 value={amount}
                 onChange={e => setAmount(e.target.value)}
@@ -163,60 +149,49 @@ export function DirectDealsCard({ I, onStatus }: DirectDealsCardProps) {
             </div>
           </div>
           <div>
-            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Description</label>
+            <Label htmlFor="deal-description">Description</Label>
             <textarea
-              className="w-full px-3 py-2 rounded-lg border text-sm resize-none"
-              style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
+              id="deal-description"
+              className="mt-1 flex w-full resize-none rounded-sm border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               rows={2}
               placeholder="Deal details..."
               value={description}
               onChange={e => setDescription(e.target.value)}
             />
           </div>
-          <button
-            className="w-full px-4 py-2 text-sm font-semibold text-white rounded-lg transition-all hover:opacity-90 disabled:opacity-50"
-            style={{ backgroundColor: 'var(--color-primary-600)' }}
-            onClick={handlePublish}
-            disabled={saving || !title.trim()}
-          >
-            {saving ? 'Publishing...' : 'Publish Deal'}
-          </button>
+          <Button variant="brand" className="w-full" onClick={handlePublish} disabled={saving || !title.trim()}>
+            {saving ? 'Publishing…' : 'Publish Deal'}
+          </Button>
         </div>
       )}
 
       {deals.length > 0 && (
         <div className="mt-4 space-y-2">
-          {deals.map(deal => {
-            const sc = statusColors[deal.status] || statusColors.published;
-            return (
-              <div
-                key={deal.id}
-                className="flex items-center justify-between p-3 rounded-lg border"
-                style={{ borderColor: 'var(--color-border)' }}
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm" style={{ color: 'var(--color-text)' }}>{deal.title}</span>
-                    <span className="text-xs px-1.5 py-0.5 rounded font-medium" style={{ backgroundColor: sc.bg, color: sc.text }}>
-                      {deal.status}
-                    </span>
-                  </div>
-                  <div className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
-                    {deal.sponsor && <span>{deal.sponsor}</span>}
-                    {deal.amount && <span>{deal.sponsor ? ' · ' : ''}{deal.amount}</span>}
-                    <span>{[deal.sponsor, deal.amount].filter(Boolean).length ? ' · ' : ''}{new Date(deal.created_at).toLocaleDateString()}</span>
-                  </div>
+          {deals.map(deal => (
+            <div
+              key={deal.id}
+              className="flex items-center justify-between rounded-sm border border-border p-3"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-foreground">{deal.title}</span>
+                  <Badge variant={STATUS_VARIANT[deal.status] ?? 'success'}>{deal.status}</Badge>
                 </div>
-                <button
-                  className="ml-2 px-2 py-1 text-xs rounded transition-colors hover:opacity-80"
-                  style={{ color: 'var(--color-danger)' }}
-                  onClick={() => handleDelete(deal.id)}
-                >
-                  ✕
-                </button>
+                <div className="mt-0.5 text-xs tabular-nums text-muted-foreground">
+                  {deal.sponsor && <span>{deal.sponsor}</span>}
+                  {deal.amount && <span>{deal.sponsor ? ' · ' : ''}{deal.amount}</span>}
+                  <span>{[deal.sponsor, deal.amount].filter(Boolean).length ? ' · ' : ''}{new Date(deal.created_at).toLocaleDateString()}</span>
+                </div>
               </div>
-            );
-          })}
+              <button
+                className="ml-2 rounded p-1 text-muted-foreground transition-colors hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                onClick={() => handleDelete(deal.id)}
+                aria-label={`Remove deal ${deal.title}`}
+              >
+                <XIcon className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
         </div>
       )}
     </div>

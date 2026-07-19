@@ -8,11 +8,17 @@ import RequestPage from './components/Contracts/RequestPage';
 import SetupWizard from './components/SetupWizard/SetupWizard';
 import ConfigPage from './components/Config/ConfigPage';
 import StudioPage from './components/Studio/StudioPage';
+import { Card, CardContent } from './components/ui/card';
+import { Button } from './components/ui/button';
 
 function StatusBar({ I }: { I: Record<string, any> }) {
   if (!I.status) return null;
   return (
-    <div className="fixed top-0 left-0 right-0 z-[500] text-center px-4 py-2 text-sm font-medium" style={{ backgroundColor: 'var(--color-warning-bg)', color: 'var(--color-warning)' }}>
+    <div
+      role="status"
+      data-testid="status-bar"
+      className="fixed inset-x-0 top-0 z-[500] px-4 py-2 text-center text-sm font-medium bg-warning/15 text-warning"
+    >
       {I.status}
     </div>
   );
@@ -40,31 +46,36 @@ function OAuthBanner({ I }: { I: Record<string, any> }) {
   const SMRs = I.SMR?.sirs?.length > 0 || I.SMR?.scrs?.length > 0;
 
   return (
-    <div className="m-5 p-4 rounded-lg border max-w-[400px]" style={{ borderColor: 'var(--color-border)' }}>
-      <div className="mb-2.5">
-        <i><u>From {referrerHost}:</u></i><br />
-        status: {SMRs
-          ? <i className="font-medium" style={{ color: 'var(--color-warning)' }}> requests need approval</i>
-          : <i className="font-medium" style={{ color: 'var(--color-success)' }}> ready</i>}
-      </div>
-      {SMRs ? (
-        <button
-          className="px-3 py-1.5 text-sm font-medium rounded-lg border transition-colors hover:opacity-80"
-          style={{ borderColor: 'var(--color-warning)', color: 'var(--color-warning)' }}
-          onClick={() => I.setMode("requests")}
-        >
-          Review Requests
-        </button>
-      ) : (
-        <button
-          className="px-3 py-1.5 text-sm font-medium rounded-lg border transition-colors hover:opacity-80"
-          style={{ borderColor: 'var(--color-warning)', color: 'var(--color-warning)' }}
-          onClick={() => I.sendToken()}
-        >
-          Log In
-        </button>
-      )}
-    </div>
+    <Card className="m-5 max-w-[400px]" data-testid="oauth-banner">
+      <CardContent className="p-4">
+        <div className="mb-2.5 text-sm">
+          <span className="text-muted-foreground">From <span className="font-medium text-foreground">{referrerHost}</span>:</span>
+          <br />
+          status:{SMRs
+            ? <span className="font-medium text-warning"> requests need approval</span>
+            : <span className="font-medium text-success"> ready</span>}
+        </div>
+        {SMRs ? (
+          <Button
+            variant="outline"
+            size="sm"
+            data-testid="oauth-banner-review-requests"
+            onClick={() => I.setMode("requests")}
+          >
+            Review Requests
+          </Button>
+        ) : (
+          <Button
+            variant="brand"
+            size="sm"
+            data-testid="oauth-banner-login"
+            onClick={() => I.sendToken()}
+          >
+            Log In
+          </Button>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -118,9 +129,9 @@ function App() {
 
   if (checkingSetup) {
     return (
-      <div className="flex items-center justify-center h-screen" style={{ background: 'var(--color-neutral-950)', color: 'var(--color-neutral-400)' }}>
+      <div className="flex h-screen items-center justify-center bg-background text-muted-foreground">
         <div className="text-center">
-          <div className="text-lg mb-2.5">Checking node status...</div>
+          <div className="mb-2.5 text-lg">Checking node status...</div>
         </div>
       </div>
     );

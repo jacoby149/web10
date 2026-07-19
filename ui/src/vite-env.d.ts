@@ -34,8 +34,3 @@ declare module 'react-phone-input-2/lib/bootstrap.css' {
   const content: string;
   export default content;
 }
-
-declare module '@chatscope/chat-ui-kit-styles/dist/default/styles.min.css' {
-  const content: string;
-  export default content;
-}
