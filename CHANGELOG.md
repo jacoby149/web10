@@ -1,3 +1,15 @@
+1.0.55 || 19.07.2026
+PR + changelog workflow hardening for the parallel-agent conveyor.
+AGENTS.md/CLAUDE.md (and the Conductor prompt) now require, right after
+gh pr create: (1) an immediate conflict check (gh pr view --json
+mergeable,mergeStateStatus) with local merge of origin/dev to resolve,
+then (2) watching ALL checks — optional ones included, UNSTABLE is red,
+not "ready to go" — and fixing until every check is green before
+reporting the PR ready. Changelog conflicts defused: .gitattributes sets
+CHANGELOG.md merge=union so parallel branches' entries union instead of
+conflicting on local merges, with a documented renumber-after-merge step
+(top entry must stay the unique highest; changelog CI already enforces).
+
 1.0.54 || 19.07.2026
 README rewritten to match the current stack: dead references removed
 (auth/ dir, settings_example.py copying, skaffold/GKE deploy, hex-key
