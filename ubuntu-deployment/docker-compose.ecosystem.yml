@@ -32,9 +32,8 @@
 #
 # Frontends bake their backend origins at BUILD time (vite). The
 # build args below are the lane-E side of the contract; the app-side
-# ARG/env plumbing is DONE for ui (B5, REACT_APP_* names) and
-# marketing-ui (VITE_* names); web10-social's adapter env-read is
-# still open (lane D / D14 — its Dockerfile ARGs already exist).
+# ARG/env plumbing is DONE for all three frontends: ui (B5,
+# REACT_APP_* names), marketing-ui and web10-social (VITE_* names).
 # Changing an origin means re-BUILDING the stack, not just restarting.
 
 services:
@@ -148,8 +147,6 @@ services:
       context: ../marketing/web10-social
       dockerfile: Dockerfile
       args:
-        # adapter env-read is lane D (D14); VITE_MARKETING_API is
-        # consumed today (ReportBug).
         VITE_API_ORIGIN: ${API_ORIGIN}
         VITE_AUTH_ORIGIN: ${AUTH_ORIGIN}
         VITE_RTC_ORIGIN: ${RTC_ORIGIN}

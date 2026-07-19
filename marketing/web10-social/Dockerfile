@@ -4,11 +4,9 @@ COPY package.json bun.lock* ./
 RUN bun install --frozen-lockfile || bun install
 COPY . .
 
-# Backend origins are baked at build time (vite). Passed by
-# ubuntu-deployment/docker-compose.ecosystem.yml per environment.
-# VITE_MARKETING_API is read today (ReportBug); the API/AUTH/RTC args
-# are consumed once the adapter env-read lands (lane D / D14) —
-# Web10SocialAdapter.ts still hardcodes its origins until then.
+# Backend origins are baked at build time (vite), passed by
+# ubuntu-deployment/docker-compose.ecosystem.yml per environment and
+# read in src/lib/origins.ts (prod origins are the fallback).
 ARG VITE_API_ORIGIN
 ARG VITE_AUTH_ORIGIN
 ARG VITE_RTC_ORIGIN
