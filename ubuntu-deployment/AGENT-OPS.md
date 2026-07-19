@@ -1,4 +1,4 @@
-# AGENT-OPS.md — field manual for agents operating the staging box
+# AGENT-OPS.md — field manual for agents operating the box
 
 You are an agent with SSH access to a LIVE machine serving real
 domains. This file is written to be followed literally, step by step.
@@ -6,9 +6,10 @@ Do not improvise. If a step fails twice, STOP, write what happened in
 `OPS-LOG.md` (§8), and report back to the operator — a wrong guess on
 a live box costs more than a paused task.
 
-Read `README.md` (security model) before your first session. This
-file is the "what do I actually type" companion to it and to
-`STAGING-RUNBOOK.md` (day-2 procedures).
+Read `README.md` before your first session — it is the single
+human-facing doc (URL map, environments, procedures, security
+model). This file is its "what do I actually type" companion for
+agents.
 
 ## 0. Prime directives
 
@@ -18,7 +19,7 @@ file is the "what do I actually type" companion to it and to
    rule of the whole deployment.
 2. **Never** delete a Docker volume, run `docker system prune -a`,
    or wipe data unless the task explicitly says so AND
-   `STAGING-RUNBOOK.md` has a procedure for it. Prefer restart >
+   `README.md` has a procedure for it. Prefer restart >
    rebuild > redeploy > wipe, in that order.
 3. **Never** commit secrets: no IPs beyond what's already public DNS,
    no passwords, no tokens, no key material. Secrets live in
@@ -38,9 +39,19 @@ operator):
 
 ```
 VM_IP=...          # the box's LAN IP (VPN/LAN reachable)
+VM_PUBLIC_IP=...   # public IP (prod DNS target)
+SSH_USER=...       # login user (NOT root on this box)
 CF_ZONE=web10.app
 CF_API_TOKEN=...   # Cloudflare DNS edits
 ```
+
+THE BOX IS THE OPERATOR'S EVERYTHING BOX — a personal machine
+(hostname `all-spark`) that also runs unrelated services and
+desktop software. Extra prime directive: you manage ONLY the
+`edge` and `web10-*` stacks and their volumes. Never stop,
+restart, prune, or reconfigure any container, volume, network, or
+service you didn't deploy from this directory — no matter how
+broken it looks. Report, don't touch.
 
 ```bash
 # 1. read the env file — if it doesn't exist, STOP and ask the
@@ -48,14 +59,17 @@ CF_API_TOKEN=...   # Cloudflare DNS edits
 cat ubuntu-deployment/.env
 
 # 2. ssh in (key auth; the operator's key must already be installed)
-ssh root@$VM_IP
+ssh $SSH_USER@$VM_IP
 
 # 3. prove you're on the right box before touching anything:
+hostname                      # expect: all-spark
 docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}'
-# expect: portainer, nginx-proxy-manager (or npm_app), and the
-# web10-staging stack services (api, ui, rtc, minio, ferretdb,
-# postgres). if you don't see these, you are on the wrong machine
-# — disconnect and report.
+# expect portainer + the edge/web10 stack containers among OTHERS —
+# it's a shared box. if hostname is wrong, disconnect and report.
+# if `docker ps` says permission denied, $SSH_USER isn't in the
+# docker group yet — STOP and ask the operator to run
+# `sudo usermod -aG docker $SSH_USER` (agents have no sudo).
+# the repo's deploy clone lives at /opt/web10 (owned by $SSH_USER).
 ```
 
 Admin UIs (from LAN/VPN, or via SSH tunnel — see README §"How the
@@ -67,33 +81,45 @@ private side is enforced"):
 | NPM admin | `http://$VM_IP:81` | proxy hosts, TLS certs |
 | Minio console | `http://$VM_IP:9001` | S3 buckets (rarely needed) |
 
-Remote tunnel pattern: `ssh -L 9000:localhost:9000 root@$VM_IP`, then
-open `http://localhost:9000`.
+Remote tunnel pattern: `ssh -L 9000:localhost:9000 $SSH_USER@$VM_IP`,
+then open `http://localhost:9000`.
 
 ## 2. Map of the box
 
 - Everything runs as Docker containers on the shared external
   `proxy` network (created by `prep-vm.sh`).
-- The app stack is a **Portainer stack** named `web10-staging`,
-  created by pasting `docker-compose.staging.yml` into Portainer.
-  Its build contexts are `../api`, `../ui`, `../api/rtc` — Portainer
-  has a clone of this repo for that; the repo on the box is a
-  deploy artifact, never a place to develop.
-- NPM terminates TLS on 80/443 and forwards BY CONTAINER NAME over
-  the `proxy` network.
+- Everything web10 runs as **Portainer stacks** (so the whole map is
+  visible in the Portainer UI from the VPN): the `edge` stack (NPM,
+  from `docker-compose.edge.yml` — proxy mappings live in its
+  `npm-data` volume, certs in `npm-letsencrypt`) plus TWO app
+  stacks (`web10-dev`, `web10-prod`), both pasted from the ONE
+  canonical compose, `docker-compose.ecosystem.yml`, differing only
+  in their stack env vars (`env.dev.example` / `env.prod.example`
+  document them). Build contexts are `../api`, `../ui`,
+  `../api/rtc`, `../marketing/*` — the repo clone on the box
+  (`/opt/web10`) is a deploy artifact, never a place to develop.
+- NPM terminates TLS on 80/443 and forwards over the `proxy` network
+  BY STACK-PREFIXED ALIAS (`web10-dev-api`), never by bare service
+  name — with several stacks on one network, a bare `api` resolves
+  ambiguously across environments and routes traffic cross-env.
+- REALITY CHECK before assuming the above: as of 19.07.2026 the live
+  box runs the pre-runbook LEGACY deployment — a root-managed Caddy
+  edge + a bare-name staging stack on `*.staging` vhosts. Staging
+  as an environment was CUT (D24-lite, 19.07.2026: dev + prod only);
+  the legacy stack gets decommissioned during migration — §4.
 
-Domain map (zone `web10.app`):
+Domain map (zone `web10.app`; dev DNS points at the LAN IP and only
+works on VPN; prod on public real names — full table in README.md):
 
-| Public URL | NPM forwards to | What |
+| Public URL (dev / prod) | NPM forwards to | What |
 |---|---|---|
-| `staging.web10.app` | `api:80` | FastAPI node |
-| `auth.staging.web10.app` | `ui:80` | node admin/consent UI |
-| `rtc.staging.web10.app` | `rtc:80` | signaling |
-| `minio.staging.web10.app` | `minio:9000` | S3 API (media) — never :9001 |
-
-Marketing + social are NOT in this stack yet (see plan.txt
-CROSS-CUTTING deployment / lane items E3+E5): `docker-compose.marketing.yml`
-is the marketing stack; social has no staging service yet.
+| `dev.web10.app` / `api.web10.app` | `web10-{env}-api:80` | FastAPI node |
+| `auth.dev.web10.app` / `auth.web10.app` | `web10-{env}-ui:80` | node admin/consent UI |
+| `rtc.dev.web10.app` / `rtc.web10.app` | `web10-{env}-rtc:80` | signaling |
+| `minio.dev.web10.app` / `minio.web10.app` | `web10-{env}-minio:9000` | S3 API (media) — never :9001 |
+| `social.dev.web10.app` / `social.web10.app` | `web10-{env}-social:80` | web10-social |
+| `www.dev.web10.app` / `www.web10.app`+apex | `web10-{env}-marketing-ui:80` | marketing site |
+| `marketing-api.dev.web10.app` / `marketing-api.web10.app` | `web10-{env}-marketing-api:80` | importer/analytics API |
 
 ## 3. Diagnosis — run this sequence, in order, before changing anything
 
@@ -111,12 +137,12 @@ docker run --rm --network proxy curlimages/curl -sS -o /dev/null \
 docker run --rm --network proxy curlimages/curl -sS -o /dev/null \
   -w '%{http_code}\n' http://ui:80/             # expect 200
 
-# D. is it reachable FROM OUTSIDE?
-curl -sS -o /dev/null -w '%{http_code}\n' https://staging.web10.app/docs
-curl -sS -o /dev/null -w '%{http_code}\n' https://auth.staging.web10.app/
+# D. is it reachable FROM OUTSIDE? (dev vhosts only answer on VPN)
+curl -sS -o /dev/null -w '%{http_code}\n' https://api.web10.app/docs
+curl -sS -o /dev/null -w '%{http_code}\n' https://dev.web10.app/docs
 
 # E. does DNS even exist? (run from YOUR machine, not the box)
-dig +short auth.staging.web10.app
+dig +short auth.dev.web10.app
 ```
 
 Symptom → likely cause (check in this order, stop at first hit):
@@ -126,40 +152,56 @@ Symptom → likely cause (check in this order, stop at first hit):
 | `Could not resolve host` | Cloudflare DNS record missing | add A record (DNS only, not proxied) via CF dashboard or API with `CF_API_TOKEN` |
 | 502 from NPM | container down, or NPM forwards to wrong name/port | step A/B; check NPM proxy host target matches §2 table |
 | 521/timeout | box or NPM down, or router 80/443 forward broken | `docker ps` for NPM; check router |
-| Container `Restarting` | app crash — env var missing is the usual | `docker logs`; compare env against `docker-compose.staging.yml` requireds (e.g. `MINIO_PASSWORD`) |
+| Container `Restarting` | app crash — env var missing is the usual | `docker logs`; compare stack env against `env.{env}.example` (all `docker-compose.ecosystem.yml` `${VAR:?}` vars are required) |
 | Page loads but app is dead/blank | frontend built with wrong baked-in URLs, or CORS | §4 Known issues — check browser devtools console first: what URL is it calling? |
 | API 500s | read the traceback in `docker logs <api-container>` — don't theorize | fix per traceback |
 
-## 4. KNOWN ISSUES — live breakage, triaged 19.07.2026
+## 4. KNOWN ISSUES + THE MIGRATION — state as of 19.07.2026
 
 Read this before re-diagnosing; these are already understood:
 
-1. **The auth UI at `auth.staging.web10.app` is broken by
-   construction.** The UI serves (HTTP 200) but the JS bundle has
-   its backend origins HARDCODED at build time in
-   `ui/src/interfaces/authAdapter.ts` — dev builds point at
-   `*.localhost`, any production build points at
-   `https://api.web10.app` / `https://auth.web10.app` (which is not
-   this environment). `ui/src/config.ts` likewise defaults to
-   `api.web10.app`. So the staging UI calls a wrong API and dies.
-   **The fix is a `ui/` code change (lane B, queued with B5):**
-   read the origins from build-time env
-   (`REACT_APP_*`/`VITE_*` — `ui/vite.config.js` already allows both
-   prefixes) + a Dockerfile `ARG`, and have
-   `docker-compose.staging.yml` pass them from `PROVIDER`. An ops
-   agent CANNOT fix this on the box — do not try; rebuilding with
-   the same code reproduces the same bundle.
-2. **DNS records exist only for `staging` + `auth.staging`.**
-   `rtc.staging` / `minio.staging` (and any future
-   `social.staging` / `www.staging`) did not resolve as of
-   19.07.2026 — media upload and RTC will fail even once the UI is
-   fixed. Add the A records per §2.
-3. **CORS**: the API's `CORS_SERVICE_MANAGERS` must include
-   `https://auth.staging.web10.app` (Portainer → stack → env vars).
-   See STAGING-RUNBOOK.md troubleshooting.
-4. **Marketing + social are not deployed at all.** The staging stack
-   only contains api/ui/rtc/minio/db. Deploying them is lane E work
-   (E3 prod / E5 dev env), not an ops fix.
+1. **Frontend origin parameterization — ui DONE, social PENDING.**
+   The auth UI's fix MERGED (B5, 1.0.65): `ui/Dockerfile` declares
+   `REACT_APP_API_ORIGIN` / `REACT_APP_AUTH_ORIGIN` /
+   `REACT_APP_RTC_ORIGIN` / `REACT_APP_DEFAULT_API` ARGs and
+   `docker-compose.ecosystem.yml` passes them — a fresh stack build
+   serves the right origins per env; prod values remain the
+   fallback when args are empty. web10-social's adapter
+   (`Web10SocialAdapter.ts`) still hardcodes `auth.web10.app` /
+   `rtc.web10.app` for non-local builds — that's lane D item D14
+   (its Dockerfile `VITE_*` ARGs + compose args already exist).
+   Until D14 merges, the social app in dev talks to prod's
+   auth/rtc. An ops agent CANNOT fix this on the box — do not try;
+   rebuilding the same code reproduces the same bundle. When D14
+   merges: redeploy stacks with rebuild.
+2. **The live box runs the LEGACY deployment, due for teardown.**
+   What's there today: a root-managed **Caddy** container holding
+   80/443 (config `/opt/caddy/Caddyfile` — WORLD-READABLE with a
+   live CF API token; operator must `chmod 600` + ROTATE it,
+   consider it burned) proxying BARE names to the old bare-name
+   staging stack on `*.staging.web10.app`. Staging as an
+   environment was CUT — do not repair it, replace it. MIGRATION
+   (one change at a time, §0.5; staging downtime is fine — it's
+   being deleted):
+   a. Stop + disable the legacy Caddy container (frees 80/443).
+   b. Deploy the `edge` stack (`docker-compose.edge.yml`), create
+      the NPM admin account, add the Cloudflare DNS-01 provider.
+   c. Create the `*.dev` DNS records (LAN IP!) and the prod records
+      (public IP — see README.md, mind the cutover caution there).
+   d. Deploy `web10-dev` then `web10-prod` from
+      `docker-compose.ecosystem.yml` + their env files; add the NPM
+      proxy hosts per §2 (stack-prefixed aliases; DNS challenge for
+      dev certs).
+   e. Verify §3 C+D per env; smoke test per README.md.
+   f. Decommission the leftovers: remove the legacy staging stack +
+      its volumes (this one IS an authorized volume delete), delete
+      the four `*.staging` DNS records, remove the Caddy container
+      + `/opt/caddy` (operator does the root-owned parts).
+   g. Log every step in OPS-LOG.md.
+3. **CORS**: each stack's `CORS_SERVICE_MANAGERS` env must list every
+   browser origin for that env (bare hostnames, comma-separated) —
+   the env example files already contain the right values; don't
+   trim them.
 
 When one of these is fixed, update this section in the same PR.
 
@@ -168,25 +210,29 @@ When one of these is fixed, update this section in the same PR.
 Code changed in git and you need the box to serve it:
 
 ```bash
-# Portainer way (preferred): Portainer → Stacks → web10-staging →
+# Portainer way (preferred): Portainer → Stacks → web10-{env} →
 #   "Pull and redeploy" / re-deploy with "Re-pull image and rebuild".
 # SSH way:
-ssh root@$VM_IP
-cd /path/to/web10-clone && git pull          # find it: docker inspect or ls /root /opt /srv
-docker compose -f ubuntu-deployment/docker-compose.staging.yml up -d --build
+ssh $SSH_USER@$VM_IP
+cd /opt/web10 && git pull
+docker compose -p web10-{env} --env-file env.{env} \
+  -f ubuntu-deployment/docker-compose.ecosystem.yml up -d --build
 ```
 
 After ANY redeploy, verify (§3 C+D) and smoke-test the money path:
-open `https://auth.staging.web10.app`, sign up a throwaway account,
-log in. If you can't complete that, the deploy is NOT done.
+open `https://auth.dev.web10.app` (or `auth.web10.app` for prod),
+sign up a throwaway account, log in. If you can't complete that,
+the deploy is NOT done.
 
 ## 6. Changing DNS (Cloudflare)
 
 Use the token from `.env` (scope: DNS edit on the zone). Records for
-public services: A record, name per §2, content = the box's PUBLIC
-IP, **proxy status: DNS only**. For the future VPN-only dev env (E5):
-same, but content = the box's INTERNAL LAN IP — that record is
-intentionally useless off-VPN.
+prod: A record, name per §2, content = the box's PUBLIC IP
+(`VM_PUBLIC_IP` in `.env`), **proxy status: DNS only**. For the
+VPN-only dev env: same service names on `*.dev`, but content = the
+box's INTERNAL LAN IP (`VM_IP`) — those records are intentionally
+useless off-VPN, and their TLS certs must use the DNS-01 challenge
+(see README.md).
 
 ```bash
 # list records (sanity check what exists):

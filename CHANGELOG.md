@@ -1,3 +1,69 @@
+1.0.66 || 19.07.2026
+E3/E5 repo side: the whole ecosystem is deployable. NEW
+ubuntu-deployment/docker-compose.ecosystem.yml — ONE parameterized
+compose for all three environments (web10-staging / web10-dev /
+web10-prod as Portainer stacks), now including web10-social,
+marketing-ui and marketing-api alongside the node. Cross-stack
+safety: every inter-service URL and NPM forward target uses
+stack-prefixed network aliases (web10-dev-api) because bare service
+names resolve ambiguously when multiple stacks share the proxy
+network; the db tier (postgres/ferretdb) moved to a per-stack
+internal network, off proxy entirely. Frontend origin build args
+(VITE_API_ORIGIN / VITE_AUTH_ORIGIN / VITE_RTC_HOST /
+REACT_APP_DEFAULT_API / VITE_MARKETING_API) are passed per env —
+the app-side ARG plumbing is B5's (ui) and D12's (social) to
+consume; marketing-ui's Dockerfile consumes them NOW (new ARGs).
+web10-social gets its first production Dockerfile (vite build +
+nginx SPA; `tsc -b` path-alias failure documented as lane-D debt) +
+.dockerignore. env.staging/dev/prod.example document every required
+stack var (all required-or-fail — no silently mis-originated
+bundles). docker-compose.staging.yml + docker-compose.marketing.yml
+DELETED (superseded — "never two divergent composes").
+STAGING-RUNBOOK.md rewritten as the three-environment runbook:
+VPN-only dev (CF DNS → LAN ip, DNS-01 certs), prod cutover caution
+(api/auth.web10.app may point at an older deploy), dev→prod
+promotion flow [✓ plan]. AGENT-OPS.md/README/prep-vm.sh updated;
+known issues refreshed (rtc/minio staging DNS verified FIXED;
+auth-ui bundle still hardcodes prod origins — live-checked).
+Remaining for E3/E5 (lane queue updated): box execution — create
+the stacks, NPM hosts, DNS records; rebuild after B5/D12 land.
+Also queued E6 push-to-deploy CI/CD (dev push → dev stack, release
+→ prod stack): Portainer GitOps polling first, Cloudflare-Tunnel'd
+stack webhooks later — NO self-hosted runner (public repo).
+Box recon (19.07 evening, SSH as the operator's user): the live
+edge is NOT NPM — a root-managed Caddy container holds 80/443 with
+bare-name targets and a world-readable Caddyfile embedding a live
+CF API token (operator: chmod 600 + ROTATE). Operator's chosen
+design = NPM-as-a-Portainer-stack (UI for every mapping, config in
+a volume): NEW docker-compose.edge.yml (npm-data volume = all
+proxy config, npm-letsencrypt = certs); prep-vm.sh now installs
+only Docker + Portainer + the proxy network (NPM comes from the
+edge stack); Caddy→NPM migration procedure in AGENT-OPS.md §4.5;
+.env.example gains SSH_USER/VM_PUBLIC_IP (box SSH is a user
+account, not root). AGENT-OPS also gains the everything-box
+guardrail: the host is a personal machine — agents manage ONLY
+the edge/web10-* stacks, never other containers.
+Doc consolidation: STAGING-RUNBOOK.md folded into ubuntu-
+deployment/README.md — the name was stale and README is what
+GitHub renders when you browse the folder; one human doc (URL map
+first) + AGENT-OPS for agents + OPS-LOG ledger. All references
+repointed. THEN the staging env itself was CUT (operator call:
+dev + prod is enough on one lean box — staging's only unique value
+was public previews of unreleased work): env.staging.example
+deleted, compose/README/AGENT-OPS/plan/lanes rewritten for two
+envs, and the AGENT-OPS §4.2 migration now ends by decommissioning
+the legacy *.staging stack, its DNS records, and the Caddy edge.
+Drive-by CI fix: mobile/encryptor "tampered ciphertext" test was
+flaky (replaced the LAST base64 char with 'x' — 1/64 runs it
+already was 'x', so nothing was tampered); now flips an early char
+to a guaranteed-different value.
+Post-merge with D12/D13 (which took 1.0.63/1.0.64 — renumbered):
+social's Dockerfile now runs the full `bun run build` (D12 fixed
+the tsconfig `@/*` alias this file had worked around; build
+verified green), and NEW lane item D14 queued — web10-social's
+adapter origins are still hardcoded (never in D12's scope); the
+compose/Dockerfile side already passes the args.
+
 1.0.65 || 19.07.2026
 B5: ui/ leveled up to the design.md standard + the urgent staging
 origin unblock. Staging fix: authAdapter.ts/config.ts no longer
