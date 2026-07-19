@@ -1,17 +1,27 @@
+import { KeyRound } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+
 function BetaCode({ I }: { I: Record<string, any> }) {
+  if (!I.config.REACT_APP_BETA_REQUIRED) return null;
+
   return (
-    <div style={I.config.REACT_APP_BETA_REQUIRED ? {} : { display: "none" }} className="mb-2">
+    <div className="mb-4">
+      <Label htmlFor="betacode" className="mb-1.5 block text-muted-foreground">
+        Beta code
+      </Label>
       <div className="relative">
-        <input
-          id="betacode"
-          className="w-full pl-9 pr-3 py-2 rounded-lg border text-base"
-          style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
-          type="password"
-          placeholder="Beta Code"
+        <KeyRound
+          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+          strokeWidth={1.5}
         />
-        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-sm" style={{ color: 'var(--color-text-muted)' }}>
-          <i className="fas fa-key"></i>
-        </span>
+        <Input
+          id="betacode"
+          type="password"
+          className="pl-9"
+          placeholder="Your invite code"
+          data-testid="betacode-input"
+        />
       </div>
     </div>
   );

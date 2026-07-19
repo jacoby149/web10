@@ -1,6 +1,7 @@
 import React from 'react';
 import TopBar from '../shared/TopBar';
 import SideBar from '../shared/SideBar';
+import MobileNav from '../shared/MobileNav';
 import { MembershipsCard } from './MembershipsCard';
 import { AmazonTagCard } from './AmazonTagCard';
 import { DirectDealsCard } from './DirectDealsCard';
@@ -17,28 +18,31 @@ function StudioPage({ I }: { I: Record<string, any> }) {
   };
 
   return (
-    <div className={`min-h-screen flex flex-col ${I.theme === 'dark' ? 'dark' : ''}`} style={{ backgroundColor: 'var(--color-surface-2)', color: 'var(--color-text)' }}>
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
       <TopBar I={I} />
       <div className="flex flex-1 overflow-auto">
         <SideBar I={I} />
-        <div className="flex-1 overflow-auto">
-          <div className="max-w-4xl mx-auto p-6">
+        <div className="flex-1 overflow-auto pb-16 md:pb-0">
+          <div className="mx-auto max-w-4xl p-4 sm:p-6" data-testid="studio-page">
 
             {status && (
-              <div className="mb-4 p-3 rounded-lg text-sm text-center font-medium animate-pulse" style={{ backgroundColor: 'var(--color-info-bg)', color: 'var(--color-info)' }}>
+              <div
+                role="status"
+                className="mb-4 rounded bg-brand-muted px-3 py-2.5 text-center text-sm font-medium text-brand-300"
+              >
                 {status}
               </div>
             )}
 
             <div className="mb-8">
-              <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text)' }}>Studio</h1>
-              <p className="text-sm mt-1" style={{ color: 'var(--color-text-secondary)' }}>
+              <h1 className="font-display text-2xl font-bold text-foreground">Studio</h1>
+              <p className="mt-1 text-sm text-muted-foreground">
                 Monetization menu — unlock more revenue streams as your audience grows
               </p>
             </div>
 
             <div className="mb-8">
-              <h2 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--color-text-muted)' }}>
+              <h2 className="mb-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Monetization Ladder
               </h2>
               <div className="space-y-3">
@@ -53,7 +57,7 @@ function StudioPage({ I }: { I: Record<string, any> }) {
             </div>
 
             <div>
-              <h2 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--color-text-muted)' }}>
+              <h2 className="mb-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Rung 0 — Available Now
               </h2>
               <div className="space-y-4">
@@ -63,17 +67,18 @@ function StudioPage({ I }: { I: Record<string, any> }) {
               </div>
             </div>
 
-            <div className="mt-12 p-4 rounded-xl border text-center" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}>
-              <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+            <div className="mt-12 rounded border border-border bg-card p-4 text-center">
+              <p className="text-sm text-muted-foreground">
                 Third-party networks stay optional fill, never the foundation.
               </p>
-              <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
+              <p className="mt-1 text-xs text-muted-foreground">
                 Zero-friction rule: every option is one button. Adapters do the paperwork.
               </p>
             </div>
           </div>
         </div>
       </div>
+      <MobileNav I={I} />
     </div>
   );
 }

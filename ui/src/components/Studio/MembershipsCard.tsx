@@ -1,4 +1,8 @@
 import React from 'react';
+import { Gem } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 interface MembershipsCardProps {
   I: Record<string, any>;
@@ -54,61 +58,45 @@ export function MembershipsCard({ I, onStatus }: MembershipsCardProps) {
 
   return (
     <div
-      className="rounded-xl border p-5 transition-all hover:shadow-md hover:border-transparent"
-      style={{
-        borderColor: enabled ? 'var(--color-success)' : 'var(--color-primary-400)',
-        backgroundColor: 'var(--color-surface)',
-      }}
+      className={cn(
+        'rounded border bg-card p-5 transition-colors',
+        enabled ? 'border-success/50' : 'border-border hover:border-brand/50',
+      )}
+      data-testid="studio-memberships-card"
     >
       <div className="flex items-start justify-between">
         <div className="flex items-start gap-3">
-          <div
-            className="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
-            style={{ backgroundColor: 'var(--color-primary-100)' }}
-          >
-            💎
+          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded bg-brand-muted text-brand-300">
+            <Gem className="h-6 w-6" strokeWidth={1.5} />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="font-semibold text-lg" style={{ color: 'var(--color-text)' }}>
-                Memberships & Tips
+              <h3 className="font-display text-lg font-medium text-foreground">
+                Memberships &amp; Tips
               </h3>
-              {enabled && (
-                <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ backgroundColor: 'var(--color-success-bg)', color: 'var(--color-success)' }}>
-                  ACTIVE
-                </span>
-              )}
+              {enabled && <Badge variant="success">ACTIVE</Badge>}
             </div>
-            <p className="text-sm mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-              Let fans subscribe and tip you directly. ~97% payout via Stripe Connect.
+            <p className="mt-1 text-sm text-muted-foreground">
+              Let fans subscribe and tip you directly. Stripe Connect handles payout.
             </p>
-            <div className="flex flex-wrap gap-2 mt-3">
-              <span className="text-xs px-2 py-1 rounded-md font-medium" style={{ backgroundColor: 'var(--color-primary-50)', color: 'var(--color-primary-600)' }}>
-                ~97% payout
-              </span>
-              <span className="text-xs px-2 py-1 rounded-md font-medium" style={{ backgroundColor: 'var(--color-info-bg)', color: 'var(--color-info)' }}>
-                Minutes to first dollar
-              </span>
-              <span className="text-xs px-2 py-1 rounded-md font-medium" style={{ backgroundColor: 'var(--color-success-bg)', color: 'var(--color-success)' }}>
-                Tiers & ranks
-              </span>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Badge variant="success" className="tabular-nums">~97% payout</Badge>
+              <Badge variant="outline">Minutes to first dollar</Badge>
+              <Badge variant="outline">Tiers &amp; ranks</Badge>
             </div>
           </div>
         </div>
       </div>
 
-      <button
-        className="w-full mt-4 px-4 py-3 rounded-lg text-sm font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-        style={{ backgroundColor: enabled ? 'var(--color-success)' : 'var(--color-primary-600)' }}
+      <Button
+        variant={enabled ? 'default' : 'brand'}
+        className={cn('mt-4 w-full', enabled && 'bg-success text-white hover:bg-success/90')}
         onClick={handleEnable}
         disabled={loading}
+        data-testid="studio-memberships-enable"
       >
-        {loading
-          ? 'Connecting...'
-          : enabled
-            ? 'Memberships Active'
-            : 'Enable Memberships'}
-      </button>
+        {loading ? 'Connecting…' : enabled ? 'Memberships Active' : 'Enable Memberships'}
+      </Button>
     </div>
   );
 }

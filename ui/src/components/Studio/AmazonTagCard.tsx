@@ -1,4 +1,9 @@
 import React from 'react';
+import { Package } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 const STORAGE_KEY = 'web10_amazon_tag';
 
@@ -14,12 +19,12 @@ export function AmazonTagCard({ I, onStatus }: AmazonTagCardProps) {
     } catch { return ''; }
   });
   const [input, setInput] = React.useState(tag);
-  const [salesCount, setSalesCount] = React.useState(() => {
+  const [salesCount] = React.useState(() => {
     try {
       return parseInt(localStorage.getItem('web10_amazon_sales') || '0', 10);
     } catch { return 0; }
   });
-  const [lastSaleDate, setLastSaleDate] = React.useState(() => {
+  const [lastSaleDate] = React.useState(() => {
     try {
       return localStorage.getItem('web10_amazon_last_sale') || '';
     } catch { return ''; }
@@ -34,8 +39,7 @@ export function AmazonTagCard({ I, onStatus }: AmazonTagCardProps) {
     return remaining;
   }, [lastSaleDate]);
 
-  const salesStatusColor = daysRemaining > 90 ? 'var(--color-success)' : daysRemaining > 30 ? 'var(--color-warning)' : 'var(--color-danger)';
-  const salesStatusBg = daysRemaining > 90 ? 'var(--color-success-bg)' : daysRemaining > 30 ? 'var(--color-warning-bg)' : 'var(--color-danger-bg)';
+  const salesStatusVariant = daysRemaining > 90 ? 'success' : daysRemaining > 30 ? 'warning' : 'danger';
 
   const handleSave = async () => {
     const trimmed = input.trim();
@@ -75,47 +79,31 @@ export function AmazonTagCard({ I, onStatus }: AmazonTagCardProps) {
 
   return (
     <div
-      className="rounded-xl border p-5 transition-all hover:shadow-md"
-      style={{
-        borderColor: tag ? 'var(--color-success)' : 'var(--color-border)',
-        backgroundColor: 'var(--color-surface)',
-      }}
+      className={cn(
+        'rounded border bg-card p-5 transition-colors',
+        tag ? 'border-success/50' : 'border-border hover:border-brand/50',
+      )}
+      data-testid="studio-amazon-card"
     >
       <div className="flex items-start gap-3">
-        <div
-          className="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
-          style={{ backgroundColor: 'var(--color-warning-bg)' }}
-        >
-          📦
+        <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded bg-elevated text-muted-foreground">
+          <Package className="h-6 w-6" strokeWidth={1.5} />
         </div>
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="font-semibold text-lg" style={{ color: 'var(--color-text)' }}>
-              Amazon Associates
-            </h3>
-            {tag && (
-              <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ backgroundColor: 'var(--color-success-bg)', color: 'var(--color-success)' }}>
-                ACTIVE
-              </span>
-            )}
+            <h3 className="font-display text-lg font-medium text-foreground">Amazon Associates</h3>
+            {tag && <Badge variant="success">ACTIVE</Badge>}
           </div>
-          <p className="text-sm mt-1" style={{ color: 'var(--color-text-secondary)' }}>
+          <p className="mt-1 text-sm text-muted-foreground">
             Paste your tag — every product link you post earns automatically at render time.
           </p>
 
-          <div className="flex flex-wrap gap-2 mt-3">
-            <span className="text-xs px-2 py-1 rounded-md font-medium" style={{ backgroundColor: 'var(--color-info-bg)', color: 'var(--color-info)' }}>
-              Affiliate disclosure auto
-            </span>
-            <span className="text-xs px-2 py-1 rounded-md font-medium" style={{ backgroundColor: 'var(--color-warning-bg)', color: 'var(--color-warning)' }}>
-              No cloaking
-            </span>
-            <span
-              className="text-xs px-2 py-1 rounded-md font-medium"
-              style={{ backgroundColor: salesStatusBg, color: salesStatusColor }}
-            >
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Badge variant="outline">Affiliate disclosure auto</Badge>
+            <Badge variant="outline">No cloaking</Badge>
+            <Badge variant={salesStatusVariant} className="tabular-nums">
               {salesCount}/3 sales — {daysRemaining}d remaining
-            </span>
+            </Badge>
           </div>
         </div>
       </div>
@@ -123,35 +111,25 @@ export function AmazonTagCard({ I, onStatus }: AmazonTagCardProps) {
       <div className="mt-4">
         {tag ? (
           <div className="flex items-center gap-2">
-            <div className="flex-1 px-3 py-2 rounded-lg text-sm font-mono" style={{ backgroundColor: 'var(--color-surface-2)', color: 'var(--color-text)', borderColor: 'var(--color-border)', border: '1px solid var(--color-border)' }}>
+            <div className="flex-1 truncate rounded-sm border border-border bg-elevated px-3 py-2 font-mono text-sm text-foreground">
               {tag}
             </div>
-            <button
-              className="px-3 py-2 text-sm font-medium rounded-lg border transition-colors hover:opacity-80"
-              style={{ borderColor: 'var(--color-danger)', color: 'var(--color-danger)' }}
-              onClick={handleRemove}
-            >
+            <Button variant="outline" className="border-danger text-danger hover:bg-danger-muted hover:text-danger" onClick={handleRemove}>
               Remove
-            </button>
+            </Button>
           </div>
         ) : (
           <div className="flex items-center gap-2">
-            <input
-              className="flex-1 px-3 py-2 rounded-lg border text-sm"
-              style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
+            <Input
               placeholder="e.g. mysite-20"
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSave()}
+              aria-label="Amazon Associates tag"
             />
-            <button
-              className="px-4 py-2 text-sm font-semibold text-white rounded-lg transition-all hover:opacity-90 disabled:opacity-50"
-              style={{ backgroundColor: 'var(--color-primary-600)' }}
-              onClick={handleSave}
-              disabled={saving || !input.trim()}
-            >
-              {saving ? 'Saving...' : 'Save Tag'}
-            </button>
+            <Button variant="brand" onClick={handleSave} disabled={saving || !input.trim()}>
+              {saving ? 'Saving…' : 'Save Tag'}
+            </Button>
           </div>
         )}
       </div>

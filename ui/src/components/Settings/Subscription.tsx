@@ -1,4 +1,8 @@
 import React from 'react';
+import { ChevronRight, ChevronDown } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 function Subscription({ I }: { I: Record<string, any> }) {
   const [hide, setHide] = React.useState(false);
@@ -23,27 +27,35 @@ function Subscription({ I }: { I: Record<string, any> }) {
   }, [I.auth]);
 
   return (
-    <div className="rounded-lg border overflow-hidden" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}>
-      <div className="px-4 py-3 flex justify-between items-center border-b" style={{ borderColor: 'var(--color-border)' }}>
-        <span className="font-medium">Subscription Details</span>
-        <button onClick={() => setHide(!hide)} className="p-1 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors">
-          <i className={hide ? "fas fa-angle-right" : "fas fa-angle-down"}></i>
-        </button>
-      </div>
+    <Card className="overflow-hidden" data-testid="subscription-section">
+      <button
+        type="button"
+        onClick={() => setHide(!hide)}
+        aria-expanded={!hide}
+        data-testid="subscription-toggle"
+        className="flex w-full items-center justify-between border-b border-border px-4 py-3 text-left transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <span className="font-medium text-foreground">Subscription Details</span>
+        {hide ? (
+          <ChevronRight className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+        ) : (
+          <ChevronDown className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+        )}
+      </button>
       {!hide && (
         <>
           <div className="p-4">
-            <input size={plan.length} placeholder={plan} readOnly className="w-full px-3 py-1.5 rounded-lg border text-sm mb-1" style={{ backgroundColor: 'var(--color-surface-2)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }} />
-            <p className="text-xs ml-0.5" style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}>{util}</p>
+            <Input readOnly value={plan} className="mb-1 bg-elevated" data-testid="subscription-plan" />
+            <p className="ml-0.5 font-mono text-xs text-muted-foreground">{util}</p>
           </div>
-          <div className="px-4 py-2.5 border-t flex gap-2" style={{ borderColor: 'var(--color-border)' }}>
-            <button className="text-sm font-medium hover:opacity-80" style={{ color: 'var(--color-primary-600)' }} onClick={() => I.manageSpace()}>Space Plan</button>
-            <button className="text-sm font-medium hover:opacity-80" style={{ color: 'var(--color-primary-600)' }} onClick={() => I.manageCredits()}>Credit Plan</button>
-            <button className="text-sm font-medium hover:opacity-80" style={{ color: 'var(--color-primary-600)' }} onClick={() => I.manageSubscriptions()}>Subscriptions</button>
+          <div className="flex gap-2 border-t border-border px-4 py-2.5">
+            <Button variant="link" size="sm" className="px-0 text-brand-300" data-testid="subscription-manage-space" onClick={() => I.manageSpace()}>Space Plan</Button>
+            <Button variant="link" size="sm" className="px-0 text-brand-300" data-testid="subscription-manage-credits" onClick={() => I.manageCredits()}>Credit Plan</Button>
+            <Button variant="link" size="sm" className="px-0 text-brand-300" data-testid="subscription-manage-subscriptions" onClick={() => I.manageSubscriptions()}>Subscriptions</Button>
           </div>
         </>
       )}
-    </div>
+    </Card>
   );
 }
 
