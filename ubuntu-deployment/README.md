@@ -17,9 +17,9 @@ the rules. Log every session in `OPS-LOG.md`.
 | `AGENT-OPS.md` | Field manual for agents operating the box (SSH, diagnose, redeploy, guardrails) |
 | `OPS-LOG.md` | Append-only ledger of box changes — read before ops, write after |
 | `prep-vm.sh` | One-shot VM prep: Docker + Portainer + NPM + shared `proxy` network |
-| `docker-compose.staging.yml` | Self-contained staging stack (prod-mode: gunicorn, built UI, no hot-reload) |
-| `docker-compose.marketing.yml` | Standalone marketing stack (marketing-ui + marketing-api) |
-| `.env.example` | Template for local secrets (`CF_API_TOKEN`, zone, VM IP). Copy to `.env` — gitignored |
+| `docker-compose.ecosystem.yml` | THE stack file — one parameterized compose, deployed as three Portainer stacks (staging / dev / prod), whole ecosystem (node + social + marketing) |
+| `env.staging.example` / `env.dev.example` / `env.prod.example` | Per-stack env vars to paste into Portainer (one file per environment) |
+| `.env.example` | Template for local secrets (`CF_API_TOKEN`, zone, VM IPs). Copy to `.env` — gitignored |
 | `STAGING-RUNBOOK.md` | Day-2 operations (redeploy, volumes, wipe, e2e test, troubleshooting) |
 | `DEPLOYMENT-PLAN.md` | Architecture rationale (why Portainer + NPM + Cloudflare) |
 
@@ -32,25 +32,32 @@ the rules. Log every session in `OPS-LOG.md`.
 sudo bash prep-vm.sh          # Docker + Portainer + NPM + "proxy" network
 
 # 2. Portainer — http://{vm-lan-ip}:9000  (from LAN/VPN only, see below)
-#    Create the admin account, then: Stacks → Add stack → name it
-#    web10-staging → paste docker-compose.staging.yml → set env vars
-#    PROVIDER=staging.{zone} and MINIO_PASSWORD={strong random}
-#    (required; the S3 API is internet-facing) → Deploy.
+#    Create the admin account, then: Stacks → Add stack → name it per
+#    environment (web10-staging / web10-dev / web10-prod) → paste
+#    docker-compose.ecosystem.yml → set the env vars from the matching
+#    env.{env}.example file (ALL of them — the stack refuses to deploy
+#    with any missing, by design) → Deploy.
 
 # 3. Nginx Proxy Manager — http://{vm-lan-ip}:81  (LAN/VPN only)
 #    Create the admin account, then add proxy hosts (SSL tab: Force
-#    HTTPS + request a Let's Encrypt cert on each):
-#      staging.{zone}        → api:80
-#      auth.staging.{zone}   → ui:80
-#      rtc.staging.{zone}    → rtc:80
-#      minio.staging.{zone}  → minio:9000   # S3 API for media — NOT :9001
+#    HTTPS + a Let's Encrypt cert on each; DNS-01 challenge for the
+#    VPN-only dev vhosts). Forward targets use the stack-prefixed
+#    aliases — full per-env tables in STAGING-RUNBOOK.md, e.g. staging:
+#      staging.{zone}          → web10-staging-api:80
+#      auth.staging.{zone}     → web10-staging-ui:80
+#      rtc.staging.{zone}      → web10-staging-rtc:80
+#      minio.staging.{zone}    → web10-staging-minio:9000  # NOT :9001
+#      social.staging.{zone}   → web10-staging-social:80
+#      www.staging.{zone}      → web10-staging-marketing-ui:80
+#      marketing-api.staging.{zone} → web10-staging-marketing-api:80
 #
 #    ⚠ Never add proxy hosts for Portainer, the NPM admin UI, or the
 #    Minio console. Those stay off the internet entirely (see below).
 
-# 4. Cloudflare DNS: A records for the four public hostnames above,
-#    pointing at the box's public IP, proxy = DNS only. Nothing else
-#    gets a record.
+# 4. Cloudflare DNS: A records for the public hostnames above, proxy =
+#    DNS only. staging/prod records → the box's PUBLIC IP; dev records
+#    → the box's INTERNAL LAN IP (VPN-only env). Nothing else gets a
+#    record.
 
 # 5. Router/firewall: forward ONLY 80 and 443 to the VM.
 
@@ -124,8 +131,10 @@ proxy host. Default answer is still: don't.
 ## Architecture
 
 Portainer manages Docker stacks via UI. Nginx Proxy Manager owns
-80/443, terminates TLS (Let's Encrypt), and forwards to containers by
-service name over the shared `proxy` Docker network that `prep-vm.sh`
-creates.
+80/443, terminates TLS (Let's Encrypt), and forwards to containers
+over the shared `proxy` Docker network that `prep-vm.sh` creates —
+always by the stack-prefixed alias (`web10-dev-api`), never the bare
+service name: with several stacks on one network, a bare name like
+`api` resolves ambiguously across environments.
 
 See `DEPLOYMENT-PLAN.md` for the full architecture and DNS plan.

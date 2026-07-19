@@ -1,3 +1,33 @@
+1.0.63 || 19.07.2026
+E3/E5 repo side: the whole ecosystem is deployable. NEW
+ubuntu-deployment/docker-compose.ecosystem.yml — ONE parameterized
+compose for all three environments (web10-staging / web10-dev /
+web10-prod as Portainer stacks), now including web10-social,
+marketing-ui and marketing-api alongside the node. Cross-stack
+safety: every inter-service URL and NPM forward target uses
+stack-prefixed network aliases (web10-dev-api) because bare service
+names resolve ambiguously when multiple stacks share the proxy
+network; the db tier (postgres/ferretdb) moved to a per-stack
+internal network, off proxy entirely. Frontend origin build args
+(VITE_API_ORIGIN / VITE_AUTH_ORIGIN / VITE_RTC_HOST /
+REACT_APP_DEFAULT_API / VITE_MARKETING_API) are passed per env —
+the app-side ARG plumbing is B5's (ui) and D12's (social) to
+consume; marketing-ui's Dockerfile consumes them NOW (new ARGs).
+web10-social gets its first production Dockerfile (vite build +
+nginx SPA; `tsc -b` path-alias failure documented as lane-D debt) +
+.dockerignore. env.staging/dev/prod.example document every required
+stack var (all required-or-fail — no silently mis-originated
+bundles). docker-compose.staging.yml + docker-compose.marketing.yml
+DELETED (superseded — "never two divergent composes").
+STAGING-RUNBOOK.md rewritten as the three-environment runbook:
+VPN-only dev (CF DNS → LAN ip, DNS-01 certs), prod cutover caution
+(api/auth.web10.app may point at an older deploy), dev→prod
+promotion flow [✓ plan]. AGENT-OPS.md/README/prep-vm.sh updated;
+known issues refreshed (rtc/minio staging DNS verified FIXED;
+auth-ui bundle still hardcodes prod origins — live-checked).
+Remaining for E3/E5 (lane queue updated): box execution — create
+the stacks, NPM hosts, DNS records; rebuild after B5/D12 land.
+
 1.0.62 || 19.07.2026
 environments + ops + e2e depth. plan.txt CROSS-CUTTING deployment now
 specs TWO full-ecosystem environments on the ubuntu-deployment box:

@@ -1674,12 +1674,15 @@ environments (added 19.07.2026): TWO full stacks on the linux box
 that ubuntu-deployment/ preps, both managed as Portainer stacks on
 the same host, one compose file parameterized by env (domain prefix,
 volumes, env file) — never two divergent composes:
-[ ] PROD env — the whole ecosystem public: marketing-ui +
+[~] PROD env — the whole ecosystem public: marketing-ui +
     marketing-api + the node (api, ui, social, rtc, minio, db).
     public Cloudflare DNS -> router-forwarded 80/443 -> NPM with
     real TLS certs (DNS-01 via cloudflare). this is E3 executed:
     prod marketing ui, prod ui, prod social ui.
-[ ] DEV env — the SAME whole ecosystem, VPN-only: cloudflare DNS
+    (repo side merged 1.0.63: docker-compose.ecosystem.yml +
+    env.prod.example + social prod Dockerfile. remaining: box
+    execution per STAGING-RUNBOOK.md — lane E queue has detail.)
+[~] DEV env — the SAME whole ecosystem, VPN-only: cloudflare DNS
     records (dev.web10.app / *.dev.web10.app or similar) pointing
     at the box's INTERNAL LAN ip. the records resolve publicly but
     route nowhere unless you're on the VPN — zero exposure, no
@@ -1689,9 +1692,12 @@ volumes, env file) — never two divergent composes:
     work soaks before prod promotion; wipe+reseed procedures per
     STAGING-RUNBOOK.md. follows the E1 security model: infra
     panels stay LAN/VPN-only regardless of env.
-[ ] promotion flow documented in STAGING-RUNBOOK.md: merge to dev
-    branch -> dev env redeploy (Portainer re-pull), tag/release ->
-    prod redeploy. keep it manual-button simple until E4.
+    (repo side merged 1.0.63: same compose + env.dev.example +
+    DNS-01 cert procedure. remaining: box execution.)
+[✓ 1.0.63] promotion flow documented in STAGING-RUNBOOK.md: merge
+    to dev branch -> dev env redeploy (Portainer re-pull),
+    tag/release -> prod redeploy. keep it manual-button simple
+    until E4.
 
 networking:
 [ ] VPN gateway must be up for any management access. document

@@ -1,5 +1,13 @@
 # Ubuntu Deployment Plan (v2 — Portainer + NPM)
 
+> **Partially superseded (19.07.2026, E3/E5 prep):** the environment
+> model grew to THREE full-ecosystem stacks (staging / VPN-only dev /
+> prod) from one parameterized `docker-compose.ecosystem.yml`, which
+> replaced both `docker-compose.staging.yml` and
+> `docker-compose.marketing.yml`. Current operational truth lives in
+> `STAGING-RUNBOOK.md` + `AGENT-OPS.md`; this file remains as the
+> architecture rationale (why Portainer + NPM + Cloudflare).
+
 Replaces the `ubuntu-deploy.sh` approach. Homelab infra is managed
 through Portainer (stack UI) + Nginx Proxy Manager (reverse proxy + TLS).
 Cloudflare handles DNS. No more shell scripts copying compose files

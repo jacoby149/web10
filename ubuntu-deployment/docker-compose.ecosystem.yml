@@ -1,0 +1,198 @@
+# web10 ecosystem stack — ONE parameterized compose for every env.
+#
+# This is the canonical stack file (plan.txt CROSS-CUTTING deployment:
+# "one compose file parameterized by env — never two divergent
+# composes"). The same file deploys as three Portainer stacks:
+#
+#   stack name      STACK env       DNS                      exposure
+#   web10-staging   web10-staging   *.staging.{zone}         public
+#   web10-dev       web10-dev       *.dev.{zone} → LAN IP    VPN-only
+#   web10-prod      web10-prod      *.{zone} → public IP     public
+#
+# Per-stack env vars: see env.staging.example / env.dev.example /
+# env.prod.example next to this file. All ${VAR:?} vars are REQUIRED —
+# the deploy fails loudly instead of building a wrongly-wired bundle.
+#
+# WHY THE ${STACK}- PREFIXES EXIST (do not remove them):
+# all stacks share the external "proxy" network so NPM can reach them.
+# Docker DNS registers every service's bare name on every network it
+# joins — with two stacks up, a bare name like "minio" resolves to
+# BOTH stacks' containers and traffic crosses environments (dev api
+# writing to prod db). So: inter-service URLs and NPM forward targets
+# use the unique ${STACK}-<name> aliases, never bare service names,
+# and the db tier sits on a per-stack internal network only.
+#
+# NPM proxy hosts forward BY ALIAS over the proxy network:
+#   {api-vhost}            → ${STACK}-api:80
+#   {auth-vhost}           → ${STACK}-ui:80
+#   {rtc-vhost}            → ${STACK}-rtc:80
+#   {minio-vhost}          → ${STACK}-minio:9000  (S3 API — NOT 9001)
+#   {social-vhost}         → ${STACK}-social:80
+#   {marketing-vhost}      → ${STACK}-marketing-ui:80
+#   {marketing-api-vhost}  → ${STACK}-marketing-api:80
+#
+# Frontends bake their backend origins at BUILD time (vite). The
+# build args below are the lane-E side of the contract; the app-side
+# ARG/env plumbing lives in each app's Dockerfile (marketing-ui: done;
+# ui: lane B / B5; web10-social adapter env-read: lane D / D12).
+# Changing an origin means re-BUILDING the stack, not just restarting.
+
+services:
+  postgres:
+    image: ghcr.io/ferretdb/postgres-documentdb:17
+    environment:
+      POSTGRES_USER: web10
+      POSTGRES_PASSWORD: web10
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      internal:
+        aliases:
+          - ${STACK:?set STACK, e.g. web10-dev}-postgres
+
+  ferretdb:
+    image: ghcr.io/ferretdb/ferretdb:2
+    depends_on:
+      - postgres
+    environment:
+      FERRETDB_POSTGRESQL_URL: postgres://web10:web10@${STACK}-postgres:5432/postgres
+    restart: unless-stopped
+    networks:
+      internal:
+        aliases:
+          - ${STACK}-ferretdb
+
+  minio:
+    image: minio/minio:latest
+    volumes:
+      - minio-data:/data
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      # Required — the S3 API is reachable via NPM, so the default
+      # minioadmin password must never ship.
+      MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD:?set MINIO_PASSWORD in the stack env vars}
+      MINIO_CONSOLE_ADDRESS: ":9001"
+    command: server /data --console-address :9001
+    restart: unless-stopped
+    networks:
+      internal:
+        aliases:
+          - ${STACK}-minio
+      proxy:
+        aliases:
+          - ${STACK}-minio
+          # public minio hostname, so in-network services resolving
+          # presigned-URL hosts reach it without leaving the box
+          - ${MINIO_HOST:?set MINIO_HOST, e.g. minio.dev.web10.app}
+
+  api:
+    build:
+      context: ../api
+      dockerfile: Dockerfile
+    depends_on:
+      - ferretdb
+      - minio
+    environment:
+      PROVIDER: ${PROVIDER:?set PROVIDER, e.g. dev.web10.app}
+      DB_URL: mongodb://web10:web10@${STACK}-ferretdb:27017/
+      DB: web10
+      S3_ENDPOINT: http://${STACK}-minio:9000
+      S3_ACCESS_KEY: minioadmin
+      S3_SECRET_KEY: ${MINIO_PASSWORD}
+      CORS_SERVICE_MANAGERS: ${CORS_SERVICE_MANAGERS:?comma-separated auth/social/marketing hosts}
+    command: ["uv", "run", "gunicorn", "-b", "0.0.0.0:80", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "app.main:app"]
+    restart: unless-stopped
+    networks:
+      internal:
+        aliases:
+          - ${STACK}-api
+      proxy:
+        aliases:
+          - ${STACK}-api
+
+  ui:
+    build:
+      context: ../ui
+      dockerfile: Dockerfile
+      args:
+        # consumed once lane B (B5) lands the origin-parameterization
+        # fix (ARG + env read in ui/); unknown args are a warning, not
+        # an error, so this is safe to pass before that merges.
+        VITE_API_ORIGIN: ${API_ORIGIN:?e.g. https://dev.web10.app}
+        VITE_AUTH_ORIGIN: ${AUTH_ORIGIN:?e.g. https://auth.dev.web10.app}
+        VITE_RTC_HOST: ${RTC_HOST:?host only, e.g. rtc.dev.web10.app}
+        REACT_APP_DEFAULT_API: ${API_HOST:?host only, e.g. dev.web10.app}
+    environment:
+      PORT: "80"
+    restart: unless-stopped
+    networks:
+      proxy:
+        aliases:
+          - ${STACK}-ui
+
+  rtc:
+    build:
+      context: ../api/rtc
+      dockerfile: Dockerfile
+    command: ["bun", "run", "index.ts"]
+    environment:
+      PORT: "80"
+    restart: unless-stopped
+    networks:
+      proxy:
+        aliases:
+          - ${STACK}-rtc
+
+  social:
+    build:
+      context: ../marketing/web10-social
+      dockerfile: Dockerfile
+      args:
+        # adapter env-read is lane D (D12); VITE_MARKETING_API is
+        # consumed today (ReportBug).
+        VITE_API_ORIGIN: ${API_ORIGIN}
+        VITE_AUTH_ORIGIN: ${AUTH_ORIGIN}
+        VITE_RTC_HOST: ${RTC_HOST}
+        VITE_MARKETING_API: ${MARKETING_API_ORIGIN:?e.g. https://marketing-api.dev.web10.app}
+    restart: unless-stopped
+    networks:
+      proxy:
+        aliases:
+          - ${STACK}-social
+
+  marketing-ui:
+    build:
+      context: ../marketing/marketing-ui
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${API_ORIGIN}
+        VITE_MARKETING_API: ${MARKETING_API_ORIGIN}
+    restart: unless-stopped
+    networks:
+      proxy:
+        aliases:
+          - ${STACK}-marketing-ui
+
+  marketing-api:
+    build:
+      context: ../marketing/marketing-api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    networks:
+      proxy:
+        aliases:
+          - ${STACK}-marketing-api
+
+volumes:
+  # Portainer prefixes volume names with the stack name, so each
+  # stack gets its own postgres-data / minio-data automatically.
+  postgres-data:
+  minio-data:
+
+networks:
+  # per-stack private network for the db tier — never on "proxy"
+  internal:
+  proxy:
+    external: true

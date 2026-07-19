@@ -134,8 +134,11 @@ LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
       prod builds, so auth.staging.web10.app ships a bundle calling
       the wrong api (see ubuntu-deployment/AGENT-OPS.md §4.1).
       build-time env (REACT_APP_*/VITE_* both allowed by
-      vite.config.js) + Dockerfile ARG; leave a .context note for
-      lane E to pass the args in docker-compose.staging.yml.
+      vite.config.js) + Dockerfile ARG. lane E already passes the
+      args in ubuntu-deployment/docker-compose.ecosystem.yml —
+      consume THESE names: VITE_API_ORIGIN, VITE_AUTH_ORIGIN,
+      VITE_RTC_HOST (host only, no scheme), REACT_APP_DEFAULT_API
+      (host only).
       acceptance: design.md §12 (screenshot test, pr screenshots
       desktop + 375px, tokens-only, all states designed) + a
       staging rebuild can point at staging domains without a code
@@ -271,12 +274,18 @@ LANE E — infrastructure / deployment (owns: proxmox provisioning,
        ops procedures: ubuntu-deployment/AGENT-OPS.md + OPS-LOG.md.
 [✓ 1.0.38] E2. marketing deploy: marketing-ui + marketing-api on proxmox,
        caddy reverse proxy with auto-TLS. internal staging complete.
-  [ ] E3. PROD env — the whole ecosystem public (specced in plan.txt
+  [~] E3. PROD env — the whole ecosystem public (specced in plan.txt
       CROSS-CUTTING deployment "environments"): prod marketing-ui +
       marketing-api + node (api, ui, social, rtc, minio, db) behind
       NPM with public cloudflare DNS + router-forwarded 80/443 +
       real TLS. infra panels stay LAN/VPN-only (E1 security model).
-  [ ] E5. DEV env — the SAME whole ecosystem, VPN-only, on the same
+      REPO SIDE DONE (1.0.63): docker-compose.ecosystem.yml (one
+      parameterized compose, all three envs), env.prod.example,
+      social prod Dockerfile, runbook. REMAINING: box execution —
+      create the web10-prod Portainer stack + NPM hosts + DNS per
+      STAGING-RUNBOOK.md (needs SSH/.env + CF creds; watch the
+      api.web10.app/auth.web10.app cutover caution).
+  [~] E5. DEV env — the SAME whole ecosystem, VPN-only, on the same
       linux box ubuntu-deployment/ preps (parallel to E3, and to
       the B5/D12/D13 ui revamp): cloudflare DNS for dev vhosts
       (*.dev.web10.app or similar) pointing at the box's INTERNAL
@@ -285,6 +294,12 @@ LANE E — infrastructure / deployment (owns: proxmox provisioning,
       second Portainer stack from the same parameterized compose,
       own volumes + env file. promotion flow (dev soak -> prod
       redeploy) documented in STAGING-RUNBOOK.md.
+      REPO SIDE DONE (1.0.63): compose + env.dev.example + DNS-01
+      procedure + promotion flow all in STAGING-RUNBOOK.md.
+      REMAINING: box execution — web10-dev stack, *.dev DNS records
+      pointing at the LAN ip, DNS-01 certs. ui/social bundles wire
+      to dev origins only after B5/D12's env fixes merge (compose
+      already passes the build args).
   [ ] E4. automated provisioning: terraform or ssh-api script +
       ansible for idempotent VM/LXC setup. don't rush — manual is
       fine until E2 works.
@@ -330,12 +345,16 @@ staging actually deployed. the three beautify items are parallel-safe
   ws3: D13 rebuild marketing-ui on the design system, bulma out
        (lane D — marketing/marketing-ui/** only) + pays the shared
        brand asset debt (design.md §3)
-  ws4: staging IS deployed (19.07.2026 — auth.staging.web10.app is
-       live but broken-on-arrival). first job: triage the live
-       staging against ubuntu-deployment/AGENT-OPS.md (ssh in, read
-       container logs, fix or file). then E5 dev env (VPN-only,
-       whole ecosystem — cloudflare DNS -> internal ip) and E3 prod
-       env (public marketing-ui + ui + social) on the same box.
+  ws4: staging IS deployed; rtc/minio DNS records were added (verified
+       19.07 evening). the E3/E5 REPO side merged in 1.0.63 (one
+       parameterized docker-compose.ecosystem.yml for staging/dev/
+       prod incl. social + marketing, env.{env}.example files,
+       runbook). what's left is BOX EXECUTION per AGENT-OPS.md §4.4
+       + STAGING-RUNBOOK.md: repaste web10-staging from the
+       ecosystem compose, create web10-dev (VPN-only, DNS→LAN ip,
+       DNS-01 certs) + web10-prod stacks, NPM hosts + DNS records,
+       smoke test each. auth-ui/social bundles stay mis-originated
+       until B5/D12 merge — rebuild the stacks after.
   ws5: C6 e2e deep sweep + bug hunt (lane C — e2e/** only; local
        stack, no deploy gate). signup-as-a-test + persona seed
        fixtures; the honest bug list is the deliverable.

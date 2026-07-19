@@ -74,26 +74,38 @@ open `http://localhost:9000`.
 
 - Everything runs as Docker containers on the shared external
   `proxy` network (created by `prep-vm.sh`).
-- The app stack is a **Portainer stack** named `web10-staging`,
-  created by pasting `docker-compose.staging.yml` into Portainer.
-  Its build contexts are `../api`, `../ui`, `../api/rtc` — Portainer
-  has a clone of this repo for that; the repo on the box is a
-  deploy artifact, never a place to develop.
-- NPM terminates TLS on 80/443 and forwards BY CONTAINER NAME over
-  the `proxy` network.
+- App stacks are **Portainer stacks** — up to three (`web10-staging`,
+  `web10-dev`, `web10-prod`), ALL pasted from the ONE canonical
+  compose, `docker-compose.ecosystem.yml`, differing only in their
+  stack env vars (`env.staging.example` / `env.dev.example` /
+  `env.prod.example` document them). Build contexts are `../api`,
+  `../ui`, `../api/rtc`, `../marketing/*` — Portainer has a clone of
+  this repo for that; the repo on the box is a deploy artifact,
+  never a place to develop.
+- NPM terminates TLS on 80/443 and forwards over the `proxy` network
+  BY STACK-PREFIXED ALIAS (`web10-staging-api`), never by bare
+  service name — with several stacks on one network, a bare `api`
+  resolves ambiguously across environments and routes traffic
+  cross-env.
+- The live `web10-staging` stack may predate the ecosystem compose
+  (deployed from the deleted `docker-compose.staging.yml`, services
+  answering to bare names). If NPM shows bare-name targets, that's
+  why; the next staging redeploy should paste the ecosystem compose +
+  full env set and update the NPM targets to the prefixed aliases.
 
-Domain map (zone `web10.app`):
+Domain map (zone `web10.app`; `{env}` = staging / dev — dev DNS
+points at the LAN IP and only works on VPN; prod uses bare zone
+names, see STAGING-RUNBOOK.md):
 
 | Public URL | NPM forwards to | What |
 |---|---|---|
-| `staging.web10.app` | `api:80` | FastAPI node |
-| `auth.staging.web10.app` | `ui:80` | node admin/consent UI |
-| `rtc.staging.web10.app` | `rtc:80` | signaling |
-| `minio.staging.web10.app` | `minio:9000` | S3 API (media) — never :9001 |
-
-Marketing + social are NOT in this stack yet (see plan.txt
-CROSS-CUTTING deployment / lane items E3+E5): `docker-compose.marketing.yml`
-is the marketing stack; social has no staging service yet.
+| `{env}.web10.app` | `web10-{env}-api:80` | FastAPI node |
+| `auth.{env}.web10.app` | `web10-{env}-ui:80` | node admin/consent UI |
+| `rtc.{env}.web10.app` | `web10-{env}-rtc:80` | signaling |
+| `minio.{env}.web10.app` | `web10-{env}-minio:9000` | S3 API (media) — never :9001 |
+| `social.{env}.web10.app` | `web10-{env}-social:80` | web10-social |
+| `www.{env}.web10.app` | `web10-{env}-marketing-ui:80` | marketing site |
+| `marketing-api.{env}.web10.app` | `web10-{env}-marketing-api:80` | importer/analytics API |
 
 ## 3. Diagnosis — run this sequence, in order, before changing anything
 
@@ -126,7 +138,7 @@ Symptom → likely cause (check in this order, stop at first hit):
 | `Could not resolve host` | Cloudflare DNS record missing | add A record (DNS only, not proxied) via CF dashboard or API with `CF_API_TOKEN` |
 | 502 from NPM | container down, or NPM forwards to wrong name/port | step A/B; check NPM proxy host target matches §2 table |
 | 521/timeout | box or NPM down, or router 80/443 forward broken | `docker ps` for NPM; check router |
-| Container `Restarting` | app crash — env var missing is the usual | `docker logs`; compare env against `docker-compose.staging.yml` requireds (e.g. `MINIO_PASSWORD`) |
+| Container `Restarting` | app crash — env var missing is the usual | `docker logs`; compare stack env against `env.{env}.example` (all `docker-compose.ecosystem.yml` `${VAR:?}` vars are required) |
 | Page loads but app is dead/blank | frontend built with wrong baked-in URLs, or CORS | §4 Known issues — check browser devtools console first: what URL is it calling? |
 | API 500s | read the traceback in `docker logs <api-container>` — don't theorize | fix per traceback |
 
@@ -145,21 +157,33 @@ Read this before re-diagnosing; these are already understood:
    **The fix is a `ui/` code change (lane B, queued with B5):**
    read the origins from build-time env
    (`REACT_APP_*`/`VITE_*` — `ui/vite.config.js` already allows both
-   prefixes) + a Dockerfile `ARG`, and have
-   `docker-compose.staging.yml` pass them from `PROVIDER`. An ops
-   agent CANNOT fix this on the box — do not try; rebuilding with
-   the same code reproduces the same bundle.
-2. **DNS records exist only for `staging` + `auth.staging`.**
-   `rtc.staging` / `minio.staging` (and any future
-   `social.staging` / `www.staging`) did not resolve as of
-   19.07.2026 — media upload and RTC will fail even once the UI is
-   fixed. Add the A records per §2.
+   prefixes) + Dockerfile `ARG`s. The compose side is DONE:
+   `docker-compose.ecosystem.yml` already passes `VITE_API_ORIGIN`,
+   `VITE_AUTH_ORIGIN`, `VITE_RTC_HOST`, `REACT_APP_DEFAULT_API` as
+   build args (harmless warnings until the Dockerfile declares
+   them). Same story for web10-social's adapter (lane D / D12).
+   An ops agent CANNOT fix this on the box — do not try; rebuilding
+   with the same code reproduces the same bundle.
+2. ~~DNS records missing for `rtc.staging` / `minio.staging`.~~
+   **FIXED as of 19.07.2026 (evening)** — verified remotely:
+   `rtc.staging.web10.app` returns 200, `minio.staging.web10.app`
+   returns 403 (normal for unauthenticated S3). Whoever added the
+   records did not log it in OPS-LOG.md — log your box changes.
+   Still to create: `social.{env}` / `www.{env}` /
+   `marketing-api.{env}` records per §2 when deploying those
+   services, and the whole `*.dev` set (LAN IP!) for E5.
 3. **CORS**: the API's `CORS_SERVICE_MANAGERS` must include
-   `https://auth.staging.web10.app` (Portainer → stack → env vars).
-   See STAGING-RUNBOOK.md troubleshooting.
-4. **Marketing + social are not deployed at all.** The staging stack
-   only contains api/ui/rtc/minio/db. Deploying them is lane E work
-   (E3 prod / E5 dev env), not an ops fix.
+   `auth.staging.web10.app` (bare hostname, comma-separated —
+   Portainer → stack → env vars). Unverified on the live stack;
+   check when the UI fix lands. See STAGING-RUNBOOK.md.
+4. **Marketing + social are not deployed yet.** The compose work is
+   DONE — `docker-compose.ecosystem.yml` contains social,
+   marketing-ui and marketing-api. What remains is box execution:
+   repaste the staging stack from the ecosystem compose (full env
+   set per `env.staging.example`), create the `web10-dev` +
+   `web10-prod` stacks (E5/E3), add their NPM proxy hosts + DNS
+   records per §2/STAGING-RUNBOOK.md. Note: social/ui bundles stay
+   mis-originated until known-issue #1's app-side fixes merge.
 
 When one of these is fixed, update this section in the same PR.
 
@@ -168,12 +192,13 @@ When one of these is fixed, update this section in the same PR.
 Code changed in git and you need the box to serve it:
 
 ```bash
-# Portainer way (preferred): Portainer → Stacks → web10-staging →
+# Portainer way (preferred): Portainer → Stacks → web10-{env} →
 #   "Pull and redeploy" / re-deploy with "Re-pull image and rebuild".
 # SSH way:
 ssh root@$VM_IP
 cd /path/to/web10-clone && git pull          # find it: docker inspect or ls /root /opt /srv
-docker compose -f ubuntu-deployment/docker-compose.staging.yml up -d --build
+docker compose -p web10-{env} --env-file env.{env} \
+  -f ubuntu-deployment/docker-compose.ecosystem.yml up -d --build
 ```
 
 After ANY redeploy, verify (§3 C+D) and smoke-test the money path:
@@ -183,10 +208,12 @@ log in. If you can't complete that, the deploy is NOT done.
 ## 6. Changing DNS (Cloudflare)
 
 Use the token from `.env` (scope: DNS edit on the zone). Records for
-public services: A record, name per §2, content = the box's PUBLIC
-IP, **proxy status: DNS only**. For the future VPN-only dev env (E5):
-same, but content = the box's INTERNAL LAN IP — that record is
-intentionally useless off-VPN.
+public services (staging/prod): A record, name per §2, content = the
+box's PUBLIC IP (`VM_PUBLIC_IP` in `.env`), **proxy status: DNS
+only**. For the VPN-only dev env (E5): same names s/staging/dev/,
+but content = the box's INTERNAL LAN IP (`VM_IP`) — those records
+are intentionally useless off-VPN, and their TLS certs must use the
+DNS-01 challenge (see STAGING-RUNBOOK.md).
 
 ```bash
 # list records (sanity check what exists):
