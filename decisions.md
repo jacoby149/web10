@@ -9,6 +9,42 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D25 — DB backend is per-env config, not baked; prod bootstraps on the host mongo [decided]
+The node's DB is a config item (`db_url`/`db_name` in `NodeConfig`,
+default `mongodb://ferretdb:27017`), and the backend is wire-protocol
+compatible either way (documentdb.py speaks to real Mongo OR
+FerretDB/DocumentDB — D3). So the DB hookup is chosen PER ENVIRONMENT,
+never hardcoded:
+- **dev = all-in-one.** The containerized FerretDB/DocumentDB inside
+  the stack. Self-contained: one Portainer stack, its own volume,
+  clean wipe+reseed (pairs with the C6 persona seed), dev/prod
+  parity for everything except the data source. `docker compose up`
+  works out of the box on the defaults — the local dev experience.
+- **prod = bootstrap on the existing HOST mongo (A7).** It already
+  holds the ~208 real users + the original app-store apps and runs
+  natively on the box (not a container). Point prod's `db_url` at it
+  (host gateway / LAN ip) to go live on real data with zero migration
+  risk. This is a config change, not code.
+- **eventual: migrate prod into the containerized documentdb** so
+  prod is ALSO self-contained + license-clean. Two reasons it
+  shouldn't stay on host mongo forever: (1) SSPL — the whole point of
+  D3 was that MongoDB's license is a problem for the node-operator
+  model; the flagship prod node running real Mongo re-introduces it;
+  (2) the host mongo is outside the stack lifecycle (separate backup,
+  no compose record). Path: `mongodump` host → `mongorestore` into the
+  container (plan.txt already lists the mongo→ferretdb migration),
+  then flip `db_url`. Data-only, no app change.
+
+Corollary — the WordPress-style first-run: a node boots into a setup
+wizard + config panel where an operator CAN set everything (provider,
+DB, S3, policy, stripe/twilio, branding — `NodeConfig` already models
+all of it) but sane DEFAULTS mean `docker compose up` just works for a
+dev. Caveat/gap: `ConfigUpdate` (the post-setup panel model) does NOT
+currently expose `db_url`/`db_name` — deliberately keep repointing a
+live node's DB a guarded action (it swaps the node's whole data
+identity; WordPress makes you edit wp-config, not click a button, for
+the same reason), not a casual toggle.
+
 ### D24 — design.md §3 correction: `web10-social/public/alternative.png` was never the keys mark [decided]
 D12 (web10-social level-up) and D13 (marketing-ui rebuild) independently
 discovered the same bug while paying the asset debt design.md §3 queued:

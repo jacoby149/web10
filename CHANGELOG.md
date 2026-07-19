@@ -5,7 +5,7 @@ plan.txt + the lane file so whoever wires it reaches it via the host
 gateway / box LAN ip (not a compose service name) and keeps it
 as-is. Added the explicit deliverable of surfacing total-users +
 total-apps counts from the real data, like the original web10 (feeds
-the D16 app-store stats).
+the D16 app-store stats). Recorded decisions.md D25 — DB backend is per-env config, not baked: dev = all-in-one containerized FerretDB (docker compose up works out of the box), prod = bootstrap on the host mongo via the db_url config item (real 208-user data, zero migration risk), with an eventual mongodump->container migration so prod is also self-contained + SSPL-clean. Corollary: the WordPress-style first-run panel already largely exists (setup wizard + NodeConfig with nice defaults); noted the gap that ConfigUpdate doesn't expose db_url yet (kept a guarded action by design) — plan.txt setup section + a new panel item updated.
 
 1.0.68 || 19.07.2026
 E3 + E5 EXECUTED — the whole ecosystem is LIVE on the box. Both
