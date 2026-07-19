@@ -48,6 +48,10 @@ deployment/README.md — the name was stale (it covers three
 environments) and README is what GitHub renders when you browse
 the folder; one human doc (URL map first) + AGENT-OPS for agents +
 OPS-LOG ledger. All references repointed.
+Drive-by CI fix: mobile/encryptor "tampered ciphertext" test was
+flaky (replaced the LAST base64 char with 'x' — 1/64 runs it
+already was 'x', so nothing was tampered); now flips an early char
+to a guaranteed-different value.
 
 1.0.62 || 19.07.2026
 environments + ops + e2e depth. plan.txt CROSS-CUTTING deployment now
