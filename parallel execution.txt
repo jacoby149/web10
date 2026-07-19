@@ -87,7 +87,7 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       dockerfile -- needs B2's build output, coordinate the handoff)
   [✓ 1.0.38] A4. P6 aggregate endpoint (the 5th verb, sandbox validator;
       per-stage metering through charge(); wapi.aggregate in legacy sdk)
-  [ ] A5. P4 metering events (per-request event records for analytics)
+  [✓ 1.0.57] A5. P4 metering events (per-request event records for analytics)
   [✓ 1.0.55] A6. D21 strip user billing → quotas: remove user-facing
       plans/subscriptions/per-account stripe; repurpose credits/
       space + charge() as OPERATOR-SET per-user quotas (credits =

@@ -1,3 +1,11 @@
+1.0.57 || 19.07.2026
+A5: P4 per-request metering events. emit_event() in documentdb.py writes
+user/action/service/site/ts to a capped web10.metering_events collection
+(100k max, METERING_EVENTS_MAX). Wired into all CRUD/aggregate endpoints
+in crud.py as fire-and-forget (try/except — never crashes the request).
+5 new endpoint tests verify events on create/read/update/delete/aggregate.
+279 api tests green.
+
 1.0.56 || 19.07.2026
 B4.5 M0 slice: Studio monetization-menu screen — the money shot for the M0
 demo video. New ui/src/components/Studio/ with YouTube-Studio mental model:
