@@ -3,10 +3,9 @@ from fastapi import APIRouter
 import app.exceptions as exceptions
 from app.models.auth import Token
 from app.models.payment import PayData
-import app.settings as settings
 from app.services import documentdb as db
 from app.services import stripe as pay
-from app.services.auth import check_admin, certify, decode_token
+from app.services.auth import certify, decode_token
 
 router = APIRouter()
 
@@ -27,32 +26,9 @@ def mget_business_id(username):
     return business_id
 
 
-@router.post("/manage_space", include_in_schema=False)
-async def manage_space(token: Token):
-    check_admin(token)
-    username = decode_token(token.token).username
-    customer_id = mget_customer_id(username)
-    return pay.manage_space(customer_id)
-
-
-@router.post("/manage_credits", include_in_schema=False)
-async def manage_credits(token: Token):
-    check_admin(token)
-    username = decode_token(token.token).username
-    customer_id = mget_customer_id(username)
-    return pay.manage_credits(customer_id)
-
-
-@router.post("/manage_subscriptions", include_in_schema=False)
-async def manage_subscription(token: Token):
-    check_admin(token)
-    decoded = decode_token(token.token)
-    customer_id = mget_customer_id(decoded.username)
-    return pay.create_portal_session(customer_id)
-
-
 @router.post("/manage_business", include_in_schema=False)
 async def manage_business(token: Token):
+    from app.services.auth import check_admin
     check_admin(token)
     username = decode_token(token.token).username
     bus_id = mget_business_id(username)
@@ -61,6 +37,7 @@ async def manage_business(token: Token):
 
 @router.post("/business_login", include_in_schema=False)
 async def business_login(token: Token):
+    from app.services.auth import check_admin
     check_admin(token)
     username = decode_token(token.token).username
     bus_id = mget_business_id(username)

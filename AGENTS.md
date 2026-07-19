@@ -28,6 +28,57 @@ your lane item in `parallel execution.txt`. If you changed the stack,
 data model, or auth flow, keep `CLAUDE.md`/`GLOSSARY.md` true and
 record big calls in `decisions.md`.
 
+## CHANGELOG.md in parallel branches: union-merge, then renumber
+
+Every branch prepends an entry to `CHANGELOG.md`, usually claiming the
+same next version number — collisions are expected, not exceptional.
+`.gitattributes` sets `CHANGELOG.md merge=union`, so a local
+`git merge origin/dev` keeps BOTH sides' entries instead of
+conflicting. (GitHub's merge button ignores custom merge drivers, so
+a conflicted PR is still resolved locally: merge `origin/dev` into
+your branch and push.)
+
+After ANY merge that touched `CHANGELOG.md`:
+
+1. Look at the top of the file — all entries should be intact, none
+   duplicated or interleaved. Union merge is line-based, and it dedupes
+   identical lines: two entries claiming the same version collapse into
+   ONE header with both bodies concatenated under it.
+2. If you collided on a version number: the already-merged entry keeps
+   it. Renumber YOURS to the next free number (strictly above the
+   highest anywhere in the file — the changelog CI check enforces
+   this), restore the other entry's header and the blank line between
+   entries, and update any `[✓ x.y.z]` / `[~]` refs you made in
+   `plan.txt` and `parallel execution.txt` to match.
+3. Never rewrite, reorder, or renumber someone else's entry.
+
+## After opening a PR: conflicts first, then EVERY check green
+
+Creating the PR is not the end of the task. "Ready to go" with a
+failing check — required OR optional — is a false report. Right after
+`gh pr create`, in this order:
+
+1. **Check for conflicts immediately.**
+   `gh pr view <n> --json mergeable,mergeStateStatus`
+   If `mergeable` is `CONFLICTING`, merge the base into your branch
+   (`git fetch origin && git merge origin/dev`), resolve, push.
+   `UNKNOWN` means GitHub is still computing — wait a few seconds and
+   re-run until it settles.
+2. **Watch the checks — all of them.**
+   `gh pr checks <n> --watch`
+   Every check counts. Optional / non-required checks failing still
+   means the PR is red — `mergeStateStatus: UNSTABLE` means a
+   non-required check failed; treat it as a failure, not a pass. Do
+   not stop at "required checks passed".
+3. **Fix until green.** For each failing check, read the log
+   (`gh run view --job <job-id> --log-failed`), fix it on the same
+   branch, push, and re-watch. Repeat until every check passes.
+
+Only then report the PR ready. The one exception: if a failure is
+pre-existing on `dev` and not caused by your branch, prove it (link
+the same failure on a `dev` run or another PR) and say so explicitly —
+never silently call a red PR ready.
+
 ## PRs always go to `dev`, never `main`
 
 The base branch for every PR is `dev`. `main` is only updated by an

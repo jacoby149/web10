@@ -429,6 +429,12 @@ node policy (anti-abuse is the NODE'S call, not the protocol's):
 [ ] recovery must not assume sms: recovery codes generated at signup
     (download/print), email recovery, and later the phase 10/11
     escrow path. sms recovery stays as an option, not the only path.
+    forgot-password must be SMOOTH (jacob, 19.07.2026): phone number
+    AND email as first-class reset channels — enter either, get a
+    code, set a new password, done. the phone flow exists; email
+    needs an smtp/provider hookup in api/ plus the same code flow in
+    the ui CredentialPage. losing a password must never feel like
+    losing the account.
 [ ] passkeys as a login option once phase 0 lands -- better than
     passwords, no phone number, phishing-proof. fits the vibe.
 
@@ -498,14 +504,14 @@ monetization controls:
     leaderboards) are post-M2 product, not now.
 [ ] ad/sponsorship slots: define sponsored placements that node-default
     lenses render. operator controls what's promoted.
-[ ] ads are RECORDS the operator owns (creative, link, schedule,
+[✓] ads are RECORDS the operator owns (creative, link, schedule,
     weight, price). curated by architecture: nothing renders unless
     the operator created or approved the record. no programmatic
     surprise garbage, ever.
-[ ] works at an audience of 100: hand-entered direct deals, affiliate
+[✓] works at an audience of 100: hand-entered direct deals, affiliate
     links (operator picks exact products), community/patron slots
     (a fan or local business buys a slot, operator approves).
-[ ] the monetization MENU (the weakest point, researched 07.2026:
+[✓] the monetization MENU (the weakest point, researched 07.2026:
     easy instant deals for a self-hosted node, as a ladder that
     unlocks as the node grows -- the networks already gate by
     traffic/revenue, so the unlock ladder maps to reality):
@@ -1453,6 +1459,15 @@ ci — runs on every pr + push to dev/main (.github/workflows/):
     red). make both steps report honestly; merging stays a human
     call as before. the browser e2e suite (quality/testing section)
     joins as its own path-filtered job the day it lands.
+[ ] the api job has never actually gone green (found 19.07.2026 via
+    #117): uv sync --frozen installs neither ruff (not a dependency
+    anywhere in pyproject) nor pytest (lives in the test extra), so
+    "uv run ruff check" dies on spawn before anything lints or
+    tests. fix in ONE lane-A branch so the check lands green, not
+    red: add ruff to a dev dependency group + sync with --extra
+    test in api.yml, then pay the debt the spawn error was hiding
+    -- 104 ruff errors and 26 files ruff-format would rewrite
+    across api/ (measured with ruff 0.15.22).
 [✓] docker job: buildx build for every Dockerfile whose context
     changed, with gha layer caching. images that only build on
     laptops are how "works on my machine" comes back.
