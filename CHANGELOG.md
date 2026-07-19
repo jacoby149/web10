@@ -1,3 +1,25 @@
+1.0.55 || 19.07.2026
+E1: staging node deployment infrastructure — Portainer + Nginx Proxy
+Manager approach. ubuntu-deploy.sh replaced by prep-vm.sh (installs
+Docker, creates shared "proxy" network, deploys Portainer + NPM).
+docker-compose.staging.yml rewritten as self-contained stack (no overlay
+chain: gunicorn API, built UI, no hot-reload, all services on proxy
+network). Old docker-compose.ui-prod.yml + rtc-prod.yml deleted.
+DEPLOYMENT-PLAN.md: full architecture (Portainer + NPM + Cloudflare DNS
+challenge). STAGING-RUNBOOK.md: Portainer/NPM workflow (deploy, redeploy,
+volumes, wipe+reseed, e2e test, troubleshooting). README.md rewritten
+as the how-to with an explicit public-vs-admin security model (the
+WordPress split: app admin public behind its own auth like wp-admin;
+infra panels Portainer/NPM-admin/Minio-console LAN/VPN-only like
+cPanel — no DNS records, no proxy hosts, only 80/443 router-forwarded;
+SSH tunnel for remote access). Minio public proxy corrected to the S3
+API (:9000) — the console (:9001) was previously proxied to the
+internet with default creds. MINIO_PASSWORD is now a required stack
+env var (S3 API is internet-facing; sets both the Minio root password
+and the API's S3_SECRET_KEY). Awaiting SSH + Cloudflare creds to
+deploy. Prepares for timeline week 3 demo-node deploy (same stack,
+different domain).
+
 1.0.54 || 19.07.2026
 README rewritten to match the current stack: dead references removed
 (auth/ dir, settings_example.py copying, skaffold/GKE deploy, hex-key
