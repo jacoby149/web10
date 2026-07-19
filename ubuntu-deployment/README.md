@@ -19,6 +19,7 @@ sequence, current known breakage, and the rules. Log every session in
 | `AGENT-OPS.md` | Field manual for agents operating the box (SSH, diagnose, redeploy, guardrails) |
 | `OPS-LOG.md` | Append-only ledger of box changes — read before ops, write after |
 | `prep-vm.sh` | One-shot box prep: Docker + Portainer + shared `proxy` network |
+| `scripts/` | The deployment as idempotent code — DNS, stacks, NPM cert+routes, smoke test (read secrets from `.env`, commit nothing sensitive). See `scripts/README.md` |
 | `docker-compose.edge.yml` | The `edge` stack: NPM itself as a Portainer stack — proxy mappings in the `npm-data` volume, visible/editable in the NPM UI |
 | `docker-compose.ecosystem.yml` | THE stack file — one parameterized compose, deployed as two Portainer stacks (dev / prod) |
 | `env.dev.example` / `env.prod.example` | Per-stack env vars to paste into Portainer (one file per environment) |
@@ -244,10 +245,10 @@ Run against the env you touched:
 4. Test CRUD via API:
 
 ```bash
-# Login to get a token
-curl -X PATCH "https://{api-vhost}/login" \
+# Login to get a token (route is POST /web10token, not /login)
+curl -X POST "https://{api-vhost}/web10token" \
   -H "Content-Type: application/json" \
-  -d '{"username": "admin", "password": "your-password"}'
+  -d '{"username": "admin", "password": "your-password", "provider": "{api-vhost}"}'
 
 # Create a record
 curl -X PATCH "https://{api-vhost}/{username}/posts" \

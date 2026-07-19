@@ -1,7 +1,43 @@
-# OPS-LOG.md — append-only ledger of changes to the staging box
+# OPS-LOG.md — append-only ledger of changes to the box
 
 Newest at top. Format per AGENT-OPS.md §8. Read the top entries
 BEFORE doing ops work — someone may already be mid-fix.
+
+## 19.07.2026 (night) — Claude (valencia, d14-social-origins) — FULL MIGRATION: box is live
+did (all via scripts, SSH as jacob, docker group granted by operator):
+  - Portainer: initialized admin `jacob` (X-Setup-Token from logs),
+    created the `local` docker endpoint. Creds saved to .env.
+  - Wrote /opt/web10/ubuntu-deployment/.env (chmod 600) with CF token
+    (lifted from the old Caddyfile), Portainer/NPM/Minio creds,
+    VM_IP/VM_PUBLIC_IP (184.174.17.178)/SSH_USER. Gitignored.
+  - Cloudflare DNS: created 7 *.dev records → 192.168.8.25 (LAN),
+    7 prod records + apex → 184.174.17.178; converted api/auth/rtc/
+    www/apex from proxied→DNS-only and recreated the apex as A
+    (kept MX/TXT). Later pruned the 4 *.staging records.
+  - Deployed 3 Portainer git-backed stacks (branch dev, 5-min GitOps
+    poll): edge (NPM), web10-dev, web10-prod. Stopped+removed the
+    legacy Caddy container and the old `ubuntu-deployment` staging
+    stack + its 2 volumes.
+  - NPM: created admin user (default admin@example.com was NOT
+    seeded in this version — created jacob@web10.app instead), one
+    Cloudflare DNS-01 LE cert covering all 15 vhosts (expires
+    2026-10-17), 15 proxy hosts forwarding by stack-prefixed alias,
+    SSL forced + HTTP/2 + HSTS.
+state:
+  - GREEN prod (public HTTPS 200): api/docs, auth, social, www, apex,
+    marketing-api. Money path verified: signup 200 → POST /web10token
+    200 (JWT). Login route is /web10token, NOT /login (docs fixed).
+  - GREEN dev (HTTPS 200 from the box; VPN-only by DNS): api/docs,
+    auth, social, www. Origin fix verified — dev auth bundle calls
+    dev.web10.app, not prod.
+  - Codified the whole thing in ubuntu-deployment/scripts/ (sync-dns,
+    deploy-stacks, sync-npm, smoke, lib) so it's repeatable + in the
+    repo. NOTE: these scripts landed in a PR AFTER the box was
+    already built by hand — the box and repo now match, but the box's
+    /opt/web10 clone must `git pull` once that PR merges to have them.
+next: operator should rotate the CF token (it sat world-readable in
+  the old Caddyfile). Run scripts/smoke.sh after any redeploy. C6
+  e2e bug-hunt can now run against dev.
 
 ## 19.07.2026 (late) — Claude (valencia, e5-e3-ecosystem-envs) — decision log, no box changes
 did: nothing on the box. logging two operator decisions that change

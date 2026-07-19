@@ -317,6 +317,17 @@ a DB_URL change, not a rewrite.
     dedicated tools/ dir, not in the deleted web10-deploy)
 [✓] rename mongo.py -> documentdb.py (adapter is backend-agnostic; pymongo
     speaks to either real Mongo or FerretDB/DocumentDB)
+[ ] CONNECT THE REAL DATA (A7, added 19.07.2026): the ubuntu box
+    already runs the ORIGINAL production MongoDB — ~208 real users,
+    historical usage stats, and the registered apps from web10's
+    live app-store era. the new stacks ship an empty ferretdb; point
+    the node at the real mongo instead of starting from zero. we
+    already speak the wire protocol, so it's config + verification
+    (shape audit for pre-convention records, star protection against
+    real data), NOT a rewrite. gate: prove a real historical user
+    can log in against a COPY in dev before pointing prod at it.
+    this is the data foundation for the auth revamp (B6) and the
+    app-store restoration (D16) below.
 
 
 PHASE 2 — ui (finish auth2, rename, migrate)
@@ -445,6 +456,29 @@ the three items below are PARALLEL — disjoint directories:
     documented square-mark file (web10-social/public/alternative.png)
     does not contain the keys mark — flagged for a design.md fix, not
     corrected in this PR (out of lane).
+
+now-that-it's-deployed round (added 19.07.2026, gated on A7's real
+mongo — the box is live but pointed at an empty ferretdb; connecting
+the original data changes what "done" looks like for these):
+[ ] AUTHENTICATOR REVAMP (lane B, item B6): the ui/ auth flow is
+    broken in look AND function — the web10 logo renders broken, and
+    login "straight up doesnt work" (operator, 19.07). B5 fixed the
+    shell; this fixes the actual login/consent journey end to end
+    against real data (A7), with a playwright test so it can't
+    regress. this is the front door — nothing else matters if a
+    creator can't log in.
+[ ] APP STORE, restored + curated (lane D, item D16): the original
+    web10 had a LIVE app store with real registered apps; the
+    current marketing-ui shows first-party "proof" cards only. read
+    the real registered apps from the mongo (A7), keep web10-social
+    promoted up top with third-party apps in a lower section, and
+    add admin-approval curation (register freely, web10 Inc.
+    approves what shows). surface the real historical stats (user/
+    app counts). STRATEGIC NOTE: this reverses the earlier "keep the
+    store minimal, an empty catalog reads as jank" call (D20 thread)
+    — that assumed an empty catalog; with 208 real users and real
+    apps reconnected, restoring the store IS the "real company"
+    goal. log the reversal in decisions.md when it lands.
 
 
 PHASE 3 — setup wizard (the missing piece)
@@ -1690,7 +1724,7 @@ volumes, env file) — never two divergent composes. (a public staging
 env was considered and CUT the same day — overkill on one lean box;
 the short-lived legacy *.staging deploy gets decommissioned during
 the box migration, AGENT-OPS.md §4):
-[~] PROD env — the whole ecosystem public: marketing-ui +
+[✓ 1.0.68] PROD env — the whole ecosystem public: marketing-ui +
     marketing-api + the node (api, ui, social, rtc, minio, db).
     public Cloudflare DNS -> router-forwarded 80/443 -> NPM with
     real TLS certs (DNS-01 via cloudflare). this is E3 executed:
@@ -1698,7 +1732,7 @@ the box migration, AGENT-OPS.md §4):
     (repo side merged 1.0.66: docker-compose.ecosystem.yml +
     env.prod.example + social prod Dockerfile. remaining: box
     execution per README.md — lane E queue has detail.)
-[~] DEV env — the SAME whole ecosystem, VPN-only: cloudflare DNS
+[✓ 1.0.68] DEV env — the SAME whole ecosystem, VPN-only: cloudflare DNS
     records (dev.web10.app / *.dev.web10.app or similar) pointing
     at the box's INTERNAL LAN ip. the records resolve publicly but
     route nowhere unless you're on the VPN — zero exposure, no
