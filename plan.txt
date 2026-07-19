@@ -429,6 +429,12 @@ node policy (anti-abuse is the NODE'S call, not the protocol's):
 [ ] recovery must not assume sms: recovery codes generated at signup
     (download/print), email recovery, and later the phase 10/11
     escrow path. sms recovery stays as an option, not the only path.
+    forgot-password must be SMOOTH (jacob, 19.07.2026): phone number
+    AND email as first-class reset channels — enter either, get a
+    code, set a new password, done. the phone flow exists; email
+    needs an smtp/provider hookup in api/ plus the same code flow in
+    the ui CredentialPage. losing a password must never feel like
+    losing the account.
 [ ] passkeys as a login option once phase 0 lands -- better than
     passwords, no phone number, phishing-proof. fits the vibe.
 

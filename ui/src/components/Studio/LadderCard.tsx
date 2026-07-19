@@ -1,4 +1,4 @@
-import { LadderRung, formatNumber, progressPercent } from './studio-data';
+import { type LadderRung, formatNumber, progressPercent } from './studio-data';
 
 interface LadderCardProps {
   rung: LadderRung;

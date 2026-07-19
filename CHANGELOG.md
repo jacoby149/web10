@@ -9,6 +9,14 @@ reporting the PR ready. Changelog conflicts defused: .gitattributes sets
 CHANGELOG.md merge=union so parallel branches' entries union instead of
 conflicting on local merges, with a documented renumber-after-merge step
 (top entry must stay the unique highest; changelog CI already enforces).
+Also in this branch, dev unbroke: LadderCard.tsx type-only import fixed
+(ui docker build was red on dev after #118) and marketing/web10-social
+bun.lock regenerated (frozen-lockfile install failed on every CI run,
+skipping its tests entirely). web10-social's tsc build stays red with
+pre-existing @/-alias + legacy rectangles-npm import errors, masked by
+continue-on-error in CI (the known 1.0.48 gap) — left for lane D.
+plan.txt recovery item extended: forgot-password must be smooth, phone
+AND email as first-class reset channels.
 
 1.0.55 || 19.07.2026
 B4.5 M0 slice: Studio monetization-menu screen — the money shot for the M0
