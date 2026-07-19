@@ -1,3 +1,16 @@
+1.0.55 || 19.07.2026
+A6: D21 strip user billing → operator quotas. Removed user-facing billing
+surface: /manage_space, /manage_credits, /manage_subscriptions endpoints
+(payments.py), /get_plan endpoint (system.py), credit_space/manage_subscription/
+create_checkout_session/create_portal_session functions (stripe.py), PAY_REQUIRED
+and per-plan Stripe price IDs (settings.py). Repurposed credits/space as
+operator-set per-user quotas enforced in crud.py check() — credits = rate/abuse
+throttle, space = storage caps (including imports). Stripe retained only for
+creator economy: dev_pay (Stripe Connect transfer_data + amount_percent),
+business onboarding/login. Updated metering tests to use operator quotas
+directly (no more PAY_REQUIRED gating). GLOSSARY.md updated (Billing → Quotas
+section). 274 api tests green (6 user-billing tests removed).
+
 1.0.54 || 19.07.2026
 README rewritten to match the current stack: dead references removed
 (auth/ dir, settings_example.py copying, skaffold/GKE deploy, hex-key

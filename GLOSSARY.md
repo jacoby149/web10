@@ -18,7 +18,7 @@ in `api/app/main.py` and `api/app/mongo.py` is the source of truth.
 - **record** — one document, stored as `{service, body}`. `body` is the
   user-facing content; the wrapper is internal.
 - **star record (`*`)** — the special account record in the `services`
-  service. Holds password hash, plan/credits/space, phone, stripe ids.
+  service. Holds password hash, credits/space quotas, phone, stripe ids.
   **Star protection** blocks normal CRUD from reading/writing it.
 - **services record** — a terms/ACL record (its service is `services`).
   Defines who may access a given service and how.
@@ -54,11 +54,16 @@ in `api/app/main.py` and `api/app/mongo.py` is the source of truth.
 - **aggregate (the 5th verb)** — planned: sandboxed MongoDB aggregation so
   devs get real query power without breaking scope (plan.txt phase 6).
 
-## Billing
-- **credits / space** — metered usage limits on the star record. **charge**
-  increments spend per request; **replenish** resets monthly.
-- **dev pay** — Stripe Connect flow letting developers charge users, with
-  web10 taking a percentage cut (`stripe.py`). The seed of the node revenue rail.
+## Quotas (operator-set, not user-facing billing)
+- **credits / space** — operator-set per-user quotas on the star record.
+  Credits = rate/abuse throttle. Space = storage cap (also caps import
+  storage from exporters). **charge** increments spend per request;
+  **replenish** resets monthly. Set by the node operator via policy config
+  (setup/admin panel), not by any user subscription.
+- **dev pay** — Stripe Connect flow for the creator economy: memberships,
+  tips, and marketplace rails. Creators charge their audience; web10 takes
+  a percentage cut (`stripe.py`). Stripe is NOT used for user-facing plans
+  or subscriptions.
 
 ## Vision-era terms (not all built yet — see plan.txt)
 - **lens** — an app is a "lens" over data the user owns. (The **lens
