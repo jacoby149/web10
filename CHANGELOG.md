@@ -1,4 +1,4 @@
-1.0.64 || 19.07.2026
+1.0.65 || 19.07.2026
 B5: ui/ leveled up to the design.md standard + the urgent staging
 origin unblock. Staging fix: authAdapter.ts/config.ts no longer
 hardcode api/auth/rtc.web10.app — backend origins are build-time env
@@ -29,6 +29,8 @@ flagged, follow-up edit to design.md queued). Pre-existing bugs fixed
 in passing: SignupForm betacode null-deref, Subscription plan shown
 via placeholder, Wipe button styled neutral. 73/73 tests green, clean
 tsc+vite build; screenshots at 1280+375 for all 7 screens in PR.
+
+1.0.64 || 19.07.2026
 D12: web10-social level-up to the design.md standard. Wiring fixes first:
 @tailwindcss/vite was missing from vite.config.ts so the v4 pipeline never
 ran (app shipped un/partially styled — verified via a real production

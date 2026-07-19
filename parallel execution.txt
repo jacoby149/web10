@@ -120,7 +120,7 @@ LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
       window so the demo video shows the money screen -- visually
       complete + rung-0 functional; deeper wiring (unlock ladder,
       adapters) follows in weeks 5-10.
-  [✓ 1.0.64] B5. level-up ui/ to the design.md standard (READ design.md
+  [✓ 1.0.65] B5. level-up ui/ to the design.md standard (READ design.md
       FIRST — repo root; it is the law for all ui work). tokens.css
       migrated to design.md §13 (dark-first violet), inline styles
       out, dead vendored bulma dir deleted, SideBar.tsx className/
@@ -331,7 +331,7 @@ as the binding ui standard — every ui agent reads it first) + getting
 staging actually deployed. the three beautify items are parallel-safe
 (disjoint directories).
 
-  ws1: B5  level-up ui/ to design.md (lane B — ui/**)
+  ws1: [✓ 1.0.65] B5 level-up ui/ to design.md (lane B — ui/**) — merged
   ws2: [✓ 1.0.64] D12 level-up web10-social to design.md (lane D —
        marketing/web10-social/** only) — merged, see decisions.md D24
        for the alternative.png asset correction (shared with D13).
