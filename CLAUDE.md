@@ -3,6 +3,8 @@
 Read this first. Then read `plan.txt` (what/why) and `parallel execution.txt`
 (how work splits across parallel branches). `GLOSSARY.md` decodes the jargon;
 `decisions.md` records why big calls were made so you don't re-litigate them.
+If your task touches ANY user-facing surface, also read `design.md` — the
+UI/brand standard — before writing code (see conventions below).
 
 ## What web10 is
 A system for users to **own their data**. Each user gets their own database
@@ -74,6 +76,13 @@ touches auth, the DB layer, or tokens, run those tests and keep them green.
       revocable token. Least privilege.
 
 ## Working conventions for parallel agents
+- **UI work reads `design.md` first — every time, no exceptions.** Any
+  change under `ui/`, `marketing/marketing-ui/`, or `marketing/web10-social/`
+  (or any new user-facing surface) is judged against `design.md`: the
+  quality bar (the screenshot test), the canonical brand assets (the files
+  named `logo*.png` are NOT the logos — design.md §3 names the real ones),
+  the shared tokens (§13), and the UI definition of done (§12, PR
+  screenshots included). Hardcoded colors/fonts are a review rejection.
 - **Check it isn't already done.** Before starting a plan/lane item, check
   the lane queues in `parallel execution.txt` (`[✓ x.y.z]` = merged,
   `[~]` = in flight elsewhere), the `[✓]` ticks in plan.txt, and the top

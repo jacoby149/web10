@@ -4,6 +4,17 @@ Now read `CLAUDE.md`. Despite the name it is the orientation file for
 ALL agents working on this repo — architecture, security invariants,
 and working conventions. Everything there applies to you.
 
+## Before starting ANY UI task: read design.md
+
+If your task touches anything a user sees — `ui/`,
+`marketing/marketing-ui/`, `marketing/web10-social/`, any screen or
+component — read `design.md` BEFORE writing code, every time. It is
+the binding standard: the quality bar (the screenshot test), the
+canonical brand assets (the files named `logo*.png` are NOT the
+logos — §3 names the real ones), the shared design tokens (§13), and
+the UI definition of done (§12: PR screenshots at desktop + 375px
+mobile, tokens-only colors, all states designed).
+
 ## Before starting ANY task: check it isn't already done
 
 Task completion state lives in three places. Check all three before

@@ -1,3 +1,46 @@
+1.0.62 || 19.07.2026
+environments + ops + e2e depth. plan.txt CROSS-CUTTING deployment now
+specs TWO full-ecosystem environments on the ubuntu-deployment box:
+PROD (public: marketing-ui + marketing-api + node incl. social, CF DNS
+→ forwarded 80/443 → NPM TLS) and DEV (same stack, VPN-only: cloudflare
+DNS pointing at the INTERNAL LAN ip — resolves publicly, unreachable
+off-VPN, no dev port-forwards, TLS via DNS-01) with a documented
+dev→prod promotion flow; lane items E3 (prod) recast + E5 (dev) added.
+New C6 (lane C): e2e deep sweep + bug hunt — expand C5's playwright
+harness across money paths and lane seams, signup-as-a-test (fresh
+accounts every run) + persona seed fixtures (creator, fans, granted/
+revoked terms) that also power dev-env wipe+reseed; deliverable = the
+enlarged suite AND the honest bug list. Staging went LIVE and was
+triaged remotely: api healthy at staging.web10.app, auth UI broken by
+hardcoded origins (authAdapter.ts/config.ts bake api.web10.app into
+prod builds — env-parameterization fix queued into B5, urgent),
+rtc/minio DNS records missing, marketing/social not in the stack.
+New ubuntu-deployment/AGENT-OPS.md: field manual for (weaker) ops
+agents — SSH-in procedure off the gitignored .env, box map, ordered
+diagnosis sequence with symptom table, KNOWN ISSUES from the live
+triage, redeploy + CF DNS procedures, may/may-not boundaries — plus
+OPS-LOG.md, an append-only coordination ledger seeded with the triage;
+README.md points agents at both. Conductor board: ws4 = staging
+triage + E5/E3, ws5 = C6.
+
+1.0.61 || 19.07.2026
+design.md: the binding UI/brand standard for all user-facing surfaces —
+brand essence (keys mark, dark-first, restrained voice), canonical asset
+inventory (logo_white.png lockup + alternative.png square mark ARE the
+logos; logo512/192.png are the React atom, hub.png is Apple's App Store
+glyph — purge list + asset debt queued), full token spec (zinc + violet
+#8b5cf6, Tailwind v4 @theme block in §13), type (self-hosted Inter /
+Space Grotesk / JetBrains Mono — never Google CDN), spacing/radius/
+elevation/motion rules, component + responsive standards, a11y, and the
+UI definition of done (§12: screenshot test, PR screenshots at desktop +
+375px, tokens-only colors). CLAUDE.md + AGENTS.md now gate every UI task
+on reading design.md first. New parallel beautification items queued:
+B5 (ui/ level-up), D12 (web10-social level-up), D13 (marketing-ui
+rebuild, Bulma out — per D22/D23) in plan.txt phase 2.5 + lane queues;
+conductor board refreshed (ws4 = execute E1 staging deploy, blocked on
+SSH + Cloudflare creds). decisions.md D23 records the design-language
+call.
+
 1.0.60 || 19.07.2026
 E1: staging node deployment infrastructure — Portainer + Nginx Proxy
 Manager approach. ubuntu-deploy.sh replaced by prep-vm.sh (installs
