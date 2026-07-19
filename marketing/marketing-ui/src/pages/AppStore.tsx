@@ -1,82 +1,103 @@
-import { useEffect, useState } from 'react'
-import { Apps } from '../components/Apps'
+import { Users, LayoutDashboard, Briefcase, Mail, Upload, BookOpen } from 'lucide-react'
+import { Card, CardHeader, CardTitle, CardDescription, CardFooter } from '../components/ui/card'
+import { Badge } from '../components/ui/badge'
+import { Button } from '../components/ui/button'
 
-const API_URL = window.location.protocol === 'https:'
-  ? 'https://api.web10.app'
-  : 'http://api.localhost'
-
-const DEFAULT_APPS = [
-  { href: 'https://web10-social.web10.app', hits: 0 },
-  { href: 'https://web10-mail.web10.app', hits: 0 },
+// First-party proof, not a catalog — the app store frames "built on web10",
+// it doesn't pretend a marketplace of third-party apps exists yet
+// (design.md §10: "Do NOT fake a big catalog").
+const FIRST_PARTY_APPS = [
+  {
+    icon: Users,
+    name: 'web10 social',
+    description:
+      'The flagship lens: an instagram-shaped feed, DMs, and media — the app that proves the protocol stands on its own.',
+    source: 'https://github.com/jacoby149/web10/tree/main/marketing/web10-social',
+  },
+  {
+    icon: LayoutDashboard,
+    name: 'The node console',
+    description:
+      'Every node runs this: login, consent, terms, and the Studio — the operator surface for a self-hosted web10 node.',
+    source: 'https://github.com/jacoby149/web10/tree/main/ui',
+  },
+  {
+    icon: Briefcase,
+    name: 'CRM',
+    description: 'A sub-app inside web10 social for managing fan and business contacts on your own data.',
+    source: 'https://github.com/jacoby149/web10/tree/main/marketing/web10-social',
+  },
+  {
+    icon: Mail,
+    name: 'Mail',
+    description: 'A sub-app inside web10 social for messaging that lives in your collection, not a platform inbox.',
+    source: 'https://github.com/jacoby149/web10/tree/main/marketing/web10-social',
+  },
+  {
+    icon: Upload,
+    name: 'The importer',
+    description: 'Brings your Instagram, Facebook, and YouTube history into your node in one pass — see it in action on the Import page.',
+    source: '/import',
+  },
 ]
 
 function AppStore() {
-  const [stats, setStats] = useState({ users: 0, apps: 0, hits: 0, data: 0 })
-  const [apps, setApps] = useState(DEFAULT_APPS)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    axios.get(`${API_URL}/stats`).then(r => {
-      setStats({
-        users: r.data.registered_users || 0,
-        apps: r.data.app_count || 0,
-        hits: r.data.total_visits || 0,
-        data: r.data.liberated_data || 0,
-      })
-    }).catch(() => {})
-
-    axios.get(`${API_URL}/registered_apps`).then(r => {
-      setApps(r.data || DEFAULT_APPS)
-      setLoading(false)
-    }).catch(() => {
-      setLoading(false)
-    })
-  }, [])
-
   return (
-    <section className="section" style={{ minHeight: '100vh', backgroundColor: '#fafafa' }}>
-      <div className="container">
-        <h1 className="title has-text-centered">web10 App Store</h1>
-        <p className="subtitle has-text-centered">Discover apps built on the web10 protocol</p>
-
-        <div className="columns is-centered has-text-centered" style={{ marginTop: '2rem' }}>
-          <div className="column">
-            <p className="heading">Users</p>
-            <p className="title is-3">{stats.users?.toLocaleString()}</p>
-          </div>
-          <div className="column">
-            <p className="heading">Apps</p>
-            <p className="title is-3">{stats.apps?.toLocaleString()}</p>
-          </div>
-          <div className="column">
-            <p className="heading">Hits</p>
-            <p className="title is-3">{stats.hits?.toLocaleString()}</p>
-          </div>
-          <div className="column">
-            <p className="heading">Data (MB)</p>
-            <p className="title is-3">{stats.data?.toLocaleString()}</p>
-          </div>
+    <div className="min-h-screen bg-background px-4 py-16 text-foreground sm:px-6 sm:py-24">
+      <div className="mx-auto max-w-5xl">
+        <div className="reveal text-center">
+          <Badge variant="brand">Built on web10</Badge>
+          <h1 className="mt-4 font-display text-3xl font-bold tracking-[-0.02em] sm:text-4xl">
+            One protocol. A growing set of apps.
+          </h1>
+          <p className="mx-auto mt-4 max-w-xl text-muted-foreground">
+            These are the first-party apps running on the web10 protocol today —
+            proof it's a real stack, not a pitch deck.
+          </p>
         </div>
 
-        <h2 className="title is-4 has-text-centered mt-5">Top web10 Apps</h2>
-        {loading ? (
-          <div className="has-text-centered mt-5">
-            <div className="loading-is-on">Loading apps...</div>
-          </div>
-        ) : (
-          <Apps apps={apps} />
-        )}
+        <div className="mt-14 grid gap-6 sm:grid-cols-2">
+          {FIRST_PARTY_APPS.map((app, i) => (
+            <Card
+              key={app.name}
+              className={`reveal bg-surface ${i % 2 === 0 ? '[animation-delay:0ms]' : '[animation-delay:80ms]'}`}
+            >
+              <CardHeader>
+                <app.icon className="mb-2 h-6 w-6 text-brand-400" strokeWidth={1.5} />
+                <CardTitle>{app.name}</CardTitle>
+                <CardDescription>{app.description}</CardDescription>
+              </CardHeader>
+              <CardFooter>
+                <a
+                  href={app.source}
+                  className="text-sm text-brand-300 underline-offset-4 hover:text-brand-400 hover:underline"
+                  {...(app.source.startsWith('http') ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                >
+                  {app.source.startsWith('http') ? 'View source' : 'Try it'}
+                </a>
+              </CardFooter>
+            </Card>
+          ))}
 
-        <div className="has-text-centered mt-5">
-          <a className="button is-primary is-large" href="https://auth.web10.app">
-            Explore Apps
-          </a>
+          <Card className="reveal flex flex-col justify-between border-brand-muted bg-brand-muted/20 [animation-delay:160ms]">
+            <CardHeader>
+              <BookOpen className="mb-2 h-6 w-6 text-brand-300" strokeWidth={1.5} />
+              <CardTitle>Build on web10</CardTitle>
+              <CardDescription>
+                One MongoDB collection per user, a tiny CRUD API, a scoped token.
+                Read the protocol spec and build the next app.
+              </CardDescription>
+            </CardHeader>
+            <CardFooter>
+              <Button asChild variant="brand" size="sm">
+                <a href="/docs/protocol-spec">Read the docs</a>
+              </Button>
+            </CardFooter>
+          </Card>
         </div>
       </div>
-    </section>
+    </div>
   )
 }
-
-import axios from 'axios'
 
 export default AppStore
