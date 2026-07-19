@@ -1,3 +1,15 @@
+1.0.71 || 19.07.2026
+Queued E9 (deployment status page): one URL per env
+(status.web10.app / status.dev.web10.app) showing what's live — the
+CHANGELOG version, commit sha + squash title (carries the PR #),
+deploy date, and per-service health. Preferred design has zero new
+machinery: the GitOps stacks rebuild from git on every change, so
+the page is BAKED AT BUILD TIME (git sha/date/title + CHANGELOG top
+→ status.html/json) and refreshes itself on every auto-redeploy; a
+Portainer-API poller is the fallback (the API does track the
+deployed sha — verified). Supersedes the earlier github-Deployments
+idea from this same session. Below priority zero — after A7/B6.
+
 1.0.70 || 19.07.2026
 PRIORITY ZERO declared at the top of plan.txt (operator): the
 deployed product must WORK AT A BASELINE — baseline fixes outrank

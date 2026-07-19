@@ -467,6 +467,31 @@ LANE E — infrastructure / deployment (owns: proxmox provisioning,
       signing certs/provisioning, review. NOT now (post-M0, gated on
       the encryptor actually doing e2e key management) — parked here
       so it's on the board, not lost.
+  [ ] E9. DEPLOYMENT STATUS PAGE (operator, 19.07 — iterated from
+      "portainer should alert github" down to what's actually
+      wanted: "all i need is an easy way to know we are deployed, a
+      url i can visit ... the version, the commit, the date, the
+      PR"). one URL per env — status.web10.app / status.dev.
+      web10.app — showing the juicy info about what's live:
+        - VERSION: the top entry of CHANGELOG.md at the deployed
+          commit (the repo's release number, e.g. 1.0.71)
+        - COMMIT: sha + the squash title (which carries the PR #,
+          e.g. "... (#130)") + author date
+        - DEPLOYED AT: when the stack last updated
+        - per-service health dots (reuse scripts/smoke.sh checks)
+      preferred design — ZERO new machinery: the stacks already
+      rebuild from git on every change (GitOps), so add a tiny
+      static status page BAKED AT BUILD TIME (a build step reads
+      git sha/date/title + CHANGELOG top and emits status.html/
+      status.json; serve via a minimal nginx container or an
+      existing frontend's public dir) + one NPM vhost + DNS record
+      per env. every auto-redeploy refreshes it by construction —
+      no poller, no github token, works for VPN-only dev too.
+      (portainer's API does track the deployed sha — verified — so
+      a box-side poller remains the fallback design if the
+      build-time stamp proves awkward.) json endpoint doubles as
+      the version marker future tooling can check. below PRIORITY
+      ZERO — do after A7/B6.
 
 WHAT MUST STAY SEQUENTIAL (don't try to parallelize these)
 ----------------------------------------------------------
