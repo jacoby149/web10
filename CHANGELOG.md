@@ -1,3 +1,14 @@
+1.0.50 || 19.07.2026
+outreach batch 1 fully enriched: 20 API-verified prospects via YouTube
+Data API v3 (outreach_sourcer.py). all burn events verified by video
+title + timestamp, subscriber counts from channel statistics endpoint.
+5 prospects have biz emails. segment split: 3 right-coded, 2 left-coded,
+15 wildcard (YouTube demonetization pool in 100k-500k band is dominated
+by niche creators; political creators tend to be macro-tier or already
+migrated to Rumble). 6 false positives filtered (gaming shadowbans,
+advice videos, third-party references). ~1,087 quota units used (11% of
+free daily tier). script reusable for batches 2-5.
+
 1.0.49 || 18.07.2026
 outreach batch 1 enriched: 5 Gemini-provided names pre-filled (#1 Lilly
 Gaddis, #2 Salty Cracker, #8 Edukale, #9 Lady of the Library, #10 Smooth

@@ -230,11 +230,10 @@ path (ws2 repointed to D4 per timeline.md week 0).
        provider url validation) — land these BEFORE A6 churns the
        billing code. then A6 (D21 strip user billing -> operator
        quotas, timeline week 2) takes this lane-A slot.
-ws4: [✓ 1.0.49] outreach list batch 1 enriched (5 Gemini pre-fills with
-        burn events + opener drafts, 15 template slots, 3 prospects
-        verified out-of-band and excluded, founder fills remaining from
-        browser search) or E1 proxmox staging node (rehearses the week-3
-        colo deploy).
+ws4: [✓ 1.0.50] outreach list batch 1 fully enriched: 20 API-verified
+         prospects via YouTube Data API (outreach_sourcer.py), all burn
+         events verified, 5 with biz emails, 6 false positives filtered.
+         script reusable for batches 2-5. or E1 proxmox staging node
 
   merge-order notes: lane A stays single-branch (security fixes ->
   A6 -> A5). D2.5 starts the moment B2.5's tokens merge. B4.5 M0
