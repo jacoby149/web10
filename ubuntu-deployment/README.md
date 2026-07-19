@@ -7,8 +7,15 @@ the two admin UIs.
 
 ## Files
 
+**Agents doing ops work on the box: `AGENT-OPS.md` is your file.**
+Read it fully before your first SSH — it has the connection
+procedure, the diagnosis sequence, the current known breakage, and
+the rules. Log every session in `OPS-LOG.md`.
+
 | File | Purpose |
 |------|---------|
+| `AGENT-OPS.md` | Field manual for agents operating the box (SSH, diagnose, redeploy, guardrails) |
+| `OPS-LOG.md` | Append-only ledger of box changes — read before ops, write after |
 | `prep-vm.sh` | One-shot VM prep: Docker + Portainer + NPM + shared `proxy` network |
 | `docker-compose.staging.yml` | Self-contained staging stack (prod-mode: gunicorn, built UI, no hot-reload) |
 | `docker-compose.marketing.yml` | Standalone marketing stack (marketing-ui + marketing-api) |

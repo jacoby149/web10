@@ -412,6 +412,10 @@ the three items below are PARALLEL — disjoint directories:
     kit, mobile bottom-nav shell, hub.png (apple's app store logo —
     a trademark, replace it) + react-atom icons swapped for the real
     keys marks. the studio screen is the money shot — highest stakes.
+    includes the urgent staging unblock: backend origins become
+    build-time env instead of the hardcodes in authAdapter.ts/
+    config.ts (staging ships a bundle calling api.web10.app — see
+    ubuntu-deployment/AGENT-OPS.md §4.1).
 [ ] level-up web10-social to the design.md standard (lane D, item
     D12): this is the deck screenshot next to kick/twitch. wire the
     missing @tailwindcss/vite plugin, actually load inter (declared,
@@ -1321,7 +1325,30 @@ testing:
     lands. visual-regression screenshots are explicitly LATER --
     real value, but baselines churn while B2.5/D2.5 restyle the
     world; revisit after the makeovers settle.
-[ ] marketing-ui vitest backfill: it has ZERO component tests today
+[ ] e2e deep sweep (added 19.07.2026 — C5's harness makes this
+    possible; expect it to hurt): the 10 smoke journeys prove the
+    stack boots; now actually EXERCISE the ecosystem locally
+    (e2e/docker-compose.yml) end to end and find out what doesn't
+    work — the working assumption is that plenty doesn't. expand
+    playwright coverage across the real money paths and the seams
+    between lanes: full signup -> consent -> grant on ui/; social
+    post with media -> feed -> comment/react -> dm round trip;
+    profile edit; terms revoke actually cutting an app off;
+    marketing-ui exporter upload -> marketing-api job -> records
+    in the node; app store -> launch app -> token handoff; studio
+    screens load with real metering data (A5). test accounts are
+    part of the harness: account CREATION is itself a test (every
+    run signs up fresh users), and a seed script provides persona
+    fixtures (a creator, fans, granted + revoked app terms, posted
+    content) for flows that need existing state — the same seed
+    powers the dev env's wipe+reseed. per-env test credentials via
+    env files, never in git. every failure found
+    gets triaged: small fixes land with the suite (tick the fix in
+    the changelog), lane-owned breakage gets filed as a .context/
+    note + lane queue item, never a silent skip. deliverable is
+    the enlarged suite AND the honest bug list. visual-regression
+    baselines still wait for the design level-up to settle
+    (B5/D12/D13), but functional coverage doesn't wait on pretty.
     and its test script is `vitest --passWithNoTests`, so a green
     ci check there certifies nothing. test the surfaces with logic
     (exporter/import ui, funnel events), then drop the
@@ -1642,6 +1669,29 @@ what goes in:
     own vhost, never inside the node compose.
 [ ] marketing-api: separate container. handles the ZIP import
     pipeline and analytics for marketing-ui.
+
+environments (added 19.07.2026): TWO full stacks on the linux box
+that ubuntu-deployment/ preps, both managed as Portainer stacks on
+the same host, one compose file parameterized by env (domain prefix,
+volumes, env file) — never two divergent composes:
+[ ] PROD env — the whole ecosystem public: marketing-ui +
+    marketing-api + the node (api, ui, social, rtc, minio, db).
+    public Cloudflare DNS -> router-forwarded 80/443 -> NPM with
+    real TLS certs (DNS-01 via cloudflare). this is E3 executed:
+    prod marketing ui, prod ui, prod social ui.
+[ ] DEV env — the SAME whole ecosystem, VPN-only: cloudflare DNS
+    records (dev.web10.app / *.dev.web10.app or similar) pointing
+    at the box's INTERNAL LAN ip. the records resolve publicly but
+    route nowhere unless you're on the VPN — zero exposure, no
+    port-forwards for dev vhosts, and still real domain names so
+    TLS (DNS-01 challenge needs no inbound traffic), CORS, and
+    vhost routing behave exactly like prod. dev is where merged
+    work soaks before prod promotion; wipe+reseed procedures per
+    STAGING-RUNBOOK.md. follows the E1 security model: infra
+    panels stay LAN/VPN-only regardless of env.
+[ ] promotion flow documented in STAGING-RUNBOOK.md: merge to dev
+    branch -> dev env redeploy (Portainer re-pull), tag/release ->
+    prod redeploy. keep it manual-button simple until E4.
 
 networking:
 [ ] VPN gateway must be up for any management access. document
