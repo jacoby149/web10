@@ -184,7 +184,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
     [✓ 1.0.33] D9. P7 final tidy: rtc/ -> api/rtc/, docs/ ->
         marketing-ui/public/docs/. all references updated (compose,
         CI, CLAUDE.md). top-level tree clean.
-  [ ] D10. report-a-bug loop: feedback endpoint in marketing-api +
+  [✓ 1.0.58] D10. report-a-bug loop: feedback endpoint in marketing-api +
       "report a bug" affordance and error boundaries in social +
       marketing-ui (specced in plan.txt CROSS-CUTTING quality/
       testing). the ui/ app's button is lane B territory --
