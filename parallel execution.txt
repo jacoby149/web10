@@ -128,11 +128,12 @@ LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
       nav shell, hub.png (apple's app store logo — trademark,
       replace) + react-atom icons swapped for the real keys marks
       (design.md §3). studio = the money screen, highest stakes.
-      ALSO (urgent, staging is live-broken on this): parameterize
-      the ui's backend origins — ui/src/interfaces/authAdapter.ts +
-      ui/src/config.ts hardcode api.web10.app/auth.web10.app for
-      prod builds, so auth.staging.web10.app ships a bundle calling
-      the wrong api (see ubuntu-deployment/AGENT-OPS.md §4.1).
+      ALSO (urgent, the dev/prod deploys are gated on this):
+      parameterize the ui's backend origins —
+      ui/src/interfaces/authAdapter.ts + ui/src/config.ts hardcode
+      api.web10.app/auth.web10.app for prod builds, so any deployed
+      env ships a bundle calling the wrong api (see
+      ubuntu-deployment/AGENT-OPS.md §4.1).
       build-time env (REACT_APP_*/VITE_* both allowed by
       vite.config.js) + Dockerfile ARG. lane E already passes the
       args in ubuntu-deployment/docker-compose.ecosystem.yml —
@@ -140,9 +141,8 @@ LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
       VITE_RTC_HOST (host only, no scheme), REACT_APP_DEFAULT_API
       (host only).
       acceptance: design.md §12 (screenshot test, pr screenshots
-      desktop + 375px, tokens-only, all states designed) + a
-      staging rebuild can point at staging domains without a code
-      edit.
+      desktop + 375px, tokens-only, all states designed) + an env
+      rebuild can point at dev/prod domains without a code edit.
 
 LANE C — greenfield services  (owns: sdk/, mcp/, new dirs)
   [✓ 1.0.25] C1. P5 media service (presigned urls, minio profile,
@@ -280,10 +280,11 @@ LANE E — infrastructure / deployment (owns: proxmox provisioning,
       NPM with public cloudflare DNS + router-forwarded 80/443 +
       real TLS. infra panels stay LAN/VPN-only (E1 security model).
       REPO SIDE DONE (1.0.63): docker-compose.ecosystem.yml (one
-      parameterized compose, all three envs), env.prod.example,
-      social prod Dockerfile, runbook. REMAINING: box execution —
-      create the web10-prod Portainer stack + NPM hosts + DNS per
-      README.md (needs SSH/.env + CF creds; watch the
+      parameterized compose, dev + prod — the staging env was cut),
+      env.prod.example, social prod Dockerfile, runbook. REMAINING:
+      box execution — create the web10-prod Portainer stack + NPM
+      hosts + DNS per README.md and AGENT-OPS.md §4.2 migration
+      order (needs SSH/.env + CF creds; watch the
       api.web10.app/auth.web10.app cutover caution).
   [~] E5. DEV env — the SAME whole ecosystem, VPN-only, on the same
       linux box ubuntu-deployment/ preps (parallel to E3, and to
@@ -356,11 +357,11 @@ M3 "the network"         = encryption integration (A rtc + C2 sdk
 CURRENT CONDUCTOR BOARD (as of 19.07.2026 — keep this section fresh)
 --------------------------------------------------------------------
 we are in timeline.md WEEK 0/1 — the M0 sprint (video by ~aug 17).
-the data layers, studio M0 slice, e2e harness, and staging infra are
+the data layers, studio M0 slice, e2e harness, and deploy infra are
 all merged. THIS WEEK'S PUSH: the design level-up (design.md landed
 as the binding ui standard — every ui agent reads it first) + getting
-staging actually deployed. the three beautify items are parallel-safe
-(disjoint directories).
+dev and prod actually deployed. the three beautify items are
+parallel-safe (disjoint directories).
 
   ws1: B5  level-up ui/ to design.md (lane B — ui/**)
   ws2: D12 level-up web10-social to design.md (lane D —
@@ -368,20 +369,19 @@ staging actually deployed. the three beautify items are parallel-safe
   ws3: D13 rebuild marketing-ui on the design system, bulma out
        (lane D — marketing/marketing-ui/** only) + pays the shared
        brand asset debt (design.md §3)
-  ws4: staging IS deployed; rtc/minio DNS records were added (verified
-       19.07 evening). the E3/E5 REPO side merged in 1.0.63 (one
-       parameterized docker-compose.ecosystem.yml for staging/dev/
-       prod incl. social + marketing, env.{env}.example files,
-       runbook). what's left is BOX EXECUTION per AGENT-OPS.md §4.4
-       + README.md: repaste web10-staging from the
-       ecosystem compose, create web10-dev (VPN-only, DNS→LAN ip,
-       DNS-01 certs) + web10-prod stacks, NPM hosts + DNS records,
-       smoke test each. auth-ui/social bundles stay mis-originated
-       until B5/D12 merge — rebuild the stacks after. FIRST though:
-       migrate the edge — the live box runs a root-managed Caddy on
-       80/443, not NPM; deploy the edge stack + move the 4 staging
-       vhosts per AGENT-OPS.md §4.5 (and the operator must rotate
-       the CF token exposed in the world-readable Caddyfile).
+  ws4: E5/E3 REPO side merged in 1.0.63 (one parameterized
+       docker-compose.ecosystem.yml for dev/prod incl. social +
+       marketing, env.{dev,prod}.example, edge NPM stack, runbook
+       in README.md). staging as an env was CUT 19.07 (dev + prod
+       only). what's left is BOX EXECUTION, the full ordered
+       migration in AGENT-OPS.md §4.2: stop legacy caddy → edge NPM
+       stack → dev/prod DNS (dev → LAN ip, DNS-01 certs) →
+       web10-dev + web10-prod stacks + NPM hosts → smoke tests →
+       decommission the legacy *.staging stack/records/caddy.
+       auth-ui/social bundles stay mis-originated until B5/D12
+       merge — rebuild the stacks after. operator prerequisites:
+       docker group for the ssh user, rotate the CF token exposed
+       in the world-readable Caddyfile.
   ws5: C6 e2e deep sweep + bug hunt (lane C — e2e/** only; local
        stack, no deploy gate). signup-as-a-test + persona seed
        fixtures; the honest bug list is the deliverable.

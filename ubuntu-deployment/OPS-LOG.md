@@ -3,6 +3,23 @@
 Newest at top. Format per AGENT-OPS.md §8. Read the top entries
 BEFORE doing ops work — someone may already be mid-fix.
 
+## 19.07.2026 (late) — Claude (valencia, e5-e3-ecosystem-envs) — decision log, no box changes
+did: nothing on the box. logging two operator decisions that change
+  the standing plan: (1) STAGING IS CUT — two envs only (dev
+  VPN-only + prod public); do NOT repair or repaste the legacy
+  *.staging stack, it gets decommissioned. (2) the edge is
+  NPM-as-a-Portainer-stack (docker-compose.edge.yml), replacing the
+  root-managed Caddy found holding 80/443 (whose world-readable
+  Caddyfile embeds a live CF token — operator to chmod 600 +
+  rotate).
+state: unchanged from the entry below, plus: box SSH confirmed as
+  the operator's user on all-spark; docker group membership still
+  missing (blocks all stack work).
+next: the full ordered migration is AGENT-OPS.md §4.2 (stop caddy →
+  edge stack → DNS → web10-dev/web10-prod → smoke → decommission
+  staging leftovers). prerequisites: operator merges the infra PR,
+  adds the ssh user to the docker group, rotates the CF token.
+
 ## 19.07.2026 (evening) — Claude (valencia, e5-e3-ecosystem-envs) — remote verify + repo-side E3/E5, no box changes
 did: re-probed from outside (no SSH); landed the repo side of E3/E5:
   docker-compose.ecosystem.yml (ONE parameterized compose for

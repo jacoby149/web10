@@ -412,10 +412,10 @@ the three items below are PARALLEL — disjoint directories:
     kit, mobile bottom-nav shell, hub.png (apple's app store logo —
     a trademark, replace it) + react-atom icons swapped for the real
     keys marks. the studio screen is the money shot — highest stakes.
-    includes the urgent staging unblock: backend origins become
+    includes the urgent deployment unblock: backend origins become
     build-time env instead of the hardcodes in authAdapter.ts/
-    config.ts (staging ships a bundle calling api.web10.app — see
-    ubuntu-deployment/AGENT-OPS.md §4.1).
+    config.ts (any deployed env ships a bundle calling
+    api.web10.app — see ubuntu-deployment/AGENT-OPS.md §4.1).
 [ ] level-up web10-social to the design.md standard (lane D, item
     D12): this is the deck screenshot next to kick/twitch. wire the
     missing @tailwindcss/vite plugin, actually load inter (declared,
@@ -1656,7 +1656,7 @@ CROSS-CUTTING — deployment (proxmox homelab)
 ----------------------------------------------
 proxmox host at 192.168.8.20:8006, accessible only over VPN.
 target: host the marketing sites and a web10 node here for
-staging, demos, and eventual public-facing use.
+dev soak, demos, and public-facing use.
 
 what goes in:
 [✓ 1.0.60] web10 node (api + ui + db + rtc + minio): Portainer + Nginx
@@ -1673,7 +1673,10 @@ what goes in:
 environments (added 19.07.2026): TWO full stacks on the linux box
 that ubuntu-deployment/ preps, both managed as Portainer stacks on
 the same host, one compose file parameterized by env (domain prefix,
-volumes, env file) — never two divergent composes:
+volumes, env file) — never two divergent composes. (a public staging
+env was considered and CUT the same day — overkill on one lean box;
+the short-lived legacy *.staging deploy gets decommissioned during
+the box migration, AGENT-OPS.md §4):
 [~] PROD env — the whole ecosystem public: marketing-ui +
     marketing-api + the node (api, ui, social, rtc, minio, db).
     public Cloudflare DNS -> router-forwarded 80/443 -> NPM with
@@ -1710,8 +1713,8 @@ networking:
 [ ] reverse proxy (caddy or nginx) on the proxmox host or a
     dedicated LXC: terminates TLS, routes to backend containers.
     auto-TLS via caddy for any public-facing domain later.
-[ ] internal DNS: *.web10.internal or similar for the staging
-    node, so services can reach each other by name.
+[ ] internal DNS: *.web10.internal or similar for the node box,
+    so services can reach each other by name.
 
 provisioning:
 [ ] terraform or proxmox-ssh-api script to stand up VMs/LXCs

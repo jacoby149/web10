@@ -1,6 +1,6 @@
 # ubuntu-deployment — running web10 on the box
 
-One Linux box, three Portainer stacks from ONE compose file
+One Linux box, two Portainer stacks from ONE compose file
 (`docker-compose.ecosystem.yml`), each carrying the whole ecosystem:
 node (api, ui, rtc, minio, db) + web10-social + marketing-ui +
 marketing-api. Nginx Proxy Manager (itself a Portainer stack)
@@ -20,16 +20,15 @@ sequence, current known breakage, and the rules. Log every session in
 | `OPS-LOG.md` | Append-only ledger of box changes — read before ops, write after |
 | `prep-vm.sh` | One-shot box prep: Docker + Portainer + shared `proxy` network |
 | `docker-compose.edge.yml` | The `edge` stack: NPM itself as a Portainer stack — proxy mappings in the `npm-data` volume, visible/editable in the NPM UI |
-| `docker-compose.ecosystem.yml` | THE stack file — one parameterized compose, deployed as three Portainer stacks (staging / dev / prod) |
-| `env.staging.example` / `env.dev.example` / `env.prod.example` | Per-stack env vars to paste into Portainer (one file per environment) |
+| `docker-compose.ecosystem.yml` | THE stack file — one parameterized compose, deployed as two Portainer stacks (dev / prod) |
+| `env.dev.example` / `env.prod.example` | Per-stack env vars to paste into Portainer (one file per environment) |
 | `.env.example` | Template for local secrets (`CF_API_TOKEN`, zone, VM IPs, SSH user). Copy to `.env` — gitignored |
 | `DEPLOYMENT-PLAN.md` | Architecture rationale (why Portainer + NPM + Cloudflare) |
 
-## The three environments
+## The two environments
 
 | Stack | Vhosts | DNS points at | Reachable from | Purpose |
 |-------|--------|---------------|----------------|---------|
-| `web10-staging` | `*.staging.{zone}` | PUBLIC IP | internet | pre-prod checks |
 | `web10-dev` | `*.dev.{zone}` | **INTERNAL LAN IP** | **VPN/LAN only** | merged work soaks here |
 | `web10-prod` | `{zone}` real names | PUBLIC IP | internet | production |
 
@@ -40,10 +39,17 @@ vhost routing behave exactly like prod. Dev TLS certs MUST use the
 **DNS-01** challenge (HTTP-01 can't reach a VPN-only vhost; DNS-01
 needs no inbound traffic — NPM does it with the Cloudflare API token).
 
-Env vars per stack live in `env.staging.example` / `env.dev.example` /
-`env.prod.example` — paste ALL of them into the Portainer stack. Every
-one is required; a missing var fails the deploy loudly instead of
-silently baking wrong origins into a frontend bundle.
+(A third public `web10-staging` env existed briefly — deliberately
+cut, 19.07.2026: dev + prod covers the need on one lean box. If you
+ever need a public preview of unreleased work, that's the moment to
+resurrect it from this same compose. The legacy staging stack +
+`*.staging` DNS records get decommissioned once dev + prod are live —
+see AGENT-OPS.md §4.)
+
+Env vars per stack live in `env.dev.example` / `env.prod.example` —
+paste ALL of them into the Portainer stack. Every one is required; a
+missing var fails the deploy loudly instead of silently baking wrong
+origins into a frontend bundle.
 
 ## URL map — what to visit, per environment
 
@@ -51,15 +57,15 @@ NPM forwards by the **stack-prefixed alias** on the `proxy` network
 (never the bare service name — with multiple stacks up, bare names
 resolve ambiguously across environments). Zone `web10.app`:
 
-| Service | NPM forward target | staging | dev (VPN) | prod |
-|---------|-------------------|---------|-----------|------|
-| API | `{stack}-api:80` | `staging.web10.app` | `dev.web10.app` | `api.web10.app` |
-| UI (auth/consent) | `{stack}-ui:80` | `auth.staging.web10.app` | `auth.dev.web10.app` | `auth.web10.app` |
-| RTC signaling | `{stack}-rtc:80` | `rtc.staging.web10.app` | `rtc.dev.web10.app` | `rtc.web10.app` |
-| Minio S3 API | `{stack}-minio:9000` | `minio.staging.web10.app` | `minio.dev.web10.app` | `minio.web10.app` |
-| web10-social | `{stack}-social:80` | `social.staging.web10.app` | `social.dev.web10.app` | `social.web10.app` |
-| marketing-ui | `{stack}-marketing-ui:80` | `www.staging.web10.app` | `www.dev.web10.app` | `www.web10.app` + `web10.app` |
-| marketing-api | `{stack}-marketing-api:80` | `marketing-api.staging.web10.app` | `marketing-api.dev.web10.app` | `marketing-api.web10.app` |
+| Service | NPM forward target | dev (VPN-only) | prod |
+|---------|-------------------|----------------|------|
+| API | `{stack}-api:80` | `dev.web10.app` | `api.web10.app` |
+| UI (auth/consent) | `{stack}-ui:80` | `auth.dev.web10.app` | `auth.web10.app` |
+| RTC signaling | `{stack}-rtc:80` | `rtc.dev.web10.app` | `rtc.web10.app` |
+| Minio S3 API | `{stack}-minio:9000` | `minio.dev.web10.app` | `minio.web10.app` |
+| web10-social | `{stack}-social:80` | `social.dev.web10.app` | `social.web10.app` |
+| marketing-ui | `{stack}-marketing-ui:80` | `www.dev.web10.app` | `www.web10.app` + `web10.app` |
+| marketing-api | `{stack}-marketing-api:80` | `marketing-api.dev.web10.app` | `marketing-api.web10.app` |
 
 Quick health check: `https://{api-vhost}/docs` should return the
 FastAPI docs page.
@@ -104,7 +110,7 @@ sudo bash prep-vm.sh     # Docker + Portainer + "proxy" network
    - Provider: `cloudflare`
    - API Token: (Cloudflare API token with DNS edit scope for your zone)
 4. **Portainer stack, one per environment**: Stacks → Add stack →
-   name it `web10-staging` / `web10-dev` / `web10-prod`
+   name it `web10-dev` / `web10-prod`
    - Web composer → paste `docker-compose.ecosystem.yml`
    - Env vars: ALL values from the matching `env.{env}.example`
      (`STACK` must equal the stack name; `MINIO_PASSWORD` fresh per
@@ -113,7 +119,7 @@ sudo bash prep-vm.sh     # Docker + Portainer + "proxy" network
 5. **NPM proxy hosts** (Proxy Hosts → Add): one per row of the URL
    map above, forward target = the stack-prefixed alias.
    - SSL tab: Force HTTPS + Let's Encrypt
-   - Staging/prod vhosts: HTTP-01 works (port 80 is forwarded)
+   - Prod vhosts: HTTP-01 works (port 80 is forwarded)
    - **Dev vhosts: use the DNS challenge (Cloudflare token)** —
      HTTP-01 will fail, the vhost is unreachable from the internet
 6. **Cloudflare DNS** — see below
@@ -130,22 +136,23 @@ ZONE="your-zone"
 PUBLIC_IP="the box's public IP"    # VM_PUBLIC_IP in .env
 LAN_IP="the box's LAN IP"          # VM_IP in .env — dev records only
 
-# staging (public) — one per staging vhost in the URL map:
-for host in staging auth.staging rtc.staging minio.staging \
-            social.staging www.staging marketing-api.staging; do
-  cloudflare dns record create "$ZONE" --type A --name "$host.$ZONE" \
-    --content "$PUBLIC_IP" --proxied=false
-done
-
-# dev (VPN-only) — SAME names s/staging/dev/, but content = LAN IP:
+# dev (VPN-only) — content = LAN IP, useless off-VPN by design:
 for host in dev auth.dev rtc.dev minio.dev social.dev www.dev \
             marketing-api.dev; do
   cloudflare dns record create "$ZONE" --type A --name "$host.$ZONE" \
     --content "$LAN_IP" --proxied=false
 done
 
-# prod (public): api, auth, rtc, minio, social, www, marketing-api
-# + the apex — content = PUBLIC IP.
+# prod (public) — content = PUBLIC IP:
+for host in api auth rtc minio social www marketing-api; do
+  cloudflare dns record create "$ZONE" --type A --name "$host.$ZONE" \
+    --content "$PUBLIC_IP" --proxied=false
+done
+cloudflare dns record create "$ZONE" --type A --name "$ZONE" \
+  --content "$PUBLIC_IP" --proxied=false   # the apex → marketing
+
+# decommission (once dev+prod are live): DELETE the legacy records
+# staging / auth.staging / rtc.staging / minio.staging.
 ```
 
 ⚠ **Prod cutover caution**: `api.web10.app` / `auth.web10.app` are the
@@ -167,8 +174,9 @@ Keep it manual-button simple until E4 (automated provisioning):
    restart is not enough.
 4. Log every promotion in `OPS-LOG.md`.
 
-Staging sits outside the promotion path: it's the throwaway public
-check (e.g. TLS/DNS behavior that VPN-only dev can't prove).
+The one thing VPN-only dev can't prove is public-internet behavior
+(TLS issuance, off-network loads) — you get that check for free the
+moment prod deploys; there's no separate staging env.
 
 ## Redeploy (update code)
 
@@ -210,7 +218,7 @@ docker volume inspect web10-dev_postgres-data
 
 ⚠️ This destroys all user data on the TARGET ENV ONLY — triple-check
 the stack name. Routine for dev (paired with the C6 persona seed
-script), exceptional for staging, never casually for prod.
+script), never casually for prod.
 
 ```bash
 ssh {ssh-user}@{vm-ip}

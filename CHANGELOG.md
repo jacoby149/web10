@@ -44,10 +44,15 @@ account, not root). AGENT-OPS also gains the everything-box
 guardrail: the host is a personal machine — agents manage ONLY
 the edge/web10-* stacks, never other containers.
 Doc consolidation: STAGING-RUNBOOK.md folded into ubuntu-
-deployment/README.md — the name was stale (it covers three
-environments) and README is what GitHub renders when you browse
-the folder; one human doc (URL map first) + AGENT-OPS for agents +
-OPS-LOG ledger. All references repointed.
+deployment/README.md — the name was stale and README is what
+GitHub renders when you browse the folder; one human doc (URL map
+first) + AGENT-OPS for agents + OPS-LOG ledger. All references
+repointed. THEN the staging env itself was CUT (operator call:
+dev + prod is enough on one lean box — staging's only unique value
+was public previews of unreleased work): env.staging.example
+deleted, compose/README/AGENT-OPS/plan/lanes rewritten for two
+envs, and the AGENT-OPS §4.2 migration now ends by decommissioning
+the legacy *.staging stack, its DNS records, and the Caddy edge.
 Drive-by CI fix: mobile/encryptor "tampered ciphertext" test was
 flaky (replaced the LAST base64 char with 'x' — 1/64 runs it
 already was 'x', so nothing was tampered); now flips an early char

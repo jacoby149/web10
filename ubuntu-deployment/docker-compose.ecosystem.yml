@@ -2,16 +2,15 @@
 #
 # This is the canonical stack file (plan.txt CROSS-CUTTING deployment:
 # "one compose file parameterized by env — never two divergent
-# composes"). The same file deploys as three Portainer stacks:
+# composes"). The same file deploys as two Portainer stacks:
 #
-#   stack name      STACK env       DNS                      exposure
-#   web10-staging   web10-staging   *.staging.{zone}         public
-#   web10-dev       web10-dev       *.dev.{zone} → LAN IP    VPN-only
-#   web10-prod      web10-prod      *.{zone} → public IP     public
+#   stack name    STACK env    DNS                      exposure
+#   web10-dev     web10-dev    *.dev.{zone} → LAN IP    VPN-only
+#   web10-prod    web10-prod   *.{zone} → public IP     public
 #
-# Per-stack env vars: see env.staging.example / env.dev.example /
-# env.prod.example next to this file. All ${VAR:?} vars are REQUIRED —
-# the deploy fails loudly instead of building a wrongly-wired bundle.
+# Per-stack env vars: see env.dev.example / env.prod.example next to
+# this file. All ${VAR:?} vars are REQUIRED — the deploy fails loudly
+# instead of building a wrongly-wired bundle.
 #
 # WHY THE ${STACK}- PREFIXES EXIST (do not remove them):
 # all stacks share the external "proxy" network so NPM can reach them.
