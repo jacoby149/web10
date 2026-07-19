@@ -510,13 +510,15 @@ ui side (lives in the ui, phase 2 dependency):
     already models all of it) — but sane DEFAULTS mean `docker
     compose up` just works for a dev out of the box (db_url ->
     containerized ferretdb, minio, open signup). the SetupRequest
-    defaults already do this; the post-setup ConfigUpdate panel does
-    NOT yet expose db_url/db_name — adding it makes "change the DB
-    hookup anytime like wordpress" real, but keep it a GUARDED action
-    (repointing a live node's DB swaps its whole data identity — wp
-    makes you edit wp-config, not click a button, for the same
-    reason). pairs with B6 (the panel/auth ui must actually work +
-    look like design.md).
+    defaults already do this. config is stored IN THE DB
+    (web10.config collection, wordpress-wp_options-style — already
+    built, api/app/services/config.py), NOT a flat file. the one
+    field that can't be panel-editable is db_url itself (chicken-and-
+    egg: you need it to reach the db that stores config), so it stays
+    a bootstrap/stack-env input — that's WHY ConfigUpdate omits it,
+    correctly. everything else is db-backed + panel-editable. pairs
+    with B6 (the panel/auth ui must actually work + look like
+    design.md).
 
 node policy (anti-abuse is the NODE'S call, not the protocol's):
 [ ] phone-required signup becomes a policy toggle, not a hardcode.

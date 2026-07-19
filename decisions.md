@@ -35,15 +35,28 @@ never hardcoded:
   container (plan.txt already lists the mongo→ferretdb migration),
   then flip `db_url`. Data-only, no app change.
 
+Where config lives: IN THE DB, WordPress-style (wp_options in mysql).
+`web10.config` holds the node config doc (`_id:"node"`, `{body:{...}}`),
+`web10.jwt_keys` holds the signing keys — `api/app/services/config.py`.
+Not a flat file on the data volume (older plan wording said "data
+volume"; the real store is the db collection).
+
+The ONE exception, by necessity: **`db_url` itself can't live in the
+db** — chicken-and-egg, you need the connection string to reach the db
+that would hold it. So `db_url` is bootstrapped from env/stack config
+(compose `DB_URL` → `settings.DB_URL` → the pymongo client), and
+everything else (provider, policy, S3, stripe/twilio, branding) lives
+in `web10.config` and is editable in the panel. This is exactly why
+`ConfigUpdate` omits `db_url`/`db_name` and `SetupRequest` takes them
+as a bootstrap input — it's architecturally correct, not just a
+guardedness choice (and it happens to also be the safe default, since
+repointing a live node's DB swaps its whole data identity).
+
 Corollary — the WordPress-style first-run: a node boots into a setup
 wizard + config panel where an operator CAN set everything (provider,
 DB, S3, policy, stripe/twilio, branding — `NodeConfig` already models
 all of it) but sane DEFAULTS mean `docker compose up` just works for a
-dev. Caveat/gap: `ConfigUpdate` (the post-setup panel model) does NOT
-currently expose `db_url`/`db_name` — deliberately keep repointing a
-live node's DB a guarded action (it swaps the node's whole data
-identity; WordPress makes you edit wp-config, not click a button, for
-the same reason), not a casual toggle.
+dev.
 
 ### D24 — design.md §3 correction: `web10-social/public/alternative.png` was never the keys mark [decided]
 D12 (web10-social level-up) and D13 (marketing-ui rebuild) independently
