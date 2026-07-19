@@ -1248,8 +1248,97 @@ testing:
     conformance suite tests the spec, not the reference impl's
     accidents. api/web10.0.md is the seed.
 [ ] sdk tests (bun test) against a throwaway test node
-[ ] ui + killer app: a few playwright e2e flows (signup -> post ->
-    appears in feed; grant terms -> app reads; revoke -> app can't)
+[ ] browser e2e suite: playwright, in a container, against the real
+    compose stack, covering ALL THREE uis (ui, web10-social,
+    marketing-ui). the vitest/jsdom suites can't catch routing
+    breaks, white-screens, vhost/CORS misconfig, or "the api changed
+    and the app dies on load" -- only a real browser against the
+    assembled node does. playwright over selenium: ts-native
+    (matches the vite+bun stack), auto-waiting (kills the flake
+    class selenium is famous for), official docker image with
+    browsers baked in (no grid/driver-version drift), traces on
+    failure. shape: e2e/ top-level dir + one path-filtered ci job --
+    compose up the node (api + db + ui + social + marketing-ui
+    behind the nginx-proxy *.localhost vhosts), wait for health,
+    run playwright from the mcr.microsoft.com/playwright container,
+    upload traces on red. keep it to ~6-10 critical journeys: e2e
+    is the smoke layer proving the assembled system boots and the
+    money paths work; the component suites stay the workhorse.
+    flows:
+      - ui: signup -> login -> consent/terms grant screen
+      - web10-social: post -> appears in feed (the 100%-delivery
+        pitch, mechanically checked); grant terms -> app reads;
+        revoke -> app can't (the auth model end to end in a browser)
+      - marketing-ui: landing + docs + app store routes render
+        (smoke level -- catches white-screens and router breaks,
+        which is most of what a static-ish site can break)
+    sequencing: marketing-ui smoke + ui auth flows are landable
+    today; the social post->feed flow firms up as D4's M0 slice
+    lands. visual-regression screenshots are explicitly LATER --
+    real value, but baselines churn while B2.5/D2.5 restyle the
+    world; revisit after the makeovers settle.
+[ ] marketing-ui vitest backfill: it has ZERO component tests today
+    and its test script is `vitest --passWithNoTests`, so a green
+    ci check there certifies nothing. test the surfaces with logic
+    (exporter/import ui, funnel events), then drop the
+    --passWithNoTests flag so an empty suite can never look green
+    again.
+[ ] report-a-bug loop -- the explicit counterweight to keeping the
+    e2e suite small: ~10 smoke journeys guarantee the money paths,
+    so REAL USERS are the coverage for everything else, and that
+    only works if telling us something broke costs them almost
+    nothing. two pieces:
+      - a "report a bug" affordance in all three uis (ui, social,
+        marketing-ui): one button, a text box, POST to a marketing-
+        api /feedback endpoint (it already ingests analytics --
+        same shape). the report auto-attaches context a human
+        would forget: app + route, version/commit, user agent,
+        recent console errors. optional contact field, never
+        required.
+      - react error boundaries on each app so a crash never dies
+        as a silent white-screen: the boundary catches it, shows
+        "something broke -- send report?", and the report carries
+        the stack trace. white-screens are the exact bug class the
+        thin e2e layer can miss, so every one that reaches a user
+        should convert into a report, not a bounce.
+    acceptance: a fan or creator who hits a bug can tell us in <=2
+    clicks without leaving the app, and the report alone is enough
+    to reproduce. storage starts dumb (marketing-api's store,
+    surfaced however is cheapest); dogfooding it as web10 records
+    on the operator's node is a nice later, not the blocker.
+[ ] ux telemetry -- seeing users silently fail. the third leg of
+    the stool: e2e catches what we predicted, bug reports catch
+    what users SAY, this catches what they don't (rage clicks,
+    abandoned funnels, dead ends nobody bothers to report). the
+    privacy line splits it by surface:
+      - marketing-ui (web10 inc's own site, pre-signup visitors):
+        full ux analytics is fair game -- marketing-api already
+        ingests pageview + funnel events; extend to the whole
+        acquisition funnel (landing -> docs -> app store ->
+        exporter) with per-step drop-off. session replay /
+        heatmaps here via SELF-HOSTED posthog or openreplay --
+        self-hosted so even marketing traffic never feeds a
+        third-party saas. brand consistency is cheap here; buy it.
+      - ui + web10-social (the platform, where users' lives
+        live): third-party session-recording js (hotjar /
+        fullstory / logrocket-class) is RADIOACTIVE. "nobody is
+        mining you" (manifesto) cannot coexist with recording
+        fans' DOM and keystrokes, and phase 11 e2e encryption
+        makes content replay contradictory anyway. allowed
+        exhaust: anonymous, aggregate, CONTENT-FREE ux events
+        (feature used, funnel step reached, client error fired)
+        into the same metering store the phase-4 studio
+        analytics use -- same "aggregate exhaust only" line,
+        keep it bright. plus a js error beacon (window.onerror /
+        unhandledrejection -> endpoint) on all three uis: that
+        is "is the ui doing it" with zero content cost, and it
+        catches the errors users never report.
+      - replay-grade insight on the platform, when genuinely
+        needed: OPT-IN recorded sessions from dogfooding and
+        design-partner creators ("help us improve -- record this
+        session"), self-hosted, staging-first. watch real usage
+        without surveilling fans; the consent is the feature,
+        and it's a pitch line ("they record everyone; we asked").
 [ ] ci from phase 0: github actions on every pr -- lint, typecheck,
     tests, docker builds. nothing merges red. (specced in full in
     CROSS-CUTTING — ci/cd below; landable today, don't wait.)
@@ -1352,6 +1441,13 @@ ci — runs on every pr + push to dev/main (.github/workflows/):
     --frozen-lockfile, tsc --noEmit, vitest run, vite build. write
     ONE reusable workflow and call it per package -- five diverging
     copies of the same yaml is how ci rots.
+[ ] close the js job escape hatches: typecheck and vite build run
+    with continue-on-error in the shared js workflow today -- a ui
+    that doesn't compile still shows a green check, which breaks
+    the visibility-first premise (the referee must at least SHOW
+    red). make both steps report honestly; merging stays a human
+    call as before. the browser e2e suite (quality/testing section)
+    joins as its own path-filtered job the day it lands.
 [✓] docker job: buildx build for every Dockerfile whose context
     changed, with gha layer caching. images that only build on
     laptops are how "works on my machine" comes back.
