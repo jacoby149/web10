@@ -2,21 +2,174 @@ web10 plan
 ==========
 
 the thesis (why this plan):
-- users own their data in mongo-model collections. apps are just lenses.
-- influencers/creators run nodes. accounts are free for users, paid for by the
-  node operator's marketing revenue. web10 takes a small % of revenue flowing
-  through its rails (dev pay already works this way in stripe.py).
-- the self-host escape hatch has to be EASY or the ownership story isn't
-  credible. one person should be able to stand up a node in minutes with a
-  setup UI, no settings.py copying, no README archaeology.
-- multi-service is fine. it's modular, it's good design. the problem was never
-  the number of services, it's the lack of a setup experience.
-- the stack is years old. fix up first, build features on modern ground.
-- none of it comes together without a killer app: an all-in-one social lens
-  (instagram-shaped, with video + streaming) over services the user owns,
-  and exporters that dump your facebook/insta/youtube life into those
-  services so day one isn't empty. the app proves the thesis; the
-  exporters seed it.
+- THIS IS A PRODUCT FOR INFLUENCERS. the proposition is OWNERSHIP ON
+  THE INTERNET: own your node, your brand, your domain, your audience
+  relationship, your revenue. no platform between you and your
+  followers. (D4: the customer is the creator; D20: this is the pitch.)
+- NO SHADOW BAN, structurally: the inbox pattern (fan-out on write)
+  delivers a post to 100% of followers. no reach throttling, no
+  algorithm demoting you, no deplatforming. email-newsletter delivery
+  semantics for social. this is architecture, not a policy promise --
+  it cannot be quietly revoked.
+- users own their data in mongo-model collections; apps are just
+  lenses. sovereignty is what makes the creator pitch TRUE -- it
+  rides along invisibly, it is not the lead pitch.
+- the killer app must STAND ON ITS OWN as a plain good social app
+  (instagram-shaped: post, feed, dms, media, video). no gimmicks.
+  the feed is chronological + a sort dropdown -- "no algorithm" IS
+  the feed feature (D20; customizability/lens/chatbox: later.md).
+- exporters dump your facebook/insta/youtube life into your services
+  so day one isn't empty. the app proves the thesis; the exporters
+  seed it; the creator brings the audience.
+- influencers/creators run nodes. accounts are free for users, paid
+  for by the node operator's marketing revenue. web10 takes a small %
+  of revenue flowing through its rails (dev pay already works this
+  way in stripe.py).
+- the self-host escape hatch has to be EASY or the ownership story
+  isn't credible. one person should be able to stand up a node in
+  minutes with a setup UI, no settings.py copying, no README
+  archaeology.
+- multi-service is fine. it's modular, it's good design. the problem
+  was never the number of services, it's the lack of a setup
+  experience.
+- the stack is years old. fix up first, build features on modern
+  ground. (largely done -- see phase 0 ticks.)
+
+
+THE STORY (the pitch to influencers -- M0 must make this credible)
+------------------------------------------------------------------
+this is largely a story business: a killer pitch that lands as
+"oh shit... this is the only way." the beats:
+
+  1. you already don't own your audience -- and you have the number
+     that proves it. 1m subscribers, and the video does 300k. subs
+     are not delivery; they're permission for the platform to MAYBE
+     show you. the reach gap IS the shadow ban, visible in your own
+     analytics, and the rent goes up every year (organic decay,
+     pay-to-boost, throttles you can't even see).
+  2. and time is running out: AI influencers are arriving in volume.
+     infinitely prolific synthetic creators that never sleep, never
+     charge, never negotiate -- and the algorithm has no loyalty to
+     humans. it optimizes engagement, and synthetic content is
+     cheaper engagement. the platform doesn't need YOU anymore.
+     own your persona and your channel NOW, before you're competing
+     with fakes of everyone -- eventually including fakes of you.
+  3. the only defense is ownership: your node, your domain, your
+     brand, your audience relationship. a post reaches 100% of your
+     followers BY ARCHITECTURE (inbox pattern, fan-out on write) --
+     nobody can throttle you, demote you, or replace you on your own
+     node. it cannot be quietly revoked, because it isn't a policy.
+  4. and the ask is ADD, not MOVE. creators already post to 5
+     platforms -- this is #6, except they own it. the exporters
+     make onboarding a 24-hour thing: whole back catalog imported
+     in one shot, then it's just one more surface in the posting
+     routine they already have. nobody is asked to move their
+     livelihood; the home base fills up while everything else
+     continues. platforms become distribution, not landlord.
+  5. and it's THE COOL THING. kick/twitch-grade slick, not fediverse
+     jank. a creator's node reads as an upgrade to their brand --
+     their name, their look, a place their audience brags about
+     being early to -- never a protest app the audience tolerates
+     out of loyalty. production quality IS part of the story; if it
+     looks like peertube, the pitch dies on the first screenshot.
+     (this is what phase 2.5 is for.)
+
+the fear is real and the fear is the wedge. every month of AI-slop
+growth makes this story stronger. M0's job is a product real enough
+that the "oh shit" survives contact with the demo.
+
+the user's side (not a second wedge -- a CONVERSION MULTIPLIER on
+the creator sale. the number the creator watches is "what % of my
+audience joined." the fan's hell-yeah moves it):
+  - the fan's first sentence: "never miss a post from [creator]
+    again -- you see 100% of what they make, always" (the same
+    delivery guarantee, felt from the fan side), plus inner-circle
+    status: founding member of the creator's OWN place, closer to
+    them than any platform allows. status + proximity is what
+    converts diehards, and diehards convert first.
+  - the quiet second sentence (safety -- retains, never acquires):
+    delete actually deletes; posts can default to expiring unless
+    pinned (the honest answer to old-posts-ruining-lives -- D16's
+    timed access, user-facing); your data isn't mined or sold, and
+    post-phase-11 not even the operator can read what's private.
+  - the wannabe-creator segment (most active users ARE aspiring
+    creators, and the platforms jerk them on purpose: one post
+    randomly hits, the next ten get 200 views -- a slot machine).
+    honest position: we can NEVER out-dopamine tiktok and must not
+    try (rebuilding the lottery = rebuilding the algorithm = thesis
+    deleted). the wannabe pitch is the LADDER: keep playing the
+    lottery on the platforms -- best discovery engines ever built --
+    but bank every win here, where the house can't take it back.
+    lottery reach resets at the platform's whim; banked followers
+    compound. beat 4, one rung down the ladder.
+  - and get the psychology right: users aren't fanboys, they're
+    aspirants (slightly delulu -- not everyone can be famous, but
+    everyone wants to be poppin, or at least have their 5k). the
+    deliverable version of poppin: (a) YOUR NUMBER IS REAL HERE --
+    the throttle hits small accounts hardest, so 100% delivery
+    flatters them MOST: 5k followers = 5k people actually see you,
+    vs. instagram showing you to 400 of them. status pitch, not
+    just fairness pitch. (b) local fame: status inside a 10k
+    community is legible and achievable (known regular, creator
+    spotlights -- curated by a human, same philosophy as the ad
+    records, never an algorithm). discord/subreddits prove people
+    chase local status hard. what we never promise: lottery fame
+    from strangers (see above -- no slot machine).
+  - onboarding consequence: joining must hand the fan THEIR OWN
+    space in the same breath ("you're not joining the crowd -- you
+    get your own page here too"). the aspirant identity is honored
+    at signup, not discovered later.
+  - the flywheel this buys: every account is already creator-shaped
+    (own space, own followers -- one collection per user gives this
+    free), so the user base is the CREATOR PIPELINE. today's 5k
+    wannabe is next year's 100k platform-burned prospect who is
+    already home. the wordpress flywheel exactly: nobodies start
+    blogs; the ones who get big never migrate.
+  - the ladder's top rung -- GRADUATION: grow to 100k on rogan's
+    node, then move to your own node with your data AND your
+    audience intact, zero friction. platforms hand you a takeout
+    zip and keep your followers; here followers auto-migrate
+    (phase 10 graduation item; full story lands with M3
+    federation). graduation is the ownership story proven from the
+    inside -- even the node you're on can't hold you -- and every
+    graduate mints a new node (a new hosting customer): the
+    pipeline literally converts.
+  - THE RISE (the aspirant's arc -- tell it as a story, because it
+    is one. the economics map to every step: people are too broke
+    to afford infra until fame pops off, so NOBODY PAYS BEFORE FAME
+    PAYS THEM FIRST):
+      1. start broke, start free: an account on your favorite
+         creator's node. their revenue pays for your infra -- a
+         free apartment in the coolest building in town.
+      2. post. your number is real: every follower you earn
+         actually sees you. no throttle, no lottery, no begging an
+         algorithm for your own audience.
+      3. get known in the scene: the regulars know your name, the
+         creator spotlights you, your 5k is really 5k.
+      4. pop off: your following outgrows the scene -- and by now
+         it's paying you (members, sponsors).
+         (the failure branch, and it's a feature: NOT popping off?
+         maybe you're just not getting famous in the framework you
+         subscribed to. switch nodes -- identity, content, and
+         followers come with you (same phase 10 move mechanism,
+         pointed sideways). scene-market fit becomes searchable.
+         on the platforms this option does not exist: one house,
+         one dealer, grind the same machine or quit. side effects:
+         nodes COMPETE for rising talent -- a node known for
+         launching people attracts the next wave -- and operators
+         stay honest, because mistreated members walk with their
+         followers.)
+      5. graduate: your own node, your own domain, your own
+         sponsors. your data AND your audience move with you, zero
+         friction (phase 10 graduation). now you're the landlord
+         hosting the next wave of broke kids. the flywheel turns.
+    every stage upgrades only when success pays for it. this arc is
+    the fan-facing story skeleton (manifesto, explanation pages,
+    onboarding) -- rise-to-fame is the product's hero's journey.
+  - shape consequence: M0 is CREATOR-COMMUNITY-shaped (the
+    creator's space, feed, comments, members) -- not friend-graph
+    shaped. your 150 real people aren't here yet; the private-life
+    story is what a node grows into, never the day-one pitch.
 
 
 MILESTONES (the route through the map)
@@ -25,12 +178,27 @@ the phases below are the map. this is the route -- wedge first, prove
 things in an order that generates demos, users, and revenue. each
 milestone is a stopping point that stands on its own.
 
-M0 "reconfig your feed" (the demo, ~90 days of focused work):
+M0 "stands on its own" (the demo + the pitch):
     phase 0 toolchain + one-container node + setup wizard + a vertical
-    slice of the killer app on ONE node: post, feed, and the lens
-    chatbox. no federation, no payments, no encryption yet.
-    deliverable: a 2-minute video of someone telling an llm to fix
-    their feed and watching it happen. that video is the company.
+    slice of the killer app on ONE node: post, feed (chronological +
+    sort dropdown, D20), profile, dms -- PLUS the studio's
+    monetization-menu screen (rung-0 cards: memberships, amazon tag,
+    direct deals -- the pitch is money, so the video shows the money
+    screen, D21). no federation, no encryption, no llm anything.
+    deliverable: (a) a node you'd show a creator without apologizing;
+    (b) the pitch: THE STORY above as a deck + a 2-minute demo video
+    shaped for a creator and their manager, not hacker news -- post
+    once, watch it reach 100% of followers. the kill test is ONE
+    HUNDRED creator pitches, not a viral video (D20) -- run in
+    batches of 20 (batch one iterates the pitch; the verdict needs
+    the full 100: at a true 1-in-20 close rate, 20 sends produce
+    zero closes ~36% of the time -- too noisy to kill a thesis on;
+    100 sends make zero closes a real verdict, ~0.6%). stratify
+    across creator segments (platform-burned right-coded, platform-
+    burned left-coded, wildcard niches incl. paid-community
+    sellers) -- segmentation happens at the PITCH and NODE level,
+    one codebase, themed per node. never fork the app per
+    audience; inc's rails stay neutral (D20).
 
 M1 "import your life" (self-host launch / show hn):
     + media service, conventions doc, instagram exporter, drive/
@@ -46,7 +214,55 @@ M3 "the network" (the protocol earns its name):
     + federation polish (cross-node follows + inbox delivery), e2e
     encryption tiers, sponsor marketplace rails, protocol spec +
     conformance suite public. deliverable: two unrelated nodes,
-    friends across them, private content the operators can't read.
+    friends across them, private content the operators can't read
+    -- and a GRADUATION demo: an account moves nodes and its
+    followers come along automatically (phase 10 graduation item).
+
+KNOWN GAPS on the route (executional, tracked so they're not vibes):
+  - the video gap: THE STORY's bar is kick/twitch but M0 ships
+    posts/feed/dms -- video lands later in phase 8, streaming later
+    still. consequence: founding creators #1-3 must be ones M0's
+    format SERVES (photo/text/community-first, podcasters with
+    clips), or the pitch scopes video honestly as roadmap. never
+    pitch a pure video creator a product that can't hold their life.
+  - memberships before creator #1: owned revenue in month one is
+    what keeps a white-glove yes alive (the retention lever). the
+    phase 4 tiers item + stripe rails must be live BEFORE the first
+    founding creator onboards. hard M2 prerequisite.
+  - hosted ops floor: white-glove hosting = inc runs production
+    infra for a real community (uptime, backups, support). the
+    proxmox homelab is staging, not that. pick the boring hosted
+    floor (a $40 vps + the one-container node + caddy is enough)
+    before the first yes.
+  - t&s gate: the dmca/csam decisions (phase 12) are a PRE-CREATOR-
+    #1 gate under white-glove hosting, not an M1 nicety. vendors +
+    process decided before any hosted community posts media.
+  - exporter battle-testing: D5's mappers are FIXTURE-tested (57
+    tests), not mess-tested -- real takeouts are where parsers
+    die, and meta churns formats constantly. week 3's real-takeout
+    seeding is the first battle test (run the founder's own IG +
+    YT exports; log every break). promote phase 9's llm-assisted
+    mapping the FIRST time a real takeout breaks a mapper. white-
+    glove absorbs the mess through M2 (founder-operated imports);
+    consumer-grade robustness is an M1/show-hn bar, not M0.
+    facts to keep pitches honest: youtube takeout DOES export
+    videos + metadata but arrives as 50GB chunks from days-long
+    jobs (the 24h onboarding clock starts when the takeout
+    arrives); the AUDIENCE never ports from any platform (no
+    export includes reachable subscriber identities) -- content
+    ports, audiences are POINTED (story beat 4); imported video
+    plays direct-mp4 off minio/R2 until the phase 8 transcode
+    pipeline exists. imported-identity relinking is a TWO-TIER
+    tradeoff, accepted: (1) now -- ghosts with provenance
+    ("@sarah_k · from instagram", the origin field doing its
+    job; archival comments are content, not live graph); (2)
+    later, lazy, zero identity infra -- CLAIM-BY-MATCHING: when
+    a commenter joins and imports their OWN takeout, their
+    export contains the comments they made; match origin +
+    timestamp + text against existing ghosts and link
+    automatically (both parties' takeouts agreeing IS the
+    proof; stakes don't justify more). a nice onboarding
+    moment: your old words light up with your name.
 
 
 PHASE 0 — fix up (modernize the toolchain)
@@ -138,6 +354,12 @@ the makeover flips them story-first: every screen answers "what does
 this let ME do with MY data", and the protocol machinery recedes into
 the walls. think product in a way we never have before.
 
+the visual bar (THE STORY, beat 5): kick/twitch-grade slick. a
+creator's node must read as an upgrade to their brand -- the cool
+thing their audience brags about being early to -- never fediverse
+jank (and the whole fediverse is jank: peertube, even mastodon).
+if a screen would look at home in any of them, it isn't done.
+
 sequencing: do this BEFORE the phase 3 wizard screens and phase 4
 admin panel are built, so those get written on the new stack once
 instead of on rectangles and then rewritten.
@@ -165,11 +387,12 @@ the makeover (story-first, not a screen-by-screen reskin):
     contracts. this is what apps may touch.") -- not admin CRUD.
 [ ] narrative pass on web10-social: it has to feel like a place
     you'd live. first-run empty states that point at the exporters
-    ("import your life"), the lens/chatbox front and center. this
-    app IS the pitch; it has to look like one.
+    ("import your life"). this app IS the pitch; it has to look
+    like one -- a plain good social app that stands on its own (D20).
 [ ] the demo test: every M0-facing screen is judged by "would this
-    look credible in the 2-minute video" (M0 deliverable). a screen
-    that can't appear in the demo isn't done.
+    look credible in front of a creator and their manager" (M0
+    deliverable: THE STORY + demo video). a screen that can't
+    appear in the pitch isn't done.
 
 
 PHASE 3 — setup wizard (the missing piece)
@@ -218,11 +441,23 @@ packaging:
     wordpress moment -- the brand is theirs, the address is theirs.
 
 
-PHASE 4 — admin panel (creator console + analytics)
----------------------------------------------------
+PHASE 4 — the STUDIO (creator console + analytics + monetization)
+------------------------------------------------------------------
 the node operator's console, inside the ui. this is where "how the creator
 makes money" becomes visible product instead of thesis. this page is the
 thing you demo to an influencer's manager -- make it GOOD.
+
+the mental model is YOUTUBE STUDIO (call it the studio): one pane
+where the creator posts, watches their audience numbers, sees
+revenue, and sees the monetization MENU as an unlock ladder --
+youtube's YPP screen trained every creator alive to read "X more
+to unlock Y" progress bars, so rungs 0-4 render as exactly that,
+except thresholds unlock MORE money, not permission to earn at
+all. two personas share the pane: the CREATOR studio (post,
+analytics, revenue, menu) and the OPERATOR console (policy,
+signup gates, moderation queues) -- same person on a creator
+node, but design them as separable tabs from day one (the
+white-label future has managers in the operator seat).
 
 access:
 [✓] admin role: node operator account(s) flagged at setup
@@ -244,6 +479,21 @@ audience analytics (the numbers a sponsor asks for):
     inventory, keep it bright.
 
 monetization controls:
+[ ] membership tiers / ranked communities (the skool/whop model,
+    natively): terms ACLs already express ranked access -- a
+    member-only service, an inner-circle service, an officers
+    service; a "rank" is just which services your token can read.
+    the paid hierarchical community (hustlers-university shape:
+    ranks, climbing, belonging -- THE RISE as a product) runs on
+    existing permission machinery at ~97% payout vs skool/whop's
+    cut. paid-community sellers are also a founding-creator
+    segment: they already charge members, already live off-platform,
+    and are the most ban-prone creator category alive (their
+    deplatforming fear includes payment rails). serve the MECHANICS
+    (tiers, ranks, paid inner circles), never the aesthetic -- inc
+    stays neutral infrastructure (D20), and this segment imports
+    the phase 12 t&s burden fastest. gamification layers (xp,
+    leaderboards) are post-M2 product, not now.
 [ ] ad/sponsorship slots: define sponsored placements that node-default
     lenses render. operator controls what's promoted.
 [ ] ads are RECORDS the operator owns (creative, link, schedule,
@@ -253,11 +503,109 @@ monetization controls:
 [ ] works at an audience of 100: hand-entered direct deals, affiliate
     links (operator picks exact products), community/patron slots
     (a fan or local business buys a slot, operator approves).
-[ ] third-party networks are optional FILL, not the foundation:
-    adapters later for approval-flow marketplaces (passionfroot,
-    beehiiv-ad-network, paved, podcorn are the shape to match --
-    nothing mainstream does exact curation at small scale, which is
-    the gap the web10 sponsor marketplace eventually fills at 3%)
+[ ] the monetization MENU (the weakest point, researched 07.2026:
+    easy instant deals for a self-hosted node, as a ladder that
+    unlocks as the node grows -- the networks already gate by
+    traffic/revenue, so the unlock ladder maps to reality):
+      rung 0, day one, any size: memberships/tips (own rails, 3%),
+        affiliate adapters (amazon associates; levanta-class --
+        amazon/shopify/walmart unified, 10k-follower min, 24h
+        review), operator-entered direct deals. the instant-money
+        star: AUTO-AFFILIATE EVERYTHING (skimlinks/sovrn-commerce
+        pattern) -- paste your associates tag / connect once, and
+        every product link posted on the node rewrites to earn at
+        render time. zero per-link work, first dollar in minutes.
+        AMAZON ADAPTER v1 spec (researched 07.2026):
+          - the card: one field, paste your associates tag.
+            stored as a record in the creator's own collection.
+          - render-time tagging: amazon links normalize to
+            canonical /dp/ASIN form + ?tag= appended. NEVER
+            cloaked/shortened (amazon prohibits hiding the
+            destination); amazon.com stays visible.
+          - whose tag wins (revenue routing, RISE-aligned): the
+            POSTER's own tag if they set one -- members earn on
+            their own links at any size -- else the node
+            operator's tag as house fallback.
+          - composer "attach product" v1 needs NO pa-api: paste
+            an amazon url -> normalized product card. the rich
+            search-based picker is a later rung: pa-api access
+            is gated on an account with sales history.
+          - compliance baked into the adapter, not left to the
+            creator: auto "affiliate link" disclosure chip (ftc +
+            amazon), NO tag rewriting in email digests (amazon
+            prohibits affiliate links in email), no stale price
+            display (prices only via api, else none), and the
+            card tracks the 3-QUALIFYING-SALES-IN-180-DAYS
+            countdown (miss it and amazon closes the account --
+            surface it, don't let creators get silently banned).
+          - upgrade rungs: levanta-class (10k followers, better
+            rates, shopify/walmart too), amazon influencer
+            program storefront where eligible.
+        AI PRODUCT SUGGESTER (the first ai feature in the product
+        is the MONEY assistant -- passes the D20 oracle where the
+        feed chatbox didn't):
+          - an llm under a READ-ONLY scoped token on posts (I5;
+            never dms/contacts) profiles the account's niche and
+            suggests relevant products: a suggestions feed in the
+            studio + the killer version, COMPOSER-TIME chips
+            ("this post mentions your pre-workout -- attach it as
+            a product?"). one tap, tagged, disclosed, earning.
+          - always human-approved, never auto-inserted: curation
+            by architecture holds; no temu-slop, no amazon
+            placement violations. suggestions resolve v1 as
+            tagged search links / normalized ASINs (no pa-api);
+            levanta's catalog becomes the better source at 10k+.
+          - works from follower #1: every wannabe gets an ai
+            revenue manager that platforms reserve for the big
+            (THE RISE stage 2 gets guided to its first dollar).
+          - the same profiling engine is the M3 marketplace's
+            matching brain: brands book 1,000 relevant $20 nano
+            promos without reading 1,000 profiles.
+          - funding: hosted-tier feature; self-hosters byok
+            (D19 pattern -- never a free api proxy).
+      rung 1, ~1k sessions: contextual display FILL via privacy-
+        safe adapters (ethicalads-class: zero cookies, pure
+        contextual -- manifesto-compatible). mediavine journey now
+        accepts from ~1k sessions (2026 -- the old 50k wall fell).
+      rung 2, ~10k: sponsor-marketplace adapters (paved / kit /
+        beehiiv shape). NOTE the takes: paved 30%, kit 23.5-30%,
+        passionfroot $199/mo -- incumbents trained creators that
+        marketplaces cost 20-30%. our marketplace at 3% undercuts
+        by 10x in a market with proven willingness to pay.
+      rung 3, ~25k+: premium programmatic (raptive-class, dropped
+        to 25k in 2025) -- ONLY as clearly-disclosed operator
+        opt-in, if ever: tracking-based programmatic breaks the
+        manifesto ("nobody is mining you") and the ad-records
+        rule (nothing renders unapproved). contextual/server-side
+        fill is the default; tracking is not.
+      rung 4, the endgame (M3): the web10 sponsor marketplace at
+        3% -- cross-node inventory, curation by architecture. its
+        killer segment is the NANO TIER nothing serves natively:
+        $20 promos for 5k-follower members (brands love nano
+        engagement rates; today this only exists as platform-
+        locked ugc-gig sites). plugs into THE RISE: stage 3 gets
+        a paycheck -- fame starts paying at 5k followers here,
+        not 100k. every aspirant is future marketplace inventory
+        a sponsor can book in bulk, operator-curated.
+    third-party networks stay optional FILL, never the foundation.
+    ZERO-FRICTION rule (the studio's bar for every rung): each
+    option is a CARD with ONE BUTTON, and the adapter does the
+    paperwork. the node owns its analytics, so the studio (a)
+    shows only options the node already qualifies for, (b)
+    prefills third-party applications with verified stats (an
+    auto-generated media kit), (c) tracks application status in
+    the pane. the metric is TIME-TO-FIRST-DOLLAR: memberships =
+    minutes (stripe connect onboarding), auto-affiliate = one
+    paste, direct deal = type it and publish. an option that
+    needs a tutorial isn't done.
+    AND IT ATTACHES TO CONTENT: the composer (phase 8 posting
+    flow) carries one-tap monetization affordances on the post
+    itself -- attach a product (auto-affiliated, above), mark as
+    sponsored (renders disclosure + feeds sponsor reporting),
+    gate to a member tier (a terms ACL on the record -- phase 4
+    tiers), enable tips. the youtube-product-tags / ig-shopping
+    pattern: earning is part of the posting habit, not a
+    settings page you remember to visit.
 [ ] sponsor reporting: impressions/interactions per placement, per
     campaign, exportable (this is what justifies podcast-grade CPMs)
 [ ] traffic routing controls: which apps/nodes get promoted placement
@@ -354,9 +702,8 @@ mcp server (promoted from LATER -- it ships with the sdk):
 [ ] scoped tokens per mcp connection: user picks which services the
     llm can touch, same terms machinery as any app
 [ ] high configurability + mcp is the wordpress lesson applied to
-    the llm era: users config via lens, operators via policy/ads,
-    devs via real queries, llms via mcp. every layer talks to the
-    same records.
+    the llm era: operators config via policy/ads, devs via real
+    queries, llms via mcp. every layer talks to the same records.
 
 
 PHASE 6.5 — the dev on-ramp (create-web10)
@@ -384,8 +731,7 @@ how it ships (be realistic about how devs start projects now):
         zero framework noise: login -> create a record -> read it.
       - react (the default): vite + react + the phase 6 hooks
         (useRecords live query).
-      later, by demand: a lens-app template (reads/writes a lens
-      record -- the phase 8 chatbox pattern as a starter kit).
+      later, by demand: more templates as devs ask for them.
     every template: sdk login(), one service round-trip, and the
     consent screen appears on FIRST run -- terms are the product,
     the hello-world should show them.
@@ -425,7 +771,7 @@ PHASE 7 — reorganize the apps (monorepo, but tidy)
 revised thinking: the killer app STAYS IN THIS REPO. it's not "an app"
 -- it's the default lens. it ships with every node, renders the
 operator's ad slots, embodies the conventions doc, and during the
-build it's what drives the protocol (aggregate, inbox, lens record
+build it's what drives the protocol (aggregate, inbox, conventions
 all get discovered by building against them). schema + api + sdk +
 app need atomic commits. wordpress ships its default theme; mastodon
 ships its web client. same logic.
@@ -486,9 +832,11 @@ the app:
 [ ] feed via the INBOX PATTERN: friends' nodes deliver new posts into
     your inbox service at post time (fan-out on write, a create on a
     service whose terms whitelist them). reading your feed = one indexed
-    query on your own node. fast, offline-capable, sovereign -- and
-    re-rankable by the user (or their llm. "my feed algorithm is my
-    prompt" lives right here.)
+    query on your own node. fast, offline-capable, sovereign. THIS is
+    the no-shadowban guarantee from THE STORY: delivery to 100% of
+    followers is architecture, not policy. feed order: chronological
+    + a sort dropdown (newest / oldest / most-reacted). nothing else
+    ranks the feed (D20; customizability parked in later.md).
 [ ] follows across nodes: follow alice@othernode -> terms handshake ->
     her posts land in your inbox. federation made visible + trivial.
 [ ] comments/reactions on posts (cross-node via same terms machinery)
@@ -500,8 +848,7 @@ the app:
 the boring plumbing social apps die without:
 [ ] notifications: web push first (pwa), mobile push later. new post
     from a follow, comment on your post, dm, key request (phase 11).
-    notification prefs live in the lens record -- reconfigurable in
-    the chatbox like everything else ("only notify me about dms")
+    notification prefs are an ordinary settings record the user owns
 [ ] realtime: db change streams -> websocket push, surfaced in the
     sdk as live queries (useRecords with live refresh, phase 6).
     feed/dms update without refreshing.
@@ -517,42 +864,14 @@ the boring plumbing social apps die without:
     controls) -- this app is where the node operator's monetization
     actually displays. default lens = monetized lens. users can swap.
 
-the chatbox (the craziest part -- lead every demo with this):
-your social media experience is totally configurable, in english.
-rotting your brain? reconfig.
-
-[ ] a "lens" service in the user's collection: the feed algorithm +
-    experience config AS A RECORD THE USER OWNS. ranking rules, topic
-    mutes, people-first weights, engagement-bait filters, time budgets,
-    ui toggles (hide like counts, chronological only, grayscale after
-    30 min, whatever). the app reads its behavior from this record.
-[ ] the chatbox: talk to an llm, it edits your lens record. "less
-    politics, more of my actual friends, hide anything that smells
-    like ragebait, cut me off after 20 minutes" -> config diff ->
-    shown to user -> applied. the feed re-ranks instantly because
-    the algorithm was always just your data.
-[ ] the llm's token is scoped to the lens service ONLY (maybe read on
-    posts to help it understand). it can never touch dms/contacts.
-    scoped tokens make "an ai rewrites my feed" safe -- this is the
-    token model earning its keep, say so in the demo.
-[ ] llm backing: bring-your-own-key ONLY. v1: user pastes a key, it
-    stays client-side (localStorage), chatbox calls go browser ->
-    provider directly -- the node never sees the key or the chat.
-    never store the key as a plain record (operator-readable until
-    e2e). presets need zero llm, so "own your algorithm" works
-    without a key. phase 11 upgrade: the key lives in the phone
-    wallet as an e2e-encrypted record and the phone BEAMS it to the
-    web10 apps the user picks at provisioning (per-app; true
-    revocation = rotate the key at the provider). node-provided
-    inference is at most a later operator OPT-IN with hard per-user
-    caps, never the default: a free-signup node with a server-side
-    llm endpoint is a free api proxy, and the abuse lands on the
-    operator's bill. (D19)
-[ ] preset lenses to start from: chronological, close-friends-only,
-    detox mode, creator mode. chatbox edits from there.
-[ ] the lens record is portable like everything else: your algorithm
-    moves nodes with you. nobody has ever owned their algorithm before.
-    that's the whole pitch in one feature.
+the lens chatbox + feed customizability: CUT (D20, 18.07.2026):
+moved to later.md in full (lens record, llm chatbox, preset lenses,
+customization surface). the feed ships chronological + a sort
+dropdown -- "no algorithm" is itself the feature, and the pitch is
+ownership/no-shadowban (THE STORY), not configurability. the killer
+app stands on its own or it isn't killer. D19's byok architecture
+stands ready if the chatbox ever earns its way back; the promotion
+bar is in later.md.
 
 PHASE 9 — the exporters (fill the collections)
 ----------------------------------------------
@@ -603,6 +922,14 @@ ownership story, in a folder a normal person can see.
 [ ] restore/import flow: point a fresh node (or a new account on
     another node) at your backup -> your life comes back. this is
     node migration, demoable.
+[ ] GRADUATION (account migration with your audience): a signed
+    "moved" record on the old node + followers' nodes auto-re-follow
+    at the new address (the mastodon Move-activity pattern -- adopt,
+    don't invent). data comes via the restore flow above; this item
+    is the FOLLOWERS coming too. needs federation (M3) to be fully
+    live. this is the ladder's top rung in THE STORY: grow on a
+    creator's node, graduate to your own, audience intact -- the
+    ownership story proven from the inside.
 [ ] backups of encrypted content stay encrypted (phase 11) -- drive/
     dropbox hold ciphertext, never plaintext private data
 
@@ -650,7 +977,7 @@ the key hierarchy (what's in the wallet):
     wrapped at rest otherwise (ios secure enclave won't do x25519 --
     wrap the sodium keys under an enclave key, don't fight it).
 [ ] the wallet guards opaque secrets too, not just derived keys: the
-    byok llm api key (phase 8 chatbox) is an e2e-encrypted record
+    byok llm api key (D19; chatbox parked in later.md) is an e2e-encrypted record
     the phone beams only to the apps the user picks -- the node
     holds ciphertext, the operator can never read or exfiltrate it,
     and it moves nodes with you like any record. (D19)
@@ -858,6 +1185,22 @@ federation abuse (the pingback lesson):
 [ ] rate limits on cross-node delivery + per-sender caps
 [ ] new-node reputation: throttle until proven (age, volume shape)
 
+adult content (decide BEFORE the first adult creator emails -- they
+will be among the most motivated early knockers, being the most
+deplatformed + payment-rail-burned segment alive):
+[ ] the wordpress answer, forced by the rails anyway: stripe
+    prohibits adult content and inc's rails are stripe connect, so
+    INC-HOSTED nodes + inc rails are clean-only (survival, not
+    morality). the software stays neutral: a SELF-HOSTED node with
+    its own processor (ccbill-class) is the operator's business
+    under D10 node policy. onlyfans context for the pitch, not the
+    positioning: OF proved fans pay creators directly at ~$6B+/yr
+    scale, takes 20% (we take ~3% + hosting), and in aug 2021 tried
+    to evict its own creators -- the ultimate "you were renting"
+    story. never market as "sfw onlyfans" (fanhouse/oftv died
+    fighting that brand); market ownership, let the phase 4
+    membership mechanics quietly BE the onlyfans economics.
+
 operator legal kit (part of the white-label product):
 [ ] tos + privacy policy templates per node
 [ ] gdpr story -- and say it loud: right-to-erasure and data export
@@ -970,7 +1313,7 @@ other known issues, fix early (phase 0/1, before any real users):
     in the data volume, never in git. same for stripe/twilio keys.
 [ ] token revocation story: jwts expire but can't be revoked today.
     decide: short expiry + refresh, or a jti denylist. matters more
-    once agents/llms hold tokens (lens chatbox, mcp).
+    once agents/llms hold tokens (mcp, future agents).
 [ ] backups that restore: automated node backup + a scheduled restore
     drill. a backup you've never restored is a rumor.
 [ ] before the first creator-node pitch: external security review /
@@ -1068,6 +1411,20 @@ habit (annotate as you go), and one website that waits. split by
 AUDIENCE, not by tool. generated wherever possible -- generated
 docs can't rot.
 
+site architecture (D20 -- settles the two-sites question): there is
+ONE marketing site (marketing-ui, web10.app) and it is CREATOR-FIRST:
+hero = THE STORY (the subs-vs-views gap, own your audience), primary
+cta = "become a founding creator" (demo video + call). fans are NOT
+a tab there -- fans never google web10; they click a link in their
+creator's bio and land on the CREATOR'S NODE, where the manifesto
+join page (manifesto.md) is the entire user-facing pitch. this is
+the wordpress/shopify pattern: wordpress.org sells to site owners,
+readers never visit it; shopify sells to merchants, shoppers never
+see shopify.com. the only fan-facing corporate page is a thin
+"powered by web10 -- what is this?" reassurance explainer linked
+from node footers (trust, not acquisition). devs get the docs
+section (below); self-hosters get the setup story. no users tab.
+
 for everyone -- explanation (lives in marketing-ui, phase 7):
 the missing quadrant: guides say HOW, reference says WHAT, nothing
 says WHY. the architecture (records, tokens, terms, federation)
@@ -1092,7 +1449,7 @@ don't wait on milestones. they are the marketing site's core copy.
 
 for users + creators (lives in marketing-ui, phase 7):
 [ ] guides ARE the marketing content for a saas: get an account,
-    reconfig your feed, import your instagram, run a node, monetize
+    own your audience, import your instagram, run a node, monetize
     as a creator. write each guide when its milestone (M0-M3)
     ships, not before -- docs for unshipped features are fiction.
     (the fiction rule gates GUIDES only -- explanation pages above
