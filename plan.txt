@@ -827,20 +827,23 @@ profile on top of the protocol, not part of it):
     imported life and native life coexist in the same services.
 
 the app:
-[ ] profile + grid view (the instagram surface: media-first)
-[ ] posting: photo/video upload via media service, records into posts
-[ ] feed via the INBOX PATTERN: friends' nodes deliver new posts into
-    your inbox service at post time (fan-out on write, a create on a
-    service whose terms whitelist them). reading your feed = one indexed
-    query on your own node. fast, offline-capable, sovereign. THIS is
-    the no-shadowban guarantee from THE STORY: delivery to 100% of
-    followers is architecture, not policy. feed order: chronological
-    + a sort dropdown (newest / oldest / most-reacted). nothing else
-    ranks the feed (D20; customizability parked in later.md).
+[✓ 1.0.48] profile + grid view (the instagram surface: media-first)
+    DATA LAYER ONLY — profile CRUD, media upload via presigned URLs,
+    grid view screens deferred to D2.5 post-B2.5 tokens
+[✓ 1.0.48] posting: photo/video upload via media service, records into posts
+    DATA LAYER ONLY — post CRUD + media upload via API presigned URLs
+    per conventions schemas. composer screens deferred to D2.5.
+[✓ 1.0.48] feed via the INBOX PATTERN — DATA LAYER ONLY: chronological
+    + sort dropdown (newest / oldest / most-reacted via aggregate).
+    screens deferred to D2.5 post-B2.5 tokens.
 [ ] follows across nodes: follow alice@othernode -> terms handshake ->
     her posts land in your inbox. federation made visible + trivial.
-[ ] comments/reactions on posts (cross-node via same terms machinery)
-[ ] dms: rtc for live, records for async (mail demo already proved this)
+[✓ 1.0.48] comments/reactions on posts — DATA LAYER ONLY: threaded
+    comments CRUD, reaction toggle + aggregate counts. screens
+    deferred to D2.5.
+[✓ 1.0.48] dms: records for async — DATA LAYER ONLY: deterministic
+    conversation service names, send/read/delete DMs as records.
+    screens deferred to D2.5. (rtc for live: phase 11)
 [ ] video: upload -> transcode -> hls playback (phase 5 media pipeline)
 [ ] streaming (later milestone in this phase): live via rtc/webrtc small-
     scale first; hls fan-out for big rooms when a node needs it
@@ -1385,12 +1388,12 @@ today providers do NOT validate each other. the chain:
     signature everywhere, using the right key per provider.
 
 other known issues, fix early (phase 0/1, before any real users):
-      - remote certify SSRF: even with I1's fix, validate provider
+      [✓] remote certify SSRF: even with I1's fix, validate provider
         urls (https, public host, sane shape) before any fetch
       - terms matching: exact-match by default, regex opt-in (redos +
         accidental-wildcard footgun)
-      - CORS: allow_origins=["*"] + allow_credentials=True has to go
-      - bare except in certify() swallows everything -- tighten error
+      [✓] CORS: allow_origins=["*"] + allow_credentials=True has to go
+      [✓] bare except in certify() swallows everything -- tighten error
         handling, no silent auth failures
       - rate limiting on auth endpoints (login, signup, recovery,
         verify codes) -- recovery-by-sms especially
