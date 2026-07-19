@@ -85,6 +85,12 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
   [✓ 1.0.38] A4. P6 aggregate endpoint (the 5th verb, sandbox validator;
       per-stage metering through charge(); wapi.aggregate in legacy sdk)
   [ ] A5. P4 metering events (per-request event records for analytics)
+  [ ] A6. D21 strip user billing → quotas: remove user-facing
+      plans/subscriptions/per-account stripe; repurpose credits/
+      space + charge() as OPERATOR-SET per-user quotas (credits =
+      rate/abuse throttle, space = storage caps incl. imports).
+      stripe stays for the creator economy only (memberships,
+      rails). keep the permission-matrix tests green through it.
 
 LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
   [✓ 1.0.12-1.0.14] B1. P0 js: auth2 -> vite + bun + typescript
@@ -98,6 +104,19 @@ LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
   [✓ 1.0.40] B4. P4 admin panel: policy config, ad records crud, analytics
       views (analytics needs A5 merged; build ui against fixtures
       until then)
+  [ ] B4.5. P4 the STUDIO respec (post-B2.5, on the new stack):
+      youtube-studio frame, monetization menu as one-button cards
+      with the YPP-style unlock ladder, amazon adapter v1 (tag
+      card, render-time tagging, compliance chips, 3-sales
+      countdown), memberships/tiers wiring to stripe rails.
+      composer monetization affordances land in D4's composer
+      (coordinate, don't reach into lane D files). this screen is
+      the M2 demo -- highest-stakes ui in the repo.
+      M0 SLICE OF THIS (D21): the menu SCREEN with rung-0 cards
+      (memberships, amazon tag, direct deals) ships inside the M0
+      window so the demo video shows the money screen -- visually
+      complete + rung-0 functional; deeper wiring (unlock ladder,
+      adapters) follows in weeks 5-10.
 
 LANE C — greenfield services  (owns: sdk/, mcp/, new dirs)
   [✓ 1.0.25] C1. P5 media service (presigned urls, minio profile,
@@ -124,14 +143,18 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       folders removed. 35 new tests, shared mock factory.
   [ ] D2.5. P2.5 ui makeover in web10-social: rectangles-npm ->
       mainstream stack (match B2.5's pick + design tokens), story-
-      first pass (empty states, lens/chatbox forward). pairs with
-      D4 -- the M0 demo screens are the acceptance bar.
+      first pass (empty states point at exporters; kick/twitch-grade
+      slick is the visual bar -- THE STORY beat 5, D20). pairs with
+      D4 -- credible-in-a-creator-pitch is the acceptance bar.
   [✓ 1.0.27] D3. P11 mobile encryptor: complete rebuild landed —
       expo 52, crypto core (hkdf, ed25519/x25519, xchacha20), wallet
       persistence, tabbed UI, 55 tests. the rtc key channel + sdk
       crypto integration still waits for A/C (phase 11 proper).
-  [ ] D4. P8 killer app M0 slice: post + feed + lens chatbox. starts
-      on the current wapi if needed; swaps to C2 sdk when it lands.
+  [ ] D4. P8 killer app M0 slice: post + feed (chronological + sort
+      dropdown ONLY -- lens/chatbox is CUT to later.md, D20) +
+      profile + dms. starts on the current wapi if needed; swaps to
+      C2 sdk when it lands. acceptance: stands on its own as a plain
+      good social app, credible in a creator pitch.
   [✓ 1.0.27] D5. P9 exporter core + instagram mapping (needs D1 conventions;
        client-side, so no api deps) — also includes Facebook + YouTube
        mapping, multi-platform UI with takeout checklists, 57 tests
@@ -180,7 +203,7 @@ WHAT MUST STAY SEQUENTIAL (don't try to parallelize these)
 
 INTEGRATION MOMENTS (when lanes must sync)
 ------------------------------------------
-M0 "reconfig your feed"  = A3 + B3 + D4 converge. first real
+M0 "stands on its own"   = A3 + B3 + D4 converge. first real
                            cross-lane assembly; expect a dedicated
                            integration branch + a day of glue.
 M1 "import your life"    = C1 + C4 + D5 + M0 node.

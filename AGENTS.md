@@ -27,3 +27,11 @@ top, `version || DD.MM.YYYY`), tick the item in `plan.txt`, and tick
 your lane item in `parallel execution.txt`. If you changed the stack,
 data model, or auth flow, keep `CLAUDE.md`/`GLOSSARY.md` true and
 record big calls in `decisions.md`.
+
+## PRs always go to `dev`, never `main`
+
+The base branch for every PR is `dev`. `main` is only updated by an
+explicit, deliberate merge from `dev`. Merging to `main` directly
+causes conflicts when `dev` later merges into `main` because both
+branches diverge on shared files (CHANGELOG.md, CLAUDE.md, plan.txt,
+CI workflows). If you're unsure, target `dev`.
