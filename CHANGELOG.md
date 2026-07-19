@@ -1,3 +1,39 @@
+1.0.68 || 19.07.2026
+E3 + E5 EXECUTED — the whole ecosystem is LIVE on the box. Both
+environments run as Portainer git-backed stacks (branch dev, 5-min
+GitOps polling) behind an NPM edge stack with one Cloudflare DNS-01
+cert over all 15 vhosts: web10-prod (public HTTPS — api/auth/rtc/
+minio/social/www+apex/marketing-api.web10.app) and web10-dev
+(VPN-only, the same on *.dev.web10.app → the box's LAN IP). Verified
+live: every vhost 200 over HTTPS, prod money path signup→POST
+/web10token returns a JWT, and the dev auth bundle calls
+dev.web10.app (proving the B5/D14 origin fixes). The legacy Caddy
+edge, the old bare-name staging stack, and the four *.staging DNS
+records are decommissioned. The entire bring-up is now codified in
+ubuntu-deployment/scripts/ (sync-dns.py, deploy-stacks.py,
+sync-npm.py, smoke.sh, lib.sh) — idempotent, secret-free, reading
+only the gitignored .env; these scripts replace the click-by-click
+Portainer/NPM/Cloudflare steps so the deployment lives in the repo.
+.env.example documents every key (Portainer/NPM/Minio-per-env creds).
+Docs corrected: login is POST /web10token (not PATCH /login);
+AGENT-OPS §4 now records the box as deployed and points at scripts/;
+OPS-LOG has the full session. Operator to-do: rotate the CF token
+(it sat world-readable in the retired Caddyfile).
+Plan additions (operator direction, now that the box is live but
+pointed at an EMPTY ferretdb): A7 — connect the node to the original
+production MongoDB on the box (~208 real users + historical stats +
+the registered apps from web10's live app-store era; config +
+verification, gated on a dev login working against a copy). B6 —
+authenticator revamp: the ui/ auth flow is broken in look (the web10
+logo renders broken) AND function ("doesnt work"); B5 fixed the
+shell, B6 fixes the real login/consent journey against real data
+with a playwright guard. D16 — restore the app store as a real
+curated marketplace (real registered apps from the mongo, killer app
+promoted up top + third-party apps below, register-freely /
+admin-approve curation, real historical stats); this reverses the
+D20 "keep the catalog minimal" call, which assumed an empty catalog
+— reconnected real apps make restoring it the "real company" goal.
+
 1.0.67 || 19.07.2026
 D14: web10-social backend origins parameterized — the last app-side
 deploy gate. New src/lib/origins.ts reads VITE_API_ORIGIN /

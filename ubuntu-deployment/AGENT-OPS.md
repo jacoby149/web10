@@ -160,59 +160,48 @@ Symptom → likely cause (check in this order, stop at first hit):
 
 Read this before re-diagnosing; these are already understood:
 
-1. **Frontend origin parameterization — DONE for all three
-   frontends.** ui (B5, 1.0.65: `REACT_APP_*` ARGs), web10-social
-   (D14, 1.0.67: `VITE_*` ARGs read in `src/lib/origins.ts`) and
-   marketing-ui (`VITE_*` ARGs) all take their backend origins from
-   build args that `docker-compose.ecosystem.yml` passes per env;
-   the production origins remain the fallback when args are empty.
-   A fresh stack BUILD (not just restart) serves the right origins.
-   The legacy staging deployment predates all of this — its bundles
-   stay wrong until decommissioned (issue #2).
-2. **The live box runs the LEGACY deployment, due for teardown.**
-   What's there today: a root-managed **Caddy** container holding
-   80/443 (config `/opt/caddy/Caddyfile` — WORLD-READABLE with a
-   live CF API token; operator must `chmod 600` + ROTATE it,
-   consider it burned) proxying BARE names to the old bare-name
-   staging stack on `*.staging.web10.app`. Staging as an
-   environment was CUT — do not repair it, replace it. MIGRATION
-   (one change at a time, §0.5; staging downtime is fine — it's
-   being deleted):
-   a. Stop + disable the legacy Caddy container (frees 80/443).
-   b. Deploy the `edge` stack (`docker-compose.edge.yml`), create
-      the NPM admin account, add the Cloudflare DNS-01 provider.
-   c. Create the `*.dev` DNS records (LAN IP!) and the prod records
-      (public IP — see README.md, mind the cutover caution there).
-   d. Deploy `web10-dev` then `web10-prod` from
-      `docker-compose.ecosystem.yml` + their env files; add the NPM
-      proxy hosts per §2 (stack-prefixed aliases; DNS challenge for
-      dev certs).
-   e. Verify §3 C+D per env; smoke test per README.md.
-   f. Decommission the leftovers: remove the legacy staging stack +
-      its volumes (this one IS an authorized volume delete), delete
-      the four `*.staging` DNS records, remove the Caddy container
-      + `/opt/caddy` (operator does the root-owned parts).
-   g. Log every step in OPS-LOG.md.
-3. **CORS**: each stack's `CORS_SERVICE_MANAGERS` env must list every
+1. **The box is FULLY DEPLOYED (19.07.2026, see OPS-LOG).** Both
+   environments are live over HTTPS as Portainer git-backed stacks:
+   `web10-dev` (VPN-only, `*.dev.web10.app` → LAN IP) and
+   `web10-prod` (public, real names + apex), behind the `edge` NPM
+   stack with one Cloudflare DNS-01 cert. The legacy Caddy + staging
+   stack + `*.staging` DNS are GONE. Prod money path (signup→token)
+   verified. The whole bring-up is codified in `scripts/` — those
+   scripts, not click-steps, are how it was done and how to redo it.
+2. **Frontend origin parameterization — DONE for all three
+   frontends** (ui B5, web10-social D14, marketing-ui): backend
+   origins come from build args `docker-compose.ecosystem.yml`
+   passes per env, prod as fallback. Verified live: the dev auth
+   bundle calls `dev.web10.app`, not prod. A stack rebuild (not
+   restart) is required to change baked origins — GitOps redeploys
+   do rebuild.
+3. **CORS**: each stack's `CORS_SERVICE_MANAGERS` env lists every
    browser origin for that env (bare hostnames, comma-separated) —
-   the env example files already contain the right values; don't
-   trim them.
+   set by `scripts/deploy-stacks.py`; don't trim.
+4. **Login route is `POST /web10token`** with a JSON body
+   `{username, password, provider}` — NOT `/login`. (Older docs said
+   `PATCH /login`; that route does not exist.)
 
-When one of these is fixed, update this section in the same PR.
+When one of these changes, update this section in the same PR.
 
 ## 5. Redeploy (the normal change loop)
 
 Code changed in git and you need the box to serve it:
 
 ```bash
-# Portainer way (preferred): Portainer → Stacks → web10-{env} →
-#   "Pull and redeploy" / re-deploy with "Re-pull image and rebuild".
-# SSH way:
-ssh $SSH_USER@$VM_IP
+# Normal path: nothing. Stacks are git-backed with 5-min GitOps
+# polling — a merge to `dev` redeploys itself within ~5 min.
+# Force it now (on the box):
 cd /opt/web10 && git pull
-docker compose -p web10-{env} --env-file env.{env} \
-  -f ubuntu-deployment/docker-compose.ecosystem.yml up -d --build
+python3 ubuntu-deployment/scripts/deploy-stacks.py dev   # or prod / all
+# Reconcile DNS or the NPM routes/cert after a topology change:
+python3 ubuntu-deployment/scripts/sync-dns.py
+python3 ubuntu-deployment/scripts/sync-npm.py
+# Verify:
+bash ubuntu-deployment/scripts/smoke.sh
 ```
+
+See `scripts/README.md` for the full table and fresh-box bring-up.
 
 After ANY redeploy, verify (§3 C+D) and smoke-test the money path:
 open `https://auth.dev.web10.app` (or `auth.web10.app` for prod),
