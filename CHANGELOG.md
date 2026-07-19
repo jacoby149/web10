@@ -1,4 +1,4 @@
-1.0.57 || 19.07.2026
+1.0.58 || 19.07.2026
 A5: P4 per-request metering events. emit_event() in documentdb.py writes
 user/action/service/site/ts to a capped web10.metering_events collection
 (100k max, METERING_EVENTS_MAX). Wired into all CRUD/aggregate endpoints
@@ -6,20 +6,37 @@ in crud.py as fire-and-forget (try/except — never crashes the request).
 5 new endpoint tests verify events on create/read/update/delete/aggregate.
 279 api tests green.
 
-1.0.56 || 19.07.2026
-B4.5 M0 slice: Studio monetization-menu screen — the money shot for the M0
-demo video. New ui/src/components/Studio/ with YouTube-Studio mental model:
-YPP-style unlock ladder (rungs 0-4, rung 0 unlocked, rungs 1-4 locked with
-progress bars showing "X more to unlock Y"). Three rung-0 one-button cards:
-(1) Memberships & Tips — wired to Stripe Connect rails, one-click enable,
-~97% payout chip; (2) Amazon Associates — paste-tag persistence (localStorage
-+ wapi.create fallback), compliance chips (affiliate disclosure auto, no
-cloaking, 3-sales/180-days countdown); (3) Direct Deals — operator-entered
-deal form (title, sponsor, amount, description), publish, persist to
-localStorage + ads collection fallback. Studio link in SideBar, "studio"
-mode in App.tsx router. 30 new vitest tests (73 total, all green).
+1.0.57 || 19.07.2026
+PR + changelog workflow hardening for the parallel-agent conveyor.
+AGENTS.md/CLAUDE.md (and the Conductor prompt) now require, right after
+gh pr create: (1) an immediate conflict check (gh pr view --json
+mergeable,mergeStateStatus) with local merge of origin/dev to resolve,
+then (2) watching ALL checks — optional ones included, UNSTABLE is red,
+not "ready to go" — and fixing until every check is green before
+reporting the PR ready. Changelog conflicts defused: .gitattributes sets
+CHANGELOG.md merge=union so parallel branches' entries union instead of
+conflicting on local merges, with a documented renumber-after-merge step
+(top entry must stay the unique highest; changelog CI already enforces).
+Also in this branch, dev unbroke: LadderCard.tsx type-only import fixed
+(ui docker build was red on dev after #118) and marketing/web10-social
+bun.lock regenerated (frozen-lockfile install failed on every CI run,
+skipping its tests entirely). web10-social's tsc build stays red with
+pre-existing @/-alias + legacy rectangles-npm import errors, masked by
+continue-on-error in CI (the known 1.0.48 gap) — left for lane D; its
+4 unresolvable legacy tests (BioBottom/ContactAdder/Crm/Mail, imports
+D2.5 removed from package.json) excluded in vite.config.ts with a note,
+so the test step reports signal again (181 passing) instead of failing
+on dead code.
+plan.txt recovery item extended: forgot-password must be smooth, phone
+AND email as first-class reset channels. New plan.txt ci item: the api
+(lint + test) job has never gone green — uv sync --frozen installs
+neither ruff nor pytest, and beneath the spawn error sit 104 ruff
+errors + 26 unformatted files; one lane-A branch fixes workflow + debt
+together. Board hygiene: #117 and #118
+raced for version 1.0.55 and both merged with it — A6 (merged second)
+renumbered to 1.0.56 here, lane tick updated to match.
 
-1.0.55 || 19.07.2026
+1.0.56 || 19.07.2026
 A6: D21 strip user billing → operator quotas. Removed user-facing billing
 surface: /manage_space, /manage_credits, /manage_subscriptions endpoints
 (payments.py), /get_plan endpoint (system.py), credit_space/manage_subscription/
@@ -31,6 +48,19 @@ creator economy: dev_pay (Stripe Connect transfer_data + amount_percent),
 business onboarding/login. Updated metering tests to use operator quotas
 directly (no more PAY_REQUIRED gating). GLOSSARY.md updated (Billing → Quotas
 section). 274 api tests green (6 user-billing tests removed).
+
+1.0.55 || 19.07.2026
+B4.5 M0 slice: Studio monetization-menu screen — the money shot for the M0
+demo video. New ui/src/components/Studio/ with YouTube-Studio mental model:
+YPP-style unlock ladder (rungs 0-4, rung 0 unlocked, rungs 1-4 locked with
+progress bars showing "X more to unlock Y"). Three rung-0 one-button cards:
+(1) Memberships & Tips — wired to Stripe Connect rails, one-click enable,
+~97% payout chip; (2) Amazon Associates — paste-tag persistence (localStorage
++ wapi.create fallback), compliance chips (affiliate disclosure auto, no
+cloaking, 3-sales/180-days countdown); (3) Direct Deals — operator-entered
+deal form (title, sponsor, amount, description), publish, persist to
+localStorage + ads collection fallback. Studio link in SideBar, "studio"
+mode in App.tsx router. 30 new vitest tests (73 total, all green).
 
 1.0.54 || 19.07.2026
 README rewritten to match the current stack: dead references removed
