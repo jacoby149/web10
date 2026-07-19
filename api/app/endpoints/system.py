@@ -7,8 +7,7 @@ from app.models.auth import Token
 from app.models.config import ConfigUpdate, SetupRequest, SetupStatus
 from app.services import config as config_svc
 from app.services import documentdb as db
-from app.services import stripe as pay
-from app.services.auth import check_admin, decode_token, get_password_hash
+from app.services.auth import check_admin, get_password_hash
 
 router = APIRouter()
 
@@ -128,28 +127,3 @@ async def register_app(info: dict):
         if fragment in info["url"]:
             return
     db.register_app(info)
-
-
-def mget_customer_id(username):
-    customer_id = db.get_customer_id(username)
-    if not customer_id:
-        customer_id = pay.make_customer()
-        db.set_customer_id(username, customer_id)
-    return customer_id
-
-
-def subscription_update(user):
-    if settings.PAY_REQUIRED:
-        credit, space = pay.credit_space(mget_customer_id(user))
-    else:
-        credit, space = 100000000, 100000000
-    db.subscription_update(user, credit, space)
-    return credit, space
-
-
-@router.post("/get_plan", include_in_schema=False)
-async def get_plan(token: Token):
-    check_admin(token)
-    user = decode_token(token.token).username
-    credit, space = subscription_update(user)
-    return {"space": space, "credits": credit, "used_space": db.get_collection_size(user)}
