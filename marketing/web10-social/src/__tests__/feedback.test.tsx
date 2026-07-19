@@ -19,7 +19,7 @@ vi.mock('lucide-react', () => {
 });
 
 vi.mock('@/components/ui/button', () => ({
-  Button: ({ children, variant, size, className, disabled, onClick, ...props }: Record<string, unknown>) => (
+  Button: ({ children, variant, size, className, disabled, onClick, ...props }: Record<string, any>) => (
     <button
       data-variant={variant}
       data-size={size}
@@ -34,7 +34,7 @@ vi.mock('@/components/ui/button', () => ({
 }));
 
 vi.mock('@/components/ui/textarea', () => ({
-  Textarea: ({ value, onChange, placeholder, rows, className }: Record<string, unknown>) => (
+  Textarea: ({ value, onChange, placeholder, rows, className }: Record<string, any>) => (
     <textarea
       data-testid="report-textarea"
       value={value as string}
@@ -47,7 +47,7 @@ vi.mock('@/components/ui/textarea', () => ({
 }));
 
 vi.mock('@/components/ui/input', () => ({
-  Input: ({ value, onChange, placeholder, type }: Record<string, unknown>) => (
+  Input: ({ value, onChange, placeholder, type }: Record<string, any>) => (
     <input
       data-testid="report-input"
       value={value as string}
@@ -152,7 +152,7 @@ describe('ReportBug', () => {
 
   it('submits feedback to marketing-api', async () => {
     const { ReportBug } = await import('@/components/shared/ReportBug');
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
     });
     render(<ReportBug trigger="button" onClose={() => {}} />);
@@ -161,7 +161,7 @@ describe('ReportBug', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: /send report/i }));
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
+      expect(globalThis.fetch).toHaveBeenCalledWith(
         expect.stringContaining('/feedback'),
         expect.objectContaining({
           method: 'POST',
@@ -174,7 +174,7 @@ describe('ReportBug', () => {
 
   it('shows success state after sending', async () => {
     const { ReportBug } = await import('@/components/shared/ReportBug');
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
     });
     render(<ReportBug trigger="button" onClose={() => {}} />);
@@ -191,7 +191,7 @@ describe('ReportBug', () => {
 
   it('shows error message when fetch fails', async () => {
     const { ReportBug } = await import('@/components/shared/ReportBug');
-    (global.fetch as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('network error'));
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('network error'));
     render(<ReportBug trigger="button" onClose={() => {}} />);
     fireEvent.change(screen.getByTestId('report-textarea'), {
       target: { value: 'Test bug report' },

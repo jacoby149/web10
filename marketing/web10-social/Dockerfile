@@ -7,7 +7,7 @@ COPY . .
 # Backend origins are baked at build time (vite). Passed by
 # ubuntu-deployment/docker-compose.ecosystem.yml per environment.
 # VITE_MARKETING_API is read today (ReportBug); the API/AUTH/RTC args
-# are consumed once the adapter env-read lands (lane D / D12) —
+# are consumed once the adapter env-read lands (lane D / D14) —
 # Web10SocialAdapter.ts still hardcodes its origins until then.
 ARG VITE_API_ORIGIN
 ARG VITE_AUTH_ORIGIN
@@ -20,9 +20,7 @@ ENV VITE_API_ORIGIN=$VITE_API_ORIGIN \
     VITE_MARKETING_API=$VITE_MARKETING_API \
     VITE_GIT_COMMIT=$VITE_GIT_COMMIT
 
-# `bun run build` runs `tsc -b`, which currently fails on `@/` path
-# aliases (vite resolves them itself; the tsconfig fix is lane D's).
-RUN bunx vite build
+RUN bun run build
 
 FROM nginx:alpine
 COPY --from=build /app/dist /usr/share/nginx/html

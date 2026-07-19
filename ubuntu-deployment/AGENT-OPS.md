@@ -167,7 +167,7 @@ Read this before re-diagnosing; these are already understood:
    makes the UI unusable in ANY env whose API isn't literally at
    those URLs (this is why the legacy staging auth UI is dead, and
    why the DEV env's UI will be broken until fixed).
-   **The fix is app code (lane B / B5 for ui, lane D / D12 for
+   **The fix is app code (lane B / B5 for ui, lane D / D14 for
    social):** read origins from build-time env + Dockerfile `ARG`s.
    The compose side is DONE — `docker-compose.ecosystem.yml`
    already passes `VITE_API_ORIGIN`, `VITE_AUTH_ORIGIN`,

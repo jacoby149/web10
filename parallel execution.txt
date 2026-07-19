@@ -238,7 +238,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       events + the error beacon ONLY -- no session-recording js
       on ui/ or social, ever (manifesto line). self-hosted
       posthog/openreplay deploy, if adopted, is lane E territory.
-  [ ] D12. level-up web10-social to the design.md standard (READ
+  [✓ 1.0.64] D12. level-up web10-social to the design.md standard (READ
       design.md FIRST — repo root). owns marketing/web10-social/**
       only — runs parallel to D13, disjoint dirs. this is the deck
       screenshot next to kick/twitch: wire the missing
@@ -247,17 +247,35 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       creator page, story-first empty states (point at the
       importer), finish evicting excluded rectangles/@chatscope
       legacy components, fontawesome CDN kit out for lucide.
-      acceptance: design.md §12.
-  [ ] D13. rebuild marketing-ui on the design system (READ design.md
-      FIRST — repo root). owns marketing/marketing-ui/** only — runs
-      parallel to D12, disjoint dirs. bulma OUT entirely (D22),
-      tailwind v4 + design.md §13 tokens, dark cinematic landing
-      (lockup hero, reach-gap proof section, real screenshots), docs
-      readable (65-75ch prose, mono code), app store on house cards,
-      education-era imagery + university logos deleted. also pays
-      the brand asset debt for all three apps (svg marks, dark
-      variants, favicons/pwa icons from the keys mark, shared
-      og-image — design.md §3). acceptance: design.md §12.
+      acceptance: design.md §12. also fixed tsconfig's missing `@/*`
+      path alias (tsc -b had ~90 pre-existing errors) and the
+      alternative.png-isn't-the-keys-mark bug (decisions.md D24,
+      converged with D13).
+  [✓ 1.0.63] D13. rebuild marketing-ui on the design system. bulma OUT
+      entirely (D22), tailwind v4 + design.md §13 tokens, dark
+      cinematic landing (lockup hero, tested reach-gap proof section —
+      "real product screenshots" deferred, none exist yet to be
+      honest about), docs readable (65-75ch prose, mono code), app
+      store on house cards (first-party proof, not a catalog),
+      education-era imagery + university logos deleted. brand asset
+      debt for all three apps PARTIALLY paid: favicons/pwa icons +
+      shared og-image from the keys mark dropped in
+      .context/brand-assets/ for lanes B/D12 to apply (D13 doesn't
+      reach into ui/ or web10-social/ code); svg vectorization + dark
+      variants still open, no tracing tool in-environment. flagged:
+      design.md §3's alternative.png does not contain the keys mark —
+      needs a design.md correction (not done here, out of lane).
+  [ ] D14. parameterize web10-social's backend origins (small,
+      gates the dev/prod social deploys the same way B5's origins
+      fix gates the auth ui): Web10SocialAdapter.ts hardcodes
+      auth.web10.app/rtc.web10.app for non-local builds. read
+      VITE_API_ORIGIN / VITE_AUTH_ORIGIN / VITE_RTC_HOST from
+      import.meta.env with the current values as fallbacks — the
+      Dockerfile ARGs already exist and
+      ubuntu-deployment/docker-compose.ecosystem.yml already passes
+      them (see AGENT-OPS.md §4.1). acceptance: an env rebuild
+      points social at dev/prod domains without a code edit; tests
+      stay green.
 
 
 
@@ -279,7 +297,7 @@ LANE E — infrastructure / deployment (owns: proxmox provisioning,
       marketing-api + node (api, ui, social, rtc, minio, db) behind
       NPM with public cloudflare DNS + router-forwarded 80/443 +
       real TLS. infra panels stay LAN/VPN-only (E1 security model).
-      REPO SIDE DONE (1.0.63): docker-compose.ecosystem.yml (one
+      REPO SIDE DONE (1.0.65): docker-compose.ecosystem.yml (one
       parameterized compose, dev + prod — the staging env was cut),
       env.prod.example, social prod Dockerfile, runbook. REMAINING:
       box execution — create the web10-prod Portainer stack + NPM
@@ -295,7 +313,7 @@ LANE E — infrastructure / deployment (owns: proxmox provisioning,
       second Portainer stack from the same parameterized compose,
       own volumes + env file. promotion flow (dev soak -> prod
       redeploy) documented in README.md.
-      REPO SIDE DONE (1.0.63): compose + env.dev.example + DNS-01
+      REPO SIDE DONE (1.0.65): compose + env.dev.example + DNS-01
       procedure + promotion flow all in README.md.
       REMAINING: box execution — web10-dev stack, *.dev DNS records
       pointing at the LAN ip, DNS-01 certs. ui/social bundles wire
@@ -364,12 +382,15 @@ dev and prod actually deployed. the three beautify items are
 parallel-safe (disjoint directories).
 
   ws1: B5  level-up ui/ to design.md (lane B — ui/**)
-  ws2: D12 level-up web10-social to design.md (lane D —
-       marketing/web10-social/** only)
-  ws3: D13 rebuild marketing-ui on the design system, bulma out
-       (lane D — marketing/marketing-ui/** only) + pays the shared
-       brand asset debt (design.md §3)
-  ws4: E5/E3 REPO side merged in 1.0.63 (one parameterized
+  ws2: [✓ 1.0.64] D12 level-up web10-social to design.md (lane D —
+       marketing/web10-social/** only) — merged, see decisions.md D24
+       for the alternative.png asset correction (shared with D13).
+  ws3: [✓ 1.0.63] D13 rebuild marketing-ui on the design system, bulma
+       out (lane D — marketing/marketing-ui/** only) + partially pays
+       the shared brand asset debt (design.md §3) — icons + og-image
+       done and dropped in .context/brand-assets/ for B5/D12 to apply;
+       svg vectorization still open (no tracing tool available).
+  ws4: E5/E3 REPO side merged in 1.0.65 (one parameterized
        docker-compose.ecosystem.yml for dev/prod incl. social +
        marketing, env.{dev,prod}.example, edge NPM stack, runbook
        in README.md). staging as an env was CUT 19.07 (dev + prod
@@ -378,10 +399,10 @@ parallel-safe (disjoint directories).
        stack → dev/prod DNS (dev → LAN ip, DNS-01 certs) →
        web10-dev + web10-prod stacks + NPM hosts → smoke tests →
        decommission the legacy *.staging stack/records/caddy.
-       auth-ui/social bundles stay mis-originated until B5/D12
-       merge — rebuild the stacks after. operator prerequisites:
-       docker group for the ssh user, rotate the CF token exposed
-       in the world-readable Caddyfile.
+       auth-ui bundle stays mis-originated until B5 merges — rebuild
+       the stacks after. operator prerequisites: docker group for
+       the ssh user, rotate the CF token exposed in the
+       world-readable Caddyfile.
   ws5: C6 e2e deep sweep + bug hunt (lane C — e2e/** only; local
        stack, no deploy gate). signup-as-a-test + persona seed
        fixtures; the honest bug list is the deliverable.

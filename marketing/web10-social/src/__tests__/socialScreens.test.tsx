@@ -16,7 +16,7 @@ vi.mock('lucide-react', () => {
   const icons: Record<string, ReturnType<typeof iconFactory>> = {};
   [
     'Heart', 'MessageCircle', 'ArrowUp', 'ArrowDown', 'Flame', 'Clock',
-    'ClockArrowDown', 'Sparkles', 'Send', 'Image', 'X', 'Loader2',
+    'ClockArrowDown', 'Sparkles', 'Send', 'Image', 'ImagePlus', 'X', 'Loader2',
     'User', 'MapPin', 'Globe', 'Link', 'Camera', 'Edit3', 'Check',
     'ChevronLeft', 'MessageSquare', 'Home', 'PlusCircle', 'LogOut', 'Bug',
     'AlertTriangle', 'CheckCircle',
@@ -169,9 +169,15 @@ describe('Layout', () => {
         <div>Content</div>
       </Layout>,
     );
-    expect(screen.getByText('Feed')).toBeInTheDocument();
-    expect(screen.getByText('Profile')).toBeInTheDocument();
-    expect(screen.getByText('Messages')).toBeInTheDocument();
+    // Nav items render in both the desktop sidebar and the mobile bottom
+    // nav (CSS breakpoints hide one in a real browser; both exist in the
+    // DOM in jsdom) — assert via the stable data-testid hooks instead.
+    expect(screen.getByTestId('nav-feed')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-profile')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-messages')).toBeInTheDocument();
+    expect(screen.getAllByText('Feed').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Profile').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Messages').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders logout button', async () => {
