@@ -39,8 +39,11 @@ permission-matrix suite (45 new tests through FastAPI routes: auth
 flows, CRUD, aggregate, star protection, forged-token rejection,
 scoped-token enforcement, metering/billing, certify, system — 280
 total api tests green). still OPEN: the small security fixes below
-(CORS, bare except, provider url validation), and pytest ports of the
-old 57-test exporter mapper suite (marketing-api).
+(CORS, bare except, provider url validation), pytest ports of the
+old 57-test exporter mapper suite (marketing-api), and the js
+workflow's typecheck/build escape hatches (both run continue-on-
+error -- tests report red, a non-compiling build doesn't; see
+plan.txt ci/cd).
 
 before running 4-wide, land the thing that protects all 4 lanes:
 
@@ -132,6 +135,14 @@ LANE C — greenfield services  (owns: sdk/, mcp/, new dirs)
       --node <url> works from day one)
   [ ] C4. P10 backup integrations (drive/dropbox oauth, export/import
       archive -- format comes from D1's conventions doc)
+  [ ] C5. browser e2e harness (new top-level e2e/ dir + its ci
+      workflow): playwright-in-docker against the compose stack,
+      ~6-10 smoke journeys across ui + web10-social + marketing-ui
+      (specced in plan.txt CROSS-CUTTING quality/testing). touches
+      other lanes' apps via read-only flows only (data-testid hooks
+      by coordination, never reach-in edits). marketing-ui smoke +
+      ui auth flows are landable now; social post->feed firms up
+      with D4.
 
 LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
                                 *.md/txt)
@@ -172,6 +183,20 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
     [✓ 1.0.33] D9. P7 final tidy: rtc/ -> api/rtc/, docs/ ->
         marketing-ui/public/docs/. all references updated (compose,
         CI, CLAUDE.md). top-level tree clean.
+  [ ] D10. report-a-bug loop: feedback endpoint in marketing-api +
+      "report a bug" affordance and error boundaries in social +
+      marketing-ui (specced in plan.txt CROSS-CUTTING quality/
+      testing). the ui/ app's button is lane B territory --
+      coordinate, don't reach in. the counterweight to the thin
+      e2e layer: users become the coverage, so reporting must cost
+      them <=2 clicks.
+  [ ] D11. ux telemetry (specced in plan.txt CROSS-CUTTING quality/
+      testing -- read the surface split there before touching):
+      marketing-ui funnel analytics + js error beacon via
+      marketing-api; platform uis get content-free aggregate
+      events + the error beacon ONLY -- no session-recording js
+      on ui/ or social, ever (manifesto line). self-hosted
+      posthog/openreplay deploy, if adopted, is lane E territory.
 
 
 
