@@ -27,6 +27,9 @@ known issues refreshed (rtc/minio staging DNS verified FIXED;
 auth-ui bundle still hardcodes prod origins — live-checked).
 Remaining for E3/E5 (lane queue updated): box execution — create
 the stacks, NPM hosts, DNS records; rebuild after B5/D12 land.
+Also queued E6 push-to-deploy CI/CD (dev push → dev stack, release
+→ prod stack): Portainer GitOps polling first, Cloudflare-Tunnel'd
+stack webhooks later — NO self-hosted runner (public repo).
 
 1.0.62 || 19.07.2026
 environments + ops + e2e depth. plan.txt CROSS-CUTTING deployment now

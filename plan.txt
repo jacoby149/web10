@@ -1698,6 +1698,11 @@ volumes, env file) — never two divergent composes:
     to dev branch -> dev env redeploy (Portainer re-pull),
     tag/release -> prod redeploy. keep it manual-button simple
     until E4.
+[ ] push-to-deploy automation (E6, gated on the stacks existing):
+    dev push -> web10-dev redeploy, main release -> web10-prod.
+    repo is public => no self-hosted runner; use Portainer GitOps
+    polling first, Cloudflare-Tunnel'd stack webhooks for instant
+    deploys later. lane E queue has the full design.
 
 networking:
 [ ] VPN gateway must be up for any management access. document

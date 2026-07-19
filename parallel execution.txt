@@ -303,6 +303,29 @@ LANE E — infrastructure / deployment (owns: proxmox provisioning,
   [ ] E4. automated provisioning: terraform or ssh-api script +
       ansible for idempotent VM/LXC setup. don't rush — manual is
       fine until E2 works.
+  [ ] E6. push-to-deploy CI/CD (gated on E5/E3 stacks existing):
+      push to dev -> web10-dev redeploys, release on main ->
+      web10-prod redeploys. the repo is PUBLIC, so NO self-hosted
+      github runner (github's own guidance; fork PRs + a runner in
+      the docker group on the box = remote root). two sanctioned
+      designs, in order:
+      (1) NOW, zero new surface: Portainer git-backed stacks with
+          GitOps polling — point each stack at the repo (ref dev /
+          main, compose path ubuntu-deployment/
+          docker-compose.ecosystem.yml), auto-update ~5min. push
+          merges, box pulls. no inbound, no GH secrets, ~10 min of
+          Portainer clicking.
+      (2) LATER, instant deploys: Portainer stack webhooks exposed
+          ONLY through a Cloudflare Tunnel (cloudflared, outbound-
+          only — the 80/443-only router rule stays intact) + a tiny
+          deploy job appended to ci (curl the webhook on push to
+          dev / release). never a public proxy host to :9000 (prime
+          directive 1).
+      note: cd.yml's GHCR images can NOT serve the frontends across
+      envs yet — ui/social/marketing bake origins at BUILD time, so
+      per-env build-on-box stays correct until a runtime-config
+      refactor; the api/rtc images are env-agnostic and could
+      switch to pulls anytime.
 
 WHAT MUST STAY SEQUENTIAL (don't try to parallelize these)
 ----------------------------------------------------------
