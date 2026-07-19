@@ -155,10 +155,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       later.md, D20) + profile + dms. full conventions-schema data
       layer in src/data/ (posts, feed, profile, contacts, dms,
       comments, reactions, media upload via presigned URLs). 55 new
-      tests, 227 total green. screens deferred to D2.5 post-B2.5
-      tokens.
-      C2 sdk when it lands. acceptance: stands on its own as a plain
-      good social app, credible in a creator pitch.
+      tests, 227 total green. screens deferred to D2.5 post-B2.5 tokens.
   [✓ 1.0.27] D5. P9 exporter core + instagram mapping (needs D1 conventions;
        client-side, so no api deps) — also includes Facebook + YouTube
        mapping, multi-platform UI with takeout checklists, 57 tests
