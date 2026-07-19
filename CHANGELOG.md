@@ -20,7 +20,11 @@ D2.5 removed from package.json) excluded in vite.config.ts with a note,
 so the test step reports signal again (181 passing) instead of failing
 on dead code.
 plan.txt recovery item extended: forgot-password must be smooth, phone
-AND email as first-class reset channels. Board hygiene: #117 and #118
+AND email as first-class reset channels. New plan.txt ci item: the api
+(lint + test) job has never gone green — uv sync --frozen installs
+neither ruff nor pytest, and beneath the spawn error sit 104 ruff
+errors + 26 unformatted files; one lane-A branch fixes workflow + debt
+together. Board hygiene: #117 and #118
 raced for version 1.0.55 and both merged with it — A6 (merged second)
 renumbered to 1.0.56 here, lane tick updated to match.
 
