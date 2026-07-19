@@ -1,4 +1,7 @@
 import React from 'react';
+import { CirclePlus } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 function usePermission() {
   const permissionI = {} as Record<string, any>;
@@ -47,6 +50,35 @@ function usePermission() {
   return permissionI;
 }
 
+const CHECKBOX_CLASS =
+  'h-4 w-4 rounded-sm border-border accent-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background';
+
+function PermissionCheckboxes({ permissionI, idPrefix }: { permissionI: Record<string, any>; idPrefix: string }) {
+  const rows: Array<['create' | 'read' | 'update' | 'delete', (v: boolean) => void]> = [
+    ['create', permissionI.setCreate],
+    ['read', permissionI.setRead],
+    ['update', permissionI.setUpdate],
+    ['delete', permissionI.setDelete],
+  ];
+  return (
+    <div className="mt-2 flex flex-wrap gap-4">
+      {rows.map(([key, setter]) => (
+        <label key={key} className="flex items-center gap-1.5 text-sm text-muted-foreground">
+          <input
+            id={`${idPrefix}-${key}`}
+            type="checkbox"
+            className={CHECKBOX_CLASS}
+            checked={permissionI.entry[key]}
+            onChange={(e) => setter(e.target.checked)}
+            data-testid={`${idPrefix}-${key}-checkbox`}
+          />
+          {key}
+        </label>
+      ))}
+    </div>
+  );
+}
+
 function WhiteListEditor({ contractI }: { contractI: Record<string, any> }) {
   const permissionI = usePermission();
   function add(entry: any) {
@@ -58,32 +90,30 @@ function WhiteListEditor({ contractI }: { contractI: Record<string, any> }) {
     }
   }
   return (
-    <div className="mt-3.5">
+    <div className="mt-3.5 rounded-sm bg-elevated p-3">
       <div className="flex items-center gap-2">
-        <input value={permissionI.entry.provider} onChange={(e) => permissionI.setProvider(e.target.value)} className="w-[120px] px-2 py-1 rounded border text-sm" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }} placeholder="web10.app" />
-        <input value={permissionI.entry.username} onChange={(e) => permissionI.setUsername(e.target.value)} className="w-[120px] px-2 py-1 rounded border text-sm" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }} placeholder="jacoby149" />
-        <button onClick={() => add(permissionI.entry)} className="text-sm font-medium hover:opacity-80" style={{ color: 'var(--color-primary-600)' }}>
-          <i className="fa fa-circle-plus mr-0.5 font-weight-bold" style={{ color: '#99aacc' }}></i>allow
-        </button>
+        <Input
+          value={permissionI.entry.provider}
+          onChange={(e) => permissionI.setProvider(e.target.value)}
+          className="w-[130px]"
+          placeholder="web10.app"
+          aria-label="Provider to allow"
+          data-testid="whitelist-provider-input"
+        />
+        <Input
+          value={permissionI.entry.username}
+          onChange={(e) => permissionI.setUsername(e.target.value)}
+          className="w-[130px]"
+          placeholder="username"
+          aria-label="Username to allow"
+          data-testid="whitelist-username-input"
+        />
+        <Button variant="ghost" size="sm" onClick={() => add(permissionI.entry)} data-testid="whitelist-add">
+          <CirclePlus className="mr-1.5 h-4 w-4 text-brand-300" strokeWidth={1.5} />
+          Allow
+        </Button>
       </div>
-      <div className="flex gap-4 mt-1.5">
-        <label className="flex items-center gap-1 text-sm cursor-pointer">
-          <input type="checkbox" checked={permissionI.entry.create} onChange={(e) => permissionI.setCreate(e.target.checked)} />
-          create
-        </label>
-        <label className="flex items-center gap-1 text-sm cursor-pointer">
-          <input type="checkbox" checked={permissionI.entry.read} onChange={(e) => permissionI.setRead(e.target.checked)} />
-          read
-        </label>
-        <label className="flex items-center gap-1 text-sm cursor-pointer">
-          <input type="checkbox" checked={permissionI.entry.update} onChange={(e) => permissionI.setUpdate(e.target.checked)} />
-          update
-        </label>
-        <label className="flex items-center gap-1 text-sm cursor-pointer">
-          <input type="checkbox" checked={permissionI.entry.delete} onChange={(e) => permissionI.setDelete(e.target.checked)} />
-          delete
-        </label>
-      </div>
+      <PermissionCheckboxes permissionI={permissionI} idPrefix="whitelist" />
     </div>
   );
 }
@@ -99,32 +129,30 @@ function BlackListEditor({ contractI }: { contractI: Record<string, any> }) {
     }
   }
   return (
-    <div className="mt-3.5">
+    <div className="mt-3.5 rounded-sm bg-elevated p-3">
       <div className="flex items-center gap-2">
-        <input value={permissionI.entry.provider} onChange={(e) => permissionI.setProvider(e.target.value)} className="w-[120px] px-2 py-1 rounded border text-sm" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }} placeholder="web10.app" />
-        <input value={permissionI.entry.username} onChange={(e) => permissionI.setUsername(e.target.value)} className="w-[120px] px-2 py-1 rounded border text-sm" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }} placeholder="jacoby149" />
-        <button onClick={() => add(permissionI.entry)} className="text-sm font-medium hover:opacity-80" style={{ color: 'var(--color-primary-600)' }}>
-          <i className="fa fa-circle-plus mr-0.5 font-weight-bold" style={{ color: '#99aacc' }}></i>block
-        </button>
+        <Input
+          value={permissionI.entry.provider}
+          onChange={(e) => permissionI.setProvider(e.target.value)}
+          className="w-[130px]"
+          placeholder="web10.app"
+          aria-label="Provider to block"
+          data-testid="blacklist-provider-input"
+        />
+        <Input
+          value={permissionI.entry.username}
+          onChange={(e) => permissionI.setUsername(e.target.value)}
+          className="w-[130px]"
+          placeholder="username"
+          aria-label="Username to block"
+          data-testid="blacklist-username-input"
+        />
+        <Button variant="ghost" size="sm" onClick={() => add(permissionI.entry)} data-testid="blacklist-add">
+          <CirclePlus className="mr-1.5 h-4 w-4 text-brand-300" strokeWidth={1.5} />
+          Block
+        </Button>
       </div>
-      <div className="flex gap-4 mt-1.5">
-        <label className="flex items-center gap-1 text-sm cursor-pointer">
-          <input type="checkbox" checked={permissionI.entry.create} onChange={(e) => permissionI.setCreate(e.target.checked)} />
-          create
-        </label>
-        <label className="flex items-center gap-1 text-sm cursor-pointer">
-          <input type="checkbox" checked={permissionI.entry.read} onChange={(e) => permissionI.setRead(e.target.checked)} />
-          read
-        </label>
-        <label className="flex items-center gap-1 text-sm cursor-pointer">
-          <input type="checkbox" checked={permissionI.entry.update} onChange={(e) => permissionI.setUpdate(e.target.checked)} />
-          update
-        </label>
-        <label className="flex items-center gap-1 text-sm cursor-pointer">
-          <input type="checkbox" checked={permissionI.entry.delete} onChange={(e) => permissionI.setDelete(e.target.checked)} />
-          delete
-        </label>
-      </div>
+      <PermissionCheckboxes permissionI={permissionI} idPrefix="blacklist" />
     </div>
   );
 }

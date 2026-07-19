@@ -1,134 +1,155 @@
-import { useEffect, useState } from 'react'
-import axios from 'axios'
+import { Send, Inbox, ShieldCheck } from 'lucide-react'
+import { Button } from '../components/ui/button'
+import { Card, CardHeader, CardTitle, CardDescription } from '../components/ui/card'
+import {
+  REACH_GAP_EXAMPLE,
+  WEB10_DELIVERY_PERCENT,
+  deliveryPercent,
+  formatFollowerCount,
+} from '../lib/reachGap'
 
-const API_URL = window.location.protocol === 'https:'
-  ? 'https://api.web10.app'
-  : 'http://api.localhost'
-
-function Stats() {
-  const [stats, setStats] = useState({ users: '..', apps: '..', visits: '..', data: '..' })
-
-  useEffect(() => {
-    axios.get(`${API_URL}/stats`).then(r => {
-      const d = r.data
-      setStats({
-        users: d.registered_users?.toLocaleString() || '..',
-        apps: d.app_count?.toLocaleString() || '..',
-        visits: d.total_visits?.toLocaleString() || '..',
-        data: d.liberated_data || '..',
-      })
-    }).catch(() => {})
-  }, [])
-
+function Hero() {
   return (
-    <section className="section" style={{ backgroundColor: '#1a1a2e', color: 'white' }}>
-      <div className="container">
-        <div className="columns is-centered">
-          <div className="column is-one-quarter has-text-centered">
-            <span className="icon is-large">
-              <i className="fa fa-child" style={{ fontSize: '48px' }}></i>
-            </span>
-            <p className="heading">Registered Users</p>
-            <p className="title">{stats.users}</p>
-          </div>
-          <div className="column is-one-quarter has-text-centered">
-            <span className="icon is-large">
-              <i className="fa fa-slideshare" style={{ fontSize: '48px' }}></i>
-            </span>
-            <p className="heading">Registered Apps</p>
-            <p className="title">{stats.apps}</p>
-          </div>
-          <div className="column is-one-quarter has-text-centered">
-            <span className="icon is-large">
-              <i className="fa fa-edit" style={{ fontSize: '48px' }}></i>
-            </span>
-            <p className="heading">Total App Visits</p>
-            <p className="title">{stats.visits}</p>
-          </div>
-          <div className="column is-one-quarter has-text-centered">
-            <span className="icon is-large">
-              <i className="fa fa-slack" style={{ fontSize: '48px' }}></i>
-            </span>
-            <p className="heading">Data Liberated</p>
-            <p className="title">{stats.data} MB</p>
-          </div>
+    <section className="relative overflow-hidden border-b border-border bg-background px-4 pt-24 pb-20 sm:px-6 sm:pt-32 sm:pb-28">
+      {/* the one permitted decorative flourish (design.md §4) */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute left-1/2 top-16 h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-brand opacity-20 blur-[120px]"
+      />
+      <div className="relative mx-auto flex max-w-3xl flex-col items-center text-center">
+        <p className="reveal mb-6 text-[0.75rem] font-medium uppercase tracking-[0.04em] text-muted-foreground">
+          The web10 node
+        </p>
+        <img
+          src="/brand/logo-lockup.png"
+          alt="web10"
+          className="reveal mb-8 h-10 [animation-delay:80ms] sm:h-12"
+        />
+        <h1 className="reveal font-display text-4xl font-bold leading-[1.1] tracking-[-0.02em] [animation-delay:160ms] sm:text-5xl lg:text-[3.5rem]">
+          Own your audience.
+        </h1>
+        <p className="reveal mt-6 max-w-xl text-lg leading-[1.6] text-muted-foreground [animation-delay:240ms]">
+          Every post reaches every follower. Not a promise the algorithm can
+          revoke — an architecture that can't.
+        </p>
+        <div className="reveal mt-10 [animation-delay:320ms]">
+          <Button asChild size="lg" variant="brand">
+            <a href="https://auth.web10.app">Enter web10</a>
+          </Button>
         </div>
       </div>
     </section>
   )
 }
 
-function Features() {
+function ReachGapBar({
+  label,
+  shown,
+  followers,
+  tone,
+}: {
+  label: string
+  shown: number
+  followers: number
+  tone: 'muted' | 'brand'
+}) {
+  const pct = deliveryPercent(shown, followers)
   return (
-    <section className="section">
-      <div className="container">
-        <div className="columns">
-          <div className="column is-one-third has-text-centered">
-            <span className="icon is-large">
-              <i className="fa fa-sitemap" style={{ fontSize: '48px', color: '#3273dc' }}></i>
-            </span>
-            <h3 className="title is-4">Peer to Peer</h3>
-            <p>High speed experiences, connecting device to device via WebRTC datachannel technology.</p>
-          </div>
-          <div className="column is-one-third has-text-centered">
-            <span className="icon is-large">
-              <i className="fa fa-bank" style={{ fontSize: '48px', color: '#3273dc' }}></i>
-            </span>
-            <h3 className="title is-4">Own Your Data</h3>
-            <p>Bring your data with you across all the internet. Your data isn't stuck anymore, it's on your domain on your terms.</p>
-          </div>
-          <div className="column is-one-third has-text-centered">
-            <span className="icon is-large">
-              <i className="fa fa-chain" style={{ fontSize: '48px', color: '#3273dc' }}></i>
-            </span>
-            <h3 className="title is-4">Data Freedom</h3>
-            <p>Leverage web10 data with user consent. No more company gatekeeping to build integrated and relevant apps.</p>
-          </div>
+    <div className="flex flex-col gap-2">
+      <div className="flex items-baseline justify-between text-sm">
+        <span className="font-medium text-foreground">{label}</span>
+        <span className="font-mono tabular-nums text-muted-foreground">
+          {formatFollowerCount(shown)} / {formatFollowerCount(followers)} shown ({pct}%)
+        </span>
+      </div>
+      <div className="h-3 w-full overflow-hidden rounded-full bg-elevated">
+        <div
+          className={`h-full rounded-full ${tone === 'brand' ? 'bg-brand' : 'bg-muted-foreground/60'}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  )
+}
+
+function ReachGap() {
+  return (
+    <section className="border-b border-border bg-background px-4 py-24 sm:px-6 sm:py-32">
+      <div className="mx-auto max-w-3xl">
+        <h2 className="reveal font-display text-3xl font-bold tracking-[-0.02em] sm:text-4xl">
+          The reach gap is real.
+        </h2>
+        <p className="reveal mt-4 max-w-xl text-muted-foreground [animation-delay:80ms]">
+          A million followers, and the platform decides which 300,000 see the
+          next post. Subscribing was never delivery — it was permission for
+          the algorithm to maybe show you. That gap is visible in your own
+          analytics right now.
+        </p>
+
+        <div className="reveal mt-10 flex flex-col gap-6 [animation-delay:160ms]">
+          <ReachGapBar
+            label="Elsewhere"
+            shown={REACH_GAP_EXAMPLE.shownElsewhere}
+            followers={REACH_GAP_EXAMPLE.followers}
+            tone="muted"
+          />
+          <ReachGapBar
+            label="On your web10 node"
+            shown={REACH_GAP_EXAMPLE.followers}
+            followers={REACH_GAP_EXAMPLE.followers}
+            tone="brand"
+          />
         </div>
+
+        <p className="reveal mt-8 text-sm text-muted-foreground [animation-delay:240ms]">
+          Same following. Same post. {WEB10_DELIVERY_PERCENT}% delivery on
+          your node is architecture, not a setting someone can change.
+        </p>
       </div>
     </section>
   )
 }
 
-function Team() {
-  const members = [
-    {
-      name: 'Jacob Hoffman',
-      role: 'Computer Engineer, X-IBMer',
-      title: 'Founder',
-      img: '/layouts/images/2022.jpg',
-      link: 'https://jacobhoffman.xyz/resume.pdf',
-    },
-    {
-      name: 'Slava Oks',
-      role: 'VP of Research @ MongoDB',
-      title: 'Advisor',
-      img: '/layouts/images/slava.jpg',
-      link: 'https://www.linkedin.com/in/slava-oks-6602323',
-    },
-  ]
+const HOW_IT_WORKS = [
+  {
+    icon: Send,
+    title: 'You post once',
+    description: 'Text, photos, video — published from your node, on your domain.',
+  },
+  {
+    icon: Inbox,
+    title: 'It fans out on write',
+    description:
+      "Every follower's inbox gets the post the instant you publish. No feed algorithm decides who's shown.",
+  },
+  {
+    icon: ShieldCheck,
+    title: '100% delivery, by architecture',
+    description:
+      "It can't be quietly revoked, because it isn't a policy — it's how the inbox pattern works.",
+  },
+]
 
+// staggered ≤80ms apart (design.md §7) — literal classes, not a template
+// literal, so Tailwind's static scanner can find them at build time.
+const STAGGER_DELAY = ['[animation-delay:0ms]', '[animation-delay:80ms]', '[animation-delay:160ms]']
+
+function HowItWorks() {
   return (
-    <section className="section" style={{ backgroundColor: '#f5f5f5' }}>
-      <div className="container">
-        <h2 className="title is-3 has-text-centered">Team</h2>
-        <div className="columns is-centered">
-          {members.map(m => (
-            <div key={m.name} className="column is-one-third">
-              <div className="card">
-                <div className="card-image">
-                  <figure className="image is-4by3">
-                    <img src={m.img} alt={m.name} />
-                  </figure>
-                </div>
-                <div className="card-content has-text-centered">
-                  <p className="title is-5">{m.name}</p>
-                  <p className="subtitle is-6">{m.role}</p>
-                  <p className="subtitle is-6">{m.title}</p>
-                  <a href={m.link} target="_blank" rel="noopener noreferrer">LinkedIn / Resume</a>
-                </div>
-              </div>
-            </div>
+    <section className="bg-background px-4 py-24 sm:px-6 sm:py-32">
+      <div className="mx-auto max-w-5xl">
+        <h2 className="reveal text-center font-display text-3xl font-bold tracking-[-0.02em] sm:text-4xl">
+          How it works
+        </h2>
+        <div className="mt-12 grid gap-6 sm:grid-cols-3">
+          {HOW_IT_WORKS.map((step, i) => (
+            <Card key={step.title} className={`reveal bg-surface ${STAGGER_DELAY[i]}`}>
+              <CardHeader>
+                <step.icon className="mb-2 h-6 w-6 text-brand-400" strokeWidth={1.5} />
+                <CardTitle>{step.title}</CardTitle>
+                <CardDescription>{step.description}</CardDescription>
+              </CardHeader>
+            </Card>
           ))}
         </div>
       </div>
@@ -138,28 +159,14 @@ function Team() {
 
 function Footer() {
   return (
-    <footer className="footer" style={{ backgroundColor: '#1a1a2e', color: 'white' }}>
-      <div className="container">
-        <div className="columns">
-          <div className="column is-one-third">
-            <h4 className="title is-5">Contact Us</h4>
-            <p>Email: jacob@web10.app</p>
-          </div>
-          <div className="column is-one-third">
-            <h4 className="title is-5">Navigate</h4>
-            <ul>
-              <li><a href="/docs" style={{ color: 'white' }}>Docs</a></li>
-              <li><a href="https://auth.web10.app" style={{ color: 'white' }}>Sign In</a></li>
-            </ul>
-          </div>
-          <div className="column is-one-third">
-            <h4 className="title is-5">Resources</h4>
-            <p><a href="https://docs.web10.app/web10.pdf" style={{ color: '#3273dc' }}>Deck</a></p>
-            <p>We are currently raising capital. Contact us if interested in investing.</p>
-          </div>
-        </div>
-        <div className="has-text-centered" style={{ marginTop: '2rem' }}>
-          <p>Copyright &copy; {new Date().getFullYear()} - All Rights Reserved - web10</p>
+    <footer className="border-t border-border bg-background px-4 py-12 sm:px-6">
+      <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 text-sm text-muted-foreground sm:flex-row sm:justify-between">
+        <span>&copy; {new Date().getFullYear()} web10</span>
+        <div className="flex gap-6">
+          <a href="/docs" className="hover:text-foreground">Docs</a>
+          <a href="/app-store" className="hover:text-foreground">App Store</a>
+          <a href="https://auth.web10.app" className="hover:text-foreground">Sign In</a>
+          <a href="https://github.com/jacoby149/web10" className="hover:text-foreground">GitHub</a>
         </div>
       </div>
     </footer>
@@ -169,33 +176,9 @@ function Footer() {
 function Home() {
   return (
     <>
-      <section className="hero is-medium is-dark" style={{ backgroundImage: "url('/layouts/images/back2.jpg')", backgroundAttachment: 'fixed' }}>
-        <div className="hero-overlay" />
-        <div className="hero-body has-text-centered">
-          <div className="container">
-            <h1 className="title is-1">
-              The web10 <span style={{ color: 'skyblue' }}>Revolution</span>
-            </h1>
-            <p className="subtitle" style={{ fontSize: '1.4rem', maxWidth: '700px', margin: '0 auto 2rem' }}>
-              Use a web10 app. Sign up for an account. Get a domain name to start owning your photos, music, and data on the internet.
-            </p>
-            <a className="button is-primary is-large" href="https://auth.web10.app">
-              Enter web10
-            </a>
-          </div>
-        </div>
-      </section>
-      <Features />
-      <Stats />
-      <section className="section has-text-centered" style={{ backgroundColor: '#fafafa' }}>
-        <div className="container">
-          <blockquote style={{ fontSize: '1.3rem', fontStyle: 'italic', maxWidth: '600px', margin: '0 auto' }}>
-            "We pledge to make an internet space in which users lead their internet destiny."
-          </blockquote>
-          <p className="has-text-grey mt-3">- web10 Team, 2022</p>
-        </div>
-      </section>
-      <Team />
+      <Hero />
+      <ReachGap />
+      <HowItWorks />
       <Footer />
     </>
   )

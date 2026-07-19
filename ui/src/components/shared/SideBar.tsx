@@ -1,57 +1,59 @@
+import { Star } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
 interface SideBarProps {
   I: Record<string, any>;
 }
 
 function SideBar({ I }: SideBarProps) {
+  // Bug fix (design.md/B5): this used to be a literal string
+  // `+ " style={{ borderColor: ... }}"` concatenated into className —
+  // it did nothing (className isn't parsed for inline style syntax) and
+  // the border/color never applied. Real Tailwind utilities now.
   const menuItemClass =
-    "w-full px-4 py-2.5 text-left text-sm font-medium rounded-lg transition-colors border-b hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer flex items-center"
-    + " style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}";
+    'flex w-full items-center rounded border-b border-border px-4 py-2.5 text-left text-sm font-medium text-foreground transition-colors hover:bg-elevated cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
   return (
     <div
-      className="flex flex-col justify-between"
-      style={{
-        width: I.menuCollapsed ? "0" : "220px",
-        borderRight: `1px solid var(--color-border)`,
-        overflow: "hidden",
-        transition: "width 0.2s ease",
-      }}
+      className={cn(
+        'hidden flex-col justify-between overflow-hidden border-r border-border bg-surface transition-[width] duration-200 ease-out md:flex',
+        I.menuCollapsed ? 'w-0' : 'w-[220px]',
+      )}
+      data-testid="sidebar"
     >
       <div>
         {I.isAuth ? (
           I.isAuthenticated() ? (
-            <div className="px-2">
+            <div className="px-2 py-2">
               <div className={menuItemClass} onClick={() => I.setMode("contracts")}>Contracts</div>
               <div className={menuItemClass} onClick={() => I.setMode("requests")}>Active Requests</div>
               <div className={menuItemClass} onClick={() => I.setMode("settings")}>Settings</div>
               <div className={menuItemClass} onClick={() => I.setMode("config")}>Node Config</div>
+              <div className={menuItemClass} onClick={() => I.setMode("studio")}>Studio</div>
               <div
-                className={menuItemClass}
+                className={cn(menuItemClass, 'text-warning underline')}
                 onClick={() => I.logout()}
-                style={{ color: "var(--color-warning)" }}
               >
-                <u>Log Out</u>
+                Log Out
               </div>
             </div>
           ) : (
-            <div className="px-2">
+            <div className="px-2 py-2">
               <div
-                className={menuItemClass}
+                className={cn(menuItemClass, 'text-warning underline')}
                 onClick={() => I.setMode("login")}
-                style={{ color: "var(--color-warning)" }}
               >
-                <u>Log In</u>
+                Log In
               </div>
             </div>
           )
         ) : (
-          <div className="px-2">
+          <div className="px-2 py-2">
             <div
-              className={menuItemClass}
+              className={cn(menuItemClass, 'text-warning underline')}
               onClick={() => I.setMode("forgot")}
-              style={{ color: "var(--color-warning)" }}
             >
-              <u>Forgot Password</u>
+              Forgot Password
             </div>
             <div className={menuItemClass} onClick={() => window.open("https://docs.web10.app", "_blank")}>SDK Docs</div>
             <div className={menuItemClass} onClick={() => window.open("https://github.com/jacoby149/web10", "_blank")}>Host A Node</div>
@@ -59,22 +61,24 @@ function SideBar({ I }: SideBarProps) {
         )}
       </div>
 
-      <div className="p-4" style={{ borderTop: "1px solid var(--color-border)" }}>
-        <div className="text-xs" style={{ fontFamily: "var(--font-mono)", color: 'var(--color-text-secondary)' }}>
+      <div className="border-t border-border p-4">
+        <div className="font-mono text-xs text-muted-foreground">
           Invented by{" "}
-          <a href="https://jacobhoffman.xyz" className="underline hover:opacity-80">
+          <a href="https://jacobhoffman.xyz" className="underline hover:text-foreground">
             Jacob Hoffman
           </a>
-          <br />
-          <iframe
-            src="https://ghbtns.com/github-btn.html?user=jacoby149&repo=web10&type=star&count=true&size=large"
-            frameBorder="0"
-            scrolling="0"
-            width="170"
-            height="30"
-            title="GitHub"
-            style={{ marginTop: "5px" }}
-          />
+          {/* was a ghbtns.com iframe — an unthemeable white rectangle on the
+              dark sidebar (and a third-party embed). Token-styled link instead. */}
+          <a
+            href="https://github.com/jacoby149/web10"
+            target="_blank"
+            rel="noreferrer"
+            className="mt-2 flex w-fit items-center gap-1.5 rounded-sm border border-border px-2 py-1 text-muted-foreground transition-colors hover:bg-elevated hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            data-testid="sidebar-github-star"
+          >
+            <Star className="h-3.5 w-3.5" strokeWidth={1.5} />
+            Star web10 on GitHub
+          </a>
         </div>
       </div>
     </div>

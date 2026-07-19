@@ -9,6 +9,103 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D25 — DB backend is per-env config, not baked; prod bootstraps on the host mongo [decided]
+The node's DB is a config item (`db_url`/`db_name` in `NodeConfig`,
+default `mongodb://ferretdb:27017`), and the backend is wire-protocol
+compatible either way (documentdb.py speaks to real Mongo OR
+FerretDB/DocumentDB — D3). So the DB hookup is chosen PER ENVIRONMENT,
+never hardcoded:
+- **dev = all-in-one.** The containerized FerretDB/DocumentDB inside
+  the stack. Self-contained: one Portainer stack, its own volume,
+  clean wipe+reseed (pairs with the C6 persona seed), dev/prod
+  parity for everything except the data source. `docker compose up`
+  works out of the box on the defaults — the local dev experience.
+- **prod = bootstrap on the existing HOST mongo (A7).** It already
+  holds the ~208 real users + the original app-store apps and runs
+  natively on the box (not a container). Point prod's `db_url` at it
+  (host gateway / LAN ip) to go live on real data with zero migration
+  risk. This is a config change, not code.
+- **eventual: migrate prod into the containerized documentdb** so
+  prod is ALSO self-contained + license-clean. Two reasons it
+  shouldn't stay on host mongo forever: (1) SSPL — the whole point of
+  D3 was that MongoDB's license is a problem for the node-operator
+  model; the flagship prod node running real Mongo re-introduces it;
+  (2) the host mongo is outside the stack lifecycle (separate backup,
+  no compose record). Path: `mongodump` host → `mongorestore` into the
+  container (plan.txt already lists the mongo→ferretdb migration),
+  then flip `db_url`. Data-only, no app change.
+
+Where config lives: IN THE DB, WordPress-style (wp_options in mysql).
+`web10.config` holds the node config doc (`_id:"node"`, `{body:{...}}`),
+`web10.jwt_keys` holds the signing keys — `api/app/services/config.py`.
+Not a flat file on the data volume (older plan wording said "data
+volume"; the real store is the db collection).
+
+The ONE exception, by necessity: **`db_url` itself can't live in the
+db** — chicken-and-egg, you need the connection string to reach the db
+that would hold it. So `db_url` is bootstrapped from env/stack config
+(compose `DB_URL` → `settings.DB_URL` → the pymongo client), and
+everything else (provider, policy, S3, stripe/twilio, branding) lives
+in `web10.config` and is editable in the panel. This is exactly why
+`ConfigUpdate` omits `db_url`/`db_name` and `SetupRequest` takes them
+as a bootstrap input — it's architecturally correct, not just a
+guardedness choice (and it happens to also be the safe default, since
+repointing a live node's DB swaps its whole data identity).
+
+Corollary — the WordPress-style first-run: a node boots into a setup
+wizard + config panel where an operator CAN set everything (provider,
+DB, S3, policy, stripe/twilio, branding — `NodeConfig` already models
+all of it) but sane DEFAULTS mean `docker compose up` just works for a
+dev.
+
+### D24 — design.md §3 correction: `web10-social/public/alternative.png` was never the keys mark [decided]
+D12 (web10-social level-up) and D13 (marketing-ui rebuild) independently
+discovered the same bug while paying the asset debt design.md §3 queued:
+`marketing/web10-social/public/alternative.png` — the file design.md's
+canonical table names as "the keys mark alone, white on transparent" — is
+actually an unrelated line-art illustration of a person playing guitar.
+White-on-transparent on a white background renders blank, which is why it
+went unnoticed. Decision: derive the real square mark from the existing
+lockup (`marketing-ui/public/brand/logo-lockup.png`, formerly
+`layouts/images/logo_white.png`) by cropping the keys glyph to its bounding
+box and padding to a square — "from existing files," not a redrawn
+approximation. D13 generated `.context/brand-assets/` (keys-mark-source-
+transparent.png, icon-192/512.png and favicon.ico composited on `#09090b`,
+apple-touch-icon.png) for B5 and D12 to apply inside their own directories;
+D12 applied them in `marketing/web10-social/public/` (replacing
+`alternative.png`, `logo192.png`, `logo512.png`, `favicon.ico`, adding
+`apple-touch-icon.png`). design.md §3's table still names `alternative.png`
+as the canonical square mark — that entry is now correct again in content,
+but the file's provenance (derived crop, not vectorized) should be updated
+there by whoever next touches design.md's asset section. SVG vectorization
+remains unpaid debt (no bitmap-tracing tool was available in-sandbox).
+Rejects: shipping the guitar illustration knowingly mislabeled, and
+inventing a new mark from scratch (design.md explicitly forbids this).
+
+### D23 — One design language, dark-first violet, design.md is the law [decided]
+The three frontends had drifted into three styling worlds (ui/: light-first
+blue Tailwind + inline styles; web10-social: dark shadcn violet; marketing-ui:
+Bulma with hardcoded hex), the "shared tokens" existed only as a comment, and
+the repo shipped boilerplate as brand — the React atom as logo512.png and
+Apple's App Store glyph as hub.png (a trademark problem, not a taste problem).
+Decision: a single binding standard, `design.md` at the repo root, that every
+agent must read before touching any user-facing surface (gated in CLAUDE.md +
+AGENTS.md). Its calls: dark-first everywhere (the only real logos are
+white-on-transparent; the creator world — Kick/Twitch/OBS/Discord — lives
+dark; D20's bar is Kick/Twitch-grade slick); brand accent is the violet
+already in web10-social (#8b5cf6 on zinc #09090b); canonical marks are the
+keys lockup (`marketing-ui/.../logo_white.png`) and square keys mark
+(`web10-social/public/alternative.png`) — files named `logo*.png` are NOT
+logos and get purged; type is self-hosted Inter (UI) + Space Grotesk
+(display) + JetBrains Mono (code), never Google-CDN'd; tokens are one
+Tailwind v4 @theme block (design.md §13) copied verbatim per app; marketing-ui
+migrates off Bulma entirely (already rejected in D22); quality is enforced by
+the screenshot test + PR screenshots (desktop + 375px) in design.md §12.
+Rejects: per-app palettes, light-first defaults, a shared npm package for
+tokens (premature — verbatim copies with a sync header), FontAwesome (CDN
+kit = privacy leak; Lucide only), and treating brand assets as "just images"
+— shipping someone else's trademark is a legal bug.
+
 ### D22 — UI stack: Tailwind CSS + shadcn/ui, replacing rectangles-npm [decided]
 rectangles-npm is a homemade layout framework only one person understands;
 uis built on it read as engineering prototypes, not products. The replacement

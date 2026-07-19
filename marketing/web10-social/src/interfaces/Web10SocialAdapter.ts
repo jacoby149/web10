@@ -1,4 +1,5 @@
 import { wapiInit } from 'web10-npm';
+import { AUTH_ORIGIN, RTC_HOST } from '../lib/origins';
 import type { Contact, Identity, Message, Post } from '../types';
 import contactIco from '../assets/images/Contact.png';
 import {
@@ -167,15 +168,15 @@ const web10SocialAdapterInit = (): Web10SocialAdapter => {
   const local = queryParameters.get('local');
 
   const wapi = wapiInit(
-    local ? 'http://auth.localhost' : 'https://auth.web10.app',
+    local ? 'http://auth.localhost' : AUTH_ORIGIN,
     undefined,
-    local ? 'rtc.localhost' : 'rtc.web10.app'
+    local ? 'rtc.localhost' : RTC_HOST
   ) as WapiInstance;
 
   // Initialize the typed wapi wrapper for the data layer
   const wapiWrapper = createWapiWrapper(
-    local ? 'http://auth.localhost' : 'https://auth.web10.app',
-    local ? 'rtc.localhost' : 'rtc.web10.app',
+    local ? 'http://auth.localhost' : AUTH_ORIGIN,
+    local ? 'rtc.localhost' : RTC_HOST,
   );
 
   const adapter: Partial<Web10SocialAdapter> & WapiInstance = { ...wapi };
@@ -184,76 +185,83 @@ const web10SocialAdapterInit = (): Web10SocialAdapter => {
     return adapter.openAuthPortal?.() ?? Promise.resolve();
   };
 
+  // Sites allowed to act on these services. Including the host the app
+  // is actually served from means a dev/prod deploy authorizes itself
+  // without this list needing a code edit per environment.
+  const crossOrigins = Array.from(
+    new Set(['localhost', 'web10social.netlify.app', 'social.web10.app', window.location.hostname]),
+  );
+
   const sirs = [
     {
       service: 'identity',
-      cross_origins: ['localhost', 'web10social.netlify.app', 'social.web10.app'],
+      cross_origins: crossOrigins,
       whitelist: [{ provider: '.*', username: '.*', read: true }],
     },
     {
       service: 'bulletin',
-      cross_origins: ['localhost', 'web10social.netlify.app', 'social.web10.app'],
+      cross_origins: crossOrigins,
       provider: '.*',
       username: '.*',
       read: true,
     },
     {
       service: 'contact-addresses',
-      cross_origins: ['localhost', 'web10social.netlify.app', 'social.web10.app'],
+      cross_origins: crossOrigins,
     },
     {
       service: 'message-inbox',
-      cross_origins: ['localhost', 'web10social.netlify.app', 'social.web10.app'],
+      cross_origins: crossOrigins,
       whitelist: [{ provider: '.*', username: '.*', create: true }],
     },
     {
       service: 'message-outbox',
-      cross_origins: ['localhost', 'web10social.netlify.app', 'social.web10.app'],
+      cross_origins: crossOrigins,
     },
     {
       service: 'posts',
-      cross_origins: ['localhost', 'web10social.netlify.app', 'social.web10.app'],
+      cross_origins: crossOrigins,
       whitelist: [{ provider: '.*', username: '.*', read: true }],
     },
     {
       service: 'crm-contacts',
-      cross_origins: ['localhost', 'web10social.netlify.app', 'social.web10.app'],
+      cross_origins: crossOrigins,
     },
     {
       service: 'crm-notes',
-      cross_origins: ['localhost', 'web10social.netlify.app', 'social.web10.app'],
+      cross_origins: crossOrigins,
     },
     {
       service: 'mail',
-      cross_origins: ['localhost', 'web10social.netlify.app', 'social.web10.app'],
+      cross_origins: crossOrigins,
       whitelist: [{ username: '.*', provider: '.*', create: true }],
     },
     // ── D4: conventions-schema services ──────────────────────────────
     {
       service: 'profile',
-      cross_origins: ['localhost', 'web10social.netlify.app', 'social.web10.app'],
+      cross_origins: crossOrigins,
       whitelist: [{ provider: '.*', username: '.*', read: true }],
     },
     {
       service: 'contacts',
-      cross_origins: ['localhost', 'web10social.netlify.app', 'social.web10.app'],
+      cross_origins: crossOrigins,
     },
     {
       service: 'inbox',
-      cross_origins: ['localhost', 'web10social.netlify.app', 'social.web10.app'],
+      cross_origins: crossOrigins,
       whitelist: [{ provider: '.*', username: '.*', create: true }],
     },
     {
       service: 'comments',
-      cross_origins: ['localhost', 'web10social.netlify.app', 'social.web10.app'],
+      cross_origins: crossOrigins,
     },
     {
       service: 'reactions',
-      cross_origins: ['localhost', 'web10social.netlify.app', 'social.web10.app'],
+      cross_origins: crossOrigins,
     },
     {
       service: 'media',
-      cross_origins: ['localhost', 'web10social.netlify.app', 'social.web10.app'],
+      cross_origins: crossOrigins,
     },
   ];
   adapter.SMROnReady(sirs, []);

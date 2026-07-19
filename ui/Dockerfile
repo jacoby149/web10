@@ -12,6 +12,22 @@ EXPOSE 80
 
 FROM dev AS build
 
+# Backend origins baked into the bundle at build time (fixes the
+# staging-ships-wrong-API bug — see ubuntu-deployment/AGENT-OPS.md §4.1
+# and .context/laneE-ui-build-args.md). Unset ARGs become empty strings,
+# which config.ts/env.ts treat as falsy and fall back to the
+# api.web10.app/auth.web10.app/rtc.web10.app production defaults, so
+# omitting them is safe for a prod build. VITE_* aliases are accepted
+# too (vite.config.js envPrefix allows both).
+ARG REACT_APP_AUTH_ORIGIN
+ARG REACT_APP_API_ORIGIN
+ARG REACT_APP_RTC_ORIGIN
+ARG REACT_APP_DEFAULT_API
+ENV REACT_APP_AUTH_ORIGIN=${REACT_APP_AUTH_ORIGIN} \
+    REACT_APP_API_ORIGIN=${REACT_APP_API_ORIGIN} \
+    REACT_APP_RTC_ORIGIN=${REACT_APP_RTC_ORIGIN} \
+    REACT_APP_DEFAULT_API=${REACT_APP_DEFAULT_API}
+
 RUN bun run build
 
 FROM joseluisq/static-web-server:latest

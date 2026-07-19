@@ -2,29 +2,49 @@ import React from 'react';
 import axios from 'axios';
 import TopBar from '../shared/TopBar';
 import SideBar from '../shared/SideBar';
+import MobileNav from '../shared/MobileNav';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
 
-function ToggleRow({ label, description, checked, onChange }: {
-  label: string; description: string; checked: boolean; onChange: () => void;
+function ToggleRow({ label, description, checked, onChange, testId }: {
+  label: string; description: string; checked: boolean; onChange: () => void; testId: string;
 }) {
   return (
-    <div className="flex justify-between items-center py-3 border-b" style={{ borderColor: 'var(--color-border)' }}>
+    <div className="flex items-center justify-between border-b border-border py-3 last:border-b-0">
       <div>
-        <div className="font-medium">{label}</div>
-        <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{description}</div>
+        <div className="text-sm font-medium text-foreground">{label}</div>
+        <div className="text-xs text-muted-foreground">{description}</div>
       </div>
       <label className="switch">
-        <input type="checkbox" checked={checked} onChange={onChange} />
+        <input type="checkbox" checked={checked} onChange={onChange} data-testid={testId} />
         <span className="slider round"></span>
       </label>
     </div>
   );
 }
 
-function ConfigSection({ title, children }: { title: string; children: React.ReactNode }) {
+function Field({ label, description, children }: { label: string; description?: string; children: React.ReactNode }) {
   return (
-    <div className="mb-8">
-      <h3 className="font-semibold mb-4 pb-2 border-b" style={{ borderColor: 'var(--color-border)' }}>{title}</h3>
+    <div>
+      <Label className="mb-1 block text-muted-foreground">{label}</Label>
       {children}
+      {description && <p className="mt-1 text-xs text-muted-foreground">{description}</p>}
+    </div>
+  );
+}
+
+function ConfigShell({ I, children }: { I: Record<string, any>; children: React.ReactNode }) {
+  return (
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
+      <TopBar I={I} />
+      <div className="flex flex-1 overflow-auto">
+        <SideBar I={I} />
+        <div className="flex-1 overflow-auto pb-16 md:pb-0">{children}</div>
+      </div>
+      <MobileNav I={I} />
     </div>
   );
 }
@@ -95,175 +115,190 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
 
   if (loading) {
     return (
-      <div className={`min-h-screen flex flex-col ${I.theme === 'dark' ? 'dark' : ''}`} style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)' }}>
-        <TopBar I={I} />
-        <div className="flex items-center justify-center py-10">
-          <div style={{ color: 'var(--color-text-secondary)' }}>Loading config...</div>
+      <ConfigShell I={I}>
+        <div className="mx-auto max-w-2xl space-y-4 p-4 sm:p-6" data-testid="config-page-loading">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-40 w-full" />
+          <Skeleton className="h-40 w-full" />
         </div>
-      </div>
+      </ConfigShell>
     );
   }
 
   if (error && !config) {
     return (
-      <div className={`min-h-screen flex flex-col ${I.theme === 'dark' ? 'dark' : ''}`} style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)' }}>
-        <TopBar I={I} />
-        <div className="flex items-center justify-center py-10">
-          <div style={{ color: 'var(--color-danger)' }}>{error}</div>
+      <ConfigShell I={I}>
+        <div className="mx-auto max-w-2xl p-4 sm:p-6">
+          <div className="rounded bg-danger-muted p-3 text-sm text-danger" data-testid="config-page-error">{error}</div>
         </div>
-      </div>
+      </ConfigShell>
     );
   }
 
   return (
-    <div className={`min-h-screen flex flex-col ${I.theme === 'dark' ? 'dark' : ''}`} style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)' }}>
-      <TopBar I={I} />
-      <div className="flex flex-1 overflow-auto">
-        <SideBar I={I} />
-        <div className="flex-1 p-6 overflow-auto max-w-[700px]">
-          <div className="flex justify-between items-center mb-5">
-            <h2 className="text-xl font-semibold m-0">Node Configuration</h2>
-            <div className="flex items-center gap-3">
-              {saved && <span className="text-sm" style={{ color: 'var(--color-success)' }}>✓ Saved</span>}
-              <button
-                className="px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors hover:opacity-90 disabled:opacity-50"
-                style={{ backgroundColor: 'var(--color-primary-600)' }}
-                onClick={saveConfig}
-                disabled={saving}
-              >
-                {saving ? "Saving..." : "Save Changes"}
-              </button>
-            </div>
+    <ConfigShell I={I}>
+      <div className="mx-auto max-w-2xl p-4 sm:p-6" data-testid="config-page">
+        <div className="mb-6 flex items-center justify-between">
+          <h1 className="font-display text-2xl font-bold text-foreground">Node Configuration</h1>
+          <div className="flex items-center gap-3">
+            {saved && <span className="text-sm text-success" data-testid="config-saved-indicator">Saved</span>}
+            <Button onClick={saveConfig} disabled={saving} data-testid="config-save-button">
+              {saving ? "Saving…" : "Save Changes"}
+            </Button>
           </div>
+        </div>
 
-          {error && (
-            <div className="p-3 mb-4 rounded-lg text-sm" style={{ backgroundColor: 'var(--color-danger-bg)', color: 'var(--color-danger)' }}>{error}</div>
-          )}
+        {error && (
+          <div className="mb-4 rounded bg-danger-muted p-3 text-sm text-danger" data-testid="config-save-error">{error}</div>
+        )}
 
-          <ConfigSection title="Node Identity">
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Provider Domain</label>
-                <input className="w-full px-3 py-2 rounded-lg border text-base" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }} value={config?.provider || ""} onChange={e => updateField("provider", e.target.value)} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Brand Name</label>
-                <input className="w-full px-3 py-2 rounded-lg border text-base" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }} value={config?.brand_text || ""} onChange={e => updateField("brand_text", e.target.value)} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>CORS Service Managers</label>
-                <input className="w-full px-3 py-2 rounded-lg border text-base" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }} value={config?.cors_service_managers || ""} onChange={e => updateField("cors_service_managers", e.target.value)} />
-                <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>Comma-separated list of allowed authenticator domains</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Token Expiry (minutes)</label>
-                <input className="w-full px-3 py-2 rounded-lg border text-base" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }} type="number" value={config?.token_expire_minutes || 87840} onChange={e => updateField("token_expire_minutes", parseInt(e.target.value) || 0)} />
-              </div>
-            </div>
-          </ConfigSection>
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Node Identity</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Field label="Provider Domain">
+                <Input value={config?.provider || ""} onChange={e => updateField("provider", e.target.value)} data-testid="config-provider" />
+              </Field>
+              <Field label="Brand Name">
+                <Input value={config?.brand_text || ""} onChange={e => updateField("brand_text", e.target.value)} data-testid="config-brand-text" />
+              </Field>
+              <Field label="CORS Service Managers" description="Comma-separated list of allowed authenticator domains">
+                <Input value={config?.cors_service_managers || ""} onChange={e => updateField("cors_service_managers", e.target.value)} data-testid="config-cors" />
+              </Field>
+              <Field label="Token Expiry (minutes)">
+                <Input type="number" value={config?.token_expire_minutes || 87840} onChange={e => updateField("token_expire_minutes", parseInt(e.target.value) || 0)} data-testid="config-token-expiry" />
+              </Field>
+            </CardContent>
+          </Card>
 
-          <ConfigSection title="Access Policy">
-            <ToggleRow label="Beta Code Required" description="Users need a valid beta code to sign up" checked={config?.beta_required || false} onChange={() => updateField("beta_required", !config?.beta_required)} />
-            {config?.beta_required && (
-              <div className="pl-5 mb-2 mt-3">
-                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Beta Code</label>
-                <input className="w-full px-3 py-2 rounded-lg border text-base" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }} value={config?.beta_code || ""} onChange={e => updateField("beta_code", e.target.value)} />
-              </div>
-            )}
-            <ToggleRow label="Phone Verification" description="Require phone number on signup" checked={config?.verify_required || false} onChange={() => updateField("verify_required", !config?.verify_required)} />
-            <ToggleRow label="Payment Required" description="Users must subscribe to use the node" checked={config?.pay_required || false} onChange={() => updateField("pay_required", !config?.pay_required)} />
-          </ConfigSection>
+          <Card>
+            <CardHeader>
+              <CardTitle>Access Policy</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ToggleRow
+                label="Beta Code Required"
+                description="Users need a valid beta code to sign up"
+                checked={config?.beta_required || false}
+                onChange={() => updateField("beta_required", !config?.beta_required)}
+                testId="config-toggle-beta-required"
+              />
+              {config?.beta_required && (
+                <div className="mb-2 mt-3 pl-5">
+                  <Field label="Beta Code">
+                    <Input value={config?.beta_code || ""} onChange={e => updateField("beta_code", e.target.value)} data-testid="config-beta-code" />
+                  </Field>
+                </div>
+              )}
+              <ToggleRow
+                label="Phone Verification"
+                description="Require phone number on signup"
+                checked={config?.verify_required || false}
+                onChange={() => updateField("verify_required", !config?.verify_required)}
+                testId="config-toggle-verify-required"
+              />
+              <ToggleRow
+                label="Payment Required"
+                description="Users must subscribe to use the node"
+                checked={config?.pay_required || false}
+                onChange={() => updateField("pay_required", !config?.pay_required)}
+                testId="config-toggle-pay-required"
+              />
+            </CardContent>
+          </Card>
 
-          <ConfigSection title="Free Tier Defaults">
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Free Credits / Month</label>
-                <input className="w-full px-3 py-2 rounded-lg border text-base" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }} type="number" step="0.01" value={config?.free_credits || 0.10} onChange={e => updateField("free_credits", parseFloat(e.target.value) || 0)} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Free Space (MB) / Month</label>
-                <input className="w-full px-3 py-2 rounded-lg border text-base" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }} type="number" value={config?.free_space || 8} onChange={e => updateField("free_space", parseInt(e.target.value) || 0)} />
-              </div>
-            </div>
-          </ConfigSection>
+          <Card>
+            <CardHeader>
+              <CardTitle>Free Tier Defaults</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Field label="Free Credits / Month">
+                <Input type="number" step="0.01" value={config?.free_credits || 0.10} onChange={e => updateField("free_credits", parseFloat(e.target.value) || 0)} data-testid="config-free-credits" />
+              </Field>
+              <Field label="Free Space (MB) / Month">
+                <Input type="number" value={config?.free_space || 8} onChange={e => updateField("free_space", parseInt(e.target.value) || 0)} data-testid="config-free-space" />
+              </Field>
+            </CardContent>
+          </Card>
 
-          <ConfigSection title="Media Storage (S3)">
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>S3 Endpoint</label>
-                <input className="w-full px-3 py-2 rounded-lg border text-base" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }} value={config?.s3_endpoint || ""} onChange={e => updateField("s3_endpoint", e.target.value)} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Bucket Name</label>
-                <input className="w-full px-3 py-2 rounded-lg border text-base" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }} value={config?.s3_bucket || ""} onChange={e => updateField("s3_bucket", e.target.value)} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Access Key</label>
-                <input className="w-full px-3 py-2 rounded-lg border text-base" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }} value={config?.s3_access_key || ""} onChange={e => updateField("s3_access_key", e.target.value)} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Secret Key</label>
-                <input className="w-full px-3 py-2 rounded-lg border text-base" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }} type="password" value={config?.s3_secret_key || ""} onChange={e => updateField("s3_secret_key", e.target.value)} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Region</label>
-                <input className="w-full px-3 py-2 rounded-lg border text-base" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }} value={config?.s3_region || "us-east-1"} onChange={e => updateField("s3_region", e.target.value)} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Max Upload Size (bytes)</label>
-                <input className="w-full px-3 py-2 rounded-lg border text-base" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }} type="number" value={config?.max_upload_size || 524288000} onChange={e => updateField("max_upload_size", parseInt(e.target.value) || 0)} />
-              </div>
-            </div>
-          </ConfigSection>
+          <Card>
+            <CardHeader>
+              <CardTitle>Media Storage (S3)</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Field label="S3 Endpoint">
+                <Input value={config?.s3_endpoint || ""} onChange={e => updateField("s3_endpoint", e.target.value)} data-testid="config-s3-endpoint" />
+              </Field>
+              <Field label="Bucket Name">
+                <Input value={config?.s3_bucket || ""} onChange={e => updateField("s3_bucket", e.target.value)} data-testid="config-s3-bucket" />
+              </Field>
+              <Field label="Access Key">
+                <Input value={config?.s3_access_key || ""} onChange={e => updateField("s3_access_key", e.target.value)} data-testid="config-s3-access-key" />
+              </Field>
+              <Field label="Secret Key">
+                <Input type="password" value={config?.s3_secret_key || ""} onChange={e => updateField("s3_secret_key", e.target.value)} data-testid="config-s3-secret-key" />
+              </Field>
+              <Field label="Region">
+                <Input value={config?.s3_region || "us-east-1"} onChange={e => updateField("s3_region", e.target.value)} data-testid="config-s3-region" />
+              </Field>
+              <Field label="Max Upload Size (bytes)">
+                <Input type="number" value={config?.max_upload_size || 524288000} onChange={e => updateField("max_upload_size", parseInt(e.target.value) || 0)} data-testid="config-max-upload-size" />
+              </Field>
+            </CardContent>
+          </Card>
 
-          <ConfigSection title="Twilio (SMS Verification)">
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Service SID</label>
-                <input className="w-full px-3 py-2 rounded-lg border text-base" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }} value={config?.twilio_service || ""} onChange={e => updateField("twilio_service", e.target.value)} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Account SID</label>
-                <input className="w-full px-3 py-2 rounded-lg border text-base" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }} value={config?.twilio_account_sid || ""} onChange={e => updateField("twilio_account_sid", e.target.value)} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Auth Token</label>
-                <input className="w-full px-3 py-2 rounded-lg border text-base" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }} type="password" value={config?.twilio_auth_token || ""} onChange={e => updateField("twilio_auth_token", e.target.value)} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Phone Number</label>
-                <input className="w-full px-3 py-2 rounded-lg border text-base" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }} value={config?.twilio_number || ""} onChange={e => updateField("twilio_number", e.target.value)} />
-              </div>
-            </div>
-          </ConfigSection>
+          <Card>
+            <CardHeader>
+              <CardTitle>Twilio (SMS Verification)</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Field label="Service SID">
+                <Input value={config?.twilio_service || ""} onChange={e => updateField("twilio_service", e.target.value)} data-testid="config-twilio-service" />
+              </Field>
+              <Field label="Account SID">
+                <Input value={config?.twilio_account_sid || ""} onChange={e => updateField("twilio_account_sid", e.target.value)} data-testid="config-twilio-account-sid" />
+              </Field>
+              <Field label="Auth Token">
+                <Input type="password" value={config?.twilio_auth_token || ""} onChange={e => updateField("twilio_auth_token", e.target.value)} data-testid="config-twilio-auth-token" />
+              </Field>
+              <Field label="Phone Number">
+                <Input value={config?.twilio_number || ""} onChange={e => updateField("twilio_number", e.target.value)} data-testid="config-twilio-number" />
+              </Field>
+            </CardContent>
+          </Card>
 
-          <ConfigSection title="Stripe (Payments)">
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Mode</label>
-                <select className="w-full px-3 py-2 rounded-lg border text-base" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }} value={config?.stripe_status || "test"} onChange={e => updateField("stripe_status", e.target.value)}>
+          <Card>
+            <CardHeader>
+              <CardTitle>Stripe (Payments)</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Field label="Mode">
+                <select
+                  className="flex h-9 w-full rounded-sm border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                  value={config?.stripe_status || "test"}
+                  onChange={e => updateField("stripe_status", e.target.value)}
+                  data-testid="config-stripe-mode"
+                >
                   <option value="test">Test</option>
                   <option value="live">Live</option>
                 </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Test API Key</label>
-                <input className="w-full px-3 py-2 rounded-lg border text-base" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }} type="password" value={config?.stripe_test_key || ""} onChange={e => updateField("stripe_test_key", e.target.value)} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Live API Key</label>
-                <input className="w-full px-3 py-2 rounded-lg border text-base" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }} type="password" value={config?.stripe_live_key || ""} onChange={e => updateField("stripe_live_key", e.target.value)} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Dev Pay Split (%)</label>
-                <input className="w-full px-3 py-2 rounded-lg border text-base" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }} type="number" value={config?.dev_pay_pct || 98} onChange={e => updateField("dev_pay_pct", parseInt(e.target.value) || 98)} />
-                <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>Percentage of revenue that goes to the developer</p>
-              </div>
-            </div>
-          </ConfigSection>
+              </Field>
+              <Field label="Test API Key">
+                <Input type="password" value={config?.stripe_test_key || ""} onChange={e => updateField("stripe_test_key", e.target.value)} data-testid="config-stripe-test-key" />
+              </Field>
+              <Field label="Live API Key">
+                <Input type="password" value={config?.stripe_live_key || ""} onChange={e => updateField("stripe_live_key", e.target.value)} data-testid="config-stripe-live-key" />
+              </Field>
+              <Field label="Dev Pay Split (%)" description="Percentage of revenue that goes to the developer">
+                <Input type="number" value={config?.dev_pay_pct || 98} onChange={e => updateField("dev_pay_pct", parseInt(e.target.value) || 98)} data-testid="config-dev-pay-pct" />
+              </Field>
+            </CardContent>
+          </Card>
         </div>
       </div>
-    </div>
+    </ConfigShell>
   );
 }
 

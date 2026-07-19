@@ -3,6 +3,8 @@
 Read this first. Then read `plan.txt` (what/why) and `parallel execution.txt`
 (how work splits across parallel branches). `GLOSSARY.md` decodes the jargon;
 `decisions.md` records why big calls were made so you don't re-litigate them.
+If your task touches ANY user-facing surface, also read `design.md` — the
+UI/brand standard — before writing code (see conventions below).
 
 ## What web10 is
 A system for users to **own their data**. Each user gets their own database
@@ -74,6 +76,13 @@ touches auth, the DB layer, or tokens, run those tests and keep them green.
       revocable token. Least privilege.
 
 ## Working conventions for parallel agents
+- **UI work reads `design.md` first — every time, no exceptions.** Any
+  change under `ui/`, `marketing/marketing-ui/`, or `marketing/web10-social/`
+  (or any new user-facing surface) is judged against `design.md`: the
+  quality bar (the screenshot test), the canonical brand assets (the files
+  named `logo*.png` are NOT the logos — design.md §3 names the real ones),
+  the shared tokens (§13), and the UI definition of done (§12, PR
+  screenshots included). Hardcoded colors/fonts are a review rejection.
 - **Check it isn't already done.** Before starting a plan/lane item, check
   the lane queues in `parallel execution.txt` (`[✓ x.y.z]` = merged,
   `[~]` = in flight elsewhere), the `[✓]` ticks in plan.txt, and the top
@@ -84,6 +93,12 @@ touches auth, the DB layer, or tokens, run those tests and keep them green.
 - **Merge small, merge often.** Days-long branches, not weeks.
 - **Tests are the seatbelt.** The permission-matrix suite must exist and
   pass before/through the phase-0 dependency upgrades. Nothing merges red.
+- **A PR isn't done at creation.** Right after `gh pr create`: check for
+  merge conflicts (`gh pr view --json mergeable,mergeStateStatus`) and
+  resolve them, then watch ALL CI checks (`gh pr checks --watch`) — optional
+  checks count too; `UNSTABLE` is red, not green — and fix failures until
+  everything passes. Never report "ready to go" with any check failing.
+  Full procedure in `AGENTS.md`.
 - **Don't invent crypto or protocols.** Reuse: OIDC/JWKS for federation,
   Signal sender-keys / MLS for group keys, S3 API for blobs.
 - **Match the surrounding code** until a phase explicitly modernizes it.
@@ -93,6 +108,9 @@ touches auth, the DB layer, or tokens, run those tests and keep them green.
   If your work completes a `plan.txt` item, tick it there AND tick your
   lane item in `parallel execution.txt` — that file is the parallel
   agents' task board and stale status there causes redone work.
+  Version collisions between parallel branches are expected: CHANGELOG.md
+  union-merges (`.gitattributes`), and after merging `origin/dev` you
+  renumber your own entry past the highest — procedure in `AGENTS.md`.
 - **Keep the docs true.** If you change the stack, the data model, or the
   auth flow, update `CLAUDE.md`/`GLOSSARY.md` in the same branch. A big
   architectural decision gets an entry in `decisions.md`. Stale orientation

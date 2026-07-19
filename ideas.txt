@@ -159,3 +159,18 @@ A CLI is kind of unnecessary. Better to have downloadable projects.
 Registration must not be automatic in the long haul, it should be manual.
 
 I need a web10 wordpress theme bundled with a web10 plugin.
+
+Social media as a UTILITY (idea, 19.07.2026). The angle: web10 is
+infrastructure, not an editorial platform. The electric company isn't
+on the hook for what you do with the electricity — the person using it
+is. If creators simply USE web10 as a utility and OWN their data and
+audience, then web10 Inc. isn't the police for what they post; the
+creator is accountable for their own node, the way a customer is
+accountable for their own power. This is a common-carrier / dumb-pipe
+framing — a manifesto/positioning angle, and possibly a liability
+posture (contrast with YouTube/Meta, who ARE editorial and therefore
+on the hook). Just capturing the thought; NOT crowding the current
+manifesto/plan with it yet. (Caveat to think through later: real
+common-carrier status is a legal designation with real limits —
+CSAM/DMCA obligations don't vanish, see P12 trust & safety — so this
+is a positioning story first, a legal claim only with counsel.)

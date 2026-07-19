@@ -1,21 +1,32 @@
 import VerificationInput from 'react-verification-input';
 import React from 'react';
+import { ChevronRight, ChevronDown } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 function VerifyPhone({ I }: { I: Record<string, any> }) {
   const [hide, setHide] = React.useState(true);
   const [code, setCode] = React.useState("");
 
   return (
-    <div className="rounded-lg border overflow-hidden" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}>
-      <div className="px-4 py-3 flex justify-between items-center border-b" style={{ borderColor: 'var(--color-border)' }}>
-        <span className="font-medium">Verify Phone Number</span>
-        <button onClick={() => setHide(!hide)} className="p-1 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors">
-          <i className={hide ? "fas fa-angle-right" : "fas fa-angle-down"}></i>
-        </button>
-      </div>
+    <Card className="overflow-hidden" data-testid="verify-phone-section">
+      <button
+        type="button"
+        onClick={() => setHide(!hide)}
+        aria-expanded={!hide}
+        data-testid="verify-phone-toggle"
+        className="flex w-full items-center justify-between border-b border-border px-4 py-3 text-left transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <span className="font-medium text-foreground">Verify Phone Number</span>
+        {hide ? (
+          <ChevronRight className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+        ) : (
+          <ChevronDown className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+        )}
+      </button>
       {!hide && (
         <div className="p-4">
-          <div className="w-[600px]">
+          <div className="max-w-full sm:max-w-[600px]">
             <VerificationInput
               onChange={(val) => {
                 setCode(val);
@@ -30,31 +41,35 @@ function VerifyPhone({ I }: { I: Record<string, any> }) {
             />
           </div>
           <div className="mt-2.5 flex gap-2">
-            <button
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-warning text-warning hover:bg-warning/15"
+              data-testid="verify-phone-send-code"
               onClick={() => I.sendCode()}
-              className="px-3 py-1.5 text-sm font-medium rounded-lg border transition-colors hover:opacity-80"
-              style={{ borderColor: 'var(--color-warning)', color: 'var(--color-warning)' }}
             >
               Send Code
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="brand"
+              size="sm"
+              data-testid="verify-phone-verify-code"
+              disabled={code.length !== 6}
               onClick={() => {
                 if (code.length === 6) {
                   I.verifyCode(code);
                 }
               }}
-              className="px-3 py-1.5 text-sm font-medium rounded-lg text-white transition-colors hover:opacity-90"
-              style={{ backgroundColor: 'var(--color-primary-600)' }}
             >
               Verify Code
-            </button>
+            </Button>
           </div>
-          <p className="text-sm mt-2.5 ml-0.5" style={{ color: 'var(--color-warning)' }}>
+          <p className="ml-0.5 mt-2.5 text-sm text-warning">
             Verify your phone number and receive free web10 credits
           </p>
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 

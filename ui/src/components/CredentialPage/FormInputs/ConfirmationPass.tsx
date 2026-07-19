@@ -1,19 +1,36 @@
-function ConfirmationPass({ I, value, onChange }: { I: Record<string, any>, value?: string, onChange?: (val: string) => void }) {
+import { Lock } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+
+function ConfirmationPass({
+  I,
+  value,
+  onChange,
+}: {
+  I: Record<string, any>;
+  value?: string;
+  onChange?: (val: string) => void;
+}) {
   return (
-    <div className="mb-2">
+    <div className="mb-4">
+      <Label htmlFor="retypepass" className="mb-1.5 block text-muted-foreground">
+        Confirm current password
+      </Label>
       <div className="relative">
-        <input
-          id="retypepass"
-          className="w-full pl-9 pr-3 py-2 rounded-lg border text-base"
-          style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
-          type="password"
-          placeholder="Type Password To Confirm."
-          value={value || ""}
-          onChange={(e) => onChange?.(e.target.value)}
+        <Lock
+          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+          strokeWidth={1.5}
         />
-        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-sm" style={{ color: 'var(--color-text-muted)' }}>
-          <i className="fas fa-lock"></i>
-        </span>
+        <Input
+          id="retypepass"
+          type="password"
+          className="pl-9"
+          placeholder="••••••••"
+          autoComplete="current-password"
+          value={value || ''}
+          onChange={(e) => onChange?.(e.target.value)}
+          data-testid="confirmation-password-input"
+        />
       </div>
     </div>
   );

@@ -1,17 +1,25 @@
-import PhoneInput from "react-phone-input-2";
-import "react-phone-input-2/lib/bootstrap.css";
 import Password from "./FormInputs/Password";
 import Provider from "./FormInputs/Provider";
 import Username from "./FormInputs/Username";
+import { Button } from '@/components/ui/button';
 
 function LoginForm({ I }: { I: Record<string, any> }) {
   return (
-    <div className="w-[320px] mx-auto mt-[70px] p-6 rounded-xl border" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}>
-      <Provider I={I} />
-      <Username I={I} />
-      <Password I={I} />
-      <div className="flex flex-wrap justify-center gap-2 mt-3">
-        <button
+    <div className="w-full max-w-sm">
+      <div className="rounded border border-border bg-card p-6 sm:p-8">
+        <h1 className="font-display text-xl font-semibold text-foreground">Log in to your node</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Your data, your keys, your rules.</p>
+
+        <div className="mt-6 space-y-1">
+          <Provider I={I} />
+          <Username I={I} />
+          <Password I={I} />
+        </div>
+
+        <Button
+          variant="brand"
+          className="mt-2 w-full"
+          data-testid="login-submit"
           onClick={() => {
             I.login(
               (document.getElementById("provider") as HTMLInputElement).value,
@@ -19,26 +27,30 @@ function LoginForm({ I }: { I: Record<string, any> }) {
               (document.getElementById("password") as HTMLInputElement).value,
             );
           }}
-          className="px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors hover:opacity-90"
-          style={{ backgroundColor: 'var(--color-success)' }}
         >
-          Login
-        </button>
+          Log in
+        </Button>
+
+        <div className="mt-4 text-center">
+          <button
+            type="button"
+            onClick={() => I.setMode("forgot")}
+            className="rounded text-sm text-brand-300 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            data-testid="login-forgot-link"
+          >
+            Forgot username or password?
+          </button>
+        </div>
       </div>
-      <div className="text-center mt-5">
-        <button onClick={() => I.setMode("forgot")} className="text-sm underline" style={{ color: 'var(--color-primary-600)' }}>
-          Forgot Username or Password?
-        </button>
-      </div>
-      <div className="text-center mt-3">
-        <button
-          onClick={() => I.setMode("signup")}
-          className="px-4 py-2 text-sm font-medium rounded-lg border transition-colors hover:opacity-80"
-          style={{ borderColor: 'var(--color-warning)', color: 'var(--color-warning)' }}
-        >
-          Create A New Account
-        </button>
-      </div>
+
+      <Button
+        variant="outline"
+        className="mt-4 w-full"
+        onClick={() => I.setMode("signup")}
+        data-testid="login-create-account"
+      >
+        Create a new account
+      </Button>
     </div>
   );
 }
