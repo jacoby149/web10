@@ -19,10 +19,21 @@ app = FastAPI(
     terms_of_service="http://example.com/terms/",
 )
 
+def _cors_origins():
+    """Build allow-listed CORS origins from settings."""
+    origins = set()
+    for host in settings.CORS_SERVICE_MANAGERS:
+        origins.add(f"http://{host}")
+        origins.add(f"https://{host}")
+    # The API itself may serve the UI or OpenAPI docs
+    origins.add(f"http://{settings.PROVIDER}")
+    origins.add(f"https://{settings.PROVIDER}")
+    return list(origins)
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=["*"],
+    allow_origins=_cors_origins(),
     allow_methods=["*"],
     allow_headers=["*"],
 )

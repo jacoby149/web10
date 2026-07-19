@@ -1,4 +1,5 @@
 # Download the helper library from https://www.twilio.com/docs/python/install
+from twilio.base.exceptions import TwilioRestException
 from twilio.rest import Client
 from twilio.twiml.messaging_response import MessagingResponse
 
@@ -24,7 +25,7 @@ def send_verification(phone_number,username):
                             }, to="+"+str(phone_number), channel='sms')
 
         return verification.sid
-    except:
+    except (TwilioRestException, Exception):
         raise exceptions.BAD_NUM
 
 # check the verification code

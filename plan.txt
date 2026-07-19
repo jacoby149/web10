@@ -1296,12 +1296,12 @@ today providers do NOT validate each other. the chain:
     signature everywhere, using the right key per provider.
 
 other known issues, fix early (phase 0/1, before any real users):
-      - remote certify SSRF: even with I1's fix, validate provider
+      [✓] remote certify SSRF: even with I1's fix, validate provider
         urls (https, public host, sane shape) before any fetch
       - terms matching: exact-match by default, regex opt-in (redos +
         accidental-wildcard footgun)
-      - CORS: allow_origins=["*"] + allow_credentials=True has to go
-      - bare except in certify() swallows everything -- tighten error
+      [✓] CORS: allow_origins=["*"] + allow_credentials=True has to go
+      [✓] bare except in certify() swallows everything -- tighten error
         handling, no silent auth failures
       - rate limiting on auth endpoints (login, signup, recovery,
         verify codes) -- recovery-by-sms especially

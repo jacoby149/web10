@@ -1,4 +1,6 @@
 from datetime import datetime, timedelta
+import ipaddress
+from urllib.parse import urlparse
 
 import jwt
 import requests
@@ -55,10 +57,44 @@ def can_mint(submission_token: TokenData, mint_token: TokenData) -> bool:
     return True
 
 
+def _is_private_ip(host: str) -> bool:
+    """Return True if host resolves to a private, loopback, or link-local address."""
+    try:
+        addr = ipaddress.ip_address(host)
+        return (
+            addr.is_private or addr.is_loopback or addr.is_link_local
+            or addr.is_reserved or addr.is_multicast
+        )
+    except ValueError:
+        pass
+    # DNS name — reject obvious internal hosts
+    lower = host.lower()
+    return lower in ("localhost", "localhost.localdomain") or lower.endswith(".local")
+
+
+def _validate_provider_url(url: str) -> str:
+    """Validate a provider URL before any outbound fetch.
+
+    Raises Exception("TOKEN") on any violation.
+    """
+    if not url or len(url) > 2048:
+        raise Exception("TOKEN")
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise Exception("TOKEN")
+    host = parsed.hostname
+    if not host:
+        raise Exception("TOKEN")
+    if _is_private_ip(host):
+        raise Exception("TOKEN")
+    return f"{parsed.scheme}://{host}"
+
+
 def certify_with_remote_provider(token: Token) -> bool:
     decoded = decode_token(token.token)
-    url = f"{decoded.provider}/certify"
-    response = requests.post(url, json=token.model_dump())
+    base = _validate_provider_url(decoded.provider)
+    url = f"{base}/certify"
+    response = requests.post(url, json=token.model_dump(), timeout=10)
     return response.status_code == 200
 
 
@@ -78,7 +114,7 @@ def certify(token: Token) -> bool:
             raise Exception("TOKEN")
         if token_data.username != "anon" and datetime.utcnow() > datetime.fromisoformat(token_data.expires):
             raise Exception("TOKEN")
-    except Exception:
+    except (jwt.exceptions.PyJWTError, ValueError, TypeError):
         raise Exception("TOKEN")
     return True
 

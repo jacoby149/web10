@@ -38,9 +38,9 @@ encryptor 55, marketing-api smoke). 1.0.40 landed the endpoint-level
 permission-matrix suite (45 new tests through FastAPI routes: auth
 flows, CRUD, aggregate, star protection, forged-token rejection,
 scoped-token enforcement, metering/billing, certify, system — 280
-total api tests green). still OPEN: the small security fixes below
-(CORS, bare except, provider url validation), and pytest ports of the
-old 57-test exporter mapper suite (marketing-api).
+total api tests green). 1.0.48 landed the small security fixes (CORS
+tightened, bare excepts removed, provider URL SSRF guard). still OPEN:
+pytest ports of the old 57-test exporter mapper suite (marketing-api).
 
 before running 4-wide, land the thing that protects all 4 lanes:
 
