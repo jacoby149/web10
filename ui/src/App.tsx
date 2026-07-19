@@ -1,7 +1,6 @@
 import useInterface from './interfaces/Interface'
 import useMockInterface from './interfaces/MockInterface'
 import React from 'react';
-import './assets/bulma/css/bulma.min.css';
 import ContractPage from './components/Contracts/ContractPage';
 import CredentialPage from './components/CredentialPage/CredentialPage';
 import Settings from './components/Settings/Settings';
@@ -12,7 +11,7 @@ import ConfigPage from './components/Config/ConfigPage';
 function StatusBar({ I }: { I: Record<string, any> }) {
   if (!I.status) return null;
   return (
-    <div className="notification is-warning is-light" style={{ position: "fixed", top: "0", left: "0", right: "0", zIndex: 1000, textAlign: "center" }}>
+    <div className="fixed top-0 left-0 right-0 z-[500] text-center px-4 py-2 text-sm font-medium" style={{ backgroundColor: 'var(--color-warning-bg)', color: 'var(--color-warning)' }}>
       {I.status}
     </div>
   );
@@ -40,31 +39,29 @@ function OAuthBanner({ I }: { I: Record<string, any> }) {
   const SMRs = I.SMR?.sirs?.length > 0 || I.SMR?.scrs?.length > 0;
 
   return (
-    <div style={{ margin: "10px 20px", padding: "15px", border: "1px solid #666", borderRadius: "6px", maxWidth: "400px" }}>
-      <div style={{ marginBottom: "10px" }}>
+    <div className="m-5 p-4 rounded-lg border max-w-[400px]" style={{ borderColor: 'var(--color-border)' }}>
+      <div className="mb-2.5">
         <i><u>From {referrerHost}:</u></i><br />
         status: {SMRs
-          ? <i style={{ color: "yellow" }}> requests need approval</i>
-          : <i style={{ color: "lightgreen" }}> ready</i>}
+          ? <i className="font-medium" style={{ color: 'var(--color-warning)' }}> requests need approval</i>
+          : <i className="font-medium" style={{ color: 'var(--color-success)' }}> ready</i>}
       </div>
       {SMRs ? (
-        <div>
-          <button
-            className="button is-warning is-small"
-            onClick={() => I.setMode("requests")}
-          >
-            Review Requests
-          </button>
-        </div>
+        <button
+          className="px-3 py-1.5 text-sm font-medium rounded-lg border transition-colors hover:opacity-80"
+          style={{ borderColor: 'var(--color-warning)', color: 'var(--color-warning)' }}
+          onClick={() => I.setMode("requests")}
+        >
+          Review Requests
+        </button>
       ) : (
-        <div>
-          <button
-            className="button is-warning is-small"
-            onClick={() => I.sendToken()}
-          >
-            Log In
-          </button>
-        </div>
+        <button
+          className="px-3 py-1.5 text-sm font-medium rounded-lg border transition-colors hover:opacity-80"
+          style={{ borderColor: 'var(--color-warning)', color: 'var(--color-warning)' }}
+          onClick={() => I.sendToken()}
+        >
+          Log In
+        </button>
       )}
     </div>
   );
@@ -78,7 +75,7 @@ function App() {
   const forgot = queryParameters.get("forgot")
   const mockI = useMockInterface();
   const realI = useInterface();
-  const I = mock?mockI:realI;
+  const I = mock ? mockI : realI;
   I.isMock = mock;
   I.isAuth = auth;
   window.I = I;
@@ -90,7 +87,6 @@ function App() {
       setCheckingSetup(false);
       return;
     }
-    // Check if node is configured
     const decoded = I.wapi?.readToken?.();
     const provider = decoded?.provider || "api.localhost";
     const protocol = window.location.protocol;
@@ -104,15 +100,14 @@ function App() {
         }
       })
       .catch(() => {
-        // If API is unreachable, still let the UI load (might be dev mode)
         I.nodeConfigured = true;
         setCheckingSetup(false);
       });
   }, []);
 
-  React.useEffect(()=>{
-    if(forgot) I.setMode("forgot");
-  },[])
+  React.useEffect(() => {
+    if (forgot) I.setMode("forgot");
+  }, []);
 
   React.useEffect(() => {
     if (I.isAuthenticated() && I._hasReferrer) {
@@ -122,9 +117,9 @@ function App() {
 
   if (checkingSetup) {
     return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", background: "#1a1a1a", color: "#aaa" }}>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: "18px", marginBottom: "10px" }}>Checking node status...</div>
+      <div className="flex items-center justify-center h-screen" style={{ background: 'var(--color-neutral-950)', color: 'var(--color-neutral-400)' }}>
+        <div className="text-center">
+          <div className="text-lg mb-2.5">Checking node status...</div>
         </div>
       </div>
     );

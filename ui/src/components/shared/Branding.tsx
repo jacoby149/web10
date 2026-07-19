@@ -1,18 +1,20 @@
-import { R, C, pass } from "rectangles-npm"
+interface BrandingProps {
+  I: Record<string, any>;
+}
 
-/* Top Pane Site Branding Component */
-function Branding(props) {
-    const I = props.I;
-    return (
-        <R l {...pass(props)}>
-            <C l ns mc s={"5px"}></C>
-            <C l ns mc s={"100px"}>
-                <img style={{ width: "40px" }} src={I.logo}></img>
-                &nbsp;<div><h3>{I.config.REACT_APP_BRAND_TEXT}</h3></div>
-            </C>
-            <C l ns mc s={"5px"}></C>
-        </R>
-    )
+function Branding({ I }: BrandingProps) {
+  return (
+    <div className="flex items-center gap-1">
+      <div className="w-[5px]" />
+      <div className="flex items-center gap-2 w-[100px]">
+        <img style={{ width: "40px" }} src={I.logo} alt="logo" />
+        <h3 className="m-0 text-base font-semibold" style={{ color: 'var(--color-text)' }}>
+          {I.config.REACT_APP_BRAND_TEXT}
+        </h3>
+      </div>
+      <div className="w-[5px]" />
+    </div>
+  );
 }
 
 export default Branding;

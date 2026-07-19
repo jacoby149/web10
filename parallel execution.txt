@@ -38,9 +38,12 @@ encryptor 55, marketing-api smoke). 1.0.40 landed the endpoint-level
 permission-matrix suite (45 new tests through FastAPI routes: auth
 flows, CRUD, aggregate, star protection, forged-token rejection,
 scoped-token enforcement, metering/billing, certify, system — 280
-total api tests green). still OPEN: the small security fixes below
-(CORS, bare except, provider url validation), and pytest ports of the
-old 57-test exporter mapper suite (marketing-api).
+total api tests green). 1.0.49 landed the small security fixes (CORS
+tightened, bare excepts removed, provider URL SSRF guard). still OPEN:
+pytest ports of the old 57-test exporter mapper suite (marketing-api),
+and the js workflow's typecheck/build escape hatches (both run continue-on-
+error -- tests report red, a non-compiling build doesn't; see
+plan.txt ci/cd).
 
 before running 4-wide, land the thing that protects all 4 lanes:
 
@@ -96,7 +99,7 @@ LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
   [✓ 1.0.12-1.0.14] B1. P0 js: auth2 -> vite + bun + typescript
       (react 19, vitest, multi-stage dockerfiles, rtc to bun too)
   [✓ 1.0.26] B2. P2 finish auth2 features, parity audit, rename to ui
-  [ ] B2.5. P2.5 ui makeover in ui/: rectangles-npm -> mainstream
+  [✓ 1.0.52] B2.5. P2.5 ui makeover in ui/: rectangles-npm -> mainstream
       stack (tailwind + shadcn/ui candidate, record in decisions.md),
       shared design tokens, story-first narrative pass. do BEFORE
       B3/B4 so wizard + admin panel are born on the new stack.
@@ -132,6 +135,14 @@ LANE C — greenfield services  (owns: sdk/, mcp/, new dirs)
       --node <url> works from day one)
   [ ] C4. P10 backup integrations (drive/dropbox oauth, export/import
       archive -- format comes from D1's conventions doc)
+  [ ] C5. browser e2e harness (new top-level e2e/ dir + its ci
+      workflow): playwright-in-docker against the compose stack,
+      ~6-10 smoke journeys across ui + web10-social + marketing-ui
+      (specced in plan.txt CROSS-CUTTING quality/testing). touches
+      other lanes' apps via read-only flows only (data-testid hooks
+      by coordination, never reach-in edits). marketing-ui smoke +
+      ui auth flows are landable now; social post->feed firms up
+      with D4.
 
 LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
                                 *.md/txt)
@@ -150,11 +161,12 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       expo 52, crypto core (hkdf, ed25519/x25519, xchacha20), wallet
       persistence, tabbed UI, 55 tests. the rtc key channel + sdk
       crypto integration still waits for A/C (phase 11 proper).
-  [ ] D4. P8 killer app M0 slice: post + feed (chronological + sort
-      dropdown ONLY -- lens/chatbox is CUT to later.md, D20) +
-      profile + dms. starts on the current wapi if needed; swaps to
-      C2 sdk when it lands. acceptance: stands on its own as a plain
-      good social app, credible in a creator pitch.
+  [✓ 1.0.50] D4. P8 killer app M0 slice (data layer): post + feed
+      (chronological + sort dropdown ONLY -- lens/chatbox is CUT to
+      later.md, D20) + profile + dms. full conventions-schema data
+      layer in src/data/ (posts, feed, profile, contacts, dms,
+      comments, reactions, media upload via presigned URLs). 55 new
+      tests, 227 total green. screens deferred to D2.5 post-B2.5 tokens.
   [✓ 1.0.27] D5. P9 exporter core + instagram mapping (needs D1 conventions;
        client-side, so no api deps) — also includes Facebook + YouTube
        mapping, multi-platform UI with takeout checklists, 57 tests
@@ -172,6 +184,20 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
     [✓ 1.0.33] D9. P7 final tidy: rtc/ -> api/rtc/, docs/ ->
         marketing-ui/public/docs/. all references updated (compose,
         CI, CLAUDE.md). top-level tree clean.
+  [ ] D10. report-a-bug loop: feedback endpoint in marketing-api +
+      "report a bug" affordance and error boundaries in social +
+      marketing-ui (specced in plan.txt CROSS-CUTTING quality/
+      testing). the ui/ app's button is lane B territory --
+      coordinate, don't reach in. the counterweight to the thin
+      e2e layer: users become the coverage, so reporting must cost
+      them <=2 clicks.
+  [ ] D11. ux telemetry (specced in plan.txt CROSS-CUTTING quality/
+      testing -- read the surface split there before touching):
+      marketing-ui funnel analytics + js error beacon via
+      marketing-api; platform uis get content-free aggregate
+      events + the error beacon ONLY -- no session-recording js
+      on ui/ or social, ever (manifesto line). self-hosted
+      posthog/openreplay deploy, if adopted, is lane E territory.
 
 
 
@@ -213,17 +239,34 @@ M3 "the network"         = encryption integration (A rtc + C2 sdk
                            polish. the last big merge.
 
 
-CURRENT CONDUCTOR BOARD (as of 17.07.2026 — keep this section fresh)
+CURRENT CONDUCTOR BOARD (as of 18.07.2026 — keep this section fresh)
 --------------------------------------------------------------------
-  ws1: wave 0 remainder: ENDPOINT permission-matrix suite + small
-       security fixes (unit layer 1.0.21/1.0.31 and ci skeleton
-       1.0.32 landed; this is what's left, and it's still the
-       highest-value slot)
-  ws2: C2 sdk rewrite (unblocks C3 mcp + C3.5 create-web10)
-  ws3: B2.5 ui makeover in ui/ (records the stack pick in
-       decisions.md; D2.5 in web10-social matches it afterwards)
-ws4: next unticked pick — D4 killer app M0 slice, or A2 ferretdb
-        (A1/B1/B2/C1/D1/D2/D3/D5–D9/E2 are DONE — do not pick them again)
+we are in timeline.md WEEK 0 — the M0 sprint (video by ~aug 17).
+the D20/D21 pivot re-cut this board; C2 sdk is OFF the M0 critical
+path (ws2 repointed to D4 per timeline.md week 0).
+
+  ws1: B2.5 ui makeover in ui/ — stack pick (tailwind + shadcn is
+       the named default; record in decisions.md) + shared design
+       tokens. gates D2.5 and D4's screens; merge the pick fast.
+  ws2: D4 killer app M0 slice, DATA LAYER first — posts, feed
+       (chronological + sort dropdown ONLY, lens/chatbox cut per
+       D20), profile, dms on current wapi against docs/schemas.
+       logic doesn't wait for B2.5; screens do.
+  ws3: wave 0 remainder: small security fixes (CORS, bare except,
+       provider url validation) — land these BEFORE A6 churns the
+       billing code. then A6 (D21 strip user billing -> operator
+       quotas, timeline week 2) takes this lane-A slot.
+ws4: [✓ 1.0.50] outreach list batch 1 fully enriched: 20 API-verified
+         prospects via YouTube Data API (outreach_sourcer.py), all burn
+         events verified, 5 with biz emails, 6 false positives filtered.
+         script reusable for batches 2-5. or E1 proxmox staging node
+
+  merge-order notes: lane A stays single-branch (security fixes ->
+  A6 -> A5). D2.5 starts the moment B2.5's tokens merge. B4.5 M0
+  slice (studio monetization-menu screen, rung-0 cards) follows
+  B2.5 in lane B — it's week 2's money shot. C2/C3/C3.5 parked
+  until after M0.
+  (A1/B1/B2/B3/B4/C1/D1/D2/D3/D5–D9/E2 are DONE — don't re-pick.)
 
   from here on: pull the top unticked item of whichever lane's queue
   is unblocked. lanes A and B are long marches; C and D are a stream
