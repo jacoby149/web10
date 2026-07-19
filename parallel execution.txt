@@ -94,6 +94,23 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       rate/abuse throttle, space = storage caps incl. imports).
       stripe stays for the creator economy only (memberships,
       rails). keep the permission-matrix tests green through it.
+  [ ] A7. connect the node to the EXISTING production MongoDB on the
+      ubuntu box (~208 real users + historical data + registered
+      apps from the original web10) instead of the empty ferretdb
+      the stacks ship with. we already speak the mongo wire protocol
+      (documentdb.py), so this is mainly config + verification, not
+      a rewrite: point DB_URL/DB at the real mongo (a stack env var,
+      keep it in the box .env, coordinate the compose var with
+      lane E), confirm the {service,body} + star-record shape
+      matches what our code expects (older records may predate
+      to_gui/to_db conventions — write a read-only audit first,
+      then a migration/adapter if the shape drifted), and make sure
+      star protection + scoped queries behave against real data.
+      gate: do NOT point PROD at the real mongo until a login works
+      against a COPY in dev (dump/restore into web10-dev's db, or a
+      read-only replica). deliverable: dev logs in as a real
+      historical user, and the honest report of any shape drift.
+      unblocks B6 (real login to test against) and D16 (real apps).
 
 LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
   [✓ 1.0.12-1.0.14] B1. P0 js: auth2 -> vite + bun + typescript
@@ -142,6 +159,25 @@ LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
       acceptance: design.md §12 (screenshot test, pr screenshots
       desktop + 375px, tokens-only, all states designed) + an env
       rebuild can point at dev/prod domains without a code edit.
+  [ ] B6. AUTHENTICATOR REVAMP — the ui/ auth flow is broken in
+      both look AND function (operator report, 19.07: "looks
+      retarded and straight up doesnt work", web10 logo on auth is
+      "hella broken"). B5 restyled the shell but the actual
+      login/consent flow is still wrong. this is a from-the-user's-
+      seat fix, not just tokens: (1) the web10 logo renders broken —
+      audit the asset path/import (design.md §3 names the real
+      marks; a deployed build serves from the app root, so a
+      dev-only path breaks in prod), (2) drive the REAL login flow
+      end to end against dev once A7's mongo is connected — signup,
+      login, the auth portal popup/redirect, token handoff to a
+      consuming app — and fix what's actually broken (the c5/c6
+      playwright harness + data-testid hooks exist; write the auth
+      journey as a test so it can't regress), (3) make it look like
+      design.md §12. gate: A7 (need real users to log in as) helps
+      but the logo + obvious-broken bits can start now. acceptance:
+      a human can sign up and log in on auth.dev.web10.app without
+      hitting a broken screen; playwright covers the journey;
+      screenshots desktop + 375px.
 
 LANE C — greenfield services  (owns: sdk/, mcp/, new dirs)
   [✓ 1.0.25] C1. P5 media service (presigned urls, minio profile,
@@ -272,6 +308,38 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       includes the serving hostname (a deploy authorizes itself).
       verified: env-arg build bakes dev origins into the bundle,
       195 tests green.
+  [ ] D16. APP STORE — restore it as a real, curated marketplace
+      (gated on A7's mongo; the original web10 had live registered
+      apps + real usage stats, so this is RESTORATION of real
+      assets, not the speculative empty-catalog the D20 thread
+      warned against — see decisions.md, reconciled below). the
+      current marketing-ui AppStore is first-party-only "proof"
+      cards; make it the real thing:
+      (1) read the registered apps from the connected mongo (A7),
+          not hardcoded cards.
+      (2) LAYOUT: the killer app (web10-social) stays promoted up
+          top — do NOT bury it; registered third-party apps go in a
+          lower section. one hero, then the catalog.
+      (3) CURATION: web10 Inc. controls the store. anyone can
+          register an app, but it needs ADMIN APPROVAL to appear.
+          needs an api/admin side: an approval flag on app records +
+          an admin-only approve action (coordinate with lane A/B —
+          the admin panel is B4; the record shape + gate is lane A
+          territory). unapproved = registered but hidden.
+      (4) surface the historical stats that made it feel alive
+          (user count, app count) — real numbers from the mongo,
+          never faked.
+      acceptance: design.md §12; store shows web10-social first +
+      real approved apps below; registering an app is possible but
+      admin-gated; no hardcoded catalog.
+      NOTE — reconciles with the D20/app-store decision (which said
+      "don't build a speculative ecosystem, keep it as proof"): that
+      call assumed an EMPTY catalog would read as fediverse-jank.
+      with 208 real users and real registered apps from the original
+      web10 now reconnected (A7), the catalog is genuinely alive, so
+      restoring it IS the "looks like a real company" goal, not a
+      distraction. record this reversal in decisions.md when D16
+      lands.
 
 
 
