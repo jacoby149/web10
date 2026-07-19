@@ -94,7 +94,7 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       rate/abuse throttle, space = storage caps incl. imports).
       stripe stays for the creator economy only (memberships,
       rails). keep the permission-matrix tests green through it.
-  [ ] A7. connect the node to the EXISTING production MongoDB on the
+  [✓ 1.0.72] A7. connect the node to the EXISTING production MongoDB on the
       ubuntu box (~208 real users + historical data + registered
       apps from the original web10) instead of the empty ferretdb
       the stacks ship with. IMPORTANT (operator, 19.07): this mongo

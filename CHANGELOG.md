@@ -1,3 +1,22 @@
+1.0.72 || 19.07.2026
+A7: real MongoDB connection wired (compose + env + audit tool).
+docker-compose.ecosystem.yml: api service gains extra_hosts
+(host.docker.internal:host-gateway) so containers can reach the
+host-native MongoDB. DB_URL is now optional with a FerretDB fallback
+(${DB_URL:-mongodb://...}), so dev stays self-contained out of the
+box and prod overrides via env. env.prod.example documents the
+host-mongo override; env.dev.example documents the copy-for-testing
+path (A7 gate). NEW api/tools/audit_mongo.py: read-only script to
+inspect the real data — reports user count, app count, star-record
+field inventory, {service, body} shape drift detection, service
+distribution. Run on the box: `python api/tools/audit_mongo.py`.
+Code review: star protection (star_found/star_selected), scoped
+queries (q_t body. prefix), and aggregate sandboxing ($match
+exclusion of star) are all correct against real data — no code
+changes needed. Gate: prod must NOT switch DB_URL until a dev
+login works against a COPY (mongodump→mongorestore into dev's
+FerretDB, or a read-only host connection).
+
 1.0.71 || 19.07.2026
 Queued E9 (deployment status page): one URL per env
 (status.web10.app / status.dev.web10.app) showing what's live — the
