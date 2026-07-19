@@ -1,17 +1,26 @@
+import { Lock } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+
 function Password({ I }: { I: Record<string, any> }) {
   return (
-    <div className="mb-2">
+    <div className="mb-4">
+      <Label htmlFor="password" className="mb-1.5 block text-muted-foreground">
+        Password
+      </Label>
       <div className="relative">
-        <input
-          id="password"
-          className="w-full pl-9 pr-3 py-2 rounded-lg border text-base"
-          style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
-          type="password"
-          placeholder="Password"
+        <Lock
+          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+          strokeWidth={1.5}
         />
-        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-sm" style={{ color: 'var(--color-text-muted)' }}>
-          <i className="fas fa-lock"></i>
-        </span>
+        <Input
+          id="password"
+          type="password"
+          className="pl-9"
+          placeholder="••••••••"
+          autoComplete="current-password"
+          data-testid="password-input"
+        />
       </div>
     </div>
   );

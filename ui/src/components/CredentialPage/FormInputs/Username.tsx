@@ -1,16 +1,25 @@
+import { User } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+
 function Username({ I }: { I: Record<string, any> }) {
   return (
-    <div className="mb-2">
+    <div className="mb-4">
+      <Label htmlFor="username" className="mb-1.5 block text-muted-foreground">
+        Username
+      </Label>
       <div className="relative">
-        <input
-          id="username"
-          className="w-full pl-9 pr-3 py-2 rounded-lg border text-base"
-          style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
-          placeholder="Username"
+        <User
+          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+          strokeWidth={1.5}
         />
-        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-sm" style={{ color: 'var(--color-text-muted)' }}>
-          <i className="fas fa-user"></i>
-        </span>
+        <Input
+          id="username"
+          className="pl-9"
+          placeholder="yourname"
+          autoComplete="username"
+          data-testid="username-input"
+        />
       </div>
     </div>
   );

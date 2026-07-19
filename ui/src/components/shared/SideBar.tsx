@@ -1,3 +1,4 @@
+import { Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface SideBarProps {
@@ -66,16 +67,18 @@ function SideBar({ I }: SideBarProps) {
           <a href="https://jacobhoffman.xyz" className="underline hover:text-foreground">
             Jacob Hoffman
           </a>
-          <br />
-          <iframe
-            className="mt-1.5"
-            src="https://ghbtns.com/github-btn.html?user=jacoby149&repo=web10&type=star&count=true&size=large"
-            frameBorder="0"
-            scrolling="0"
-            width="170"
-            height="30"
-            title="Star web10 on GitHub"
-          />
+          {/* was a ghbtns.com iframe — an unthemeable white rectangle on the
+              dark sidebar (and a third-party embed). Token-styled link instead. */}
+          <a
+            href="https://github.com/jacoby149/web10"
+            target="_blank"
+            rel="noreferrer"
+            className="mt-2 flex w-fit items-center gap-1.5 rounded-sm border border-border px-2 py-1 text-muted-foreground transition-colors hover:bg-elevated hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            data-testid="sidebar-github-star"
+          >
+            <Star className="h-3.5 w-3.5" strokeWidth={1.5} />
+            Star web10 on GitHub
+          </a>
         </div>
       </div>
     </div>
