@@ -540,7 +540,7 @@ class TestScopedTokens:
 
 
 # ---------------------------------------------------------------------------
-# 7. METERING / BILLING
+# 7. METERING / QUOTAS
 # ---------------------------------------------------------------------------
 
 class TestMetering:
@@ -594,11 +594,8 @@ class TestMetering:
              patch("app.services.documentdb.read", return_value=[{"_id": "1"}]), \
              patch("app.services.documentdb.charge"), \
              patch("app.services.documentdb.subscription_update"), \
-             patch("app.endpoints.crud.pay") as m_pay, \
              patch("app.endpoints.crud.settings") as m_settings:
-            m_settings.PAY_REQUIRED = True
             m_settings.VERIFY_REQUIRED = False
-            m_pay.credit_space.return_value = (0, 1000000)
             m_star.return_value = {**MOCK_STAR, "credit_limit": 0, "credits_spent": 1}
             resp = client.patch(
                 "/alice/posts",
@@ -613,11 +610,8 @@ class TestMetering:
              patch("app.services.documentdb.read", return_value=[{"_id": "1"}]), \
              patch("app.services.documentdb.charge"), \
              patch("app.services.documentdb.subscription_update"), \
-             patch("app.endpoints.crud.pay") as m_pay, \
              patch("app.endpoints.crud.settings") as m_settings:
-            m_settings.PAY_REQUIRED = True
             m_settings.VERIFY_REQUIRED = False
-            m_pay.credit_space.return_value = (1000000, 1)
             m_star.return_value = {**MOCK_STAR, "space_limit": 1}
             resp = client.patch(
                 "/alice/posts",
@@ -685,16 +679,3 @@ class TestSystem:
         assert "apps" in data
         assert "users" in data
         assert "storage" in data
-
-    def test_get_plan(self, client):
-        with patch("app.services.documentdb.get_star", return_value=MOCK_STAR), \
-             patch("app.services.documentdb.get_collection_size", return_value=1), \
-             patch("app.services.documentdb.subscription_update"), \
-             patch("app.services.documentdb.get_customer_id", return_value=None):
-            resp = client.post(
-                "/get_plan",
-                json={"token": _owner_token("alice")},
-            )
-        assert resp.status_code == 200
-        assert "space" in resp.json()
-        assert "credits" in resp.json()
