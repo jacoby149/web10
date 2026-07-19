@@ -1,4 +1,15 @@
-1.0.47 || 18.07.2026
+1.0.48 || 18.07.2026
+D4: web10-social data layer — full conventions-schema stack for the M0
+killer app slice. new src/data/ with typed modules: posts (CRUD + media
+upload via API presigned URLs), feed (chronological inbox + sort dropdown:
+newest/oldest/most_reacted via aggregate), profile (read/upsert), contacts
+(conventions schema CRUD + search), dms (records-based, deterministic
+conversation service names), comments (threaded), reactions (toggle,
+aggregate counts). wapi.ts: thin typed fetch wrapper over legacy wapi.js.
+Web10SocialAdapter wired with all 30+ new data-layer methods alongside
+legacy adapter (backward compat). SMR terms extended for profile, contacts,
+inbox, comments, reactions, media services. 55 new vitest tests (227 total,
+all green). screens deferred to D2.5 post-B2.5 tokens.
 board refresh: CURRENT CONDUCTOR BOARD in parallel execution.txt
 re-cut for the D20/D21 pivot + timeline.md week 0 — ws1 B2.5 stack
 pick/tokens, ws2 REPOINTED from C2 sdk (off the M0 critical path)

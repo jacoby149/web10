@@ -1,6 +1,61 @@
 import { wapiInit } from 'web10-npm';
 import type { Contact, Identity, Message, Post } from '../types';
 import contactIco from '../assets/images/Contact.png';
+import {
+  createPost as dlCreatePost,
+  readMyPosts as dlReadMyPosts,
+  readUserPosts as dlReadUserPosts,
+  updatePost as dlUpdatePost,
+  deletePost as dlDeletePost,
+  uploadMedia as dlUploadMedia,
+  resolveMediaRefs as dlResolveMediaRefs,
+  readMedia as dlReadMedia,
+  readMediaRecord as dlReadMediaRecord,
+  deleteMedia as dlDeleteMedia,
+  readFeed as dlReadFeed,
+  markInboxRead as dlMarkInboxRead,
+  countUnread as dlCountUnread,
+  readProfile as dlReadProfile,
+  saveProfile as dlSaveProfile,
+  readUserProfile as dlReadUserProfile,
+  readContacts as dlReadContacts,
+  readContact as dlReadContact,
+  addContact as dlAddContact,
+  updateContact as dlUpdateContact,
+  deleteContact as dlDeleteContact,
+  searchContacts as dlSearchContacts,
+  conversationServiceName as dlConversationServiceName,
+  readDms as dlReadDms,
+  sendDm as dlSendDm,
+  deleteDm as dlDeleteDm,
+  listConversations as dlListConversations,
+  getLastDm as dlGetLastDm,
+  readComments as dlReadComments,
+  readTopLevelComments as dlReadTopLevelComments,
+  readReplies as dlReadReplies,
+  createComment as dlCreateComment,
+  updateComment as dlUpdateComment,
+  deleteComment as dlDeleteComment,
+  countComments as dlCountComments,
+  readReactions as dlReadReactions,
+  createReaction as dlCreateReaction,
+  toggleReaction as dlToggleReaction,
+  deleteReaction as dlDeleteReaction,
+  countReactions as dlCountReactions,
+  getReactionCounts as dlGetReactionCounts,
+  createWapiWrapper,
+  resetWapi,
+  type FeedSort,
+  type PostRecord,
+  type MediaRecord,
+  type MediaUploadRequest,
+  type ProfileRecord,
+  type ContactRecord,
+  type DmRecord,
+  type CommentRecord,
+  type ReactionRecord,
+  type InboxRecord,
+} from '../data';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type WapiInstance = Record<string, any>;
@@ -38,6 +93,73 @@ interface Web10SocialAdapter {
   deletePost: (id: string) => Promise<unknown>;
   loadBulletins: () => Promise<{ data: unknown[] }>;
   deleteBulletin: (id: string) => Promise<unknown>;
+
+  // ── D4 data layer: conventions-schema services ──────────────────────
+  // Posts (conventions schema)
+  createPostRecord: (post: Omit<PostRecord, '_id'>) => Promise<PostRecord>;
+  readMyPostRecords: () => Promise<PostRecord[]>;
+  readUserPostRecords: (username: string, provider: string) => Promise<PostRecord[]>;
+  updatePostRecord: (id: string, updates: Partial<PostRecord>) => Promise<PostRecord>;
+  deletePostRecord: (id: string) => Promise<void>;
+
+  // Media (presigned upload via API media router)
+  uploadMediaFile: (request: MediaUploadRequest) => Promise<MediaRecord>;
+  readMediaRecords: (query?: Record<string, unknown>) => Promise<MediaRecord[]>;
+  readMediaRecordById: (id: string) => Promise<MediaRecord | null>;
+  deleteMediaRecord: (id: string) => Promise<void>;
+  resolveMediaRefs: (refs: string[]) => Promise<MediaRecord[]>;
+
+  // Feed (inbox service, chronological + sort)
+  readFeed: (sort?: FeedSort) => Promise<InboxRecord[]>;
+  markInboxRead: (id: string) => Promise<void>;
+  countUnreadInbox: () => Promise<number>;
+
+  // Profile
+  readProfileRecord: () => Promise<ProfileRecord | null>;
+  saveProfileRecord: (profile: Partial<ProfileRecord>) => Promise<ProfileRecord>;
+  readUserProfileRecord: (username: string, provider: string) => Promise<ProfileRecord | null>;
+
+  // Contacts (conventions schema)
+  readContactRecords: () => Promise<ContactRecord[]>;
+  readContactRecord: (username: string, provider: string) => Promise<ContactRecord | null>;
+  addContactRecord: (contact: Omit<ContactRecord, '_id'>) => Promise<ContactRecord>;
+  updateContactRecord: (id: string, updates: Partial<ContactRecord>) => Promise<ContactRecord>;
+  deleteContactRecord: (id: string) => Promise<void>;
+  searchContactRecords: (query: string) => Promise<ContactRecord[]>;
+
+  // DMs (records-based)
+  conversationServiceName: (
+    a: { provider: string; username: string },
+    b: { provider: string; username: string },
+  ) => string;
+  readDmMessages: (conversation: string) => Promise<DmRecord[]>;
+  sendDmMessage: (conversation: string, message: string, mediaRefs?: string[]) => Promise<DmRecord>;
+  deleteDmMessage: (conversation: string, id: string) => Promise<void>;
+  listDmConversations: () => Promise<string[]>;
+  getLastDmMessage: (conversation: string) => Promise<DmRecord | null>;
+
+  // Comments
+  readCommentsForPost: (postId: string) => Promise<CommentRecord[]>;
+  readTopLevelComments: (postId: string) => Promise<CommentRecord[]>;
+  readCommentReplies: (commentId: string) => Promise<CommentRecord[]>;
+  createCommentRecord: (comment: Omit<CommentRecord, '_id'>) => Promise<CommentRecord>;
+  updateCommentRecord: (id: string, updates: Partial<CommentRecord>) => Promise<CommentRecord>;
+  deleteCommentRecord: (id: string) => Promise<void>;
+  countCommentsForPost: (postId: string) => Promise<number>;
+
+  // Reactions
+  readReactionsForTarget: (targetService: 'posts' | 'comments', targetId: string) => Promise<ReactionRecord[]>;
+  createReactionRecord: (reaction: Omit<ReactionRecord, '_id'>) => Promise<ReactionRecord>;
+  toggleReactionOnTarget: (
+    targetService: 'posts' | 'comments',
+    targetId: string,
+    type: string,
+    authorUsername: string,
+    authorProvider: string,
+  ) => Promise<boolean>;
+  deleteReactionRecord: (id: string) => Promise<void>;
+  countReactionsForTarget: (targetService: 'posts' | 'comments', targetId: string) => Promise<number>;
+  getReactionCountsForTarget: (targetService: 'posts' | 'comments', targetId: string) => Promise<Record<string, number>>;
 }
 
 const web10SocialAdapterInit = (): Web10SocialAdapter => {
@@ -49,6 +171,12 @@ const web10SocialAdapterInit = (): Web10SocialAdapter => {
     undefined,
     local ? 'rtc.localhost' : 'rtc.web10.app'
   ) as WapiInstance;
+
+  // Initialize the typed wapi wrapper for the data layer
+  const wapiWrapper = createWapiWrapper(
+    local ? 'http://auth.localhost' : 'https://auth.web10.app',
+    local ? 'rtc.localhost' : 'rtc.web10.app',
+  );
 
   const adapter: Partial<Web10SocialAdapter> & WapiInstance = { ...wapi };
 
@@ -100,8 +228,37 @@ const web10SocialAdapterInit = (): Web10SocialAdapter => {
       cross_origins: ['localhost', 'web10social.netlify.app', 'social.web10.app'],
       whitelist: [{ username: '.*', provider: '.*', create: true }],
     },
+    // ── D4: conventions-schema services ──────────────────────────────
+    {
+      service: 'profile',
+      cross_origins: ['localhost', 'web10social.netlify.app', 'social.web10.app'],
+      whitelist: [{ provider: '.*', username: '.*', read: true }],
+    },
+    {
+      service: 'contacts',
+      cross_origins: ['localhost', 'web10social.netlify.app', 'social.web10.app'],
+    },
+    {
+      service: 'inbox',
+      cross_origins: ['localhost', 'web10social.netlify.app', 'social.web10.app'],
+      whitelist: [{ provider: '.*', username: '.*', create: true }],
+    },
+    {
+      service: 'comments',
+      cross_origins: ['localhost', 'web10social.netlify.app', 'social.web10.app'],
+    },
+    {
+      service: 'reactions',
+      cross_origins: ['localhost', 'web10social.netlify.app', 'social.web10.app'],
+    },
+    {
+      service: 'media',
+      cross_origins: ['localhost', 'web10social.netlify.app', 'social.web10.app'],
+    },
   ];
   adapter.SMROnReady(sirs, []);
+
+  // ── Legacy adapter methods (unchanged, for backward compat) ────────
 
   adapter.loadContact = async (web10: string): Promise<Contact> => {
     const [provider, user] = web10.split('/');
@@ -217,6 +374,65 @@ const web10SocialAdapterInit = (): Web10SocialAdapter => {
   adapter.deletePost = (id: string) => adapter.delete('posts', { _id: id });
   adapter.loadBulletins = () => adapter.read('bulletin');
   adapter.deleteBulletin = (id: string) => adapter.delete('bulletin', { _id: id });
+
+  // ── D4: data layer methods (conventions-schema services) ───────────
+
+  // Posts
+  adapter.createPostRecord = dlCreatePost;
+  adapter.readMyPostRecords = dlReadMyPosts;
+  adapter.readUserPostRecords = dlReadUserPosts;
+  adapter.updatePostRecord = dlUpdatePost;
+  adapter.deletePostRecord = dlDeletePost;
+
+  // Media
+  adapter.uploadMediaFile = dlUploadMedia;
+  adapter.readMediaRecords = dlReadMedia;
+  adapter.readMediaRecordById = dlReadMediaRecord;
+  adapter.deleteMediaRecord = dlDeleteMedia;
+  adapter.resolveMediaRefs = dlResolveMediaRefs;
+
+  // Feed
+  adapter.readFeed = dlReadFeed;
+  adapter.markInboxRead = dlMarkInboxRead;
+  adapter.countUnreadInbox = dlCountUnread;
+
+  // Profile
+  adapter.readProfileRecord = dlReadProfile;
+  adapter.saveProfileRecord = dlSaveProfile;
+  adapter.readUserProfileRecord = dlReadUserProfile;
+
+  // Contacts
+  adapter.readContactRecords = dlReadContacts;
+  adapter.readContactRecord = dlReadContact;
+  adapter.addContactRecord = dlAddContact;
+  adapter.updateContactRecord = dlUpdateContact;
+  adapter.deleteContactRecord = dlDeleteContact;
+  adapter.searchContactRecords = dlSearchContacts;
+
+  // DMs
+  adapter.conversationServiceName = dlConversationServiceName;
+  adapter.readDmMessages = dlReadDms;
+  adapter.sendDmMessage = dlSendDm;
+  adapter.deleteDmMessage = dlDeleteDm;
+  adapter.listDmConversations = dlListConversations;
+  adapter.getLastDmMessage = dlGetLastDm;
+
+  // Comments
+  adapter.readCommentsForPost = dlReadComments;
+  adapter.readTopLevelComments = dlReadTopLevelComments;
+  adapter.readCommentReplies = dlReadReplies;
+  adapter.createCommentRecord = dlCreateComment;
+  adapter.updateCommentRecord = dlUpdateComment;
+  adapter.deleteCommentRecord = dlDeleteComment;
+  adapter.countCommentsForPost = dlCountComments;
+
+  // Reactions
+  adapter.readReactionsForTarget = dlReadReactions;
+  adapter.createReactionRecord = dlCreateReaction;
+  adapter.toggleReactionOnTarget = dlToggleReaction;
+  adapter.deleteReactionRecord = dlDeleteReaction;
+  adapter.countReactionsForTarget = dlCountReactions;
+  adapter.getReactionCountsForTarget = dlGetReactionCounts;
 
   return adapter as Web10SocialAdapter;
 };
