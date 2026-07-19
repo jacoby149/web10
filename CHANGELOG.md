@@ -1,4 +1,15 @@
 1.0.58 || 19.07.2026
+D10: report-a-bug loop — feedback endpoint in marketing-api (POST
+/feedback, GET /feedback, 6 new tests, 10 total smoke green),
+"Report a bug" affordance + React error boundaries in web10-social
+(Tailwind/Radix modal, sidebar button, console error capture, 11 new
+component tests) and marketing-ui (Bulma modal, Navbar button, 11 new
+component tests, --passWithNoTests removed). Lane B note in
+.context/laneB-report-a-bug.md with endpoint contract + reference
+implementations for ui/ integration. Dead rectangles-npm cleanup:
+21 dead components and 6 dead test files removed (superseded by
+D2.5/B2.5 Tailwind migration). Social test suite now 193 passed, 0
+failures (was 4 pre-existing failures from dead code).
 A5: P4 per-request metering events. emit_event() in documentdb.py writes
 user/action/service/site/ts to a capped web10.metering_events collection
 (100k max, METERING_EVENTS_MAX). Wired into all CRUD/aggregate endpoints
@@ -35,32 +46,6 @@ errors + 26 unformatted files; one lane-A branch fixes workflow + debt
 together. Board hygiene: #117 and #118
 raced for version 1.0.55 and both merged with it — A6 (merged second)
 renumbered to 1.0.56 here, lane tick updated to match.
-
-1.0.56 || 19.07.2026
-A6: D21 strip user billing → operator quotas. Removed user-facing billing
-surface: /manage_space, /manage_credits, /manage_subscriptions endpoints
-(payments.py), /get_plan endpoint (system.py), credit_space/manage_subscription/
-create_checkout_session/create_portal_session functions (stripe.py), PAY_REQUIRED
-and per-plan Stripe price IDs (settings.py). Repurposed credits/space as
-operator-set per-user quotas enforced in crud.py check() — credits = rate/abuse
-throttle, space = storage caps (including imports). Stripe retained only for
-creator economy: dev_pay (Stripe Connect transfer_data + amount_percent),
-business onboarding/login. Updated metering tests to use operator quotas
-directly (no more PAY_REQUIRED gating). GLOSSARY.md updated (Billing → Quotas
-section). 274 api tests green (6 user-billing tests removed).
-
-1.0.55 || 19.07.2026
-B4.5 M0 slice: Studio monetization-menu screen — the money shot for the M0
-demo video. New ui/src/components/Studio/ with YouTube-Studio mental model:
-YPP-style unlock ladder (rungs 0-4, rung 0 unlocked, rungs 1-4 locked with
-progress bars showing "X more to unlock Y"). Three rung-0 one-button cards:
-(1) Memberships & Tips — wired to Stripe Connect rails, one-click enable,
-~97% payout chip; (2) Amazon Associates — paste-tag persistence (localStorage
-+ wapi.create fallback), compliance chips (affiliate disclosure auto, no
-cloaking, 3-sales/180-days countdown); (3) Direct Deals — operator-entered
-deal form (title, sponsor, amount, description), publish, persist to
-localStorage + ads collection fallback. Studio link in SideBar, "studio"
-mode in App.tsx router. 30 new vitest tests (73 total, all green).
 
 1.0.54 || 19.07.2026
 README rewritten to match the current stack: dead references removed

@@ -1294,7 +1294,7 @@ testing:
     (exporter/import ui, funnel events), then drop the
     --passWithNoTests flag so an empty suite can never look green
     again.
-[ ] report-a-bug loop -- the explicit counterweight to keeping the
+[✓] report-a-bug loop -- the explicit counterweight to keeping the
     e2e suite small: ~10 smoke journeys guarantee the money paths,
     so REAL USERS are the coverage for everything else, and that
     only works if telling us something broke costs them almost
