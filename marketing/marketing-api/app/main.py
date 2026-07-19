@@ -16,6 +16,7 @@ from .models import (
     ImportJobCreate,
     PageView,
     FunnelEventCreate,
+    FeedbackCreate,
 )
 from .utils import detect_platform
 from .instagram import parse_instagram
@@ -340,3 +341,35 @@ async def get_analytics_summary():
 @app.get("/health")
 async def health():
     return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
+
+
+# ─── Feedback (report-a-bug) ──────────────────────────────────────────────────
+
+feedback_store: list[dict] = []
+
+
+@app.post("/feedback")
+async def submit_feedback(fb: FeedbackCreate):
+    """Accept a bug report / feedback from any UI."""
+    entry = {
+        "id": str(uuid.uuid4()),
+        "type": "feedback",
+        "message": fb.message,
+        "contact": fb.contact,
+        "app": fb.app,
+        "route": fb.route,
+        "version": fb.version,
+        "user_agent": fb.user_agent,
+        "console_errors": fb.console_errors[:50],
+        "stack_trace": fb.stack_trace,
+        "timestamp": datetime.utcnow().isoformat(),
+    }
+    feedback_store.append(entry)
+    return {"status": "ok", "id": entry["id"]}
+
+
+@app.get("/feedback")
+async def list_feedback(limit: int = 100):
+    """List recent feedback entries (newest first)."""
+    items = list(reversed(feedback_store))[:limit]
+    return {"items": items, "total": len(feedback_store)}

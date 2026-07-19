@@ -1,3 +1,13 @@
+1.0.55 || 19.07.2026
+D10: report-a-bug loop — feedback endpoint in marketing-api (POST
+/feedback, GET /feedback, 6 new tests, 10 total smoke green),
+"Report a bug" affordance + React error boundaries in web10-social
+(Tailwind/Radix modal, sidebar button, console error capture, 11 new
+component tests) and marketing-ui (Bulma modal, Navbar button, 11 new
+component tests, --passWithNoTests removed). Lane B note in
+.context/laneB-report-a-bug.md with endpoint contract + reference
+implementations for ui/ integration.
+
 1.0.54 || 19.07.2026
 README rewritten to match the current stack: dead references removed
 (auth/ dir, settings_example.py copying, skaffold/GKE deploy, hex-key
