@@ -80,13 +80,13 @@ export function AmazonTagCard({ I, onStatus }: AmazonTagCardProps) {
   return (
     <div
       className={cn(
-        'rounded-lg border bg-card p-5 transition-colors',
+        'rounded border bg-card p-5 transition-colors',
         tag ? 'border-success/50' : 'border-border hover:border-brand/50',
       )}
       data-testid="studio-amazon-card"
     >
       <div className="flex items-start gap-3">
-        <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-elevated text-muted-foreground">
+        <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded bg-elevated text-muted-foreground">
           <Package className="h-6 w-6" strokeWidth={1.5} />
         </div>
         <div className="flex-1">
@@ -111,7 +111,7 @@ export function AmazonTagCard({ I, onStatus }: AmazonTagCardProps) {
       <div className="mt-4">
         {tag ? (
           <div className="flex items-center gap-2">
-            <div className="flex-1 truncate rounded-md border border-border bg-elevated px-3 py-2 font-mono text-sm text-foreground">
+            <div className="flex-1 truncate rounded-sm border border-border bg-elevated px-3 py-2 font-mono text-sm text-foreground">
               {tag}
             </div>
             <Button variant="outline" className="border-danger text-danger hover:bg-danger-muted hover:text-danger" onClick={handleRemove}>

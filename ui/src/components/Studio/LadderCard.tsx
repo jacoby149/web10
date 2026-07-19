@@ -23,7 +23,7 @@ export function LadderCard({ rung, onClick }: LadderCardProps) {
   return (
     <div
       className={cn(
-        'relative rounded-lg border p-4 transition-colors',
+        'relative rounded border p-4 transition-colors',
         rung.unlocked
           ? 'border-brand/40 bg-brand-muted/20 cursor-pointer hover:border-brand/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
           : 'border-border bg-card opacity-70',
@@ -45,7 +45,7 @@ export function LadderCard({ rung, onClick }: LadderCardProps) {
       <div className="flex items-start gap-3">
         <div
           className={cn(
-            'flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg',
+            'flex h-10 w-10 flex-shrink-0 items-center justify-center rounded',
             rung.unlocked ? 'bg-brand-muted text-brand-300' : 'bg-elevated text-muted-foreground',
           )}
         >

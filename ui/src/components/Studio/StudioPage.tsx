@@ -28,7 +28,7 @@ function StudioPage({ I }: { I: Record<string, any> }) {
             {status && (
               <div
                 role="status"
-                className="mb-4 rounded-lg bg-brand-muted px-3 py-2.5 text-center text-sm font-medium text-brand-300"
+                className="mb-4 rounded bg-brand-muted px-3 py-2.5 text-center text-sm font-medium text-brand-300"
               >
                 {status}
               </div>
@@ -67,7 +67,7 @@ function StudioPage({ I }: { I: Record<string, any> }) {
               </div>
             </div>
 
-            <div className="mt-12 rounded-lg border border-border bg-card p-4 text-center">
+            <div className="mt-12 rounded border border-border bg-card p-4 text-center">
               <p className="text-sm text-muted-foreground">
                 Third-party networks stay optional fill, never the foundation.
               </p>

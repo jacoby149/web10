@@ -24,7 +24,7 @@ function Icon({ children, onClick, className = "", label }: IconProps) {
       onClick={onClick}
       aria-label={label ?? children}
       className={cn(
-        'inline-flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-elevated hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
+        'inline-flex h-10 w-10 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-elevated hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
         onClick ? 'cursor-pointer' : 'cursor-default',
         className,
       )}

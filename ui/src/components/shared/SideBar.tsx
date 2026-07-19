@@ -10,7 +10,7 @@ function SideBar({ I }: SideBarProps) {
   // it did nothing (className isn't parsed for inline style syntax) and
   // the border/color never applied. Real Tailwind utilities now.
   const menuItemClass =
-    'flex w-full items-center rounded-lg border-b border-border px-4 py-2.5 text-left text-sm font-medium text-foreground transition-colors hover:bg-elevated cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+    'flex w-full items-center rounded border-b border-border px-4 py-2.5 text-left text-sm font-medium text-foreground transition-colors hover:bg-elevated cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
   return (
     <div

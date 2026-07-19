@@ -59,14 +59,14 @@ export function MembershipsCard({ I, onStatus }: MembershipsCardProps) {
   return (
     <div
       className={cn(
-        'rounded-lg border bg-card p-5 transition-colors',
+        'rounded border bg-card p-5 transition-colors',
         enabled ? 'border-success/50' : 'border-border hover:border-brand/50',
       )}
       data-testid="studio-memberships-card"
     >
       <div className="flex items-start justify-between">
         <div className="flex items-start gap-3">
-          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-brand-muted text-brand-300">
+          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded bg-brand-muted text-brand-300">
             <Gem className="h-6 w-6" strokeWidth={1.5} />
           </div>
           <div>
