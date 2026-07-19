@@ -213,17 +213,33 @@ M3 "the network"         = encryption integration (A rtc + C2 sdk
                            polish. the last big merge.
 
 
-CURRENT CONDUCTOR BOARD (as of 17.07.2026 — keep this section fresh)
+CURRENT CONDUCTOR BOARD (as of 18.07.2026 — keep this section fresh)
 --------------------------------------------------------------------
-  ws1: wave 0 remainder: ENDPOINT permission-matrix suite + small
-       security fixes (unit layer 1.0.21/1.0.31 and ci skeleton
-       1.0.32 landed; this is what's left, and it's still the
-       highest-value slot)
-  ws2: C2 sdk rewrite (unblocks C3 mcp + C3.5 create-web10)
-  ws3: B2.5 ui makeover in ui/ (records the stack pick in
-       decisions.md; D2.5 in web10-social matches it afterwards)
-ws4: next unticked pick — D4 killer app M0 slice, or A2 ferretdb
-        (A1/B1/B2/C1/D1/D2/D3/D5–D9/E2 are DONE — do not pick them again)
+we are in timeline.md WEEK 0 — the M0 sprint (video by ~aug 17).
+the D20/D21 pivot re-cut this board; C2 sdk is OFF the M0 critical
+path (ws2 repointed to D4 per timeline.md week 0).
+
+  ws1: B2.5 ui makeover in ui/ — stack pick (tailwind + shadcn is
+       the named default; record in decisions.md) + shared design
+       tokens. gates D2.5 and D4's screens; merge the pick fast.
+  ws2: D4 killer app M0 slice, DATA LAYER first — posts, feed
+       (chronological + sort dropdown ONLY, lens/chatbox cut per
+       D20), profile, dms on current wapi against docs/schemas.
+       logic doesn't wait for B2.5; screens do.
+  ws3: wave 0 remainder: small security fixes (CORS, bare except,
+       provider url validation) — land these BEFORE A6 churns the
+       billing code. then A6 (D21 strip user billing -> operator
+       quotas, timeline week 2) takes this lane-A slot.
+  ws4: outreach list batch 1 (20 enriched creator names, outreach.md
+       week-0 founder item) or E1 proxmox staging node (rehearses
+       the week-3 colo deploy).
+
+  merge-order notes: lane A stays single-branch (security fixes ->
+  A6 -> A5). D2.5 starts the moment B2.5's tokens merge. B4.5 M0
+  slice (studio monetization-menu screen, rung-0 cards) follows
+  B2.5 in lane B — it's week 2's money shot. C2/C3/C3.5 parked
+  until after M0.
+  (A1/B1/B2/B3/B4/C1/D1/D2/D3/D5–D9/E2 are DONE — don't re-pick.)
 
   from here on: pull the top unticked item of whichever lane's queue
   is unblocked. lanes A and B are long marches; C and D are a stream
