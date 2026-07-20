@@ -16,7 +16,8 @@ function Tag({ text }: { text: string }) {
 }
 
 function Websites({ contractI }: { contractI: Record<string, any> }) {
-  const sites: string[] = contractI.data.cross_origins;
+  // records without cross_origins (e.g. the "services" record) must not crash
+  const sites: string[] = Array.isArray(contractI.data.cross_origins) ? contractI.data.cross_origins : [];
   if (sites.length === 0) return null;
   return (
     <div className="ml-1 mt-1.5 flex flex-wrap gap-1.5">
@@ -57,14 +58,15 @@ function PermissionList({
   onDelete: (i: number) => void;
   testIdPrefix: string;
 }) {
-  if (entries.length === 0) return null;
+  const list = Array.isArray(entries) ? entries : [];
+  if (list.length === 0) return null;
   return (
     <div className="mt-3">
       <div className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {title}
       </div>
       <div className="space-y-1.5">
-        {entries.map((p: any, i: number) => (
+        {list.map((p: any, i: number) => (
           <div key={i} className="flex flex-wrap items-center gap-1.5 rounded-sm bg-elevated px-2.5 py-1.5">
             <span className="mr-1 text-sm text-muted-foreground">
               {p.provider}/{p.username}
