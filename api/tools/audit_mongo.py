@@ -37,7 +37,7 @@ def main():
         help="Mongo URI (default: host mongo on ubuntu box)",
     )
     parser.add_argument(
-        "--db", default="web10", help="Database name (default: web10)"
+        "--db", default="deploy", help="Database name (default: deploy — the real web10 data)"
     )
     parser.add_argument(
         "--sample",
