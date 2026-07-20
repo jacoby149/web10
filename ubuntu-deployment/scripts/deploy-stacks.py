@@ -56,6 +56,10 @@ def env_for(stack):
                  MINIO_PASSWORD=cfg["MINIO_PASSWORD_DEV"])
     else:
         d = dict(STACK="web10-prod", PROVIDER="api.web10.app",
+                 # Prod serves the REAL data in the host-native mongo's "deploy"
+                 # database (208 accounts), not the containerized FerretDB. The
+                 # compose defaults DB to web10/FerretDB; override here.
+                 DB="deploy", DB_URL="mongodb://host.docker.internal:27017/",
                  API_ORIGIN="https://api.web10.app", API_HOST="api.web10.app",
                  AUTH_ORIGIN="https://auth.web10.app", RTC_ORIGIN="https://rtc.web10.app",
                  MINIO_HOST="minio.web10.app", MARKETING_API_ORIGIN="https://marketing-api.web10.app",
