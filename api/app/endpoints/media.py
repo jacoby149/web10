@@ -2,6 +2,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, HTTPException
 
+import app.settings as settings
 from app.models.auth import Token
 from app.models.media import (
     MediaToken,
@@ -11,7 +12,6 @@ from app.models.media import (
     UploadRequest,
     UploadResponse,
 )
-import app.settings as settings
 from app.services import documentdb as db
 from app.services.auth import is_permitted
 from app.services.media import ensure_bucket, get_s3_client, make_object_key

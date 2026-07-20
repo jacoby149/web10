@@ -4,9 +4,9 @@ import jwt
 from fastapi import APIRouter, Form, Response
 
 import app.exceptions as exceptions
+import app.settings as settings
 from app.models.auth import PhoneForm, SignUpForm, Token, TokenData, TokenForm
 from app.models.core import dotdict
-import app.settings as settings
 from app.services import documentdb as db
 from app.services import twilio as mobile
 from app.services.auth import (
@@ -104,6 +104,9 @@ async def certify_token(token: Token):
 async def create_web10_token(form_data: TokenForm):
     token_data = TokenData()
     token_data.populate_from_token_form(form_data)
+    # the minted token is always issued by this provider — can_mint compares
+    # it against the submitted token's provider, so set it before the checks
+    token_data.provider = settings.PROVIDER
     if not form_data.password and not form_data.token:
         raise exceptions.LOGIN
     try:
@@ -117,10 +120,7 @@ async def create_web10_token(form_data: TokenForm):
                     pass
     except Exception as e:
         raise e
-    token_data.expires = (
-        datetime.utcnow() + timedelta(minutes=settings.TOKEN_EXPIRE_MINUTES)
-    ).isoformat()
-    token_data.provider = settings.PROVIDER
+    token_data.expires = (datetime.utcnow() + timedelta(minutes=settings.TOKEN_EXPIRE_MINUTES)).isoformat()
     return {"token": jwt.encode(token_data.model_dump(), settings.PRIVATE_KEY, algorithm=settings.ALGORITHM)}
 
 

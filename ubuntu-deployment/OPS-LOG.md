@@ -3,6 +3,69 @@
 Newest at top. Format per AGENT-OPS.md §8. Read the top entries
 BEFORE doing ops work — someone may already be mid-fix.
 
+## 19.07.2026 — Claude (lincoln, b7-auth-ui) — prod cutover to the real mongo (deploy)
+did (SSH as jacob; box /opt/web10 is still a stale non-git snapshot):
+  - ROOT CAUSE: web10-prod-api was serving the containerized FerretDB
+    (DB=web10, ~5 e2e smoke accounts) instead of the host-native mongo's
+    `deploy` DB (208 real accounts) — so every real login said "the user
+    doesn't exist". The compose hardcoded `DB: web10`, so the intended
+    prod override never took effect.
+  - FIX (two parts, both merged to dev): (1) compose `DB: ${DB:-web10}`
+    so the env can override it (PR #145); (2) deploy-stacks.py prod env
+    now sets DB=deploy + DB_URL=mongodb://host.docker.internal:27017/.
+  - Verified the deploy DB before flipping: 208 collections, jacoby149
+    present, its {service:services, body.service:"*"} record has a
+    bcrypt hash + verified=true (matches get_star()). The only accounts
+    in FerretDB were e2e smoke users (smoke*, verified=false) — nothing
+    real stranded.
+  - APPLIED: scp'd updated deploy-stacks.py to the box (backup left as
+    deploy-stacks.py.bak.<ts>), ran `deploy-stacks.py prod` → Portainer
+    stack web10-prod (id 2) redeployed. web10-prod-api-1 now has
+    DB=deploy + DB_URL=host mongo (status running).
+  - VERIFIED: POST /stats → users:208 (was 5); real apps show
+    (web10auth 13.5k visits, crm/mail.web10.app, …); jacoby149 with a
+    wrong password now returns "incorrect username or password" (found),
+    not "the user doesn't exist".
+  - host mongo needs no auth (binds 127.0.0.1 + 172.17.0.1:27017;
+    host.docker.internal→host-gateway already in the compose).
+next: the ~5 FerretDB smoke accounts are orphaned (harmless test data).
+  If any real signups happened while prod was on FerretDB, migrate them
+  into `deploy` before decommissioning the prod FerretDB.
+
+## 19.07.2026 — Claude (port-vila, mongo-backup-and-dev-urls) — dev URL rename: api.dev.web10.app
+did (SSH as jacob, scripts scp'd to the box since /opt/web10 is a stale
+non-git snapshot — see note below):
+  - DNS: sync-dns.py created api.dev.web10.app → 192.168.8.25.
+  - NPM: sync-npm.py issued a new DNS-01 cert including api.dev.web10.app,
+    created the api.dev vhost → web10-dev-api, remapped dev.web10.app →
+    web10-dev-marketing-ui (dev apex now mirrors prod apex).
+  - Portainer: deploy-stacks.py dev — redeployed web10-dev with
+    PROVIDER/API_ORIGIN/API_HOST = api.dev.web10.app (rebuilds ui/social
+    bundles with the new baked origin). Dev accounts invalidated (throwaway).
+  - smoke.sh green both envs (incl. new api-root redirect + apex checks).
+state:
+  - URL rule is now uniform: dev host = prod host with ".dev" inserted.
+  - WARNING: /opt/web10 on the box is NOT a git clone (rsync snapshot,
+    ubuntu-deployment/ predates scripts/). Box scripts refreshed by scp
+    this time; someone should replace /opt/web10 with a real clone of dev.
+next: replace /opt/web10 with a git clone; restore prod mongo copy into
+  dev FerretDB (B6 gate); set up automated mongo backups (operator asked).
+
+## 19.07.2026 — opencode (albany, jacoby149/connect-to-prod-mongo) — A7: mongo recon + backup
+did (SSH as jacob@192.168.8.25, no sudo needed):
+  - Confirmed real web10 data lives in MongoDB database `deploy` (not `web10`).
+  - 206 user collections, 60 registered apps, 45 phone numbers, ~2536 total docs.
+  - All records follow {service, body} shape — no drift. Star records at
+    {service: "services", body: {service: "*", ...}} — matches code's q_t().
+  - Mongo binds 127.0.0.1,172.17.0.1:27017 — containers on Docker bridge can reach it.
+  - host.docker.internal:host-gateway verified working from a container on the proxy network.
+  - Backup: `mongodump --db deploy --out ~/web10-backup-deploy-07.19.26` (11MB, 208 collections).
+state:
+  - Compose wired (extra_hosts + optional DB_URL fallback). env.prod.example documents
+    DB_URL + DB=deploy override. Audit script at api/tools/audit_mongo.py defaults to deploy.
+  - Gate: prod must NOT switch until a dev login works against a COPY.
+next: B6 (auth revamp) needs a copy restored into dev's FerretDB for testing.
+
 ## 19.07.2026 (night) — Claude (valencia, d14-social-origins) — FULL MIGRATION: box is live
 did (all via scripts, SSH as jacob, docker group granted by operator):
   - Portainer: initialized admin `jacob` (X-Setup-Token from logs),

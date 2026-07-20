@@ -93,10 +93,16 @@ services:
     depends_on:
       - ferretdb
       - minio
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
-      PROVIDER: ${PROVIDER:?set PROVIDER, e.g. dev.web10.app}
-      DB_URL: mongodb://web10:web10@${STACK}-ferretdb:27017/
-      DB: web10
+      PROVIDER: ${PROVIDER:?set PROVIDER, e.g. api.dev.web10.app}
+      DB_URL: ${DB_URL:-mongodb://web10:web10@${STACK}-ferretdb:27017/}
+      # DB was hardcoded, so the prod override was ignored and the API served
+      # the empty FerretDB instead of the real data (users "don't exist"). The
+      # real accounts live in the host mongo's "deploy" database — prod sets
+      # DB=deploy + DB_URL=mongodb://host.docker.internal:27017/ (env.prod).
+      DB: ${DB:-web10}
       S3_ENDPOINT: http://${STACK}-minio:9000
       S3_ACCESS_KEY: minioadmin
       S3_SECRET_KEY: ${MINIO_PASSWORD}
@@ -117,10 +123,10 @@ services:
       dockerfile: Dockerfile
       args:
         # names must match ui/Dockerfile's declared ARGs (B5, 1.0.65)
-        REACT_APP_API_ORIGIN: ${API_ORIGIN:?e.g. https://dev.web10.app}
+        REACT_APP_API_ORIGIN: ${API_ORIGIN:?e.g. https://api.dev.web10.app}
         REACT_APP_AUTH_ORIGIN: ${AUTH_ORIGIN:?e.g. https://auth.dev.web10.app}
         REACT_APP_RTC_ORIGIN: ${RTC_ORIGIN:?e.g. https://rtc.dev.web10.app}
-        REACT_APP_DEFAULT_API: ${API_HOST:?host only, e.g. dev.web10.app}
+        REACT_APP_DEFAULT_API: ${API_HOST:?host only, e.g. api.dev.web10.app}
     environment:
       PORT: "80"
     restart: unless-stopped
@@ -164,6 +170,11 @@ services:
       args:
         VITE_API_URL: ${API_ORIGIN}
         VITE_MARKETING_API: ${MARKETING_API_ORIGIN}
+        VITE_GIT_COMMIT: ${GIT_COMMIT:-}
+        VITE_AUTH_URL: ${AUTH_ORIGIN}
+        VITE_SOCIAL_URL: ${SOCIAL_ORIGIN:-}
+        VITE_MARKETING_URL: ${MARKETING_UI_ORIGIN:-}
+        STATUS_VERSION: ${STATUS_VERSION:-}
     restart: unless-stopped
     networks:
       proxy:

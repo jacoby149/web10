@@ -8,17 +8,19 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 fail=0
 check() {  # check <label> <expected-code> <url>
-  code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 12 "$3" || echo 000)
+  code=$(curl -sL -o /dev/null -w '%{http_code}' --max-time 12 "$3" || echo 000)
   if [[ "$code" == "$2" ]]; then echo "  ok   $1 ($code)"; else echo "  FAIL $1 (got $code, want $2) $3"; fail=1; fi
 }
 
 for env in dev prod; do
-  if [[ "$env" == dev ]]; then api=dev.web10.app; pre=dev.; else api=api.web10.app; pre=; fi
+  if [[ "$env" == dev ]]; then pre=dev.; apex=dev.web10.app; else pre=; apex=web10.app; fi
   echo "== $env =="
-  check "api docs"     200 "https://$api/docs"
+  check "api docs"     200 "https://api.${pre}web10.app/docs"
+  check "api root"     200 "https://api.${pre}web10.app/"
   check "auth ui"      200 "https://auth.${pre}web10.app/"
   check "social"       200 "https://social.${pre}web10.app/"
   check "marketing"    200 "https://www.${pre}web10.app/"
+  check "apex marketing" 200 "https://$apex/"
   check "marketing-api" 200 "https://marketing-api.${pre}web10.app/docs"
 done
 

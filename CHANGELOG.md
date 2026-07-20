@@ -1,3 +1,266 @@
+1.0.84 || 20.07.2026
+D16 (frontend): revive the App Store as a real, live catalog. The
+marketing-ui AppStore page now POSTs the node's /stats and renders real
+data instead of hardcoded proof cards: live member + registered-app counts
+plus total data owned ("N members · M apps · X MB of data owned on web10" —
+the storage stat the old store used to show), web10 social promoted as the
+flagship hero (not buried), and the registered third-party apps below as the catalog (name =
+host, with visit counts, linking out). Robust: falls back to the hero +
+first-party seed if /stats is unreachable, and skips *.localhost/known
+first-party hosts. Node API resolved via ?api= / VITE_API_URL, defaulting
+to the local node on *.localhost and api.web10.app otherwise. Curation /
+node-owner takedown (an admin `removed` flag + admin screen) is deferred to
+next per the operator — see the D16 status note in parallel execution.txt.
+1.0.83 || 20.07.2026
+Align the auth console sidebar header with the top bar. The brand header was
+py-5 (taller) while the top bar is h-14, so their bottom borders didn't line
+up at the seam. Made the sidebar header h-14 too — dividers now match.
+1.0.82 || 20.07.2026
+API defends against duplicate service terms. documentdb.create now rejects a
+second terms record for a service that already has one (service=="services"
+with a body.service already present) → 409 DUPLICATE_SERVICE. This is the
+server-side guardrail behind the duplicate-contracts bug (the UI guards it
+too); a service's terms should be updated, not re-created. +2 tests.
+1.0.81 || 20.07.2026
+Consent flow overhaul + crash fixes. A dedicated full-screen ConsentView
+replaces the floating banner that overlapped the console: one focused,
+polished screen (its own space) when the auth app is opened by another app.
+It is concise by default — one line per requested service with plain-English
+summary — and each row expands (progressive disclosure) to the full detail:
+sites with access, allowed/blocked users with exact permissions, and for
+changes the delta (added/removed highlighted). It shows what's already
+shared vs new, and no longer re-asks for services already granted.
+Approve all / Continue without sharing are sticky (no scrolling). The
+token/login handoff is fixed: goToApp mints a fresh scoped token for the
+referrer and posts it to the opener (approving one request no longer ships
+the token early and strands the rest — the token goes only when you choose
+to continue). submitSIR refuses to create a duplicate terms record for an
+already-granted service (root of the duplicate-contracts bug). Also:
+RequestPage rendered whitelist entries as {anchor, allowed[]} but the real
+shape is {username, provider, <action>}, so `.join` on undefined blanked
+the whole review screen (now defensive); the contract viewer crashed
+expanding records without whitelist/blacklist/cross_origins (e.g. the
+services record) — now guarded; a top-level ErrorBoundary turns any future
+render throw into a designed error state instead of a blank page; the app
+shell is now fixed-height so the sidebar/top bar stay put and only content
+scrolls; social.localhost now targets auth.localhost automatically (any
+*.localhost host is local) so social -> auth -> social works without
+?local=true. 74 ui tests green.
+1.0.80 || 19.07.2026
+Prod cutover to the real mongo. deploy-stacks.py now sets the web10-prod
+env DB=deploy + DB_URL=mongodb://host.docker.internal:27017/, so the prod
+API serves the host-native mongo's "deploy" database (208 real accounts)
+instead of the empty containerized FerretDB. Applied on the box and
+verified: POST /stats users 5 -> 208, real apps/usage show, and a real
+account (jacoby149) is found again ("incorrect username or password" on a
+wrong password, not "the user doesn't exist"). Completes the DB override
+enabled by 1.0.79's compose fix. Ops details in ubuntu-deployment/OPS-LOG.md.
+1.0.79 || 19.07.2026
+Prod fixes: missing static assets, wrong readiness API, and the DB override.
+(1) ui/Dockerfile never COPYed public/, so vite had nothing to fold into
+dist — every static asset (logo /YourOrgsLogo/key_white.png, favicon.ico,
+manifest.json, PWA icons) 404'd on the deployed auth app. Copy public/
+before the build; verified the rebuilt image serves them. (2) App.tsx's
+readiness probe fell back to a hardcoded "api.localhost" when logged out, so
+/ready hit the wrong API on prod (and hung locally). Fall back to the
+configured API host, with *.localhost detection mirroring authAdapter.
+(3) The ecosystem compose hardcoded DB: web10, so the prod override was
+ignored and the API served the empty FerretDB — real accounts (the "deploy"
+DB) looked like "the user doesn't exist". DB is now ${DB:-web10}; prod sets
+DB=deploy + DB_URL=host mongo (env.prod). (4) Repositioned the OAuth consent
+banner from a stray in-flow card (it rendered "status: ready" in an odd spot
+above the shell) to a fixed prompt below the top bar.
+1.0.78 || 19.07.2026
+Fix marketing-ui /docs 403. The docs .md files ship in a public/docs
+directory, so nginx resolved the bare /docs and /docs/ routes to that
+directory, found no index.html, and returned 403 (autoindex off) — /docs
+even 301'd to /docs/ first. The `$uri/` in the /docs/ try_files was asking
+nginx to index the directory. Map the bare routes straight to the SPA shell
+via exact-match locations (which win over the prefix, so no directory
+redirect) and drop `$uri/` so sub-routes fall back to index.html while real
+files (.md, schemas/) still serve. Validated: /docs, /docs/, /docs/<slug>,
+and /docs/<slug>.md all 200.
+1.0.77 || 19.07.2026
+Auth console: admin model, Node Config fix, Studio reorder, working search,
+ecosystem links, balanced topbar. SECURITY: check_admin was passing for any
+signed-in owner on their own node, so on a shared node every user could
+read/edit the node-global config (Stripe keys, CORS, signing). It now
+enforces an admin list — config.admins, or settings.DEFAULT_ADMINS
+(jacoby149) until one is saved — and returns 403 otherwise. New POST
+/am_admin lets the console show/hide Node Config; admins are returned in
+/config and editable via the config PATCH (add/remove in a new Admins card).
+Fixed the Node Config load: the endpoint was GET while the UI POSTed (always
+405 → misleading "Are you an admin?"); it's POST now, matching /setup and
+/stats, with regression tests. UI: Node Config is hidden for non-admins
+(sidebar + mobile nav) and shows a calm "Admins only" gate (not a red error)
+if reached. Studio now leads with Rung 0 (Available Now) and puts the
+aspirational ladder below. The topbar search box actually filters contracts
+(by name and site) — it was a no-op — and the topbar is rebalanced to three
+columns (page title left, centered search, account menu right); the account
+chip is now a real menu (Settings / Log out) instead of an inert hover
+target. Added an Ecosystem group (What is web10 → web10.app, App Store →
+/app-store, Docs → /docs) to the sidebar. Fixed the sidebar brand/nav
+alignment (was 8px off). 289 api + 74 ui tests green.
+1.0.76 || 19.07.2026
+B7: auth UI (ui/) from-the-phone quality pass. Rebuilt the authenticated
+console shell to design.md §9: extracted one shared AppShell (full-height
+fixed sidebar on desktop, top bar over the content column only, bottom tab
+bar on mobile) from the wrapper that was copy-pasted into all five pages.
+SideBar is now real nav — brand at top, Contracts/Requests/Studio/Node
+Config with icons + a brand-muted active pill, Settings + Log out anchored
+at the bottom (was warning-coloured underline text). TopBar dropped the
+cryptic bars/moon icons and the dead "Apps"/appstore button (a mode with
+no case that fell through to Contracts) and the non-functional theme toggle
+(nothing consumed I.theme; dark-first per design.md §2). MobileNav no
+longer requires the ?auth query param, so the bottom nav actually appears
+(mobile had zero navigation before). Branding gained an onError fallback so
+a missing logo asset degrades to the wordmark instead of a broken <img>
+(the prod broken-logo report). Routing: a signed-out visitor — including an
+expired/scrubbed token — now lands on the login page, never an empty "Your
+contracts"; the restore path checks the token's embedded expiry and scrubs
+a dead token. Contract cards enriched: a granted-on date derived from the
+record's ObjectId, a globe + truncated cross_origins preview
+("localhost, crm.web10.app +4 more"), a grant badge, and a site count;
+the whole header is one click-to-expand target. Added a designed empty
+state for a fresh account (no contracts yet) instead of a gray void.
+Signup/login robustness: (a) the adapter now treats any *.localhost host
+as local (auth.localhost was falling through to the prod origins) and sets
+wapi.defaultAPIProtocol itself, so the published SDK's signup/login URLs
+stop coming out "undefined://…" ("Unsupported protocol undefined:"); (b)
+auth state is seeded from the token cookie via a lazy useState initializer
+instead of a render-phase setAuth, fixing a "too many re-renders" crash
+(blank page) once a valid token existed; (c) I.login completes when the
+token cookie is set even though the published SDK's logIn throws minting a
+referrer token with no parent app, so signup → auto-login lands on the
+console instead of a false error. Verified the full fresh-account journey
+(signup → auto-login → console) plus 375px/1280px against the local stack
+(screenshots in the PR). 73 ui tests green.
+1.0.75 || 19.07.2026
+Auth hotfix — unbreak the social login handoff. API: tiered token
+minting always raised MINT because the minted TokenData never had its
+provider set before can_mint compared providers (Lane A bug 1 from the
+C6 sweep); set it at mint time. Verified end-to-end in the docker image:
+signup -> login -> consent term record -> tiered mint -> CRUD with the
+minted social-site token. SDK (web10-npm source, ships with next
+publish): mintOAuthToken no longer throws an unhandled axios error on
+mint failure (the raw "axios error" operators saw on every social
+login); authListen no longer stores an empty-string token when the
+authenticator sends null (apps believed they were signed in with a
+garbage token); readToken survives a malformed token cookie instead of
+white-screening at load; register_app ping is best-effort. Un-fixme'd
+the consent-grant tiered-token e2e test and rewrote it to drive the
+real consent -> mint -> CRUD chain. +2 API mint tests (281 green),
+SDK suite 52 green.
+1.0.74 || 19.07.2026
+C6: e2e deep sweep — expanded harness to 40 tests across money paths.
+Added marketing-api to e2e compose. New suites: consent-grant (4),
+social-full (9: post, comment, reaction, DM, media upload/list),
+terms-revoke (3: whitelist, blacklist, cross_origins), exporter (6:
+import job, analytics, feedback), app-store (4: store render, token
+handoff, system endpoints), studio-metering (5: credits, out-of-credits,
+events, aggregate, studio UI). Persona seed fixture factory (seed.ts).
+34/40 pass. 6 failures triaged as API bugs (Lane A): tiered token mint
+(can_mint requires provider on mint_token, never set), media upload
+(is_permitted needs target=PROVIDER for media service), terms cross-user
+(reader token needs target=PROVIDER for whitelist check). Bug notes in
+.context/ for Lane A.
+1.0.73 || 19.07.2026
+Dev URL scheme made consistent with prod: the dev API moves from
+dev.web10.app to api.dev.web10.app, and dev.web10.app (the dev apex)
+now serves marketing-ui — mirroring prod's web10.app apex. Rule:
+dev host = prod host with ".dev" inserted. Changed across
+ubuntu-deployment/: sync-dns.py (api.dev A record), sync-npm.py
+(api.dev vhost; env apex → marketing-ui for both envs), deploy-stacks.py
++ env.dev.example (PROVIDER/API_ORIGIN/API_HOST → api.dev.web10.app —
+NOTE: invalidates existing dev accounts, they were throwaway),
+smoke.sh (new host map + apex checks, curl -L), README.md/AGENT-OPS.md
+URL maps. Plus api: GET / now redirects to /docs so a bare API host
+(api.web10.app, api.dev.web10.app) looks intentional instead of
+returning {"detail":"Not Found"}.
+Also: the api CI check worked for the first time ever this branch —
+"api (lint + test)" had failed on EVERY run since it landed (#88)
+because `uv sync --frozen` installs neither ruff nor pytest (both
+were optional extras). Fixed by adding a [dependency-groups] dev
+group (uv installs it by default). Then actually ran the linter the
+repo always claimed to run: ruff check --fix + ruff format across
+api/ (import sorting, 26 files reformatted, 2 dead variables,
+per-file F401 ignore for __init__.py re-exports); 279 tests green.
+Plan additions from operator reports: frontend cache-headers item
+(index.html max-age=86400 leaves browsers on dead bundles for a day
+after each deploy), web10-npm republish item (kills the ui/Dockerfile
+sed patch), lane-B B7 auth-UI quality pass (dead restored token
+strands users on an empty contracts page with no login button;
+broken logo; unusable on mobile), and a concrete production-mongo
+nightly-dump + restore-drill item under ops backup.
+
+1.0.72 || 19.07.2026
+A7: real MongoDB connection wired (compose + env + audit tool).
+docker-compose.ecosystem.yml: api service gains extra_hosts
+(host.docker.internal:host-gateway) so containers can reach the
+host-native MongoDB. DB_URL is now optional with a FerretDB fallback
+(${DB_URL:-mongodb://...}), so dev stays self-contained out of the
+box and prod overrides via env. env.prod.example documents the
+host-mongo override; env.dev.example documents the copy-for-testing
+path (A7 gate). NEW api/tools/audit_mongo.py: read-only script to
+inspect the real data — reports user count, app count, star-record
+field inventory, {service, body} shape drift detection, service
+distribution. Run on the box: `python api/tools/audit_mongo.py`.
+Code review: star protection (star_found/star_selected), scoped
+queries (q_t body. prefix), and aggregate sandboxing ($match
+exclusion of star) are all correct against real data — no code
+changes needed. Gate: prod must NOT switch DB_URL until a dev
+login works against a COPY (mongodump→mongorestore into dev's
+FerretDB, or a read-only host connection).
+B6: authenticator revamp — the ui/ auth flow is now functional. The
+critical bug: wapiAuth.js referenced wapi.defaultAPIProtocol (undefined)
+instead of wapi.APIProtocol, so login/signup POSTed to
+"undefined://provider/web10token" — every auth call failed. Fixed in
+sdk/src/wapiAuth.js + test mock, dist bundles rebuilt. Token restoration
+on page load added to Interface.tsx (refresh no longer logs out).
+SignupForm no longer flashes to contracts before signup completes.
+ForgotForm cancel button now uses isAuthenticated() instead of the
+?auth query param string. authAdapter.ts local-detection switched from
+protocol check (broken on https://localhost) to hostname check.
+Branding component restyled for auth screens: keys-mark logo at 48px,
+"web10" headline, tagline per design.md narrative direction. Orphaned
+React atom logo.svg deleted. Phone value now passed to I.signup()
+(missing 6th arg). SDK linked locally (file:../sdk) so the fix is
+consumed. 73/73 ui tests green, 52/52 sdk tests green.
+D18: SDK visibility + publish flow. New sdk.md docs page in
+marketing-ui/public/docs/ with install instructions, API overview,
+and a note on the upcoming C2 typed rewrite. Wired into Docs.tsx
+sidebar. SDK link added to Home.tsx footer. npm badge + SDK link
+added to README.md. npm publish verified: web10-npm@1.0.8 public on
+npmjs.com, cd.yml `npm` job fires on v* tags with provenance +
+`--access public`. Publish flow decision: stays tag-gated
+(decisions.md D26) — auto-publish on merge rejected while C2's typed
+rewrite is in flight; a v* tag forces a deliberate release decision,
+preventing legacy wapi.js from drowning npm with versions nobody
+should install.
+D17: restore the dev docs. Recovered from `82667060^:auth/public/docs/`:
+the two live demo apps (hello/ and notes/) rebuilt on the design.md
+standard — dark-first zinc/violet, self-hosted fonts, token-styled
+buttons, skeleton loading — served from marketing-ui's public/docs/.
+New sdk.md doc page: covers the current wapi.js SDK (with runnable
+examples linking to the demos) and the upcoming C2 typed SDK (no
+legacy-wapi-as-the-future voice). New cli-quickstart.md: documents
+the web10-cli scaffolder (`npx web10-cli create`), available templates,
+and the path to `create-web10`. Docs.tsx sidebar expanded: a "Demo
+Apps" section (Hello, Notes — open in new tab) alongside the updated
+Documentation nav (Protocol Spec, Conventions, SDK Guide, CLI
+Quickstart). AppStore.tsx "Build on web10" card now has two CTAs:
+SDK Guide + CLI Quickstart (with Terminal icon). 19 tests green,
+production build clean.
+
+1.0.71 || 19.07.2026
+E9 executed: deployment status page baked at build time. One URL per
+env (`/status/`) served from the marketing-ui container showing
+version, commit sha + squash title, deploy date, and per-service
+health dots. Zero new machinery — a build script generates
+`status.json` + `status.html` from git info + CHANGELOG top at Docker
+build time; every auto-redeploy refreshes it. No new NPM vhost or DNS
+needed; the path is served from the existing marketing-ui nginx.
+
 1.0.70 || 19.07.2026
 PRIORITY ZERO declared at the top of plan.txt (operator): the
 deployed product must WORK AT A BASELINE — baseline fixes outrank

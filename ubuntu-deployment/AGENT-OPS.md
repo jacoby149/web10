@@ -113,12 +113,12 @@ works on VPN; prod on public real names — full table in README.md):
 
 | Public URL (dev / prod) | NPM forwards to | What |
 |---|---|---|
-| `dev.web10.app` / `api.web10.app` | `web10-{env}-api:80` | FastAPI node |
+| `api.dev.web10.app` / `api.web10.app` | `web10-{env}-api:80` | FastAPI node |
 | `auth.dev.web10.app` / `auth.web10.app` | `web10-{env}-ui:80` | node admin/consent UI |
 | `rtc.dev.web10.app` / `rtc.web10.app` | `web10-{env}-rtc:80` | signaling |
 | `minio.dev.web10.app` / `minio.web10.app` | `web10-{env}-minio:9000` | S3 API (media) — never :9001 |
 | `social.dev.web10.app` / `social.web10.app` | `web10-{env}-social:80` | web10-social |
-| `www.dev.web10.app` / `www.web10.app`+apex | `web10-{env}-marketing-ui:80` | marketing site |
+| `www.dev.web10.app`+`dev.web10.app` / `www.web10.app`+apex | `web10-{env}-marketing-ui:80` | marketing site |
 | `marketing-api.dev.web10.app` / `marketing-api.web10.app` | `web10-{env}-marketing-api:80` | importer/analytics API |
 
 ## 3. Diagnosis — run this sequence, in order, before changing anything
@@ -139,7 +139,7 @@ docker run --rm --network proxy curlimages/curl -sS -o /dev/null \
 
 # D. is it reachable FROM OUTSIDE? (dev vhosts only answer on VPN)
 curl -sS -o /dev/null -w '%{http_code}\n' https://api.web10.app/docs
-curl -sS -o /dev/null -w '%{http_code}\n' https://dev.web10.app/docs
+curl -sS -o /dev/null -w '%{http_code}\n' https://api.dev.web10.app/docs
 
 # E. does DNS even exist? (run from YOUR machine, not the box)
 dig +short auth.dev.web10.app
@@ -172,7 +172,7 @@ Read this before re-diagnosing; these are already understood:
    frontends** (ui B5, web10-social D14, marketing-ui): backend
    origins come from build args `docker-compose.ecosystem.yml`
    passes per env, prod as fallback. Verified live: the dev auth
-   bundle calls `dev.web10.app`, not prod. A stack rebuild (not
+   bundle calls `api.dev.web10.app`, not prod. A stack rebuild (not
    restart) is required to change baked origins — GitOps redeploys
    do rebuild.
 3. **CORS**: each stack's `CORS_SERVICE_MANAGERS` env lists every

@@ -25,20 +25,17 @@ CF = cfg["CF_API_TOKEN"]
 # (vhost, forward alias, port). dev → web10-dev-*, prod → web10-prod-*.
 HOSTS = []
 for env, pre in (("dev", "web10-dev"), ("prod", "web10-prod")):
-    if env == "dev":
-        api_host = "dev.web10.app"; suffix = ".dev.web10.app"
-    else:
-        api_host = "api.web10.app"; suffix = ".web10.app"
+    suffix = ".dev.web10.app" if env == "dev" else ".web10.app"
     HOSTS += [
-        (api_host, f"{pre}-api", 80),
+        (f"api{suffix}", f"{pre}-api", 80),
         (f"auth{suffix}", f"{pre}-ui", 80),
         (f"rtc{suffix}", f"{pre}-rtc", 80),
         (f"minio{suffix}", f"{pre}-minio", 9000),
         (f"social{suffix}", f"{pre}-social", 80),
         (f"www{suffix}", f"{pre}-marketing-ui", 80),
         (f"marketing-api{suffix}", f"{pre}-marketing-api", 80),
+        (suffix.lstrip("."), f"{pre}-marketing-ui", 80),  # env apex → marketing
     ]
-HOSTS.append(("web10.app", "web10-prod-marketing-ui", 80))  # apex → marketing
 DOMAINS = [h[0] for h in HOSTS]
 
 

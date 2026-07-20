@@ -330,7 +330,7 @@ a DB_URL change, not a rewrite.
     dedicated tools/ dir, not in the deleted web10-deploy)
 [✓] rename mongo.py -> documentdb.py (adapter is backend-agnostic; pymongo
     speaks to either real Mongo or FerretDB/DocumentDB)
-[ ] CONNECT THE REAL DATA (A7, added 19.07.2026): the ubuntu box
+[✓ 1.0.72] CONNECT THE REAL DATA (A7, added 19.07.2026): the ubuntu box
     already runs the ORIGINAL production MongoDB — ~208 real users,
     historical usage stats, and the registered apps from web10's
     live app-store era. it runs NATIVELY on the host (not a docker
@@ -478,7 +478,7 @@ the three items below are PARALLEL — disjoint directories:
 now-that-it's-deployed round (added 19.07.2026, gated on A7's real
 mongo — the box is live but pointed at an empty ferretdb; connecting
 the original data changes what "done" looks like for these):
-[ ] AUTHENTICATOR REVAMP (lane B, item B6): the ui/ auth flow is
+[✓ 1.0.72] AUTHENTICATOR REVAMP (lane B, item B6): the ui/ auth flow is
     broken in look AND function — the web10 logo renders broken, and
     login "straight up doesnt work" (operator, 19.07). B5 fixed the
     shell; this fixes the actual login/consent journey end to end
@@ -500,7 +500,7 @@ the original data changes what "done" looks like for these):
 [✓ 1.0.70] docs 404 fix (lane D, D16.1): /docs/protocol-spec 404'd
     live — marketing-ui's nginx /docs/ alias block shadowed the SPA
     fallback. try_files → index.html added.
-[ ] RESTORE THE DEV DOCS (lane D, item D17): the old sharp docs —
+[✓ 1.0.72] RESTORE THE DEV DOCS (lane D, item D17): the old sharp docs —
     two runnable demo apps (hello/, notes/) + sdk.md/sdk.pdf — are
     NOT lost; they live in git at `82667060^:auth/public/docs/`.
     bring them into marketing-ui's docs on the design.md standard,
@@ -508,11 +508,15 @@ the original data changes what "done" looks like for these):
     web10 CLI" call-to-action (the CLI still exists at
     marketing/web10-cli/ but is invisible) + a CLI quickstart.
     don't teach legacy wapi as the future — align with C2.
-[ ] SDK visibility + publish flow (lane D item D18 + lane E item
-    E7): github shows 4 packages, none is the sdk; docs never link
-    it. document + link the sdk everywhere it should be, confirm
-    cd.yml's npm publish fires (today tag-gated; decide if updates
-    should auto-publish).
+[✓ 1.0.72] SDK visibility + publish flow (lane D item D18 + lane E item
+    E7): sdk/ documented in marketing-ui docs (new sdk.md page, wired into
+    Docs.tsx sidebar), SDK link added to Home.tsx footer, npm badge + SDK
+    link added to README.md. npm publish verified: web10-npm@1.0.8 is public
+    on npmjs.com, cd.yml's `npm` job fires on v* tags with provenance.
+    Publish flow decision: stays tag-gated (decisions.md D26) — auto-publish
+    on merge rejected while C2's typed rewrite is in flight; a v* tag forces
+    a deliberate release decision, preventing legacy wapi.js from drowning npm
+    with versions nobody should install.
 [ ] mobile encryptor → app stores (lane E item E8, parked): expo
     eas build/submit, listings, signing. post-M0, gated on the
     encryptor doing real e2e key management — on the board so it
@@ -1425,7 +1429,7 @@ testing:
     lands. visual-regression screenshots are explicitly LATER --
     real value, but baselines churn while B2.5/D2.5 restyle the
     world; revisit after the makeovers settle.
-[ ] e2e deep sweep (added 19.07.2026 — C5's harness makes this
+[✓ 1.0.74] e2e deep sweep (added 19.07.2026 — C5's harness makes this
     possible; expect it to hurt): the 10 smoke journeys prove the
     stack boots; now actually EXERCISE the ecosystem locally
     (e2e/docker-compose.yml) end to end and find out what doesn't
@@ -1581,6 +1585,18 @@ other known issues, fix early (phase 0/1, before any real users):
     "we've been audited" is a sales document in this business.
 
 quality:
+[ ] frontend cache headers: index.html must ship no-cache on all
+    three static frontends (ui, social, marketing-ui) -- hashed
+    assets can stay immutable. today static-web-server defaults
+    html to max-age=86400, so every deploy leaves browsers on dead
+    bundles for up to a day (operator hit this 19.07: the shipped
+    B6 login fix looked still-broken because the browser held the
+    old bundle). fix in each Dockerfile's server config; verify
+    with curl -I after deploy.
+[ ] republish web10-npm to npm with the wapiAuth defaultAPIProtocol
+    fix (>=1.0.9), then delete the sed patch in ui/Dockerfile --
+    every consumer of the published sdk still gets the broken login
+    until this ships.
 [ ] ruff + mypy on the api (type the permission logic first),
     typescript strict on ui/sdk, pre-commit hooks
 [ ] health/readiness endpoints + basic metrics on every service
@@ -1828,6 +1844,15 @@ provisioning:
     ansible vault. no secrets in git, ever.
 
 backup:
+[ ] PRODUCTION MONGO DUMPS (do this one first -- the data is 11MB,
+    there is no excuse): nightly cron `mongodump --db deploy | gzip`
+    on the box, rotated 30 days, written to a spare drive that is
+    NOT the data disk (operator has spare drives in the machine --
+    mount one for this). the one-off dump from 19.07 lives on the
+    same disk as the data and protects against nothing physical.
+    monthly restore drill: mongorestore the latest dump into dev's
+    ferretdb -- this same restore is the A7/B6 "dev login against a
+    COPY" gate, so the first drill is already owed.
 [ ] proxmox scheduled VM/LXC backups (daily incremental, weekly
     full). off-box if possible (another machine on the LAN).
 [ ] docker volume backups: periodic tar of data volumes pushed

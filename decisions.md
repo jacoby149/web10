@@ -9,6 +9,24 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D26 — SDK npm publish stays tag-gated; no auto-publish on merge [decided]
+`cd.yml` publishes `web10-npm` to npm on a `v*` tag push (the `npm` job,
+gated on `startsWith(github.ref, 'refs/tags/v')`). The operator asked whether
+a version bump on merge to `dev`/`main` should auto-publish so the SDK stays
+fresh. Decision: keep it tag-gated. Reasons: (1) the SDK is legacy wapi.js
+(axios + peerjs, untyped) — the C2 typed rewrite is in flight; auto-publishing
+the legacy surface at every merge would drown npm with versions nobody should
+install; (2) npm provenance + `--access public` already works; the gate is a
+feature, not a bug — it forces a deliberate release decision; (3) the SDK
+package.json version (1.0.8) is decoupled from the repo's CHANGELOG versioning
+(1.0.x) — auto-publish needs a version-bump step that currently doesn't exist.
+When C2 lands, the typed SDK should either bump the major version (breaking
+change: drop axios, drop peerjs from core) or publish as a new package name.
+Until then, a `v*` tag is the right friction: publish when the SDK is actually
+worth installing. Rejects: auto-publish on merge (drowns npm, publishes legacy
+surface), and a version-bump-on-merge script (premature for a package about to
+be rewritten).
+
 ### D25 — DB backend is per-env config, not baked; prod bootstraps on the host mongo [decided]
 The node's DB is a config item (`db_url`/`db_name` in `NodeConfig`,
 default `mongodb://ferretdb:27017`), and the backend is wire-protocol

@@ -165,19 +165,23 @@ interface Web10SocialAdapter {
 
 const web10SocialAdapterInit = (): Web10SocialAdapter => {
   const queryParameters = new URLSearchParams(window.location.search);
-  const local = queryParameters.get('local');
+  // Go local when served from any *.localhost host (so social.localhost ->
+  // auth.localhost -> social.localhost works without needing ?local=true),
+  // or when ?local=true is explicitly set.
+  const host = window.location.hostname;
+  const local =
+    queryParameters.get('local') != null ||
+    host === 'localhost' ||
+    host === '127.0.0.1' ||
+    host.endsWith('.localhost');
 
-  const wapi = wapiInit(
-    local ? 'http://auth.localhost' : AUTH_ORIGIN,
-    undefined,
-    local ? 'rtc.localhost' : RTC_HOST
-  ) as WapiInstance;
+  const authUrl = local ? 'http://auth.localhost' : AUTH_ORIGIN;
+  const rtcHost = local ? 'rtc.localhost' : RTC_HOST;
+
+  const wapi = wapiInit(authUrl, undefined, rtcHost) as WapiInstance;
 
   // Initialize the typed wapi wrapper for the data layer
-  const wapiWrapper = createWapiWrapper(
-    local ? 'http://auth.localhost' : AUTH_ORIGIN,
-    local ? 'rtc.localhost' : RTC_HOST,
-  );
+  const wapiWrapper = createWapiWrapper(authUrl, rtcHost);
 
   const adapter: Partial<Web10SocialAdapter> & WapiInstance = { ...wapi };
 

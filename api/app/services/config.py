@@ -5,17 +5,20 @@ import app.settings as settings
 
 def _get_config_col():
     from app.services.documentdb import db
+
     return db["web10"]["config"]
 
 
 def _get_key_col():
     from app.services.documentdb import db
+
     return db["web10"]["jwt_keys"]
 
 
 def node_is_configured() -> bool:
     """True if the node has been set up (admin account exists)."""
     from app.services.documentdb import db
+
     return len([c for c in db.list_collection_names() if c not in ("web10", "admin")]) > 0
 
 
@@ -92,9 +95,29 @@ def create_admin(username: str, password_hash: str, phone: str = "") -> str:
     return "admin created"
 
 
+def list_admins() -> list:
+    """Usernames allowed to read/write this node's config.
+
+    Source of truth is the saved config's ``admins`` list; until an admin sets
+    one, fall back to settings.DEFAULT_ADMINS so the node isn't locked out.
+    """
+    admins = get_config().get("admins")
+    if not admins:
+        admins = settings.DEFAULT_ADMINS
+    # DEFAULT_ADMINS may arrive as a comma-separated string via env override
+    if isinstance(admins, str):
+        admins = [a.strip() for a in admins.split(",") if a.strip()]
+    return list(admins)
+
+
+def is_admin(username: str) -> bool:
+    return bool(username) and username in list_admins()
+
+
 def admin_exists() -> bool:
     """Checks if any admin account exists."""
     from app.services.documentdb import db
+
     for coll_name in db.list_collection_names():
         if coll_name in ("web10", "admin"):
             continue

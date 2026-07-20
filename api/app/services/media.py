@@ -6,7 +6,6 @@ from botocore.config import Config
 
 import app.settings as settings
 
-
 logger = logging.getLogger("web10-media")
 
 

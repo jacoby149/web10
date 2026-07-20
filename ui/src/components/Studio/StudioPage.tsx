@@ -1,7 +1,5 @@
 import React from 'react';
-import TopBar from '../shared/TopBar';
-import SideBar from '../shared/SideBar';
-import MobileNav from '../shared/MobileNav';
+import AppShell from '../shared/AppShell';
 import { MembershipsCard } from './MembershipsCard';
 import { AmazonTagCard } from './AmazonTagCard';
 import { DirectDealsCard } from './DirectDealsCard';
@@ -18,13 +16,7 @@ function StudioPage({ I }: { I: Record<string, any> }) {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <TopBar I={I} />
-      <div className="flex flex-1 overflow-auto">
-        <SideBar I={I} />
-        <div className="flex-1 overflow-auto pb-16 md:pb-0">
-          <div className="mx-auto max-w-4xl p-4 sm:p-6" data-testid="studio-page">
-
+    <AppShell I={I} maxWidth="max-w-4xl" testid="studio-page">
             {status && (
               <div
                 role="status"
@@ -41,22 +33,9 @@ function StudioPage({ I }: { I: Record<string, any> }) {
               </p>
             </div>
 
+            {/* Rung 0 leads — what a creator can turn on TODAY, no audience
+                minimum — with the aspirational ladder below it. */}
             <div className="mb-8">
-              <h2 className="mb-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Monetization Ladder
-              </h2>
-              <div className="space-y-3">
-                {LADDER_RUNGS.map(rung => (
-                  <LadderCard
-                    key={rung.id}
-                    rung={rung}
-                    onClick={rung.id === 0 ? undefined : undefined}
-                  />
-                ))}
-              </div>
-            </div>
-
-            <div>
               <h2 className="mb-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Rung 0 — Available Now
               </h2>
@@ -64,6 +43,17 @@ function StudioPage({ I }: { I: Record<string, any> }) {
                 <MembershipsCard I={I} onStatus={onStatus} />
                 <AmazonTagCard I={I} onStatus={onStatus} />
                 <DirectDealsCard I={I} onStatus={onStatus} />
+              </div>
+            </div>
+
+            <div>
+              <h2 className="mb-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                The Ladder — unlock more as you grow
+              </h2>
+              <div className="space-y-3">
+                {LADDER_RUNGS.map(rung => (
+                  <LadderCard key={rung.id} rung={rung} />
+                ))}
               </div>
             </div>
 
@@ -75,11 +65,7 @@ function StudioPage({ I }: { I: Record<string, any> }) {
                 Zero-friction rule: every option is one button. Adapters do the paperwork.
               </p>
             </div>
-          </div>
-        </div>
-      </div>
-      <MobileNav I={I} />
-    </div>
+    </AppShell>
   );
 }
 

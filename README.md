@@ -1,5 +1,7 @@
 # web10
 
+[![npm version](https://img.shields.io/npm/v/web10-npm)](https://www.npmjs.com/package/web10-npm)
+
 <img src="ui/public/logo512.png" alt="web10 logo" height="75" />
 
 web10 starts from one premise: **what you make is yours.**
@@ -98,6 +100,7 @@ at the box and the certificates provision themselves. See
 - **[`decisions.md`](decisions.md)** — why the big calls were made.
 - **[`manifesto.md`](manifesto.md)** — the fan-facing pitch that ships on every node.
 - **Developer docs** — protocol spec, conventions, schemas: `marketing/marketing-ui/public/docs/`.
+- **SDK** — `npm install web10-npm` · [npm](https://www.npmjs.com/package/web10-npm) · [docs](https://www.web10.app/docs/sdk)
 - **[`SECURITY.md`](SECURITY.md)** — how to report vulnerabilities, and the security invariants (I1–I5) that define what a break means.
 
 ## Community

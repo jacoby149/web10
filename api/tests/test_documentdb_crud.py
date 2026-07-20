@@ -5,11 +5,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from app.services import documentdb
-import app.exceptions as exceptions
 
 
 class TestCreate:
-
     def test_create_returns_doc_with_id(self):
         mock_result = MagicMock()
         mock_result.inserted_id = "mock_oid"
@@ -24,9 +22,25 @@ class TestCreate:
         with pytest.raises(Exception):
             documentdb.create("alice", "posts", {"service": "*", "x": 1})
 
+    def test_create_duplicate_service_terms_raises(self):
+        # a terms record for "posts" already exists → creating another is rejected
+        with patch.object(documentdb.db, "__getitem__") as mock_col:
+            mock_col.return_value.find_one.return_value = {"service": "services", "body": {"service": "posts"}}
+            with pytest.raises(Exception):
+                documentdb.create("alice", "services", {"service": "posts", "cross_origins": []})
+
+    def test_create_first_service_terms_ok(self):
+        # no existing terms record → creation proceeds
+        mock_result = MagicMock()
+        mock_result.inserted_id = "oid2"
+        with patch.object(documentdb.db, "__getitem__") as mock_col:
+            mock_col.return_value.find_one.return_value = None
+            mock_col.return_value.insert_one.return_value = mock_result
+            result = documentdb.create("alice", "services", {"service": "posts", "cross_origins": []})
+            assert result["_id"] == "oid2"
+
 
 class TestRead:
-
     def test_read_basic(self):
         mock_records = [
             {"_id": "a", "service": "posts", "body": {"title": "hi"}},
@@ -50,7 +64,6 @@ class TestRead:
 
 
 class TestUpdate:
-
     def test_update_basic(self):
         mock_response = MagicMock()
         mock_response.matched_count = 1
@@ -75,9 +88,8 @@ class TestUpdate:
 
 
 class TestDelete:
-
     def test_delete_basic(self):
-        with patch.object(documentdb.db, "__getitem__") as mock_col:
+        with patch.object(documentdb.db, "__getitem__"):
             with patch.object(documentdb, "star_selected", return_value=False):
                 result = documentdb.delete("alice", "posts", {})
                 assert result == "successfully deleted"
@@ -89,7 +101,6 @@ class TestDelete:
 
 
 class TestCreateMediaRecord:
-
     def test_create_media_record(self):
         mock_result = MagicMock()
         mock_result.inserted_id = "media_oid"
@@ -102,7 +113,6 @@ class TestCreateMediaRecord:
 
 
 class TestReadMediaRecords:
-
     def test_read_media_records(self):
         mock_records = [
             {"_id": "a", "service": "media", "body": {"url": "u1", "filename": "f1"}},
@@ -130,7 +140,6 @@ class TestReadMediaRecords:
 
 
 class TestDeleteMediaRecords:
-
     def test_delete_media_records(self):
         mock_result = MagicMock()
         mock_result.deleted_count = 2
@@ -149,7 +158,6 @@ class TestDeleteMediaRecords:
 
 
 class TestUserCollectionExists:
-
     def test_user_exists(self):
         with patch.object(documentdb.db, "list_collection_names", return_value=["alice", "bob"]):
             assert documentdb.user_collection_exists("alice") is True
@@ -157,9 +165,10 @@ class TestUserCollectionExists:
 
 
 class TestGetApproved:
-
     def test_owner_approved(self):
-        with patch.object(documentdb, "get_term_record", return_value={"service": "s", "whitelist": [], "blacklist": []}):
+        with patch.object(
+            documentdb, "get_term_record", return_value={"service": "s", "whitelist": [], "blacklist": []}
+        ):
             assert documentdb.get_approved("alice", "api.localhost", "alice", "posts", "read") is True
 
     def test_no_record(self):
@@ -168,7 +177,6 @@ class TestGetApproved:
 
 
 class TestIsInCrossOrigins:
-
     def test_match(self):
         with patch.object(documentdb, "get_term_record", return_value={"cross_origins": ["auth.localhost"]}):
             assert documentdb.is_in_cross_origins("auth.localhost", "alice", "posts") is True
@@ -183,7 +191,6 @@ class TestIsInCrossOrigins:
 
 
 class TestGetStar:
-
     def test_get_star(self):
         mock_doc = {"_id": "a", "service": "*", "body": {"username": "alice"}}
         with patch.object(documentdb.db, "__getitem__") as mock_col:
@@ -193,7 +200,6 @@ class TestGetStar:
 
 
 class TestGetTermRecord:
-
     def test_get_term_record(self):
         mock_doc = {"_id": "a", "service": "posts", "body": {"whitelist": []}}
         with patch.object(documentdb.db, "__getitem__") as mock_col:
@@ -209,7 +215,6 @@ class TestGetTermRecord:
 
 
 class TestToDbField:
-
     def test_regular_field(self):
         assert documentdb.to_db_field("name") == "body.name"
 
@@ -218,7 +223,6 @@ class TestToDbField:
 
 
 class TestQTransform:
-
     def test_basic(self):
         q = documentdb.q_t({"title": "hi"}, "posts")
         assert q == {"service": "posts", "body.title": "hi"}
@@ -230,14 +234,12 @@ class TestQTransform:
 
 
 class TestUTransform:
-
     def test_basic_set(self):
         u = documentdb.u_t({"$set": {"title": "new"}})
         assert u == {"$set": {"body.title": "new"}}
 
 
 class TestSortTransform:
-
     def test_basic(self):
         assert documentdb.sort_t({"a": 1}) == [("body.a", 1)]
 
@@ -249,7 +251,6 @@ class TestSortTransform:
 
 
 class TestGetPull:
-
     def test_array_index_pull(self):
         u = {"$unset": {"tags.0": 1}}
         pull = documentdb.get_pull(u)
@@ -257,7 +258,6 @@ class TestGetPull:
 
 
 class TestStarFound:
-
     def test_star_present(self):
         assert documentdb.star_found([{"service": "*"}]) is True
 
@@ -266,7 +266,6 @@ class TestStarFound:
 
 
 class TestStarSelected:
-
     def test_services_star_selected(self):
         mock_records = [{"_id": "a", "service": "services", "body": {"service": "*"}}]
         mock_cursor = MagicMock()

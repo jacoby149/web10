@@ -1,8 +1,8 @@
 import requests
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import RedirectResponse
 
 import app.exceptions as exceptions
-import app.settings as settings
 from app.models.auth import Token
 from app.models.config import ConfigUpdate, SetupRequest, SetupStatus
 from app.services import config as config_svc
@@ -12,7 +12,14 @@ from app.services.auth import check_admin, get_password_hash
 router = APIRouter()
 
 
+@router.get("/", include_in_schema=False)
+async def root():
+    """A bare API host should look intentional, not broken."""
+    return RedirectResponse(url="/docs")
+
+
 # --- Setup wizard ---
+
 
 @router.get("/setup", include_in_schema=False)
 async def get_setup_status() -> SetupStatus:
@@ -56,17 +63,47 @@ async def post_setup(req: SetupRequest):
 
 # --- Config management ---
 
-@router.get("/config", include_in_schema=False)
+
+@router.post("/config", include_in_schema=False)
 async def get_config(token: Token):
-    """Returns the current node config (admin only)."""
+    """Returns the current node config (admin only).
+
+    POST (not GET) because it carries a token in the body — GET bodies are an
+    anti-pattern and get stripped by proxies. Matches the sibling system
+    endpoints (/setup, /stats) which are all POST.
+    """
     check_admin(token)
     cfg = config_svc.get_config()
     # Strip sensitive fields
-    safe = {k: v for k, v in cfg.items() if k not in (
-        "private_key", "s3_secret_key", "twilio_auth_token",
-        "stripe_test_key", "stripe_live_key",
-    )}
+    safe = {
+        k: v
+        for k, v in cfg.items()
+        if k
+        not in (
+            "private_key",
+            "s3_secret_key",
+            "twilio_auth_token",
+            "stripe_test_key",
+            "stripe_live_key",
+        )
+    }
+    # the effective admin list (saved list, or the bootstrap default)
+    safe["admins"] = config_svc.list_admins()
     return safe
+
+
+@router.post("/am_admin", include_in_schema=False)
+async def am_admin(token: Token):
+    """Any authenticated user can ask whether THEY are an admin of this node.
+
+    Lets the console show/hide the Node Config surface without leaking the
+    admin list to non-admins.
+    """
+    try:
+        check_admin(token)
+        return {"admin": True}
+    except Exception:
+        return {"admin": False}
 
 
 @router.patch("/config", include_in_schema=False)
@@ -81,6 +118,7 @@ async def patch_config(token: Token, update: ConfigUpdate):
 
 
 # --- Health ---
+
 
 @router.get("/ready", include_in_schema=False)
 async def ready():

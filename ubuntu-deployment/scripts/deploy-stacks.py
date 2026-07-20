@@ -48,14 +48,18 @@ def api(method, path, data=None):
 
 def env_for(stack):
     if stack == "web10-dev":
-        d = dict(STACK="web10-dev", PROVIDER="dev.web10.app",
-                 API_ORIGIN="https://dev.web10.app", API_HOST="dev.web10.app",
+        d = dict(STACK="web10-dev", PROVIDER="api.dev.web10.app",
+                 API_ORIGIN="https://api.dev.web10.app", API_HOST="api.dev.web10.app",
                  AUTH_ORIGIN="https://auth.dev.web10.app", RTC_ORIGIN="https://rtc.dev.web10.app",
                  MINIO_HOST="minio.dev.web10.app", MARKETING_API_ORIGIN="https://marketing-api.dev.web10.app",
                  CORS_SERVICE_MANAGERS="auth.dev.web10.app,social.dev.web10.app,www.dev.web10.app",
                  MINIO_PASSWORD=cfg["MINIO_PASSWORD_DEV"])
     else:
         d = dict(STACK="web10-prod", PROVIDER="api.web10.app",
+                 # Prod serves the REAL data in the host-native mongo's "deploy"
+                 # database (208 accounts), not the containerized FerretDB. The
+                 # compose defaults DB to web10/FerretDB; override here.
+                 DB="deploy", DB_URL="mongodb://host.docker.internal:27017/",
                  API_ORIGIN="https://api.web10.app", API_HOST="api.web10.app",
                  AUTH_ORIGIN="https://auth.web10.app", RTC_ORIGIN="https://rtc.web10.app",
                  MINIO_HOST="minio.web10.app", MARKETING_API_ORIGIN="https://marketing-api.web10.app",

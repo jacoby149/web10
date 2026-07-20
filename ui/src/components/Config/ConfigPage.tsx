@@ -1,13 +1,12 @@
 import React from 'react';
 import axios from 'axios';
-import TopBar from '../shared/TopBar';
-import SideBar from '../shared/SideBar';
-import MobileNav from '../shared/MobileNav';
+import AppShell from '../shared/AppShell';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Lock, UserPlus, X } from 'lucide-react';
 
 function ToggleRow({ label, description, checked, onChange, testId }: {
   label: string; description: string; checked: boolean; onChange: () => void; testId: string;
@@ -37,15 +36,11 @@ function Field({ label, description, children }: { label: string; description?: 
 }
 
 function ConfigShell({ I, children }: { I: Record<string, any>; children: React.ReactNode }) {
+  // pages here bring their own padded max-w-2xl containers, so render flush
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <TopBar I={I} />
-      <div className="flex flex-1 overflow-auto">
-        <SideBar I={I} />
-        <div className="flex-1 overflow-auto pb-16 md:pb-0">{children}</div>
-      </div>
-      <MobileNav I={I} />
-    </div>
+    <AppShell I={I} padded={false}>
+      {children}
+    </AppShell>
   );
 }
 
@@ -77,8 +72,41 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
   };
 
   React.useEffect(() => {
-    loadConfig();
-  }, []);
+    if (I.isAdmin) loadConfig();
+    else setLoading(false);
+  }, [I.isAdmin]);
+
+  const [newAdmin, setNewAdmin] = React.useState("");
+  const admins: string[] = config?.admins || [];
+
+  const saveAdmins = async (next: string[]) => {
+    setSaving(true);
+    setError(null);
+    try {
+      const token = I.wapi.token;
+      const provider = I.wapi.readToken().provider;
+      const protocol = window.location.protocol;
+      await axios.patch(
+        `${protocol}//${provider}/config`,
+        { token, admins: next },
+        { headers: { "Content-Type": "application/json" } }
+      );
+      setConfig(prev => ({ ...prev, admins: next }));
+    } catch (e: any) {
+      setError(e.response?.data?.detail || "Failed to update admins");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const addAdmin = () => {
+    const name = newAdmin.trim();
+    if (!name || admins.includes(name)) return;
+    saveAdmins([...admins, name]);
+    setNewAdmin("");
+  };
+
+  const removeAdmin = (name: string) => saveAdmins(admins.filter(a => a !== name));
 
   const updateField = (key: string, value: any) => {
     setConfig(prev => ({ ...prev, [key]: value }));
@@ -113,6 +141,30 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
     }
   };
 
+  // Not an admin — a calm, explanatory gate, not a red error.
+  if (!I.isAdmin) {
+    return (
+      <ConfigShell I={I}>
+        <div className="mx-auto max-w-2xl p-4 sm:p-6">
+          <div
+            className="flex flex-col items-center rounded-lg border border-dashed border-border bg-card/40 px-6 py-16 text-center"
+            data-testid="config-admins-only"
+          >
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-brand-muted">
+              <Lock className="h-6 w-6 text-brand-300" strokeWidth={1.5} />
+            </div>
+            <h2 className="font-display text-lg font-semibold text-foreground">Admins only</h2>
+            <p className="mt-1.5 max-w-sm text-sm text-muted-foreground">
+              Node Configuration controls the whole node — signing, billing, and
+              access policy. Only this node's admins can view or change it. Ask an
+              admin to add your account.
+            </p>
+          </div>
+        </div>
+      </ConfigShell>
+    );
+  }
+
   if (loading) {
     return (
       <ConfigShell I={I}>
@@ -129,7 +181,12 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
     return (
       <ConfigShell I={I}>
         <div className="mx-auto max-w-2xl p-4 sm:p-6">
-          <div className="rounded bg-danger-muted p-3 text-sm text-danger" data-testid="config-page-error">{error}</div>
+          <div
+            className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground"
+            data-testid="config-page-error"
+          >
+            {error}
+          </div>
         </div>
       </ConfigShell>
     );
@@ -153,6 +210,56 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
         )}
 
         <div className="space-y-6">
+          <Card data-testid="config-admins-card">
+            <CardHeader>
+              <CardTitle>Admins</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-xs text-muted-foreground">
+                Accounts that can view and change this node's configuration.
+              </p>
+              <div className="space-y-2">
+                {admins.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No admins configured.</p>
+                ) : (
+                  admins.map((name) => (
+                    <div
+                      key={name}
+                      className="flex items-center justify-between rounded-sm border border-border bg-elevated px-3 py-2"
+                    >
+                      <span className="font-mono text-sm text-foreground">{name}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeAdmin(name)}
+                        disabled={saving || admins.length === 1}
+                        aria-label={`Remove admin ${name}`}
+                        title={admins.length === 1 ? "A node must keep at least one admin" : `Remove ${name}`}
+                        className="rounded p-1 text-muted-foreground transition-colors hover:bg-danger-muted hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40"
+                        data-testid={`config-admin-remove-${name}`}
+                      >
+                        <X className="h-4 w-4" strokeWidth={1.5} />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  value={newAdmin}
+                  onChange={(e) => setNewAdmin(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && addAdmin()}
+                  placeholder="username to grant admin"
+                  aria-label="New admin username"
+                  data-testid="config-admin-add-input"
+                />
+                <Button onClick={addAdmin} disabled={saving || !newAdmin.trim()} data-testid="config-admin-add-button">
+                  <UserPlus className="mr-1.5 h-4 w-4" strokeWidth={1.5} />
+                  Add
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Node Identity</CardTitle>
