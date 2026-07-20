@@ -26,16 +26,13 @@ SDK Guide + CLI Quickstart (with Terminal icon). 19 tests green,
 production build clean.
 
 1.0.71 || 19.07.2026
-Queued E9 (deployment status page): one URL per env
-(status.web10.app / status.dev.web10.app) showing what's live — the
-CHANGELOG version, commit sha + squash title (carries the PR #),
-deploy date, and per-service health. Preferred design has zero new
-machinery: the GitOps stacks rebuild from git on every change, so
-the page is BAKED AT BUILD TIME (git sha/date/title + CHANGELOG top
-→ status.html/json) and refreshes itself on every auto-redeploy; a
-Portainer-API poller is the fallback (the API does track the
-deployed sha — verified). Supersedes the earlier github-Deployments
-idea from this same session. Below priority zero — after A7/B6.
+E9 executed: deployment status page baked at build time. One URL per
+env (`/status/`) served from the marketing-ui container showing
+version, commit sha + squash title, deploy date, and per-service
+health dots. Zero new machinery — a build script generates
+`status.json` + `status.html` from git info + CHANGELOG top at Docker
+build time; every auto-redeploy refreshes it. No new NPM vhost or DNS
+needed; the path is served from the existing marketing-ui nginx.
 
 1.0.70 || 19.07.2026
 PRIORITY ZERO declared at the top of plan.txt (operator): the
