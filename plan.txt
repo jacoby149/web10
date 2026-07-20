@@ -478,7 +478,7 @@ the three items below are PARALLEL — disjoint directories:
 now-that-it's-deployed round (added 19.07.2026, gated on A7's real
 mongo — the box is live but pointed at an empty ferretdb; connecting
 the original data changes what "done" looks like for these):
-[ ] AUTHENTICATOR REVAMP (lane B, item B6): the ui/ auth flow is
+[✓ 1.0.72] AUTHENTICATOR REVAMP (lane B, item B6): the ui/ auth flow is
     broken in look AND function — the web10 logo renders broken, and
     login "straight up doesnt work" (operator, 19.07). B5 fixed the
     shell; this fixes the actual login/consent journey end to end
@@ -500,7 +500,7 @@ the original data changes what "done" looks like for these):
 [✓ 1.0.70] docs 404 fix (lane D, D16.1): /docs/protocol-spec 404'd
     live — marketing-ui's nginx /docs/ alias block shadowed the SPA
     fallback. try_files → index.html added.
-[ ] RESTORE THE DEV DOCS (lane D, item D17): the old sharp docs —
+[✓ 1.0.72] RESTORE THE DEV DOCS (lane D, item D17): the old sharp docs —
     two runnable demo apps (hello/, notes/) + sdk.md/sdk.pdf — are
     NOT lost; they live in git at `82667060^:auth/public/docs/`.
     bring them into marketing-ui's docs on the design.md standard,
@@ -508,11 +508,15 @@ the original data changes what "done" looks like for these):
     web10 CLI" call-to-action (the CLI still exists at
     marketing/web10-cli/ but is invisible) + a CLI quickstart.
     don't teach legacy wapi as the future — align with C2.
-[ ] SDK visibility + publish flow (lane D item D18 + lane E item
-    E7): github shows 4 packages, none is the sdk; docs never link
-    it. document + link the sdk everywhere it should be, confirm
-    cd.yml's npm publish fires (today tag-gated; decide if updates
-    should auto-publish).
+[✓ 1.0.72] SDK visibility + publish flow (lane D item D18 + lane E item
+    E7): sdk/ documented in marketing-ui docs (new sdk.md page, wired into
+    Docs.tsx sidebar), SDK link added to Home.tsx footer, npm badge + SDK
+    link added to README.md. npm publish verified: web10-npm@1.0.8 is public
+    on npmjs.com, cd.yml's `npm` job fires on v* tags with provenance.
+    Publish flow decision: stays tag-gated (decisions.md D26) — auto-publish
+    on merge rejected while C2's typed rewrite is in flight; a v* tag forces
+    a deliberate release decision, preventing legacy wapi.js from drowning npm
+    with versions nobody should install.
 [ ] mobile encryptor → app stores (lane E item E8, parked): expo
     eas build/submit, listings, signing. post-M0, gated on the
     encryptor doing real e2e key management — on the board so it

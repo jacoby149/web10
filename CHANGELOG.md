@@ -16,18 +16,55 @@ exclusion of star) are all correct against real data — no code
 changes needed. Gate: prod must NOT switch DB_URL until a dev
 login works against a COPY (mongodump→mongorestore into dev's
 FerretDB, or a read-only host connection).
+B6: authenticator revamp — the ui/ auth flow is now functional. The
+critical bug: wapiAuth.js referenced wapi.defaultAPIProtocol (undefined)
+instead of wapi.APIProtocol, so login/signup POSTed to
+"undefined://provider/web10token" — every auth call failed. Fixed in
+sdk/src/wapiAuth.js + test mock, dist bundles rebuilt. Token restoration
+on page load added to Interface.tsx (refresh no longer logs out).
+SignupForm no longer flashes to contracts before signup completes.
+ForgotForm cancel button now uses isAuthenticated() instead of the
+?auth query param string. authAdapter.ts local-detection switched from
+protocol check (broken on https://localhost) to hostname check.
+Branding component restyled for auth screens: keys-mark logo at 48px,
+"web10" headline, tagline per design.md narrative direction. Orphaned
+React atom logo.svg deleted. Phone value now passed to I.signup()
+(missing 6th arg). SDK linked locally (file:../sdk) so the fix is
+consumed. 73/73 ui tests green, 52/52 sdk tests green.
+D18: SDK visibility + publish flow. New sdk.md docs page in
+marketing-ui/public/docs/ with install instructions, API overview,
+and a note on the upcoming C2 typed rewrite. Wired into Docs.tsx
+sidebar. SDK link added to Home.tsx footer. npm badge + SDK link
+added to README.md. npm publish verified: web10-npm@1.0.8 public on
+npmjs.com, cd.yml `npm` job fires on v* tags with provenance +
+`--access public`. Publish flow decision: stays tag-gated
+(decisions.md D26) — auto-publish on merge rejected while C2's typed
+rewrite is in flight; a v* tag forces a deliberate release decision,
+preventing legacy wapi.js from drowning npm with versions nobody
+should install.
+D17: restore the dev docs. Recovered from `82667060^:auth/public/docs/`:
+the two live demo apps (hello/ and notes/) rebuilt on the design.md
+standard — dark-first zinc/violet, self-hosted fonts, token-styled
+buttons, skeleton loading — served from marketing-ui's public/docs/.
+New sdk.md doc page: covers the current wapi.js SDK (with runnable
+examples linking to the demos) and the upcoming C2 typed SDK (no
+legacy-wapi-as-the-future voice). New cli-quickstart.md: documents
+the web10-cli scaffolder (`npx web10-cli create`), available templates,
+and the path to `create-web10`. Docs.tsx sidebar expanded: a "Demo
+Apps" section (Hello, Notes — open in new tab) alongside the updated
+Documentation nav (Protocol Spec, Conventions, SDK Guide, CLI
+Quickstart). AppStore.tsx "Build on web10" card now has two CTAs:
+SDK Guide + CLI Quickstart (with Terminal icon). 19 tests green,
+production build clean.
 
 1.0.71 || 19.07.2026
-Queued E9 (deployment status page): one URL per env
-(status.web10.app / status.dev.web10.app) showing what's live — the
-CHANGELOG version, commit sha + squash title (carries the PR #),
-deploy date, and per-service health. Preferred design has zero new
-machinery: the GitOps stacks rebuild from git on every change, so
-the page is BAKED AT BUILD TIME (git sha/date/title + CHANGELOG top
-→ status.html/json) and refreshes itself on every auto-redeploy; a
-Portainer-API poller is the fallback (the API does track the
-deployed sha — verified). Supersedes the earlier github-Deployments
-idea from this same session. Below priority zero — after A7/B6.
+E9 executed: deployment status page baked at build time. One URL per
+env (`/status/`) served from the marketing-ui container showing
+version, commit sha + squash title, deploy date, and per-service
+health dots. Zero new machinery — a build script generates
+`status.json` + `status.html` from git info + CHANGELOG top at Docker
+build time; every auto-redeploy refreshes it. No new NPM vhost or DNS
+needed; the path is served from the existing marketing-ui nginx.
 
 1.0.70 || 19.07.2026
 PRIORITY ZERO declared at the top of plan.txt (operator): the

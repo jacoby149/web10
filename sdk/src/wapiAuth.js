@@ -56,7 +56,7 @@ const wapiAuthInit = function(wapi) {
     */
   wapiAuth.logIn = function (provider, username, password) {
     return axios
-      .post(`${wapi.defaultAPIProtocol}//${provider}/web10token`, {
+      .post(`${wapi.APIProtocol}//${provider}/web10token`, {
         username: username,
         password: password,
         token: null,
@@ -80,7 +80,7 @@ const wapiAuthInit = function(wapi) {
     */
   wapiAuth.signUp = function (provider, username, password, betacode, phone) {
     return axios
-      .post(`${wapi.defaultAPIProtocol}//${provider}/signup`, {
+      .post(`${wapi.APIProtocol}//${provider}/signup`, {
         username: username,
         password: password,
         betacode:betacode,
@@ -113,7 +113,7 @@ const wapiAuthInit = function(wapi) {
     * Gets your web10 provider if logged in with the web10 connector.
     * @returns  {string} [The URL of the logged in web10 provider.]
     */
-  const api = ()=> `${wapi.defaultAPIProtocol}//${wapi.readToken()["provider"]}`;
+  const api = ()=> `${wapi.APIProtocol}//${wapi.readToken()["provider"]}`;
 
 
   /**

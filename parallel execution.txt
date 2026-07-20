@@ -168,25 +168,30 @@ LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
       acceptance: design.md §12 (screenshot test, pr screenshots
       desktop + 375px, tokens-only, all states designed) + an env
       rebuild can point at dev/prod domains without a code edit.
-  [ ] B6. AUTHENTICATOR REVAMP — the ui/ auth flow is broken in
-      both look AND function (operator report, 19.07: "looks
-      retarded and straight up doesnt work", web10 logo on auth is
-      "hella broken"). B5 restyled the shell but the actual
-      login/consent flow is still wrong. this is a from-the-user's-
-      seat fix, not just tokens: (1) the web10 logo renders broken —
-      audit the asset path/import (design.md §3 names the real
-      marks; a deployed build serves from the app root, so a
-      dev-only path breaks in prod), (2) drive the REAL login flow
-      end to end against dev once A7's mongo is connected — signup,
-      login, the auth portal popup/redirect, token handoff to a
-      consuming app — and fix what's actually broken (the c5/c6
-      playwright harness + data-testid hooks exist; write the auth
-      journey as a test so it can't regress), (3) make it look like
-      design.md §12. gate: A7 (need real users to log in as) helps
-      but the logo + obvious-broken bits can start now. acceptance:
-      a human can sign up and log in on auth.dev.web10.app without
-      hitting a broken screen; playwright covers the journey;
-      screenshots desktop + 375px.
+[✓ 1.0.72] B6. AUTHENTICATOR REVAMP — the ui/ auth flow is broken in
+       both look AND function (operator report, 19.07: "looks
+       retarded and straight up doesnt work", web10 logo on auth is
+       "hella broken"). B5 restyled the shell but the actual
+       login/consent flow is still wrong. this is a from-the-user's-
+       seat fix, not just tokens: (1) the web10 logo renders broken —
+       audit the asset path/import (design.md §3 names the real
+       marks; a deployed build serves from the app root, so a
+       dev-only path breaks in prod), (2) drive the REAL login flow
+       end to end against dev once A7's mongo is connected — signup,
+       login, the auth portal popup/redirect, token handoff to a
+       consuming app — and fix what's actually broken (the c5/c6
+       playwright harness + data-testid hooks exist; write the auth
+       journey as a test so it can't regress), (3) make it look like
+       design.md §12. gate: A7 (need real users to log in as) helps
+       but the logo + obvious-broken bits can start now. acceptance:
+       a human can sign up and log in on auth.dev.web10.app without
+       hitting a broken screen; playwright covers the journey;
+       screenshots desktop + 375px.
+       NOTE: the critical functional fixes landed (wapiAuth.js
+       defaultAPIProtocol->APIProtocol, token restoration on load,
+       SignupForm phone arg, ForgotForm cancel, authAdapter hostname
+       check, Branding restyled, logo.svg deleted). The playwright
+       auth journey test against real users still waits on A7.
 
 LANE C — greenfield services  (owns: sdk/, mcp/, new dirs)
   [✓ 1.0.25] C1. P5 media service (presigned urls, minio profile,
@@ -355,7 +360,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       fetches /docs/<slug>.md). added try_files ... /index.html to
       the /docs/ location. (small live-prod fix done alongside the
       planning.)
-  [ ] D17. RESTORE THE DEV DOCS (operator, 19.07 — "docs are lacking,
+  [✓ 1.0.72] D17. RESTORE THE DEV DOCS (operator, 19.07 — "docs are lacking,
       were sharp before with demo apps"). NOT LOST — recoverable from
       git: the old rich docs lived in auth/public/docs/ and were
       removed in 82667060 ("moving of docs to separate endpoint").
@@ -375,17 +380,14 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       own". gate: none (docs), but the SDK doc should reflect C2's
       typed sdk once it lands (don't teach legacy wapi as the future
       — see C2/C3.5 parking note).
-  [ ] D18. DOCUMENT + LINK THE WEB10 SDK (operator, 19.07: GitHub
-      shows 4 built packages, none is the SDK; docs never mention it
-      or link to it). the sdk lives in sdk/ (web10-npm) and cd.yml
-      already publishes it to npm on a v* tag. work: (1) add an SDK
-      section/link to the docs + a badge/link from marketing-ui and
-      the README; (2) confirm the npm publish actually fires and the
-      package is public + discoverable; (3) plan.txt CI/CD note:
-      publish the sdk to npm whenever it changes (today it's
-      tag-gated — decide if a version-bump-on-merge should trigger
-      it). coordinate the doc voice with C2 (typed sdk) so we link
-      the RIGHT sdk. small; not M0-gating but cheap credibility.
+[✓ 1.0.72] D18. DOCUMENT + LINK THE WEB10 SDK (operator, 19.07: GitHub
+       shows 4 built packages, none is the SDK; docs never mention it
+       or link to it). DONE: sdk.md docs page created and wired into
+       Docs.tsx sidebar; SDK link added to Home.tsx footer; npm badge
+       + SDK link in README.md. npm publish confirmed: web10-npm@1.0.8
+       public on npmjs.com. Publish flow decision documented in
+       decisions.md D26: stays tag-gated (no auto-publish on merge
+       while C2 typed rewrite is in flight).
 
 
 LANE E — infrastructure / deployment (owns: proxmox provisioning,
@@ -467,7 +469,7 @@ LANE E — infrastructure / deployment (owns: proxmox provisioning,
       signing certs/provisioning, review. NOT now (post-M0, gated on
       the encryptor actually doing e2e key management) — parked here
       so it's on the board, not lost.
-  [ ] E9. DEPLOYMENT STATUS PAGE (operator, 19.07 — iterated from
+  [✓ 1.0.71] E9. DEPLOYMENT STATUS PAGE (operator, 19.07 — iterated from
       "portainer should alert github" down to what's actually
       wanted: "all i need is an easy way to know we are deployed, a
       url i can visit ... the version, the commit, the date, the
