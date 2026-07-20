@@ -24,7 +24,18 @@ function EmptyContracts() {
 function Contracts({ I }: { I: Record<string, any> }) {
   // the "*" star record is never a contract (ContractViewer hides it); don't
   // let it count toward "you have contracts"
-  const contracts = (I.services as any[]).filter((d) => d?.service !== '*');
+  const all = (I.services as any[]).filter((d) => d?.service !== '*');
+  const query = (I.search ?? '').trim().toLowerCase();
+  const contracts = query
+    ? all.filter((d) => {
+        const inName = String(d?.service ?? '').toLowerCase().includes(query);
+        const inSites = (d?.cross_origins ?? []).some((s: string) =>
+          String(s).toLowerCase().includes(query),
+        );
+        return inName || inSites;
+      })
+    : all;
+
   return (
     <>
       <div className="mb-8 text-center">
@@ -33,8 +44,12 @@ function Contracts({ I }: { I: Record<string, any> }) {
           Manage which apps can access your data — these are your contracts.
         </p>
       </div>
-      {contracts.length === 0 ? (
+      {all.length === 0 ? (
         <EmptyContracts />
+      ) : contracts.length === 0 ? (
+        <p className="mt-8 text-center text-sm text-muted-foreground" data-testid="contracts-no-match">
+          No contracts match “{I.search}”.
+        </p>
       ) : (
         contracts.map((d: any, i: number) => (
           <Contract I={I} key={i} data={d} isRequest={false} />

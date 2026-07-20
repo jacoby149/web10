@@ -98,9 +98,8 @@ PHONE_NUMBER_MISSING = HTTPException(
 )
 
 NOT_ADMIN = HTTPException(
-    status_code=status.HTTP_401_UNAUTHORIZED,
-    detail="your token do not have access to admin functions",
-    headers={"WWW-Authenticate": "Basic"},
+    status_code=status.HTTP_403_FORBIDDEN,
+    detail="This account is not an admin of this node.",
 )
 
 VERIFY = HTTPException(

@@ -1,3 +1,24 @@
+1.0.77 || 19.07.2026
+Auth console: admin model, Node Config fix, Studio reorder, working search,
+ecosystem links, balanced topbar. SECURITY: check_admin was passing for any
+signed-in owner on their own node, so on a shared node every user could
+read/edit the node-global config (Stripe keys, CORS, signing). It now
+enforces an admin list — config.admins, or settings.DEFAULT_ADMINS
+(jacoby149) until one is saved — and returns 403 otherwise. New POST
+/am_admin lets the console show/hide Node Config; admins are returned in
+/config and editable via the config PATCH (add/remove in a new Admins card).
+Fixed the Node Config load: the endpoint was GET while the UI POSTed (always
+405 → misleading "Are you an admin?"); it's POST now, matching /setup and
+/stats, with regression tests. UI: Node Config is hidden for non-admins
+(sidebar + mobile nav) and shows a calm "Admins only" gate (not a red error)
+if reached. Studio now leads with Rung 0 (Available Now) and puts the
+aspirational ladder below. The topbar search box actually filters contracts
+(by name and site) — it was a no-op — and the topbar is rebalanced to three
+columns (page title left, centered search, account menu right); the account
+chip is now a real menu (Settings / Log out) instead of an inert hover
+target. Added an Ecosystem group (What is web10 → web10.app, App Store →
+/app-store, Docs → /docs) to the sidebar. Fixed the sidebar brand/nav
+alignment (was 8px off). 289 api + 74 ui tests green.
 1.0.76 || 19.07.2026
 B7: auth UI (ui/) from-the-phone quality pass. Rebuilt the authenticated
 console shell to design.md §9: extracted one shared AppShell (full-height

@@ -125,6 +125,12 @@ function App() {
     if (I.isAuthenticated() && I._hasReferrer) {
       I.initAuthenticator();
     }
+    // Restored session (reload with a valid token): hydrate admin status +
+    // contracts, which otherwise only run inside the login flow.
+    if (I.isAuthenticated() && !I.isMock) {
+      I.checkAdmin?.();
+      I.servicesLoad?.();
+    }
   }, [I.auth]);
 
   if (checkingSetup) {

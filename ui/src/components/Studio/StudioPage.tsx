@@ -33,22 +33,9 @@ function StudioPage({ I }: { I: Record<string, any> }) {
               </p>
             </div>
 
+            {/* Rung 0 leads — what a creator can turn on TODAY, no audience
+                minimum — with the aspirational ladder below it. */}
             <div className="mb-8">
-              <h2 className="mb-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Monetization Ladder
-              </h2>
-              <div className="space-y-3">
-                {LADDER_RUNGS.map(rung => (
-                  <LadderCard
-                    key={rung.id}
-                    rung={rung}
-                    onClick={rung.id === 0 ? undefined : undefined}
-                  />
-                ))}
-              </div>
-            </div>
-
-            <div>
               <h2 className="mb-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Rung 0 — Available Now
               </h2>
@@ -56,6 +43,17 @@ function StudioPage({ I }: { I: Record<string, any> }) {
                 <MembershipsCard I={I} onStatus={onStatus} />
                 <AmazonTagCard I={I} onStatus={onStatus} />
                 <DirectDealsCard I={I} onStatus={onStatus} />
+              </div>
+            </div>
+
+            <div>
+              <h2 className="mb-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                The Ladder — unlock more as you grow
+              </h2>
+              <div className="space-y-3">
+                {LADDER_RUNGS.map(rung => (
+                  <LadderCard key={rung.id} rung={rung} />
+                ))}
               </div>
             </div>
 

@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+import app.settings as settings
 from app.models.auth import Token, TokenData
 from app.services.auth import (
     authenticate_user,
@@ -71,18 +72,26 @@ class TestCertifyWithRemoteProvider:
 class TestCheckAdmin:
     def test_admin_permitted(self):
         token = Token(token="admin_token")
-        with patch("app.services.auth.decode_token") as mock_decode:
-            mock_decode.return_value = TokenData(username="alice")
-            with patch("app.services.auth.is_permitted", return_value=True):
-                check_admin(token)  # returns None on success, no exception raised
+        with (
+            patch("app.services.auth.certify", return_value=True),
+            patch("app.services.auth.decode_token", return_value=TokenData(username="alice", provider=settings.PROVIDER)),
+            patch("app.services.config.is_admin", return_value=True),
+        ):
+            check_admin(token)  # returns True on success, no exception raised
 
     def test_non_admin_raises(self):
         token = Token(token="user_token")
-        with patch("app.services.auth.decode_token") as mock_decode:
-            mock_decode.return_value = TokenData(username="bob")
-            with patch("app.services.auth.is_permitted", return_value=False):
-                with pytest.raises(Exception):
-                    check_admin(token)
+        with (
+            patch("app.services.auth.certify", return_value=True),
+            patch("app.services.auth.decode_token", return_value=TokenData(username="bob", provider=settings.PROVIDER)),
+            patch("app.services.config.is_admin", return_value=False),
+        ):
+            with pytest.raises(Exception):
+                check_admin(token)
+
+    def test_no_token_raises(self):
+        with pytest.raises(Exception):
+            check_admin(Token(token=None))
 
 
 class TestPasswordHash:

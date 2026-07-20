@@ -916,3 +916,55 @@ class TestSystem:
         assert "apps" in data
         assert "users" in data
         assert "storage" in data
+
+
+class TestNodeConfig:
+    """Node Config is admin-only. It loads via POST /config (regression: the
+    endpoint used to be GET while the UI POSTed, so it always 405'd). check_admin
+    enforces the config.admins list — being the collection owner is NOT enough,
+    since the config is node-global.
+    """
+
+    # a saved config whose admin list contains "alice"
+    _CFG = {"provider": "api.localhost", "private_key": "SUPERSECRET", "brand_text": "web10", "admins": ["alice"]}
+
+    def test_config_get_not_allowed(self, client):
+        resp = client.get("/config")
+        assert resp.status_code in (405, 422)
+
+    def test_config_post_returns_config_for_admin(self, client):
+        with patch("app.services.config.get_config", return_value=dict(self._CFG)):
+            resp = client.post("/config", json={"token": _owner_token("alice")})
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["brand_text"] == "web10"
+        assert body["admins"] == ["alice"]
+        assert "private_key" not in body  # secrets never leave the node
+
+    def test_config_post_denied_for_non_admin(self, client):
+        # bob is a valid, signed-in user but not on the admin list → 403
+        with patch("app.services.config.get_config", return_value=dict(self._CFG)):
+            resp = client.post("/config", json={"token": _owner_token("bob")})
+        assert resp.status_code == 403
+
+    def test_config_post_denied_without_token(self, client):
+        resp = client.post("/config", json={})
+        assert resp.status_code == 403
+
+    def test_am_admin_true_for_admin(self, client):
+        with patch("app.services.config.get_config", return_value=dict(self._CFG)):
+            resp = client.post("/am_admin", json={"token": _owner_token("alice")})
+        assert resp.status_code == 200
+        assert resp.json() == {"admin": True}
+
+    def test_am_admin_false_for_non_admin(self, client):
+        with patch("app.services.config.get_config", return_value=dict(self._CFG)):
+            resp = client.post("/am_admin", json={"token": _owner_token("bob")})
+        assert resp.status_code == 200
+        assert resp.json() == {"admin": False}
+
+    def test_default_admin_bootstrap(self, client):
+        # with no saved admins, DEFAULT_ADMINS (jacoby149) is the bootstrap admin
+        with patch("app.services.config.get_config", return_value={"brand_text": "web10"}):
+            resp = client.post("/am_admin", json={"token": _owner_token("jacoby149")})
+        assert resp.json() == {"admin": True}

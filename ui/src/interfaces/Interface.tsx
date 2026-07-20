@@ -41,6 +41,7 @@ function useInterface() {
     [I.phone, I.setPhone] = React.useState("");
 
     [I.auth, I.setAuth] = React.useState(restoreAuth);
+    [I.isAdmin, I.setIsAdmin] = React.useState(false);
     [I.verified, I.setVerified] = React.useState(false);
     [I.status, I.setStatus] = React.useState<string | null>(null);
     [I.SMR, I.setSMR] = React.useState({ scrs: [], sirs: [] });
@@ -132,16 +133,30 @@ function useInterface() {
         }
     }
 
-    I.runSearch = function () {
-        return;
+    I.runSearch = function (value: string) {
+        I.setSearch(value ?? "");
     }
 
     I.isAuthenticated = function () {
         return I.auth
     }
 
+    // Ask the node whether THIS account is an admin, to show/hide Node Config.
+    I.checkAdmin = function () {
+        const decoded = I.wapi.readToken?.();
+        if (!decoded) {
+            I.setIsAdmin(false);
+            return;
+        }
+        axios
+            .post(`${window.location.protocol}//${decoded.provider}/am_admin`, { token: I.wapi.token })
+            .then((r: any) => I.setIsAdmin(!!r.data?.admin))
+            .catch(() => I.setIsAdmin(false));
+    }
+
     I.finishLogin = function () {
         I.setAuth(true);
+        I.checkAdmin();
         I.initAuthenticator();
         I.servicesLoad();
         I.setStatus(null);
