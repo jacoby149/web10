@@ -1,4 +1,4 @@
-import { Users, LayoutDashboard, Briefcase, Mail, Upload, BookOpen } from 'lucide-react'
+import { Users, LayoutDashboard, Briefcase, Mail, Upload, BookOpen, Terminal } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardFooter } from '../components/ui/card'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
@@ -85,12 +85,18 @@ function AppStore() {
               <CardTitle>Build on web10</CardTitle>
               <CardDescription>
                 One MongoDB collection per user, a tiny CRUD API, a scoped token.
-                Read the protocol spec and build the next app.
+                Read the docs, try the demo apps, and scaffold your own app with the CLI.
               </CardDescription>
             </CardHeader>
-            <CardFooter>
+            <CardFooter className="flex gap-3">
               <Button asChild variant="brand" size="sm">
-                <a href="/docs/protocol-spec">Read the docs</a>
+                <a href="/docs/sdk">SDK Guide</a>
+              </Button>
+              <Button asChild variant="outline" size="sm">
+                <a href="/docs/cli-quickstart" className="flex items-center gap-1.5">
+                  <Terminal className="h-3.5 w-3.5" strokeWidth={1.5} />
+                  CLI Quickstart
+                </a>
               </Button>
             </CardFooter>
           </Card>

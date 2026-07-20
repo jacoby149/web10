@@ -1,6 +1,5 @@
 from fastapi import APIRouter
 
-import app.exceptions as exceptions
 from app.models.auth import Token
 from app.models.payment import PayData
 from app.services import documentdb as db
@@ -29,6 +28,7 @@ def mget_business_id(username):
 @router.post("/manage_business", include_in_schema=False)
 async def manage_business(token: Token):
     from app.services.auth import check_admin
+
     check_admin(token)
     username = decode_token(token.token).username
     bus_id = mget_business_id(username)
@@ -38,6 +38,7 @@ async def manage_business(token: Token):
 @router.post("/business_login", include_in_schema=False)
 async def business_login(token: Token):
     from app.services.auth import check_admin
+
     check_admin(token)
     username = decode_token(token.token).username
     bus_id = mget_business_id(username)

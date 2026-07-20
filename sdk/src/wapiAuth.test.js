@@ -30,7 +30,7 @@ function createMockWapi(token) {
   return {
     get token() { return currentToken },
     set token(v) { currentToken = v },
-    defaultAPIProtocol: 'https:',
+    APIProtocol: 'https:',
     isSignedIn: vi.fn(() => currentToken != null),
     readToken: vi.fn(() => tokenPayload),
     setToken: vi.fn((t) => {

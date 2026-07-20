@@ -164,6 +164,7 @@ function Footer() {
         <span>&copy; {new Date().getFullYear()} web10</span>
         <div className="flex gap-6">
           <a href="/docs" className="hover:text-foreground">Docs</a>
+          <a href="/docs/sdk" className="hover:text-foreground">SDK</a>
           <a href="/app-store" className="hover:text-foreground">App Store</a>
           <a href="https://auth.web10.app" className="hover:text-foreground">Sign In</a>
           <a href="https://github.com/jacoby149/web10" className="hover:text-foreground">GitHub</a>

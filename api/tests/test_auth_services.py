@@ -10,14 +10,12 @@ from app.services.auth import (
     certify_with_remote_provider,
     check_admin,
     get_password_hash,
-    verify_password,
     pwd_context,
+    verify_password,
 )
-import app.settings as settings
 
 
 class TestAuthenticateUser:
-
     def test_valid_user(self):
         mock_user = MagicMock()
         mock_user.hashed_password = "__hashed__"
@@ -41,7 +39,6 @@ class TestAuthenticateUser:
 
 
 class TestCertifyWithRemoteProvider:
-
     def test_remote_certifies(self):
         token = Token(token="remote_token")
         mock_response = MagicMock()
@@ -72,7 +69,6 @@ class TestCertifyWithRemoteProvider:
 
 
 class TestCheckAdmin:
-
     def test_admin_permitted(self):
         token = Token(token="admin_token")
         with patch("app.services.auth.decode_token") as mock_decode:
@@ -90,7 +86,6 @@ class TestCheckAdmin:
 
 
 class TestPasswordHash:
-
     def test_hash_produces_string(self, mocker):
         mocker.patch.object(pwd_context, "hash", return_value="hashed_value")
         h = get_password_hash("mysecret")

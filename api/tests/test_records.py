@@ -2,12 +2,11 @@
 
 import datetime
 
-from app.services import records
 import app.settings as settings
+from app.services import records
 
 
 class TestStarRecord:
-
     def test_returns_dict(self):
         r = records.star_record()
         assert isinstance(r, dict)
@@ -58,7 +57,6 @@ class TestStarRecord:
 
 
 class TestServicesRecord:
-
     def test_returns_dict(self):
         r = records.services_record()
         assert isinstance(r, dict)

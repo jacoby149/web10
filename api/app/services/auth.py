@@ -1,15 +1,14 @@
-from datetime import datetime, timedelta
 import ipaddress
+from datetime import datetime
 from urllib.parse import urlparse
 
 import jwt
 import requests
 from passlib.context import CryptContext
 
+import app.settings as settings
 from app.models.auth import Token, TokenData
 from app.services.documentdb import get_approved, get_user, is_in_cross_origins
-import app.exceptions as exceptions
-import app.settings as settings
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -61,10 +60,7 @@ def _is_private_ip(host: str) -> bool:
     """Return True if host resolves to a private, loopback, or link-local address."""
     try:
         addr = ipaddress.ip_address(host)
-        return (
-            addr.is_private or addr.is_loopback or addr.is_link_local
-            or addr.is_reserved or addr.is_multicast
-        )
+        return addr.is_private or addr.is_loopback or addr.is_link_local or addr.is_reserved or addr.is_multicast
     except ValueError:
         pass
     # DNS name — reject obvious internal hosts

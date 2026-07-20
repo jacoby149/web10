@@ -7,7 +7,6 @@ from app.services import stripe
 
 
 class TestGetSubscriptionPriceIds:
-
     def test_single_sub(self):
         subs = [{"items": {"data": [{"price": {"id": "price_1"}}]}}]
         result = stripe.get_subscription_price_ids(subs)
@@ -23,7 +22,6 @@ class TestGetSubscriptionPriceIds:
 
 
 class TestGetDevPaySubscription:
-
     def test_finds_matching_subscription(self):
         mock_subs = [
             {
@@ -63,7 +61,6 @@ class TestGetDevPaySubscription:
 
 
 class TestGetDevPayMetadata:
-
     def test_returns_metadata(self):
         mock_sub = {
             "metadata": {"title": "Pro", "seller": "alice", "price": "100"},

@@ -5,11 +5,9 @@ from unittest.mock import patch
 import pytest
 
 from app.services import documentdb
-import app.exceptions as exceptions
 
 
 class TestToGui:
-
     def test_extract_body_and_id(self):
         doc = {"_id": "abc123", "service": "posts", "body": {"title": "hello", "count": 1}}
         result = documentdb.to_gui(doc)
@@ -27,7 +25,6 @@ class TestToGui:
 
 
 class TestToDb:
-
     def test_basic_wrap(self):
         result = documentdb.to_db({"title": "hi"}, "posts")
         assert result == {"service": "posts", "body": {"title": "hi"}}
@@ -45,7 +42,6 @@ class TestToDb:
 
 
 class TestToDbField:
-
     def test_id_passthrough(self):
         assert documentdb.to_db_field("_id") == "_id"
 
@@ -57,7 +53,6 @@ class TestToDbField:
 
 
 class TestQTransform:
-
     def test_basic_query(self):
         q = documentdb.q_t({"title": "hello"}, "posts")
         assert q == {"service": "posts", "body.title": "hello"}
@@ -82,7 +77,6 @@ class TestQTransform:
 
 
 class TestUTransform:
-
     def test_basic_set(self):
         u = documentdb.u_t({"$set": {"title": "new"}})
         assert u == {"$set": {"body.title": "new"}}
@@ -105,7 +99,6 @@ class TestUTransform:
 
 
 class TestSortTransform:
-
     def test_basic(self):
         assert documentdb.sort_t({"visits": -1}) == [("body.visits", -1)]
 
@@ -115,7 +108,6 @@ class TestSortTransform:
 
 
 class TestGetPull:
-
     def test_array_index_pull(self):
         u = {"$unset": {"tags.0": 1}}
         pull = documentdb.get_pull(u)
@@ -132,7 +124,6 @@ class TestGetPull:
 
 
 class TestStarFound:
-
     def test_star_present(self):
         assert documentdb.star_found([{"service": "*", "username": "x"}]) is True
 
@@ -143,21 +134,30 @@ class TestStarFound:
         assert documentdb.star_found([]) is False
 
     def test_multiple_no_star(self):
-        assert documentdb.star_found([
-            {"service": "a"},
-            {"service": "b"},
-        ]) is False
+        assert (
+            documentdb.star_found(
+                [
+                    {"service": "a"},
+                    {"service": "b"},
+                ]
+            )
+            is False
+        )
 
     def test_one_star_among_many(self):
-        assert documentdb.star_found([
-            {"service": "a"},
-            {"service": "*"},
-            {"service": "b"},
-        ]) is True
+        assert (
+            documentdb.star_found(
+                [
+                    {"service": "a"},
+                    {"service": "*"},
+                    {"service": "b"},
+                ]
+            )
+            is True
+        )
 
 
 class TestGetApproved:
-
     def test_owner_always_approved(self, mock_db_with_term):
         assert documentdb.get_approved("testuser", "api.localhost", "testuser", "myapi", "read") is True
 
@@ -220,7 +220,6 @@ class TestGetApproved:
 
 
 class TestIsInCrossOrigins:
-
     def test_exact_match(self, mock_db_with_term):
         assert documentdb.is_in_cross_origins("auth.localhost", "owner", "myapi") is True
 

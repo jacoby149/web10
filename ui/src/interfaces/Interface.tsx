@@ -27,6 +27,13 @@ function useInterface() {
     I.wapi = adapter.wapi;
     I.wapiAuth = adapter.wapiAuth;
 
+    // Restore auth from cookie on page load — wapi.token is populated from
+    // the "token=" cookie by wapiInit at init time.
+    const existingToken = I.wapi.readToken?.();
+    if (existingToken) {
+        I.setAuth(true);
+    }
+
     I.initAuthenticator = function () {
         I.wapiAuth.SMRListen((inSMR) => {
             I.setSMR(inSMR);

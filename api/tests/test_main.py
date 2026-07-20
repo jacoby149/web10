@@ -10,7 +10,7 @@ import jwt
 import pytest
 
 import app.settings as settings
-import app.exceptions as exceptions
+from app.endpoints.auth import kosher
 from app.models.auth import Token, TokenData
 from app.services.auth import (
     anon_token,
@@ -19,18 +19,16 @@ from app.services.auth import (
     decode_token,
     get_password_hash,
     is_permitted,
-    verify_password,
     pwd_context,
+    verify_password,
 )
-from app.endpoints.auth import kosher
-
 
 # ---------------------------------------------------------------------------
 # Password helpers
 # ---------------------------------------------------------------------------
 
-class TestPasswordHashing:
 
+class TestPasswordHashing:
     def test_verify_correct_password(self, mocker):
         mocker.patch.object(pwd_context, "verify", return_value=True)
         assert verify_password("secret123", "fake_hash") is True
@@ -52,8 +50,8 @@ class TestPasswordHashing:
 # kosher  –  username validation
 # ---------------------------------------------------------------------------
 
-class TestKosher:
 
+class TestKosher:
     def test_alphanumeric_ok(self):
         assert kosher("alice123") is True
 
@@ -84,8 +82,8 @@ class TestKosher:
 # decode_token
 # ---------------------------------------------------------------------------
 
-class TestDecodeToken:
 
+class TestDecodeToken:
     def test_decode_without_verification(self):
         payload = {
             "username": "u1",
@@ -116,8 +114,8 @@ class TestDecodeToken:
 # can_mint
 # ---------------------------------------------------------------------------
 
-class TestCanMint:
 
+class TestCanMint:
     def test_same_username_service_manager(self, service_manager_token):
         sub_data = decode_token(service_manager_token)
         mint_data = TokenData(
@@ -162,8 +160,15 @@ class TestCanMint:
     def test_no_site_raises(self):
         sub_data = decode_token(
             jwt.encode(
-                {"username": "u", "site": None, "target": settings.PROVIDER, "provider": settings.PROVIDER, "expires": "2099-01-01T00:00:00"},
-                settings.PRIVATE_KEY, algorithm=settings.ALGORITHM,
+                {
+                    "username": "u",
+                    "site": None,
+                    "target": settings.PROVIDER,
+                    "provider": settings.PROVIDER,
+                    "expires": "2099-01-01T00:00:00",
+                },
+                settings.PRIVATE_KEY,
+                algorithm=settings.ALGORITHM,
             )
         )
         mint = TokenData(
@@ -212,8 +217,8 @@ class TestCanMint:
 # certify
 # ---------------------------------------------------------------------------
 
-class TestCertify:
 
+class TestCertify:
     def test_valid_token_certifies(self, valid_token):
         assert certify(Token(token=valid_token)) is True
 
@@ -250,25 +255,22 @@ class TestCertify:
 # is_permitted
 # ---------------------------------------------------------------------------
 
-class TestIsPermitted:
 
+class TestIsPermitted:
     def test_none_token_is_anon(self, mock_db_with_term):
         """A request with no token acts as anon: the .* whitelist grants read."""
-        result = is_permitted(
-            Token(token=None), "owner", "myapi", "read"
-        )
+        result = is_permitted(Token(token=None), "owner", "myapi", "read")
         assert result is True
 
     def test_valid_token_with_permission(self, valid_token, mock_db_with_term):
         """A certified token with whitelist entry should be permitted."""
-        result = is_permitted(
-            Token(token=valid_token), "owner", "myapi", "read"
-        )
+        result = is_permitted(Token(token=valid_token), "owner", "myapi", "read")
         assert result is True
 
     def test_banned_user_denied(self, valid_token, mock_db_with_term):
         """If the decoded username matches a blacklist entry, deny."""
         import jwt as _jwt
+
         payload = {
             "username": "banneduser",
             "site": "auth.localhost",
@@ -277,9 +279,7 @@ class TestIsPermitted:
             "expires": (datetime.datetime.utcnow() + datetime.timedelta(hours=1)).isoformat(),
         }
         banned_token = _jwt.encode(payload, settings.PRIVATE_KEY, algorithm=settings.ALGORITHM)
-        result = is_permitted(
-            Token(token=banned_token), "owner", "myapi", "read"
-        )
+        result = is_permitted(Token(token=banned_token), "owner", "myapi", "read")
         assert result is False
 
     def test_wrong_target_denied(self, mock_db_with_term):
@@ -292,9 +292,7 @@ class TestIsPermitted:
             "expires": (datetime.datetime.utcnow() + datetime.timedelta(hours=1)).isoformat(),
         }
         token = jwt.encode(payload, settings.PRIVATE_KEY, algorithm=settings.ALGORITHM)
-        result = is_permitted(
-            Token(token=token), "owner", "myapi", "read"
-        )
+        result = is_permitted(Token(token=token), "owner", "myapi", "read")
         assert result is False
 
     def test_no_target_owner_allowed(self, mock_db_with_term):
@@ -307,9 +305,7 @@ class TestIsPermitted:
             "expires": (datetime.datetime.utcnow() + datetime.timedelta(hours=1)).isoformat(),
         }
         token = jwt.encode(payload, settings.PRIVATE_KEY, algorithm=settings.ALGORITHM)
-        result = is_permitted(
-            Token(token=token), "owner", "myapi", "read"
-        )
+        result = is_permitted(Token(token=token), "owner", "myapi", "read")
         assert result is True
 
     def test_no_target_non_owner_denied(self, mock_db_with_term):
@@ -322,9 +318,7 @@ class TestIsPermitted:
             "expires": (datetime.datetime.utcnow() + datetime.timedelta(hours=1)).isoformat(),
         }
         token = jwt.encode(payload, settings.PRIVATE_KEY, algorithm=settings.ALGORITHM)
-        result = is_permitted(
-            Token(token=token), "owner", "myapi", "read"
-        )
+        result = is_permitted(Token(token=token), "owner", "myapi", "read")
         assert result is False
 
 
@@ -332,8 +326,8 @@ class TestIsPermitted:
 # anon_token
 # ---------------------------------------------------------------------------
 
-class TestAnonToken:
 
+class TestAnonToken:
     def test_returns_anon(self):
         data = anon_token()
         assert data.username == "anon"
