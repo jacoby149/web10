@@ -330,7 +330,7 @@ a DB_URL change, not a rewrite.
     dedicated tools/ dir, not in the deleted web10-deploy)
 [✓] rename mongo.py -> documentdb.py (adapter is backend-agnostic; pymongo
     speaks to either real Mongo or FerretDB/DocumentDB)
-[ ] CONNECT THE REAL DATA (A7, added 19.07.2026): the ubuntu box
+[✓ 1.0.72] CONNECT THE REAL DATA (A7, added 19.07.2026): the ubuntu box
     already runs the ORIGINAL production MongoDB — ~208 real users,
     historical usage stats, and the registered apps from web10's
     live app-store era. it runs NATIVELY on the host (not a docker
