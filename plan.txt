@@ -478,7 +478,7 @@ the three items below are PARALLEL — disjoint directories:
 now-that-it's-deployed round (added 19.07.2026, gated on A7's real
 mongo — the box is live but pointed at an empty ferretdb; connecting
 the original data changes what "done" looks like for these):
-[ ] AUTHENTICATOR REVAMP (lane B, item B6): the ui/ auth flow is
+[✓ 1.0.72] AUTHENTICATOR REVAMP (lane B, item B6): the ui/ auth flow is
     broken in look AND function — the web10 logo renders broken, and
     login "straight up doesnt work" (operator, 19.07). B5 fixed the
     shell; this fixes the actual login/consent journey end to end

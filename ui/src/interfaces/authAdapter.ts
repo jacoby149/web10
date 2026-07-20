@@ -8,7 +8,7 @@ import { config } from '../config';
 // without a code edit — see ubuntu-deployment/AGENT-OPS.md §4.1 and
 // .context/laneE-ui-build-args.md for the Dockerfile ARGs a deploy must pass.
 function web10AuthAdapterInit() {
-    const local = window.location.protocol === "http:";
+    const local = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
     const wapi = local ?
         wapiInit("http://auth.localhost", ["http://api.localhost"],"rtc.localhost") :
         wapiInit(config.REACT_APP_AUTH_ORIGIN, [config.REACT_APP_API_ORIGIN], config.REACT_APP_RTC_ORIGIN);

@@ -1,3 +1,20 @@
+1.0.72 || 19.07.2026
+B6: authenticator revamp — the ui/ auth flow is now functional. The
+critical bug: wapiAuth.js referenced wapi.defaultAPIProtocol (undefined)
+instead of wapi.APIProtocol, so login/signup POSTed to
+"undefined://provider/web10token" — every auth call failed. Fixed in
+sdk/src/wapiAuth.js + test mock, dist bundles rebuilt. Token restoration
+on page load added to Interface.tsx (refresh no longer logs out).
+SignupForm no longer flashes to contracts before signup completes.
+ForgotForm cancel button now uses isAuthenticated() instead of the
+?auth query param string. authAdapter.ts local-detection switched from
+protocol check (broken on https://localhost) to hostname check.
+Branding component restyled for auth screens: keys-mark logo at 48px,
+"web10" headline, tagline per design.md narrative direction. Orphaned
+React atom logo.svg deleted. Phone value now passed to I.signup()
+(missing 6th arg). SDK linked locally (file:../sdk) so the fix is
+consumed. 73/73 ui tests green, 52/52 sdk tests green.
+
 1.0.71 || 19.07.2026
 Queued E9 (deployment status page): one URL per env
 (status.web10.app / status.dev.web10.app) showing what's live — the
