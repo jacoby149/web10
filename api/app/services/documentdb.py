@@ -224,6 +224,12 @@ def temp_pass(phone_number, hash):
 def create(user, service, _data):
     if star_found([_data]):
         raise exceptions.DSTAR
+    # A service's terms record ("services" collection-service) must be unique
+    # per target service — never create a second one (root cause of duplicate
+    # contracts). Callers should update the existing record instead.
+    if service == "services" and isinstance(_data, dict) and _data.get("service"):
+        if db[f"{user}"].find_one({"service": "services", "body.service": _data["service"]}) is not None:
+            raise exceptions.DUPLICATE_SERVICE
     data = to_db(_data, service)
     result = db[f"{user}"].insert_one(data)
     _data["_id"] = str(result.inserted_id)

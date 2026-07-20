@@ -1,3 +1,9 @@
+1.0.82 || 20.07.2026
+API defends against duplicate service terms. documentdb.create now rejects a
+second terms record for a service that already has one (service=="services"
+with a body.service already present) → 409 DUPLICATE_SERVICE. This is the
+server-side guardrail behind the duplicate-contracts bug (the UI guards it
+too); a service's terms should be updated, not re-created. +2 tests.
 1.0.79 || 19.07.2026
 Prod fixes: missing static assets, wrong readiness API, and the DB override.
 (1) ui/Dockerfile never COPYed public/, so vite had nothing to fold into

@@ -22,6 +22,23 @@ class TestCreate:
         with pytest.raises(Exception):
             documentdb.create("alice", "posts", {"service": "*", "x": 1})
 
+    def test_create_duplicate_service_terms_raises(self):
+        # a terms record for "posts" already exists → creating another is rejected
+        with patch.object(documentdb.db, "__getitem__") as mock_col:
+            mock_col.return_value.find_one.return_value = {"service": "services", "body": {"service": "posts"}}
+            with pytest.raises(Exception):
+                documentdb.create("alice", "services", {"service": "posts", "cross_origins": []})
+
+    def test_create_first_service_terms_ok(self):
+        # no existing terms record → creation proceeds
+        mock_result = MagicMock()
+        mock_result.inserted_id = "oid2"
+        with patch.object(documentdb.db, "__getitem__") as mock_col:
+            mock_col.return_value.find_one.return_value = None
+            mock_col.return_value.insert_one.return_value = mock_result
+            result = documentdb.create("alice", "services", {"service": "posts", "cross_origins": []})
+            assert result["_id"] == "oid2"
+
 
 class TestRead:
     def test_read_basic(self):
