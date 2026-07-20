@@ -1,10 +1,10 @@
 import logging
 
+import jwt
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-import jwt
 
 import app.docs as docs
 import app.exceptions as exceptions
@@ -19,6 +19,7 @@ app = FastAPI(
     terms_of_service="http://example.com/terms/",
 )
 
+
 def _cors_origins():
     """Build allow-listed CORS origins from settings."""
     origins = set()
@@ -29,6 +30,7 @@ def _cors_origins():
     origins.add(f"http://{settings.PROVIDER}")
     origins.add(f"https://{settings.PROVIDER}")
     return list(origins)
+
 
 app.add_middleware(
     CORSMiddleware,

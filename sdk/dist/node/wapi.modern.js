@@ -50,7 +50,7 @@ var wapiAuthInit = function wapiAuthInit(wapi) {
     window.close();
   };
   wapiAuth.logIn = function (provider, username, password) {
-    return axios.post(wapi.defaultAPIProtocol + "//" + provider + "/web10token", {
+    return axios.post(wapi.APIProtocol + "//" + provider + "/web10token", {
       username: username,
       password: password,
       token: null,
@@ -62,7 +62,7 @@ var wapiAuthInit = function wapiAuthInit(wapi) {
     });
   };
   wapiAuth.signUp = function (provider, username, password, betacode, phone) {
-    return axios.post(wapi.defaultAPIProtocol + "//" + provider + "/signup", {
+    return axios.post(wapi.APIProtocol + "//" + provider + "/signup", {
       username: username,
       password: password,
       betacode: betacode,
@@ -80,7 +80,7 @@ var wapiAuthInit = function wapiAuthInit(wapi) {
     }
   };
   var api = function api() {
-    return wapi.defaultAPIProtocol + "//" + wapi.readToken()["provider"];
+    return wapi.APIProtocol + "//" + wapi.readToken()["provider"];
   };
   wapiAuth.changePass = function (pass, newPass) {
     return axios.post(api() + "/change_pass", {

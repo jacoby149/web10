@@ -4,7 +4,6 @@ from app.services import twilio
 
 
 class TestRecoveryResponse:
-
     def test_contains_password(self):
         resp = twilio.recovery_response("temp123")
         assert "temp123" in resp
@@ -20,7 +19,6 @@ class TestRecoveryResponse:
 
 
 class TestActionlessResponse:
-
     def test_contains_reset_instruction(self):
         resp = twilio.actionless_response()
         assert "RESET" in resp

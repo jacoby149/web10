@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hello — web10 Demo</title>
+  <style>
+    :root {
+      --bg: #09090b;
+      --fg: #fafafa;
+      --muted: #a1a1aa;
+      --surface: #111113;
+      --border: #27272a;
+      --brand: #8b5cf6;
+      --brand-300: #c4b5fd;
+      --brand-muted: #2e1065;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 2rem;
+      max-width: 420px;
+      width: 100%;
+      text-align: center;
+    }
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+    p { color: var(--muted); font-size: 0.875rem; line-height: 1.5; margin-bottom: 1.5rem; }
+    button {
+      background: var(--brand);
+      color: var(--fg);
+      border: none;
+      border-radius: 0.5rem;
+      padding: 0.625rem 1.25rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 150ms ease-out;
+    }
+    button:hover { background: #7c3aed; }
+    #message {
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.875rem;
+      color: var(--brand-300);
+    }
+    code {
+      font-family: 'JetBrains Mono', ui-monospace, monospace;
+      background: var(--brand-muted);
+      padding: 0.125rem 0.375rem;
+      border-radius: 0.25rem;
+      font-size: 0.8125rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Hello, web10</h1>
+    <p>The smallest web10 app: log in with your node and read your token.</p>
+    <button id="authButton">Log in</button>
+    <p id="message">Not started — click <code>Log in</code> to authenticate.</p>
+  </div>
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  <script src="https://auth.web10.app/sdk/wapi.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

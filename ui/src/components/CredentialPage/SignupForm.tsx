@@ -28,7 +28,6 @@ function SignupForm({ I }: { I: Record<string, any> }) {
           className="mt-2 w-full"
           data-testid="signup-submit"
           onClick={() => {
-            I.setMode("appstore");
             const [provider, username, password, betacode, retype] = [
               (document.getElementById("provider") as HTMLInputElement).value,
               (document.getElementById("username") as HTMLInputElement).value,
@@ -36,7 +35,7 @@ function SignupForm({ I }: { I: Record<string, any> }) {
               (document.getElementById("betacode") as HTMLInputElement | null)?.value ?? "",
               (document.getElementById("retypepass") as HTMLInputElement).value,
             ];
-            I.signup(provider, username, password, retype, betacode);
+            I.signup(provider, username, password, retype, betacode, I.phone);
           }}
         >
           Sign up
