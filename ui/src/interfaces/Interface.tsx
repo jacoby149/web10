@@ -3,6 +3,19 @@ import web10AuthAdapterInit from './authAdapter'
 import axios from 'axios'
 import { config } from '../config';
 
+// Build a service-change update from a desired terms record: $set the changed
+// term fields, $unset cleared ones, never touching protected star fields.
+function buildSCR(service: any) {
+    const SCR: Record<string, any> = { PULL: true, $unset: {}, $set: {} };
+    const starFields = ["_id", "hashed_password", "customer_id", "business_id", "service", "credit_limit", "space_limit"];
+    for (const [key, value] of Object.entries(service)) {
+        if (key === "_id" || key === "service" || starFields.includes(key)) continue;
+        if (value === undefined || value === null) SCR["$unset"][key] = "";
+        else SCR["$set"][key] = value;
+    }
+    return SCR;
+}
+
 function useInterface() {
     const I = {} as Record<string, any>;
 
@@ -199,56 +212,114 @@ function useInterface() {
     }
 
     I.changeTerms = function (service: any) {
-        const SCR = { PULL: true, $unset: {}, $set: {} };
-        const starFields = ["_id", "hashed_password", "customer_id", "business_id", "service", "credit_limit", "space_limit"];
-        for (const [key, value] of Object.entries(service)) {
-            if (key === "_id" || key === "service" || starFields.includes(key)) continue;
-            if (value === undefined || value === null) {
-                SCR["$unset"][key] = "";
-            } else {
-                SCR["$set"][key] = value;
-            }
-        }
         I.setStatus("Saving service terms...");
         I.wapi
-            .update("services", { service: service.service }, SCR)
+            .update("services", { service: service.service }, buildSCR(service))
             .then(() => {
                 I.setStatus("Service terms saved!");
                 const newServices = I.services.map((s: any) => s.service === service.service ? service : s);
                 I.setServices(newServices);
+                // approving a modification clears it from the pending list too,
+                // and ships the token only once nothing is left to review
+                I.resolveRequest({
+                    scrs: (I.SMR["scrs"] || []).filter((s: any) => s["service"] !== service["service"]),
+                    sirs: I.SMR["sirs"],
+                });
                 setTimeout(() => I.setStatus(null), 2000);
             })
             .catch((e) => I.setStatus("Failed to save: " + (e.response?.data?.detail || String(e))));
     }
 
+    // Approving/denying just updates the pending list now — the token is NOT
+    // auto-sent. The user explicitly returns to the app via "go to the app"
+    // (goToApp) or "continue without approving". This lets them approve some,
+    // all (approveAll), or none (withhold data) and still reach the app.
+    I.resolveRequest = function (nextSMR: any) {
+        I.setSMR(nextSMR);
+    }
+
     I.submitSIR = function (service: any) {
-        I.setStatus("Creating service...");
+        // Never create a second terms record for a service that already has one
+        // (that's how duplicate contracts appeared). If it exists, just clear
+        // the request — the grant is already in place.
+        const exists = (I.services || []).some((s: any) => s["service"] === service["service"]);
+        if (exists) {
+            I.resolveRequest({
+                scrs: I.SMR["scrs"],
+                sirs: (I.SMR["sirs"] || []).filter((sir: any) => sir["service"] !== service["service"]),
+            });
+            return;
+        }
+        I.setStatus("Approving service...");
         I.wapi
             .create("services", service)
             .then(() => {
-                I.setStatus("Service created!");
+                I.setStatus(null);
                 I.servicesLoad();
-                I.setSMR({
+                I.resolveRequest({
                     scrs: I.SMR["scrs"],
-                    sirs: I.SMR["sirs"].filter((sir: any) => sir["service"] !== service["service"]),
+                    sirs: (I.SMR["sirs"] || []).filter((sir: any) => sir["service"] !== service["service"]),
                 });
-                I.sendToken();
             })
-            .catch((e) => I.setStatus("Failed to create: " + (e.response?.data?.detail || String(e))));
+            .catch((e) => I.setStatus("Failed to approve: " + (e.response?.data?.detail || String(e))));
     }
 
     I.purgeSMR = function (service: any) {
-        I.setSMR({
-            scrs: I.SMR["scrs"],
-            sirs: I.SMR["sirs"].filter((sir: any) => sir["service"] !== service["service"]),
+        // deny removes the request from whichever list it's in
+        I.resolveRequest({
+            scrs: (I.SMR["scrs"] || []).filter((s: any) => s["service"] !== service["service"]),
+            sirs: (I.SMR["sirs"] || []).filter((s: any) => s["service"] !== service["service"]),
         });
         I.setStatus("Request denied.");
-        I.sendToken();
+    }
+
+    // Approve every pending request in one shot, then return to the app.
+    // Skip SIRs for services already granted — re-creating them just makes
+    // duplicate contract records.
+    I.approveAll = function () {
+        const granted = new Set((I.services || []).map((s: any) => s.service));
+        const sirs = (I.SMR["sirs"] || []).filter((s: any) => !granted.has(s.service));
+        const scrs = I.SMR["scrs"] || [];
+        if (sirs.length + scrs.length === 0) { I.goToApp(); return; }
+        I.setStatus("Approving all…");
+        const ops = [
+            ...sirs.map((s: any) => I.wapi.create("services", s)),
+            ...scrs.map((s: any) => I.wapi.update("services", { service: s.service }, buildSCR(s))),
+        ];
+        Promise.all(ops)
+            .then(() => {
+                I.servicesLoad();
+                I.setSMR({ scrs: [], sirs: [] });
+                I.setStatus(null);
+                I.goToApp();
+            })
+            .catch((e: any) => I.setStatus("Failed to approve all: " + (e.response?.data?.detail || String(e))));
+    }
+
+    // Return to the requesting app, logging it in. Mint a FRESH scoped token
+    // for the referrer right here rather than trusting wapiAuth.oAuthToken to
+    // already be set (it's minted async at load/login and often wasn't ready,
+    // so the app never received a token). Approving nothing still logs the app
+    // in — it just has no data grants (withheld).
+    I.goToApp = function () {
+        const decoded = I.wapi.readToken?.();
+        let host: string | null = null;
+        try { host = document.referrer ? new URL(document.referrer).hostname : null; } catch { host = null; }
+        if (decoded && host && I.wapi.getTieredToken) {
+            I.setStatus("Connecting…");
+            I.wapi.getTieredToken(host, decoded.provider)
+                .then((r: any) => { I.wapiAuth.oAuthToken = r.data.token; I.sendToken(); })
+                .catch(() => I.sendToken());
+        } else {
+            I.sendToken();
+        }
     }
 
     I.sendToken = function () {
-        if (I.wapiAuth.oAuthToken) {
+        if (I.wapiAuth.oAuthToken && I.wapiAuth.sendToken) {
             I.wapiAuth.sendToken();
+        } else if (window.opener) {
+            window.close();
         }
     }
 
