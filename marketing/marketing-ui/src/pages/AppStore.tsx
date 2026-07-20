@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Users, LayoutDashboard, BookOpen, Terminal, ArrowUpRight, Boxes } from 'lucide-react'
+import { Users, LayoutDashboard, BookOpen, Terminal, ArrowUpRight, Boxes, Globe } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardFooter, CardContent } from '../components/ui/card'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
@@ -16,10 +16,18 @@ function nodeApi(): string {
   return (import.meta as any).env?.VITE_API_URL || 'https://api.web10.app'
 }
 
+interface PwaIcon {
+  src: string
+  sizes?: string
+}
+
 interface RegisteredApp {
   url: string
   visits: number
+  pwaIcon?: string
+  pwaName?: string
 }
+
 interface Stats {
   users: number
   apps: RegisteredApp[]
@@ -77,6 +85,32 @@ function appName(url: string): string {
   return h.replace(/^www\./, '')
 }
 
+// Pick the best icon from a PWA manifest — prefer ~192px or 512px.
+function pickIcon(manifest: any): string | undefined {
+  const icons: PwaIcon[] = manifest?.icons
+  if (!Array.isArray(icons) || icons.length === 0) return undefined
+
+  // Prefer a 192px or 512px icon (standard PWA sizes)
+  const target = icons.find((ic: PwaIcon) => ic.sizes?.includes('192') || ic.sizes?.includes('512'))
+  return target?.src ?? icons[0]?.src
+}
+
+// Resolve a potentially relative icon URL against the app's base URL.
+function resolveIcon(appUrl: string, iconSrc: string): string {
+  if (!iconSrc) return ''
+  if (iconSrc.startsWith('http')) return iconSrc
+  try {
+    const base = new URL(appUrl)
+    // Ensure base path ends with / for correct resolution
+    if (!base.pathname.endsWith('/')) {
+      base.pathname = base.pathname.replace(/\/[^/]*$/, '/') ?? '/'
+    }
+    return new URL(iconSrc, base).href
+  } catch {
+    return iconSrc
+  }
+}
+
 function AppStore() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
@@ -89,16 +123,42 @@ function AppStore() {
       body: '{}',
     })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then((data) => {
-        if (alive)
-          setStats({
-            users: data.users ?? 0,
-            apps: Array.isArray(data.apps) ? data.apps : [],
-            storage: data.storage ?? 0,
-          })
+      .then(async (data) => {
+        if (!alive) return
+        const apps: RegisteredApp[] = Array.isArray(data.apps) ? data.apps : []
+
+        // Fetch PWA manifests for each app in parallel
+        const api = nodeApi()
+        const enriched = await Promise.all(
+          apps.map(async (app) => {
+            if (!app.url) return app as RegisteredApp
+            try {
+              const resp = await fetch(`${api}/pwa_listing?url=${encodeURIComponent(app.url)}`)
+              if (resp.ok) {
+                const manifest = await resp.json()
+                const icon = pickIcon(manifest)
+                return {
+                  ...app,
+                  pwaIcon: icon ? resolveIcon(app.url, icon) : undefined,
+                  pwaName: manifest?.name || manifest?.short_name,
+                }
+              }
+            } catch {
+              // No manifest — fine, we'll show the hostname
+            }
+            return app as RegisteredApp
+          }),
+        )
+
+        setStats({
+          users: data.users ?? 0,
+          apps: enriched,
+          storage: data.storage ?? 0,
+        })
       })
       .catch(() => { /* store still renders the hero + first-party catalog */ })
       .finally(() => alive && setLoading(false))
+
     return () => {
       alive = false
     }
@@ -183,13 +243,43 @@ function AppStore() {
             </Card>
           ))}
 
-          {/* real registered apps from the node */}
+          {/* real registered apps from the node — with PWA icons */}
           {registered.map((app) => (
             <Card key={app.url} className="reveal bg-surface">
               <CardHeader>
-                <Boxes className="mb-2 h-6 w-6 text-brand-400" strokeWidth={1.5} />
-                <CardTitle className="truncate">{appName(app.url)}</CardTitle>
-                <CardDescription>Registered on web10.</CardDescription>
+                <div className="mb-2 flex items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted">
+                    {app.pwaIcon ? (
+                      <img
+                        src={app.pwaIcon}
+                        alt={app.pwaName || appName(app.url)}
+                        className="h-8 w-8 object-contain"
+                        loading="lazy"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none'
+                          const parent = e.currentTarget.parentElement
+                          if (parent) {
+                            const fallback = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+                            fallback.className = 'h-5 w-5 text-muted-foreground'
+                            fallback.setAttribute('strokeWidth', '1.5')
+                            fallback.setAttribute('fill', 'none')
+                            fallback.setAttribute('stroke', 'currentColor')
+                            fallback.setAttribute('viewBox', '0 0 24 24')
+                            fallback.innerHTML =
+                              '<circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>'
+                            parent.appendChild(fallback)
+                          }
+                        }}
+                      />
+                    ) : (
+                      <Globe className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <CardTitle className="truncate">{app.pwaName || appName(app.url)}</CardTitle>
+                    <CardDescription>Registered on web10.</CardDescription>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="text-xs text-muted-foreground">
                 {app.visits.toLocaleString()} {app.visits === 1 ? 'visit' : 'visits'}
