@@ -2,12 +2,18 @@ import { useEffect, useState } from 'react'
 import { useParams, Link, useLocation } from 'react-router-dom'
 import { remark } from 'remark'
 import remarkHtml from 'remark-html'
-import { FileText } from 'lucide-react'
+import { FileText, Code, Terminal, ExternalLink } from 'lucide-react'
 
 const DOC_PAGES = [
   { slug: 'protocol-spec', title: 'Protocol Spec', file: '/docs/protocol-spec.md' },
   { slug: 'conventions', title: 'Conventions', file: '/docs/conventions.md' },
-  { slug: 'sdk', title: 'SDK', file: '/docs/sdk.md' },
+  { slug: 'sdk', title: 'SDK Guide', file: '/docs/sdk.md' },
+  { slug: 'cli-quickstart', title: 'CLI Quickstart', file: '/docs/cli-quickstart.md' },
+]
+
+const DEMO_APPS = [
+  { slug: 'hello', title: 'Hello', url: '/docs/hello/index.html' },
+  { slug: 'notes', title: 'Notes', url: '/docs/notes/index.html' },
 ]
 
 function DocsSidebar() {
@@ -19,7 +25,7 @@ function DocsSidebar() {
       <h3 className="mb-3 text-[0.75rem] font-medium uppercase tracking-[0.04em] text-muted-foreground">
         Documentation
       </h3>
-      <nav className="flex flex-col gap-1">
+      <nav className="mb-6 flex flex-col gap-1">
         {DOC_PAGES.map(page => (
           <Link
             key={page.slug}
@@ -35,6 +41,29 @@ function DocsSidebar() {
           </Link>
         ))}
       </nav>
+
+      <h3 className="mb-3 text-[0.75rem] font-medium uppercase tracking-[0.04em] text-muted-foreground">
+        Demo Apps
+      </h3>
+      <nav className="flex flex-col gap-1">
+        {DEMO_APPS.map(app => (
+          <a
+            key={app.slug}
+            href={app.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors duration-150 ease-out ${
+              currentPage === app.slug
+                ? 'bg-brand-muted font-medium text-brand-300'
+                : 'text-muted-foreground hover:bg-elevated hover:text-foreground'
+            }`}
+          >
+            <Code className="h-4 w-4 shrink-0" strokeWidth={1.5} />
+            {app.title}
+            <ExternalLink className="ml-auto h-3 w-3 shrink-0 opacity-50" strokeWidth={1.5} />
+          </a>
+        ))}
+      </nav>
     </aside>
   )
 }
@@ -48,7 +77,7 @@ function DocsContent() {
   useEffect(() => {
     const doc = DOC_PAGES.find(p => p.slug === page)
     if (!doc) {
-      setContent('<p>Select a document from the sidebar.</p>')
+      setContent('<p>Select a document from the sidebar, or try a <a href="/docs/sdk" class="text-brand-300">SDK Guide</a> to get started.</p>')
       setTitle('Documentation')
       return
     }

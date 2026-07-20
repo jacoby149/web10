@@ -355,7 +355,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       fetches /docs/<slug>.md). added try_files ... /index.html to
       the /docs/ location. (small live-prod fix done alongside the
       planning.)
-  [ ] D17. RESTORE THE DEV DOCS (operator, 19.07 — "docs are lacking,
+  [✓ 1.0.72] D17. RESTORE THE DEV DOCS (operator, 19.07 — "docs are lacking,
       were sharp before with demo apps"). NOT LOST — recoverable from
       git: the old rich docs lived in auth/public/docs/ and were
       removed in 82667060 ("moving of docs to separate endpoint").
