@@ -1,3 +1,16 @@
+1.0.84 || 20.07.2026
+D16 (frontend): revive the App Store as a real, live catalog. The
+marketing-ui AppStore page now POSTs the node's /stats and renders real
+data instead of hardcoded proof cards: live member + registered-app counts
+plus total data owned ("N members · M apps · X MB of data owned on web10" —
+the storage stat the old store used to show), web10 social promoted as the
+flagship hero (not buried), and the registered third-party apps below as the catalog (name =
+host, with visit counts, linking out). Robust: falls back to the hero +
+first-party seed if /stats is unreachable, and skips *.localhost/known
+first-party hosts. Node API resolved via ?api= / VITE_API_URL, defaulting
+to the local node on *.localhost and api.web10.app otherwise. Curation /
+node-owner takedown (an admin `removed` flag + admin screen) is deferred to
+next per the operator — see the D16 status note in parallel execution.txt.
 1.0.83 || 20.07.2026
 Align the auth console sidebar header with the top bar. The brand header was
 py-5 (taller) while the top bar is h-14, so their bottom borders didn't line
