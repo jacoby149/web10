@@ -1,13 +1,16 @@
-1.0.74 || 20.07.2026
-Plan: new lane-E item E10 — the E9 deployment status page bakes
-"unknown" for version/commit/date in production (verified live on
-dev; only deployedAt works — Portainer's stack build context doesn't
-give the build script usable git info, and it falls back silently).
-E10 also covers the empty-string healthEndpoints it bakes for
-social/marketing. Context: operator asked whether CI/CD was stale;
-it isn't (D17's App Store CTA change and tonight's rebuild are both
-live on dev) — the apps-with-counts store is D16, still unbuilt.
-
+1.0.74 || 19.07.2026
+C6: e2e deep sweep — expanded harness to 40 tests across money paths.
+Added marketing-api to e2e compose. New suites: consent-grant (4),
+social-full (9: post, comment, reaction, DM, media upload/list),
+terms-revoke (3: whitelist, blacklist, cross_origins), exporter (6:
+import job, analytics, feedback), app-store (4: store render, token
+handoff, system endpoints), studio-metering (5: credits, out-of-credits,
+events, aggregate, studio UI). Persona seed fixture factory (seed.ts).
+34/40 pass. 6 failures triaged as API bugs (Lane A): tiered token mint
+(can_mint requires provider on mint_token, never set), media upload
+(is_permitted needs target=PROVIDER for media service), terms cross-user
+(reader token needs target=PROVIDER for whitelist check). Bug notes in
+.context/ for Lane A.
 1.0.73 || 19.07.2026
 Dev URL scheme made consistent with prod: the dev API moves from
 dev.web10.app to api.dev.web10.app, and dev.web10.app (the dev apex)

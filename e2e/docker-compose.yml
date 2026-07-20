@@ -43,6 +43,7 @@ services:
       DB_URL: mongodb://web10:web10@ferretdb:27017/
       DB: web10
       S3_ENDPOINT: http://minio:9000
+      CORS_SERVICE_MANAGERS: auth.localhost,social.localhost,marketing.localhost
     command: ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80", "--reload"]
     networks:
       - e2e-net
@@ -92,6 +93,13 @@ services:
     build: ../marketing/marketing-ui
     environment:
       VIRTUAL_HOST: marketing.localhost
+    networks:
+      - e2e-net
+
+  marketing-api:
+    build: ../marketing/marketing-api
+    environment:
+      VIRTUAL_HOST: marketing-api.localhost
     networks:
       - e2e-net
 

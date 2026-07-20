@@ -1429,7 +1429,7 @@ testing:
     lands. visual-regression screenshots are explicitly LATER --
     real value, but baselines churn while B2.5/D2.5 restyle the
     world; revisit after the makeovers settle.
-[ ] e2e deep sweep (added 19.07.2026 — C5's harness makes this
+[✓ 1.0.74] e2e deep sweep (added 19.07.2026 — C5's harness makes this
     possible; expect it to hurt): the 10 smoke journeys prove the
     stack boots; now actually EXERCISE the ecosystem locally
     (e2e/docker-compose.yml) end to end and find out what doesn't

@@ -508,21 +508,6 @@ LANE E — infrastructure / deployment (owns: proxmox provisioning,
       build-time stamp proves awkward.) json endpoint doubles as
       the version marker future tooling can check. below PRIORITY
       ZERO — do after A7/B6.
-  [ ] E10. E9 FOLLOW-UP: status page bakes "unknown" in production.
-      verified live 20.07 (www.dev.web10.app/status/status.json):
-      version/commit/commitTitle/commitDate are all "unknown" —
-      only deployedAt works. cause: the build script reads `git
-      log`/CHANGELOG at Docker build time, but Portainer's
-      git-backed stack build doesn't expose .git (or the script's
-      git calls fail silently) inside the build context. fix so the
-      page answers E9's actual question ("WHICH commit is live?"):
-      either pass sha/title/date in as build args the compose file
-      derives, or read from the checked-out files Portainer does
-      provide (CHANGELOG.md top gives version; a generated
-      build-info file gives sha), and make the build FAIL LOUDLY if
-      the values come out "unknown" — a status page that shrugs is
-      E9 unshipped. also: social/marketing healthEndpoints bake as
-      empty strings — same silent-fallback disease, same fix.
 
 WHAT MUST STAY SEQUENTIAL (don't try to parallelize these)
 ----------------------------------------------------------
