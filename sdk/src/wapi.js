@@ -90,7 +90,10 @@ const wapiInit = function(authUrl = "https://auth.web10.app", appStores=["https:
     */  
   wapi.authListen = setAuth => window.addEventListener("message", e => {
     if (e.data.type === "auth") {
-      wapi.setToken(e.data.token || "");
+      // a null token means the authenticator failed to mint one —
+      // storing "" here used to make the app think it was signed in
+      if (e.data.token) wapi.setToken(e.data.token);
+      else wapi.scrubToken();
       if (setAuth != null) setAuth(wapi.isSignedIn());
     }
   });
@@ -100,7 +103,15 @@ const wapiInit = function(authUrl = "https://auth.web10.app", appStores=["https:
     * @param  {function} setAuth [A callback function that takes logged in [boolean] as an input.]
     * @return {Object} [JWT auth token data]
     */  
-  wapi.readToken = () => !wapi.token ? null : JSON.parse(atob(wapi.token.split(".")[1]));
+  wapi.readToken = () => {
+    if (!wapi.token) return null;
+    try {
+      return JSON.parse(atob(wapi.token.split(".")[1]));
+    } catch (e) {
+      // a malformed token cookie must not crash the app at load
+      return null;
+    }
+  };
 
   /**
     * Gets an JWT token with reduced priveleges.
@@ -375,7 +386,8 @@ const wapiInit = function(authUrl = "https://auth.web10.app", appStores=["https:
     * On web10 connector load, register the web10 app with all input appStores.
   */    
   for (const [i, appStore] of appStores.entries()) {
-    axios.post(appStore+"/register_app", { "url": window.location.href.split('?')[0] })
+    // best-effort ping — an unreachable app store must not throw on load
+    axios.post(appStore+"/register_app", { "url": window.location.href.split('?')[0] }).catch(() => {})
   }
 
   /**

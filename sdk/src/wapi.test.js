@@ -53,6 +53,12 @@ describe('wapiInit', () => {
     vi.clearAllMocks()
     clearCookies()
     MockPeer.mockClear()
+    // real axios methods always return a promise (init's register_app
+    // ping chains .catch on it); tests override per-call as needed
+    axiosPost.mockResolvedValue({ data: {} })
+    axiosPatch.mockResolvedValue({ data: {} })
+    axiosDelete.mockResolvedValue({ data: {} })
+    axiosPut.mockResolvedValue({ data: {} })
   })
 
   it('returns an object with expected keys', () => {

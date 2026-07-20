@@ -15,12 +15,23 @@ const wapiAuthInit = function(wapi) {
     * Stores it in wapiAuth's oAuthToken.
     */
   wapiAuth.mintOAuthToken = function () {
+    const tokenData = wapi.readToken();
+    if (!tokenData || !document.referrer) {
+      wapiAuth.oAuthToken = null;
+      return Promise.resolve(null);
+    }
     const referrerURL = new URL(document.referrer);
-    wapi
-      .getTieredToken(referrerURL.hostname, wapi.readToken().provider)
+    return wapi
+      .getTieredToken(referrerURL.hostname, tokenData.provider)
       .then(function (response) {
         wapiAuth.oAuthToken = response.data.token;
+        return wapiAuth.oAuthToken;
       })
+      .catch(function (error) {
+        console.error("web10: minting a token for the referrer app failed", error);
+        wapiAuth.oAuthToken = null;
+        return null;
+      });
   };
 
   /**
