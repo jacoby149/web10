@@ -1,7 +1,5 @@
 import React from 'react';
-import TopBar from '../shared/TopBar';
-import SideBar from '../shared/SideBar';
-import MobileNav from '../shared/MobileNav';
+import AppShell from '../shared/AppShell';
 import { MembershipsCard } from './MembershipsCard';
 import { AmazonTagCard } from './AmazonTagCard';
 import { DirectDealsCard } from './DirectDealsCard';
@@ -18,13 +16,7 @@ function StudioPage({ I }: { I: Record<string, any> }) {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <TopBar I={I} />
-      <div className="flex flex-1 overflow-auto">
-        <SideBar I={I} />
-        <div className="flex-1 overflow-auto pb-16 md:pb-0">
-          <div className="mx-auto max-w-4xl p-4 sm:p-6" data-testid="studio-page">
-
+    <AppShell I={I} maxWidth="max-w-4xl" testid="studio-page">
             {status && (
               <div
                 role="status"
@@ -75,11 +67,7 @@ function StudioPage({ I }: { I: Record<string, any> }) {
                 Zero-friction rule: every option is one button. Adapters do the paperwork.
               </p>
             </div>
-          </div>
-        </div>
-      </div>
-      <MobileNav I={I} />
-    </div>
+    </AppShell>
   );
 }
 

@@ -1,8 +1,6 @@
 import React from 'react';
 import axios from 'axios';
-import TopBar from '../shared/TopBar';
-import SideBar from '../shared/SideBar';
-import MobileNav from '../shared/MobileNav';
+import AppShell from '../shared/AppShell';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,15 +35,11 @@ function Field({ label, description, children }: { label: string; description?: 
 }
 
 function ConfigShell({ I, children }: { I: Record<string, any>; children: React.ReactNode }) {
+  // pages here bring their own padded max-w-2xl containers, so render flush
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <TopBar I={I} />
-      <div className="flex flex-1 overflow-auto">
-        <SideBar I={I} />
-        <div className="flex-1 overflow-auto pb-16 md:pb-0">{children}</div>
-      </div>
-      <MobileNav I={I} />
-    </div>
+    <AppShell I={I} padded={false}>
+      {children}
+    </AppShell>
   );
 }
 

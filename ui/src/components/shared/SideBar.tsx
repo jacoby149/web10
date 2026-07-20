@@ -1,87 +1,166 @@
-import { Star } from 'lucide-react';
+import {
+  FileText,
+  Inbox,
+  LineChart,
+  SlidersHorizontal,
+  Settings as SettingsIcon,
+  LogOut,
+  BookOpen,
+  Server,
+  KeyRound,
+  type LucideIcon,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
+import Branding from './Branding';
 
 interface SideBarProps {
   I: Record<string, any>;
 }
 
+// The authenticated console destinations. MobileNav mirrors this list —
+// keep the two in sync (design.md §9: desktop sidebar, mobile bottom tabs).
+export const NAV_ITEMS: { mode: string; label: string; icon: LucideIcon }[] = [
+  { mode: 'contracts', label: 'Contracts', icon: FileText },
+  { mode: 'requests', label: 'Requests', icon: Inbox },
+  { mode: 'studio', label: 'Studio', icon: LineChart },
+  { mode: 'config', label: 'Node Config', icon: SlidersHorizontal },
+];
+
+function NavItem({
+  active,
+  label,
+  icon: ItemIcon,
+  onClick,
+  testid,
+  tone = 'default',
+}: {
+  active?: boolean;
+  label: string;
+  icon: LucideIcon;
+  onClick: () => void;
+  testid?: string;
+  tone?: 'default' | 'danger';
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-current={active ? 'page' : undefined}
+      data-testid={testid}
+      className={cn(
+        'group flex w-full items-center gap-3 rounded px-3 py-2 text-left text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        active
+          ? 'bg-brand-muted text-foreground'
+          : tone === 'danger'
+            ? 'text-muted-foreground hover:bg-danger-muted hover:text-danger'
+            : 'text-muted-foreground hover:bg-elevated hover:text-foreground',
+      )}
+    >
+      <ItemIcon
+        className={cn(
+          'h-[18px] w-[18px] shrink-0 transition-colors',
+          active ? 'text-brand' : 'text-current',
+        )}
+        strokeWidth={1.5}
+      />
+      {label}
+    </button>
+  );
+}
+
 function SideBar({ I }: SideBarProps) {
-  // Bug fix (design.md/B5): this used to be a literal string
-  // `+ " style={{ borderColor: ... }}"` concatenated into className —
-  // it did nothing (className isn't parsed for inline style syntax) and
-  // the border/color never applied. Real Tailwind utilities now.
-  const menuItemClass =
-    'flex w-full items-center rounded border-b border-border px-4 py-2.5 text-left text-sm font-medium text-foreground transition-colors hover:bg-elevated cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+  const authed = I.isAuthenticated?.();
 
   return (
-    <div
-      className={cn(
-        'hidden flex-col justify-between overflow-hidden border-r border-border bg-surface transition-[width] duration-200 ease-out md:flex',
-        I.menuCollapsed ? 'w-0' : 'w-[220px]',
-      )}
+    <aside
+      className="hidden w-64 shrink-0 flex-col border-r border-border bg-surface md:flex"
       data-testid="sidebar"
     >
-      <div>
-        {I.isAuth ? (
-          I.isAuthenticated() ? (
-            <div className="px-2 py-2">
-              <div className={menuItemClass} onClick={() => I.setMode("contracts")}>Contracts</div>
-              <div className={menuItemClass} onClick={() => I.setMode("requests")}>Active Requests</div>
-              <div className={menuItemClass} onClick={() => I.setMode("settings")}>Settings</div>
-              <div className={menuItemClass} onClick={() => I.setMode("config")}>Node Config</div>
-              <div className={menuItemClass} onClick={() => I.setMode("studio")}>Studio</div>
-              <div
-                className={cn(menuItemClass, 'text-warning underline')}
-                onClick={() => I.logout()}
-              >
-                Log Out
-              </div>
-            </div>
-          ) : (
-            <div className="px-2 py-2">
-              <div
-                className={cn(menuItemClass, 'text-warning underline')}
-                onClick={() => I.setMode("login")}
-              >
-                Log In
-              </div>
-            </div>
-          )
-        ) : (
-          <div className="px-2 py-2">
-            <div
-              className={cn(menuItemClass, 'text-warning underline')}
-              onClick={() => I.setMode("forgot")}
-            >
-              Forgot Password
-            </div>
-            <div className={menuItemClass} onClick={() => window.open("https://docs.web10.app", "_blank")}>SDK Docs</div>
-            <div className={menuItemClass} onClick={() => window.open("https://github.com/jacoby149/web10", "_blank")}>Host A Node</div>
-          </div>
-        )}
+      <div className="border-b border-border px-4 py-4">
+        <button
+          type="button"
+          onClick={() => I.setMode(authed ? 'contracts' : 'login')}
+          className="rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label="web10 home"
+        >
+          <Branding I={I} size="sm" tagline={false} />
+        </button>
       </div>
 
-      <div className="border-t border-border p-4">
-        <div className="font-mono text-xs text-muted-foreground">
-          Invented by{" "}
-          <a href="https://jacobhoffman.xyz" className="underline hover:text-foreground">
+      <nav className="flex-1 overflow-y-auto p-3">
+        {authed ? (
+          <div className="space-y-1">
+            {NAV_ITEMS.map(({ mode, label, icon }) => (
+              <NavItem
+                key={mode}
+                active={I.mode === mode}
+                label={label}
+                icon={icon}
+                onClick={() => I.setMode(mode)}
+                testid={`sidebar-nav-${mode}`}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-1">
+            <NavItem
+              active={I.mode === 'login'}
+              label="Log in"
+              icon={KeyRound}
+              onClick={() => I.setMode('login')}
+              testid="sidebar-login"
+            />
+            <NavItem
+              label="Forgot password"
+              icon={KeyRound}
+              onClick={() => I.setMode('forgot')}
+              testid="sidebar-forgot"
+            />
+            <NavItem
+              label="SDK Docs"
+              icon={BookOpen}
+              onClick={() => window.open('https://docs.web10.app', '_blank')}
+            />
+            <NavItem
+              label="Host a node"
+              icon={Server}
+              onClick={() => window.open('https://github.com/jacoby149/web10', '_blank')}
+            />
+          </div>
+        )}
+      </nav>
+
+      {authed && (
+        <div className="space-y-1 border-t border-border p-3">
+          <NavItem
+            active={I.mode === 'settings'}
+            label="Settings"
+            icon={SettingsIcon}
+            onClick={() => I.setMode('settings')}
+            testid="sidebar-nav-settings"
+          />
+          <NavItem
+            label="Log out"
+            icon={LogOut}
+            tone="danger"
+            onClick={() => I.logout()}
+            testid="sidebar-logout"
+          />
+        </div>
+      )}
+
+      <div className="border-t border-border px-4 py-3">
+        <p className="font-mono text-xs leading-relaxed text-muted-foreground">
+          Invented by{' '}
+          <a
+            href="https://jacobhoffman.xyz"
+            className="rounded underline-offset-2 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
             Jacob Hoffman
           </a>
-          {/* was a ghbtns.com iframe — an unthemeable white rectangle on the
-              dark sidebar (and a third-party embed). Token-styled link instead. */}
-          <a
-            href="https://github.com/jacoby149/web10"
-            target="_blank"
-            rel="noreferrer"
-            className="mt-2 flex w-fit items-center gap-1.5 rounded-sm border border-border px-2 py-1 text-muted-foreground transition-colors hover:bg-elevated hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            data-testid="sidebar-github-star"
-          >
-            <Star className="h-3.5 w-3.5" strokeWidth={1.5} />
-            Star web10 on GitHub
-          </a>
-        </div>
+        </p>
       </div>
-    </div>
+    </aside>
   );
 }
 

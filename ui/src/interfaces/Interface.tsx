@@ -28,10 +28,19 @@ function useInterface() {
     I.wapiAuth = adapter.wapiAuth;
 
     // Restore auth from cookie on page load — wapi.token is populated from
-    // the "token=" cookie by wapiInit at init time.
+    // the "token=" cookie by wapiInit at init time. An expired token must
+    // NOT present the authenticated view (B7: a dead token used to land the
+    // user on an empty "Your contracts" page with no way to log in). Check
+    // the embedded expiry and scrub a dead token so routing sends them to
+    // the login screen.
     const existingToken = I.wapi.readToken?.();
     if (existingToken) {
-        I.setAuth(true);
+        const expires = existingToken.expires ? Date.parse(existingToken.expires) : NaN;
+        if (!Number.isNaN(expires) && expires < Date.now()) {
+            I.wapi.scrubToken?.();
+        } else {
+            I.setAuth(true);
+        }
     }
 
     I.initAuthenticator = function () {

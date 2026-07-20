@@ -289,7 +289,8 @@ describe('StudioPage', () => {
   it('renders studio heading', async () => {
     const { default: StudioPage } = await import('../components/Studio/StudioPage')
     render(<StudioPage I={mockI} />)
-    expect(screen.getByText(/Studio/)).toBeTruthy()
+    // heading specifically — the sidebar also renders a "Studio" nav label
+    expect(screen.getByRole('heading', { name: 'Studio' })).toBeTruthy()
   })
 
   it('renders monetization ladder section', async () => {

@@ -17,7 +17,10 @@ const ITEMS = [
 ] as const;
 
 function MobileNav({ I }: MobileNavProps) {
-  if (!I.isAuth || !I.isAuthenticated?.()) return null;
+  // show whenever the user is authenticated — previously also required the
+  // `?auth` query param (I.isAuth), so the bottom nav never appeared on a
+  // normal visit and mobile users had no navigation at all.
+  if (!I.isAuthenticated?.()) return null;
 
   return (
     <nav

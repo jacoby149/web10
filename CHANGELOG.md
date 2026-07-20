@@ -1,3 +1,25 @@
+1.0.76 || 19.07.2026
+B7: auth UI (ui/) from-the-phone quality pass. Rebuilt the authenticated
+console shell to design.md §9: extracted one shared AppShell (full-height
+fixed sidebar on desktop, top bar over the content column only, bottom tab
+bar on mobile) from the wrapper that was copy-pasted into all five pages.
+SideBar is now real nav — brand at top, Contracts/Requests/Studio/Node
+Config with icons + a brand-muted active pill, Settings + Log out anchored
+at the bottom (was warning-coloured underline text). TopBar dropped the
+cryptic bars/moon icons and the dead "Apps"/appstore button (a mode with
+no case that fell through to Contracts) and the non-functional theme toggle
+(nothing consumed I.theme; dark-first per design.md §2). MobileNav no
+longer requires the ?auth query param, so the bottom nav actually appears
+(mobile had zero navigation before). Branding gained an onError fallback so
+a missing logo asset degrades to the wordmark instead of a broken <img>
+(the prod broken-logo report). Routing: a signed-out visitor — including an
+expired/scrubbed token — now lands on the login page, never an empty "Your
+contracts"; the restore path checks the token's embedded expiry and scrubs
+a dead token. Contract cards enriched: a granted-on date derived from the
+record's ObjectId, a globe + truncated cross_origins preview
+("localhost, crm.web10.app +4 more"), a grant badge, and a site count;
+the whole header is one click-to-expand target. Verified at 375px and
+1280px against the local stack (screenshots in the PR). 73 ui tests green.
 1.0.75 || 19.07.2026
 Auth hotfix — unbreak the social login handoff. API: tiered token
 minting always raised MINT because the minted TokenData never had its
