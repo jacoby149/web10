@@ -14,6 +14,20 @@ Branding component restyled for auth screens: keys-mark logo at 48px,
 React atom logo.svg deleted. Phone value now passed to I.signup()
 (missing 6th arg). SDK linked locally (file:../sdk) so the fix is
 consumed. 73/73 ui tests green, 52/52 sdk tests green.
+D17: restore the dev docs. Recovered from `82667060^:auth/public/docs/`:
+the two live demo apps (hello/ and notes/) rebuilt on the design.md
+standard — dark-first zinc/violet, self-hosted fonts, token-styled
+buttons, skeleton loading — served from marketing-ui's public/docs/.
+New sdk.md doc page: covers the current wapi.js SDK (with runnable
+examples linking to the demos) and the upcoming C2 typed SDK (no
+legacy-wapi-as-the-future voice). New cli-quickstart.md: documents
+the web10-cli scaffolder (`npx web10-cli create`), available templates,
+and the path to `create-web10`. Docs.tsx sidebar expanded: a "Demo
+Apps" section (Hello, Notes — open in new tab) alongside the updated
+Documentation nav (Protocol Spec, Conventions, SDK Guide, CLI
+Quickstart). AppStore.tsx "Build on web10" card now has two CTAs:
+SDK Guide + CLI Quickstart (with Terminal icon). 19 tests green,
+production build clean.
 
 1.0.71 || 19.07.2026
 Queued E9 (deployment status page): one URL per env
