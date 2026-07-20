@@ -164,6 +164,11 @@ services:
       args:
         VITE_API_URL: ${API_ORIGIN}
         VITE_MARKETING_API: ${MARKETING_API_ORIGIN}
+        VITE_GIT_COMMIT: ${GIT_COMMIT:-}
+        VITE_AUTH_URL: ${AUTH_ORIGIN}
+        VITE_SOCIAL_URL: ${SOCIAL_ORIGIN:-}
+        VITE_MARKETING_URL: ${MARKETING_UI_ORIGIN:-}
+        STATUS_VERSION: ${STATUS_VERSION:-}
     restart: unless-stopped
     networks:
       proxy:
