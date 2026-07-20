@@ -11,6 +11,7 @@ RUN bun install --frozen-lockfile
 RUN sed -i 's/wapi\.defaultAPIProtocol/wapi.APIProtocol/g' node_modules/web10-npm/dist/node/wapi.js node_modules/web10-npm/dist/node/wapi.modern.js
 
 COPY index.html tsconfig.json vite.config.js ./
+COPY public/ public/
 COPY src/ src/
 
 EXPOSE 80

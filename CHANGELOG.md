@@ -1,3 +1,18 @@
+1.0.79 || 19.07.2026
+Prod fixes: missing static assets, wrong readiness API, and the DB override.
+(1) ui/Dockerfile never COPYed public/, so vite had nothing to fold into
+dist — every static asset (logo /YourOrgsLogo/key_white.png, favicon.ico,
+manifest.json, PWA icons) 404'd on the deployed auth app. Copy public/
+before the build; verified the rebuilt image serves them. (2) App.tsx's
+readiness probe fell back to a hardcoded "api.localhost" when logged out, so
+/ready hit the wrong API on prod (and hung locally). Fall back to the
+configured API host, with *.localhost detection mirroring authAdapter.
+(3) The ecosystem compose hardcoded DB: web10, so the prod override was
+ignored and the API served the empty FerretDB — real accounts (the "deploy"
+DB) looked like "the user doesn't exist". DB is now ${DB:-web10}; prod sets
+DB=deploy + DB_URL=host mongo (env.prod). (4) Repositioned the OAuth consent
+banner from a stray in-flow card (it rendered "status: ready" in an odd spot
+above the shell) to a fixed prompt below the top bar.
 1.0.78 || 19.07.2026
 Fix marketing-ui /docs 403. The docs .md files ship in a public/docs
 directory, so nginx resolved the bare /docs and /docs/ routes to that
