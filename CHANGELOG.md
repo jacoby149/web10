@@ -1,3 +1,7 @@
+1.0.83 || 20.07.2026
+Align the auth console sidebar header with the top bar. The brand header was
+py-5 (taller) while the top bar is h-14, so their bottom borders didn't line
+up at the seam. Made the sidebar header h-14 too — dividers now match.
 1.0.82 || 20.07.2026
 API defends against duplicate service terms. documentdb.create now rejects a
 second terms record for a service that already has one (service=="services"
