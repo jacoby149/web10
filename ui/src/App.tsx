@@ -10,6 +10,7 @@ import ConfigPage from './components/Config/ConfigPage';
 import StudioPage from './components/Studio/StudioPage';
 import { Card, CardContent } from './components/ui/card';
 import { Button } from './components/ui/button';
+import { config } from './config';
 
 function StatusBar({ I }: { I: Record<string, any> }) {
   if (!I.status) return null;
@@ -45,37 +46,42 @@ function OAuthBanner({ I }: { I: Record<string, any> }) {
 
   const SMRs = I.SMR?.sirs?.length > 0 || I.SMR?.scrs?.length > 0;
 
+  // A fixed prompt below the top bar — not a stray card in the page flow
+  // (which rendered in an odd spot above the console shell).
   return (
-    <Card className="m-5 max-w-[400px]" data-testid="oauth-banner">
-      <CardContent className="p-4">
-        <div className="mb-2.5 text-sm">
-          <span className="text-muted-foreground">From <span className="font-medium text-foreground">{referrerHost}</span>:</span>
-          <br />
-          status:{SMRs
-            ? <span className="font-medium text-warning"> requests need approval</span>
-            : <span className="font-medium text-success"> ready</span>}
-        </div>
-        {SMRs ? (
-          <Button
-            variant="outline"
-            size="sm"
-            data-testid="oauth-banner-review-requests"
-            onClick={() => I.setMode("requests")}
-          >
-            Review Requests
-          </Button>
-        ) : (
-          <Button
-            variant="brand"
-            size="sm"
-            data-testid="oauth-banner-login"
-            onClick={() => I.sendToken()}
-          >
-            Log In
-          </Button>
-        )}
-      </CardContent>
-    </Card>
+    <div className="fixed left-1/2 top-16 z-40 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2">
+      <Card className="shadow-[0_8px_30px_rgb(0_0_0/0.35)]" data-testid="oauth-banner">
+        <CardContent className="flex items-center justify-between gap-3 p-4">
+          <div className="min-w-0 text-sm">
+            <p className="font-medium text-foreground">Connect to {referrerHost}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {SMRs ? "This app is requesting access to your data." : "Ready to grant this app a scoped token."}
+            </p>
+          </div>
+          {SMRs ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="shrink-0"
+              data-testid="oauth-banner-review-requests"
+              onClick={() => I.setMode("requests")}
+            >
+              Review
+            </Button>
+          ) : (
+            <Button
+              variant="brand"
+              size="sm"
+              className="shrink-0"
+              data-testid="oauth-banner-login"
+              onClick={() => I.sendToken()}
+            >
+              Continue
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
@@ -100,7 +106,13 @@ function App() {
       return;
     }
     const decoded = I.wapi?.readToken?.();
-    const provider = decoded?.provider || "api.localhost";
+    // Logged out, there's no token to name the provider — fall back to the
+    // configured API host, NOT a hardcoded "api.localhost" (which made the
+    // readiness probe hit the wrong API on prod). Mirror authAdapter's
+    // *.localhost detection so local dev still points at api.localhost.
+    const host = window.location.hostname;
+    const isLocal = host === "localhost" || host === "127.0.0.1" || host.endsWith(".localhost");
+    const provider = decoded?.provider || (isLocal ? "api.localhost" : config.REACT_APP_DEFAULT_API);
     const protocol = window.location.protocol;
     fetch(`${protocol}//${provider}/ready`)
       .then(r => r.json())
