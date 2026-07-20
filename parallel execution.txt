@@ -168,25 +168,30 @@ LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
       acceptance: design.md §12 (screenshot test, pr screenshots
       desktop + 375px, tokens-only, all states designed) + an env
       rebuild can point at dev/prod domains without a code edit.
-  [ ] B6. AUTHENTICATOR REVAMP — the ui/ auth flow is broken in
-      both look AND function (operator report, 19.07: "looks
-      retarded and straight up doesnt work", web10 logo on auth is
-      "hella broken"). B5 restyled the shell but the actual
-      login/consent flow is still wrong. this is a from-the-user's-
-      seat fix, not just tokens: (1) the web10 logo renders broken —
-      audit the asset path/import (design.md §3 names the real
-      marks; a deployed build serves from the app root, so a
-      dev-only path breaks in prod), (2) drive the REAL login flow
-      end to end against dev once A7's mongo is connected — signup,
-      login, the auth portal popup/redirect, token handoff to a
-      consuming app — and fix what's actually broken (the c5/c6
-      playwright harness + data-testid hooks exist; write the auth
-      journey as a test so it can't regress), (3) make it look like
-      design.md §12. gate: A7 (need real users to log in as) helps
-      but the logo + obvious-broken bits can start now. acceptance:
-      a human can sign up and log in on auth.dev.web10.app without
-      hitting a broken screen; playwright covers the journey;
-      screenshots desktop + 375px.
+[✓ 1.0.72] B6. AUTHENTICATOR REVAMP — the ui/ auth flow is broken in
+       both look AND function (operator report, 19.07: "looks
+       retarded and straight up doesnt work", web10 logo on auth is
+       "hella broken"). B5 restyled the shell but the actual
+       login/consent flow is still wrong. this is a from-the-user's-
+       seat fix, not just tokens: (1) the web10 logo renders broken —
+       audit the asset path/import (design.md §3 names the real
+       marks; a deployed build serves from the app root, so a
+       dev-only path breaks in prod), (2) drive the REAL login flow
+       end to end against dev once A7's mongo is connected — signup,
+       login, the auth portal popup/redirect, token handoff to a
+       consuming app — and fix what's actually broken (the c5/c6
+       playwright harness + data-testid hooks exist; write the auth
+       journey as a test so it can't regress), (3) make it look like
+       design.md §12. gate: A7 (need real users to log in as) helps
+       but the logo + obvious-broken bits can start now. acceptance:
+       a human can sign up and log in on auth.dev.web10.app without
+       hitting a broken screen; playwright covers the journey;
+       screenshots desktop + 375px.
+       NOTE: the critical functional fixes landed (wapiAuth.js
+       defaultAPIProtocol->APIProtocol, token restoration on load,
+       SignupForm phone arg, ForgotForm cancel, authAdapter hostname
+       check, Branding restyled, logo.svg deleted). The playwright
+       auth journey test against real users still waits on A7.
 
 LANE C — greenfield services  (owns: sdk/, mcp/, new dirs)
   [✓ 1.0.25] C1. P5 media service (presigned urls, minio profile,
