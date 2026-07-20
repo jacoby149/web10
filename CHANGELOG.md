@@ -18,8 +18,20 @@ contracts"; the restore path checks the token's embedded expiry and scrubs
 a dead token. Contract cards enriched: a granted-on date derived from the
 record's ObjectId, a globe + truncated cross_origins preview
 ("localhost, crm.web10.app +4 more"), a grant badge, and a site count;
-the whole header is one click-to-expand target. Verified at 375px and
-1280px against the local stack (screenshots in the PR). 73 ui tests green.
+the whole header is one click-to-expand target. Added a designed empty
+state for a fresh account (no contracts yet) instead of a gray void.
+Signup/login robustness: (a) the adapter now treats any *.localhost host
+as local (auth.localhost was falling through to the prod origins) and sets
+wapi.defaultAPIProtocol itself, so the published SDK's signup/login URLs
+stop coming out "undefined://…" ("Unsupported protocol undefined:"); (b)
+auth state is seeded from the token cookie via a lazy useState initializer
+instead of a render-phase setAuth, fixing a "too many re-renders" crash
+(blank page) once a valid token existed; (c) I.login completes when the
+token cookie is set even though the published SDK's logIn throws minting a
+referrer token with no parent app, so signup → auto-login lands on the
+console instead of a false error. Verified the full fresh-account journey
+(signup → auto-login → console) plus 375px/1280px against the local stack
+(screenshots in the PR). 73 ui tests green.
 1.0.75 || 19.07.2026
 Auth hotfix — unbreak the social login handoff. API: tiered token
 minting always raised MINT because the minted TokenData never had its

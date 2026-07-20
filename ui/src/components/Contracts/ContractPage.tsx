@@ -1,10 +1,30 @@
+import { FileText } from 'lucide-react';
 import AppShell from '../shared/AppShell';
 import Contract from './Contract';
 
-function Contracts({ I }: { I: Record<string, any> }) {
-  const contract_items = I.services.map((d: any, i: number) =>
-    <Contract I={I} key={i} data={d} isRequest={false} />
+function EmptyContracts() {
+  return (
+    <div
+      className="mt-4 flex flex-col items-center rounded-lg border border-dashed border-border bg-card/40 px-6 py-16 text-center"
+      data-testid="contracts-empty"
+    >
+      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-brand-muted">
+        <FileText className="h-6 w-6 text-brand-300" strokeWidth={1.5} />
+      </div>
+      <h2 className="font-display text-lg font-semibold text-foreground">No contracts yet</h2>
+      <p className="mt-1.5 max-w-sm text-sm text-muted-foreground">
+        A contract appears here the first time an app asks to read or write your
+        data. You approve each one — and can revoke it any time. Nothing touches
+        your node until you say so.
+      </p>
+    </div>
   );
+}
+
+function Contracts({ I }: { I: Record<string, any> }) {
+  // the "*" star record is never a contract (ContractViewer hides it); don't
+  // let it count toward "you have contracts"
+  const contracts = (I.services as any[]).filter((d) => d?.service !== '*');
   return (
     <>
       <div className="mb-8 text-center">
@@ -13,7 +33,13 @@ function Contracts({ I }: { I: Record<string, any> }) {
           Manage which apps can access your data — these are your contracts.
         </p>
       </div>
-      {contract_items}
+      {contracts.length === 0 ? (
+        <EmptyContracts />
+      ) : (
+        contracts.map((d: any, i: number) => (
+          <Contract I={I} key={i} data={d} isRequest={false} />
+        ))
+      )}
     </>
   );
 }

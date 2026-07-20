@@ -8,6 +8,28 @@ function useInterface() {
 
     I.config = config;
 
+    // Build the SDK adapter first so auth state can be SEEDED from the token
+    // cookie via a lazy useState initializer. Setting auth mid-render (the
+    // previous approach) is a render-phase update that infinite-looped once a
+    // valid token existed. web10AuthAdapterInit calls no hooks, so running it
+    // before the useState calls keeps hook order stable.
+    const adapter = web10AuthAdapterInit();
+
+    // Restore auth from the "token=" cookie on load. A dead (expired) token
+    // must NOT present the authenticated view (B7: it used to land the user on
+    // an empty "Your contracts" with no way to log in) — scrub it so routing
+    // sends them to login. Runs once, in the lazy initializer, not every render.
+    const restoreAuth = (): boolean => {
+        const t = adapter.wapi.readToken?.();
+        if (!t) return false;
+        const expires = t.expires ? Date.parse(t.expires) : NaN;
+        if (!Number.isNaN(expires) && expires < Date.now()) {
+            adapter.wapi.scrubToken?.();
+            return false;
+        }
+        return true;
+    };
+
     [I.theme, I.setTheme] = React.useState("dark");
     [I.logo,I.setLogo] = React.useState(config.REACT_APP_LOGO_DARK);
     [I.menuCollapsed, I.setMenuCollapsed] = React.useState(true);
@@ -18,30 +40,13 @@ function useInterface() {
     [I.requests, I.setRequests] = React.useState([]);
     [I.phone, I.setPhone] = React.useState("");
 
-    [I.auth, I.setAuth] = React.useState(false);
+    [I.auth, I.setAuth] = React.useState(restoreAuth);
     [I.verified, I.setVerified] = React.useState(false);
     [I.status, I.setStatus] = React.useState<string | null>(null);
     [I.SMR, I.setSMR] = React.useState({ scrs: [], sirs: [] });
 
-    const adapter = web10AuthAdapterInit();
     I.wapi = adapter.wapi;
     I.wapiAuth = adapter.wapiAuth;
-
-    // Restore auth from cookie on page load — wapi.token is populated from
-    // the "token=" cookie by wapiInit at init time. An expired token must
-    // NOT present the authenticated view (B7: a dead token used to land the
-    // user on an empty "Your contracts" page with no way to log in). Check
-    // the embedded expiry and scrub a dead token so routing sends them to
-    // the login screen.
-    const existingToken = I.wapi.readToken?.();
-    if (existingToken) {
-        const expires = existingToken.expires ? Date.parse(existingToken.expires) : NaN;
-        if (!Number.isNaN(expires) && expires < Date.now()) {
-            I.wapi.scrubToken?.();
-        } else {
-            I.setAuth(true);
-        }
-    }
 
     I.initAuthenticator = function () {
         I.wapiAuth.SMRListen((inSMR) => {
@@ -135,18 +140,27 @@ function useInterface() {
         return I.auth
     }
 
+    I.finishLogin = function () {
+        I.setAuth(true);
+        I.initAuthenticator();
+        I.servicesLoad();
+        I.setStatus(null);
+        I.setMode("contracts");
+    }
+
     I.login = function (provider: string, username: string, password: string) {
         I.setStatus("Logging in...");
         I.wapiAuth.logIn(provider, username, password)
-            .then(() => {
-                I.setAuth(true);
-                I.initAuthenticator();
-                I.servicesLoad();
-                I.setMode("contracts");
-            })
-            .catch((error) =>
-                I.setStatus("Failed to Log In : " + (error.response?.data?.detail || String(error)))
-            );
+            .then(() => I.finishLogin())
+            .catch((error: any) => {
+                // The published SDK's logIn mints a second-level token for the
+                // referring app inside its own .then; with no parent app (no
+                // document.referrer) that throws, rejecting logIn even though
+                // the auth token cookie was already set. If we're actually
+                // signed in, complete the login rather than show a false error.
+                if (I.wapi.isSignedIn?.()) I.finishLogin();
+                else I.setStatus("Failed to Log In : " + (error.response?.data?.detail || String(error)));
+            });
     }
 
     I.logout = function () {
