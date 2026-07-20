@@ -4,6 +4,40 @@ second terms record for a service that already has one (service=="services"
 with a body.service already present) → 409 DUPLICATE_SERVICE. This is the
 server-side guardrail behind the duplicate-contracts bug (the UI guards it
 too); a service's terms should be updated, not re-created. +2 tests.
+1.0.81 || 20.07.2026
+Consent flow overhaul + crash fixes. A dedicated full-screen ConsentView
+replaces the floating banner that overlapped the console: one focused,
+polished screen (its own space) when the auth app is opened by another app.
+It is concise by default — one line per requested service with plain-English
+summary — and each row expands (progressive disclosure) to the full detail:
+sites with access, allowed/blocked users with exact permissions, and for
+changes the delta (added/removed highlighted). It shows what's already
+shared vs new, and no longer re-asks for services already granted.
+Approve all / Continue without sharing are sticky (no scrolling). The
+token/login handoff is fixed: goToApp mints a fresh scoped token for the
+referrer and posts it to the opener (approving one request no longer ships
+the token early and strands the rest — the token goes only when you choose
+to continue). submitSIR refuses to create a duplicate terms record for an
+already-granted service (root of the duplicate-contracts bug). Also:
+RequestPage rendered whitelist entries as {anchor, allowed[]} but the real
+shape is {username, provider, <action>}, so `.join` on undefined blanked
+the whole review screen (now defensive); the contract viewer crashed
+expanding records without whitelist/blacklist/cross_origins (e.g. the
+services record) — now guarded; a top-level ErrorBoundary turns any future
+render throw into a designed error state instead of a blank page; the app
+shell is now fixed-height so the sidebar/top bar stay put and only content
+scrolls; social.localhost now targets auth.localhost automatically (any
+*.localhost host is local) so social -> auth -> social works without
+?local=true. 74 ui tests green.
+1.0.80 || 19.07.2026
+Prod cutover to the real mongo. deploy-stacks.py now sets the web10-prod
+env DB=deploy + DB_URL=mongodb://host.docker.internal:27017/, so the prod
+API serves the host-native mongo's "deploy" database (208 real accounts)
+instead of the empty containerized FerretDB. Applied on the box and
+verified: POST /stats users 5 -> 208, real apps/usage show, and a real
+account (jacoby149) is found again ("incorrect username or password" on a
+wrong password, not "the user doesn't exist"). Completes the DB override
+enabled by 1.0.79's compose fix. Ops details in ubuntu-deployment/OPS-LOG.md.
 1.0.79 || 19.07.2026
 Prod fixes: missing static assets, wrong readiness API, and the DB override.
 (1) ui/Dockerfile never COPYed public/, so vite had nothing to fold into

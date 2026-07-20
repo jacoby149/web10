@@ -20,11 +20,14 @@ interface AppShellProps {
 // copy-pasted into all five pages so the layout lives in exactly one place.
 function AppShell({ I, children, maxWidth = 'max-w-4xl', testid, padded = true }: AppShellProps) {
   return (
-    <div className="flex min-h-screen bg-background text-foreground">
+    // h-screen + overflow-hidden keeps the sidebar and top bar fixed; only the
+    // <main> content scrolls (its own scrollbar), instead of the whole page
+    // (which stretched the sidebar down with long content).
+    <div className="flex h-screen overflow-hidden bg-background text-foreground">
       <SideBar I={I} />
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar I={I} />
-        <main className="flex-1 overflow-auto pb-16 md:pb-0">
+        <main className="flex-1 overflow-y-auto pb-16 md:pb-0">
           {padded ? (
             <div className={cn('mx-auto p-4 sm:p-6', maxWidth)} data-testid={testid}>
               {children}
