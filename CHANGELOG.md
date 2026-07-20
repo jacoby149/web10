@@ -1,3 +1,19 @@
+1.0.75 || 19.07.2026
+Auth hotfix — unbreak the social login handoff. API: tiered token
+minting always raised MINT because the minted TokenData never had its
+provider set before can_mint compared providers (Lane A bug 1 from the
+C6 sweep); set it at mint time. Verified end-to-end in the docker image:
+signup -> login -> consent term record -> tiered mint -> CRUD with the
+minted social-site token. SDK (web10-npm source, ships with next
+publish): mintOAuthToken no longer throws an unhandled axios error on
+mint failure (the raw "axios error" operators saw on every social
+login); authListen no longer stores an empty-string token when the
+authenticator sends null (apps believed they were signed in with a
+garbage token); readToken survives a malformed token cookie instead of
+white-screening at load; register_app ping is best-effort. Un-fixme'd
+the consent-grant tiered-token e2e test and rewrote it to drive the
+real consent -> mint -> CRUD chain. +2 API mint tests (281 green),
+SDK suite 52 green.
 1.0.74 || 19.07.2026
 C6: e2e deep sweep — expanded harness to 40 tests across money paths.
 Added marketing-api to e2e compose. New suites: consent-grant (4),
