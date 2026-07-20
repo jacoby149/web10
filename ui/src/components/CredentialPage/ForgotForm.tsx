@@ -21,7 +21,7 @@ function ForgotForm({ I }: { I: Record<string, any> }) {
           <Button
             variant="outline"
             className="flex-1"
-            onClick={() => I.isAuth ? I.setMode("login") : I.setMode("appstore")}
+            onClick={() => I.isAuthenticated() ? I.setMode("login") : I.setMode("appstore")}
             data-testid="forgot-cancel"
           >
             Cancel
