@@ -48,8 +48,8 @@ def api(method, path, data=None):
 
 def env_for(stack):
     if stack == "web10-dev":
-        d = dict(STACK="web10-dev", PROVIDER="dev.web10.app",
-                 API_ORIGIN="https://dev.web10.app", API_HOST="dev.web10.app",
+        d = dict(STACK="web10-dev", PROVIDER="api.dev.web10.app",
+                 API_ORIGIN="https://api.dev.web10.app", API_HOST="api.dev.web10.app",
                  AUTH_ORIGIN="https://auth.dev.web10.app", RTC_ORIGIN="https://rtc.dev.web10.app",
                  MINIO_HOST="minio.dev.web10.app", MARKETING_API_ORIGIN="https://marketing-api.dev.web10.app",
                  CORS_SERVICE_MANAGERS="auth.dev.web10.app,social.dev.web10.app,www.dev.web10.app",
