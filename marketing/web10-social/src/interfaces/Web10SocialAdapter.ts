@@ -193,7 +193,7 @@ const web10SocialAdapterInit = (): Web10SocialAdapter => {
   // is actually served from means a dev/prod deploy authorizes itself
   // without this list needing a code edit per environment.
   const crossOrigins = Array.from(
-    new Set(['localhost', 'web10social.netlify.app', 'social.web10.app', window.location.hostname]),
+    new Set(['localhost', 'social.web10.app', window.location.hostname]),
   );
 
   const sirs = [

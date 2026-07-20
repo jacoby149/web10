@@ -1,3 +1,8 @@
+1.0.85 || 20.07.2026
+Remove Netlify integration. Deleted ui/netlify.toml so GitHub pushes no
+longer trigger Netlify builds. Removed web10social.netlify.app from the
+CORS allowlist in web10-social's adapter. All deploys now go through the
+ubuntu box only.
 1.0.84 || 20.07.2026
 D16 (frontend): revive the App Store as a real, live catalog. The
 marketing-ui AppStore page now POSTs the node's /stats and renders real
