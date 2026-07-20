@@ -1,3 +1,13 @@
+1.0.74 || 20.07.2026
+Plan: new lane-E item E10 — the E9 deployment status page bakes
+"unknown" for version/commit/date in production (verified live on
+dev; only deployedAt works — Portainer's stack build context doesn't
+give the build script usable git info, and it falls back silently).
+E10 also covers the empty-string healthEndpoints it bakes for
+social/marketing. Context: operator asked whether CI/CD was stale;
+it isn't (D17's App Store CTA change and tonight's rebuild are both
+live on dev) — the apps-with-counts store is D16, still unbuilt.
+
 1.0.73 || 19.07.2026
 Dev URL scheme made consistent with prod: the dev API moves from
 dev.web10.app to api.dev.web10.app, and dev.web10.app (the dev apex)
