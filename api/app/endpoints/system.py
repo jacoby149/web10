@@ -1,5 +1,6 @@
 import requests
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import RedirectResponse
 
 import app.exceptions as exceptions
 import app.settings as settings
@@ -10,6 +11,12 @@ from app.services import documentdb as db
 from app.services.auth import check_admin, get_password_hash
 
 router = APIRouter()
+
+
+@router.get("/", include_in_schema=False)
+async def root():
+    """A bare API host should look intentional, not broken."""
+    return RedirectResponse(url="/docs")
 
 
 # --- Setup wizard ---

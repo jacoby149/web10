@@ -1,3 +1,17 @@
+1.0.73 || 19.07.2026
+Dev URL scheme made consistent with prod: the dev API moves from
+dev.web10.app to api.dev.web10.app, and dev.web10.app (the dev apex)
+now serves marketing-ui — mirroring prod's web10.app apex. Rule:
+dev host = prod host with ".dev" inserted. Changed across
+ubuntu-deployment/: sync-dns.py (api.dev A record), sync-npm.py
+(api.dev vhost; env apex → marketing-ui for both envs), deploy-stacks.py
++ env.dev.example (PROVIDER/API_ORIGIN/API_HOST → api.dev.web10.app —
+NOTE: invalidates existing dev accounts, they were throwaway),
+smoke.sh (new host map + apex checks, curl -L), README.md/AGENT-OPS.md
+URL maps. Plus api: GET / now redirects to /docs so a bare API host
+(api.web10.app, api.dev.web10.app) looks intentional instead of
+returning {"detail":"Not Found"}.
+
 1.0.72 || 19.07.2026
 A7: real MongoDB connection wired (compose + env + audit tool).
 docker-compose.ecosystem.yml: api service gains extra_hosts

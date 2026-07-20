@@ -96,7 +96,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
-      PROVIDER: ${PROVIDER:?set PROVIDER, e.g. dev.web10.app}
+      PROVIDER: ${PROVIDER:?set PROVIDER, e.g. api.dev.web10.app}
       DB_URL: ${DB_URL:-mongodb://web10:web10@${STACK}-ferretdb:27017/}
       DB: web10
       S3_ENDPOINT: http://${STACK}-minio:9000
@@ -119,10 +119,10 @@ services:
       dockerfile: Dockerfile
       args:
         # names must match ui/Dockerfile's declared ARGs (B5, 1.0.65)
-        REACT_APP_API_ORIGIN: ${API_ORIGIN:?e.g. https://dev.web10.app}
+        REACT_APP_API_ORIGIN: ${API_ORIGIN:?e.g. https://api.dev.web10.app}
         REACT_APP_AUTH_ORIGIN: ${AUTH_ORIGIN:?e.g. https://auth.dev.web10.app}
         REACT_APP_RTC_ORIGIN: ${RTC_ORIGIN:?e.g. https://rtc.dev.web10.app}
-        REACT_APP_DEFAULT_API: ${API_HOST:?host only, e.g. dev.web10.app}
+        REACT_APP_DEFAULT_API: ${API_HOST:?host only, e.g. api.dev.web10.app}
     environment:
       PORT: "80"
     restart: unless-stopped
