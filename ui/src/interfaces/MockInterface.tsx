@@ -92,17 +92,39 @@ function useMockInterface() {
         return I.verified;
     }
 
-    I.changeTerms = function (service: any) {
-        const newServices = I.services.map(
-            (s: any) => {
-                return s.service === service.service ? service : s
-            }
-        )
-        I.setServices(newServices)
+    // Mirror the real interface: only hand the token back once ALL pending
+    // requests (SIRs + SCRs) are resolved (see Interface.tsx).
+    I.resolveRequest = function (nextSMR: any) {
+        I.setSMR(nextSMR);
+        const remaining = (nextSMR.sirs?.length || 0) + (nextSMR.scrs?.length || 0);
+        if (remaining === 0) I.sendToken();
     }
 
-    I.submitSIR = function () { I.setStatus("Mock: service created"); }
-    I.purgeSMR = function () { I.setStatus("Mock: request denied"); }
+    I.changeTerms = function (service: any) {
+        const newServices = I.services.map(
+            (s: any) => (s.service === service.service ? service : s)
+        )
+        I.setServices(newServices)
+        I.resolveRequest({
+            scrs: (I.SMR["scrs"] || []).filter((s: any) => s["service"] !== service["service"]),
+            sirs: I.SMR["sirs"],
+        })
+    }
+
+    I.submitSIR = function (service: any) {
+        I.setStatus("Mock: service created");
+        I.resolveRequest({
+            scrs: I.SMR["scrs"],
+            sirs: (I.SMR["sirs"] || []).filter((s: any) => s["service"] !== service["service"]),
+        })
+    }
+    I.purgeSMR = function (service: any) {
+        I.setStatus("Mock: request denied");
+        I.resolveRequest({
+            scrs: (I.SMR["scrs"] || []).filter((s: any) => s["service"] !== service["service"]),
+            sirs: (I.SMR["sirs"] || []).filter((s: any) => s["service"] !== service["service"]),
+        })
+    }
     I.sendToken = function () { }
     I.deleteService = function () { I.setStatus("Mock: service deleted"); }
     I.wipeServiceData = function () { I.setStatus("Mock: data wiped"); }

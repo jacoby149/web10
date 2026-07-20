@@ -8,8 +8,7 @@ import RequestPage from './components/Contracts/RequestPage';
 import SetupWizard from './components/SetupWizard/SetupWizard';
 import ConfigPage from './components/Config/ConfigPage';
 import StudioPage from './components/Studio/StudioPage';
-import { Card, CardContent } from './components/ui/card';
-import { Button } from './components/ui/button';
+import ConsentView from './components/Consent/ConsentView';
 import { config } from './config';
 
 function StatusBar({ I }: { I: Record<string, any> }) {
@@ -21,66 +20,6 @@ function StatusBar({ I }: { I: Record<string, any> }) {
       className="fixed inset-x-0 top-0 z-[500] px-4 py-2 text-center text-sm font-medium bg-warning/15 text-warning"
     >
       {I.status}
-    </div>
-  );
-}
-
-function OAuthBanner({ I }: { I: Record<string, any> }) {
-  const [hasReferrer, setHasReferrer] = React.useState(false);
-  const [referrerHost, setReferrerHost] = React.useState("");
-
-  React.useEffect(() => {
-    const referrer = window.document.referrer;
-    if (referrer) {
-      try {
-        const url = new URL(referrer);
-        if (url.origin !== window.location.origin) {
-          setHasReferrer(true);
-          setReferrerHost(url.hostname);
-        }
-      } catch { }
-    }
-  }, []);
-
-  if (!hasReferrer || !I.isAuthenticated()) return null;
-
-  const SMRs = I.SMR?.sirs?.length > 0 || I.SMR?.scrs?.length > 0;
-
-  // A fixed prompt below the top bar — not a stray card in the page flow
-  // (which rendered in an odd spot above the console shell).
-  return (
-    <div className="fixed left-1/2 top-16 z-40 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2">
-      <Card className="shadow-[0_8px_30px_rgb(0_0_0/0.35)]" data-testid="oauth-banner">
-        <CardContent className="flex items-center justify-between gap-3 p-4">
-          <div className="min-w-0 text-sm">
-            <p className="font-medium text-foreground">Connect to {referrerHost}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {SMRs ? "This app is requesting access to your data." : "Ready to grant this app a scoped token."}
-            </p>
-          </div>
-          {SMRs ? (
-            <Button
-              variant="outline"
-              size="sm"
-              className="shrink-0"
-              data-testid="oauth-banner-review-requests"
-              onClick={() => I.setMode("requests")}
-            >
-              Review
-            </Button>
-          ) : (
-            <Button
-              variant="brand"
-              size="sm"
-              className="shrink-0"
-              data-testid="oauth-banner-login"
-              onClick={() => I.sendToken()}
-            >
-              Continue
-            </Button>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 }
@@ -159,6 +98,15 @@ function App() {
     return <SetupWizard I={I} />;
   }
 
+  // Opened by another app for consent (window.opener present, or ?consent=1 to
+  // preview) → a dedicated, focused consent screen, not the full console with a
+  // floating prompt over it.
+  const consentMode =
+    typeof window !== "undefined" && (window.opener != null || queryParameters.get("consent") != null);
+  if (consentMode) {
+    return <ConsentView I={I} />;
+  }
+
   // The credential (login/signup/forgot) screens are the only ones a
   // signed-out user may see. Anything else — including an expired/scrubbed
   // token that leaves mode on "contracts" — routes to the login page so a
@@ -171,7 +119,6 @@ function App() {
   return (
     <>
       <StatusBar I={I} />
-      <OAuthBanner I={I} />
       {(() => {
         switch (effectiveMode) {
           case "contracts": return <ContractPage I={I} />;

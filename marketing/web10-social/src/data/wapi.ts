@@ -76,7 +76,12 @@ export function createWapiWrapper(authUrl?: string, rtcServer?: string): WapiWra
   if (instance) return instance;
 
   const queryParameters = new URLSearchParams(window.location.search);
-  const local = queryParameters.get('local');
+  const host = window.location.hostname;
+  const local =
+    queryParameters.get('local') != null ||
+    host === 'localhost' ||
+    host === '127.0.0.1' ||
+    host.endsWith('.localhost');
   const resolvedAuthUrl = authUrl ?? (local ? 'http://auth.localhost' : AUTH_ORIGIN);
   const resolvedRtcServer = rtcServer ?? (local ? 'rtc.localhost' : RTC_HOST);
 

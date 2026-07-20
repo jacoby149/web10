@@ -4,6 +4,21 @@ import { CircleCheck, SquarePlus, SquareMinus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
+// A whitelist/blacklist entry is {username, provider, <action>: true, ...}
+// (NOT {anchor, allowed[]} — assuming that shape crashed this page). Derive a
+// readable anchor + the granted actions defensively so no shape can throw.
+function entryAnchor(e: any): string {
+  if (!e || typeof e !== 'object') return String(e);
+  const u = e.username === '.*' || e.username == null ? 'anyone' : e.username;
+  const p = e.provider && e.provider !== '.*' ? `@${e.provider}` : '';
+  return `${u}${p}`;
+}
+function entryActions(e: any): string[] {
+  if (!e || typeof e !== 'object') return [];
+  const meta = new Set(['username', 'provider', 'anchor', 'allowed', 'denied']);
+  return Object.keys(e).filter((k) => !meta.has(k) && e[k] === true);
+}
+
 function Requests({ I }: { I: Record<string, any> }) {
   const [mode, setMode] = React.useState("basic");
   const pendingSIRs = I.SMR?.sirs || [];
@@ -48,37 +63,43 @@ function Requests({ I }: { I: Record<string, any> }) {
                   <span className="font-medium text-foreground">{req.service}</span>
                 </div>
                 <div className="p-4">
-                  {req.cross_origins && (
+                  {Array.isArray(req.cross_origins) && req.cross_origins.length > 0 && (
                     <div className="mb-2">
                       <span className="text-sm font-medium text-muted-foreground">Websites/IPs:</span>
                       <div className="mt-1 flex flex-wrap gap-1.5">
                         {req.cross_origins.map((o: string, i: number) => (
-                          <Badge key={i} variant="default">{o}</Badge>
+                          <Badge key={i} variant="default">{String(o)}</Badge>
                         ))}
                       </div>
                     </div>
                   )}
-                  {req.whitelist && (
+                  {Array.isArray(req.whitelist) && req.whitelist.length > 0 && (
                     <div className="mt-2">
                       <span className="text-sm font-medium text-muted-foreground">Allowed:</span>
                       <div className="mt-1 flex flex-wrap gap-1.5">
-                        {req.whitelist.map((w: any, i: number) => (
-                          <Badge key={i} variant="success">
-                            {w.anchor} [{w.allowed.join(", ")}]
-                          </Badge>
-                        ))}
+                        {req.whitelist.map((w: any, i: number) => {
+                          const actions = entryActions(w);
+                          return (
+                            <Badge key={i} variant="success">
+                              {entryAnchor(w)}{actions.length ? ` [${actions.join(", ")}]` : ""}
+                            </Badge>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
-                  {req.blacklist && (
+                  {Array.isArray(req.blacklist) && req.blacklist.length > 0 && (
                     <div className="mt-2">
                       <span className="text-sm font-medium text-muted-foreground">Blocked:</span>
                       <div className="mt-1 flex flex-wrap gap-1.5">
-                        {req.blacklist.map((b: any, i: number) => (
-                          <Badge key={i} variant="danger">
-                            {b.anchor} [{b.denied.join(", ")}]
-                          </Badge>
-                        ))}
+                        {req.blacklist.map((b: any, i: number) => {
+                          const actions = entryActions(b);
+                          return (
+                            <Badge key={i} variant="danger">
+                              {entryAnchor(b)}{actions.length ? ` [${actions.join(", ")}]` : ""}
+                            </Badge>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
