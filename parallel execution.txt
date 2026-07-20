@@ -368,6 +368,15 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       restoring it IS the "looks like a real company" goal, not a
       distraction. record this reversal in decisions.md when D16
       lands.
+      STATUS (1.0.84): (1) real apps from the node + (2) web10-social
+      hero + (4) live member/app counts LANDED (marketing-ui AppStore
+      now POSTs the node /stats). (3) CURATION/MODERATION deferred by
+      operator to next — the node owner takes registered apps OFF the
+      store (a `removed` flag on app records + admin-gated
+      /apps/manage,/apps/remove,/apps/restore reusing check_admin, and
+      an admin-only takedown screen in the node console). Approval-gating
+      (hide-until-approved) is the stricter optional mode; the operator
+      wants takedown, not allowlisting. Reuses the 1.0.77 admin model.
   [✓ 1.0.70] D16.1. fix the /docs/* 404 — marketing-ui nginx served
       /docs/ via an alias block that shadowed the SPA fallback, so
       /docs/protocol-spec 404'd (it's a client-side route that
