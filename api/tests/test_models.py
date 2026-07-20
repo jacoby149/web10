@@ -1,12 +1,11 @@
 """Tests for Pydantic models."""
 
+from app.models.auth import PhoneForm, SignUpForm, Token, TokenData, TokenForm
 from app.models.core import dotdict
-from app.models.auth import Token, TokenData, SignUpForm, TokenForm, PhoneForm
 from app.models.payment import PayData
 
 
 class TestDotdict:
-
     def test_dot_get(self):
         d = dotdict({"a": 1, "b": 2})
         assert d.a == 1
@@ -33,7 +32,6 @@ class TestDotdict:
 
 
 class TestToken:
-
     def test_minimal(self):
         t = Token()
         assert t.token is None
@@ -50,7 +48,6 @@ class TestToken:
 
 
 class TestTokenData:
-
     def test_defaults(self):
         td = TokenData()
         assert td.username is None
@@ -58,13 +55,15 @@ class TestTokenData:
 
     def test_populate_from_payload(self):
         td = TokenData()
-        td.populate_from_payload({
-            "username": "alice",
-            "site": "app.com",
-            "target": "api.localhost",
-            "provider": "api.localhost",
-            "expires": "2099-01-01T00:00:00",
-        })
+        td.populate_from_payload(
+            {
+                "username": "alice",
+                "site": "app.com",
+                "target": "api.localhost",
+                "provider": "api.localhost",
+                "expires": "2099-01-01T00:00:00",
+            }
+        )
         assert td.username == "alice"
         assert td.site == "app.com"
         assert td.provider == "api.localhost"
@@ -85,7 +84,6 @@ class TestTokenData:
 
 
 class TestSignUpForm:
-
     def test_valid(self):
         form = SignUpForm(username="alice", password="pass123", phone="+1234567890")
         assert form.username == "alice"
@@ -101,12 +99,12 @@ class TestSignUpForm:
 
     def test_missing_username_raises(self):
         import pytest
+
         with pytest.raises(Exception):
             SignUpForm(password="x")
 
 
 class TestTokenForm:
-
     def test_password_auth(self):
         form = TokenForm(username="u", password="p")
         assert form.password == "p"
@@ -124,19 +122,18 @@ class TestTokenForm:
 
 
 class TestPhoneForm:
-
     def test_valid(self):
         form = PhoneForm(phone_number="+1234567890")
         assert form.phone_number == "+1234567890"
 
     def test_missing_raises(self):
         import pytest
+
         with pytest.raises(Exception):
             PhoneForm()
 
 
 class TestPayData:
-
     def test_valid(self):
         pd = PayData(token="t", seller="s", title="Sub", price=100, success_url="https://ok", cancel_url="https://no")
         assert pd.price == 100
@@ -147,5 +144,6 @@ class TestPayData:
 
     def test_missing_token_raises(self):
         import pytest
+
         with pytest.raises(Exception):
             PayData(seller="s", title="t")

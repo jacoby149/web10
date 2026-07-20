@@ -15,7 +15,7 @@ DB_URL = "mongodb+srv://web10:jSol....."
 ALGORITHM = "HS256"
 PRIVATE_KEY = "8cbec8....."
 TOKEN_EXPIRE_MINUTES = 87840
-COST_CREATE =  0.000025
+COST_CREATE = 0.000025
 COST_UPDATE = 0.000025
 COST_READ = 0.000005
 COST_DELETE = 0.000002
@@ -56,8 +56,7 @@ for v in list(globals()):
         globals()[v] = env_val
 
 # Initiate some quality of life variables around the config.
-CORS_SERVICE_MANAGERS = [site.strip() for site in
-                         CORS_SERVICE_MANAGERS.split(",")]
+CORS_SERVICE_MANAGERS = [site.strip() for site in CORS_SERVICE_MANAGERS.split(",")]
 COST = {}
 COST["create"] = COST_CREATE
 COST["read"] = COST_READ

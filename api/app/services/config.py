@@ -5,17 +5,20 @@ import app.settings as settings
 
 def _get_config_col():
     from app.services.documentdb import db
+
     return db["web10"]["config"]
 
 
 def _get_key_col():
     from app.services.documentdb import db
+
     return db["web10"]["jwt_keys"]
 
 
 def node_is_configured() -> bool:
     """True if the node has been set up (admin account exists)."""
     from app.services.documentdb import db
+
     return len([c for c in db.list_collection_names() if c not in ("web10", "admin")]) > 0
 
 
@@ -95,6 +98,7 @@ def create_admin(username: str, password_hash: str, phone: str = "") -> str:
 def admin_exists() -> bool:
     """Checks if any admin account exists."""
     from app.services.documentdb import db
+
     for coll_name in db.list_collection_names():
         if coll_name in ("web10", "admin"):
             continue

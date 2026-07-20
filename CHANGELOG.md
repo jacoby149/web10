@@ -11,6 +11,21 @@ smoke.sh (new host map + apex checks, curl -L), README.md/AGENT-OPS.md
 URL maps. Plus api: GET / now redirects to /docs so a bare API host
 (api.web10.app, api.dev.web10.app) looks intentional instead of
 returning {"detail":"Not Found"}.
+Also: the api CI check worked for the first time ever this branch —
+"api (lint + test)" had failed on EVERY run since it landed (#88)
+because `uv sync --frozen` installs neither ruff nor pytest (both
+were optional extras). Fixed by adding a [dependency-groups] dev
+group (uv installs it by default). Then actually ran the linter the
+repo always claimed to run: ruff check --fix + ruff format across
+api/ (import sorting, 26 files reformatted, 2 dead variables,
+per-file F401 ignore for __init__.py re-exports); 279 tests green.
+Plan additions from operator reports: frontend cache-headers item
+(index.html max-age=86400 leaves browsers on dead bundles for a day
+after each deploy), web10-npm republish item (kills the ui/Dockerfile
+sed patch), lane-B B7 auth-UI quality pass (dead restored token
+strands users on an empty contracts page with no login button;
+broken logo; unusable on mobile), and a concrete production-mongo
+nightly-dump + restore-drill item under ops backup.
 
 1.0.72 || 19.07.2026
 A7: real MongoDB connection wired (compose + env + audit tool).

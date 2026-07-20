@@ -192,6 +192,20 @@ LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
        SignupForm phone arg, ForgotForm cancel, authAdapter hostname
        check, Branding restyled, logo.svg deleted). The playwright
        auth journey test against real users still waits on A7.
+  [ ] B7. AUTH UI: FROM-THE-PHONE QUALITY PASS — operator report
+       19.07 (screenshots in the ops session): (1) a restored-but-
+       invalid/expired token lands the user on an EMPTY "Your
+       contracts" page with no login button anywhere — restored
+       tokens must be validated (certify) before showing the
+       authenticated view, and a dead token must bounce to the login
+       form; (2) the header logo renders as a broken <img> on prod —
+       asset missing from the deployed bundle (design.md §3 marks);
+       (3) auth.web10.app does not render usably on a phone —
+       B6's 375px acceptance was never verified on device. bar:
+       design.md §12 (screenshot test, desktop + 375px in the PR),
+       "operator would demo it to an influencer without apologizing."
+       gate: none — start anytime. compare against social/marketing,
+       which the operator calls the quality reference.
 
 LANE C — greenfield services  (owns: sdk/, mcp/, new dirs)
   [✓ 1.0.25] C1. P5 media service (presigned urls, minio profile,

@@ -3,10 +3,10 @@ from datetime import datetime
 from fastapi import APIRouter, BackgroundTasks
 
 import app.exceptions as exceptions
-from app.models.auth import Token
 import app.settings as settings
+from app.models.auth import Token
 from app.services import documentdb as db
-from app.services.auth import check_admin, decode_token, is_permitted
+from app.services.auth import decode_token, is_permitted
 
 router = APIRouter()
 
