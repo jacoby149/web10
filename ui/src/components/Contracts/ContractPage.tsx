@@ -1,12 +1,41 @@
-import TopBar from '../shared/TopBar';
-import SideBar from '../shared/SideBar';
-import MobileNav from '../shared/MobileNav';
+import { FileText } from 'lucide-react';
+import AppShell from '../shared/AppShell';
 import Contract from './Contract';
 
-function Contracts({ I }: { I: Record<string, any> }) {
-  const contract_items = I.services.map((d: any, i: number) =>
-    <Contract I={I} key={i} data={d} isRequest={false} />
+function EmptyContracts() {
+  return (
+    <div
+      className="mt-4 flex flex-col items-center rounded-lg border border-dashed border-border bg-card/40 px-6 py-16 text-center"
+      data-testid="contracts-empty"
+    >
+      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-brand-muted">
+        <FileText className="h-6 w-6 text-brand-300" strokeWidth={1.5} />
+      </div>
+      <h2 className="font-display text-lg font-semibold text-foreground">No contracts yet</h2>
+      <p className="mt-1.5 max-w-sm text-sm text-muted-foreground">
+        A contract appears here the first time an app asks to read or write your
+        data. You approve each one — and can revoke it any time. Nothing touches
+        your node until you say so.
+      </p>
+    </div>
   );
+}
+
+function Contracts({ I }: { I: Record<string, any> }) {
+  // the "*" star record is never a contract (ContractViewer hides it); don't
+  // let it count toward "you have contracts"
+  const all = (I.services as any[]).filter((d) => d?.service !== '*');
+  const query = (I.search ?? '').trim().toLowerCase();
+  const contracts = query
+    ? all.filter((d) => {
+        const inName = String(d?.service ?? '').toLowerCase().includes(query);
+        const inSites = (d?.cross_origins ?? []).some((s: string) =>
+          String(s).toLowerCase().includes(query),
+        );
+        return inName || inSites;
+      })
+    : all;
+
   return (
     <>
       <div className="mb-8 text-center">
@@ -15,25 +44,26 @@ function Contracts({ I }: { I: Record<string, any> }) {
           Manage which apps can access your data — these are your contracts.
         </p>
       </div>
-      {contract_items}
+      {all.length === 0 ? (
+        <EmptyContracts />
+      ) : contracts.length === 0 ? (
+        <p className="mt-8 text-center text-sm text-muted-foreground" data-testid="contracts-no-match">
+          No contracts match “{I.search}”.
+        </p>
+      ) : (
+        contracts.map((d: any, i: number) => (
+          <Contract I={I} key={i} data={d} isRequest={false} />
+        ))
+      )}
     </>
   );
 }
 
 function ContractPage({ I }: { I: Record<string, any> }) {
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <TopBar I={I} />
-      <div className="flex flex-1 overflow-auto">
-        <SideBar I={I} />
-        <div className="flex-1 overflow-auto pb-16 md:pb-0">
-          <div className="mx-auto max-w-4xl p-4 sm:p-6" data-testid="contract-page">
-            <Contracts I={I} />
-          </div>
-        </div>
-      </div>
-      <MobileNav I={I} />
-    </div>
+    <AppShell I={I} maxWidth="max-w-4xl" testid="contract-page">
+      <Contracts I={I} />
+    </AppShell>
   );
 }
 

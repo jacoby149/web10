@@ -125,6 +125,12 @@ function App() {
     if (I.isAuthenticated() && I._hasReferrer) {
       I.initAuthenticator();
     }
+    // Restored session (reload with a valid token): hydrate admin status +
+    // contracts, which otherwise only run inside the login flow.
+    if (I.isAuthenticated() && !I.isMock) {
+      I.checkAdmin?.();
+      I.servicesLoad?.();
+    }
   }, [I.auth]);
 
   if (checkingSetup) {
@@ -141,12 +147,21 @@ function App() {
     return <SetupWizard I={I} />;
   }
 
+  // The credential (login/signup/forgot) screens are the only ones a
+  // signed-out user may see. Anything else — including an expired/scrubbed
+  // token that leaves mode on "contracts" — routes to the login page so a
+  // signed-out visitor never lands on an empty authenticated screen with no
+  // way back in (B7).
+  const credentialModes = ["login", "signup", "forgot"];
+  const effectiveMode =
+    I.isAuthenticated() || credentialModes.includes(I.mode) ? I.mode : "login";
+
   return (
     <>
       <StatusBar I={I} />
       <OAuthBanner I={I} />
       {(() => {
-        switch (I.mode) {
+        switch (effectiveMode) {
           case "contracts": return <ContractPage I={I} />;
           case "requests": return <RequestPage I={I} />;
           case "settings": return <Settings I={I} />;

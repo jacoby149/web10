@@ -6,25 +6,30 @@ interface MobileNavProps {
 }
 
 // Mobile bottom-nav shell (design.md §9) — desktop gets the fixed
-// SideBar, mobile gets this. Same five destinations as SideBar's
-// authenticated menu; keep them in sync if that list changes.
+// SideBar, mobile gets this. Same destinations as SideBar's authenticated
+// menu; keep them in sync if that list changes.
 const ITEMS = [
   { mode: 'contracts', label: 'Contracts', icon: FileText },
   { mode: 'requests', label: 'Requests', icon: Inbox },
   { mode: 'studio', label: 'Studio', icon: LineChart },
-  { mode: 'config', label: 'Config', icon: SlidersHorizontal },
+  { mode: 'config', label: 'Config', icon: SlidersHorizontal, adminOnly: true },
   { mode: 'settings', label: 'Settings', icon: SettingsIcon },
 ] as const;
 
 function MobileNav({ I }: MobileNavProps) {
-  if (!I.isAuth || !I.isAuthenticated?.()) return null;
+  // show whenever the user is authenticated — previously also required the
+  // `?auth` query param (I.isAuth), so the bottom nav never appeared on a
+  // normal visit and mobile users had no navigation at all.
+  if (!I.isAuthenticated?.()) return null;
+
+  const items = ITEMS.filter((item) => !('adminOnly' in item && item.adminOnly) || I.isAdmin);
 
   return (
     <nav
       className="fixed inset-x-0 bottom-0 z-40 flex items-center border-t border-border bg-surface md:hidden"
       data-testid="mobile-nav"
     >
-      {ITEMS.map(({ mode, label, icon: ItemIcon }) => {
+      {items.map(({ mode, label, icon: ItemIcon }) => {
         const active = I.mode === mode;
         return (
           <button

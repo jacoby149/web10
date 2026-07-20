@@ -95,6 +95,25 @@ def create_admin(username: str, password_hash: str, phone: str = "") -> str:
     return "admin created"
 
 
+def list_admins() -> list:
+    """Usernames allowed to read/write this node's config.
+
+    Source of truth is the saved config's ``admins`` list; until an admin sets
+    one, fall back to settings.DEFAULT_ADMINS so the node isn't locked out.
+    """
+    admins = get_config().get("admins")
+    if not admins:
+        admins = settings.DEFAULT_ADMINS
+    # DEFAULT_ADMINS may arrive as a comma-separated string via env override
+    if isinstance(admins, str):
+        admins = [a.strip() for a in admins.split(",") if a.strip()]
+    return list(admins)
+
+
+def is_admin(username: str) -> bool:
+    return bool(username) and username in list_admins()
+
+
 def admin_exists() -> bool:
     """Checks if any admin account exists."""
     from app.services.documentdb import db
