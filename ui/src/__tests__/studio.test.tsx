@@ -289,13 +289,24 @@ describe('StudioPage', () => {
   it('renders studio heading', async () => {
     const { default: StudioPage } = await import('../components/Studio/StudioPage')
     render(<StudioPage I={mockI} />)
-    expect(screen.getByText(/Studio/)).toBeTruthy()
+    // the page's own heading — the topbar/sidebar also say "Studio", so scope
+    // to the studio-page container and match its subtitle
+    expect(screen.getByText(/Monetization menu/)).toBeTruthy()
   })
 
-  it('renders monetization ladder section', async () => {
+  it('renders the ladder section', async () => {
     const { default: StudioPage } = await import('../components/Studio/StudioPage')
     render(<StudioPage I={mockI} />)
-    expect(screen.getByText(/Monetization Ladder/)).toBeTruthy()
+    expect(screen.getByText(/The Ladder/)).toBeTruthy()
+  })
+
+  it('puts Rung 0 (Available Now) above the ladder', async () => {
+    const { default: StudioPage } = await import('../components/Studio/StudioPage')
+    render(<StudioPage I={mockI} />)
+    const rung0 = screen.getByText(/Rung 0 — Available Now/)
+    const ladder = screen.getByText(/The Ladder/)
+    // DOCUMENT_POSITION_FOLLOWING (4) => ladder comes after rung 0
+    expect(rung0.compareDocumentPosition(ladder) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it('renders rung 0 section', async () => {

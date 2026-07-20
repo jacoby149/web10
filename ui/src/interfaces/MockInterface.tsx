@@ -19,11 +19,12 @@ function useMockInterface() {
     [I.phone, I.setPhone] = React.useState("13472092325");
 
     [I.auth, I.setAuth] = React.useState(false);
+    [I.isAdmin, I.setIsAdmin] = React.useState(true);
     [I.verified, I.setVerified] = React.useState(false);
     [I.status, I.setStatus] = React.useState<string | null>(null);
     [I.SMR, I.setSMR] = React.useState({ scrs: [], sirs: [] });
 
-    I.wapi = { signOut: () => { } };
+    I.wapi = { signOut: () => { }, readToken: () => ({ username: 'creator', provider: 'api.localhost' }) };
     I.wapiAuth = {};
 
     I.verificationChange = function (value: string) {
@@ -55,8 +56,12 @@ function useMockInterface() {
         }
     }
 
-    I.runSearch = function () {
-        return;
+    I.runSearch = function (value: string) {
+        I.setSearch(value ?? "");
+    }
+
+    I.checkAdmin = function () {
+        I.setIsAdmin(true);
     }
 
     I.isAuthenticated = function () {

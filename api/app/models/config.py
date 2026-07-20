@@ -128,3 +128,4 @@ class ConfigUpdate(BaseModel):
     logo_dark: str | None = None
     logo_light: str | None = None
     token_expire_minutes: int | None = None
+    admins: list[str] | None = None

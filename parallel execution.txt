@@ -192,7 +192,7 @@ LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
        SignupForm phone arg, ForgotForm cancel, authAdapter hostname
        check, Branding restyled, logo.svg deleted). The playwright
        auth journey test against real users still waits on A7.
-  [ ] B7. AUTH UI: FROM-THE-PHONE QUALITY PASS — operator report
+  [✓ 1.0.76] B7. AUTH UI: FROM-THE-PHONE QUALITY PASS — operator report
        19.07 (screenshots in the ops session): (1) a restored-but-
        invalid/expired token lands the user on an EMPTY "Your
        contracts" page with no login button anywhere — restored

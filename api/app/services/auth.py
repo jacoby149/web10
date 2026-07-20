@@ -145,5 +145,16 @@ def is_permitted(token: Token, username: str, service: str, action: str) -> bool
 
 
 def check_admin(token: Token) -> bool:
-    if not is_permitted(token, decode_token(token.token).username, "*", None):
+    # Admin = the token's user is on this node's admin list (config.admins,
+    # or settings.DEFAULT_ADMINS until one is saved). Being the owner of your
+    # own collection is NOT enough — the config is node-global, so on a shared
+    # node any user would otherwise be able to edit Stripe keys, CORS, etc.
+    from app.services import config as config_svc
+
+    if not token.token:
         raise Exception("NOT_ADMIN")
+    certify(token)  # verifies signature, provider, and expiry (raises TOKEN)
+    decoded = decode_token(token.token, private_key=True)  # verified claims (I2)
+    if decoded.provider != settings.PROVIDER or not config_svc.is_admin(decoded.username):
+        raise Exception("NOT_ADMIN")
+    return True
