@@ -23,6 +23,15 @@ shell is now fixed-height so the sidebar/top bar stay put and only content
 scrolls; social.localhost now targets auth.localhost automatically (any
 *.localhost host is local) so social -> auth -> social works without
 ?local=true. 74 ui tests green.
+1.0.80 || 19.07.2026
+Prod cutover to the real mongo. deploy-stacks.py now sets the web10-prod
+env DB=deploy + DB_URL=mongodb://host.docker.internal:27017/, so the prod
+API serves the host-native mongo's "deploy" database (208 real accounts)
+instead of the empty containerized FerretDB. Applied on the box and
+verified: POST /stats users 5 -> 208, real apps/usage show, and a real
+account (jacoby149) is found again ("incorrect username or password" on a
+wrong password, not "the user doesn't exist"). Completes the DB override
+enabled by 1.0.79's compose fix. Ops details in ubuntu-deployment/OPS-LOG.md.
 1.0.79 || 19.07.2026
 Prod fixes: missing static assets, wrong readiness API, and the DB override.
 (1) ui/Dockerfile never COPYed public/, so vite had nothing to fold into

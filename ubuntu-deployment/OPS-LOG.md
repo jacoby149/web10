@@ -3,6 +3,35 @@
 Newest at top. Format per AGENT-OPS.md §8. Read the top entries
 BEFORE doing ops work — someone may already be mid-fix.
 
+## 19.07.2026 — Claude (lincoln, b7-auth-ui) — prod cutover to the real mongo (deploy)
+did (SSH as jacob; box /opt/web10 is still a stale non-git snapshot):
+  - ROOT CAUSE: web10-prod-api was serving the containerized FerretDB
+    (DB=web10, ~5 e2e smoke accounts) instead of the host-native mongo's
+    `deploy` DB (208 real accounts) — so every real login said "the user
+    doesn't exist". The compose hardcoded `DB: web10`, so the intended
+    prod override never took effect.
+  - FIX (two parts, both merged to dev): (1) compose `DB: ${DB:-web10}`
+    so the env can override it (PR #145); (2) deploy-stacks.py prod env
+    now sets DB=deploy + DB_URL=mongodb://host.docker.internal:27017/.
+  - Verified the deploy DB before flipping: 208 collections, jacoby149
+    present, its {service:services, body.service:"*"} record has a
+    bcrypt hash + verified=true (matches get_star()). The only accounts
+    in FerretDB were e2e smoke users (smoke*, verified=false) — nothing
+    real stranded.
+  - APPLIED: scp'd updated deploy-stacks.py to the box (backup left as
+    deploy-stacks.py.bak.<ts>), ran `deploy-stacks.py prod` → Portainer
+    stack web10-prod (id 2) redeployed. web10-prod-api-1 now has
+    DB=deploy + DB_URL=host mongo (status running).
+  - VERIFIED: POST /stats → users:208 (was 5); real apps show
+    (web10auth 13.5k visits, crm/mail.web10.app, …); jacoby149 with a
+    wrong password now returns "incorrect username or password" (found),
+    not "the user doesn't exist".
+  - host mongo needs no auth (binds 127.0.0.1 + 172.17.0.1:27017;
+    host.docker.internal→host-gateway already in the compose).
+next: the ~5 FerretDB smoke accounts are orphaned (harmless test data).
+  If any real signups happened while prod was on FerretDB, migrate them
+  into `deploy` before decommissioning the prod FerretDB.
+
 ## 19.07.2026 — Claude (port-vila, mongo-backup-and-dev-urls) — dev URL rename: api.dev.web10.app
 did (SSH as jacob, scripts scp'd to the box since /opt/web10 is a stale
 non-git snapshot — see note below):
