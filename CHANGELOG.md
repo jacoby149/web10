@@ -1,3 +1,19 @@
+1.0.72 || 19.07.2026
+D17: restore the dev docs. Recovered from `82667060^:auth/public/docs/`:
+the two live demo apps (hello/ and notes/) rebuilt on the design.md
+standard — dark-first zinc/violet, self-hosted fonts, token-styled
+buttons, skeleton loading — served from marketing-ui's public/docs/.
+New sdk.md doc page: covers the current wapi.js SDK (with runnable
+examples linking to the demos) and the upcoming C2 typed SDK (no
+legacy-wapi-as-the-future voice). New cli-quickstart.md: documents
+the web10-cli scaffolder (`npx web10-cli create`), available templates,
+and the path to `create-web10`. Docs.tsx sidebar expanded: a "Demo
+Apps" section (Hello, Notes — open in new tab) alongside the updated
+Documentation nav (Protocol Spec, Conventions, SDK Guide, CLI
+Quickstart). AppStore.tsx "Build on web10" card now has two CTAs:
+SDK Guide + CLI Quickstart (with Terminal icon). 19 tests green,
+production build clean.
+
 1.0.71 || 19.07.2026
 Queued E9 (deployment status page): one URL per env
 (status.web10.app / status.dev.web10.app) showing what's live — the

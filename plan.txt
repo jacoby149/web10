@@ -500,7 +500,7 @@ the original data changes what "done" looks like for these):
 [✓ 1.0.70] docs 404 fix (lane D, D16.1): /docs/protocol-spec 404'd
     live — marketing-ui's nginx /docs/ alias block shadowed the SPA
     fallback. try_files → index.html added.
-[ ] RESTORE THE DEV DOCS (lane D, item D17): the old sharp docs —
+[✓ 1.0.72] RESTORE THE DEV DOCS (lane D, item D17): the old sharp docs —
     two runnable demo apps (hello/, notes/) + sdk.md/sdk.pdf — are
     NOT lost; they live in git at `82667060^:auth/public/docs/`.
     bring them into marketing-ui's docs on the design.md standard,
