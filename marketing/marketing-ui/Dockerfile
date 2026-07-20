@@ -28,7 +28,7 @@ RUN bun run build
 # at build time, so every redeploy refreshes it automatically.
 # STATUS_VERSION is passed as a build ARG (compose reads CHANGELOG.md
 # and forwards it), so we don't need the repo root in the build context.
-COPY ../ubuntu-deployment/scripts/build-status.sh /usr/local/bin/build-status.sh
+COPY build-status.sh /usr/local/bin/build-status.sh
 RUN chmod +x /usr/local/bin/build-status.sh && /usr/local/bin/build-status.sh
 
 FROM nginx:alpine
