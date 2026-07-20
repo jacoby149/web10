@@ -1,9 +1,9 @@
-
 from pydantic import BaseModel, ConfigDict
 
 
 class NodeConfig(BaseModel):
     """Full node configuration document."""
+
     model_config = ConfigDict(extra="allow")
 
     provider: str = "api.localhost"
@@ -60,6 +60,7 @@ class NodeConfig(BaseModel):
 
 class SetupRequest(BaseModel):
     """First-run setup wizard payload."""
+
     provider: str
     admin_username: str
     admin_password: str
@@ -87,12 +88,14 @@ class SetupRequest(BaseModel):
 
 class SetupStatus(BaseModel):
     """Response from GET /setup."""
+
     configured: bool
     has_admin: bool
 
 
 class ConfigUpdate(BaseModel):
     """Partial config update — only provided fields are changed."""
+
     model_config = ConfigDict(extra="allow")
     provider: str | None = None
     beta_required: bool | None = None
@@ -125,3 +128,4 @@ class ConfigUpdate(BaseModel):
     logo_dark: str | None = None
     logo_light: str | None = None
     token_expire_minutes: int | None = None
+    admins: list[str] | None = None

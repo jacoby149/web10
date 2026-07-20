@@ -15,12 +15,23 @@ const wapiAuthInit = function(wapi) {
     * Stores it in wapiAuth's oAuthToken.
     */
   wapiAuth.mintOAuthToken = function () {
+    const tokenData = wapi.readToken();
+    if (!tokenData || !document.referrer) {
+      wapiAuth.oAuthToken = null;
+      return Promise.resolve(null);
+    }
     const referrerURL = new URL(document.referrer);
-    wapi
-      .getTieredToken(referrerURL.hostname, wapi.readToken().provider)
+    return wapi
+      .getTieredToken(referrerURL.hostname, tokenData.provider)
       .then(function (response) {
         wapiAuth.oAuthToken = response.data.token;
+        return wapiAuth.oAuthToken;
       })
+      .catch(function (error) {
+        console.error("web10: minting a token for the referrer app failed", error);
+        wapiAuth.oAuthToken = null;
+        return null;
+      });
   };
 
   /**
@@ -56,7 +67,7 @@ const wapiAuthInit = function(wapi) {
     */
   wapiAuth.logIn = function (provider, username, password) {
     return axios
-      .post(`${wapi.defaultAPIProtocol}//${provider}/web10token`, {
+      .post(`${wapi.APIProtocol}//${provider}/web10token`, {
         username: username,
         password: password,
         token: null,
@@ -80,7 +91,7 @@ const wapiAuthInit = function(wapi) {
     */
   wapiAuth.signUp = function (provider, username, password, betacode, phone) {
     return axios
-      .post(`${wapi.defaultAPIProtocol}//${provider}/signup`, {
+      .post(`${wapi.APIProtocol}//${provider}/signup`, {
         username: username,
         password: password,
         betacode:betacode,
@@ -113,7 +124,7 @@ const wapiAuthInit = function(wapi) {
     * Gets your web10 provider if logged in with the web10 connector.
     * @returns  {string} [The URL of the logged in web10 provider.]
     */
-  const api = ()=> `${wapi.defaultAPIProtocol}//${wapi.readToken()["provider"]}`;
+  const api = ()=> `${wapi.APIProtocol}//${wapi.readToken()["provider"]}`;
 
 
   /**

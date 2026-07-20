@@ -33,6 +33,11 @@ while [ $ELAPSED -lt $TIMEOUT ]; do
     ALL_UP=false
   fi
 
+  # Check marketing-api
+  if ! curl -sf http://marketing-api.localhost/health > /dev/null 2>&1; then
+    ALL_UP=false
+  fi
+
   if [ "$ALL_UP" = true ]; then
     echo "✓ All services are healthy after ${ELAPSED}s"
     exit 0

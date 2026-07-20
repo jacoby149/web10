@@ -2,11 +2,10 @@
 
 from unittest.mock import MagicMock, patch
 
-from app.services.media import make_object_key, ensure_bucket
+from app.services.media import ensure_bucket, make_object_key
 
 
 class TestMakeObjectKey:
-
     def test_format(self):
         with patch("app.services.media.uuid.uuid4") as mock_uuid:
             mock_uuid.return_value.hex = "abcd1234"
@@ -27,7 +26,6 @@ class TestMakeObjectKey:
 
 
 class TestEnsureBucket:
-
     def test_existing_bucket_no_create(self):
         mock_s3 = MagicMock()
         ensure_bucket(mock_s3)

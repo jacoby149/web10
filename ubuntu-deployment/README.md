@@ -60,12 +60,12 @@ resolve ambiguously across environments). Zone `web10.app`:
 
 | Service | NPM forward target | dev (VPN-only) | prod |
 |---------|-------------------|----------------|------|
-| API | `{stack}-api:80` | `dev.web10.app` | `api.web10.app` |
+| API | `{stack}-api:80` | `api.dev.web10.app` | `api.web10.app` |
 | UI (auth/consent) | `{stack}-ui:80` | `auth.dev.web10.app` | `auth.web10.app` |
 | RTC signaling | `{stack}-rtc:80` | `rtc.dev.web10.app` | `rtc.web10.app` |
 | Minio S3 API | `{stack}-minio:9000` | `minio.dev.web10.app` | `minio.web10.app` |
 | web10-social | `{stack}-social:80` | `social.dev.web10.app` | `social.web10.app` |
-| marketing-ui | `{stack}-marketing-ui:80` | `www.dev.web10.app` | `www.web10.app` + `web10.app` |
+| marketing-ui | `{stack}-marketing-ui:80` | `www.dev.web10.app` + `dev.web10.app` | `www.web10.app` + `web10.app` |
 | marketing-api | `{stack}-marketing-api:80` | `marketing-api.dev.web10.app` | `marketing-api.web10.app` |
 
 Quick health check: `https://{api-vhost}/docs` should return the

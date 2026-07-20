@@ -7,8 +7,8 @@ import pymongo
 from bson.objectid import ObjectId
 
 import app.exceptions as exceptions
-from app.models.core import dotdict
 import app.settings as settings
+from app.models.core import dotdict
 from app.services import records as records
 
 #################################
@@ -24,6 +24,7 @@ db = client[settings.DB]
 ######### EMULATION ############
 ################################
 
+
 # transforms a db found doc for user reading
 def to_gui(doc):
     _id = doc["_id"]
@@ -37,7 +38,7 @@ def to_db(_doc, service):
     doc = {}
     if "_id" in _doc:
         doc["_id"] = _doc["_id"]
-        del _doc['_id']
+        del _doc["_id"]
     doc["service"] = service
     doc["body"] = _doc
     return doc
@@ -53,8 +54,8 @@ def to_db_field(field):
 
 # transforms user query for db
 # safe since ops are for values not fields
-def q_t( _q, service ):
-    q = { "service": service }
+def q_t(_q, service):
+    q = {"service": service}
     for field in _q:
         # in web10, fields of a query arent allowed to start with a dollar sign.
         # dollar signs have a special meaning for pagination purposes, so we trim them out.
@@ -75,6 +76,7 @@ def u_t(_u):
                 raise exceptions.DB_NOT_ALLOWED
             u[op][to_db_field(field)] = _u[op][field]
     return u
+
 
 # changes mongodb query sort syntax to mongodb python sort syntax.
 # fields are body-prefixed like query fields — without it, $sort ordered
@@ -97,23 +99,22 @@ def get_pull(u):
             pull["$pull"][new_field] = None
     return pull
 
+
 ###############################
 ###### PHONE_NUMBER FUNCTIONS ########
 ###############################
 
 
 def register_phone_number(phone_number, username):
-    db['web10']['phone_number'].insert_one(
-        {"phone_number": phone_number, "username": username})
+    db["web10"]["phone_number"].insert_one({"phone_number": phone_number, "username": username})
 
 
 def unregister_phone_number(username):
-    db['web10']['phone_number'].delete_one({"username": username})
+    db["web10"]["phone_number"].delete_one({"username": username})
 
 
 def set_phone_number(phone_number, username):
-    db[username].update_one(
-        q_t({"service": "*"}, "services"), u_t({"$set": {"phone_number": phone_number}}))
+    db[username].update_one(q_t({"service": "*"}, "services"), u_t({"$set": {"phone_number": phone_number}}))
 
 
 def get_phone_number(username):
@@ -123,9 +124,11 @@ def get_phone_number(username):
             return res["phone_number"]
     return None
 
+
 def get_phone_record(phone_number):
-    phone_number_collection = db['web10']['phone_number']
+    phone_number_collection = db["web10"]["phone_number"]
     return phone_number_collection.find_one({"phone_number": phone_number})
+
 
 ################################
 ####### USER FUNCTIONS #########
@@ -133,7 +136,7 @@ def get_phone_record(phone_number):
 
 
 def get_term_record(username, service):
-    query = q_t({"service": service}, 'services')
+    query = q_t({"service": service}, "services")
     record = db[f"{username}"].find_one(query)
     if record is None:
         return None
@@ -143,14 +146,13 @@ def get_term_record(username, service):
 def get_star(user):
     return get_term_record(user, "*")
 
+
 # sets an phone_number address to verified
 
 
 def set_verified(user, verified=True):
-    return db[user].update_one(
-        q_t({"service": "*"}, 'services'),
-        u_t({"$set": {"verified": verified}})
-    )
+    return db[user].update_one(q_t({"service": "*"}, "services"), u_t({"$set": {"verified": verified}}))
+
 
 # sets an phone_number address to verified
 
@@ -200,16 +202,19 @@ def change_pass(user, new_pass, hash):
     db[user].update_one(q, u)
     return "successfully changed your password."
 
+
 ########################
 ### account recovery ###
 ########################
 
-def temp_pass(phone_number,hash):
+
+def temp_pass(phone_number, hash):
     new_pass = secrets.token_urlsafe(6)
     print("IN TEMP PASS, : ", phone_number)
-    user = get_phone_record(phone_number)["username"] # TODO make get_phone_record secure
-    change_pass(user,new_pass,hash) # TODO put hash algo
+    user = get_phone_record(phone_number)["username"]  # TODO make get_phone_record secure
+    change_pass(user, new_pass, hash)  # TODO put hash algo
     return new_pass
+
 
 ##########################
 ######### CRUD ###########
@@ -219,6 +224,12 @@ def temp_pass(phone_number,hash):
 def create(user, service, _data):
     if star_found([_data]):
         raise exceptions.DSTAR
+    # A service's terms record ("services" collection-service) must be unique
+    # per target service — never create a second one (root cause of duplicate
+    # contracts). Callers should update the existing record instead.
+    if service == "services" and isinstance(_data, dict) and _data.get("service"):
+        if db[f"{user}"].find_one({"service": "services", "body.service": _data["service"]}) is not None:
+            raise exceptions.DUPLICATE_SERVICE
     data = to_db(_data, service)
     result = db[f"{user}"].insert_one(data)
     _data["_id"] = str(result.inserted_id)
@@ -229,7 +240,7 @@ def read(user, service, query):
     # get the skip sort, and limit values if they are there.
     # TODO add exceptions for each of the ways the inputs can be bad!!!!
     skip = query["$skip"] if "$skip" in query else 0
-    sort = sort_t(query["$sort"]) if "$sort" in query else [("_id",1)]
+    sort = sort_t(query["$sort"]) if "$sort" in query else [("_id", 1)]
     limit = query["$limit"] if "$limit" in query else 0
     query = q_t(query, service)
 
@@ -265,8 +276,8 @@ def update(user, service, query, update):
     if pull:
         db[user].update_one(query, get_pull(update))
     return {
-        "matchedCount" : response.matched_count,
-        "modifiedCount" : response.modified_count,
+        "matchedCount": response.matched_count,
+        "modifiedCount": response.modified_count,
     }
 
 
@@ -281,7 +292,6 @@ def delete(user, service, query):
     return "successfully deleted"
 
 
-
 ##########################
 ###### AGGREGATE #########
 ##########################
@@ -292,17 +302,34 @@ def delete(user, service, query):
 
 # stages a dev's pipeline may use. everything else is rejected.
 AGG_STAGES = {
-    "$match", "$project", "$group", "$sort", "$skip", "$limit",
-    "$unwind", "$addFields", "$set", "$count", "$facet", "$bucket",
-    "$bucketAuto", "$sample", "$sortByCount",
+    "$match",
+    "$project",
+    "$group",
+    "$sort",
+    "$skip",
+    "$limit",
+    "$unwind",
+    "$addFields",
+    "$set",
+    "$count",
+    "$facet",
+    "$bucket",
+    "$bucketAuto",
+    "$sample",
+    "$sortByCount",
 }
 
 # operators rejected wherever they appear, however deeply nested:
 # js execution, cross-collection reads, cross-collection writes.
 AGG_FORBIDDEN = {
-    "$where", "$function", "$accumulator",
-    "$lookup", "$graphLookup", "$unionWith",
-    "$out", "$merge",
+    "$where",
+    "$function",
+    "$accumulator",
+    "$lookup",
+    "$graphLookup",
+    "$unionWith",
+    "$out",
+    "$merge",
 }
 
 
@@ -363,10 +390,10 @@ def aggregate(user, service, pipeline):
 #### Star Protection #####
 ##########################
 
+
 # returns true if star service is inside the input
 def star_found(services_docs):
-    star = list(
-        filter(lambda x: "service" in x and x["service"] == "*", services_docs))
+    star = list(filter(lambda x: "service" in x and x["service"] == "*", services_docs))
     if len(star) > 0:
         return True
     return False
@@ -378,6 +405,7 @@ def star_selected(user, service, query):
         records = read(user, service, query)
         return star_found(records)
     return False
+
 
 ##########################
 # customer id, + numbers
@@ -394,10 +422,7 @@ def get_customer_id(user):
 
 
 def set_customer_id(user, customer_id):
-    return db[user].update_one(
-        q_t({"service": "*"}, 'services'),
-        u_t({"$set": {"customer_id": customer_id}})
-    )
+    return db[user].update_one(q_t({"service": "*"}, "services"), u_t({"$set": {"customer_id": customer_id}}))
 
 
 def get_business_id(user):
@@ -410,10 +435,8 @@ def get_business_id(user):
 
 
 def set_business_id(user, business_id):
-    return db[user].update_one(
-        q_t({"service": "*"}, 'services'),
-        u_t({"$set": {"business_id": business_id}})
-    )
+    return db[user].update_one(q_t({"service": "*"}, "services"), u_t({"$set": {"business_id": business_id}}))
+
 
 ###############################
 ### Service Term Enforcement ##
@@ -424,8 +447,7 @@ def is_in_cross_origins(site, username, service):
     record = get_term_record(username, service)
     if record is None:
         return False
-    matches = list(filter(lambda x: re.fullmatch(
-        site, x), record["cross_origins"]))
+    matches = list(filter(lambda x: re.fullmatch(site, x), record["cross_origins"]))
     return len(matches) > 0
 
 
@@ -437,9 +459,7 @@ def get_approved(username, provider, owner, service, action):
         return True
 
     def is_listed(e):
-        list_hit = (bool(re.fullmatch(e["username"], username))) and (
-            bool(re.fullmatch(e["provider"], provider))
-        )
+        list_hit = (bool(re.fullmatch(e["username"], username))) and (bool(re.fullmatch(e["provider"], provider)))
         action_permitted = action in e and e[action]
         all_permitted = "all" in e and e["all"]
         return list_hit and (action_permitted or all_permitted)
@@ -460,6 +480,7 @@ def get_approved(username, provider, owner, service, action):
 # Balance Tracking
 ######################
 
+
 # units scales the flat per-action cost — aggregate passes its
 # pipeline stage count so heavier queries spend more credits.
 def charge(user, action, units=1):
@@ -471,23 +492,27 @@ def charge(user, action, units=1):
 
 def replenish(user):
     query = q_t({"service": "*"}, "services")
-    update = u_t({
-        "$max": {
-            "credits_spent": 0,
-        },
-        "$currentDate": {"last_replenish": True},
-    })
+    update = u_t(
+        {
+            "$max": {
+                "credits_spent": 0,
+            },
+            "$currentDate": {"last_replenish": True},
+        }
+    )
     db[f"{user}"].update_one(query, update)
 
 
 def subscription_update(user, c, s):
     query = q_t({"service": "*"}, "services")
-    update = u_t({
-        "$set": {
-            "credit_limit": c,
-            "space_limit": s,
-        },
-    })
+    update = u_t(
+        {
+            "$set": {
+                "credit_limit": c,
+                "space_limit": s,
+            },
+        }
+    )
     db[f"{user}"].update_one(query, update)
 
 
@@ -495,7 +520,7 @@ def get_collection_size(user):
     # camelCase: real mongo accepts both spellings, ferretdb only this one.
     # on ferretdb/documentdb the size is a postgres-derived estimate --
     # fine for space gating (decided in plan phase 1).
-    return db.command("collStats", user)["size"]/(1024*1024)
+    return db.command("collStats", user)["size"] / (1024 * 1024)
 
 
 def emit_event(user, action, service, site):
@@ -504,13 +529,15 @@ def emit_event(user, action, service, site):
     Aggregate exhaust only — individual record contents stay sovereign.
     """
     _ensure_capped("metering_events", settings.METERING_EVENTS_MAX)
-    db["web10"]["metering_events"].insert_one({
-        "user": user,
-        "action": action,
-        "service": service,
-        "site": site,
-        "ts": datetime.datetime.utcnow(),
-    })
+    db["web10"]["metering_events"].insert_one(
+        {
+            "user": user,
+            "action": action,
+            "service": service,
+            "site": site,
+            "ts": datetime.datetime.utcnow(),
+        }
+    )
 
 
 def _ensure_capped(name, max_docs):
@@ -519,6 +546,7 @@ def _ensure_capped(name, max_docs):
     if name not in existing:
         db.create_collection(name, capped=True, size=1048576, max=max_docs)
 
+
 ############################
 #### app store #####
 ############################
@@ -526,10 +554,11 @@ def _ensure_capped(name, max_docs):
 # appstore stats
 
 
-def get_apps(skip=0,limit=0):
-    apps = [{"url": app["url"],
-             "visits":app["visits"]}
-            for app in db["web10"]["apps"].find({}).sort('visits',pymongo.DESCENDING).skip(skip).limit(limit)]
+def get_apps(skip=0, limit=0):
+    apps = [
+        {"url": app["url"], "visits": app["visits"]}
+        for app in db["web10"]["apps"].find({}).sort("visits", pymongo.DESCENDING).skip(skip).limit(limit)
+    ]
     return apps
 
 
@@ -540,15 +569,16 @@ def get_user_count():
 def total_size():
     return db.command("dbstats")["storageSize"]
 
+
 # app registration
 
 
 def register_app(info):
-    db["web10"]["apps"].update_one({"url": info["url"]}, {
-        "$inc": {"visits": 1}}, True)
+    db["web10"]["apps"].update_one({"url": info["url"]}, {"$inc": {"visits": 1}}, True)
 
 
 # --- Media helpers ---
+
 
 def create_media_record(username: str, record: dict) -> dict:
     doc = {"service": "media", "body": record}

@@ -60,6 +60,11 @@ DSTAR = HTTPException(
     headers={"WWW-Authenticate": "Basic"},
 )
 
+DUPLICATE_SERVICE = HTTPException(
+    status_code=status.HTTP_409_CONFLICT,
+    detail="a terms record for this service already exists — update it instead of creating a duplicate",
+)
+
 RESERVED = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
     detail="the username 'web10' is reserved",
@@ -98,9 +103,8 @@ PHONE_NUMBER_MISSING = HTTPException(
 )
 
 NOT_ADMIN = HTTPException(
-    status_code=status.HTTP_401_UNAUTHORIZED,
-    detail="your token do not have access to admin functions",
-    headers={"WWW-Authenticate": "Basic"},
+    status_code=status.HTTP_403_FORBIDDEN,
+    detail="This account is not an admin of this node.",
 )
 
 VERIFY = HTTPException(
