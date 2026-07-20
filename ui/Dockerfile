@@ -4,6 +4,11 @@ WORKDIR /ui
 
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
+# Patch the npm-published web10-npm SDK: defaultAPIProtocol (undefined) ->
+# APIProtocol. The fix lives in sdk/src/wapiAuth.js but the npm package
+# has not been republished yet. Once web10-npm@>=1.0.9 lands on npm, this
+# sed can be removed.
+RUN sed -i 's/wapi\.defaultAPIProtocol/wapi.APIProtocol/g' node_modules/web10-npm/dist/node/wapi.js node_modules/web10-npm/dist/node/wapi.modern.js
 
 COPY index.html tsconfig.json vite.config.js ./
 COPY src/ src/
