@@ -231,6 +231,58 @@ class TestWeb10Token:
         )
         assert resp.status_code == 401
 
+    def test_mint_tiered_token(self, client):
+        """The consent handoff: an auth-site login token mints a token for an app.
+
+        Regression: the minted TokenData never had its provider set, so
+        can_mint's provider comparison always raised MINT.
+        """
+        login_token = _token(
+            {
+                "username": "alice",
+                "site": "auth.localhost",  # a CORS_SERVICE_MANAGERS site
+                "target": None,
+                "provider": settings.PROVIDER,
+                "expires": _future(),
+            }
+        )
+        resp = client.post(
+            "/web10token",
+            json={
+                "username": "alice",
+                "token": login_token,
+                "site": "social.example.com",
+                "target": settings.PROVIDER,
+            },
+        )
+        assert resp.status_code == 200
+        minted = jwt.decode(resp.json()["token"], settings.PRIVATE_KEY, algorithms=[settings.ALGORITHM])
+        assert minted["username"] == "alice"
+        assert minted["site"] == "social.example.com"
+        assert minted["provider"] == settings.PROVIDER
+
+    def test_mint_rejected_for_other_user(self, client):
+        """A token for bob cannot mint a token for alice."""
+        login_token = _token(
+            {
+                "username": "bob",
+                "site": "auth.localhost",
+                "target": None,
+                "provider": settings.PROVIDER,
+                "expires": _future(),
+            }
+        )
+        resp = client.post(
+            "/web10token",
+            json={
+                "username": "alice",
+                "token": login_token,
+                "site": "social.example.com",
+                "target": settings.PROVIDER,
+            },
+        )
+        assert resp.status_code == 401
+
 
 # ---------------------------------------------------------------------------
 # 2. CRUD ROUTES — end-to-end with permissions

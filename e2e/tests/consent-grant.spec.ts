@@ -57,9 +57,7 @@ test.describe('signup -> consent -> grant full flow', () => {
     expect(posts[0].text).toBe('Self-access post');
   });
 
-  test.fixme('signup -> login -> mint tiered token -> CRUD with tiered token', async ({ request }) => {
-    // FIXME (Lane A): can_mint() requires mint_token.provider to be set, but
-    // populate_from_token_form never sets it. Tiered token minting is broken.
+  test('signup -> login -> mint tiered token -> CRUD with tiered token', async ({ request }) => {
     const username = uniqueUser();
     const password = 'TestPass123!';
 
@@ -77,29 +75,49 @@ test.describe('signup -> consent -> grant full flow', () => {
 
     // Get auth token (site must be in CORS_SERVICE_MANAGERS)
     const authTokenRes = await request.post(`${API_BASE}/web10token`, {
-      data: { username, password, site: 'auth.localhost' },
+      data: { username, password, site: 'auth.localhost', target: 'api.localhost' },
     });
     expect(authTokenRes.ok()).toBeTruthy();
     const { token: authToken } = await authTokenRes.json();
 
-    // BUG: minting a tiered token fails because can_mint() requires
-    // mint_token.provider to be set, but populate_from_token_form never sets it.
-    // Workaround: use owner token (no site/target) which works for self-access.
-    // The tiered-token path is a known API bug (Lane A).
-    const ownerTokenRes = await request.post(`${API_BASE}/web10token`, {
-      data: { username, password },
+    // Consent: create the posts term record the auth app's grant flow
+    // would create — self on the whitelist, the app site in cross_origins
+    const termsRes = await request.post(`${API_BASE}/${username}/services`, {
+      data: {
+        token: authToken,
+        query: {
+          service: 'posts',
+          whitelist: [{ username, provider: 'api.localhost', all: true }],
+          blacklist: [],
+          cross_origins: ['social.localhost'],
+        },
+      },
     });
-    expect(ownerTokenRes.ok()).toBeTruthy();
-    const { token: ownerToken } = await ownerTokenRes.json();
+    expect(termsRes.ok()).toBeTruthy();
 
-    // Use owner token for self-access CRUD
+    // Mint the tiered token for the app site (regression: this was always
+    // 401 MINT because the minted TokenData never had provider set)
+    const mintRes = await request.post(`${API_BASE}/web10token`, {
+      data: { username, token: authToken, site: 'social.localhost', target: 'api.localhost' },
+    });
+    expect(mintRes.ok()).toBeTruthy();
+    const { token: tieredToken } = await mintRes.json();
+
+    // CRUD with the tiered token — the full consent -> grant -> app chain
     const createRes = await request.post(`${API_BASE}/${username}/posts`, {
       data: {
-        token: ownerToken,
-        query: { text: 'Owner token post', created_at: new Date().toISOString() },
+        token: tieredToken,
+        query: { text: 'Tiered token post', created_at: new Date().toISOString() },
       },
     });
     expect(createRes.ok()).toBeTruthy();
+
+    const readRes = await request.patch(`${API_BASE}/${username}/posts`, {
+      data: { token: tieredToken, query: {} },
+    });
+    expect(readRes.ok()).toBeTruthy();
+    const posts = await readRes.json();
+    expect(posts.some((p: { text?: string }) => p.text === 'Tiered token post')).toBeTruthy();
   });
 
   test('tiered token cannot access other user data', async ({ request }) => {
