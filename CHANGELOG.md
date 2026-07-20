@@ -1,4 +1,4 @@
-1.0.72 || 19.07.2026
+1.0.74 || 19.07.2026
 C6: e2e deep sweep — expanded harness to 40 tests across money paths.
 Added marketing-api to e2e compose. New suites: consent-grant (4),
 social-full (9: post, comment, reaction, DM, media upload/list),
