@@ -1,4 +1,15 @@
 1.0.72 || 19.07.2026
+D18: SDK visibility + publish flow. New sdk.md docs page in
+marketing-ui/public/docs/ with install instructions, API overview,
+and a note on the upcoming C2 typed rewrite. Wired into Docs.tsx
+sidebar. SDK link added to Home.tsx footer. npm badge + SDK link
+added to README.md. npm publish verified: web10-npm@1.0.8 public on
+npmjs.com, cd.yml `npm` job fires on v* tags with provenance +
+`--access public`. Publish flow decision: stays tag-gated
+(decisions.md D26) — auto-publish on merge rejected while C2's typed
+rewrite is in flight; a v* tag forces a deliberate release decision,
+preventing legacy wapi.js from drowning npm with versions nobody
+should install.
 D17: restore the dev docs. Recovered from `82667060^:auth/public/docs/`:
 the two live demo apps (hello/ and notes/) rebuilt on the design.md
 standard — dark-first zinc/violet, self-hosted fonts, token-styled

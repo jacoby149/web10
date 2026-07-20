@@ -12,38 +12,108 @@ Today, the legacy SDK lives at `sdk/` and publishes as the `web10-npm` package. 
 
 **This is the SDK that runs in production today.** The demo apps on this site (Hello, Notes) use it.
 
-### Quick start (legacy wapi.js)
+### Install
 
-```js
-// Initialize against your node
-const wapi = wapiInit("https://auth.web10.app")
+```bash
+npm install web10-npm
+```
+
+Or via CDN:
+
+```html
+<script src="https://unpkg.com/web10-npm/dist/wapi.js"></script>
+```
+
+### Quick start
+
+```javascript
+import { wapiInit } from 'web10-npm'
+
+const wapi = wapiInit('https://auth.web10.app')
 
 // Request a service
 wapi.SMROnReady([{
-  service: "my-app",
-  cross_origins: ["your-domain.com"],
+  service: 'my-app',
+  cross_origins: ['your-domain.com'],
 }], [])
 
-// Auth flow
-authButton.onclick = wapi.openAuthPortal
+// Open the auth portal on button click
+loginBtn.onclick = wapi.openAuthPortal
+
+// Listen for the user to log in
 wapi.authListen(() => {
-  // Logged in — token is stored
   const token = wapi.readToken()
+  console.log(`Logged in as ${token.username}@${token.provider}`)
+
+  // Create a record
+  wapi.create('my-service', { text: 'hello web10' })
+    .then(r => console.log('created', r.data))
+
+  // Read records
+  wapi.read('my-service', {})
+    .then(r => console.log('records', r.data))
 })
-
-// CRUD
-wapi.create("my-app", { text: "hello" })
-wapi.read("my-app", {})
-wapi.update("my-app", { _id: "..." }, { $set: { text: "updated" } })
-wapi.delete("my-app", { _id: "..." })
-
-// Aggregate (read-only, sandboxed)
-wapi.aggregate("my-app", [
-  { $group: { _id: "$type", count: { $sum: 1 } } },
-])
 ```
 
 See the [Hello demo](/docs/hello) and [Notes demo](/docs/notes) for runnable examples.
+
+## API overview
+
+### Initialization
+
+`wapiInit(authUrl, appStores?, rtcServer?)` — returns a wapi instance bound to the given auth portal. `appStores` and `rtcServer` are optional.
+
+### Authentication
+
+| Method | Description |
+|---|---|
+| `wapi.isSignedIn()` | Returns whether the user is authenticated |
+| `wapi.openAuthPortal()` | Opens the web10 auth popup |
+| `wapi.authListen(callback)` | Calls `callback` when the user logs in |
+| `wapi.signOut()` | Clears the session |
+| `wapi.readToken()` | Returns the current JWT payload, or `null` |
+| `wapi.getTieredToken(site, target)` | Mints a scoped token for a specific site/target |
+
+### CRUD
+
+Each method returns an axios promise resolving to `{ data: T[] }`.
+
+| Method | Description |
+|---|---|
+| `wapi.create(service, body, username?, provider?)` | Insert a record |
+| `wapi.read(service, query, username?, provider?)` | Query records |
+| `wapi.update(service, query, update, username?, provider?)` | Update matching records |
+| `wapi.delete(service, query, username?, provider?)` | Delete matching records |
+
+Query pagination uses `$sort`, `$skip`, and `$limit`:
+
+```javascript
+wapi.read('posts', { $sort: { _id: -1 }, $limit: 20 })
+```
+
+### Aggregate
+
+The 5th verb — server-side aggregation pipelines (read-only, sandboxed):
+
+```javascript
+wapi.aggregate('posts', [
+  { $match: { type: 'photo' } },
+  { $group: { _id: '$author', count: { $sum: 1 } } },
+  { $sort: { count: -1 } },
+])
+```
+
+### Service management
+
+`wapi.SMROnReady(sirs, scrs)` — registers service initialization requests (SIRs) and service change requests (SCRs). The node calls back when terms are accepted.
+
+## NPM package
+
+The package is published as `web10-npm` on npm:
+
+[![npm version](https://img.shields.io/npm/v/web10-npm)](https://www.npmjs.com/package/web10-npm)
+
+Published automatically on every `v*` tag push (see `cd.yml`).
 
 ## The next SDK — C2
 
@@ -76,3 +146,7 @@ Terms records in the `services` collection define what each token may do. Users 
 - [Protocol Spec](/docs/protocol-spec) — the full API contract
 - [Conventions](/docs/conventions) — schema conventions for posts, media, contacts
 - [CLI Quickstart](/docs/cli-quickstart) — scaffold a new web10 app with the CLI
+
+## Source
+
+The SDK source lives in [`sdk/`](https://github.com/jacoby149/web10/tree/dev/sdk) in this repository.
