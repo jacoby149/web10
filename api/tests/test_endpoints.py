@@ -23,6 +23,7 @@ from app.services import documentdb as db_module
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _token(payload: dict) -> str:
     return jwt.encode(payload, settings.PRIVATE_KEY, algorithm=settings.ALGORITHM)
 
@@ -32,33 +33,41 @@ def _future(minutes: int = 60) -> str:
 
 
 def _owner_token(username: str = "alice") -> str:
-    return _token({
-        "username": username,
-        "site": "auth.localhost",
-        "target": settings.PROVIDER,
-        "provider": settings.PROVIDER,
-        "expires": _future(),
-    })
+    return _token(
+        {
+            "username": username,
+            "site": "auth.localhost",
+            "target": settings.PROVIDER,
+            "provider": settings.PROVIDER,
+            "expires": _future(),
+        }
+    )
 
 
 def _app_token(username: str, site: str, target: str = settings.PROVIDER) -> str:
-    return _token({
-        "username": username,
-        "site": site,
-        "target": target,
-        "provider": settings.PROVIDER,
-        "expires": _future(),
-    })
+    return _token(
+        {
+            "username": username,
+            "site": site,
+            "target": target,
+            "provider": settings.PROVIDER,
+            "expires": _future(),
+        }
+    )
 
 
 def _forged_token(username: str = "alice") -> str:
-    return jwt.encode({
-        "username": username,
-        "site": "auth.localhost",
-        "target": settings.PROVIDER,
-        "provider": settings.PROVIDER,
-        "expires": _future(),
-    }, "totally-different-secret", algorithm=settings.ALGORITHM)
+    return jwt.encode(
+        {
+            "username": username,
+            "site": "auth.localhost",
+            "target": settings.PROVIDER,
+            "provider": settings.PROVIDER,
+            "expires": _future(),
+        },
+        "totally-different-secret",
+        algorithm=settings.ALGORITHM,
+    )
 
 
 @pytest.fixture
@@ -87,7 +96,14 @@ MOCK_STAR = {
 MOCK_TERM = {
     "service": "posts",
     "whitelist": [
-        {"username": "alice", "provider": settings.PROVIDER, "read": True, "create": True, "update": True, "delete": True},
+        {
+            "username": "alice",
+            "provider": settings.PROVIDER,
+            "read": True,
+            "create": True,
+            "update": True,
+            "delete": True,
+        },
         {"username": "bob", "provider": settings.PROVIDER, "read": True},
     ],
     "blacklist": [],
@@ -97,18 +113,20 @@ MOCK_TERM = {
 
 @pytest.fixture
 def db_patched():
-    with patch("app.services.documentdb.get_star", return_value=MOCK_STAR), \
-         patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM), \
-         patch("app.services.documentdb.user_collection_exists", return_value=True), \
-         patch("app.services.documentdb.get_collection_size", return_value=1), \
-         patch("app.services.documentdb.create") as m_create, \
-         patch("app.services.documentdb.read", return_value=[{"_id": "1", "title": "hello"}]), \
-         patch("app.services.documentdb.update", return_value={"matchedCount": 1, "modifiedCount": 1}), \
-         patch("app.services.documentdb.delete", return_value="successfully deleted"), \
-patch("app.services.documentdb.charge"), \
-          patch("app.services.documentdb.replenish"), \
-          patch("app.services.documentdb.aggregate", return_value=[{"_id": "1", "title": "hello"}]), \
-          patch("app.services.documentdb.emit_event"):
+    with (
+        patch("app.services.documentdb.get_star", return_value=MOCK_STAR),
+        patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM),
+        patch("app.services.documentdb.user_collection_exists", return_value=True),
+        patch("app.services.documentdb.get_collection_size", return_value=1),
+        patch("app.services.documentdb.create") as m_create,
+        patch("app.services.documentdb.read", return_value=[{"_id": "1", "title": "hello"}]),
+        patch("app.services.documentdb.update", return_value={"matchedCount": 1, "modifiedCount": 1}),
+        patch("app.services.documentdb.delete", return_value="successfully deleted"),
+        patch("app.services.documentdb.charge"),
+        patch("app.services.documentdb.replenish"),
+        patch("app.services.documentdb.aggregate", return_value=[{"_id": "1", "title": "hello"}]),
+        patch("app.services.documentdb.emit_event"),
+    ):
         yield {"create": m_create}
 
 
@@ -116,79 +134,101 @@ patch("app.services.documentdb.charge"), \
 # 1. AUTH FLOWS
 # ---------------------------------------------------------------------------
 
-class TestSignup:
 
+class TestSignup:
     def test_signup_success(self, client):
-        with patch("app.services.documentdb.get_star", return_value=None), \
-             patch("app.services.documentdb.create_user") as m_create, \
-             patch("app.services.documentdb.set_phone_number"), \
-             patch("app.services.twilio.send_verification"):
+        with (
+            patch("app.services.documentdb.get_star", return_value=None),
+            patch("app.services.documentdb.create_user") as m_create,
+            patch("app.services.documentdb.set_phone_number"),
+            patch("app.services.twilio.send_verification"),
+        ):
             m_create.return_value = "successfully created a new user"
-            resp = client.post("/signup", json={
-                "username": "newuser",
-                "password": "pass123",
-                "phone": "+15550000000",
-            })
+            resp = client.post(
+                "/signup",
+                json={
+                    "username": "newuser",
+                    "password": "pass123",
+                    "phone": "+15550000000",
+                },
+            )
         assert resp.status_code == 200
         assert "successfully" in resp.json()
 
     def test_signup_reserved_username(self, client):
-        resp = client.post("/signup", json={
-            "username": "web10",
-            "password": "pass123",
-            "phone": "+15550000000",
-        })
+        resp = client.post(
+            "/signup",
+            json={
+                "username": "web10",
+                "password": "pass123",
+                "phone": "+15550000000",
+            },
+        )
         assert resp.status_code == 401
 
     def test_signup_bad_username(self, client):
-        resp = client.post("/signup", json={
-            "username": "bad user!",
-            "password": "pass123",
-            "phone": "+15550000000",
-        })
+        resp = client.post(
+            "/signup",
+            json={
+                "username": "bad user!",
+                "password": "pass123",
+                "phone": "+15550000000",
+            },
+        )
         assert resp.status_code == 401
 
     def test_signup_duplicate(self, client):
         with patch("app.services.documentdb.get_star", return_value=MOCK_STAR):
-            resp = client.post("/signup", json={
-                "username": "alice",
-                "password": "pass123",
-                "phone": "+15550000000",
-            })
+            resp = client.post(
+                "/signup",
+                json={
+                    "username": "alice",
+                    "password": "pass123",
+                    "phone": "+15550000000",
+                },
+            )
         assert resp.status_code == 401
 
 
 class TestWeb10Token:
-
     def test_login_with_password(self, client):
         with patch("app.endpoints.auth.authenticate_user") as m_auth:
             m_auth.return_value = MagicMock(username="alice", hashed_password="x")
-            resp = client.post("/web10token", json={
-                "username": "alice",
-                "password": "secret",
-                "site": "myapp.example.com",
-                "target": settings.PROVIDER,
-            })
+            resp = client.post(
+                "/web10token",
+                json={
+                    "username": "alice",
+                    "password": "secret",
+                    "site": "myapp.example.com",
+                    "target": settings.PROVIDER,
+                },
+            )
         assert resp.status_code == 200
         assert "token" in resp.json()
 
     def test_login_wrong_password(self, client):
         with patch("app.services.auth.authenticate_user") as m_auth:
             m_auth.side_effect = Exception("LOGIN")
-            resp = client.post("/web10token", json={
-                "username": "alice",
-                "password": "wrong",
-                "site": "myapp.example.com",
-                "target": settings.PROVIDER,
-            })
+            resp = client.post(
+                "/web10token",
+                json={
+                    "username": "alice",
+                    "password": "wrong",
+                    "site": "myapp.example.com",
+                    "target": settings.PROVIDER,
+                },
+            )
         assert resp.status_code == 401
 
     def test_login_no_creds(self, client):
-        resp = client.post("/web10token", json={
-            "username": "alice",
-            "site": "myapp.example.com",
-            "target": settings.PROVIDER,
-        })
+        resp = client.post(
+            "/web10token",
+            json={
+                "username": "alice",
+                "site": "myapp.example.com",
+                "target": settings.PROVIDER,
+            },
+        )
         assert resp.status_code == 401
 
 
@@ -196,8 +236,8 @@ class TestWeb10Token:
 # 2. CRUD ROUTES — end-to-end with permissions
 # ---------------------------------------------------------------------------
 
-class TestCreate:
 
+class TestCreate:
     def test_create_authorized(self, client, db_patched):
         resp = client.post(
             "/alice/posts",
@@ -231,11 +271,13 @@ class TestCreate:
         """Creating a record with service='*' must be rejected."""
         mock_result = MagicMock()
         mock_result.inserted_id = "mock_oid"
-        with patch("app.services.documentdb.get_star", return_value=MOCK_STAR), \
-             patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM), \
-             patch("app.services.documentdb.get_collection_size", return_value=1), \
-             patch("app.services.documentdb.charge"), \
-             patch.object(db_module.db, "__getitem__") as mock_col:
+        with (
+            patch("app.services.documentdb.get_star", return_value=MOCK_STAR),
+            patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM),
+            patch("app.services.documentdb.get_collection_size", return_value=1),
+            patch("app.services.documentdb.charge"),
+            patch.object(db_module.db, "__getitem__") as mock_col,
+        ):
             mock_col.return_value.insert_one.return_value = mock_result
             resp = client.post(
                 "/alice/posts",
@@ -245,7 +287,6 @@ class TestCreate:
 
 
 class TestRead:
-
     def test_read_authorized(self, client, db_patched):
         resp = client.patch(
             "/alice/posts",
@@ -278,7 +319,6 @@ class TestRead:
 
 
 class TestUpdate:
-
     def test_update_authorized(self, client, db_patched):
         resp = client.put(
             "/alice/posts",
@@ -288,11 +328,13 @@ class TestUpdate:
 
     def test_update_star_raises(self, client):
         """Updating the star record must be rejected."""
-        with patch("app.services.documentdb.get_star", return_value=MOCK_STAR), \
-             patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM), \
-             patch("app.services.documentdb.get_collection_size", return_value=1), \
-             patch("app.services.documentdb.charge"), \
-             patch("app.services.documentdb.star_selected", return_value=True):
+        with (
+            patch("app.services.documentdb.get_star", return_value=MOCK_STAR),
+            patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM),
+            patch("app.services.documentdb.get_collection_size", return_value=1),
+            patch("app.services.documentdb.charge"),
+            patch("app.services.documentdb.star_selected", return_value=True),
+        ):
             resp = client.put(
                 "/alice/services",
                 json={"token": _owner_token("alice"), "query": {}, "update": {"$set": {"x": 1}}},
@@ -301,7 +343,6 @@ class TestUpdate:
 
 
 class TestDelete:
-
     def test_delete_authorized(self, client, db_patched):
         resp = client.request(
             "DELETE",
@@ -312,11 +353,13 @@ class TestDelete:
         assert resp.status_code == 200
 
     def test_delete_star_raises(self, client):
-        with patch("app.services.documentdb.get_star", return_value=MOCK_STAR), \
-             patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM), \
-             patch("app.services.documentdb.get_collection_size", return_value=1), \
-             patch("app.services.documentdb.charge"), \
-             patch("app.services.documentdb.star_selected", return_value=True):
+        with (
+            patch("app.services.documentdb.get_star", return_value=MOCK_STAR),
+            patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM),
+            patch("app.services.documentdb.get_collection_size", return_value=1),
+            patch("app.services.documentdb.charge"),
+            patch("app.services.documentdb.star_selected", return_value=True),
+        ):
             resp = client.request(
                 "DELETE",
                 "/alice/services",
@@ -330,8 +373,8 @@ class TestDelete:
 # 3. AGGREGATE ENDPOINT
 # ---------------------------------------------------------------------------
 
-class TestAggregate:
 
+class TestAggregate:
     def test_aggregate_valid_pipeline(self, client, db_patched):
         resp = client.post(
             "/alice/posts/aggregate",
@@ -341,10 +384,12 @@ class TestAggregate:
 
     def test_aggregate_forbidden_stage(self, client):
         """Pipeline validation happens before DB — must reject $out."""
-        with patch("app.services.documentdb.get_star", return_value=MOCK_STAR), \
-             patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM), \
-             patch("app.services.documentdb.get_collection_size", return_value=1), \
-             patch("app.services.documentdb.charge"):
+        with (
+            patch("app.services.documentdb.get_star", return_value=MOCK_STAR),
+            patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM),
+            patch("app.services.documentdb.get_collection_size", return_value=1),
+            patch("app.services.documentdb.charge"),
+        ):
             resp = client.post(
                 "/alice/posts/aggregate",
                 json={"token": _owner_token("alice"), "pipeline": [{"$out": "otheruser"}]},
@@ -370,14 +415,16 @@ class TestAggregate:
 # 4. STAR PROTECTION (I3)
 # ---------------------------------------------------------------------------
 
-class TestStarProtection:
 
+class TestStarProtection:
     def test_cannot_update_star_via_services(self, client):
-        with patch("app.services.documentdb.get_star", return_value=MOCK_STAR), \
-             patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM), \
-             patch("app.services.documentdb.get_collection_size", return_value=1), \
-             patch("app.services.documentdb.charge"), \
-             patch("app.services.documentdb.star_selected", return_value=True):
+        with (
+            patch("app.services.documentdb.get_star", return_value=MOCK_STAR),
+            patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM),
+            patch("app.services.documentdb.get_collection_size", return_value=1),
+            patch("app.services.documentdb.charge"),
+            patch("app.services.documentdb.star_selected", return_value=True),
+        ):
             resp = client.put(
                 "/alice/services",
                 json={"token": _owner_token("alice"), "query": {"service": "*"}, "update": {"$set": {"x": 1}}},
@@ -385,11 +432,13 @@ class TestStarProtection:
         assert resp.status_code == 401
 
     def test_cannot_delete_star_via_services(self, client):
-        with patch("app.services.documentdb.get_star", return_value=MOCK_STAR), \
-             patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM), \
-             patch("app.services.documentdb.get_collection_size", return_value=1), \
-             patch("app.services.documentdb.charge"), \
-             patch("app.services.documentdb.star_selected", return_value=True):
+        with (
+            patch("app.services.documentdb.get_star", return_value=MOCK_STAR),
+            patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM),
+            patch("app.services.documentdb.get_collection_size", return_value=1),
+            patch("app.services.documentdb.charge"),
+            patch("app.services.documentdb.star_selected", return_value=True),
+        ):
             resp = client.request(
                 "DELETE",
                 "/alice/services",
@@ -399,11 +448,13 @@ class TestStarProtection:
         assert resp.status_code == 401
 
     def test_cannot_create_star_record(self, client):
-        with patch("app.services.documentdb.get_star", return_value=MOCK_STAR), \
-             patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM), \
-             patch("app.services.documentdb.get_collection_size", return_value=1), \
-             patch("app.services.documentdb.charge"), \
-             patch("app.services.documentdb.star_found", return_value=True):
+        with (
+            patch("app.services.documentdb.get_star", return_value=MOCK_STAR),
+            patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM),
+            patch("app.services.documentdb.get_collection_size", return_value=1),
+            patch("app.services.documentdb.charge"),
+            patch("app.services.documentdb.star_found", return_value=True),
+        ):
             resp = client.post(
                 "/alice/services",
                 json={"token": _owner_token("alice"), "query": {"service": "*", "x": 1}},
@@ -430,8 +481,8 @@ class TestStarProtection:
 # 5. FORGED TOKEN REJECTION (I1)
 # ---------------------------------------------------------------------------
 
-class TestForgedTokens:
 
+class TestForgedTokens:
     def test_forged_token_rejected_crud(self, client, db_patched):
         """A token signed with a different key must fail certify."""
         # is_permitted calls decode_token (unsigned) then certify (signed).
@@ -478,8 +529,8 @@ class TestForgedTokens:
 # 6. SCOPED TOKEN ENFORCEMENT (I5)
 # ---------------------------------------------------------------------------
 
-class TestScopedTokens:
 
+class TestScopedTokens:
     def test_scoped_token_cannot_exceed_scope(self, client, db_patched):
         """A token scoped to read-only cannot create."""
         with patch("app.services.documentdb.get_term_record") as m:
@@ -511,13 +562,15 @@ class TestScopedTokens:
 
     def test_no_target_token_owner_access(self, client, db_patched):
         """Token with no target — owner can still access own data."""
-        token = _token({
-            "username": "alice",
-            "site": "myapp.example.com",
-            "target": None,
-            "provider": settings.PROVIDER,
-            "expires": _future(),
-        })
+        token = _token(
+            {
+                "username": "alice",
+                "site": "myapp.example.com",
+                "target": None,
+                "provider": settings.PROVIDER,
+                "expires": _future(),
+            }
+        )
         resp = client.patch(
             "/alice/posts",
             json={"token": token, "query": {}},
@@ -526,13 +579,15 @@ class TestScopedTokens:
 
     def test_no_target_token_non_owner_denied(self, client, db_patched):
         """Token with no target — non-owner denied."""
-        token = _token({
-            "username": "bob",
-            "site": "myapp.example.com",
-            "target": None,
-            "provider": settings.PROVIDER,
-            "expires": _future(),
-        })
+        token = _token(
+            {
+                "username": "bob",
+                "site": "myapp.example.com",
+                "target": None,
+                "provider": settings.PROVIDER,
+                "expires": _future(),
+            }
+        )
         resp = client.patch(
             "/alice/posts",
             json={"token": token, "query": {}},
@@ -544,16 +599,18 @@ class TestScopedTokens:
 # 7. METERING / QUOTAS
 # ---------------------------------------------------------------------------
 
-class TestMetering:
 
+class TestMetering:
     def test_charge_called_on_create(self, client):
-        with patch("app.services.documentdb.get_star", return_value=MOCK_STAR), \
-             patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM), \
-             patch("app.services.documentdb.user_collection_exists", return_value=True), \
-             patch("app.services.documentdb.get_collection_size", return_value=1), \
-             patch("app.services.documentdb.create", return_value={"_id": "1", "title": "hi"}), \
-             patch("app.services.documentdb.charge") as m_charge, \
-             patch("app.services.documentdb.emit_event"):
+        with (
+            patch("app.services.documentdb.get_star", return_value=MOCK_STAR),
+            patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM),
+            patch("app.services.documentdb.user_collection_exists", return_value=True),
+            patch("app.services.documentdb.get_collection_size", return_value=1),
+            patch("app.services.documentdb.create", return_value={"_id": "1", "title": "hi"}),
+            patch("app.services.documentdb.charge") as m_charge,
+            patch("app.services.documentdb.emit_event"),
+        ):
             resp = client.post(
                 "/alice/posts",
                 json={"token": _owner_token("alice"), "query": {"title": "hi"}},
@@ -562,13 +619,15 @@ class TestMetering:
         assert m_charge.called
 
     def test_charge_called_on_read(self, client):
-        with patch("app.services.documentdb.get_star", return_value=MOCK_STAR), \
-             patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM), \
-             patch("app.services.documentdb.user_collection_exists", return_value=True), \
-             patch("app.services.documentdb.get_collection_size", return_value=1), \
-             patch("app.services.documentdb.read", return_value=[{"_id": "1"}]), \
-             patch("app.services.documentdb.charge") as m_charge, \
-             patch("app.services.documentdb.emit_event"):
+        with (
+            patch("app.services.documentdb.get_star", return_value=MOCK_STAR),
+            patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM),
+            patch("app.services.documentdb.user_collection_exists", return_value=True),
+            patch("app.services.documentdb.get_collection_size", return_value=1),
+            patch("app.services.documentdb.read", return_value=[{"_id": "1"}]),
+            patch("app.services.documentdb.charge") as m_charge,
+            patch("app.services.documentdb.emit_event"),
+        ):
             resp = client.patch(
                 "/alice/posts",
                 json={"token": _owner_token("alice"), "query": {}},
@@ -578,12 +637,14 @@ class TestMetering:
 
     def test_services_read_no_charge(self, client):
         """Reading 'services' should skip the metering check."""
-        with patch("app.services.documentdb.get_star", return_value=MOCK_STAR), \
-             patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM), \
-             patch("app.services.documentdb.user_collection_exists", return_value=True), \
-             patch("app.services.documentdb.read", return_value=[]), \
-             patch("app.services.documentdb.charge") as m_charge, \
-             patch("app.services.documentdb.emit_event") as m_emit:
+        with (
+            patch("app.services.documentdb.get_star", return_value=MOCK_STAR),
+            patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM),
+            patch("app.services.documentdb.user_collection_exists", return_value=True),
+            patch("app.services.documentdb.read", return_value=[]),
+            patch("app.services.documentdb.charge") as m_charge,
+            patch("app.services.documentdb.emit_event") as m_emit,
+        ):
             resp = client.patch(
                 "/alice/services",
                 json={"token": _owner_token("alice"), "query": {}},
@@ -593,14 +654,16 @@ class TestMetering:
         assert not m_emit.called
 
     def test_out_of_credits_denied(self, client):
-        with patch("app.services.documentdb.get_star") as m_star, \
-             patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM), \
-             patch("app.services.documentdb.get_collection_size", return_value=1), \
-             patch("app.services.documentdb.read", return_value=[{"_id": "1"}]), \
-             patch("app.services.documentdb.charge"), \
-             patch("app.services.documentdb.subscription_update"), \
-             patch("app.services.documentdb.emit_event"), \
-             patch("app.endpoints.crud.settings") as m_settings:
+        with (
+            patch("app.services.documentdb.get_star") as m_star,
+            patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM),
+            patch("app.services.documentdb.get_collection_size", return_value=1),
+            patch("app.services.documentdb.read", return_value=[{"_id": "1"}]),
+            patch("app.services.documentdb.charge"),
+            patch("app.services.documentdb.subscription_update"),
+            patch("app.services.documentdb.emit_event"),
+            patch("app.endpoints.crud.settings") as m_settings,
+        ):
             m_settings.VERIFY_REQUIRED = False
             m_star.return_value = {**MOCK_STAR, "credit_limit": 0, "credits_spent": 1}
             resp = client.patch(
@@ -610,14 +673,16 @@ class TestMetering:
         assert resp.status_code == 401
 
     def test_out_of_space_denied(self, client):
-        with patch("app.services.documentdb.get_star") as m_star, \
-             patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM), \
-             patch("app.services.documentdb.get_collection_size", return_value=1000), \
-             patch("app.services.documentdb.read", return_value=[{"_id": "1"}]), \
-             patch("app.services.documentdb.charge"), \
-             patch("app.services.documentdb.subscription_update"), \
-             patch("app.services.documentdb.emit_event"), \
-             patch("app.endpoints.crud.settings") as m_settings:
+        with (
+            patch("app.services.documentdb.get_star") as m_star,
+            patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM),
+            patch("app.services.documentdb.get_collection_size", return_value=1000),
+            patch("app.services.documentdb.read", return_value=[{"_id": "1"}]),
+            patch("app.services.documentdb.charge"),
+            patch("app.services.documentdb.subscription_update"),
+            patch("app.services.documentdb.emit_event"),
+            patch("app.endpoints.crud.settings") as m_settings,
+        ):
             m_settings.VERIFY_REQUIRED = False
             m_star.return_value = {**MOCK_STAR, "space_limit": 1}
             resp = client.patch(
@@ -631,16 +696,18 @@ class TestMetering:
 # 10. METERING EVENTS
 # ---------------------------------------------------------------------------
 
-class TestMeteringEvents:
 
+class TestMeteringEvents:
     def test_event_emitted_on_create(self, client):
-        with patch("app.services.documentdb.get_star", return_value=MOCK_STAR), \
-             patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM), \
-             patch("app.services.documentdb.user_collection_exists", return_value=True), \
-             patch("app.services.documentdb.get_collection_size", return_value=1), \
-             patch("app.services.documentdb.create", return_value={"_id": "1", "title": "hi"}), \
-             patch("app.services.documentdb.charge"), \
-             patch("app.services.documentdb.emit_event") as m_emit:
+        with (
+            patch("app.services.documentdb.get_star", return_value=MOCK_STAR),
+            patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM),
+            patch("app.services.documentdb.user_collection_exists", return_value=True),
+            patch("app.services.documentdb.get_collection_size", return_value=1),
+            patch("app.services.documentdb.create", return_value={"_id": "1", "title": "hi"}),
+            patch("app.services.documentdb.charge"),
+            patch("app.services.documentdb.emit_event") as m_emit,
+        ):
             resp = client.post(
                 "/alice/posts",
                 json={"token": _owner_token("alice"), "query": {"title": "hi"}},
@@ -654,13 +721,15 @@ class TestMeteringEvents:
         assert call_args[3] == "auth.localhost"
 
     def test_event_emitted_on_read(self, client):
-        with patch("app.services.documentdb.get_star", return_value=MOCK_STAR), \
-             patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM), \
-             patch("app.services.documentdb.user_collection_exists", return_value=True), \
-             patch("app.services.documentdb.get_collection_size", return_value=1), \
-             patch("app.services.documentdb.read", return_value=[{"_id": "1"}]), \
-             patch("app.services.documentdb.charge"), \
-             patch("app.services.documentdb.emit_event") as m_emit:
+        with (
+            patch("app.services.documentdb.get_star", return_value=MOCK_STAR),
+            patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM),
+            patch("app.services.documentdb.user_collection_exists", return_value=True),
+            patch("app.services.documentdb.get_collection_size", return_value=1),
+            patch("app.services.documentdb.read", return_value=[{"_id": "1"}]),
+            patch("app.services.documentdb.charge"),
+            patch("app.services.documentdb.emit_event") as m_emit,
+        ):
             resp = client.patch(
                 "/alice/posts",
                 json={"token": _app_token("bob", "myapp.example.com"), "query": {}},
@@ -674,13 +743,15 @@ class TestMeteringEvents:
         assert call_args[3] == "myapp.example.com"
 
     def test_event_emitted_on_aggregate(self, client):
-        with patch("app.services.documentdb.get_star", return_value=MOCK_STAR), \
-             patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM), \
-             patch("app.services.documentdb.user_collection_exists", return_value=True), \
-             patch("app.services.documentdb.get_collection_size", return_value=1), \
-             patch("app.services.documentdb.aggregate", return_value=[{"_id": "1"}]), \
-             patch("app.services.documentdb.charge"), \
-             patch("app.services.documentdb.emit_event") as m_emit:
+        with (
+            patch("app.services.documentdb.get_star", return_value=MOCK_STAR),
+            patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM),
+            patch("app.services.documentdb.user_collection_exists", return_value=True),
+            patch("app.services.documentdb.get_collection_size", return_value=1),
+            patch("app.services.documentdb.aggregate", return_value=[{"_id": "1"}]),
+            patch("app.services.documentdb.charge"),
+            patch("app.services.documentdb.emit_event") as m_emit,
+        ):
             resp = client.post(
                 "/alice/posts/aggregate",
                 json={"token": _owner_token("alice"), "pipeline": [{"$match": {}}]},
@@ -690,13 +761,15 @@ class TestMeteringEvents:
         assert m_emit.call_args[0][1] == "aggregate"
 
     def test_event_emitted_on_update(self, client):
-        with patch("app.services.documentdb.get_star", return_value=MOCK_STAR), \
-             patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM), \
-             patch("app.services.documentdb.user_collection_exists", return_value=True), \
-             patch("app.services.documentdb.get_collection_size", return_value=1), \
-             patch("app.services.documentdb.update", return_value={"matchedCount": 1, "modifiedCount": 1}), \
-             patch("app.services.documentdb.charge"), \
-             patch("app.services.documentdb.emit_event") as m_emit:
+        with (
+            patch("app.services.documentdb.get_star", return_value=MOCK_STAR),
+            patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM),
+            patch("app.services.documentdb.user_collection_exists", return_value=True),
+            patch("app.services.documentdb.get_collection_size", return_value=1),
+            patch("app.services.documentdb.update", return_value={"matchedCount": 1, "modifiedCount": 1}),
+            patch("app.services.documentdb.charge"),
+            patch("app.services.documentdb.emit_event") as m_emit,
+        ):
             resp = client.put(
                 "/alice/posts",
                 json={"token": _owner_token("alice"), "query": {"_id": "1"}, "update": {"$set": {"x": 1}}},
@@ -706,13 +779,15 @@ class TestMeteringEvents:
         assert m_emit.call_args[0][1] == "update"
 
     def test_event_emitted_on_delete(self, client):
-        with patch("app.services.documentdb.get_star", return_value=MOCK_STAR), \
-             patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM), \
-             patch("app.services.documentdb.user_collection_exists", return_value=True), \
-             patch("app.services.documentdb.get_collection_size", return_value=1), \
-             patch("app.services.documentdb.delete", return_value="successfully deleted"), \
-             patch("app.services.documentdb.charge"), \
-             patch("app.services.documentdb.emit_event") as m_emit:
+        with (
+            patch("app.services.documentdb.get_star", return_value=MOCK_STAR),
+            patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM),
+            patch("app.services.documentdb.user_collection_exists", return_value=True),
+            patch("app.services.documentdb.get_collection_size", return_value=1),
+            patch("app.services.documentdb.delete", return_value="successfully deleted"),
+            patch("app.services.documentdb.charge"),
+            patch("app.services.documentdb.emit_event") as m_emit,
+        ):
             resp = client.request(
                 "DELETE",
                 "/alice/posts",
@@ -728,8 +803,8 @@ class TestMeteringEvents:
 # 8. CERTIFY ENDPOINT
 # ---------------------------------------------------------------------------
 
-class TestCertify:
 
+class TestCertify:
     def test_certify_valid_token(self, client):
         resp = client.post(
             "/certify",
@@ -746,13 +821,17 @@ class TestCertify:
         assert resp.status_code == 401
 
     def test_certify_expired_token(self, client):
-        expired = jwt.encode({
-            "username": "alice",
-            "site": "auth.localhost",
-            "target": settings.PROVIDER,
-            "provider": settings.PROVIDER,
-            "expires": (datetime.utcnow() - timedelta(hours=1)).isoformat(),
-        }, settings.PRIVATE_KEY, algorithm=settings.ALGORITHM)
+        expired = jwt.encode(
+            {
+                "username": "alice",
+                "site": "auth.localhost",
+                "target": settings.PROVIDER,
+                "provider": settings.PROVIDER,
+                "expires": (datetime.utcnow() - timedelta(hours=1)).isoformat(),
+            },
+            settings.PRIVATE_KEY,
+            algorithm=settings.ALGORITHM,
+        )
         resp = client.post(
             "/certify",
             json={"token": expired},
@@ -771,12 +850,14 @@ class TestCertify:
 # 9. SYSTEM ENDPOINTS
 # ---------------------------------------------------------------------------
 
-class TestSystem:
 
+class TestSystem:
     def test_stats(self, client):
-        with patch("app.services.documentdb.get_apps", return_value=[]), \
-             patch("app.services.documentdb.get_user_count", return_value=5), \
-             patch("app.services.documentdb.total_size", return_value=1024):
+        with (
+            patch("app.services.documentdb.get_apps", return_value=[]),
+            patch("app.services.documentdb.get_user_count", return_value=5),
+            patch("app.services.documentdb.total_size", return_value=1024),
+        ):
             resp = client.post("/stats")
         assert resp.status_code == 200
         data = resp.json()

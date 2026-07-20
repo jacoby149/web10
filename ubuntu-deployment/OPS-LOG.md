@@ -3,6 +3,25 @@
 Newest at top. Format per AGENT-OPS.md §8. Read the top entries
 BEFORE doing ops work — someone may already be mid-fix.
 
+## 19.07.2026 — Claude (port-vila, mongo-backup-and-dev-urls) — dev URL rename: api.dev.web10.app
+did (SSH as jacob, scripts scp'd to the box since /opt/web10 is a stale
+non-git snapshot — see note below):
+  - DNS: sync-dns.py created api.dev.web10.app → 192.168.8.25.
+  - NPM: sync-npm.py issued a new DNS-01 cert including api.dev.web10.app,
+    created the api.dev vhost → web10-dev-api, remapped dev.web10.app →
+    web10-dev-marketing-ui (dev apex now mirrors prod apex).
+  - Portainer: deploy-stacks.py dev — redeployed web10-dev with
+    PROVIDER/API_ORIGIN/API_HOST = api.dev.web10.app (rebuilds ui/social
+    bundles with the new baked origin). Dev accounts invalidated (throwaway).
+  - smoke.sh green both envs (incl. new api-root redirect + apex checks).
+state:
+  - URL rule is now uniform: dev host = prod host with ".dev" inserted.
+  - WARNING: /opt/web10 on the box is NOT a git clone (rsync snapshot,
+    ubuntu-deployment/ predates scripts/). Box scripts refreshed by scp
+    this time; someone should replace /opt/web10 with a real clone of dev.
+next: replace /opt/web10 with a git clone; restore prod mongo copy into
+  dev FerretDB (B6 gate); set up automated mongo backups (operator asked).
+
 ## 19.07.2026 — opencode (albany, jacoby149/connect-to-prod-mongo) — A7: mongo recon + backup
 did (SSH as jacob@192.168.8.25, no sudo needed):
   - Confirmed real web10 data lives in MongoDB database `deploy` (not `web10`).

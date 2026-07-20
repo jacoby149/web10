@@ -4,17 +4,16 @@ import pytest
 
 from app.models.media import (
     MediaToken,
-    UploadRequest,
-    UploadResponse,
-    ReadRequest,
-    ReadResponse,
     MetadataCreate,
     MetadataRecord,
+    ReadRequest,
+    ReadResponse,
+    UploadRequest,
+    UploadResponse,
 )
 
 
 class TestMediaToken:
-
     def test_default_none(self):
         t = MediaToken()
         assert t.token is None
@@ -29,7 +28,6 @@ class TestMediaToken:
 
 
 class TestUploadRequest:
-
     def test_minimal(self):
         r = UploadRequest(filename="photo.jpg")
         assert r.filename == "photo.jpg"
@@ -49,7 +47,6 @@ class TestUploadRequest:
 
 
 class TestUploadResponse:
-
     def test_fields(self):
         r = UploadResponse(upload_url="https://s3/upload", object_key="u/abc/photo.jpg", content_type="image/jpeg")
         assert r.upload_url == "https://s3/upload"
@@ -58,7 +55,6 @@ class TestUploadResponse:
 
 
 class TestReadRequest:
-
     def test_valid(self):
         r = ReadRequest(object_key="u/abc/photo.jpg")
         assert r.object_key == "u/abc/photo.jpg"
@@ -74,7 +70,6 @@ class TestReadRequest:
 
 
 class TestReadResponse:
-
     def test_fields(self):
         r = ReadResponse(read_url="https://s3/read", expires_in=60)
         assert r.read_url == "https://s3/read"
@@ -82,7 +77,6 @@ class TestReadResponse:
 
 
 class TestMetadataCreate:
-
     def test_minimal(self):
         m = MetadataCreate(url="https://s3/photo.jpg", filename="photo.jpg")
         assert m.url == "https://s3/photo.jpg"
@@ -123,14 +117,15 @@ class TestMetadataCreate:
 
 
 class TestMetadataRecord:
-
     def test_with_id(self):
-        r = MetadataRecord.model_validate({
-            "_id": "507f1f77bcf86cd799439011",
-            "url": "https://s3/photo.jpg",
-            "filename": "photo.jpg",
-            "created_at": "2026-01-01T00:00:00",
-        })
+        r = MetadataRecord.model_validate(
+            {
+                "_id": "507f1f77bcf86cd799439011",
+                "url": "https://s3/photo.jpg",
+                "filename": "photo.jpg",
+                "created_at": "2026-01-01T00:00:00",
+            }
+        )
         assert r.model_extra["_id"] == "507f1f77bcf86cd799439011"
         assert r.created_at == "2026-01-01T00:00:00"
 

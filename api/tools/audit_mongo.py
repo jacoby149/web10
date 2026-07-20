@@ -36,9 +36,7 @@ def main():
         default="mongodb://192.168.8.25:27017/",
         help="Mongo URI (default: host mongo on ubuntu box)",
     )
-    parser.add_argument(
-        "--db", default="deploy", help="Database name (default: deploy — the real web10 data)"
-    )
+    parser.add_argument("--db", default="deploy", help="Database name (default: deploy — the real web10 data)")
     parser.add_argument(
         "--sample",
         type=int,
@@ -61,16 +59,12 @@ def main():
 
     # ── System collections (not user collections) ──
     all_collections = set(db.list_collection_names())
-    system_collections = {"web10", "apps", "phone_number", "metering_events", "config", "jwt_keys"}
     # Filter: web10 internal collections start with "web10" or are known system names
     # User collections are named by username.
     known_system = {"web10", "apps", "phone_number", "metering_events"}
     # Heuristic: user collections are anything not in the known system set
     # and not starting with "web10" (web10.config etc. might exist as separate names)
-    user_collections = sorted(
-        c for c in all_collections
-        if c not in known_system
-    )
+    user_collections = sorted(c for c in all_collections if c not in known_system)
 
     # ── 1. User count ──
     print(f"TOTAL COLLECTIONS: {len(all_collections)}")
@@ -132,23 +126,27 @@ def main():
                 if "body" not in doc and svc != "*":
                     # Non-star records should have {service, body}
                     # But older records might just have {service, ...data}
-                    shape_drift.append({
-                        "user": username,
-                        "service": svc,
-                        "shape": "no-body-wrapper",
-                        "keys": list(doc.keys()),
-                    })
+                    shape_drift.append(
+                        {
+                            "user": username,
+                            "service": svc,
+                            "shape": "no-body-wrapper",
+                            "keys": list(doc.keys()),
+                        }
+                    )
             else:
                 # No service field at all — pre-convention record
-                shape_drift.append({
-                    "user": username,
-                    "service": "UNKNOWN",
-                    "shape": "no-service-field",
-                    "keys": list(doc.keys()),
-                })
+                shape_drift.append(
+                    {
+                        "user": username,
+                        "service": "UNKNOWN",
+                        "shape": "no-service-field",
+                        "keys": list(doc.keys()),
+                    }
+                )
 
         if args.sample and (i + 1) % 10 == 0:
-            print(f"  ... audited {i+1}/{limit} user collections")
+            print(f"  ... audited {i + 1}/{limit} user collections")
 
     print(f"TOTAL DOCS ACROSS {limit} USER COLLECTIONS: {total_docs}")
     print()
@@ -160,7 +158,7 @@ def main():
         for u in star_records_missing[:10]:
             print(f"    - {u}")
         if len(star_records_missing) > 10:
-            print(f"    ... and {len(star_records_missing)-10} more")
+            print(f"    ... and {len(star_records_missing) - 10} more")
     else:
         print(f"  All {limit} users have a star record.")
     print()
@@ -170,7 +168,7 @@ def main():
         for u, missing in star_records_partial[:5]:
             print(f"    - {u}: missing {missing}")
         if len(star_records_partial) > 5:
-            print(f"    ... and {len(star_records_partial)-5} more")
+            print(f"    ... and {len(star_records_partial) - 5} more")
     print()
 
     # ── 3b. Services record audit ──
@@ -194,7 +192,7 @@ def main():
             for r in records[:5]:
                 print(f"    - {r['user']}/{r['service']}: keys={r['keys'][:8]}")
             if len(records) > 5:
-                print(f"    ... and {len(records)-5} more")
+                print(f"    ... and {len(records) - 5} more")
     else:
         print("  No shape drift detected — all records follow {service, body} convention.")
     print()

@@ -1585,6 +1585,18 @@ other known issues, fix early (phase 0/1, before any real users):
     "we've been audited" is a sales document in this business.
 
 quality:
+[ ] frontend cache headers: index.html must ship no-cache on all
+    three static frontends (ui, social, marketing-ui) -- hashed
+    assets can stay immutable. today static-web-server defaults
+    html to max-age=86400, so every deploy leaves browsers on dead
+    bundles for up to a day (operator hit this 19.07: the shipped
+    B6 login fix looked still-broken because the browser held the
+    old bundle). fix in each Dockerfile's server config; verify
+    with curl -I after deploy.
+[ ] republish web10-npm to npm with the wapiAuth defaultAPIProtocol
+    fix (>=1.0.9), then delete the sed patch in ui/Dockerfile --
+    every consumer of the published sdk still gets the broken login
+    until this ships.
 [ ] ruff + mypy on the api (type the permission logic first),
     typescript strict on ui/sdk, pre-commit hooks
 [ ] health/readiness endpoints + basic metrics on every service
@@ -1832,6 +1844,15 @@ provisioning:
     ansible vault. no secrets in git, ever.
 
 backup:
+[ ] PRODUCTION MONGO DUMPS (do this one first -- the data is 11MB,
+    there is no excuse): nightly cron `mongodump --db deploy | gzip`
+    on the box, rotated 30 days, written to a spare drive that is
+    NOT the data disk (operator has spare drives in the machine --
+    mount one for this). the one-off dump from 19.07 lives on the
+    same disk as the data and protects against nothing physical.
+    monthly restore drill: mongorestore the latest dump into dev's
+    ferretdb -- this same restore is the A7/B6 "dev login against a
+    COPY" gate, so the first drill is already owed.
 [ ] proxmox scheduled VM/LXC backups (daily incremental, weekly
     full). off-box if possible (another machine on the LAN).
 [ ] docker volume backups: periodic tar of data volumes pushed

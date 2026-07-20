@@ -4,9 +4,9 @@ import jwt
 from fastapi import APIRouter, Form, Response
 
 import app.exceptions as exceptions
+import app.settings as settings
 from app.models.auth import PhoneForm, SignUpForm, Token, TokenData, TokenForm
 from app.models.core import dotdict
-import app.settings as settings
 from app.services import documentdb as db
 from app.services import twilio as mobile
 from app.services.auth import (
@@ -117,9 +117,7 @@ async def create_web10_token(form_data: TokenForm):
                     pass
     except Exception as e:
         raise e
-    token_data.expires = (
-        datetime.utcnow() + timedelta(minutes=settings.TOKEN_EXPIRE_MINUTES)
-    ).isoformat()
+    token_data.expires = (datetime.utcnow() + timedelta(minutes=settings.TOKEN_EXPIRE_MINUTES)).isoformat()
     token_data.provider = settings.PROVIDER
     return {"token": jwt.encode(token_data.model_dump(), settings.PRIVATE_KEY, algorithm=settings.ALGORITHM)}
 

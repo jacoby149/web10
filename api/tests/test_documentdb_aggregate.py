@@ -10,7 +10,6 @@ from app.services import documentdb
 
 
 class TestValidatePipeline:
-
     def test_allows_planned_stages(self):
         pipeline = [
             {"$match": {"tags": "music"}},
@@ -27,10 +26,14 @@ class TestValidatePipeline:
 
     def test_allows_sample_bucket_facet(self):
         pipeline = [
-            {"$facet": {
-                "sampled": [{"$sample": {"size": 5}}],
-                "buckets": [{"$bucket": {"groupBy": "$year", "boundaries": [2000, 2010, 2020], "default": "other"}}],
-            }},
+            {
+                "$facet": {
+                    "sampled": [{"$sample": {"size": 5}}],
+                    "buckets": [
+                        {"$bucket": {"groupBy": "$year", "boundaries": [2000, 2010, 2020], "default": "other"}}
+                    ],
+                }
+            },
         ]
         assert documentdb.validate_pipeline(pipeline) is None
 
@@ -49,16 +52,19 @@ class TestValidatePipeline:
             documentdb.validate_pipeline(["$match"])
         assert e.value is exceptions.PIPELINE
 
-    @pytest.mark.parametrize("stage", [
-        {"$lookup": {"from": "otheruser"}},
-        {"$graphLookup": {"from": "otheruser"}},
-        {"$unionWith": "otheruser"},
-        {"$out": "otheruser"},
-        {"$merge": {"into": "otheruser"}},
-        {"$replaceRoot": {"newRoot": "$secret"}},
-        {"$collStats": {}},
-        {"$currentOp": {}},
-    ])
+    @pytest.mark.parametrize(
+        "stage",
+        [
+            {"$lookup": {"from": "otheruser"}},
+            {"$graphLookup": {"from": "otheruser"}},
+            {"$unionWith": "otheruser"},
+            {"$out": "otheruser"},
+            {"$merge": {"into": "otheruser"}},
+            {"$replaceRoot": {"newRoot": "$secret"}},
+            {"$collStats": {}},
+            {"$currentOp": {}},
+        ],
+    )
     def test_rejects_forbidden_or_unknown_stages(self, stage):
         with pytest.raises(Exception):
             documentdb.validate_pipeline([stage])
@@ -114,7 +120,6 @@ class TestValidatePipeline:
 
 
 class TestAggregate:
-
     def _run(self, pipeline, results=None):
         mock_col = MagicMock()
         mock_col.aggregate.return_value = iter(results or [])
@@ -153,7 +158,6 @@ class TestAggregate:
 
 
 class TestChargeUnits:
-
     def test_charge_default_single_unit(self):
         with patch.object(documentdb.db, "__getitem__") as mock_col:
             documentdb.charge("alice", "read")
