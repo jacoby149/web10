@@ -74,7 +74,9 @@ class TestCheckAdmin:
         token = Token(token="admin_token")
         with (
             patch("app.services.auth.certify", return_value=True),
-            patch("app.services.auth.decode_token", return_value=TokenData(username="alice", provider=settings.PROVIDER)),
+            patch(
+                "app.services.auth.decode_token", return_value=TokenData(username="alice", provider=settings.PROVIDER)
+            ),
             patch("app.services.config.is_admin", return_value=True),
         ):
             check_admin(token)  # returns True on success, no exception raised
