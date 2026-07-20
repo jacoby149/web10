@@ -1,3 +1,13 @@
+1.0.78 || 19.07.2026
+Fix marketing-ui /docs 403. The docs .md files ship in a public/docs
+directory, so nginx resolved the bare /docs and /docs/ routes to that
+directory, found no index.html, and returned 403 (autoindex off) — /docs
+even 301'd to /docs/ first. The `$uri/` in the /docs/ try_files was asking
+nginx to index the directory. Map the bare routes straight to the SPA shell
+via exact-match locations (which win over the prefix, so no directory
+redirect) and drop `$uri/` so sub-routes fall back to index.html while real
+files (.md, schemas/) still serve. Validated: /docs, /docs/, /docs/<slug>,
+and /docs/<slug>.md all 200.
 1.0.77 || 19.07.2026
 Auth console: admin model, Node Config fix, Studio reorder, working search,
 ecosystem links, balanced topbar. SECURITY: check_admin was passing for any
