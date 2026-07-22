@@ -1,3 +1,5 @@
+1.0.90 || 21.07.2026
+Knowledge folder: new `knowledge/` with three dimensions — knowledge-theories (how to structure: confluencing, compounding), writing-styles (how to write: technical, narrative, pitch), editing-styles (how to edit: butcher, architect, tuner, translator). Top-level README ties it together (pick structure → pick writing style → pick editing style). knowledge-base/scenarios/ has 8 Mermaid sequence diagrams covering real web10 interactions: system overview, influencer node setup, fan onboarding, posting with inbox delivery, DMs, graduation/node migration, data export, and legacy platform import.
 1.0.89 || 21.07.2026
 Homepage: moved the social feed preview section above the hero so the feed is front and center — first thing you see after the navbar. The pitch headline follows immediately after.
 1.0.88 || 21.07.2026
