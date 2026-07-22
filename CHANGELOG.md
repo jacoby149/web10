@@ -1,3 +1,12 @@
+1.0.102 || 22.07.2026
+Reprioritization (D29): the killer app, proud and working, before anything
+else. plan.txt PRIORITY ZERO (baseline chain, merged) superseded by PRIORITY
+ONE: every task judged by "does this make web10-social something the operator
+demos from his phone with pride?" — with THE GAUNTLET (8 phone-run end-to-end
+steps, each encoded in e2e/ as it passes) as the bar. Conductor board rewritten
+around it; C2 SDK rewrite, C3 MCP, C3.5 create-web10, D11 ux telemetry, E4
+provisioning, E8 store submission explicitly PARKED until the gauntlet passes.
+
 1.0.101 || 22.07.2026
 Fix CORS_SERVICE_MANAGERS dev default: auth.web10.dev -> auth.dev.web10.app (stale hostname from pre-1.0.73). The env files were already correct; only the settings.py fallback was wrong.
 1.0.100 || 22.07.2026
