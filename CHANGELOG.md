@@ -1,3 +1,18 @@
+1.0.86 || 21.07.2026
+Fix profile name save, photo upload, and restore old contacts/friends.
+Backend: update_records now returns the updated document (find_one_and_update)
+instead of {matchedCount, modifiedCount}, so saveProfile actually persists
+the profile in React state. Media upload: fixed URL path from /media/upload/{user}
+to /{user}/upload, added required filename field, switched to presigned POST
+with confirm step so the media record is created with an _id. Frontend:
+wapi.update now receives the real document back. Profile adapter: readProfile
+falls back to the legacy identity service, maps name→display_name and
+pic→avatar_ref, and writes the adapted record to the new profile service.
+Contacts adapter: readContacts falls back to legacy contact-addresses, maps
+web10→username/provider and date_added→added_at, migrates all records to the
+new contacts service on first read. Follows: added complete data layer
+(readFollows, followUser, unfollowUser, blockUser, deleteFollow, etc.) and
+registered the follows SRO in the adapter. +19 tests (74 data layer tests).
 1.0.85 || 20.07.2026
 Remove Netlify integration. Deleted ui/netlify.toml so GitHub pushes no
 longer trigger Netlify builds. Removed web10social.netlify.app from the
