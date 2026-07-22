@@ -1,3 +1,12 @@
+1.0.99 || 22.07.2026
+Reprioritization (D29): the killer app, proud and working, before anything
+else. plan.txt PRIORITY ZERO (baseline chain, merged) superseded by PRIORITY
+ONE: every task judged by "does this make web10-social something the operator
+demos from his phone with pride?" — with THE GAUNTLET (8 phone-run end-to-end
+steps, each encoded in e2e/ as it passes) as the bar. Conductor board rewritten
+around it; C2 SDK rewrite, C3 MCP, C3.5 create-web10, D11 ux telemetry, E4
+provisioning, E8 store submission explicitly PARKED until the gauntlet passes.
+
 1.0.98 || 22.07.2026
 Knowledge folder complete overhaul: replaced AI-generated content with a working system. Knowledge theories: the-why-layer (connects tech to business), the-how-layer (comprehensive technical explanation), the-what-layer (code/deploy/ownership map). Writing styles: use-case-driven (abstract → specific → technical → logistics). Editing styles: the-touch-up (surgical fixes), the-rewrite (diagnose, pick theory/style/voice, write fresh). Voices: clive-tobacco-smoker (anti-AI voice reference). Visual-styles folder added for Mermaid chart styles. AGENTS.md added with the workflow for AI agents (pick theory → pick style → pick voice → write). Deleted old knowledge-base/ (architecture, protocol, security, 8 Mermaid scenarios) — all replaced.
 1.0.89 || 21.07.2026
