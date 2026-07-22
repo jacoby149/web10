@@ -1,3 +1,5 @@
+1.0.88 || 21.07.2026
+Fix marketing-ui build: SVG `className` assignment changed to `setAttribute('class', ...)` to avoid TS2540 read-only error on dynamically created SVG elements.
 1.0.86 || 20.07.2026
 Marketing-ui homepage: added a social-media-style tabbed feed preview section
 with placeholder content (For You / Following / Trending tabs, post cards with
