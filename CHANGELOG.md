@@ -1,3 +1,7 @@
+1.0.100 || 22.07.2026
+Fix api CI: uv sync now uses --extra test so pytest and ruff are available
+in the CI environment. The ruff/format debt was already paid in 1.0.73
+(ruff check and ruff format pass clean across api/). 353 tests green.
 1.0.99 || 22.07.2026
 Marketing-ui: removed redundant trending feed from home page (already has /trending tab). Rewrote /trending page: full-page trending feed, no "For You" / "Following" subtabs. DeployStatus widget now hides when status.json has all "unknown" fields instead of showing an empty panel. Root cause fix: deploy.yml now computes GIT_COMMIT and STATUS_VERSION before docker compose, so status.json gets real values on every deploy.
 1.0.98 || 22.07.2026
