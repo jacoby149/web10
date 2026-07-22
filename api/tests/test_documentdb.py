@@ -11,34 +11,83 @@ class TestToGui:
     def test_extract_body_and_id(self):
         doc = {"_id": "abc123", "service": "posts", "body": {"title": "hello", "count": 1}}
         result = documentdb.to_gui(doc)
-        assert result == {"_id": "abc123", "title": "hello", "count": 1}
+        assert result["_id"] == "abc123"
+        assert result["title"] == "hello"
+        assert result["count"] == 1
+        # I6: metadata fields present (None for legacy docs without them)
+        assert result["_author"] is None
+        assert result["_source_node"] is None
+        assert result["_created_at"] is None
 
     def test_empty_body(self):
         doc = {"_id": "x", "service": "s", "body": {}}
         result = documentdb.to_gui(doc)
-        assert result == {"_id": "x"}
+        assert result["_id"] == "x"
+        assert result["_author"] is None
+        assert result["_source_node"] is None
+        assert result["_created_at"] is None
 
     def test_nested_body(self):
         doc = {"_id": "1", "service": "s", "body": {"a": {"b": 2}}}
         result = documentdb.to_gui(doc)
-        assert result == {"_id": "1", "a": {"b": 2}}
+        assert result["_id"] == "1"
+        assert result["a"] == {"b": 2}
+        assert result["_author"] is None
+
+    def test_metadata_passthrough(self):
+        """I6: metadata fields stored in body are passed through to_gui."""
+        doc = {
+            "_id": "abc",
+            "service": "posts",
+            "body": {"title": "hi", "_author": "alice", "_source_node": "node1", "_created_at": "2026-01-01"},
+        }
+        result = documentdb.to_gui(doc)
+        assert result["_author"] == "alice"
+        assert result["_source_node"] == "node1"
+        assert result["_created_at"] == "2026-01-01"
 
 
 class TestToDb:
     def test_basic_wrap(self):
         result = documentdb.to_db({"title": "hi"}, "posts")
-        assert result == {"service": "posts", "body": {"title": "hi"}}
+        assert result["service"] == "posts"
+        assert result["body"]["title"] == "hi"
+        # I6: _created_at always injected
+        assert "_created_at" in result["body"]
 
     def test_preserves_id(self):
         result = documentdb.to_db({"_id": "oid", "name": "x"}, "svc")
         assert result["_id"] == "oid"
-        assert result["body"] == {"name": "x"}
+        assert result["body"]["name"] == "x"
         assert "_id" not in result["body"]
+        assert "_created_at" in result["body"]
 
     def test_no_id(self):
         result = documentdb.to_db({"k": "v"}, "svc")
         assert "_id" not in result
-        assert result == {"service": "svc", "body": {"k": "v"}}
+        assert result["service"] == "svc"
+        assert result["body"]["k"] == "v"
+        assert "_created_at" in result["body"]
+
+    def test_injects_author_and_source_node(self):
+        """I6: to_db injects author and source_node when provided."""
+        result = documentdb.to_db({"title": "hi"}, "posts", author="alice", source_node="node1")
+        assert result["body"]["_author"] == "alice"
+        assert result["body"]["_source_node"] == "node1"
+        assert "_created_at" in result["body"]
+
+    def test_strips_client_metadata(self):
+        """I6: client-supplied immutable metadata is stripped."""
+        result = documentdb.to_db(
+            {"title": "hi", "_author": "hacker", "_source_node": "fake", "_created_at": "2000-01-01"},
+            "posts",
+            author="alice",
+            source_node="node1",
+        )
+        assert result["body"]["_author"] == "alice"
+        assert result["body"]["_source_node"] == "node1"
+        # _created_at should be server time, not "2000-01-01"
+        assert result["body"]["_created_at"] != "2000-01-01"
 
 
 class TestToDbField:
@@ -96,6 +145,39 @@ class TestUTransform:
     def test_single_dollar_field_allowed(self):
         result = documentdb.u_t({"$set": {"$only": 1}})
         assert result == {"$set": {"body.$only": 1}}
+
+    def test_i6_blocks_author_via_set(self):
+        """I6: u_t silently drops $set targeting _author."""
+        u = documentdb.u_t({"$set": {"_author": "hacker", "title": "ok"}})
+        assert "body._author" not in u.get("$set", {})
+        assert u["$set"]["body.title"] == "ok"
+
+    def test_i6_blocks_source_node_via_set(self):
+        """I6: u_t silently drops $set targeting _source_node."""
+        u = documentdb.u_t({"$set": {"_source_node": "fake"}})
+        assert "body._source_node" not in u.get("$set", {})
+
+    def test_i6_blocks_created_at_via_set(self):
+        """I6: u_t silently drops $set targeting _created_at."""
+        u = documentdb.u_t({"$set": {"_created_at": "2000-01-01"}})
+        assert "body._created_at" not in u.get("$set", {})
+
+    def test_i6_blocks_author_via_unset(self):
+        """I6: u_t silently drops $unset targeting _author."""
+        u = documentdb.u_t({"$unset": {"_author": ""}})
+        assert "body._author" not in u.get("$unset", {})
+
+    def test_i6_blocks_author_via_inc(self):
+        """I6: u_t silently drops $inc targeting immutable fields."""
+        u = documentdb.u_t({"$inc": {"_created_at": 1}})
+        assert "body._created_at" not in u.get("$inc", {})
+
+    def test_i6_other_fields_pass_through(self):
+        """I6: non-immutable fields still pass through u_t normally."""
+        u = documentdb.u_t({"$set": {"_author": "hacker", "title": "real", "count": 5}})
+        assert "body._author" not in u.get("$set", {})
+        assert u["$set"]["body.title"] == "real"
+        assert u["$set"]["body.count"] == 5
 
 
 class TestSortTransform:
