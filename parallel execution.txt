@@ -634,19 +634,34 @@ M3 "the network"         = encryption integration (A rtc + C2 sdk
                            polish. the last big merge.
 
 
-CURRENT CONDUCTOR BOARD (as of 19.07.2026 — keep this section fresh)
+CURRENT CONDUCTOR BOARD (as of 22.07.2026 — keep this section fresh)
 --------------------------------------------------------------------
-we are in timeline.md WEEK 0/1 — the M0 sprint (video by ~aug 17).
-the beautify wave (B5/D12/D13/D14) and the FULL DEPLOYMENT (E3/E5 —
-both envs live behind NPM with TLS + GitOps polling) are merged.
-PRIORITY ZERO (plan.txt, top): the deployed product must WORK AT A
-BASELINE — auth is broken, docs 404'd (fixed in D16.1), the node
-points at an empty db. baseline fixes outrank polish, in this order:
-  ws-A: A7 connect the real host mongo (unblocks everything)
-  ws-B: B6 authenticator revamp (login must complete; playwright
-        guard) — logo + obvious breakage can start before A7
-  ws-C: C6 e2e deep sweep (now can also run against dev)
-  ws-D: D17 restore the dev docs + D16 real app store (after A7)
+PRIORITY ONE (plan.txt, top — supersedes 19.07's priority zero,
+whose baseline chain A7/B6/D16.1/D17 is merged): THE KILLER APP,
+PROUD AND WORKING, before anything else. the only question a task
+must answer: "does this make web10-social something the operator
+opens on his phone, in front of someone, and is proud of?" (D29)
+  ws-G1: run THE GAUNTLET (plan.txt top, 8 steps) against dev from
+         a phone; write the honest fail list to .context/gauntlet.md;
+         fix in order of demo impact. lane D owns app fixes, lane A
+         owns api fixes, lane B owns the auth/consent seam.
+  ws-G2: keep the personas alive (persona-orchestration/) so feed +
+         trending never demo empty.
+  ws-G3: encode each passing gauntlet step as a playwright journey
+         in e2e/ (lane C — this is C6 continued, NOT C2).
+  then: low-hanging fruit by demo impact — realtime feed refresh,
+        notifications, search-your-own-stuff, D16(3) store curation.
+PARKED until the gauntlet passes (do NOT pick up — they read as an
+infra company, not a social platform): C2 sdk rewrite, C3 mcp,
+C3.5 create-web10, D11 ux telemetry, E4 provisioning, E8 mobile
+store submission, docs/knowledge prose beyond fixes.
+
+previous board (19.07, for history — all merged):
+  ws-A: A7 connect the real host mongo — [✓ 1.0.72]
+  ws-B: B6 authenticator revamp — [✓ 1.0.72] (+ B7 [✓ 1.0.76])
+  ws-C: C6 e2e deep sweep — [✓ 1.0.74]
+  ws-D: D17 dev docs [✓ 1.0.72] + D16 app store (partial, 1.0.84 —
+        curation deferred, now in the low-hanging-fruit tier)
 
   ws1: [✓ 1.0.65] B5 level-up ui/ to design.md (lane B — ui/**) — merged
   ws2: [✓ 1.0.64] D12 level-up web10-social to design.md (lane D —

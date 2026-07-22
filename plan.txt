@@ -1,18 +1,43 @@
 web10 plan
 ==========
 
-PRIORITY ZERO (operator, 19.07.2026): MAKE IT WORK AT A BASELINE.
-it is embarrassing that the deployed product does not work right
-now — the authenticator is broken (login doesn't complete, the logo
-renders broken), the docs 404, the app store is hollow, and the live
-node points at an empty database instead of the 208 real users.
-polish, beautification, new features, and docs prose all rank BELOW
-"a person can sign up, log in, use the apps, and read the docs
-without hitting something broken." when choosing between a shiny
-addition and a baseline fix, take the baseline fix. the current
-baseline chain, in order: A7 (real data) → B6 (auth actually works)
-→ D16.1/D17 (docs reachable) → D16 (store shows real apps). the
-C5/C6 e2e suite is the referee for "works."
+PRIORITY ONE (operator, 22.07.2026): THE KILLER APP, PROUD AND
+WORKING, BEFORE ANYTHING ELSE. supersedes priority zero (19.07) —
+its baseline chain is ticked (A7 real data, B6 auth, D16.1/D17
+docs, D16 mostly), but the honest state is still "a shell of a
+non-working platform": the pieces exist and the whole doesn't
+hold, and the board keeps surfacing work that sounds like an
+infrastructure company (sdk rewrite, ux telemetry, provisioning)
+instead of a social platform. reprioritization: web10-social IS
+the product until further notice. every task is judged by ONE
+question — "does this make the social app something the operator
+opens on his phone, in front of someone, and is proud of?" if the
+answer is no, it waits, explicitly and without guilt (see PARKED
+in parallel execution.txt: C2/C3/C3.5, D11, E4, E8, docs prose).
+these are good ideas whose time is not now (D20 said protocol
+serves platform; this is that decision enforced on the task
+board, logged as D29).
+
+the bar is THE GAUNTLET — run from the operator's phone against
+dev, top to bottom, no apologies. step one of the work is running
+it and writing the honest fail list (.context/gauntlet.md); fixes
+land in order of demo impact:
+  1. sign up + log in on the social app without a broken screen
+  2. post a photo -> it appears in the feed immediately
+  3. follow a persona -> their posts land in your feed
+  4. like + comment -> counts update, feel instant
+  5. dm a persona -> the thread reads like a real messenger
+  6. your profile reads as a creator page you'd screenshot
+  7. trending/discover shows a real, alive feed (personas keep it
+     from ever demoing empty)
+  8. nothing white-screens; every screen is design.md-grade at
+     375px, on a real phone, on dev AND prod
+each step that passes gets encoded as a playwright journey in e2e/
+so it can't regress (C6 continued — the referee for "works").
+when the gauntlet passes end to end, THEN low-hanging fruit in
+order of demo impact (realtime feed refresh, notifications, search
+your own stuff, D16(3) store curation) — judged by the same
+question.
 
 the thesis (why this plan):
 - THIS IS A PRODUCT FOR INFLUENCERS. the proposition is OWNERSHIP ON

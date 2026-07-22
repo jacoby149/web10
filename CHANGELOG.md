@@ -1,5 +1,14 @@
 1.100 || 22.07.2026
 C2: SDK rewrite — full TypeScript, zero required deps. Replaced legacy untyped ES wapi.js with typed `createClient()` (ESM). Full protocol types: records, queries ($sort/$skip/$limit), updates ($set/$unset/$inc/$push/$addToSet/$pull/$mul), terms/contracts (SIR/SCR), tokens (TokenPayload), aggregate pipelines (PipelineStage). Typed CRUD: `read<T>(service, query)`, `create<T>(service, body)`, `update(service, query, updateSpec)`, `deleteRecord(service, query)`, `aggregate<T>(service, pipeline)`. Dropped axios → native fetch. PeerJS/RTC moved to optional subpath export (`web10-npm/rtc`) with `setPeer()` — core is tree-shakeable. Auth flow: promise-based `login()` wraps the popup/OAuth dance. Auth connector (`createAuthConnector`) with tiered token minting, SMR, login/signup, password/phone change, verification codes, Stripe management. Dev pay: `checkout()`, `verifySubscription()`, `cancelSubscription()`. Modern packaging: bun build, ESM + declaration maps, typedoc config. 55 tests green (41 client, 14 auth), tsc strict clean.
+1.0.102 || 22.07.2026
+Reprioritization (D29): the killer app, proud and working, before anything
+else. plan.txt PRIORITY ZERO (baseline chain, merged) superseded by PRIORITY
+ONE: every task judged by "does this make web10-social something the operator
+demos from his phone with pride?" — with THE GAUNTLET (8 phone-run end-to-end
+steps, each encoded in e2e/ as it passes) as the bar. Conductor board rewritten
+around it; C2 SDK rewrite, C3 MCP, C3.5 create-web10, D11 ux telemetry, E4
+provisioning, E8 store submission explicitly PARKED until the gauntlet passes.
+
 1.0.101 || 22.07.2026
 Fix CORS_SERVICE_MANAGERS dev default: auth.web10.dev -> auth.dev.web10.app (stale hostname from pre-1.0.73). The env files were already correct; only the settings.py fallback was wrong.
 1.0.100 || 22.07.2026
