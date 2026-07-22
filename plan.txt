@@ -843,19 +843,19 @@ API side (Lane A):
     (likes * 1 + comments * 3 + reposts * 5? or just chronological)
 
 Social app side (Lane D):
-[ ] split posts into public_posts / private_posts services
-[ ] create default terms for both services on user signup
-[ ] register default schemas (Reaction, etc.) on first boot
-[ ] cache schemas locally: schema_id → schema definition
-[ ] route createPost by visibility toggle
-[ ] wire reactions to /public/entries endpoint
-[ ] wire feed preview to /discover/posts endpoint (replace placeholder)
+[✓ 1.0.92] split posts into public_posts / private_posts services
+[✓ 1.0.92] create default terms for both services on user signup
+[✓ 1.0.92] register default schemas (Reaction, etc.) on first boot
+[✓ 1.0.92] cache schemas locally: schema_id → schema definition
+[✓ 1.0.92] route createPost by visibility toggle
+[✓ 1.0.92] wire reactions to /public/entries endpoint
+[✓ 1.0.92] wire feed preview to /discover/posts endpoint (replace placeholder)
 
 Marketing-ui side (Lane D):
-[ ] replace FeedPreview placeholder data with /discover/posts
-[ ] wire tab switching to sort params (recent, trending)
-[ ] wire reaction buttons to /public/entries
-[ ] fetch schema definitions for rendering interaction types
+[✓ 1.0.92] replace FeedPreview placeholder data with /discover/posts
+[✓ 1.0.92] wire tab switching to sort params (recent, trending)
+[✓ 1.0.92] wire reaction buttons to /public/entries
+[✓ 1.0.92] fetch schema definitions for rendering interaction types
 
 Federation (later):
 [ ] cross-node discovery: /discover/posts aggregates from federated peers

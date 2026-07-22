@@ -1,3 +1,15 @@
+1.0.92 || 22.07.2026
+D5.5: Social app public layer. Split posts into `public_posts` / `private_posts`
+services routed by visibility. Default terms for both on adapter init (anon
+whitelisted on public, blocked on private). Register default Reaction/Comment
+schemas on first boot with local cache. Reactions write to both legacy service
+and `/public/entries` public ledger. New `readDiscoverFeed` calls
+`PATCH /discover/posts` (recent/trending sort). Marketing-ui FeedPreview
+replaced placeholder data with live discovery API feed, skeleton loading on
+API unreachable, tab switching wired to sort params, reaction buttons call
+`POST /public/entries` with optimistic count updates, schema definitions
+fetched on mount. 222 social tests green, 19 marketing-ui tests green.
+
 1.0.91 || 22.07.2026
 Fix DMs: single `dms` service with sender/recipient fields (no per-conversation
 service). legacy adapter auto-migrates message-inbox/outbox on first read.

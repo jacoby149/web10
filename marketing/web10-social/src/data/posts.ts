@@ -1,8 +1,11 @@
 import { getWapi } from './wapi';
-import type { PostRecord, MediaRecord, MediaUploadRequest } from './types';
+import { API_ORIGIN } from '../lib/origins';
+import type { PostRecord, MediaRecord, MediaUploadRequest, PublicEntry, SchemaDefinition, DiscoverSort, DiscoveryPost } from './types';
 
 // ── Post data layer ────────────────────────────────────────────────────────
 // Operations on the `posts` service following conventions schemas.
+// Phase 5.5: new posts route to `public_posts` or `private_posts` based
+// on visibility. The legacy `posts` service still works via readMyPosts.
 
 interface LegacyPost {
   _id?: string;
@@ -30,10 +33,15 @@ function stripHtml(html: string): string {
  * Create a new post record.
  * Media files should be uploaded first via uploadMedia(), then referenced
  * through media_refs.
+ *
+ * Phase 5.5: if visibility === 'public', writes to `public_posts` service;
+ * otherwise writes to `private_posts`. The legacy `posts` service is kept
+ * for backward compatibility.
  */
 export async function createPost(post: Omit<PostRecord, '_id'>): Promise<PostRecord> {
   const wapi = getWapi();
-  return wapi.create<PostRecord>('posts', post);
+  const service = post.visibility === 'public' ? 'public_posts' : 'private_posts';
+  return wapi.create<PostRecord>(service, post);
 }
 
 /**

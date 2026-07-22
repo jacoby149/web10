@@ -1,17 +1,33 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Card } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Heart, MessageCircle, Repeat2, Share2, Image as ImageIcon, Film, Music2, TrendingUp, Users, Zap } from 'lucide-react';
 
 const TABS = [
-  { id: 'for-you', label: 'For You', icon: TrendingUp },
-  { id: 'following', label: 'Following', icon: Users },
-  { id: 'trending', label: 'Trending', icon: Zap },
+  { id: 'for-you', label: 'For You', icon: TrendingUp, sort: 'trending' as const },
+  { id: 'following', label: 'Following', icon: Users, sort: 'recent' as const },
+  { id: 'trending', label: 'Trending', icon: Zap, sort: 'trending' as const },
 ] as const;
 
 type TabId = (typeof TABS)[number]['id'];
 
-const PLACEHOLDER_POSTS: Record<TabId, Array<{
+const API_ORIGIN = import.meta.env.VITE_API_ORIGIN || 'https://api.web10.app';
+
+interface DiscoveryPost {
+  author: string;
+  provider: string;
+  post_id: string;
+  text?: string;
+  tags?: string[];
+  created_at: string;
+  likes: number;
+  comments: number;
+  reposts: number;
+  score?: number;
+}
+
+interface FeedPost {
   id: string;
   name: string;
   handle: string;
@@ -23,129 +39,65 @@ const PLACEHOLDER_POSTS: Record<TabId, Array<{
   likes: string;
   comments: string;
   reposts: string;
-}>> = {
-  'for-you': [
-    {
-      id: '1',
-      name: 'Sarah Chen',
-      handle: '@sarahchen',
-      initial: 'S',
-      avatarColor: 'bg-rose-500',
-      time: '2m',
-      content: 'Just shipped the new studio dashboard. The monetization flow is finally here. This is what ownership looks like.',
-      media: 'image',
-      likes: '2.4k',
-      comments: '186',
-      reposts: '412',
-    },
-    {
-      id: '2',
-      name: 'Marcus Rivera',
-      handle: '@marcusr',
-      initial: 'M',
-      avatarColor: 'bg-sky-500',
-      time: '14m',
-      content: 'Day 3 on web10 and every single one of my 40k followers saw my post. No algorithm, no shadow ban. Just... delivery. It\'s wild.',
-      media: 'video',
-      likes: '8.1k',
-      comments: '523',
-      reposts: '1.2k',
-    },
-    {
-      id: '3',
-      name: 'Aisha Patel',
-      handle: '@aishap',
-      initial: 'A',
-      avatarColor: 'bg-amber-500',
-      time: '1h',
-      content: 'New track dropping tonight. First time I know 100% of my audience will actually hear about it.',
-      media: 'music',
-      likes: '5.7k',
-      comments: '341',
-      reposts: '892',
-    },
-  ],
-  'following': [
-    {
-      id: '4',
-      name: 'James Okonkwo',
-      handle: '@jameso',
-      initial: 'J',
-      avatarColor: 'bg-emerald-500',
-      time: '5m',
-      content: 'Morning light in Lagos hits different. Shot this before heading to the studio.',
-      media: 'image',
-      likes: '1.1k',
-      comments: '67',
-      reposts: '89',
-    },
-    {
-      id: '5',
-      name: 'Yuki Tanaka',
-      handle: '@yukit',
-      initial: 'Y',
-      avatarColor: 'bg-violet-500',
-      time: '23m',
-      content: 'The new composer interface is buttery. Writing a thread feels like it should — no friction between thought and publish.',
-      media: 'image',
-      likes: '3.3k',
-      comments: '204',
-      reposts: '567',
-    },
-    {
-      id: '6',
-      name: 'Elena Vasquez',
-      handle: '@elenav',
-      initial: 'E',
-      avatarColor: 'bg-pink-500',
-      time: '47m',
-      content: 'Moved my newsletter audience here. They can actually see the posts now. The migration was painless, the delivery is instant.',
-      likes: '4.2k',
-      comments: '312',
-      reposts: '743',
-    },
-  ],
-  'trending': [
-    {
-      id: '7',
-      name: 'David Kim',
-      handle: '@davidk',
-      initial: 'D',
-      avatarColor: 'bg-indigo-500',
-      time: '1h',
-      content: 'Thread: Why I migrated 200k followers from three platforms to my web10 node in a weekend. (1/12)',
-      media: 'image',
-      likes: '24k',
-      comments: '1.8k',
-      reposts: '5.3k',
-    },
-    {
-      id: '8',
-      name: 'Priya Sharma',
-      handle: '@priyas',
-      initial: 'P',
-      avatarColor: 'bg-orange-500',
-      time: '2h',
-      content: 'The first creator to earn $10k on web10 just hit the milestone. No platform cut, no algorithm penalty. Pure audience relationship.',
-      media: 'video',
-      likes: '18k',
-      comments: '2.1k',
-      reposts: '4.7k',
-    },
-    {
-      id: '9',
-      name: 'Leo Martinez',
-      handle: '@leom',
-      initial: 'L',
-      avatarColor: 'bg-teal-500',
-      time: '3h',
-      content: 'Built a web10 lens that shows your posts as a podcast feed. The SDK makes this trivially easy. Anyone can build this now.',
-      likes: '11k',
-      comments: '892',
-      reposts: '3.1k',
-    },
-  ],
-};
+}
+
+const AVATAR_COLORS = [
+  'bg-rose-500', 'bg-sky-500', 'bg-amber-500', 'bg-emerald-500',
+  'bg-violet-500', 'bg-pink-500', 'bg-indigo-500', 'bg-orange-500',
+  'bg-teal-500', 'bg-red-500',
+];
+
+function hashToColor(str: string): string {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+function timeAgo(dateStr: string): string {
+  const now = Date.now();
+  const then = new Date(dateStr).getTime();
+  const diff = now - then;
+  const seconds = Math.floor(diff / 1000);
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  return `${days}d`;
+}
+
+function formatCount(n: number): string {
+  if (n >= 10000) return `${(n / 1000).toFixed(1)}k`;
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  return String(n);
+}
+
+function parseCount(s: string): number {
+  const num = parseFloat(s);
+  if (isNaN(num)) return -1;
+  if (s.includes('k')) return Math.round(num * 1000);
+  return num;
+}
+
+function mapDiscoveryToFeedPost(d: DiscoveryPost, index: number): FeedPost {
+  const name = d.author.replace(/[-_]/g, ' ');
+  return {
+    id: d.post_id,
+    name: name.charAt(0).toUpperCase() + name.slice(1),
+    handle: `@${d.author}`,
+    initial: d.author.charAt(0).toUpperCase(),
+    avatarColor: hashToColor(d.author),
+    time: timeAgo(d.created_at),
+    content: d.text || '',
+    media: d.tags?.includes('video') ? 'video' : d.tags?.includes('image') ? 'image' : undefined,
+    likes: formatCount(d.likes),
+    comments: formatCount(d.comments),
+    reposts: formatCount(d.reposts),
+  };
+}
 
 function MediaPlaceholder({ type }: { type: 'image' | 'video' | 'music' }) {
   if (type === 'video') {
@@ -184,7 +136,17 @@ function MediaPlaceholder({ type }: { type: 'image' | 'video' | 'music' }) {
   );
 }
 
-function PostCard({ post }: { post: (typeof PLACEHOLDER_POSTS)['for-you'][number] }) {
+function PostCard({
+  post,
+  onLike,
+  onComment,
+  onRepost,
+}: {
+  post: FeedPost;
+  onLike: (postId: string) => void;
+  onComment: (postId: string) => void;
+  onRepost: (postId: string) => void;
+}) {
   return (
     <Card className="bg-surface">
       <div className="p-4">
@@ -206,19 +168,31 @@ function PostCard({ post }: { post: (typeof PLACEHOLDER_POSTS)['for-you'][number
               </div>
             )}
             <div className="mt-3 flex items-center gap-6">
-              <button className="group flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-rose-400">
+              <button
+                onClick={() => onLike(post.id)}
+                className="group flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-rose-400"
+                aria-label={`Like, ${post.likes} likes`}
+              >
                 <Heart className="h-4 w-4" strokeWidth={1.5} />
                 <span className="text-xs">{post.likes}</span>
               </button>
-              <button className="group flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-sky-400">
+              <button
+                onClick={() => onComment(post.id)}
+                className="group flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-sky-400"
+                aria-label={`Comment, ${post.comments} comments`}
+              >
                 <MessageCircle className="h-4 w-4" strokeWidth={1.5} />
                 <span className="text-xs">{post.comments}</span>
               </button>
-              <button className="group flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-emerald-400">
+              <button
+                onClick={() => onRepost(post.id)}
+                className="group flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-emerald-400"
+                aria-label={`Repost, ${post.reposts} reposts`}
+              >
                 <Repeat2 className="h-4 w-4" strokeWidth={1.5} />
                 <span className="text-xs">{post.reposts}</span>
               </button>
-              <button className="group ml-auto text-muted-foreground transition-colors hover:text-brand-400">
+              <button className="group ml-auto text-muted-foreground transition-colors hover:text-brand-400" aria-label="Share">
                 <Share2 className="h-4 w-4" strokeWidth={1.5} />
               </button>
             </div>
@@ -229,8 +203,114 @@ function PostCard({ post }: { post: (typeof PLACEHOLDER_POSTS)['for-you'][number
   );
 }
 
+function SkeletonCard() {
+  return (
+    <Card className="bg-surface">
+      <div className="p-4">
+        <div className="flex gap-3">
+          <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
+          <div className="min-w-0 flex-1">
+            <div className="flex gap-2">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-4 w-8" />
+            </div>
+            <Skeleton className="mt-2 h-4 w-full" />
+            <Skeleton className="mt-1.5 h-4 w-3/4" />
+            <div className="mt-3 aspect-[4/3] w-full overflow-hidden rounded-lg">
+              <Skeleton className="h-full w-full" />
+            </div>
+            <div className="mt-3 flex gap-6">
+              <Skeleton className="h-4 w-12" />
+              <Skeleton className="h-4 w-12" />
+              <Skeleton className="h-4 w-12" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+async function fetchDiscoverFeed(sort: 'recent' | 'trending', limit = 6): Promise<DiscoveryPost[]> {
+  const resp = await fetch(
+    `${API_ORIGIN}/discover/posts?sort=${sort}&limit=${limit}`,
+    { method: 'PATCH' },
+  );
+  if (!resp.ok) return [];
+  return resp.json();
+}
+
+async function createPublicEntry(schemaId: string, target: string, payload: Record<string, unknown>): Promise<boolean> {
+  try {
+    const resp = await fetch(`${API_ORIGIN}/public/entries`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ schema_id: schemaId, target, payload }),
+    });
+    return resp.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function fetchReactionSchemaId(): Promise<string | null> {
+  try {
+    const resp = await fetch(`${API_ORIGIN}/schemas/reaction`, { method: 'PATCH' });
+    if (resp.ok) {
+      const schema = await resp.json();
+      return schema._id || null;
+    }
+  } catch {
+    // Schema registry unreachable
+  }
+  return null;
+}
+
 function FeedPreview() {
   const [activeTab, setActiveTab] = useState<TabId>('for-you');
+  const [posts, setPosts] = useState<FeedPost[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [reactionSchemaId, setReactionSchemaId] = useState<string | null>(null);
+
+  const tabConfig = TABS.find(t => t.id === activeTab)!;
+
+  const loadFeed = useCallback(async () => {
+    setLoading(true);
+    try {
+      const results = await fetchDiscoverFeed(tabConfig.sort, 6);
+      if (results.length > 0) {
+        setPosts(results.map(mapDiscoveryToFeedPost));
+      } else {
+        setPosts([]);
+      }
+    } catch {
+      setPosts([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [tabConfig.sort]);
+
+  useEffect(() => {
+    loadFeed();
+  }, [loadFeed]);
+
+  useEffect(() => {
+    fetchReactionSchemaId().then(id => setReactionSchemaId(id));
+  }, []);
+
+  const handleReaction = async (postId: string, type: 'like' | 'comment' | 'repost') => {
+    if (!reactionSchemaId) return;
+    // Optimistic update
+    setPosts(prev => prev.map(p => {
+      if (p.id !== postId) return p;
+      const countKey = type === 'like' ? 'likes' : type === 'comment' ? 'comments' : 'reposts';
+      const current = parseCount(p[countKey as 'likes' | 'comments' | 'reposts']);
+      const newVal = current >= 0 ? current + 1 : 1;
+      return { ...p, [countKey]: formatCount(newVal) };
+    }));
+    await createPublicEntry(reactionSchemaId, `post:${postId}`, { type, target: postId });
+  };
 
   return (
     <section className="border-b border-border bg-background px-4 py-24 sm:px-6 sm:py-32">
@@ -271,9 +351,20 @@ function FeedPreview() {
         </div>
 
         <div className="reveal flex flex-col gap-3 [animation-delay:240ms]">
-          {PLACEHOLDER_POSTS[activeTab].map(post => (
-            <PostCard key={post.id} post={post} />
-          ))}
+          {loading
+            ? Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)
+            : posts.length > 0
+              ? posts.map(post => (
+                  <PostCard
+                    key={post.id}
+                    post={post}
+                    onLike={(id) => handleReaction(id, 'like')}
+                    onComment={(id) => handleReaction(id, 'comment')}
+                    onRepost={(id) => handleReaction(id, 'repost')}
+                  />
+                ))
+              : Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={`empty-${i}`} />)
+          }
         </div>
       </div>
     </section>
