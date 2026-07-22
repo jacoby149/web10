@@ -580,9 +580,26 @@ points at an empty db. baseline fixes outrank polish, in this order:
        serves per-env origins; only social still needs D14. operator
        prerequisites: docker group for the ssh user, rotate the CF
        token exposed in the world-readable Caddyfile.
-  ws5: C6 e2e deep sweep + bug hunt (lane C — e2e/** only; local
-       stack, no deploy gate). signup-as-a-test + persona seed
-       fixtures; the honest bug list is the deliverable.
+ws5: C6 e2e deep sweep + bug hunt (lane C — e2e/** only; local
+        stack, no deploy gate). signup-as-a-test + persona seed
+        fixtures; the honest bug list is the deliverable.
+   ws-new: [✓ 1.0.86] D-homepage-feed. Social-media-style tabbed feed
+        preview on the marketing-ui homepage. Placeholder content with
+        For You / Following / Trending tabs, post cards with avatars,
+        media placeholders, engagement counts. Sits between hero and
+        reach-gap section. Ready for live backend content.
+   [ ] A5.5. DISCOVERY API — the public layer (Lane A, api/**):
+        discovery index (web10.discovery_posts, write-protected,
+        background task), schema registry (web10.schemas, CRUD with
+        author enforcement, provider.uuid6 IDs), public ledger
+        (web10.public, validated entries), discovery endpoints
+        (/discover/posts, /users, /search, /topics, /post/{user}/{service}/{id}),
+        engagement aggregation (cached counts on index, schema-agnostic).
+        See PHASE 5.5 in plan.txt and docs/discovery.md.
+   [ ] D5.5. SOCIAL APP PUBLIC LAYER — split posts into public_posts /
+        private_posts, default terms on signup, register default schemas,
+        wire reactions to /public/entries, wire feed to /discover/posts.
+        See PHASE 5.5 in plan.txt.
 
   merge-order notes: B5/D12/D13 don't gate each other; merge each as
   it passes design.md §12. D13 owns the cross-app asset generation

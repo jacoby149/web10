@@ -1,3 +1,10 @@
+1.0.86 || 20.07.2026
+Marketing-ui homepage: added a social-media-style tabbed feed preview section
+with placeholder content (For You / Following / Trending tabs, post cards with
+avatars, media placeholders, engagement counts). The section sits between the
+hero and the reach-gap proof, giving the landing page a sense of life and
+activity. Avatar UI primitive added to marketing-ui. Placeholder data wired to
+tabs; ready to be replaced with live backend content.
 1.0.85 || 20.07.2026
 Remove Netlify integration. Deleted ui/netlify.toml so GitHub pushes no
 longer trigger Netlify builds. Removed web10social.netlify.app from the

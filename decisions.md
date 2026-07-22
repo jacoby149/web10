@@ -9,6 +9,45 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D28 — Schema-registry public ledger for flexible interactions [decided]
+A shared system collection `web10.public` holds structured public interactions
+(reactions, ratings, endorsements, custom events). Any authenticated user can
+write; anon can read. Entries reference a **schema** defined in `web10.schemas`.
+Schema IDs are `provider.uuid6` — globally unique across federated nodes.
+Schema authors can CRUD their own schemas; anyone can read and use them.
+Payloads are validated against the schema on write. This gives infinite
+flexibility (no hardcoded types) with structure (no schemaless chaos). The
+social app caches schemas locally and registers defaults (Reaction, etc.) on
+boot. Engagement counts are schema-agnostic: the discovery index aggregates
+public ledger entries by `schema_id` and attaches them to post previews.
+Rejects: hardcoded interaction types (limits flexibility), schemaless public
+data (dev nightmare), blockchain/append-only (no utility for this use case),
+and per-record visibility fields (terms + separate collections give bulk
+control and per-app permissions for free).
+
+### D27 — Posts are plaintext; E2E encryption is DMs only; visibility via separate collections [decided]
+Posts and comments are plaintext on the node by design. They are discoverable,
+searchable, and sortable — the node reads content to power discovery feeds,
+trending, and search. The `encrypted` field on posts/comments/reactions schemas
+is dead weight for those services; it applies to `dms` only. The mobile
+encryptor's crypto core (ed25519 + xchacha20) stays for DMs. The node is the
+honest broker: it enforces terms, never leaks.
+
+Visibility is controlled by **separate collections**, not per-record flags:
+`public_posts` (terms whitelist anon reads, discovery indexes it),
+`private_posts` (terms block anon, discovery ignores it). Each collection is
+a separate service with its own terms record. This gives bulk control
+("make all posts private" = change 1 terms record, instant), per-app
+permissions (App A reads public, App B reads both), and zero API filtering
+overhead. The social app abstracts this from the user — a visibility toggle
+routes to the right collection.
+
+Discovery surfaces only what terms allow anon to read. Rejects: E2E encryption
+for posts (blocks discovery by construction), per-record visibility fields
+(requires updating N records for bulk changes, adds API filtering complexity),
+and treating all data as equally private (the creator thesis requires
+discoverability).
+
 ### D26 — SDK npm publish stays tag-gated; no auto-publish on merge [decided]
 `cd.yml` publishes `web10-npm` to npm on a `v*` tag push (the `npm` job,
 gated on `startsWith(github.ref, 'refs/tags/v')`). The operator asked whether
