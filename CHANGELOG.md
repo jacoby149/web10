@@ -1,3 +1,6 @@
+1.0.98 || 22.07.2026
+Knowledge folder complete overhaul: replaced AI-generated content with a working system. Knowledge theories: the-why-layer (connects tech to business), the-how-layer (comprehensive technical explanation), the-what-layer (code/deploy/ownership map). Writing styles: use-case-driven (abstract → specific → technical → logistics). Editing styles: the-touch-up (surgical fixes), the-rewrite (diagnose, pick theory/style/voice, write fresh). Voices: clive-tobacco-smoker (anti-AI voice reference). Visual-styles folder added for Mermaid chart styles. AGENTS.md added with the workflow for AI agents (pick theory → pick style → pick voice → write). Deleted old knowledge-base/ (architecture, protocol, security, 8 Mermaid scenarios) — all replaced.
+1.0.89 || 21.07.2026
 1.0.97 || 22.07.2026
 E6: SSH-deploy CI/CD framework (replaces Portainer GitOps as deploy trigger).
 New `.github/workflows/deploy.yml`: GitHub Actions SSHes into the box, runs
