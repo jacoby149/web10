@@ -813,11 +813,34 @@ a separate service with its own terms record, so bulk control is instant
 permissions work (App A reads public, App B reads both).
 
 API side (Lane A):
-[ ] discovery index: `web10.discovery_posts` system collection,
+[✓ 1.0.93] discovery index: `web10.discovery_posts` system collection,
     write-protected (background task only). On post create/update in a
     service where anon is whitelisted, upsert a projection into the
     index. On post delete or terms change, remove backfill accordingly.
-[ ] schema registry: `web10.schemas` system collection.
+[✓ 1.0.93] schema registry: `web10.schemas` system collection.
+    - POST /schemas/register — any user, returns provider.uuid6 ID
+    - PATCH /schemas/{id} — fetch (anon OK)
+    - PUT /schemas/{id} — update (author only, API enforces ownership)
+    - DELETE /schemas/{id} — delete (author only)
+    - Schemas store JSON Schema for payload validation
+[✓ 1.0.93] public ledger: `web10.public` system collection.
+    - POST /public/entries — create (any authenticated user, validates
+      payload against schema)
+    - PATCH /public/entries — query (anon OK, filter by schema_id,
+      target, author)
+    - PUT /public/entries/{id} — update (author only)
+    - DELETE /public/entries/{id} — delete (author only)
+[✓ 1.0.93] discovery endpoints (new `discover` router):
+    - PATCH /discover/posts — for you feed (recent/trending sort)
+    - PATCH /discover/users — suggested accounts
+    - PATCH /discover/search — full-text search (Mongo $text index)
+    - PATCH /discover/topics — trending hashtags
+    - PATCH /discover/post/{user}/{service}/{id} — single post lookup
+[✓ 1.0.93] engagement aggregation: derived live from public ledger at read
+    time (no cached deltas). Engagement is schema-agnostic, keyed by
+    payload.action, filtered by target.
+[✓ 1.0.93] engagement score: formula for trending sort
+    (likes * 1 + comments * 3 + reposts * 5)
     - POST /schemas/register — any user, returns provider.uuid6 ID
     - PATCH /schemas/{id} — fetch (anon OK)
     - PUT /schemas/{id} — update (author only, API enforces ownership)
@@ -843,24 +866,44 @@ API side (Lane A):
     (likes * 1 + comments * 3 + reposts * 5? or just chronological)
 
 Social app side (Lane D):
-[ ] split posts into public_posts / private_posts services
-[ ] create default terms for both services on user signup
-[ ] register default schemas (Reaction, etc.) on first boot
-[ ] cache schemas locally: schema_id → schema definition
-[ ] route createPost by visibility toggle
-[ ] wire reactions to /public/entries endpoint
-[ ] wire feed preview to /discover/posts endpoint (replace placeholder)
+[✓ 1.0.92] split posts into public_posts / private_posts services
+[✓ 1.0.92] create default terms for both services on user signup
+[✓ 1.0.92] register default schemas (Reaction, etc.) on first boot
+[✓ 1.0.92] cache schemas locally: schema_id → schema definition
+[✓ 1.0.92] route createPost by visibility toggle
+[✓ 1.0.92] wire reactions to /public/entries endpoint
+[✓ 1.0.92] wire feed preview to /discover/posts endpoint (replace placeholder)
 
 Marketing-ui side (Lane D):
-[ ] replace FeedPreview placeholder data with /discover/posts
-[ ] wire tab switching to sort params (recent, trending)
-[ ] wire reaction buttons to /public/entries
-[ ] fetch schema definitions for rendering interaction types
+[✓ 1.0.92] replace FeedPreview placeholder data with /discover/posts
+[✓ 1.0.92] wire tab switching to sort params (recent, trending)
+[✓ 1.0.92] wire reaction buttons to /public/entries
+[✓ 1.0.92] fetch schema definitions for rendering interaction types
 
 Federation (later):
 [ ] cross-node discovery: /discover/posts aggregates from federated peers
 [ ] schema resolution: fetch remote schemas by provider.uuid6
 [ ] public ledger federation: /public/entries aggregates across nodes
+
+Live testing — persona seeding (Cross-lane, persona-orchestration/):
+[✓ 1.0.89] persona-orchestration/: 5 persona accounts with distinct
+    voices (solar-flare-69, noodle-empress, void-walker, butterfly-
+    mechanic, disco-donkey), seed scripts (bash + python), first-week
+    content plans, cross-follows, posts, comments, DMs, reactions.
+    PURPOSE: this is the test data that exercises the ENTIRE Phase 5.5
+    public layer end to end. when the discovery index, schema registry,
+    and public ledger land, these personas are the ones that populate
+    /discover/posts, /discover/topics, /discover/users, and the
+    marketing-ui FeedPreview. the seed script writes public posts
+    (visibility: "public"), reactions (the engagement aggregation
+    trigger), and comments (schema-validated ledger entries). the
+    trending sort gets real data to rank. the homepage feed stops being
+    placeholder. the personas also test the social app's core flows
+    (post, feed, DM, comment, react, follow) with actual cross-user
+    interaction — no more empty-state screenshots in the demo.
+    the seed script is idempotent: re-run after a DB wipe to reseed.
+    the action plans per persona define ongoing content so another
+    agent can log in as a persona and keep the platform alive.
 
 PHASE 6 — wapi.js revamp (the sdk)
 ----------------------------------
@@ -1604,8 +1647,19 @@ where they get MECHANICALLY enforced so they can't silently rot.
   I3. a request can only ever touch the addressed user's collection.
       cross-collection access is impossible by construction.
   I4. private content is unreadable by the node operator (phase 11).
-  I5. every actor (app, agent, llm) acts under a scoped, expiring,
-      revocable token -- least privilege, always.
+I5. every actor (app, agent, llm) acts under a scoped, expiring,
+       revocable token -- least privilege, always.
+   I6. every record carries server-injected, immutable metadata:
+       `_author` (token's username), `_source_node` (the provider
+       that minted the token — NOT the destination node), and
+       `_created_at` (server time at the node that stored the record).
+       the client cannot set or forge these fields. a cross-node
+       request (foreign provider token certified via remote /certify)
+       still gets stamped with the originating provider in
+       `_source_node` and the local node's time in `_created_at`.
+       this stops sender impersonation on DMs, posts, comments,
+       reactions — any record where the client currently claims
+       to be someone else.
 
 *** CONFIRMED BUG -- federation provider validation (invariant I1) ***
 today providers do NOT validate each other. the chain:

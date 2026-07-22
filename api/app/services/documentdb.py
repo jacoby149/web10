@@ -1,5 +1,6 @@
 import datetime
 import itertools
+import logging
 import re
 import secrets
 
@@ -10,6 +11,11 @@ import app.exceptions as exceptions
 import app.settings as settings
 from app.models.core import dotdict
 from app.services import records as records
+
+log = logging.getLogger(__name__)
+
+# Server-managed metadata fields — the client must never set or forge these.
+IMMUTABLE_METADATA = frozenset(("_author", "_source_node", "_created_at"))
 
 #################################
 ####### CONNECTING TO DB ########
@@ -30,17 +36,29 @@ def to_gui(doc):
     _id = doc["_id"]
     doc = doc["body"]
     doc["_id"] = _id
+    # I6: ensure server-managed metadata is always present on read
+    for field in IMMUTABLE_METADATA:
+        if field not in doc:
+            doc[field] = None
     return doc
 
 
 # transforms user submitted doc for db writing
-def to_db(_doc, service):
+# I6: injects server-managed metadata; strips any client-supplied values
+def to_db(_doc, service, author=None, source_node=None):
     doc = {}
     if "_id" in _doc:
         doc["_id"] = _doc["_id"]
         del _doc["_id"]
     doc["service"] = service
-    doc["body"] = _doc
+    body = {k: v for k, v in _doc.items() if k not in IMMUTABLE_METADATA}
+    # I6: server always wins — inject metadata from token + server clock
+    if author is not None:
+        body["_author"] = author
+    if source_node is not None:
+        body["_source_node"] = source_node
+    body["_created_at"] = datetime.datetime.utcnow()
+    doc["body"] = body
     return doc
 
 
@@ -65,7 +83,7 @@ def q_t(_q, service):
 
 
 # transforms users update for db
-# safe because ops are for values not fields
+# I6: strips any operator targeting immutable metadata fields
 def u_t(_u):
     u = {}
     for op in _u:
@@ -74,7 +92,16 @@ def u_t(_u):
             if "$" in "".join(u[op].keys()):
                 # dont let fancy updates work yet.
                 raise exceptions.DB_NOT_ALLOWED
-            u[op][to_db_field(field)] = _u[op][field]
+            db_field = to_db_field(field)
+            # I6: silently drop updates targeting immutable server-managed fields
+            if field in IMMUTABLE_METADATA:
+                log.warning(
+                    "I6: blocked client update of immutable field '%s' via %s",
+                    field,
+                    op,
+                )
+                continue
+            u[op][db_field] = _u[op][field]
     return u
 
 
@@ -221,7 +248,7 @@ def temp_pass(phone_number, hash):
 ##########################
 
 
-def create(user, service, _data):
+def create(user, service, _data, author=None, source_node=None):
     if star_found([_data]):
         raise exceptions.DSTAR
     # A service's terms record ("services" collection-service) must be unique
@@ -230,9 +257,15 @@ def create(user, service, _data):
     if service == "services" and isinstance(_data, dict) and _data.get("service"):
         if db[f"{user}"].find_one({"service": "services", "body.service": _data["service"]}) is not None:
             raise exceptions.DUPLICATE_SERVICE
-    data = to_db(_data, service)
+    # I6: strip client-supplied immutable metadata before passing to to_db()
+    _data = {k: v for k, v in _data.items() if k not in IMMUTABLE_METADATA}
+    data = to_db(_data, service, author=author, source_node=source_node)
     result = db[f"{user}"].insert_one(data)
     _data["_id"] = str(result.inserted_id)
+    # I6: return the server-injected metadata
+    _data["_author"] = author
+    _data["_source_node"] = source_node
+    _data["_created_at"] = data["body"]["_created_at"]
     return _data
 
 
@@ -583,6 +616,9 @@ def register_app(info):
 
 
 def create_media_record(username: str, record: dict) -> dict:
+    # I6: strip client-supplied immutable metadata
+    record = {k: v for k, v in record.items() if k not in IMMUTABLE_METADATA}
+    record["_created_at"] = datetime.datetime.utcnow()
     doc = {"service": "media", "body": record}
     result = db[username].insert_one(doc)
     record["_id"] = str(result.inserted_id)
@@ -621,3 +657,379 @@ def delete_media_records(username: str, query: dict) -> int:
 
 def user_collection_exists(username: str) -> bool:
     return username in db.list_collection_names()
+
+
+# ---------------------------------------------------------------------------
+# Discovery index helpers (web10.discovery_posts)
+#
+# The discovery index is a CROSS-USER projection. CRUD on a user collection
+# is scoped to one user — there is no "PATCH /*/posts". The index stores
+# only what's needed for public display: text, tags, author, created_at.
+#
+# Engagement counts are NOT cached here. They are derived at read time from
+# the public ledger (web10.public), which holds all reactions/comments/reposts.
+# ---------------------------------------------------------------------------
+
+DISCOVERY_COLLECTION = "discovery_posts"
+
+
+def _ensure_discovery_collection():
+    """Ensure the discovery_posts collection and indexes exist."""
+    existing = set(db["web10"].list_collection_names())
+    if DISCOVERY_COLLECTION not in existing:
+        db["web10"].create_collection(DISCOVERY_COLLECTION)
+    db["web10"][DISCOVERY_COLLECTION].create_index(
+        [("body_text", "text"), ("tags", "text")],
+        name="discovery_text_index",
+    )
+    db["web10"][DISCOVERY_COLLECTION].create_index(
+        [("created_at", -1)],
+        name="discovery_created_at",
+    )
+
+
+def upsert_discovery_post(username: str, service: str, post: dict) -> dict:
+    """Upsert a projection of a post into the discovery index.
+
+    Called as a background task from CRUD endpoints when a post is
+    created or updated in a service where anon is whitelisted.
+    """
+    _ensure_discovery_collection()
+    body_text = post.get("text", "") or post.get("body", "") or ""
+    tags = post.get("tags", []) or []
+    if isinstance(tags, str):
+        tags = [t.strip() for t in tags.split(",") if t.strip()]
+    created_at = post.get("created_at") or datetime.datetime.utcnow().isoformat()
+    post_id = str(post.get("_id", ""))
+
+    col = db["web10"][DISCOVERY_COLLECTION]
+    col.update_one(
+        {"post_id": post_id, "author": username, "service": service},
+        {
+            "$set": {
+                "author": username,
+                "service": service,
+                "post_id": post_id,
+                "body_text": body_text,
+                "tags": tags,
+                "created_at": created_at,
+                "updated_at": datetime.datetime.utcnow().isoformat(),
+            }
+        },
+        upsert=True,
+    )
+
+
+def remove_discovery_post(username: str, service: str, post_id: str):
+    """Remove a post from the discovery index."""
+    try:
+        db["web10"][DISCOVERY_COLLECTION].delete_one(
+            {
+                "post_id": str(post_id),
+                "author": username,
+                "service": service,
+            }
+        )
+    except Exception:
+        pass
+
+
+def _ledger_engagement_for_post(post_key: str) -> dict:
+    """Count engagement for a post from the public ledger.
+
+    post_key is the target string that ledger entries reference
+    (e.g. "{username}/{service}/{post_id}").
+    Engagement is schema-agnostic — keyed by payload.action.
+    """
+    _ensure_public_collection()
+    col = db["web10"][PUBLIC_COLLECTION]
+    pipeline = [
+        {"$match": {"target": post_key}},
+        {
+            "$group": {
+                "_id": "$payload.action",
+                "count": {"$sum": 1},
+            }
+        },
+    ]
+    counts = {doc["_id"]: doc["count"] for doc in col.aggregate(pipeline)}
+    return {
+        "likes": counts.get("like", 0) + counts.get("reaction", 0),
+        "comments": counts.get("comment", 0),
+        "reposts": counts.get("repost", 0),
+    }
+
+
+def _engagement_score(engagement: dict) -> int:
+    """Compute engagement score: likes*1 + comments*3 + reposts*5."""
+    return engagement.get("likes", 0) * 1 + engagement.get("comments", 0) * 3 + engagement.get("reposts", 0) * 5
+
+
+def _discovery_post_to_dict(doc: dict) -> dict:
+    """Convert a discovery index document to a clean dict with live engagement."""
+    if doc is None:
+        return {}
+    post_key = f"{doc['author']}/{doc['service']}/{doc['post_id']}"
+    engagement = _ledger_engagement_for_post(post_key)
+    return {
+        "author": doc["author"],
+        "service": doc["service"],
+        "post_id": doc["post_id"],
+        "body_text": doc.get("body_text", ""),
+        "tags": doc.get("tags", []),
+        "created_at": doc.get("created_at"),
+        "engagement": engagement,
+        "engagement_score": _engagement_score(engagement),
+    }
+
+
+def query_discovery_posts(sort_by: str = "recent", limit: int = 50, skip: int = 0) -> list[dict]:
+    """Query the discovery index for the feed.
+
+    For trending sort, we enrich each doc with live engagement from the
+    ledger and sort in Python (the index is small enough). For recent,
+    we sort by created_at from the index.
+    """
+    _ensure_discovery_collection()
+    col = db["web10"][DISCOVERY_COLLECTION]
+
+    if sort_by == "trending":
+        docs = list(col.find().limit(limit + skip))
+        enriched = [_discovery_post_to_dict(d) for d in docs]
+        enriched.sort(key=lambda p: p["engagement_score"], reverse=True)
+        return enriched[skip : skip + limit]
+    else:
+        docs = list(col.find().sort("created_at", -1).skip(skip).limit(limit))
+        return [_discovery_post_to_dict(d) for d in docs]
+
+
+def search_discovery_posts(query: str, limit: int = 50, skip: int = 0) -> list[dict]:
+    """Full-text search the discovery index."""
+    _ensure_discovery_collection()
+    col = db["web10"][DISCOVERY_COLLECTION]
+    docs = list(
+        col.find(
+            {"$text": {"$search": query}},
+            {"score": {"$meta": "textScore"}},
+        )
+        .sort([("score", {"$meta": "textScore"})])
+        .skip(skip)
+        .limit(limit)
+    )
+    results = []
+    for d in docs:
+        r = _discovery_post_to_dict(d)
+        r["score"] = d.get("score", 0)
+        results.append(r)
+    return results
+
+
+def trending_topics(limit: int = 20) -> list[dict]:
+    """Aggregate trending hashtags from the discovery index."""
+    _ensure_discovery_collection()
+    col = db["web10"][DISCOVERY_COLLECTION]
+    pipeline = [
+        {"$unwind": "$tags"},
+        {"$match": {"tags": {"$regex": "^#"}}},
+        {"$group": {"_id": "$tags", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}},
+        {"$limit": limit},
+    ]
+    docs = list(col.aggregate(pipeline))
+    return [{"topic": d["_id"], "count": d["count"]} for d in docs]
+
+
+def suggested_users(limit: int = 20) -> list[dict]:
+    """Suggest users based on discovery index activity + engagement."""
+    _ensure_discovery_collection()
+    col = db["web10"][DISCOVERY_COLLECTION]
+    docs = list(col.find())
+    author_posts: dict[str, list[dict]] = {}
+    for d in docs:
+        author_posts.setdefault(d["author"], []).append(d)
+    users = []
+    for author, posts in author_posts.items():
+        score = sum(_discovery_post_to_dict(p)["engagement_score"] for p in posts)
+        users.append(
+            {
+                "username": author,
+                "post_count": len(posts),
+                "engagement_score": score,
+            }
+        )
+    users.sort(key=lambda u: u["engagement_score"], reverse=True)
+    return users[:limit]
+
+
+def lookup_discovery_post(username: str, service: str, post_id: str) -> dict:
+    """Look up a single post in the discovery index."""
+    _ensure_discovery_collection()
+    col = db["web10"][DISCOVERY_COLLECTION]
+    doc = col.find_one({"post_id": str(post_id), "author": username, "service": service})
+    return _discovery_post_to_dict(doc)
+
+
+# ---------------------------------------------------------------------------
+# Schema registry helpers (web10.schemas)
+# ---------------------------------------------------------------------------
+
+SCHEMAS_COLLECTION = "schemas"
+
+
+def _ensure_schemas_collection():
+    existing = set(db["web10"].list_collection_names())
+    if SCHEMAS_COLLECTION not in existing:
+        db["web10"].create_collection(SCHEMAS_COLLECTION)
+
+
+def register_schema(author: str, name: str, schema_def: dict) -> dict:
+    """Register a new JSON Schema. Returns the schema document."""
+    _ensure_schemas_collection()
+    import uuid as uuid_mod
+
+    doc = {
+        "_id": f"{settings.PROVIDER}.uuid6:{uuid_mod.uuid4()}",
+        "author": author,
+        "name": name,
+        "schema": schema_def,
+        "created_at": datetime.datetime.utcnow().isoformat(),
+        "updated_at": datetime.datetime.utcnow().isoformat(),
+    }
+    db["web10"][SCHEMAS_COLLECTION].insert_one(doc)
+    return doc
+
+
+def get_schema(schema_id: str) -> dict | None:
+    """Fetch a schema by ID (anon OK)."""
+    _ensure_schemas_collection()
+    return db["web10"][SCHEMAS_COLLECTION].find_one({"_id": schema_id})
+
+
+def update_schema(schema_id: str, author: str, updates: dict) -> dict | None:
+    """Update a schema (author only). Returns updated doc or None."""
+    _ensure_schemas_collection()
+    updates["updated_at"] = datetime.datetime.utcnow().isoformat()
+    return db["web10"][SCHEMAS_COLLECTION].find_one_and_update(
+        {"_id": schema_id, "author": author},
+        {"$set": updates},
+        return_document=pymongo.RETURN_AFTER,
+    )
+
+
+def delete_schema(schema_id: str, author: str) -> bool:
+    """Delete a schema (author only). Returns True if deleted."""
+    _ensure_schemas_collection()
+    result = db["web10"][SCHEMAS_COLLECTION].delete_one({"_id": schema_id, "author": author})
+    return result.deleted_count > 0
+
+
+# ---------------------------------------------------------------------------
+# Public ledger helpers (web10.public)
+#
+# The public ledger is the single write-open surface for structured,
+# validated interactions. Any authenticated user can create entries.
+# Anyone (including anon) can read them.
+#
+# Engagement (reactions, comments, reposts) lives here. The discovery
+# index derives engagement counts from the ledger at read time.
+# ---------------------------------------------------------------------------
+
+PUBLIC_COLLECTION = "public"
+
+
+def _ensure_public_collection():
+    existing = set(db["web10"].list_collection_names())
+    if PUBLIC_COLLECTION not in existing:
+        db["web10"].create_collection(PUBLIC_COLLECTION)
+    db["web10"][PUBLIC_COLLECTION].create_index(
+        [("schema_id", 1), ("target", 1), ("author", 1)],
+        name="public_query_index",
+    )
+
+
+def create_public_entry(author: str, schema_id: str, target: str, payload: dict) -> dict:
+    """Create a public ledger entry. Returns the entry document."""
+    _ensure_public_collection()
+    import uuid as uuid_mod
+
+    doc = {
+        "_id": f"{settings.PROVIDER}.uuid6:{uuid_mod.uuid4()}",
+        "author": author,
+        "schema_id": schema_id,
+        "target": target,
+        "payload": payload,
+        "created_at": datetime.datetime.utcnow().isoformat(),
+        "updated_at": datetime.datetime.utcnow().isoformat(),
+    }
+    db["web10"][PUBLIC_COLLECTION].insert_one(doc)
+    return doc
+
+
+def query_public_entries(
+    schema_id: str | None = None,
+    target: str | None = None,
+    author: str | None = None,
+    limit: int = 50,
+    skip: int = 0,
+) -> list[dict]:
+    """Query the public ledger (anon OK)."""
+    _ensure_public_collection()
+    query = {}
+    if schema_id:
+        query["schema_id"] = schema_id
+    if target:
+        query["target"] = target
+    if author:
+        query["author"] = author
+    return list(db["web10"][PUBLIC_COLLECTION].find(query).sort("created_at", -1).skip(skip).limit(limit))
+
+
+def update_public_entry(entry_id: str, author: str, updates: dict) -> dict | None:
+    """Update a public entry (author only)."""
+    _ensure_public_collection()
+    updates["updated_at"] = datetime.datetime.utcnow().isoformat()
+    return db["web10"][PUBLIC_COLLECTION].find_one_and_update(
+        {"_id": entry_id, "author": author},
+        {"$set": updates},
+        return_document=pymongo.RETURN_AFTER,
+    )
+
+
+def delete_public_entry(entry_id: str, author: str) -> bool:
+    """Delete a public entry (author only)."""
+    _ensure_public_collection()
+    result = db["web10"][PUBLIC_COLLECTION].delete_one({"_id": entry_id, "author": author})
+    return result.deleted_count > 0
+
+
+# ---------------------------------------------------------------------------
+# Background indexing helpers
+# ---------------------------------------------------------------------------
+
+
+def service_allows_anon(username: str, service: str) -> bool:
+    """Check if a service has anon whitelisted."""
+    term = get_term_record(username, service)
+    if term is None:
+        return False
+    for entry in term.get("whitelist", []):
+        if entry.get("username") == "anon":
+            return True
+    return False
+
+
+def background_index_post(username: str, service: str, post: dict):
+    """Background task: upsert a post into the discovery index if the service allows anon."""
+    try:
+        if service_allows_anon(username, service):
+            upsert_discovery_post(username, service, post)
+    except Exception:
+        pass
+
+
+def background_remove_post(username: str, service: str, post_id: str):
+    """Background task: remove a post from the discovery index."""
+    try:
+        remove_discovery_post(username, service, post_id)
+    except Exception:
+        pass

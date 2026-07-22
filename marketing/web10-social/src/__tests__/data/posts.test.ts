@@ -36,13 +36,23 @@ describe('posts data layer', () => {
   });
 
   describe('createPost', () => {
-    it('creates a post record', async () => {
+    it('creates a post record (private by default)', async () => {
       const post = { text: 'Hello world', created_at: '2026-07-18T00:00:00Z' };
       const created = { _id: 'post1', ...post };
       mock.create.mockResolvedValue(created);
 
       const result = await posts.createPost(post);
-      expect(mock.create).toHaveBeenCalledWith('posts', post);
+      expect(mock.create).toHaveBeenCalledWith('private_posts', post);
+      expect(result).toEqual(created);
+    });
+
+    it('creates a public post in public_posts service', async () => {
+      const post = { text: 'Hello world', created_at: '2026-07-18T00:00:00Z', visibility: 'public' as const };
+      const created = { _id: 'post2', ...post };
+      mock.create.mockResolvedValue(created);
+
+      const result = await posts.createPost(post);
+      expect(mock.create).toHaveBeenCalledWith('public_posts', post);
       expect(result).toEqual(created);
     });
   });
@@ -58,6 +68,27 @@ describe('posts data layer', () => {
       const result = await posts.readMyPosts();
       expect(mock.read).toHaveBeenCalledWith('posts');
       expect(result).toEqual(postsList);
+    });
+
+    it('adapts legacy posts (html/media/time → text/media_refs/created_at)', async () => {
+      const legacyPosts = [
+        { _id: 'lp1', html: '<p>Hello world</p>', media: [{ type: 'image', src: 'http://img1.jpg' }], time: '2025-06-01T00:00:00Z', web10: 'api.web10.app/alice' },
+      ];
+      const migratedPosts = [
+        { _id: 'lp1', text: 'Hello world', media_refs: ['http://img1.jpg'], created_at: '2025-06-01T00:00:00Z' },
+      ];
+      mock.read.mockResolvedValueOnce(legacyPosts);
+      mock.update.mockResolvedValueOnce(legacyPosts[0]);
+      mock.read.mockResolvedValueOnce(migratedPosts);
+
+      const result = await posts.readMyPosts();
+      expect(mock.update).toHaveBeenCalledWith('posts', { _id: 'lp1' }, expect.objectContaining({
+        $set: expect.objectContaining({
+          text: 'Hello world',
+          created_at: '2025-06-01T00:00:00Z',
+        }),
+      }));
+      expect(result).toEqual(migratedPosts);
     });
   });
 

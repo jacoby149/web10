@@ -1,7 +1,88 @@
-1.0.90 || 21.07.2026
+1.0.98 || 22.07.2026
 Knowledge folder complete overhaul: replaced AI-generated content with a working system. Knowledge theories: the-why-layer (connects tech to business), the-how-layer (comprehensive technical explanation), the-what-layer (code/deploy/ownership map). Writing styles: use-case-driven (abstract → specific → technical → logistics). Editing styles: the-touch-up (surgical fixes), the-rewrite (diagnose, pick theory/style/voice, write fresh). Voices: clive-tobacco-smoker (anti-AI voice reference). Visual-styles folder added for Mermaid chart styles. AGENTS.md added with the workflow for AI agents (pick theory → pick style → pick voice → write). Deleted old knowledge-base/ (architecture, protocol, security, 8 Mermaid scenarios) — all replaced.
 1.0.89 || 21.07.2026
+1.0.97 || 22.07.2026
+E6: SSH-deploy CI/CD framework (replaces Portainer GitOps as deploy trigger).
+New `.github/workflows/deploy.yml`: GitHub Actions SSHes into the box, runs
+`docker compose up --build`, waits for container stability, runs smoke test.
+Push to `dev` → web10-dev; push to `main` → web10-prod. No self-hosted runner
+(ephemeral ubuntu-latest runner, deploy key for SSH). `deploy-stacks.py` now
+supports file-backed stacks (`register` mode — no GitOps polling) and a
+`disable-gitops` command to kill the auto-update loop on existing stacks.
+Portainer remains the management UI (registered post-deploy via API) but no
+longer triggers deploys. Requires GitHub secrets: `DEPLOY_SSH_KEY`, `VM_IP`,
+`SSH_USER`.
+
+1.0.96 || 22.07.2026
+Marketing-ui: fixed corner deployment-status widget. A small pill in the
+bottom-right (green dot + live version, mono) reads the baked /status.json
+(E9) and expands to version / commit / deployed-at with a link to the full
+/status/ page. Renders nothing when the status feed is absent (local dev,
+tests) — no dead control. Token-only styling, keyboard operable (Esc,
+focus-visible ring), covered by 4 vitest cases.
+
+1.0.95 || 22.07.2026
+Ops: Portainer admin password reset after the GitOps re-clone of /opt/web10
+wiped the gitignored .env (creds existed nowhere else). Box secrets moved to
+a canonical /home/jacob/web10-ops/.env outside the repo checkout, with
+/opt/web10/ubuntu-deployment/.env now a symlink to it. Documented in
+ubuntu-deployment README §Secrets, AGENT-OPS §1, .env.example, OPS-LOG.
+Known follow-ups logged: NPM admin password still lost (needs its own
+reset); web10-prod stack still tracks dev, not main.
+
+1.0.94 || 22.07.2026
+Fix: resolved merge conflict in marketing-ui AppStore.tsx (SVG className
+assignment on createElementNS'd SVG element).
+
+1.0.93 || 22.07.2026
+Discovery API: cross-user discovery layer. Discovery index (`web10.discovery_posts`)
+populated from CRUD on anon-whitelisted services. Public ledger (`web10.public`)
+for schema-validated structured interactions (reactions, comments). Schema registry
+(`web10.schemas`) with CRUD + author enforcement. Engagement counts derived live
+from the ledger at read time (no cached deltas). Discovery endpoints: `/discover/posts`
+(recent/trending), `/discover/users`, `/discover/search`, `/discover/topics`,
+`/discover/post/{user}/{service}/{id}`. All anon-readable. +44 tests (335 total green).
+
+1.0.92 || 22.07.2026
+D5.5: Social app public layer. Split posts into `public_posts` / `private_posts`
+services routed by visibility. Default terms for both on adapter init (anon
+whitelisted on public, blocked on private). Register default Reaction/Comment
+schemas on first boot with local cache. Reactions write to both legacy service
+and `/public/entries` public ledger. New `readDiscoverFeed` calls
+`PATCH /discover/posts` (recent/trending sort). Marketing-ui FeedPreview
+replaced placeholder data with live discovery API feed, skeleton loading on
+API unreachable, tab switching wired to sort params, reaction buttons call
+`POST /public/entries` with optimistic count updates, schema definitions
+fetched on mount. 222 social tests green, 19 marketing-ui tests green.
+
+Trending added to marketing-ui navbar between Home and Docs. Dedicated /trending page created. FeedPreview simplified: removed For You/Following/Trending tabs, merged all posts into a single trending feed with Zap icon header. Fixed broken PostCard type reference.
+
+I6 complete: `_author`, `_source_node`, `_created_at` immutable on update,
+exposed on read, forged values rejected. `to_db()` strips client-supplied
+metadata and injects server values from token + clock. `u_t()` silently drops
+any `$set`/`$unset`/`$inc` targeting immutable fields. `to_gui()` ensures
+metadata fields present on every returned record. `create()` endpoint passes
+token's username/provider to `to_db()`. Cross-node: remote token's provider
+becomes `_source_node`, remote username becomes `_author`. +14 I6 tests
+(309 total green).
+1.0.91 || 22.07.2026
+Fix DMs: single `dms` service with sender/recipient fields (no per-conversation
+service). legacy adapter auto-migrates message-inbox/outbox on first read.
+Fix posts: legacy adapter migrates html/media/time → text/media_refs/created_at
+in-place so text-only posts render in the profile grid.
+Added security invariant I6: server-side record metadata (_author, _source_node,
+_created_at) injected by API on create, immutable on update. audited cross-node
+federation flow: no cross-node token delegation, no data sync, no provenance
+metadata today. 220 tests green, tsc clean.
+1.0.90 || 21.07.2026
 Homepage: moved the social feed preview section above the hero so the feed is front and center — first thing you see after the navbar. The pitch headline follows immediately after.
+
+1.0.89 || 21.07.2026
+Persona orchestration: 5 live-testing personas (solar-flare-69, noodle-empress,
+void-walker, butterfly-mechanic, disco-donkey) with seed scripts (bash + python),
+first-week action plans, cross-follows, posts, comments, DMs, reactions, and
+inbox fan-out. Makes the social platform look alive for dev testing and demos.
+
 1.0.88 || 21.07.2026
 Fix marketing-ui build: SVG `className` assignment changed to `setAttribute('class', ...)` to avoid TS2540 read-only error on dynamically created SVG elements.
 1.0.86 || 20.07.2026

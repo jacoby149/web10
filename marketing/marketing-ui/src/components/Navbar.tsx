@@ -5,6 +5,7 @@ import { Button } from './ui/button'
 
 const navItems = [
   { path: '/', label: 'Home' },
+  { path: '/trending', label: 'Trending' },
   { path: '/docs', label: 'Docs' },
   { path: '/app-store', label: 'App Store' },
   { path: '/import', label: 'Import Your Life' },

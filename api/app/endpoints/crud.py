@@ -21,6 +21,23 @@ def _emit(user, service, token, action):
         pass
 
 
+def _index_post_create(user, service, post):
+    """Discovery hook: upsert a created/updated post into the index."""
+    try:
+        db.background_index_post(user, service, post)
+    except Exception:
+        pass
+
+
+def _index_post_delete(user, service, query):
+    """Discovery hook: remove a deleted post from the index."""
+    try:
+        if query and isinstance(query, dict) and "_id" in query:
+            db.background_remove_post(user, service, query["_id"])
+    except Exception:
+        pass
+
+
 def check(user):
     star = db.get_star(user)
     if settings.VERIFY_REQUIRED and not star["verified"]:
@@ -40,9 +57,14 @@ async def create_records(user: str, service: str, token: Token, b_t: BackgroundT
     if not is_permitted(token, user, service, "create"):
         raise exceptions.CRUD
     check(user)
-    res = db.create(user, service, token.query)
+    # I6: inject server-managed metadata from the authenticated token
+    decoded = decode_token(token.token) if token.token else None
+    author = decoded.username if decoded else None
+    source_node = decoded.provider if decoded else None
+    res = db.create(user, service, token.query, author=author, source_node=source_node)
     b_t.add_task(db.charge, user, "create")
     _emit(user, service, token, "create")
+    _index_post_create(user, service, res)
     return res
 
 
@@ -82,6 +104,8 @@ async def update_records(user: str, service: str, token: Token, b_t: BackgroundT
     res = db.update(user, service, token.query, token.update)
     b_t.add_task(db.charge, user, "update")
     _emit(user, service, token, "update")
+    if isinstance(res, dict) and "_id" in res:
+        _index_post_create(user, service, res)
     return res
 
 
@@ -91,6 +115,7 @@ async def delete_records(user: str, service: str, token: Token, b_t: BackgroundT
         raise exceptions.CRUD
     if service != "services":
         check(user)
+    _index_post_delete(user, service, token.query)
     res = db.delete(user, service, token.query)
     if service == "services":
         return res

@@ -25,7 +25,7 @@ import {
   updateContact as dlUpdateContact,
   deleteContact as dlDeleteContact,
   searchContacts as dlSearchContacts,
-  conversationServiceName as dlConversationServiceName,
+  conversationKey as dlConversationKey,
   readDms as dlReadDms,
   sendDm as dlSendDm,
   deleteDm as dlDeleteDm,
@@ -129,7 +129,7 @@ interface Web10SocialAdapter {
   searchContactRecords: (query: string) => Promise<ContactRecord[]>;
 
   // DMs (records-based)
-  conversationServiceName: (
+  conversationKey: (
     a: { provider: string; username: string },
     b: { provider: string; username: string },
   ) => string;
@@ -227,6 +227,17 @@ const web10SocialAdapterInit = (): Web10SocialAdapter => {
       cross_origins: crossOrigins,
       whitelist: [{ provider: '.*', username: '.*', read: true }],
     },
+    // ── Phase 5.5: public / private post split ─────────────────────────
+    {
+      service: 'public_posts',
+      cross_origins: crossOrigins,
+      whitelist: [{ provider: '.*', username: '.*', read: true }], // anon whitelisted for discovery
+    },
+    {
+      service: 'private_posts',
+      cross_origins: crossOrigins,
+      // anon blocked — only token holders with explicit access
+    },
     {
       service: 'crm-contacts',
       cross_origins: crossOrigins,
@@ -269,6 +280,10 @@ const web10SocialAdapterInit = (): Web10SocialAdapter => {
     },
     {
       service: 'follows',
+      cross_origins: crossOrigins,
+    },
+    {
+      service: 'dms',
       cross_origins: crossOrigins,
     },
   ];
@@ -426,7 +441,7 @@ const web10SocialAdapterInit = (): Web10SocialAdapter => {
   adapter.searchContactRecords = dlSearchContacts;
 
   // DMs
-  adapter.conversationServiceName = dlConversationServiceName;
+  adapter.conversationKey = dlConversationKey;
   adapter.readDmMessages = dlReadDms;
   adapter.sendDmMessage = dlSendDm;
   adapter.deleteDmMessage = dlDeleteDm;
