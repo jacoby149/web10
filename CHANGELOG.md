@@ -1,3 +1,15 @@
+1.0.96 || 22.07.2026
+E6: SSH-deploy CI/CD framework (replaces Portainer GitOps as deploy trigger).
+New `.github/workflows/deploy.yml`: GitHub Actions SSHes into the box, runs
+`docker compose up --build`, waits for container stability, runs smoke test.
+Push to `dev` → web10-dev; push to `main` → web10-prod. No self-hosted runner
+(ephemeral ubuntu-latest runner, deploy key for SSH). `deploy-stacks.py` now
+supports file-backed stacks (`register` mode — no GitOps polling) and a
+`disable-gitops` command to kill the auto-update loop on existing stacks.
+Portainer remains the management UI (registered post-deploy via API) but no
+longer triggers deploys. Requires GitHub secrets: `DEPLOY_SSH_KEY`, `VM_IP`,
+`SSH_USER`.
+
 1.0.95 || 22.07.2026
 Ops: Portainer admin password reset after the GitOps re-clone of /opt/web10
 wiped the gitignored .env (creds existed nowhere else). Box secrets moved to
