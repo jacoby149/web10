@@ -519,15 +519,18 @@ the original data changes what "done" looks like for these):
     web10 CLI" call-to-action (the CLI still exists at
     marketing/web10-cli/ but is invisible) + a CLI quickstart.
     don't teach legacy wapi as the future — align with C2.
-[✓ 1.0.72] SDK visibility + publish flow (lane D item D18 + lane E item
+[✓ 1.0.72, 1.0.100] SDK visibility + publish flow (lane D item D18 + lane E item
     E7): sdk/ documented in marketing-ui docs (new sdk.md page, wired into
     Docs.tsx sidebar), SDK link added to Home.tsx footer, npm badge + SDK
     link added to README.md. npm publish verified: web10-npm@1.0.8 is public
     on npmjs.com, cd.yml's `npm` job fires on v* tags with provenance.
-    Publish flow decision: stays tag-gated (decisions.md D26) — auto-publish
-    on merge rejected while C2's typed rewrite is in flight; a v* tag forces
-    a deliberate release decision, preventing legacy wapi.js from drowning npm
-    with versions nobody should install.
+    E7 verification (1.0.100): cd.yml end-to-end flow confirmed — fires on
+    v* tag push, npm job gated on tag prefix, publishes with --provenance
+    --access public. Package publicly accessible (versions 1.0.0–1.0.8).
+    Publish flow decision reaffirmed: stays tag-gated (decisions.md D26) —
+    auto-publish on merge rejected while C2's typed rewrite is in flight;
+    a v* tag forces a deliberate release decision, preventing legacy wapi.js
+    from drowning npm with versions nobody should install.
 [ ] mobile encryptor → app stores (lane E item E8, parked): expo
     eas build/submit, listings, signing. post-M0, gated on the
     encryptor doing real e2e key management — on the board so it
@@ -1779,7 +1782,7 @@ ci — runs on every pr + push to dev/main (.github/workflows/):
     red). make both steps report honestly; merging stays a human
     call as before. the browser e2e suite (quality/testing section)
     joins as its own path-filtered job the day it lands.
-[ ] the api job has never actually gone green (found 19.07.2026 via
+[✓] the api job has never actually gone green (found 19.07.2026 via
     #117): uv sync --frozen installs neither ruff (not a dependency
     anywhere in pyproject) nor pytest (lives in the test extra), so
     "uv run ruff check" dies on spawn before anything lints or

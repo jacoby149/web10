@@ -41,7 +41,7 @@ scoped-token enforcement, metering/billing, certify, system — 280
 total api tests green). 1.0.49 landed the small security fixes (CORS
 tightened, bare excepts removed, provider URL SSRF guard). still OPEN:
 pytest ports of the old 57-test exporter mapper suite (marketing-api).
-The js workflow's typecheck/build escape hatches are closed (1.1.00).
+The js workflow's typecheck/build escape hatches are closed (1.0.101).
 
 before running 4-wide, land the thing that protects all 4 lanes:
 
@@ -567,7 +567,7 @@ LANE E — infrastructure / deployment (owns: proxmox provisioning,
        generating an SSH key pair and adding the private key as a
        GitHub Actions secret. the operator must also install the
        public key on the box with the command restriction.
-  [ ] E7. SDK npm publish flow (with C2/D18): cd.yml publishes sdk/
+  [✓ 1.0.100] E7. SDK npm publish flow (with C2/D18): cd.yml publishes sdk/
       to npm on a v* tag today — confirm it fires + the package is
       public, and decide whether a version bump on merge to dev/main
       should auto-publish so the sdk stays fresh (operator, 19.07:
