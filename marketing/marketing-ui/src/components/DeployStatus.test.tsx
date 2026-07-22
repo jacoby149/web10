@@ -68,4 +68,16 @@ describe('DeployStatus', () => {
     const toggle = await screen.findByTestId('deploy-status-toggle');
     expect(toggle).toHaveTextContent('c0f4929');
   });
+
+  it('renders nothing when all fields are unknown', async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse({
+      version: 'unknown',
+      commit: 'unknown',
+      deployedAt: 'unknown',
+    }) as unknown as Response);
+    const { default: DeployStatus } = await import('@/components/DeployStatus');
+    render(<DeployStatus />);
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    expect(screen.queryByTestId('deploy-status')).not.toBeInTheDocument();
+  });
 });
