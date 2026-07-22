@@ -120,7 +120,7 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       the real data and surfaced like the original web10 (feeds the
       D16 app-store stats); and the honest report of any shape drift.
       unblocks B6 (real login to test against) and D16 (real apps).
-   [ ] A8. P1 server-side record metadata — invariant I6: every record
+    [✓ 1.0.92] A8. P1 server-side record metadata — invariant I6: every record
        gets `_author` (token's username), `_source_node` (the provider
        that minted the token), and `_created_at` (server time at the
        destination node) injected by the API on create, immutable on

@@ -158,7 +158,7 @@ function PostCard({
             <div className="flex items-center gap-1.5">
               <span className="text-sm font-semibold text-foreground">{post.name}</span>
               <span className="text-sm text-muted-foreground">{post.handle}</span>
-              <span className="text-muted-foreground">·</span>
+              <span className="text-muted-foreground">•</span>
               <span className="text-sm text-muted-foreground">{post.time}</span>
             </div>
             <p className="mt-1 text-sm leading-relaxed text-foreground">{post.content}</p>
@@ -316,11 +316,14 @@ function FeedPreview() {
     <section className="border-b border-border bg-background px-4 py-24 sm:px-6 sm:py-32">
       <div className="mx-auto max-w-2xl">
         <div className="mb-10 text-center">
-          <h2 className="reveal font-display text-3xl font-bold tracking-[-0.02em] sm:text-4xl">
-            See what's happening.
-          </h2>
+          <div className="flex items-center justify-center gap-2">
+            <Zap className="h-5 w-5 text-brand-400" strokeWidth={1.5} />
+            <h2 className="reveal font-display text-3xl font-bold tracking-[-0.02em] sm:text-4xl">
+              Trending
+            </h2>
+          </div>
           <p className="reveal mt-4 text-muted-foreground [animation-delay:80ms]">
-            A real-time feed, powered by your node. Every post, every follower, zero algorithm.
+            What's moving right now across the network.
           </p>
         </div>
 
