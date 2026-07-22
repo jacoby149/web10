@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 import app.docs as docs
 import app.exceptions as exceptions
 import app.settings as settings
-from app.endpoints import auth, crud, media, payments, system
+from app.endpoints import auth, crud, discover, media, payments, public, schemas, system
 
 app = FastAPI(
     title="web10",
@@ -44,6 +44,11 @@ app.include_router(auth.router)
 app.include_router(payments.router)
 app.include_router(system.router)
 app.include_router(media.router)
+# Specific routers must be registered before crud.router, which has
+# catch-all patterns (/{user}/{service}) that would shadow these routes.
+app.include_router(discover.router)
+app.include_router(schemas.router)
+app.include_router(public.router)
 app.include_router(crud.router)
 
 
@@ -74,6 +79,10 @@ _EXCEPTION_MAP = {
     "BETA": exceptions.BETA,
     "BUSINESS_NOT_READY": exceptions.BUSINESS_NOT_READY,
     "PHONE_NUMBER_NOT_REGISTERED": exceptions.PHONE_NUMBER_NOT_REGISTERED,
+    "SCHEMA_NOT_FOUND": exceptions.SCHEMA_NOT_FOUND,
+    "NOT_AUTHOR": exceptions.NOT_AUTHOR,
+    "ENTRY_NOT_FOUND": exceptions.ENTRY_NOT_FOUND,
+    "SCHEMA_INVALID": exceptions.SCHEMA_INVALID,
 }
 
 

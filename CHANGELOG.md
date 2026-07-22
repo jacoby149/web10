@@ -1,3 +1,12 @@
+1.0.93 || 22.07.2026
+Discovery API: cross-user discovery layer. Discovery index (`web10.discovery_posts`)
+populated from CRUD on anon-whitelisted services. Public ledger (`web10.public`)
+for schema-validated structured interactions (reactions, comments). Schema registry
+(`web10.schemas`) with CRUD + author enforcement. Engagement counts derived live
+from the ledger at read time (no cached deltas). Discovery endpoints: `/discover/posts`
+(recent/trending), `/discover/users`, `/discover/search`, `/discover/topics`,
+`/discover/post/{user}/{service}/{id}`. All anon-readable. +44 tests (335 total green).
+
 1.0.92 || 22.07.2026
 Trending added to marketing-ui navbar between Home and Docs. Dedicated /trending page created. FeedPreview simplified: removed For You/Following/Trending tabs, merged all posts into a single trending feed with Zap icon header. Fixed broken PostCard type reference.
 

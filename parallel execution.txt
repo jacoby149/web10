@@ -610,7 +610,7 @@ ws5: C6 e2e deep sweep + bug hunt (lane C — e2e/** only; local
         For You / Following / Trending tabs, post cards with avatars,
         media placeholders, engagement counts. Sits between hero and
         reach-gap section. Ready for live backend content.
-[ ] A5.5. DISCOVERY API — the public layer (Lane A, api/**):
+[✓ 1.0.93] A5.5. DISCOVERY API — the public layer (Lane A, api/**):
          discovery index (web10.discovery_posts, write-protected,
          background task), schema registry (web10.schemas, CRUD with
          author enforcement, provider.uuid6 IDs), public ledger
