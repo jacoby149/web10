@@ -799,6 +799,69 @@ swappable per node.
     separate container. only minio remains in compose for blobs.
 
 
+PHASE 5.5 — the public layer (discovery + schema registry + public ledger)
+--------------------------------------------------------------------------
+D27: posts are plaintext, discoverable by design. E2E encryption is DMs
+only. D28: a schema-registry public ledger gives any app a flexible,
+validated way to publish structured public interactions.
+
+The social app splits posts into separate collections by visibility:
+`public_posts` (anon whitelisted, discovery indexes it) and
+`private_posts` (anon blocked, discovery ignores it). Each collection is
+a separate service with its own terms record, so bulk control is instant
+("make all posts private" = change 1 terms record) and per-app
+permissions work (App A reads public, App B reads both).
+
+API side (Lane A):
+[ ] discovery index: `web10.discovery_posts` system collection,
+    write-protected (background task only). On post create/update in a
+    service where anon is whitelisted, upsert a projection into the
+    index. On post delete or terms change, remove backfill accordingly.
+[ ] schema registry: `web10.schemas` system collection.
+    - POST /schemas/register — any user, returns provider.uuid6 ID
+    - PATCH /schemas/{id} — fetch (anon OK)
+    - PUT /schemas/{id} — update (author only, API enforces ownership)
+    - DELETE /schemas/{id} — delete (author only)
+    - Schemas store JSON Schema for payload validation
+[ ] public ledger: `web10.public` system collection.
+    - POST /public/entries — create (any authenticated user, validates
+      payload against schema)
+    - PATCH /public/entries — query (anon OK, filter by schema_id,
+      target, author)
+    - PUT /public/entries/{id} — update (author only)
+    - DELETE /public/entries/{id} — delete (author only)
+[ ] discovery endpoints (new `discover` router):
+    - PATCH /discover/posts — for you feed (recent/trending sort)
+    - PATCH /discover/users — suggested accounts
+    - PATCH /discover/search — full-text search (Mongo $text index)
+    - PATCH /discover/topics — trending hashtags
+    - PATCH /discover/post/{user}/{service}/{id} — single post lookup
+[ ] engagement aggregation: background task updates cached engagement
+    counts on the discovery index when public ledger entries are created
+    or deleted. Engagement is schema-agnostic (keyed by schema_id).
+[ ] engagement score: formula for trending sort
+    (likes * 1 + comments * 3 + reposts * 5? or just chronological)
+
+Social app side (Lane D):
+[ ] split posts into public_posts / private_posts services
+[ ] create default terms for both services on user signup
+[ ] register default schemas (Reaction, etc.) on first boot
+[ ] cache schemas locally: schema_id → schema definition
+[ ] route createPost by visibility toggle
+[ ] wire reactions to /public/entries endpoint
+[ ] wire feed preview to /discover/posts endpoint (replace placeholder)
+
+Marketing-ui side (Lane D):
+[ ] replace FeedPreview placeholder data with /discover/posts
+[ ] wire tab switching to sort params (recent, trending)
+[ ] wire reaction buttons to /public/entries
+[ ] fetch schema definitions for rendering interaction types
+
+Federation (later):
+[ ] cross-node discovery: /discover/posts aggregates from federated peers
+[ ] schema resolution: fetch remote schemas by provider.uuid6
+[ ] public ledger federation: /public/entries aggregates across nodes
+
 PHASE 6 — wapi.js revamp (the sdk)
 ----------------------------------
 wapi.js is how frontend devs build web10 apps. it deserves the same

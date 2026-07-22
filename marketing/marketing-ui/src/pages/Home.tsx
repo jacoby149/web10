@@ -1,6 +1,7 @@
 import { Send, Inbox, ShieldCheck } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Card, CardHeader, CardTitle, CardDescription } from '../components/ui/card'
+import { FeedPreview } from '../components/FeedPreview'
 import {
   REACH_GAP_EXAMPLE,
   WEB10_DELIVERY_PERCENT,
@@ -178,6 +179,7 @@ function Home() {
   return (
     <>
       <Hero />
+      <FeedPreview />
       <ReachGap />
       <HowItWorks />
       <Footer />
