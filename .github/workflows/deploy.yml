@@ -28,11 +28,11 @@ jobs:
           host: ${{ secrets.VM_IP }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-port: 42422
-           envs: STACK,ENV,GITHUB_SHA,GITHUB_REF
-           script: |
-             set -e
-             echo "=== Deploying $STACK ==="
+          port: 42422
+          envs: STACK,ENV,GITHUB_SHA,GITHUB_REF
+          script: |
+            set -e
+            echo "=== Deploying $STACK ==="
             echo "Commit: $GITHUB_SHA"
             echo "Ref: $GITHUB_REF"
 
@@ -104,11 +104,11 @@ port: 42422
           host: ${{ secrets.VM_IP }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-port: 42422
-           envs: STACK,ENV,GITHUB_SHA,GITHUB_REF
-           script: |
-             set -e
-             echo "=== Deploying $STACK ==="
+          port: 42422
+          envs: STACK,ENV,GITHUB_SHA,GITHUB_REF
+          script: |
+            set -e
+            echo "=== Deploying $STACK ==="
             echo "Commit: $GITHUB_SHA"
             echo "Ref: $GITHUB_REF"
 
