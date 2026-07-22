@@ -1,7 +1,7 @@
-1.0.100 || 22.07.2026
-E7: SDK npm publish flow verified end to end. cd.yml confirmed: fires on v* tags, npm job gated on tag prefix, publishes sdk/ with --provenance --access public. web10-npm verified public on npmjs.com (versions 1.0.0–1.0.8, latest 1.0.8). Decision D26 reaffirmed: publish stays tag-gated, no auto-publish on merge to dev/main — legacy wapi.js SDK must not flood npm while C2 typed rewrite is in flight.
 1.0.101 || 22.07.2026
 Fix CORS_SERVICE_MANAGERS dev default: auth.web10.dev -> auth.dev.web10.app (stale hostname from pre-1.0.73). The env files were already correct; only the settings.py fallback was wrong.
+1.0.100 || 22.07.2026
+E7: SDK npm publish flow verified end to end. cd.yml confirmed: fires on v* tags, npm job gated on tag prefix, publishes sdk/ with --provenance --access public. web10-npm verified public on npmjs.com (versions 1.0.0–1.0.8, latest 1.0.8). Decision D26 reaffirmed: publish stays tag-gated, no auto-publish on merge to dev/main — legacy wapi.js SDK must not flood npm while C2 typed rewrite is in flight.
 
 1.0.99 || 22.07.2026
 Marketing-ui: removed redundant trending feed from home page (already has /trending tab). Rewrote /trending page: full-page trending feed, no "For You" / "Following" subtabs. DeployStatus widget now hides when status.json has all "unknown" fields instead of showing an empty panel. Root cause fix: deploy.yml now computes GIT_COMMIT and STATUS_VERSION before docker compose, so status.json gets real values on every deploy.
