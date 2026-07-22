@@ -169,11 +169,32 @@ rejection — if a color isn't a token, it doesn't exist.
 | `--color-brand-600` | `#7c3aed` | Pressed/active states of brand fills. |
 | `--color-brand-muted` | `#2e1065` | Brand-tinted backgrounds: active-nav pill fills, selected rows, badge backgrounds. |
 
-Usage discipline: violet is an accent, not wallpaper. One primary CTA
-per view. Active states, focus rings, key stats, the occasional glow
-(a soft `brand` blur behind a hero mark or CTA — the ONE permitted
-decorative flourish, used at most once per screen). If a screen is
-more than ~10% violet, pull back.
+### Glow — ambient light (social flagship only)
+
+These tokens exist so the social app (`web10-social`) can have ambient energy
+without hardcoded hex values. The console (`ui/`) and marketing site stay
+restrained; the social flagship is the deck screenshot and earns the extra
+light. See §10 for per-app direction.
+
+| Token | Value | Role |
+|---|---|---|
+| `--color-glow` | `rgba(139, 92, 246, 0.15)` | Soft ambient glow behind active nav pills, card hover halos, section anchors. |
+| `--color-glow-intense` | `rgba(139, 92, 246, 0.35)` | Focused composer glow, active CTA halos, live indicator pulse. |
+| `--color-glow-danger` | `rgba(239, 68, 68, 0.25)` | Like-burst animation, heart-pop afterglow. |
+
+Usage discipline (social only): violet is still an accent, not wallpaper.
+But the social flagship may use glow liberally as ambient light — a soft
+`brand` blur behind active elements, a colored `box-shadow` on card hovers,
+a pulse on interactive feedback. The rule shifts from "one flourish per
+screen" to "glow is the texture, not the content." If the feed looks like
+a dark spreadsheet, add glow. If it looks like a purple laser show, pull
+back. The middle is Kick-grade: energy without chaos.
+
+### Glow — ambient light (console & marketing)
+
+The node console (`ui/`) and marketing site (`marketing-ui`) remain
+restrained: one decorative glow per screen maximum (§4 original rule).
+The console is an operator tool; it reads calm.
 
 ### Semantic
 
@@ -262,12 +283,18 @@ Motion confirms causality; it never performs.
 - **Marketing reveals**: 400–600ms fade/rise on scroll-into-view, once,
   staggered ≤ 80ms apart. No parallax, no scroll-jacking, no looping
   attention-seekers.
-- **Skeletons** pulse at ~1.5s; content replaces them in place (no
-  shift). Spinners only where a skeleton is impossible.
+- **Skeletons** shimmer at ~1.5s (gradient sweep, not solid pulse);
+  content replaces them in place (no shift). Spinners only where a
+  skeleton is impossible.
 - `prefers-reduced-motion: reduce` is honored everywhere: transitions
   collapse to instant, reveals render visible.
 - App UI (`ui/`, admin surfaces): no spring/bounce easings. The
-  console is calm. Social/marketing may be 10% springier, never circus.
+  console is calm.
+- **Social flagship** (`web10-social`) may be 10% springier:
+  heart-burst on like (300ms scale + fade), shimmer skeletons,
+  glow-pulse on live/presence indicators (2s ease-in-out infinite),
+  card-hover lifts with brand `box-shadow`. Still no circus — energy,
+  not chaos.
 
 
 ## 8. Components
@@ -359,6 +386,14 @@ gaps: `@tailwindcss/vite` plugin is missing from `vite.config.ts`
 loaded. Finish evicting the excluded legacy `rectangles-npm`/
 `@chatscope` components.
 
+Vibrancy: the social flagship is the energy surface. Unlike the calm
+console (`ui/`), it earns ambient light: glow behind active nav items,
+card-hover halos, heart-burst on like, shimmer skeletons, gradient
+bubbles in DMs, presence pulses, a living login screen. The tokens
+`--color-glow`, `--color-glow-intense`, `--color-glow-danger` exist
+for this app. See §4 glow section and §7 social motion. The bar is
+Kick-grade: vibrant, alive, never muted.
+
 
 ## 11. Accessibility (part of pretty, not opposed to it)
 
@@ -423,6 +458,11 @@ the missing steps.
   --color-brand-600: #7c3aed;
   --color-brand-muted: #2e1065;
   --color-brand-foreground: #fafafa;
+
+  /* glow — ambient light, social flagship (§4) */
+  --color-glow: rgba(139, 92, 246, 0.15);
+  --color-glow-intense: rgba(139, 92, 246, 0.35);
+  --color-glow-danger: rgba(239, 68, 68, 0.25);
 
   /* semantic (§4) */
   --color-success: #22c55e;

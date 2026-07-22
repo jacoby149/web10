@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -46,21 +47,25 @@ function MediaGrid({ mediaItems }: { mediaItems: MediaRecord[] }) {
   return (
     <div
       className={cn(
-        'grid gap-0.5 bg-background overflow-hidden',
+        'grid gap-0.5 bg-background overflow-hidden rounded-t-md',
         count === 1 ? 'grid-cols-1' : count === 2 ? 'grid-cols-2' : 'grid-cols-3',
       )}
     >
       {mediaItems.slice(0, 6).map((m, i) => (
         <div
           key={m._id || i}
-          className={cn('bg-elevated overflow-hidden', count === 1 ? 'aspect-[4/3]' : 'aspect-square')}
+          className={cn(
+            'bg-elevated overflow-hidden group relative',
+            count === 1 ? 'aspect-[4/3]' : 'aspect-square',
+          )}
         >
           <img
             src={m.thumbnail_url || m.url}
             alt={m.alt_text || ''}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-105"
             loading="lazy"
           />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-150" />
         </div>
       ))}
     </div>
@@ -130,7 +135,7 @@ function CommentThread({ postId, isOpen, onCountChange }: CommentThreadProps) {
         <ul className="space-y-2">
           {comments.map((c) => (
             <li key={c._id} className="text-sm leading-relaxed">
-              <span className="font-medium text-foreground">{c.author_username || 'you'}</span>{' '}
+              <span className="font-medium text-brand-300">{c.author_username || 'you'}</span>{' '}
               <span className="text-foreground">{c.text}</span>
             </li>
           ))}
@@ -195,14 +200,26 @@ function PostCard({
 }: PostCardProps) {
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [localCount, setLocalCount] = useState(commentCount);
+  const [burstKey, setBurstKey] = useState(0);
+  const prevLiked = useRef(liked);
+
+  useEffect(() => {
+    if (liked && !prevLiked.current) {
+      setBurstKey((k) => k + 1);
+    }
+    prevLiked.current = liked;
+  }, [liked]);
 
   return (
     <article
       data-testid="post-card"
-      className="bg-card border-b border-border md:border md:rounded-lg md:mb-4 overflow-hidden"
+      className={cn(
+        'bg-card border-b border-border md:border md:rounded-lg md:mb-4 overflow-hidden',
+        'glow-card transition-all duration-150',
+      )}
     >
       <div className="flex items-center gap-2.5 px-4 py-3">
-        <Avatar className="h-9 w-9">
+        <Avatar className="h-9 w-9 ring-2 ring-transparent hover:ring-brand/20 transition-all duration-150">
           {authorAvatar ? (
             <AvatarImage src={authorAvatar} alt={authorName} />
           ) : (
@@ -228,7 +245,10 @@ function PostCard({
       {post.tags?.length ? (
         <div className="flex flex-wrap gap-1.5 px-4 pt-2">
           {post.tags.map((tag) => (
-            <span key={tag} className="text-xs px-2 py-0.5 rounded-full bg-elevated text-muted-foreground">
+            <span
+              key={tag}
+              className="text-xs px-2.5 py-1 rounded-full bg-brand-muted/60 text-brand-300 border border-brand/10 hover:border-brand/30 hover:bg-brand-muted transition-all duration-150 cursor-default"
+            >
               #{tag}
             </span>
           ))}
@@ -237,30 +257,41 @@ function PostCard({
 
       <div className="flex items-center gap-1 px-2 py-2">
         <button
+          key={burstKey}
           data-testid="like-button"
           aria-pressed={liked}
           onClick={onToggleLike}
           className={cn(
-            'flex items-center gap-1.5 px-2.5 py-2 rounded min-h-10 text-sm transition-colors duration-150',
-            liked ? 'text-danger' : 'text-muted-foreground hover:text-foreground hover:bg-elevated',
+            'flex items-center gap-1.5 px-2.5 py-2 rounded-lg min-h-10 text-sm transition-all duration-150',
+            liked
+              ? 'text-danger'
+              : 'text-muted-foreground hover:text-foreground hover:bg-elevated/80',
+            liked && 'animate-heart-burst',
           )}
         >
-          <Heart className="w-[18px] h-[18px]" strokeWidth={1.75} fill={liked ? 'currentColor' : 'none'} />
+          <Heart
+            className={cn(
+              'w-[18px] h-[18px] transition-all duration-150',
+              liked && 'drop-shadow-[0_0_6px_rgba(239,68,68,0.4)]',
+            )}
+            strokeWidth={1.75}
+            fill={liked ? 'currentColor' : 'none'}
+          />
           <span className="tabular-nums">{reactionCount || ''}</span>
         </button>
         <button
           data-testid="comment-button"
           aria-expanded={commentsOpen}
           onClick={() => setCommentsOpen((o) => !o)}
-          className="flex items-center gap-1.5 px-2.5 py-2 rounded min-h-10 text-sm text-muted-foreground hover:text-foreground hover:bg-elevated transition-colors duration-150"
+          className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg min-h-10 text-sm text-muted-foreground hover:text-foreground hover:bg-elevated/80 transition-all duration-150"
         >
           <MessageCircle className="w-[18px] h-[18px]" strokeWidth={1.75} />
           <span className="tabular-nums">{localCount || ''}</span>
         </button>
         {(post.origin || 'web10') !== 'web10' && (
-          <span className="ml-auto mr-2 text-[0.6875rem] uppercase tracking-wide text-muted-foreground">
+          <Badge variant="brand_glow" className="ml-auto mr-2">
             {post.origin}
-          </span>
+          </Badge>
         )}
       </div>
 
@@ -280,8 +311,11 @@ function PostCard({
 function FeedEmptyState() {
   return (
     <div className="flex flex-col items-center justify-center py-24 px-8 text-center" data-testid="feed-empty">
-      <div className="w-16 h-16 rounded-2xl bg-brand-muted flex items-center justify-center mb-6">
-        <Sparkles className="w-8 h-8 text-brand-300" />
+      <div className={cn(
+        'w-16 h-16 rounded-2xl bg-gradient-to-br from-brand to-brand-600 flex items-center justify-center mb-6',
+        'shadow-lg shadow-brand/25',
+      )}>
+        <Sparkles className="w-8 h-8 text-white" />
       </div>
       <h3 className="font-display text-lg font-semibold text-foreground mb-2">Your feed is empty</h3>
       <p className="text-sm text-muted-foreground max-w-xs mb-6">
@@ -407,7 +441,6 @@ export default function FeedScreen() {
       await toggleReaction('posts', postId, 'like', token.username, token.provider);
     } catch (e) {
       console.error('Failed to toggle reaction:', e);
-      // Roll back optimistic update on failure.
       setLikedMap((prev) => ({ ...prev, [postId]: !prev[postId] }));
       setReactionMap((prev) => ({ ...prev, [postId]: (prev[postId] || 0) + (likedMap[postId] ? 1 : -1) }));
     }
