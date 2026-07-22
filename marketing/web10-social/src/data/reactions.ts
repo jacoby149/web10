@@ -1,7 +1,11 @@
 import { getWapi } from './wapi';
+import { getCachedSchema, createPublicEntry } from './feed';
 import type { ReactionRecord, ReactionTargetService } from './types';
 
 // ── Reactions data layer ───────────────────────────────────────────────────
+// Phase 5.5: reactions are written both to the legacy `reactions` service
+// AND to the public ledger (/public/entries) so the marketing-ui FeedPreview
+// can read engagement counts.
 
 /**
  * Read all reactions for a target (post or comment).
@@ -19,10 +23,28 @@ export async function readReactions(
 
 /**
  * Create a new reaction.
+ * Phase 5.5: also writes to the public ledger if the Reaction schema is registered.
  */
 export async function createReaction(reaction: Omit<ReactionRecord, '_id'>): Promise<ReactionRecord> {
   const wapi = getWapi();
-  return wapi.create<ReactionRecord>('reactions', reaction);
+  const record = await wapi.create<ReactionRecord>('reactions', reaction);
+
+  // Also write to the public ledger
+  const reactionSchema = getCachedSchema('Reaction');
+  if (reactionSchema?._id) {
+    createPublicEntry({
+      schema_id: reactionSchema._id,
+      target: `${reaction.target_service}:${reaction.target_id}`,
+      payload: {
+        type: reaction.type,
+        target: reaction.target_id,
+        author_username: reaction.author_username,
+        author_provider: reaction.author_provider,
+      },
+    }).catch(() => { /* non-fatal */ });
+  }
+
+  return record;
 }
 
 /**

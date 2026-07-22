@@ -8,6 +8,17 @@ from the ledger at read time (no cached deltas). Discovery endpoints: `/discover
 `/discover/post/{user}/{service}/{id}`. All anon-readable. +44 tests (335 total green).
 
 1.0.92 || 22.07.2026
+D5.5: Social app public layer. Split posts into `public_posts` / `private_posts`
+services routed by visibility. Default terms for both on adapter init (anon
+whitelisted on public, blocked on private). Register default Reaction/Comment
+schemas on first boot with local cache. Reactions write to both legacy service
+and `/public/entries` public ledger. New `readDiscoverFeed` calls
+`PATCH /discover/posts` (recent/trending sort). Marketing-ui FeedPreview
+replaced placeholder data with live discovery API feed, skeleton loading on
+API unreachable, tab switching wired to sort params, reaction buttons call
+`POST /public/entries` with optimistic count updates, schema definitions
+fetched on mount. 222 social tests green, 19 marketing-ui tests green.
+
 Trending added to marketing-ui navbar between Home and Docs. Dedicated /trending page created. FeedPreview simplified: removed For You/Following/Trending tabs, merged all posts into a single trending feed with Zap icon header. Fixed broken PostCard type reference.
 
 I6 complete: `_author`, `_source_node`, `_created_at` immutable on update,
