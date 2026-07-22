@@ -458,7 +458,7 @@ the three items below are PARALLEL — disjoint directories:
     and the legacy Crm/Mail/Bio vitest excludes (files no longer
     exist). 193 tests green, tsc+build clean. See decisions.md D24 for
     the alternative.png brand-asset correction (shared with D13).
-[✓ 1.0.86] web10-social vibrancy overhaul (lane D, D12 follow-up):
+[✓ 1.0.87] web10-social vibrancy overhaul (lane D, D12 follow-up):
     the social flagship was muted — flat surfaces, no ambient light,
     zero interaction energy — compared to Kick's vibrant, alive feel.
     design.md §4 relaxed for social: glow tokens added, new animations

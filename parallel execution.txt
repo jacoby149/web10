@@ -314,7 +314,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       path alias (tsc -b had ~90 pre-existing errors) and the
       alternative.png-isn't-the-keys-mark bug (decisions.md D24,
       converged with D13).
-  [✓ 1.0.86] D12 vibrancy overhaul (follow-up): the social flagship was
+  [✓ 1.0.87] D12 vibrancy overhaul (follow-up): the social flagship was
       muted — flat surfaces, no ambient light, zero interaction energy.
       design.md §4 relaxed for social: glow tokens, shimmer skeletons,
       heart-burst on like, card hover glow, gradient buttons, presence

@@ -90,6 +90,25 @@ pre-existing on `dev` and not caused by your branch, prove it (link
 the same failure on a `dev` run or another PR) and say so explicitly —
 never silently call a red PR ready.
 
+## Branch naming conventions
+
+Every branch must use a type prefix so the history is scannable:
+
+| Prefix | Use when |
+|--------|----------|
+| `feature/` | New functionality, UI screens, endpoints |
+| `fix/` | Bug fixes, security patches, regression fixes |
+| `refactor/` | Code restructuring with no behavioral change |
+| `chore/` | Deps, CI, tooling, docs, config |
+| `test/` | Test additions or test infrastructure |
+| `docs/` | Documentation only (CLAUDE.md, plan.txt, etc.) |
+
+**Format:** `type/short-description` — e.g. `fix/auth-token-expiry`, `feature/social-feed`.
+
+Keep descriptions imperative, hyphen-separated, under ~40 characters. No need to include your username or lane — `git log` and the PR already carry that.
+
+Existing `lane-x/` and `username/` branches are fine historically. New branches after this rule should follow the type-prefix format.
+
 ## PRs always go to `dev`, never `main`
 
 The base branch for every PR is `dev`. `main` is only updated by an
