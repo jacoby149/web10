@@ -314,6 +314,12 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       path alias (tsc -b had ~90 pre-existing errors) and the
       alternative.png-isn't-the-keys-mark bug (decisions.md D24,
       converged with D13).
+  [✓ 1.0.87] D12 vibrancy overhaul (follow-up): the social flagship was
+      muted — flat surfaces, no ambient light, zero interaction energy.
+      design.md §4 relaxed for social: glow tokens, shimmer skeletons,
+      heart-burst on like, card hover glow, gradient buttons, presence
+      dots, vibrant banner, media hover zoom, animated login. 195 tests
+      green, tsc clean, build clean.
   [✓ 1.0.63] D13. rebuild marketing-ui on the design system. bulma OUT
       entirely (D22), tailwind v4 + design.md §13 tokens, dark
       cinematic landing (lockup hero, tested reach-gap proof section —

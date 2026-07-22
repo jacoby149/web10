@@ -39,7 +39,9 @@ async def request_upload_url(user: str, request: UploadRequest):
         Conditions=[["content-length-range", 0, request.size_bytes or settings.MAX_UPLOAD_SIZE]],
         ExpiresIn=settings.UPLOAD_URL_EXPIRY,
     )
-    return UploadResponse(upload_url=presigned["url"], object_key=object_key, content_type=content_type)
+    return UploadResponse(
+        upload_url=presigned["url"], fields=presigned.get("fields"), object_key=object_key, content_type=content_type
+    )
 
 
 @router.post("/{user}/upload/confirm")

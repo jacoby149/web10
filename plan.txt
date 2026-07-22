@@ -458,6 +458,17 @@ the three items below are PARALLEL — disjoint directories:
     and the legacy Crm/Mail/Bio vitest excludes (files no longer
     exist). 193 tests green, tsc+build clean. See decisions.md D24 for
     the alternative.png brand-asset correction (shared with D13).
+[✓ 1.0.87] web10-social vibrancy overhaul (lane D, D12 follow-up):
+    the social flagship was muted — flat surfaces, no ambient light,
+    zero interaction energy — compared to Kick's vibrant, alive feel.
+    design.md §4 relaxed for social: glow tokens added, new animations
+    (shimmer, heart-burst, glow-pulse, float), custom scrollbar,
+    gradient brand buttons with glow-on-hover, badge glow/live variants,
+    shimmer skeletons, sidebar gradient + active nav glow pill, card
+    hover glow, heart-burst on like, vibrant tags, gradient sent DM
+    bubbles, presence dots, vibrant profile banner, media hover zoom,
+    animated login background with floating orbs. 195 tests green,
+    tsc clean, build clean.
 [✓ 1.0.63] rebuild marketing-ui on the design system (lane D, item D13):
     bulma OUT entirely (already rejected in D22), tailwind v4 +
     design.md tokens, dark cinematic landing (lockup hero, reach-gap
