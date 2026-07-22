@@ -1,3 +1,12 @@
+1.0.91 || 22.07.2026
+Fix DMs: single `dms` service with sender/recipient fields (no per-conversation
+service). legacy adapter auto-migrates message-inbox/outbox on first read.
+Fix posts: legacy adapter migrates html/media/time → text/media_refs/created_at
+in-place so text-only posts render in the profile grid.
+Added security invariant I6: server-side record metadata (_author, _source_node,
+_created_at) injected by API on create, immutable on update. audited cross-node
+federation flow: no cross-node token delegation, no data sync, no provenance
+metadata today. 220 tests green, tsc clean.
 1.0.90 || 21.07.2026
 Homepage: moved the social feed preview section above the hero so the feed is front and center — first thing you see after the navbar. The pitch headline follows immediately after.
 
