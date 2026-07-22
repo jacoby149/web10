@@ -18,8 +18,10 @@ interface LegacyPost {
 /**
  * Check if a record looks like a legacy post (has `html` field).
  */
-function isLegacyPost(record: Record<string, unknown>): record is LegacyPost {
-  return 'html' in record && !('text' in record);
+function isLegacyPost(record: unknown): record is LegacyPost {
+  if (typeof record !== 'object' || record === null) return false;
+  const r = record as Record<string, unknown>;
+  return 'html' in r && !('text' in r);
 }
 
 /**
@@ -51,7 +53,7 @@ export async function createPost(post: Omit<PostRecord, '_id'>): Promise<PostRec
  */
 export async function readMyPosts(): Promise<PostRecord[]> {
   const wapi = getWapi();
-  let records = await wapi.read<Record<string, unknown>>('posts');
+  let records: unknown[] = await wapi.read<Record<string, unknown>>('posts');
 
   const hasLegacy = records.some(isLegacyPost);
   if (hasLegacy) {
@@ -68,7 +70,7 @@ export async function readMyPosts(): Promise<PostRecord[]> {
         });
       }
     }
-    records = await wapi.read<PostRecord>('posts');
+    records = await wapi.read<unknown[]>('posts');
   }
 
   return records as PostRecord[];
