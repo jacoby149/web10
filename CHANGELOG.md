@@ -1,4 +1,4 @@
-1.0.101 || 22.07.2026
+1.0.103 || 22.07.2026
 CI: removed `continue-on-error: true` from the shared js workflow's typecheck and build steps. A UI that doesn't compile or build now reports red instead of silently passing. Merging remains a human call — the referee just needs to show red.
 1.0.102 || 22.07.2026
 Reprioritization (D29): the killer app, proud and working, before anything

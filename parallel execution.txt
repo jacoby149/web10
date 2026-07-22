@@ -41,7 +41,7 @@ scoped-token enforcement, metering/billing, certify, system — 280
 total api tests green). 1.0.49 landed the small security fixes (CORS
 tightened, bare excepts removed, provider URL SSRF guard). still OPEN:
 pytest ports of the old 57-test exporter mapper suite (marketing-api).
-The js workflow's typecheck/build escape hatches are closed (1.0.101).
+The js workflow's typecheck/build escape hatches are closed (1.0.103).
 
 before running 4-wide, land the thing that protects all 4 lanes:
 
