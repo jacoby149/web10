@@ -1,3 +1,12 @@
+1.0.95 || 22.07.2026
+Ops: Portainer admin password reset after the GitOps re-clone of /opt/web10
+wiped the gitignored .env (creds existed nowhere else). Box secrets moved to
+a canonical /home/jacob/web10-ops/.env outside the repo checkout, with
+/opt/web10/ubuntu-deployment/.env now a symlink to it. Documented in
+ubuntu-deployment README §Secrets, AGENT-OPS §1, .env.example, OPS-LOG.
+Known follow-ups logged: NPM admin password still lost (needs its own
+reset); web10-prod stack still tracks dev, not main.
+
 1.0.94 || 22.07.2026
 Fix: resolved merge conflict in marketing-ui AppStore.tsx (SVG className
 assignment on createElementNS'd SVG element).
