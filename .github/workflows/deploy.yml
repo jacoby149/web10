@@ -19,71 +19,71 @@ jobs:
 
       - name: Deploy to box
         uses: appleboy/ssh-action@v1
+        env:
+          STACK: web10-dev
+          ENV: dev
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_REF: ${{ github.ref }}
         with:
           host: ${{ secrets.VM_IP }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: 22
           envs: STACK,ENV,GITHUB_SHA,GITHUB_REF
-        env:
-          STACK: web10-dev
-          ENV: dev
-          GITHUB_SHA: ${{ github.sha }}
-          GITHUB_REF: ${{ github.ref }}
-        script: |
-          set -e
-          echo "=== Deploying $STACK ==="
-          echo "Commit: $GITHUB_SHA"
-          echo "Ref: $GITHUB_REF"
+          script: |
+            set -e
+            echo "=== Deploying $STACK ==="
+            echo "Commit: $GITHUB_SHA"
+            echo "Ref: $GITHUB_REF"
 
-          # Pull latest code
-          cd /opt/web10
-          git fetch origin
-          git checkout dev
-          git reset --hard origin/dev
+            # Pull latest code
+            cd /opt/web10
+            git fetch origin
+            git checkout dev
+            git reset --hard origin/dev
 
-          # Restore .env symlink if broken (GitOps re-clone can wipe it)
-          if [[ ! -L ubuntu-deployment/.env ]] || [[ ! -f ubuntu-deployment/.env ]]; then
-            ln -sfn ~/web10-ops/.env ubuntu-deployment/.env
-          fi
-
-          # Source env for per-stack vars
-          set -a
-          source ubuntu-deployment/.env
-          set +a
-
-          # Build and deploy the stack
-          cd ubuntu-deployment
-          docker compose -p $STACK \
-            --env-file env.$ENV \
-            -f docker-compose.ecosystem.yml \
-            up -d --build --remove-orphans
-
-          # Wait for containers to stabilize
-          echo "=== Waiting for containers to stabilize ==="
-          for i in $(seq 1 30); do
-            unhealthy=$(docker ps --filter "name=$STACK" --filter "status=unhealthy" --format '{{.Names}}' | wc -l)
-            restarting=$(docker ps --filter "name=$STACK" --filter "status=restarting" --format '{{.Names}}' | wc -l)
-            if [[ "$unhealthy" -eq 0 ]] && [[ "$restarting" -eq 0 ]]; then
-              echo "All containers stable"
-              break
+            # Restore .env symlink if broken (GitOps re-clone can wipe it)
+            if [[ ! -L ubuntu-deployment/.env ]] || [[ ! -f ubuntu-deployment/.env ]]; then
+              ln -sfn ~/web10-ops/.env ubuntu-deployment/.env
             fi
-            if [[ "$i" -eq 30 ]]; then
-              echo "FAIL: containers still unstable after 30s"
-              docker ps --filter "name=$STACK" --format 'table {{.Names}}\t{{.Status}}'
-              exit 1
-            fi
-            echo "Waiting... ($i/30)"
-            sleep 2
-          done
 
-          # Show container status
-          echo "=== Container status ==="
-          docker ps --filter "name=$STACK" --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}'
+            # Source env for per-stack vars
+            set -a
+            source ubuntu-deployment/.env
+            set +a
 
-          # Run smoke test
-          echo "=== Running smoke test ==="
-          bash scripts/smoke.sh
+            # Build and deploy the stack
+            cd ubuntu-deployment
+            docker compose -p $STACK \
+              --env-file env.$ENV \
+              -f docker-compose.ecosystem.yml \
+              up -d --build --remove-orphans
+
+            # Wait for containers to stabilize
+            echo "=== Waiting for containers to stabilize ==="
+            for i in $(seq 1 30); do
+              unhealthy=$(docker ps --filter "name=$STACK" --filter "status=unhealthy" --format '{{.Names}}' | wc -l)
+              restarting=$(docker ps --filter "name=$STACK" --filter "status=restarting" --format '{{.Names}}' | wc -l)
+              if [[ "$unhealthy" -eq 0 ]] && [[ "$restarting" -eq 0 ]]; then
+                echo "All containers stable"
+                break
+              fi
+              if [[ "$i" -eq 30 ]]; then
+                echo "FAIL: containers still unstable after 30s"
+                docker ps --filter "name=$STACK" --format 'table {{.Names}}\t{{.Status}}'
+                exit 1
+              fi
+              echo "Waiting... ($i/30)"
+              sleep 2
+            done
+
+            # Show container status
+            echo "=== Container status ==="
+            docker ps --filter "name=$STACK" --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}'
+
+            # Run smoke test
+            echo "=== Running smoke test ==="
+            bash scripts/smoke.sh
 
   deploy-prod:
     if: github.ref == 'refs/heads/main'
@@ -95,68 +95,68 @@ jobs:
 
       - name: Deploy to box
         uses: appleboy/ssh-action@v1
+        env:
+          STACK: web10-prod
+          ENV: prod
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_REF: ${{ github.ref }}
         with:
           host: ${{ secrets.VM_IP }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: 22
           envs: STACK,ENV,GITHUB_SHA,GITHUB_REF
-        env:
-          STACK: web10-prod
-          ENV: prod
-          GITHUB_SHA: ${{ github.sha }}
-          GITHUB_REF: ${{ github.ref }}
-        script: |
-          set -e
-          echo "=== Deploying $STACK ==="
-          echo "Commit: $GITHUB_SHA"
-          echo "Ref: $GITHUB_REF"
+          script: |
+            set -e
+            echo "=== Deploying $STACK ==="
+            echo "Commit: $GITHUB_SHA"
+            echo "Ref: $GITHUB_REF"
 
-          # Pull latest code
-          cd /opt/web10
-          git fetch origin
-          git checkout main
-          git reset --hard origin/main
+            # Pull latest code
+            cd /opt/web10
+            git fetch origin
+            git checkout main
+            git reset --hard origin/main
 
-          # Restore .env symlink if broken
-          if [[ ! -L ubuntu-deployment/.env ]] || [[ ! -f ubuntu-deployment/.env ]]; then
-            ln -sfn ~/web10-ops/.env ubuntu-deployment/.env
-          fi
-
-          # Source env for per-stack vars
-          set -a
-          source ubuntu-deployment/.env
-          set +a
-
-          # Build and deploy the stack
-          cd ubuntu-deployment
-          docker compose -p $STACK \
-            --env-file env.$ENV \
-            -f docker-compose.ecosystem.yml \
-            up -d --build --remove-orphans
-
-          # Wait for containers to stabilize
-          echo "=== Waiting for containers to stabilize ==="
-          for i in $(seq 1 30); do
-            unhealthy=$(docker ps --filter "name=$STACK" --filter "status=unhealthy" --format '{{.Names}}' | wc -l)
-            restarting=$(docker ps --filter "name=$STACK" --filter "status=restarting" --format '{{.Names}}' | wc -l)
-            if [[ "$unhealthy" -eq 0 ]] && [[ "$restarting" -eq 0 ]]; then
-              echo "All containers stable"
-              break
+            # Restore .env symlink if broken
+            if [[ ! -L ubuntu-deployment/.env ]] || [[ ! -f ubuntu-deployment/.env ]]; then
+              ln -sfn ~/web10-ops/.env ubuntu-deployment/.env
             fi
-            if [[ "$i" -eq 30 ]]; then
-              echo "FAIL: containers still unstable after 30s"
-              docker ps --filter "name=$STACK" --format 'table {{.Names}}\t{{.Status}}'
-              exit 1
-            fi
-            echo "Waiting... ($i/30)"
-            sleep 2
-          done
 
-          # Show container status
-          echo "=== Container status ==="
-          docker ps --filter "name=$STACK" --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}'
+            # Source env for per-stack vars
+            set -a
+            source ubuntu-deployment/.env
+            set +a
 
-          # Run smoke test
-          echo "=== Running smoke test ==="
-          bash scripts/smoke.sh
+            # Build and deploy the stack
+            cd ubuntu-deployment
+            docker compose -p $STACK \
+              --env-file env.$ENV \
+              -f docker-compose.ecosystem.yml \
+              up -d --build --remove-orphans
+
+            # Wait for containers to stabilize
+            echo "=== Waiting for containers to stabilize ==="
+            for i in $(seq 1 30); do
+              unhealthy=$(docker ps --filter "name=$STACK" --filter "status=unhealthy" --format '{{.Names}}' | wc -l)
+              restarting=$(docker ps --filter "name=$STACK" --filter "status=restarting" --format '{{.Names}}' | wc -l)
+              if [[ "$unhealthy" -eq 0 ]] && [[ "$restarting" -eq 0 ]]; then
+                echo "All containers stable"
+                break
+              fi
+              if [[ "$i" -eq 30 ]]; then
+                echo "FAIL: containers still unstable after 30s"
+                docker ps --filter "name=$STACK" --format 'table {{.Names}}\t{{.Status}}'
+                exit 1
+              fi
+              echo "Waiting... ($i/30)"
+              sleep 2
+            done
+
+            # Show container status
+            echo "=== Container status ==="
+            docker ps --filter "name=$STACK" --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}'
+
+            # Run smoke test
+            echo "=== Running smoke test ==="
+            bash scripts/smoke.sh
