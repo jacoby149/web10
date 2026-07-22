@@ -1,3 +1,5 @@
+1.0.101 || 22.07.2026
+Fix CORS_SERVICE_MANAGERS dev default: auth.web10.dev -> auth.dev.web10.app (stale hostname from pre-1.0.73). The env files were already correct; only the settings.py fallback was wrong.
 1.0.100 || 22.07.2026
 Fix api CI: uv sync now uses --extra test so pytest and ruff are available
 in the CI environment. The ruff/format debt was already paid in 1.0.73

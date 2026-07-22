@@ -8,7 +8,7 @@ PROVIDER = "api.localhost"
 CORS_SERVICE_MANAGERS = """
     auth.localhost,
     auth.web10.app,
-    auth.web10.dev
+    auth.dev.web10.app
 """
 DB = "testing"
 DB_URL = "mongodb+srv://web10:jSol....."
