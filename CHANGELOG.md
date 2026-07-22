@@ -1,3 +1,12 @@
+1.0.89 || 22.07.2026
+Fix DMs: single `dms` service with sender/recipient fields (no per-conversation
+service). legacy adapter auto-migrates message-inbox/outbox on first read.
+Fix posts: legacy adapter migrates html/media/time → text/media_refs/created_at
+in-place so text-only posts render in the profile grid.
+Added security invariant I6: server-side record metadata (_author, _source_node,
+_created_at) injected by API on create, immutable on update. audited cross-node
+federation flow: no cross-node token delegation, no data sync, no provenance
+metadata today. 220 tests green, tsc clean.
 1.0.88 || 21.07.2026
 Fix marketing-ui build: SVG `className` assignment changed to `setAttribute('class', ...)` to avoid TS2540 read-only error on dynamically created SVG elements.
 1.0.86 || 20.07.2026
