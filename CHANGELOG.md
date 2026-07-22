@@ -1,4 +1,4 @@
-1.0.99 || 22.07.2026
+1.0.102 || 22.07.2026
 Reprioritization (D29): the killer app, proud and working, before anything
 else. plan.txt PRIORITY ZERO (baseline chain, merged) superseded by PRIORITY
 ONE: every task judged by "does this make web10-social something the operator
