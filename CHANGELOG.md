@@ -1,3 +1,11 @@
+1.0.96 || 22.07.2026
+Marketing-ui: fixed corner deployment-status widget. A small pill in the
+bottom-right (green dot + live version, mono) reads the baked /status.json
+(E9) and expands to version / commit / deployed-at with a link to the full
+/status/ page. Renders nothing when the status feed is absent (local dev,
+tests) — no dead control. Token-only styling, keyboard operable (Esc,
+focus-visible ring), covered by 4 vitest cases.
+
 1.0.95 || 22.07.2026
 Ops: Portainer admin password reset after the GitOps re-clone of /opt/web10
 wiped the gitignored .env (creds existed nowhere else). Box secrets moved to
