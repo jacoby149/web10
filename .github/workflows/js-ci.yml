@@ -1,17 +1,6 @@
 name: js-ci
 
 on:
-  push:
-    branches: [dev, main]
-    paths:
-      - ui/**
-      - sdk/**
-      - marketing/web10-social/**
-      - marketing/marketing-ui/**
-      - mobile/encryptor/**
-      - api/rtc/**
-      - .github/workflows/js-ci.yml
-      - .github/workflows/js.yml
   pull_request:
     paths:
       - ui/**

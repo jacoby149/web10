@@ -1,3 +1,12 @@
+1.0.99 || 22.07.2026
+CI: removed push triggers from all check workflows (js-ci, api, docker, e2e,
+marketing-api) — code already passes PR checks before merging to dev, so
+re-running after merge wastes ~60+ minutes per merge. deploy.yml keeps its
+push trigger (it actually deploys, not just checks). Added bun install caching
+to js.yml (actions/cache on node_modules + bun cache dir keyed on bun.lock).
+Expected savings: ~80% reduction in CI minutes (no redundant post-merge runs
++ cached installs).
+
 1.0.98 || 22.07.2026
 Knowledge folder complete overhaul: replaced AI-generated content with a working system. Knowledge theories: the-why-layer (connects tech to business), the-how-layer (comprehensive technical explanation), the-what-layer (code/deploy/ownership map). Writing styles: use-case-driven (abstract → specific → technical → logistics). Editing styles: the-touch-up (surgical fixes), the-rewrite (diagnose, pick theory/style/voice, write fresh). Voices: clive-tobacco-smoker (anti-AI voice reference). Visual-styles folder added for Mermaid chart styles. AGENTS.md added with the workflow for AI agents (pick theory → pick style → pick voice → write). Deleted old knowledge-base/ (architecture, protocol, security, 8 Mermaid scenarios) — all replaced.
 1.0.89 || 21.07.2026
