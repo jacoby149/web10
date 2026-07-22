@@ -729,8 +729,11 @@ LANE CI — github actions optimization (owns: .github/workflows/**, cross-cutti
        workflows (js-ci, api, docker, e2e, marketing-api). code already
        passes PR checks — re-running after merge wastes ~60+ min/merge.
        deploy.yml keeps push (it actually deploys). saves ~80% of CI.
-   [ ] CI-path-filter: per-package path filtering in js-ci.yml so
+   [✓ 1.0.99] CI-path-filter: per-package path filtering in js-ci.yml so
        touching ui/** only runs the ui job, not all 6 packages.
+   [✓ 1.0.99] CI-single-arch: drop linux/arm64 from cd.yml image builds.
+       saves ~50% on CD minutes.
+   [✓ 1.0.99] CI-small-runners: use ubuntu-latest-small for changelog check.
    [ ] CI-e2e-push-only: skip e2e.yml on pull_request, run only on
        push to dev/main. saves ~15 min per PR.
    [ ] CI-single-arch: drop linux/arm64 from cd.yml image builds if

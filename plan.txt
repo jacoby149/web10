@@ -1825,18 +1825,18 @@ ci optimization (reduce github actions minutes -- free tier is
     parallel agents pushing frequently, that's ~60+ minutes wasted
     per merge (code already passed PR checks). deploy.yml keeps push
     (it actually deploys). saves ~80% of total CI minutes.
-[ ] per-package path filtering in js-ci.yml: touching ui/** currently
+[✓ 1.0.99] per-package path filtering in js-ci.yml: touching ui/** currently
     runs all 6 packages (ui, sdk, web10-social, marketing-ui,
     encryptor, rtc). each job should only trigger when its own
     package's paths change. use the reusable workflow's `if`
     condition with `github.event.pull_request.changed_files` or
     separate path filters per job.
-[ ] drop linux/arm64 from cd.yml image builds: multi-arch doubles
+[✓ 1.0.99] drop linux/arm64 from cd.yml image builds: multi-arch doubles
     build time per image. if no self-hosters need ARM (Raspberry Pi,
     Mac Mini), build linux/amd64 only. saves ~50% on CD minutes.
-[ ] use ubuntu-latest-small runners where possible: smaller, cheaper
+[✓ 1.0.99] use ubuntu-latest-small runners where possible: smaller, cheaper
     runners for jobs that don't need heavy resources (changelog
-    check, js typecheck). docker/e2e builds stay on ubuntu-latest.
+    check). docker/e2e builds stay on ubuntu-latest.
 
 cd — runs on merge to main + version tags (starts small, grows
 with the phases that give it something to ship):

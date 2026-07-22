@@ -1,11 +1,13 @@
 1.0.99 || 22.07.2026
-CI: removed push triggers from all check workflows (js-ci, api, docker, e2e,
-marketing-api) — code already passes PR checks before merging to dev, so
+CI optimization: removed push triggers from all check workflows (js-ci, api,
+docker, e2e, marketing-api) — code already passes PR checks before merging, so
 re-running after merge wastes ~60+ minutes per merge. deploy.yml keeps its
-push trigger (it actually deploys, not just checks). Added bun install caching
-to js.yml (actions/cache on node_modules + bun cache dir keyed on bun.lock).
-Expected savings: ~80% reduction in CI minutes (no redundant post-merge runs
-+ cached installs).
+push trigger (it actually deploys). Added bun install caching to js.yml
+(actions/cache on node_modules + bun cache dir keyed on bun.lock). Per-package
+path filtering in js-ci.yml (dorny/paths-filter) so touching ui/** only runs
+the ui job, not all 6 packages. Dropped linux/arm64 from cd.yml (saves ~50%
+on CD minutes). Switched changelog check to ubuntu-latest-small runner.
+Expected savings: ~90% reduction in total CI minutes.
 
 Marketing-ui: removed redundant trending feed from home page (already has /trending tab). Rewrote /trending page: full-page trending feed, no "For You" / "Following" subtabs. DeployStatus widget now hides when status.json has all "unknown" fields instead of showing an empty panel. Root cause fix: deploy.yml now computes GIT_COMMIT and STATUS_VERSION before docker compose, so status.json gets real values on every deploy.
 1.0.98 || 22.07.2026
