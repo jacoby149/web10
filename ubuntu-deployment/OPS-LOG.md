@@ -3,6 +3,34 @@
 Newest at top. Format per AGENT-OPS.md §8. Read the top entries
 BEFORE doing ops work — someone may already be mid-fix.
 
+## 22.07.2026 — Claude (calgary, trending-fix-missing) — Portainer creds reset; secrets moved out of the repo checkout
+did (SSH as jacob):
+  - CONTEXT: the GitOps conversion (21/22.07) re-cloned /opt/web10,
+    which wiped the gitignored ubuntu-deployment/.env — losing the
+    Portainer admin password (it was generated on-box on 19.07 and
+    existed nowhere else; confirmed not recoverable from any session
+    transcript). The ~/web10-backup-deploy-07.19.26 backup is a mongo
+    dump only, no .env.
+  - RESET: `docker stop portainer` → `docker run --rm -v
+    portainer-data:/data portainer/helper-reset-password` → start.
+    New password for admin `jacob` (32 chars). Verified: POST
+    /api/auth returns a JWT; all 3 stacks (edge, web10-dev,
+    web10-prod) intact, status 1, GitOps poll 5m.
+  - RECOVERED the rest of the old .env from still-live sources:
+    CF token from /opt/caddy/Caddyfile, Minio dev/prod root
+    passwords from `docker inspect` on the minio containers.
+  - NEW CANONICAL LOCATION: /home/jacob/web10-ops/.env (dir 700,
+    file 600) — outside any checkout so re-clones can't wipe it.
+    /opt/web10/ubuntu-deployment/.env is now a SYMLINK to it (the
+    scripts/ read that path). If /opt/web10 is ever recreated:
+    `ln -sfn ~/web10-ops/.env /opt/web10/ubuntu-deployment/.env`.
+  - Docs updated: README §Secrets, AGENT-OPS §1, .env.example header.
+next: (1) NPM admin password was lost with the same file and is NOT
+  reset yet (NPM_PASSWORD empty in the new .env) — sync-npm.py will
+  fail until it's reset (sqlite edit in the npm container or NPM
+  password-reset flow). (2) web10-prod stack tracks refs/heads/dev,
+  not main — the dev/prod split the operator asked for is unfinished.
+
 ## 19.07.2026 — Claude (lincoln, b7-auth-ui) — prod cutover to the real mongo (deploy)
 did (SSH as jacob; box /opt/web10 is still a stale non-git snapshot):
   - ROOT CAUSE: web10-prod-api was serving the containerized FerretDB
