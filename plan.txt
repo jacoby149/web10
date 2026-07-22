@@ -862,6 +862,26 @@ Federation (later):
 [ ] schema resolution: fetch remote schemas by provider.uuid6
 [ ] public ledger federation: /public/entries aggregates across nodes
 
+Live testing — persona seeding (Cross-lane, persona-orchestration/):
+[✓ 1.0.89] persona-orchestration/: 5 persona accounts with distinct
+    voices (solar-flare-69, noodle-empress, void-walker, butterfly-
+    mechanic, disco-donkey), seed scripts (bash + python), first-week
+    content plans, cross-follows, posts, comments, DMs, reactions.
+    PURPOSE: this is the test data that exercises the ENTIRE Phase 5.5
+    public layer end to end. when the discovery index, schema registry,
+    and public ledger land, these personas are the ones that populate
+    /discover/posts, /discover/topics, /discover/users, and the
+    marketing-ui FeedPreview. the seed script writes public posts
+    (visibility: "public"), reactions (the engagement aggregation
+    trigger), and comments (schema-validated ledger entries). the
+    trending sort gets real data to rank. the homepage feed stops being
+    placeholder. the personas also test the social app's core flows
+    (post, feed, DM, comment, react, follow) with actual cross-user
+    interaction — no more empty-state screenshots in the demo.
+    the seed script is idempotent: re-run after a DB wipe to reseed.
+    the action plans per persona define ongoing content so another
+    agent can log in as a persona and keep the platform alive.
+
 PHASE 6 — wapi.js revamp (the sdk)
 ----------------------------------
 wapi.js is how frontend devs build web10 apps. it deserves the same
