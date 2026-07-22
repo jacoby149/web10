@@ -305,13 +305,15 @@ def update(user, service, query, update):
                 raise exceptions.DSTAR
     query = q_t(query, service)
     update = u_t(update)
-    response = db[user].update_one(query, update)
+    doc = db[user].find_one_and_update(query, update, return_document=pymongo.RETURN_AFTER)
+    if doc is None:
+        return {"matchedCount": 0, "modifiedCount": 0}
     if pull:
         db[user].update_one(query, get_pull(update))
-    return {
-        "matchedCount": response.matched_count,
-        "modifiedCount": response.modified_count,
-    }
+    record = to_gui(doc)
+    if "_id" in record:
+        record["_id"] = str(record["_id"])
+    return record
 
 
 def delete(user, service, query):

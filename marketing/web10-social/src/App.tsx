@@ -13,6 +13,24 @@ import type { Mode } from '@/types';
 function LoginScreen({ onLogin }: { onLogin: () => void }) {
   return (
     <div className="relative flex flex-col items-center justify-center min-h-screen bg-background px-6 overflow-hidden">
+      {/* Animated gradient background */}
+      <div
+        className="pointer-events-none absolute inset-0 bg-gradient-to-br from-brand/10 via-transparent to-brand-muted/20"
+        aria-hidden="true"
+      />
+      {/* Floating ambient orbs */}
+      <div
+        className="pointer-events-none absolute top-1/4 left-1/4 h-64 w-64 rounded-full bg-brand/10 blur-3xl animate-float-slow"
+        aria-hidden="true"
+      />
+      <div
+        className="pointer-events-none absolute bottom-1/4 right-1/4 h-48 w-48 rounded-full bg-brand-600/10 blur-3xl animate-float-medium"
+        aria-hidden="true"
+      />
+      <div
+        className="pointer-events-none absolute top-1/2 right-1/3 h-32 w-32 rounded-full bg-brand-400/8 blur-2xl animate-float-fast"
+        aria-hidden="true"
+      />
       {/* design.md §4 — the one permitted decorative flourish: a soft brand glow behind the mark. */}
       <div
         className="pointer-events-none absolute top-1/2 left-1/2 h-80 w-80 -translate-x-1/2 -translate-y-[60%] rounded-full bg-brand/20 blur-3xl"

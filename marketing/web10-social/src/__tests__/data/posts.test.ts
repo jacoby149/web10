@@ -59,6 +59,27 @@ describe('posts data layer', () => {
       expect(mock.read).toHaveBeenCalledWith('posts');
       expect(result).toEqual(postsList);
     });
+
+    it('adapts legacy posts (html/media/time → text/media_refs/created_at)', async () => {
+      const legacyPosts = [
+        { _id: 'lp1', html: '<p>Hello world</p>', media: [{ type: 'image', src: 'http://img1.jpg' }], time: '2025-06-01T00:00:00Z', web10: 'api.web10.app/alice' },
+      ];
+      const migratedPosts = [
+        { _id: 'lp1', text: 'Hello world', media_refs: ['http://img1.jpg'], created_at: '2025-06-01T00:00:00Z' },
+      ];
+      mock.read.mockResolvedValueOnce(legacyPosts);
+      mock.update.mockResolvedValueOnce(legacyPosts[0]);
+      mock.read.mockResolvedValueOnce(migratedPosts);
+
+      const result = await posts.readMyPosts();
+      expect(mock.update).toHaveBeenCalledWith('posts', { _id: 'lp1' }, expect.objectContaining({
+        $set: expect.objectContaining({
+          text: 'Hello world',
+          created_at: '2025-06-01T00:00:00Z',
+        }),
+      }));
+      expect(result).toEqual(migratedPosts);
+    });
   });
 
   describe('readUserPosts', () => {
