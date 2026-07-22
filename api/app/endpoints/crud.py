@@ -40,7 +40,11 @@ async def create_records(user: str, service: str, token: Token, b_t: BackgroundT
     if not is_permitted(token, user, service, "create"):
         raise exceptions.CRUD
     check(user)
-    res = db.create(user, service, token.query)
+    # I6: inject server-managed metadata from the authenticated token
+    decoded = decode_token(token.token) if token.token else None
+    author = decoded.username if decoded else None
+    source_node = decoded.provider if decoded else None
+    res = db.create(user, service, token.query, author=author, source_node=source_node)
     b_t.add_task(db.charge, user, "create")
     _emit(user, service, token, "create")
     return res

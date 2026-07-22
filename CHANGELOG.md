@@ -1,3 +1,12 @@
+1.0.92 || 22.07.2026
+I6 complete: `_author`, `_source_node`, `_created_at` immutable on update,
+exposed on read, forged values rejected. `to_db()` strips client-supplied
+metadata and injects server values from token + clock. `u_t()` silently drops
+any `$set`/`$unset`/`$inc` targeting immutable fields. `to_gui()` ensures
+metadata fields present on every returned record. `create()` endpoint passes
+token's username/provider to `to_db()`. Cross-node: remote token's provider
+becomes `_source_node`, remote username becomes `_author`. +14 I6 tests
+(309 total green).
 1.0.91 || 22.07.2026
 Fix DMs: single `dms` service with sender/recipient fields (no per-conversation
 service). legacy adapter auto-migrates message-inbox/outbox on first read.

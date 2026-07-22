@@ -968,3 +968,259 @@ class TestNodeConfig:
         with patch("app.services.config.get_config", return_value={"brand_text": "web10"}):
             resp = client.post("/am_admin", json={"token": _owner_token("jacoby149")})
         assert resp.json() == {"admin": True}
+
+
+# ---------------------------------------------------------------------------
+# 11. I6 — Immutable server-side metadata
+# ---------------------------------------------------------------------------
+
+
+class TestI6MetadataInjection:
+    """I6: _author, _source_node, _created_at are injected by the server on create,
+    immutable on update, and exposed on read. The client cannot forge them."""
+
+    def test_create_injects_author_from_token(self, client):
+        """Server injects _author from the token's username, not from client data."""
+        mock_result = MagicMock()
+        mock_result.inserted_id = "mock_oid"
+        with (
+            patch("app.services.documentdb.get_star", return_value=MOCK_STAR),
+            patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM),
+            patch("app.services.documentdb.get_collection_size", return_value=1),
+            patch("app.services.documentdb.charge"),
+            patch("app.services.documentdb.emit_event"),
+            patch.object(db_module.db, "__getitem__") as mock_col,
+        ):
+            mock_col.return_value.insert_one.return_value = mock_result
+            # Client tries to forge _author
+            resp = client.post(
+                "/alice/posts",
+                json={
+                    "token": _owner_token("alice"),
+                    "query": {"title": "hi", "_author": "someone-else"},
+                },
+            )
+        assert resp.status_code == 200
+        body = resp.json()
+        # Server value wins: token username, not client's forged value
+        assert body.get("_author") == "alice"
+        assert body.get("_author") != "someone-else"
+
+    def test_create_injects_source_node_from_token(self, client):
+        """Server injects _source_node from the token's provider."""
+        mock_result = MagicMock()
+        mock_result.inserted_id = "mock_oid"
+        with (
+            patch("app.services.documentdb.get_star", return_value=MOCK_STAR),
+            patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM),
+            patch("app.services.documentdb.get_collection_size", return_value=1),
+            patch("app.services.documentdb.charge"),
+            patch("app.services.documentdb.emit_event"),
+            patch.object(db_module.db, "__getitem__") as mock_col,
+        ):
+            mock_col.return_value.insert_one.return_value = mock_result
+            resp = client.post(
+                "/alice/posts",
+                json={
+                    "token": _owner_token("alice"),
+                    "query": {"title": "hi", "_source_node": "fake-node"},
+                },
+            )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body.get("_source_node") == settings.PROVIDER
+        assert body.get("_source_node") != "fake-node"
+
+    def test_create_injects_created_at(self, client):
+        """Server injects _created_at (server time), ignoring client value."""
+        mock_result = MagicMock()
+        mock_result.inserted_id = "mock_oid"
+        with (
+            patch("app.services.documentdb.get_star", return_value=MOCK_STAR),
+            patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM),
+            patch("app.services.documentdb.get_collection_size", return_value=1),
+            patch("app.services.documentdb.charge"),
+            patch("app.services.documentdb.emit_event"),
+            patch.object(db_module.db, "__getitem__") as mock_col,
+        ):
+            mock_col.return_value.insert_one.return_value = mock_result
+            resp = client.post(
+                "/alice/posts",
+                json={
+                    "token": _owner_token("alice"),
+                    "query": {"title": "hi", "_created_at": "2000-01-01T00:00:00"},
+                },
+            )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert "_created_at" in body
+        assert body["_created_at"] != "2000-01-01T00:00:00"
+
+    def test_update_cannot_change_author(self, client):
+        """I6: PUT/PATCH with $set _author is silently dropped."""
+        with (
+            patch("app.services.documentdb.get_star", return_value=MOCK_STAR),
+            patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM),
+            patch("app.services.documentdb.get_collection_size", return_value=1),
+            patch("app.services.documentdb.charge"),
+            patch("app.services.documentdb.emit_event"),
+            patch("app.services.documentdb.star_selected", return_value=False),
+            patch.object(db_module.db, "__getitem__") as mock_col,
+        ):
+            mock_col.return_value.find_one_and_update.return_value = {
+                "_id": "1",
+                "service": "posts",
+                "body": {"title": "new", "_author": "alice", "_source_node": settings.PROVIDER},
+            }
+            resp = client.put(
+                "/alice/posts",
+                json={
+                    "token": _owner_token("alice"),
+                    "query": {"_id": "1"},
+                    "update": {"$set": {"title": "new", "_author": "hacker"}},
+                },
+            )
+        assert resp.status_code == 200
+        # The update returned from the DB still has the original author
+        body = resp.json()
+        assert body.get("_author") == "alice"
+        assert body.get("_author") != "hacker"
+
+    def test_update_cannot_change_source_node(self, client):
+        """I6: update cannot change _source_node."""
+        with (
+            patch("app.services.documentdb.get_star", return_value=MOCK_STAR),
+            patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM),
+            patch("app.services.documentdb.get_collection_size", return_value=1),
+            patch("app.services.documentdb.charge"),
+            patch("app.services.documentdb.emit_event"),
+            patch("app.services.documentdb.star_selected", return_value=False),
+            patch.object(db_module.db, "__getitem__") as mock_col,
+        ):
+            mock_col.return_value.find_one_and_update.return_value = {
+                "_id": "1",
+                "service": "posts",
+                "body": {"title": "new", "_source_node": settings.PROVIDER},
+            }
+            resp = client.put(
+                "/alice/posts",
+                json={
+                    "token": _owner_token("alice"),
+                    "query": {"_id": "1"},
+                    "update": {"$set": {"title": "new", "_source_node": "fake"}},
+                },
+            )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body.get("_source_node") == settings.PROVIDER
+
+    def test_update_cannot_change_created_at(self, client):
+        """I6: update cannot change _created_at."""
+        with (
+            patch("app.services.documentdb.get_star", return_value=MOCK_STAR),
+            patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM),
+            patch("app.services.documentdb.get_collection_size", return_value=1),
+            patch("app.services.documentdb.charge"),
+            patch("app.services.documentdb.emit_event"),
+            patch("app.services.documentdb.star_selected", return_value=False),
+            patch.object(db_module.db, "__getitem__") as mock_col,
+        ):
+            mock_col.return_value.find_one_and_update.return_value = {
+                "_id": "1",
+                "service": "posts",
+                "body": {"title": "new"},
+            }
+            resp = client.put(
+                "/alice/posts",
+                json={
+                    "token": _owner_token("alice"),
+                    "query": {"_id": "1"},
+                    "update": {"$set": {"title": "new", "_created_at": "2000-01-01"}},
+                },
+            )
+        assert resp.status_code == 200
+
+    def test_read_returns_metadata_fields(self, client):
+        """I6: read returns _author, _source_node, _created_at on every record."""
+        with (
+            patch("app.services.documentdb.get_star", return_value=MOCK_STAR),
+            patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM),
+            patch("app.services.documentdb.get_collection_size", return_value=1),
+            patch("app.services.documentdb.charge"),
+            patch("app.services.documentdb.emit_event"),
+            patch(
+                "app.services.documentdb.read",
+                return_value=[
+                    {
+                        "_id": "1",
+                        "title": "hello",
+                        "_author": "alice",
+                        "_source_node": settings.PROVIDER,
+                        "_created_at": "2026-01-01T00:00:00",
+                    }
+                ],
+            ),
+        ):
+            resp = client.patch(
+                "/alice/posts",
+                json={"token": _owner_token("alice"), "query": {}},
+            )
+        assert resp.status_code == 200
+        records = resp.json()
+        assert len(records) == 1
+        rec = records[0]
+        assert "_author" in rec
+        assert "_source_node" in rec
+        assert "_created_at" in rec
+
+    def test_cross_node_source_node(self, client):
+        """I6: a record created via a remote provider token has the correct _source_node
+        (the remote provider, not our PROVIDER)."""
+        mock_result = MagicMock()
+        mock_result.inserted_id = "mock_oid"
+        remote_provider = "remote.web10.app"
+        remote_token = _token(
+            {
+                "username": "remote-user",
+                "site": "auth.remote.web10.app",
+                "target": settings.PROVIDER,
+                "provider": remote_provider,
+                "expires": _future(),
+            }
+        )
+        with (
+            patch("app.services.documentdb.get_star", return_value=MOCK_STAR),
+            patch("app.services.documentdb.get_term_record") as m_term,
+            patch("app.services.documentdb.get_collection_size", return_value=1),
+            patch("app.services.documentdb.charge"),
+            patch("app.services.documentdb.emit_event"),
+            patch("app.services.auth.certify_with_remote_provider", return_value=True),
+            patch.object(db_module.db, "__getitem__") as mock_col,
+        ):
+            m_term.return_value = {
+                "service": "posts",
+                "whitelist": [
+                    {
+                        "username": "remote-user",
+                        "provider": remote_provider,
+                        "create": True,
+                    }
+                ],
+                "blacklist": [],
+                "cross_origins": ["auth.remote.web10.app"],
+            }
+            mock_col.return_value.insert_one.return_value = mock_result
+            resp = client.post(
+                "/alice/posts",
+                json={
+                    "token": remote_token,
+                    "query": {"title": "remote-post"},
+                },
+            )
+        assert resp.status_code == 200
+        body = resp.json()
+        # The remote user's username is the author
+        assert body.get("_author") == "remote-user"
+        # The source node is the REMOTE provider, not our PROVIDER
+        assert body.get("_source_node") == remote_provider
+        assert body.get("_source_node") != settings.PROVIDER
