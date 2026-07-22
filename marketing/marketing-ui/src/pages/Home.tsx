@@ -178,8 +178,8 @@ function Footer() {
 function Home() {
   return (
     <>
-      <Hero />
       <FeedPreview />
+      <Hero />
       <ReachGap />
       <HowItWorks />
       <Footer />

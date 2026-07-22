@@ -1,3 +1,5 @@
+1.0.89 || 21.07.2026
+Homepage: moved the social feed preview section above the hero so the feed is front and center — first thing you see after the navbar. The pitch headline follows immediately after.
 1.0.88 || 21.07.2026
 Fix marketing-ui build: SVG `className` assignment changed to `setAttribute('class', ...)` to avoid TS2540 read-only error on dynamically created SVG elements.
 1.0.86 || 20.07.2026
