@@ -63,7 +63,8 @@ export interface WapiWrapper {
   getUploadUrl: (
     mimeType: string,
     sizeBytes: number,
-  ) => Promise<{ uploadUrl: string; recordId: string; mediaRecord: Record<string, unknown> }>;
+    filename: string,
+  ) => Promise<{ uploadUrl: string; fields: Record<string, string>; objectKey: string; contentType: string }>;
 
   // P2P (legacy, kept for existing chat)
   initP2P: (onInbound: (conn: unknown, data: unknown) => void, label: string) => void;
@@ -183,23 +184,24 @@ export function createWapiWrapper(authUrl?: string, rtcServer?: string): WapiWra
       return (json.data || json) as T[];
     },
 
-    async getUploadUrl(mimeType, sizeBytes) {
+    async getUploadUrl(mimeType, sizeBytes, filename) {
       const token = getToken();
       if (!token) throw new Error('not authenticated');
       const proto = getProtocol();
       const p = raw.readToken().provider;
       const u = raw.readToken().username;
-      const resp = await fetch(`${proto}//${p}/media/upload/${u}`, {
+      const resp = await fetch(`${proto}//${p}/${u}/upload`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, mime_type: mimeType, size_bytes: sizeBytes }),
+        body: JSON.stringify({ token, filename, mime_type: mimeType, size_bytes: sizeBytes }),
       });
       if (!resp.ok) throw new Error(`getUploadUrl failed: ${resp.status}`);
       const json = await resp.json();
       return {
         uploadUrl: json.upload_url,
-        recordId: json.record_id,
-        mediaRecord: json.media_record,
+        fields: json.fields || {},
+        objectKey: json.object_key,
+        contentType: json.content_type,
       };
     },
 

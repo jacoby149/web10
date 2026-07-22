@@ -267,6 +267,10 @@ const web10SocialAdapterInit = (): Web10SocialAdapter => {
       service: 'media',
       cross_origins: crossOrigins,
     },
+    {
+      service: 'follows',
+      cross_origins: crossOrigins,
+    },
   ];
   adapter.SMROnReady(sirs, []);
 

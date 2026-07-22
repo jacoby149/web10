@@ -44,6 +44,36 @@ describe('contacts data layer', () => {
       expect(mock.read).toHaveBeenCalledWith('contacts');
       expect(result).toEqual(list);
     });
+
+    it('adapts legacy contact-addresses on first read', async () => {
+      // First call: contacts service empty
+      mock.read.mockResolvedValueOnce([]);
+      // Second call: legacy contact-addresses
+      mock.read.mockResolvedValueOnce([
+        { web10: 'web10/bob', date_added: '2024-01-01T00:00:00Z' },
+        { web10: 'web10/carol', date_added: '2024-02-01T00:00:00Z' },
+      ]);
+      // create calls for each adapted record
+      mock.create.mockResolvedValue({ _id: 'c1', username: 'bob', provider: 'web10' });
+      // Final read after migration
+      mock.read.mockResolvedValue([
+        { _id: 'c1', username: 'bob', provider: 'web10' },
+        { _id: 'c2', username: 'carol', provider: 'web10' },
+      ]);
+
+      const result = await contacts.readContacts();
+      expect(result.length).toBe(2);
+      expect(result[0].username).toBe('bob');
+      expect(result[0].provider).toBe('web10');
+      expect(mock.create).toHaveBeenCalledTimes(2);
+    });
+
+    it('handles missing legacy contact-addresses gracefully', async () => {
+      mock.read.mockResolvedValueOnce([]);
+      mock.read.mockImplementationOnce(() => { throw new Error('not found'); });
+      const result = await contacts.readContacts();
+      expect(result).toEqual([]);
+    });
   });
 
   describe('readContact', () => {
