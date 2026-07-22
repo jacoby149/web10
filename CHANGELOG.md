@@ -1,4 +1,7 @@
 1.0.100 || 22.07.2026
+Fix api CI: uv sync now uses --extra test so pytest and ruff are available
+in the CI environment. The ruff/format debt was already paid in 1.0.73
+(ruff check and ruff format pass clean across api/). 353 tests green.
 E7: SDK npm publish flow verified end to end. cd.yml confirmed: fires on v* tags, npm job gated on tag prefix, publishes sdk/ with --provenance --access public. web10-npm verified public on npmjs.com (versions 1.0.0–1.0.8, latest 1.0.8). Decision D26 reaffirmed: publish stays tag-gated, no auto-publish on merge to dev/main — legacy wapi.js SDK must not flood npm while C2 typed rewrite is in flight.
 
 1.0.99 || 22.07.2026

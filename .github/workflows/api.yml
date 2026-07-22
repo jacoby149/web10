@@ -33,7 +33,7 @@ jobs:
           cache-dependency-glob: api/uv.lock
 
       - name: uv sync
-        run: uv sync --frozen
+        run: uv sync --frozen --extra test
 
       - name: ruff check
         run: uv run ruff check .
