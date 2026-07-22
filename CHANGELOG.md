@@ -1,3 +1,82 @@
+1.0.92 || 22.07.2026
+I6 complete: `_author`, `_source_node`, `_created_at` immutable on update,
+exposed on read, forged values rejected. `to_db()` strips client-supplied
+metadata and injects server values from token + clock. `u_t()` silently drops
+any `$set`/`$unset`/`$inc` targeting immutable fields. `to_gui()` ensures
+metadata fields present on every returned record. `create()` endpoint passes
+token's username/provider to `to_db()`. Cross-node: remote token's provider
+becomes `_source_node`, remote username becomes `_author`. +14 I6 tests
+(309 total green).
+1.0.91 || 22.07.2026
+Fix DMs: single `dms` service with sender/recipient fields (no per-conversation
+service). legacy adapter auto-migrates message-inbox/outbox on first read.
+Fix posts: legacy adapter migrates html/media/time → text/media_refs/created_at
+in-place so text-only posts render in the profile grid.
+Added security invariant I6: server-side record metadata (_author, _source_node,
+_created_at) injected by API on create, immutable on update. audited cross-node
+federation flow: no cross-node token delegation, no data sync, no provenance
+metadata today. 220 tests green, tsc clean.
+1.0.90 || 21.07.2026
+Homepage: moved the social feed preview section above the hero so the feed is front and center — first thing you see after the navbar. The pitch headline follows immediately after.
+
+1.0.89 || 21.07.2026
+Persona orchestration: 5 live-testing personas (solar-flare-69, noodle-empress,
+void-walker, butterfly-mechanic, disco-donkey) with seed scripts (bash + python),
+first-week action plans, cross-follows, posts, comments, DMs, reactions, and
+inbox fan-out. Makes the social platform look alive for dev testing and demos.
+
+1.0.88 || 21.07.2026
+Fix marketing-ui build: SVG `className` assignment changed to `setAttribute('class', ...)` to avoid TS2540 read-only error on dynamically created SVG elements.
+1.0.86 || 20.07.2026
+Marketing-ui homepage: added a social-media-style tabbed feed preview section
+with placeholder content (For You / Following / Trending tabs, post cards with
+avatars, media placeholders, engagement counts). The section sits between the
+hero and the reach-gap proof, giving the landing page a sense of life and
+activity. Avatar UI primitive added to marketing-ui. Placeholder data wired to
+tabs; ready to be replaced with live backend content.
+1.0.87 || 21.07.2026
+D12 follow-up: web10-social vibrancy overhaul. The social flagship was
+muted — flat surfaces, no ambient light, zero interaction energy —
+compared to Kick's vibrant, alive feel. design.md §4 relaxed: glow
+tokens (`--color-glow`, `--color-glow-intense`, `--color-glow-danger`)
+added for the social app (console stays restrained). New animations
+in index.css: shimmer skeleton sweep, heart-burst on like, glow-pulse
+for presence indicators, brand-glow-pulse for ambient energy, float
+for login particles. Custom dark scrollbar. Button gradient brand
+variant with glow-on-hover, `brand_subtle` variant. Badge `brand_glow`
+and `live` (pulsing) variants. Skeleton gradient shimmer replaces
+solid pulse. Layout: sidebar gradient, ambient glow orb, active nav
+glow pill with pulse dot, mobile nav gradient indicator. Feed: card
+hover glow, heart-burst animation on like with danger drop-shadow,
+vibrant brand-tinted tags, origin badges with glow, gradient empty
+state icon, media hover zoom + overlay. Composer: focus glow bar,
+media preview hover scale + ring. Profile: vibrant banner gradient,
+avatar glow ring, gradient avatar fallback, gradient tab indicators,
+media grid hover zoom + overlay. DMs: gradient sent bubbles with
+shadow, presence dots with pulse, conversation list presence indicators.
+Login: animated gradient background, floating ambient orbs. 195 tests
+green, tsc clean, build clean.
+1.0.86 || 20.07.2026
+Add branch naming conventions to AGENTS.md: all new branches must use a
+type prefix (feature/, fix/, refactor/, chore/, test/, docs/) followed by
+a short imperative description, e.g. fix/auth-token-expiry. Existing
+lane-x/ and username/ branches grandfathered.
+1.0.87 || 21.07.2026
+Fix profile name save, photo upload, and restore old contacts/friends.
+Backend: update_records now returns the updated document (find_one_and_update)
+instead of {matchedCount, modifiedCount}, so saveProfile actually persists
+the profile in React state. Media upload: fixed URL path from /media/upload/{user}
+to /{user}/upload, added required filename field, switched to presigned POST
+with confirm step so the media record is created with an _id. Frontend:
+wapi.update now receives the real document back. Profile adapter: readProfile
+falls back to the legacy identity service, maps name→display_name and
+pic→avatar_ref, and writes the adapted record to the new profile service.
+Contacts adapter: readContacts falls back to legacy contact-addresses, maps
+web10→username/provider and date_added→added_at, migrates all records to the
+new contacts service on first read. Follows: added complete data layer
+(readFollows, followUser, unfollowUser, blockUser, deleteFollow, etc.) and
+registered the follows SRO in the adapter. +19 tests (74 data layer tests).
+
 1.0.85 || 20.07.2026
 Remove Netlify integration. Deleted ui/netlify.toml so GitHub pushes no
 longer trigger Netlify builds. Removed web10social.netlify.app from the

@@ -1,5 +1,6 @@
 import datetime
 import itertools
+import logging
 import re
 import secrets
 
@@ -10,6 +11,11 @@ import app.exceptions as exceptions
 import app.settings as settings
 from app.models.core import dotdict
 from app.services import records as records
+
+log = logging.getLogger(__name__)
+
+# Server-managed metadata fields — the client must never set or forge these.
+IMMUTABLE_METADATA = frozenset(("_author", "_source_node", "_created_at"))
 
 #################################
 ####### CONNECTING TO DB ########
@@ -30,17 +36,29 @@ def to_gui(doc):
     _id = doc["_id"]
     doc = doc["body"]
     doc["_id"] = _id
+    # I6: ensure server-managed metadata is always present on read
+    for field in IMMUTABLE_METADATA:
+        if field not in doc:
+            doc[field] = None
     return doc
 
 
 # transforms user submitted doc for db writing
-def to_db(_doc, service):
+# I6: injects server-managed metadata; strips any client-supplied values
+def to_db(_doc, service, author=None, source_node=None):
     doc = {}
     if "_id" in _doc:
         doc["_id"] = _doc["_id"]
         del _doc["_id"]
     doc["service"] = service
-    doc["body"] = _doc
+    body = {k: v for k, v in _doc.items() if k not in IMMUTABLE_METADATA}
+    # I6: server always wins — inject metadata from token + server clock
+    if author is not None:
+        body["_author"] = author
+    if source_node is not None:
+        body["_source_node"] = source_node
+    body["_created_at"] = datetime.datetime.utcnow()
+    doc["body"] = body
     return doc
 
 
@@ -65,7 +83,7 @@ def q_t(_q, service):
 
 
 # transforms users update for db
-# safe because ops are for values not fields
+# I6: strips any operator targeting immutable metadata fields
 def u_t(_u):
     u = {}
     for op in _u:
@@ -74,7 +92,16 @@ def u_t(_u):
             if "$" in "".join(u[op].keys()):
                 # dont let fancy updates work yet.
                 raise exceptions.DB_NOT_ALLOWED
-            u[op][to_db_field(field)] = _u[op][field]
+            db_field = to_db_field(field)
+            # I6: silently drop updates targeting immutable server-managed fields
+            if field in IMMUTABLE_METADATA:
+                log.warning(
+                    "I6: blocked client update of immutable field '%s' via %s",
+                    field,
+                    op,
+                )
+                continue
+            u[op][db_field] = _u[op][field]
     return u
 
 
@@ -221,7 +248,7 @@ def temp_pass(phone_number, hash):
 ##########################
 
 
-def create(user, service, _data):
+def create(user, service, _data, author=None, source_node=None):
     if star_found([_data]):
         raise exceptions.DSTAR
     # A service's terms record ("services" collection-service) must be unique
@@ -230,9 +257,15 @@ def create(user, service, _data):
     if service == "services" and isinstance(_data, dict) and _data.get("service"):
         if db[f"{user}"].find_one({"service": "services", "body.service": _data["service"]}) is not None:
             raise exceptions.DUPLICATE_SERVICE
-    data = to_db(_data, service)
+    # I6: strip client-supplied immutable metadata before passing to to_db()
+    _data = {k: v for k, v in _data.items() if k not in IMMUTABLE_METADATA}
+    data = to_db(_data, service, author=author, source_node=source_node)
     result = db[f"{user}"].insert_one(data)
     _data["_id"] = str(result.inserted_id)
+    # I6: return the server-injected metadata
+    _data["_author"] = author
+    _data["_source_node"] = source_node
+    _data["_created_at"] = data["body"]["_created_at"]
     return _data
 
 
@@ -581,6 +614,9 @@ def register_app(info):
 
 
 def create_media_record(username: str, record: dict) -> dict:
+    # I6: strip client-supplied immutable metadata
+    record = {k: v for k, v in record.items() if k not in IMMUTABLE_METADATA}
+    record["_created_at"] = datetime.datetime.utcnow()
     doc = {"service": "media", "body": record}
     result = db[username].insert_one(doc)
     record["_id"] = str(result.inserted_id)
