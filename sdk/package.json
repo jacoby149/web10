@@ -24,6 +24,7 @@
     "build:rtc": "bun build src/rtc/index.ts --outdir dist/rtc --target browser --format esm && tsc --emitDeclarationOnly --outDir dist",
     "build:all": "bun run build && bun run build:rtc",
     "test": "vitest run",
+    "test:run": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "docs": "typedoc src/index.ts --out docs/api --tsconfig tsconfig.json"
