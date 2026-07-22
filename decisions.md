@@ -9,6 +9,23 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D29 — Product pride gates the board: the killer app first, infra parks [decided]
+Operator call (22.07.2026): the deployed product is still a shell — the
+pieces exist but the whole doesn't hold — while the board kept surfacing
+infrastructure-company work (SDK rewrite, MCP, ux telemetry, provisioning).
+Reprioritization: web10-social IS the product until further notice. Every
+task is judged by one question: "does this make the social app something
+the operator opens on his phone, in front of someone, and is proud of?"
+The bar is THE GAUNTLET (plan.txt top): 8 end-to-end steps run from a
+phone against dev, each encoded as a playwright journey as it passes.
+Explicitly PARKED until the gauntlet passes: C2 SDK rewrite, C3 MCP,
+C3.5 create-web10, D11 ux telemetry, E4 provisioning, E8 store submission,
+docs/knowledge prose beyond fixes. This is D20 (platform first, protocol
+second) enforced on the task board, and Priority Zero's successor — its
+baseline chain (A7/B6/D16.1/D17) merged, but baseline was never the real
+bar; pride is. Rejects: breadth-first lane rotation ("pull the top of any
+unblocked lane"), which produced motion without a demoable product.
+
 ### D28 — Schema-registry public ledger for flexible interactions [decided]
 A shared system collection `web10.public` holds structured public interactions
 (reactions, ratings, endorsements, custom events). Any authenticated user can

@@ -1,17 +1,6 @@
 name: js-ci
 
 on:
-  push:
-    branches: [dev, main]
-    paths:
-      - ui/**
-      - sdk/**
-      - marketing/web10-social/**
-      - marketing/marketing-ui/**
-      - mobile/encryptor/**
-      - api/rtc/**
-      - .github/workflows/js-ci.yml
-      - .github/workflows/js.yml
   pull_request:
     paths:
       - ui/**
@@ -28,32 +17,70 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  paths-filter:
+    name: detect changed packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    outputs:
+      ui: ${{ steps.filter.outputs.ui }}
+      sdk: ${{ steps.filter.outputs.sdk }}
+      web10-social: ${{ steps.filter.outputs.web10-social }}
+      marketing-ui: ${{ steps.filter.outputs.marketing-ui }}
+      encryptor: ${{ steps.filter.outputs.encryptor }}
+      rtc: ${{ steps.filter.outputs.rtc }}
+      workflows: ${{ steps.filter.outputs.workflows }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            ui: ui/**
+            sdk: sdk/**
+            web10-social: marketing/web10-social/**
+            marketing-ui: marketing/marketing-ui/**
+            encryptor: mobile/encryptor/**
+            rtc: api/rtc/**
+            workflows: .github/workflows/js-ci.yml, .github/workflows/js.yml
+
   ui:
+    if: ${{ always() && needs.paths-filter.outputs.ui == 'true' || needs.paths-filter.outputs.workflows == 'true' }}
+    needs: paths-filter
     uses: ./.github/workflows/js.yml
     with:
       package: ui
 
   sdk:
+    if: ${{ always() && needs.paths-filter.outputs.sdk == 'true' || needs.paths-filter.outputs.workflows == 'true' }}
+    needs: paths-filter
     uses: ./.github/workflows/js.yml
     with:
       package: sdk
 
   web10-social:
+    if: ${{ always() && needs.paths-filter.outputs.web10-social == 'true' || needs.paths-filter.outputs.workflows == 'true' }}
+    needs: paths-filter
     uses: ./.github/workflows/js.yml
     with:
       package: marketing/web10-social
 
   marketing-ui:
+    if: ${{ always() && needs.paths-filter.outputs.marketing-ui == 'true' || needs.paths-filter.outputs.workflows == 'true' }}
+    needs: paths-filter
     uses: ./.github/workflows/js.yml
     with:
       package: marketing/marketing-ui
 
   encryptor:
+    if: ${{ always() && needs.paths-filter.outputs.encryptor == 'true' || needs.paths-filter.outputs.workflows == 'true' }}
+    needs: paths-filter
     uses: ./.github/workflows/js.yml
     with:
       package: mobile/encryptor
 
   rtc:
+    if: ${{ always() && needs.paths-filter.outputs.rtc == 'true' || needs.paths-filter.outputs.workflows == 'true' }}
+    needs: paths-filter
     uses: ./.github/workflows/js.yml
     with:
       package: api/rtc

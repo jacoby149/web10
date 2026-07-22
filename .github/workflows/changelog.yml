@@ -11,7 +11,7 @@ concurrency:
 jobs:
   check:
     name: changelog check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-small
     timeout-minutes: 5
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-changelog')"
     steps:

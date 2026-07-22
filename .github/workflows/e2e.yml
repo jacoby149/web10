@@ -1,16 +1,6 @@
 name: e2e
 
 on:
-  push:
-    branches: [dev, main]
-    paths:
-      - e2e/**
-      - ui/**
-      - marketing/web10-social/**
-      - marketing/marketing-ui/**
-      - api/**
-      - docker-compose.yml
-      - .github/workflows/e2e.yml
   pull_request:
     paths:
       - e2e/**
