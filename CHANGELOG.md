@@ -7,6 +7,26 @@ steps, each encoded in e2e/ as it passes) as the bar. Conductor board rewritten
 around it; C2 SDK rewrite, C3 MCP, C3.5 create-web10, D11 ux telemetry, E4
 provisioning, E8 store submission explicitly PARKED until the gauntlet passes.
 
+1.0.101 || 22.07.2026
+Fix CORS_SERVICE_MANAGERS dev default: auth.web10.dev -> auth.dev.web10.app (stale hostname from pre-1.0.73). The env files were already correct; only the settings.py fallback was wrong.
+1.0.100 || 22.07.2026
+Fix api CI: uv sync now uses --extra test so pytest and ruff are available
+in the CI environment. The ruff/format debt was already paid in 1.0.73
+(ruff check and ruff format pass clean across api/). 353 tests green.
+E7: SDK npm publish flow verified end to end. cd.yml confirmed: fires on v* tags, npm job gated on tag prefix, publishes sdk/ with --provenance --access public. web10-npm verified public on npmjs.com (versions 1.0.0–1.0.8, latest 1.0.8). Decision D26 reaffirmed: publish stays tag-gated, no auto-publish on merge to dev/main — legacy wapi.js SDK must not flood npm while C2 typed rewrite is in flight.
+
+1.0.99 || 22.07.2026
+CI optimization: removed push triggers from all check workflows (js-ci, api,
+docker, e2e, marketing-api) — code already passes PR checks before merging, so
+re-running after merge wastes ~60+ minutes per merge. deploy.yml keeps its
+push trigger (it actually deploys). Added bun install caching to js.yml
+(actions/cache on node_modules + bun cache dir keyed on bun.lock). Per-package
+path filtering in js-ci.yml (dorny/paths-filter) so touching ui/** only runs
+the ui job, not all 6 packages. Dropped linux/arm64 from cd.yml (saves ~50%
+on CD minutes). Switched changelog check to ubuntu-latest-small runner.
+Expected savings: ~90% reduction in total CI minutes.
+
+Marketing-ui: removed redundant trending feed from home page (already has /trending tab). Rewrote /trending page: full-page trending feed, no "For You" / "Following" subtabs. DeployStatus widget now hides when status.json has all "unknown" fields instead of showing an empty panel. Root cause fix: deploy.yml now computes GIT_COMMIT and STATUS_VERSION before docker compose, so status.json gets real values on every deploy.
 1.0.98 || 22.07.2026
 Knowledge folder complete overhaul: replaced AI-generated content with a working system. Knowledge theories: the-why-layer (connects tech to business), the-how-layer (comprehensive technical explanation), the-what-layer (code/deploy/ownership map). Writing styles: use-case-driven (abstract → specific → technical → logistics). Editing styles: the-touch-up (surgical fixes), the-rewrite (diagnose, pick theory/style/voice, write fresh). Voices: clive-tobacco-smoker (anti-AI voice reference). Visual-styles folder added for Mermaid chart styles. AGENTS.md added with the workflow for AI agents (pick theory → pick style → pick voice → write). Deleted old knowledge-base/ (architecture, protocol, security, 8 Mermaid scenarios) — all replaced.
 1.0.89 || 21.07.2026

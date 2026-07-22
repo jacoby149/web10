@@ -1,15 +1,6 @@
 name: docker
 
 on:
-  push:
-    branches: [dev, main]
-    paths:
-      - '**/Dockerfile'
-      - api/**
-      - ui/**
-      - sdk/**
-      - marketing/marketing-ui/**
-      - .github/workflows/docker.yml
   pull_request:
     paths:
       - '**/Dockerfile'
