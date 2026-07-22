@@ -927,17 +927,17 @@ wapi.js is how frontend devs build web10 apps. it deserves the same
 glow-up as everything else: right now it's untyped ES with axios and
 peerjs hard-bundled, published as web10-npm.
 
-[ ] rewrite in typescript. full types for the protocol: records, queries
+[✓ 1.100] rewrite in typescript. full types for the protocol: records, queries
     ($sort/$skip/$limit), updates, terms/contracts, tokens. typed CRUD:
     read<T>(service, query): Promise<T[]>
-[ ] drop axios -> native fetch. zero required dependencies.
-[ ] peerjs/rtc becomes an optional subpath export (web10/rtc) so the core
+[✓ 1.100] drop axios -> native fetch. zero required dependencies.
+[✓ 1.100] peerjs/rtc becomes an optional subpath export (web10/rtc) so the core
     stays tiny and tree-shakeable
-[ ] modern packaging: bun build, ESM + types, publish as a clean package
+[✓ 1.100] modern packaging: bun build, ESM + types, publish as a clean package
     (decide: keep web10-npm name or claim something nicer)
-[ ] auth flow ergonomics: the popup/oauth dance in wapiAuth wrapped into
+[✓ 1.100] auth flow ergonomics: the popup/oauth dance in wapiAuth wrapped into
     one promise-based login()
-[ ] docs generated from the types (typedoc) into the docs site
+[✓ 1.100] docs generated from the types (typedoc) into the docs site
 [ ] react hooks package later (useRecords(service, query) with live
     refresh) -- separate small package on top, not in core
 

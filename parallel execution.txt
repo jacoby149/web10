@@ -228,7 +228,7 @@ LANE C — greenfield services  (owns: sdk/, mcp/, new dirs)
       metadata records) — landed standalone, then merged into api/
       as a router in 1.0.30/1.0.31 (standalone media/ dir is gone;
       media code now lives in api/, which is lane A territory)
-  [ ] C2. P6 sdk rewrite (typescript, fetch, typed crud; aggregate
+  [✓ 1.100] C2. P6 sdk rewrite (typescript, fetch, typed crud; aggregate
       types land after A4 merges -- everything else doesn't wait)
   [ ] C3. P6 mcp server (thin layer over the C2 surface)
   [ ] C3.5. P6.5 create-web10 scaffolder (needs C2's sdk -- templates

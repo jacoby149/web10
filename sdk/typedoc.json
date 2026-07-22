@@ -1,0 +1,15 @@
+{
+  "entryPoints": ["src/index.ts"],
+  "out": "docs/api",
+  "tsconfig": "tsconfig.json",
+  "exclude": ["src/**/*.test.ts"],
+  "readme": "none",
+  "categoryOrder": ["Protocol Types", "Client", "Auth", "Payment", "*"],
+  "sort": ["source-order"],
+  "visibilityFilters": {
+    "protected": false,
+    "private": false,
+    "inherited": true,
+    "external": true
+  }
+}
