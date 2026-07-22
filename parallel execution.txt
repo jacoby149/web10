@@ -569,7 +569,7 @@ LANE E — infrastructure / deployment (owns: proxmox provisioning,
        generating an SSH key pair and adding the private key as a
        GitHub Actions secret. the operator must also install the
        public key on the box with the command restriction.
-  [ ] E7. SDK npm publish flow (with C2/D18): cd.yml publishes sdk/
+  [✓ 1.0.100] E7. SDK npm publish flow (with C2/D18): cd.yml publishes sdk/
       to npm on a v* tag today — confirm it fires + the package is
       public, and decide whether a version bump on merge to dev/main
       should auto-publish so the sdk stays fresh (operator, 19.07:
