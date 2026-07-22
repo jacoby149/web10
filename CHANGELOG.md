@@ -1,4 +1,6 @@
 1.0.92 || 22.07.2026
+Trending added to marketing-ui navbar between Home and Docs. Dedicated /trending page created. FeedPreview simplified: removed For You/Following/Trending tabs, merged all posts into a single trending feed with Zap icon header. Fixed broken PostCard type reference.
+
 I6 complete: `_author`, `_source_node`, `_created_at` immutable on update,
 exposed on read, forged values rejected. `to_db()` strips client-supplied
 metadata and injects server values from token + clock. `u_t()` silently drops
