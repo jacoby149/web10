@@ -1,3 +1,25 @@
+1.0.86 || 21.07.2026
+D12 follow-up: web10-social vibrancy overhaul. The social flagship was
+muted — flat surfaces, no ambient light, zero interaction energy —
+compared to Kick's vibrant, alive feel. design.md §4 relaxed: glow
+tokens (`--color-glow`, `--color-glow-intense`, `--color-glow-danger`)
+added for the social app (console stays restrained). New animations
+in index.css: shimmer skeleton sweep, heart-burst on like, glow-pulse
+for presence indicators, brand-glow-pulse for ambient energy, float
+for login particles. Custom dark scrollbar. Button gradient brand
+variant with glow-on-hover, `brand_subtle` variant. Badge `brand_glow`
+and `live` (pulsing) variants. Skeleton gradient shimmer replaces
+solid pulse. Layout: sidebar gradient, ambient glow orb, active nav
+glow pill with pulse dot, mobile nav gradient indicator. Feed: card
+hover glow, heart-burst animation on like with danger drop-shadow,
+vibrant brand-tinted tags, origin badges with glow, gradient empty
+state icon, media hover zoom + overlay. Composer: focus glow bar,
+media preview hover scale + ring. Profile: vibrant banner gradient,
+avatar glow ring, gradient avatar fallback, gradient tab indicators,
+media grid hover zoom + overlay. DMs: gradient sent bubbles with
+shadow, presence dots with pulse, conversation list presence indicators.
+Login: animated gradient background, floating ambient orbs. 195 tests
+green, tsc clean, build clean.
 1.0.85 || 20.07.2026
 Remove Netlify integration. Deleted ui/netlify.toml so GitHub pushes no
 longer trigger Netlify builds. Removed web10social.netlify.app from the

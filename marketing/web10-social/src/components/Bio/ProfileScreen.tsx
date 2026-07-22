@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -12,8 +13,11 @@ import { cn } from '@/lib/utils';
 function ProfileEmptyState() {
   return (
     <div className="flex flex-col items-center justify-center py-24 px-8 text-center" data-testid="profile-empty">
-      <div className="w-16 h-16 rounded-2xl bg-brand-muted flex items-center justify-center mb-6">
-        <Sparkles className="w-8 h-8 text-brand-300" />
+      <div className={cn(
+        'w-16 h-16 rounded-2xl bg-gradient-to-br from-brand to-brand-600 flex items-center justify-center mb-6',
+        'shadow-lg shadow-brand/25',
+      )}>
+        <Sparkles className="w-8 h-8 text-white" />
       </div>
       <h3 className="font-display text-lg font-semibold text-foreground mb-2">Your profile is empty</h3>
       <p className="text-sm text-muted-foreground max-w-xs mb-6">
@@ -127,8 +131,16 @@ export default function ProfileScreen() {
 
   return (
     <div>
-      {/* Banner — creator page (design.md §10) */}
-      <div className="relative h-32 sm:h-44 w-full bg-gradient-to-br from-brand-muted via-elevated to-background group">
+      {/* Banner — creator page with vibrant gradient */}
+      <div className={cn(
+        'relative h-32 sm:h-44 w-full group overflow-hidden',
+        'bg-gradient-to-br from-brand/40 via-brand-muted to-background',
+      )}>
+        {/* Ambient glow layer */}
+        <div
+          className="absolute inset-0 bg-gradient-to-t from-background/60 via-transparent to-brand/10"
+          aria-hidden="true"
+        />
         {bannerMedia && (
           <img src={bannerMedia.url} alt="" className="absolute inset-0 w-full h-full object-cover" />
         )}
@@ -136,7 +148,7 @@ export default function ProfileScreen() {
           onClick={() => handleUpload('banner_ref')}
           aria-label="Change banner"
           data-testid="edit-banner-button"
-          className="absolute bottom-2 right-2 flex items-center gap-1.5 px-2.5 h-9 rounded bg-background/70 border border-border text-xs text-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity backdrop-blur-sm"
+          className="absolute bottom-2 right-2 flex items-center gap-1.5 px-2.5 h-9 rounded-lg bg-background/70 border border-border text-xs text-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity backdrop-blur-sm hover:border-brand/30 hover:bg-background/90"
         >
           <ImagePlus className="w-3.5 h-3.5" />
           Banner
@@ -147,17 +159,20 @@ export default function ProfileScreen() {
       <div className="px-4 pt-4 pb-4">
         <div className="flex items-start justify-between gap-6 -mt-14">
           <div className="relative group">
-            <Avatar className="h-20 w-20 border-4 border-background">
+            <Avatar className={cn(
+              'h-20 w-20 border-4 border-background transition-shadow duration-150',
+              'ring-2 ring-brand/20 hover:ring-brand/40',
+            )}>
               {profile?.avatar_ref && mediaMap[profile.avatar_ref] ? (
                 <AvatarImage src={mediaMap[profile.avatar_ref].url} alt={profile.display_name || ''} />
               ) : (
-                <AvatarFallback className="bg-brand-muted text-brand-300 text-2xl font-bold">
+                <AvatarFallback className="bg-gradient-to-br from-brand to-brand-600 text-white text-2xl font-bold">
                   {profile?.display_name?.charAt(0)?.toUpperCase() || '?'}
                 </AvatarFallback>
               )}
             </Avatar>
             <button
-              className="absolute bottom-0 right-0 flex items-center justify-center h-7 w-7 rounded-full bg-background border border-border shadow-md opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+              className="absolute bottom-0 right-0 flex items-center justify-center h-7 w-7 rounded-full bg-background border border-border shadow-md opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity hover:border-brand/30"
               aria-label="Change avatar"
               data-testid="edit-avatar-button"
               onClick={() => handleUpload('avatar_ref')}
@@ -167,7 +182,7 @@ export default function ProfileScreen() {
           </div>
           {!editing && (
             <Button
-              variant="outline"
+              variant="brand_subtle"
               size="sm"
               className="mt-14 gap-1.5"
               data-testid="edit-profile-button"
@@ -257,7 +272,7 @@ export default function ProfileScreen() {
                     href={profile.website.startsWith('http') ? profile.website : `https://${profile.website}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-brand-300 hover:underline"
+                    className="text-brand-300 hover:text-brand-400 hover:underline transition-colors duration-150"
                   >
                     {profile.website}
                   </a>
@@ -286,27 +301,33 @@ export default function ProfileScreen() {
           data-testid="profile-tab-posts"
           aria-current={activeTab === 'posts' ? 'true' : undefined}
           className={cn(
-            'flex-1 min-h-11 py-3 text-sm font-medium text-center transition-colors duration-150',
+            'flex-1 min-h-11 py-3 text-sm font-medium text-center transition-all duration-150 relative',
             activeTab === 'posts'
-              ? 'text-foreground border-b-2 border-brand'
+              ? 'text-foreground'
               : 'text-muted-foreground hover:text-foreground',
           )}
           onClick={() => setActiveTab('posts')}
         >
           Posts
+          {activeTab === 'posts' && (
+            <div className="absolute bottom-0 inset-x-0 h-0.5 bg-gradient-to-r from-brand to-brand-600" />
+          )}
         </button>
         <button
           data-testid="profile-tab-media"
           aria-current={activeTab === 'media' ? 'true' : undefined}
           className={cn(
-            'flex-1 min-h-11 py-3 text-sm font-medium text-center transition-colors duration-150',
+            'flex-1 min-h-11 py-3 text-sm font-medium text-center transition-all duration-150 relative',
             activeTab === 'media'
-              ? 'text-foreground border-b-2 border-brand'
+              ? 'text-foreground'
               : 'text-muted-foreground hover:text-foreground',
           )}
           onClick={() => setActiveTab('media')}
         >
           Media
+          {activeTab === 'media' && (
+            <div className="absolute bottom-0 inset-x-0 h-0.5 bg-gradient-to-r from-brand to-brand-600" />
+          )}
         </button>
       </div>
 
@@ -320,17 +341,23 @@ export default function ProfileScreen() {
                 return (
                   <div key={post._id} className="aspect-square bg-elevated overflow-hidden relative group">
                     {firstMedia ? (
-                      <img src={firstMedia.url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                      <img
+                        src={firstMedia.url}
+                        alt=""
+                        className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-110"
+                        loading="lazy"
+                      />
                     ) : post.text ? (
                       <div className="w-full h-full p-3 flex items-start">
                         <p className="text-xs text-muted-foreground line-clamp-6">{post.text}</p>
                       </div>
                     ) : null}
                     {(post.media_refs?.length || 0) > 1 && (
-                      <div className="absolute top-2 right-2 bg-background/70 text-foreground text-xs px-1.5 py-0.5 rounded backdrop-blur-sm">
+                      <div className="absolute top-2 right-2 bg-background/80 text-foreground text-xs px-1.5 py-0.5 rounded-md backdrop-blur-sm border border-border/50">
                         {post.media_refs?.length}
                       </div>
                     )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-150" />
                   </div>
                 );
               })}
@@ -347,8 +374,14 @@ export default function ProfileScreen() {
                 const media = mediaMap[ref];
                 if (!media) return null;
                 return (
-                  <div key={ref} className="aspect-square bg-elevated overflow-hidden">
-                    <img src={media.url} alt={media.alt_text || ''} className="w-full h-full object-cover" loading="lazy" />
+                  <div key={ref} className="aspect-square bg-elevated overflow-hidden group">
+                    <img
+                      src={media.url}
+                      alt={media.alt_text || ''}
+                      className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-110"
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-150" />
                   </div>
                 );
               }),
