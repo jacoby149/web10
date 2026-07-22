@@ -32,11 +32,19 @@ export default function Layout({ mode, setMode, onLogout, onReportBug, children 
   return (
     <div className="flex min-h-screen bg-background">
       {/* Sidebar - desktop */}
-      <aside className="hidden md:flex flex-col w-64 border-r border-border bg-surface">
-        <div className="p-4">
+      <aside className={cn(
+        'hidden md:flex flex-col w-64 border-r border-border relative overflow-hidden',
+        'bg-gradient-to-b from-surface to-background',
+      )}>
+        {/* Ambient glow behind sidebar */}
+        <div
+          className="pointer-events-none absolute -top-20 -left-20 h-40 w-40 rounded-full bg-brand/5 blur-3xl"
+          aria-hidden="true"
+        />
+        <div className="relative p-4">
           <Wordmark />
         </div>
-        <nav className="flex-1 px-2 space-y-1" aria-label="Primary">
+        <nav className="relative flex-1 px-2 space-y-1" aria-label="Primary">
           {navItems.map(({ mode: m, icon: Icon, label, testId }) => (
             <button
               key={m}
@@ -44,29 +52,38 @@ export default function Layout({ mode, setMode, onLogout, onReportBug, children 
               aria-current={mode === m ? 'page' : undefined}
               onClick={() => setMode(m)}
               className={cn(
-                'w-full flex items-center gap-3 px-3 py-2.5 rounded text-sm font-medium transition-colors duration-150',
+                'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
                 mode === m
-                  ? 'bg-brand-muted text-brand-300'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-elevated',
+                  ? cn(
+                      'bg-gradient-to-r from-brand-muted to-brand/15 text-brand-300',
+                      'border border-brand/20 glow-active',
+                    )
+                  : 'text-muted-foreground hover:text-foreground hover:bg-elevated/80 hover:border hover:border-border/50',
               )}
             >
-              <Icon className="w-5 h-5" strokeWidth={1.75} />
+              <Icon className={cn('w-5 h-5 transition-colors duration-150', mode === m && 'text-brand')} strokeWidth={mode === m ? 2 : 1.75} />
               {label}
+              {mode === m && (
+                <div
+                  className="ml-auto w-1.5 h-1.5 rounded-full bg-brand animate-glow-pulse"
+                  aria-hidden="true"
+                />
+              )}
             </button>
           ))}
           <button
             data-testid="nav-new-post"
             onClick={() => setMode('feed')}
             className={cn(
-              'w-full flex items-center gap-3 px-3 py-2.5 rounded text-sm font-medium transition-colors duration-150 mt-4',
-              'text-muted-foreground hover:text-foreground hover:bg-elevated',
+              'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 mt-4',
+              'text-muted-foreground hover:text-foreground hover:bg-elevated/80 hover:border hover:border-border/50',
             )}
           >
             <PlusCircle className="w-5 h-5" strokeWidth={1.75} />
             New post
           </button>
         </nav>
-        <div className="p-4 border-t border-border space-y-1">
+        <div className="relative p-4 border-t border-border space-y-1">
           <Button
             variant="ghost"
             data-testid="report-bug-button"
@@ -120,10 +137,16 @@ export default function Layout({ mode, setMode, onLogout, onReportBug, children 
               aria-label={label}
               onClick={() => setMode(m)}
               className={cn(
-                'flex-1 flex flex-col items-center justify-center gap-0.5 min-h-11 py-2.5 transition-colors duration-150',
+                'flex-1 flex flex-col items-center justify-center gap-0.5 min-h-11 py-2.5 transition-all duration-150 relative',
                 mode === m ? 'text-brand' : 'text-muted-foreground',
               )}
             >
+              {mode === m && (
+                <div
+                  className="absolute top-0 inset-x-0 h-0.5 bg-gradient-to-r from-brand to-brand-600 rounded-b-full mx-8"
+                  aria-hidden="true"
+                />
+              )}
               <Icon className="w-5 h-5" strokeWidth={mode === m ? 2 : 1.75} />
               <span className="text-[0.625rem] font-medium uppercase tracking-wide">{label}</span>
             </button>

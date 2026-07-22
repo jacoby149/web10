@@ -15,6 +15,7 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [focused, setFocused] = useState(false);
   const [profile, setProfile] = useState<ProfileRecord | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -97,8 +98,9 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
   return (
     <div
       className={cn(
-        'px-4 py-4 border-b border-border transition-colors duration-150',
+        'px-4 py-4 border-b border-border transition-all duration-150 relative overflow-hidden',
         dragOver && 'bg-brand-muted/30',
+        focused && 'border-b-brand/30',
       )}
       onDragOver={(e) => {
         e.preventDefault();
@@ -108,6 +110,13 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
       onDrop={handleDrop}
       data-testid="post-composer"
     >
+      {/* Ambient glow when focused */}
+      {focused && (
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-brand to-transparent"
+          aria-hidden="true"
+        />
+      )}
       <div className="flex gap-3">
         <Avatar className="h-10 w-10 shrink-0">
           {avatarUrl ? (
@@ -123,6 +132,8 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
           <Textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
             placeholder="What's on your mind?"
             disabled={posting}
             className="resize-none min-h-[72px] bg-elevated border-0 text-foreground placeholder:text-muted-foreground text-[0.9375rem]"
@@ -138,7 +149,11 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
             <div className="mt-3 flex flex-wrap gap-2">
               {mediaPreview.map((url, i) => (
                 <div key={i} className="relative group">
-                  <img src={url} alt={`Preview ${i + 1}`} className="w-20 h-20 rounded object-cover" />
+                  <img
+                    src={url}
+                    alt={`Preview ${i + 1}`}
+                    className="w-20 h-20 rounded-lg object-cover transition-transform duration-150 group-hover:scale-105 ring-1 ring-transparent group-hover:ring-brand/30"
+                  />
                   <button
                     onClick={() => removeMedia(i)}
                     aria-label="Remove attachment"
@@ -164,7 +179,7 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-10 w-10 text-muted-foreground hover:text-brand"
+                className="h-10 w-10 text-muted-foreground hover:text-brand hover:bg-brand-muted/50 transition-colors duration-150"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading || posting}
                 aria-label="Attach media"
