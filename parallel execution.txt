@@ -120,6 +120,22 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       the real data and surfaced like the original web10 (feeds the
       D16 app-store stats); and the honest report of any shape drift.
       unblocks B6 (real login to test against) and D16 (real apps).
+   [ ] A8. P1 server-side record metadata — invariant I6: every record
+       gets `_author` (token's username), `_source_node` (the provider
+       that minted the token), and `_created_at` (server time at the
+       destination node) injected by the API on create, immutable on
+       update. the client cannot set or forge these fields. on cross-node
+       replication, the receiving node stamps its own `_created_at`
+       (arrival time) while preserving the original `_author` and
+       `_source_node`. this stops sender impersonation on DMs, posts,
+       comments, reactions. implementation: in documentdb.py `to_db()`,
+       inject `_author`, `_source_node`, `_created_at` from the
+       authenticated token + server clock. add to `q_t()` / `u_t()` to
+       block client from overwriting via update. expose in `to_gui()` on
+       read. audit the whole cross-node path (certify, token handoff,
+       remote CRUD) to verify it works correctly with multi-node traffic.
+       gate: permission-matrix tests must cover forged `_author`
+       rejection. unblocks: safe DMs, safe feed attribution, audit trail.
 
 LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
   [✓ 1.0.12-1.0.14] B1. P0 js: auth2 -> vite + bun + typescript

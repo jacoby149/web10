@@ -1604,8 +1604,19 @@ where they get MECHANICALLY enforced so they can't silently rot.
   I3. a request can only ever touch the addressed user's collection.
       cross-collection access is impossible by construction.
   I4. private content is unreadable by the node operator (phase 11).
-  I5. every actor (app, agent, llm) acts under a scoped, expiring,
-      revocable token -- least privilege, always.
+I5. every actor (app, agent, llm) acts under a scoped, expiring,
+       revocable token -- least privilege, always.
+   I6. every record carries server-injected, immutable metadata:
+       `_author` (token's username), `_source_node` (the provider
+       that minted the token — NOT the destination node), and
+       `_created_at` (server time at the node that stored the record).
+       the client cannot set or forge these fields. a cross-node
+       request (foreign provider token certified via remote /certify)
+       still gets stamped with the originating provider in
+       `_source_node` and the local node's time in `_created_at`.
+       this stops sender impersonation on DMs, posts, comments,
+       reactions — any record where the client currently claims
+       to be someone else.
 
 *** CONFIRMED BUG -- federation provider validation (invariant I1) ***
 today providers do NOT validate each other. the chain:

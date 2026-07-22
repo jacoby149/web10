@@ -150,6 +150,8 @@ export interface DmRecord {
   sent_at: string;
   sender_username: string;
   sender_provider: string;
+  recipient_username: string;
+  recipient_provider: string;
   media_refs?: string[];
   encrypted?: boolean;
 }

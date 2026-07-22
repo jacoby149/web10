@@ -170,7 +170,7 @@ export default function DmsScreen() {
 
   function getOtherUser(conv: string): string {
     if (!token) return conv;
-    const parts = conv.replace('dm-', '').split('--');
+    const parts = conv.split('--');
     const me = `${token.provider}/${token.username}`;
     return parts.find((p) => p !== me) || conv;
   }
