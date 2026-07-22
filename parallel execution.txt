@@ -618,7 +618,7 @@ ws5: C6 e2e deep sweep + bug hunt (lane C — e2e/** only; local
          (/discover/posts, /users, /search, /topics, /post/{user}/{service}/{id}),
          engagement aggregation (cached counts on index, schema-agnostic).
          See PHASE 5.5 in plan.txt and docs/discovery.md.
-    [ ] D5.5. SOCIAL APP PUBLIC LAYER — split posts into public_posts /
+    [✓ 1.0.92] D5.5. SOCIAL APP PUBLIC LAYER — split posts into public_posts /
          private_posts, default terms on signup, register default schemas,
          wire reactions to /public/entries, wire feed to /discover/posts.
          See PHASE 5.5 in plan.txt.

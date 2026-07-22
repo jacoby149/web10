@@ -36,13 +36,23 @@ describe('posts data layer', () => {
   });
 
   describe('createPost', () => {
-    it('creates a post record', async () => {
+    it('creates a post record (private by default)', async () => {
       const post = { text: 'Hello world', created_at: '2026-07-18T00:00:00Z' };
       const created = { _id: 'post1', ...post };
       mock.create.mockResolvedValue(created);
 
       const result = await posts.createPost(post);
-      expect(mock.create).toHaveBeenCalledWith('posts', post);
+      expect(mock.create).toHaveBeenCalledWith('private_posts', post);
+      expect(result).toEqual(created);
+    });
+
+    it('creates a public post in public_posts service', async () => {
+      const post = { text: 'Hello world', created_at: '2026-07-18T00:00:00Z', visibility: 'public' as const };
+      const created = { _id: 'post2', ...post };
+      mock.create.mockResolvedValue(created);
+
+      const result = await posts.createPost(post);
+      expect(mock.create).toHaveBeenCalledWith('public_posts', post);
       expect(result).toEqual(created);
     });
   });

@@ -227,6 +227,17 @@ const web10SocialAdapterInit = (): Web10SocialAdapter => {
       cross_origins: crossOrigins,
       whitelist: [{ provider: '.*', username: '.*', read: true }],
     },
+    // ── Phase 5.5: public / private post split ─────────────────────────
+    {
+      service: 'public_posts',
+      cross_origins: crossOrigins,
+      whitelist: [{ provider: '.*', username: '.*', read: true }], // anon whitelisted for discovery
+    },
+    {
+      service: 'private_posts',
+      cross_origins: crossOrigins,
+      // anon blocked — only token holders with explicit access
+    },
     {
       service: 'crm-contacts',
       cross_origins: crossOrigins,
