@@ -720,7 +720,29 @@ ws5: C6 e2e deep sweep + bug hunt (lane C — e2e/** only; local
   (A1/B1/B2/B3/B4/B4.5/C1/C5/D1/D2/D2.5/D3/D4/D5–D10/E1-infra/E2
   are DONE — don't re-pick.)
 
-  from here on: pull the top unticked item of whichever lane's queue
-  is unblocked. lanes A and B are long marches; C and D are a stream
-  of short branches that keep two slots busy without touching A/B
-  files.
+LANE CI — github actions optimization (owns: .github/workflows/**, cross-cutting)
+   goal: reduce from ~$90/month overage to within the 2,040 min free tier.
+   each item is a small, independent branch. no lane conflicts.
+   [✓ 1.0.99] CI-bun-cache: add bun install caching to js-ci.yml (actions/cache
+       keyed on bun.lock + bun cache dir). cuts each js job ~50%.
+   [✓ 1.0.99] CI-push-triggers: removed push triggers from all CI check
+       workflows (js-ci, api, docker, e2e, marketing-api). code already
+       passes PR checks — re-running after merge wastes ~60+ min/merge.
+       deploy.yml keeps push (it actually deploys). saves ~80% of CI.
+   [✓ 1.0.99] CI-path-filter: per-package path filtering in js-ci.yml so
+       touching ui/** only runs the ui job, not all 6 packages.
+   [✓ 1.0.99] CI-single-arch: drop linux/arm64 from cd.yml image builds.
+       saves ~50% on CD minutes.
+   [✓ 1.0.99] CI-small-runners: use ubuntu-latest-small for changelog check.
+   [ ] CI-e2e-push-only: skip e2e.yml on pull_request, run only on
+       push to dev/main. saves ~15 min per PR.
+   [ ] CI-single-arch: drop linux/arm64 from cd.yml image builds if
+       no self-hosters need ARM. saves ~50% on CD minutes.
+   [ ] CI-small-runners: use ubuntu-latest-small for lightweight jobs
+       (changelog check, js typecheck). docker/e2e builds stay on
+       ubuntu-latest.
+
+   from here on: pull the top unticked item of whichever lane's queue
+   is unblocked. lanes A and B are long marches; C and D are a stream
+   of short branches that keep two slots busy without touching A/B
+   files.

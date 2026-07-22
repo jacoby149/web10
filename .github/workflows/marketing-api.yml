@@ -1,11 +1,6 @@
 name: marketing-api
 
 on:
-  push:
-    branches: [dev, main]
-    paths:
-      - marketing/marketing-api/**
-      - .github/workflows/marketing-api.yml
   pull_request:
     paths:
       - marketing/marketing-api/**
