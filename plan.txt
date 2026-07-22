@@ -1772,7 +1772,7 @@ ci — runs on every pr + push to dev/main (.github/workflows/):
     --frozen-lockfile, tsc --noEmit, vitest run, vite build. write
     ONE reusable workflow and call it per package -- five diverging
     copies of the same yaml is how ci rots.
-[ ] close the js job escape hatches: typecheck and vite build run
+[✓] close the js job escape hatches: typecheck and vite build run
     with continue-on-error in the shared js workflow today -- a ui
     that doesn't compile still shows a green check, which breaks
     the visibility-first premise (the referee must at least SHOW

@@ -1,3 +1,6 @@
+1.1.00 || 22.07.2026
+CI: removed `continue-on-error: true` from the shared js workflow's typecheck and build steps. A UI that doesn't compile or build now reports red instead of silently passing. Merging remains a human call — the referee just needs to show red.
+
 1.0.99 || 22.07.2026
 Marketing-ui: removed redundant trending feed from home page (already has /trending tab). Rewrote /trending page: full-page trending feed, no "For You" / "Following" subtabs. DeployStatus widget now hides when status.json has all "unknown" fields instead of showing an empty panel. Root cause fix: deploy.yml now computes GIT_COMMIT and STATUS_VERSION before docker compose, so status.json gets real values on every deploy.
 1.0.98 || 22.07.2026
