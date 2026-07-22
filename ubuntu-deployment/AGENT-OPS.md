@@ -33,9 +33,14 @@ agents.
 
 ## 1. Getting in
 
-Connection details are NOT in git. They live in
-`ubuntu-deployment/.env` (copy of `.env.example`, filled in by the
-operator):
+Connection details are NOT in git. The canonical secrets file lives
+ON the box at `/home/jacob/web10-ops/.env` — outside any repo
+checkout, so a re-clone of `/opt/web10` can't wipe it (that happened
+once, 22.07.2026 — see OPS-LOG). `/opt/web10/ubuntu-deployment/.env`
+is a symlink to it; if you recreate `/opt/web10`, restore it with
+`ln -sfn ~/web10-ops/.env /opt/web10/ubuntu-deployment/.env`.
+A local working copy may also have `ubuntu-deployment/.env` (copy of
+`.env.example`, filled in by the operator):
 
 ```
 VM_IP=...          # the box's LAN IP (VPN/LAN reachable)
@@ -54,8 +59,9 @@ service you didn't deploy from this directory — no matter how
 broken it looks. Report, don't touch.
 
 ```bash
-# 1. read the env file — if it doesn't exist, STOP and ask the
-#    operator for it. do not guess IPs.
+# 1. read the env file — if it doesn't exist locally, fetch it from
+#    the box (VPN/LAN): ssh jacob@192.168.8.25 cat web10-ops/.env
+#    if THAT is missing too, STOP and ask the operator. never guess.
 cat ubuntu-deployment/.env
 
 # 2. ssh in (key auth; the operator's key must already be installed)
