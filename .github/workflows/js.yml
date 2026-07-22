@@ -28,6 +28,16 @@ jobs:
         with:
           bun-version: latest
 
+      - name: Cache bun install
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ inputs.package }}/node_modules
+            ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ inputs.package }}-${{ hashFiles(format('{0}/bun.lock', inputs.package)) }}
+          restore-keys: |
+            ${{ runner.os }}-bun-${{ inputs.package }}-
+
       - name: bun install
         run: bun install --frozen-lockfile
 
