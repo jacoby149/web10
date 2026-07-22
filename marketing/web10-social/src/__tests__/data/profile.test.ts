@@ -47,6 +47,29 @@ describe('profile data layer', () => {
       const result = await profile.readProfile();
       expect(result).toBeNull();
     });
+
+    it('adapts legacy identity record to new profile format', async () => {
+      mock.read.mockResolvedValueOnce([]); // profile empty
+      mock.read.mockResolvedValueOnce([{ web10: 'web10/alice', name: 'Alice Legacy', pic: 'https://example.com/alice.jpg', bio: 'Old bio' }]); // identity
+      mock.create.mockResolvedValue({ _id: 'prof1', display_name: 'Alice Legacy', bio: 'Old bio', avatar_ref: 'https://example.com/alice.jpg' });
+
+      const result = await profile.readProfile();
+      expect(result?.display_name).toBe('Alice Legacy');
+      expect(result?.bio).toBe('Old bio');
+      expect(result?.avatar_ref).toBe('https://example.com/alice.jpg');
+      expect(mock.create).toHaveBeenCalledWith('profile', expect.objectContaining({
+        display_name: 'Alice Legacy',
+        bio: 'Old bio',
+        avatar_ref: 'https://example.com/alice.jpg',
+      }));
+    });
+
+    it('handles missing identity service gracefully', async () => {
+      mock.read.mockResolvedValueOnce([]); // profile empty
+      mock.read.mockImplementationOnce(() => { throw new Error('not found'); }); // identity missing
+      const result = await profile.readProfile();
+      expect(result).toBeNull();
+    });
   });
 
   describe('saveProfile', () => {

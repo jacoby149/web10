@@ -59,29 +59,56 @@ export async function deletePost(id: string): Promise<void> {
 
 /**
  * Upload a media file through the API's media router presigned URLs.
+ * 1. Request presigned URL
+ * 2. Upload file to object storage
+ * 3. Confirm upload to create the media record
  * Returns the media record with the _id to reference in posts.
  */
 export async function uploadMedia(request: MediaUploadRequest): Promise<MediaRecord> {
   const wapi = getWapi();
 
-  // 1. Get presigned URL and media record metadata from the API
-  const { uploadUrl, mediaRecord } = await wapi.getUploadUrl(
+  // 1. Get presigned URL from the API
+  const { uploadUrl, fields, contentType } = await wapi.getUploadUrl(
     request.file.type || 'application/octet-stream',
     request.file.size,
+    request.file.name,
   );
 
-  // 2. Upload the file directly to object storage
+  // 2. Upload the file directly to object storage using presigned POST
+  const formData = new FormData();
+  for (const [key, value] of Object.entries(fields)) {
+    formData.append(key, value);
+  }
+  formData.append('file', request.file);
+
   const uploadResp = await fetch(uploadUrl, {
-    method: 'PUT',
-    headers: { 'Content-Type': request.file.type || 'application/octet-stream' },
-    body: request.file,
+    method: 'POST',
+    body: formData,
   });
   if (!uploadResp.ok) {
     throw new Error(`media upload failed: ${uploadResp.status}`);
   }
 
-  // 3. Return the media record (already created by the API)
-  return mediaRecord as unknown as MediaRecord;
+  // 3. Confirm upload to create the media record in the user's collection
+  const token = wapi.readToken();
+  if (!token) throw new Error('not authenticated');
+  const proto = (wapi as any).APIProtocol || 'https:';
+  const confirmResp = await fetch(`${proto}//${token.provider}/${token.username}/upload/confirm`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      token: (wapi as any).token,
+      url: `${uploadUrl}/${request.file.name}`,
+      filename: request.file.name,
+      mime_type: contentType,
+      size_bytes: request.file.size,
+    }),
+  });
+  if (!confirmResp.ok) {
+    throw new Error(`media confirm failed: ${confirmResp.status}`);
+  }
+  const record = await confirmResp.json();
+  return record as MediaRecord;
 }
 
 /**

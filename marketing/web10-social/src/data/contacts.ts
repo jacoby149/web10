@@ -3,13 +3,52 @@ import type { ContactRecord } from './types';
 
 // ── Contacts data layer ────────────────────────────────────────────────────
 // The `contacts` service: unilateral friend graph.
+// Falls back to legacy `contact-addresses` service for users who haven't migrated.
+
+/**
+ * Parse a legacy web10 string into username + provider.
+ * Legacy format: "provider/username"
+ */
+function parseWeb10(web10: string): { username: string; provider: string } {
+  const [provider, username] = web10.split('/');
+  return { username: username || web10, provider: provider || 'web10' };
+}
 
 /**
  * Read all contacts for the current user.
+ * Adapts legacy contact-addresses records on first read.
  */
 export async function readContacts(): Promise<ContactRecord[]> {
   const wapi = getWapi();
-  return wapi.read<ContactRecord>('contacts');
+  let records = await wapi.read<ContactRecord>('contacts');
+
+  if (!records.length) {
+    // Fallback: check legacy contact-addresses service
+    try {
+      const legacy = await wapi.read<Record<string, unknown>>('contact-addresses');
+      if (legacy.length) {
+        // Adapt and migrate legacy records to new format
+        const adapted = legacy.map((old) => {
+          const { username, provider } = parseWeb10(old.web10 as string);
+          return {
+            username,
+            provider,
+            display_name: undefined,
+            added_at: old.date_added ? new Date(old.date_added as string).toISOString() : new Date().toISOString(),
+          } as ContactRecord;
+        });
+        // Write adapted records to new contacts service
+        for (const record of adapted) {
+          await wapi.create<ContactRecord>('contacts', record as unknown as Record<string, unknown>);
+        }
+        records = await wapi.read<ContactRecord>('contacts');
+      }
+    } catch {
+      // contact-addresses service may not exist, that's fine
+    }
+  }
+
+  return records;
 }
 
 /**
