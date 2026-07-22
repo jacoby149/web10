@@ -1,3 +1,6 @@
+1.0.92 || 22.07.2026
+Trending added to marketing-ui navbar between Home and Docs. Dedicated /trending page created. FeedPreview simplified: removed For You/Following/Trending tabs, merged all posts into a single trending feed with Zap icon header. Fixed broken PostCard type reference.
+
 1.0.91 || 22.07.2026
 Fix DMs: single `dms` service with sender/recipient fields (no per-conversation
 service). legacy adapter auto-migrates message-inbox/outbox on first read.
