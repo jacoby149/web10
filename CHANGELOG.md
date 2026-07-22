@@ -1,4 +1,4 @@
-1.0.96 || 22.07.2026
+1.0.97 || 22.07.2026
 E6: SSH-deploy CI/CD framework (replaces Portainer GitOps as deploy trigger).
 New `.github/workflows/deploy.yml`: GitHub Actions SSHes into the box, runs
 `docker compose up --build`, waits for container stability, runs smoke test.
@@ -9,6 +9,14 @@ supports file-backed stacks (`register` mode — no GitOps polling) and a
 Portainer remains the management UI (registered post-deploy via API) but no
 longer triggers deploys. Requires GitHub secrets: `DEPLOY_SSH_KEY`, `VM_IP`,
 `SSH_USER`.
+
+1.0.96 || 22.07.2026
+Marketing-ui: fixed corner deployment-status widget. A small pill in the
+bottom-right (green dot + live version, mono) reads the baked /status.json
+(E9) and expands to version / commit / deployed-at with a link to the full
+/status/ page. Renders nothing when the status feed is absent (local dev,
+tests) — no dead control. Token-only styling, keyboard operable (Esc,
+focus-visible ring), covered by 4 vitest cases.
 
 1.0.95 || 22.07.2026
 Ops: Portainer admin password reset after the GitOps re-clone of /opt/web10
