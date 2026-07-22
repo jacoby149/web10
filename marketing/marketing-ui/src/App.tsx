@@ -1,5 +1,6 @@
 import { Routes, Route } from 'react-router-dom'
 import Navbar from './components/Navbar'
+import DeployStatus from './components/DeployStatus'
 import Home from './pages/Home'
 import Trending from './pages/Trending'
 import Docs from './pages/Docs'
@@ -18,6 +19,7 @@ function App({ onReportBug }: { onReportBug: () => void }) {
         <Route path="/app-store" element={<AppStore />} />
         <Route path="/import" element={<Exporter />} />
       </Routes>
+      <DeployStatus />
     </>
   )
 }
