@@ -2,15 +2,18 @@
 
 How to write, structure, and edit everything in this repo.
 
-## How to Use This
+> **AI agents:** read [AGENTS.md](./AGENTS.md) before writing or editing any doc. It explains the workflow.
+
+## The Workflow
 
 Before writing any doc, README, plan, pitch, or piece of content:
 
-1. **Pick a structure** from [knowledge-theories](./knowledge-theories/) — how should this knowledge be organized and connected?
-2. **Pick a writing style** from [writing-styles](./writing-styles/) — how should this be written?
-3. **Pick an editing style** from [editing-styles](./editing-styles/) — how should this be edited before it ships?
+1. **Pick a knowledge theory** from [knowledge-theories](./knowledge-theories/) — how should this knowledge be organized?
+2. **Pick a writing style** from [writing-styles](./writing-styles/) — how should this be structured?
+3. **Pick a voice** from [voices](./voices/) — how should this sound?
+4. **Write.** Start blank. Apply the choices. If rewriting, do not carry forward old text.
 
-You can mix and match. A technical doc might use the compound-knowledge structure, technical writing style, and a butcher-then-tuner edit pass.
+After drafting, pick an editing style from [editing-styles](./editing-styles/) if a pass is needed.
 
 ## The Three Dimensions
 
@@ -18,25 +21,34 @@ You can mix and match. A technical doc might use the compound-knowledge structur
 
 These are the ways to organize and connect knowledge:
 
-- **[The Case for Confluencing](./knowledge-theories/case-for-confluencing.md)** — why linking knowledge matters; discovery, context, compound value
-- **[Knowledge Compounds](./knowledge-theories/knowledge-compounds.md)** — knowledge has intrinsic and relational value; link aggressively, maintain indexes, prune dead ends
+- **[The Why Layer](./knowledge-theories/the-why-layer.md)** — every component needs a reason that connects technical decisions back to business value
+- **[The How Layer](./knowledge-theories/the-how-layer.md)** — comprehensive explanation of algorithms, protocols, cryptography, and architecture
+- **[The What Layer](./knowledge-theories/the-what-layer.md)** — the map: where everything lives, where it's deployed, who owns it
 
 ### Writing (writing-styles)
 
 These are the ways to write, depending on audience and purpose:
 
-- **[Technical](./writing-styles/technical.md)** — docs, specs, API references; imperative, no preamble, code over prose
-- **[Narrative](./writing-styles/narrative.md)** — plans, manifestos, story docs; thesis-first, concrete numbers, urgent voice
-- **[Pitch](./writing-styles/pitch.md)** — outreach, decks, creator messaging; hook, problem, mechanism, ask, payoff
+- **[Use-Case-Driven](./writing-styles/use-case-driven.md)** — abstract goal → specific scenario → technical how → logistics & timeline
 
 ### Editing (editing-styles)
 
 These are the ways to edit, depending on what's wrong:
 
-- **[The Butcher](./editing-styles/the-butcher.md)** — aggressive reduction; cut warmups, bows, adverbs, repetition
-- **[The Architect](./editing-styles/the-architect.md)** — restructure for clarity; skeleton-first, inverted pyramid, cross-reference
-- **[The Tuner](./editing-styles/the-tuner.md)** — surface polish; rhythm, voice, active voice, consistent terminology
-- **[The Translator](./editing-styles/the-translator.md)** — rewrite for a different audience; map technical terms to consequences
+- **[The Touch-Up](./editing-styles/the-touch-up.md)** — surgical fixes for logical errors, inconsistencies, and small flaws
+- **[The Rewrite](./editing-styles/the-rewrite.md)** — when a doc's foundation is wrong, diagnose, pick a knowledge theory, pick a writing style, write fresh
+
+### Voice (voices)
+
+Pick a voice so it doesn't sound like AI:
+
+—
+
+### Visual (visual-styles)
+
+Styles for Mermaid charts and diagrams. Also consider which knowledge theory is most relevant before drawing:
+
+—
 
 ### Order of Operations
 
