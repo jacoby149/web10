@@ -364,7 +364,7 @@ steps:
 [✓] update docker-compose: service "auth" -> "ui" (keep auth.localhost /
     auth.web10.app as aliases so existing links + CORS_SERVICE_MANAGERS
     don't break during migration)
-[✓ 1.0.100] update api settings: CORS_SERVICE_MANAGERS to include the ui origin
+[✓ 1.0.101] update api settings: CORS_SERVICE_MANAGERS to include the ui origin
 [✓] delete auth/ after cutover. one UI, one truth.
 
 
