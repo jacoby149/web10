@@ -158,3 +158,23 @@ PHONE_NUMBER_NOT_REGISTERED = HTTPException(
     detail="Phone number isn't registered with a web10 account.",
     headers={"WWW-Authenticate": "Basic"},
 )
+
+SCHEMA_NOT_FOUND = HTTPException(
+    status_code=status.HTTP_404_NOT_FOUND,
+    detail="schema not found",
+)
+
+NOT_AUTHOR = HTTPException(
+    status_code=status.HTTP_403_FORBIDDEN,
+    detail="only the author may modify this resource",
+)
+
+ENTRY_NOT_FOUND = HTTPException(
+    status_code=status.HTTP_404_NOT_FOUND,
+    detail="entry not found",
+)
+
+SCHEMA_INVALID = HTTPException(
+    status_code=status.HTTP_400_BAD_REQUEST,
+    detail="payload does not match the registered schema",
+)
