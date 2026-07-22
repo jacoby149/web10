@@ -1,3 +1,7 @@
+1.0.94 || 22.07.2026
+Fix: resolved merge conflict in marketing-ui AppStore.tsx (SVG className
+assignment on createElementNS'd SVG element).
+
 1.0.93 || 22.07.2026
 Discovery API: cross-user discovery layer. Discovery index (`web10.discovery_posts`)
 populated from CRUD on anon-whitelisted services. Public ledger (`web10.public`)
