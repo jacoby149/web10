@@ -1,4 +1,9 @@
-1.0.86 || 21.07.2026
+1.0.86 || 20.07.2026
+Add branch naming conventions to AGENTS.md: all new branches must use a
+type prefix (feature/, fix/, refactor/, chore/, test/, docs/) followed by
+a short imperative description, e.g. fix/auth-token-expiry. Existing
+lane-x/ and username/ branches grandfathered.
+1.0.87 || 21.07.2026
 Fix profile name save, photo upload, and restore old contacts/friends.
 Backend: update_records now returns the updated document (find_one_and_update)
 instead of {matchedCount, modifiedCount}, so saveProfile actually persists
@@ -13,11 +18,6 @@ web10→username/provider and date_added→added_at, migrates all records to the
 new contacts service on first read. Follows: added complete data layer
 (readFollows, followUser, unfollowUser, blockUser, deleteFollow, etc.) and
 registered the follows SRO in the adapter. +19 tests (74 data layer tests).
-1.0.86 || 20.07.2026
-Add branch naming conventions to AGENTS.md: all new branches must use a
-type prefix (feature/, fix/, refactor/, chore/, test/, docs/) followed by
-a short imperative description, e.g. fix/auth-token-expiry. Existing
-lane-x/ and username/ branches grandfathered.
 
 1.0.85 || 20.07.2026
 Remove Netlify integration. Deleted ui/netlify.toml so GitHub pushes no
