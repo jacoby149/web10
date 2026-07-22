@@ -1,39 +1,142 @@
 import { getWapi } from './wapi';
 import type { DmRecord } from './types';
 
-// ── DMs data layer ─────────────────────────────────────────────────────────
-// Records-based DMs: each conversation lives in a service named
-// `dm-{lexicographically-smaller-username}--{lexicographically-larger-username}`
-// so both parties address the same service.
+// ── DMs data layer ──────────────────────────────────────────────────────────
+// All DMs live in a single `dms` service. Conversations are identified by
+// filtering on sender/recipient fields — no per-conversation service.
 
 /**
- * Derive the conversation service name from two user identities.
- * The service name is deterministic: dm-{smaller}--{larger}
- * where each identity is "provider/username".
+ * Derive a deterministic conversation key for a pair of users.
+ * This is NOT a service name — it's a stable identifier used for
+ * grouping conversations in the UI and caching.
  */
-export function conversationServiceName(
+export function conversationKey(
   a: { provider: string; username: string },
   b: { provider: string; username: string },
 ): string {
   const idA = `${a.provider}/${a.username}`;
   const idB = `${b.provider}/${b.username}`;
   const [first, second] = [idA, idB].sort();
-  return `dm-${first}--${second}`;
+  return `${first}--${second}`;
 }
 
 /**
- * Read all messages in a conversation.
+ * Build a query that matches all messages between two users
+ * regardless of who sent them.
+ */
+function conversationQuery(
+  me: { provider: string; username: string },
+  them: { provider: string; username: string },
+): Record<string, unknown> {
+  return {
+    $or: [
+      {
+        sender_username: me.username,
+        sender_provider: me.provider,
+        recipient_username: them.username,
+        recipient_provider: them.provider,
+      },
+      {
+        sender_username: them.username,
+        sender_provider: them.provider,
+        recipient_username: me.username,
+        recipient_provider: me.provider,
+      },
+    ],
+  };
+}
+
+// ── Legacy migration ────────────────────────────────────────────────────────
+
+interface LegacyMessage {
+  _id?: string;
+  message: string;
+  sentTime: string;
+  web10: string; // "provider/username" of the OTHER party
+}
+
+function parseWeb10(web10: string): { username: string; provider: string } {
+  const [provider, username] = web10.split('/');
+  return { username: username || web10, provider: provider || 'web10' };
+}
+
+/**
+ * Migrate legacy message-inbox / message-outbox records into the
+ * unified `dms` service. Runs once on first read when `dms` is empty.
+ */
+async function migrateLegacyMessages(
+  wapi: ReturnType<typeof getWapi>,
+  me: { provider: string; username: string },
+): Promise<void> {
+  const migrated = new Set<string>();
+
+  // Migrate message-inbox (messages received)
+  try {
+    const inbox = await wapi.read<LegacyMessage>('message-inbox');
+    for (const old of inbox) {
+      const { username: senderUsername, provider: senderProvider } = parseWeb10(old.web10);
+      const record: Omit<DmRecord, '_id'> = {
+        message: old.message,
+        sent_at: old.sentTime,
+        sender_username: senderUsername,
+        sender_provider: senderProvider,
+        recipient_username: me.username,
+        recipient_provider: me.provider,
+        media_refs: [],
+      };
+      await wapi.create<DmRecord>('dms', record as unknown as Record<string, unknown>);
+      if (old._id) migrated.add(old._id);
+    }
+  } catch {
+    // message-inbox may not exist
+  }
+
+  // Migrate message-outbox (messages sent)
+  try {
+    const outbox = await wapi.read<LegacyMessage>('message-outbox');
+    for (const old of outbox) {
+      const { username: recipientUsername, provider: recipientProvider } = parseWeb10(old.web10);
+      const record: Omit<DmRecord, '_id'> = {
+        message: old.message,
+        sent_at: old.sentTime,
+        sender_username: me.username,
+        sender_provider: me.provider,
+        recipient_username: recipientUsername,
+        recipient_provider: recipientProvider,
+        media_refs: [],
+      };
+      await wapi.create<DmRecord>('dms', record as unknown as Record<string, unknown>);
+      if (old._id) migrated.add(old._id);
+    }
+  } catch {
+    // message-outbox may not exist
+  }
+}
+
+// ── Public API ──────────────────────────────────────────────────────────────
+
+/**
+ * Read all messages in a conversation between the current user and a contact.
  */
 export async function readDms(conversation: string): Promise<DmRecord[]> {
   const wapi = getWapi();
-  const records = await wapi.read<DmRecord>(conversation);
-  return records.sort((a, b) => {
-    return new Date(a.sent_at).getTime() - new Date(b.sent_at).getTime();
-  });
+  const token = wapi.readToken();
+  if (!token) throw new Error('not authenticated');
+
+  const me = { provider: token.provider, username: token.username };
+  const meKey = `${me.provider}/${me.username}`;
+  const parts = conversation.split('--');
+  const themKey = parts.find((p) => p !== meKey) || parts[0];
+  const them = parseWeb10(themKey);
+
+  const records = await wapi.read<DmRecord>('dms', conversationQuery(me, them));
+  return records.sort(
+    (a, b) => new Date(a.sent_at).getTime() - new Date(b.sent_at).getTime(),
+  );
 }
 
 /**
- * Send a DM message to a conversation.
+ * Send a DM message.
  */
 export async function sendDm(
   conversation: string,
@@ -44,41 +147,80 @@ export async function sendDm(
   const token = wapi.readToken();
   if (!token) throw new Error('not authenticated');
 
+  const me = { provider: token.provider, username: token.username };
+  const meKey = `${me.provider}/${me.username}`;
+  const parts = conversation.split('--');
+  const themKey = parts.find((p) => p !== meKey) || parts[0];
+  const them = parseWeb10(themKey);
+
   const record: Omit<DmRecord, '_id'> = {
     message,
     sent_at: new Date().toISOString(),
-    sender_username: token.username,
-    sender_provider: token.provider,
+    sender_username: me.username,
+    sender_provider: me.provider,
+    recipient_username: them.username,
+    recipient_provider: them.provider,
     media_refs: mediaRefs || [],
   };
 
-  return wapi.create<DmRecord>(conversation, record);
+  return wapi.create<DmRecord>('dms', record as unknown as Record<string, unknown>);
 }
 
 /**
  * Delete a DM message by ID.
  */
-export async function deleteDm(conversation: string, id: string): Promise<void> {
+export async function deleteDm(id: string): Promise<void> {
   const wapi = getWapi();
-  await wapi.delete(conversation, { _id: id });
+  await wapi.delete('dms', { _id: id });
 }
 
 /**
  * List all conversations the current user participates in.
- * Reads contact list and derives conversation names.
+ * Reads contacts and derives conversation keys, but also checks for
+ * legacy messages to discover conversations with non-contacts.
  */
 export async function listConversations(): Promise<string[]> {
   const wapi = getWapi();
   const token = wapi.readToken();
   if (!token) return [];
 
-  const contacts = await wapi.read<{ username: string; provider: string }>('contacts');
+  const me = { provider: token.provider, username: token.username };
   const conversations = new Set<string>();
-  for (const c of contacts) {
-    conversations.add(
-      conversationServiceName(token, { username: c.username, provider: c.provider }),
-    );
+
+  // First: check if dms service has any records. If empty, migrate legacy.
+  const existingDms = await wapi.read<DmRecord>('dms', {
+    $or: [
+      { sender_username: me.username, sender_provider: me.provider },
+      { recipient_username: me.username, recipient_provider: me.provider },
+    ],
+  });
+
+  if (!existingDms.length) {
+    await migrateLegacyMessages(wapi, me);
   }
+
+  // Derive conversations from contacts
+  const contacts = await wapi.read<{ username: string; provider: string }>('contacts');
+  for (const c of contacts) {
+    conversations.add(conversationKey(me, { username: c.username, provider: c.provider }));
+  }
+
+  // Also discover conversations from migrated messages (in case sender
+  // was not in contacts)
+  const allDms = await wapi.read<DmRecord>('dms', {
+    $or: [
+      { sender_username: me.username, sender_provider: me.provider },
+      { recipient_username: me.username, recipient_provider: me.provider },
+    ],
+  });
+  for (const dm of allDms) {
+    const other =
+      dm.sender_username === me.username
+        ? { username: dm.recipient_username, provider: dm.recipient_provider }
+        : { username: dm.sender_username, provider: dm.sender_provider };
+    conversations.add(conversationKey(me, other));
+  }
+
   return [...conversations];
 }
 

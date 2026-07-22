@@ -150,6 +150,8 @@ export interface DmRecord {
   sent_at: string;
   sender_username: string;
   sender_provider: string;
+  recipient_username: string;
+  recipient_provider: string;
   media_refs?: string[];
   encrypted?: boolean;
 }
@@ -157,3 +159,39 @@ export interface DmRecord {
 // ── Feed sort options ───────────────────────────────────────────────────────
 
 export type FeedSort = 'newest' | 'oldest' | 'most_reacted';
+
+// ── Discovery API (Phase 5.5 public layer) ─────────────────────────────────
+
+export interface DiscoveryPost {
+  author: string;
+  provider: string;
+  post_id: string;
+  text?: string;
+  tags?: string[];
+  created_at: string;
+  likes: number;
+  comments: number;
+  reposts: number;
+  score?: number;
+}
+
+export interface PublicEntry {
+  _id?: string;
+  schema_id: string;
+  target: string;
+  payload: Record<string, unknown>;
+  created_at?: string;
+  author_username?: string;
+  author_provider?: string;
+}
+
+export interface SchemaDefinition {
+  _id?: string;
+  name: string;
+  schema: Record<string, unknown>;
+  author_username?: string;
+  author_provider?: string;
+  created_at?: string;
+}
+
+export type DiscoverSort = 'recent' | 'trending';

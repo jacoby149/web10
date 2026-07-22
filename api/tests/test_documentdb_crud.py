@@ -65,15 +65,21 @@ class TestRead:
 
 class TestUpdate:
     def test_update_basic(self):
-        mock_response = MagicMock()
-        mock_response.matched_count = 1
-        mock_response.modified_count = 1
+        mock_doc = {"_id": "a", "service": "posts", "body": {"_id": "a", "title": "new"}}
         with patch.object(documentdb.db, "__getitem__") as mock_col:
-            mock_col.return_value.update_one.return_value = mock_response
+            mock_col.return_value.find_one_and_update.return_value = mock_doc
             with patch.object(documentdb, "star_selected", return_value=False):
                 result = documentdb.update("alice", "posts", {"_id": "a"}, {"$set": {"title": "new"}})
-                assert result["matchedCount"] == 1
-                assert result["modifiedCount"] == 1
+                assert result["_id"] == "a"
+                assert result["title"] == "new"
+
+    def test_update_no_match(self):
+        with patch.object(documentdb.db, "__getitem__") as mock_col:
+            mock_col.return_value.find_one_and_update.return_value = None
+            with patch.object(documentdb, "star_selected", return_value=False):
+                result = documentdb.update("alice", "posts", {"_id": "none"}, {"$set": {"title": "new"}})
+                assert result["matchedCount"] == 0
+                assert result["modifiedCount"] == 0
 
     def test_update_star_raises(self):
         with patch.object(documentdb, "star_selected", return_value=True):

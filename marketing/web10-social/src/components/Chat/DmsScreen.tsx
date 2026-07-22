@@ -26,8 +26,11 @@ function formatTime(dateStr: string): string {
 function DmsEmptyState() {
   return (
     <div className="flex flex-col items-center justify-center h-full py-24 px-8 text-center" data-testid="dms-empty">
-      <div className="w-16 h-16 rounded-2xl bg-brand-muted flex items-center justify-center mb-6">
-        <Sparkles className="w-8 h-8 text-brand-300" />
+      <div className={cn(
+        'w-16 h-16 rounded-2xl bg-gradient-to-br from-brand to-brand-600 flex items-center justify-center mb-6',
+        'shadow-lg shadow-brand/25',
+      )}>
+        <Sparkles className="w-8 h-8 text-white" />
       </div>
       <h3 className="font-display text-lg font-semibold text-foreground mb-2">No conversations yet</h3>
       <p className="text-sm text-muted-foreground max-w-xs mb-6">
@@ -59,17 +62,36 @@ function DmsSkeleton() {
   );
 }
 
+function TypingIndicator() {
+  return (
+    <div className="flex justify-start">
+      <div className="bg-elevated px-4 py-3 rounded-2xl rounded-bl-md">
+        <div className="flex gap-1">
+          <span className="w-2 h-2 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: '0ms' }} />
+          <span className="w-2 h-2 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: '150ms' }} />
+          <span className="w-2 h-2 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: '300ms' }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MessageBubble({ msg, isMe }: { msg: DmRecord; isMe: boolean }) {
   return (
     <div className={cn('flex', isMe ? 'justify-end' : 'justify-start')}>
       <div
         className={cn(
-          'max-w-[75%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed',
-          isMe ? 'bg-brand text-brand-foreground rounded-br-md' : 'bg-elevated text-foreground rounded-bl-md',
+          'max-w-[75%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed transition-shadow duration-150',
+          isMe
+            ? cn(
+                'bg-gradient-to-br from-brand to-brand-600 text-brand-foreground rounded-br-md',
+                'shadow-md shadow-brand/10',
+              )
+            : 'bg-elevated text-foreground rounded-bl-md',
         )}
       >
         <p className="break-words">{msg.message}</p>
-        <p className={cn('text-xs mt-1', isMe ? 'text-brand-foreground/70' : 'text-muted-foreground')}>
+        <p className={cn('text-xs mt-1', isMe ? 'text-brand-foreground/60' : 'text-muted-foreground')}>
           {formatTime(msg.sent_at)}
         </p>
       </div>
@@ -148,7 +170,7 @@ export default function DmsScreen() {
 
   function getOtherUser(conv: string): string {
     if (!token) return conv;
-    const parts = conv.replace('dm-', '').split('--');
+    const parts = conv.split('--');
     const me = `${token.provider}/${token.username}`;
     return parts.find((p) => p !== me) || conv;
   }
@@ -172,26 +194,33 @@ export default function DmsScreen() {
         {/* Header */}
         <div className="flex items-center gap-3 px-2 py-2 border-b border-border">
           <button
-            className="flex items-center justify-center h-11 w-11 hover:bg-elevated rounded transition-colors duration-150"
+            className="flex items-center justify-center h-11 w-11 hover:bg-elevated rounded-lg transition-colors duration-150"
             onClick={() => setSelectedConv(null)}
             aria-label="Back to messages"
             data-testid="dm-back-button"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
-          <Avatar className="h-8 w-8">
-            <AvatarFallback className="bg-brand-muted text-brand-300 text-xs font-semibold">
-              {displayName.charAt(0).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
+          <div className="relative">
+            <Avatar className="h-8 w-8">
+              <AvatarFallback className="bg-brand-muted text-brand-300 text-xs font-semibold">
+                {displayName.charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className={cn(
+              'absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-background',
+              'bg-success animate-glow-pulse',
+            )} />
+          </div>
           <span className="font-medium text-sm text-foreground">{displayName}</span>
         </div>
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
           {messages.length === 0 ? (
-            <div className="flex items-center justify-center h-full">
-              <p className="text-sm text-muted-foreground">No messages yet — say hello.</p>
+            <div className="flex flex-col items-center justify-center h-full text-center">
+              <p className="text-sm text-muted-foreground mb-1">No messages yet</p>
+              <p className="text-xs text-muted-foreground/60">Say hello to start the conversation</p>
             </div>
           ) : (
             messages.map((msg) => (
@@ -254,14 +283,20 @@ export default function DmsScreen() {
             <button
               key={conv}
               data-testid="dm-conversation-item"
-              className="w-full flex items-center gap-3 px-4 py-3 min-h-[44px] hover:bg-elevated transition-colors duration-150 text-left"
+              className="w-full flex items-center gap-3 px-4 py-3 min-h-[44px] hover:bg-elevated/80 transition-all duration-150 text-left border-b border-border/30"
               onClick={() => openConversation(conv)}
             >
-              <Avatar className="h-12 w-12">
-                <AvatarFallback className="bg-brand-muted text-brand-300 font-semibold">
-                  {displayName.charAt(0).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
+              <div className="relative shrink-0">
+                <Avatar className="h-12 w-12">
+                  <AvatarFallback className="bg-brand-muted text-brand-300 font-semibold">
+                    {displayName.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className={cn(
+                  'absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-background',
+                  'bg-success',
+                )} />
+              </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-sm text-foreground truncate">{displayName}</span>

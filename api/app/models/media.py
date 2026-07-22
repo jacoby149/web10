@@ -15,6 +15,7 @@ class UploadRequest(BaseModel):
 
 class UploadResponse(BaseModel):
     upload_url: str
+    fields: dict[str, str] | None = None
     object_key: str
     content_type: str
 

@@ -260,7 +260,7 @@ function AppStore() {
                           const parent = e.currentTarget.parentElement
                           if (parent) {
                             const fallback = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
-                            fallback.className = 'h-5 w-5 text-muted-foreground'
+fallback.className = 'h-5 w-5 text-muted-foreground'
                             fallback.setAttribute('strokeWidth', '1.5')
                             fallback.setAttribute('fill', 'none')
                             fallback.setAttribute('stroke', 'currentColor')

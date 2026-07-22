@@ -120,6 +120,22 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       the real data and surfaced like the original web10 (feeds the
       D16 app-store stats); and the honest report of any shape drift.
       unblocks B6 (real login to test against) and D16 (real apps).
+    [✓ 1.0.92] A8. P1 server-side record metadata — invariant I6: every record
+       gets `_author` (token's username), `_source_node` (the provider
+       that minted the token), and `_created_at` (server time at the
+       destination node) injected by the API on create, immutable on
+       update. the client cannot set or forge these fields. on cross-node
+       replication, the receiving node stamps its own `_created_at`
+       (arrival time) while preserving the original `_author` and
+       `_source_node`. this stops sender impersonation on DMs, posts,
+       comments, reactions. implementation: in documentdb.py `to_db()`,
+       inject `_author`, `_source_node`, `_created_at` from the
+       authenticated token + server clock. add to `q_t()` / `u_t()` to
+       block client from overwriting via update. expose in `to_gui()` on
+       read. audit the whole cross-node path (certify, token handoff,
+       remote CRUD) to verify it works correctly with multi-node traffic.
+       gate: permission-matrix tests must cover forged `_author`
+       rejection. unblocks: safe DMs, safe feed attribution, audit trail.
 
 LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
   [✓ 1.0.12-1.0.14] B1. P0 js: auth2 -> vite + bun + typescript
@@ -314,6 +330,12 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       path alias (tsc -b had ~90 pre-existing errors) and the
       alternative.png-isn't-the-keys-mark bug (decisions.md D24,
       converged with D13).
+  [✓ 1.0.87] D12 vibrancy overhaul (follow-up): the social flagship was
+      muted — flat surfaces, no ambient light, zero interaction energy.
+      design.md §4 relaxed for social: glow tokens, shimmer skeletons,
+      heart-burst on like, card hover glow, gradient buttons, presence
+      dots, vibrant banner, media hover zoom, animated login. 195 tests
+      green, tsc clean, build clean.
   [✓ 1.0.63] D13. rebuild marketing-ui on the design system. bulma OUT
       entirely (D22), tailwind v4 + design.md §13 tokens, dark
       cinematic landing (lockup hero, tested reach-gap proof section —
@@ -456,29 +478,97 @@ LANE E — infrastructure / deployment (owns: proxmox provisioning,
   [ ] E4. automated provisioning: terraform or ssh-api script +
       ansible for idempotent VM/LXC setup. don't rush — manual is
       fine until E2 works.
-  [ ] E6. push-to-deploy CI/CD (gated on E5/E3 stacks existing):
-      push to dev -> web10-dev redeploys, release on main ->
-      web10-prod redeploys. the repo is PUBLIC, so NO self-hosted
-      github runner (github's own guidance; fork PRs + a runner in
-      the docker group on the box = remote root). two sanctioned
-      designs, in order:
-      (1) NOW, zero new surface: Portainer git-backed stacks with
-          GitOps polling — point each stack at the repo (ref dev /
-          main, compose path ubuntu-deployment/
-          docker-compose.ecosystem.yml), auto-update ~5min. push
-          merges, box pulls. no inbound, no GH secrets, ~10 min of
-          Portainer clicking.
-      (2) LATER, instant deploys: Portainer stack webhooks exposed
-          ONLY through a Cloudflare Tunnel (cloudflared, outbound-
-          only — the 80/443-only router rule stays intact) + a tiny
-          deploy job appended to ci (curl the webhook on push to
-          dev / release). never a public proxy host to :9000 (prime
-          directive 1).
-      note: cd.yml's GHCR images can NOT serve the frontends across
-      envs yet — ui/social/marketing bake origins at BUILD time, so
-      per-env build-on-box stays correct until a runtime-config
-      refactor; the api/rtc images are env-agnostic and could
-      switch to pulls anytime.
+[~] E6. SSH-DEPLOY CI/CD (replaces Portainer GitOps as the deploy
+       trigger): the current Portainer GitOps loop (5-min poll, silent
+       retries on failure, zero signal back to GitHub) is brittle —
+       when a deploy fails, Portainer retries forever in a loop and
+       GitHub has no idea. the replacement: GitHub Actions SSHes into
+       the Ubuntu server, runs `docker compose up` directly, captures
+       exit codes, and runs the smoke test. GitHub now knows instantly
+       if a deploy succeeded or failed. no self-hosted runner needed
+       (avoids the public-repo security issue — no runner in the
+       docker group on the box).
+
+       AUTH: deploy key (SSH key-pair, not PAT). the private key
+       lives as a GitHub Actions secret (`DEPLOY_SSH_KEY`), the public
+       key is installed on the box at `~/.ssh/authorized_keys` with a
+       command restriction scoped to the deploy script only — the key
+       can't be used for general shell access.
+
+       WORKFLOW: new `.github/workflows/deploy.yml`:
+         - triggers: push to `dev` → deploy `web10-dev`; push to
+           `main` or `v*` tag → deploy `web10-prod`
+         - runs on `ubuntu-latest` (ephemeral GA runner)
+         - steps:
+           1. checkout
+           2. SSH→box (`ssh -o StrictHostKeyChecking=accept-new`)
+           3. `cd /opt/web10 && git pull origin <branch>`
+           4. `docker compose -p <stack> --env-file env.<env> -f
+              ubuntu-deployment/docker-compose.ecosystem.yml
+              up -d --build --remove-orphans`
+           5. wait for health (poll `docker ps` for stable state,
+              max 5 min)
+           6. `bash ubuntu-deployment/scripts/smoke.sh` (exits
+              non-zero on failure → GitHub marks the job failed)
+           7. on success: Portainer API call to register/update the
+              stack metadata so the Portainer UI reflects the deploy
+              (see below)
+         - concurrency: `deploy-<env>` group, cancel-in-progress
+
+       PORTAINER INTEGRATION (post-deploy register): Portainer is
+       just a UI on top of Docker — it watches the Docker socket.
+       when you `docker compose up` on the box, Portainer SEES the
+       containers automatically (they show up in the "Containers"
+       view). to also have the stack appear in the "Stacks" view
+       (for UI management: restart, logs, env-var editing), call the
+       Portainer API AFTER a successful deploy to create/update the
+       stack entry. PREFERRED approach: FILE-BACKED stack via
+       Portainer API — point at the compose file on disk
+       (`/opt/web10/ubuntu-deployment/docker-compose.ecosystem.yml`).
+       this gives Portainer full stack management (restart, rebuild,
+       logs, env-var editor) WITHOUT GitOps polling. the deploy
+       script calls `POST /stacks/create/standalone/file` (or PUT to
+       update) after docker compose succeeds. keeps Portainer as the
+       management UI without making it the deploy trigger.
+
+       DISABLE GITOPS: remove the `autoUpdate` field from existing
+       stacks (or delete and recreate as file-backed). the GitOps
+       polling is the source of the "retrying" loop — it must be
+       killed. `deploy-stacks.py` currently sets `"autoUpdate":
+       {"interval": "5m"}` on create; the new deploy script must
+       create file-backed stacks (no autoUpdate) or update existing
+       stacks to disable autoUpdate via `PUT /stacks/{id}`.
+
+       SECURITY: the SSH deploy key is scoped. even if compromised,
+       it can only run the deploy script (command restriction in
+       authorized_keys). the deploy script runs as the non-root SSH
+       user (jacob), who is in the docker group. no sudo, no root.
+       the key is rotated by replacing the GitHub secret and the
+       authorized_keys entry.
+
+       ROLLBACK: if smoke test fails, the workflow can automatically
+       rollback: `docker compose -p <stack> down` then `docker compose
+       -p <stack> up -d` to restore the previous image (Docker keeps
+       the old image until the next build). or more reliably: tag
+       images at deploy time (`<stack>:<sha>` and `<stack>:previous`)
+       and rollback is `docker compose up -d --no-build` with the
+       previous tag. the smoke test failure is visible in GitHub
+       Actions with full logs — the operator can decide rollback vs.
+       fix.
+
+       RATIONALE: this is the standard pattern for teams that want
+       CI visibility without self-hosted runners. the SSH-from-
+       ephemeral-runner pattern is used by Railway, Render, and
+       Fly.io internally. the advantage over Portainer GitOps:
+       instant feedback (not 5-min poll), failure is visible in
+       GitHub (not a silent retry loop), the smoke test is part
+       of the deploy (not a separate manual step), and concurrency
+       control prevents concurrent deploys from fighting.
+
+       BLOCKS: none — can start immediately. depends on the operator
+       generating an SSH key pair and adding the private key as a
+       GitHub Actions secret. the operator must also install the
+       public key on the box with the command restriction.
   [ ] E7. SDK npm publish flow (with C2/D18): cd.yml publishes sdk/
       to npm on a v* tag today — confirm it fires + the package is
       public, and decide whether a version bump on merge to dev/main
@@ -580,9 +670,30 @@ points at an empty db. baseline fixes outrank polish, in this order:
        serves per-env origins; only social still needs D14. operator
        prerequisites: docker group for the ssh user, rotate the CF
        token exposed in the world-readable Caddyfile.
-  ws5: C6 e2e deep sweep + bug hunt (lane C — e2e/** only; local
-       stack, no deploy gate). signup-as-a-test + persona seed
-       fixtures; the honest bug list is the deliverable.
+ws5: C6 e2e deep sweep + bug hunt (lane C — e2e/** only; local
+        stack, no deploy gate). signup-as-a-test + persona seed
+        fixtures; the honest bug list is the deliverable.
+   ws-new: [✓ 1.0.86] D-homepage-feed. Social-media-style tabbed feed
+        preview on the marketing-ui homepage. Placeholder content with
+        For You / Following / Trending tabs, post cards with avatars,
+        media placeholders, engagement counts. Sits between hero and
+        reach-gap section. Ready for live backend content.
+[✓ 1.0.93] A5.5. DISCOVERY API — the public layer (Lane A, api/**):
+         discovery index (web10.discovery_posts, write-protected,
+         background task), schema registry (web10.schemas, CRUD with
+         author enforcement, provider.uuid6 IDs), public ledger
+         (web10.public, validated entries), discovery endpoints
+         (/discover/posts, /users, /search, /topics, /post/{user}/{service}/{id}),
+         engagement aggregation (cached counts on index, schema-agnostic).
+         See PHASE 5.5 in plan.txt and docs/discovery.md.
+    [✓ 1.0.92] D5.5. SOCIAL APP PUBLIC LAYER — split posts into public_posts /
+         private_posts, default terms on signup, register default schemas,
+         wire reactions to /public/entries, wire feed to /discover/posts.
+         See PHASE 5.5 in plan.txt.
+    [✓ 1.0.89] persona-orchestration/ — 5 live-testing personas with seed scripts,
+         first-week content plans, cross-follows, posts, comments, DMs, and
+         reactions. powers C6's e2e persona fixtures and makes the platform
+         look alive for dev testing + demos.
 
   merge-order notes: B5/D12/D13 don't gate each other; merge each as
   it passes design.md §12. D13 owns the cross-app asset generation
