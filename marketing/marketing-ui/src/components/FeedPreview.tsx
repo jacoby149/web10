@@ -16,15 +16,17 @@ const API_ORIGIN = import.meta.env.VITE_API_ORIGIN || 'https://api.web10.app';
 
 interface DiscoveryPost {
   author: string;
-  provider: string;
+  service: string;
   post_id: string;
-  text?: string;
-  tags?: string[];
+  body_text: string;
+  tags: string[];
   created_at: string;
-  likes: number;
-  comments: number;
-  reposts: number;
-  score?: number;
+  engagement: {
+    likes: number;
+    comments: number;
+    reposts: number;
+  };
+  engagement_score: number;
 }
 
 interface FeedPost {
@@ -82,8 +84,9 @@ function parseCount(s: string): number {
   return num;
 }
 
-function mapDiscoveryToFeedPost(d: DiscoveryPost, index: number): FeedPost {
+function mapDiscoveryToFeedPost(d: DiscoveryPost): FeedPost {
   const name = d.author.replace(/[-_]/g, ' ');
+  const tags = d.tags || [];
   return {
     id: d.post_id,
     name: name.charAt(0).toUpperCase() + name.slice(1),
@@ -91,11 +94,11 @@ function mapDiscoveryToFeedPost(d: DiscoveryPost, index: number): FeedPost {
     initial: d.author.charAt(0).toUpperCase(),
     avatarColor: hashToColor(d.author),
     time: timeAgo(d.created_at),
-    content: d.text || '',
-    media: d.tags?.includes('video') ? 'video' : d.tags?.includes('image') ? 'image' : undefined,
-    likes: formatCount(d.likes),
-    comments: formatCount(d.comments),
-    reposts: formatCount(d.reposts),
+    content: d.body_text || '',
+    media: tags.includes('video') ? 'video' : tags.includes('image') ? 'image' : tags.includes('music') ? 'music' : undefined,
+    likes: formatCount(d.engagement.likes),
+    comments: formatCount(d.engagement.comments),
+    reposts: formatCount(d.engagement.reposts),
   };
 }
 
@@ -233,10 +236,11 @@ function SkeletonCard() {
 }
 
 async function fetchDiscoverFeed(sort: 'recent' | 'trending', limit = 6): Promise<DiscoveryPost[]> {
-  const resp = await fetch(
-    `${API_ORIGIN}/discover/posts?sort=${sort}&limit=${limit}`,
-    { method: 'PATCH' },
-  );
+  const resp = await fetch(`${API_ORIGIN}/discover/posts`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query: { sort, limit } }),
+  });
   if (!resp.ok) return [];
   return resp.json();
 }
@@ -246,7 +250,7 @@ async function createPublicEntry(schemaId: string, target: string, payload: Reco
     const resp = await fetch(`${API_ORIGIN}/public/entries`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ schema_id: schemaId, target, payload }),
+      body: JSON.stringify({ query: { schema_id: schemaId, target, payload } }),
     });
     return resp.ok;
   } catch {
