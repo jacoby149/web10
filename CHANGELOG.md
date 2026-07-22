@@ -1,4 +1,4 @@
-1.0.89 || 22.07.2026
+1.0.91 || 22.07.2026
 Fix DMs: single `dms` service with sender/recipient fields (no per-conversation
 service). legacy adapter auto-migrates message-inbox/outbox on first read.
 Fix posts: legacy adapter migrates html/media/time → text/media_refs/created_at
@@ -7,6 +7,15 @@ Added security invariant I6: server-side record metadata (_author, _source_node,
 _created_at) injected by API on create, immutable on update. audited cross-node
 federation flow: no cross-node token delegation, no data sync, no provenance
 metadata today. 220 tests green, tsc clean.
+1.0.90 || 21.07.2026
+Homepage: moved the social feed preview section above the hero so the feed is front and center — first thing you see after the navbar. The pitch headline follows immediately after.
+
+1.0.89 || 21.07.2026
+Persona orchestration: 5 live-testing personas (solar-flare-69, noodle-empress,
+void-walker, butterfly-mechanic, disco-donkey) with seed scripts (bash + python),
+first-week action plans, cross-follows, posts, comments, DMs, reactions, and
+inbox fan-out. Makes the social platform look alive for dev testing and demos.
+
 1.0.88 || 21.07.2026
 Fix marketing-ui build: SVG `className` assignment changed to `setAttribute('class', ...)` to avoid TS2540 read-only error on dynamically created SVG elements.
 1.0.86 || 20.07.2026

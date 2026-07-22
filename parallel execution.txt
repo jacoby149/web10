@@ -610,18 +610,22 @@ ws5: C6 e2e deep sweep + bug hunt (lane C — e2e/** only; local
         For You / Following / Trending tabs, post cards with avatars,
         media placeholders, engagement counts. Sits between hero and
         reach-gap section. Ready for live backend content.
-   [ ] A5.5. DISCOVERY API — the public layer (Lane A, api/**):
-        discovery index (web10.discovery_posts, write-protected,
-        background task), schema registry (web10.schemas, CRUD with
-        author enforcement, provider.uuid6 IDs), public ledger
-        (web10.public, validated entries), discovery endpoints
-        (/discover/posts, /users, /search, /topics, /post/{user}/{service}/{id}),
-        engagement aggregation (cached counts on index, schema-agnostic).
-        See PHASE 5.5 in plan.txt and docs/discovery.md.
-   [ ] D5.5. SOCIAL APP PUBLIC LAYER — split posts into public_posts /
-        private_posts, default terms on signup, register default schemas,
-        wire reactions to /public/entries, wire feed to /discover/posts.
-        See PHASE 5.5 in plan.txt.
+[ ] A5.5. DISCOVERY API — the public layer (Lane A, api/**):
+         discovery index (web10.discovery_posts, write-protected,
+         background task), schema registry (web10.schemas, CRUD with
+         author enforcement, provider.uuid6 IDs), public ledger
+         (web10.public, validated entries), discovery endpoints
+         (/discover/posts, /users, /search, /topics, /post/{user}/{service}/{id}),
+         engagement aggregation (cached counts on index, schema-agnostic).
+         See PHASE 5.5 in plan.txt and docs/discovery.md.
+    [ ] D5.5. SOCIAL APP PUBLIC LAYER — split posts into public_posts /
+         private_posts, default terms on signup, register default schemas,
+         wire reactions to /public/entries, wire feed to /discover/posts.
+         See PHASE 5.5 in plan.txt.
+    [✓ 1.0.89] persona-orchestration/ — 5 live-testing personas with seed scripts,
+         first-week content plans, cross-follows, posts, comments, DMs, and
+         reactions. powers C6's e2e persona fixtures and makes the platform
+         look alive for dev testing + demos.
 
   merge-order notes: B5/D12/D13 don't gate each other; merge each as
   it passes design.md §12. D13 owns the cross-app asset generation
