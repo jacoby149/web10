@@ -55,7 +55,7 @@ if (wapi.isSignedIn()) initApp()
 function readNotes() {
   wapi
     .read("web10-docs-note-demo", {})
-    .then((res) => displayNotes(res.data))
+    .then(displayNotes)
     .catch((err) => promptContract(ERROR_MSGS.read, err))
 }
 
