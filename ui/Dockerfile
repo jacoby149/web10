@@ -12,7 +12,6 @@ RUN sed -i 's/wapi\.defaultAPIProtocol/wapi.APIProtocol/g' node_modules/web10-np
 
 COPY index.html tsconfig.json vite.config.js ./
 COPY public/ public/
-COPY ../CHANGELOG.md public/CHANGELOG.md
 COPY src/ src/
 
 EXPOSE 80
