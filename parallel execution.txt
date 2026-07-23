@@ -511,7 +511,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         marketing/web10-social/** only. gate: D21's video v0
         merged. acceptance: a phone-recorded vertical video posts
         and swipes like short-form, demoable next to tiktok.
-[✓ 1.0.140] D23. MEDIA READS SURVIVE A PRIVATE BUCKET (plan.txt phase 8.5,
+[✓ 1.0.143] D23. MEDIA READS SURVIVE A PRIVATE BUCKET (plan.txt phase 8.5,
         media v0; the dev-minio 403). media records store the bare
         unsigned object url and every renderer trusts record.url
         verbatim, so a private bucket 403s every avatar/photo; the
