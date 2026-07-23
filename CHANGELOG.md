@@ -1,3 +1,5 @@
+1.0.113 || 23.07.2026
+Fix marketing-ui build (for real this time): `lucide-react` (v1.x) exports NO GitHub brand icon at all — neither `Github` nor `GitHub` — since lucide removed brand icons. #206's `Github`→`GitHub` rename didn't fix it (`error TS2305: Module 'lucide-react' has no exported member 'GitHub'`), so `tsc -b`/`vite build`/e2e stayed red on dev. `GitHubStarButton` now inlines the GitHub mark as a small filled brand SVG (`fill="currentColor"`, so it still inherits the button's text color) instead of importing a nonexistent icon. tsc --noEmit clean.
 1.0.112 || 23.07.2026
 Fix marketing-ui build: `lucide-react` exports `GitHub` (capital H), not `Github`. The GitHubStarButton component used the wrong case, causing the TypeScript build to fail in CI/CD.
 
