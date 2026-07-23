@@ -63,9 +63,12 @@ S3_SECRET_KEY = os.getenv("S3_SECRET_KEY", "minioadmin")
 S3_REGION = os.getenv("S3_REGION", "us-east-1")
 S3_USE_SSL = os.getenv("S3_USE_SSL", "false").lower() == "true"
 # SSL for the public signing endpoint; defaults to on when it's an https URL.
-S3_PUBLIC_USE_SSL = os.getenv(
-    "S3_PUBLIC_USE_SSL", "true" if S3_PUBLIC_ENDPOINT.startswith("https") else str(S3_USE_SSL).lower()
-).lower() == "true"
+S3_PUBLIC_USE_SSL = (
+    os.getenv(
+        "S3_PUBLIC_USE_SSL", "true" if S3_PUBLIC_ENDPOINT.startswith("https") else str(S3_USE_SSL).lower()
+    ).lower()
+    == "true"
+)
 UPLOAD_URL_EXPIRY = int(os.getenv("UPLOAD_URL_EXPIRY", "300"))
 READ_URL_EXPIRY = int(os.getenv("READ_URL_EXPIRY", "60"))
 MAX_UPLOAD_SIZE = int(os.getenv("MAX_UPLOAD_SIZE", "524288000"))
