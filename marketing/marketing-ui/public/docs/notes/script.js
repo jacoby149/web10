@@ -13,12 +13,15 @@ const wapi = wapiInit("https://auth.web10.app")
 // the auth portal scopes `site` to the referrer's hostname (docs.web10.app in
 // prod), and `is_permitted` only lets it through via
 // `is_in_cross_origins(token.site, …)` — `docs.web10.app` is NOT in
-// CORS_SERVICE_MANAGERS, so an omitted/wrong entry 401s every CRUD call.
+// `CORS_SERVICE_MANAGERS`, so an omitted/wrong entry 401s every CRUD call.
 // `localhost` / `docs.localhost` cover `bun dev` and the docker-compose vhost.
+// `dev.web10.app` / `www.dev.web10.app` cover the dev deployment, where the
+// marketing-ui stack serves the docs pages (see ubuntu-deployment/README.md:
+// marketing-ui dev vhosts are dev.web10.app + www.dev.web10.app).
 const sirs = [
   {
     service: "web10-docs-note-demo",
-    cross_origins: ["docs.web10.app", "localhost", "docs.localhost"],
+    cross_origins: ["docs.web10.app", "dev.web10.app", "www.dev.web10.app", "localhost", "docs.localhost"],
   },
 ]
 
