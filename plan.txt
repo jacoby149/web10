@@ -258,8 +258,10 @@ M3 "the network" (the protocol earns its name):
 
 KNOWN GAPS on the route (executional, tracked so they're not vibes):
   - the video gap: THE STORY's bar is kick/twitch but M0 ships
-    posts/feed/dms -- video lands later in phase 8, streaming later
-    still. consequence: founding creators #1-3 must be ones M0's
+    posts/feed/dms -- phase 8.5 stages the route (direct-mp4
+    playback + the vertical short-form lens are near-term lane-D
+    work; the transcode pipeline lifts the caps later), streaming
+    later still. consequence: founding creators #1-3 must be ones M0's
     format SERVES (photo/text/community-first, podcasters with
     clips), or the pitch scopes video honestly as roadmap. never
     pitch a pure video creator a product that can't hold their life.
@@ -521,7 +523,7 @@ the original data changes what "done" looks like for these):
     against real data (A7), with a playwright test so it can't
     regress. this is the front door — nothing else matters if a
     creator can't log in.
-[ ] APP STORE, restored + curated (lane D, item D16): the original
+[✓ 1.0.136] APP STORE, restored + curated (lane D, item D16): the original
     web10 had a LIVE app store with real registered apps; the
     current marketing-ui shows first-party "proof" cards only. read
     the real registered apps from the mongo (A7), keep web10-social
@@ -532,7 +534,14 @@ the original data changes what "done" looks like for these):
     store minimal, an empty catalog reads as jank" call (D20 thread)
     — that assumed an empty catalog; with 208 real users and real
     apps reconnected, restoring the store IS the "real company"
-    goal. log the reversal in decisions.md when it lands.
+    goal. reversal logged in decisions.md as D31 + the partial-vs-
+    allowlist sub-reversal (operator 23.07: takedown-only →
+    allowlist — "any app can register, but i should be able to
+    approve"). 1.0.84 shipped the store stats (real apps from mongo)
+    + web10-social hero; 1.0.136 ships the curation: pending flag on
+    `/register_app`, `/apps/admin` + `/apps/approve` (admin-only,
+    reusing check_admin), and the App Store Approvals card in the
+    authenticator's Node Config panel.
 [✓ 1.0.70] docs 404 fix (lane D, D16.1): /docs/protocol-spec 404'd
     live — marketing-ui's nginx /docs/ alias block shadowed the SPA
     fallback. try_files → index.html added.
@@ -1195,7 +1204,9 @@ the app:
 [✓ 1.0.48] dms: records for async — DATA LAYER ONLY: deterministic
     conversation service names, send/read/delete DMs as records.
     screens deferred to D2.5. (rtc for live: phase 11)
-[ ] video: upload -> transcode -> hls playback (phase 5 media pipeline)
+    video: EXPANDED into phase 8.5 (photos v1/v2 polish, video v0
+    direct playback, v1 vertical short-form lens, v2 transcode ->
+    hls). the ticks live there now.
 [ ] streaming (later milestone in this phase): live via rtc/webrtc small-
     scale first; hls fan-out for big rooms when a node needs it
 
@@ -1226,6 +1237,111 @@ ownership/no-shadowban (THE STORY), not configurability. the killer
 app stands on its own or it isn't killer. D19's byok architecture
 stands ready if the chatbox ever earns its way back; the promotion
 bar is in later.md.
+
+PHASE 8.5 — media polish + video (the tiktok-shaped gap)
+--------------------------------------------------------
+the honest state (23.07.2026 audit): photos upload and render, but
+the composer is a bare file input with 80x80 hover-only square
+previews (PostComposer.tsx) -- no reorder, no alt text, no aspect
+ratio, remove button invisible on touch. the feed grid has no
+lightbox, silently slices past 6 images, and reserves no space
+from image dimensions. and video is a TRAP: the picker accepts
+video/* but preview AND feed render it with <img>, so a picked
+video just breaks. the api stores anything up to 500MB and derives
+NOTHING server-side (no thumbnails, no dimensions, no transcode)
+-- thumbnail_url / hls_manifest_url are pass-through fields nobody
+populates, so the feed's `thumbnail_url || url` fallback always
+ships the original. design.md sets the bar (media-forward,
+kick/twitch-grade) but has no media spec: no canonical aspect
+ratios, no player chrome, no grid numbers.
+
+the principle that shapes all of it: THE CLIENT DOES THE WORK
+FIRST. the node derives nothing today, and for private media it
+never can -- a transcoder can't transcode what it can't decrypt
+(I4). so resize, thumbnails, poster frames, and dimensions happen
+client-side at attach time, and the server pipeline (when it
+comes) is a PUBLIC-media upgrade, not the foundation. this also
+keeps every early stage shippable against the api that exists
+right now.
+
+photos v1 -- the composer stops being ugly (lane D; gauntlet step
+2 territory, "post a photo -> it appears in the feed"):
+[ ] media tray: previews at real aspect ratio in the same grid the
+    feed will render (composer preview == post render, no
+    surprises), always-visible remove button (hover-only fails
+    touch, and the gauntlet runs on a phone), drag to reorder
+[ ] client-side processing at attach: downscale to max edge 2048 +
+    recompress (canvas -> webp/jpeg), extract width/height,
+    generate + upload a real thumbnail -- populate the media-record
+    fields (width, height, thumbnail_url) the confirm endpoint
+    already accepts but nobody fills
+[ ] alt text per image in the tray (design.md requires alt; the
+    schema has the field; the composer never asks)
+[ ] validation with a voice: wrong type / over the size cap gets
+    rejected at attach time with words, not a failed upload spinner
+
+photos v2 -- the feed renders like it means it (lane D):
+[ ] lightbox: tap any image -> full-screen viewer, swipe between a
+    post's images, pinch/double-tap zoom, swipe-down/esc to close
+[ ] "+N" overflow tile on the sixth image instead of silently
+    slicing the rest
+[ ] no-layout-shift for real: reserve space from stored
+    width/height (the design.md rule); dominant-color placeholder
+    while the image loads
+[ ] design.md gains a MEDIA SPEC: canonical aspect ratios (4:5
+    portrait cap, 1.91:1 landscape, 9:16 vertical video), grid
+    rules, player chrome. the screenshot test needs numbers.
+
+video v0 -- it plays at all (lane D; works against today's api):
+[ ] the composer treats video as video: <video> preview (not
+    <img>), poster frame captured client-side (seek + canvas),
+    poster uploaded as the thumbnail, duration_seconds filled
+[ ] the feed plays mp4: <video> with poster, preload="metadata",
+    tap to play with sound. h.264/aac mp4 (+ webm) accepted;
+    anything else rejected at attach with "convert to mp4" words
+    -- no transcoder yet, honesty over a spinner. phones record
+    h.264 mp4 natively, so the mainline path just works.
+[ ] caps while originals ship untranscoded: duration + size gate
+    at attach (e.g. 3 min / 100MB -- video v2 lifts them)
+[ ] one player, both sources: this is also how IMPORTED video
+    already plays (the phase 9 direct-mp4-off-minio/R2 note)
+
+video v1 -- the vertical feed (lane D; the tiktok answer):
+[ ] a short-form lens IN web10-social: 9:16 full-bleed vertical
+    feed, snap scroll, muted autoplay + tap for sound, preload
+    next. reads the SAME posts/media services -- short-form is a
+    LENS over the conventions schemas, not a new silo. rides v0's
+    direct mp4 (phone-recorded h.264 plays everywhere), so it
+    does NOT wait for the transcode pipeline; it inherits hls
+    later for free.
+[ ] the composer knows: 9:16 detection -> "this will show in the
+    vertical feed", cover-frame picker for the poster
+[ ] the pitch lands here: own-your-audience pointed at short-form
+    creators -- 100% delivery on a surface tiktok-shaped enough
+    to demo next to tiktok
+
+video v2 -- the transcode pipeline (lane A; the old phase 8 line):
+[ ] transcode worker: ffmpeg in a compose profile ("transcode"),
+    queued off upload-confirm for PUBLIC video only: h.264 ladder
+    -> hls segments + manifest -> poster + thumbnail server-side
+    -> patch the media record (hls_manifest_url, duration,
+    dimensions). boring presets, no invented pipelines.
+[ ] playback upgrades itself: hls.js where hls_manifest_url
+    exists (safari plays it natively), mp4 fallback otherwise --
+    the v0 player grows a source-selection step, nothing else
+    changes
+[ ] private video never touches the transcoder (I4): encrypted
+    blobs stay direct playback of what the client uploaded;
+    phase 11's encrypted-hls item covers the rest
+[ ] size accounting (the phase 5 straggler) lands with this:
+    video makes it real -- media bytes count against the space
+    plan before a node fills its disk
+[ ] then lift the v0 caps
+
+streaming/live is NOT this phase: it stays phase 8's later-
+milestone line (rtc small-scale, then hls fan-out). video v2's
+hls plumbing is deliberately the same tech so live inherits the
+player when it comes.
 
 PHASE 9 — the exporters (fill the collections)
 ----------------------------------------------
