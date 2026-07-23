@@ -9,3 +9,4 @@ export * from './follows';
 export * from './dms';
 export * from './comments';
 export * from './reactions';
+export * from './serviceTerms';

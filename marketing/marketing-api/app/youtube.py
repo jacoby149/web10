@@ -67,6 +67,9 @@ def map_youtube_video(video: dict) -> list[dict]:
         "visibility": visibility,
         "tags": parse_tags(text),
     }
+    # `visibility` preserves the source-platform's privacy (public/private/
+    # unlisted) as informational metadata for the staging triage UI; the
+    # record is owner-only because it lives in staging_posts (D30).
 
     duration = video.get("contentDetails", {}).get("duration")
     if duration:
@@ -82,9 +85,13 @@ def map_youtube_video(video: dict) -> list[dict]:
     if media_refs:
         post_body["media_refs"] = media_refs
 
+    # D19 content lifecycle: imported videos land in owner-only
+    # staging_posts (not the legacy anon-readable `posts`), so importing a
+    # YouTube history never auto-publishes it. The staging UI (Phase C)
+    # moves a record to public_posts or private_posts to publish.
     records.append(
         {
-            "service": "posts",
+            "service": "staging_posts",
             "body": post_body,
             "origin": "youtube",
             "origin_id": vid_id,

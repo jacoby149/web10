@@ -157,6 +157,7 @@ services:
         VITE_AUTH_ORIGIN: ${AUTH_ORIGIN}
         VITE_RTC_ORIGIN: ${RTC_ORIGIN}
         VITE_MARKETING_API: ${MARKETING_API_ORIGIN:?e.g. https://marketing-api.dev.web10.app}
+        VITE_MARKETING_ORIGIN: ${MARKETING_UI_ORIGIN:-https://marketing.web10.app}
     restart: unless-stopped
     networks:
       proxy:
@@ -165,8 +166,14 @@ services:
 
   marketing-ui:
     build:
-      context: ../marketing/marketing-ui
-      dockerfile: Dockerfile
+      # Repo-root context so build-status.sh can read the live CHANGELOG.md
+      # + .git at build time. This makes /status self-sufficient even when
+      # the rebuild runs WITHOUT the GIT_COMMIT / STATUS_VERSION env vars —
+      # i.e. Portainer's 5-min GitOps poll, which used to leave version +
+      # commit stuck on "unknown" on prod while dev (deployed via the SSH
+      # action that exports those vars) showed real values.
+      context: ..
+      dockerfile: marketing/marketing-ui/Dockerfile
       args:
         VITE_API_URL: ${API_ORIGIN}
         VITE_MARKETING_API: ${MARKETING_API_ORIGIN}

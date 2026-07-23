@@ -1,26 +1,62 @@
 #!/bin/sh
 # Generates status.json and status.html from git + CHANGELOG at build time.
 # Runs inside the Docker build (marketing-ui container).
-# Outputs to /app/dist/status/ so nginx serves them from /status/
+# Outputs to <dist>/status/ so nginx serves them from /status/.
 
 set -e
 
-OUTDIR="/app/dist/status"
+# The marketing-ui build context is the REPO ROOT, so CHANGELOG.md and
+# .git live at the repo root (/app when WORKDIR=/app in the build stage,
+# or whatever this script is invoked with as CWD). Resolve them once and
+# fall back gracefully when run from outside the full repo (local dev,
+# pre-repo-context images) so the script never hard-fails.
+REPO_ROOT="${STATUS_REPO_ROOT:-/app}"
+CHANGELOG="${REPO_ROOT}/CHANGELOG.md"
+GIT_DIR="${REPO_ROOT}/.git"
+
+# Vite's default outDir is `dist` relative to its root — the build runs
+# from /app/marketing/marketing-ui, so the bundle lands there. Allow an
+# override for local invocations.
+ROOT="${BUILD_ROOT:-/app/marketing/marketing-ui}"
+OUTDIR="${ROOT}/dist/status"
 mkdir -p "$OUTDIR"
 
-# Git info (baked from VITE_GIT_COMMIT env, or read from git if available)
+# Read the top-of-CHANGELOG version: "1.0.127 || 23.07.2026" → "1.0.127".
+changelog_version() {
+  [ -f "$CHANGELOG" ] || { echo unknown; return; }
+  # shellcheck disable=SC2016
+  head -1 "$CHANGELOG" | sed 's/[| ].*//' | tr -d '[:space:]'
+}
+
+# Git info (baked from VITE_GIT_COMMIT env, or read from the repo's .git
+# if it is in reach — the source-of-truth for redeploys that don't pass
+# GIT_COMMIT, e.g. Portainer's GitOps poll).
 if [ -n "$VITE_GIT_COMMIT" ]; then
   COMMIT="$VITE_GIT_COMMIT"
 else
-  COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+  if [ -d "$GIT_DIR" ] || [ -f "$GIT_DIR" ]; then
+    COMMIT=$(git --git-dir="$GIT_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown)
+  else
+    COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)
+  fi
 fi
 
-COMMIT_FULL=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
-COMMIT_DATE=$(git log -1 --format='%ai' "$COMMIT_FULL" 2>/dev/null || echo "unknown")
+if [ -d "$GIT_DIR" ] || [ -f "$GIT_DIR" ]; then
+  COMMIT_FULL=$(git --git-dir="$GIT_DIR" rev-parse HEAD 2>/dev/null || echo unknown)
+  COMMIT_DATE=$(git --git-dir="$GIT_DIR" log -1 --format='%ai' HEAD 2>/dev/null || echo unknown)
+else
+  COMMIT_FULL=$(git rev-parse HEAD 2>/dev/null || echo unknown)
+  COMMIT_DATE=$(git log -1 --format='%ai' "$COMMIT_FULL" 2>/dev/null || echo unknown)
+fi
 
-# Version from CHANGELOG.md — passed as STATUS_VERSION build ARG
-# (compose reads CHANGELOG.md and forwards it)
-VERSION="${STATUS_VERSION:-unknown}"
+# Version: explicit build ARG first (the SSH deploy supplies it); fall
+# back to reading the top line of CHANGELOG.md so a GitOps rebuild —
+# which never exports STATUS_VERSION — still bakes the right value.
+if [ -n "$STATUS_VERSION" ] && [ "$STATUS_VERSION" != "unknown" ]; then
+  VERSION="$STATUS_VERSION"
+else
+  VERSION="$(changelog_version)"
+fi
 
 # Build timestamp
 BUILT_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || echo "unknown")

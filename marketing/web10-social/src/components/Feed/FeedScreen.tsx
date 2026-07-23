@@ -28,6 +28,7 @@ import type {
 } from '@/data/types';
 import { Heart, MessageCircle, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { MARKETING_ORIGIN } from '@/lib/origins';
 
 function formatTimeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -317,7 +318,7 @@ function FeedEmptyState() {
         <button
           data-testid="feed-import-cta"
           className="text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
-          onClick={() => window.open('/exporters', '_blank')}
+          onClick={() => window.open(`${MARKETING_ORIGIN}/import`, '_blank', 'noopener,noreferrer')}
         >
           import your existing posts
         </button>

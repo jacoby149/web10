@@ -1,32 +1,102 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Zap } from 'lucide-react';
-import { PostCard, SkeletonCard, fetchDiscoverFeed, mapDiscoveryToFeedPost, formatCount, parseCount } from '../components/FeedPreview';
-import type { FeedPost } from '../components/FeedPreview';
-import { trackFunnel } from '../lib/analytics';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Zap, ArrowUpRight, MessageCircleOff } from 'lucide-react';
+import {
+  TrendingCard,
+  TrendingSkeleton,
+  fetchDiscoverFeed,
+  mapDiscoveryToFeedPost,
+  formatCount,
+  parseCount,
+} from '@/components/FeedPreview';
+import type { FeedPost } from '@/components/FeedPreview';
+import { TrendingSidebar } from '@/components/TrendingSidebar';
+import { SOCIAL_ORIGIN } from '@/lib/origins';
+import { trackFunnel } from '@/lib/analytics';
+
+const INITIAL_PAGE = 20;
+const PAGE_STEP = 20;
+const MAX_RESULTS = 100;
+
+interface RankedPost extends FeedPost {
+  rank: number;
+  featured: boolean;
+}
+
+function buildTopic(allTags: string[]): string[] {
+  const unique = Array.from(new Set(allTags)).sort();
+  return unique.slice(0, 12);
+}
 
 function Trending() {
-  const [posts, setPosts] = useState<FeedPost[]>([]);
+  const [allPosts, setAllPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [limit, setLimit] = useState(INITIAL_PAGE);
+  const [hasMore, setHasMore] = useState(true);
+  const [topic, setTopic] = useState<string>('All');
+  const cardRefs = useRef<Map<string, HTMLElement>>(new Map());
 
-  const loadFeed = useCallback(async () => {
-    setLoading(true);
+  const loadFeed = useCallback(async (nextLimit: number, append: boolean) => {
+    if (append) setLoadingMore(true); else setLoading(true);
     try {
-      const results = await fetchDiscoverFeed('trending', 20);
-      setPosts(results.map(mapDiscoveryToFeedPost));
+      const results = await fetchDiscoverFeed('trending', nextLimit);
+      const posts = results.map(mapDiscoveryToFeedPost);
+      setAllPosts(posts);
+      setHasMore(posts.length === nextLimit && nextLimit < MAX_RESULTS);
     } catch {
-      setPosts([]);
+      setAllPosts([]);
+      setHasMore(false);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   }, []);
 
   useEffect(() => {
-    loadFeed();
+    loadFeed(INITIAL_PAGE, false);
     trackFunnel('trending_view');
   }, [loadFeed]);
 
+  const maxScore = useMemo(
+    () => Math.max(1, ...allPosts.map(p => p.engagementScore ?? 0)),
+    [allPosts],
+  );
+
+  const topics = useMemo(
+    () => ['All', ...buildTopic(allPosts.flatMap(p => p.tags ?? []))],
+    [allPosts],
+  );
+
+  const ranked: RankedPost[] = useMemo(
+    () =>
+      allPosts.map((post, i) => ({
+        ...post,
+        rank: i + 1,
+        featured: i === 0,
+      })),
+    [allPosts],
+  );
+
+  const visible = useMemo(
+    () => (topic === 'All' ? ranked : ranked.filter(p => p.tags?.includes(topic) ?? false)),
+    [ranked, topic],
+  );
+
+  const scrollToCard = useCallback((postId: string) => {
+    const el = cardRefs.current.get(postId);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      (el as HTMLElement).focus?.();
+    }
+  }, []);
+
+  const registerCard = useCallback((id: string) => (el: HTMLElement | null) => {
+    if (el) cardRefs.current.set(id, el);
+    else cardRefs.current.delete(id);
+  }, []);
+
   const handleReaction = async (postId: string, type: 'like' | 'repost') => {
-    setPosts(prev => prev.map(p => {
+    setAllPosts(prev => prev.map(p => {
       if (p.id !== postId) return p;
       const countKey = type === 'like' ? 'likes' : 'reposts';
       const current = parseCount(p[countKey as 'likes' | 'reposts']);
@@ -35,40 +105,177 @@ function Trending() {
     }));
   };
 
+  const handleComment = useCallback(
+    () => trackFunnel('trending_comment_attempt'),
+    [],
+  );
+
+  const handleLoadMore = () => {
+    const next = Math.min(limit + PAGE_STEP, MAX_RESULTS);
+    setLimit(next);
+    trackFunnel('trending_load_more');
+    loadFeed(next, true);
+  };
+
+  const isInitialLoad = loading && allPosts.length === 0;
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-20 border-b border-border bg-surface/95 backdrop-blur-md">
-        <div className="mx-auto flex max-w-4xl items-center gap-3 px-4 py-4">
-          <Zap className="h-6 w-6 text-brand-400" strokeWidth={1.5} />
-          <h1 className="font-display text-2xl font-bold tracking-[-0.02em] text-foreground">
-            Trending
+      {/* Hero */}
+      <header className="border-b border-border bg-background px-4 pt-12 pb-8 sm:px-6">
+        <div className="mx-auto max-w-4xl">
+          <div className="flex items-center gap-2 text-brand-400">
+            <Zap className="h-5 w-5" strokeWidth={1.75} />
+            <span className="text-xs font-medium uppercase tracking-[0.08em]">
+              Trending
+            </span>
+          </div>
+          <h1 className="reveal mt-4 font-display text-4xl font-bold tracking-[-0.02em] text-foreground sm:text-5xl">
+            What&apos;s actually trending.
+            <br />
+            <span className="text-muted-foreground">No algorithm.</span>
           </h1>
-          <span className="text-sm text-muted-foreground">
-            across the network
-          </span>
+          <p className="reveal mt-4 max-w-xl text-muted-foreground [animation-delay:80ms]">
+            Live engagement across the network, ordered by real reactions —
+            not a recommender. Ranked, not curated.
+          </p>
         </div>
       </header>
 
-      {/* Feed */}
-      <main className="flex-1">
-        <div className="mx-auto max-w-2xl px-4 py-6">
-          <div className="flex flex-col gap-3">
-            {loading
-              ? Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)
-              : posts.length > 0
-                ? posts.map(post => (
-                    <PostCard
+      {/* Topic filter — sticky, horizontal scroll */}
+      <div
+        data-testid="trending-topics"
+        className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur-md"
+      >
+        <div className="mx-auto max-w-4xl px-4 sm:px-6">
+          <div
+            className="flex gap-2 overflow-x-auto py-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            role="tablist"
+            aria-label="Filter by topic"
+          >
+            {isInitialLoad
+              ? Array.from({ length: 6 }).map((_, i) => (
+                  <span key={i} className="h-7 w-16 shrink-0 animate-pulse rounded-full bg-elevated" />
+                ))
+              : topics.map(t => {
+                const active = t === topic;
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    data-testid="trending-topic"
+                    onClick={() => setTopic(t)}
+                    className={[
+                      'shrink-0 rounded-full border px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                      active
+                        ? 'border-brand bg-brand-muted text-brand-300'
+                        : 'border-border bg-surface text-muted-foreground hover:text-foreground',
+                    ].join(' ')}
+                  >
+                    {t === 'All' ? 'All' : `#${t}`}
+                  </button>
+                );
+              })}
+          </div>
+        </div>
+      </div>
+
+      {/* Body: grid + sidebar */}
+      <main className="flex-1 px-4 py-8 sm:px-6">
+        <div className="mx-auto flex max-w-6xl gap-8">
+          <div className="min-w-0 flex-1">
+            {isInitialLoad ? (
+              <div
+                data-testid="trending-grid-skeleton"
+                className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
+              >
+                <TrendingSkeleton featured />
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <TrendingSkeleton key={i} />
+                ))}
+              </div>
+            ) : visible.length > 0 ? (
+              <>
+                <div
+                  data-testid="trending-grid"
+                  className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
+                >
+                  {visible.map(post => (
+                    <TrendingCard
                       key={post.id}
                       post={post}
+                      rank={post.rank}
+                      featured={post.featured}
+                      maxScore={maxScore}
                       onLike={(id) => handleReaction(id, 'like')}
-                      onComment={() => {}}
+                      onComment={handleComment}
                       onRepost={(id) => handleReaction(id, 'repost')}
+                      cardRef={registerCard(post.id)}
                     />
-                  ))
-                : Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={`empty-${i}`} />)
-            }
+                  ))}
+                </div>
+                {loadingMore && (
+                  <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <TrendingSkeleton key={`more-${i}`} />
+                    ))}
+                  </div>
+                )}
+                {hasMore && !loadingMore && (
+                  <div className="mt-8 flex justify-center">
+                    <button
+                      type="button"
+                      onClick={handleLoadMore}
+                      data-testid="trending-load-more"
+                      className="rounded-full border border-brand bg-brand-muted px-6 py-2.5 text-sm font-medium text-brand-300 transition-colors hover:bg-brand hover:text-brand-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                    >
+                      Load more
+                    </button>
+                  </div>
+                )}
+                {!hasMore && allPosts.length > 0 && (
+                  <p className="mt-8 text-center text-sm text-muted-foreground">
+                    That&apos;s everything trending right now.
+                  </p>
+                )}
+              </>
+            ) : (
+              <div
+                data-testid="trending-empty"
+                className="mx-auto flex max-w-md flex-col items-center rounded-xl border border-dashed border-border bg-surface/50 px-6 py-16 text-center"
+              >
+                <MessageCircleOff className="h-10 w-10 text-muted-foreground" strokeWidth={1.5} />
+                <h2 className="mt-4 font-display text-xl font-semibold text-foreground">
+                  The network is quiet
+                </h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Nobody has posted yet. Be the first — a single post makes
+                  the whole thing start to move.
+                </p>
+                <a
+                  href={SOCIAL_ORIGIN}
+                  target="_blank"
+                  rel="noreferrer"
+                  data-testid="trending-empty-cta"
+                  className="mt-6 inline-flex items-center gap-1.5 rounded-full bg-brand px-5 py-2.5 text-sm font-medium text-brand-foreground transition-colors hover:bg-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                >
+                  Open web10 social
+                  <ArrowUpRight className="h-4 w-4" strokeWidth={1.75} />
+                </a>
+              </div>
+            )}
           </div>
+
+          {/* Sidebar — desktop only */}
+          <TrendingSidebar
+            entries={ranked
+              .filter(p => topic === 'All' || (p.tags?.includes(topic) ?? false))
+              .slice(0, 10)
+              .map(p => ({ post: p, rank: p.rank }))}
+            onSelect={scrollToCard}
+          />
         </div>
       </main>
     </div>

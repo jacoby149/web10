@@ -305,7 +305,7 @@ def update(user, service, query, update):
                 raise exceptions.DSTAR
     query = q_t(query, service)
     update = u_t(update)
-    doc = db[user].find_one_and_update(query, update, return_document=pymongo.RETURN_AFTER)
+    doc = db[user].find_one_and_update(query, update, return_document=pymongo.ReturnDocument.AFTER)
     if doc is None:
         return {"matchedCount": 0, "modifiedCount": 0}
     if pull:
@@ -919,7 +919,7 @@ def update_schema(schema_id: str, author: str, updates: dict) -> dict | None:
     return db["web10"][SCHEMAS_COLLECTION].find_one_and_update(
         {"_id": schema_id, "author": author},
         {"$set": updates},
-        return_document=pymongo.RETURN_AFTER,
+        return_document=pymongo.ReturnDocument.AFTER,
     )
 
 
@@ -995,7 +995,7 @@ def update_public_entry(entry_id: str, author: str, updates: dict) -> dict | Non
     return db["web10"][PUBLIC_COLLECTION].find_one_and_update(
         {"_id": entry_id, "author": author},
         {"$set": updates},
-        return_document=pymongo.RETURN_AFTER,
+        return_document=pymongo.ReturnDocument.AFTER,
     )
 
 

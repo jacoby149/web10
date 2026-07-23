@@ -46,6 +46,7 @@ import {
   getReactionCounts as dlGetReactionCounts,
   createWapiWrapper,
   resetWapi,
+  buildSocialServiceSirs,
   type FeedSort,
   type PostRecord,
   type MediaRecord,
@@ -212,97 +213,11 @@ const web10SocialAdapterInit = (): Web10SocialAdapter => {
     new Set(['localhost', 'social.web10.app', window.location.hostname]),
   );
 
-  const sirs = [
-    {
-      service: 'identity',
-      cross_origins: crossOrigins,
-      whitelist: [{ provider: '.*', username: '.*', read: true }],
-    },
-    {
-      service: 'bulletin',
-      cross_origins: crossOrigins,
-      provider: '.*',
-      username: '.*',
-      read: true,
-    },
-    {
-      service: 'contact-addresses',
-      cross_origins: crossOrigins,
-    },
-    {
-      service: 'message-inbox',
-      cross_origins: crossOrigins,
-      whitelist: [{ provider: '.*', username: '.*', create: true }],
-    },
-    {
-      service: 'message-outbox',
-      cross_origins: crossOrigins,
-    },
-    {
-      service: 'posts',
-      cross_origins: crossOrigins,
-      whitelist: [{ provider: '.*', username: '.*', read: true }],
-    },
-    // ── Phase 5.5: public / private post split ─────────────────────────
-    {
-      service: 'public_posts',
-      cross_origins: crossOrigins,
-      whitelist: [{ provider: '.*', username: '.*', read: true }], // anon whitelisted for discovery
-    },
-    {
-      service: 'private_posts',
-      cross_origins: crossOrigins,
-      // anon blocked — only token holders with explicit access
-    },
-    {
-      service: 'crm-contacts',
-      cross_origins: crossOrigins,
-    },
-    {
-      service: 'crm-notes',
-      cross_origins: crossOrigins,
-    },
-    {
-      service: 'mail',
-      cross_origins: crossOrigins,
-      whitelist: [{ username: '.*', provider: '.*', create: true }],
-    },
-    // ── D4: conventions-schema services ──────────────────────────────
-    {
-      service: 'profile',
-      cross_origins: crossOrigins,
-      whitelist: [{ provider: '.*', username: '.*', read: true }],
-    },
-    {
-      service: 'contacts',
-      cross_origins: crossOrigins,
-    },
-    {
-      service: 'inbox',
-      cross_origins: crossOrigins,
-      whitelist: [{ provider: '.*', username: '.*', create: true }],
-    },
-    {
-      service: 'comments',
-      cross_origins: crossOrigins,
-    },
-    {
-      service: 'reactions',
-      cross_origins: crossOrigins,
-    },
-    {
-      service: 'media',
-      cross_origins: crossOrigins,
-    },
-    {
-      service: 'follows',
-      cross_origins: crossOrigins,
-    },
-    {
-      service: 'dms',
-      cross_origins: crossOrigins,
-    },
-  ];
+  // Single source of truth: the sirs list lives in src/data/serviceTerms.ts
+  // (buildSocialServiceSirs) so the security invariants (which collections
+  // are owner-only vs anon-read) are unit-testable without booting the
+  // adapter. See D30 for the collection-as-security-boundary model.
+  const sirs = buildSocialServiceSirs(crossOrigins);
   adapter.SMROnReady(sirs, []);
 
   // ── Legacy adapter methods (unchanged, for backward compat) ────────
