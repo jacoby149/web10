@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { readProfile, saveProfile, readMyPosts, resolveMediaRefs, uploadMedia } from '@/data';
 import type { ProfileRecord, PostRecord, MediaRecord } from '@/data/types';
-import { MapPin, Globe, Link, Camera, Edit3, Check, X, ImagePlus } from 'lucide-react';
+import { MapPin, Globe, Link, Camera, Edit3, Check, X, ImagePlus, Loader2, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 function ProfileSkeleton() {
@@ -35,6 +35,8 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Partial<ProfileRecord>>({});
   const [activeTab, setActiveTab] = useState<'posts' | 'media'>('posts');
 
@@ -87,12 +89,23 @@ export default function ProfileScreen() {
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
-      const media = await uploadMedia({ file });
-      if (media._id) setMediaMap((prev) => ({ ...prev, [media._id!]: media }));
-      const updated = { ...(profile || {}), [field]: media._id || '' };
-      setDraft(updated);
-      const saved = await saveProfile(updated);
-      setProfile(saved);
+      setUploadError(null);
+      setUploading(true);
+      try {
+        const media = await uploadMedia({ file });
+        if (media._id) setMediaMap((prev) => ({ ...prev, [media._id!]: media }));
+        const updated = { ...(profile || {}), [field]: media._id || '' };
+        setDraft(updated);
+        const saved = await saveProfile(updated);
+        setProfile(saved);
+      } catch (err) {
+        console.error('Failed to upload image:', err);
+        setUploadError(
+          err instanceof Error ? err.message : 'Upload failed. Please try again.',
+        );
+      } finally {
+        setUploading(false);
+      }
     };
     input.click();
   }
@@ -122,6 +135,7 @@ export default function ProfileScreen() {
         )}
         <button
           onClick={() => handleUpload('banner_ref')}
+          disabled={uploading}
           aria-label="Change banner"
           data-testid="edit-banner-button"
           className="absolute bottom-2 right-2 flex items-center gap-1.5 px-2.5 h-9 rounded-lg bg-background/70 border border-border text-xs text-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity backdrop-blur-sm hover:border-brand/30 hover:bg-background/90"
@@ -151,9 +165,14 @@ export default function ProfileScreen() {
               className="absolute bottom-0 right-0 flex items-center justify-center h-7 w-7 rounded-full bg-background border border-border shadow-md opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity hover:border-brand/30"
               aria-label="Change avatar"
               data-testid="edit-avatar-button"
+              disabled={uploading}
               onClick={() => handleUpload('avatar_ref')}
             >
-              <Camera className="w-3.5 h-3.5 text-foreground" />
+              {uploading ? (
+                <Loader2 className="w-3.5 h-3.5 text-foreground animate-spin" />
+              ) : (
+                <Camera className="w-3.5 h-3.5 text-foreground" />
+              )}
             </button>
           </div>
           {!editing && (
@@ -169,6 +188,17 @@ export default function ProfileScreen() {
             </Button>
           )}
         </div>
+
+        {uploadError && (
+          <div
+            className="mt-3 flex items-center gap-2 text-sm text-danger"
+            role="alert"
+            data-testid="profile-upload-error"
+          >
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            {uploadError}
+          </div>
+        )}
 
         <div className="mt-3">
           {editing ? (

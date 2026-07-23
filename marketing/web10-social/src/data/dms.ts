@@ -21,29 +21,33 @@ export function conversationKey(
 }
 
 /**
- * Build a query that matches all messages between two users
- * regardless of who sent them.
+ * Build the two flat, single-direction queries that together match every
+ * message between two users.
+ *
+ * A single `{ $or: [...] }` filter CANNOT be used here: the node's query
+ * translator (api `q_t`) drops any top-level `$`-prefixed key, so an `$or`
+ * filter is silently ignored and the read returns every DM in the
+ * collection regardless of peer — which made every conversation render the
+ * same merged thread. Two flat equality queries survive translation.
  */
-function conversationQuery(
+function conversationQueries(
   me: { provider: string; username: string },
   them: { provider: string; username: string },
-): Record<string, unknown> {
-  return {
-    $or: [
-      {
-        sender_username: me.username,
-        sender_provider: me.provider,
-        recipient_username: them.username,
-        recipient_provider: them.provider,
-      },
-      {
-        sender_username: them.username,
-        sender_provider: them.provider,
-        recipient_username: me.username,
-        recipient_provider: me.provider,
-      },
-    ],
-  };
+): Record<string, unknown>[] {
+  return [
+    {
+      sender_username: me.username,
+      sender_provider: me.provider,
+      recipient_username: them.username,
+      recipient_provider: them.provider,
+    },
+    {
+      sender_username: them.username,
+      sender_provider: them.provider,
+      recipient_username: me.username,
+      recipient_provider: me.provider,
+    },
+  ];
 }
 
 // ── Legacy migration ────────────────────────────────────────────────────────
@@ -129,8 +133,10 @@ export async function readDms(conversation: string): Promise<DmRecord[]> {
   const themKey = parts.find((p) => p !== meKey) || parts[0];
   const them = parseWeb10(themKey);
 
-  const records = await wapi.read<DmRecord>('dms', conversationQuery(me, them));
-  return records.sort(
+  const [outgoing, incoming] = await Promise.all(
+    conversationQueries(me, them).map((q) => wapi.read<DmRecord>('dms', q)),
+  );
+  return [...outgoing, ...incoming].sort(
     (a, b) => new Date(a.sent_at).getTime() - new Date(b.sent_at).getTime(),
   );
 }
@@ -188,12 +194,10 @@ export async function listConversations(): Promise<string[]> {
   const conversations = new Set<string>();
 
   // First: check if dms service has any records. If empty, migrate legacy.
-  const existingDms = await wapi.read<DmRecord>('dms', {
-    $or: [
-      { sender_username: me.username, sender_provider: me.provider },
-      { recipient_username: me.username, recipient_provider: me.provider },
-    ],
-  });
+  // Every DM in the caller's own collection already involves the caller, so
+  // an unfiltered read IS "all my DMs" — no `$or` needed (and `$or` would be
+  // dropped by the node's query translator anyway; see conversationQueries).
+  const existingDms = await wapi.read<DmRecord>('dms', {});
 
   if (!existingDms.length) {
     await migrateLegacyMessages(wapi, me);
@@ -207,12 +211,7 @@ export async function listConversations(): Promise<string[]> {
 
   // Also discover conversations from migrated messages (in case sender
   // was not in contacts)
-  const allDms = await wapi.read<DmRecord>('dms', {
-    $or: [
-      { sender_username: me.username, sender_provider: me.provider },
-      { recipient_username: me.username, recipient_provider: me.provider },
-    ],
-  });
+  const allDms = await wapi.read<DmRecord>('dms', {});
   for (const dm of allDms) {
     const other =
       dm.sender_username === me.username

@@ -17,6 +17,7 @@ function mockWapi() {
     delete: vi.fn(),
     aggregate: vi.fn(),
     getUploadUrl: vi.fn(),
+    confirmUpload: vi.fn(),
     initP2P: vi.fn(),
     sendP2P: vi.fn(),
   };
@@ -58,16 +59,21 @@ describe('posts data layer', () => {
   });
 
   describe('readMyPosts', () => {
-    it('reads all posts for the current user', async () => {
-      const postsList = [
-        { _id: 'p1', text: 'first', created_at: '2026-07-18T00:00:00Z' },
-        { _id: 'p2', text: 'second', created_at: '2026-07-17T00:00:00Z' },
-      ];
-      mock.read.mockResolvedValue(postsList);
+    it('unions legacy `posts`, `public_posts` and `private_posts`', async () => {
+      // Regression: the composer writes to public_posts/private_posts, so a
+      // wall that read only `posts` dropped every newly composed post.
+      const byService: Record<string, unknown[]> = {
+        posts: [{ _id: 'p1', text: 'legacy', created_at: '2026-07-18T00:00:00Z' }],
+        public_posts: [{ _id: 'p2', text: 'public', created_at: '2026-07-19T00:00:00Z' }],
+        private_posts: [{ _id: 'p3', text: 'private', created_at: '2026-07-20T00:00:00Z' }],
+      };
+      mock.read.mockImplementation((service: string) => Promise.resolve(byService[service] || []));
 
       const result = await posts.readMyPosts();
       expect(mock.read).toHaveBeenCalledWith('posts');
-      expect(result).toEqual(postsList);
+      expect(mock.read).toHaveBeenCalledWith('public_posts');
+      expect(mock.read).toHaveBeenCalledWith('private_posts');
+      expect(result.map((p) => p._id)).toEqual(['p1', 'p2', 'p3']);
     });
 
     it('adapts legacy posts (html/media/time → text/media_refs/created_at)', async () => {
@@ -77,9 +83,11 @@ describe('posts data layer', () => {
       const migratedPosts = [
         { _id: 'lp1', text: 'Hello world', media_refs: ['http://img1.jpg'], created_at: '2025-06-01T00:00:00Z' },
       ];
-      mock.read.mockResolvedValueOnce(legacyPosts);
+      mock.read.mockResolvedValueOnce(legacyPosts); // read('posts') — detects legacy
       mock.update.mockResolvedValueOnce(legacyPosts[0]);
-      mock.read.mockResolvedValueOnce(migratedPosts);
+      mock.read.mockResolvedValueOnce(migratedPosts); // re-read('posts') after migration
+      mock.read.mockResolvedValueOnce([]); // public_posts
+      mock.read.mockResolvedValueOnce([]); // private_posts
 
       const result = await posts.readMyPosts();
       expect(mock.update).toHaveBeenCalledWith('posts', { _id: 'lp1' }, expect.objectContaining({
@@ -89,6 +97,38 @@ describe('posts data layer', () => {
         }),
       }));
       expect(result).toEqual(migratedPosts);
+    });
+  });
+
+  describe('uploadMedia', () => {
+    // Regression: confirm previously read the raw JWT off the wrapper
+    // (`wapi.token`, which is undefined), sending `token: undefined` and
+    // failing auth — breaking profile pictures and image posts. It must go
+    // through the wrapper's confirmUpload, keyed on the server objectKey.
+    it('uploads then confirms via the wrapper using the objectKey', async () => {
+      const file = new File(['x'], 'pic.png', { type: 'image/png' });
+      mock.getUploadUrl.mockResolvedValue({
+        uploadUrl: 'https://s3.local/bucket',
+        fields: { key: 'alice/abc/pic.png' },
+        objectKey: 'alice/abc/pic.png',
+        contentType: 'image/png',
+      });
+      mock.confirmUpload.mockResolvedValue({ _id: 'm1', url: 'https://s3.local/bucket/alice/abc/pic.png' });
+
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+      vi.stubGlobal('fetch', fetchMock);
+
+      const result = await posts.uploadMedia({ file });
+
+      expect(mock.confirmUpload).toHaveBeenCalledWith({
+        url: 'https://s3.local/bucket/alice/abc/pic.png',
+        filename: 'pic.png',
+        mimeType: 'image/png',
+        sizeBytes: file.size,
+      });
+      expect(result._id).toBe('m1');
+
+      vi.unstubAllGlobals();
     });
   });
 
