@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.stubGlobal('fetch', mocks.mockFetch)
 
-import { decodeJwt, readTokenCookie, setTokenCookie, scrubTokenCookie } from './token'
+import { decodeJwt, readTokenCookie, setTokenCookie, scrubTokenCookie, isTokenExpired } from './token'
 import { createClient, type Web10Client } from './client'
 import { Web10Error } from './http'
 
@@ -89,6 +89,23 @@ describe('token utilities', () => {
     it('scrubTokenCookie sets max-age=-1', () => {
       setTokenCookie('test-token')
       expect(() => scrubTokenCookie()).not.toThrow()
+    })
+  })
+
+  describe('isTokenExpired', () => {
+    it('is true for a token whose ISO `expires` is in the past', () => {
+      const jwt = makeJwt({ username: 'alice', expires: '2000-01-01T00:00:00' })
+      expect(isTokenExpired(jwt)).toBe(true)
+    })
+
+    it('is false for a token whose ISO `expires` is in the future', () => {
+      const jwt = makeJwt({ username: 'alice', expires: '2999-01-01T00:00:00' })
+      expect(isTokenExpired(jwt)).toBe(false)
+    })
+
+    it('is false when there is no expiry or no token', () => {
+      expect(isTokenExpired(makeJwt({ username: 'alice' }))).toBe(false)
+      expect(isTokenExpired(null)).toBe(false)
     })
   })
 })
@@ -262,6 +279,22 @@ describe('CRUD HTTP calls', () => {
       }),
     )
     expect(result).toHaveLength(1)
+  })
+
+  it('routes to the given provider node when addressing another user', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => [{ service: 'posts', body: { text: 'hi' } }],
+    })
+    const w = createClient({ authUrl: 'https://auth.example.com', appStores: [] })
+    w.setToken(jwt)
+    // Read bob@api.othernode.com — the request must hit othernode, not the
+    // caller's own apiOrigin.
+    await w.read('posts', null, 'bob', 'api.othernode.com')
+    expect(mockFetch).toHaveBeenCalledWith(
+      'https://api.othernode.com/bob/posts',
+      expect.objectContaining({ method: 'PATCH' }),
+    )
   })
 
   it('create calls fetch with POST', async () => {
@@ -467,7 +500,7 @@ describe('auth flow', () => {
     const cb = vi.fn()
     w.authListen(cb)
     window.dispatchEvent(
-      new MessageEvent('message', { data: { type: 'auth', token: 'received-jwt' } }),
+      new MessageEvent('message', { origin: 'https://auth.example.com', data: { type: 'auth', token: 'received-jwt' } }),
     )
     expect(cb).toHaveBeenCalledWith(true)
   })
@@ -477,9 +510,20 @@ describe('auth flow', () => {
     const cb = vi.fn()
     w.authListen(cb)
     window.dispatchEvent(
-      new MessageEvent('message', { data: { type: 'other', data: 'x' } }),
+      new MessageEvent('message', { origin: 'https://auth.example.com', data: { type: 'other', data: 'x' } }),
     )
     expect(cb).not.toHaveBeenCalled()
+  })
+
+  it('authListen ignores auth messages from a foreign origin', () => {
+    const w = createClient({ authUrl: 'https://auth.example.com', appStores: [] })
+    const cb = vi.fn()
+    w.authListen(cb)
+    window.dispatchEvent(
+      new MessageEvent('message', { origin: 'https://evil.example.com', data: { type: 'auth', token: 'attacker-jwt' } }),
+    )
+    expect(cb).not.toHaveBeenCalled()
+    expect(w.state.token).toBeNull()
   })
 
   it('openAuthPortal opens auth URL', () => {
@@ -494,10 +538,26 @@ describe('auth flow', () => {
     const w = createClient({ authUrl: 'https://auth.example.com', appStores: [] })
     const loginPromise = w.login()
     window.dispatchEvent(
-      new MessageEvent('message', { data: { type: 'auth', token: 'new-jwt' } }),
+      new MessageEvent('message', { origin: 'https://auth.example.com', data: { type: 'auth', token: 'new-jwt' } }),
     )
     await loginPromise
     expect(w.state.token).toBe('new-jwt')
+  })
+
+  it('login ignores auth messages from a foreign origin', async () => {
+    vi.spyOn(window, 'open').mockReturnValue({} as unknown as Window)
+    const w = createClient({ authUrl: 'https://auth.example.com', appStores: [] })
+    const loginPromise = w.login()
+    // A malicious opener tries to fixate a token — must be ignored.
+    window.dispatchEvent(
+      new MessageEvent('message', { origin: 'https://evil.example.com', data: { type: 'auth', token: 'attacker-jwt' } }),
+    )
+    // The real authenticator then completes the flow.
+    window.dispatchEvent(
+      new MessageEvent('message', { origin: 'https://auth.example.com', data: { type: 'auth', token: 'real-jwt' } }),
+    )
+    await loginPromise
+    expect(w.state.token).toBe('real-jwt')
   })
 })
 
@@ -517,8 +577,18 @@ describe('SMR helpers', () => {
     const cb = vi.fn()
     w.smrResponseListen(cb)
     window.dispatchEvent(
-      new MessageEvent('message', { data: { type: 'status', status: 'approved' } }),
+      new MessageEvent('message', { origin: 'https://auth.example.com', data: { type: 'status', status: 'approved' } }),
     )
     expect(cb).toHaveBeenCalledWith('approved')
+  })
+
+  it('smrResponseListen ignores status messages from a foreign origin', () => {
+    const w = createClient({ authUrl: 'https://auth.example.com', appStores: [] })
+    const cb = vi.fn()
+    w.smrResponseListen(cb)
+    window.dispatchEvent(
+      new MessageEvent('message', { origin: 'https://evil.example.com', data: { type: 'status', status: 'approved' } }),
+    )
+    expect(cb).not.toHaveBeenCalled()
   })
 })

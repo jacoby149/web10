@@ -74,12 +74,14 @@ export interface TokenPayload {
   site: string
   /** Target provider (for tiered tokens) */
   target?: string
-  /** Provider domain that minted this token */
+  /** Provider domain that minted this token (== the API host to address) */
   provider: string
-  /** Expiration timestamp (seconds) */
-  exp?: number
-  /** Issued-at timestamp (seconds) */
-  iat?: number
+  /**
+   * Expiration as an ISO-8601 timestamp. This is the claim the web10
+   * server actually sets (`api/app/models/auth.py`); there is no numeric
+   * `exp`. `isTokenExpired()` reads this.
+   */
+  expires?: string
   /** Token type hint */
   type?: string
 }

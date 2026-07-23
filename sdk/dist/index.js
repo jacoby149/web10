@@ -32,7 +32,7 @@ function setTokenCookie(token, maxAgeDays = 60) {
     return;
   const age = 3600 * 24 * maxAgeDays;
   const secure = typeof location !== "undefined" && location.protocol === "https:" ? "Secure;" : "";
-  document.cookie = `token=${token};${secure}path=/;max-age=${age};`;
+  document.cookie = `token=${token};${secure}path=/;max-age=${age};SameSite=Lax;`;
 }
 function scrubTokenCookie() {
   if (typeof document === "undefined")
@@ -53,9 +53,12 @@ function decodeJwt(token) {
 }
 function isTokenExpired(token) {
   const payload = decodeJwt(token);
-  if (!payload || !payload.exp)
+  if (!payload || !payload.expires)
     return false;
-  return Date.now() >= payload.exp * 1000;
+  const expiresMs = Date.parse(payload.expires);
+  if (Number.isNaN(expiresMs))
+    return false;
+  return Date.now() >= expiresMs;
 }
 
 // src/http.ts
@@ -106,6 +109,7 @@ function createClient(options = {}) {
   const authUrl = options.authUrl ?? "https://auth.web10.app";
   const protocol = new URL(authUrl).protocol;
   const apiOrigin = options.apiOrigin ?? `${protocol}//api.web10.app`;
+  const authOrigin = new URL(authUrl).origin;
   const rtcServer = options.rtcServer ?? "rtc.web10.app";
   const appStores = options.appStores ?? ["https://api.web10.app"];
   const state = {
@@ -149,6 +153,8 @@ function createClient(options = {}) {
         }
         this.openAuthPortal();
         const handler = (e) => {
+          if (e.origin !== authOrigin)
+            return;
           if (e.data?.type === "auth") {
             if (e.data.token) {
               this.setToken(e.data.token);
@@ -170,6 +176,8 @@ function createClient(options = {}) {
       if (typeof window === "undefined")
         return;
       window.addEventListener("message", (e) => {
+        if (e.origin !== authOrigin)
+          return;
         if (e.data?.type === "auth") {
           if (e.data.token) {
             this.setToken(e.data.token);
@@ -182,33 +190,33 @@ function createClient(options = {}) {
     },
     read(service, query, username, provider) {
       guardAuth(state, username);
-      const p = resolveProvider(state, provider);
       const u = resolveUsername(state, username);
-      return patch(`${apiOrigin}/${u}/${service}`, { token: state.token, query: query ?? null, update: null });
+      const base = originFor(state, provider);
+      return patch(`${base}/${u}/${service}`, { token: state.token, query: query ?? null, update: null });
     },
     create(service, body, username, provider) {
       guardAuth(state, username);
-      const p = resolveProvider(state, provider);
       const u = resolveUsername(state, username);
-      return post(`${apiOrigin}/${u}/${service}`, { token: state.token, query: body ?? null, update: null });
+      const base = originFor(state, provider);
+      return post(`${base}/${u}/${service}`, { token: state.token, query: body ?? null, update: null });
     },
     update(service, query, update, username, provider) {
       guardAuth(state, username);
-      const p = resolveProvider(state, provider);
       const u = resolveUsername(state, username);
-      return put(`${apiOrigin}/${u}/${service}`, { token: state.token, query: query ?? null, update: update ?? null });
+      const base = originFor(state, provider);
+      return put(`${base}/${u}/${service}`, { token: state.token, query: query ?? null, update: update ?? null });
     },
     deleteRecord(service, query, username, provider) {
       guardAuth(state, username);
-      const p = resolveProvider(state, provider);
       const u = resolveUsername(state, username);
-      return del(`${apiOrigin}/${u}/${service}`, { token: state.token, query: query ?? null, update: null });
+      const base = originFor(state, provider);
+      return del(`${base}/${u}/${service}`, { token: state.token, query: query ?? null, update: null });
     },
     aggregate(service, pipeline = [], username, provider) {
       guardAuth(state, username);
-      const p = resolveProvider(state, provider);
       const u = resolveUsername(state, username);
-      return aggregate(`${apiOrigin}/${u}/${service}/aggregate`, { token: state.token, pipeline });
+      const base = originFor(state, provider);
+      return aggregate(`${base}/${u}/${service}/aggregate`, { token: state.token, pipeline });
     },
     getTieredToken(site, target) {
       const token = this.readToken();
@@ -226,8 +234,10 @@ function createClient(options = {}) {
       if (typeof window === "undefined")
         return;
       window.addEventListener("message", (e) => {
+        if (e.origin !== authOrigin)
+          return;
         if (e.data?.type === "SMRListen" && e.source instanceof Window) {
-          e.source.postMessage({ type: "smr", sirs, scrs }, "*");
+          e.source.postMessage({ type: "smr", sirs, scrs }, authOrigin);
         }
       });
     },
@@ -235,6 +245,8 @@ function createClient(options = {}) {
       if (typeof window === "undefined")
         return;
       window.addEventListener("message", (e) => {
+        if (e.origin !== authOrigin)
+          return;
         if (e.data?.type === "status") {
           setStatus(e.data.status);
         }
@@ -300,13 +312,11 @@ function guardAuth(state, username) {
     throw new Error("No token available. Call login() or setToken() first.");
   }
 }
-function resolveProvider(state, provider) {
-  if (provider)
-    return provider;
-  const token = decodeJwt(state.token);
-  if (!token?.provider)
-    throw new Error("No provider in token");
-  return token.provider;
+function originFor(state, provider) {
+  if (!provider)
+    return state.apiOrigin;
+  const protocol = new URL(state.apiOrigin).protocol;
+  return `${protocol}//${provider}`;
 }
 function resolveUsername(state, username) {
   if (username)
@@ -321,6 +331,15 @@ function createAuthConnector(wapi) {
   let oAuthToken = null;
   const api = () => {
     return wapi.state.apiOrigin;
+  };
+  const openerOrigin = () => {
+    if (typeof document === "undefined" || !document.referrer)
+      return null;
+    try {
+      return new URL(document.referrer).origin;
+    } catch {
+      return null;
+    }
   };
   const connector = {
     get oAuthToken() {
@@ -350,7 +369,10 @@ function createAuthConnector(wapi) {
     sendToken() {
       if (typeof window === "undefined" || !window.opener)
         return;
-      window.opener.postMessage({ type: "auth", token: oAuthToken }, "*");
+      const target = openerOrigin();
+      if (!target)
+        return;
+      window.opener.postMessage({ type: "auth", token: oAuthToken }, target);
       window.close();
     },
     async logIn(params) {
@@ -376,12 +398,17 @@ function createAuthConnector(wapi) {
     smrListen(setState) {
       if (typeof window === "undefined" || !window.opener)
         return;
+      const target = openerOrigin();
+      if (!target)
+        return;
       window.addEventListener("message", (e) => {
+        if (e.origin !== target)
+          return;
         if (e.data?.type === "smr") {
           setState(e.data);
         }
       });
-      window.opener.postMessage({ type: "SMRListen" }, "*");
+      window.opener.postMessage({ type: "SMRListen" }, target);
     },
     async changePassword(currentPassword, newPassword) {
       const token = wapi.readToken();
@@ -469,9 +496,12 @@ function wapiInit(authUrl = "https://auth.web10.app", appStores = ["https://api.
     SMROnReady: (sirs, scrs) => {
       if (typeof window === "undefined")
         return;
+      const authOrigin = new URL(authUrl).origin;
       window.addEventListener("message", (e) => {
+        if (e.origin !== authOrigin)
+          return;
         if (e.data?.type === "SMRListen" && childWindow) {
-          childWindow.postMessage({ type: "smr", sirs, scrs }, "*");
+          childWindow.postMessage({ type: "smr", sirs, scrs }, authOrigin);
         }
       });
     },
