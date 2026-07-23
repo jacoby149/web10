@@ -73,3 +73,44 @@ class TestS3ClientConfig:
             "except TypeError:\n"
             "    pass"
         )
+
+
+class TestPresignedPostPolicy:
+    """Regression for the prod upload 403 (CHANGELOG 1.0.134).
+
+    Bug 3: `request_upload_url` passed Content-Type in `Fields` but not in
+    `Conditions`. boto3 does NOT mirror Fields into the signed policy, and
+    S3/minio reject any form field the policy doesn't cover — so every
+    upload came back `403 AccessDenied ("Content-Type" not specified in
+    the policy)`. Mocked tests were blind to it: the policy check happens
+    server-side in minio, not in the client library.
+    """
+
+    def test_source_mirrors_fields_in_conditions(self):
+        src = (_APP / "endpoints" / "media.py").read_text()
+        call = re.search(r"generate_presigned_post\((.*?)\n    \)", src, re.DOTALL)
+        assert call is not None, "request_upload_url must presign via generate_presigned_post"
+        block = call.group(1)
+        assert 'Fields={"Content-Type": content_type}' in block
+        assert "Conditions" in block
+        assert '{"Content-Type": content_type}' in block.split("Conditions")[1], (
+            "every Fields entry must also appear in Conditions — S3/minio 403 "
+            "any form field the signed policy doesn't cover"
+        )
+
+    def test_real_boto3_does_not_mirror_fields_into_policy(self):
+        # Presigning is offline — no network. Proves the contract the fix
+        # relies on: Fields NOT repeated in Conditions are absent from the
+        # signed policy (and would therefore be rejected server-side).
+        _real_contract(
+            "import base64, json, boto3\n"
+            "c = boto3.client('s3', aws_access_key_id='k', aws_secret_access_key='s',\n"
+            "                 region_name='us-east-1', endpoint_url='http://localhost:9000')\n"
+            "p = c.generate_presigned_post('b', 'o', Fields={'Content-Type': 'image/png'},\n"
+            "                              Conditions=[['content-length-range', 0, 10]])\n"
+            "policy = json.loads(base64.b64decode(p['fields']['policy']))\n"
+            "mirrored = any(isinstance(cond, dict) and 'Content-Type' in cond\n"
+            "               for cond in policy['conditions'])\n"
+            "assert not mirrored, 'boto3 now mirrors Fields into Conditions — simplify the fix'\n"
+            "assert p['fields']['Content-Type'] == 'image/png'"
+        )
