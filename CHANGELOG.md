@@ -1,5 +1,7 @@
 1.0.111 || 23.07.2026
 Marketing navbar: added GitHub icon to the star button so it's visually clear it links to the GitHub repo.
+Fix deploy health check: `docker ps --filter status=unhealthy` is an invalid filter (Docker states are created/running/paused/restarting/removing/exited/dead — health is a separate field). This caused the stability loop to always exit on the first iteration with "All containers stable" regardless of actual container health. Both deploy jobs now use `docker inspect` to read `State.Health.Status` per container, then grep for unhealthy. Containers without a healthcheck return "none".
+
 1.0.110 || 23.07.2026
 Changes tab in Settings: the Settings page now has an Account + Changes tab bar. The Changes tab fetches `CHANGELOG.md` (served from the UI's public directory via a symlink in `ui/public/` that Docker `COPY` follows at build time) and renders the last 50 entries as versioned cards with version badges, dates, and descriptions. Parser handles the `version || DD.MM.YYYY` header format, skipping blank lines and deduplicating body text.
 Social app empty states: feed, DMs, and profile screens no longer replace the entire view with a prominent "Import Your Instagram" CTA when empty. Feed keeps its header, sort dropdown, and composer visible with a muted text note and small inline import link. DMs keeps the "Messages" header. Profile shows the full UI (banner, edit, stats, tabs) so users can set up immediately. Import is now a secondary option, not the only path. 222 tests green.
