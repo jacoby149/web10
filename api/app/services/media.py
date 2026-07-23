@@ -16,9 +16,11 @@ def get_s3_client():
         aws_access_key_id=settings.S3_ACCESS_KEY,
         aws_secret_access_key=settings.S3_SECRET_KEY,
         region_name=settings.S3_REGION,
+        # use_ssl is a boto3.client() kwarg, NOT a botocore Config kwarg —
+        # Config(use_ssl=...) raises TypeError and 500s every upload.
+        use_ssl=settings.S3_USE_SSL,
         config=Config(
             signature_version="s3v4",
-            use_ssl=settings.S3_USE_SSL,
         ),
     )
 

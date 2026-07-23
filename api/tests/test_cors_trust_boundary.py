@@ -146,6 +146,31 @@ class TestErrorResponsesHaveCors:
         assert resp.status_code == 422
         assert resp.headers.get("access-control-allow-origin") == "*"
 
+    def test_unhandled_exception_self_reports(self):
+        """An unmapped exception's 500 body carries type + detail + error_id.
+
+        The profile-upload outage (CHANGELOG 1.0.128) was two unhandled
+        exceptions that both collapsed to an identical opaque
+        `{"message": "internal server error"}`, forcing an SSH into the box to
+        read the traceback. The handler now surfaces the exception class and
+        message (safe — the code is open source) plus a correlation id, so a
+        future 500 is diagnosable from the browser console. The full traceback
+        stays server-side only.
+        """
+        client = TestClient(fastapi_app, raise_server_exceptions=False)
+        with patch("app.endpoints.crud.is_permitted", side_effect=RuntimeError("boom")):
+            resp = client.put(
+                "/owner/myservice",
+                json={"token": None, "query": {}, "update": {"$set": {"x": 1}}},
+                headers={"Origin": "https://social.web10.app"},
+            )
+        assert resp.status_code == 500
+        assert resp.headers.get("access-control-allow-origin") == "*"
+        body = resp.json()
+        assert body["error"] == "RuntimeError"
+        assert body["detail"] == "boom"
+        assert body["error_id"] and len(body["error_id"]) == 12
+
 
 # ---------------------------------------------------------------------------
 # (b) CORS_SERVICE_MANAGERS gates the is_permitted cross-origin bypass
