@@ -742,8 +742,11 @@ opens on his phone, in front of someone, and is proud of?" (D29)
           a phone; write the honest fail list to .context/gauntlet.md;
           fix in order of demo impact. lane D owns app fixes, lane A
           owns api fixes, lane B owns the auth/consent seam.
-  ws-G2: keep the personas alive (persona-orchestration/) so feed +
-         trending never demo empty.
+  [✓ 1.0.145] ws-G2: keep the personas alive (persona-orchestration/) so feed +
+         trending never demo empty. Seed script is now idempotent
+         (read-before-write on every create; stable origin_id on posts +
+         DMs; --cleanup removes dups from prior buggy runs; --verify reports
+         state without writing). 2 new posts/persona + 4 reply DMs added.
   ws-G3: encode each passing gauntlet step as a playwright journey
          in e2e/ (lane C — this is C6 continued, NOT C2).
   then: low-hanging fruit by demo impact — realtime feed refresh,
