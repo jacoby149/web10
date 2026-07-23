@@ -51,14 +51,30 @@ class FunnelEvent(str, Enum):
     DOCS_VIEW = "docs_view"
     APP_STORE_VIEW = "app_store_view"
     EXPORTER_VIEW = "exporter_view"
+    TRENDING_VIEW = "trending_view"
     EXPORT_STARTED = "export_started"
     EXPORT_COMPLETE = "export_complete"
     SIGN_IN_CLICK = "sign_in_click"
+    SIGN_UP_CLICK = "sign_up_click"
+    GITHUB_CLICK = "github_click"
+    ENTER_CLICK = "enter_click"
 
 
 class FunnelEventCreate(BaseModel):
     event: FunnelEvent
     metadata: dict = Field(default_factory=dict)
+
+
+class JsErrorReport(BaseModel):
+    """Client-side JS error beacon — no content, no PII."""
+
+    message: str = Field(..., max_length=2000, description="Error message or stack snippet")
+    source: Optional[str] = Field(None, max_length=500, description="Script filename or URL")
+    line: Optional[int] = None
+    column: Optional[int] = None
+    app: str = Field(..., description="App name: marketing-ui, web10-social, ui")
+    route: str = Field(..., description="Current URL path")
+    user_agent: Optional[str] = Field(None, max_length=500)
 
 
 class FeedbackCreate(BaseModel):
