@@ -79,6 +79,23 @@ _EXCEPTION_MAP = {
 }
 
 
+# A handler registered for the base Exception is installed by Starlette in the
+# outermost ServerErrorMiddleware, which WRAPS the CORSMiddleware added above —
+# so responses produced by `bare_exception_handler` never pass back through CORS
+# and ship WITHOUT `Access-Control-Allow-Origin`. To a browser that reads as a
+# CORS failure ("No 'Access-Control-Allow-Origin' header is present"), masking
+# every real error — e.g. an expired token, where services raise a bare
+# `Exception("TOKEN")` — as an opaque "Failed to fetch". CORS is wildcard +
+# credential-less (see above), so we stamp the header on every handler response
+# ourselves; for handlers that DO run inside CORSMiddleware (PyJWTError,
+# RequestValidationError) the middleware simply overwrites it with the same
+# value, so this is safe and idempotent.
+def _with_cors(headers: dict | None = None) -> dict:
+    merged = dict(headers or {})
+    merged["access-control-allow-origin"] = "*"
+    return merged
+
+
 def _mapped_response(exc: Exception):
     args = exc.args
     if args and isinstance(args[0], str) and args[0] in _EXCEPTION_MAP:
@@ -86,7 +103,7 @@ def _mapped_response(exc: Exception):
         return JSONResponse(
             status_code=mapped.status_code,
             content={"detail": mapped.detail},
-            headers=mapped.headers,
+            headers=_with_cors(mapped.headers),
         )
     return None
 
@@ -97,7 +114,7 @@ async def jwt_error_handler(request: Request, exc: jwt.exceptions.PyJWTError):
     return JSONResponse(
         status_code=exceptions.TOKEN.status_code,
         content={"detail": exceptions.TOKEN.detail},
-        headers=exceptions.TOKEN.headers,
+        headers=_with_cors(exceptions.TOKEN.headers),
     )
 
 
@@ -110,6 +127,7 @@ async def bare_exception_handler(request: Request, exc: Exception):
     return JSONResponse(
         status_code=500,
         content={"status_code": 500, "message": "internal server error", "data": None},
+        headers=_with_cors(),
     )
 
 
@@ -120,4 +138,5 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     return JSONResponse(
         content={"status_code": 10422, "message": exc_str, "data": None},
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        headers=_with_cors(),
     )
