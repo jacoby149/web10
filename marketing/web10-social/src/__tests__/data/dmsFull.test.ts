@@ -99,15 +99,46 @@ describe('dms data layer (with wapi)', () => {
   });
 
   describe('readDms', () => {
-    it('reads messages between two users', async () => {
-      mock.read.mockResolvedValue([
-        { _id: 'dm1', message: 'first', sent_at: '2026-07-17T00:00:00Z', sender_username: 'alice', sender_provider: 'api.web10.app', recipient_username: 'bob', recipient_provider: 'api.web10.app' },
-        { _id: 'dm2', message: 'second', sent_at: '2026-07-18T00:00:00Z', sender_username: 'bob', sender_provider: 'api.web10.app', recipient_username: 'alice', recipient_provider: 'api.web10.app' },
-      ]);
+    it('merges both directions and sorts by sent_at', async () => {
+      // one read per direction: outgoing (alice→bob), then incoming (bob→alice)
+      mock.read
+        .mockResolvedValueOnce([
+          { _id: 'dm1', message: 'first', sent_at: '2026-07-17T00:00:00Z', sender_username: 'alice', sender_provider: 'api.web10.app', recipient_username: 'bob', recipient_provider: 'api.web10.app' },
+        ])
+        .mockResolvedValueOnce([
+          { _id: 'dm2', message: 'second', sent_at: '2026-07-18T00:00:00Z', sender_username: 'bob', sender_provider: 'api.web10.app', recipient_username: 'alice', recipient_provider: 'api.web10.app' },
+        ]);
       const result = await dms.readDms('api.web10.app/alice--api.web10.app/bob');
       expect(result.length).toBe(2);
       expect(result[0]._id).toBe('dm1');
       expect(result[1]._id).toBe('dm2');
+    });
+
+    // Regression: the node's query translator drops top-level `$`-prefixed
+    // keys, so a single `$or` filter was silently ignored and every DM came
+    // back regardless of peer (all conversations showed the same thread).
+    // The per-direction queries must be flat, peer-scoped, and contain no $or.
+    it('scopes each read to the peer with flat fields (no $or)', async () => {
+      mock.read.mockResolvedValue([]);
+      await dms.readDms('api.web10.app/alice--api.web10.app/bob');
+
+      expect(mock.read).toHaveBeenCalledTimes(2);
+      const queries = mock.read.mock.calls.map((c) => c[1]);
+      for (const q of queries) {
+        expect(q).not.toHaveProperty('$or');
+      }
+      expect(queries).toContainEqual({
+        sender_username: 'alice',
+        sender_provider: 'api.web10.app',
+        recipient_username: 'bob',
+        recipient_provider: 'api.web10.app',
+      });
+      expect(queries).toContainEqual({
+        sender_username: 'bob',
+        sender_provider: 'api.web10.app',
+        recipient_username: 'alice',
+        recipient_provider: 'api.web10.app',
+      });
     });
   });
 

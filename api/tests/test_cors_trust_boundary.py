@@ -101,6 +101,53 @@ class TestPermissiveCors:
 
 
 # ---------------------------------------------------------------------------
+# (a') Error responses carry CORS headers too.
+#
+# A handler registered for the base `Exception` is installed in Starlette's
+# outermost ServerErrorMiddleware, which wraps CORSMiddleware — so its responses
+# bypass CORS and ship with NO Access-Control-Allow-Origin. Every service-layer
+# `raise Exception("TOKEN")` (e.g. an expired token in `certify`) hit this path,
+# so a browser saw an opaque "No 'Access-Control-Allow-Origin' header" CORS
+# failure instead of the real 401 — masking expired-token/500/422 errors across
+# the whole app. The exception handlers now stamp the wildcard header.
+# ---------------------------------------------------------------------------
+
+
+class TestErrorResponsesHaveCors:
+    def test_bare_exception_token_error_has_cors(self):
+        """`/certify` with a bad token raises a bare Exception('TOKEN') → 401.
+
+        This is the path that masked expired tokens as CORS errors: the response
+        the browser receives must carry access-control-allow-origin so the 401 is
+        delivered (not reported as a CORS failure). `raise_server_exceptions` is
+        off because ServerErrorMiddleware — the very layer that wraps CORS and
+        drops the header — re-raises for server logging after building the
+        response; the browser only ever sees the response, so that is what we
+        assert on.
+        """
+        client = TestClient(fastapi_app, raise_server_exceptions=False)
+        resp = client.post(
+            "/certify",
+            json={"token": "garbage.not.a.jwt"},
+            headers={"Origin": "https://social.web10.app"},
+        )
+        assert resp.status_code == 401
+        assert resp.headers.get("access-control-allow-origin") == "*"
+
+    def test_validation_error_has_cors(self):
+        """A 422 validation error must also carry the CORS header."""
+        client = TestClient(fastapi_app, raise_server_exceptions=False)
+        # A non-object body fails Token model validation → RequestValidationError.
+        resp = client.post(
+            "/certify",
+            json=[1, 2, 3],
+            headers={"Origin": "https://social.web10.app"},
+        )
+        assert resp.status_code == 422
+        assert resp.headers.get("access-control-allow-origin") == "*"
+
+
+# ---------------------------------------------------------------------------
 # (b) CORS_SERVICE_MANAGERS gates the is_permitted cross-origin bypass
 # ---------------------------------------------------------------------------
 
