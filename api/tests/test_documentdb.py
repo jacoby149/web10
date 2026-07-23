@@ -134,9 +134,38 @@ class TestUTransform:
         u = documentdb.u_t({"$set": {"a": 1}, "$inc": {"b": 2}})
         assert u == {"$set": {"body.a": 1}, "$inc": {"body.b": 2}}
 
-    def test_id_passthrough(self):
-        u = documentdb.u_t({"$set": {"_id": "x"}})
-        assert u == {"$set": {"_id": "x"}}
+    def test_id_dropped_from_update(self):
+        """Top-level _id is Mongo-immutable (engine rejects any $set on it with
+        code 66, "Performing an update on the path '_id' would modify the
+        immutable field '_id'", even to the same value). u_t must drop _id from
+        every operator so a client that round-trips a whole record (e.g. the
+        social app's saveProfile, which spreads the existing profile — _id and
+        all — into the $set payload) does not 500 on every edit.
+        """
+        u = documentdb.u_t({"$set": {"_id": "abc", "title": "new"}})
+        assert "_id" not in u.get("$set", {})
+        assert u["$set"]["body.title"] == "new"
+
+    def test_id_dropped_from_unset(self):
+        u = documentdb.u_t({"$unset": {"_id": 1, "title": ""}})
+        assert "_id" not in u.get("$unset", {})
+        assert u["$unset"]["body.title"] == ""
+
+    def test_id_dropped_from_inc(self):
+        u = documentdb.u_t({"$inc": {"_id": 1, "count": 1}})
+        assert "_id" not in u.get("$inc", {})
+        assert u["$inc"]["body.count"] == 1
+
+    def test_round_tripped_record_does_not_set_id(self):
+        """Regression: a client that sends the full read-back record as $set
+        (the social app's saveProfile flow) must not blow up at Mongo by
+        re-asserting the immutable _id it just read.
+        """
+        read_back = {"_id": "65ef", "display_name": "Alice", "avatar_ref": "m1"}
+        u = documentdb.u_t({"$set": read_back})
+        assert "_id" not in u["$set"]
+        assert u["$set"]["body.display_name"] == "Alice"
+        assert u["$set"]["body.avatar_ref"] == "m1"
 
     def test_fancy_update_rejected(self):
         with pytest.raises(Exception):
