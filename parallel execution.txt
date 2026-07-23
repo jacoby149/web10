@@ -134,6 +134,17 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
        remote CRUD) to verify it works correctly with multi-node traffic.
        gate: permission-matrix tests must cover forged `_author`
        rejection. unblocks: safe DMs, safe feed attribution, audit trail.
+  [ ] A9. video transcode pipeline (plan.txt phase 8.5, video v2).
+      ffmpeg worker in a compose profile ("transcode"), queued off
+      upload-confirm for PUBLIC video only: h.264 ladder -> hls
+      segments + manifest + server-side poster/thumbnail -> patch the
+      media record (hls_manifest_url, duration, dimensions).
+      private/encrypted blobs never touch it (I4). includes the
+      phase 5 size-accounting straggler (media bytes vs the space
+      plan) and lifting D21's video-v0 caps. gate: PARKED until the
+      gauntlet passes (D29 — a transcoder reads as infra) AND D21's
+      video v0 is merged; the app proves mp4 playback before the
+      node earns a transcoder.
 
 LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
   [✓ 1.0.12-1.0.14] B1. P0 js: auth2 -> vite + bun + typescript
@@ -462,6 +473,39 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         §12 (PR screenshots). deferred: friends_posts (needs graph),
         unlisted_posts (anon-read, discovery-excluded).
         STATUS: Phase A LANDED (1.0.131). Phases B + C remain open.
+[ ] D21. MEDIA POLISH — photos + video v0 (plan.txt phase 8.5; item
+        number D20 skipped — it reads as decisions.md's D20
+        everywhere). the composer's 80x80 hover-square tray, the
+        no-lightbox feed, and the video trap (a picked video renders
+        via <img> and just breaks) fixed in one lane-D arc, staged:
+        PHOTOS V1 composer (real-aspect tray matching the feed grid,
+        touch-visible remove, drag reorder, client-side downscale +
+        thumbnail + width/height into the confirm fields nobody
+        fills, per-image alt text, attach-time validation with
+        words); PHOTOS V2 feed (lightbox with swipe/zoom, "+N"
+        overflow tile past six, reserve-space-from-dimensions, and
+        the design.md MEDIA SPEC: canonical aspect ratios, grid
+        rules, player chrome); VIDEO V0 (video previews + plays as
+        <video> with client-captured poster + duration, h.264 mp4
+        only with honest attach-time rejection otherwise, duration/
+        size caps until A9 lifts them). owns marketing/web10-
+        social/** + the design.md media-spec section. gate: none —
+        photos v1 is gauntlet step 2 territory ("post a photo -> it
+        appears in the feed"), start now. acceptance: attach photos
+        on a phone and the tray looks intentional; a picked video
+        plays in the feed with a real poster; design.md §12 (PR
+        screenshots).
+[ ] D22. THE VERTICAL FEED — short-form lens (plan.txt phase 8.5,
+        video v1; the tiktok answer). 9:16 full-bleed snap-scroll
+        feed in web10-social: muted autoplay + tap for sound,
+        preload next; reads the SAME posts/media services (a lens
+        over the conventions schemas, not a new silo); composer
+        detects 9:16 -> "this will show in the vertical feed" +
+        cover-frame picker. rides D21's direct-mp4 playback — does
+        NOT wait for A9, inherits hls when A9 lands. owns
+        marketing/web10-social/** only. gate: D21's video v0
+        merged. acceptance: a phone-recorded vertical video posts
+        and swipes like short-form, demoable next to tiktok.
 
 
 LANE E — infrastructure / deployment (owns: proxmox provisioning,
@@ -683,8 +727,10 @@ opens on his phone, in front of someone, and is proud of?" (D29)
         [✓ 1.0.136 — D16(3) curation landed; D16 marked done above].
 PARKED until the gauntlet passes (do NOT pick up — they read as an
 infra company, not a social platform): C2 sdk rewrite, C3 mcp,
-C3.5 create-web10, D11 ux telemetry, E4 provisioning, E8 mobile
-store submission, docs/knowledge prose beyond fixes.
+C3.5 create-web10, D11 ux telemetry, A9 transcode pipeline, E4
+provisioning, E8 mobile store submission, docs/knowledge prose
+beyond fixes. (D21 media polish + D22 vertical feed are NOT
+parked — they are gauntlet-step-2 / demo-impact work.)
 
 previous board (19.07, for history — all merged):
   ws-A: A7 connect the real host mongo — [✓ 1.0.72]
