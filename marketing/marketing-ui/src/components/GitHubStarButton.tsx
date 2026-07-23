@@ -1,4 +1,4 @@
-import { Github, Star } from 'lucide-react'
+import { GitHub, Star } from 'lucide-react'
 import { Button } from './ui/button'
 import { useStars } from './GitHubStarsContext'
 import { trackFunnel } from '../lib/analytics'
