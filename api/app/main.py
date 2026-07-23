@@ -1,4 +1,5 @@
 import logging
+import uuid
 
 import jwt
 from fastapi import FastAPI, Request, status
@@ -123,10 +124,25 @@ async def bare_exception_handler(request: Request, exc: Exception):
     resp = _mapped_response(exc)
     if resp is not None:
         return resp
-    logging.error(f"{request}: unhandled {type(exc).__name__}: {exc}", exc_info=True)
+    # Unhandled exception. Surface the type + message (and a correlation id) in
+    # the response body so the failure is diagnosable from the browser console
+    # without shelling into the box to read the traceback. This is safe: the
+    # code is open source, so the exception class + message reveal nothing the
+    # source doesn't. The full traceback (which can carry runtime secrets — the
+    # star record's password hash, tokens, another user's data) stays in the
+    # server log ONLY, keyed to the same error_id for correlation.
+    error_id = uuid.uuid4().hex[:12]
+    logging.error(f"{request}: [{error_id}] unhandled {type(exc).__name__}: {exc}", exc_info=True)
     return JSONResponse(
         status_code=500,
-        content={"status_code": 500, "message": "internal server error", "data": None},
+        content={
+            "status_code": 500,
+            "message": "internal server error",
+            "error": type(exc).__name__,
+            "detail": str(exc),
+            "error_id": error_id,
+            "data": None,
+        },
         headers=_with_cors(),
     )
 
