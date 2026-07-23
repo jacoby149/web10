@@ -82,7 +82,12 @@ jobs:
         if: matrix.service.name == 'marketing-ui'
         uses: docker/build-push-action@v6
         with:
-          context: marketing/marketing-ui
+          # Repo-root context so build-status.sh can read CHANGELOG.md +
+          # .git to bake status.json. (Mirrors docker-compose.ecosystem.yml
+          # which sets context: .. for the same service.) The Dockerfile
+          # itself lives in marketing/marketing-ui/.
+          context: .
+          file: marketing/marketing-ui/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
