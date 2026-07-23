@@ -354,8 +354,12 @@ async def get_analytics_summary():
     # Per-step drop-off: for each funnel step, how many users reached it vs the previous step.
     # Funnel order (acquisition path): landing -> docs_view -> app_store_view -> exporter_view -> export_started -> export_complete
     funnel_order = [
-        "landing", "docs_view", "app_store_view",
-        "exporter_view", "export_started", "export_complete",
+        "landing",
+        "docs_view",
+        "app_store_view",
+        "exporter_view",
+        "export_started",
+        "export_complete",
     ]
     dropoff = {}
     prev_count = None

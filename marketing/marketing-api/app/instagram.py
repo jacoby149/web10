@@ -83,9 +83,14 @@ def map_instagram_post(post: dict) -> list[dict]:
     if location:
         post_body["location"] = location
 
+    # D19 content lifecycle: imported posts land in the owner-only
+    # `staging_posts` collection, NOT the legacy anon-readable `posts` —
+    # importing your history must NOT auto-publish it to the world.
+    # Publishing happens from the social app's staging UI (Phase C), which
+    # moves the record to `public_posts` or `private_posts`. decisions.md D30.
     records.append(
         {
-            "service": "posts",
+            "service": "staging_posts",
             "body": post_body,
             "origin": "instagram",
             "origin_id": post.get("post_id"),

@@ -59,44 +59,59 @@ describe('posts data layer', () => {
   });
 
   describe('readMyPosts', () => {
-    it('unions legacy `posts`, `public_posts` and `private_posts`', async () => {
-      // Regression: the composer writes to public_posts/private_posts, so a
-      // wall that read only `posts` dropped every newly composed post.
+    it('unions public_posts and private_posts (the two real tiers)', async () => {
+      // D19 Phase A: the wall is owner-only-private + anon-read-public only.
+      // Surfacing legacy `posts` (anon-readable) on the wall would re-publish
+      // whatever the old auto-publish bug wrote. Staged imports live in
+      // `staging_posts` and surface in the staging/review UI, NOT the wall.
       const byService: Record<string, unknown[]> = {
-        posts: [{ _id: 'p1', text: 'legacy', created_at: '2026-07-18T00:00:00Z' }],
         public_posts: [{ _id: 'p2', text: 'public', created_at: '2026-07-19T00:00:00Z' }],
         private_posts: [{ _id: 'p3', text: 'private', created_at: '2026-07-20T00:00:00Z' }],
       };
       mock.read.mockImplementation((service: string) => Promise.resolve(byService[service] || []));
 
       const result = await posts.readMyPosts();
-      expect(mock.read).toHaveBeenCalledWith('posts');
       expect(mock.read).toHaveBeenCalledWith('public_posts');
       expect(mock.read).toHaveBeenCalledWith('private_posts');
-      expect(result.map((p) => p._id)).toEqual(['p1', 'p2', 'p3']);
+      expect(mock.read).not.toHaveBeenCalledWith('posts');
+      expect(mock.read).not.toHaveBeenCalledWith('staging_posts');
+      expect(result.map((p) => p._id)).toEqual(['p2', 'p3']);
     });
 
-    it('adapts legacy posts (html/media/time → text/media_refs/created_at)', async () => {
-      const legacyPosts = [
-        { _id: 'lp1', html: '<p>Hello world</p>', media: [{ type: 'image', src: 'http://img1.jpg' }], time: '2025-06-01T00:00:00Z', web10: 'api.web10.app/alice' },
-      ];
-      const migratedPosts = [
-        { _id: 'lp1', text: 'Hello world', media_refs: ['http://img1.jpg'], created_at: '2025-06-01T00:00:00Z' },
-      ];
-      mock.read.mockResolvedValueOnce(legacyPosts); // read('posts') — detects legacy
-      mock.update.mockResolvedValueOnce(legacyPosts[0]);
-      mock.read.mockResolvedValueOnce(migratedPosts); // re-read('posts') after migration
-      mock.read.mockResolvedValueOnce([]); // public_posts
-      mock.read.mockResolvedValueOnce([]); // private_posts
-
+    it('regression: does NOT surface the legacy anon-readable `posts` collection', async () => {
+      // The legacy bug read `posts` (anon-readable by its sir) on the wall,
+      // which re-published any auto-imported content. Phase A removes that
+      // read entirely. If a future change re-adds it, this test fails.
+      mock.read.mockImplementation((service: string) =>
+        Promise.resolve(
+          service === 'posts'
+            ? [{ _id: 'LEGACY', text: 'old auto-publish', created_at: '2025-01-01T00:00:00Z' }]
+            : service === 'public_posts'
+              ? [{ _id: 'pub', text: 'p', created_at: '2026-07-19T00:00:00Z' }]
+              : service === 'private_posts'
+                ? [{ _id: 'priv', text: 'p', created_at: '2026-07-20T00:00:00Z' }]
+                : [],
+        ),
+      );
       const result = await posts.readMyPosts();
-      expect(mock.update).toHaveBeenCalledWith('posts', { _id: 'lp1' }, expect.objectContaining({
-        $set: expect.objectContaining({
-          text: 'Hello world',
-          created_at: '2025-06-01T00:00:00Z',
-        }),
-      }));
-      expect(result).toEqual(migratedPosts);
+      expect(mock.read).not.toHaveBeenCalledWith('posts');
+      expect(result.find((p) => p._id === 'LEGACY')).toBeUndefined();
+    });
+
+    it('regression: does NOT surface staging_posts on the wall', async () => {
+      // Staged imports await triage in the staging UI (Phase C); a peek here
+      // would re-publish them (the bug we are undoing). readMyPosts must not
+      // read staging_posts.
+      mock.read.mockImplementation((service: string) =>
+        Promise.resolve(
+          service === 'staging_posts'
+            ? [{ _id: 'STAGED', text: 'awaiting triage', created_at: '2026-07-21T00:00:00Z' }]
+            : [],
+        ),
+      );
+      const result = await posts.readMyPosts();
+      expect(mock.read).not.toHaveBeenCalledWith('staging_posts');
+      expect(result.find((p) => p._id === 'STAGED')).toBeUndefined();
     });
   });
 

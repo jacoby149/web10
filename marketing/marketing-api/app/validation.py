@@ -120,6 +120,9 @@ PROFILE_SCHEMA = _load_schema("profile") or {
 
 VALIDATORS = {
     "posts": POSTS_SCHEMA,
+    # D19: imports write to staging_posts with the same body shape as posts
+    # (the collection — not a record flag — carries the lifecycle state).
+    "staging_posts": POSTS_SCHEMA,
     "media": MEDIA_SCHEMA,
     "comments": COMMENTS_SCHEMA,
     "contacts": CONTACTS_SCHEMA,
