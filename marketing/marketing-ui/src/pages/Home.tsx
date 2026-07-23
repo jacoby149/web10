@@ -28,7 +28,7 @@ function Hero() {
           className="reveal mb-8 h-10 [animation-delay:80ms] sm:h-12"
         />
         <h1 className="reveal font-display text-4xl font-bold leading-[1.1] tracking-[-0.02em] [animation-delay:160ms] sm:text-5xl lg:text-[3.5rem]">
-          Own your audience.
+          Your audience.
         </h1>
         <p className="reveal mt-6 max-w-xl text-lg leading-[1.6] text-muted-foreground [animation-delay:240ms]">
           Every post reaches every follower. Not a promise the algorithm can

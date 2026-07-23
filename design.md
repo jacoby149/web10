@@ -73,7 +73,7 @@ self-possession. The brand is confident and quiet; it never begs.
 - **Voice.** Declarative, restrained, no gush. The fan-facing voice
   lives in `manifesto.md`, the creator pitch in `outreach.md` — match
   them. Never claim what isn't built. Headlines state facts:
-  "Own your audience." beats "Unlock the future of social!!"
+  Your audience. beats "Unlock the future of social!!"
 - **Never fake it.** No stock photos of smiling people, no invented
   testimonials, no logos of companies that don't use us. Real
   screenshots, real numbers, real mechanics (the reach-gap chart is
