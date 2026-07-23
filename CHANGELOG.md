@@ -1,4 +1,4 @@
-1.0.140 || 23.07.2026
+1.0.142 || 23.07.2026
 Gauntlet run against dev (v1.0.139): 0 full passes, 4 partial, 4 fails.
 Blocking chain for a demoable product: (1) D23 presigned URLs — media 403s on
 dev, zero callers of request_read_url; (2) follow UI — followUser() exported
