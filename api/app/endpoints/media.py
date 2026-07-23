@@ -32,11 +32,17 @@ async def request_upload_url(user: str, request: UploadRequest):
     content_type = request.mime_type or "application/octet-stream"
 
     # Sign on the public endpoint so the browser gets a reachable HTTPS URL.
+    # Every Fields entry must ALSO appear in Conditions — boto3 does not add
+    # them to the signed policy, and S3/minio reject any form field the
+    # policy doesn't cover (403 AccessDenied on every upload otherwise).
     presigned = get_s3_signing_client().generate_presigned_post(
         settings.S3_BUCKET,
         object_key,
         Fields={"Content-Type": content_type},
-        Conditions=[["content-length-range", 0, request.size_bytes or settings.MAX_UPLOAD_SIZE]],
+        Conditions=[
+            {"Content-Type": content_type},
+            ["content-length-range", 0, request.size_bytes or settings.MAX_UPLOAD_SIZE],
+        ],
         ExpiresIn=settings.UPLOAD_URL_EXPIRY,
     )
     return UploadResponse(
