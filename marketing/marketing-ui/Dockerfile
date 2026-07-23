@@ -7,16 +7,11 @@ FROM oven/bun:1-alpine AS build
 RUN apk add --no-cache git
 
 # Repo-root context: source lives under marketing/marketing-ui/, but
-# CHANGELOG.md + .git sit at /app so build-status.sh can read them.
+# CHANGELOG.md + .git sit at the context root so build-status.sh can read
+# them (bind-mounted at the status-bake step below — NOT COPYed, because
+# Portainer's GitOps checkout strips .git and a hard COPY fails the whole
+# stack redeploy).
 WORKDIR /app
-
-# Bake the version/commit source-of-truth into the image first so
-# build-status.sh can fall back to them (a GitOps poll rebuilds without
-# the GIT_COMMIT / STATUS_VERSION build args). CHANGELOG.md supplies
-# STATUS_VERSION; .git supplies the commit SHA + date. The repo-root
-# .dockerignore keeps these reasonably small.
-COPY CHANGELOG.md /app/CHANGELOG.md
-COPY .git /app/.git
 
 # Install deps first for cache reuse on a code-only change.
 COPY marketing/marketing-ui/package.json marketing/marketing-ui/bun.lock* ./marketing/marketing-ui/
@@ -49,9 +44,16 @@ RUN bun run build
 # Baked deployment status page — generated from git info + CHANGELOG at
 # build time, so every redeploy refreshes it. STATUS_VERSION is passed as
 # a build ARG but build-status.sh also falls back to reading the
-# top-of-CHANGELOG line when it's absent (e.g. a GitOps poll).
+# top-of-CHANGELOG line when it's absent (e.g. a GitOps poll). The build
+# context is bind-mounted (BuildKit) instead of COPYed so a context
+# without .git — Portainer's GitOps checkout deletes it — still builds:
+# the script then bakes the version from CHANGELOG.md and leaves the
+# commit unknown. safe.directory covers bind-mount ownership mismatches.
 COPY marketing/marketing-ui/build-status.sh /usr/local/bin/build-status.sh
-RUN chmod +x /usr/local/bin/build-status.sh && /usr/local/bin/build-status.sh
+RUN --mount=type=bind,source=.,target=/repo \
+    chmod +x /usr/local/bin/build-status.sh && \
+    git config --global --add safe.directory '*' && \
+    STATUS_REPO_ROOT=/repo /usr/local/bin/build-status.sh
 
 FROM nginx:alpine
 COPY --from=build /app/marketing/marketing-ui/dist /usr/share/nginx/html
