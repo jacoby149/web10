@@ -33,7 +33,13 @@ jobs:
           - name: rtc
             context: api/rtc
           - name: marketing-ui
-            context: marketing/marketing-ui
+            # Repo-root context so the Dockerfile can COPY CHANGELOG.md + .git
+            # (build-status.sh bakes status.json from them). Cache key stays
+            # scoped to the marketing-ui dir via hashPath so it doesn't hash
+            # the whole repo. Mirrors cd.yml + docker-compose.ecosystem.yml.
+            context: .
+            dockerfile: marketing/marketing-ui/Dockerfile
+            hashPath: marketing/marketing-ui
     steps:
       - uses: actions/checkout@v4
 
@@ -44,7 +50,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /tmp/.buildx-cache-${{ matrix.service.name }}
-          key: ${{ runner.os }}-buildx-${{ matrix.service.name }}-${{ hashFiles(format('{0}/**', matrix.service.context)) }}
+          key: ${{ runner.os }}-buildx-${{ matrix.service.name }}-${{ hashFiles(format('{0}/**', matrix.service.hashPath || matrix.service.context)) }}
           restore-keys: |
             ${{ runner.os }}-buildx-${{ matrix.service.name }}-
 
