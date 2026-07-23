@@ -1,3 +1,5 @@
+1.0.110 || 23.07.2026
+Marketing navbar: replaced plain "GitHub" text link with a star button showing the live GitHub star count (fetches from GitHub API). Loading skeleton while fetching, 'k' suffix for 1000+ stars, fallback to "Star" on error. Uses a shared React context so desktop and mobile instances share one API call.
 1.0.109 || 23.07.2026
 Fix prod deploy: `deploy-prod` failed with `pathspec 'main' did not match any file(s) known to git`. The server repo at `/opt/web10` is a single-branch clone (tracks only `dev`), so `git fetch origin` never brought down `origin/main` and `git checkout main` had nothing to match — prod could never deploy. Both deploy jobs now fetch the target branch explicitly (`git fetch origin <branch>`, which populates FETCH_HEAD regardless of the clone's refspec) and force the local branch to it (`git checkout -B <branch> FETCH_HEAD`), replacing the `checkout`+`reset --hard origin/<branch>` that assumed a remote-tracking ref existed.
 1.0.107 || 23.07.2026
