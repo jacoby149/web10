@@ -813,6 +813,19 @@ ws5: C6 e2e deep sweep + bug hunt (lane C — e2e/** only; local
     [✓ 1.0.130] D-trending-polish: /trending loading + empty states — shimmer skeleton
          grid (matches layout), empty state story beat, "Load more" button.
          Gate: D-trending-sidebar. Owns: Trending.tsx + FeedPreview.tsx
+    [ ] D-comments-ledger (social-side prerequisite): `createComment`
+         (web10-social/src/data/comments.ts:36) mirrors to /public/entries
+         like `createReaction` does (reactions.ts:35), but GATED on the post
+         being PUBLIC (pass post service/visibility at the call site —
+         FeedScreen.tsx:110 sends only post_id/text today); comments on
+         private/staging posts don't mirror → stay owner-only. fires the
+         registered Comment schema (feed.ts:33) with payload.action='comment'
+         (what documentdb.py:828 counts). fixes the always-0 trending comment
+         count + the test_discovery.py:645 mock that hid it. also opens the
+         symmetric follow-up: gate createReaction's mirror the same way (it
+         mirrors unconditionally today — private-post reactions leak to the
+         anon ledger). Gate: none. Owns: web10-social/src/data/comments.ts +
+         the FeedScreen call site + the reactions.ts mirror-gate follow-up.
     [ ] D-trending-link: TrendingCard → deep-link to the author's profile on
          web10-social (`${SOCIAL_ORIGIN}/u/<author>`); until social gains a
          per-user profile route (lane-D sibling — App.tsx only has my-bio,
@@ -822,9 +835,11 @@ ws5: C6 e2e deep sweep + bug hunt (lane C — e2e/** only; local
     [ ] D-trending-share: Share2 button has no onClick → navigator.share +
          copy-link fallback (no auth). Gate: none. Owns: FeedPreview.tsx.
     [ ] D-trending-comments: MessageCircle only fires a funnel event → expand
-         an inline comment panel (anon read via PATCH /public/entries; compose
-         auth-gated → funnel-to-social). Gate: none. Owns: FeedPreview.tsx +
-         Trending.tsx.
+         an inline comment panel (anon read via PATCH /public/entries, which
+         is anon-OK per public.py:42; compose auth-gated → funnel-to-social).
+         Gate: D-comments-ledger (nothing writes comments to the ledger today,
+         so the read returns [] until the social-side mirror lands). Owns:
+         FeedPreview.tsx + Trending.tsx.
     [ ] D-trending-reactions: like + repost are fake local increments
          (Trending.tsx:98) → real toggle via /public/entries mirroring
          reactions.ts; signed-out funnels to social. Gate: none. Owns:

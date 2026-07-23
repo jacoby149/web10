@@ -949,6 +949,44 @@ Marketing-ui side (Lane D):
     trending_comment_attempt funnel event's intent -- with an inline auth bridge
     via AUTH_ORIGIN as a later upgrade). the endless fake local increment
     STOPS either way; that's the minimum honest fix. acceptance: design.md §12.
+
+    PRIVACY MODEL (operator, 23.07): comments live in their OWN per-user
+    `comments` collection (not embedded in posts — foreign-key linked via
+    `post_id`, comments.ts:11), terms-gated owner-only today (no anon whitelist,
+    serviceTerms.ts:120). visibility is SELECTIVE and per-post, not a blanket
+    service toggle: a comment mirrors to the anon-queryable public ledger
+    (`/public/entries`) ONLY when its parent post is public — then any web
+    visitor (the default anon user on any webpage) can read it via PATCH
+    /public/entries (anon-OK, public.py:42). comments on private posts never
+    mirror → stay owner-only in the `comments` collection. "read to the anon
+    user" = mirror to the ledger / whitelist anon on the service; private =
+    don't mirror + owner-only terms. this is the same ledger pattern reactions
+    already use (reactions.ts:35) — EXCEPT reactions mirror unconditionally
+    today, so reactions on private posts leak to the anon-readable ledger (a
+    pre-existing metadata leak, follow-up — the comments mirror must NOT repeat
+    it; gate on the post being public). the trending feed's comment count is
+    currently always 0 (documentdb.py:828 reads `comment` from the ledger, but
+    nothing writes comments there — createComment at comments.ts:36 has no
+    mirror call; the engagement test at test_discovery.py:645 mocks it, so it
+    passes but doesn't reflect reality). so the social-side mirror is the
+    prerequisite, the marketing-ui read lands on top of it.
+
+[ ] D-comments-ledger (social-side prerequisite, lane D): `createComment`
+    (web10-social/src/data/comments.ts:36) mirrors the comment to
+    /public/entries (POST, auth-gated "any authenticated user") exactly as
+    `createReaction` does (reactions.ts:35), but GATED on the target post being
+    PUBLIC — the call site (FeedScreen.tsx:110) must pass the post's
+    service/visibility (today it sends only post_id/text/created_at), or the
+    comment record gains a `post_service`/`post_visibility` field. comments on
+    private_posts / staging_posts do NOT mirror → stay owner-only → private.
+    fires the already-registered Comment schema (feed.ts:33) with
+    payload.action='comment' (matching what documentdb.py:828 counts). also
+    opens the symmetric follow-up: gate createReaction's mirror the same way
+    (today it mirrors unconditionally — reactions on private posts leak to the
+    anon-readable ledger; small, same pattern). unblocks D-trending-comments
+    AND fixes the always-0 trending comment count. owns:
+    marketing/web10-social/src/data/comments.ts (+ the FeedScreen call site +
+    the reactions.ts mirror-gate follow-up). gate: none — start now.
 [ ] D-trending-link: wrap TrendingCard (or its author row) in a deep-link to
     the author's profile on web10-social -- `${SOCIAL_ORIGIN}/u/<author>`
     (origins.ts exports SOCIAL_ORIGIN). GATE: web10-social has no per-user
@@ -966,11 +1004,14 @@ Marketing-ui side (Lane D):
 [ ] D-trending-comments: the MessageCircle button only fires
     trackFunnel('trending_comment_attempt'); it expands nothing. add an inline
     comment panel under the card: fetch existing comments via PATCH
-    /public/entries?target=<service>:<post_id> (anon-OK) and render them with
-    designed loading + empty states (design.md §1, not a spinner). compose is
-    auth-gated -> signed-out visitors get an "Open web10 social to comment" CTA
-    (funnel-to-social); a signed-in inline compose box is the later auth-bridge
-    upgrade. owns: FeedPreview.tsx + Trending.tsx.
+    /public/entries?target=<author>/<service>/<post_id>&schema_id=<Comment>
+    (anon-OK, public.py:42) and render them with designed loading + empty states
+    (design.md §1, not a spinner). GATE: D-comments-ledger (today nothing writes
+    comments to the ledger, so the count is always 0 and the read returns [];
+    the social-side mirror must land first). compose is auth-gated -> signed-out
+    visitors get an "Open web10 social to comment" CTA (funnel-to-social); a
+    signed-in inline compose box is the later auth-bridge upgrade. owns:
+    FeedPreview.tsx + Trending.tsx.
 [ ] D-trending-reactions: like + repost call handleReaction (Trending.tsx:98)
     which only setAllPosts-increments a parsed count -- endless, fake, never
     toggles off. replace with a real toggle mirroring the social app's
