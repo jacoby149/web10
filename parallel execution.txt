@@ -851,11 +851,34 @@ LANE CI — github actions optimization (owns: .github/workflows/**, cross-cutti
    [✓ 1.0.99] CI-small-runners: use ubuntu-latest-small for changelog check.
 [✓ 1.0.128] CI-e2e-push-only: skip e2e.yml on pull_request, run only on
         push to dev/main. saves ~15 min per PR.
-   [ ] CI-single-arch: drop linux/arm64 from cd.yml image builds if
-       no self-hosters need ARM. saves ~50% on CD minutes.
+   [✓ 1.0.99, audit 1.0.140] CI-single-arch: drop linux/arm64 from cd.yml
+       image builds if no self-hosters need ARM. saves ~50% on CD minutes.
+       AUDIT (23.07, jacoby149/ci-cost-trims): cd.yml + docker.yml on
+       origin/dev publish `platforms: linux/amd64` only — arm64 was dropped
+       in 1.0.99 (commit 8b2e5aca) and never re-added. README.md +
+       ubuntu-deployment/README.md + AGENT-OPS.md document NO arm64/
+       aarch64/Raspberry-Pi operator (only "self-hostable" generically; the
+       documented deploy target is Ubuntu-on-Proxmox x86_64). An operator
+       needing arm64 runs `docker compose up --build` locally — the ghcr.io
+       prebuilt images don't gate them. No workflow code change required;
+       the trim is in target state on dev.
    [ ] CI-small-runners: use ubuntu-latest-small for lightweight jobs
        (changelog check, js typecheck). docker/e2e builds stay on
        ubuntu-latest.
+       BLOCKED (23.07, audit 1.0.140): this org's GitHub plan does not
+       provision the `ubuntu-latest-small` runner label. commit 196d908e
+       reverted ubuntu-latest-small because it "queued indefinitely (empty
+       runner_name, cancelled after ~20min) and showed 'pending' forever
+       on every PR"; changelog-check workflow was then removed entirely in
+       a3712077 ("a dedicated Actions VM per PR just to run a diff+grep
+       isn't worth the wall-clock"). Applying ubuntu-latest-small to any
+       PR-gated check (the js.yml typecheck is the only remaining
+       candidate) would re-regress the same queue-forever → every JS PR
+       red, which violates the "both trims land green" acceptance at the
+       top of this lane. Re-open when the operator moves the github org to
+       a paid plan that provisions the `ubuntu-latest-small` label (or
+       replaces it with a self-hosted small runner). NOT TICKED: the trim
+       is infeasible in the current plan, not done.
 
    from here on: pull the top unticked item of whichever lane's queue
    is unblocked. lanes A and B are long marches; C and D are a stream
