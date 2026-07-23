@@ -1,6 +1,7 @@
 import Password from "./FormInputs/Password";
 import Provider from "./FormInputs/Provider";
 import Username from "./FormInputs/Username";
+import CredentialStatus from "./CredentialStatus";
 import { Button } from '@/components/ui/button';
 
 // `embedded` renders just the fields + actions (no card chrome, no
@@ -35,6 +36,8 @@ function LoginForm({ I, embedded = false }: { I: Record<string, any>; embedded?:
       >
         Log in
       </Button>
+
+      <CredentialStatus I={I} />
 
       <div className="mt-4 text-center">
         <button
