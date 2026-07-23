@@ -76,9 +76,11 @@ export function wapiInit(
     // SMR
     SMROnReady: (sirs: unknown[], scrs?: unknown[]) => {
       if (typeof window === 'undefined') return
+      const authOrigin = new URL(authUrl).origin
       window.addEventListener('message', (e) => {
+        if (e.origin !== authOrigin) return
         if (e.data?.type === 'SMRListen' && childWindow) {
-          childWindow.postMessage({ type: 'smr', sirs, scrs }, '*')
+          childWindow.postMessage({ type: 'smr', sirs, scrs }, authOrigin)
         }
       })
     },

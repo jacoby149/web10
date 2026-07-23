@@ -47,6 +47,23 @@ export function createAuthConnector(wapi: Web10Client): AuthConnector {
     return wapi.state.apiOrigin
   }
 
+  /**
+   * The origin of the app that opened this authenticator window, derived
+   * from the referrer (the same source `mintOAuthToken` scopes the token
+   * to). Cross-window messages are posted ONLY here — never to `'*'` — so
+   * a minted bearer token can't leak to an origin the opener navigated to.
+   * Returns `null` when there's no trustworthy referrer, in which case we
+   * refuse to post rather than broadcast.
+   */
+  const openerOrigin = (): string | null => {
+    if (typeof document === 'undefined' || !document.referrer) return null
+    try {
+      return new URL(document.referrer).origin
+    } catch {
+      return null
+    }
+  }
+
   const connector: AuthConnector = {
     get oAuthToken() {
       return oAuthToken
@@ -78,9 +95,11 @@ export function createAuthConnector(wapi: Web10Client): AuthConnector {
 
     sendToken(): void {
       if (typeof window === 'undefined' || !window.opener) return
+      const target = openerOrigin()
+      if (!target) return
       window.opener.postMessage(
         { type: 'auth', token: oAuthToken },
-        '*',
+        target,
       )
       window.close()
     },
@@ -119,12 +138,15 @@ export function createAuthConnector(wapi: Web10Client): AuthConnector {
 
     smrListen(setState: (data: unknown) => void): void {
       if (typeof window === 'undefined' || !window.opener) return
+      const target = openerOrigin()
+      if (!target) return
       window.addEventListener('message', (e) => {
+        if (e.origin !== target) return
         if (e.data?.type === 'smr') {
           setState(e.data)
         }
       })
-      window.opener.postMessage({ type: 'SMRListen' }, '*')
+      window.opener.postMessage({ type: 'SMRListen' }, target)
     },
 
     // ── Account management ────────────────────────────────────────────

@@ -58,6 +58,10 @@ export function createClient(options: ClientOptions = {}): Web10Client {
   const authUrl = options.authUrl ?? 'https://auth.web10.app'
   const protocol = new URL(authUrl).protocol
   const apiOrigin = options.apiOrigin ?? `${protocol}//api.web10.app`
+  // The only origin trusted to deliver tokens / SMR messages over
+  // postMessage. Cross-window messages from any other origin are ignored
+  // so a malicious opener/embedder can't inject or fixate a token.
+  const authOrigin = new URL(authUrl).origin
   const rtcServer = options.rtcServer ?? 'rtc.web10.app'
   const appStores = options.appStores ?? ['https://api.web10.app']
 
@@ -113,6 +117,7 @@ export function createClient(options: ClientOptions = {}): Web10Client {
         }
         this.openAuthPortal()
         const handler = (e: MessageEvent) => {
+          if (e.origin !== authOrigin) return
           if (e.data?.type === 'auth') {
             if (e.data.token) {
               this.setToken(e.data.token)
@@ -135,6 +140,7 @@ export function createClient(options: ClientOptions = {}): Web10Client {
     authListen(setAuth: (signedIn: boolean) => void): void {
       if (typeof window === 'undefined') return
       window.addEventListener('message', (e) => {
+        if (e.origin !== authOrigin) return
         if (e.data?.type === 'auth') {
           if (e.data.token) {
             this.setToken(e.data.token)
@@ -155,10 +161,10 @@ export function createClient(options: ClientOptions = {}): Web10Client {
       provider?: string | null,
     ): Promise<Web10Record<T>[]> {
       guardAuth(state, username)
-      const p = resolveProvider(state, provider)
       const u = resolveUsername(state, username)
+      const base = originFor(state, provider)
       return patch<Web10Record<T>[]>(
-        `${apiOrigin}/${u}/${service}`,
+        `${base}/${u}/${service}`,
         { token: state.token, query: query ?? null, update: null },
       )
     },
@@ -170,10 +176,10 @@ export function createClient(options: ClientOptions = {}): Web10Client {
       provider?: string | null,
     ): Promise<CreateResponse> {
       guardAuth(state, username)
-      const p = resolveProvider(state, provider)
       const u = resolveUsername(state, username)
+      const base = originFor(state, provider)
       return post<CreateResponse>(
-        `${apiOrigin}/${u}/${service}`,
+        `${base}/${u}/${service}`,
         { token: state.token, query: body ?? null, update: null },
       )
     },
@@ -186,10 +192,10 @@ export function createClient(options: ClientOptions = {}): Web10Client {
       provider?: string | null,
     ): Promise<UpdateResponse> {
       guardAuth(state, username)
-      const p = resolveProvider(state, provider)
       const u = resolveUsername(state, username)
+      const base = originFor(state, provider)
       return put<UpdateResponse>(
-        `${apiOrigin}/${u}/${service}`,
+        `${base}/${u}/${service}`,
         { token: state.token, query: query ?? null, update: (update ?? null) as Record<string, unknown> | null },
       )
     },
@@ -201,10 +207,10 @@ export function createClient(options: ClientOptions = {}): Web10Client {
       provider?: string | null,
     ): Promise<DeleteResponse> {
       guardAuth(state, username)
-      const p = resolveProvider(state, provider)
       const u = resolveUsername(state, username)
+      const base = originFor(state, provider)
       return del<DeleteResponse>(
-        `${apiOrigin}/${u}/${service}`,
+        `${base}/${u}/${service}`,
         { token: state.token, query: query ?? null, update: null },
       )
     },
@@ -216,10 +222,10 @@ export function createClient(options: ClientOptions = {}): Web10Client {
       provider?: string | null,
     ): Promise<T[]> {
       guardAuth(state, username)
-      const p = resolveProvider(state, provider)
       const u = resolveUsername(state, username)
+      const base = originFor(state, provider)
       return aggregateReq<T>(
-        `${apiOrigin}/${u}/${service}/aggregate`,
+        `${base}/${u}/${service}/aggregate`,
         { token: state.token, pipeline },
       )
     },
@@ -249,8 +255,9 @@ export function createClient(options: ClientOptions = {}): Web10Client {
     smrOnReady(sirs: SIR[], scrs?: SCR[]): void {
       if (typeof window === 'undefined') return
       window.addEventListener('message', (e) => {
+        if (e.origin !== authOrigin) return
         if (e.data?.type === 'SMRListen' && e.source instanceof Window) {
-          e.source.postMessage({ type: 'smr', sirs, scrs }, '*')
+          e.source.postMessage({ type: 'smr', sirs, scrs }, authOrigin)
         }
       })
     },
@@ -258,6 +265,7 @@ export function createClient(options: ClientOptions = {}): Web10Client {
     smrResponseListen(setStatus: (status: string) => void): void {
       if (typeof window === 'undefined') return
       window.addEventListener('message', (e) => {
+        if (e.origin !== authOrigin) return
         if (e.data?.type === 'status') {
           setStatus(e.data.status)
         }
@@ -407,11 +415,20 @@ function guardAuth(state: ClientState, username: string | null | undefined): voi
   }
 }
 
-function resolveProvider(state: ClientState, provider: string | null | undefined): string {
-  if (provider) return provider
-  const token = decodeJwt(state.token)
-  if (!token?.provider) throw new Error('No provider in token')
-  return token.provider
+/**
+ * Resolve which node origin to address.
+ *
+ * In web10 a user's `provider` IS the host of the node that stores their
+ * collection (see `settings.PROVIDER` == the api host), so addressing a
+ * user on another provider means sending the request to that provider's
+ * origin. When no provider is given we hit the configured `apiOrigin` —
+ * byte-identical to the previous behaviour, so single-node callers and
+ * explicit `apiOrigin` overrides (e.g. a proxy) are unaffected.
+ */
+function originFor(state: ClientState, provider: string | null | undefined): string {
+  if (!provider) return state.apiOrigin
+  const protocol = new URL(state.apiOrigin).protocol
+  return `${protocol}//${provider}`
 }
 
 function resolveUsername(state: ClientState, username: string | null | undefined): string {

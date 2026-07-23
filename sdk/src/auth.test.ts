@@ -266,21 +266,35 @@ describe('createAuthConnector', () => {
   })
 
   describe('SMRListen', () => {
-    it('listens for SMR messages and calls setState', () => {
-      const jwt = makeJwt({ username: 'alice', provider: 'api.example.com' })
-      const wapi = createMockWapi(jwt)
-      const wa = createAuthConnector(wapi)
-      const cb = vi.fn()
+    const OPENER = 'https://app.example.com'
 
+    beforeEach(() => {
+      Object.defineProperty(document, 'referrer', {
+        value: `${OPENER}/page`,
+        writable: true,
+        configurable: true,
+      })
       Object.defineProperty(window, 'opener', {
         value: { postMessage: vi.fn() },
         writable: true,
         configurable: true,
       })
+    })
+
+    it('listens for SMR messages from the opener and calls setState', () => {
+      const jwt = makeJwt({ username: 'alice', provider: 'api.example.com' })
+      const wapi = createMockWapi(jwt)
+      const wa = createAuthConnector(wapi)
+      const cb = vi.fn()
 
       wa.smrListen(cb)
+      // The connector must announce itself to the opener's exact origin.
+      expect((window.opener as { postMessage: ReturnType<typeof vi.fn> }).postMessage)
+        .toHaveBeenCalledWith({ type: 'SMRListen' }, OPENER)
+
       window.dispatchEvent(
         new MessageEvent('message', {
+          origin: OPENER,
           data: { type: 'smr', sirs: [], scrs: [] },
         }),
       )
@@ -293,16 +307,27 @@ describe('createAuthConnector', () => {
       const wa = createAuthConnector(wapi)
       const cb = vi.fn()
 
-      Object.defineProperty(window, 'opener', {
-        value: { postMessage: vi.fn() },
-        writable: true,
-        configurable: true,
-      })
+      wa.smrListen(cb)
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          origin: OPENER,
+          data: { type: 'other', data: 'x' },
+        }),
+      )
+      expect(cb).not.toHaveBeenCalled()
+    })
+
+    it('ignores smr messages from a foreign origin', () => {
+      const jwt = makeJwt({ username: 'alice', provider: 'api.example.com' })
+      const wapi = createMockWapi(jwt)
+      const wa = createAuthConnector(wapi)
+      const cb = vi.fn()
 
       wa.smrListen(cb)
       window.dispatchEvent(
         new MessageEvent('message', {
-          data: { type: 'other', data: 'x' },
+          origin: 'https://evil.example.com',
+          data: { type: 'smr', sirs: [], scrs: [] },
         }),
       )
       expect(cb).not.toHaveBeenCalled()
@@ -310,10 +335,16 @@ describe('createAuthConnector', () => {
   })
 
   describe('sendToken', () => {
-    it('posts auth message to opener and closes window', () => {
+    it('posts auth message to the opener origin and closes window', () => {
       const postMessage = vi.fn()
       const closeWindow = vi.fn()
+      const OPENER = 'https://app.example.com'
 
+      Object.defineProperty(document, 'referrer', {
+        value: `${OPENER}/page`,
+        writable: true,
+        configurable: true,
+      })
       Object.defineProperty(window, 'opener', {
         value: { postMessage },
         writable: true,
@@ -328,18 +359,43 @@ describe('createAuthConnector', () => {
       const jwt = makeJwt({ username: 'alice', provider: 'api.example.com' })
       const wapi = createMockWapi(jwt)
       const wa = createAuthConnector(wapi)
-      wa.mintOAuthToken().then(() => {
-        // oAuthToken set by mock
-      })
-      // Manually set for test
-      Object.getOwnPropertyDescriptor(wa, 'oAuthToken')
       wa.sendToken()
 
+      // Posted to the opener's exact origin — never '*'.
       expect(postMessage).toHaveBeenCalledWith(
         { type: 'auth', token: null },
-        '*',
+        OPENER,
       )
       expect(closeWindow).toHaveBeenCalled()
+    })
+
+    it('refuses to post when the opener origin is unknown', () => {
+      const postMessage = vi.fn()
+      const closeWindow = vi.fn()
+
+      Object.defineProperty(document, 'referrer', {
+        value: '',
+        writable: true,
+        configurable: true,
+      })
+      Object.defineProperty(window, 'opener', {
+        value: { postMessage },
+        writable: true,
+        configurable: true,
+      })
+      Object.defineProperty(window, 'close', {
+        value: closeWindow,
+        writable: true,
+        configurable: true,
+      })
+
+      const jwt = makeJwt({ username: 'alice', provider: 'api.example.com' })
+      const wapi = createMockWapi(jwt)
+      const wa = createAuthConnector(wapi)
+      wa.sendToken()
+
+      expect(postMessage).not.toHaveBeenCalled()
+      expect(closeWindow).not.toHaveBeenCalled()
     })
   })
 

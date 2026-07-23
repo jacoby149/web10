@@ -48,7 +48,7 @@ export function setTokenCookie(token: string, maxAgeDays = 60): void {
   const age = 3600 * 24 * maxAgeDays
   // Only set Secure flag on HTTPS origins
   const secure = typeof location !== 'undefined' && location.protocol === 'https:' ? 'Secure;' : ''
-  document.cookie = `token=${token};${secure}path=/;max-age=${age};`
+  document.cookie = `token=${token};${secure}path=/;max-age=${age};SameSite=Lax;`
 }
 
 /**
@@ -77,10 +77,18 @@ export function decodeJwt(token: string | null): TokenPayload | null {
 }
 
 /**
- * Check if a token is expired based on its `exp` claim.
+ * Check if a token is expired.
+ *
+ * web10 tokens carry an ISO-8601 `expires` claim (set server-side in
+ * `api/app/models/auth.py`), NOT the numeric JWT `exp` claim — so the
+ * check parses `expires`. Returns `false` when the token is missing or
+ * carries no readable expiry (fail-open matches the server, which
+ * treats a missing expiry as the "anon" case).
  */
 export function isTokenExpired(token: string | null): boolean {
   const payload = decodeJwt(token)
-  if (!payload || !payload.exp) return false
-  return Date.now() >= payload.exp * 1000
+  if (!payload || !payload.expires) return false
+  const expiresMs = Date.parse(payload.expires)
+  if (Number.isNaN(expiresMs)) return false
+  return Date.now() >= expiresMs
 }
