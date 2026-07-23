@@ -26,7 +26,7 @@ import type {
   ProfileRecord,
   CommentRecord,
 } from '@/data/types';
-import { Heart, MessageCircle, Sparkles, Send } from 'lucide-react';
+import { Heart, MessageCircle, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 function formatTimeAgo(dateStr: string): string {
@@ -310,20 +310,18 @@ function PostCard({
 
 function FeedEmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center py-24 px-8 text-center" data-testid="feed-empty">
-      <div className={cn(
-        'w-16 h-16 rounded-2xl bg-gradient-to-br from-brand to-brand-600 flex items-center justify-center mb-6',
-        'shadow-lg shadow-brand/25',
-      )}>
-        <Sparkles className="w-8 h-8 text-white" />
-      </div>
-      <h3 className="font-display text-lg font-semibold text-foreground mb-2">Your feed is empty</h3>
-      <p className="text-sm text-muted-foreground max-w-xs mb-6">
-        Import your Instagram, Facebook, or YouTube to fill your feed with your existing posts and connections.
+    <div className="flex flex-col items-center justify-center py-16 px-8 text-center" data-testid="feed-empty">
+      <p className="text-sm text-muted-foreground mb-3">Your feed will appear here as people you follow post.</p>
+      <p className="text-xs text-muted-foreground/50">
+        Or{' '}
+        <button
+          data-testid="feed-import-cta"
+          className="text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
+          onClick={() => window.open('/exporters', '_blank')}
+        >
+          import your existing posts
+        </button>
       </p>
-      <Button variant="brand" data-testid="feed-import-cta" className="gap-2" onClick={() => window.open('/exporters', '_blank')}>
-        Import your Instagram
-      </Button>
     </div>
   );
 }
@@ -450,10 +448,6 @@ export default function FeedScreen() {
     return <FeedSkeleton />;
   }
 
-  if (!items.length) {
-    return <FeedEmptyState />;
-  }
-
   return (
     <div className="md:max-w-xl md:mx-auto">
       <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-md border-b border-border md:static md:border-0 md:bg-transparent md:mb-4">
@@ -472,35 +466,39 @@ export default function FeedScreen() {
         </div>
       </div>
       <div className="md:px-0">
-        {items.map((item) => {
-          const post = postsMap[item.post_id];
-          if (!post) return null;
-          const authorKey = `${item.author_username}@${item.author_provider}`;
-          const profile = profileMap[authorKey];
-          const mediaItems = mediaMap[item.post_id] || [];
+        {!items.length ? (
+          <FeedEmptyState />
+        ) : (
+          items.map((item) => {
+            const post = postsMap[item.post_id];
+            if (!post) return null;
+            const authorKey = `${item.author_username}@${item.author_provider}`;
+            const profile = profileMap[authorKey];
+            const mediaItems = mediaMap[item.post_id] || [];
 
-          return (
-            <PostCard
-              key={item._id || item.post_id}
-              post={post}
-              authorName={profile?.display_name || item.author_username}
-              authorAvatar={
-                profile?.avatar_ref
-                  ? mediaMap[item.post_id]?.find((m) => m._id === profile.avatar_ref)?.url
-                  : undefined
-              }
-              mediaItems={mediaItems}
-              reactionCount={reactionMap[item.post_id] || 0}
-              commentCount={commentMap[item.post_id] || 0}
-              liked={!!likedMap[item.post_id]}
-              timestamp={post.created_at || item.delivered_at}
-              onToggleLike={() => handleToggleLike(item.post_id)}
-              onCommentCountChange={(n) =>
-                setCommentMap((prev) => ({ ...prev, [item.post_id]: n }))
-              }
-            />
-          );
-        })}
+            return (
+              <PostCard
+                key={item._id || item.post_id}
+                post={post}
+                authorName={profile?.display_name || item.author_username}
+                authorAvatar={
+                  profile?.avatar_ref
+                    ? mediaMap[item.post_id]?.find((m) => m._id === profile.avatar_ref)?.url
+                    : undefined
+                }
+                mediaItems={mediaItems}
+                reactionCount={reactionMap[item.post_id] || 0}
+                commentCount={commentMap[item.post_id] || 0}
+                liked={!!likedMap[item.post_id]}
+                timestamp={post.created_at || item.delivered_at}
+                onToggleLike={() => handleToggleLike(item.post_id)}
+                onCommentCountChange={(n) =>
+                  setCommentMap((prev) => ({ ...prev, [item.post_id]: n }))
+                }
+              />
+            );
+          })
+        )}
       </div>
     </div>
   );

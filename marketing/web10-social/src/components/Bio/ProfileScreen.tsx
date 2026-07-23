@@ -7,28 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { readProfile, saveProfile, readMyPosts, resolveMediaRefs, uploadMedia } from '@/data';
 import type { ProfileRecord, PostRecord, MediaRecord } from '@/data/types';
-import { MapPin, Globe, Link, Camera, Edit3, Check, X, Sparkles, ImagePlus } from 'lucide-react';
+import { MapPin, Globe, Link, Camera, Edit3, Check, X, ImagePlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-function ProfileEmptyState() {
-  return (
-    <div className="flex flex-col items-center justify-center py-24 px-8 text-center" data-testid="profile-empty">
-      <div className={cn(
-        'w-16 h-16 rounded-2xl bg-gradient-to-br from-brand to-brand-600 flex items-center justify-center mb-6',
-        'shadow-lg shadow-brand/25',
-      )}>
-        <Sparkles className="w-8 h-8 text-white" />
-      </div>
-      <h3 className="font-display text-lg font-semibold text-foreground mb-2">Your profile is empty</h3>
-      <p className="text-sm text-muted-foreground max-w-xs mb-6">
-        Import your Instagram to fill your profile with your existing posts, followers, and media.
-      </p>
-      <Button variant="brand" data-testid="profile-import-cta" className="gap-2" onClick={() => window.open('/exporters', '_blank')}>
-        Import your Instagram
-      </Button>
-    </div>
-  );
-}
 
 function ProfileSkeleton() {
   return (
@@ -121,10 +101,6 @@ export default function ProfileScreen() {
 
   if (loading) {
     return <ProfileSkeleton />;
-  }
-
-  if (!profile && !posts.length) {
-    return <ProfileEmptyState />;
   }
 
   const bannerMedia = profile?.banner_ref ? mediaMap[profile.banner_ref] : undefined;
