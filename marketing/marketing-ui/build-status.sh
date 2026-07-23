@@ -16,7 +16,6 @@ else
 fi
 
 COMMIT_FULL=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
-COMMIT_TITLE=$(git log -1 --format='%s' "$COMMIT_FULL" 2>/dev/null || echo "unknown")
 COMMIT_DATE=$(git log -1 --format='%ai' "$COMMIT_FULL" 2>/dev/null || echo "unknown")
 
 # Version from CHANGELOG.md — passed as STATUS_VERSION build ARG
@@ -37,7 +36,6 @@ cat > "$OUTDIR/status.json" <<ENDJSON
 {
   "version": "$VERSION",
   "commit": "$COMMIT",
-  "commitTitle": "$COMMIT_TITLE",
   "commitDate": "$COMMIT_DATE",
   "deployedAt": "$BUILT_AT",
   "healthEndpoints": {
@@ -210,10 +208,6 @@ cat > "$OUTDIR/index.html" <<'ENDHTML'
         <span class="value mono" id="commit">—</span>
       </div>
       <div class="row">
-        <span class="label">Message</span>
-        <span class="value" id="title">—</span>
-      </div>
-      <div class="row">
         <span class="label">Deployed</span>
         <span class="value" id="deployed">—</span>
       </div>
@@ -259,7 +253,6 @@ cat > "$OUTDIR/index.html" <<'ENDHTML'
       const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.textContent = val; };
       set('version', status.version);
       set('commit', status.commit);
-      set('title', status.commitTitle);
       set('deployed', status.deployedAt ? new Date(status.deployedAt).toLocaleString() : '—');
 
       const endpoints = status.healthEndpoints || {};
