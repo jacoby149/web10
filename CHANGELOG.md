@@ -1,3 +1,5 @@
+1.0.111 || 23.07.2026
+Decision D30: content lifecycle is a COLLECTION, not a status field. Three tiers — staging_posts (owner-only, imported/drafted awaiting triage), private_posts, public_posts — visibility = which collection a record lives in. Publishing = move between collections. Extends existing public/private split by one tier. Rejects needs_review/imported/draft boolean fields (can't gate access, pollute queries, mix triage with real private content). Registers D19 lane item (phased: A foundation repair, B composer visibility, C staging UI) and plan tasks.
 1.0.110 || 23.07.2026
 Marketing navbar: replaced plain "GitHub" text link with a star button showing the live GitHub star count (fetches from GitHub API). Loading skeleton while fetching, 'k' suffix for 1000+ stars, fallback to "Star" on error. Uses a shared React context so desktop and mobile instances share one API call.
 1.0.109 || 23.07.2026
