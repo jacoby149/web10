@@ -38,7 +38,9 @@ def _real_contract(snippet: str):
 class TestPymongoReturnDocument:
     def test_source_uses_valid_constant(self):
         src = (_APP / "services" / "documentdb.py").read_text()
-        assert "pymongo.RETURN_AFTER" not in src, "pymongo.RETURN_AFTER does not exist — use pymongo.ReturnDocument.AFTER"
+        assert "pymongo.RETURN_AFTER" not in src, (
+            "pymongo.RETURN_AFTER does not exist — use pymongo.ReturnDocument.AFTER"
+        )
         assert "pymongo.ReturnDocument.AFTER" in src
 
     def test_real_pymongo_contract(self):
