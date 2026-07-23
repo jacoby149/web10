@@ -73,8 +73,7 @@ def env_for(stack):
                  API_ORIGIN="https://api.dev.web10.app", API_HOST="api.dev.web10.app",
                  AUTH_ORIGIN="https://auth.dev.web10.app", RTC_ORIGIN="https://rtc.dev.web10.app",
                  MINIO_HOST="minio.dev.web10.app", MARKETING_API_ORIGIN="https://marketing-api.dev.web10.app",
-                 CORS_ALLOW_ORIGINS="auth.dev.web10.app,social.dev.web10.app,www.dev.web10.app",
-                  CORS_SERVICE_MANAGERS="auth.dev.web10.app",
+                 CORS_SERVICE_MANAGERS="auth.dev.web10.app",
                  MINIO_PASSWORD=cfg["MINIO_PASSWORD_DEV"])
     else:
         d = dict(STACK="web10-prod", PROVIDER="api.web10.app",
@@ -82,8 +81,7 @@ def env_for(stack):
                  API_ORIGIN="https://api.web10.app", API_HOST="api.web10.app",
                  AUTH_ORIGIN="https://auth.web10.app", RTC_ORIGIN="https://rtc.web10.app",
                  MINIO_HOST="minio.web10.app", MARKETING_API_ORIGIN="https://marketing-api.web10.app",
-                 CORS_ALLOW_ORIGINS="auth.web10.app,social.web10.app,www.web10.app,web10.app",
-                  CORS_SERVICE_MANAGERS="auth.web10.app",
+                 CORS_SERVICE_MANAGERS="auth.web10.app",
                  MINIO_PASSWORD=cfg["MINIO_PASSWORD_PROD"])
     return [{"name": k, "value": v} for k, v in d.items()]
 

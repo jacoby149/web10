@@ -20,22 +20,16 @@ app = FastAPI(
 )
 
 
-def _cors_origins():
-    """Build allow-listed CORS origins from settings."""
-    origins = set()
-    for host in settings.CORS_ALLOW_ORIGINS:
-        origins.add(f"http://{host}")
-        origins.add(f"https://{host}")
-    # The API itself may serve the UI or OpenAPI docs
-    origins.add(f"http://{settings.PROVIDER}")
-    origins.add(f"https://{settings.PROVIDER}")
-    return list(origins)
-
-
+# CORS is intentionally wide open. The API's security boundary is the
+# scoped, expiring token in each request body (certify + is_permitted +
+# the per-service ACL), NOT the browser origin. web10 apps are stateless
+# frontends anyone can build and host anywhere, so gatekeeping origins
+# would only break legitimate apps without adding security. The token
+# never rides on a browser cookie (the SDK sends it in the request body),
+# so we don't need — and deliberately don't enable — credentialed CORS.
 app.add_middleware(
     CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=_cors_origins(),
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
