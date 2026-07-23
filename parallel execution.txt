@@ -770,8 +770,8 @@ LANE CI — github actions optimization (owns: .github/workflows/**, cross-cutti
    [✓ 1.0.99] CI-single-arch: drop linux/arm64 from cd.yml image builds.
        saves ~50% on CD minutes.
    [✓ 1.0.99] CI-small-runners: use ubuntu-latest-small for changelog check.
-   [ ] CI-e2e-push-only: skip e2e.yml on pull_request, run only on
-       push to dev/main. saves ~15 min per PR.
+[✓ 1.0.128] CI-e2e-push-only: skip e2e.yml on pull_request, run only on
+        push to dev/main. saves ~15 min per PR.
    [ ] CI-single-arch: drop linux/arm64 from cd.yml image builds if
        no self-hosters need ARM. saves ~50% on CD minutes.
    [ ] CI-small-runners: use ubuntu-latest-small for lightweight jobs
