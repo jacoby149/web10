@@ -271,6 +271,11 @@ LANE C — greenfield services  (owns: sdk/, mcp/, new dirs)
       the suite, lane-owned breakage -> .context/ note + lane
       queue item, never a silent skip. deliverable = the enlarged
       suite AND the honest bug list.
+  [ ] C7. sdk media surface (plan.txt phase 8.5, media v0): the
+      typed sdk (sdk/src) has NO media methods — add upload
+      (presigned POST + confirm) and getReadUrl (presigned GET
+      exchange + expiry-aware cache) matching the contract the
+      web10-social wrapper lands in D23. small; no gate.
 
 LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
                                 *.md/txt)
@@ -506,6 +511,25 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         marketing/web10-social/** only. gate: D21's video v0
         merged. acceptance: a phone-recorded vertical video posts
         and swipes like short-form, demoable next to tiktok.
+[ ] D23. MEDIA READS SURVIVE A PRIVATE BUCKET (plan.txt phase 8.5,
+        media v0; the dev-minio 403). media records store the bare
+        unsigned object url and every renderer trusts record.url
+        verbatim, so a private bucket 403s every avatar/photo; the
+        api's request_read_url endpoint has ZERO callers. the wapi
+        wrapper gains getReadUrl (POST /media/{user}/read ->
+        presigned GET, expiry-aware cache so a feed of N images
+        isn't N round-trips per render); resolveMediaRefs + the
+        avatar/feed/composer paths render fresh presigned urls,
+        never record.url raw. cross-lane bits: the typed-sdk media
+        surface is C7; confirm-upload persisting object_key is a
+        tiny lane-A touch (coordinate, don't reach in — legacy
+        records derive the key from the stored url meanwhile).
+        owns marketing/web10-social/** only. gate: none — and
+        D21's photos-v1 acceptance ("post a photo -> it appears
+        in the feed") is BLIND on dev until this lands, so it
+        goes first. acceptance: avatars + feed photos render on
+        dev (private bucket) with zero 403s in the console;
+        presigned urls refresh when they expire.
 
 
 LANE E — infrastructure / deployment (owns: proxmox provisioning,
