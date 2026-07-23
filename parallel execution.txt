@@ -744,8 +744,8 @@ opens on his phone, in front of someone, and is proud of?" (D29)
           owns api fixes, lane B owns the auth/consent seam.
   ws-G2: keep the personas alive (persona-orchestration/) so feed +
          trending never demo empty.
-  ws-G3: encode each passing gauntlet step as a playwright journey
-         in e2e/ (lane C — this is C6 continued, NOT C2).
+[✓ 1.0.145] ws-G3: encode each passing gauntlet step as a playwright journey
+          in e2e/ (lane C — this is C6 continued, NOT C2).
   then: low-hanging fruit by demo impact — realtime feed refresh,
         notifications, search-your-own-stuff, D16(3) store curation
         [✓ 1.0.136 — D16(3) curation landed; D16 marked done above].
