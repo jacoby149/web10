@@ -1,3 +1,6 @@
+1.0.112 || 23.07.2026
+Fix marketing-ui build: `lucide-react` exports `GitHub` (capital H), not `Github`. The GitHubStarButton component used the wrong case, causing the TypeScript build to fail in CI/CD.
+
 1.0.111 || 23.07.2026
 Marketing navbar: added GitHub icon to the star button so it's visually clear it links to the GitHub repo.
 Fix deploy health check: `docker ps --filter status=unhealthy` is an invalid filter (Docker states are created/running/paused/restarting/removing/exited/dead — health is a separate field). This caused the stability loop to always exit on the first iteration with "All containers stable" regardless of actual container health. Both deploy jobs now use `docker inspect` to read `State.Health.Status` per container, then grep for unhealthy. Containers without a healthcheck return "none".
