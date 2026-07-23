@@ -521,7 +521,7 @@ the original data changes what "done" looks like for these):
     against real data (A7), with a playwright test so it can't
     regress. this is the front door — nothing else matters if a
     creator can't log in.
-[ ] APP STORE, restored + curated (lane D, item D16): the original
+[✓ 1.0.134] APP STORE, restored + curated (lane D, item D16): the original
     web10 had a LIVE app store with real registered apps; the
     current marketing-ui shows first-party "proof" cards only. read
     the real registered apps from the mongo (A7), keep web10-social
@@ -532,7 +532,14 @@ the original data changes what "done" looks like for these):
     store minimal, an empty catalog reads as jank" call (D20 thread)
     — that assumed an empty catalog; with 208 real users and real
     apps reconnected, restoring the store IS the "real company"
-    goal. log the reversal in decisions.md when it lands.
+    goal. reversal logged in decisions.md as D31 + the partial-vs-
+    allowlist sub-reversal (operator 23.07: takedown-only →
+    allowlist — "any app can register, but i should be able to
+    approve"). 1.0.84 shipped the store stats (real apps from mongo)
+    + web10-social hero; 1.0.134 ships the curation: pending flag on
+    `/register_app`, `/apps/admin` + `/apps/approve` (admin-only,
+    reusing check_admin), and the App Store Approvals card in the
+    authenticator's Node Config panel.
 [✓ 1.0.70] docs 404 fix (lane D, D16.1): /docs/protocol-spec 404'd
     live — marketing-ui's nginx /docs/ alias block shadowed the SPA
     fallback. try_files → index.html added.

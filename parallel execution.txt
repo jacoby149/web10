@@ -356,7 +356,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       includes the serving hostname (a deploy authorizes itself).
       verified: env-arg build bakes dev origins into the bundle,
       195 tests green.
-  [ ] D16. APP STORE — restore it as a real, curated marketplace
+  [✓ 1.0.134] D16. APP STORE — restore it as a real, curated marketplace
       (gated on A7's mongo; the original web10 had live registered
       apps + real usage stats, so this is RESTORATION of real
       assets, not the speculative empty-catalog the D20 thread
@@ -388,15 +388,22 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       restoring it IS the "looks like a real company" goal, not a
       distraction. record this reversal in decisions.md when D16
       lands.
-      STATUS (1.0.84): (1) real apps from the node + (2) web10-social
-      hero + (4) live member/app counts LANDED (marketing-ui AppStore
-      now POSTs the node /stats). (3) CURATION/MODERATION deferred by
-      operator to next — the node owner takes registered apps OFF the
-      store (a `removed` flag on app records + admin-gated
-      /apps/manage,/apps/remove,/apps/restore reusing check_admin, and
-      an admin-only takedown screen in the node console). Approval-gating
-      (hide-until-approved) is the stricter optional mode; the operator
-      wants takedown, not allowlisting. Reuses the 1.0.77 admin model.
+      STATUS: (1)+(2)+(4) landed in 1.0.84 (marketing-ui AppStore
+      POSTs the node /stats); (3) CURATION landed in 1.0.134 —
+      operator reversed the earlier "takedown, not allowlisting"
+      call (decisions.md D31) and now wants allowlist ("any app can
+      register, but i should be able to approve"). `register_app`
+      adds new entries as approved:false (pending, via $setOnInsert
+      so repeat visits don't reset state); `get_apps` filters
+      approved=True so /stats hides unapproved; `POST /apps/admin`
+      lists all + a pending count, `POST /apps/approve` toggles
+      (both admin-only via check_admin, reuses the 1.0.77 admin
+      model). The authenticator's Node Config panel gained an "App
+      Store Approvals" card with per-row Approve/Unapprove buttons
+      and pending-badge side-by-side with the rest of the node's
+      variables. Backward-compat: historical pre-A7 apps without an
+      `approved` field show as pending in the admin panel — the
+      operator curates them once on first launch.
   [✓ 1.0.70] D16.1. fix the /docs/* 404 — marketing-ui nginx served
       /docs/ via an alias block that shadowed the SPA fallback, so
       /docs/protocol-spec 404'd (it's a client-side route that
@@ -672,7 +679,8 @@ opens on his phone, in front of someone, and is proud of?" (D29)
   ws-G3: encode each passing gauntlet step as a playwright journey
          in e2e/ (lane C — this is C6 continued, NOT C2).
   then: low-hanging fruit by demo impact — realtime feed refresh,
-        notifications, search-your-own-stuff, D16(3) store curation.
+        notifications, search-your-own-stuff, D16(3) store curation
+        [✓ 1.0.134 — D16(3) curation landed; D16 marked done above].
 PARKED until the gauntlet passes (do NOT pick up — they read as an
 infra company, not a social platform): C2 sdk rewrite, C3 mcp,
 C3.5 create-web10, D11 ux telemetry, E4 provisioning, E8 mobile
@@ -682,8 +690,8 @@ previous board (19.07, for history — all merged):
   ws-A: A7 connect the real host mongo — [✓ 1.0.72]
   ws-B: B6 authenticator revamp — [✓ 1.0.72] (+ B7 [✓ 1.0.76])
   ws-C: C6 e2e deep sweep — [✓ 1.0.74]
-  ws-D: D17 dev docs [✓ 1.0.72] + D16 app store (partial, 1.0.84 —
-        curation deferred, now in the low-hanging-fruit tier)
+  ws-D: D17 dev docs [✓ 1.0.72] + D16 app store [✓ 1.0.134 —
+        curation landed 23.07]
 
   ws1: [✓ 1.0.65] B5 level-up ui/ to design.md (lane B — ui/**) — merged
   ws2: [✓ 1.0.64] D12 level-up web10-social to design.md (lane D —
