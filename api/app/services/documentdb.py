@@ -92,6 +92,17 @@ def u_t(_u):
             if "$" in "".join(u[op].keys()):
                 # dont let fancy updates work yet.
                 raise exceptions.DB_NOT_ALLOWED
+            # _id selects the document in the query; it never belongs in an
+            # update. to_db_field maps it to the top-level Mongo _id (immutable
+            # by engine contract — MongoDB rejects any $set on it with code 66,
+            # "Performing an update on the path '_id' would modify the immutable
+            # field '_id'", even to the same value). Clients that round-trip a
+            # whole record (e.g. the social app's saveProfile, which spreads the
+            # existing profile — _id included — into the $set payload) hit this
+            # on every edit. Drop it here so every client is protected.
+            if field == "_id":
+                log.warning("u_t: dropped client update of immutable '_id' via %s", op)
+                continue
             db_field = to_db_field(field)
             # I6: silently drop updates targeting immutable server-managed fields
             if field in IMMUTABLE_METADATA:
@@ -590,11 +601,39 @@ def _ensure_capped(name, max_docs):
 
 
 def get_apps(skip=0, limit=0):
+    """Public storefront: only admin-approved apps appear here."""
     apps = [
         {"url": app["url"], "visits": app["visits"]}
-        for app in db["web10"]["apps"].find({}).sort("visits", pymongo.DESCENDING).skip(skip).limit(limit)
+        for app in db["web10"]["apps"]
+        .find({"approved": True})
+        .sort("visits", pymongo.DESCENDING)
+        .skip(skip)
+        .limit(limit)
     ]
     return apps
+
+
+def list_apps_admin():
+    """Admin-facing list of every registered app, including its approval
+    state. Historical apps that predate the `approved` flag arrive as
+    pending (the field is absent) so the operator can curate them once."""
+    apps = []
+    for app in db["web10"]["apps"].find({}).sort("visits", pymongo.DESCENDING):
+        apps.append(
+            {
+                "url": app.get("url"),
+                "visits": app.get("visits", 0),
+                "approved": bool(app.get("approved", False)),
+                "name": app.get("name", ""),
+                "registered_at": app.get("registered_at"),
+            }
+        )
+    return apps
+
+
+def set_app_approval(url: str, approved: bool):
+    """Admin toggles whether an app is shown in the public App Store."""
+    db["web10"]["apps"].update_one({"url": url}, {"$set": {"approved": bool(approved)}})
 
 
 def get_user_count():
@@ -609,7 +648,24 @@ def total_size():
 
 
 def register_app(info):
-    db["web10"]["apps"].update_one({"url": info["url"]}, {"$inc": {"visits": 1}}, True)
+    """Any app can self-register; new entries are pending admin approval
+    (setOnInsert so a repeat visit from an already-known app never resets
+    the approval state)."""
+    url = info.get("url")
+    if not url:
+        return
+    db["web10"]["apps"].update_one(
+        {"url": url},
+        {
+            "$inc": {"visits": 1},
+            "$setOnInsert": {
+                "approved": False,
+                "name": info.get("name", ""),
+                "registered_at": datetime.datetime.utcnow().isoformat(),
+            },
+        },
+        upsert=True,
+    )
 
 
 # --- Media helpers ---

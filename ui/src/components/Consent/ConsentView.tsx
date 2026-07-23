@@ -2,6 +2,8 @@ import React from 'react';
 import { Globe, ShieldCheck, Check, X, ChevronDown, ChevronRight, ArrowRight, Plus, Minus } from 'lucide-react';
 import Branding from '../shared/Branding';
 import LoginForm from '../CredentialPage/LoginForm';
+import SignupForm from '../CredentialPage/SignupForm';
+import ForgotForm from '../CredentialPage/ForgotForm';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -218,14 +220,36 @@ function ConsentView({ I }: { I: Record<string, any> }) {
 
         <div className="flex min-h-0 flex-col rounded-lg border border-border bg-card shadow-[0_8px_30px_rgb(0_0_0/0.35)]">
           {!authed ? (
+            // Respect I.mode so "Create a new account" / "Forgot?" work here
+            // too — LoginForm's links call setMode, and rendering only the
+            // login form left those buttons dead in the consent flow (the
+            // signed-out visitor arriving from an app could never sign up).
             <div className="p-6 sm:p-8">
               <div className="mb-6 text-center">
                 <h1 className="font-display text-xl font-semibold text-foreground">
-                  Log in to connect <span className="text-brand-300">{host}</span>
+                  {I.mode === 'signup' ? (
+                    <>Create your node to connect <span className="text-brand-300">{host}</span></>
+                  ) : I.mode === 'forgot' ? (
+                    <>Recover your account</>
+                  ) : (
+                    <>Log in to connect <span className="text-brand-300">{host}</span></>
+                  )}
                 </h1>
-                <p className="mt-1 text-sm text-muted-foreground">Sign in to your node, then choose what to share.</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {I.mode === 'signup'
+                    ? 'Own your data from the first record — then choose what to share.'
+                    : I.mode === 'forgot'
+                      ? 'Enter your web10 provider and mobile number to recover your account.'
+                      : 'Sign in to your node, then choose what to share.'}
+                </p>
               </div>
-              <LoginForm I={I} embedded />
+              {I.mode === 'signup' ? (
+                <SignupForm I={I} embedded />
+              ) : I.mode === 'forgot' ? (
+                <ForgotForm I={I} embedded />
+              ) : (
+                <LoginForm I={I} embedded />
+              )}
             </div>
           ) : requests.length === 0 ? (
             <div className="flex flex-col items-center p-8 text-center" data-testid="consent-allset">
