@@ -1,4 +1,4 @@
-import { Star } from 'lucide-react'
+import { Github, Star } from 'lucide-react'
 import { Button } from './ui/button'
 import { useStars } from './GitHubStarsContext'
 import { trackFunnel } from '../lib/analytics'
@@ -15,6 +15,7 @@ function GitHubStarButton({ className, onClose }: { className?: string; onClose?
       className={className}
       onClick={() => { onClose?.(); trackFunnel('github_click'); window.open(REPO_URL, '_blank', 'noopener') }}
     >
+      <Github className="h-3.5 w-3.5" strokeWidth={1.75} />
       <Star className="h-3.5 w-3.5" strokeWidth={1.75} />
       {loading ? (
         <span className="w-5 h-3 rounded-sm bg-muted animate-pulse" />

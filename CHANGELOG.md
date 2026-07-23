@@ -1,3 +1,5 @@
+1.0.111 || 23.07.2026
+Marketing navbar: added GitHub icon to the star button so it's visually clear it links to the GitHub repo.
 1.0.110 || 23.07.2026
 Marketing navbar: replaced plain "GitHub" text link with a star button showing the live GitHub star count (fetches from GitHub API). Loading skeleton while fetching, 'k' suffix for 1000+ stars, fallback to "Star" on error. Uses a shared React context so desktop and mobile instances share one API call.
 1.0.109 || 23.07.2026
