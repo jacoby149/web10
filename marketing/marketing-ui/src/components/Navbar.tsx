@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Bug, Menu, X } from 'lucide-react'
 import { Button } from './ui/button'
+import GitHubStarButton from './GitHubStarButton'
 import { trackFunnel } from '../lib/analytics'
 
 const navItems = [
@@ -54,9 +55,7 @@ function Navbar({ onReportBug }: { onReportBug: () => void }) {
           <Button variant="brand" size="sm" onClick={() => { trackFunnel('sign_in_click'); window.location.href = 'https://auth.web10.app' }}>
             Sign In
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => { trackFunnel('github_click'); window.open('https://github.com/jacoby149/web10', '_blank', 'noopener') }}>
-            GitHub
-          </Button>
+          <GitHubStarButton />
         </div>
 
         <button
@@ -98,9 +97,7 @@ function Navbar({ onReportBug }: { onReportBug: () => void }) {
             <Button variant="brand" size="sm" className="w-full justify-center" onClick={() => { setMobileOpen(false); trackFunnel('sign_in_click'); window.location.href = 'https://auth.web10.app' }}>
               Sign In
             </Button>
-            <Button variant="ghost" size="sm" className="w-full justify-center" onClick={() => { setMobileOpen(false); trackFunnel('github_click'); window.open('https://github.com/jacoby149/web10', '_blank', 'noopener') }}>
-              GitHub
-            </Button>
+            <GitHubStarButton className="w-full justify-center" onClose={() => setMobileOpen(false)} />
           </div>
         </div>
       )}
