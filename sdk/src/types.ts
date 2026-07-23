@@ -298,3 +298,102 @@ export interface PlanInfo {
   credits?: number
   plan?: string
 }
+
+// ── Media (S3-style object storage) ─────────────────────────────────────────
+//
+// The media surface exposes presigned S3-style URLs over the node's
+// `/{user}/upload`, `/{user}/upload/confirm`, `/{user}/read` routes
+// (see `api/app/endpoints/media.py`). Blobs live in object storage;
+// the node writes a metadata record into the owner's collection on
+// confirm.
+
+/**
+ * Parameters for requesting a presigned upload (POST) URL.
+ * Sent to `POST /{user}/upload`.
+ */
+export interface MediaUploadUrlParams {
+  /** Object basename (the api derives a prefixed key from it) */
+  filename: string
+  /** MIME type; also baked into the presigned POST policy */
+  mimeType?: string
+  /** Size cap in bytes (server clamps to MAX_UPLOAD_SIZE) */
+  sizeBytes?: number
+}
+
+/**
+ * Response from `POST /{user}/upload` — a presigned S3 POST policy.
+ * The caller builds a `FormData` with `fields` plus the file and POSTs
+ * it to `upload_url`.
+ */
+export interface MediaUploadUrlResponse {
+  /** Presigned POST endpoint (the S3-compatible host) */
+  upload_url: string
+  /** Form fields to include verbatim in the multipart upload */
+  fields: Record<string, string>
+  /** Resolved object key — pass to `confirmUpload` / `getReadUrl` */
+  object_key: string
+  /** Content-Type the presigned policy signed for */
+  content_type: string
+}
+
+/**
+ * Metadata for confirming an upload + writing the media record.
+ * Sent to `POST /{user}/upload/confirm`.
+ */
+export interface MediaConfirmParams {
+  /** Public or presigned URL of the now-stored object */
+  url: string
+  filename: string
+  mimeType?: string
+  sizeBytes?: number
+  /** Intrinsic dimensions, for image/video previews */
+  width?: number
+  height?: number
+  /** Video/audio duration */
+  durationSeconds?: number
+  /** Poster/thumbnail URL (derived client-side until A9 lands) */
+  thumbnailUrl?: string
+  caption?: string
+  /** Accessibility text */
+  altText?: string
+  /** Provenance label (e.g. "instagram", defaults to "web10") */
+  origin?: string
+  /** Provenance id from the importer */
+  originId?: string
+  /** Whether the blob is e2e-encrypted (private media) */
+  encrypted?: boolean
+}
+
+/**
+ * A media metadata record in the owner's collection. Body shape of the
+ * record `db.create_media_record` writes; mirrors `api/app/models/media.py`
+ * `MetadataRecord`.
+ */
+export interface MediaRecord {
+  _id?: string
+  url: string
+  filename: string
+  created_at: string
+  mime_type?: string
+  size_bytes?: number
+  width?: number
+  height?: number
+  duration_seconds?: number
+  thumbnail_url?: string
+  hls_manifest_url?: string
+  caption?: string
+  alt_text?: string
+  origin?: string
+  origin_id?: string
+  encrypted: boolean
+}
+
+/**
+ * Response from `POST /{user}/read` — a short-lived presigned GET URL.
+ */
+export interface MediaReadUrlResponse {
+  /** Presigned GET URL for the object */
+  read_url: string
+  /** Seconds until the URL expires (server-supplied) */
+  expires_in: number
+}
