@@ -38,6 +38,8 @@ export function trackFunnel(
     | 'trending_view'
     | 'export_started'
     | 'export_complete'
+    | 'trending_load_more'
+    | 'trending_comment_attempt'
     | 'sign_in_click'
     | 'sign_up_click'
     | 'github_click'

@@ -907,19 +907,19 @@ Marketing-ui side (Lane D):
 [✓ 1.0.92] wire tab switching to sort params (recent, trending)
 [✓ 1.0.92] wire reaction buttons to /public/entries
 [✓ 1.0.92] fetch schema definitions for rendering interaction types
-[ ] D-trending-card: marketing-ui TrendingCard component — media-forward
+[✓ 1.0.128] D-trending-card: marketing-ui TrendingCard component — media-forward
     card with rank badge (#1 gold, #2-3 silver, #4+ brand), heat glow
     (engagement_score drives violet glow intensity), author row, content
     truncated to 3 lines, tags as chips, engagement bar. Hover: 2px lift
     + glow intensify. Skeleton shimmer matches card shape.
-[ ] D-trending-grid: marketing-ui /trending page layout — responsive grid
+[✓ 1.0.128] D-trending-grid: marketing-ui /trending page layout — responsive grid
     (1/2/3 col), #1 featured card spans 2 cols, topic filter chips (sticky,
     horizontal scroll), hero statement ("What's actually trending. No
     algorithm."). No subtabs.
-[ ] D-trending-sidebar: marketing-ui /trending sidebar (desktop only, wide
+[✓ 1.0.128] D-trending-sidebar: marketing-ui /trending sidebar (desktop only, wide
     screens) — "🔥 Top 10" ranked list, compact entries (position + author
     + snippet + score), click scrolls to card in main grid.
-[ ] D-trending-polish: marketing-ui /trending loading + empty states —
+[✓ 1.0.128] D-trending-polish: marketing-ui /trending loading + empty states —
     shimmer skeleton grid (matches layout, no shift), empty state story
     beat ("The network is quiet" + CTA to social app), infinite scroll
     feel (load 20, "Load more" brand pill).
