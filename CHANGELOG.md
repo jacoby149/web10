@@ -1,3 +1,5 @@
+1.0.106 || 22.07.2026
+CD: split npm publish into separate web10-npm (sdk/) and web10-cli (marketing/web10-cli/) jobs. Switched to OIDC provenance (id-token: write), removing NODE_AUTH_TOKEN and packages: write. Release job now depends on both publish jobs.
 1.0.105 || 22.07.2026
 SDK compat shim: re-exports `wapiInit` and `wapiAuthInit` from the new typed SDK so legacy consumers (ui/, web10-social/) don't break. Both apps now resolve `web10-npm` from the local SDK and build clean. 55 SDK tests green.
 1.0.104 || 22.07.2026
