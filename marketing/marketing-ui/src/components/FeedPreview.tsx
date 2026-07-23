@@ -12,7 +12,7 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]['id'];
 
-const API_ORIGIN = import.meta.env.VITE_API_ORIGIN || 'https://api.web10.app';
+const API_ORIGIN = import.meta.env.VITE_API_URL || 'https://api.web10.app';
 
 interface DiscoveryPost {
   author: string;
@@ -139,17 +139,72 @@ function MediaPlaceholder({ type }: { type: 'image' | 'video' | 'music' }) {
   );
 }
 
+function CommentThread({ post, isOpen }: { post: FeedPost; isOpen: boolean }) {
+  const [comments, setComments] = useState<{ author: string; text: string }[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    setLoading(true);
+    fetch(`${API_ORIGIN}/public/entries`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: { target: `post:${post.id}`, limit: 50 } }),
+    })
+      .then(r => r.ok ? r.json() : [])
+      .then(entries => {
+        if (cancelled) return;
+        const filtered = entries
+          .filter((e: any) => e.payload?.type === 'comment' || e.payload?.action === 'comment')
+          .map((e: any) => ({ author: e.author_username || 'anonymous', text: e.payload?.text || '' }));
+        setComments(filtered);
+      })
+      .catch(() => { if (!cancelled) setComments([]); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [isOpen, post.id]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="border-t border-border px-4 py-3 space-y-2">
+      {loading ? (
+        <>
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-4 w-1/2" />
+        </>
+      ) : comments.length ? (
+        <ul className="space-y-2">
+          {comments.map((c, i) => (
+            <li key={i} className="text-sm leading-relaxed">
+              <span className="font-medium text-brand-300">{c.author}</span>{' '}
+              <span className="text-foreground">{c.text}</span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-muted-foreground">No comments yet.</p>
+      )}
+    </div>
+  );
+}
+
 function PostCard({
   post,
   onLike,
   onComment,
   onRepost,
+  readOnly = false,
 }: {
   post: FeedPost;
   onLike: (postId: string) => void;
   onComment: (postId: string) => void;
   onRepost: (postId: string) => void;
+  readOnly?: boolean;
 }) {
+  const [commentsOpen, setCommentsOpen] = useState(false);
+
   return (
     <Card className="bg-surface">
       <div className="p-4">
@@ -171,37 +226,61 @@ function PostCard({
               </div>
             )}
             <div className="mt-3 flex items-center gap-6">
-              <button
-                onClick={() => onLike(post.id)}
-                className="group flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-rose-400"
-                aria-label={`Like, ${post.likes} likes`}
-              >
-                <Heart className="h-4 w-4" strokeWidth={1.5} />
-                <span className="text-xs">{post.likes}</span>
-              </button>
-              <button
-                onClick={() => onComment(post.id)}
-                className="group flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-sky-400"
-                aria-label={`Comment, ${post.comments} comments`}
-              >
-                <MessageCircle className="h-4 w-4" strokeWidth={1.5} />
-                <span className="text-xs">{post.comments}</span>
-              </button>
-              <button
-                onClick={() => onRepost(post.id)}
-                className="group flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-emerald-400"
-                aria-label={`Repost, ${post.reposts} reposts`}
-              >
-                <Repeat2 className="h-4 w-4" strokeWidth={1.5} />
-                <span className="text-xs">{post.reposts}</span>
-              </button>
-              <button className="group ml-auto text-muted-foreground transition-colors hover:text-brand-400" aria-label="Share">
-                <Share2 className="h-4 w-4" strokeWidth={1.5} />
-              </button>
+              {readOnly ? (
+                <>
+                  <span className="flex items-center gap-1.5 text-muted-foreground" aria-label={`Like, ${post.likes} likes`}>
+                    <Heart className="h-4 w-4" strokeWidth={1.5} />
+                    <span className="text-xs">{post.likes}</span>
+                  </span>
+                  <span className="flex items-center gap-1.5 text-muted-foreground" aria-label={`Comment, ${post.comments} comments`}>
+                    <MessageCircle className="h-4 w-4" strokeWidth={1.5} />
+                    <span className="text-xs">{post.comments}</span>
+                  </span>
+                  <span className="flex items-center gap-1.5 text-muted-foreground" aria-label={`Repost, ${post.reposts} reposts`}>
+                    <Repeat2 className="h-4 w-4" strokeWidth={1.5} />
+                    <span className="text-xs">{post.reposts}</span>
+                  </span>
+                  <span className="ml-auto text-muted-foreground" aria-label="Share">
+                    <Share2 className="h-4 w-4" strokeWidth={1.5} />
+                  </span>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => onLike(post.id)}
+                    className="group flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-rose-400"
+                    aria-label={`Like, ${post.likes} likes`}
+                  >
+                    <Heart className="h-4 w-4" strokeWidth={1.5} />
+                    <span className="text-xs">{post.likes}</span>
+                  </button>
+                  <button
+                    onClick={() => setCommentsOpen(o => !o)}
+                    className="group flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-sky-400"
+                    aria-label={`Comment, ${post.comments} comments`}
+                    aria-expanded={commentsOpen}
+                  >
+                    <MessageCircle className="h-4 w-4" strokeWidth={1.5} />
+                    <span className="text-xs">{post.comments}</span>
+                  </button>
+                  <button
+                    onClick={() => onRepost(post.id)}
+                    className="group flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-emerald-400"
+                    aria-label={`Repost, ${post.reposts} reposts`}
+                  >
+                    <Repeat2 className="h-4 w-4" strokeWidth={1.5} />
+                    <span className="text-xs">{post.reposts}</span>
+                  </button>
+                  <button className="group ml-auto text-muted-foreground transition-colors hover:text-brand-400" aria-label="Share">
+                    <Share2 className="h-4 w-4" strokeWidth={1.5} />
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
       </div>
+      {!readOnly && <CommentThread post={post} isOpen={commentsOpen} />}
     </Card>
   );
 }
@@ -365,9 +444,10 @@ function FeedPreview() {
                   <PostCard
                     key={post.id}
                     post={post}
-                    onLike={(id) => handleReaction(id, 'like')}
-                    onComment={(id) => handleReaction(id, 'comment')}
-                    onRepost={(id) => handleReaction(id, 'repost')}
+                    onLike={() => {}}
+                    onComment={() => {}}
+                    onRepost={() => {}}
+                    readOnly
                   />
                 ))
               : Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={`empty-${i}`} />)

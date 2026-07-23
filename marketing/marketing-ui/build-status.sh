@@ -250,46 +250,58 @@ cat > "$OUTDIR/index.html" <<'ENDHTML'
         status = {};
       }
 
-      const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.textContent = val; };
-      set('version', status.version);
-      set('commit', status.commit);
-      set('deployed', status.deployedAt ? new Date(status.deployedAt).toLocaleString() : '—');
+      const known = v => (v && v !== 'unknown' ? v : null);
+      const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val || '—'; };
+      set('version', known(status.version));
+      set('commit', known(status.commit));
+      set('deployed', known(status.deployedAt) ? new Date(status.deployedAt).toLocaleString() : null);
 
+      // Health URLs are baked into status.json at build time, but a
+      // GitOps rebuild can omit the origin args and ship them empty —
+      // which used to leave the dot stuck on the "checking" pulse
+      // forever (Social + Marketing always yellow). Derive any missing
+      // URL from the current hostname so the page is self-sufficient:
+      // service vhosts are always <service>.<zone>, and "marketing" is
+      // this very origin.
+      const zone = location.hostname.replace(/^www\./, '');
+      const derived = {
+        api: 'https://api.' + zone + '/docs',
+        auth: 'https://auth.' + zone + '/',
+        social: 'https://social.' + zone + '/',
+        marketing: location.origin + '/',
+      };
       const endpoints = status.healthEndpoints || {};
-      const checks = [
-        ['api', endpoints.api],
-        ['auth', endpoints.auth],
-        ['social', endpoints.social],
-        ['marketing', endpoints.marketing],
-      ];
+      const checks = ['api', 'auth', 'social', 'marketing'].map(
+        name => [name, known(endpoints[name]) || derived[name]]
+      );
 
-      for (const [name, url] of checks) {
+      // Bound every probe so a hanging host resolves to a real state
+      // instead of pulsing yellow indefinitely.
+      const probe = (url, opts) => {
+        const ctl = new AbortController();
+        const t = setTimeout(() => ctl.abort(), 8000);
+        return fetch(url, Object.assign({ signal: ctl.signal }, opts))
+          .finally(() => clearTimeout(t));
+      };
+
+      await Promise.all(checks.map(async ([name, url]) => {
         const dot = document.getElementById('dot-' + name);
-        if (!dot || !url) continue;
+        if (!dot) return;
+        if (!url) { dot.className = 'dot'; return; }  // unknown → neutral grey, never a forever-pulse
         try {
-          const res = await fetch(url, { method: 'HEAD', mode: 'same-origin' });
-          if (res.ok) {
-            dot.className = 'dot ok';
-          } else {
-            // Try GET fallback (some endpoints might not support HEAD)
-            const res2 = await fetch(url, { mode: 'same-origin' });
-            dot.className = res2.ok ? 'dot ok' : 'dot fail';
-          }
+          const res = await probe(url, { method: 'HEAD', mode: 'same-origin' });
+          dot.className = res.ok ? 'dot ok' : 'dot fail';
         } catch {
-          // Cross-origin: the status page lives on marketing-ui,
-          // so same-origin only works for marketing itself.
-          // For other services, we try fetch with no-cors or skip.
-          // If Vary: Origin is set on the services, this works.
-          // Fallback: try a simple fetch and accept opaque responses.
+          // Cross-origin (services live on sibling vhosts): a no-cors
+          // probe returns an opaque response we can only read as "up".
           try {
-            const res = await fetch(url, { mode: 'no-cors' });
-            if (res.type === 'opaque') dot.className = 'dot ok';
-            else dot.className = 'dot fail';
+            const res = await probe(url, { mode: 'no-cors' });
+            dot.className = (res.type === 'opaque' || res.ok) ? 'dot ok' : 'dot fail';
           } catch {
             dot.className = 'dot fail';
           }
         }
-      }
+      }));
     })();
   </script>
 </body>

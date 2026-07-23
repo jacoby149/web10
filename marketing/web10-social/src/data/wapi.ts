@@ -66,6 +66,16 @@ export interface WapiWrapper {
     filename: string,
   ) => Promise<{ uploadUrl: string; fields: Record<string, string>; objectKey: string; contentType: string }>;
 
+  // Confirm an object-storage upload → creates the media record in the
+  // user's collection. Lives here (not in the data layer) because the raw
+  // JWT + API protocol are only reachable from inside the wrapper.
+  confirmUpload: <T = Record<string, unknown>>(params: {
+    url: string;
+    filename: string;
+    mimeType: string;
+    sizeBytes: number;
+  }) => Promise<T>;
+
   // P2P (legacy, kept for existing chat)
   initP2P: (onInbound: (conn: unknown, data: unknown) => void, label: string) => void;
   sendP2P: (provider: string, username: string, origin: string, label: string, data: unknown) => void;
@@ -203,6 +213,22 @@ export function createWapiWrapper(authUrl?: string, rtcServer?: string): WapiWra
         objectKey: json.object_key,
         contentType: json.content_type,
       };
+    },
+
+    async confirmUpload<T>({ url, filename, mimeType, sizeBytes }) {
+      const token = getToken();
+      if (!token) throw new Error('not authenticated');
+      const proto = getProtocol();
+      const p = raw.readToken().provider;
+      const u = raw.readToken().username;
+      const resp = await fetch(`${proto}//${p}/${u}/upload/confirm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, url, filename, mime_type: mimeType, size_bytes: sizeBytes }),
+      });
+      if (!resp.ok) throw new Error(`confirm upload failed: ${resp.status}`);
+      const json = await resp.json();
+      return (json.data || json) as T;
     },
 
     initP2P: (onInbound, label) => raw.initP2P(onInbound, label),
