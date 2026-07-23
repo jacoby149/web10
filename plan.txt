@@ -995,7 +995,13 @@ Live testing — persona seeding (Cross-lane, persona-orchestration/):
     placeholder. the personas also test the social app's core flows
     (post, feed, DM, comment, react, follow) with actual cross-user
     interaction — no more empty-state screenshots in the demo.
-    the seed script is idempotent: re-run after a DB wipe to reseed.
+[✓ 1.0.145] the seed script is FULLY idempotent (ws-G2 fix): every
+    create path reads-before-writes (stable origin_id on posts + DMs,
+    natural-key dedup on contacts/follows/inbox/ledger), --cleanup
+    removes dups from prior non-idempotent runs (296 removed on dev),
+    --verify reports state without writing. re-running is a no-op
+    (proven: second run = 0 new records). 7 posts/persona + reply DM
+    threads added so the feed + trending demo alive.
     the action plans per persona define ongoing content so another
     agent can log in as a persona and keep the platform alive.
 
