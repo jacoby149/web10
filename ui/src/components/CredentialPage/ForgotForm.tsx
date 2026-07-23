@@ -1,6 +1,7 @@
 import "react-phone-input-2/lib/bootstrap.css";
 import Provider from "./FormInputs/Provider";
 import Phone from "./FormInputs/Phone";
+import CredentialStatus from "./CredentialStatus";
 import { Button } from '@/components/ui/button';
 
 function ForgotForm({ I }: { I: Record<string, any> }) {
@@ -38,6 +39,8 @@ function ForgotForm({ I }: { I: Record<string, any> }) {
             Recover account
           </Button>
         </div>
+
+        <CredentialStatus I={I} />
       </div>
     </div>
   );
