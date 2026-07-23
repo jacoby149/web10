@@ -622,9 +622,7 @@ def list_apps_admin():
 
 def set_app_approval(url: str, approved: bool):
     """Admin toggles whether an app is shown in the public App Store."""
-    db["web10"]["apps"].update_one(
-        {"url": url}, {"$set": {"approved": bool(approved)}}
-    )
+    db["web10"]["apps"].update_one({"url": url}, {"$set": {"approved": bool(approved)}})
 
 
 def get_user_count():
