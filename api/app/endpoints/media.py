@@ -14,7 +14,7 @@ from app.models.media import (
 )
 from app.services import documentdb as db
 from app.services.auth import is_permitted
-from app.services.media import ensure_bucket, get_s3_client, make_object_key
+from app.services.media import ensure_bucket, get_s3_client, get_s3_signing_client, make_object_key
 
 router = APIRouter()
 
@@ -27,12 +27,12 @@ async def request_upload_url(user: str, request: UploadRequest):
     if not db.user_collection_exists(user):
         raise HTTPException(status_code=404, detail="user not found")
 
-    s3 = get_s3_client()
-    ensure_bucket(s3)
+    ensure_bucket(get_s3_client())
     object_key = make_object_key(user, request.filename)
     content_type = request.mime_type or "application/octet-stream"
 
-    presigned = s3.generate_presigned_post(
+    # Sign on the public endpoint so the browser gets a reachable HTTPS URL.
+    presigned = get_s3_signing_client().generate_presigned_post(
         settings.S3_BUCKET,
         object_key,
         Fields={"Content-Type": content_type},
@@ -79,9 +79,9 @@ async def request_read_url(user: str, request: ReadRequest):
     if not db.user_collection_exists(user):
         raise HTTPException(status_code=404, detail="user not found")
 
-    s3 = get_s3_client()
-    ensure_bucket(s3)
-    presigned_url = s3.generate_presigned_url(
+    ensure_bucket(get_s3_client())
+    # Sign on the public endpoint so the browser gets a reachable HTTPS URL.
+    presigned_url = get_s3_signing_client().generate_presigned_url(
         "get_object",
         Params={"Bucket": settings.S3_BUCKET, "Key": request.object_key},
         ExpiresIn=settings.READ_URL_EXPIRY,

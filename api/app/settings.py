@@ -48,11 +48,24 @@ DEV_PAY_PCT = 98
 
 # S3-compatible object storage (media service)
 S3_ENDPOINT = os.getenv("S3_ENDPOINT", "http://minio:9000")
+# Presigned URLs are handed to the BROWSER, so they must embed a host the
+# browser can reach over the page's scheme (HTTPS in prod). S3_ENDPOINT is the
+# INTERNAL address the API container uses to talk to MinIO (e.g.
+# http://web10-prod-minio:9000) — signing browser URLs with it produces
+# unreachable, HTTP-only links that trip Mixed-Content on an HTTPS page.
+# S3_PUBLIC_ENDPOINT is the public host (e.g. https://minio.web10.app) used
+# ONLY to sign presigned URLs; signing is offline so the API never connects to
+# it. Defaults to S3_ENDPOINT so local/e2e (one host for both) are unchanged.
+S3_PUBLIC_ENDPOINT = os.getenv("S3_PUBLIC_ENDPOINT", S3_ENDPOINT)
 S3_BUCKET = os.getenv("S3_BUCKET", "web10-media")
 S3_ACCESS_KEY = os.getenv("S3_ACCESS_KEY", "minioadmin")
 S3_SECRET_KEY = os.getenv("S3_SECRET_KEY", "minioadmin")
 S3_REGION = os.getenv("S3_REGION", "us-east-1")
 S3_USE_SSL = os.getenv("S3_USE_SSL", "false").lower() == "true"
+# SSL for the public signing endpoint; defaults to on when it's an https URL.
+S3_PUBLIC_USE_SSL = os.getenv(
+    "S3_PUBLIC_USE_SSL", "true" if S3_PUBLIC_ENDPOINT.startswith("https") else str(S3_USE_SSL).lower()
+).lower() == "true"
 UPLOAD_URL_EXPIRY = int(os.getenv("UPLOAD_URL_EXPIRY", "300"))
 READ_URL_EXPIRY = int(os.getenv("READ_URL_EXPIRY", "60"))
 MAX_UPLOAD_SIZE = int(os.getenv("MAX_UPLOAD_SIZE", "524288000"))

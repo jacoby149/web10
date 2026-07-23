@@ -104,6 +104,12 @@ services:
       # DB=deploy + DB_URL=mongodb://host.docker.internal:27017/ (env.prod).
       DB: ${DB:-web10}
       S3_ENDPOINT: http://${STACK}-minio:9000
+      # Presigned upload/read URLs are signed with THIS host and handed to the
+      # browser, so it must be the public HTTPS MinIO vhost (NPM → ${STACK}-minio:9000),
+      # not the internal ${STACK}-minio:9000 — otherwise the browser gets an
+      # unreachable, HTTP-only URL and Mixed-Content-blocks the upload. Signing
+      # is offline so the API never connects here.
+      S3_PUBLIC_ENDPOINT: https://${MINIO_HOST}
       S3_ACCESS_KEY: minioadmin
       S3_SECRET_KEY: ${MINIO_PASSWORD}
       CORS_SERVICE_MANAGERS: ${CORS_SERVICE_MANAGERS:?authenticator hosts only}
