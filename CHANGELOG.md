@@ -18,6 +18,7 @@ Fix marketing-ui build (for real this time): `lucide-react` (v1.x) exports NO Gi
 Fix marketing-ui build: `lucide-react` exports `GitHub` (capital H), not `Github`. The GitHubStarButton component used the wrong case, causing the TypeScript build to fail in CI/CD.
 
 1.0.111 || 23.07.2026
+Decision D30: content lifecycle is a COLLECTION, not a status field. Three tiers — staging_posts (owner-only, imported/drafted awaiting triage), private_posts, public_posts — visibility = which collection a record lives in. Publishing = move between collections. Extends existing public/private split by one tier. Rejects needs_review/imported/draft boolean fields (can't gate access, pollute queries, mix triage with real private content). Registers D19 lane item (phased: A foundation repair, B composer visibility, C staging UI) and plan tasks.
 Marketing navbar: added GitHub icon to the star button so it's visually clear it links to the GitHub repo.
 Fix deploy health check: `docker ps --filter status=unhealthy` is an invalid filter (Docker states are created/running/paused/restarting/removing/exited/dead — health is a separate field). This caused the stability loop to always exit on the first iteration with "All containers stable" regardless of actual container health. Both deploy jobs now use `docker inspect` to read `State.Health.Status` per container, then grep for unhealthy. Containers without a healthcheck return "none".
 
