@@ -69,17 +69,16 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
 
-  npm:
-    name: publish npm
+  npm-publish-web10-npm:
+    name: publish web10-npm
     runs-on: ubuntu-latest
     timeout-minutes: 10
     if: startsWith(github.ref, 'refs/tags/v')
     needs: images
     permissions:
       contents: read
-      packages: write
       id-token: write
     defaults:
       run:
@@ -91,11 +90,9 @@ jobs:
         with:
           bun-version: latest
 
-      - name: Setup npm provenance
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: lts/*
-          registry-url: 'https://registry.npmjs.org'
 
       - name: bun install
         run: bun install --frozen-lockfile
@@ -105,15 +102,42 @@ jobs:
 
       - name: publish to npm
         run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  npm-publish-web10-cli:
+    name: publish web10-cli
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: images
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: marketing/web10-cli
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: bun install
+        run: bun install --frozen-lockfile
+
+      - name: publish to npm
+        run: npm publish --provenance --access public
 
   release:
     name: github release
     runs-on: ubuntu-latest
     timeout-minutes: 5
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [images, npm]
+    needs: [images, npm-publish-web10-npm, npm-publish-web10-cli]
     steps:
       - uses: actions/checkout@v4
 

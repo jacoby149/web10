@@ -40,10 +40,8 @@ flows, CRUD, aggregate, star protection, forged-token rejection,
 scoped-token enforcement, metering/billing, certify, system — 280
 total api tests green). 1.0.49 landed the small security fixes (CORS
 tightened, bare excepts removed, provider URL SSRF guard). still OPEN:
-pytest ports of the old 57-test exporter mapper suite (marketing-api),
-and the js workflow's typecheck/build escape hatches (both run continue-on-
-error -- tests report red, a non-compiling build doesn't; see
-plan.txt ci/cd).
+pytest ports of the old 57-test exporter mapper suite (marketing-api).
+The js workflow's typecheck/build escape hatches are closed (1.0.103).
 
 before running 4-wide, land the thing that protects all 4 lanes:
 
@@ -228,7 +226,7 @@ LANE C — greenfield services  (owns: sdk/, mcp/, new dirs)
       metadata records) — landed standalone, then merged into api/
       as a router in 1.0.30/1.0.31 (standalone media/ dir is gone;
       media code now lives in api/, which is lane A territory)
-  [ ] C2. P6 sdk rewrite (typescript, fetch, typed crud; aggregate
+  [✓ 1.100] C2. P6 sdk rewrite (typescript, fetch, typed crud; aggregate
       types land after A4 merges -- everything else doesn't wait)
   [ ] C3. P6 mcp server (thin layer over the C2 surface)
   [ ] C3.5. P6.5 create-web10 scaffolder (needs C2's sdk -- templates
@@ -569,7 +567,7 @@ LANE E — infrastructure / deployment (owns: proxmox provisioning,
        generating an SSH key pair and adding the private key as a
        GitHub Actions secret. the operator must also install the
        public key on the box with the command restriction.
-  [ ] E7. SDK npm publish flow (with C2/D18): cd.yml publishes sdk/
+  [✓ 1.0.100] E7. SDK npm publish flow (with C2/D18): cd.yml publishes sdk/
       to npm on a v* tag today — confirm it fires + the package is
       public, and decide whether a version bump on merge to dev/main
       should auto-publish so the sdk stays fresh (operator, 19.07:
@@ -634,19 +632,34 @@ M3 "the network"         = encryption integration (A rtc + C2 sdk
                            polish. the last big merge.
 
 
-CURRENT CONDUCTOR BOARD (as of 19.07.2026 — keep this section fresh)
+CURRENT CONDUCTOR BOARD (as of 22.07.2026 — keep this section fresh)
 --------------------------------------------------------------------
-we are in timeline.md WEEK 0/1 — the M0 sprint (video by ~aug 17).
-the beautify wave (B5/D12/D13/D14) and the FULL DEPLOYMENT (E3/E5 —
-both envs live behind NPM with TLS + GitOps polling) are merged.
-PRIORITY ZERO (plan.txt, top): the deployed product must WORK AT A
-BASELINE — auth is broken, docs 404'd (fixed in D16.1), the node
-points at an empty db. baseline fixes outrank polish, in this order:
-  ws-A: A7 connect the real host mongo (unblocks everything)
-  ws-B: B6 authenticator revamp (login must complete; playwright
-        guard) — logo + obvious breakage can start before A7
-  ws-C: C6 e2e deep sweep (now can also run against dev)
-  ws-D: D17 restore the dev docs + D16 real app store (after A7)
+PRIORITY ONE (plan.txt, top — supersedes 19.07's priority zero,
+whose baseline chain A7/B6/D16.1/D17 is merged): THE KILLER APP,
+PROUD AND WORKING, before anything else. the only question a task
+must answer: "does this make web10-social something the operator
+opens on his phone, in front of someone, and is proud of?" (D29)
+  ws-G1: run THE GAUNTLET (plan.txt top, 8 steps) against dev from
+         a phone; write the honest fail list to .context/gauntlet.md;
+         fix in order of demo impact. lane D owns app fixes, lane A
+         owns api fixes, lane B owns the auth/consent seam.
+  ws-G2: keep the personas alive (persona-orchestration/) so feed +
+         trending never demo empty.
+  ws-G3: encode each passing gauntlet step as a playwright journey
+         in e2e/ (lane C — this is C6 continued, NOT C2).
+  then: low-hanging fruit by demo impact — realtime feed refresh,
+        notifications, search-your-own-stuff, D16(3) store curation.
+PARKED until the gauntlet passes (do NOT pick up — they read as an
+infra company, not a social platform): C2 sdk rewrite, C3 mcp,
+C3.5 create-web10, D11 ux telemetry, E4 provisioning, E8 mobile
+store submission, docs/knowledge prose beyond fixes.
+
+previous board (19.07, for history — all merged):
+  ws-A: A7 connect the real host mongo — [✓ 1.0.72]
+  ws-B: B6 authenticator revamp — [✓ 1.0.72] (+ B7 [✓ 1.0.76])
+  ws-C: C6 e2e deep sweep — [✓ 1.0.74]
+  ws-D: D17 dev docs [✓ 1.0.72] + D16 app store (partial, 1.0.84 —
+        curation deferred, now in the low-hanging-fruit tier)
 
   ws1: [✓ 1.0.65] B5 level-up ui/ to design.md (lane B — ui/**) — merged
   ws2: [✓ 1.0.64] D12 level-up web10-social to design.md (lane D —
@@ -678,6 +691,23 @@ ws5: C6 e2e deep sweep + bug hunt (lane C — e2e/** only; local
         For You / Following / Trending tabs, post cards with avatars,
         media placeholders, engagement counts. Sits between hero and
         reach-gap section. Ready for live backend content.
+    [ ] D-trending-card: TrendingCard component for marketing-ui — media-forward
+         card with rank badge (#1 gold, #2-3 silver, #4+ brand), heat glow
+         (engagement_score → violet glow intensity), author row, content
+         truncated to 3 lines, tags as chips, engagement bar. Hover: 2px lift
+         + glow intensify. Skeleton shimmer matches card shape.
+         Gate: none. Owns: marketing/marketing-ui/src/components/FeedPreview.tsx
+         (new TrendingCard, TrendingSkeleton exports).
+    [ ] D-trending-grid: /trending page layout — responsive grid (1/2/3 col),
+         #1 featured card spans 2 cols, topic filter chips (sticky, horizontal
+         scroll), hero statement ("What's actually trending. No algorithm.").
+         Gate: D-trending-card. Owns: marketing/marketing-ui/src/pages/Trending.tsx
+    [ ] D-trending-sidebar: /trending sidebar (desktop only, wide screens) —
+         "🔥 Top 10" ranked list, compact entries, click scrolls to card.
+         Gate: D-trending-grid. Owns: new TrendingSidebar.tsx + Trending.tsx
+    [ ] D-trending-polish: /trending loading + empty states — shimmer skeleton
+         grid (matches layout), empty state story beat, "Load more" button.
+         Gate: D-trending-sidebar. Owns: Trending.tsx + FeedPreview.tsx
 [✓ 1.0.93] A5.5. DISCOVERY API — the public layer (Lane A, api/**):
          discovery index (web10.discovery_posts, write-protected,
          background task), schema registry (web10.schemas, CRUD with
@@ -703,7 +733,29 @@ ws5: C6 e2e deep sweep + bug hunt (lane C — e2e/** only; local
   (A1/B1/B2/B3/B4/B4.5/C1/C5/D1/D2/D2.5/D3/D4/D5–D10/E1-infra/E2
   are DONE — don't re-pick.)
 
-  from here on: pull the top unticked item of whichever lane's queue
-  is unblocked. lanes A and B are long marches; C and D are a stream
-  of short branches that keep two slots busy without touching A/B
-  files.
+LANE CI — github actions optimization (owns: .github/workflows/**, cross-cutting)
+   goal: reduce from ~$90/month overage to within the 2,040 min free tier.
+   each item is a small, independent branch. no lane conflicts.
+   [✓ 1.0.99] CI-bun-cache: add bun install caching to js-ci.yml (actions/cache
+       keyed on bun.lock + bun cache dir). cuts each js job ~50%.
+   [✓ 1.0.99] CI-push-triggers: removed push triggers from all CI check
+       workflows (js-ci, api, docker, e2e, marketing-api). code already
+       passes PR checks — re-running after merge wastes ~60+ min/merge.
+       deploy.yml keeps push (it actually deploys). saves ~80% of CI.
+   [✓ 1.0.99] CI-path-filter: per-package path filtering in js-ci.yml so
+       touching ui/** only runs the ui job, not all 6 packages.
+   [✓ 1.0.99] CI-single-arch: drop linux/arm64 from cd.yml image builds.
+       saves ~50% on CD minutes.
+   [✓ 1.0.99] CI-small-runners: use ubuntu-latest-small for changelog check.
+   [ ] CI-e2e-push-only: skip e2e.yml on pull_request, run only on
+       push to dev/main. saves ~15 min per PR.
+   [ ] CI-single-arch: drop linux/arm64 from cd.yml image builds if
+       no self-hosters need ARM. saves ~50% on CD minutes.
+   [ ] CI-small-runners: use ubuntu-latest-small for lightweight jobs
+       (changelog check, js typecheck). docker/e2e builds stay on
+       ubuntu-latest.
+
+   from here on: pull the top unticked item of whichever lane's queue
+   is unblocked. lanes A and B are long marches; C and D are a stream
+   of short branches that keep two slots busy without touching A/B
+   files.

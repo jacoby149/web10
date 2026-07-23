@@ -5,23 +5,16 @@ import App from './App.tsx'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ReportBug } from './components/ReportBug'
 import { Button } from './components/ui/button'
+import { trackPageview, installErrorBeacon } from './lib/analytics'
 import './index.css'
 
-const MARKETING_API = (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('marketing_api')) ||
-  (import.meta.env?.VITE_MARKETING_API || 'http://marketing-api.localhost')
+// Install JS error beacon (window.onerror + unhandledrejection)
+installErrorBeacon()
 
 function AnalyticsTracker() {
   const location = useLocation()
   useEffect(() => {
-    fetch(`${MARKETING_API}/analytics/pageview`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        path: location.pathname,
-        referrer: document.referrer || null,
-        user_agent: navigator.userAgent,
-      }),
-    }).catch(() => {})
+    trackPageview(location.pathname)
   }, [location.pathname])
   return null
 }

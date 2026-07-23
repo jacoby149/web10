@@ -3,6 +3,7 @@ import { Users, LayoutDashboard, BookOpen, Terminal, ArrowUpRight, Boxes, Globe 
 import { Card, CardHeader, CardTitle, CardDescription, CardFooter, CardContent } from '../components/ui/card'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
+import { trackFunnel } from '../lib/analytics'
 
 // The node API that holds the live app registry + member count. Overridable
 // via ?api= or VITE_API_URL; *.localhost hosts default to the local node.
@@ -114,6 +115,10 @@ function resolveIcon(appUrl: string, iconSrc: string): string {
 function AppStore() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    trackFunnel('app_store_view')
+  }, [])
 
   useEffect(() => {
     let alive = true
@@ -260,7 +265,7 @@ function AppStore() {
                           const parent = e.currentTarget.parentElement
                           if (parent) {
                             const fallback = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
-fallback.className = 'h-5 w-5 text-muted-foreground'
+fallback.setAttribute('class', 'h-5 w-5 text-muted-foreground')
                             fallback.setAttribute('strokeWidth', '1.5')
                             fallback.setAttribute('fill', 'none')
                             fallback.setAttribute('stroke', 'currentColor')
