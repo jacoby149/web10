@@ -5,6 +5,7 @@ import Password from "./FormInputs/Password";
 import ReTypePass from "./FormInputs/ReTypePass";
 import Phone from "./FormInputs/Phone";
 import BetaCode from "./FormInputs/BetaCode";
+import CredentialStatus from "./CredentialStatus";
 import { Button } from '@/components/ui/button';
 
 function SignupForm({ I }: { I: Record<string, any> }) {
@@ -40,6 +41,8 @@ function SignupForm({ I }: { I: Record<string, any> }) {
         >
           Sign up
         </Button>
+
+        <CredentialStatus I={I} />
 
         <div className="mt-4 text-center">
           <button
