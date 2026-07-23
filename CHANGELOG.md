@@ -1,3 +1,5 @@
+1.0.104 || 22.07.2026
+Fix marketing-ui build: SVG `className` assignment on createElementNS'd SVG element changed to `setAttribute('class', ...)` to avoid TS2540 read-only error (1.0.88 fix that never merged to dev). Fix analytics tests: jsdom environment now active via vite.config.js (was missing), unhandled rejection test no longer leaks into vitest's error collector.
 1.0.103 || 22.07.2026
 CI: removed `continue-on-error: true` from the shared js workflow's typecheck and build steps. A UI that doesn't compile or build now reports red instead of silently passing. Merging remains a human call — the referee just needs to show red.
 1.100 || 22.07.2026

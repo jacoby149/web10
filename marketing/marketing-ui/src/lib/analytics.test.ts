@@ -81,12 +81,22 @@ describe('analytics', () => {
       )
     })
 
-    it('installs unhandledrejection handler', () => {
+    it('installs unhandledrejection handler', async () => {
       installErrorBeacon()
-      window.dispatchEvent(new PromiseRejectionEvent('unhandledrejection', {
-        promise: Promise.reject(new Error('unhandled')),
-        reason: new Error('unhandled'),
-      }))
+      const err = new Error('unhandled')
+      // Create a rejected promise but catch it so vitest doesn't see an unhandled rejection
+      const rejected = Promise.reject(err).catch(() => {})
+      await new Promise<void>((resolve) => {
+        const handler = (e: PromiseRejectionEvent) => {
+          window.removeEventListener('unhandledrejection', handler)
+          resolve()
+        }
+        window.addEventListener('unhandledrejection', handler)
+        window.dispatchEvent(new PromiseRejectionEvent('unhandledrejection', {
+          promise: rejected,
+          reason: err,
+        }))
+      })
       expect(navigator.sendBeacon).toHaveBeenCalledWith(
         expect.stringContaining('/analytics/error'),
         expect.stringContaining('unhandled'),
