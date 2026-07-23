@@ -2,6 +2,13 @@
 # Seed 5 persona accounts for live testing web10 social.
 # Usage: bash seed_personas.sh [API_BASE]
 #   API_BASE defaults to http://api.localhost:6000
+#
+# SUPERSEDED — use seed_personas.py instead. This bash script only does
+# accounts + profiles + follows, and it hardcodes provider "api.localhost" /
+# site "social.web10.app", so its follows/contacts are wrong against any
+# non-localhost node and it does NOT seed the discovery feed (public_posts),
+# the public ledger (reactions/comments), or DMs. The Python script derives
+# provider/site from --api and implements the full post-D5.5 flow. See README.
 
 set -euo pipefail
 

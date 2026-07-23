@@ -90,6 +90,14 @@ The user sees a toggle. The app handles the routing.
    tags, media_count, created_at, updated_at. No full body.
 ```
 
+> **`background_index_post` swallows exceptions — mind the silent failure.**
+> The only writer to the index catches and logs (never raises) so a bad post
+> can't fail a user's write. The cost: if the index path is broken, posts
+> *silently* never appear and the feed is empty with no error surfaced to the
+> caller. This is exactly how the `db["web10"]` handle bug (see §9) hid for so
+> long. The `except` now logs; if the feed is empty, check the node logs for
+> `discovery index upsert failed`.
+
 ### Index delete path (on post delete or terms change)
 
 ```
@@ -360,16 +368,33 @@ Delete a public ledger entry. Author only.
 
 ### Discovery endpoints
 
+Discovery is a **public read**. The canonical call is a **bodyless `PATCH`**
+with parameters in the URL query string — no token and no request body are
+required (this is what the social feed sends, e.g.
+`PATCH /discover/posts?sort=recent&limit=20`). A JSON body is *optional*: if
+present, values under its `query` object override the URL params (for richer
+clients). The verb is `PATCH` (not `GET`) only so the optional body is
+well-formed under the shared `Token` model; it is idempotent and read-only.
+
+> **Gotcha, do not regress:** the endpoints must NOT make the body required.
+> They once did (`token: Token` with no default), so the feed's bodyless
+> `PATCH` returned `422 body required`, which `web10-social`'s `feed.ts`
+> swallowed into a permanently empty feed. The handler signatures take the
+> params as function args (URL query) with `token: Token | None = None`.
+> Regression tests live in `api/tests/test_discovery.py`
+> (`test_posts_bodyless_patch` and friends).
+
 #### `PATCH /discover/posts` — For You feed
 
 Returns public posts sorted by engagement or recency.
 
 **Query params:**
 - `sort`: `recent` (default) | `trending` (by engagement score)
-- `limit`: int, default 20, max 100
+- `limit`: int, default 50, max 200
 - `skip`: int, default 0
 
-**Request body:** Token (can be null for anon).
+**Request body:** optional Token; `query.sort`/`query.limit`/`query.skip`
+override the URL params. No body is fine.
 
 **Response:**
 ```json
@@ -596,3 +621,71 @@ On POST /public/entries:
 3. Wire reaction buttons to /public/entries
 4. Fetch schema definitions for rendering interaction types
 ```
+
+---
+
+## 9. Operational notes (backends, dev data, gotchas)
+
+These are the things that made discovery look "broken" in practice even when
+the code was right. Read before debugging an empty feed.
+
+### Data backend differs by environment
+
+The discovery index and public ledger are Mongo collections in the `web10`
+system database, reached over the Mongo wire protocol (`documentdb.py`). The
+*backend* behind that wire protocol is **not the same in every environment**:
+
+| Env | Backend | Data | Set by |
+|-----|---------|------|--------|
+| **dev** | containerized **FerretDB** (`ghcr.io/ferretdb/ferretdb:2`) | empty by default | `DB_URL` unset → `mongodb://…-ferretdb:27017/` |
+| **prod** | the **real host MongoDB** (native, ~200 real users) | live | `DB=deploy` + `DB_URL=mongodb://host.docker.internal:27017/` |
+| **tests** | pymongo fully mocked (`conftest.py`) | none | n/a |
+
+Consequences:
+- **A fresh dev stack has ~0 users and an empty feed.** `POST /stats` returning
+  `users: 2` is dev being empty, not a bug. Seed it (below) before judging the
+  feed or trending.
+- **The system collections are addressed as `db["web10"][name]`.** `db` is
+  `client[settings.DB]` (a Database), so `db["web10"]` is a *Collection* named
+  `web10`, and `db["web10"][name]` is the collection `web10.<name>` in that
+  same database. CRUD ops (`insert_one`/`find`/`create_index`) work on it, but
+  Database-only methods (`list_collection_names`/`create_collection`) do NOT —
+  they raise `TypeError` on a Collection. `_ensure_system_collection` therefore
+  runs those two through the Database handle (`db`), never `db["web10"]`. This
+  was a real bug that 500'd every discovery/ledger/schema request on a live
+  node; the fully-mocked pymongo test suite hid it (a `MagicMock` accepts any
+  call). **Lesson: the mocked API tests cannot catch DB-handle misuse — verify
+  discovery/ledger changes against a real Mongo/FerretDB before trusting them.**
+- **FerretDB *does* support `$text` indexes and search** (verified against
+  `ferretdb:2`) — the earlier assumption that it didn't was wrong. The one real
+  FerretDB quirk found: a `{"$meta": "textScore"}` projection returns only
+  `_id` + score (dropping the document fields), so `/discover/search` avoids
+  meta projections and orders by `created_at` instead — works identically on
+  both backends. Do not reintroduce a `textScore` projection/sort.
+
+### Seeding dev so the feed/trending isn't empty
+
+The feed and trending demo empty on a fresh dev DB. Populate it with the live
+personas:
+
+```
+python3 persona-orchestration/seed_personas.py --api https://api.dev.web10.app
+```
+
+This creates the persona accounts, posts to `public_posts` (so posts enter the
+discovery index), cross-follows, and writes reactions/comments to the public
+ledger. See `persona-orchestration/README.md`. Seeding only shows up in the
+feed once an API build with the discovery-read fix is deployed to that env.
+
+### The empty-feed debugging checklist
+
+1. Is the env's DB actually populated? `POST /stats` — check `users`.
+2. Does the read work? `PATCH /discover/posts?sort=recent&limit=5` (**bodyless**)
+   should return `200` with a JSON array — not `422` (body-required regression)
+   and not `500` (system-collection handle bug — check the node logs for a
+   `TypeError` from `list_collection_names`/`create_collection`, see the handle
+   note above).
+3. Did writes get indexed? A post only enters discovery if the author's terms
+   for that service whitelist `anon` (default on `public_posts`), AND the index
+   upsert didn't throw — grep the node logs for `discovery index upsert failed`
+   (§1).
