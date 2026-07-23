@@ -738,10 +738,10 @@ whose baseline chain A7/B6/D16.1/D17 is merged): THE KILLER APP,
 PROUD AND WORKING, before anything else. the only question a task
 must answer: "does this make web10-social something the operator
 opens on his phone, in front of someone, and is proud of?" (D29)
-  ws-G1: run THE GAUNTLET (plan.txt top, 8 steps) against dev from
-         a phone; write the honest fail list to .context/gauntlet.md;
-         fix in order of demo impact. lane D owns app fixes, lane A
-         owns api fixes, lane B owns the auth/consent seam.
+[✓ 1.0.140] ws-G1: run THE GAUNTLET (plan.txt top, 8 steps) against dev from
+          a phone; write the honest fail list to .context/gauntlet.md;
+          fix in order of demo impact. lane D owns app fixes, lane A
+          owns api fixes, lane B owns the auth/consent seam.
   ws-G2: keep the personas alive (persona-orchestration/) so feed +
          trending never demo empty.
   ws-G3: encode each passing gauntlet step as a playwright journey

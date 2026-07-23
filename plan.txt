@@ -18,10 +18,10 @@ these are good ideas whose time is not now (D20 said protocol
 serves platform; this is that decision enforced on the task
 board, logged as D29).
 
-the bar is THE GAUNTLET — run from the operator's phone against
-dev, top to bottom, no apologies. step one of the work is running
-it and writing the honest fail list (.context/gauntlet.md); fixes
-land in order of demo impact:
+[✓ 1.0.140] the bar is THE GAUNTLET — run from the operator's phone against
+      dev, top to bottom, no apologies. step one of the work is running
+      it and writing the honest fail list (docs/gauntlet-23.07.2026.md); fixes
+      land in order of demo impact:
   1. sign up + log in on the social app without a broken screen
   2. post a photo -> it appears in the feed immediately
   3. follow a persona -> their posts land in your feed
