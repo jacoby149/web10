@@ -4,6 +4,7 @@ import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Card } from '../components/ui/card'
 import { trackFunnel } from '../lib/analytics'
+import { AUTH_ORIGIN } from '../lib/origins'
 
 const API_URL = (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('api')) ||
   ((import.meta as any).env?.VITE_API_URL || 'https://api.web10.app')
@@ -215,7 +216,7 @@ export function Exporter() {
           </p>
           <div className="mt-4 flex flex-wrap gap-3">
             <Button asChild variant="brand">
-              <a href="https://auth.web10.app">Sign In via web10</a>
+              <a href={AUTH_ORIGIN}>Sign In via web10</a>
             </Button>
             <Button variant="outline" onClick={handleSignIn}>
               Paste JWT Token

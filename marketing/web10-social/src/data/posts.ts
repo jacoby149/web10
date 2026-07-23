@@ -1,5 +1,4 @@
 import { getWapi } from './wapi';
-import { API_ORIGIN } from '../lib/origins';
 import type { PostRecord, MediaRecord, MediaUploadRequest, PublicEntry, SchemaDefinition, DiscoverSort, DiscoveryPost } from './types';
 
 // ── Post data layer ────────────────────────────────────────────────────────
@@ -48,17 +47,23 @@ export async function createPost(post: Omit<PostRecord, '_id'>): Promise<PostRec
 
 /**
  * Read all posts for the current user (wall).
+ *
+ * Posts written by the composer route to `public_posts`/`private_posts`
+ * (see createPost), while imported/legacy posts live in `posts`. The wall
+ * is the union of all three — reading only `posts` (as this used to) meant
+ * every newly composed post silently vanished from the profile and feed.
+ *
  * Adapts legacy post records (html/media/time → text/media_refs/created_at)
- * in-place on first read.
+ * in the `posts` service in-place on first read.
  */
 export async function readMyPosts(): Promise<PostRecord[]> {
   const wapi = getWapi();
-  let records: unknown[] = await wapi.read<Record<string, unknown>>('posts');
+  let legacy: unknown[] = await wapi.read<Record<string, unknown>>('posts');
 
-  const hasLegacy = records.some(isLegacyPost);
+  const hasLegacy = legacy.some(isLegacyPost);
   if (hasLegacy) {
     // Migrate legacy records in-place
-    for (const record of records) {
+    for (const record of legacy) {
       if (isLegacyPost(record) && record._id) {
         await wapi.update<PostRecord>('posts', { _id: record._id }, {
           $set: {
@@ -70,10 +75,15 @@ export async function readMyPosts(): Promise<PostRecord[]> {
         });
       }
     }
-    records = await wapi.read<unknown[]>('posts');
+    legacy = await wapi.read<unknown[]>('posts');
   }
 
-  return records as PostRecord[];
+  const [publicPosts, privatePosts] = await Promise.all([
+    wapi.read<PostRecord>('public_posts'),
+    wapi.read<PostRecord>('private_posts'),
+  ]);
+
+  return [...(legacy as PostRecord[]), ...publicPosts, ...privatePosts];
 }
 
 /**
@@ -122,7 +132,7 @@ export async function uploadMedia(request: MediaUploadRequest): Promise<MediaRec
   const wapi = getWapi();
 
   // 1. Get presigned URL from the API
-  const { uploadUrl, fields, contentType } = await wapi.getUploadUrl(
+  const { uploadUrl, fields, contentType, objectKey } = await wapi.getUploadUrl(
     request.file.type || 'application/octet-stream',
     request.file.size,
     request.file.name,
@@ -143,26 +153,17 @@ export async function uploadMedia(request: MediaUploadRequest): Promise<MediaRec
     throw new Error(`media upload failed: ${uploadResp.status}`);
   }
 
-  // 3. Confirm upload to create the media record in the user's collection
-  const token = wapi.readToken();
-  if (!token) throw new Error('not authenticated');
-  const proto = (wapi as any).APIProtocol || 'https:';
-  const confirmResp = await fetch(`${proto}//${token.provider}/${token.username}/upload/confirm`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      token: (wapi as any).token,
-      url: `${uploadUrl}/${request.file.name}`,
-      filename: request.file.name,
-      mime_type: contentType,
-      size_bytes: request.file.size,
-    }),
+  // 3. Confirm upload to create the media record in the user's collection.
+  //    Delegated to the wrapper: the raw JWT and API protocol live on the
+  //    underlying SDK, not on the wrapper object — reaching for `wapi.token`
+  //    here would send `token: undefined` and fail auth. The object URL is
+  //    built from the server-assigned objectKey, not the raw filename.
+  return wapi.confirmUpload<MediaRecord>({
+    url: `${uploadUrl}/${objectKey}`,
+    filename: request.file.name,
+    mimeType: contentType,
+    sizeBytes: request.file.size,
   });
-  if (!confirmResp.ok) {
-    throw new Error(`media confirm failed: ${confirmResp.status}`);
-  }
-  const record = await confirmResp.json();
-  return record as MediaRecord;
 }
 
 /**

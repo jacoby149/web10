@@ -150,8 +150,9 @@
     <div id="noteview"></div>
   </div>
 
-  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
-  <script src="https://auth.web10.app/sdk/wapi.js"></script>
+  <!-- web10 SDK: self-hosted (the old auth.web10.app/sdk/wapi.js path 404s
+       since the SDK moved to npm). Served from /docs/wapi.js on this site. -->
+  <script src="../wapi.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
