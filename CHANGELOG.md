@@ -1,3 +1,5 @@
+1.0.105 || 22.07.2026
+SDK compat shim: re-exports `wapiInit` and `wapiAuthInit` from the new typed SDK so legacy consumers (ui/, web10-social/) don't break. Both apps now resolve `web10-npm` from the local SDK and build clean. 55 SDK tests green.
 1.0.104 || 22.07.2026
 Fix marketing-ui build: SVG `className` assignment on createElementNS'd SVG element changed to `setAttribute('class', ...)` to avoid TS2540 read-only error (1.0.88 fix that never merged to dev). Fix analytics tests: jsdom environment now active via vite.config.js (was missing), unhandled rejection test no longer leaks into vitest's error collector.
 1.0.103 || 22.07.2026

@@ -51,3 +51,7 @@ export {
 
 // HTTP
 export { Web10Error } from './http'
+
+// Legacy compat shim — re-exports wapiInit / wapiAuthInit for apps still
+// using the old JS SDK API (ui/, web10-social/).
+export { wapiInit, wapiAuthInit } from './compat'
