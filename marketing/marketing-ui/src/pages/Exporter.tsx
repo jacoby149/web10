@@ -1,8 +1,9 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { ArrowLeft, Camera, Users, Video, UploadCloud, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Card } from '../components/ui/card'
+import { trackFunnel } from '../lib/analytics'
 
 const API_URL = (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('api')) ||
   ((import.meta as any).env?.VITE_API_URL || 'https://api.web10.app')
@@ -34,14 +35,6 @@ const PLATFORMS: Array<{ key: Platform; label: string; icon: typeof Camera; colo
   { key: 'youtube', label: 'YouTube', icon: Video, color: '#FF0000' },
 ]
 
-function track(event: string) {
-  fetch(`${MARKETING_API}/analytics/funnel`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ event, metadata: {} }),
-  }).catch(() => {})
-}
-
 export function Exporter() {
   const [selectedPlatform, setSelectedPlatform] = useState<Platform | null>(null)
   const [progress, setProgress] = useState<ImportProgress | null>(null)
@@ -56,6 +49,11 @@ export function Exporter() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const pollRef = useRef<number | null>(null)
 
+  // Track exporter_view once on mount (fix: was firing on every render)
+  useEffect(() => {
+    trackFunnel('exporter_view')
+  }, [])
+
   // Check if user has a web10 token (from wapi if loaded)
   const handleSignIn = useCallback(() => {
     const token = prompt('Enter your web10 JWT token:')
@@ -68,7 +66,7 @@ export function Exporter() {
       } catch {
         setUsername('user')
       }
-      track('sign_in_click')
+      trackFunnel('sign_in_click')
     }
   }, [])
 
@@ -78,7 +76,7 @@ export function Exporter() {
     setChecklistDone(false)
     setProgress(null)
     setJobId(null)
-    track(`${platform}_view`)
+    trackFunnel('exporter_view', { platform })
   }, [])
 
   const startPolling = useCallback((jid: string) => {
@@ -89,7 +87,7 @@ export function Exporter() {
         setProgress(data)
         if (data.phase === 'complete' || data.phase === 'error') {
           if (pollRef.current) clearInterval(pollRef.current)
-          if (data.phase === 'complete') track('export_complete')
+          if (data.phase === 'complete') trackFunnel('export_complete')
         }
       } catch {
         // keep polling
@@ -131,7 +129,7 @@ export function Exporter() {
       const jobData = await createRes.json()
       const jid = jobData.id
       setJobId(jid)
-      track('export_started')
+      trackFunnel('export_started')
 
       // Upload ZIP
       const formData = new FormData()
@@ -201,8 +199,6 @@ export function Exporter() {
   }, [])
 
   const selected = PLATFORMS.find(p => p.key === selectedPlatform)
-
-  track('exporter_view')
 
   return (
     <div className="mx-auto min-h-screen max-w-2xl px-4 pt-12 pb-24 text-foreground sm:px-6">

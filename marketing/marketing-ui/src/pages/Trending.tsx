@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Zap } from 'lucide-react';
 import { PostCard, SkeletonCard, fetchDiscoverFeed, mapDiscoveryToFeedPost, formatCount, parseCount } from '../components/FeedPreview';
 import type { FeedPost } from '../components/FeedPreview';
+import { trackFunnel } from '../lib/analytics';
 
 function Trending() {
   const [posts, setPosts] = useState<FeedPost[]>([]);
@@ -21,6 +22,7 @@ function Trending() {
 
   useEffect(() => {
     loadFeed();
+    trackFunnel('trending_view');
   }, [loadFeed]);
 
   const handleReaction = async (postId: string, type: 'like' | 'comment' | 'repost') => {

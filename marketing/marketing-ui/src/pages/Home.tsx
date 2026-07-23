@@ -1,3 +1,4 @@
+import { useEffect, useCallback } from 'react'
 import { Send, Inbox, ShieldCheck } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Card, CardHeader, CardTitle, CardDescription } from '../components/ui/card'
@@ -7,6 +8,7 @@ import {
   deliveryPercent,
   formatFollowerCount,
 } from '../lib/reachGap'
+import { trackFunnel } from '../lib/analytics'
 
 function Hero() {
   return (
@@ -175,6 +177,9 @@ function Footer() {
 }
 
 function Home() {
+  useEffect(() => {
+    trackFunnel('landing')
+  }, [])
   return (
     <>
       <Hero />
