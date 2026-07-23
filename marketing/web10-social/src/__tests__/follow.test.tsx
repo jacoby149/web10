@@ -120,12 +120,12 @@ vi.mock('web10-npm', () => ({
 }));
 
 // Mock fetch for discovery API calls
-global.fetch = vi.fn();
+globalThis.fetch = vi.fn();
 
 describe('Follow button -> followUser call', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
       json: () => [],
     });
@@ -237,7 +237,7 @@ describe('Follow button -> followUser call', () => {
 describe('UserProfileScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
       json: () => [],
     });
@@ -281,7 +281,7 @@ describe('UserProfileScreen', () => {
 describe('DiscoverScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
       json: () => [],
     });
