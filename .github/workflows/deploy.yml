@@ -53,8 +53,8 @@ jobs:
             set +a
 
             # Compute status vars for the baked status.json (E9)
-            GIT_COMMIT=$(git rev-parse --short HEAD)
-            STATUS_VERSION=$(head -1 CHANGELOG.md | sed 's/[| ].*//' | tr -d '[:space:]')
+            export GIT_COMMIT=$(git rev-parse --short HEAD)
+            export STATUS_VERSION=$(head -1 CHANGELOG.md | sed 's/[| ].*//' | tr -d '[:space:]')
 
             # Build and deploy the stack
             cd ubuntu-deployment
@@ -133,8 +133,8 @@ jobs:
             set +a
 
             # Compute status vars for the baked status.json (E9)
-            GIT_COMMIT=$(git rev-parse --short HEAD)
-            STATUS_VERSION=$(head -1 CHANGELOG.md | sed 's/[| ].*//' | tr -d '[:space:]')
+            export GIT_COMMIT=$(git rev-parse --short HEAD)
+            export STATUS_VERSION=$(head -1 CHANGELOG.md | sed 's/[| ].*//' | tr -d '[:space:]')
 
             # Build and deploy the stack
             cd ubuntu-deployment
