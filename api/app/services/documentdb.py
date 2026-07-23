@@ -92,6 +92,17 @@ def u_t(_u):
             if "$" in "".join(u[op].keys()):
                 # dont let fancy updates work yet.
                 raise exceptions.DB_NOT_ALLOWED
+            # _id selects the document in the query; it never belongs in an
+            # update. to_db_field maps it to the top-level Mongo _id (immutable
+            # by engine contract — MongoDB rejects any $set on it with code 66,
+            # "Performing an update on the path '_id' would modify the immutable
+            # field '_id'", even to the same value). Clients that round-trip a
+            # whole record (e.g. the social app's saveProfile, which spreads the
+            # existing profile — _id included — into the $set payload) hit this
+            # on every edit. Drop it here so every client is protected.
+            if field == "_id":
+                log.warning("u_t: dropped client update of immutable '_id' via %s", op)
+                continue
             db_field = to_db_field(field)
             # I6: silently drop updates targeting immutable server-managed fields
             if field in IMMUTABLE_METADATA:
