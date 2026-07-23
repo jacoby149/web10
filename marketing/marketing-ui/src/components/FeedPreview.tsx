@@ -12,7 +12,7 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]['id'];
 
-const API_ORIGIN = import.meta.env.VITE_API_ORIGIN || 'https://api.web10.app';
+const API_ORIGIN = import.meta.env.VITE_API_URL || 'https://api.web10.app';
 
 interface DiscoveryPost {
   author: string;
