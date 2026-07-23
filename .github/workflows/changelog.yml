@@ -17,7 +17,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          # Full commit + tree history so base.sha is reachable for the diff,
+          # but skip file blobs (partial clone). git diff --name-only needs
+          # only trees; the one blob actually read is CHANGELOG.md, fetched on
+          # demand. Avoids cloning the whole repo's file contents for a grep.
           fetch-depth: 0
+          filter: blob:none
 
       - name: Check CHANGELOG.md was modified
         run: |
