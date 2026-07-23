@@ -36,7 +36,7 @@ jobs:
             echo "Commit: $GITHUB_SHA"
             echo "Ref: $GITHUB_REF"
 
-# Pull latest code (robust even for single-branch clones:
+            # Pull latest code (robust even for single-branch clones:
             # fetch the branch explicitly, then force the local branch to it)
             cd /opt/web10
             git fetch origin dev
@@ -66,7 +66,7 @@ jobs:
             # Wait for containers to stabilize
             echo "=== Waiting for containers to stabilize ==="
             for i in $(seq 1 30); do
-              unhealthy=$(docker ps --filter "name=$STACK" --filter "status=unhealthy" --format '{{.Names}}' | wc -l)
+              unhealthy=$(docker ps --filter "name=$STACK" --format '{{.ID}}' | xargs -r docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' | grep -c unhealthy || true)
               restarting=$(docker ps --filter "name=$STACK" --filter "status=restarting" --format '{{.Names}}' | wc -l)
               if [[ "$unhealthy" -eq 0 ]] && [[ "$restarting" -eq 0 ]]; then
                 echo "All containers stable"
@@ -116,7 +116,7 @@ jobs:
             echo "Commit: $GITHUB_SHA"
             echo "Ref: $GITHUB_REF"
 
-# Pull latest code (robust even for single-branch clones:
+            # Pull latest code (robust even for single-branch clones:
             # fetch the branch explicitly, then force the local branch to it)
             cd /opt/web10
             git fetch origin main
@@ -146,7 +146,7 @@ jobs:
             # Wait for containers to stabilize
             echo "=== Waiting for containers to stabilize ==="
             for i in $(seq 1 30); do
-              unhealthy=$(docker ps --filter "name=$STACK" --filter "status=unhealthy" --format '{{.Names}}' | wc -l)
+              unhealthy=$(docker ps --filter "name=$STACK" --format '{{.ID}}' | xargs -r docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' | grep -c unhealthy || true)
               restarting=$(docker ps --filter "name=$STACK" --filter "status=restarting" --format '{{.Names}}' | wc -l)
               if [[ "$unhealthy" -eq 0 ]] && [[ "$restarting" -eq 0 ]]; then
                 echo "All containers stable"

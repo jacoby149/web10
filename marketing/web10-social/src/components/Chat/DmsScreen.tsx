@@ -6,7 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { getWapi } from '@/data/wapi';
 import { listConversations, readDms, sendDm, getLastDm, readContacts } from '@/data';
 import type { DmRecord, ContactRecord } from '@/data/types';
-import { Send, Sparkles, ChevronLeft } from 'lucide-react';
+import { Send, ChevronLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 function formatTime(dateStr: string): string {
@@ -25,20 +25,18 @@ function formatTime(dateStr: string): string {
 
 function DmsEmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center h-full py-24 px-8 text-center" data-testid="dms-empty">
-      <div className={cn(
-        'w-16 h-16 rounded-2xl bg-gradient-to-br from-brand to-brand-600 flex items-center justify-center mb-6',
-        'shadow-lg shadow-brand/25',
-      )}>
-        <Sparkles className="w-8 h-8 text-white" />
-      </div>
-      <h3 className="font-display text-lg font-semibold text-foreground mb-2">No conversations yet</h3>
-      <p className="text-sm text-muted-foreground max-w-xs mb-6">
-        Import your contacts from Instagram or add people to start messaging.
+    <div className="flex flex-col items-center justify-center py-16 px-8 text-center" data-testid="dms-empty">
+      <p className="text-sm text-muted-foreground mb-3">No conversations yet. Find someone to message or start a new thread.</p>
+      <p className="text-xs text-muted-foreground/50">
+        Or{' '}
+        <button
+          data-testid="dms-import-cta"
+          className="text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
+          onClick={() => window.open('/exporters', '_blank')}
+        >
+          import your contacts
+        </button>
       </p>
-      <Button variant="brand" data-testid="dms-import-cta" className="gap-2" onClick={() => window.open('/exporters', '_blank')}>
-        Import your Instagram
-      </Button>
     </div>
   );
 }
@@ -265,7 +263,14 @@ export default function DmsScreen() {
   }
 
   if (!conversations.length) {
-    return <DmsEmptyState />;
+    return (
+      <div>
+        <div className="px-4 py-4 border-b border-border">
+          <h1 className="font-display text-lg font-bold text-foreground">Messages</h1>
+        </div>
+        <DmsEmptyState />
+      </div>
+    );
   }
 
   return (

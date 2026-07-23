@@ -673,19 +673,33 @@ def user_collection_exists(username: str) -> bool:
 DISCOVERY_COLLECTION = "discovery_posts"
 
 
+def _ensure_system_collection(name: str):
+    """Return the web10-system collection ``web10.<name>``, creating it if absent.
+
+    System collections (discovery index, public ledger, schema registry) live
+    in the settings.DB database under a ``web10.`` name prefix — i.e.
+    ``db["web10"][name]`` is the collection literally named ``web10.<name>``.
+
+    Existence checks and creation MUST go through the DATABASE handle (``db``),
+    NOT through ``db["web10"]``: ``db`` is ``client[settings.DB]`` (a Database),
+    so ``db["web10"]`` is a *Collection*, and calling ``list_collection_names()``
+    / ``create_collection()`` on a Collection raises ``TypeError``. That bug
+    500'd every discovery/ledger/schema request against a real node; the fully
+    mocked pymongo in the test suite hid it (a MagicMock accepts any call).
+    """
+    full_name = f"web10.{name}"
+    if full_name not in set(db.list_collection_names()):
+        db.create_collection(full_name)
+    return db["web10"][name]
+
+
 def _ensure_discovery_collection():
     """Ensure the discovery_posts collection and indexes exist."""
-    existing = set(db["web10"].list_collection_names())
-    if DISCOVERY_COLLECTION not in existing:
-        db["web10"].create_collection(DISCOVERY_COLLECTION)
-    db["web10"][DISCOVERY_COLLECTION].create_index(
-        [("body_text", "text"), ("tags", "text")],
-        name="discovery_text_index",
-    )
-    db["web10"][DISCOVERY_COLLECTION].create_index(
-        [("created_at", -1)],
-        name="discovery_created_at",
-    )
+    col = _ensure_system_collection(DISCOVERY_COLLECTION)
+    # created_at index powers the "recent" feed sort; the text index powers
+    # /discover/search. Both are supported by MongoDB and FerretDB.
+    col.create_index([("created_at", -1)], name="discovery_created_at")
+    col.create_index([("body_text", "text"), ("tags", "text")], name="discovery_text_index")
 
 
 def upsert_discovery_post(username: str, service: str, post: dict) -> dict:
@@ -804,24 +818,19 @@ def query_discovery_posts(sort_by: str = "recent", limit: int = 50, skip: int = 
 
 
 def search_discovery_posts(query: str, limit: int = 50, skip: int = 0) -> list[dict]:
-    """Full-text search the discovery index."""
+    """Full-text search the discovery index, most recent first.
+
+    We deliberately do NOT use a ``{"$meta": "textScore"}`` projection/sort:
+    on FerretDB a meta projection returns only ``_id`` + score (dropping the
+    document fields), which breaks the downstream projection. Returning full
+    documents ordered by recency works identically on MongoDB and FerretDB;
+    relevance ranking on the small discovery index isn't worth the
+    incompatibility.
+    """
     _ensure_discovery_collection()
     col = db["web10"][DISCOVERY_COLLECTION]
-    docs = list(
-        col.find(
-            {"$text": {"$search": query}},
-            {"score": {"$meta": "textScore"}},
-        )
-        .sort([("score", {"$meta": "textScore"})])
-        .skip(skip)
-        .limit(limit)
-    )
-    results = []
-    for d in docs:
-        r = _discovery_post_to_dict(d)
-        r["score"] = d.get("score", 0)
-        results.append(r)
-    return results
+    docs = list(col.find({"$text": {"$search": query}}).sort("created_at", -1).skip(skip).limit(limit))
+    return [_discovery_post_to_dict(d) for d in docs]
 
 
 def trending_topics(limit: int = 20) -> list[dict]:
@@ -877,9 +886,7 @@ SCHEMAS_COLLECTION = "schemas"
 
 
 def _ensure_schemas_collection():
-    existing = set(db["web10"].list_collection_names())
-    if SCHEMAS_COLLECTION not in existing:
-        db["web10"].create_collection(SCHEMAS_COLLECTION)
+    _ensure_system_collection(SCHEMAS_COLLECTION)
 
 
 def register_schema(author: str, name: str, schema_def: dict) -> dict:
@@ -938,10 +945,7 @@ PUBLIC_COLLECTION = "public"
 
 
 def _ensure_public_collection():
-    existing = set(db["web10"].list_collection_names())
-    if PUBLIC_COLLECTION not in existing:
-        db["web10"].create_collection(PUBLIC_COLLECTION)
-    db["web10"][PUBLIC_COLLECTION].create_index(
+    _ensure_system_collection(PUBLIC_COLLECTION).create_index(
         [("schema_id", 1), ("target", 1), ("author", 1)],
         name="public_query_index",
     )
@@ -1024,7 +1028,10 @@ def background_index_post(username: str, service: str, post: dict):
         if service_allows_anon(username, service):
             upsert_discovery_post(username, service, post)
     except Exception:
-        pass
+        # Non-fatal for the write, but log — a silent swallow here is exactly
+        # what let the db["web10"] Database/Collection bug hide (posts never
+        # indexed, feed empty, no error anywhere).
+        log.warning("discovery index upsert failed for %s/%s", username, service, exc_info=True)
 
 
 def background_remove_post(username: str, service: str, post_id: str):

@@ -462,6 +462,21 @@ class TestDiscoverPosts:
         )
         assert resp.status_code == 200
 
+    def test_posts_bodyless_patch(self, client, mock_discovery_col, mock_public_col):
+        """Regression (feed empty): the social feed sends a bodyless PATCH with
+        query in the URL. The endpoint must not require a JSON body — it used
+        to 422 'body required', which feed.ts swallowed into an empty feed."""
+        mock_discovery_col.find.return_value.sort.return_value.skip.return_value.limit.return_value = []
+        resp = client.patch("/discover/posts?sort=recent&limit=20")
+        assert resp.status_code == 200
+        assert resp.json() == []
+
+    def test_posts_url_params_trending(self, client, mock_discovery_col, mock_public_col):
+        """URL query params are honored (sort=trending via the URL, no body)."""
+        mock_discovery_col.find.return_value.limit.return_value = []
+        resp = client.patch("/discover/posts?sort=trending&limit=5")
+        assert resp.status_code == 200
+
 
 class TestDiscoverUsers:
     def test_suggested_users(self, client, mock_discovery_col):
@@ -480,6 +495,13 @@ class TestDiscoverUsers:
             json={},
         )
         assert resp.status_code == 200
+
+    def test_suggested_users_bodyless(self, client, mock_discovery_col):
+        """Regression: bodyless PATCH with URL param must not 422."""
+        mock_discovery_col.find.return_value = []
+        resp = client.patch("/discover/users?limit=5")
+        assert resp.status_code == 200
+        assert resp.json() == []
 
 
 class TestDiscoverSearch:
@@ -507,6 +529,12 @@ class TestDiscoverSearch:
         )
         assert resp.status_code == 200
 
+    def test_search_url_param(self, client, mock_discovery_col):
+        """Regression: bodyless PATCH with q in the URL must not 422."""
+        mock_discovery_col.find.return_value.sort.return_value.skip.return_value.limit.return_value = []
+        resp = client.patch("/discover/search?q=hello")
+        assert resp.status_code == 200
+
 
 class TestDiscoverTopics:
     def test_trending_topics(self, client, mock_discovery_col):
@@ -530,6 +558,12 @@ class TestDiscoverTopics:
             "/discover/topics",
             json={},
         )
+        assert resp.status_code == 200
+
+    def test_trending_topics_bodyless(self, client, mock_discovery_col):
+        """Regression: bodyless PATCH must not 422."""
+        mock_discovery_col.aggregate.return_value = []
+        resp = client.patch("/discover/topics")
         assert resp.status_code == 200
 
 

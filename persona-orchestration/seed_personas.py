@@ -1,18 +1,36 @@
 #!/usr/bin/env python3
 """
 Seed 5 persona accounts for live testing the web10 social platform.
-Creates accounts, sets profiles, establishes cross-follows, and seeds initial content.
+Creates accounts, sets profiles, establishes cross-follows, and seeds
+content that actually reaches the discovery feed.
+
+Post-D5.5 (public/private discovery split, landed 1.0.92) contract:
+  * Public posts go to the `public_posts` service (visibility "public").
+  * A post is indexed into discovery ONLY if the user's `public_posts`
+    term record whitelists `anon`. Signup does NOT set this by default
+    (services_record() ships an empty whitelist), so this seeder writes
+    the anon-whitelist term record explicitly before posting.
+  * Reactions and comments are structured, validated interactions written
+    to the PUBLIC LEDGER via `POST /public/entries` (not a per-user
+    `reactions`/`comments` service). They reference a registered schema
+    (Reaction / Comment) and target the post via the key the discovery
+    engine reads: "{author}/public_posts/{post_id}". Engagement counts on
+    the discovery index are derived from the ledger's `payload.action`.
+
+The provider/site are DERIVED from the --api host (never hardcoded), so
+seeding dev populates dev and seeding prod populates prod. See README.md.
 
 Usage:
     python seed_personas.py --api http://api.localhost:6000
     python seed_personas.py --api https://api.dev.web10.app
+    python seed_personas.py --api https://api.dev.web10.app --provider api.dev.web10.app --site social.dev.web10.app
 """
 
 import argparse
-import json
 import sys
 import time
 from datetime import datetime, timezone
+from urllib.parse import urlparse
 
 try:
     import requests
@@ -230,35 +248,123 @@ REACTIONS = [
 ]
 
 
+# ── Discovery service + public-ledger contract ─────────────────────────────
+POST_SERVICE = "public_posts"  # D5.5: discoverable posts live here.
+
+# Public-ledger schemas the app registers by default (see web10-social
+# feed.ts DEFAULT_SCHEMAS). Reactions/comments reference these by _id.
+# `action` is added to the payload so the discovery engine can count
+# engagement (documentdb._ledger_engagement_for_post groups on
+# payload.action: like/reaction -> likes, comment -> comments, repost).
+REACTION_SCHEMA = {
+    "name": "Reaction",
+    "schema": {
+        "type": "object",
+        "required": ["type", "target"],
+        "properties": {
+            "type": {"type": "string"},
+            "target": {"type": "string", "description": "post_id or comment_id"},
+            "action": {"type": "string"},
+            "author_username": {"type": "string"},
+            "author_provider": {"type": "string"},
+        },
+    },
+}
+COMMENT_SCHEMA = {
+    "name": "Comment",
+    "schema": {
+        "type": "object",
+        "required": ["text", "target"],
+        "properties": {
+            "text": {"type": "string"},
+            "target": {"type": "string", "description": "post_id being commented on"},
+            "action": {"type": "string"},
+            "author_username": {"type": "string"},
+            "author_provider": {"type": "string"},
+        },
+    },
+}
+
+
+def derive_provider(api_url):
+    """The node's provider identity == the api hostname (no scheme/port)."""
+    host = urlparse(api_url).hostname
+    return host or "api.localhost"
+
+
+def derive_site(api_url):
+    """The social app's site == the api host with the `api.` prefix swapped
+    for `social.` (e.g. api.dev.web10.app -> social.dev.web10.app)."""
+    host = urlparse(api_url).hostname or "api.localhost"
+    if host.startswith("api."):
+        return "social." + host[len("api."):]
+    return "social." + host
+
+
 def api(base, method, path, data=None):
+    """Perform a request; return (status_code, parsed_body)."""
     url = f"{base}{path}"
-    resp = requests.request(method, url, json=data, timeout=30)
     try:
-        return resp.json()
+        resp = requests.request(method, url, json=data, timeout=30)
+    except requests.RequestException as e:
+        return 0, str(e)
+    try:
+        return resp.status_code, resp.json()
     except Exception:
-        return resp.text
+        return resp.status_code, resp.text
+
+
+def _is_already_exists(status, body):
+    """Signup is idempotent: an existing user (EXISTS, 401) is success."""
+    if status == 200:
+        return False
+    text = str(body).lower()
+    return "already exist" in text or "reserved" in text
 
 
 def signup(base, persona):
-    r = api(base, "POST", "/signup", {
+    return api(base, "POST", "/signup", {
         "username": persona["username"],
         "password": PASSWORD,
     })
-    return r
 
 
-def login(base, username):
-    r = api(base, "POST", "/web10token", {
+def login(base, username, site):
+    status, body = api(base, "POST", "/web10token", {
         "username": username,
         "password": PASSWORD,
-        "site": "social.web10.app",
+        "site": site,
         "target": "",
     })
-    return r.get("token") if isinstance(r, dict) else None
+    token = body.get("token") if isinstance(body, dict) else None
+    return status, token, body
+
+
+def set_public_posts_terms(base, username, token):
+    """D5.5 gate: index a post into discovery only if its service whitelists
+    anon. Signup ships an empty whitelist, so create the term record here.
+    Idempotent: a duplicate services record returns 400 (DUPLICATE_SERVICE)."""
+    return api(base, "POST", f"/{username}/services", {
+        "token": token,
+        "query": {
+            "service": POST_SERVICE,
+            "whitelist": [{"username": "anon", "provider": ".*", "read": True}],
+            "blacklist": [],
+        },
+    })
+
+
+def register_schema(base, token, schema):
+    status, body = api(base, "POST", "/schemas/register", {
+        "token": token,
+        "query": {"name": schema["name"], "schema": schema["schema"]},
+    })
+    sid = body.get("_id") if isinstance(body, dict) else None
+    return status, sid, body
 
 
 def set_profile(base, username, token, persona):
-    api(base, "POST", f"/{username}/profile", {
+    return api(base, "POST", f"/{username}/profile", {
         "token": token,
         "query": {
             "display_name": persona["display_name"],
@@ -269,7 +375,7 @@ def set_profile(base, username, token, persona):
 
 
 def create_post(base, username, token, post_data):
-    return api(base, "POST", f"/{username}/posts", {
+    return api(base, "POST", f"/{username}/{POST_SERVICE}", {
         "token": token,
         "query": {
             **post_data,
@@ -280,8 +386,13 @@ def create_post(base, username, token, post_data):
     })
 
 
-def add_contact(base, username, token, target_username, provider="api.localhost"):
-    api(base, "POST", f"/{username}/contacts", {
+def post_target_key(username, post_id):
+    """The ledger target the discovery engine reads for engagement."""
+    return f"{username}/{POST_SERVICE}/{post_id}"
+
+
+def add_contact(base, username, token, target_username, provider):
+    return api(base, "POST", f"/{username}/contacts", {
         "token": token,
         "query": {
             "username": target_username,
@@ -291,8 +402,8 @@ def add_contact(base, username, token, target_username, provider="api.localhost"
     })
 
 
-def follow_user(base, username, token, target_username, provider="api.localhost"):
-    api(base, "POST", f"/{username}/follows", {
+def follow_user(base, username, token, target_username, provider):
+    return api(base, "POST", f"/{username}/follows", {
         "token": token,
         "query": {
             "username": target_username,
@@ -303,9 +414,9 @@ def follow_user(base, username, token, target_username, provider="api.localhost"
     })
 
 
-def deliver_to_inbox(base, target_user, token, author_username, post_id, post_body, provider="api.localhost"):
+def deliver_to_inbox(base, target_user, token, author_username, post_id, post_body, provider):
     """Fan-out: write an inbox record to the target user's inbox."""
-    api(base, "POST", f"/{target_user}/inbox", {
+    return api(base, "POST", f"/{target_user}/inbox", {
         "token": token,
         "query": {
             "author_username": author_username,
@@ -318,43 +429,56 @@ def deliver_to_inbox(base, target_user, token, author_username, post_id, post_bo
     })
 
 
-def send_dm(base, from_user, to_user, token, message, provider="api.localhost"):
-    ids = sorted([f"{provider}/{from_user}", f"{provider}/{to_user}"])
-    conv = f"dm-{ids[0]}--{ids[1]}"
-    return api(base, "POST", f"/{from_user}/{conv}", {
+def send_dm(base, from_user, to_user, token, message, provider):
+    """DMs live in a single `dms` service (see web10-social dms.ts) with
+    sender/recipient fields — not a per-conversation service. The message is
+    written to the sender's own collection, matching the app's sendDm()."""
+    return api(base, "POST", f"/{from_user}/dms", {
         "token": token,
         "query": {
             "message": message,
             "sent_at": datetime.now(timezone.utc).isoformat(),
             "sender_username": from_user,
             "sender_provider": provider,
+            "recipient_username": to_user,
+            "recipient_provider": provider,
+            "media_refs": [],
         },
     })
 
 
-def add_reaction(base, reactor, token, target_service, target_id, reaction_type, author_provider="api.localhost"):
-    api(base, "POST", f"/{reactor}/reactions", {
+def add_reaction(base, reactor, token, schema_id, poster, post_id, reaction_type, provider):
+    """Write a reaction to the public ledger via POST /public/entries."""
+    return api(base, "POST", "/public/entries", {
         "token": token,
         "query": {
-            "target_service": target_service,
-            "target_id": target_id,
-            "type": reaction_type,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "author_username": reactor,
-            "author_provider": author_provider,
+            "schema_id": schema_id,
+            "target": post_target_key(poster, post_id),
+            "payload": {
+                "type": reaction_type,
+                "target": post_id,
+                "action": "like",
+                "author_username": reactor,
+                "author_provider": provider,
+            },
         },
     })
 
 
-def add_comment(base, commenter, token, post_id, text, author_provider="api.localhost"):
-    api(base, "POST", f"/{commenter}/comments", {
+def add_comment(base, commenter, token, schema_id, poster, post_id, text, provider):
+    """Write a comment to the public ledger via POST /public/entries."""
+    return api(base, "POST", "/public/entries", {
         "token": token,
         "query": {
-            "post_id": post_id,
-            "text": text,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "author_username": commenter,
-            "author_provider": author_provider,
+            "schema_id": schema_id,
+            "target": post_target_key(poster, post_id),
+            "payload": {
+                "text": text,
+                "target": post_id,
+                "action": "comment",
+                "author_username": commenter,
+                "author_provider": provider,
+            },
         },
     })
 
@@ -362,50 +486,75 @@ def add_comment(base, commenter, token, post_id, text, author_provider="api.loca
 def main():
     parser = argparse.ArgumentParser(description="Seed persona accounts for web10 social testing")
     parser.add_argument("--api", default="http://api.localhost:6000", help="API base URL")
+    parser.add_argument("--provider", default=None, help="Override node provider (default: derived from --api host)")
+    parser.add_argument("--site", default=None, help="Override login site (default: social.<api-host>)")
     parser.add_argument("--skip-content", action="store_true", help="Only create accounts, skip posts/DMs/comments")
     args = parser.parse_args()
 
     base = args.api.rstrip("/")
+    provider = args.provider or derive_provider(base)
+    site = args.site or derive_site(base)
     print(f"Target API: {base}")
-    print(f"Personas: {len(PERSONAS)}")
+    print(f"Provider:   {provider}")
+    print(f"Login site: {site}")
+    print(f"Personas:   {len(PERSONAS)}")
     print()
 
-    # Step 1: Create accounts
+    # Step 1: Create accounts (idempotent: existing user == success)
     print("=== Step 1: Creating accounts ===")
-    tokens = {}
     for p in PERSONAS:
         uname = p["username"]
-        print(f"  Signing up {uname}... ", end="", flush=True)
-        r = signup(base, p)
-        if "error" in (r or {}):
-            print(f"skipped (may already exist): {r}")
-            continue
-        print("done")
-        time.sleep(0.3)
+        status, body = signup(base, p)
+        if status == 200:
+            print(f"  {uname}: signup 200")
+        elif _is_already_exists(status, body):
+            print(f"  {uname}: signup {status} (already exists — ok)")
+        else:
+            print(f"  {uname}: signup {status} FAILED: {body}")
+        time.sleep(0.2)
 
     # Step 2: Login all personas
     print("\n=== Step 2: Logging in ===")
+    tokens = {}
     for p in PERSONAS:
         uname = p["username"]
-        token = login(base, uname)
+        status, token, body = login(base, uname, site)
         if token:
             tokens[uname] = token
-            print(f"  {uname}: logged in")
+            print(f"  {uname}: web10token {status} (token acquired)")
         else:
-            print(f"  {uname}: FAILED to login")
+            print(f"  {uname}: web10token {status} FAILED: {body}")
     print()
 
     if not tokens:
         print("ERROR: No tokens obtained. Check API connectivity and credentials.")
         sys.exit(1)
 
-    # Step 3: Set profiles
-    print("=== Step 3: Setting profiles ===")
+    # Step 3: Set discovery terms (whitelist anon on public_posts)
+    print("=== Step 3: Whitelisting anon on public_posts (discovery gate) ===")
+    for uname in tokens:
+        status, body = set_public_posts_terms(base, uname, tokens[uname])
+        # 409 = DUPLICATE_SERVICE: the anon-whitelist term already exists.
+        note = "ok" if status == 200 else ("already set — ok" if status == 409 else f"FAILED: {body}")
+        print(f"  {uname}: POST /{uname}/services {status} ({note})")
+    print()
+
+    # Step 4: Register public-ledger schemas (Reaction, Comment)
+    print("=== Step 4: Registering public-ledger schemas ===")
+    schema_token = tokens[next(iter(tokens))]
+    r_status, reaction_schema_id, r_body = register_schema(base, schema_token, REACTION_SCHEMA)
+    c_status, comment_schema_id, c_body = register_schema(base, schema_token, COMMENT_SCHEMA)
+    print(f"  Reaction: /schemas/register {r_status} -> {reaction_schema_id or r_body}")
+    print(f"  Comment:  /schemas/register {c_status} -> {comment_schema_id or c_body}")
+    print()
+
+    # Step 5: Set profiles
+    print("=== Step 5: Setting profiles ===")
     for p in PERSONAS:
         uname = p["username"]
         if uname in tokens:
-            set_profile(base, uname, tokens[uname], p)
-            print(f"  {uname}: profile set")
+            status, _ = set_profile(base, uname, tokens[uname], p)
+            print(f"  {uname}: profile {status}")
     print()
 
     if args.skip_content:
@@ -413,83 +562,118 @@ def main():
         print("\nTokens saved. Use them to log in as each persona.")
         return
 
-    # Step 4: Cross-follow everyone
-    print("=== Step 4: Cross-following ===")
+    # Step 6: Cross-follow everyone
+    print("=== Step 6: Cross-following ===")
     usernames = [p["username"] for p in PERSONAS if p["username"] in tokens]
+    follow_ok = 0
     for uname in usernames:
         for target in usernames:
             if target != uname:
-                add_contact(base, uname, tokens[uname], target)
-                follow_user(base, uname, tokens[uname], target)
-                deliver_to_inbox(base, uname, tokens[uname], uname, "", {}, "api.localhost")
+                s1, _ = add_contact(base, uname, tokens[uname], target, provider)
+                s2, _ = follow_user(base, uname, tokens[uname], target, provider)
+                if s1 == 200 and s2 == 200:
+                    follow_ok += 1
         print(f"  {uname}: following {len(usernames) - 1} personas")
+    print(f"  ({follow_ok} follow+contact pairs 200)")
     print()
 
-    # Step 5: Create posts
-    print("=== Step 5: Creating posts ===")
-    post_ids = {}  # (username, post_index) -> post_id
+    # Step 7: Create posts (in public_posts) + fan-out to follower inboxes
+    print("=== Step 7: Creating posts ===")
+    post_ids = {}
+    post_ok = 0
     for uname, posts in POSTS.items():
         if uname not in tokens:
             continue
         post_ids[uname] = []
-        for i, post_data in enumerate(posts):
-            r = create_post(base, uname, tokens[uname], post_data)
-            pid = r.get("_id", "") if isinstance(r, dict) else ""
+        for post_data in posts:
+            status, body = create_post(base, uname, tokens[uname], post_data)
+            pid = body.get("_id", "") if isinstance(body, dict) else ""
             post_ids[uname].append(pid)
-            # Fan-out to followers' inboxes
+            if status == 200 and pid:
+                post_ok += 1
+            else:
+                print(f"    ! {uname} post {status}: {body}")
             for follower in usernames:
                 if follower != uname and follower in tokens:
-                    deliver_to_inbox(base, follower, tokens[follower], uname, pid, post_data)
-            time.sleep(0.2)
-        print(f"  {uname}: {len(post_ids[uname])} posts created")
+                    deliver_to_inbox(base, follower, tokens[follower], uname, pid, post_data, provider)
+            time.sleep(0.15)
+        got = sum(1 for x in post_ids[uname] if x)
+        print(f"  {uname}: {got}/{len(posts)} posts created (public_posts)")
+    print(f"  ({post_ok} posts returned 200 + _id)")
     print()
 
-    # Step 6: Add reactions
-    print("=== Step 6: Adding reactions ===")
-    for reactor, poster, post_idx, rtype in REACTIONS:
-        if reactor in tokens and poster in post_ids:
-            target_id = post_ids[poster][post_idx] if post_idx < len(post_ids[poster]) else None
-            if target_id:
-                add_reaction(base, reactor, tokens[reactor], "posts", target_id, rtype)
-    print(f"  {len(REACTIONS)} reactions added")
+    # Step 8: Reactions -> public ledger
+    print("=== Step 8: Adding reactions (public ledger) ===")
+    reaction_ok = 0
+    if reaction_schema_id:
+        for reactor, poster, post_idx, rtype in REACTIONS:
+            if reactor in tokens and poster in post_ids and post_idx < len(post_ids[poster]):
+                target_id = post_ids[poster][post_idx]
+                if target_id:
+                    status, body = add_reaction(
+                        base, reactor, tokens[reactor], reaction_schema_id, poster, target_id, rtype, provider
+                    )
+                    if status == 200:
+                        reaction_ok += 1
+                    else:
+                        print(f"    ! reaction {status}: {body}")
+        print(f"  {reaction_ok}/{len(REACTIONS)} reactions posted (200)")
+    else:
+        print("  SKIPPED: Reaction schema not registered")
     print()
 
-    # Step 7: Add comments
-    print("=== Step 7: Adding comments ===")
-    for poster, comments in COMMENTS.items():
-        if poster not in post_ids or not post_ids[poster]:
-            continue
-        # Comment on the first post of each poster
-        target_post_id = post_ids[poster][0]
-        for commenter, text in comments:
-            if commenter in tokens:
-                add_comment(base, commenter, tokens[commenter], target_post_id, text)
-    print(f"  {sum(len(v) for v in COMMENTS.values())} comments added")
+    # Step 9: Comments -> public ledger
+    print("=== Step 9: Adding comments (public ledger) ===")
+    comment_total = sum(len(v) for v in COMMENTS.values())
+    comment_ok = 0
+    if comment_schema_id:
+        for poster, comments in COMMENTS.items():
+            if poster not in post_ids or not post_ids[poster] or not post_ids[poster][0]:
+                continue
+            target_post_id = post_ids[poster][0]  # comment on the first post
+            for commenter, text in comments:
+                if commenter in tokens:
+                    status, body = add_comment(
+                        base, commenter, tokens[commenter], comment_schema_id, poster, target_post_id, text, provider
+                    )
+                    if status == 200:
+                        comment_ok += 1
+                    else:
+                        print(f"    ! comment {status}: {body}")
+        print(f"  {comment_ok}/{comment_total} comments posted (200)")
+    else:
+        print("  SKIPPED: Comment schema not registered")
     print()
 
-    # Step 8: Send DMs
-    print("=== Step 8: Sending DMs ===")
+    # Step 10: DMs
+    print("=== Step 10: Sending DMs ===")
+    dm_ok = 0
     for dm in DMS:
         frm = dm["from"]
         if frm in tokens:
-            send_dm(base, frm, dm["to"], tokens[frm], dm["message"])
-    print(f"  {len(DMS)} DMs sent")
+            status, _ = send_dm(base, frm, dm["to"], tokens[frm], dm["message"], provider)
+            if status == 200:
+                dm_ok += 1
+    print(f"  {dm_ok}/{len(DMS)} DMs sent (200)")
     print()
 
     # Summary
     print("=" * 50)
     print("SEED COMPLETE!")
     print("=" * 50)
-    print(f"\nAll personas created with password: {PASSWORD}")
-    print("\nLogin tokens (save these!):")
-    for uname, token in tokens.items():
-        print(f"  {uname}: {token[:50]}...")
-    print(f"\nTotal content seeded:")
-    print(f"  Posts: {sum(len(v) for v in post_ids.values())}")
-    print(f"  Reactions: {len(REACTIONS)}")
-    print(f"  Comments: {sum(len(v) for v in COMMENTS.values())}")
-    print(f"  DMs: {len(DMS)}")
-    print(f"  Cross-follows: {len(usernames) * (len(usernames) - 1)}")
+    print(f"\nAll personas use password: {PASSWORD}")
+    print(f"Provider: {provider}  |  Site: {site}")
+    print("\nResults:")
+    print(f"  Posts (public_posts): {post_ok} created with _id")
+    print(f"  Reactions (ledger):   {reaction_ok}/{len(REACTIONS)}")
+    print(f"  Comments (ledger):    {comment_ok}/{comment_total}")
+    print(f"  DMs:                  {dm_ok}/{len(DMS)}")
+    print(f"  Cross-follows:        {follow_ok}/{len(usernames) * (len(usernames) - 1)}")
+    print(
+        "\nNote: if the discovery feed (PATCH /discover/posts) is empty right\n"
+        "after seeding, confirm the node's discovery read path is healthy — the\n"
+        "writes above are what this seeder guarantees."
+    )
 
 
 if __name__ == "__main__":
