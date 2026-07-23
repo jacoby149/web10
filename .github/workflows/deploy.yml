@@ -36,11 +36,11 @@ jobs:
             echo "Commit: $GITHUB_SHA"
             echo "Ref: $GITHUB_REF"
 
-            # Pull latest code
+            # Pull latest code (robust even for single-branch clones:
+            # fetch the branch explicitly, then force the local branch to it)
             cd /opt/web10
-            git fetch origin
-            git checkout dev
-            git reset --hard origin/dev
+            git fetch origin dev
+            git checkout -B dev FETCH_HEAD
 
             # Restore .env symlink if broken (GitOps re-clone can wipe it)
             if [[ ! -L ubuntu-deployment/.env ]] || [[ ! -f ubuntu-deployment/.env ]]; then
@@ -116,11 +116,11 @@ jobs:
             echo "Commit: $GITHUB_SHA"
             echo "Ref: $GITHUB_REF"
 
-            # Pull latest code
+            # Pull latest code (robust even for single-branch clones:
+            # fetch the branch explicitly, then force the local branch to it)
             cd /opt/web10
-            git fetch origin
-            git checkout main
-            git reset --hard origin/main
+            git fetch origin main
+            git checkout -B main FETCH_HEAD
 
             # Restore .env symlink if broken
             if [[ ! -L ubuntu-deployment/.env ]] || [[ ! -f ubuntu-deployment/.env ]]; then
