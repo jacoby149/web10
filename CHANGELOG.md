@@ -1,3 +1,6 @@
+1.0.125 || 23.07.2026
+Remove the live "Trending" feed from the marketing landing page. `Home` rendered `<FeedPreview />` as the very first section (above the Hero, added in #168), so the front marketing page opened with a network feed that showed perpetual skeleton cards whenever the discovery API returned nothing — burying the hero and the pitch under a half-loaded app surface. Dropped `<FeedPreview />` and its import from `Home.tsx` (plus the now-unused `useCallback` import); the landing page opens on the Hero again. The dedicated `/trending` page is untouched — it imports the feed pieces (`PostCard`, `SkeletonCard`, `fetchDiscoverFeed`, …) directly, not the `FeedPreview` wrapper, so it keeps working. vite build clean.
+
 1.0.122 || 23.07.2026
 Fix trending page comment button and marketing-ui like button. The trending page's comment button now toggles a comment thread (fetches from `/public/entries`) instead of just incrementing the comment count. The marketing-ui FeedPreview on the home page renders interaction icons as read-only spans — no clickable like/comment/repost buttons — since the marketing site is a public preview with no auth. `PostCard` gained a `readOnly` prop; `FeedPreview` passes `readOnly={true}`. Trending page comment handler removed from `handleReaction` (only like/repost still increment counts).
 
