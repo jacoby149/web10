@@ -9,6 +9,7 @@ import {
   formatFollowerCount,
 } from '../lib/reachGap'
 import { trackFunnel } from '../lib/analytics'
+import { AUTH_ORIGIN } from '../lib/origins'
 
 function Hero() {
   return (
@@ -36,7 +37,7 @@ function Hero() {
         </p>
         <div className="reveal mt-10 [animation-delay:320ms]">
           <Button asChild size="lg" variant="brand">
-            <a href="https://auth.web10.app">Enter web10</a>
+            <a href={AUTH_ORIGIN}>Enter web10</a>
           </Button>
         </div>
       </div>
@@ -168,7 +169,7 @@ function Footer() {
           <a href="/docs" className="hover:text-foreground">Docs</a>
           <a href="/docs/sdk" className="hover:text-foreground">SDK</a>
           <a href="/app-store" className="hover:text-foreground">App Store</a>
-          <a href="https://auth.web10.app" className="hover:text-foreground">Sign In</a>
+          <a href={AUTH_ORIGIN} className="hover:text-foreground">Sign In</a>
           <a href="https://github.com/jacoby149/web10" className="hover:text-foreground">GitHub</a>
         </div>
       </div>

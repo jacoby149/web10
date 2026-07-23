@@ -924,6 +924,47 @@ Marketing-ui side (Lane D):
     beat ("The network is quiet" + CTA to social app), infinite scroll
     feel (load 20, "Load more" brand pill).
 
+Content lifecycle — staging + visibility management (Lane D, D19; decisions.md D30):
+The visibility split shipped half-built and crossed at both ends — the
+composer sets no visibility so native posts trap in `private_posts` (never
+reach the wall or public), while imports write to the legacy anon-readable
+`posts` service (importing auto-publishes your entire history — the opposite
+of staging). Visibility/lifecycle is the COLLECTION a record lives in, never a
+status field (decisions.md D30). This is on the gauntlet critical path (D29):
+"import your life -> review -> publish" and "post -> it's public" both run
+through here.
+
+Phase A — repair the foundation (lands first; imports currently auto-publish):
+[ ] marketing-api import writes posts to `staging_posts`, not legacy `posts`
+    (instagram/facebook/youtube parsers tag `service`; main.py writes it)
+[ ] register `staging_posts` terms (owner-only, no whitelist) in the social
+    app's SMROnReady list; confirm node default-deny for absent terms holds
+    (auth.py is_permitted returns False; owner's own token always passes)
+[ ] reconcile the wall: readMyPosts reads `public_posts` + `private_posts`
+    (owner sees both of their own), not legacy `posts`
+[ ] fix the broken `/exporters` CTA -> `/import` in the 3 social screens
+    (FeedScreen, ProfileScreen, DmsScreen) — note cross-app origin
+
+Phase B — visibility on native posts:
+[ ] composer gets a visibility selector (public / private; default public per
+    the conventions-schema default). createPost already routes once set.
+
+Phase C — the staging + management UI (the feature):
+[ ] Staging/Review screen: reads `staging_posts`, imported content grouped by
+    origin, per-item + bulk actions Publish(public) / Keep private / Delete,
+    each = a collection move. design.md-grade (§12, PR screenshots).
+[ ] post-publish management on the wall: change an existing post's visibility
+    (public <-> private) = a move; "make everything private" = 1 terms change.
+[ ] PUBLISHING grants the target audience read access to the post's media —
+    the media access gate is per-service and coarse (media is owner-only), so
+    public media needs an explicit path (grant/tier or discovery-minted link).
+    Private/staged media is already creator-only (media.py /read gate). NOT I4.
+
+Deferred (this model absorbs each by adding a collection): `friends_posts`
+(needs the friends graph) and `unlisted_posts` (anon-read but discovery-
+excluded — the correct home for YouTube unlisted). Until then imported
+friends/unlisted stages as private.
+
 Federation (later):
 [ ] cross-node discovery: /discover/posts aggregates from federated peers
 [ ] schema resolution: fetch remote schemas by provider.uuid6
