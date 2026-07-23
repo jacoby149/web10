@@ -1,5 +1,7 @@
 1.0.111 || 23.07.2026
 Marketing navbar: added GitHub icon to the star button so it's visually clear it links to the GitHub repo.
+Fix deploy health check: `docker ps --filter status=unhealthy` is an invalid filter (Docker states are created/running/paused/restarting/removing/exited/dead — health is a separate field). This caused the stability loop to always exit on the first iteration with "All containers stable" regardless of actual container health. Both deploy jobs now use `docker inspect` to read `State.Health.Status` per container, then grep for unhealthy. Containers without a healthcheck return "none".
+
 1.0.110 || 23.07.2026
 Marketing navbar: replaced plain "GitHub" text link with a star button showing the live GitHub star count (fetches from GitHub API). Loading skeleton while fetching, 'k' suffix for 1000+ stars, fallback to "Star" on error. Uses a shared React context so desktop and mobile instances share one API call.
 1.0.109 || 23.07.2026
