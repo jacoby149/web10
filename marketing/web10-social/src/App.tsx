@@ -38,7 +38,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
       />
       <div className="relative w-full max-w-sm text-center space-y-8">
         <div className="space-y-3">
-          <img src="/alternative.png" alt="" className="h-14 w-14 mx-auto" aria-hidden="true" />
+          <img src="/keys-mark.png" alt="" className="h-14 w-14 mx-auto" aria-hidden="true" />
           <h1 className="font-display text-4xl font-bold tracking-tight text-foreground">
             web<span className="text-brand">10</span>
           </h1>
