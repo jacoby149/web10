@@ -3,6 +3,7 @@ import { useParams, Link, useLocation } from 'react-router-dom'
 import { remark } from 'remark'
 import remarkHtml from 'remark-html'
 import { FileText, Code, Terminal, ExternalLink } from 'lucide-react'
+import { trackFunnel } from '../lib/analytics'
 
 const DOC_PAGES = [
   { slug: 'protocol-spec', title: 'Protocol Spec', file: '/docs/protocol-spec.md' },
@@ -122,6 +123,9 @@ function DocsContent() {
 }
 
 function Docs() {
+  useEffect(() => {
+    trackFunnel('docs_view')
+  }, [])
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto flex max-w-6xl flex-col md:flex-row">

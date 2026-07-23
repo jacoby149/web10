@@ -1,18 +1,43 @@
 web10 plan
 ==========
 
-PRIORITY ZERO (operator, 19.07.2026): MAKE IT WORK AT A BASELINE.
-it is embarrassing that the deployed product does not work right
-now — the authenticator is broken (login doesn't complete, the logo
-renders broken), the docs 404, the app store is hollow, and the live
-node points at an empty database instead of the 208 real users.
-polish, beautification, new features, and docs prose all rank BELOW
-"a person can sign up, log in, use the apps, and read the docs
-without hitting something broken." when choosing between a shiny
-addition and a baseline fix, take the baseline fix. the current
-baseline chain, in order: A7 (real data) → B6 (auth actually works)
-→ D16.1/D17 (docs reachable) → D16 (store shows real apps). the
-C5/C6 e2e suite is the referee for "works."
+PRIORITY ONE (operator, 22.07.2026): THE KILLER APP, PROUD AND
+WORKING, BEFORE ANYTHING ELSE. supersedes priority zero (19.07) —
+its baseline chain is ticked (A7 real data, B6 auth, D16.1/D17
+docs, D16 mostly), but the honest state is still "a shell of a
+non-working platform": the pieces exist and the whole doesn't
+hold, and the board keeps surfacing work that sounds like an
+infrastructure company (sdk rewrite, ux telemetry, provisioning)
+instead of a social platform. reprioritization: web10-social IS
+the product until further notice. every task is judged by ONE
+question — "does this make the social app something the operator
+opens on his phone, in front of someone, and is proud of?" if the
+answer is no, it waits, explicitly and without guilt (see PARKED
+in parallel execution.txt: C2/C3/C3.5, D11, E4, E8, docs prose).
+these are good ideas whose time is not now (D20 said protocol
+serves platform; this is that decision enforced on the task
+board, logged as D29).
+
+the bar is THE GAUNTLET — run from the operator's phone against
+dev, top to bottom, no apologies. step one of the work is running
+it and writing the honest fail list (.context/gauntlet.md); fixes
+land in order of demo impact:
+  1. sign up + log in on the social app without a broken screen
+  2. post a photo -> it appears in the feed immediately
+  3. follow a persona -> their posts land in your feed
+  4. like + comment -> counts update, feel instant
+  5. dm a persona -> the thread reads like a real messenger
+  6. your profile reads as a creator page you'd screenshot
+  7. trending/discover shows a real, alive feed (personas keep it
+     from ever demoing empty)
+  8. nothing white-screens; every screen is design.md-grade at
+     375px, on a real phone, on dev AND prod
+each step that passes gets encoded as a playwright journey in e2e/
+so it can't regress (C6 continued — the referee for "works").
+when the gauntlet passes end to end, THEN low-hanging fruit in
+order of demo impact (realtime feed refresh, notifications, search
+your own stuff, D16(3) store curation) — judged by the same
+question.
 
 the thesis (why this plan):
 - THIS IS A PRODUCT FOR INFLUENCERS. the proposition is OWNERSHIP ON
@@ -364,7 +389,7 @@ steps:
 [✓] update docker-compose: service "auth" -> "ui" (keep auth.localhost /
     auth.web10.app as aliases so existing links + CORS_SERVICE_MANAGERS
     don't break during migration)
-[ ] update api settings: CORS_SERVICE_MANAGERS to include the ui origin
+[✓ 1.0.101] update api settings: CORS_SERVICE_MANAGERS to include the ui origin
 [✓] delete auth/ after cutover. one UI, one truth.
 
 
@@ -519,15 +544,18 @@ the original data changes what "done" looks like for these):
     web10 CLI" call-to-action (the CLI still exists at
     marketing/web10-cli/ but is invisible) + a CLI quickstart.
     don't teach legacy wapi as the future — align with C2.
-[✓ 1.0.72] SDK visibility + publish flow (lane D item D18 + lane E item
+[✓ 1.0.72, 1.0.100] SDK visibility + publish flow (lane D item D18 + lane E item
     E7): sdk/ documented in marketing-ui docs (new sdk.md page, wired into
     Docs.tsx sidebar), SDK link added to Home.tsx footer, npm badge + SDK
     link added to README.md. npm publish verified: web10-npm@1.0.8 is public
     on npmjs.com, cd.yml's `npm` job fires on v* tags with provenance.
-    Publish flow decision: stays tag-gated (decisions.md D26) — auto-publish
-    on merge rejected while C2's typed rewrite is in flight; a v* tag forces
-    a deliberate release decision, preventing legacy wapi.js from drowning npm
-    with versions nobody should install.
+    E7 verification (1.0.100): cd.yml end-to-end flow confirmed — fires on
+    v* tag push, npm job gated on tag prefix, publishes with --provenance
+    --access public. Package publicly accessible (versions 1.0.0–1.0.8).
+    Publish flow decision reaffirmed: stays tag-gated (decisions.md D26) —
+    auto-publish on merge rejected while C2's typed rewrite is in flight;
+    a v* tag forces a deliberate release decision, preventing legacy wapi.js
+    from drowning npm with versions nobody should install.
 [ ] mobile encryptor → app stores (lane E item E8, parked): expo
     eas build/submit, listings, signing. post-M0, gated on the
     encryptor doing real e2e key management — on the board so it
@@ -879,6 +907,22 @@ Marketing-ui side (Lane D):
 [✓ 1.0.92] wire tab switching to sort params (recent, trending)
 [✓ 1.0.92] wire reaction buttons to /public/entries
 [✓ 1.0.92] fetch schema definitions for rendering interaction types
+[ ] D-trending-card: marketing-ui TrendingCard component — media-forward
+    card with rank badge (#1 gold, #2-3 silver, #4+ brand), heat glow
+    (engagement_score drives violet glow intensity), author row, content
+    truncated to 3 lines, tags as chips, engagement bar. Hover: 2px lift
+    + glow intensify. Skeleton shimmer matches card shape.
+[ ] D-trending-grid: marketing-ui /trending page layout — responsive grid
+    (1/2/3 col), #1 featured card spans 2 cols, topic filter chips (sticky,
+    horizontal scroll), hero statement ("What's actually trending. No
+    algorithm."). No subtabs.
+[ ] D-trending-sidebar: marketing-ui /trending sidebar (desktop only, wide
+    screens) — "🔥 Top 10" ranked list, compact entries (position + author
+    + snippet + score), click scrolls to card in main grid.
+[ ] D-trending-polish: marketing-ui /trending loading + empty states —
+    shimmer skeleton grid (matches layout, no shift), empty state story
+    beat ("The network is quiet" + CTA to social app), infinite scroll
+    feel (load 20, "Load more" brand pill).
 
 Federation (later):
 [ ] cross-node discovery: /discover/posts aggregates from federated peers
@@ -911,17 +955,17 @@ wapi.js is how frontend devs build web10 apps. it deserves the same
 glow-up as everything else: right now it's untyped ES with axios and
 peerjs hard-bundled, published as web10-npm.
 
-[ ] rewrite in typescript. full types for the protocol: records, queries
+[✓ 1.100] rewrite in typescript. full types for the protocol: records, queries
     ($sort/$skip/$limit), updates, terms/contracts, tokens. typed CRUD:
     read<T>(service, query): Promise<T[]>
-[ ] drop axios -> native fetch. zero required dependencies.
-[ ] peerjs/rtc becomes an optional subpath export (web10/rtc) so the core
+[✓ 1.100] drop axios -> native fetch. zero required dependencies.
+[✓ 1.100] peerjs/rtc becomes an optional subpath export (web10/rtc) so the core
     stays tiny and tree-shakeable
-[ ] modern packaging: bun build, ESM + types, publish as a clean package
+[✓ 1.100] modern packaging: bun build, ESM + types, publish as a clean package
     (decide: keep web10-npm name or claim something nicer)
-[ ] auth flow ergonomics: the popup/oauth dance in wapiAuth wrapped into
+[✓ 1.100] auth flow ergonomics: the popup/oauth dance in wapiAuth wrapped into
     one promise-based login()
-[ ] docs generated from the types (typedoc) into the docs site
+[✓ 1.100] docs generated from the types (typedoc) into the docs site
 [ ] react hooks package later (useRecords(service, query) with live
     refresh) -- separate small package on top, not in core
 
@@ -1756,14 +1800,14 @@ ci — runs on every pr + push to dev/main (.github/workflows/):
     --frozen-lockfile, tsc --noEmit, vitest run, vite build. write
     ONE reusable workflow and call it per package -- five diverging
     copies of the same yaml is how ci rots.
-[ ] close the js job escape hatches: typecheck and vite build run
+[✓] close the js job escape hatches: typecheck and vite build run
     with continue-on-error in the shared js workflow today -- a ui
     that doesn't compile still shows a green check, which breaks
     the visibility-first premise (the referee must at least SHOW
     red). make both steps report honestly; merging stays a human
     call as before. the browser e2e suite (quality/testing section)
     joins as its own path-filtered job the day it lands.
-[ ] the api job has never actually gone green (found 19.07.2026 via
+[✓] the api job has never actually gone green (found 19.07.2026 via
     #117): uv sync --frozen installs neither ruff (not a dependency
     anywhere in pyproject) nor pytest (lives in the test extra), so
     "uv run ruff check" dies on spawn before anything lints or
@@ -1798,6 +1842,29 @@ ci — runs on every pr + push to dev/main (.github/workflows/):
     on every job, actions pinned to major versions. tests need NO
     repo secrets (stripe/twilio are mocked -- keep it that way so
     prs from forks stay safe to run).
+
+ci optimization (reduce github actions minutes -- free tier is
+2,040 min/month, current usage ~$3/day = ~$90/month overage):
+[✓ 1.0.99] add bun caching to js-ci.yml: bun install is uncached so every
+    job downloads the full dependency tree. use actions/cache keyed
+    on bun.lock + the bun cache directory. cuts each js job ~50%.
+[✓ 1.0.99] remove push triggers from all CI check workflows: js-ci, api,
+    docker, e2e, marketing-api all fire on every push to dev — with
+    parallel agents pushing frequently, that's ~60+ minutes wasted
+    per merge (code already passed PR checks). deploy.yml keeps push
+    (it actually deploys). saves ~80% of total CI minutes.
+[✓ 1.0.99] per-package path filtering in js-ci.yml: touching ui/** currently
+    runs all 6 packages (ui, sdk, web10-social, marketing-ui,
+    encryptor, rtc). each job should only trigger when its own
+    package's paths change. use the reusable workflow's `if`
+    condition with `github.event.pull_request.changed_files` or
+    separate path filters per job.
+[✓ 1.0.99] drop linux/arm64 from cd.yml image builds: multi-arch doubles
+    build time per image. if no self-hosters need ARM (Raspberry Pi,
+    Mac Mini), build linux/amd64 only. saves ~50% on CD minutes.
+[✓ 1.0.99] use ubuntu-latest-small runners where possible: smaller, cheaper
+    runners for jobs that don't need heavy resources (changelog
+    check). docker/e2e builds stay on ubuntu-latest.
 
 cd — runs on merge to main + version tags (starts small, grows
 with the phases that give it something to ship):

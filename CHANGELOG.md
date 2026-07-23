@@ -1,3 +1,48 @@
+1.0.107 || 23.07.2026
+SDK security + correctness fixes (web10-npm). (1) Cross-window auth messaging is now origin-scoped: `login()`/`authListen()`/`smrResponseListen()`/`smrOnReady()` ignore any postMessage whose origin isn't the configured `authUrl` (closes token injection/fixation from a malicious opener or embedder), and the authenticator side (`sendToken`, `smrListen`, legacy `SMROnReady`) posts to the opener's exact origin — derived from the referrer — instead of `'*'`, refusing to post when that origin is unknown (closes a bearer-token leak). (2) `isTokenExpired()` now reads the ISO `expires` claim the server actually sets, not the nonexistent numeric `exp` — the check was previously always false; `TokenPayload` type corrected to match. (3) CRUD routes to the addressed user's node: a `provider` argument now sets the request origin (`provider` == the node's api host), so cross-node addressing works instead of silently hitting the caller's own `apiOrigin`; no-provider calls are byte-identical to before. (4) token cookie gains `SameSite=Lax`. 64 SDK tests green (was 55), tsc strict clean, bundle rebuilt.
+1.0.108 || 23.07.2026
+Copy: "Own your audience" → "Your audience, actually" in all user-facing surfaces (marketing-ui hero + meta, web10-social login + meta, design.md voice example). "Own your audience" implied ownership of people; the new copy keeps "audience" but frames the claim as about the real relationship — no algorithm in the middle deciding who sees your stuff.
+1.0.107 || 23.07.2026
+CORS: API now allows all browser origins (`allow_origins=["*"]`, credentials off). The security boundary is the scoped token in each request body (certify + is_permitted + per-service ACL), not the browser origin — web10 apps are stateless frontends anyone can build and host anywhere, so an origin allow-list only broke legitimate apps (social, marketing) without adding security. Removed the short-lived `CORS_ALLOW_ORIGINS` setting/env wiring. `CORS_SERVICE_MANAGERS` stays as the real trust list: authenticator hosts (auth.*) that may handle consent and mint tokens for other apps — narrowed to auth-only, which also closes a latent privilege path (a service-manager site bypasses the cross-origin ACL in is_permitted). 353 API tests green.
+1.0.106 || 22.07.2026
+CD: split npm publish into separate web10-npm (sdk/) and web10-cli (marketing/web10-cli/) jobs. Switched to OIDC provenance (id-token: write), removing NODE_AUTH_TOKEN and packages: write. Release job now depends on both publish jobs.
+1.0.105 || 22.07.2026
+SDK compat shim: re-exports `wapiInit` and `wapiAuthInit` from the new typed SDK so legacy consumers (ui/, web10-social/) don't break. Both apps now resolve `web10-npm` from the local SDK and build clean. 55 SDK tests green.
+1.0.104 || 22.07.2026
+Fix marketing-ui build: SVG `className` assignment on createElementNS'd SVG element changed to `setAttribute('class', ...)` to avoid TS2540 read-only error (1.0.88 fix that never merged to dev). Fix analytics tests: jsdom environment now active via vite.config.js (was missing), unhandled rejection test no longer leaks into vitest's error collector.
+1.0.103 || 22.07.2026
+CI: removed `continue-on-error: true` from the shared js workflow's typecheck and build steps. A UI that doesn't compile or build now reports red instead of silently passing. Merging remains a human call — the referee just needs to show red.
+1.100 || 22.07.2026
+C2: SDK rewrite — full TypeScript, zero required deps. Replaced legacy untyped ES wapi.js with typed `createClient()` (ESM). Full protocol types: records, queries ($sort/$skip/$limit), updates ($set/$unset/$inc/$push/$addToSet/$pull/$mul), terms/contracts (SIR/SCR), tokens (TokenPayload), aggregate pipelines (PipelineStage). Typed CRUD: `read<T>(service, query)`, `create<T>(service, body)`, `update(service, query, updateSpec)`, `deleteRecord(service, query)`, `aggregate<T>(service, pipeline)`. Dropped axios → native fetch. PeerJS/RTC moved to optional subpath export (`web10-npm/rtc`) with `setPeer()` — core is tree-shakeable. Auth flow: promise-based `login()` wraps the popup/OAuth dance. Auth connector (`createAuthConnector`) with tiered token minting, SMR, login/signup, password/phone change, verification codes, Stripe management. Dev pay: `checkout()`, `verifySubscription()`, `cancelSubscription()`. Modern packaging: bun build, ESM + declaration maps, typedoc config. 55 tests green (41 client, 14 auth), tsc strict clean.
+1.0.102 || 22.07.2026
+Reprioritization (D29): the killer app, proud and working, before anything
+else. plan.txt PRIORITY ZERO (baseline chain, merged) superseded by PRIORITY
+ONE: every task judged by "does this make web10-social something the operator
+demos from his phone with pride?" — with THE GAUNTLET (8 phone-run end-to-end
+steps, each encoded in e2e/ as it passes) as the bar. Conductor board rewritten
+around it; C2 SDK rewrite, C3 MCP, C3.5 create-web10, D11 ux telemetry, E4
+provisioning, E8 store submission explicitly PARKED until the gauntlet passes.
+
+1.0.101 || 22.07.2026
+Fix CORS_SERVICE_MANAGERS dev default: auth.web10.dev -> auth.dev.web10.app (stale hostname from pre-1.0.73). The env files were already correct; only the settings.py fallback was wrong.
+1.0.100 || 22.07.2026
+Fix api CI: uv sync now uses --extra test so pytest and ruff are available
+in the CI environment. The ruff/format debt was already paid in 1.0.73
+(ruff check and ruff format pass clean across api/). 353 tests green.
+E7: SDK npm publish flow verified end to end. cd.yml confirmed: fires on v* tags, npm job gated on tag prefix, publishes sdk/ with --provenance --access public. web10-npm verified public on npmjs.com (versions 1.0.0–1.0.8, latest 1.0.8). Decision D26 reaffirmed: publish stays tag-gated, no auto-publish on merge to dev/main — legacy wapi.js SDK must not flood npm while C2 typed rewrite is in flight.
+
+1.0.99 || 22.07.2026
+CI optimization: removed push triggers from all check workflows (js-ci, api,
+docker, e2e, marketing-api) — code already passes PR checks before merging, so
+re-running after merge wastes ~60+ minutes per merge. deploy.yml keeps its
+push trigger (it actually deploys). Added bun install caching to js.yml
+(actions/cache on node_modules + bun cache dir keyed on bun.lock). Per-package
+path filtering in js-ci.yml (dorny/paths-filter) so touching ui/** only runs
+the ui job, not all 6 packages. Dropped linux/arm64 from cd.yml (saves ~50%
+on CD minutes). Switched changelog check to ubuntu-latest-small runner.
+Expected savings: ~90% reduction in total CI minutes.
+
+Marketing-ui: removed redundant trending feed from home page (already has /trending tab). Rewrote /trending page: full-page trending feed, no "For You" / "Following" subtabs. DeployStatus widget now hides when status.json has all "unknown" fields instead of showing an empty panel. Root cause fix: deploy.yml now computes GIT_COMMIT and STATUS_VERSION before docker compose, so status.json gets real values on every deploy.
 1.0.98 || 22.07.2026
 Knowledge folder complete overhaul: replaced AI-generated content with a working system. Knowledge theories: the-why-layer (connects tech to business), the-how-layer (comprehensive technical explanation), the-what-layer (code/deploy/ownership map). Writing styles: use-case-driven (abstract → specific → technical → logistics). Editing styles: the-touch-up (surgical fixes), the-rewrite (diagnose, pick theory/style/voice, write fresh). Voices: clive-tobacco-smoker (anti-AI voice reference). Visual-styles folder added for Mermaid chart styles. AGENTS.md added with the workflow for AI agents (pick theory → pick style → pick voice → write). Deleted old knowledge-base/ (architecture, protocol, security, 8 Mermaid scenarios) — all replaced.
 1.0.89 || 21.07.2026

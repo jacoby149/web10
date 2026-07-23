@@ -5,10 +5,14 @@ import os
 #################################
 
 PROVIDER = "api.localhost"
+# The authenticator trust list: sites that may handle consent and mint
+# tokens for other apps (see services/auth.py). This is a real trust
+# boundary and must stay narrow — authenticators only, never all frontends.
+# Browser CORS is handled separately in main.py (wide open by design).
 CORS_SERVICE_MANAGERS = """
     auth.localhost,
     auth.web10.app,
-    auth.web10.dev
+    auth.dev.web10.app
 """
 DB = "testing"
 DB_URL = "mongodb+srv://web10:jSol....."

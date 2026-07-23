@@ -4,7 +4,6 @@ import { ExternalLink } from 'lucide-react'
 interface DeployInfo {
   version?: string
   commit?: string
-  commitTitle?: string
   deployedAt?: string
 }
 
@@ -54,8 +53,12 @@ function DeployStatus() {
 
   const version = known(info.version)
   const commit = known(info.commit)
-  const label = version ? `v${version}` : commit ?? 'live'
   const deployed = known(info.deployedAt)
+
+  // If every field is unknown/missing, there is nothing useful to show.
+  if (!version && !commit && !deployed) return null
+
+  const label = version ? `v${version}` : commit ?? 'live'
 
   return (
     <div ref={rootRef} className="fixed bottom-4 right-4 z-40" data-testid="deploy-status">
@@ -78,7 +81,7 @@ function DeployStatus() {
             {commit && (
               <div className="flex items-baseline justify-between gap-4">
                 <dt className="text-muted-foreground">Commit</dt>
-                <dd className="truncate font-mono text-[0.8125rem] text-foreground" title={known(info.commitTitle) ?? undefined}>
+                <dd className="truncate font-mono text-[0.8125rem] text-foreground">
                   {commit}
                 </dd>
               </div>

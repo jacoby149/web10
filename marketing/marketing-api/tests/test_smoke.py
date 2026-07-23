@@ -7,7 +7,7 @@ the CI wiring honest until it lands.
 
 from fastapi.testclient import TestClient
 
-from app.main import app, feedback_store
+from app.main import app, analytics_events, feedback_store
 from app.validation import VALIDATORS, validate_record
 
 client = TestClient(app)
@@ -124,3 +124,93 @@ def test_list_feedback_limit():
     r = client.get("/feedback?limit=3")
     assert r.status_code == 200
     assert len(r.json()["items"]) == 3
+
+
+# ─── JS Error beacon ─────────────────────────────────────────────────────────
+
+
+def test_error_beacon_minimal():
+    analytics_events.clear()
+    r = client.post(
+        "/analytics/error",
+        json={"message": "TypeError: x is null", "app": "marketing-ui", "route": "/docs/sdk"},
+    )
+    assert r.status_code == 200
+    assert r.json()["status"] == "ok"
+    assert len([e for e in analytics_events if e["type"] == "error"]) == 1
+
+
+def test_error_beacon_full():
+    analytics_events.clear()
+    r = client.post(
+        "/analytics/error",
+        json={
+            "message": "ReferenceError: foo is not defined",
+            "source": "app.js",
+            "line": 42,
+            "column": 5,
+            "app": "marketing-ui",
+            "route": "/import",
+            "user_agent": "Mozilla/5.0",
+        },
+    )
+    assert r.status_code == 200
+    errors = [e for e in analytics_events if e["type"] == "error"]
+    assert errors[0]["source"] == "app.js"
+    assert errors[0]["line"] == 42
+    assert errors[0]["column"] == 5
+
+
+def test_error_beacon_rejects_missing_app():
+    r = client.post(
+        "/analytics/error",
+        json={"message": "broken", "route": "/feed"},
+    )
+    assert r.status_code == 422
+
+
+def test_error_beacon_rejects_missing_route():
+    r = client.post(
+        "/analytics/error",
+        json={"message": "broken", "app": "marketing-ui"},
+    )
+    assert r.status_code == 422
+
+
+# ─── Funnel events ───────────────────────────────────────────────────────────
+
+
+def test_funnel_event():
+    analytics_events.clear()
+    r = client.post(
+        "/analytics/funnel",
+        json={"event": "landing", "metadata": {}},
+    )
+    assert r.status_code == 200
+    assert r.json()["status"] == "ok"
+    funnel_events = [e for e in analytics_events if e["type"] == "funnel"]
+    assert funnel_events[0]["event"] == "landing"
+
+
+def test_funnel_event_new_types():
+    analytics_events.clear()
+    for event in ("trending_view", "sign_up_click", "github_click", "enter_click"):
+        r = client.post(
+            "/analytics/funnel",
+            json={"event": event, "metadata": {}},
+        )
+        assert r.status_code == 200, f"funnel event {event} should accept"
+
+
+def test_analytics_summary_includes_dropoff():
+    analytics_events.clear()
+    for event in ("landing", "docs_view", "exporter_view"):
+        client.post("/analytics/funnel", json={"event": event, "metadata": {}})
+    r = client.get("/analytics/summary")
+    assert r.status_code == 200
+    data = r.json()
+    assert "funnel_dropoff" in data
+    assert "total_errors" in data
+    assert data["funnel_dropoff"]["docs_view"]["reached"] == 1
+    assert data["funnel_dropoff"]["docs_view"]["previous_reached"] == 1
+    assert data["funnel_dropoff"]["docs_view"]["drop_off_pct"] == 0.0

@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Bug, Menu, X } from 'lucide-react'
 import { Button } from './ui/button'
+import { trackFunnel } from '../lib/analytics'
 
 const navItems = [
   { path: '/', label: 'Home' },
@@ -50,13 +51,11 @@ function Navbar({ onReportBug }: { onReportBug: () => void }) {
             <Bug className="h-4 w-4" strokeWidth={1.75} />
             Report bug
           </Button>
-          <Button asChild variant="brand" size="sm">
-            <a href="https://auth.web10.app">Sign In</a>
+          <Button variant="brand" size="sm" onClick={() => { trackFunnel('sign_in_click'); window.location.href = 'https://auth.web10.app' }}>
+            Sign In
           </Button>
-          <Button asChild variant="ghost" size="sm">
-            <a href="https://github.com/jacoby149/web10" target="_blank" rel="noopener noreferrer">
-              GitHub
-            </a>
+          <Button variant="ghost" size="sm" onClick={() => { trackFunnel('github_click'); window.open('https://github.com/jacoby149/web10', '_blank', 'noopener') }}>
+            GitHub
           </Button>
         </div>
 
@@ -96,13 +95,11 @@ function Navbar({ onReportBug }: { onReportBug: () => void }) {
               <Bug className="h-4 w-4" strokeWidth={1.75} />
               Report bug
             </Button>
-            <Button asChild variant="brand" size="sm" className="w-full justify-center">
-              <a href="https://auth.web10.app">Sign In</a>
+            <Button variant="brand" size="sm" className="w-full justify-center" onClick={() => { setMobileOpen(false); trackFunnel('sign_in_click'); window.location.href = 'https://auth.web10.app' }}>
+              Sign In
             </Button>
-            <Button asChild variant="ghost" size="sm" className="w-full justify-center">
-              <a href="https://github.com/jacoby149/web10" target="_blank" rel="noopener noreferrer">
-                GitHub
-              </a>
+            <Button variant="ghost" size="sm" className="w-full justify-center" onClick={() => { setMobileOpen(false); trackFunnel('github_click'); window.open('https://github.com/jacoby149/web10', '_blank', 'noopener') }}>
+              GitHub
             </Button>
           </div>
         </div>

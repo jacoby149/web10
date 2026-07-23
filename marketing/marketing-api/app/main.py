@@ -16,6 +16,7 @@ from .models import (
     ImportJobCreate,
     PageView,
     FunnelEventCreate,
+    JsErrorReport,
     FeedbackCreate,
 )
 from .utils import detect_platform
@@ -322,18 +323,59 @@ async def track_funnel(event: FunnelEventCreate):
     return {"status": "ok"}
 
 
+@app.post("/analytics/error")
+async def report_error(error: JsErrorReport):
+    """Accept a client-side JS error beacon (content-free, no PII)."""
+    analytics_events.append(
+        {
+            "type": "error",
+            "message": error.message,
+            "source": error.source,
+            "line": error.line,
+            "column": error.column,
+            "app": error.app,
+            "route": error.route,
+            "user_agent": error.user_agent,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+    )
+    return {"status": "ok"}
+
+
 @app.get("/analytics/summary")
 async def get_analytics_summary():
-    """Get a summary of marketing analytics."""
+    """Get a summary of marketing analytics, including funnel drop-off."""
     total_pageviews = sum(1 for e in analytics_events if e["type"] == "pageview")
     funnel_counts = {}
     for e in analytics_events:
         if e["type"] == "funnel":
             ev = e["event"]
             funnel_counts[ev] = funnel_counts.get(ev, 0) + 1
+    # Per-step drop-off: for each funnel step, how many users reached it vs the previous step.
+    # Funnel order (acquisition path): landing -> docs_view -> app_store_view -> exporter_view -> export_started -> export_complete
+    funnel_order = [
+        "landing", "docs_view", "app_store_view",
+        "exporter_view", "export_started", "export_complete",
+    ]
+    dropoff = {}
+    prev_count = None
+    for step in funnel_order:
+        count = funnel_counts.get(step, 0)
+        if prev_count is not None and prev_count > 0:
+            dropoff[step] = {
+                "reached": count,
+                "previous_reached": prev_count,
+                "drop_off_pct": round((1 - count / prev_count) * 100, 1),
+            }
+        else:
+            dropoff[step] = {"reached": count, "previous_reached": 0, "drop_off_pct": None}
+        prev_count = count
+    total_errors = sum(1 for e in analytics_events if e["type"] == "error")
     return {
         "total_pageviews": total_pageviews,
         "funnel": funnel_counts,
+        "funnel_dropoff": dropoff,
+        "total_errors": total_errors,
         "events_tracked": len(analytics_events),
     }
 

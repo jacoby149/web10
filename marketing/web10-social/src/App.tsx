@@ -42,7 +42,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
           <h1 className="font-display text-4xl font-bold tracking-tight text-foreground">
             web<span className="text-brand">10</span>
           </h1>
-          <p className="text-muted-foreground">Own your audience. No shadow ban.</p>
+          <p className="text-muted-foreground">Your audience. No shadow ban.</p>
         </div>
         <Button
           variant="brand"
