@@ -44,9 +44,14 @@ import type {
   TokenResponse,
   TokenPayload,
   PlanInfo,
+  MediaUploadUrlParams,
+  MediaUploadUrlResponse,
+  MediaConfirmParams,
+  MediaRecord,
+  MediaReadUrlResponse,
 } from './types'
 import { decodeJwt, readTokenCookie, setTokenCookie, scrubTokenCookie } from './token'
-import { patch, post, put, del, aggregate as aggregateReq, authPost } from './http'
+import { patch, post, put, del, aggregate as aggregateReq, authPost, Web10Error } from './http'
 
 /**
  * Create a web10 client instance.
@@ -72,6 +77,16 @@ export function createClient(options: ClientOptions = {}): Web10Client {
     rtcServer,
     appStores,
   }
+
+  // Expiry-aware cache of presigned read URLs. Keyed by
+  // `${provider}/${user}/${objectKey}`; each entry records the absolute
+  // wall-clock time it goes stale so a feed of N images isn't N
+  // /read round-trips per render — but a stale entry is refreshed
+  // before it would 403.
+  const readUrlCache = new Map<string, { url: string; staleAt: number }>()
+  // Refresh a few seconds before expiry so a URL handed to an <img> doesn't
+  // expire between resolution and the browser's GET.
+  const READ_URL_MARGIN_MS = 5_000
 
   const client: Web10Client = {
     get state() {
@@ -272,6 +287,149 @@ export function createClient(options: ClientOptions = {}): Web10Client {
       })
     },
 
+    // ── Media ──────────────────────────────────────────────────────────
+
+    requestUploadUrl(
+      params: MediaUploadUrlParams,
+      username?: string | null,
+      provider?: string | null,
+    ): Promise<MediaUploadUrlResponse> {
+      guardAuth(state, username)
+      const u = resolveUsername(state, username)
+      const base = originFor(state, provider)
+      return authPost<MediaUploadUrlResponse>(`${base}/${u}/upload`, {
+        token: state.token,
+        filename: params.filename,
+        mime_type: params.mimeType ?? null,
+        size_bytes: params.sizeBytes ?? null,
+      })
+    },
+
+    confirmUpload(
+      params: MediaConfirmParams,
+      username?: string | null,
+      provider?: string | null,
+    ): Promise<MediaRecord> {
+      guardAuth(state, username)
+      const u = resolveUsername(state, username)
+      const base = originFor(state, provider)
+      return authPost<MediaRecord>(`${base}/${u}/upload/confirm`, {
+        token: state.token,
+        url: params.url,
+        filename: params.filename,
+        mime_type: params.mimeType ?? null,
+        size_bytes: params.sizeBytes ?? null,
+        width: params.width ?? null,
+        height: params.height ?? null,
+        duration_seconds: params.durationSeconds ?? null,
+        thumbnail_url: params.thumbnailUrl ?? null,
+        caption: params.caption ?? null,
+        alt_text: params.altText ?? null,
+        origin: params.origin ?? null,
+        origin_id: params.originId ?? null,
+        encrypted: params.encrypted ?? false,
+      })
+    },
+
+    /**
+     * Upload a blob to object storage and persist its media record.
+     *
+     * Three steps: request a presigned POST, upload the file to S3 via
+     * FormData, then confirm so the node writes the metadata record into
+     * the owner's `media` collection. Returns the confirmed record.
+     *
+     * In the browser, pass a `File` or `Blob`. In Node/Bun, pass a
+     * `Blob` (globally available on 18+) plus `filename`/`mimeType` if
+     * not derivable from the blob.
+     */
+    async upload(
+      file: Blob,
+      meta: { filename?: string; mimeType?: string; altText?: string; caption?: string; width?: number; height?: number; durationSeconds?: number; thumbnailUrl?: string } = {},
+      username?: string | null,
+      provider?: string | null,
+    ): Promise<MediaRecord> {
+      guardAuth(state, username)
+      const filename = meta.filename ?? (file as File).name ?? 'upload'
+      const mimeType = meta.mimeType ?? (file as File).type ?? 'application/octet-stream'
+      const presigned = await this.requestUploadUrl(
+        { filename, mimeType, sizeBytes: file.size },
+        username,
+        provider,
+      )
+      // Build the multipart form exactly as the policy expects: every
+      // signed field first, the file last. Browsers handle S3's policy +
+      // signature fields opaquely.
+      const form = new FormData()
+      for (const [k, v] of Object.entries(presigned.fields)) {
+        form.append(k, v)
+      }
+      form.append('file', file, filename)
+      const s3Res = await fetch(presigned.upload_url, {
+        method: 'POST',
+        body: form,
+      })
+      if (!s3Res.ok) {
+        const text = await s3Res.text().catch(() => '')
+        throw new Web10Error(
+          `media upload to object storage failed: ${s3Res.status} ${s3Res.statusText}`,
+          s3Res.status,
+          text,
+        )
+      }
+      // Use the presigned POST's URL as the record's stored url. This is
+      // the bare (unsigned) object URL the api uses to derive the
+      // object_key for reads; legacy records derive the key from it.
+      return this.confirmUpload(
+        {
+          url: presigned.upload_url,
+          filename,
+          mimeType,
+          sizeBytes: file.size,
+          width: meta.width,
+          height: meta.height,
+          durationSeconds: meta.durationSeconds,
+          thumbnailUrl: meta.thumbnailUrl,
+          caption: meta.caption,
+          altText: meta.altText,
+        },
+        username,
+        provider,
+      )
+    },
+
+    /**
+     * Resolve a media object key to a fresh presigned GET URL.
+     *
+     * Caches the URL per (provider, user, objectKey) and refreshes it
+     * only when it would otherwise expire — see `readUrlCache`. Pass
+     * `force: true` to bypass the cache (e.g. after a 403).
+     */
+    async getReadUrl(
+      objectKey: string,
+      opts?: { username?: string | null; provider?: string | null; force?: boolean },
+    ): Promise<string> {
+      const username = opts?.username ?? null
+      const provider = opts?.provider ?? null
+      guardAuth(state, username)
+      const u = resolveUsername(state, username)
+      const base = originFor(state, provider)
+      const cacheKey = `${base}/${u}/${objectKey}`
+      const now = Date.now()
+      const cached = readUrlCache.get(cacheKey)
+      if (!opts?.force && cached && cached.staleAt > now + READ_URL_MARGIN_MS) {
+        return cached.url
+      }
+      const res = await authPost<MediaReadUrlResponse>(`${base}/${u}/read`, {
+        token: state.token,
+        object_key: objectKey,
+      })
+      readUrlCache.set(cacheKey, {
+        url: res.read_url,
+        staleAt: now + res.expires_in * 1000,
+      })
+      return res.read_url
+    },
+
     // ── Dev Pay ───────────────────────────────────────────────────────
 
     checkout(params: CheckoutParams): Promise<void> {
@@ -397,6 +555,37 @@ export interface Web10Client {
   // SMR
   smrOnReady(sirs: SIR[], scrs?: SCR[]): void
   smrResponseListen(setStatus: (status: string) => void): void
+
+  // Media
+  requestUploadUrl(
+    params: MediaUploadUrlParams,
+    username?: string | null,
+    provider?: string | null,
+  ): Promise<MediaUploadUrlResponse>
+  confirmUpload(
+    params: MediaConfirmParams,
+    username?: string | null,
+    provider?: string | null,
+  ): Promise<MediaRecord>
+  upload(
+    file: Blob,
+    meta?: {
+      filename?: string
+      mimeType?: string
+      altText?: string
+      caption?: string
+      width?: number
+      height?: number
+      durationSeconds?: number
+      thumbnailUrl?: string
+    },
+    username?: string | null,
+    provider?: string | null,
+  ): Promise<MediaRecord>
+  getReadUrl(
+    objectKey: string,
+    opts?: { username?: string | null; provider?: string | null; force?: boolean },
+  ): Promise<string>
 
   // Dev Pay
   checkout(params: CheckoutParams): Promise<void>
