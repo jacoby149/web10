@@ -25,11 +25,11 @@ function Trending() {
     trackFunnel('trending_view');
   }, [loadFeed]);
 
-  const handleReaction = async (postId: string, type: 'like' | 'comment' | 'repost') => {
+  const handleReaction = async (postId: string, type: 'like' | 'repost') => {
     setPosts(prev => prev.map(p => {
       if (p.id !== postId) return p;
-      const countKey = type === 'like' ? 'likes' : type === 'comment' ? 'comments' : 'reposts';
-      const current = parseCount(p[countKey as 'likes' | 'comments' | 'reposts']);
+      const countKey = type === 'like' ? 'likes' : 'reposts';
+      const current = parseCount(p[countKey as 'likes' | 'reposts']);
       const newVal = current >= 0 ? current + 1 : 1;
       return { ...p, [countKey]: formatCount(newVal) };
     }));
@@ -62,7 +62,7 @@ function Trending() {
                       key={post.id}
                       post={post}
                       onLike={(id) => handleReaction(id, 'like')}
-                      onComment={(id) => handleReaction(id, 'comment')}
+                      onComment={() => {}}
                       onRepost={(id) => handleReaction(id, 'repost')}
                     />
                   ))
