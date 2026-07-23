@@ -271,7 +271,7 @@ LANE C — greenfield services  (owns: sdk/, mcp/, new dirs)
       the suite, lane-owned breakage -> .context/ note + lane
       queue item, never a silent skip. deliverable = the enlarged
       suite AND the honest bug list.
-  [✓ 1.0.140] C7. sdk media surface (plan.txt phase 8.5, media v0): the
+  [✓ 1.0.141] C7. sdk media surface (plan.txt phase 8.5, media v0): the
       typed sdk (sdk/src) gains typed media methods — requestUploadUrl,
       confirmUpload, upload (presigned POST + confirm), and getReadUrl
       (presigned GET exchange + expiry-aware cache) matching the
