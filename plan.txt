@@ -950,43 +950,46 @@ Marketing-ui side (Lane D):
     via AUTH_ORIGIN as a later upgrade). the endless fake local increment
     STOPS either way; that's the minimum honest fix. acceptance: design.md §12.
 
-    PRIVACY MODEL (operator, 23.07): comments live in their OWN per-user
-    `comments` collection (not embedded in posts — foreign-key linked via
-    `post_id`, comments.ts:11), terms-gated owner-only today (no anon whitelist,
-    serviceTerms.ts:120). visibility is SELECTIVE and per-post, not a blanket
-    service toggle: a comment mirrors to the anon-queryable public ledger
-    (`/public/entries`) ONLY when its parent post is public — then any web
-    visitor (the default anon user on any webpage) can read it via PATCH
-    /public/entries (anon-OK, public.py:42). comments on private posts never
-    mirror → stay owner-only in the `comments` collection. "read to the anon
-    user" = mirror to the ledger / whitelist anon on the service; private =
-    don't mirror + owner-only terms. this is the same ledger pattern reactions
-    already use (reactions.ts:35) — EXCEPT reactions mirror unconditionally
-    today, so reactions on private posts leak to the anon-readable ledger (a
-    pre-existing metadata leak, follow-up — the comments mirror must NOT repeat
-    it; gate on the post being public). the trending feed's comment count is
-    currently always 0 (documentdb.py:828 reads `comment` from the ledger, but
-    nothing writes comments there — createComment at comments.ts:36 has no
-    mirror call; the engagement test at test_discovery.py:645 mocks it, so it
-    passes but doesn't reflect reality). so the social-side mirror is the
-    prerequisite, the marketing-ui read lands on top of it.
+    PRIVACY MODEL (operator, 23.07, decided as D32): comments are NOT DMs —
+    they are public discourse. so `comments` ships anon-readable (the same
+    anon-read whitelist `public_posts` carries, serviceTerms.ts:71) and the
+    comment mirror to `/public/entries` is UNCONDITIONAL — matching reactions
+    (reactions.ts:35, already unconditional). any web visitor (the default anon
+    user) reads comments via PATCH /public/entries (anon-OK, public.py:42); the
+    trending comment count (currently always 0 — see D-comments-ledger) goes
+    live. this is D30 applied to interactions: the collection IS the security
+    boundary, NOT a per-record/per-post visibility flag — the earlier "gate the
+    comment mirror on the parent post's visibility" draft was a per-record-
+    inspection mistake D30 already rejects ("the permission layer never looks
+    inside the record"). the panic button is ONE terms change in the
+    authenticator: flip `comments` (or `reactions`) to owner-only and the
+    whole interaction surface goes dark server-side for every post on the node
+    at once. per-record permissions is a FUTURE decision, deferred. the
+    layered model (operator): collection-level = authoritative but lenient
+    (public by default, one place to lock down); individual POSTS configurable
+    via the public_posts/private_posts/staging_posts collections (D30);
+    comments/reactions/reposts ride their OWN collection's default and do NOT
+    inherit the parent post's visibility.
 
-[ ] D-comments-ledger (social-side prerequisite, lane D): `createComment`
-    (web10-social/src/data/comments.ts:36) mirrors the comment to
-    /public/entries (POST, auth-gated "any authenticated user") exactly as
-    `createReaction` does (reactions.ts:35), but GATED on the target post being
-    PUBLIC — the call site (FeedScreen.tsx:110) must pass the post's
-    service/visibility (today it sends only post_id/text/created_at), or the
-    comment record gains a `post_service`/`post_visibility` field. comments on
-    private_posts / staging_posts do NOT mirror → stay owner-only → private.
-    fires the already-registered Comment schema (feed.ts:33) with
-    payload.action='comment' (matching what documentdb.py:828 counts). also
-    opens the symmetric follow-up: gate createReaction's mirror the same way
-    (today it mirrors unconditionally — reactions on private posts leak to the
-    anon-readable ledger; small, same pattern). unblocks D-trending-comments
-    AND fixes the always-0 trending comment count. owns:
-    marketing/web10-social/src/data/comments.ts (+ the FeedScreen call site +
-    the reactions.ts mirror-gate follow-up). gate: none — start now.
+[ ] D-comments-ledger (social-side prerequisite, lane D; decision D32):
+    (1) `createComment` (web10-social/src/data/comments.ts:36) mirrors to
+    /public/entries (POST, "any authenticated user") UNCONDITIONALLY — exactly
+    as `createReaction` does (reactions.ts:35). no per-post visibility gate;
+    comments are public by default (D32). fires the registered Comment schema
+    (feed.ts:33) with payload.action='comment' (what documentdb.py:828 counts).
+    fixes the always-0 trending comment count + the test_discovery.py:645 mock
+    that hid it.
+    (2) the `comments` service gains an anon-read whitelist in serviceTerms.ts
+    (matching `public_posts`:119) so any logged-in user reads comments on any
+    post via CRUD, not just the post's author (today `comments`:120 is owner-
+    only, which the social app's own feed-thread UI already works around by
+    reading the author's own collection — but it breaks for cross-user reads).
+    (3) mirror `deleteComment` to the ledger's DELETE /public/entries/{id}
+    (author-only, public.py:82) so a removed comment drops out of the engagement
+    count and the marketing-ui list; without this, deleted comments ghost-read.
+    unblocks D-trending-comments. owns: marketing/web10-social/src/data/
+    {comments,serviceTerms}.ts + the FeedScreen call site. gate: none — start
+    now.
 [ ] D-trending-link: wrap TrendingCard (or its author row) in a deep-link to
     the author's profile on web10-social -- `${SOCIAL_ORIGIN}/u/<author>`
     (origins.ts exports SOCIAL_ORIGIN). GATE: web10-social has no per-user

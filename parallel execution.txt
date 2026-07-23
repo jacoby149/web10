@@ -813,19 +813,20 @@ ws5: C6 e2e deep sweep + bug hunt (lane C — e2e/** only; local
     [✓ 1.0.130] D-trending-polish: /trending loading + empty states — shimmer skeleton
          grid (matches layout), empty state story beat, "Load more" button.
          Gate: D-trending-sidebar. Owns: Trending.tsx + FeedPreview.tsx
-    [ ] D-comments-ledger (social-side prerequisite): `createComment`
-         (web10-social/src/data/comments.ts:36) mirrors to /public/entries
-         like `createReaction` does (reactions.ts:35), but GATED on the post
-         being PUBLIC (pass post service/visibility at the call site —
-         FeedScreen.tsx:110 sends only post_id/text today); comments on
-         private/staging posts don't mirror → stay owner-only. fires the
-         registered Comment schema (feed.ts:33) with payload.action='comment'
-         (what documentdb.py:828 counts). fixes the always-0 trending comment
-         count + the test_discovery.py:645 mock that hid it. also opens the
-         symmetric follow-up: gate createReaction's mirror the same way (it
-         mirrors unconditionally today — private-post reactions leak to the
-         anon ledger). Gate: none. Owns: web10-social/src/data/comments.ts +
-         the FeedScreen call site + the reactions.ts mirror-gate follow-up.
+    [ ] D-comments-ledger (social-side prerequisite; decision D32):
+         `createComment` (web10-social/src/data/comments.ts:36) mirrors to
+         /public/entries UNCONDITIONALLY (like createReaction at
+         reactions.ts:35) — no per-post visibility gate; comments are public
+         by default (D32). fires the Comment schema (feed.ts:33) with
+         payload.action='comment' (what documentdb.py:828 counts). ALSO: the
+         `comments` service gains anon-read whitelist in serviceTerms.ts
+         (matching public_posts) so any logged-in user reads comments on any
+         post via CRUD, not just the post author; AND deleteComment mirrors
+         to DELETE /public/entries/{id} (author-only) so removed comments
+         drop out of the count. fixes the always-0 trending comment count +
+         the test_discovery.py:645 mock that hid it. Gate: none. Owns:
+         web10-social/src/data/{comments,serviceTerms}.ts + the FeedScreen
+         call site.
     [ ] D-trending-link: TrendingCard → deep-link to the author's profile on
          web10-social (`${SOCIAL_ORIGIN}/u/<author>`); until social gains a
          per-user profile route (lane-D sibling — App.tsx only has my-bio,
