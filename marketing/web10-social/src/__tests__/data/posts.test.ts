@@ -18,6 +18,7 @@ function mockWapi() {
     aggregate: vi.fn(),
     getUploadUrl: vi.fn(),
     confirmUpload: vi.fn(),
+    getReadUrl: vi.fn(),
     initP2P: vi.fn(),
     sendP2P: vi.fn(),
   };
@@ -199,9 +200,36 @@ describe('posts data layer', () => {
         { _id: 'm1', url: 'http://img1.jpg', created_at: '2026-07-18T00:00:00Z' },
       ];
       mock.read.mockResolvedValue(mediaRecords);
+      mock.getReadUrl.mockRejectedValue(new Error('no presign in legacy test'));
       const result = await posts.resolveMediaRefs(['m1']);
       expect(mock.read).toHaveBeenCalledWith('media', { _id: { $in: ['m1'] } });
+      // Degrade: refreshMediaUrls fails gracefully -> original url kept.
       expect(result).toEqual(mediaRecords);
+    });
+
+    it('D23: refreshes the bare unsigned url to a presigned GET', async () => {
+      // On a private bucket the stored url 403s every <img>; resolveMediaRefs
+      // must swap it for a fresh presigned read URL before returning.
+      const stored = 'https://minio.web10.app/web10-media/alice/abc/pic.png';
+      const presigned = 'https://minio.web10.app/web10-media/alice/abc/pic.png?X-Amz-Signature=zzz';
+      mock.read.mockResolvedValue([{ _id: 'm9', url: stored, created_at: '2026-07-18T00:00:00Z' }]);
+      mock.getReadUrl.mockResolvedValue({ readUrl: presigned, expiresIn: 60 });
+
+      const result = await posts.resolveMediaRefs(['m9']);
+      expect(mock.getReadUrl).toHaveBeenCalledWith('alice/abc/pic.png', undefined, undefined);
+      expect(result[0].url).toBe(presigned);
+    });
+
+    it('D23: prefers record.object_key over deriving from url', async () => {
+      // Lane A's confirm-upload touch persists object_key; a record that
+      // already carries it must skip URL-derived derivation.
+      mock.read.mockResolvedValue([
+        { _id: 'mK', url: 'https://whatever/legacy/path.jpg', object_key: 'bob/zz/real.png', created_at: '2026-07-18T00:00:00Z' },
+      ]);
+      mock.getReadUrl.mockResolvedValue({ readUrl: 'https://signed/real', expiresIn: 60 });
+
+      await posts.resolveMediaRefs(['mK']);
+      expect(mock.getReadUrl).toHaveBeenCalledWith('bob/zz/real.png', undefined, undefined);
     });
   });
 });

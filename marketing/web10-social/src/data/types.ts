@@ -38,6 +38,10 @@ export interface PostRecord {
 export interface MediaRecord {
   _id?: string;
   url: string;
+  // The S3 object key (`<user>/<uuid>/<filename>`). Lane A's open
+  // confirm-upload touch persists this; until every record carries it,
+  // refreshMediaUrls derives the key from `url`. Optional + additive.
+  object_key?: string;
   created_at: string;
   mime_type?: string;
   size_bytes?: number;

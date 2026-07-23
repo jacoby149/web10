@@ -1275,20 +1275,21 @@ on dev minio the bucket is private, so every avatar/photo 403s
 (request_read_url) exists with ZERO callers; the wapi wrapper
 has getUploadUrl/confirmUpload but no read half; the typed sdk
 has no media surface at all.
-[ ] wapi gains the read half: getReadUrl(objectKey, user?,
+[✓] wapi gains the read half: getReadUrl(objectKey, user?,
     provider?) -> POST /media/{user}/read -> presigned GET, with
     an expiry-aware cache (READ_URL_EXPIRY) so a feed of N
     images doesn't cost N api round-trips per render. lands in
     BOTH the web10-social wrapper (lane D) and the typed sdk's
     new media surface alongside upload (lane C -- sdk/src has
-    neither today).
+    neither today). [LANE D half landed: web10-social wrapper
+    + resolveMediaRefs presigning; C7 (typed sdk) still open]
 [ ] confirm-upload persists object_key on the media record (tiny
     lane-A touch; today only the composed url is stored). legacy
     records: derive the key by stripping endpoint+bucket from
     the stored url.
-[ ] resolveMediaRefs (and the avatar/feed/composer paths above
+[✓] resolveMediaRefs (and the avatar/feed/composer paths above
     it) exchange refs for fresh presigned urls; nothing renders
-    record.url raw anymore.
+    record.url raw anymore. [web10-social lane D, D23]
 [ ] the bucket-policy call is SEPARATE and stays open: public-
     read for public media (avatars, public posts) may come later
     for cacheability/cdn -- decisions.md entry when decided.
