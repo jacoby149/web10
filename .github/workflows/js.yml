@@ -43,7 +43,6 @@ jobs:
 
       - name: typecheck
         run: bun run tsc --noEmit || bunx tsc --noEmit
-        continue-on-error: true
 
       - name: test
         if: ${{ inputs.tests }}
@@ -51,4 +50,3 @@ jobs:
 
       - name: build
         run: bun run build
-        continue-on-error: true
