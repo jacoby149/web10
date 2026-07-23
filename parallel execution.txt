@@ -714,21 +714,21 @@ ws5: C6 e2e deep sweep + bug hunt (lane C — e2e/** only; local
         For You / Following / Trending tabs, post cards with avatars,
         media placeholders, engagement counts. Sits between hero and
         reach-gap section. Ready for live backend content.
-    [✓ 1.0.128] D-trending-card: TrendingCard component for marketing-ui — media-forward
+    [✓ 1.0.130] D-trending-card: TrendingCard component for marketing-ui — media-forward
          card with rank badge (#1 gold, #2-3 silver, #4+ brand), heat glow
          (engagement_score → violet glow intensity), author row, content
          truncated to 3 lines, tags as chips, engagement bar. Hover: 2px lift
          + glow intensify. Skeleton shimmer matches card shape.
          Gate: none. Owns: marketing/marketing-ui/src/components/FeedPreview.tsx
          (new TrendingCard, TrendingSkeleton exports).
-    [✓ 1.0.128] D-trending-grid: /trending page layout — responsive grid (1/2/3 col),
+    [✓ 1.0.130] D-trending-grid: /trending page layout — responsive grid (1/2/3 col),
          #1 featured card spans 2 cols, topic filter chips (sticky, horizontal
          scroll), hero statement ("What's actually trending. No algorithm.").
          Gate: D-trending-card. Owns: marketing/marketing-ui/src/pages/Trending.tsx
-    [✓ 1.0.128] D-trending-sidebar: /trending sidebar (desktop only, wide screens) —
+    [✓ 1.0.130] D-trending-sidebar: /trending sidebar (desktop only, wide screens) —
          "🔥 Top 10" ranked list, compact entries, click scrolls to card.
          Gate: D-trending-grid. Owns: new TrendingSidebar.tsx + Trending.tsx
-    [✓ 1.0.128] D-trending-polish: /trending loading + empty states — shimmer skeleton
+    [✓ 1.0.130] D-trending-polish: /trending loading + empty states — shimmer skeleton
          grid (matches layout), empty state story beat, "Load more" button.
          Gate: D-trending-sidebar. Owns: Trending.tsx + FeedPreview.tsx
 [✓ 1.0.93] A5.5. DISCOVERY API — the public layer (Lane A, api/**):
@@ -770,8 +770,8 @@ LANE CI — github actions optimization (owns: .github/workflows/**, cross-cutti
    [✓ 1.0.99] CI-single-arch: drop linux/arm64 from cd.yml image builds.
        saves ~50% on CD minutes.
    [✓ 1.0.99] CI-small-runners: use ubuntu-latest-small for changelog check.
-   [ ] CI-e2e-push-only: skip e2e.yml on pull_request, run only on
-       push to dev/main. saves ~15 min per PR.
+[✓ 1.0.128] CI-e2e-push-only: skip e2e.yml on pull_request, run only on
+        push to dev/main. saves ~15 min per PR.
    [ ] CI-single-arch: drop linux/arm64 from cd.yml image builds if
        no self-hosters need ARM. saves ~50% on CD minutes.
    [ ] CI-small-runners: use ubuntu-latest-small for lightweight jobs
