@@ -1,3 +1,5 @@
+1.0.107 || 23.07.2026
+CORS: API now allows all browser origins (`allow_origins=["*"]`, credentials off). The security boundary is the scoped token in each request body (certify + is_permitted + per-service ACL), not the browser origin — web10 apps are stateless frontends anyone can build and host anywhere, so an origin allow-list only broke legitimate apps (social, marketing) without adding security. Removed the short-lived `CORS_ALLOW_ORIGINS` setting/env wiring. `CORS_SERVICE_MANAGERS` stays as the real trust list: authenticator hosts (auth.*) that may handle consent and mint tokens for other apps — narrowed to auth-only, which also closes a latent privilege path (a service-manager site bypasses the cross-origin ACL in is_permitted). 353 API tests green.
 1.0.106 || 22.07.2026
 CD: split npm publish into separate web10-npm (sdk/) and web10-cli (marketing/web10-cli/) jobs. Switched to OIDC provenance (id-token: write), removing NODE_AUTH_TOKEN and packages: write. Release job now depends on both publish jobs.
 1.0.105 || 22.07.2026
