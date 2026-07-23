@@ -1,3 +1,5 @@
+1.0.110 || 23.07.2026
+Social app empty states: feed, DMs, and profile screens no longer replace the entire view with a prominent "Import Your Instagram" CTA when empty. Feed keeps its header, sort dropdown, and composer visible with a muted text note and small inline import link. DMs keeps the "Messages" header. Profile shows the full UI (banner, edit, stats, tabs) so users can set up immediately. Import is now a secondary option, not the only path. 222 tests green.
 1.0.109 || 23.07.2026
 Fix prod deploy: `deploy-prod` failed with `pathspec 'main' did not match any file(s) known to git`. The server repo at `/opt/web10` is a single-branch clone (tracks only `dev`), so `git fetch origin` never brought down `origin/main` and `git checkout main` had nothing to match — prod could never deploy. Both deploy jobs now fetch the target branch explicitly (`git fetch origin <branch>`, which populates FETCH_HEAD regardless of the clone's refspec) and force the local branch to it (`git checkout -B <branch> FETCH_HEAD`), replacing the `checkout`+`reset --hard origin/<branch>` that assumed a remote-tracking ref existed.
 1.0.107 || 23.07.2026
