@@ -3,6 +3,37 @@
 Newest at top. Format per AGENT-OPS.md §8. Read the top entries
 BEFORE doing ops work — someone may already be mid-fix.
 
+## 23.07.2026 (later) — Claude (boise) — Portainer auto-update OFF for web10-dev/web10-prod; deploy.yml is the single deployer
+did (SSH as jacob; Portainer API on localhost:9000):
+  - CONTEXT: after the Dockerfile .git fix merged (1.0.133), Portainer's
+    healed auto-update became a LIABILITY: web10-prod tracks dev (split
+    unfinished per 22.07) and bakes commit "unknown" (its checkout has
+    no .git), so every dev push would overwrite prod with unknown-commit
+    builds and dev-content containers; web10-dev's redeploy also raced
+    deploy.yml (dev api 502'd mid-boot during the 20:06 smoke).
+  - CHANGE: disabled GitOps auto-update (AutoUpdate=null) on stacks 1
+    (web10-dev) and 2 (web10-prod) via POST /api/stacks/{id}/git.
+    Stack env vars and refs preserved (verified 10 + 12 vars after).
+    Edge stack untouched. Deployment ownership is now: dev pushes →
+    deploy.yml → web10-dev; main pushes → deploy.yml → web10-prod.
+  - INCIDENT (self-inflicted, fixed): a method-probe POST with an empty
+    body to /api/stacks/2/git WIPED stack 2's env + ref (Portainer
+    2.39.5 treats missing payload fields as "set empty"). Restored
+    within minutes from the values recorded earlier in-session +
+    MINIO_PASSWORD_PROD from ~/web10-ops/.env; verified 12 vars + ref
+    back. LESSON: never probe Portainer git endpoints with empty
+    bodies — always send the full payload.
+  - RESULT: first-ever green deploy.yml prod run (after a smoke rerun —
+    boot race, fixed repo-side in 1.0.134). Prod status.json bakes real
+    version + commit (1.0.133 / 0b90870). Prod media-upload 403 root
+    cause found by live repro (presigned-POST policy missing
+    Content-Type) — fixed repo-side in 1.0.134.
+state: web10-prod effectively runs main now; web10-dev runs dev via
+  deploy.yml. Portainer remains for manual redeploys/visibility only.
+next: promote 1.0.134 (upload fix) dev → main once merged; if the
+  operator ever wants GitOps auto-update back, re-enable AFTER pointing
+  web10-prod at refs/heads/main and accepting unknown-commit bakes.
+
 ## 23.07.2026 — Claude (boise, jacoby149/boise) — prod status unblocked: env.prod completed + surgical marketing-ui rebuild
 did (SSH as jacob):
   - DIAGNOSIS: prod www served status.json baked 19:25Z with

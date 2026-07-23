@@ -7,9 +7,17 @@
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 fail=0
-check() {  # check <label> <expected-code> <url>
-  code=$(curl -sL -o /dev/null -w '%{http_code}' --max-time 12 "$3" || echo 000)
-  if [[ "$code" == "$2" ]]; then echo "  ok   $1 ($code)"; else echo "  FAIL $1 (got $code, want $2) $3"; fail=1; fi
+check() {  # check <label> <expected-code> <url> — retries while services boot
+  # `compose up -d` returns when containers START, but gunicorn workers take
+  # ~5-10s and the api has no Docker healthcheck the stabilize loop could
+  # wait on — both 23.07 deploys went red on that race. Retry up to 30s.
+  local tries=6 code
+  for ((i = 1; i <= tries; i++)); do
+    code=$(curl -sL -o /dev/null -w '%{http_code}' --max-time 12 "$3" || echo 000)
+    if [[ "$code" == "$2" ]]; then echo "  ok   $1 ($code)"; return; fi
+    (( i < tries )) && sleep 5
+  done
+  echo "  FAIL $1 (got $code, want $2) $3"; fail=1
 }
 
 for env in dev prod; do
