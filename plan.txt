@@ -18,10 +18,10 @@ these are good ideas whose time is not now (D20 said protocol
 serves platform; this is that decision enforced on the task
 board, logged as D29).
 
-the bar is THE GAUNTLET — run from the operator's phone against
-dev, top to bottom, no apologies. step one of the work is running
-it and writing the honest fail list (.context/gauntlet.md); fixes
-land in order of demo impact:
+[✓ 1.0.140] the bar is THE GAUNTLET — run from the operator's phone against
+      dev, top to bottom, no apologies. step one of the work is running
+      it and writing the honest fail list (docs/gauntlet-23.07.2026.md); fixes
+      land in order of demo impact:
   1. sign up + log in on the social app without a broken screen
   2. post a photo -> it appears in the feed immediately
   3. follow a persona -> their posts land in your feed
@@ -1275,20 +1275,21 @@ on dev minio the bucket is private, so every avatar/photo 403s
 (request_read_url) exists with ZERO callers; the wapi wrapper
 has getUploadUrl/confirmUpload but no read half; the typed sdk
 has no media surface at all.
-[ ] wapi gains the read half: getReadUrl(objectKey, user?,
+[✓] wapi gains the read half: getReadUrl(objectKey, user?,
     provider?) -> POST /media/{user}/read -> presigned GET, with
     an expiry-aware cache (READ_URL_EXPIRY) so a feed of N
     images doesn't cost N api round-trips per render. lands in
     BOTH the web10-social wrapper (lane D) and the typed sdk's
     new media surface alongside upload (lane C -- sdk/src has
-    neither today).
+    neither today). [LANE D half landed: web10-social wrapper
+    + resolveMediaRefs presigning; C7 (typed sdk) still open]
 [ ] confirm-upload persists object_key on the media record (tiny
     lane-A touch; today only the composed url is stored). legacy
     records: derive the key by stripping endpoint+bucket from
     the stored url.
-[ ] resolveMediaRefs (and the avatar/feed/composer paths above
+[✓] resolveMediaRefs (and the avatar/feed/composer paths above
     it) exchange refs for fresh presigned urls; nothing renders
-    record.url raw anymore.
+    record.url raw anymore. [web10-social lane D, D23]
 [ ] the bucket-policy call is SEPARATE and stays open: public-
     read for public media (avatars, public posts) may come later
     for cacheability/cdn -- decisions.md entry when decided.

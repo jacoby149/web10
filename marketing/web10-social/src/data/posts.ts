@@ -1,4 +1,4 @@
-import { getWapi } from './wapi';
+import { getWapi, deriveObjectKey } from './wapi';
 import type { PostRecord, MediaRecord, MediaUploadRequest, PublicEntry, SchemaDefinition, DiscoverSort, DiscoveryPost } from './types';
 
 // ── Post data layer ────────────────────────────────────────────────────────
@@ -172,9 +172,55 @@ export async function deleteMedia(id: string): Promise<void> {
 
 /**
  * Resolve media_refs to full media records.
+ *
+ * D23: the stored `url` on a media record is the bare UNSIGNED object
+ * URL — on a private bucket (the dev minio) every renderer that hands
+ * `record.url` to an <img> 403s. So resolveMediaRefs now refreshes
+ * each resolved record's `url` (and, when present, `thumbnail_url`) to
+ * a fresh presigned GET via the api's `POST /media/{user}/read` (now
+ * that it finally has callers). The wrapper's expiry-aware cache keeps
+ * a feed's N-image re-render from becoming N round-trips. The owner
+ * whose collection holds the `media` records defaults to the signed-in
+ * user; pass an explicit `owner` to refresh media authored by someone
+ * else (the feed's own posts resolve from the current user's media
+ * collection — the cross-user avatar path is a separate concern).
  */
-export async function resolveMediaRefs(refs: string[]): Promise<MediaRecord[]> {
+export async function resolveMediaRefs(
+  refs: string[],
+  owner?: { username: string; provider: string },
+): Promise<MediaRecord[]> {
   if (!refs.length) return [];
   const wapi = getWapi();
-  return wapi.read<MediaRecord>('media', { _id: { $in: refs } });
+  const records = await wapi.read<MediaRecord>('media', { _id: { $in: refs } });
+  return refreshMediaUrls(records, owner);
+}
+
+/**
+ * Replace each record's unsigned `url` (and `thumbnail_url`) with a
+ * fresh presigned GET. Prefers `record.object_key` (the lane-A
+ * confirm-upload touch) when present; legacy records derive the key
+ * from the stored URL. Records whose URL can't be resolved to a key
+ * (e.g. a non-S3 legacy url) are passed through unchanged so a bad
+ * derivation never breaks a render worse than before.
+ */
+export async function refreshMediaUrls(
+  records: MediaRecord[],
+  owner?: { username: string; provider: string },
+): Promise<MediaRecord[]> {
+  if (!records.length) return records;
+  const wapi = getWapi();
+  const refreshed = await Promise.all(
+    records.map(async (r) => {
+      const objectKey = (r.object_key as string | undefined) || deriveObjectKey(r.url);
+      if (!objectKey) return r;
+      try {
+        const { readUrl } = await wapi.getReadUrl(objectKey, owner?.username, owner?.provider);
+        return { ...r, url: readUrl, thumbnail_url: r.thumbnail_url ? readUrl : r.thumbnail_url };
+      } catch {
+        // Degrade gracefully: render the stored URL rather than nothing.
+        return r;
+      }
+    }),
+  );
+  return refreshed;
 }
