@@ -26,6 +26,13 @@
   --color-brand-muted: #2e1065;
   --color-brand-foreground: #fafafa;
 
+  /* glow — ambient light (§4). the trending page is the marketing
+     site's energy screen; its heat-glow motif is this screen's one
+     allowed decorative glow (§4 marketing: one per screen). */
+  --color-glow: rgba(139, 92, 246, 0.15);
+  --color-glow-intense: rgba(139, 92, 246, 0.35);
+  --color-glow-danger: rgba(239, 68, 68, 0.25);
+
   /* semantic (§4) */
   --color-success: #22c55e;
   --color-warning: #f59e0b;

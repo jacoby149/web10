@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Heart, MessageCircle, Repeat2, Share2, Image as ImageIcon, Film, Music2, TrendingUp, Users, Zap } from 'lucide-react';
+import { Flame, Heart, MessageCircle, Repeat2, Share2, Image as ImageIcon, Film, Music2, TrendingUp, Users, Zap } from 'lucide-react';
 
 const TABS = [
   { id: 'for-you', label: 'For You', icon: TrendingUp, sort: 'trending' as const },
@@ -41,6 +42,8 @@ interface FeedPost {
   likes: string;
   comments: string;
   reposts: string;
+  engagementScore?: number;
+  tags?: string[];
 }
 
 const AVATAR_COLORS = [
@@ -99,6 +102,8 @@ function mapDiscoveryToFeedPost(d: DiscoveryPost): FeedPost {
     likes: formatCount(d.engagement.likes),
     comments: formatCount(d.engagement.comments),
     reposts: formatCount(d.engagement.reposts),
+    engagementScore: d.engagement_score,
+    tags,
   };
 }
 
@@ -314,6 +319,236 @@ function SkeletonCard() {
   );
 }
 
+// ── TrendingCard (D-trending-card) ──────────────────────────────────────────
+//
+// Media-forward ranked card for the /trending grid. Heat glow is the
+// screen's one decorative glow (design.md §4 marketing: one per screen)
+// expressed as tiered violet halos keyed to engagement_score. Rank tiers:
+// #1 gold (warning), #2-3 silver (neutral metallic), #4+ brand. All colors
+// come through tokens; the heat tiers are arbitrary Tailwind shadow
+// utilities that reference the glow color variables (§13 judgement).
+
+function heatTier(score: number | undefined, maxScore: number): 0 | 1 | 2 | 3 {
+  if (!score || !maxScore || score <= 0) return 0;
+  const ratio = score / maxScore;
+  if (ratio >= 0.66) return 3;
+  if (ratio >= 0.33) return 2;
+  return 1;
+}
+
+const HEAT_SHADOW: Record<number, string> = {
+  0: '',
+  1: 'shadow-[0_0_24px_-8px_var(--color-glow)]',
+  2: 'shadow-[0_0_36px_-8px_var(--color-glow-intense)]',
+  3: 'shadow-[0_0_52px_-6px_var(--color-glow-intense)]',
+};
+
+function RankBadge({ rank }: { rank: number }) {
+  if (rank === 1) {
+    return (
+      <Badge
+        variant="default"
+        data-testid="trending-rank"
+        className="border border-warning/40 bg-warning/15 text-warning"
+        aria-label={`Rank ${rank}, trending number one`}
+      >
+        <Flame className="mr-1 h-3 w-3" strokeWidth={2} />
+        #{rank}
+      </Badge>
+    );
+  }
+  if (rank <= 3) {
+    return (
+      <Badge
+        variant="default"
+        data-testid="trending-rank"
+        className="border border-border bg-elevated text-foreground"
+        aria-label={`Rank ${rank}, trending top three`}
+      >
+        #{rank}
+      </Badge>
+    );
+  }
+  return (
+    <Badge
+      variant="brand"
+      data-testid="trending-rank"
+      aria-label={`Rank ${rank}, trending`}
+    >
+      #{rank}
+    </Badge>
+  );
+}
+
+interface TrendingCardProps {
+  post: FeedPost;
+  rank: number;
+  onLike: (postId: string) => void;
+  onComment: (postId: string) => void;
+  onRepost: (postId: string) => void;
+  maxScore: number;
+  featured?: boolean;
+  readOnly?: boolean;
+  className?: string;
+  cardRef?: (el: HTMLElement | null) => void;
+}
+
+function TrendingCard({
+  post,
+  rank,
+  onLike,
+  onComment,
+  onRepost,
+  maxScore,
+  featured = false,
+  readOnly = false,
+  className,
+  cardRef,
+}: TrendingCardProps) {
+  const tier = heatTier(post.engagementScore, maxScore);
+  return (
+    <Card
+      data-testid="trending-card"
+      id={`trending-card-${post.id}`}
+      ref={cardRef as React.Ref<HTMLDivElement>}
+      className={[
+        'group relative scroll-mt-24 overflow-hidden bg-surface transition-transform duration-150 ease-out hover:-translate-y-0.5 focus-within:-translate-y-0.5 motion-reduce:transform-none',
+        HEAT_SHADOW[tier],
+        featured ? 'sm:col-span-2' : '',
+        className ?? '',
+      ].join(' ')}
+    >
+      <div className="p-4">
+        <div className="flex items-center justify-between gap-2">
+          <RankBadge rank={rank} />
+          <span className="text-xs uppercase tracking-wide text-muted-foreground">
+            {post.time}
+          </span>
+        </div>
+        <div className="mt-3 flex items-start gap-3">
+          <Avatar className={post.avatarColor}>
+            <AvatarFallback className="text-foreground">{post.initial}</AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 truncate">
+              <span className="truncate text-sm font-semibold text-foreground">{post.name}</span>
+              <span className="truncate text-sm text-muted-foreground">{post.handle}</span>
+            </div>
+            <p className="mt-1 line-clamp-3 text-sm leading-relaxed text-foreground">
+              {post.content}
+            </p>
+          </div>
+        </div>
+        {post.media && (
+          <div className="mt-3">
+            <MediaPlaceholder type={post.media} />
+          </div>
+        )}
+        {post.tags && post.tags.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {post.tags.filter(t => !['image', 'video', 'music'].includes(t)).slice(0, 4).map(tag => (
+              <Badge key={tag} variant="outline" className="normal-case tracking-normal text-muted-foreground">
+                #{tag}
+              </Badge>
+            ))}
+          </div>
+        )}
+        <div className="mt-3 flex items-center gap-6 border-t border-border pt-3">
+          {readOnly ? (
+            <>
+              <span className="flex items-center gap-1.5 text-muted-foreground" aria-label={`Like, ${post.likes} likes`}>
+                <Heart className="h-4 w-4" strokeWidth={1.5} />
+                <span className="text-xs tabular-nums">{post.likes}</span>
+              </span>
+              <span className="flex items-center gap-1.5 text-muted-foreground" aria-label={`Comment, ${post.comments} comments`}>
+                <MessageCircle className="h-4 w-4" strokeWidth={1.5} />
+                <span className="text-xs tabular-nums">{post.comments}</span>
+              </span>
+              <span className="flex items-center gap-1.5 text-muted-foreground" aria-label={`Repost, ${post.reposts} reposts`}>
+                <Repeat2 className="h-4 w-4" strokeWidth={1.5} />
+                <span className="text-xs tabular-nums">{post.reposts}</span>
+              </span>
+              <span className="ml-auto text-muted-foreground" aria-label="Share">
+                <Share2 className="h-4 w-4" strokeWidth={1.5} />
+              </span>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => onLike(post.id)}
+                className="flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-rose-400 focus-visible:text-rose-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                aria-label={`Like, ${post.likes} likes`}
+              >
+                <Heart className="h-4 w-4" strokeWidth={1.5} />
+                <span className="text-xs tabular-nums">{post.likes}</span>
+              </button>
+              <button
+                onClick={() => onComment(post.id)}
+                className="flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-sky-400 focus-visible:text-sky-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                aria-label={`Comment, ${post.comments} comments`}
+              >
+                <MessageCircle className="h-4 w-4" strokeWidth={1.5} />
+                <span className="text-xs tabular-nums">{post.comments}</span>
+              </button>
+              <button
+                onClick={() => onRepost(post.id)}
+                className="flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-emerald-400 focus-visible:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                aria-label={`Repost, ${post.reposts} reposts`}
+              >
+                <Repeat2 className="h-4 w-4" strokeWidth={1.5} />
+                <span className="text-xs tabular-nums">{post.reposts}</span>
+              </button>
+              <button className="ml-auto text-muted-foreground transition-colors hover:text-brand-400 focus-visible:text-brand-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background" aria-label="Share">
+                <Share2 className="h-4 w-4" strokeWidth={1.5} />
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function TrendingSkeleton({ featured = false }: { featured?: boolean }) {
+  return (
+    <Card
+      data-testid="trending-skeleton"
+      className={['bg-surface', featured ? 'sm:col-span-2' : ''].join(' ')}
+    >
+      <div className="p-4">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-5 w-12 rounded-full" />
+          <Skeleton className="h-3 w-8" />
+        </div>
+        <div className="mt-3 flex gap-3">
+          <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
+          <div className="min-w-0 flex-1">
+            <div className="flex gap-2">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-4 w-20" />
+            </div>
+            <Skeleton className="mt-2 h-4 w-full" />
+            <Skeleton className="mt-1.5 h-4 w-5/6" />
+            <Skeleton className="mt-1.5 h-4 w-3/4" />
+          </div>
+        </div>
+        <div className="mt-3 aspect-[4/3] w-full overflow-hidden rounded-lg">
+          <Skeleton className="h-full w-full" />
+        </div>
+        <div className="mt-3 flex gap-2">
+          <Skeleton className="h-5 w-14 rounded-full" />
+          <Skeleton className="h-5 w-14 rounded-full" />
+        </div>
+        <div className="mt-3 flex gap-6 border-t border-border pt-3">
+          <Skeleton className="h-4 w-10" />
+          <Skeleton className="h-4 w-10" />
+          <Skeleton className="h-4 w-10" />
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 async function fetchDiscoverFeed(sort: 'recent' | 'trending', limit = 6): Promise<DiscoveryPost[]> {
   const resp = await fetch(`${API_ORIGIN}/discover/posts`, {
     method: 'PATCH',
@@ -458,4 +693,4 @@ function FeedPreview() {
   );
 }
 
-export { FeedPreview, PostCard, SkeletonCard, fetchDiscoverFeed, mapDiscoveryToFeedPost, formatCount, parseCount, type FeedPost, type DiscoveryPost };
+export { FeedPreview, PostCard, SkeletonCard, TrendingCard, TrendingSkeleton, fetchDiscoverFeed, mapDiscoveryToFeedPost, formatCount, parseCount, type FeedPost, type DiscoveryPost };
