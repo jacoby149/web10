@@ -746,9 +746,12 @@ opens on his phone, in front of someone, and is proud of?" (D29)
          trending never demo empty.
   ws-G3: encode each passing gauntlet step as a playwright journey
          in e2e/ (lane C — this is C6 continued, NOT C2).
-  then: low-hanging fruit by demo impact — realtime feed refresh,
-        notifications, search-your-own-stuff, D16(3) store curation
-        [✓ 1.0.136 — D16(3) curation landed; D16 marked done above].
+then: low-hanging fruit by demo impact — realtime feed refresh,
+          notifications, search-your-own-stuff, D16(3) store curation
+          [✓ 1.0.136 — D16(3) curation landed; D16 marked done above],
+          trending-page interactions (D-trending-interact cluster — make
+          like/repost/share/comment real + card→profile deep-link; the
+          trending cards are local-only theater today, gauntlet step 7).
 PARKED until the gauntlet passes (do NOT pick up — they read as an
 infra company, not a social platform): C2 sdk rewrite, C3 mcp,
 C3.5 create-web10, D11 ux telemetry, A9 transcode pipeline, E4
@@ -810,6 +813,22 @@ ws5: C6 e2e deep sweep + bug hunt (lane C — e2e/** only; local
     [✓ 1.0.130] D-trending-polish: /trending loading + empty states — shimmer skeleton
          grid (matches layout), empty state story beat, "Load more" button.
          Gate: D-trending-sidebar. Owns: Trending.tsx + FeedPreview.tsx
+    [ ] D-trending-link: TrendingCard → deep-link to the author's profile on
+         web10-social (`${SOCIAL_ORIGIN}/u/<author>`); until social gains a
+         per-user profile route (lane-D sibling — App.tsx only has my-bio,
+         flagged in gauntlet 1.0.142), link to social's root so the click still
+         navigates instead of dead-clicking. Gate: none (degrades to root
+         link). Owns: FeedPreview.tsx + Trending.tsx.
+    [ ] D-trending-share: Share2 button has no onClick → navigator.share +
+         copy-link fallback (no auth). Gate: none. Owns: FeedPreview.tsx.
+    [ ] D-trending-comments: MessageCircle only fires a funnel event → expand
+         an inline comment panel (anon read via PATCH /public/entries; compose
+         auth-gated → funnel-to-social). Gate: none. Owns: FeedPreview.tsx +
+         Trending.tsx.
+    [ ] D-trending-reactions: like + repost are fake local increments
+         (Trending.tsx:98) → real toggle via /public/entries mirroring
+         reactions.ts; signed-out funnels to social. Gate: none. Owns:
+         FeedPreview.tsx + Trending.tsx.
 [✓ 1.0.93] A5.5. DISCOVERY API — the public layer (Lane A, api/**):
          discovery index (web10.discovery_posts, write-protected,
          background task), schema registry (web10.schemas, CRUD with

@@ -928,10 +928,58 @@ Marketing-ui side (Lane D):
 [✓ 1.0.130] D-trending-sidebar: marketing-ui /trending sidebar (desktop only, wide
     screens) — "🔥 Top 10" ranked list, compact entries (position + author
     + snippet + score), click scrolls to card in main grid.
-[✓ 1.0.130] D-trending-polish: marketing-ui /trending loading + empty states —
-    shimmer skeleton grid (matches layout, no shift), empty state story
-    beat ("The network is quiet" + CTA to social app), infinite scroll
-    feel (load 20, "Load more" brand pill).
+[✓ 1.0.130] D-trending-polish: marketing-ui /trending loading + empty states — shimmer skeleton
+    grid (matches layout, no shift), empty state story beat ("The network is quiet"
+    + CTA to social app), infinite scroll feel (load 20, "Load more" brand pill).
+
+[ ] D-trending-interact — make /trending feel alive (operator, 23.07: the like
+    button "endlessly goes up not effecting the state of the app," the repost/
+    share icons are dead, the comment icon doesn't expand, clicking a card goes
+    nowhere). the D-trending-card cluster shipped read-only engagement buttons
+    that are pure local theater — Trending.tsx handleReaction only
+    setAllPosts-increments a counter, Share2 has no onClick, MessageCircle only
+    fires a funnel event, and the card isn't a link. this cluster makes them
+    real. the page is a PUBLIC, signed-out surface, so the work splits by what
+    auth allows: anon-OK ships first (card->profile deep-link, share, view-
+    comments inline via the anon-queryable PATCH /public/entries), then the
+    auth-gated writes (like/repost toggle, compose-comment; POST /public/entries
+    is "any authenticated user" and marketing-ui has no wapi/token today, so
+    ship the funnel-to-social design first -- the button opens web10-social at
+    the post and the reaction happens there, matching the existing
+    trending_comment_attempt funnel event's intent -- with an inline auth bridge
+    via AUTH_ORIGIN as a later upgrade). the endless fake local increment
+    STOPS either way; that's the minimum honest fix. acceptance: design.md §12.
+[ ] D-trending-link: wrap TrendingCard (or its author row) in a deep-link to
+    the author's profile on web10-social -- `${SOCIAL_ORIGIN}/u/<author>`
+    (origins.ts exports SOCIAL_ORIGIN). GATE: web10-social has no per-user
+    profile route yet -- ProfileScreen only renders the signed-in user's own
+    profile (App.tsx mode==='my-bio'); the gauntlet report (1.0.142) flags "no
+    user profiles." a social-side `/u/:username` public-profile route is a
+    lane-D sibling that must land first; until it does, the card links to
+    social's root (a real navigation, not a dead click). carry author_provider
+    so cross-node profiles resolve. owns: FeedPreview.tsx + Trending.tsx.
+[ ] D-trending-share: the Share2 button has NO onClick handler today. wire it
+    to navigator.share when available (title = post snippet, url = a canonical
+    post url; until social has a per-post route, share the card's /trending
+    anchor or social root), with a copy-link fallback (clipboard API + a "Link
+    copied" toast). no auth needed. owns: FeedPreview.tsx.
+[ ] D-trending-comments: the MessageCircle button only fires
+    trackFunnel('trending_comment_attempt'); it expands nothing. add an inline
+    comment panel under the card: fetch existing comments via PATCH
+    /public/entries?target=<service>:<post_id> (anon-OK) and render them with
+    designed loading + empty states (design.md §1, not a spinner). compose is
+    auth-gated -> signed-out visitors get an "Open web10 social to comment" CTA
+    (funnel-to-social); a signed-in inline compose box is the later auth-bridge
+    upgrade. owns: FeedPreview.tsx + Trending.tsx.
+[ ] D-trending-reactions: like + repost call handleReaction (Trending.tsx:98)
+    which only setAllPosts-increments a parsed count -- endless, fake, never
+    toggles off. replace with a real toggle mirroring the social app's
+    reactions.ts (read existing, find mine, delete or create via /public/entries)
+    so the count reflects the ledger, not a local +1, and a second click
+    removes it. signed-out -> funnel-to-social or a "sign in to react" gate.
+    keep the heart-burst animation (D12 vibrancy). owns: FeedPreview.tsx +
+    Trending.tsx.
+
 
 Content lifecycle — staging + visibility management (Lane D, D19; decisions.md D30):
 The visibility split shipped half-built and crossed at both ends — the
