@@ -63,7 +63,7 @@ function readMessages() {
   // `create` access (the same fan-out delivery model as the inbox service).
   wapi
     .read(SERVICE, {})
-    .then((res) => displayMessages(res.data))
+    .then(displayMessages)
     .catch((err) => promptContract(ERROR_MSGS.read, err))
 }
 
