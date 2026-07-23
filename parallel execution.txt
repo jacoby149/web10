@@ -431,7 +431,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
        public on npmjs.com. Publish flow decision documented in
        decisions.md D26: stays tag-gated (no auto-publish on merge
        while C2 typed rewrite is in flight).
-[✓ 1.0.128] D19. CONTENT LIFECYCLE — staging + visibility management (operator,
+[✓ 1.0.129] D19. CONTENT LIFECYCLE — staging + visibility management (operator,
         23.07; on the D29 gauntlet critical path). the visibility split
         shipped half-built and crossed: composer sets no visibility (native
         posts trap in private_posts, never public), imports write to legacy
@@ -439,7 +439,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         model: visibility = the COLLECTION a record lives in, never a status
         field (decisions.md D30). staging_posts (owner-only, awaiting triage)
         / private_posts / public_posts; publish = move between collections.
-        PHASE A (foundation repair, PID 1.0.128 — the live exposure fix):
+        PHASE A (foundation repair, PID 1.0.129 — the live exposure fix):
         imports -> staging_posts (marketing-api parsers + main.py);
         register staging_posts owner-only terms in SMROnReady; wall reads
         public_posts+private_posts not legacy posts; fix broken /exporters ->
@@ -454,7 +454,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         native post with visibility choice; nothing auto-exposed; design.md
         §12 (PR screenshots). deferred: friends_posts (needs graph),
         unlisted_posts (anon-read, discovery-excluded).
-        STATUS: Phase A LANDED (1.0.128). Phases B + C remain open.
+        STATUS: Phase A LANDED (1.0.129). Phases B + C remain open.
 
 
 LANE E — infrastructure / deployment (owns: proxmox provisioning,
