@@ -89,13 +89,13 @@ describe('FeedScreen', () => {
     vi.clearAllMocks();
   });
 
-  it('renders empty state with import CTA', async () => {
+  it('renders empty state with subtle import link', async () => {
     const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
     render(<FeedScreen />);
     await waitFor(() => {
-      expect(screen.getByText('Your feed is empty')).toBeInTheDocument();
+      expect(screen.getByText(/Your feed will appear here/)).toBeInTheDocument();
     });
-    expect(screen.getByText('Import your Instagram')).toBeInTheDocument();
+    expect(screen.getByText('import your existing posts')).toBeInTheDocument();
   });
 });
 
@@ -104,13 +104,14 @@ describe('ProfileScreen', () => {
     vi.clearAllMocks();
   });
 
-  it('renders empty state with import CTA', async () => {
+  it('renders full profile UI even when empty', async () => {
     const { default: ProfileScreen } = await import('@/components/Bio/ProfileScreen');
     render(<ProfileScreen />);
     await waitFor(() => {
-      expect(screen.getByText('Your profile is empty')).toBeInTheDocument();
+      expect(screen.getByText('Edit profile')).toBeInTheDocument();
     });
-    expect(screen.getByText('Import your Instagram')).toBeInTheDocument();
+    expect(screen.getByTestId('profile-tab-posts')).toBeInTheDocument();
+    expect(screen.getByTestId('profile-tab-media')).toBeInTheDocument();
   });
 });
 
@@ -119,13 +120,13 @@ describe('DmsScreen', () => {
     vi.clearAllMocks();
   });
 
-  it('renders empty state with import CTA', async () => {
+  it('renders empty state with subtle import link', async () => {
     const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
     render(<DmsScreen />);
     await waitFor(() => {
-      expect(screen.getByText('No conversations yet')).toBeInTheDocument();
+      expect(screen.getByText(/No conversations yet/)).toBeInTheDocument();
     });
-    expect(screen.getByText('Import your Instagram')).toBeInTheDocument();
+    expect(screen.getByText('import your contacts')).toBeInTheDocument();
   });
 });
 
