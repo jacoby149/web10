@@ -8,6 +8,7 @@ import { listConversations, readDms, sendDm, getLastDm, readContacts } from '@/d
 import type { DmRecord, ContactRecord } from '@/data/types';
 import { Send, ChevronLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { MARKETING_ORIGIN } from '@/lib/origins';
 
 function formatTime(dateStr: string): string {
   const d = new Date(dateStr);
@@ -32,7 +33,7 @@ function DmsEmptyState() {
         <button
           data-testid="dms-import-cta"
           className="text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
-          onClick={() => window.open('/exporters', '_blank')}
+          onClick={() => window.open(`${MARKETING_ORIGIN}/import`, '_blank', 'noopener,noreferrer')}
         >
           import your contacts
         </button>

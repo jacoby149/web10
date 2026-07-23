@@ -9,6 +9,7 @@ import { readProfile, saveProfile, readMyPosts, resolveMediaRefs, uploadMedia } 
 import type { ProfileRecord, PostRecord, MediaRecord } from '@/data/types';
 import { MapPin, Globe, Link, Camera, Edit3, Check, X, ImagePlus, Loader2, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { MARKETING_ORIGIN } from '@/lib/origins';
 
 function ProfileSkeleton() {
   return (
@@ -369,8 +370,18 @@ export default function ProfileScreen() {
               })}
             </div>
           ) : (
-            <div className="py-16 text-center">
-              <p className="text-sm text-muted-foreground">No posts yet</p>
+            <div className="py-16 text-center" data-testid="profile-posts-empty">
+              <p className="text-sm text-muted-foreground mb-2">No posts yet</p>
+              <p className="text-xs text-muted-foreground/50">
+                Or{' '}
+                <button
+                  data-testid="profile-import-cta"
+                  className="text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
+                  onClick={() => window.open(`${MARKETING_ORIGIN}/import`, '_blank', 'noopener,noreferrer')}
+                >
+                  import your archive
+                </button>
+              </p>
             </div>
           )
         ) : mediaPosts.length ? (

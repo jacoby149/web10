@@ -2,9 +2,18 @@ import { getWapi } from './wapi';
 import type { PostRecord, MediaRecord, MediaUploadRequest, PublicEntry, SchemaDefinition, DiscoverSort, DiscoveryPost } from './types';
 
 // ── Post data layer ────────────────────────────────────────────────────────
-// Operations on the `posts` service following conventions schemas.
-// Phase 5.5: new posts route to `public_posts` or `private_posts` based
-// on visibility. The legacy `posts` service still works via readMyPosts.
+// Post visibility is a COLLECTION, not a status field (decisions.md D30):
+//   staging_posts  — owner-only, imported/drafted content awaiting triage
+//                   (marketing-api parsers write here; imports no longer
+//                   auto-publish to the legacy anon-readable `posts`)
+//   private_posts  — owner-only, deliberately private
+//   public_posts   — anon-read, discovery-indexed
+// The composer (createPost) routes to public_posts or private_posts; the
+// wall reads both. Pubished posts come from public_posts + private_posts;
+// staged imports live in staging_posts and are NOT wall-visible until the
+// user publishes them (Phase C, a collection move). The legacy
+// anon-readable `posts` service is intentionally NOT read here — surfacing
+// it on the wall would re-publish whatever the old auto-publish bug wrote.
 
 interface LegacyPost {
   _id?: string;
@@ -15,29 +24,13 @@ interface LegacyPost {
 }
 
 /**
- * Check if a record looks like a legacy post (has `html` field).
- */
-function isLegacyPost(record: unknown): record is LegacyPost {
-  if (typeof record !== 'object' || record === null) return false;
-  const r = record as Record<string, unknown>;
-  return 'html' in r && !('text' in r);
-}
-
-/**
- * Strip HTML tags to get plain text.
- */
-function stripHtml(html: string): string {
-  return html.replace(/<[^>]*>/g, '').trim();
-}
-
-/**
  * Create a new post record.
  * Media files should be uploaded first via uploadMedia(), then referenced
  * through media_refs.
  *
- * Phase 5.5: if visibility === 'public', writes to `public_posts` service;
- * otherwise writes to `private_posts`. The legacy `posts` service is kept
- * for backward compatibility.
+ * Phase 5.5 / D30: visibility === 'public' writes to `public_posts`;
+ * otherwise `private_posts`. Imports do NOT use this — they go through
+ * the marketing-api and land in `staging_posts` for triage.
  */
 export async function createPost(post: Omit<PostRecord, '_id'>): Promise<PostRecord> {
   const wapi = getWapi();
@@ -46,44 +39,30 @@ export async function createPost(post: Omit<PostRecord, '_id'>): Promise<PostRec
 }
 
 /**
- * Read all posts for the current user (wall).
+ * Read the owner's wall = `public_posts` + `private_posts`.
  *
- * Posts written by the composer route to `public_posts`/`private_posts`
- * (see createPost), while imported/legacy posts live in `posts`. The wall
- * is the union of all three — reading only `posts` (as this used to) meant
- * every newly composed post silently vanished from the profile and feed.
+ * D19 Phase A: the legacy anon-readable `posts` service is intentionally
+ * NOT read here. Until this fix, the wall unioned `posts` +
+ * `public_posts` + `private_posts` and ran an in-place migration on legacy
+ * `posts` records — but Phase A redirects imports to owner-only
+ * `staging_posts` (decisions.md D30), so the wall is just the two real
+ * tiers. Reading `posts` (anon-readable by its sir) here would surface
+ * any old auto-published imports to the user, and once we stop writing
+ * new imports there the collection has no role on the wall. Staged
+ * imports surface in Phase C's staging/review screen instead.
  *
- * Adapts legacy post records (html/media/time → text/media_refs/created_at)
- * in the `posts` service in-place on first read.
+ * Regression context: this used to also read `posts`. The bug it caused
+ * (already-fixed) was the inverse — readMyPosts read ONLY `posts` and
+ * dropped every newly composed post. The composer now writes to
+ * public_posts / private_posts, so reading those two is complete.
  */
 export async function readMyPosts(): Promise<PostRecord[]> {
   const wapi = getWapi();
-  let legacy: unknown[] = await wapi.read<Record<string, unknown>>('posts');
-
-  const hasLegacy = legacy.some(isLegacyPost);
-  if (hasLegacy) {
-    // Migrate legacy records in-place
-    for (const record of legacy) {
-      if (isLegacyPost(record) && record._id) {
-        await wapi.update<PostRecord>('posts', { _id: record._id }, {
-          $set: {
-            text: stripHtml(record.html),
-            media_refs: record.media?.map((m) => m.src) || [],
-            created_at: record.time,
-            updated_at: new Date().toISOString(),
-          },
-        });
-      }
-    }
-    legacy = await wapi.read<unknown[]>('posts');
-  }
-
   const [publicPosts, privatePosts] = await Promise.all([
     wapi.read<PostRecord>('public_posts'),
     wapi.read<PostRecord>('private_posts'),
   ]);
-
-  return [...(legacy as PostRecord[]), ...publicPosts, ...privatePosts];
+  return [...publicPosts, ...privatePosts];
 }
 
 /**

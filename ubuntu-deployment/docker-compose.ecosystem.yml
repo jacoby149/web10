@@ -157,6 +157,7 @@ services:
         VITE_AUTH_ORIGIN: ${AUTH_ORIGIN}
         VITE_RTC_ORIGIN: ${RTC_ORIGIN}
         VITE_MARKETING_API: ${MARKETING_API_ORIGIN:?e.g. https://marketing-api.dev.web10.app}
+        VITE_MARKETING_ORIGIN: ${MARKETING_UI_ORIGIN:-https://marketing.web10.app}
     restart: unless-stopped
     networks:
       proxy:
