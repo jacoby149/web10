@@ -1,3 +1,5 @@
+1.0.108 || 23.07.2026
+Copy: "Own your audience" → "Your audience, actually" in all user-facing surfaces (marketing-ui hero + meta, web10-social login + meta, design.md voice example). "Own your audience" implied ownership of people; the new copy keeps "audience" but frames the claim as about the real relationship — no algorithm in the middle deciding who sees your stuff.
 1.0.107 || 23.07.2026
 CORS: API now allows all browser origins (`allow_origins=["*"]`, credentials off). The security boundary is the scoped token in each request body (certify + is_permitted + per-service ACL), not the browser origin — web10 apps are stateless frontends anyone can build and host anywhere, so an origin allow-list only broke legitimate apps (social, marketing) without adding security. Removed the short-lived `CORS_ALLOW_ORIGINS` setting/env wiring. `CORS_SERVICE_MANAGERS` stays as the real trust list: authenticator hosts (auth.*) that may handle consent and mint tokens for other apps — narrowed to auth-only, which also closes a latent privilege path (a service-manager site bypasses the cross-origin ACL in is_permitted). 353 API tests green.
 1.0.106 || 22.07.2026
