@@ -970,6 +970,67 @@ class TestNodeConfig:
         assert resp.json() == {"admin": True}
 
 
+class TestAppStoreCuration:
+    """Any app can register, but only admin-approved apps reach the public
+    storefront (POST /stats). /apps/admin lists everything with approval
+    state; /apps/approve toggles it. Both are admin-only (check_admin)."""
+
+    _CFG = {"provider": "api.localhost", "admins": ["alice"]}
+
+    def test_stats_only_returns_approved_apps(self, client):
+        # public storefront filters approved=True in documentdb.get_apps,
+        # but the endpoint is thin — the contract is "apps is a list".
+        with (
+            patch("app.services.documentdb.get_apps", return_value=[{"url": "https://a", "visits": 1}]),
+            patch("app.services.documentdb.get_user_count", return_value=3),
+            patch("app.services.documentdb.total_size", return_value=0),
+        ):
+            resp = client.post("/stats")
+        assert resp.status_code == 200
+        assert resp.json()["apps"] == [{"url": "https://a", "visits": 1}]
+
+    def test_apps_admin_lists_for_admin(self, client):
+        apps = [
+            {"url": "https://a", "visits": 5, "approved": True, "name": "A", "registered_at": None},
+            {"url": "https://b", "visits": 0, "approved": False, "name": "B", "registered_at": None},
+        ]
+        with (
+            patch("app.services.config.get_config", return_value=dict(self._CFG)),
+            patch("app.services.documentdb.list_apps_admin", return_value=apps),
+        ):
+            resp = client.post("/apps/admin", json={"token": _owner_token("alice")})
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["apps"] == apps
+        assert body["pending"] == 1
+
+    def test_apps_admin_denied_for_non_admin(self, client):
+        with patch("app.services.config.get_config", return_value=dict(self._CFG)):
+            resp = client.post("/apps/admin", json={"token": _owner_token("bob")})
+        assert resp.status_code == 403
+
+    def test_apps_approve_toggles_for_admin(self, client):
+        with (
+            patch("app.services.config.get_config", return_value=dict(self._CFG)),
+            patch("app.services.documentdb.set_app_approval") as mock_set,
+        ):
+            resp = client.post(
+                "/apps/approve",
+                json={"token": _owner_token("alice"), "url": "https://a", "approved": True},
+            )
+        assert resp.status_code == 200
+        assert resp.json() == {"status": "updated", "url": "https://a", "approved": True}
+        mock_set.assert_called_once_with("https://a", True)
+
+    def test_apps_approve_denied_for_non_admin(self, client):
+        with patch("app.services.config.get_config", return_value=dict(self._CFG)):
+            resp = client.post(
+                "/apps/approve",
+                json={"token": _owner_token("bob"), "url": "https://a", "approved": True},
+            )
+        assert resp.status_code == 403
+
+
 # ---------------------------------------------------------------------------
 # 11. I6 — Immutable server-side metadata
 # ---------------------------------------------------------------------------

@@ -9,6 +9,37 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D31 — App Store curation is ALLOWLIST, not takedown [decided]
+D16's status note (parallel execution.txt, written 1.0.84) recorded the
+operator choosing *takedown* ("a `removed` flag") over *allowlist* ("hide-
+until-approved is the stricter optional mode — the operator wants takedown,
+not allowlisting"). On 23.07.2026 the operator reversed that: "any app can
+register, but i should be able to approve." So:
+
+- `documentdb.register_app` now inserts new entries as `approved: false`
+  via `$setOnInsert` (repeat visits bump visits without resetting the
+  approval state).
+- `db["web10"]["apps"]` records gain an `approved` boolean. Historical
+  apps that predate the field arrive as pending (the field is absent) so
+  the operator curates them once on first launch — no migration script,
+  no auto-approval of legacy rows.
+- `get_apps` filters `{"approved": True}`, so `POST /stats` (and the
+  marketing-ui AppStore that reads it) only surface approved apps.
+- Two new admin-only endpoints reuse `check_admin`: `POST /apps/admin`
+  (lists all with a pending count) and `POST /apps/approve` (toggles).
+  No `/apps/remove`/`/apps/restore` takedown verbs — unapproving IS the
+  takedown. The authenticator's Node Config panel gained an "App Store
+  Approvals" card next to the rest of the node's variables.
+
+Rejects the "takedown over allowlist" half of the D16 status note. The
+earlier D20 reversal (empty-catalog-would-read-jank → restore-the-store,
+since A7 reconnected 208 real users + real apps) still stands; this is
+the curation-model sub-decision one level below it. The Node Config panel
+also gained the missing config vars (db_url, db_name, algorithm [read-
+only, I1], Stripe subscription IDs, s3_use_ssl, logo paths) — and a
+diff-based Save so untouched/stripped secret fields are never overwritten
+with empty strings (closes the pre-existing "Save wipes secrets" bug).
+
 ### D30 — Content lifecycle is a COLLECTION, not a status field [decided]
 A post's visibility/lifecycle is expressed by WHICH collection it lives in —
 never a `needs_review`/`imported`/`draft` flag on the record. Three tiers,

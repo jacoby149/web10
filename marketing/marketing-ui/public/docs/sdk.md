@@ -10,7 +10,7 @@ A web10 node exposes a per-user MongoDB collection through a RESTful CRUD API. Y
 
 Today, the legacy SDK lives at `sdk/` and publishes as the `web10-npm` package. It works: it handles auth, CRUD, service management, and aggregate queries. It is untyped JavaScript built on axios.
 
-**This is the SDK that runs in production today.** The demo apps on this site (Hello, Notes) use it.
+**This is the SDK that runs in production today.** The demo apps on this site (Hello, Notes, Messages) use it.
 
 ### Install
 
@@ -55,7 +55,7 @@ wapi.authListen(() => {
 })
 ```
 
-See the [Hello demo](/docs/hello) and [Notes demo](/docs/notes) for runnable examples.
+See the [Hello demo](/docs/hello), [Notes demo](/docs/notes), and [Messages demo](/docs/messages) for runnable examples.
 
 ## API overview
 

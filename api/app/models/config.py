@@ -93,6 +93,20 @@ class SetupStatus(BaseModel):
     has_admin: bool
 
 
+class AppApprovalRequest(BaseModel):
+    """Admin toggles an app's visibility in the public App Store."""
+
+    token: str
+    url: str
+    approved: bool = True
+
+
+class AppAdminQuery(BaseModel):
+    """Admin lists all registered apps (approved + pending)."""
+
+    token: str
+
+
 class ConfigUpdate(BaseModel):
     """Partial config update — only provided fields are changed."""
 
