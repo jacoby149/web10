@@ -16,6 +16,7 @@ const DOC_PAGES = [
 const DEMO_APPS = [
   { slug: 'hello', title: 'Hello', url: '/docs/hello/index.html' },
   { slug: 'notes', title: 'Notes', url: '/docs/notes/index.html' },
+  { slug: 'messages', title: 'Messages', url: '/docs/messages/index.html' },
 ]
 
 function DocsSidebar() {

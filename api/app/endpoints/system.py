@@ -4,7 +4,13 @@ from fastapi.responses import RedirectResponse
 
 import app.exceptions as exceptions
 from app.models.auth import Token
-from app.models.config import ConfigUpdate, SetupRequest, SetupStatus
+from app.models.config import (
+    AppAdminQuery,
+    AppApprovalRequest,
+    ConfigUpdate,
+    SetupRequest,
+    SetupStatus,
+)
 from app.services import config as config_svc
 from app.services import documentdb as db
 from app.services.auth import check_admin, get_password_hash
@@ -165,3 +171,30 @@ async def register_app(info: dict):
         if fragment in info["url"]:
             return
     db.register_app(info)
+
+
+# --- App Store curation (admin only) ---
+#
+# Anyone can POST /register_app, but an app stays hidden from the public
+# storefront (POST /stats → get_apps) until an admin approves it. These
+# endpoints let the node operator see pending apps and toggle approval
+# from the authenticator's Node Config panel.
+
+
+@router.post("/apps/admin", include_in_schema=False)
+async def apps_admin(query: AppAdminQuery):
+    """List every registered app with its approval state (admin only)."""
+    token = Token(token=query.token)
+    check_admin(token)
+    apps = db.list_apps_admin()
+    pending = sum(1 for a in apps if not a["approved"])
+    return {"apps": apps, "pending": pending}
+
+
+@router.post("/apps/approve", include_in_schema=False)
+async def apps_approve(req: AppApprovalRequest):
+    """Approve or unapprove a registered app (admin only)."""
+    token = Token(token=req.token)
+    check_admin(token)
+    db.set_app_approval(req.url, req.approved)
+    return {"status": "updated", "url": req.url, "approved": req.approved}

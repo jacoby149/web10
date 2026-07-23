@@ -118,7 +118,78 @@ why it's parked:
   decisions.md, not by drift.
 
 
-## the conference paper (distribution, not product)
+## the network: node-to-node federation (trusted nodes, distribution deals, shared trending)
+
+the idea (operator, 23.07 — "this isnt necessary for a social platform,
+just add these ideas far out in the plan"): the authenticator's admin
+panel becomes the operator's relationship desk with OTHER web10 nodes on
+the network. a list of known nodes, a trust/contract-per-node setting
+(not a binary follow — "trusted for distribution?", "trusted to receive my
+trending?", "trusted to receive my users' public posts?"), and a deals
+surface so an entrepreneurial operator can strike a distribution agreement
+with another node ("i carry your content, you carry mine, we split
+discoverability"). the storefront of nodes, basically, treating the
+network as a market the operator works.
+
+why it's good:
+- the protocol is already a federation primitive (identity is
+  (username, provider) per CLAUDE.md; cross-node record write paths exist
+  via the certify + token handoff). "share my trending with these nodes"
+  is the same fan-out-on-write the no-shadowban claim already depends on,
+  run against an allowlist instead of the user's follow graph.
+- distribution IS the creator pitch's missing second half: "you own your
+  audience" only stays true if the audience's NODE chose to carry you. an
+  operator who brokers distribution deals can literally guarantee reach
+  across the network à la an MCN, which is the monetization Shape the
+  catalog sells on top of plain subs.
+- self-hosters ARE the network here (D16's reveal: real registered apps +
+  208 real users already live). deals surface turns the operator into a
+  sysadmin with a rolodex, which is the WordPress.com-to-WP.org dynamic
+  the founder pitch cites without ever building.
+
+proposed surfaces (record for later, DO NOT build now):
+- admin panel: a "Network" card next to App Store Approvals — known
+  nodes, per-node trust switches (distribution / trending-share)
+  reusing the admin model from the curation endpoints
+  (POST /nodes/admin, POST /nodes/approve, parallel to /apps/*).
+- public ledger: trusted-node list as a record, so a fan can see "my
+  node is federated with these others" — transparent reach claims
+  instead of shadow algorithms.
+- distribution deals: a contracts service (record in the operator's
+  collection) surfacing paired agreements — operator A authorizes
+  operator B to mirror public_posts / discovery_posts, optionally
+  metered, optionally with a revenue-share field (ties into stripe
+  rails the memberships use).
+- cross-node trending: /discover/posts extended to honor an allowlist
+  of remote-provider reads (certify already verifies remote tokens;
+  the read path against remote nodes already exists for cross-node
+  DMs/comments).
+
+why it's parked:
+- the killer app first (plan.txt PRIORITY ONE, D29): D16(3) curation
+  just landed on THE node's store; this is its multi-node analog and
+  nobody has asked for it. the bar for promoting: at least one OTHER
+  real operator is running a node AND a creator conversation surfaces
+  "your reach stops at my node's door." until that's a felt pain, the
+  fan-out is just specs in a drawer.
+- federation is the M3 milestone ("the network": encryption
+  integration + federation polish, parallel execution.txt), and M3 is
+  gated on M0/M1/M2 — none of which are shipped. building this now
+  puts the cart before the protocol is even hardened (RS256/EdDSA I1
+  is still in flight; cross-node read paths aren't audited for load
+  from a partner node mirroring your entire public_feed).
+- the security surface is real: a "trusted for distribution" switch
+  that lets another node READ your users' public_posts is a new
+  cross-collection surface, and I3 ("no cross-collection access,
+  ever") + the sandboxed aggregate were both tuned for the
+  single-node case. the allowlist has to be enforced at the auth
+  layer, not just the panel, and the contract test for it doesn't
+  exist yet.
+
+promotion bar: a real second operator on a different box, AND M0
+shipped (the demo video first per the file-wide bar), AND the RS256
+federation fix (lane A, I1) merged. then this is lane A + B work —
+admin panel surface (B) + federation endpoints + contract tests (A).
 
 the idea: the problem is validated at the highest level (berners-lee/
 solid, activitypub, at protocol, gdpr/dma) — if web10 advances the

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Lock, UserPlus, X } from 'lucide-react';
+import { Lock, UserPlus, X, Check, Store } from 'lucide-react';
 
 function ToggleRow({ label, description, checked, onChange, testId }: {
   label: string; description: string; checked: boolean; onChange: () => void; testId: string;
@@ -44,26 +44,42 @@ function ConfigShell({ I, children }: { I: Record<string, any>; children: React.
   );
 }
 
+interface AdminApp {
+  url: string;
+  visits: number;
+  approved: boolean;
+  name?: string;
+  registered_at?: string | null;
+}
+
 function ConfigPage({ I }: { I: Record<string, any> }) {
   const [config, setConfig] = React.useState<Record<string, any> | null>(null);
+  const [loadedConfig, setLoadedConfig] = React.useState<Record<string, any>>({});
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [saved, setSaved] = React.useState(false);
 
+  const [apps, setApps] = React.useState<AdminApp[]>([]);
+  const [appsLoading, setAppsLoading] = React.useState(true);
+  const [appsError, setAppsError] = React.useState<string | null>(null);
+  const [approvingUrl, setApprovingUrl] = React.useState<string | null>(null);
+
+  const nodePost = async (path: string, body: Record<string, any>) => {
+    const token = I.wapi.token;
+    const decoded = I.wapi.readToken();
+    const provider = decoded.provider;
+    const protocol = window.location.protocol;
+    return axios.post(`${protocol}//${provider}${path}`, body, {
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+
   const loadConfig = async () => {
     try {
-      const token = I.wapi.token;
-      const decoded = I.wapi.readToken();
-      const provider = decoded.provider;
-      const protocol = window.location.protocol;
-
-      const resp = await axios.post(
-        `${protocol}//${provider}/config`,
-        { token },
-        { headers: { "Content-Type": "application/json" } }
-      );
+      const resp = await nodePost("/config", { token: I.wapi.token });
       setConfig(resp.data);
+      setLoadedConfig({ ...resp.data });
     } catch (e: any) {
       setError(e.response?.data?.detail || "Failed to load config. Are you an admin?");
     } finally {
@@ -71,9 +87,28 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
     }
   };
 
+  const loadApps = async () => {
+    setAppsLoading(true);
+    setAppsError(null);
+    try {
+      const resp = await nodePost("/apps/admin", { token: I.wapi.token });
+      setApps(resp.data?.apps ?? []);
+    } catch (e: any) {
+      setAppsError(e.response?.data?.detail || "Failed to load registered apps.");
+    } finally {
+      setAppsLoading(false);
+    }
+  };
+
   React.useEffect(() => {
-    if (I.isAdmin) loadConfig();
-    else setLoading(false);
+    if (I.isAdmin) {
+      loadConfig();
+      loadApps();
+    } else {
+      setLoading(false);
+      setAppsLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [I.isAdmin]);
 
   const [newAdmin, setNewAdmin] = React.useState("");
@@ -83,15 +118,15 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
     setSaving(true);
     setError(null);
     try {
-      const token = I.wapi.token;
-      const provider = I.wapi.readToken().provider;
+      const decoded = I.wapi.readToken();
       const protocol = window.location.protocol;
       await axios.patch(
-        `${protocol}//${provider}/config`,
-        { token, admins: next },
+        `${protocol}//${decoded.provider}/config`,
+        { token: I.wapi.token, admins: next },
         { headers: { "Content-Type": "application/json" } }
       );
       setConfig(prev => ({ ...prev, admins: next }));
+      setLoadedConfig(prev => ({ ...prev, admins: next }));
     } catch (e: any) {
       setError(e.response?.data?.detail || "Failed to update admins");
     } finally {
@@ -113,31 +148,50 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
     setSaved(false);
   };
 
+  // Only send fields that actually changed from the loaded snapshot.
+  // The /config GET response strips secrets (private_key, s3_secret_key,
+  // twilio_auth_token, stripe keys); a naive "send everything" save would
+  // overwrite those with empty strings and wipe the node's credentials.
+  // Diffing against the loaded snapshot keeps untouched (and stripped)
+  // fields off the wire entirely.
   const saveConfig = async () => {
     setSaving(true);
     setError(null);
     try {
-      const token = I.wapi.token;
-      const decoded = I.wapi.readToken();
-      const provider = decoded.provider;
-      const protocol = window.location.protocol;
-
-      const payload = {};
+      const payload: Record<string, any> = { token: I.wapi.token };
       for (const key of Object.keys(config || {})) {
-        (payload as any)[key] = (config as any)[key];
+        if (key === "admins") continue; // admins saved via /admins above
+        const next = (config as any)[key];
+        const prev = loadedConfig[key];
+        if (JSON.stringify(next) === JSON.stringify(prev)) continue;
+        payload[key] = next;
       }
-
+      const decoded = I.wapi.readToken();
+      const protocol = window.location.protocol;
       await axios.patch(
-        `${protocol}//${provider}/config`,
-        { token, ...payload },
+        `${protocol}//${decoded.provider}/config`,
+        payload,
         { headers: { "Content-Type": "application/json" } }
       );
+      setLoadedConfig({ ...config });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (e: any) {
       setError(e.response?.data?.detail || "Failed to save config");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const setApproval = async (url: string, approved: boolean) => {
+    setApprovingUrl(url);
+    try {
+      await nodePost("/apps/approve", { token: I.wapi.token, url, approved });
+      setApps(prev => prev.map(a => a.url === url ? { ...a, approved } : a));
+    } catch (e: any) {
+      setAppsError(e.response?.data?.detail || "Failed to update approval.");
+    } finally {
+      setApprovingUrl(null);
     }
   };
 
@@ -191,6 +245,8 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
       </ConfigShell>
     );
   }
+
+  const pendingCount = apps.filter(a => !a.approved).length;
 
   return (
     <ConfigShell I={I}>
@@ -260,6 +316,90 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
             </CardContent>
           </Card>
 
+          <Card data-testid="config-appstore-card">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Store className="h-4 w-4 text-brand-300" strokeWidth={1.5} />
+                <CardTitle>App Store Approvals</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-xs text-muted-foreground">
+                Any app can register on the node — but it stays hidden from the
+                public App Store until you approve it. {pendingCount > 0 && (
+                  <span className="font-medium text-warning">
+                    {pendingCount} pending {pendingCount === 1 ? "app" : "apps"}.
+                  </span>
+                )}
+              </p>
+
+              {appsError && (
+                <div className="rounded bg-danger-muted p-3 text-sm text-danger" data-testid="config-apps-error">
+                  {appsError}
+                </div>
+              )}
+
+              {appsLoading ? (
+                <Skeleton className="h-20 w-full" />
+              ) : apps.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No apps registered yet.</p>
+              ) : (
+                <div className="space-y-2" data-testid="config-apps-list">
+                  {apps.map((app) => (
+                    <div
+                      key={app.url}
+                      className="flex items-center justify-between rounded-sm border border-border bg-elevated px-3 py-2"
+                      data-testid={`config-app-row-${app.url}`}
+                    >
+                      <div className="min-w-0">
+                        <div className="truncate font-mono text-sm text-foreground">
+                          {app.name || app.url}
+                        </div>
+                        <div className="truncate text-xs text-muted-foreground">
+                          {app.url} · {app.visits.toLocaleString()} {app.visits === 1 ? "visit" : "visits"}
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        {app.approved ? (
+                          <>
+                            <span className="text-xs text-success" data-testid={`config-app-status-${app.url}`}>
+                              Approved
+                            </span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={approvingUrl === app.url}
+                              onClick={() => setApproval(app.url, false)}
+                              data-testid={`config-app-unapprove-${app.url}`}
+                            >
+                              Unapprove
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-xs text-warning" data-testid={`config-app-status-${app.url}`}>
+                              Pending
+                            </span>
+                            <Button
+                              variant="brand"
+                              size="sm"
+                              disabled={approvingUrl === app.url}
+                              onClick={() => setApproval(app.url, true)}
+                              data-testid={`config-app-approve-${app.url}`}
+                            >
+                              <Check className="mr-1 h-3.5 w-3.5" strokeWidth={1.5} />
+                              Approve
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Node Identity</CardTitle>
@@ -271,11 +411,34 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
               <Field label="Brand Name">
                 <Input value={config?.brand_text || ""} onChange={e => updateField("brand_text", e.target.value)} data-testid="config-brand-text" />
               </Field>
+              <Field label="Logo (dark surfaces)" description="Path or URL for the logo used on dark backgrounds">
+                <Input value={config?.logo_dark || ""} onChange={e => updateField("logo_dark", e.target.value)} data-testid="config-logo-dark" />
+              </Field>
+              <Field label="Logo (light surfaces)" description="Path or URL for the logo used on light backgrounds">
+                <Input value={config?.logo_light || ""} onChange={e => updateField("logo_light", e.target.value)} data-testid="config-logo-light" />
+              </Field>
               <Field label="CORS Service Managers" description="Comma-separated list of allowed authenticator domains">
                 <Input value={config?.cors_service_managers || ""} onChange={e => updateField("cors_service_managers", e.target.value)} data-testid="config-cors" />
               </Field>
               <Field label="Token Expiry (minutes)">
                 <Input type="number" value={config?.token_expire_minutes || 87840} onChange={e => updateField("token_expire_minutes", parseInt(e.target.value) || 0)} data-testid="config-token-expiry" />
+              </Field>
+              <Field label="Signing Algorithm" description="Read-only — RS256 migration is tracked separately (security invariant I1)">
+                <Input value={config?.algorithm || "HS256"} disabled data-testid="config-algorithm" />
+              </Field>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Database</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Field label="MongoDB URL" description="Connection string the node uses at startup. A change here is persisted for reference, but a running node will not reconnect until restarted.">
+                <Input type="password" value={config?.db_url || ""} onChange={e => updateField("db_url", e.target.value)} data-testid="config-db-url" />
+              </Field>
+              <Field label="Database Name">
+                <Input value={config?.db_name || "web10"} onChange={e => updateField("db_name", e.target.value)} data-testid="config-db-name" />
               </Field>
             </CardContent>
           </Card>
@@ -350,6 +513,13 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
               <Field label="Region">
                 <Input value={config?.s3_region || "us-east-1"} onChange={e => updateField("s3_region", e.target.value)} data-testid="config-s3-region" />
               </Field>
+              <ToggleRow
+                label="Use SSL"
+                description="Sign internal S3 requests over TLS"
+                checked={config?.s3_use_ssl || false}
+                onChange={() => updateField("s3_use_ssl", !config?.s3_use_ssl)}
+                testId="config-toggle-s3-ssl"
+              />
               <Field label="Max Upload Size (bytes)">
                 <Input type="number" value={config?.max_upload_size || 524288000} onChange={e => updateField("max_upload_size", parseInt(e.target.value) || 0)} data-testid="config-max-upload-size" />
               </Field>
@@ -397,6 +567,18 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
               </Field>
               <Field label="Live API Key">
                 <Input type="password" value={config?.stripe_live_key || ""} onChange={e => updateField("stripe_live_key", e.target.value)} data-testid="config-stripe-live-key" />
+              </Field>
+              <Field label="Test Subscription — Credits">
+                <Input value={config?.stripe_test_credit_sub_id || ""} onChange={e => updateField("stripe_test_credit_sub_id", e.target.value)} data-testid="config-stripe-test-credit-sub" />
+              </Field>
+              <Field label="Test Subscription — Space">
+                <Input value={config?.stripe_test_space_sub_id || ""} onChange={e => updateField("stripe_test_space_sub_id", e.target.value)} data-testid="config-stripe-test-space-sub" />
+              </Field>
+              <Field label="Live Subscription — Credits">
+                <Input value={config?.stripe_live_credit_sub_id || ""} onChange={e => updateField("stripe_live_credit_sub_id", e.target.value)} data-testid="config-stripe-live-credit-sub" />
+              </Field>
+              <Field label="Live Subscription — Space">
+                <Input value={config?.stripe_live_space_sub_id || ""} onChange={e => updateField("stripe_live_space_sub_id", e.target.value)} data-testid="config-stripe-live-space-sub" />
               </Field>
               <Field label="Dev Pay Split (%)" description="Percentage of revenue that goes to the developer">
                 <Input type="number" value={config?.dev_pay_pct || 98} onChange={e => updateField("dev_pay_pct", parseInt(e.target.value) || 98)} data-testid="config-dev-pay-pct" />
