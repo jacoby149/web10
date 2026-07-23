@@ -8,7 +8,7 @@ RUN bun install --frozen-lockfile
 # APIProtocol. The fix lives in sdk/src/wapiAuth.js but the npm package
 # has not been republished yet. Once web10-npm@>=1.0.9 lands on npm, this
 # sed can be removed.
-RUN sed -i 's/wapi\.defaultAPIProtocol/wapi.APIProtocol/g' node_modules/web10-npm/dist/node/wapi.js node_modules/web10-npm/dist/node/wapi.modern.js
+RUN sed -i 's/wapi\.defaultAPIProtocol/wapi.APIProtocol/g' node_modules/web10-npm/dist/node/wapi.js node_modules/web10-npm/dist/node/wapi.modern.js 2>/dev/null || true
 
 COPY index.html tsconfig.json vite.config.js ./
 COPY public/ public/
