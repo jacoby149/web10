@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react'
 import { useParams, Link, useLocation } from 'react-router-dom'
 import { remark } from 'remark'
 import remarkHtml from 'remark-html'
-import { FileText, Code, Terminal, ExternalLink } from 'lucide-react'
+import { FileText, Code, Terminal, ExternalLink, Compass } from 'lucide-react'
 import { trackFunnel } from '../lib/analytics'
 
 const DOC_PAGES = [
+  { slug: 'overview', title: 'Overview', file: '/docs/overview.md' },
   { slug: 'protocol-spec', title: 'Protocol Spec', file: '/docs/protocol-spec.md' },
   { slug: 'conventions', title: 'Conventions', file: '/docs/conventions.md' },
   { slug: 'sdk', title: 'SDK Guide', file: '/docs/sdk.md' },
@@ -19,7 +20,9 @@ const DEMO_APPS = [
 
 function DocsSidebar() {
   const location = useLocation()
-  const currentPage = location.pathname.split('/').pop()
+  // /docs (no sub-page) is the Overview landing — mark it active there too
+  const rawPage = location.pathname.replace(/^\/docs\/?/, '')
+  const currentPage = rawPage === '' ? 'overview' : rawPage.split('/')[0]
 
   return (
     <aside className="w-full shrink-0 border-b border-border px-4 py-6 sm:px-6 md:w-56 md:border-b-0 md:border-r md:py-10">
@@ -27,20 +30,23 @@ function DocsSidebar() {
         Documentation
       </h3>
       <nav className="mb-6 flex flex-col gap-1">
-        {DOC_PAGES.map(page => (
-          <Link
-            key={page.slug}
-            to={`/docs/${page.slug}`}
-            className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors duration-150 ease-out ${
-              currentPage === page.slug
-                ? 'bg-brand-muted font-medium text-brand-300'
-                : 'text-muted-foreground hover:bg-elevated hover:text-foreground'
-            }`}
-          >
-            <FileText className="h-4 w-4 shrink-0" strokeWidth={1.5} />
-            {page.title}
-          </Link>
-        ))}
+        {DOC_PAGES.map(page => {
+          const Icon = page.slug === 'overview' ? Compass : FileText
+          return (
+            <Link
+              key={page.slug}
+              to={`/docs/${page.slug}`}
+              className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors duration-150 ease-out ${
+                currentPage === page.slug
+                  ? 'bg-brand-muted font-medium text-brand-300'
+                  : 'text-muted-foreground hover:bg-elevated hover:text-foreground'
+              }`}
+            >
+              <Icon className="h-4 w-4 shrink-0" strokeWidth={1.5} />
+              {page.title}
+            </Link>
+          )
+        })}
       </nav>
 
       <h3 className="mb-3 text-[0.75rem] font-medium uppercase tracking-[0.04em] text-muted-foreground">
@@ -76,9 +82,11 @@ function DocsContent() {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    const doc = DOC_PAGES.find(p => p.slug === page)
+    // /docs with no sub-page renders the Overview landing — never a blank
+    const resolved = page ?? 'overview'
+    const doc = DOC_PAGES.find(p => p.slug === resolved)
     if (!doc) {
-      setContent('<p>Select a document from the sidebar, or try a <a href="/docs/sdk" class="text-brand-300">SDK Guide</a> to get started.</p>')
+      setContent('<p>Select a document from the sidebar, or try the <a href="/docs/overview" class="text-brand-300">Overview</a> to get started.</p>')
       setTitle('Documentation')
       return
     }

@@ -3,6 +3,45 @@
 Newest at top. Format per AGENT-OPS.md §8. Read the top entries
 BEFORE doing ops work — someone may already be mid-fix.
 
+## 23.07.2026 — Claude (boise, jacoby149/boise) — prod status unblocked: env.prod completed + surgical marketing-ui rebuild
+did (SSH as jacob):
+  - DIAGNOSIS: prod www served status.json baked 19:25Z with
+    version/commit "unknown" and never rebuilt after. Two independent
+    failures: (1) Portainer web10-prod auto-update (5m poll, tracks
+    dev) failed EVERY attempt since ~19:35Z — its GitOps checkout
+    strips .git, and the 1.0.131 marketing-ui Dockerfile hard-COPYs
+    .git, so the compose build died ("/.git": not found) and the
+    WHOLE stack redeploy aborted (stack 2 ConfigHash frozen at
+    de1d036a; web10-dev stack similarly stuck at 49518e8, masked by
+    the SSH deploy). (2) deploy.yml's prod job has failed 7/7 runs
+    ever: env.prod had MINIO_PASSWORD empty → compose parse error.
+    Worse, env.prod also lacked DB=deploy + DB_URL — a run that got
+    past the parse would have recreated prod api against the empty
+    FerretDB (real 208-account mongo unmounted). Parse failure was
+    accidentally protective.
+  - FIX env.prod (backup left: env.prod.bak.<epoch>): set
+    MINIO_PASSWORD from ~/web10-ops/.env (MINIO_PASSWORD_PROD),
+    added DB=deploy + DB_URL=mongodb://host.docker.internal:27017/.
+    env.prod now matches Portainer stack 2's env exactly.
+  - REBUILD (surgical, marketing-ui only): /opt/web10 was already at
+    dev@7022e63 (real clone, .git present); exported GIT_COMMIT +
+    STATUS_VERSION, `docker compose -p web10-prod --env-file env.prod
+    -f docker-compose.ecosystem.yml up -d --build marketing-ui`.
+    Only web10-prod-marketing-ui-1 recreated; api/social untouched.
+  - VERIFIED: https://web10.app/status.json → version 1.0.132,
+    commit 7022e63, real commitDate; www + apex 200.
+state: prod status pill live with real version. Portainer web10-prod
+  auto-update KEEPS failing every 5m until the Dockerfile fix (this
+  branch: bind-mount .git instead of COPY) merges to dev — its
+  tracked ref. deploy.yml prod is now unblocked (env complete) but
+  unexercised; first real test is the next main push.
+next: (1) merge the marketing-ui Dockerfile bind-mount fix to dev —
+  heals GitOps auto-update for BOTH stacks. (2) OPERATOR DECISION,
+  unchanged from 22.07: web10-prod tracks refs/heads/dev while
+  deploy.yml deploys main to the same stack — once both paths work
+  they will fight; point Portainer web10-prod at main or disable its
+  auto-update. (3) NPM_PASSWORD still empty (22.07 item, untouched).
+
 ## 22.07.2026 — Claude (calgary, trending-fix-missing) — Portainer creds reset; secrets moved out of the repo checkout
 did (SSH as jacob):
   - CONTEXT: the GitOps conversion (21/22.07) re-cloned /opt/web10,

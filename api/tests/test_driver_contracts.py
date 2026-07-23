@@ -59,7 +59,10 @@ class TestS3ClientConfig:
         config_block = re.search(r"config\s*=\s*Config\((.*?)\)", src, re.DOTALL)
         assert config_block is not None
         assert "use_ssl" not in config_block.group(1), "use_ssl belongs on boto3.client(), not botocore.Config()"
-        assert re.search(r"^\s*use_ssl\s*=\s*settings\.S3_USE_SSL", src, re.MULTILINE)
+        # use_ssl is a client kwarg; the internal/signing clients feed it from
+        # the S3_USE_SSL / S3_PUBLIC_USE_SSL flags.
+        assert re.search(r"^\s*use_ssl\s*=\s*use_ssl", src, re.MULTILINE)
+        assert "settings.S3_USE_SSL" in src and "settings.S3_PUBLIC_USE_SSL" in src
 
     def test_real_botocore_config_rejects_use_ssl(self):
         _real_contract(
