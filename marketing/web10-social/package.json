@@ -25,7 +25,7 @@
     "react-dom": "^19.1.0",
     "tailwind-merge": "^3.6.0",
     "tailwindcss": "^4.3.3",
-    "web10-npm": "^1.0.8"
+    "web10-npm": "file:../../sdk"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
