@@ -20,7 +20,7 @@ const navItems = [
 function Wordmark({ className }: { className?: string }) {
   return (
     <span className={cn('flex items-center gap-2', className)}>
-      <img src="/alternative.png" alt="" className="h-6 w-6 shrink-0" aria-hidden="true" />
+      <img src="/keys-mark.png" alt="" className="h-6 w-6 shrink-0" aria-hidden="true" />
       <span className="font-display text-lg font-bold tracking-tight text-foreground">
         web<span className="text-brand">10</span>
       </span>
