@@ -4,7 +4,6 @@ import { ExternalLink } from 'lucide-react'
 interface DeployInfo {
   version?: string
   commit?: string
-  commitTitle?: string
   deployedAt?: string
 }
 
@@ -82,7 +81,7 @@ function DeployStatus() {
             {commit && (
               <div className="flex items-baseline justify-between gap-4">
                 <dt className="text-muted-foreground">Commit</dt>
-                <dd className="truncate font-mono text-[0.8125rem] text-foreground" title={known(info.commitTitle) ?? undefined}>
+                <dd className="truncate font-mono text-[0.8125rem] text-foreground">
                   {commit}
                 </dd>
               </div>
