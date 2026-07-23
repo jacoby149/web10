@@ -8,7 +8,6 @@ from fastapi.responses import JSONResponse
 
 import app.docs as docs
 import app.exceptions as exceptions
-import app.settings as settings
 from app.endpoints import auth, crud, discover, media, payments, public, schemas, system
 
 app = FastAPI(
