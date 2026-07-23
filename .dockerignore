@@ -1,0 +1,60 @@
+# Repository-root .dockerignore — used when a service is built with the
+# repo root as its context (currently marketing-ui: the build needs
+# CHANGELOG.md + .git to bake status.json). Tuned to send only what that
+# build touches while keeping the door open for other services (api, ui,
+# social, marketing-api) that may later move to a repo-root context too.
+
+# Universal dev/build crud — never needed in any image build.
+**/node_modules
+**/dist
+**/build
+**/.cache
+**/.turbo
+**/coverage
+**/.nyc_output
+**/__pycache__
+**/.pytest_cache
+**/*.log
+**/*.pid
+
+# Editor + OS noise.
+.DS_Store
+**/.DS_Store
+.idea
+.vscode
+**/.vscode
+*.swp
+*.swo
+
+# Secrets + local state never belong in an image.
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.local
+.gitlab
+.github
+.dockerignore
+
+# Conductor / agent scratch — never in the image.
+.conductor
+.context
+
+# Heavy marketing subprojects that ship their own Dockerfile / context
+# and never bake the marketing-ui bundle. Excluded here only to keep the
+# marketing-ui context small; their own `context:` is unaffected.
+marketing/marketing-api/marketing_api.egg-info
+marketing/marketing-api/.venv
+marketing/web10-social/node_modules
+marketing/web10-cli/node_modules
+mobile/node_modules
+
+# Editor docs + research dumps the build never reads.
+knowledge/**/*.md
+e2e/screenshots
+e2e/.playwright
+
+# .git: kept intact in full so `git rev-parse`/`git log` work at build
+# time (build-status.sh needs the live commit SHA + date). A normal
+# /opt/web10 clone is shallow on the box's Portainer GitOps pull and tiny
+# in practice; do NOT exclude .git/objects/pack or rev-parse will FAIL.
