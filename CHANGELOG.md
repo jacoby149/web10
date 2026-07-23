@@ -1,3 +1,12 @@
+1.0.140 || 23.07.2026
+Gauntlet run against dev (v1.0.139): 0 full passes, 4 partial, 4 fails.
+Blocking chain for a demoable product: (1) D23 presigned URLs — media 403s on
+dev, zero callers of request_read_url; (2) follow UI — followUser() exported
+but never called by any component, no user profiles, no suggested accounts;
+(3) trending in social app — discovery API works, marketing-ui has /trending,
+but social app has zero discover screens; (4) alternative.png on login renders
+as blank square. Full report in docs/gauntlet-23.07.2026.md.
+
 1.0.139 || 23.07.2026
 Fix the web10-social "create account / login button not working" regression reported live on dev: after the popup finished auth, the social UI stayed on LoginScreen and the profile didn't load until a manual refresh. `App.tsx` registered its `authListen(() => { setSignedIn(true); setMode('feed'); })` callback ONLY on the signed-out-at-mount branch — a returning user with a session cookie took the `isSignedIn()` branch and skipped registration; once they later logged out and logged back in via the popup, the adapter's own `syncDataLayerToken` listener still fired (so the cookie landed and a refresh recovered) but App's `setSignedIn` listener was never attached, so the popup's auth message had no UI-side handler. The listener is now registered UNCONDITIONALLY — setting already-current state is a React no-op, so signing it on the signed-in path is safe and the post-popup login flips the screen to the feed without a refresh. New `appAuthListen.test.tsx` pins both branches (signed-out and signed-in at mount) and the popup-completes → `Log out` reachable flow; 224 web10-social tests green.
 
