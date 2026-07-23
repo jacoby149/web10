@@ -4,6 +4,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardFooter, CardContent }
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { trackFunnel } from '../lib/analytics'
+import { AUTH_ORIGIN, SOCIAL_ORIGIN } from '../lib/origins'
 
 // The node API that holds the live app registry + member count. Overridable
 // via ?api= or VITE_API_URL; *.localhost hosts default to the local node.
@@ -48,7 +49,7 @@ const HERO = {
   name: 'web10 social',
   description:
     'The flagship lens: an instagram-shaped feed, DMs, media, and streaming — your audience and your data, on a node you own. CRM and Mail live inside it.',
-  href: 'https://social.web10.app',
+  href: SOCIAL_ORIGIN,
   source: 'https://github.com/jacoby149/web10/tree/main/marketing/web10-social',
 }
 
@@ -59,7 +60,7 @@ const FIRST_PARTY = [
     icon: LayoutDashboard,
     name: 'The node console',
     description: 'Login, consent, contracts, and the Studio — the operator surface every node runs.',
-    href: 'https://auth.web10.app',
+    href: AUTH_ORIGIN,
   },
   {
     icon: Boxes,

@@ -9,6 +9,52 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D30 — Content lifecycle is a COLLECTION, not a status field [decided]
+A post's visibility/lifecycle is expressed by WHICH collection it lives in —
+never a `needs_review`/`imported`/`draft` flag on the record. Three tiers,
+each a service with its own terms: `staging_posts` (owner-only — imported or
+drafted content awaiting triage, discovery ignores it), `private_posts`
+(owner-only — deliberately private), `public_posts` (anon-read — public,
+discovery-indexed). Publishing / changing visibility = MOVE the record between
+collections (create-in-target + delete-from-source, body preserved); safe
+because staged/private content is owner-only and unpublished, so no comment or
+reaction points at it and the `_id` change breaks nothing. This extends the
+existing public/private split (plan.txt:836) by one tier — not a new pattern.
+
+WHY not a field: web10 gates access per-SERVICE. Terms records key on the
+collection and cannot read a record's body, so a `needs_review` boolean
+CANNOT enforce "only the creator can see this" — the permission layer never
+looks inside the record. To make the boundary real you'd need a separate
+collection anyway (for terms to bite), at which point the flag is redundant.
+The collection IS the security boundary (I3). Bonus: no query pollution (no
+surface filters `needs_review != true`), and bulk ops stay instant — "make
+everything private" = change one terms record.
+
+Media: blob access is real access control, not URL-secrecy — `POST
+/{user}/read` runs `is_permitted(token, user, "media", "read")` then mints a
+short-lived presigned GET (api/app/endpoints/media.py:74). `media` is a single
+owner-only service, so staged/private media is creator-only, enforced
+server-side. The corollary is a real task: because the gate is per-service and
+coarse, PUBLISHING a post must also grant its audience read access to the
+post's media (public media needs an explicit path — a public-media grant/tier
+or a discovery-minted link); it is not automatic.
+
+friends/unlisted deferred honestly: there is no friends graph to gate on yet,
+so imported `friends`/`unlisted` content stages as private (safe default —
+never auto-expose). `friends_posts` (graph-predicate terms) and `unlisted_posts`
+(anon-read terms but excluded from the discovery index = "anyone with the link,
+not discoverable" — the correct home for YouTube unlisted, which today
+mis-maps to friends) are future tiers this model absorbs by adding a collection.
+
+Rejects: `needs_review`/`imported`/`draft`/`staging` boolean fields on records
+(can't gate access, pollute every query, mix triage state with real private
+content — the "yucky" option). Prompted by web10-social shipping the
+visibility split half-built: the composer sets no visibility (native posts
+trap in private_posts, never reach the wall or public), while imports write to
+the legacy anon-readable `posts` service (import auto-publishes your whole
+history — the opposite of staging). D19 repairs the foundation then builds the
+management layer on it.
+
 ### D29 — Product pride gates the board: the killer app first, infra parks [decided]
 Operator call (22.07.2026): the deployed product is still a shell — the
 pieces exist but the whole doesn't hold — while the board kept surfacing

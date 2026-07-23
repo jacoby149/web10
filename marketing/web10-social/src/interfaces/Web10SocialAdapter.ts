@@ -183,6 +183,22 @@ const web10SocialAdapterInit = (): Web10SocialAdapter => {
   // Initialize the typed wapi wrapper for the data layer
   const wapiWrapper = createWapiWrapper(authUrl, rtcHost);
 
+  // Token hand-off: `wapiWrapper` (the data layer) is a SEPARATE wapi/client
+  // instance from `wapi` (auth). Both read the token cookie once at init, but a
+  // FRESH login within a session sets the token only on `wapi` (+ the cookie) —
+  // the already-created data-layer instance never re-reads it, so every
+  // data-layer CRUD threw "not authenticated" until a page refresh. Mirror the
+  // token onto the data-layer instance now (restore case) and whenever login
+  // lands. authListen is additive (a window 'message' listener), so this
+  // coexists with the app's own authListen, and each listener runs setToken
+  // before its callback — so `wapi.token` is populated by the time this fires.
+  // Purely client-side; nothing is stored server-side.
+  const syncDataLayerToken = () => {
+    if (wapi.token) wapiWrapper.setToken(wapi.token);
+  };
+  syncDataLayerToken();
+  wapi.authListen(() => syncDataLayerToken());
+
   const adapter: Partial<Web10SocialAdapter> & WapiInstance = { ...wapi };
 
   adapter.login = function () {
