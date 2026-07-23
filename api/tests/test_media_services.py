@@ -2,7 +2,8 @@
 
 from unittest.mock import MagicMock, patch
 
-from app.services.media import ensure_bucket, make_object_key
+import app.settings as settings
+from app.services.media import ensure_bucket, get_s3_client, get_s3_signing_client, make_object_key
 
 
 class TestMakeObjectKey:
@@ -38,3 +39,27 @@ class TestEnsureBucket:
         ensure_bucket(mock_s3)
         mock_s3.head_bucket.assert_called_once()
         mock_s3.create_bucket.assert_called_once()
+
+
+class TestS3ClientEndpoints:
+    """The internal client talks to MinIO; the signing client mints the URLs
+    the browser sees, so it must use the PUBLIC endpoint — otherwise presigned
+    URLs embed the unreachable internal Docker host (Mixed-Content block)."""
+
+    def test_internal_client_uses_internal_endpoint(self):
+        with patch("app.services.media.boto3.client") as mock_client:
+            get_s3_client()
+            _, kwargs = mock_client.call_args
+            assert kwargs["endpoint_url"] == settings.S3_ENDPOINT
+            assert kwargs["use_ssl"] == settings.S3_USE_SSL
+
+    def test_signing_client_uses_public_endpoint(self):
+        with patch("app.services.media.boto3.client") as mock_client:
+            get_s3_signing_client()
+            _, kwargs = mock_client.call_args
+            assert kwargs["endpoint_url"] == settings.S3_PUBLIC_ENDPOINT
+            assert kwargs["use_ssl"] == settings.S3_PUBLIC_USE_SSL
+
+    def test_public_endpoint_defaults_to_internal(self):
+        # Local/e2e run one host for both; the default must not diverge.
+        assert settings.S3_PUBLIC_ENDPOINT == settings.S3_ENDPOINT
