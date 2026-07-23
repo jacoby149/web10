@@ -5,6 +5,7 @@ auto-published a user's whole import; the fix is per-collection visibility
 writes it. These tests assert the parsers' output for every platform's
 post records.
 """
+
 import pytest
 
 from app.validation import VALIDATORS, validate_record
@@ -216,6 +217,7 @@ def test_parse_instagram_writes_staging_posts_for_post_records(fake_instagram_zi
     # parse_instagram reads from the open ZipFile, not the entries list, so
     # the same ZIP that drove _run_pipeline above is what we feed here.
     import zipfile
+
     with zipfile.ZipFile(fake_instagram_zip, "r") as zf:
         entries = [{"path": z.filename, "data": zf.read(z.filename)} for z in zf.infolist() if not z.is_dir()]
 
