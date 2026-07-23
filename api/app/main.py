@@ -23,7 +23,7 @@ app = FastAPI(
 def _cors_origins():
     """Build allow-listed CORS origins from settings."""
     origins = set()
-    for host in settings.CORS_SERVICE_MANAGERS:
+    for host in settings.CORS_ALLOW_ORIGINS:
         origins.add(f"http://{host}")
         origins.add(f"https://{host}")
     # The API itself may serve the UI or OpenAPI docs

@@ -10,6 +10,20 @@ CORS_SERVICE_MANAGERS = """
     auth.web10.app,
     auth.dev.web10.app
 """
+# Browser origins allowed to call the API via CORS. This is NOT the
+# authenticator list (that is CORS_SERVICE_MANAGERS) — every frontend
+# that fetches from the API in a browser needs to be here.
+CORS_ALLOW_ORIGINS = """
+    auth.localhost,
+    auth.web10.app,
+    auth.dev.web10.app,
+    social.localhost,
+    social.web10.app,
+    social.dev.web10.app,
+    www.localhost,
+    www.web10.app,
+    www.dev.web10.app
+"""
 DB = "testing"
 DB_URL = "mongodb+srv://web10:jSol....."
 # Usernames that may read/write the node config when no admins list has been
@@ -61,6 +75,7 @@ for v in list(globals()):
 
 # Initiate some quality of life variables around the config.
 CORS_SERVICE_MANAGERS = [site.strip() for site in CORS_SERVICE_MANAGERS.split(",")]
+CORS_ALLOW_ORIGINS = [site.strip() for site in CORS_ALLOW_ORIGINS.split(",")]
 COST = {}
 COST["create"] = COST_CREATE
 COST["read"] = COST_READ

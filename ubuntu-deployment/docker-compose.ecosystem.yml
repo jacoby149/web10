@@ -106,7 +106,8 @@ services:
       S3_ENDPOINT: http://${STACK}-minio:9000
       S3_ACCESS_KEY: minioadmin
       S3_SECRET_KEY: ${MINIO_PASSWORD}
-      CORS_SERVICE_MANAGERS: ${CORS_SERVICE_MANAGERS:?comma-separated auth/social/marketing hosts}
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:?comma-separated browser origins for CORS}
+      CORS_SERVICE_MANAGERS: ${CORS_SERVICE_MANAGERS:?authenticator hosts only}
     command: ["uv", "run", "gunicorn", "-b", "0.0.0.0:80", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "app.main:app"]
     restart: unless-stopped
     networks:
