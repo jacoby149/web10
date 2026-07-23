@@ -935,14 +935,14 @@ status field (decisions.md D30). This is on the gauntlet critical path (D29):
 through here.
 
 Phase A — repair the foundation (lands first; imports currently auto-publish):
-[ ] marketing-api import writes posts to `staging_posts`, not legacy `posts`
+[✓ 1.0.128] marketing-api import writes posts to `staging_posts`, not legacy `posts`
     (instagram/facebook/youtube parsers tag `service`; main.py writes it)
-[ ] register `staging_posts` terms (owner-only, no whitelist) in the social
+[✓ 1.0.128] register `staging_posts` terms (owner-only, no whitelist) in the social
     app's SMROnReady list; confirm node default-deny for absent terms holds
     (auth.py is_permitted returns False; owner's own token always passes)
-[ ] reconcile the wall: readMyPosts reads `public_posts` + `private_posts`
+[✓ 1.0.128] reconcile the wall: readMyPosts reads `public_posts` + `private_posts`
     (owner sees both of their own), not legacy `posts`
-[ ] fix the broken `/exporters` CTA -> `/import` in the 3 social screens
+[✓ 1.0.128] fix the broken `/exporters` CTA -> `/import` in the 3 social screens
     (FeedScreen, ProfileScreen, DmsScreen) — note cross-app origin
 
 Phase B — visibility on native posts:

@@ -50,8 +50,11 @@ def map_facebook_post(post: dict) -> dict | None:
     if attachments:
         body["media_refs"] = [str(a.get("url", "")) if isinstance(a, dict) and "url" in a else "" for a in attachments]
 
+    # D19: imports write to owner-only `staging_posts`, not the legacy
+    # anon-readable `posts` collection — importing must not auto-publish
+    # a user's whole history to the world (decisions.md D30).
     return {
-        "service": "posts",
+        "service": "staging_posts",
         "body": body,
         "origin": "facebook",
         "origin_id": safe_str(post.get("Post ID")),
