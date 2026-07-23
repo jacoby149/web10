@@ -521,7 +521,7 @@ the original data changes what "done" looks like for these):
     against real data (A7), with a playwright test so it can't
     regress. this is the front door — nothing else matters if a
     creator can't log in.
-[✓ 1.0.135] APP STORE, restored + curated (lane D, item D16): the original
+[✓ 1.0.136] APP STORE, restored + curated (lane D, item D16): the original
     web10 had a LIVE app store with real registered apps; the
     current marketing-ui shows first-party "proof" cards only. read
     the real registered apps from the mongo (A7), keep web10-social
@@ -536,7 +536,7 @@ the original data changes what "done" looks like for these):
     allowlist sub-reversal (operator 23.07: takedown-only →
     allowlist — "any app can register, but i should be able to
     approve"). 1.0.84 shipped the store stats (real apps from mongo)
-    + web10-social hero; 1.0.135 ships the curation: pending flag on
+    + web10-social hero; 1.0.136 ships the curation: pending flag on
     `/register_app`, `/apps/admin` + `/apps/approve` (admin-only,
     reusing check_admin), and the App Store Approvals card in the
     authenticator's Node Config panel.
