@@ -98,12 +98,22 @@ function App() {
     if (a.isSignedIn()) {
       setSignedIn(true);
       setMode('feed');
-    } else {
-      a.authListen(() => {
-        setSignedIn(true);
-        setMode('feed');
-      });
     }
+
+    // Register the auth-listener UNCONDITIONALLY, not only when signed-out at
+    // mount. A returning user with a session cookie took the isSignedIn branch
+    // and skipped registration; once they later logged out (or the cookie
+    // expired) and logged back in via the auth popup, the popup posted its
+    // auth message — the adapter's own syncDataLayerToken listener still fired
+    // (so the cookie landed at social.web10.app and a refresh picked it up),
+    // but App's setSignedIn listener was never attached, so the UI stayed on
+    // the LoginScreen after the popup closed ("profile didn't load until I
+    // refresh" — reported intermittently on dev). Setting already-current
+    // state is a React no-op, so registering on the signed-in path is safe.
+    a.authListen(() => {
+      setSignedIn(true);
+      setMode('feed');
+    });
   }, []);
 
   function handleLogin() {
