@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { Routes, Route, Navigate, useNavigate, useLocation, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import web10SocialAdapterInit from '@/interfaces/Web10SocialAdapter';
 import Layout from '@/components/Social/Layout';
@@ -10,22 +11,15 @@ import DmsScreen from '@/components/Chat/DmsScreen';
 import PostComposer from '@/components/Feed/PostComposer';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { ReportBug } from '@/components/shared/ReportBug';
-import type { Mode } from '@/types';
-
-interface UserProfileTarget {
-  username: string;
-  provider: string;
-}
+import { getWapi } from '@/data/wapi';
 
 function LoginScreen({ onLogin }: { onLogin: () => void }) {
   return (
     <div className="relative flex flex-col items-center justify-center min-h-screen bg-background px-6 overflow-hidden">
-      {/* Animated gradient background */}
       <div
         className="pointer-events-none absolute inset-0 bg-gradient-to-br from-brand/10 via-transparent to-brand-muted/20"
         aria-hidden="true"
       />
-      {/* Floating ambient orbs */}
       <div
         className="pointer-events-none absolute top-1/4 left-1/4 h-64 w-64 rounded-full bg-brand/10 blur-3xl animate-float-slow"
         aria-hidden="true"
@@ -38,7 +32,6 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
         className="pointer-events-none absolute top-1/2 right-1/3 h-32 w-32 rounded-full bg-brand-400/8 blur-2xl animate-float-fast"
         aria-hidden="true"
       />
-      {/* design.md §4 — the one permitted decorative flourish: a soft brand glow behind the mark. */}
       <div
         className="pointer-events-none absolute top-1/2 left-1/2 h-80 w-80 -translate-x-1/2 -translate-y-[60%] rounded-full bg-brand/20 blur-3xl"
         aria-hidden="true"
@@ -58,8 +51,11 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
           className="w-full h-12 text-base font-semibold"
           onClick={onLogin}
         >
-          Log in
+          Log in or create your account
         </Button>
+        <p className="text-xs text-muted-foreground">
+          Log in or create your account — one step.
+        </p>
         <p className="text-xs text-muted-foreground">
           Powered by your own node. 100% delivery by architecture.
         </p>
@@ -91,36 +87,43 @@ function ErrorFallback({ onReport, onReload }: { onReport: () => void; onReload:
   );
 }
 
+function UserProfileRoute() {
+  const { username } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const provider = location.state?.provider || getWapi().readToken()?.provider || '';
+
+  return (
+    <UserProfileScreen
+      username={username!}
+      provider={provider}
+      onBack={() => navigate(-1)}
+    />
+  );
+}
+
 function App() {
-  const [mode, setMode] = useState<Mode>('login');
   const [signedIn, setSignedIn] = useState(false);
-  const [adapter, setAdapter] = useState<ReturnType<typeof web10SocialAdapterInit> | null>(null);
   const [showReportBug, setShowReportBug] = useState(false);
   const [reportTrigger, setReportTrigger] = useState<'button' | 'error-boundary'>('button');
-  const [userProfileTarget, setUserProfileTarget] = useState<UserProfileTarget | null>(null);
-  const currentModeRef = useRef<Mode>('login');
-  const preProfileModeRef = useRef<Mode | null>(null);
+  const adapterRef = useRef<ReturnType<typeof web10SocialAdapterInit> | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const a = web10SocialAdapterInit();
-    setAdapter(a);
+    adapterRef.current = a;
 
     if (a.isSignedIn()) {
       setSignedIn(true);
-      setMode('feed');
     }
 
     a.authListen(() => {
       setSignedIn(true);
-      setMode('feed');
     });
 
-    // Listen for custom navigate-user-profile events (from DiscoverScreen cards)
     const handler = (e: Event) => {
       const customEvent = e as CustomEvent<{ username: string; provider: string }>;
-      preProfileModeRef.current = currentModeRef.current;
-      setUserProfileTarget(customEvent.detail);
-      setMode('user-profile');
+      navigate(`/u/${customEvent.detail.username}`, { state: { provider: customEvent.detail.provider } });
     };
     window.addEventListener('navigate-user-profile', handler);
     return () => {
@@ -128,35 +131,18 @@ function App() {
     };
   }, []);
 
-  // Keep currentModeRef in sync with mode state
-  useEffect(() => {
-    currentModeRef.current = mode;
-  }, [mode]);
-
   function handleLogin() {
-    adapter?.login();
+    adapterRef.current?.login();
   }
 
   function handleLogout() {
-    adapter?.signOut();
+    adapterRef.current?.signOut();
     setSignedIn(false);
-    setMode('login');
   }
 
-  function handleMode(m: Mode) {
-    setMode(m);
-  }
-
-  function handleNavigateToUser(username: string, provider: string) {
-    preProfileModeRef.current = currentModeRef.current;
-    setUserProfileTarget({ username, provider });
-    setMode('user-profile');
-  }
-
-  function handleBackFromProfile() {
-    setMode(preProfileModeRef.current || 'discover');
-    preProfileModeRef.current = null;
-  }
+  const handleAuthorClick = useCallback((username: string, provider: string) => {
+    navigate(`/u/${username}`, { state: { provider } });
+  }, [navigate]);
 
   const handleReportBug = useCallback((trigger: 'button' | 'error-boundary' = 'button') => {
     setReportTrigger(trigger);
@@ -179,30 +165,21 @@ function App() {
 
   return (
     <ErrorBoundary fallback={handleBoundaryFallback}>
-      <Layout
-        mode={mode}
-        setMode={handleMode}
-        onLogout={handleLogout}
-        onReportBug={() => handleReportBug('button')}
-        onNavigateToUser={handleNavigateToUser}
-      >
-        {mode === 'feed' && (
-          <>
-            <PostComposer onPostCreated={() => {}} />
-            <FeedScreen onAuthorClick={handleNavigateToUser} />
-          </>
-        )}
-        {mode === 'discover' && <DiscoverScreen />}
-        {mode === 'my-bio' && <ProfileScreen />}
-        {mode === 'user-profile' && userProfileTarget && (
-          <UserProfileScreen
-            username={userProfileTarget.username}
-            provider={userProfileTarget.provider}
-            onBack={handleBackFromProfile}
-          />
-        )}
-        {(mode === 'chat' || mode === 'chat-edit') && <DmsScreen />}
-      </Layout>
+      <Routes>
+        <Route element={<Layout onLogout={handleLogout} onReportBug={() => handleReportBug('button')} />}>
+          <Route path="/feed" element={
+            <>
+              <PostComposer onPostCreated={() => {}} />
+              <FeedScreen onAuthorClick={handleAuthorClick} />
+            </>
+          } />
+          <Route path="/discover" element={<DiscoverScreen />} />
+          <Route path="/messages" element={<DmsScreen />} />
+          <Route path="/profile" element={<ProfileScreen />} />
+          <Route path="/u/:username" element={<UserProfileRoute />} />
+          <Route path="*" element={<Navigate to="/feed" replace />} />
+        </Route>
+      </Routes>
       {showReportBug && (
         <ReportBug
           trigger={reportTrigger}
