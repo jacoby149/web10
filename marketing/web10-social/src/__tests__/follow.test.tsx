@@ -147,9 +147,10 @@ describe('Follow button -> followUser call', () => {
     });
 
     // Button should show "Follow" when not following
-    expect(screen.getByText('Follow')).toBeInTheDocument();
+    const followBtn = screen.getByTestId('follow-button');
+    expect(followBtn.textContent).toContain('Follow');
 
-    fireEvent.click(screen.getByTestId('follow-button'));
+    fireEvent.click(followBtn);
 
     await waitFor(() => {
       expect(followUser).toHaveBeenCalledWith('noodle-empress', 'test.localhost');
@@ -157,7 +158,8 @@ describe('Follow button -> followUser call', () => {
 
     // After following, button should show "Following"
     await waitFor(() => {
-      expect(screen.getByText('Following')).toBeInTheDocument();
+      const btn = screen.getByTestId('follow-button');
+      expect(btn.textContent).toContain('Following');
     });
   });
 
@@ -184,9 +186,10 @@ describe('Follow button -> followUser call', () => {
     });
 
     // Button should show "Following" when already following
-    expect(screen.getByText('Following')).toBeInTheDocument();
+    const unfollowBtn = screen.getByTestId('follow-button');
+    expect(unfollowBtn.textContent).toContain('Following');
 
-    fireEvent.click(screen.getByTestId('follow-button'));
+    fireEvent.click(unfollowBtn);
 
     await waitFor(() => {
       expect(unfollowUser).toHaveBeenCalledWith('noodle-empress', 'test.localhost');
@@ -194,7 +197,8 @@ describe('Follow button -> followUser call', () => {
 
     // After unfollowing, button should show "Follow"
     await waitFor(() => {
-      expect(screen.getByText('Follow')).toBeInTheDocument();
+      const btn = screen.getByTestId('follow-button');
+      expect(btn.textContent).toContain('Follow');
     });
   });
 
