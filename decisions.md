@@ -9,6 +9,40 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D35 — Public media is a COLLECTION (`public_media`), not a flag or a blanket whitelist [decided]
+Cross-user media reads are dead today: the `media` service ships with no read
+whitelist (web10-social serviceTerms.ts — owner-only), and both
+`POST /{user}/read` and the media-records list gate on
+`is_permitted(token, user, "media", "read")` (api/app/endpoints/media.py:83,
+:101). So a follower can never presign an author's photo, another user's
+avatar dies at issue time, and on dev's private bucket (D23) every cross-user
+image 403s. D19 Phase C predicted this ("publishing grants audience media
+read — public media needs an explicit path"). The explicit path is D30
+applied to media: a second service, **`public_media`**, carrying the same
+anon-read whitelist `public_posts` and `profile` already carry.
+
+- Upload-confirm accepts a target service (`media` default | `public_media`),
+  validated against exactly that two-value allowlist — the body must never
+  name an arbitrary collection.
+- `POST /{user}/read` (and the records list) accept the same optional
+  service and permission-check against the REQUESTED service.
+- Public content's attachments (a public post's media, the avatar/banner a
+  public profile references) confirm into `public_media`; DM and private-post
+  media stay in `media`, owner-only.
+- Publishing staged content moves the media records with the post records —
+  the same create-in-target + delete-from-source move as D30.
+
+The collection stays the security boundary (I3); the panic button stays one
+terms flip. API half is lane item A12; client half (serviceTerms entry,
+uploadMedia targeting, resolveMediaRefs passing service) is
+D-public-media-client.
+
+Rejects: a blanket read whitelist on `media` (leaks DM/private-post
+attachments — D30's media note keeps private media owner-only); a
+`public: true` field inspected at presign time (per-record inspection, the
+exact mistake D30 kills); proxying public media reads through the API (D14
+already rejected the proxy for bandwidth cost).
+
 ### D34 — Follows are PUBLIC by default; the follow graph mirrors to the public ledger [decided]
 This extends D32 to the follow graph. `followUser` (follows.ts) mirrors to
 `/public/entries` with `payload.action='follow'` targeting the followed user —

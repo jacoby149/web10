@@ -43,6 +43,19 @@ so it can't regress (C6 continued — the referee for "works").
       lane items same-day (the 22-23.07 find→file→fix loop). journeys
       must assert the BAR, not the happy path — the profile-media-refresh
       bug got past step 6's save+read assertion.
+      HONESTY NOTE 2 (24.07 audit): steps 2-3 pass on SEEDED personas
+      only. a real account's post reaches NO ONE: the composer sets no
+      visibility (PostComposer.tsx:379 → posts.ts:37 routes to
+      private_posts — owner-only, never discovery-indexed), and nothing
+      fans out on write anywhere (the app never writes a follower's
+      inbox; only persona-orchestration/seed_personas.py does,
+      out-of-band). the "100% delivery by architecture" pitch is
+      unimplemented in product code — fix is D-post-delivery (lane D
+      queue). separately, cross-user media has NO read path: the media
+      service terms are owner-only and the presign endpoint denies
+      non-owners, so a follower can never render an author's photo and
+      another user's avatar 403s on dev — fix is A12 + the
+      D-public-media-client follow-up (decisions.md D35).
 when the gauntlet passes end to end, THEN low-hanging fruit in
 order of demo impact (realtime feed refresh, notifications, search
 your own stuff, D16(3) store curation) — judged by the same
