@@ -124,6 +124,68 @@ touches auth, the DB layer, or tokens, run those tests and keep them green.
   the next agent checks the gate before building. This keeps the parallel
   conveyor moving without the operator re-deriving state.
 
+## The `web10web10!!!` code word (operator → strong model)
+
+When the operator says `web10web10!` (any number of `!`s), it is addressed
+to a strong, large-context model (Claude-class). Small-context agents can
+ignore this section. It means: run the full plan-alignment pass, refactor
+if needed, THEN hand out parallel work. In this order — the audit comes
+before the kickoff blocks, always:
+
+1. **Re-read the strategy stack.** `plan.txt` (THE STORY at the top + the
+   current priority block), `manifesto.md`, `outreach.md`, `timeline.md`,
+   recent `decisions.md`, the lane queues + CURRENT CONDUCTOR BOARD in
+   `parallel execution.txt`, and the top ~10 entries of `CHANGELOG.md`.
+2. **Audit alignment — dead honest, no cheerleading.** Is the plan still
+   aligned with the business (social platform first, protocol second —
+   D20) and with the manifesto's promises? On target against
+   `timeline.md`? Anything on the board that reads as an infra company
+   rather than a social platform gets flagged for parking. Concede to
+   evidence; don't re-litigate settled decisions (`decisions.md`).
+3. **Audit parallelizability for small-window agents.** The workhorse
+   agents are Qwen-class: ~27B, 256k context, sharp (olympiad-level),
+   multimodal (they CAN look at app screenshots — use that in acceptance
+   bars). They cannot hold plan.txt + CHANGELOG + a whole lane file at
+   once. Check every board item: self-contained? names exact files?
+   gates and seams explicit? one sub-lane, no shared-seam collisions?
+4. **Refactor IF needed.** Docs-only changes to `plan.txt` /
+   `parallel execution.txt` / this file, changelog entry, PR to dev per
+   `AGENTS.md`. If nothing needs changing, say so plainly and don't churn.
+5. **Then produce copy-pastable kickoff blocks**, one per Conductor
+   workspace, per the spec below. Not before steps 1-4. ~5 is the
+   default width, but the number is whatever the board actually
+   supports: fewer if fewer items are truly parallel-safe, more if the
+   lanes are wide open.
+
+### Kickoff block spec (for 256k-context agents)
+Each block must be self-contained — assume the agent reads ONLY what the
+block names. Point at files; never inline what a file already says. The
+window is for code, not prose.
+
+- **Opening line:** "Read `AGENTS.md`, then `CLAUDE.md`. If this task
+  touches anything a user sees, read `design.md` before writing code."
+  Then the SHORT list of extra reads: the item's own text in
+  `parallel execution.txt` (give the line range), and the specific
+  source files in play.
+- **Lane + ownership:** the lane/sub-lane, the directories it owns, and
+  one line restating "don't edit outside these; leave a `.context/` note
+  if you need another lane's file."
+- **The task:** the lane-queue text verbatim, its gates (what must be
+  merged first), and the freshness check: confirm the item is still
+  `[ ]` in `parallel execution.txt` AND not in the top of `CHANGELOG.md`
+  before writing code — if done, stop and say so.
+- **Acceptance bar:** tests green (`tsc -b`/build clean where relevant);
+  for UI, the `design.md` §12 definition of done — and since the agent
+  is multimodal, tell it to screenshot at desktop + 375px and LOOK at
+  the screenshots before calling it done.
+- **Finish ritual:** CHANGELOG line, tick plan.txt + the lane item,
+  type-prefixed branch, PR to `dev`, then conflicts + ALL checks green
+  per `AGENTS.md`.
+- **Selection rule:** the items must be truly parallel — different
+  lanes/sub-lanes, no shared seams, all gates merged. The count follows
+  the board, not a quota: fewer safe blocks beats a fixed number of
+  colliding ones.
+
 ## Running it
 `docker-compose.yml` brings the stack up locally (`*.localhost` vhosts).
 The target one-container experience (`docker run … web10/node`) is plan
