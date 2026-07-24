@@ -1306,6 +1306,132 @@ Marketing-ui side (Lane D):
     keep the heart-burst animation (D12 vibrancy). owns: FeedPreview.tsx +
     Trending.tsx.
 
+[ ] D-trending-knobs — THE ALGORITHM IS YOURS (operator, 24.07): /trending
+    gains a synth-rack of knobs that re-rank the feed live. the hero already
+    says "What's actually trending. No algorithm." — this makes the claim
+    tactile: the ranking function is a WEIGHTED POWER MEAN over the
+    engagement signals, and the user holds every parameter. twist a knob,
+    the grid reshuffles instantly. never label it "power mean" on the
+    surface (the joke is they're playing a synth, not doing math); an
+    unobtrusive "how does this work?" popover can tell the truth for the
+    curious.
+    THE MATH (identical on client and server — see v1): normalize each
+    signal to (0,1] with SET-INDEPENDENT saturating normalizers (never
+    minmax-over-the-fetched-set — scores must not depend on what else
+    was fetched, or v0 and v1 disagree and cached rankings drift):
+    R = exp(-age/half_life) for recency, L = l/(l+K_l) with l =
+    log1p(likes), same shape for comments (K_c) and reposts (K_p);
+    pick K so a "good" count lands ~0.5 and record the choice.
+    score = (Σ wᵢ·xᵢ^p / Σ wᵢ)^(1/p), the weighted power mean. p=0 is
+    the weighted geometric mean (compute as exp of the weighted
+    log-mean; epsilon-floor zero signals so one dead signal doesn't
+    nuke a post at p<=0).
+    THE KNOBS (rotary, synth-styled): RECENCY / LIKES / COMMENTS (weights
+    w_r, w_l, w_c; add reposts if the bar fits), TIME HORIZON (half-life,
+    log taper 1h → ∞ "all time"), and CHARACTER (p, -5..+5 — low = "every
+    signal must be high" (min-like), high = "any one spike wins"
+    (max-like), labeled by feel, not by p). one-tap PRESET chips: Newest
+    (w_r only), Most loved · all time (w_l only, half-life ∞), Balanced
+    (default ≈ the server's trending order so the page loads familiar).
+    DETENTS (operator, 24.07): knobs are STEPPED, not continuous — 6
+    detents each (0, .2, .4, .6, .8, 1; half-life and p over 6 named
+    stops). this buys three things at once: (1) FEEL — snap-to-detent
+    with a tick is how real synth hardware behaves; (2) SHAREABILITY —
+    a full knob state serializes to a 5-char code in the URL hash
+    (#mix=40213), so "here's MY algorithm" is a copyable link, every
+    preset is just a code, and rankings are deterministic/reproducible
+    (ships in v0, zero infra); (3) a FINITE CACHE KEYSPACE for v2 —
+    6^5 = 7776 raw combos, far fewer effective ones (the power mean is
+    scale-invariant in the weights, so (0,.2,.2) ≡ (0,.4,.4); all-zero
+    weights is invalid; collapse to a canonical key). so when the server
+    eventually computes rankings, one user's "power mean shit" is
+    computed once per combo per TTL window and served to EVERYONE on
+    that combo — nothing a user dials in is wasted work.
+    ACCURACY MODEL (operator, 24.07: "without server calls it won't be
+    accurate — it's just shuffling 100 posts, right?" then the fix:
+    "it does a TRUE db search, saves it to the cache, and that is like
+    100 posts"). right on both counts — a client-side re-rank is only
+    exact over what was fetched, and the detent cache is what makes
+    the exact answer affordable at scale. two stages, both EXACT:
+    V0 (now): the discovery index is tiny (persona posts + the node's
+    public posts), so fetch the WHOLE index once — client-side
+    re-ranking is EXACT for every knob setting, zero network calls per
+    twist, 60fps FLIP/spring reshuffle (prefers-reduced-motion → fade).
+    log/flag when the fetch nears its cap so v1 isn't a surprise.
+    V1 (when the corpus outgrows one fetch): TRUE-SEARCH-ON-MISS +
+    DETENT CACHE (lane A). a knob twist still re-ranks the local
+    window instantly for feel; a debounced (~300ms) request sends the
+    CANONICAL DETENT CODE. server: cache hit → return the requested
+    page of that combo's ranking; miss → run the TRUE db search
+    (one-pass $addFields power-mean pipeline over the whole discovery
+    index — the set-independent normalizers above make it single-pass:
+    $exp/$ln/$pow over the cached engagement counts + created_at —
+    then $sort + a DEEP $limit: cache the top ~1k-10k prefix per
+    combo, not one page; the depth is what lets tag filtering compose
+    downstream, see FUTURE below), save under the detent key with a
+    SHORT TTL (~60s: recency decays continuously and engagement moves,
+    so entries stale by construction), return the page. the grid
+    settles on the exact answer. compute-on-miss means cost scales
+    with DISTINCT COMBOS REQUESTED per TTL window, not the 7776-key
+    keyspace, and real traffic pre-warms the presets by itself — one
+    user's power-mean dialing is computed once and served to everyone
+    on that combo. the keyspace stays small even at deep prefixes
+    (requested combos only, ids + a few floats each) — redis fits,
+    but so does a mongo TTL-index collection or an in-process LRU in
+    the api container; DECIDE AT V1, and do NOT add a redis service
+    before v1 exists (D29 — a cache tier for a page the client ranks
+    for free today reads as infra company). VERIFY at v1 that
+    ferretdb/documentdb supports the pipeline operators ($pow/$exp/
+    $ln); if not, rank in-process in the api over a projected cursor —
+    same cache, same contract. (a multi-anchor union of per-signal
+    top-N windows remains the fallback sketch ONLY if both prove too
+    slow; with the cache absorbing the cost, it shouldn't be needed.)
+    FUTURE (operator, 24.07 — noted, NOT in scope): TAG-SCOPED KNOBS —
+    rank within a topic ("show me the most-loved #guitar post of all
+    time"). free at v0 (client-side filter before ranking, exact —
+    the whole index is local). at v1 the operator's refinement makes
+    it compose with ONE cache, no (tag, detent) key explosion: the
+    cached entry is the WHOLE deep-ranked prefix per detent combo,
+    and tag filtering happens DOWNSTREAM of it. this is exact, not
+    approximate, because the set-independent normalizers make each
+    post's score filter-invariant — the global ranking restricted to
+    tag T IS the correct tag-T ranking. the deep prefix (top ~1k-10k)
+    is what makes it useful: a niche tag with zero posts in a global
+    top-100 would render empty, so filter depth = coverage; a tag too
+    long-tail for even the deep prefix falls back to one scoped true
+    search (rare by construction). file tag-knobs as its own item
+    when v1 gets staged; don't widen this one.
+    D20 GUARDRAIL: this is marketing-ui's public pitch surface — the
+    SOCIAL APP's feed stays chronological + sort dropdown (D20;
+    lens/customizability remain in later.md). if the knobs prove the
+    concept, a social-app lens is a later.md graduation, not a lane item.
+    UI BAR: the north star is a VST/synth plugin — the guitar-center
+    feeling of walking in and being INVITED to touch the gear (operator,
+    24.07: "users actually tuning their experience like musicians").
+    it reads as an instrument you play, never a settings form: stepped
+    knobs that tick into their detents, readouts that respond mid-drag,
+    the rack visually one piece of hardware. ANTI-ANXIETY RULE
+    (operator, 24.07: a few sliders is play; too many is anxiety):
+    FIVE knobs max, ever — if a sixth wants in, something gets cut or
+    merged; the preset chips do the work for anyone who doesn't want
+    to twist (most people); there are NO WRONG SETTINGS — every combo
+    is a valid feed, nothing errors, nothing empties (worst case the
+    order just changes less than expected); and one tap on Balanced
+    resets the rack. play is only fun when you can't break anything —
+    that's also what makes a guitar center fun. design.md §13 tokens +
+    glow only; knobs are draggable (vertical drag + wheel) AND
+    accessible (role="slider", arrow keys, visible focus); tabular-nums
+    readouts; mobile (375px): knobs in a horizontal scroll rack or
+    bottom sheet, never crammed. acceptance:
+    design.md §12 (PR screenshots desktop + 375px); twisting any knob
+    reshuffles with zero network requests; presets match their promise
+    ("Newest" is pure reverse-chron regardless of likes; "Most loved ·
+    all time" ignores age). GATE: D-trending-comments merged first (same
+    files — Trending.tsx/FeedPreview.tsx are in flight in ws-D/marketing).
+    owns: marketing/marketing-ui/** (Trending.tsx + a new
+    components/TrendingKnobs.tsx + a pure lib/powerMean.ts with unit
+    tests pinning the math: p→±∞ limits, p=0 geometric, weight-zeroing).
+
 
 Content lifecycle — staging + visibility management (Lane D, D19; decisions.md D30):
 The visibility split shipped half-built and crossed at both ends — the
@@ -2656,6 +2782,53 @@ phasing:
 - clickhouse sidecar: graduate phase 4's metering events into clickhouse
   when volume justifies it. one OLAP store, two products: node ops
   console + sponsor analytics.
+  SCOPE EXTENSION (operator, 24.07): the same sidecar is the natural
+  BACKBONE FOR THE PUBLIC LAYER at scale — a read-optimized, append-only
+  replica of PUBLIC data only (discovery index projections + public
+  ledger events), serving /discover, tag search, and D-trending-knobs'
+  v1 true-search-on-miss. the layering already points here: user
+  collections are the source of truth, web10.discovery_posts is the
+  derived projection (the "duplicate for reads" pattern in miniature),
+  and CH is that projection's OLAP graduation — rebuildable from the
+  layer below, ingesting append-only engagement events (aggregation at
+  query time is CH's home turf, no updates needed). the privacy story
+  survives by construction: only public data ever enters it (I4
+  untouched). honest gate: mongo/ferretdb + indexes + the detent cache
+  are nowhere near their ceiling at single-node M2 scale, and every
+  stateful service added to the node compose taxes the one-container
+  self-host story and the $40-vps hosted floor (D29) — so CH earns in
+  at inc-side fleet scale (cross-node trending, sponsor analytics) or
+  a genuinely large single node, measured not vibes. the knobs v1
+  contract is deliberately engine-agnostic (detent cache + deep prefix
+  + tag-filter-after) so swapping the true-search engine from a mongo
+  pipeline to CH later changes zero interfaces.
+  FAR-OUT TIER on the same backbone (operator, 24.07 — his own label:
+  "this is farrrr out"; parked, not tasked): PUBLIC-CORPUS SEMANTIC
+  SEARCH — CH's 2026 text-search machinery (operator cites a strong
+  march release; VERIFY capabilities at build time, don't spec from
+  memory) + sparse embeddings (SPLADE-style / sparse-autoencoder-
+  derived, e.g. off a qwen-class model; sparse vectors are inverted-
+  index-shaped, which is exactly what CH-style indexes eat) over
+  public posts AND photos → "find me that guitar post" actually finds
+  it. the sharp edge (operator, 24.07): a tag/search query matches
+  what is IN the image, not just what it was labeled — an untagged
+  photo of someone playing guitar surfaces under #guitar because the
+  embedding bridges media content to the query. this matters because
+  sparse-or-no tags is the NORM, and it compounds with the exporter
+  story: a creator's 10-year imported back catalog arrives basically
+  untagged, and semantic media search makes that whole archive
+  findable on day one — the "import your life" pitch gains "and
+  actually FIND your life." the principle that makes this ON-thesis rather than algorithm
+  creep, worth keeping verbatim (operator: "ai relevancy to your text
+  search, rather than ai fucking with your brain and the algo — that
+  is the good use of ai, not the toxic use"): AI RELEVANCE BELONGS IN
+  THE USER'S SEARCH, NEVER IN THE FEED — ai answering a query the
+  user typed is the user holding the tool (pull); ai deciding what
+  the feed shows is the platform holding the user (push, the thing
+  the manifesto swears off). same family as the later.md lens/
+  chatbox: user-held ai, byok-friendly, and it only ever touches the
+  public corpus (I4). promotion bar: later.md's rule — M0 video
+  shipped AND a creator conversation asked for it.
 - schema contracts: opt-in, per-service schema enforcement. a user (or
   their service manager app) attaches a JSON Schema to a service's
   terms record (a "schema" field next to whitelist/cross_origins); the
