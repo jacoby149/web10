@@ -177,6 +177,102 @@ class TestSignup:
         )
         assert resp.status_code == 401
 
+    def test_signup_bad_username_uppercase(self, client):
+        resp = client.post(
+            "/signup",
+            json={
+                "username": "Alice",
+                "password": "pass123",
+                "phone": "+15550000000",
+            },
+        )
+        assert resp.status_code == 401
+
+    def test_signup_bad_username_unicode(self, client):
+        resp = client.post(
+            "/signup",
+            json={
+                "username": "Ω",
+                "password": "pass123",
+                "phone": "+15550000000",
+            },
+        )
+        assert resp.status_code == 401
+
+    def test_signup_bad_username_leading_hyphen(self, client):
+        resp = client.post(
+            "/signup",
+            json={
+                "username": "-alice",
+                "password": "pass123",
+                "phone": "+15550000000",
+            },
+        )
+        assert resp.status_code == 401
+
+    def test_signup_bad_username_trailing_hyphen(self, client):
+        resp = client.post(
+            "/signup",
+            json={
+                "username": "alice-",
+                "password": "pass123",
+                "phone": "+15550000000",
+            },
+        )
+        assert resp.status_code == 401
+
+    def test_signup_bad_username_bare_hyphen(self, client):
+        resp = client.post(
+            "/signup",
+            json={
+                "username": "-",
+                "password": "pass123",
+                "phone": "+15550000000",
+            },
+        )
+        assert resp.status_code == 401
+
+    def test_signup_bad_username_over_length(self, client):
+        resp = client.post(
+            "/signup",
+            json={
+                "username": "a" * 31,
+                "password": "pass123",
+                "phone": "+15550000000",
+            },
+        )
+        assert resp.status_code == 401
+
+    def test_signup_bad_username_empty(self, client):
+        resp = client.post(
+            "/signup",
+            json={
+                "username": "",
+                "password": "pass123",
+                "phone": "+15550000000",
+            },
+        )
+        assert resp.status_code == 401
+
+    def test_signup_hyphenated_persona_ok(self, client):
+        """Hyphenated persona-style names must still sign up."""
+        with (
+            patch("app.services.documentdb.get_star", return_value=None),
+            patch("app.services.documentdb.create_user") as m_create,
+            patch("app.services.documentdb.set_phone_number"),
+            patch("app.services.twilio.send_verification"),
+        ):
+            m_create.return_value = "successfully created a new user"
+            resp = client.post(
+                "/signup",
+                json={
+                    "username": "solar-flare-69",
+                    "password": "pass123",
+                    "phone": "+15550000000",
+                },
+            )
+        assert resp.status_code == 200
+
     def test_signup_duplicate(self, client):
         with patch("app.services.documentdb.get_star", return_value=MOCK_STAR):
             resp = client.post(
