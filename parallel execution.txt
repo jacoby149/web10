@@ -761,7 +761,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         don't build a second signup flow. owns web10-social/src/
         App.tsx (LoginScreen). gate: none. design.md §12 (it's the
         first screen of every demo).
-[ ] D-join-page (sub-lane D/marketing). THE MANIFESTO JOIN PAGE —
+[✓ 1.0.155] D-join-page (sub-lane D/marketing). THE MANIFESTO JOIN PAGE —
         timeline.md week-2 item, the only one not started (flagged
         23.07). marketing-ui gains /join: the fan-facing pitch page
         built from THE STORY's user side (plan.txt) — the first
@@ -1179,7 +1179,7 @@ ws5: C6 e2e deep sweep + bug hunt (lane C — e2e/** only; local
          link). Owns: FeedPreview.tsx + Trending.tsx.
      [✓ 1.0.149] D-trending-share: Share2 button has no onClick → navigator.share +
          copy-link fallback (no auth). Gate: none. Owns: FeedPreview.tsx.
-    [ ] D-trending-comments: MessageCircle only fires a funnel event → expand
+    [✓ 1.0.155] D-trending-comments: MessageCircle now expands an inline comment panel
          an inline comment panel (anon read via PATCH /public/entries, which
          is anon-OK per public.py:42; compose auth-gated → funnel-to-social).
          Gate: D-comments-ledger (nothing writes comments to the ledger today,

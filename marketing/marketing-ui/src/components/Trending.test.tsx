@@ -52,18 +52,15 @@ describe('TrendingCard rank badge', () => {
 });
 
 describe('TrendingCard interactions', () => {
-  it('fires like/comment/repost handlers when interactive', () => {
+  it('fires like/repost handlers when interactive', () => {
     const onLike = vi.fn();
-    const onComment = vi.fn();
     const onRepost = vi.fn();
     render(
-      <TrendingCard post={basePost} rank={5} maxScore={100} onLike={onLike} onComment={onComment} onRepost={onRepost} />,
+      <TrendingCard post={basePost} rank={5} maxScore={100} onLike={onLike} onComment={noop} onRepost={onRepost} />,
     );
     fireEvent.click(screen.getByLabelText(/Like,/));
-    fireEvent.click(screen.getByLabelText(/Comment,/));
     fireEvent.click(screen.getByLabelText(/Repost,/));
     expect(onLike).toHaveBeenCalledWith('p1');
-    expect(onComment).toHaveBeenCalledWith('p1');
     expect(onRepost).toHaveBeenCalledWith('p1');
   });
 
@@ -105,6 +102,57 @@ describe('TrendingCard interactions', () => {
     expect(authorLink).toHaveAttribute('href', expect.stringContaining('social.web10'));
     expect(authorLink).toHaveAttribute('target', '_blank');
     expect(authorLink).toHaveAttribute('rel', 'noopener');
+  });
+});
+
+describe('TrendingCard comment panel', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal('fetch', vi.fn());
+    vi.stubGlobal('open', vi.fn());
+  });
+
+  it('opens inline comment panel on comment click', () => {
+    render(
+      <TrendingCard post={basePost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
+    );
+    expect(screen.queryByTestId('comment-panel')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText(/Comment,/));
+    expect(screen.getByTestId('comment-panel')).toBeInTheDocument();
+  });
+
+  it('closes panel on second comment click', () => {
+    render(
+      <TrendingCard post={basePost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
+    );
+    const btn = screen.getByLabelText(/Comment,/);
+    fireEvent.click(btn);
+    expect(screen.getByTestId('comment-panel')).toBeInTheDocument();
+    fireEvent.click(btn);
+    expect(screen.queryByTestId('comment-panel')).not.toBeInTheDocument();
+  });
+
+  it('shows empty state when no comments exist', async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve([]),
+    } as unknown as Response);
+    render(
+      <TrendingCard post={basePost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
+    );
+    fireEvent.click(screen.getByLabelText(/Comment,/));
+    await waitFor(() => expect(screen.getByTestId('comment-panel')).toBeInTheDocument());
+    expect(screen.getByText('No comments yet.')).toBeInTheDocument();
+  });
+
+  it('shows comment textarea and send button', () => {
+    render(
+      <TrendingCard post={basePost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
+    );
+    fireEvent.click(screen.getByLabelText(/Comment,/));
+    const panel = screen.getByTestId('comment-panel');
+    expect(within(panel).getByPlaceholderText(/Add a comment/)).toBeInTheDocument();
+    expect(within(panel).getByRole('button', { name: 'Post comment' })).toBeInTheDocument();
   });
 });
 
