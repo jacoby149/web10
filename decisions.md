@@ -9,6 +9,48 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D34 — Follows are PUBLIC by default; the follow graph mirrors to the public ledger [decided]
+This extends D32 to the follow graph. `followUser` (follows.ts) mirrors to
+`/public/entries` with `payload.action='follow'` targeting the followed user —
+the exact D32 pattern reactions/comments already use (unconditional; collection-
+level terms is the lock; unfollow deletes the entry like `deleteComment`). The
+follower count of any user reads from the ledger, not from cross-collection
+reads (I3 forbids those). The `Follow` schema is registered alongside
+`Reaction`/`Comment` in `feed.ts` DEFAULT_SCHEMAS. The persona seed script
+backfills existing cross-follows into the ledger (idempotent, like 1.0.145).
+
+WHY public: follower count is social proof — "a creator page without follower
+count is not a creator page" (gauntlet step 6). The alternative (a dedicated
+API endpoint aggregating across collections) would require changing the
+discovery aggregation in `documentdb.py` to query every user's `follows`
+collection, which is O(N) across users and defeats the purpose of the
+inbox-pattern read model. The ledger is already O(1) per user.
+
+The panic button is one terms flip: flip the `follows` service to owner-only in
+the authenticator's terms editor, or stop mirroring new follows (the ledger
+entries are coarse — they only carry username, not private metadata). The
+collection-level boundary holds: the `follows` service itself remains
+owner-only; only the aggregated follow event is public.
+
+Rejects: a dedicated follower-count endpoint (O(N) across collections);
+per-user follower counters on the star record (stale without write-through);
+and keeping follows private (the gauntlet bar requires social proof).
+The D-number namespace collided: "D21" meant three different things
+(quotas, media polish, the studio M0 slice), lane D skipped "D20" to dodge
+this file's D20, and D24/D26 mean different things here vs. the lane
+queues. Parallel agents resolve references by grep — this was going to
+cause a wrong-item pickup eventually. The call: decisions.md keeps the
+bare D-nn numbers (32 entries, referenced throughout plan.txt — renaming
+them breaks every live pointer); lane/board items use the slug convention
+that already existed (D-comments-ledger, D-trending-*, now D-url-routing).
+Legacy ticked lane items D21-D25 stay as history; the one-day-old lane
+items "D26"/"D27" (23.07) were renamed D-profile-media-refresh /
+D-url-routing before anything else referenced them. Never mint a new bare
+D-nn lane item (parallel execution.txt rule 4). Rejects: renaming the
+decisions (dozens of live references); a DEC- prefix (same churn, and the
+short form is the heavily-cited namespace, so the short form goes to the
+citations).
+
 ### D32 — Interactions (comments, reactions, reposts) are PUBLIC by default; collection-level terms is the lock [decided]
 Comments are NOT DMs — they are public discourse attached to a post, not
 private correspondence. So the `comments` service ships anon-readable (the

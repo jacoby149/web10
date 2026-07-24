@@ -1,22 +1,19 @@
+import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Home, User, MessageSquare, PlusCircle, LogOut, Bug, Compass } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import type { Mode } from '@/types';
 
 interface LayoutProps {
-  mode: Mode;
-  setMode: (m: Mode) => void;
   onLogout: () => void;
   onReportBug: () => void;
-  onNavigateToUser?: (username: string, provider: string) => void;
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }
 
 const navItems = [
-  { mode: 'feed' as const, icon: Home, label: 'Feed', testId: 'nav-feed' },
-  { mode: 'discover' as const, icon: Compass, label: 'Discover', testId: 'nav-discover' },
-  { mode: 'my-bio' as const, icon: User, label: 'Profile', testId: 'nav-profile' },
-  { mode: 'chat' as const, icon: MessageSquare, label: 'Messages', testId: 'nav-messages' },
+  { path: '/feed', icon: Home, label: 'Feed', testId: 'nav-feed' },
+  { path: '/discover', icon: Compass, label: 'Discover', testId: 'nav-discover' },
+  { path: '/profile', icon: User, label: 'Profile', testId: 'nav-profile' },
+  { path: '/messages', icon: MessageSquare, label: 'Messages', testId: 'nav-messages' },
 ];
 
 function Wordmark({ className }: { className?: string }) {
@@ -30,15 +27,18 @@ function Wordmark({ className }: { className?: string }) {
   );
 }
 
-export default function Layout({ mode, setMode, onLogout, onReportBug, onNavigateToUser, children }: LayoutProps) {
+export default function Layout({ onLogout, onReportBug, children }: LayoutProps) {
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+
+  const isActive = (path: string) => pathname === path;
+
   return (
     <div className="flex min-h-screen bg-background">
-      {/* Sidebar - desktop */}
       <aside className={cn(
         'hidden md:flex flex-col w-64 border-r border-border relative overflow-hidden',
         'bg-gradient-to-b from-surface to-background',
       )}>
-        {/* Ambient glow behind sidebar */}
         <div
           className="pointer-events-none absolute -top-20 -left-20 h-40 w-40 rounded-full bg-brand/5 blur-3xl"
           aria-hidden="true"
@@ -47,15 +47,15 @@ export default function Layout({ mode, setMode, onLogout, onReportBug, onNavigat
           <Wordmark />
         </div>
         <nav className="relative flex-1 px-2 space-y-1" aria-label="Primary">
-          {navItems.map(({ mode: m, icon: Icon, label, testId }) => (
+          {navItems.map(({ path, icon: Icon, label, testId }) => (
             <button
-              key={m}
+              key={path}
               data-testid={testId}
-              aria-current={mode === m ? 'page' : undefined}
-              onClick={() => setMode(m)}
+              aria-current={isActive(path) ? 'page' : undefined}
+              onClick={() => navigate(path)}
               className={cn(
                 'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
-                mode === m
+                isActive(path)
                   ? cn(
                       'bg-gradient-to-r from-brand-muted to-brand/15 text-brand-300',
                       'border border-brand/20 glow-active',
@@ -63,9 +63,9 @@ export default function Layout({ mode, setMode, onLogout, onReportBug, onNavigat
                   : 'text-muted-foreground hover:text-foreground hover:bg-elevated/80 hover:border hover:border-border/50',
               )}
             >
-              <Icon className={cn('w-5 h-5 transition-colors duration-150', mode === m && 'text-brand')} strokeWidth={mode === m ? 2 : 1.75} />
+              <Icon className={cn('w-5 h-5 transition-colors duration-150', isActive(path) && 'text-brand')} strokeWidth={isActive(path) ? 2 : 1.75} />
               {label}
-              {mode === m && (
+              {isActive(path) && (
                 <div
                   className="ml-auto w-1.5 h-1.5 rounded-full bg-brand animate-glow-pulse"
                   aria-hidden="true"
@@ -75,7 +75,7 @@ export default function Layout({ mode, setMode, onLogout, onReportBug, onNavigat
           ))}
           <button
             data-testid="nav-new-post"
-            onClick={() => setMode('feed')}
+            onClick={() => navigate('/feed')}
             className={cn(
               'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 mt-4',
               'text-muted-foreground hover:text-foreground hover:bg-elevated/80 hover:border hover:border-border/50',
@@ -107,9 +107,7 @@ export default function Layout({ mode, setMode, onLogout, onReportBug, onNavigat
         </div>
       </aside>
 
-      {/* Main content */}
       <main className="flex-1 flex flex-col min-w-0">
-        {/* Mobile header */}
         <header className="md:hidden flex items-center justify-between px-4 h-14 border-b border-border bg-surface/95 backdrop-blur-md sticky top-0 z-20">
           <Wordmark />
           <Button
@@ -124,32 +122,33 @@ export default function Layout({ mode, setMode, onLogout, onReportBug, onNavigat
           </Button>
         </header>
 
-        <div className="flex-1 overflow-y-auto pb-16 md:pb-0">{children}</div>
+        <div className="flex-1 overflow-y-auto pb-16 md:pb-0">
+          {children || <Outlet />}
+        </div>
 
-        {/* Mobile bottom nav */}
         <nav
           aria-label="Primary"
           className="md:hidden fixed bottom-0 inset-x-0 z-20 flex items-stretch border-t border-border bg-surface/95 backdrop-blur-md"
         >
-          {navItems.map(({ mode: m, icon: Icon, label, testId }) => (
+          {navItems.map(({ path, icon: Icon, label, testId }) => (
             <button
-              key={m}
+              key={path}
               data-testid={`${testId}-mobile`}
-              aria-current={mode === m ? 'page' : undefined}
+              aria-current={isActive(path) ? 'page' : undefined}
               aria-label={label}
-              onClick={() => setMode(m)}
+              onClick={() => navigate(path)}
               className={cn(
                 'flex-1 flex flex-col items-center justify-center gap-0.5 min-h-11 py-2.5 transition-all duration-150 relative',
-                mode === m ? 'text-brand' : 'text-muted-foreground',
+                isActive(path) ? 'text-brand' : 'text-muted-foreground',
               )}
             >
-              {mode === m && (
+              {isActive(path) && (
                 <div
                   className="absolute top-0 inset-x-0 h-0.5 bg-gradient-to-r from-brand to-brand-600 rounded-b-full mx-8"
                   aria-hidden="true"
                 />
               )}
-              <Icon className="w-5 h-5" strokeWidth={mode === m ? 2 : 1.75} />
+              <Icon className="w-5 h-5" strokeWidth={isActive(path) ? 2 : 1.75} />
               <span className="text-[0.625rem] font-medium uppercase tracking-wide">{label}</span>
             </button>
           ))}

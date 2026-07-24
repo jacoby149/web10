@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type APIRequestContext } from '@playwright/test';
 
 const port = process.env.E2E_HTTP_PORT || '80';
 const p = port === '80' ? '' : `:${port}`;
@@ -24,7 +24,7 @@ const password = 'TestPass123!';
 // Helper: sign up a user and return their credentials
 // ---------------------------------------------------------------------------
 async function signUpUser(
-  request: test/fixtures['request'],
+  request: APIRequestContext,
   username: string,
   phone: string,
 ) {
@@ -43,7 +43,7 @@ async function signUpUser(
 
 // Helper: get a self-access token (no site/target)
 async function getOwnerToken(
-  request: test/fixtures['request'],
+  request: APIRequestContext,
   username: string,
 ) {
   const res = await request.post(`${API_BASE}/web10token`, {
@@ -55,7 +55,7 @@ async function getOwnerToken(
 
 // Helper: get a tiered token for a specific site
 async function getTieredToken(
-  request: test/fixtures['request'],
+  request: APIRequestContext,
   username: string,
   site: string,
   target: string,
