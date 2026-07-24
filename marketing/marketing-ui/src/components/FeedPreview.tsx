@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Flame, Heart, MessageCircle, Repeat2, Share2, Image as ImageIcon, Film, Music2 } from 'lucide-react';
+import { SOCIAL_ORIGIN } from '@/lib/origins';
 
 const API_ORIGIN = import.meta.env.VITE_API_URL || 'https://api.web10.app';
 
@@ -202,6 +204,7 @@ interface TrendingCardProps {
   onLike: (postId: string) => void;
   onComment: (postId: string) => void;
   onRepost: (postId: string) => void;
+  onShare?: (postId: string) => void;
   maxScore: number;
   featured?: boolean;
   readOnly?: boolean;
@@ -215,13 +218,37 @@ function TrendingCard({
   onLike,
   onComment,
   onRepost,
+  onShare,
   maxScore,
   featured = false,
   readOnly = false,
   className,
   cardRef,
 }: TrendingCardProps) {
+  const [copied, setCopied] = useState(false);
   const tier = heatTier(post.engagementScore, maxScore);
+  const handleShare = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const url = `${window.location.origin}${window.location.pathname}#post-${post.id}`;
+    if (onShare) {
+      onShare(post.id);
+      return;
+    }
+    if (navigator.share) {
+      navigator.share({ title: post.name, url }).catch(() => {
+        copyUrl();
+      });
+    } else {
+      copyUrl();
+    }
+    function copyUrl() {
+      navigator.clipboard.writeText(url).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      });
+    }
+  };
   return (
     <Card
       data-testid="trending-card"
@@ -247,7 +274,10 @@ function TrendingCard({
           </Avatar>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 truncate">
-              <span className="truncate text-sm font-semibold text-foreground">{post.name}</span>
+              {/* TODO: /u/<author> once social ships the route */}
+              <a href={SOCIAL_ORIGIN} target="_blank" rel="noopener" className="truncate text-sm font-semibold text-foreground transition-colors hover:text-brand-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">
+                {post.name}
+              </a>
               <span className="truncate text-sm text-muted-foreground">{post.handle}</span>
             </div>
             <p className="mt-1 line-clamp-3 text-sm leading-relaxed text-foreground">
@@ -314,8 +344,17 @@ function TrendingCard({
                 <Repeat2 className="h-4 w-4" strokeWidth={1.5} />
                 <span className="text-xs tabular-nums">{post.reposts}</span>
               </button>
-              <button className="ml-auto text-muted-foreground transition-colors hover:text-brand-400 focus-visible:text-brand-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background" aria-label="Share">
+              <button
+                onClick={handleShare}
+                className="ml-auto relative text-muted-foreground transition-colors hover:text-brand-400 focus-visible:text-brand-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                aria-label={copied ? 'Copied!' : 'Share'}
+              >
                 <Share2 className="h-4 w-4" strokeWidth={1.5} />
+                {copied && (
+                  <span className="absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-elevated px-2 py-0.5 text-[10px] font-medium text-foreground shadow-lg">
+                    Copied
+                  </span>
+                )}
               </button>
             </>
           )}
