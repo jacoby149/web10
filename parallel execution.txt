@@ -711,7 +711,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         to /u/<author> is a small same-lane follow-up touch. gate:
         none. acceptance: refresh anywhere → same screen; back/
         forward work; /u/<persona> loads while signed in.
-[✓ 1.0.155] D-follower-count (sub-lane D/discover + a D/profile touch). THE
+[✓ 1.0.158] D-follower-count (sub-lane D/discover + a D/profile touch). THE
         REAL FOLLOWER COUNT — gauntlet step 6's own words: "a creator
         page without follower count is not a creator page — that's
         the primary social proof metric." 1.0.149 (legacy item D24)
