@@ -690,6 +690,36 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         web10-social/src/components/Bio/ProfileScreen.tsx + src/data/
         profile.ts. gate: none — gauntlet step 6 ("your profile reads
         as a creator page you'd screenshot") doesn't survive F5 today.
+[ ] D-user-profile-media (sub-lane D/profile). USER PROFILE AVATAR/BANNER BROKEN —
+        viewing another user's profile always shows the default initial-letter
+        avatar and gradient banner, even when the user has uploaded images.
+        `UserProfileScreen.tsx` declares `mediaMap` state but never populates it.
+        `loadData()` fetches the profile (carrying `avatar_ref`/`banner_ref`) but
+        never calls `resolveMediaRefs()` — the lookups at lines 170-171 always
+        return `undefined`. Fix: same pattern as `ProfileScreen.tsx` lines 67-77
+        — collect refs after profile fetch, resolve, populate mediaMap.
+        Also fixes post media in the user profile grid: `media_refs` is dropped
+        during the discovery-post map (lines 98-106), so even with a populated
+        mediaMap, post images can't render. Deeper issue: the discovery API
+        (`DiscoveryPost`/`RawDiscoveryPost` types) does not return `media_refs` —
+        the index is lightweight metadata only. Full fix requires either adding
+        `media_refs` to the discovery API response (lane A touch in documentdb.py
+        discovery aggregation) OR reading actual post records from the user's
+        collection. owns marketing/web10-social/src/components/Bio/UserProfileScreen.tsx.
+        gate: none. acceptance: viewing any user profile with an uploaded avatar/
+        banner shows the images; post media renders in the profile grid.
+[ ] D-feed-avatar-resolution (sub-lane D/feed). FEED AVATAR FALLS BACK TO INITIAL —
+        `FeedScreen.tsx` tries to find the author's avatar inside the post's
+        media items: `mediaMap[item.post_id]?.find(m => m._id === profile.avatar_ref)`
+        (line 598). The avatar lives in the user's media collection independently,
+        not in the post's `media_refs`. This only works by accident if the avatar
+        image was also attached to the same post. Fix: collect all unique
+        `avatar_ref`/`banner_ref` from the profile map and resolve them separately
+        via `resolveMediaRefs(profileRefs, { username, provider })`. Same bug in
+        `DiscoverScreen.tsx` line 798 (`mediaItems.find(m => m._id === profile.avatar_ref)`).
+        owns marketing/web10-social/src/components/Feed/FeedScreen.tsx and
+        Discover/DiscoverScreen.tsx. gate: none. acceptance: feed and discover
+        show real avatars for authors who have uploaded profile pictures.
 [✓ 1.0.155] D-url-routing (sub-lane D/shell; was "D27" for a day — renamed per
         rule 4/D33). THE ADDRESS BAR HOLDS YOUR PLACE — (operator,
         23.07: refreshing the social app should put you back on the
