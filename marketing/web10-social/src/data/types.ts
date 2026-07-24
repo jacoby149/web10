@@ -172,6 +172,21 @@ export type FeedSort = 'newest' | 'oldest' | 'most_reacted';
 
 // ── Discovery API (Phase 5.5 public layer) ─────────────────────────────────
 
+export interface RawDiscoveryPost {
+  author: string;
+  service: string;
+  post_id: string;
+  body_text: string;
+  tags: string[];
+  created_at: string;
+  engagement: {
+    likes: number;
+    comments: number;
+    reposts: number;
+  };
+  engagement_score: number;
+}
+
 export interface DiscoveryPost {
   author: string;
   provider: string;
