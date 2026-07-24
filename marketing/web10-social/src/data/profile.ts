@@ -12,7 +12,15 @@ import type { ProfileRecord } from './types';
  */
 export async function readProfile(): Promise<ProfileRecord | null> {
   const wapi = getWapi();
-  let records = await wapi.read<ProfileRecord>('profile');
+  // Sort by updated_at descending, take only the most recent record.
+  // Without this, duplicate profile records (legacy-identity adapt path,
+  // pre-1.0.145 seed dups) cause readProfile to return the oldest record
+  // (default _id asc sort) — so after saveProfile updates a different
+  // record, a fresh read on F5 picks the stale one with no media refs.
+  const records = await wapi.read<ProfileRecord>('profile', {
+    $sort: { updated_at: -1 },
+    $limit: 1,
+  });
   if (records[0]) return records[0];
 
   // Fallback: check legacy identity service
@@ -47,10 +55,8 @@ export async function saveProfile(profile: Partial<ProfileRecord>): Promise<Prof
   const wapi = getWapi();
   const existing = await readProfile();
 
-  const payload = {
-    ...profile,
-    updated_at: new Date().toISOString(),
-  };
+  const { _id, ...payload } = profile;
+  payload.updated_at = new Date().toISOString();
 
   if (existing?._id) {
     return wapi.update<ProfileRecord>('profile', { _id: existing._id }, { $set: payload });
@@ -64,7 +70,11 @@ export async function saveProfile(profile: Partial<ProfileRecord>): Promise<Prof
  */
 export async function readUserProfile(username: string, provider: string): Promise<ProfileRecord | null> {
   const wapi = getWapi();
-  const records = await wapi.read<ProfileRecord>('profile', {}, username, provider);
+  // Sort by updated_at descending, take only the most recent record.
+  const records = await wapi.read<ProfileRecord>('profile', {
+    $sort: { updated_at: -1 },
+    $limit: 1,
+  }, username, provider);
   if (records[0]) return records[0];
 
   // Fallback: check legacy identity service for the target user
