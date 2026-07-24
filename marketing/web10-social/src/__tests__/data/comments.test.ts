@@ -24,8 +24,9 @@ function mockWapi() {
   return mock;
 }
 
-describe('comments data layer', () => {
+  describe('comments data layer', () => {
   let mock: ReturnType<typeof mockWapi>;
+  let querySpy: ReturnType<typeof vi.spyOn>;
   const commentSchemaId = 'web10.01arz3n8q5';
 
   beforeEach(() => {
@@ -38,7 +39,7 @@ describe('comments data layer', () => {
       schema: {},
     });
     vi.spyOn(feed, 'createPublicEntry').mockResolvedValue({ _id: 'le1', schema_id: commentSchemaId, target: '', payload: {} });
-    vi.spyOn(feed, 'queryPublicEntries').mockResolvedValue([]);
+    querySpy = vi.spyOn(feed, 'queryPublicEntries').mockResolvedValue([]);
     vi.spyOn(globalThis, 'fetch').mockResolvedValue({
       ok: true,
       json: () => ({}),
@@ -121,16 +122,41 @@ describe('comments data layer', () => {
 
   describe('updateComment', () => {
     it('updates a comment by ID', async () => {
-      const updated = { _id: 'cm1', text: 'Updated comment' };
+      const updated = { _id: 'cm1', text: 'Updated comment', post_id: 'p1', author_username: 'alice', author_provider: 'api.web10.app' };
       mock.update.mockResolvedValue(updated);
       await comments.updateComment('cm1', { text: 'Updated comment' });
       expect(mock.update).toHaveBeenCalledWith('comments', { _id: 'cm1' }, { $set: { text: 'Updated comment' } });
+    });
+
+    it('updates the mirrored ledger entry', async () => {
+      const updated = { _id: 'cm1', text: 'Updated comment', post_id: 'p1', author_username: 'alice', author_provider: 'api.web10.app' };
+      mock.update.mockResolvedValue(updated);
+      querySpy.mockResolvedValue([
+        {
+          _id: 'le-old',
+          schema_id: commentSchemaId,
+          target: 'posts:p1',
+          payload: { action: 'comment', text: 'Old text', author_username: 'alice', author_provider: 'api.web10.app' },
+        },
+      ]);
+      await comments.updateComment('cm1', { text: 'Updated comment' });
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/public/entries/le-old'),
+        expect.objectContaining({ method: 'DELETE' }),
+      );
+      expect(feed.createPublicEntry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          payload: expect.objectContaining({
+            text: 'Updated comment',
+          }),
+        }),
+      );
     });
   });
 
   describe('deleteComment', () => {
     beforeEach(() => {
-      mock.read.mockResolvedValue([{ _id: 'cm1', post_id: 'p1', text: 'delete me', created_at: '2026-07-18T00:00:00Z' }]);
+      mock.read.mockResolvedValue([{ _id: 'cm1', post_id: 'p1', text: 'delete me', author_username: 'alice', author_provider: 'api.web10.app', created_at: '2026-07-18T00:00:00Z' }]);
     });
 
     it('deletes a comment by ID', async () => {
@@ -146,7 +172,7 @@ describe('comments data layer', () => {
     });
 
     it('deletes matching ledger entry when found', async () => {
-      vi.spyOn(feed, 'queryPublicEntries').mockResolvedValue([
+      querySpy.mockResolvedValue([
         {
           _id: 'le-matching',
           schema_id: commentSchemaId,

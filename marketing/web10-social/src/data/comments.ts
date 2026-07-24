@@ -65,10 +65,51 @@ export async function createComment(comment: Omit<CommentRecord, '_id'>): Promis
 
 /**
  * Update a comment by ID.
+ * Also updates the mirrored ledger entry so the trending feed reflects the edit.
  */
 export async function updateComment(id: string, updates: Partial<CommentRecord>): Promise<CommentRecord> {
   const wapi = getWapi();
-  return wapi.update<CommentRecord>('comments', { _id: id }, { $set: updates });
+  const record = await wapi.update<CommentRecord>('comments', { _id: id }, { $set: updates });
+
+  // Update the mirrored ledger entry: delete old, create new with updated text
+  const commentSchema = getCachedSchema('Comment');
+  if (commentSchema?._id && record.post_id) {
+    const target = `posts:${record.post_id}`;
+    const entries = await queryPublicEntries({ target });
+    const matching = entries.filter(
+      (e) =>
+        e.payload &&
+        (e.payload as Record<string, unknown>).action === 'comment' &&
+        (e.payload as Record<string, unknown>).author_username === record.author_username &&
+        (e.payload as Record<string, unknown>).author_provider === record.author_provider,
+    );
+
+    for (const entry of matching) {
+      if (entry._id) {
+        try {
+          await fetch(`${API_ORIGIN}/public/entries/${entry._id}`, {
+            method: 'DELETE',
+          });
+        } catch {
+          // non-fatal
+        }
+      }
+    }
+
+    const token = wapi.readToken();
+    createPublicEntry({
+      schema_id: commentSchema._id,
+      target,
+      payload: {
+        action: 'comment',
+        text: record.text,
+        author_username: token?.username,
+        author_provider: token?.provider,
+      },
+    }).catch(() => { /* non-fatal */ });
+  }
+
+  return record;
 }
 
 /**
@@ -87,14 +128,12 @@ export async function deleteComment(id: string): Promise<void> {
 
     // Query the ledger for the matching entry and delete it
     const entries = await queryPublicEntries({ target });
-    const tokenUsername = token?.username;
-    const tokenProvider = token?.provider;
     const matching = entries.filter(
       (e) =>
         e.payload &&
         (e.payload as Record<string, unknown>).action === 'comment' &&
-        (e.payload as Record<string, unknown>).author_username === tokenUsername &&
-        (e.payload as Record<string, unknown>).author_provider === tokenProvider &&
+        (e.payload as Record<string, unknown>).author_username === c.author_username &&
+        (e.payload as Record<string, unknown>).author_provider === c.author_provider &&
         (e.payload as Record<string, unknown>).text === c.text,
     );
 
