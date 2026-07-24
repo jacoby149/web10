@@ -1584,6 +1584,14 @@ the app:
     scale first; hls fan-out for big rooms when a node needs it
 
 the boring plumbing social apps die without:
+[ ] url routing: the address bar holds your place. today navigation is
+    one useState mode in App.tsx — refresh dumps you at the feed,
+    back/forward are dead, nothing is linkable. real routes (/feed,
+    /discover, /messages, /profile, /u/:username) so a refresh
+    restores the screen you were on, and /u/:username unblocks the
+    trending card -> author-profile deep-link (phase 5.5
+    D-trending-link ships a root-link TODO until this exists).
+    lane D item D27 in parallel execution.txt.
 [ ] notifications: web push first (pwa), mobile push later. new post
     from a follow, comment on your post, dm, key request (phase 11).
     notification prefs are an ordinary settings record the user owns
