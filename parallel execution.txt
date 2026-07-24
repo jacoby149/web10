@@ -605,6 +605,48 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         empty — it never stores the pre-profile mode. Fix: capture the
         mode before navigating to `user-profile` and restore it on back.
         Owns marketing/web10-social/src/App.tsx. Gate: none.
+[ ] D26. PROFILE AVATAR/BANNER VANISH ON REFRESH — (operator, 23.07:
+        uploading a profile pic + banner now works and they render —
+        1.0.149's presign fix — but after a page refresh they're gone
+        and the browser makes NO request to load the images.) the load
+        path LOOKS right — `ProfileScreen.loadData` pushes `avatar_ref`/
+        `banner_ref` into `resolveMediaRefs` (ProfileScreen.tsx:63-66) —
+        so the break is in what a fresh read returns. suspects, in
+        order: (1) `saveProfile` (data/profile.ts) is called from
+        `handleUpload` with the whole in-memory profile spread into the
+        `$set` payload, `_id` included — verify the update actually
+        persists `avatar_ref`/`banner_ref` onto the record `readProfile`
+        returns; (2) `readProfile` returns `records[0]` unsorted —
+        accounts with multiple `profile` records (the legacy-identity
+        adapt path creates one; pre-1.0.145 seed runs left dups) can
+        read a stale record while the save updated a different one;
+        (3) `resolveMediaRefs` failing silently and returning [] for
+        the refs. fix + a vitest regression: upload → save → fresh
+        `readProfile` round-trip carries the refs → media request
+        fires. verify on dev with a hard refresh. owns marketing/
+        web10-social/src/components/Bio/ProfileScreen.tsx + src/data/
+        profile.ts. gate: none — gauntlet step 6 ("your profile reads
+        as a creator page you'd screenshot") doesn't survive F5 today.
+[ ] D27. URL ROUTING — THE ADDRESS BAR HOLDS YOUR PLACE — (operator,
+        23.07: refreshing the social app should put you back on the
+        screen you were on.) navigation is one `useState<Mode>` in
+        App.tsx:95 — the URL never changes, so refresh dumps you at
+        the feed, browser back/forward do nothing, and no screen is
+        linkable. adopt real routes (react-router, already the
+        marketing-ui stack): /feed, /discover, /messages, /profile,
+        and /u/:username for public profiles — the route
+        D-trending-link is explicitly waiting on (plan.txt PHASE 5.5:
+        marketing-ui's trending author link deep-links to
+        SOCIAL_ORIGIN root today with a TODO for /u/<author>).
+        refresh restores the screen INCLUDING which user profile you
+        were viewing; browser back replaces D25's hand-rolled
+        preProfileModeRef back-stack; the login flow preserves the
+        intended destination and redirects post-auth; unknown paths
+        fall back to /feed. owns marketing/web10-social/src/**
+        (App.tsx, Layout nav); the marketing-ui author-link upgrade
+        to /u/<author> is a small same-lane follow-up touch. gate:
+        none. acceptance: refresh anywhere → same screen; back/
+        forward work; /u/<persona> loads while signed in.
 [✓ 1.0.147] D21. MEDIA POLISH — photos + video v0 (plan.txt phase 8.5; item
         number D20 skipped — it reads as decisions.md's D20
         everywhere). the composer's 80x80 hover-square tray, the
@@ -858,7 +900,7 @@ M3 "the network"         = encryption integration (A rtc + C2 sdk
                            polish. the last big merge.
 
 
-CURRENT CONDUCTOR BOARD (as of 22.07.2026 — keep this section fresh)
+CURRENT CONDUCTOR BOARD (as of 23.07.2026 — keep this section fresh)
 --------------------------------------------------------------------
 PRIORITY ONE (plan.txt, top — supersedes 19.07's priority zero,
 whose baseline chain A7/B6/D16.1/D17 is merged): THE KILLER APP,
@@ -882,6 +924,11 @@ opens on his phone, in front of someone, and is proud of?" (D29)
           trending-page interactions (D-trending-interact cluster — make
           like/repost/share/comment real + card→profile deep-link; the
           trending cards are local-only theater today, gauntlet step 7).
+  new (23.07, operator phone pass): D26 profile avatar/banner vanish on
+          refresh (gauntlet step 6 — a bug in shipped work, fix now) +
+          D27 url routing so refresh keeps your place (demo-impact
+          plumbing; also unblocks D-trending-link's /u/<author>
+          deep-link). both lane D, gates: none — see the lane D queue.
 PARKED until the gauntlet passes (do NOT pick up — they read as an
 infra company, not a social platform): C2 sdk rewrite, C3 mcp,
 C3.5 create-web10, D11 ux telemetry, A9 transcode pipeline, E4
