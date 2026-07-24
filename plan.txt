@@ -1265,7 +1265,7 @@ Marketing-ui side (Lane D):
     unblocks D-trending-comments. owns: marketing/web10-social/src/data/
     {comments,serviceTerms}.ts + the FeedScreen call site. gate: none — start
     now.
-[ ] D-trending-link: wrap TrendingCard (or its author row) in a deep-link to
+[✓ 1.0.149] D-trending-link: wrap TrendingCard (or its author row) in a deep-link to
     the author's profile on web10-social -- `${SOCIAL_ORIGIN}/u/<author>`
     (origins.ts exports SOCIAL_ORIGIN). GATE: web10-social has no per-user
     profile route yet -- ProfileScreen only renders the signed-in user's own
@@ -1274,7 +1274,7 @@ Marketing-ui side (Lane D):
     lane-D sibling that must land first; until it does, the card links to
     social's root (a real navigation, not a dead click). carry author_provider
     so cross-node profiles resolve. owns: FeedPreview.tsx + Trending.tsx.
-[ ] D-trending-share: the Share2 button has NO onClick handler today. wire it
+[✓ 1.0.149] D-trending-share: the Share2 button has NO onClick handler today. wire it
     to navigator.share when available (title = post snippet, url = a canonical
     post url; until social has a per-post route, share the card's /trending
     anchor or social root), with a copy-link fallback (clipboard API + a "Link
@@ -1290,7 +1290,7 @@ Marketing-ui side (Lane D):
     visitors get an "Open web10 social to comment" CTA (funnel-to-social); a
     signed-in inline compose box is the later auth-bridge upgrade. owns:
     FeedPreview.tsx + Trending.tsx.
-[ ] D-trending-reactions: like + repost call handleReaction (Trending.tsx:98)
+[✓ 1.0.149] D-trending-reactions: like + repost call handleReaction (Trending.tsx:98)
     which only setAllPosts-increments a parsed count -- endless, fake, never
     toggles off. replace with a real toggle mirroring the social app's
     reactions.ts (read existing, find mine, delete or create via /public/entries)
