@@ -9,6 +9,7 @@ import { AUTH_ORIGIN } from '../lib/origins'
 const navItems = [
   { path: '/', label: 'Home' },
   { path: '/trending', label: 'Trending' },
+  { path: '/join', label: 'Join' },
   { path: '/docs', label: 'Docs' },
   { path: '/app-store', label: 'App Store' },
   { path: '/import', label: 'Import Your Life' },

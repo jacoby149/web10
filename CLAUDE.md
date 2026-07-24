@@ -186,6 +186,34 @@ window is for code, not prose.
   the board, not a quota: fewer safe blocks beats a fixed number of
   colliding ones.
 
+## The `web10 gather up!` code word (operator → strong model)
+
+When the operator says `web10 gather up!`, it is addressed to a strong,
+large-context model (Claude-class). Small-context agents can ignore this
+section. It means: **inspect the recent PRs merged to `dev` that are not
+yet on `main`, and report honestly whether anything is really off or
+broken.** This is a quality gate before dev promotes, not a plan audit
+(that's `web10web10!!!`).
+
+1. **Gather the batch.** `git fetch`, then `git log --oneline
+   origin/main..origin/dev` for the commit list and `gh pr list --base dev
+   --state merged` to map commits back to PRs. Read the diffs
+   (`git diff origin/main...origin/dev` per area, or per-PR).
+2. **Look for really-broken, not nitpicks.** Security invariants I1–I5,
+   auth/DB-layer regressions, star-record protection, broken builds or
+   red/skipped checks, two merged PRs stepping on the same seam,
+   user-facing surfaces that flunk `design.md` (screenshot if runnable),
+   missing/wrong CHANGELOG or lane ticks that will cause redone work.
+   Style preferences and could-be-nicer are NOT findings.
+3. **If nothing is broken, say so plainly** — one short paragraph, no
+   manufactured work, no churn.
+4. **If something IS broken, produce paste-ready fix blocks** for
+   Qwen-class agents (~27B, 256k context), one per independent fix,
+   following the kickoff block spec above: name the exact files and the
+   offending PR/commit, quote the failing behavior, state the acceptance
+   bar (tests green, checks green, screenshots for UI) and the finish
+   ritual. Fixes that collide on a seam go in ONE block, not two.
+
 ## Running it
 `docker-compose.yml` brings the stack up locally (`*.localhost` vhosts).
 The target one-container experience (`docker run … web10/node`) is plan

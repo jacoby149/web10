@@ -98,11 +98,6 @@ function Trending() {
     window.open(SOCIAL_ORIGIN, '_blank');
   };
 
-  const handleComment = useCallback(
-    () => trackFunnel('trending_comment_attempt'),
-    [],
-  );
-
   const handleLoadMore = () => {
     const next = Math.min(limit + PAGE_STEP, MAX_RESULTS);
     setLimit(next);
@@ -203,7 +198,6 @@ function Trending() {
                       featured={post.featured}
                       maxScore={maxScore}
                       onLike={() => handleReaction('like')}
-                      onComment={handleComment}
                       onRepost={() => handleReaction('repost')}
                       cardRef={registerCard(post.id)}
                     />

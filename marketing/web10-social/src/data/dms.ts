@@ -224,6 +224,36 @@ export async function listConversations(): Promise<string[]> {
 }
 
 /**
+ * Start a new conversation with a user who has no existing thread.
+ * Writes the first DM record; the deterministic conversationKey ensures
+ * subsequent reads find the thread. Returns the created message.
+ */
+export async function startConversation(
+  recipient: { username: string; provider: string },
+  message: string,
+): Promise<{ conversation: string; message: DmRecord }> {
+  const wapi = getWapi();
+  const token = wapi.readToken();
+  if (!token) throw new Error('not authenticated');
+
+  const me = { provider: token.provider, username: token.username };
+  const conv = conversationKey(me, recipient);
+
+  const dm: Omit<DmRecord, '_id'> = {
+    message,
+    sent_at: new Date().toISOString(),
+    sender_username: me.username,
+    sender_provider: me.provider,
+    recipient_username: recipient.username,
+    recipient_provider: recipient.provider,
+    media_refs: [],
+  };
+
+  const created = await wapi.create<DmRecord>('dms', dm as unknown as Record<string, unknown>);
+  return { conversation: conv, message: created };
+}
+
+/**
  * Get the last message from a conversation (for the inbox preview).
  */
 export async function getLastDm(conversation: string): Promise<DmRecord | null> {
