@@ -1306,6 +1306,72 @@ Marketing-ui side (Lane D):
     keep the heart-burst animation (D12 vibrancy). owns: FeedPreview.tsx +
     Trending.tsx.
 
+[ ] D-trending-knobs — THE ALGORITHM IS YOURS (operator, 24.07): /trending
+    gains a synth-rack of knobs that re-rank the feed live. the hero already
+    says "What's actually trending. No algorithm." — this makes the claim
+    tactile: the ranking function is a WEIGHTED POWER MEAN over the
+    engagement signals, and the user holds every parameter. twist a knob,
+    the grid reshuffles instantly. never label it "power mean" on the
+    surface (the joke is they're playing a synth, not doing math); an
+    unobtrusive "how does this work?" popover can tell the truth for the
+    curious.
+    THE MATH (client-side, per fetched post): normalize each signal to
+    (0,1] over the fetched set — R = exp(-age/half_life) for recency,
+    L = minmax(log1p(likes)), C = minmax(log1p(comments)),
+    P = minmax(log1p(reposts)). score = (Σ wᵢ·xᵢ^p / Σ wᵢ)^(1/p), the
+    weighted power mean. p=0 is the weighted geometric mean (compute as
+    exp of the weighted log-mean; epsilon-floor zero signals so one dead
+    signal doesn't nuke a post at p<=0).
+    THE KNOBS (rotary, synth-styled): RECENCY / LIKES / COMMENTS (weights
+    w_r, w_l, w_c; add reposts if the bar fits), TIME HORIZON (half-life,
+    log taper 1h → ∞ "all time"), and CHARACTER (p, -5..+5 — low = "every
+    signal must be high" (min-like), high = "any one spike wins"
+    (max-like), labeled by feel, not by p). one-tap PRESET chips: Newest
+    (w_r only), Most loved · all time (w_l only, half-life ∞), Balanced
+    (default ≈ the server's trending order so the page loads familiar).
+    ACCURACY MODEL (operator question, 24.07: "without server calls it
+    won't be accurate — it's just shuffling 100 posts, right?"). right —
+    a client-side re-rank is only exact over what was fetched, so the
+    plan stages it honestly:
+    V0 (now, exact): the discovery index is tiny (persona posts + the
+    node's public posts), so fetch the WHOLE index once — client-side
+    re-ranking is then EXACT for every knob setting, zero network calls
+    per twist, 60fps FLIP/spring reshuffle (prefers-reduced-motion →
+    fade). log/flag when the fetch hits its cap so v1 isn't a surprise.
+    V1 (when the corpus outgrows one fetch): MULTI-ANCHOR UNION — fetch
+    a window per signal extreme (top-N most-recent, top-N most-liked,
+    top-N most-commented, top-N server-trending) and union them. the
+    power mean is monotone in every signal, so its global winners sit on
+    the Pareto frontier of (recency, likes, comments); the per-signal
+    top-N windows cover the frontier's extremes and server-trending
+    covers the balanced middle — presets stay EXACT (Newest / Most
+    loved are literally their anchor windows) and mid-knob blends are
+    near-exact. /discover/posts already sorts by recent + trending; the
+    per-signal sort params (most-liked, most-commented — trivial indexed
+    sorts, engagement counts are already cached on the index) are a
+    SMALL LANE-A TOUCH via .context/, not a reach-in.
+    V2 (true scale, deferred): knob twists still re-rank locally for
+    the instant feel; a DEBOUNCED (~300ms) server refetch with the knob
+    params re-tops the window and the grid settles — server-side power-
+    mean sort ($pow pipeline or precomputed per-preset indexes) becomes
+    a real lane-A item ONLY here. do not build v2 speculatively (D29).
+    D20 GUARDRAIL: this is marketing-ui's public pitch surface — the
+    SOCIAL APP's feed stays chronological + sort dropdown (D20;
+    lens/customizability remain in later.md). if the knobs prove the
+    concept, a social-app lens is a later.md graduation, not a lane item.
+    UI BAR: design.md §13 tokens + glow only; knobs are draggable
+    (vertical drag + wheel) AND accessible (role="slider", arrow keys,
+    visible focus); tabular-nums readouts; mobile (375px): knobs in a
+    horizontal scroll rack or bottom sheet, never crammed. acceptance:
+    design.md §12 (PR screenshots desktop + 375px); twisting any knob
+    reshuffles with zero network requests; presets match their promise
+    ("Newest" is pure reverse-chron regardless of likes; "Most loved ·
+    all time" ignores age). GATE: D-trending-comments merged first (same
+    files — Trending.tsx/FeedPreview.tsx are in flight in ws-D/marketing).
+    owns: marketing/marketing-ui/** (Trending.tsx + a new
+    components/TrendingKnobs.tsx + a pure lib/powerMean.ts with unit
+    tests pinning the math: p→±∞ limits, p=0 geometric, weight-zeroing).
+
 
 Content lifecycle — staging + visibility management (Lane D, D19; decisions.md D30):
 The visibility split shipped half-built and crossed at both ends — the
