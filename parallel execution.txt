@@ -736,7 +736,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         (tabular-nums — this is the M0 screenshot stat). gate: none.
         acceptance: personas show real cross-follow counts; following
         someone increments their count; unfollow decrements.
-[ ] D-dm-compose (sub-lane D/dms). START A CONVERSATION — gauntlet
+[✓ 1.0.155] D-dm-compose (sub-lane D/dms). START A CONVERSATION — gauntlet
         step 5: "no way to start a new conversation with someone you
         don't already have a thread with" (listConversations only
         returns existing threads; the step-5 playwright journey is a
