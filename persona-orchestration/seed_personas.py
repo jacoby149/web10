@@ -352,6 +352,20 @@ COMMENT_SCHEMA = {
         },
     },
 }
+FOLLOW_SCHEMA = {
+    "name": "Follow",
+    "schema": {
+        "type": "object",
+        "required": ["action", "target_username"],
+        "properties": {
+            "action": {"type": "string", "enum": ["follow"]},
+            "target_username": {"type": "string", "description": "username of the followed user"},
+            "target_provider": {"type": "string"},
+            "author_username": {"type": "string"},
+            "author_provider": {"type": "string"},
+        },
+    },
+}
 
 
 def derive_provider(api_url):
@@ -458,7 +472,7 @@ def schema_exists(base, schema_id):
 def get_or_register_schema(base, token, schema, provider, state):
     """Reuse an existing schema_id if it's still valid; else register + save."""
     provider_state = state.setdefault("providers", {}).setdefault(provider, {})
-    key = "reaction_schema_id" if schema["name"] == "Reaction" else "comment_schema_id"
+    key = "reaction_schema_id" if schema["name"] == "Reaction" else "comment_schema_id" if schema["name"] == "Comment" else "follow_schema_id"
     existing_id = provider_state.get(key)
     if existing_id and schema_exists(base, existing_id):
         return existing_id
@@ -605,6 +619,31 @@ def follow_user(base, username, token, target_username, provider):
             "provider": provider,
             "status": "active",
             "followed_at": datetime.now(timezone.utc).isoformat(),
+        },
+    })
+
+
+def mirror_follow_to_ledger(base, follower, token, target_username, provider, follow_schema_id):
+    """Mirror a follow to the public ledger (D34). Idempotent: query for an
+    existing entry by this author targeting this user. Skip if found; else create."""
+    target = f"follow:{target_username}@{provider}"
+    entries = query_ledger(base, token, target=target, author=follower)
+    for e in entries:
+        payload = e.get("payload", e.get("body", {}).get("payload", {})) if isinstance(e, dict) else {}
+        if isinstance(payload, dict) and payload.get("action") == "follow":
+            return 200, {"skipped": True}
+    return api(base, "POST", "/public/entries", {
+        "token": token,
+        "query": {
+            "schema_id": follow_schema_id,
+            "target": target,
+            "payload": {
+                "action": "follow",
+                "target_username": target_username,
+                "target_provider": provider,
+                "author_username": follower,
+                "author_provider": provider,
+            },
         },
     })
 
@@ -825,10 +864,11 @@ def cleanup_duplicates(base, tokens, provider):
         if dup_inbox:
             print(f"  {uname}: removed {dup_inbox} duplicate inbox records")
 
-        # Ledger entries: dedup reactions by (target, type), comments by (target, text)
+        # Ledger entries: dedup reactions by (target, type), comments by (target, text), follows by (target, author)
         entries = query_ledger(base, token, author=uname, limit=500)
         seen_reactions = {}
         seen_comments = {}
+        seen_follows = {}
         for e in entries:
             eid = e.get("_id") if isinstance(e, dict) else None
             if not eid:
@@ -845,6 +885,13 @@ def cleanup_duplicates(base, tokens, provider):
                     total_deleted += 1
                 else:
                     seen_comments[key] = eid
+            elif action == "follow":
+                key = f"follow::{target}"
+                if key in seen_follows:
+                    delete_ledger_entry(base, token, eid)
+                    total_deleted += 1
+                else:
+                    seen_follows[key] = eid
             else:
                 key = f"{target}::{payload.get('type', '')}"
                 if key in seen_reactions:
@@ -852,7 +899,7 @@ def cleanup_duplicates(base, tokens, provider):
                     total_deleted += 1
                 else:
                     seen_reactions[key] = eid
-        dup_ledger = len(entries) - len(seen_reactions) - len(seen_comments)
+        dup_ledger = len(entries) - len(seen_reactions) - len(seen_comments) - len(seen_follows)
         if dup_ledger:
             print(f"  {uname}: removed {dup_ledger} duplicate ledger entries")
 
@@ -986,8 +1033,10 @@ def main():
     schema_token = tokens[next(iter(tokens))]
     reaction_schema_id = get_or_register_schema(base, schema_token, REACTION_SCHEMA, provider, state)
     comment_schema_id = get_or_register_schema(base, schema_token, COMMENT_SCHEMA, provider, state)
+    follow_schema_id = get_or_register_schema(base, schema_token, FOLLOW_SCHEMA, provider, state)
     print(f"  Reaction schema: {reaction_schema_id or 'FAILED'}")
     print(f"  Comment schema:  {comment_schema_id or 'FAILED'}")
+    print(f"  Follow schema:   {follow_schema_id or 'FAILED'}")
     print()
 
     # Step 3: Set profiles (upsert: update if exists, create if not)
@@ -1009,6 +1058,8 @@ def main():
     usernames = [p["username"] for p in PERSONAS if p["username"] in tokens]
     follow_new = 0
     follow_skip = 0
+    follow_ledger_new = 0
+    follow_ledger_skip = 0
     for uname in usernames:
         for target in usernames:
             if target != uname:
@@ -1018,8 +1069,16 @@ def main():
                     follow_skip += 1
                 elif s2 == 200:
                     follow_new += 1
+                # Mirror to public ledger (D34: follows are public)
+                if follow_schema_id:
+                    sl, bl = mirror_follow_to_ledger(base, uname, tokens[uname], target, provider, follow_schema_id)
+                    if isinstance(bl, dict) and bl.get("skipped"):
+                        follow_ledger_skip += 1
+                    elif sl == 200:
+                        follow_ledger_new += 1
         print(f"  {uname}: following {len(usernames) - 1} personas")
     print(f"  ({follow_new} new follows, {follow_skip} already active)")
+    print(f"  ({follow_ledger_new} ledger entries new, {follow_ledger_skip} already existed)")
     print()
 
     # Step 5: Create posts (idempotent: reuse by origin_id) + fan-out to inbox

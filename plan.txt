@@ -1747,7 +1747,7 @@ the boring plumbing social apps die without:
     trending card -> author-profile deep-link (phase 5.5
     D-trending-link ships a root-link TODO until this exists).
     board item D-url-routing in parallel execution.txt.
-[ ] real follower count (gauntlet step 6's own words: "a creator page
+[✓] real follower count (gauntlet step 6's own words: "a creator page
     without follower count is not a creator page — the primary social
     proof metric." 1.0.149 honestly removed the FAKE stat; this builds
     the real one): follows mirror to the public ledger

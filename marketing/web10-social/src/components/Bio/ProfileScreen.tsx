@@ -5,7 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { readProfile, saveProfile, readMyPosts, resolveMediaRefs, uploadMedia, countFollows, refreshMediaUrls } from '@/data';
+import { readProfile, saveProfile, readMyPosts, resolveMediaRefs, uploadMedia, countFollows, countFollowers, refreshMediaUrls } from '@/data';
+import { getWapi } from '@/data/wapi';
 import type { ProfileRecord, PostRecord, MediaRecord } from '@/data/types';
 import { MapPin, Globe, Link, Camera, Edit3, Check, X, ImagePlus, Loader2, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -41,6 +42,7 @@ export default function ProfileScreen() {
   const [draft, setDraft] = useState<Partial<ProfileRecord>>({});
   const [activeTab, setActiveTab] = useState<'posts' | 'media'>('posts');
   const [followingCount, setFollowingCount] = useState<number>(0);
+  const [followerCount, setFollowerCount] = useState<number>(0);
 
   useEffect(() => {
     loadData();
@@ -49,15 +51,18 @@ export default function ProfileScreen() {
   async function loadData() {
     setLoading(true);
     try {
-      const [p, postsData, fc] = await Promise.all([
+      const token = getWapi().readToken();
+      const [p, postsData, fc, fCount] = await Promise.all([
         readProfile(),
         readMyPosts(),
         countFollows(),
+        token ? countFollowers(token.username, token.provider) : Promise.resolve(0),
       ]);
       setProfile(p);
       setDraft(p || {});
       setPosts(postsData || []);
       setFollowingCount(fc);
+      setFollowerCount(fCount);
 
       const allRefs = (postsData || []).flatMap((post) => post.media_refs || []);
       if (p?.avatar_ref) allRefs.push(p.avatar_ref);
@@ -303,6 +308,10 @@ export default function ProfileScreen() {
           <div>
             <span className="tabular-nums font-display font-bold text-foreground text-lg block">{posts.length}</span>
             <span className="text-xs text-muted-foreground">Posts</span>
+          </div>
+          <div>
+            <span className="tabular-nums font-display font-bold text-foreground text-lg block">{followerCount}</span>
+            <span className="text-xs text-muted-foreground">Followers</span>
           </div>
           <div>
             <span className="tabular-nums font-display font-bold text-foreground text-lg block">{followingCount}</span>
