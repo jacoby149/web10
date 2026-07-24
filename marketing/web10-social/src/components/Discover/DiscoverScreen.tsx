@@ -8,13 +8,18 @@ import {
   readProfile,
   readUserProfile,
   resolveMediaRefs,
+  fetchSuggestedUsers,
+  followUser,
+  unfollowUser,
+  readFollow,
 } from '@/data';
 import { getWapi } from '@/data/wapi';
 import type {
   DiscoveryPost,
   MediaRecord,
   ProfileRecord,
-} from '@/data/types';
+  SuggestedUser,
+} from '@/data';
 import {
   Compass,
   Flame,
@@ -26,6 +31,9 @@ import {
   Film,
   Music2,
   Users,
+  UserPlus,
+  UserX,
+  Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
@@ -78,6 +86,16 @@ const HEAT_SHADOW: Record<number, string> = {
   2: 'shadow-[0_0_36px_-8px_var(--color-glow-intense)]',
   3: 'shadow-[0_0_52px_-6px_var(--color-glow-intense)]',
 };
+
+// ── Navigate to a user's profile (App listens for this) ──────────────────────
+
+function navigateToUserProfile(username: string, provider: string) {
+  window.dispatchEvent(
+    new CustomEvent('navigate-user-profile', {
+      detail: { username, provider },
+    }),
+  );
+}
 
 // ── Rank badge ─────────────────────────────────────────────────────────────
 
@@ -164,7 +182,113 @@ function buildTopics(tags: string[]): string[] {
   return unique.slice(0, 12);
 }
 
-// ── DiscoverCard ────────────────────────────────────────────────────────────
+// ── Suggested user card (People to follow rail) ──────────────────────────────
+
+interface DiscoverUserCardProps {
+  user: SuggestedUser;
+  isFollowing: boolean;
+  onFollow: () => void;
+  onUnfollow: () => void;
+  onViewProfile: () => void;
+  followLoading: boolean;
+}
+
+function DiscoverUserCard({
+  user,
+  isFollowing,
+  onFollow,
+  onUnfollow,
+  onViewProfile,
+  followLoading,
+}: DiscoverUserCardProps) {
+  const name = user.display_name || user.username;
+  const handleFollowToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isFollowing) {
+      onUnfollow();
+    } else {
+      onFollow();
+    }
+  };
+
+  return (
+    <div
+      data-testid="discover-user-card"
+      className={cn(
+        'group relative flex w-44 shrink-0 flex-col items-center rounded-lg border border-border bg-card p-4 text-center cursor-pointer transition-all duration-150',
+        'hover:-translate-y-0.5 hover:border-brand/30 motion-reduce:transform-none',
+        isFollowing && 'border-brand/30',
+      )}
+      onClick={onViewProfile}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onViewProfile();
+        }
+      }}
+      aria-label={`View ${name}'s profile`}
+    >
+      <Avatar
+        className={cn('h-16 w-16 ring-2 ring-transparent transition-all duration-150', hashToColor(user.username), isFollowing && 'ring-brand/40')}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <AvatarFallback className="text-foreground text-xl font-semibold">
+          {name.charAt(0).toUpperCase()}
+        </AvatarFallback>
+      </Avatar>
+      <h3 className="mt-3 w-full truncate text-sm font-semibold text-foreground">{name}</h3>
+      <p className="w-full truncate text-xs text-muted-foreground">@{user.username}</p>
+      {typeof user.followers_count === 'number' && (
+        <p className="mt-1 text-xs text-muted-foreground tabular-nums">
+          {formatCount(user.followers_count)} followers
+        </p>
+      )}
+      {user.bio && (
+        <p className="mt-1 line-clamp-2 text-xs text-muted-foreground/80">{user.bio}</p>
+      )}
+      <Button
+        variant={isFollowing ? 'outline' : 'brand'}
+        size="sm"
+        data-testid="discover-follow-button"
+        onClick={handleFollowToggle}
+        disabled={followLoading}
+        className={cn(
+          'mt-3 w-full gap-1.5',
+          isFollowing && 'border-border hover:border-danger/50 hover:text-danger hover:bg-danger-muted',
+        )}
+      >
+        {followLoading ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />
+        ) : isFollowing ? (
+          <>
+            <UserX className="h-3.5 w-3.5" strokeWidth={1.75} />
+            Following
+          </>
+        ) : (
+          <>
+            <UserPlus className="h-3.5 w-3.5" strokeWidth={1.75} />
+            Follow
+          </>
+        )}
+      </Button>
+    </div>
+  );
+}
+
+function SuggestedUserSkeleton() {
+  return (
+    <div className="flex w-44 shrink-0 flex-col items-center rounded-lg border border-border bg-card p-4">
+      <Skeleton className="h-16 w-16 rounded-full" />
+      <Skeleton className="mt-3 h-4 w-24" />
+      <Skeleton className="mt-2 h-3 w-16" />
+      <Skeleton className="mt-3 h-8 w-full rounded-md" />
+    </div>
+  );
+}
+
+// ── DiscoverCard (trending post) ─────────────────────────────────────────────
 
 interface DiscoverCardProps {
   post: DiscoveryPost;
@@ -173,6 +297,7 @@ interface DiscoverCardProps {
   authorName: string;
   authorAvatar?: string;
   mediaItems: MediaRecord[];
+  onAuthorClick: () => void;
 }
 
 function DiscoverCard({
@@ -182,10 +307,10 @@ function DiscoverCard({
   authorName,
   authorAvatar,
   mediaItems,
+  onAuthorClick,
 }: DiscoverCardProps) {
   const tier = heatTier(post.score ?? 0, maxScore);
-  const name = post.author.replace(/[-_]/g, ' ');
-  const displayName = name.charAt(0).toUpperCase() + name.slice(1);
+  const displayName = authorName.charAt(0).toUpperCase() + authorName.slice(1);
   const initial = post.author.charAt(0).toUpperCase();
   const avatarColor = hashToColor(post.author);
   const hasMedia = mediaItems.length > 0;
@@ -219,20 +344,31 @@ function DiscoverCard({
 
         {/* Author row */}
         <div className="mt-3 flex items-start gap-3">
-          <Avatar className={cn('h-9 w-9 shrink-0', avatarColor)}>
-            {authorAvatar ? (
-              <img src={authorAvatar} alt={displayName} className="h-full w-full object-cover" />
-            ) : (
-              <AvatarFallback className="text-foreground text-sm font-semibold">
-                {initial}
-              </AvatarFallback>
-            )}
-          </Avatar>
+          <button
+            type="button"
+            onClick={onAuthorClick}
+            className="shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label={`View ${displayName}'s profile`}
+          >
+            <Avatar className={cn('h-9 w-9', avatarColor)}>
+              {authorAvatar ? (
+                <img src={authorAvatar} alt={displayName} className="h-full w-full object-cover" />
+              ) : (
+                <AvatarFallback className="text-foreground text-sm font-semibold">
+                  {initial}
+                </AvatarFallback>
+              )}
+            </Avatar>
+          </button>
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5 truncate">
+            <button
+              type="button"
+              onClick={onAuthorClick}
+              className="flex items-center gap-1.5 truncate text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+            >
               <span className="truncate text-sm font-semibold text-foreground">{displayName}</span>
               <span className="truncate text-sm text-muted-foreground">@{post.author}</span>
-            </div>
+            </button>
             {post.text && (
               <p className="mt-1 line-clamp-3 text-sm leading-relaxed text-foreground">
                 {post.text}
@@ -396,6 +532,12 @@ export default function DiscoverScreen() {
   const [mediaMap, setMediaMap] = useState<Record<string, MediaRecord[]>>({});
   const [topic, setTopic] = useState<string>('All');
 
+  // People-to-follow rail
+  const [suggested, setSuggested] = useState<SuggestedUser[]>([]);
+  const [suggestedLoading, setSuggestedLoading] = useState(true);
+  const [followStates, setFollowStates] = useState<Record<string, boolean>>({});
+  const [followLoading, setFollowLoading] = useState<Record<string, boolean>>({});
+
   const loadDiscover = useCallback(async () => {
     setLoading(true);
     try {
@@ -429,7 +571,7 @@ export default function DiscoverScreen() {
       if (postsWithMedia.length) {
         try {
           const allMedia = await resolveMediaRefs(
-            postsWithMedia.flatMap(p => {
+            postsWithMedia.flatMap(() => {
               // Discovery posts don't carry media_refs directly, but we can
               // check the author's media service for recent uploads matching
               // the post's tags. For now, skip — media will show as placeholder.
@@ -454,9 +596,65 @@ export default function DiscoverScreen() {
     }
   }, [sort]);
 
+  const loadSuggested = useCallback(async () => {
+    setSuggestedLoading(true);
+    try {
+      const users = await fetchSuggestedUsers(20);
+      setSuggested(users);
+
+      const states: Record<string, boolean> = {};
+      await Promise.all(
+        users.map(async (user) => {
+          const key = `${user.username}@${user.provider}`;
+          try {
+            const follow = await readFollow(user.username, user.provider);
+            states[key] = follow?.status === 'active';
+          } catch {
+            states[key] = false;
+          }
+        }),
+      );
+      setFollowStates(states);
+    } catch {
+      setSuggested([]);
+    } finally {
+      setSuggestedLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadDiscover();
   }, [loadDiscover]);
+
+  useEffect(() => {
+    loadSuggested();
+  }, [loadSuggested]);
+
+  const handleFollow = useCallback(async (user: SuggestedUser) => {
+    const key = `${user.username}@${user.provider}`;
+    setFollowLoading((prev) => ({ ...prev, [key]: true }));
+    try {
+      await followUser(user.username, user.provider);
+      setFollowStates((prev) => ({ ...prev, [key]: true }));
+    } catch {
+      // Follow failed — leave state unchanged
+    } finally {
+      setFollowLoading((prev) => ({ ...prev, [key]: false }));
+    }
+  }, []);
+
+  const handleUnfollow = useCallback(async (user: SuggestedUser) => {
+    const key = `${user.username}@${user.provider}`;
+    setFollowLoading((prev) => ({ ...prev, [key]: true }));
+    try {
+      await unfollowUser(user.username, user.provider);
+      setFollowStates((prev) => ({ ...prev, [key]: false }));
+    } catch {
+      // Unfollow failed — leave state unchanged
+    } finally {
+      setFollowLoading((prev) => ({ ...prev, [key]: false }));
+    }
+  }, []);
 
   const maxScore = useMemo(
     () => Math.max(1, ...posts.map(p => p.score ?? 0)),
@@ -476,6 +674,7 @@ export default function DiscoverScreen() {
   );
 
   const isInitialLoad = loading && posts.length === 0;
+  const showSuggested = suggestedLoading || suggested.length > 0;
 
   return (
     <div className="flex flex-col min-h-full bg-background">
@@ -497,6 +696,38 @@ export default function DiscoverScreen() {
           </select>
         </div>
       </div>
+
+      {/* People to follow rail — creators worth an audience */}
+      {showSuggested && (
+        <section
+          data-testid="discover-suggested"
+          className="px-4 py-3 md:px-0"
+          aria-label="People to follow"
+        >
+          <div className="mb-3 flex items-center gap-2">
+            <Users className="h-4 w-4 text-brand-400" strokeWidth={1.75} />
+            <h2 className="font-display text-sm font-semibold text-foreground">People to follow</h2>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {suggestedLoading
+              ? Array.from({ length: 4 }).map((_, i) => <SuggestedUserSkeleton key={i} />)
+              : suggested.map((user) => {
+                  const key = `${user.username}@${user.provider}`;
+                  return (
+                    <DiscoverUserCard
+                      key={key}
+                      user={user}
+                      isFollowing={!!followStates[key]}
+                      followLoading={!!followLoading[key]}
+                      onFollow={() => handleFollow(user)}
+                      onUnfollow={() => handleUnfollow(user)}
+                      onViewProfile={() => navigateToUserProfile(user.username, user.provider)}
+                    />
+                  );
+                })}
+          </div>
+        </section>
+      )}
 
       {/* Topic filter chips — only show when we have topics */}
       {topics.length > 1 && (
@@ -546,6 +777,7 @@ export default function DiscoverScreen() {
               const authorKey = `${post.author}@${post.provider}`;
               const profile = profileMap[authorKey];
               const mediaItems = mediaMap[post.post_id] || [];
+              const authorName = profile?.display_name || post.author.replace(/[-_]/g, ' ');
 
               return (
                 <DiscoverCard
@@ -553,13 +785,14 @@ export default function DiscoverScreen() {
                   post={post}
                   rank={i + 1}
                   maxScore={maxScore}
-                  authorName={profile?.display_name || post.author}
+                  authorName={authorName}
                   authorAvatar={
                     profile?.avatar_ref
                       ? mediaItems.find(m => m._id === profile.avatar_ref)?.url
                       : undefined
                   }
                   mediaItems={mediaItems}
+                  onAuthorClick={() => navigateToUserProfile(post.author, post.provider)}
                 />
               );
             })}

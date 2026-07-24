@@ -12,7 +12,9 @@ export type Mode =
   | "feed"
   | "discover"
   | "crm"
-  | "mail";
+  | "mail"
+  | "discover"
+  | "user-profile";
 
 export type CrmColor = "green" | "yellow" | "red";
 

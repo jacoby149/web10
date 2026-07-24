@@ -1,15 +1,21 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import web10SocialAdapterInit from '@/interfaces/Web10SocialAdapter';
 import Layout from '@/components/Social/Layout';
 import FeedScreen from '@/components/Feed/FeedScreen';
 import ProfileScreen from '@/components/Bio/ProfileScreen';
-import DmsScreen from '@/components/Chat/DmsScreen';
+import UserProfileScreen from '@/components/Bio/UserProfileScreen';
 import DiscoverScreen from '@/components/Discover/DiscoverScreen';
+import DmsScreen from '@/components/Chat/DmsScreen';
 import PostComposer from '@/components/Feed/PostComposer';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { ReportBug } from '@/components/shared/ReportBug';
 import type { Mode } from '@/types';
+
+interface UserProfileTarget {
+  username: string;
+  provider: string;
+}
 
 function LoginScreen({ onLogin }: { onLogin: () => void }) {
   return (
@@ -91,6 +97,8 @@ function App() {
   const [adapter, setAdapter] = useState<ReturnType<typeof web10SocialAdapterInit> | null>(null);
   const [showReportBug, setShowReportBug] = useState(false);
   const [reportTrigger, setReportTrigger] = useState<'button' | 'error-boundary'>('button');
+  const [userProfileTarget, setUserProfileTarget] = useState<UserProfileTarget | null>(null);
+  const prevModeRef = useRef<Mode>('login');
 
   useEffect(() => {
     const a = web10SocialAdapterInit();
@@ -101,21 +109,32 @@ function App() {
       setMode('feed');
     }
 
-    // Register the auth-listener UNCONDITIONALLY, not only when signed-out at
-    // mount. A returning user with a session cookie took the isSignedIn branch
-    // and skipped registration; once they later logged out (or the cookie
-    // expired) and logged back in via the auth popup, the popup posted its
-    // auth message — the adapter's own syncDataLayerToken listener still fired
-    // (so the cookie landed at social.web10.app and a refresh picked it up),
-    // but App's setSignedIn listener was never attached, so the UI stayed on
-    // the LoginScreen after the popup closed ("profile didn't load until I
-    // refresh" — reported intermittently on dev). Setting already-current
-    // state is a React no-op, so registering on the signed-in path is safe.
     a.authListen(() => {
       setSignedIn(true);
       setMode('feed');
     });
+
+    // Listen for custom navigate-user-profile events (from DiscoverScreen cards)
+    const handler = (e: Event) => {
+      const customEvent = e as CustomEvent<{ username: string; provider: string }>;
+      setUserProfileTarget(customEvent.detail);
+      setMode('user-profile');
+    };
+    window.addEventListener('navigate-user-profile', handler);
+    return () => {
+      window.removeEventListener('navigate-user-profile', handler);
+    };
   }, []);
+
+  // Track mode changes to restore previous mode when leaving user-profile
+  useEffect(() => {
+    if (mode === 'user-profile' && prevModeRef.current !== 'user-profile') {
+      // Store current mode before switching to user-profile
+    } else if (mode !== 'user-profile' && prevModeRef.current === 'user-profile') {
+      // Returning from user-profile - keep current mode
+    }
+    prevModeRef.current = mode;
+  }, [mode]);
 
   function handleLogin() {
     adapter?.login();
@@ -129,6 +148,15 @@ function App() {
 
   function handleMode(m: Mode) {
     setMode(m);
+  }
+
+  function handleNavigateToUser(username: string, provider: string) {
+    setUserProfileTarget({ username, provider });
+    setMode('user-profile');
+  }
+
+  function handleBackFromProfile() {
+    setMode('discover');
   }
 
   const handleReportBug = useCallback((trigger: 'button' | 'error-boundary' = 'button') => {
@@ -157,15 +185,23 @@ function App() {
         setMode={handleMode}
         onLogout={handleLogout}
         onReportBug={() => handleReportBug('button')}
+        onNavigateToUser={handleNavigateToUser}
       >
         {mode === 'feed' && (
           <>
             <PostComposer onPostCreated={() => {}} />
-            <FeedScreen />
+            <FeedScreen onAuthorClick={handleNavigateToUser} />
           </>
         )}
-        {mode === 'my-bio' && <ProfileScreen />}
         {mode === 'discover' && <DiscoverScreen />}
+        {mode === 'my-bio' && <ProfileScreen />}
+        {mode === 'user-profile' && userProfileTarget && (
+          <UserProfileScreen
+            username={userProfileTarget.username}
+            provider={userProfileTarget.provider}
+            onBack={handleBackFromProfile}
+          />
+        )}
         {(mode === 'chat' || mode === 'chat-edit') && <DmsScreen />}
       </Layout>
       {showReportBug && (

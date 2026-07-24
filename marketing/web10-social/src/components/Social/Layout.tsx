@@ -8,6 +8,7 @@ interface LayoutProps {
   setMode: (m: Mode) => void;
   onLogout: () => void;
   onReportBug: () => void;
+  onNavigateToUser?: (username: string, provider: string) => void;
   children: React.ReactNode;
 }
 
@@ -29,7 +30,7 @@ function Wordmark({ className }: { className?: string }) {
   );
 }
 
-export default function Layout({ mode, setMode, onLogout, onReportBug, children }: LayoutProps) {
+export default function Layout({ mode, setMode, onLogout, onReportBug, onNavigateToUser, children }: LayoutProps) {
   return (
     <div className="flex min-h-screen bg-background">
       {/* Sidebar - desktop */}
