@@ -588,7 +588,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         §12 (PR screenshots). deferred: friends_posts (needs graph),
         unlisted_posts (anon-read, discovery-excluded).
         STATUS: Phase A LANDED (1.0.131). Phases B + C remain open.
-[ ] D24. PROFILE FOLLOWER/FOLLOWING COUNTS BUG — `ProfileScreen.tsx` loads
+[✓ 1.0.149] D24. PROFILE FOLLOWER/FOLLOWING COUNTS BUG — `ProfileScreen.tsx` loads
         `countFollows()` and `readFollows()` in parallel and assigns both
         `followingCount` AND `followerCount` from the same data source
         (people YOU follow). There is no reverse lookup for who follows
@@ -597,7 +597,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         ledger query or a discovery API call) or hide the follower stat
         until the backend supports it. Owns marketing/web10-social/src/
         components/Bio/ProfileScreen.tsx. Gate: none.
-[ ] D25. USER-PROFILE BACK NAVIGATION BUG — `handleBackFromProfile` in
+[✓ 1.0.149] D25. USER-PROFILE BACK NAVIGATION BUG — `handleBackFromProfile` in
         `App.tsx` hardcodes `setMode('discover')` so leaving any user
         profile always returns to Discover, even when the user came from
         Feed, Chat, or Profile. The `prevModeRef` useEffect (lines
