@@ -567,22 +567,30 @@ export default function DiscoverScreen() {
       setProfileMap(profiles);
 
       // Resolve media for posts that have image/video tags
+      // Group refs by author so resolveMediaRefs reads from the correct
+      // owner's media collection (discovery posts belong to other users).
       const postsWithMedia = results.filter(p => p.tags?.some(t => ['image', 'video', 'music'].includes(t)));
       if (postsWithMedia.length) {
         try {
-          const allMedia = await resolveMediaRefs(
-            postsWithMedia.flatMap(() => {
-              // Discovery posts don't carry media_refs directly, but we can
-              // check the author's media service for recent uploads matching
-              // the post's tags. For now, skip — media will show as placeholder.
-              return [];
-            }),
-          );
-          if (allMedia.length) {
-            const mMap: Record<string, MediaRecord[]> = {};
-            postsWithMedia.forEach((p, i) => {
-              mMap[p.post_id] = allMedia.slice(i * 4, (i + 1) * 4);
-            });
+          const byAuthor = new Map<string, { post: typeof results[0]; refs: string[] }>();
+          for (const p of postsWithMedia) {
+            const key = `${p.author}@${p.provider}`;
+            const entry = byAuthor.get(key);
+            if (entry) {
+              entry.post = p;
+            } else {
+              byAuthor.set(key, { post: p, refs: [] });
+            }
+          }
+          const mMap: Record<string, MediaRecord[]> = {};
+          for (const [key, entry] of byAuthor) {
+            const [username, provider] = key.split('@');
+            const media = await resolveMediaRefs(entry.refs, { username, provider });
+            if (media.length) {
+              mMap[entry.post.post_id] = media;
+            }
+          }
+          if (Object.keys(mMap).length) {
             setMediaMap(mMap);
           }
         } catch {
@@ -678,6 +686,7 @@ export default function DiscoverScreen() {
 
   return (
     <div className="flex flex-col min-h-full bg-background">
+      <div className="md:max-w-xl md:mx-auto">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-md border-b border-border md:static md:border-0 md:bg-transparent md:mb-4">
         <div className="flex items-center justify-between px-4 py-3 md:px-0">
@@ -764,7 +773,7 @@ export default function DiscoverScreen() {
       )}
 
       {/* Content */}
-      <div className="flex-1 px-4 py-4 md:px-0 md:max-w-2xl md:mx-auto">
+      <div className="flex-1 px-4 py-4 md:px-0">
         {isInitialLoad ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-testid="discover-grid-skeleton">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -800,6 +809,7 @@ export default function DiscoverScreen() {
         ) : (
           <DiscoverEmptyState />
         )}
+      </div>
       </div>
     </div>
   );
