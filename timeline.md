@@ -14,6 +14,14 @@ machine: kick off B2.5 (stack pick tailwind+shadcn, record in
   repoint ws2 (C2 sdk is NOT on the M0 critical path) at D4.
 founder (30 min): register dmca designated agent ($6). approve the
   stack pick. agents start list batch 1 (20 names, enriched).
+ACTUAL (logged 23.07): the machine items above were stale at
+  writing — B2.5/D4-era work had already merged (1.0.48-1.0.65).
+  real week-0 output: the D29 call (gauntlet = the bar, platform
+  first), trending page cluster (1.0.130), follow UI (#254),
+  public-layer hardening. list batch 1 drafted
+  (outreach_batch1.md). founder items (dmca registration, batch-1
+  review) are NOT verifiable in-repo — founder confirms, or these
+  are the schedule's first slip and should be done this week.
 
 ## week 1 (jul 20-27)
 machine: B2.5 tokens + ui/ core screens. D4 logic complete
@@ -21,6 +29,19 @@ machine: B2.5 tokens + ui/ core screens. D4 logic complete
   profile, records-dms). D2.5 starts as tokens land.
 founder (~2 hrs): review token/theme direction once. list batch 1
   review.
+ACTUAL (through 23.07, day 4): machine AHEAD of schedule — most
+  week-2 items already landed: composer v1 + video v0 (1.0.147),
+  studio money screen (1.0.55, predates this file), A6 quotas
+  (1.0.56), D23 presign chain (1.0.143/1.0.150), desk gauntlet +
+  fail list + playwright journeys + idempotent seed (1.0.140-145),
+  discover screen (1.0.147/148), comments/reactions ledger
+  (1.0.149/150). open residue before week 3 (all staged on the
+  board 23.07, lane D sub-divided to run them 4-wide):
+  profile-media-refresh, url-routing, dm-compose, login-cta,
+  follower-count, join page (the one week-2 item not started).
+  desk-gauntlet caveat: the 1.0.140 run was api probes + code
+  audit, not a phone; operator phone pass is now a STANDING weekly
+  event until the M0 gate. risk unchanged: the founder track.
 
 ## week 2 (jul 27 - aug 3)
 machine: D4 screens on the new stack. manifesto join page. composer

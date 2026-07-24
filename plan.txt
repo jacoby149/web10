@@ -36,6 +36,13 @@ each step that passes gets encoded as a playwright journey in e2e/
 so it can't regress (C6 continued — the referee for "works").
 [✓ 1.0.145] gauntlet.spec.ts landed: 8 step-journeys (passing = real
       assertions; failing = test.fixme scaffolds with documented blockers).
+      HONESTY NOTE (23.07): the 1.0.140 gauntlet run was a DESK run (api
+      probes + code audit — the report's own method line says "NOT a real
+      phone"). the operator's phone passes are the real referee: a
+      STANDING weekly calendar event until the M0 gate, findings filed as
+      lane items same-day (the 22-23.07 find→file→fix loop). journeys
+      must assert the BAR, not the happy path — the profile-media-refresh
+      bug got past step 6's save+read assertion.
 when the gauntlet passes end to end, THEN low-hanging fruit in
 order of demo impact (realtime feed refresh, notifications, search
 your own stuff, D16(3) store curation) — judged by the same
@@ -1591,7 +1598,17 @@ the boring plumbing social apps die without:
     restores the screen you were on, and /u/:username unblocks the
     trending card -> author-profile deep-link (phase 5.5
     D-trending-link ships a root-link TODO until this exists).
-    lane D item D27 in parallel execution.txt.
+    board item D-url-routing in parallel execution.txt.
+[ ] real follower count (gauntlet step 6's own words: "a creator page
+    without follower count is not a creator page — the primary social
+    proof metric." 1.0.149 honestly removed the FAKE stat; this builds
+    the real one): follows mirror to the public ledger
+    (payload.action='follow', the D32 pattern — this makes the follow
+    graph public; record the call as decision D34 when implementing),
+    counts read from the ledger, /discover/users gains follower_count
+    in the engagement aggregation, and the Followers tile returns to
+    ProfileScreen with a real number — the M0 screenshot stat.
+    board item D-follower-count in parallel execution.txt.
 [ ] notifications: web push first (pwa), mobile push later. new post
     from a follow, comment on your post, dm, key request (phase 11).
     notification prefs are an ordinary settings record the user owns

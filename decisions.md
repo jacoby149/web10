@@ -9,6 +9,23 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D33 — Namespaces: decisions own bare D-nn; lane/board items use slugs [decided]
+The D-number namespace collided: "D21" meant three different things
+(quotas, media polish, the studio M0 slice), lane D skipped "D20" to dodge
+this file's D20, and D24/D26 mean different things here vs. the lane
+queues. Parallel agents resolve references by grep — this was going to
+cause a wrong-item pickup eventually. The call: decisions.md keeps the
+bare D-nn numbers (32 entries, referenced throughout plan.txt — renaming
+them breaks every live pointer); lane/board items use the slug convention
+that already existed (D-comments-ledger, D-trending-*, now D-url-routing).
+Legacy ticked lane items D21-D25 stay as history; the one-day-old lane
+items "D26"/"D27" (23.07) were renamed D-profile-media-refresh /
+D-url-routing before anything else referenced them. Never mint a new bare
+D-nn lane item (parallel execution.txt rule 4). Rejects: renaming the
+decisions (dozens of live references); a DEC- prefix (same churn, and the
+short form is the heavily-cited namespace, so the short form goes to the
+citations).
+
 ### D32 — Interactions (comments, reactions, reposts) are PUBLIC by default; collection-level terms is the lock [decided]
 Comments are NOT DMs — they are public discourse attached to a post, not
 private correspondence. So the `comments` service ships anon-readable (the
