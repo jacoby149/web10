@@ -1685,6 +1685,8 @@ profile on top of the protocol, not part of it):
       - media     (metadata + object-store url, from phase 5)
       - contacts  (the friend graph: username, provider, labels)
       - follows   (who i follow, cross-node)
+      - groups    (community spaces: group meta + membership records --
+                   see the groups item below)
       - comments  (parent post ref, threading)
       - reactions (likes etc, target ref)
       - profile   (display name, avatar ref, bio)
@@ -1704,6 +1706,26 @@ the app:
     screens deferred to D2.5 post-B2.5 tokens.
 [ ] follows across nodes: follow alice@othernode -> terms handshake ->
     her posts land in your inbox. federation made visible + trivial.
+[ ] GROUPS (post-M0; the fb-groups-shaped gap, spotted by the operator
+    24.07 -- a social super app without groups isn't one): member-
+    created community spaces inside a node, the scene's sub-scenes.
+    shape: a group lives in its owner's collection -- one group record
+    (name, description, privacy, avatar ref) + membership records,
+    terms-gated; the group feed reuses the SAME inbox pattern as
+    follows (fan-out on write to the member list instead of the
+    follower list -- no new delivery machinery). private groups are
+    terms-gated now, crypto-private later: phase 11 already names
+    "a group" as an audience circle, so record shapes here must not
+    preclude an audience key attaching to one. why this is plan.txt
+    and not later.md (the D20 lens): paid-community sellers are a
+    named M0 pitch segment, and memberships (phase 4 stripe rails) x
+    private groups IS the paid-community product -- a members-only
+    space on a node the creator owns (the skool/discord+patreon
+    shape), which strengthens the creator P&L directly. milestone
+    honesty: not M0 (M0 is post/feed/profile/dms); this is the
+    natural M2-adjacent build, since paid communities are creator-#1
+    monetization surface. schemas (groups, memberships) land in the
+    conventions doc when built.
 [✓ 1.0.48] comments/reactions on posts — DATA LAYER ONLY: threaded
     comments CRUD, reaction toggle + aggregate counts. screens
     deferred to D2.5.
