@@ -420,6 +420,7 @@ def read_records(base, username, service, token, query=None):
 def query_ledger(base, token, target=None, author=None, schema_id=None, limit=200):
     """PATCH /public/entries — query the public ledger (anon OK, token OK).
     Filter by target / author / schema_id. Returns list of entries."""
+    from urllib.parse import urlencode
     q = {"limit": limit}
     if target:
         q["target"] = target
@@ -427,7 +428,7 @@ def query_ledger(base, token, target=None, author=None, schema_id=None, limit=20
         q["author"] = author
     if schema_id:
         q["schema_id"] = schema_id
-    status, body = api(base, "PATCH", "/public/entries", {"token": token, "query": q})
+    status, body = api(base, "PATCH", f"/public/entries?{urlencode(q)}")
     if status == 200 and isinstance(body, list):
         return body
     return []

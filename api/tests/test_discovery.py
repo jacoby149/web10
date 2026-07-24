@@ -346,28 +346,19 @@ class TestPublicQueryEntries:
         mock_public_col.find.return_value.sort.return_value.skip.return_value.limit.return_value = [
             {"_id": "e1", "author": "bob", "schema_id": "s1", "payload": {"action": "like"}},
         ]
-        resp = client.patch(
-            "/public/entries",
-            json={"token": None},
-        )
+        resp = client.patch("/public/entries")
         assert resp.status_code == 200
         assert len(resp.json()) == 1
 
     def test_query_filter_by_schema_id(self, client, mock_public_col):
         mock_public_col.find.return_value.sort.return_value.skip.return_value.limit.return_value = []
-        resp = client.patch(
-            "/public/entries",
-            json={"token": None, "query": {"schema_id": "api.localhost.uuid6:reactions"}},
-        )
+        resp = client.patch("/public/entries?schema_id=api.localhost.uuid6:reactions")
         assert resp.status_code == 200
         assert resp.json() == []
 
     def test_query_filter_by_target(self, client, mock_public_col):
         mock_public_col.find.return_value.sort.return_value.skip.return_value.limit.return_value = []
-        resp = client.patch(
-            "/public/entries",
-            json={"token": None, "query": {"target": "alice/posts/123"}},
-        )
+        resp = client.patch("/public/entries?target=alice/posts/123")
         assert resp.status_code == 200
 
 
