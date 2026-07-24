@@ -660,7 +660,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         empty — it never stores the pre-profile mode. Fix: capture the
         mode before navigating to `user-profile` and restore it on back.
         Owns marketing/web10-social/src/App.tsx. Gate: none.
-[✓ 1.0.156] D-profile-media-refresh (sub-lane D/profile; was "D26" for a day —
+[✓ 1.0.157] D-profile-media-refresh (sub-lane D/profile; was "D26" for a day —
         renamed per rule 4/D33). PROFILE AVATAR/BANNER VANISH ON
         REFRESH — (operator, 23.07:
         uploading a profile pic + banner now works and they render —
