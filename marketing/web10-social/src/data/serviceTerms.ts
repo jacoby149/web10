@@ -119,6 +119,7 @@ export function buildSocialServiceSirs(crossOrigins: string[]): Sir[] {
     {
       service: 'comments',
       cross_origins: crossOrigins,
+      whitelist: [{ provider: '.*', username: '.*', read: true }], // D32: comments are public
     },
     {
       service: 'reactions',
