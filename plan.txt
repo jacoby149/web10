@@ -2810,7 +2810,15 @@ phasing:
   derived, e.g. off a qwen-class model; sparse vectors are inverted-
   index-shaped, which is exactly what CH-style indexes eat) over
   public posts AND photos → "find me that guitar post" actually finds
-  it. the principle that makes this ON-thesis rather than algorithm
+  it. the sharp edge (operator, 24.07): a tag/search query matches
+  what is IN the image, not just what it was labeled — an untagged
+  photo of someone playing guitar surfaces under #guitar because the
+  embedding bridges media content to the query. this matters because
+  sparse-or-no tags is the NORM, and it compounds with the exporter
+  story: a creator's 10-year imported back catalog arrives basically
+  untagged, and semantic media search makes that whole archive
+  findable on day one — the "import your life" pitch gains "and
+  actually FIND your life." the principle that makes this ON-thesis rather than algorithm
   creep, worth keeping verbatim (operator: "ai relevancy to your text
   search, rather than ai fucking with your brain and the algo — that
   is the good use of ai, not the toxic use"): AI RELEVANCE BELONGS IN
