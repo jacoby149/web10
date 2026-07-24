@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { Home, User, MessageSquare, PlusCircle, LogOut, Bug } from 'lucide-react';
+import { Home, User, MessageSquare, PlusCircle, LogOut, Bug, Compass } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { Mode } from '@/types';
 
@@ -8,11 +8,13 @@ interface LayoutProps {
   setMode: (m: Mode) => void;
   onLogout: () => void;
   onReportBug: () => void;
+  onNavigateToUser?: (username: string, provider: string) => void;
   children: React.ReactNode;
 }
 
 const navItems = [
   { mode: 'feed' as const, icon: Home, label: 'Feed', testId: 'nav-feed' },
+  { mode: 'discover' as const, icon: Compass, label: 'Discover', testId: 'nav-discover' },
   { mode: 'my-bio' as const, icon: User, label: 'Profile', testId: 'nav-profile' },
   { mode: 'chat' as const, icon: MessageSquare, label: 'Messages', testId: 'nav-messages' },
 ];
@@ -20,7 +22,7 @@ const navItems = [
 function Wordmark({ className }: { className?: string }) {
   return (
     <span className={cn('flex items-center gap-2', className)}>
-      <img src="/alternative.png" alt="" className="h-6 w-6 shrink-0" aria-hidden="true" />
+      <img src="/keys-mark.png" alt="" className="h-6 w-6 shrink-0" aria-hidden="true" />
       <span className="font-display text-lg font-bold tracking-tight text-foreground">
         web<span className="text-brand">10</span>
       </span>
@@ -28,7 +30,7 @@ function Wordmark({ className }: { className?: string }) {
   );
 }
 
-export default function Layout({ mode, setMode, onLogout, onReportBug, children }: LayoutProps) {
+export default function Layout({ mode, setMode, onLogout, onReportBug, onNavigateToUser, children }: LayoutProps) {
   return (
     <div className="flex min-h-screen bg-background">
       {/* Sidebar - desktop */}

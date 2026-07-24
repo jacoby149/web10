@@ -19,7 +19,8 @@ vi.mock('lucide-react', () => {
     'ClockArrowDown', 'Sparkles', 'Send', 'Image', 'ImagePlus', 'X', 'Loader2',
     'User', 'MapPin', 'Globe', 'Link', 'Camera', 'Edit3', 'Check',
     'ChevronLeft', 'MessageSquare', 'Home', 'PlusCircle', 'LogOut', 'Bug',
-    'AlertTriangle', 'CheckCircle',
+    'AlertTriangle', 'CheckCircle', 'Compass', 'Share2', 'Repeat2',
+    'Film', 'Music2', 'Users',
   ].forEach(name => { icons[name] = iconFactory(name); });
   return icons;
 });
@@ -174,9 +175,11 @@ describe('Layout', () => {
     // nav (CSS breakpoints hide one in a real browser; both exist in the
     // DOM in jsdom) — assert via the stable data-testid hooks instead.
     expect(screen.getByTestId('nav-feed')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-discover')).toBeInTheDocument();
     expect(screen.getByTestId('nav-profile')).toBeInTheDocument();
     expect(screen.getByTestId('nav-messages')).toBeInTheDocument();
     expect(screen.getAllByText('Feed').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Discover').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Profile').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Messages').length).toBeGreaterThanOrEqual(1);
   });

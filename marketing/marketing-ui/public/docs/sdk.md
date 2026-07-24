@@ -45,13 +45,13 @@ wapi.authListen(() => {
   const token = wapi.readToken()
   console.log(`Logged in as ${token.username}@${token.provider}`)
 
-  // Create a record
+  // Create a record — returns { _id }
   wapi.create('my-service', { text: 'hello web10' })
-    .then(r => console.log('created', r.data))
+    .then(r => console.log('created', r._id))
 
-  // Read records
+  // Read records — returns the array directly
   wapi.read('my-service', {})
-    .then(r => console.log('records', r.data))
+    .then((records) => console.log('records', records))
 })
 ```
 

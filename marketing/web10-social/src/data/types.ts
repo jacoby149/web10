@@ -38,6 +38,10 @@ export interface PostRecord {
 export interface MediaRecord {
   _id?: string;
   url: string;
+  // The S3 object key (`<user>/<uuid>/<filename>`). Lane A's open
+  // confirm-upload touch persists this; until every record carries it,
+  // refreshMediaUrls derives the key from `url`. Optional + additive.
+  object_key?: string;
   created_at: string;
   mime_type?: string;
   size_bytes?: number;
@@ -56,6 +60,12 @@ export interface MediaRecord {
 export interface MediaUploadRequest {
   file: File;
   onProgress?: (progress: number) => void;
+  // D21: optional metadata populated by client-side processing
+  width?: number;
+  height?: number;
+  durationSeconds?: number;
+  thumbnailFile?: File; // thumbnail/poster blob to upload alongside
+  altText?: string;
 }
 
 // ── profile ─────────────────────────────────────────────────────────────────
@@ -161,6 +171,21 @@ export interface DmRecord {
 export type FeedSort = 'newest' | 'oldest' | 'most_reacted';
 
 // ── Discovery API (Phase 5.5 public layer) ─────────────────────────────────
+
+export interface RawDiscoveryPost {
+  author: string;
+  service: string;
+  post_id: string;
+  body_text: string;
+  tags: string[];
+  created_at: string;
+  engagement: {
+    likes: number;
+    comments: number;
+    reposts: number;
+  };
+  engagement_score: number;
+}
 
 export interface DiscoveryPost {
   author: string;

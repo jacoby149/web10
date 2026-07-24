@@ -1,4 +1,4 @@
-import { getWapi } from './wapi';
+import { getWapi, deriveObjectKey } from './wapi';
 import type { PostRecord, MediaRecord, MediaUploadRequest, PublicEntry, SchemaDefinition, DiscoverSort, DiscoveryPost } from './types';
 
 // ── Post data layer ────────────────────────────────────────────────────────
@@ -106,9 +106,20 @@ export async function deletePost(id: string): Promise<void> {
  * 2. Upload file to object storage
  * 3. Confirm upload to create the media record
  * Returns the media record with the _id to reference in posts.
+ *
+ * D21: if width/height/durationSeconds/thumbnailFile/altText are provided,
+ * they are sent to the confirm endpoint so the media record carries real
+ * dimensions, a thumbnail URL (for video posters), and alt text.
  */
 export async function uploadMedia(request: MediaUploadRequest): Promise<MediaRecord> {
   const wapi = getWapi();
+
+  // Upload the thumbnail/poster first (if provided) so we have its URL
+  let thumbnailUrl: string | null = null;
+  if (request.thumbnailFile) {
+    const thumbRecord = await uploadMedia({ file: request.thumbnailFile });
+    thumbnailUrl = thumbRecord.url;
+  }
 
   // 1. Get presigned URL from the API
   const { uploadUrl, fields, contentType, objectKey } = await wapi.getUploadUrl(
@@ -133,15 +144,16 @@ export async function uploadMedia(request: MediaUploadRequest): Promise<MediaRec
   }
 
   // 3. Confirm upload to create the media record in the user's collection.
-  //    Delegated to the wrapper: the raw JWT and API protocol live on the
-  //    underlying SDK, not on the wrapper object — reaching for `wapi.token`
-  //    here would send `token: undefined` and fail auth. The object URL is
-  //    built from the server-assigned objectKey, not the raw filename.
   return wapi.confirmUpload<MediaRecord>({
     url: `${uploadUrl}/${objectKey}`,
     filename: request.file.name,
     mimeType: contentType,
     sizeBytes: request.file.size,
+    width: request.width ?? null,
+    height: request.height ?? null,
+    durationSeconds: request.durationSeconds ?? null,
+    thumbnailUrl,
+    altText: request.altText ?? null,
   });
 }
 
@@ -172,9 +184,83 @@ export async function deleteMedia(id: string): Promise<void> {
 
 /**
  * Resolve media_refs to full media records.
+ *
+ * D23: the stored `url` on a media record is the bare UNSIGNED object
+ * URL — on a private bucket (the dev minio) every renderer that hands
+ * `record.url` to an <img> 403s. So resolveMediaRefs now refreshes
+ * each resolved record's `url` (and, when present, `thumbnail_url`) to
+ * a fresh presigned GET via the api's `POST /media/{user}/read` (now
+ * that it finally has callers). The wrapper's expiry-aware cache keeps
+ * a feed's N-image re-render from becoming N round-trips. The owner
+ * whose collection holds the `media` records defaults to the signed-in
+ * user; pass an explicit `owner` to refresh media authored by someone
+ * else (the feed's own posts resolve from the current user's media
+ * collection — the cross-user avatar path is a separate concern).
  */
-export async function resolveMediaRefs(refs: string[]): Promise<MediaRecord[]> {
+export async function resolveMediaRefs(
+  refs: string[],
+  owner?: { username: string; provider: string },
+): Promise<MediaRecord[]> {
   if (!refs.length) return [];
   const wapi = getWapi();
-  return wapi.read<MediaRecord>('media', { _id: { $in: refs } });
+  const records = await wapi.read<MediaRecord>('media', { _id: { $in: refs } });
+  return refreshMediaUrls(records, owner);
+}
+
+/**
+ * Replace each record's unsigned `url` (and `thumbnail_url`) with a
+ * fresh presigned GET. Prefers `record.object_key` (the lane-A
+ * confirm-upload touch) when present; legacy records derive the key
+ * from the stored URL. Records whose URL can't be resolved to a key
+ * (e.g. a non-S3 legacy url) are passed through unchanged so a bad
+ * derivation never breaks a render worse than before.
+ */
+export async function refreshMediaUrls(
+  records: MediaRecord[],
+  owner?: { username: string; provider: string },
+): Promise<MediaRecord[]> {
+  if (!records.length) return records;
+  const wapi = getWapi();
+  const refreshed = await Promise.all(
+    records.map(async (r) => {
+      const objectKey = (r.object_key as string | undefined) || deriveObjectKey(r.url);
+      if (!objectKey) return r;
+      try {
+        const { readUrl } = await wapi.getReadUrl(objectKey, owner?.username, owner?.provider);
+        let thumbnail_url = r.thumbnail_url ? readUrl : r.thumbnail_url;
+        if (r.thumbnail_url && r.thumbnail_url !== r.url) {
+          const thumbKey = deriveObjectKey(r.thumbnail_url);
+          if (thumbKey && thumbKey !== objectKey) {
+            try {
+              const { readUrl: thumbReadUrl } = await wapi.getReadUrl(thumbKey, owner?.username, owner?.provider);
+              thumbnail_url = thumbReadUrl;
+            } catch (thumbErr) {
+              console.warn(
+                `[refreshMediaUrls] thumbnail presign failed for key "${thumbKey}": ${thumbErr instanceof Error ? thumbErr.message : String(thumbErr)} — keeping stored thumbnail_url`,
+              );
+              thumbnail_url = r.thumbnail_url;
+            }
+          }
+        }
+        return { ...r, url: readUrl, thumbnail_url };
+      } catch (err) {
+        console.warn(
+          `[refreshMediaUrls] presign failed for key "${objectKey}": ${err instanceof Error ? err.message : String(err)} — falling back to stored URL`,
+        );
+        return r;
+      }
+    }),
+  );
+  return refreshed;
+}
+
+/**
+ * Convenience wrapper that refreshes a single media record's URLs.
+ * Another agent will use this for post-upload paths.
+ */
+export async function refreshMediaUrl(
+  record: MediaRecord,
+  owner?: { username: string; provider: string },
+): Promise<MediaRecord> {
+  return (await refreshMediaUrls([record], owner))[0];
 }
