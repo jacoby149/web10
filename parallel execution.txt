@@ -145,6 +145,54 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       gauntlet passes (D29 — a transcoder reads as infra) AND D21's
       video v0 is merged; the app proves mp4 playback before the
       node earns a transcoder.
+  [ ] A10. P4.5 OPERATOR CONSOLE api (plan.txt phase 4.5 — the
+      auth.web10.app/admin backend). the current admin surface is the
+      /config form (admins list, app-store approvals, credentials) —
+      operator-editable secrets, NOT operator-runnable node. this lane
+      adds the moderation + analytics + audit endpoints under it:
+      - POST /users/admin (search/paginate), PATCH /users/admin/{u}
+        (status: active/suspended/banned, append-only history),
+        DELETE /users/admin/{u} (hard delete + tombstone, 24h undo),
+        POST /users/admin/{u}/reset_password, POST
+        /users/admin/{u}/reveal_phone (audit-logged).
+      - GET/PATCH /policy (typed policy record: signup_gate stack,
+        beta code, phone/email/captcha toggles, signup + write rate
+        limits, blocked_usernames/phones/emails, invite_codes CRUD).
+        enforcement moves INTO auth.py + is_permitted (signup rate
+        limits, captcha gate, blocked-list checks, write throttle via
+        credits) in the SAME PR — the ui form must never be a no-op.
+      - POST /reports (user-facing flag), POST /reports/admin
+        (queue), PATCH /reports/admin/{id} (status). reporter is in
+        the record for the operator, hidden from the reported user.
+      - POST /analytics/admin (signups_over_time, dau/wau/mau,
+        retention_cohort, request_volume, storage_growth — daily
+        snapshot cron, not a runtime scan — per_app_usage,
+        top_services). built on A5's event store; if the store
+        isn't queryable yet, ship the cheap ones (signups_over_time
+        from user records, storage_growth from the snapshot cron)
+        and stub the rest behind a TODO + fixtures for lane B.
+      - POST /admin/counts (the Overview tab's one-shot:
+        users/pending_apps/open_reports/health).
+      - POST /audit/admin (paginated, filterable read). writes are
+        not an endpoint — every admin mutation in the items above
+        appends one immutable row (ts, actor, action, target, before,
+        after, reason). the audit append is the load-bearing call of
+        this lane: ship it in the FIRST slice, not the last, so every
+        later admin action inherits it.
+      gate: PARKED behind the gauntlet (priority one — D29: operator
+      tooling reads as infra until the social app is lovable). start
+      the slice immediately after the gauntlet goes green: users +
+      policy + reports + audit first (the safe-growth triangle),
+      analytics second. ugh-level arm is the phone-reveal endpoint
+      being itself audit-logged — recursive but mandatory.
+      permission-matrix suite MUST extend: each admin endpoint rejects
+      a non-admin token; every status transition writes exactly one
+      audit row; forge-`_author` rejection (A8) still holds through
+      the new endpoints. coordinate endpoint shapes with lane B's B8
+      BEFORE coding — B8 builds against fixtures, hand off the JSON
+      contract first. unblocks: B8, phase 12 trust&safety (the audit
+      log + a future token-revoke are what make "ban takes effect now"
+      possible).
 
 LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
   [✓ 1.0.12-1.0.14] B1. P0 js: auth2 -> vite + bun + typescript
@@ -231,6 +279,68 @@ LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
        "operator would demo it to an influencer without apologizing."
        gate: none — start anytime. compare against social/marketing,
        which the operator calls the quality reference.
+  [ ] B8. P4.5 OPERATOR CONSOLE ui (plan.txt phase 4.5 —
+      auth.web10.app/admin). lift the existing ConfigPage.tsx into a
+      real moderation console. mental model: twitch/mastodon admin
+      dashboard you leave open in a tab, not a secrets form.
+      - new ui mode `admin` in App.tsx's switch, served at path /admin.
+        the existing `config` mode redirects to /admin#config (deep-
+        link compat, sidebar/status refs still resolve); nothing 404s.
+        a NotAnAdmin component (lift ConfigPage's Lock card) gates
+        every admin sub-route so the gate isn't hand-rolled per tab.
+        extend the interface with I.isLoadingAdmin (separate from
+        I.isAdmin) so a route rendered before /am_admin resolves
+        shows a skeleton, not a flicker of the "admins only" card.
+      - tabs, left rail (desktop) collapsing to a top segmented control
+        (mobile, 375px, never a hamburger): Overview · Users ·
+        Moderation · App Store · Node Config · Audit Log.
+      - Users: toolbar (search + status + sort) + paginated table; row
+        click opens a right-drawer (mobile: full sheet) with identity,
+        masked phone + audit-logged reveal button, quotas, registered
+        apps, recent activity, action buttons (suspend/ban/unban/reset
+        password/delete). every destructive action opens a confirm
+        modal that requires a TYPED username match.
+      - Moderation: three stacked sections — (a) the typed /policy form
+        (signup_gate stack with conditional captcha/email fields, rate
+        limits with "reset to default" ghosts), (b) the reports Kanban
+        table (oldest first, dismiss requires a reason, opens user
+        drawer from the Users tab), (c) blocklists + invite-code CRUD
+        (each row shows the actor + ts + reason — never an anon block).
+      - App Store: ship verbatim — lift ConfigPage's App Store Approvals
+        card into components/Admin/AppStoreCard.tsx. no behavior change.
+      - Node Config: ConfigPage's secrets + identity half stays as-is
+        under /admin#config. the Admins card MIGRATES OUT to the Users
+        tab's role assignment; the Access Policy card MIGRATES OUT to
+        the Moderation tab's policy form. so secrets and who-can-touch-
+        them are no longer on the same screen — a real footgun fix.
+      - Audit Log: reverse-chronological table, filter by actor/action/
+        date, every row expandable to the before/after JSON tree (reuse
+        Contracts' renderer). immutable; no PATCH.
+      - Overview: no-input dashboard — total users (+N this week),
+        pending apps, open reports, node health (db ping + storage
+        snapshot + 24h errors), today's signup chart. the operator's
+        muscle memory is Overview -> click the red number.
+      - shared primitives land FIRST in components/Admin/_shared/:
+        NotAnAdmin gate, drawer/sheet, audit diff tree, analytics
+        sparkline card, typed-confirm modal. six tabs must NOT each
+        hand-roll their own confirm-modal — that's the worst outcome.
+      gate: PARKED behind the gauntlet (priority one — D29) AND behind
+      A10's endpoint-shape handoff (build against fixtures until then,
+      same pattern B4 used — do NOT reach into api/ files for shapes;
+      get the JSON contract from lane A first). ship in two waves:
+      Wave 1 (gauntlet green) = the /admin route + Users tab +
+      Moderation tab + Audit Log + the lift of ConfigPage into
+      /admin#config + App Store tab. Wave 2 = Overview + Analytics
+      tab (a chart dep is a lane-shared decision — check what
+      marketing-ui uses before adding one).
+      acceptance: design.md §12 screenshot test (desktop + 375px per
+      tab in the PR), all-token-colors from the design system, and a
+      playwright admin journey added to the gauntlet suite: sign in
+      as bootstrap admin -> /admin -> search the user from gauntlet
+      step 1 -> suspend -> write rejected -> unsuspend -> audit log
+      shows BOTH transitions. that test is the regression seatbelt for
+      the whole phase — it's how "we shipped moderation with no test"
+      doesn't happen.
 
 LANE C — greenfield services  (owns: sdk/, mcp/, new dirs)
   [✓ 1.0.25] C1. P5 media service (presigned urls, minio profile,

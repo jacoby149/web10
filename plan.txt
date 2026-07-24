@@ -811,6 +811,279 @@ monetization controls:
     exist: stripe connect transfer_data + amount_percent in stripe.py)
 
 
+PHASE 4.5 — the OPERATOR CONSOLE (auth.web10.app/admin)
+-------------------------------------------------------
+the current admin surface is a single /config route in ui/ -- admins list,
+app-store approvals, and one wall of credential fields (s3/stripe/twilio/
+brand/policy). that is "operator can type secrets into a form", not
+"operator can run their node." the operator wants a moderation console the
+way youtube/twitch/mastodon admins have one: a dashboard you leave open in
+a tab, glance at node health, triage abuse, look someone up, ship a ban.
+this phase builds that at auth.web10.app/admin. /config becomes one tab
+inside it (the credentials/identity half stays; the policy half moves into
+the moderation tab where it belongs). the existing ConfigPage.tsx is the
+seed -- it already loads /config, /apps/admin, /apps/approve -- and stays
+github-pasteable for the secrets half; everything new lives behind it.
+
+ROUTE + AUTH GATE:
+[ ] new ui mode `admin` (case "admin" in App.tsx switch) served at the
+    path /admin. App.tsx's effectiveMode already falls back to login when
+    signed-out; the /admin route additionally no-ops to a 404-style gate if
+    I.isAdmin is false (the same calm Lock card ConfigPage renders today,
+    lifted into its own NotAnAdmin component so every admin sub-route can
+    reuse it -- do not duplicate).
+[ ] the existing /config mode stays mountable for deep-link compat (the
+    side bar, plan.txt/CHANGELOG refs, the gauntlet step). it just becomes
+    a redirect to /admin#config so the secrets form is one click away and
+    nothing 404s. the ib `mode="config"` callers (sidebar, status) keep
+    working.
+[ ] the admin nav itself is a left rail (desktop) collapsing to a top
+    segmented control (mobile, 375px) -- same AppShell the rest of ui/
+    uses. tabs: Overview · Users · Moderation · App Store · Node Config ·
+    Audit Log. mobile shows the active tab name as the page title and the
+    segmented control below it; never a hamburger.
+[ ] I.isAdmin already hydrates from check_admin (App.tsx's restored-
+    session effect). extend the interface so /admin sub-routes can read
+    I.isLoadingAdmin separately from I.isAdmin -- a route rendered before
+    the /am_admin call resolves must show a skeleton, not the "admins
+    only" card (which today flickers on reload).
+
+USERS TAB (the missing moderation layer):
+[ ] api: POST /users/admin -- admin-only (check_admin). paginated,
+    searchable. query: { token, q, status, sort, skip, limit }.
+    - q searches username (prefix/substring, mongo regex anchored) and
+      phone (exact only -- PII). q="" lists everyone.
+    - status filter: all | active | suspended | banned | unverified.
+    - sort: newest | oldest | most_active (last_seen desc) | top_storage.
+    - response: { users: [{ username, phone_masked, verified,
+      created_at, last_seen, status, storage_bytes, request_count_30d,
+      apps_count }], total, pending_reports }.
+    - never return password hashes, full phone numbers, or tokens. phone
+      is masked (+1...1234) except for admins of THIS node (still in the
+      api only; the ui masks by default and reveals on an explicit click
+      that hits an audit-logged /users/admin/reveal endpoint -- the reveal
+      is the load-bearing anti-snooping piece, do not skip it).
+[ ] api: PATCH /users/admin/{username} -- admin-only. body: { status:
+    "active"|"suspended"|"banned", reason?, duration? }.
+    - "suspended": the user can log in and read their own data, but every
+      write (create/update/delete) is rejected at is_permitted with an
+      exceptions.SUSPENDED. the token still certifies so they can graduate
+      off the node (phase 10) -- suspension is a throttle, not a kill.
+    - "banned": mint no new tokens for this username. existing tokens
+      continue to work until expiry (we don't ship a global token-revoke
+      yet -- that's a phase 12 invariant, see "audit log + revoke" below)
+      but every write is rejected at is_permitted. signup with the same
+      username is blocked.
+    - "active": clears the flag.
+    - reason + actor + ts land in the audit collection (see AUDIT LOG
+      TAB). every state transition is append-only history, not an
+      overwrite -- so a ban-then-unban-then-ban shows three rows, not one.
+[ ] api: POST /users/admin/{username}/reset_password -- admin-only,
+    admin-prints-or-emails-the-link flow (no, the admin does not see the
+    new password). returns a one-shot reset token valid for 10 minutes;
+    the user follows the existing /change_pass path. alternative: admin
+    sets a temporary password that must be changed on next login (flag on
+    the user record). pick one in implementation, not in the plan.
+[ ] api: DELETE /users/admin/{username} -- admin-only, HARD delete.
+    removes the user's auth record + cascades their {service:*} records
+    (the same _author-scoped set the user owns, per A8). stage gated
+    behind a typed confirm in the ui (the operator types the username)
+    and a 24h grace entry in the audit log + a restorable tombstone
+    collection (username, deleted_at, actor, reason, snapshot_oid). undo
+    window means a "banned, deleted in anger, sorry" fat-finger doesn't
+    nuke a creator's archive. (ties into phase 10 escape-pod; the
+    tombstone is the same machinery, pointed at a different table.)
+[ ] ui: Users tab = a toolbar (search input, status select, sort select)
+    + a paginated table (username, status pill, created, last_seen,
+    storage, 30d requests). row click opens a right-side drawer (mobile:
+    full-screen sheet) with the user's full card: identity, masked phone
+    + reveal button (audit-logged), quota (credits/space), apps they've
+    registered, recent activity, and the action buttons (suspend / ban /
+    unban / reset password / delete). every action opens a confirm modal
+    that requires a typed username match for ban/delete. the drawer is
+    the single source of truth -- the table is just navigation to it.
+
+MODERATION TAB (the anti-spam half of phase 3's policy menu, now real):
+[ ] api: GET/PATCH /policy (admin-only) -- a typed policy record in the
+    web10.config collection, edit-visible in this tab (NOT in node config
+    -- credentials and policy live different lives; an operator changes
+    policy every week and credentials once). fields:
+    - signup_gate: "open" | "invite" | "approval_queue" | "beta_code" |
+      "phone_verify" | "email_verify" | "captcha_turnstile". stackable
+      (ordered list, all must pass). default ["open"] for self-host;
+      ["beta_code","phone_verify"] for the celebrity case.
+    - beta_code (string), beta_required (bool) -- already modelled,
+      migrate here.
+    - phone_required, email_required, verify_required (bools).
+    - captcha_site_key, captcha_secret (secret stays server-side; only
+      the site key is returned to the ui).
+    - signup_rate_limit: { per_ip_per_hour, per_phone_per_hour,
+      per_email_per_hour } -- the actual numbers. enforced at /signup +
+      /send_code (auth.py), keyed by ip (X-Forwarded-For last hop) +
+      phone/email hash. the enforcement itself belongs to lane A in
+      auth.py, the tunables live here.
+    - write_rate_limit: { per_user_per_min, per_ip_per_min } -- enforced
+      at is_permitted, throttle by credits (D21's quota path) rather than
+      a hard 429; running out of credits is already the existing abuse
+      shape, the policy record just sets the per-minute refill.
+    - blocked_usernames: regex list ( RESERVED words, slurs, handle
+      squatting). checked at /signup before create_user.
+    - blocked_phones, blocked_emails: hash lists for known abusers.
+    - invite_codes: { code, max_uses, used, expires_at, note }[] -- the
+      operator's manual invite-link issuer/revoker. one field less than a
+      whole invite system; the table lives in this tab.
+[ ] api: POST /reports -- already exists as /feedback in marketing-api;
+    bring it (or a sibling) to the authenticator so USERS can flag a
+    post/user for the operator to review. body: { token, target:
+    {username? , service?, record_id?}, reason, note }. writes to an
+    admin_reports collection. anonymous-in-the-ui (the reporter is in
+    the record for the operator; the reported user never sees who
+    flagged them).
+[ ] api: POST /reports/admin { token, status, skip, limit } -- the
+    operator's queue. returns reports with the target's current status
+    pre-joined so the operator doesn't have to second-click.
+[ ] api: PATCH /reports/admin/{id} -- { status: "open"|"reviewing"|
+    "actioned"|"dismissed", action_taken?: string }. dismiss + actioned
+    are terminal; both write to the audit log.
+[ ] ui: Moderation tab = three stacked sections:
+    (a) Policy -- the typed form for the /policy record above. every
+        numeric rate limit field has a sane default shown as a placeholder
+        and a "reset to default" ghost button. the captcha + email gate
+        fields only render when the matching signup_gate is selected
+        (same conditional pattern as ConfigPage's beta_code reveal).
+    (b) Reports queue -- a Kanban-ish table grouped by status, oldest
+        first, with a quick "open user drawer" + "set status" action per
+        row. clicking a report opens the user drawer from the Users tab
+        so the operator sees history before deciding. dismiss requires
+        a one-line reason.
+    (c) Blocklists -- searchable lists of blocked usernames/phones/
+        emails + invite-code CRUD. each entry shows who added it, when,
+        and why (audit join) -- never an anonymous block.
+[ ] the anti-spam ENFORCEMENT (signup/write rate limits, captcha,
+    blocked-list checks) is lane A work in api/app/endpoints/auth.py +
+    auth/services/auth.py + is_permitted; this phase only adds the
+    tunables + the ui surface. they ship together so the policy form is
+    never a no-op.
+
+ANALYTICS TAB (the "how's my node doing" screen):
+[ ] api: POST /analytics/admin { token, metric, range: {from,to},
+    bucket: "hour"|"day"|"week" } -- built on A5's per-request event
+    collection (already merged; if the event store isn't there yet, the
+    ui builds against fixtures and the api follows). metrics:
+    - signups_over_time: count of user records grouped by created_at
+      bucket. (cheap; doesn't need the event store.)
+    - dau/wau/mau: distinct _author values seen in the event store per
+      day/week/month.
+    - retention_cohort: 7×8 matrix of "joined in week N, seen in week N+k".
+    - request_volume: event count per bucket, optionally split by service.
+    - storage_growth: sum(media bytes) per bucket -- daily snapshot, not a
+      scan (a daily cron writes a storage snapshot to a metric collection
+      so the chart is constant-time).
+    - per_app_usage: events grouped by app origin (the register_app url
+      is on the token's site field -- map it).
+    - top_services: events grouped by service={posts,dms,media,...}.
+[ ] ui: Analytics tab = a date-range picker (default 30d) and a 2-col
+    grid of cards, each card = one metric, sparkline + headline number +
+    % delta vs previous range. the cards are not charts-as-decoration --
+    delta > 0 is green for signups, red for storage-burn, etc. the kind
+    of thing an operator screenshots for a sponsor (ties to phase 4
+    sponsor reporting). charts use the existing charting lib in
+    marketing-ui (look before adding one -- a chart dep is a lane-shared
+    decision). aggregate exhaust only, never individual record contents,
+    the same privacy line as the metering note in phase 4.
+[ ] the analytics tab is what makes this phase DEMOABLE to a creator's
+    MANAGER (the second audience for the studio screen). the operator
+    shows "208 real users, 1.2k requests today, here's the signup
+    chart"; that's the social proof the /config form never carried.
+
+OVERVIEW TAB (the dashboard head):
+[ ] one screen, no inputs. cards: total users (with +N this week),
+  pending app approvals (links to App Store tab), open reports (links to
+  Moderation tab), node health (db ping + storage last-snapshot + 24h
+  error count from the event store), today's signup chart (reuse the
+  analytics sparkline). it's a launchpad to the other tabs -- the
+  operator's muscle memory is Overview -> click the red number.
+  pulling the open-reports + pending-apps count is one new endpoint:
+  POST /admin/counts { token } -> { users, pending_apps, open_reports,
+  health: {db,storage_bytes,errors_24h} }.
+
+APP STORE TAB (already shipped, just relocated):
+[✓ 1.0.136] the existing /apps/admin + /apps/approve flow + the
+    ConfigPage App Store Approvals card move here verbatim
+    (ConfigPage.tsx's card and its handlers get lifted into a new
+    components/Admin/AppStoreCard.tsx). no behavior change; just a new
+    home under /admin#appstore.
+
+NODE CONFIG TAB (the credentials half of today's /config, retained):
+[✓ 1.0.40] the existing ConfigPage form (Node Identity, Database,
+    Media S3, Twilio, Stripe, Free Tier) stays as-is under
+    /admin#config. the Admins card + Access Policy card MIGRATE OUT:
+    Admins -> Users tab's role assignment, Access Policy -> Moderation
+    tab's policy form. so this tab is purely secrets + identity, and
+    the Admins list is no longer a footgun sitting next to the stripe
+    live key.
+
+AUDIT LOG TAB (the trust layer under all of the above):
+[ ] api: every admin mutation (ban/unban, delete, policy change,
+    admin add/remove, report dismiss/action, invite-code issue,
+    phone-reveal, manual quota override) writes one row to an audit
+    collection: { ts, actor_username, action, target_username?,
+    target_kind, before?, after?, reason? }. POST /audit/admin { token,
+    skip, limit, actor?, action?, from?, to? } -- admin-only read,
+    paginated + filterable. there is no PATCH -- audit rows are
+    immutable.
+[ ] ui: Audit Log tab = a reverse-chronological table, filtered by
+  actor/action/date range, every row expandable to show the before/after
+  diff (the same JSON-tree the Contracts page already renders). this is
+  what makes "who banned whom and why" answerable in 5 seconds -- a
+  multi-admin node needs this from day one (plan.txt I5 integrity), and
+  the SPONSOR asks for it ("is this node well-run?").
+[ ] the audit log + a future token-revoke endpoint are also what make
+  "ban takes effect immediately, not at next token mint" possible (phase
+  12 invariant work) -- the audit row's ts is the cutoff an is_permitted
+  check can consult. NOT shipped in this phase, but the schema must leave
+  room for it (a `revoked_at` column on the user record, nullable).
+
+PRIORITY + GATES (honest call):
+[ ] the GAUNTLET (priority one) precedes this phase. /admin is operator
+    tooling -- it makes the node RUNNABLE, not LOVABLE, and the priority
+    one bar is "the operator opens the social app on his phone, proud."
+    a moderation console with no users to moderate is premature. BUT:
+    the Users-search + ban/suspend + the policy record are the smallest
+    slice that EARNS the operator's trust and unblocks safe growth --
+    that slice can land right after the gauntlet passes, before phase 4's
+    full monetization menu. sequence: gauntlet green -> /admin#users +
+    /admin#moderation (policy form + reports) + audit log -> then
+    analytics tab -> then the rest. sewing the audit log into the
+    FIRST slice (not the last) is the load-bearing call -- every later
+    admin action inherits it for free, and "we shipped moderation with
+    no audit trail" is the one regression you can't undo.
+
+LANE SPLIT (parallel-execution coordination):
+[ ] lane A owns the api endpoints: /users/admin{,PATCH,DELETE,reset},
+    /policy GET+PATCH, /reports + /reports/admin, /analytics/admin,
+    /admin/counts, /audit/admin. permission-matrix tests must be
+    extended: each admin endpoint rejects a non-admin token; every
+    status transition writes exactly one audit row; the phone-reveal
+    endpoint is itself audit-logged (recursive test).
+[ ] lane B owns ui/ -- the new /admin route in App.tsx, the Admin/
+    component tree (Overview, Users, Moderation, AppStore, NodeConfig,
+    AuditLog components under components/Admin/), and the lift of
+    ConfigPage into /admin#config. coordinate with lane A on the
+    endpoint shapes (don't reach into api/) -- build against fixtures
+    until the api lands, same pattern B4 used.
+[ ] the NOT-AN-ADMIN gate, the drawer/sheet primitive, the audit diff
+    tree, and the analytics chart card are all SHARED ui primitives
+    that should land in components/Admin/_shared/ first so each tab
+    composes them -- the worst outcome is six tabs each hand-rolling a
+    confirm-modal and a phone-reveal.
+[ ] e2e: extend the playwright gauntlet with an admin journey:
+    sign in as the bootstrap admin -> open /admin -> search the user
+    you signed up with in step 1 -> suspend them -> verify their next
+    write is rejected -> unsuspend -> verify the audit log shows both
+    transitions. this is the regression seatbelt for the whole phase.
+
+
 PHASE 5 — media service (the s3 layer)
 --------------------------------------
 records store metadata + url. blobs live in object storage. s3 API is the
