@@ -34,6 +34,8 @@ board, logged as D29).
      375px, on a real phone, on dev AND prod
 each step that passes gets encoded as a playwright journey in e2e/
 so it can't regress (C6 continued — the referee for "works").
+[✓ 1.0.145] gauntlet.spec.ts landed: 8 step-journeys (passing = real
+      assertions; failing = test.fixme scaffolds with documented blockers).
 when the gauntlet passes end to end, THEN low-hanging fruit in
 order of demo impact (realtime feed refresh, notifications, search
 your own stuff, D16(3) store curation) — judged by the same
