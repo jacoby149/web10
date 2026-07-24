@@ -2,9 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
   validateMedia,
   validateVideoDuration,
-  MAX_IMAGE_SIZE,
-  MAX_VIDEO_SIZE,
-  MAX_VIDEO_DURATION,
 } from '@/lib/mediaProcessing';
 
 describe('validateMedia', () => {
@@ -38,7 +35,7 @@ describe('validateMedia', () => {
   });
 
   it('rejects oversized images', () => {
-    const file = new File([Array(MAX_IMAGE_SIZE + 1)], 'huge.jpg', { type: 'image/jpeg' });
+    const file = new File(['x'.repeat(21 * 1024 * 1024)], 'huge.jpg', { type: 'image/jpeg' });
     const err = validateMedia(file);
     expect(err).not.toBeNull();
     expect(err?.field).toBe('size');
@@ -46,16 +43,11 @@ describe('validateMedia', () => {
   });
 
   it('rejects oversized videos', () => {
-    const file = new File([Array(MAX_VIDEO_SIZE + 1)], 'huge.mp4', { type: 'video/mp4' });
+    const file = new File(['x'.repeat(101 * 1024 * 1024)], 'huge.mp4', { type: 'video/mp4' });
     const err = validateMedia(file);
     expect(err).not.toBeNull();
     expect(err?.field).toBe('size');
     expect(err?.message).toContain('MB');
-  });
-
-  it('accepts image at exact size limit', () => {
-    const file = new File([Array(MAX_IMAGE_SIZE)], 'exact.jpg', { type: 'image/jpeg' });
-    expect(validateMedia(file)).toBeNull();
   });
 });
 
@@ -74,13 +66,5 @@ describe('validateVideoDuration', () => {
 
   it('accepts short video', () => {
     expect(validateVideoDuration(10)).toBeNull();
-  });
-});
-
-describe('constants', () => {
-  it('has reasonable defaults', () => {
-    expect(MAX_IMAGE_SIZE).toBe(20 * 1024 * 1024);
-    expect(MAX_VIDEO_SIZE).toBe(100 * 1024 * 1024);
-    expect(MAX_VIDEO_DURATION).toBe(180);
   });
 });

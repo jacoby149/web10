@@ -302,7 +302,7 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
     e.dataTransfer.dropEffect = 'move';
   }
 
-  function handleDrop(e: React.DragEvent, dropIndex: number) {
+  function handleMediaDrop(e: React.DragEvent, dropIndex: number) {
     e.preventDefault();
     const dragId = dragIdRef.current;
     if (dragId === null) return;
@@ -461,7 +461,7 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
                   onAltTextChange={(alt) => updateAltText(item.id, alt)}
                   onDragStart={handleDragStart}
                   onDragOver={handleDragOver}
-                  onDrop={handleDrop}
+                  onDrop={handleMediaDrop}
                   onDragEnd={handleDragEnd}
                   disabled={posting || uploading}
                 />
