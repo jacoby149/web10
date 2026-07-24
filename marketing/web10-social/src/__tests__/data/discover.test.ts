@@ -2,14 +2,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as feed from '../../data/feed';
 
 describe('readDiscoverFeed', () => {
-  const originalFetch = global.fetch;
+  const originalFetch = (globalThis as unknown as Record<string, unknown>).fetch;
 
   beforeEach(() => {
     vi.restoreAllMocks();
   });
 
   afterEach(() => {
-    global.fetch = originalFetch;
+    (globalThis as unknown as Record<string, unknown>).fetch = originalFetch;
   });
 
   it('returns posts on success', async () => {
@@ -27,28 +27,28 @@ describe('readDiscoverFeed', () => {
         score: 13,
       },
     ];
-    global.fetch = vi.fn().mockResolvedValue({
+    (globalThis as unknown as Record<string, unknown>).fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(mockPosts),
     });
 
     const result = await feed.readDiscoverFeed('trending', 10);
     expect(result).toEqual(mockPosts);
-    expect(global.fetch).toHaveBeenCalledWith(
+    expect((globalThis as unknown as Record<string, unknown>).fetch).toHaveBeenCalledWith(
       'https://api.web10.app/discover/posts?sort=trending&limit=10',
       { method: 'PATCH' },
     );
   });
 
   it('returns empty array on network error', async () => {
-    global.fetch = vi.fn().mockRejectedValue(new Error('network error'));
+    (globalThis as unknown as Record<string, unknown>).fetch = vi.fn().mockRejectedValue(new Error('network error'));
 
     const result = await feed.readDiscoverFeed('recent', 5);
     expect(result).toEqual([]);
   });
 
   it('returns empty array on non-ok response', async () => {
-    global.fetch = vi.fn().mockResolvedValue({
+    (globalThis as unknown as Record<string, unknown>).fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 500,
     });
@@ -58,13 +58,13 @@ describe('readDiscoverFeed', () => {
   });
 
   it('defaults to recent sort and limit 20', async () => {
-    global.fetch = vi.fn().mockResolvedValue({
+    (globalThis as unknown as Record<string, unknown>).fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve([]),
     });
 
     await feed.readDiscoverFeed();
-    expect(global.fetch).toHaveBeenCalledWith(
+    expect((globalThis as unknown as Record<string, unknown>).fetch).toHaveBeenCalledWith(
       'https://api.web10.app/discover/posts?sort=recent&limit=20',
       { method: 'PATCH' },
     );
