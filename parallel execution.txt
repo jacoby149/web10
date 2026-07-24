@@ -199,19 +199,31 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       contract first. unblocks: B8, phase 12 trust&safety (the audit
       log + a future token-revoke are what make "ban takes effect now"
       possible).
-  [ ] A11. USERNAME CHARSET — the api rejects hyphens ("usernames take
-      only alphanumeric characters") while the flagship personas
-      (solar-flare-69, noodle-empress) were seeded straight into the
-      db WITH hyphens — so the demo shows names a real signup can't
-      have (gauntlet step 1). decide and implement one of: (a) allow
-      [a-z0-9-] — usernames name mongo collections, so the charset IS
-      a security boundary: validate strictly, audit every place a
-      username is parsed/regexed (auth.py, documentdb.py q_t/u_t,
-      media paths) before widening; or (b) keep the strict rule and
-      rename the personas alphanumeric (seed script + existing dev
-      data). either way the signup form surfaces a clear inline
-      charset message (small lane B seam — leave a note). small item;
-      gate: none.
+  [ ] A11. USERNAME CHARSET — premise corrected 24.07 (code audit,
+      1.0.154): the api does NOT reject hyphens. kosher()
+      (api/app/endpoints/auth.py:127) has allowed them since #89 —
+      `c.isalnum() or c in ["-"]` — so the hyphenated personas
+      (solar-flare-69, noodle-empress) ARE signup-able names and the
+      original "demo shows names a real signup can't have" concern is
+      moot. the REAL gap is the opposite: kosher() is too LOOSE for a
+      string that names a mongo collection (I3 boundary) and rides in
+      urls/media paths. python isalnum() is unicode-aware, so CJK/
+      greek/etc usernames pass; uppercase passes (case-sensitive
+      collections + any case-insensitive lookup elsewhere = twin-
+      account risk); no length cap; bare "-" and leading/trailing
+      hyphens pass. task: pin the charset explicitly — lowercase
+      ascii + digits + interior hyphens, bounded length (suggested
+      ^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])?$; decide exact bounds and
+      record why) — audit every place a username is parsed/regexed
+      (auth.py, documentdb.py q_t/u_t + collection addressing, media
+      paths, endpoints/*) while tightening, extend the permission-
+      matrix suite with BAD_USERNAME cases (unicode, uppercase,
+      edge-hyphens, over-length, reserved), and make the error
+      message state the actual rule. SIGNUP-TIME validation only:
+      existing users (the 208 real + personas, any legacy uppercase)
+      are grandfathered — login/lookup must keep working, never a
+      migration. the signup form's inline charset message is a small
+      lane B seam (leave a .context/ note). small item; gate: none.
 
 LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
   [✓ 1.0.12-1.0.14] B1. P0 js: auth2 -> vite + bun + typescript
@@ -1059,6 +1071,12 @@ the lane D sub-lane map; all gates none, run all of these 4-wide+):
                   fixme when D-dm-compose lands. journeys assert the
                   BAR, not the happy path (D-profile-media-refresh got
                   past step 6's save+read assertion).
+                  GATE NOTE (24.07): both named tasks are gated on
+                  UNMERGED work — a step-6 refresh assertion merged
+                  before the D-profile-media-refresh fix turns the
+                  e2e job red on dev ("nothing merges red"), and the
+                  step-5 flip waits on D-dm-compose by its own text.
+                  stage ws-C when ws-D/profile merges, not 4-wide now.
 WEEK-3 STAGING (timeline.md aug 3-10 — staged NOW so no lane idles
 when the residue drains):
   ws-E:           BOX EXECUTION remainder (AGENT-OPS.md §4.2) + the
