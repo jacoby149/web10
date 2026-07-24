@@ -99,7 +99,7 @@ function Trending() {
   };
 
   const handleComment = useCallback(
-    () => trackFunnel('trending_comment_attempt'),
+    (postId: string) => trackFunnel('trending_comment_attempt', { post_id: postId }),
     [],
   );
 

@@ -42,6 +42,8 @@ export function trackFunnel(
     | 'trending_comment_attempt'
     | 'trending_like_attempt'
     | 'trending_repost_attempt'
+    | 'join_view'
+    | 'join_click'
     | 'sign_in_click'
     | 'sign_up_click'
     | 'github_click'

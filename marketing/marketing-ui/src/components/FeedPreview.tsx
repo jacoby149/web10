@@ -1,10 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Flame, Heart, MessageCircle, Repeat2, Share2, Image as ImageIcon, Film, Music2 } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { Flame, Heart, MessageCircle, Repeat2, Share2, Image as ImageIcon, Film, Music2, Send } from 'lucide-react';
 import { SOCIAL_ORIGIN } from '@/lib/origins';
+import { trackFunnel } from '@/lib/analytics';
 
 const API_ORIGIN = import.meta.env.VITE_API_URL || 'https://api.web10.app';
 
@@ -212,6 +215,151 @@ interface TrendingCardProps {
   cardRef?: (el: HTMLElement | null) => void;
 }
 
+// ── Inline comment panel (anon read, auth-gated compose) ────────────────────
+
+const COMMENT_API = import.meta.env.VITE_API_URL || 'https://api.web10.app';
+
+interface LedgerComment {
+  _id: string;
+  payload: {
+    action: string;
+    text: string;
+    author_username?: string;
+    author_provider?: string;
+    target?: string;
+  };
+  author: string;
+  created_at: string;
+}
+
+function commentTimeAgo(dateStr: string): string {
+  const now = Date.now();
+  const then = new Date(dateStr).getTime();
+  const diff = now - then;
+  const seconds = Math.floor(diff / 1000);
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  return `${days}d`;
+}
+
+async function fetchComments(postId: string): Promise<LedgerComment[]> {
+  const resp = await fetch(`${COMMENT_API}/public/entries`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      query: { target: `posts:${postId}`, limit: 50 },
+    }),
+  });
+  if (!resp.ok) return [];
+  const entries: LedgerComment[] = await resp.json();
+  return entries.filter(e => e.payload?.action === 'comment');
+}
+
+function InlineCommentPanel({ postId }: { postId: string }) {
+  const [comments, setComments] = useState<LedgerComment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [text, setText] = useState('');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchComments(postId)
+      .then(c => { if (!cancelled) { setComments(c); setLoading(false); } })
+      .catch(() => { if (!cancelled) { setComments([]); setLoading(false); } });
+    return () => { cancelled = true; };
+  }, [postId]);
+
+  const handleCompose = () => {
+    trackFunnel('trending_comment_attempt', { post_id: postId });
+    window.open(SOCIAL_ORIGIN, '_blank');
+  };
+
+  useEffect(() => {
+    textareaRef.current?.focus();
+  }, []);
+
+  return (
+    <div
+      className="mt-3 border-t border-border pt-3"
+      data-testid="comment-panel"
+    >
+      <div className="max-h-64 space-y-3 overflow-y-auto pr-1">
+        {loading ? (
+          <>
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="flex gap-2">
+                <div className="h-8 w-8 shrink-0 animate-pulse rounded-full bg-elevated" />
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <div className="flex gap-2">
+                    <div className="h-3 w-16 rounded bg-elevated" />
+                    <div className="h-3 w-8 rounded bg-elevated" />
+                  </div>
+                  <div className="h-3 w-full rounded bg-elevated" />
+                </div>
+              </div>
+            ))}
+          </>
+        ) : comments.length === 0 ? (
+          <p className="text-center text-sm text-muted-foreground">
+            No comments yet.
+          </p>
+        ) : (
+          comments.map(c => {
+            const author = c.payload.author_username || c.author || 'anonymous';
+            const initial = author.charAt(0).toUpperCase();
+            const color = hashToColor(author);
+            return (
+              <div key={c._id} className="flex gap-2">
+                <Avatar className={color}>
+                  <AvatarFallback className="text-foreground">{initial}</AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-foreground">
+                      {author.replace(/[-_]/g, ' ')}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {commentTimeAgo(c.created_at)}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-sm text-foreground">
+                    {c.payload.text}
+                  </p>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      <div className="mt-3 flex gap-2">
+        <Textarea
+          ref={textareaRef}
+          placeholder="Add a comment…"
+          value={text}
+          onChange={e => setText(e.target.value)}
+          className="min-h-[60px] flex-1 resize-none text-sm"
+          rows={2}
+        />
+        <Button
+          type="button"
+          variant="brand"
+          size="icon"
+          className="shrink-0 self-end"
+          onClick={handleCompose}
+          aria-label="Post comment"
+        >
+          <Send className="h-4 w-4" strokeWidth={2} />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function TrendingCard({
   post,
   rank,
@@ -226,6 +374,7 @@ function TrendingCard({
   cardRef,
 }: TrendingCardProps) {
   const [copied, setCopied] = useState(false);
+  const [commentOpen, setCommentOpen] = useState(false);
   const tier = heatTier(post.engagementScore, maxScore);
   const handleShare = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -248,6 +397,15 @@ function TrendingCard({
         setTimeout(() => setCopied(false), 2000);
       });
     }
+  };
+  const handleCommentClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (commentOpen) {
+      setCommentOpen(false);
+      return;
+    }
+    setCommentOpen(true);
+    onComment(post.id);
   };
   return (
     <Card
@@ -329,8 +487,8 @@ function TrendingCard({
                 <span className="text-xs tabular-nums">{post.likes}</span>
               </button>
               <button
-                onClick={() => onComment(post.id)}
-                className="flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-sky-400 focus-visible:text-sky-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                onClick={handleCommentClick}
+                className={`flex items-center gap-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${commentOpen ? 'text-sky-400' : 'text-muted-foreground hover:text-sky-400 focus-visible:text-sky-400'}`}
                 aria-label={`Comment, ${post.comments} comments`}
               >
                 <MessageCircle className="h-4 w-4" strokeWidth={1.5} />
@@ -359,6 +517,7 @@ function TrendingCard({
             </>
           )}
         </div>
+        {commentOpen && !readOnly && <InlineCommentPanel postId={post.id} />}
       </div>
     </Card>
   );

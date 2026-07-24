@@ -108,6 +108,57 @@ describe('TrendingCard interactions', () => {
   });
 });
 
+describe('TrendingCard comment panel', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal('fetch', vi.fn());
+    vi.stubGlobal('open', vi.fn());
+  });
+
+  it('opens inline comment panel on comment click', () => {
+    render(
+      <TrendingCard post={basePost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
+    );
+    expect(screen.queryByTestId('comment-panel')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText(/Comment,/));
+    expect(screen.getByTestId('comment-panel')).toBeInTheDocument();
+  });
+
+  it('closes panel on second comment click', () => {
+    render(
+      <TrendingCard post={basePost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
+    );
+    const btn = screen.getByLabelText(/Comment,/);
+    fireEvent.click(btn);
+    expect(screen.getByTestId('comment-panel')).toBeInTheDocument();
+    fireEvent.click(btn);
+    expect(screen.queryByTestId('comment-panel')).not.toBeInTheDocument();
+  });
+
+  it('shows empty state when no comments exist', async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve([]),
+    } as unknown as Response);
+    render(
+      <TrendingCard post={basePost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
+    );
+    fireEvent.click(screen.getByLabelText(/Comment,/));
+    await waitFor(() => expect(screen.getByTestId('comment-panel')).toBeInTheDocument());
+    expect(screen.getByText('No comments yet.')).toBeInTheDocument();
+  });
+
+  it('shows comment textarea and send button', () => {
+    render(
+      <TrendingCard post={basePost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
+    );
+    fireEvent.click(screen.getByLabelText(/Comment,/));
+    const panel = screen.getByTestId('comment-panel');
+    expect(within(panel).getByPlaceholderText(/Add a comment/)).toBeInTheDocument();
+    expect(within(panel).getByRole('button', { name: 'Post comment' })).toBeInTheDocument();
+  });
+});
+
 const jsonOk = (body: unknown) => ({
   ok: true,
   headers: new Headers({ 'content-type': 'application/json' }),
