@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as wapi from '../../data/wapi';
+import * as feed from '../../data/feed';
 import * as reactions from '../../data/reactions';
 import type { ReactionRecord } from '../../data/types';
 
@@ -26,9 +27,18 @@ function mockWapi() {
 
 describe('reactions data layer', () => {
   let mock: ReturnType<typeof mockWapi>;
+  const reactionSchemaId = 'web10.01arz3n8q5';
 
   beforeEach(() => {
     mock = mockWapi();
+    vi.spyOn(feed, 'getCachedSchema').mockReturnValue({
+      _id: reactionSchemaId,
+      name: 'Reaction',
+      author_username: 'system',
+      author_provider: 'web10',
+      schema: {},
+    });
+    vi.spyOn(feed, 'createPublicEntry').mockResolvedValue({ _id: 'le1', schema_id: reactionSchemaId, target: '', payload: {} });
   });
 
   afterEach(() => {
@@ -55,6 +65,34 @@ describe('reactions data layer', () => {
       const result = await reactions.createReaction(reaction);
       expect(mock.create).toHaveBeenCalledWith('reactions', reaction);
       expect(result).toEqual(created);
+    });
+
+    it('mirrors to ledger with action=like for like reactions', async () => {
+      const reaction: Omit<ReactionRecord, '_id'> = { target_service: 'posts', target_id: 'p1', type: 'like', created_at: '2026-07-18T00:00:00Z', author_username: 'alice', author_provider: 'api.web10.app' };
+      mock.create.mockResolvedValue({ _id: 'r1', ...reaction });
+      await reactions.createReaction(reaction);
+
+      expect(feed.createPublicEntry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          payload: expect.objectContaining({
+            action: 'like',
+          }),
+        }),
+      );
+    });
+
+    it('mirrors to ledger with action=reaction for non-like types', async () => {
+      const reaction: Omit<ReactionRecord, '_id'> = { target_service: 'posts', target_id: 'p1', type: 'love', created_at: '2026-07-18T00:00:00Z', author_username: 'alice', author_provider: 'api.web10.app' };
+      mock.create.mockResolvedValue({ _id: 'r2', ...reaction });
+      await reactions.createReaction(reaction);
+
+      expect(feed.createPublicEntry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          payload: expect.objectContaining({
+            action: 'reaction',
+          }),
+        }),
+      );
     });
   });
 

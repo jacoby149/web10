@@ -1246,7 +1246,7 @@ Marketing-ui side (Lane D):
     comments/reactions/reposts ride their OWN collection's default and do NOT
     inherit the parent post's visibility.
 
-[ ] D-comments-ledger (social-side prerequisite, lane D; decision D32):
+[✓ 1.0.149] D-comments-ledger (social-side prerequisite, lane D; decision D32):
     (1) `createComment` (web10-social/src/data/comments.ts:36) mirrors to
     /public/entries (POST, "any authenticated user") UNCONDITIONALLY — exactly
     as `createReaction` does (reactions.ts:35). no per-post visibility gate;

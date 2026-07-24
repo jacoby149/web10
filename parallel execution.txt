@@ -943,7 +943,7 @@ ws5: C6 e2e deep sweep + bug hunt (lane C — e2e/** only; local
     [✓ 1.0.130] D-trending-polish: /trending loading + empty states — shimmer skeleton
          grid (matches layout), empty state story beat, "Load more" button.
          Gate: D-trending-sidebar. Owns: Trending.tsx + FeedPreview.tsx
-    [ ] D-comments-ledger (social-side prerequisite; decision D32):
+     [✓ 1.0.149] D-comments-ledger (social-side prerequisite; decision D32):
          `createComment` (web10-social/src/data/comments.ts:36) mirrors to
          /public/entries UNCONDITIONALLY (like createReaction at
          reactions.ts:35) — no per-post visibility gate; comments are public
