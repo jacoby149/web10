@@ -28,8 +28,8 @@ board, logged as D29).
   4. like + comment -> counts update, feel instant
   5. dm a persona -> the thread reads like a real messenger
   6. your profile reads as a creator page you'd screenshot
-  7. trending/discover shows a real, alive feed (personas keep it
-     from ever demoing empty)
+  [✓ 1.0.145] 7. trending/discover shows a real, alive feed (personas keep it
+      from ever demoing empty)
   8. nothing white-screens; every screen is design.md-grade at
      375px, on a real phone, on dev AND prod
 each step that passes gets encoded as a playwright journey in e2e/
