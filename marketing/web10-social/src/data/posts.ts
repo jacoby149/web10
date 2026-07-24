@@ -227,12 +227,40 @@ export async function refreshMediaUrls(
       if (!objectKey) return r;
       try {
         const { readUrl } = await wapi.getReadUrl(objectKey, owner?.username, owner?.provider);
-        return { ...r, url: readUrl, thumbnail_url: r.thumbnail_url ? readUrl : r.thumbnail_url };
-      } catch {
-        // Degrade gracefully: render the stored URL rather than nothing.
+        let thumbnail_url = r.thumbnail_url ? readUrl : r.thumbnail_url;
+        if (r.thumbnail_url && r.thumbnail_url !== r.url) {
+          const thumbKey = deriveObjectKey(r.thumbnail_url);
+          if (thumbKey && thumbKey !== objectKey) {
+            try {
+              const { readUrl: thumbReadUrl } = await wapi.getReadUrl(thumbKey, owner?.username, owner?.provider);
+              thumbnail_url = thumbReadUrl;
+            } catch (thumbErr) {
+              console.warn(
+                `[refreshMediaUrls] thumbnail presign failed for key "${thumbKey}": ${thumbErr instanceof Error ? thumbErr.message : String(thumbErr)} — keeping stored thumbnail_url`,
+              );
+              thumbnail_url = r.thumbnail_url;
+            }
+          }
+        }
+        return { ...r, url: readUrl, thumbnail_url };
+      } catch (err) {
+        console.warn(
+          `[refreshMediaUrls] presign failed for key "${objectKey}": ${err instanceof Error ? err.message : String(err)} — falling back to stored URL`,
+        );
         return r;
       }
     }),
   );
   return refreshed;
+}
+
+/**
+ * Convenience wrapper that refreshes a single media record's URLs.
+ * Another agent will use this for post-upload paths.
+ */
+export async function refreshMediaUrl(
+  record: MediaRecord,
+  owner?: { username: string; provider: string },
+): Promise<MediaRecord> {
+  return (await refreshMediaUrls([record], owner))[0];
 }

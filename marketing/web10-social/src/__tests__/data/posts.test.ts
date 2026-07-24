@@ -236,5 +236,100 @@ describe('posts data layer', () => {
       await posts.resolveMediaRefs(['mK']);
       expect(mock.getReadUrl).toHaveBeenCalledWith('bob/zz/real.png', undefined, undefined);
     });
+
+    it('D23: thumbnail gets its own presigned URL when it differs from the full image', async () => {
+      // The thumbnail is a different S3 object — it must get its own presign,
+      // not the full image's presigned URL.
+      const fullUrl = 'https://minio.web10.app/web10-media/alice/abc/photo.png';
+      const thumbUrl = 'https://minio.web10.app/web10-media/alice/abc/photo-thumb.png';
+      mock.read.mockResolvedValue([
+        { _id: 'm1', url: fullUrl, thumbnail_url: thumbUrl, created_at: '2026-07-18T00:00:00Z' },
+      ]);
+      mock.getReadUrl
+        .mockResolvedValueOnce({ readUrl: 'https://signed/photo?sig=full', expiresIn: 60 })
+        .mockResolvedValueOnce({ readUrl: 'https://signed/photo-thumb?sig=thumb', expiresIn: 60 });
+
+      const result = await posts.resolveMediaRefs(['m1']);
+
+      expect(mock.getReadUrl).toHaveBeenNthCalledWith(1, 'alice/abc/photo.png', undefined, undefined);
+      expect(mock.getReadUrl).toHaveBeenNthCalledWith(2, 'alice/abc/photo-thumb.png', undefined, undefined);
+      expect(result[0].url).toBe('https://signed/photo?sig=full');
+      expect(result[0].thumbnail_url).toBe('https://signed/photo-thumb?sig=thumb');
+    });
+
+    it('D23: thumbnail presign failure keeps stored thumbnail_url', async () => {
+      // If the thumbnail presign fails, fall back to the stored thumbnail_url.
+      const fullUrl = 'https://minio.web10.app/web10-media/alice/abc/photo.png';
+      const thumbUrl = 'https://minio.web10.app/web10-media/alice/abc/photo-thumb.png';
+      mock.read.mockResolvedValue([
+        { _id: 'm1', url: fullUrl, thumbnail_url: thumbUrl, created_at: '2026-07-18T00:00:00Z' },
+      ]);
+      let getReadUrlCalls = 0;
+      mock.getReadUrl.mockImplementation(() => {
+        getReadUrlCalls++;
+        if (getReadUrlCalls === 1) {
+          return Promise.resolve({ readUrl: 'https://signed/photo?sig=full', expiresIn: 60 });
+        }
+        return Promise.reject(new Error('thumbnail presign failed'));
+      });
+
+      const warnings: unknown[] = [];
+      const origWarn = console.warn;
+      console.warn = (...args: unknown[]) => warnings.push(args);
+      const result = await posts.resolveMediaRefs(['m1']);
+      console.warn = origWarn;
+
+      expect(result[0].url).toBe('https://signed/photo?sig=full');
+      expect(result[0].thumbnail_url).toBe(thumbUrl);
+      expect(warnings.length).toBe(1);
+      expect(String(warnings[0][0])).toContain('thumbnail presign failed for key');
+    });
+
+    it('D23: getReadUrl failure logs a warning and falls back to stored URL', async () => {
+      mock.read.mockResolvedValue([
+        { _id: 'mFail', url: 'https://minio.web10.app/web10-media/alice/abc/broken.png', created_at: '2026-07-18T00:00:00Z' },
+      ]);
+      mock.getReadUrl.mockRejectedValue(new Error('presign endpoint down'));
+
+      const warnings: unknown[] = [];
+      const origWarn = console.warn;
+      console.warn = (...args: unknown[]) => warnings.push(args);
+      const result = await posts.resolveMediaRefs(['mFail']);
+      console.warn = origWarn;
+
+      expect(result[0].url).toBe('https://minio.web10.app/web10-media/alice/abc/broken.png');
+      expect(warnings.length).toBe(1);
+      expect(String(warnings[0][0])).toContain('presign failed for key "alice/abc/broken.png"');
+    });
+
+    it('D23: when thumbnail_url equals url, no extra presign is made', async () => {
+      // Same URL means same object — no second round-trip needed.
+      const sameUrl = 'https://minio.web10.app/web10-media/alice/abc/photo.png';
+      mock.read.mockResolvedValue([
+        { _id: 'm1', url: sameUrl, thumbnail_url: sameUrl, created_at: '2026-07-18T00:00:00Z' },
+      ]);
+      mock.getReadUrl.mockResolvedValue({ readUrl: 'https://signed/photo?sig=full', expiresIn: 60 });
+
+      await posts.resolveMediaRefs(['m1']);
+
+      expect(mock.getReadUrl).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('refreshMediaUrl (single-record convenience)', () => {
+    it('wraps refreshMediaUrls for a single record', async () => {
+      mock.read.mockResolvedValue([
+        { _id: 'm1', url: 'https://minio.web10.app/web10-media/alice/abc/pic.png', created_at: '2026-07-18T00:00:00Z' },
+      ]);
+      mock.getReadUrl.mockResolvedValue({ readUrl: 'https://signed/pic', expiresIn: 60 });
+
+      const result = await posts.refreshMediaUrl({
+        _id: 'm1',
+        url: 'https://minio.web10.app/web10-media/alice/abc/pic.png',
+        created_at: '2026-07-18T00:00:00Z',
+      });
+
+      expect(result.url).toBe('https://signed/pic');
+    });
   });
 });
