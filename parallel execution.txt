@@ -20,6 +20,12 @@ the two rules that make 4-wide parallelism safe:
    CLAUDE.md/GLOSSARY.md/decisions.md true if you moved them.
    CHANGELOG.md is lane-neutral (append at top) so it rarely conflicts;
    if it does, it's a trivial resolve.
+4. NAMING (decisions.md D33): decisions.md owns the bare "D-nn"
+   numbers (D1-D32, referenced throughout plan.txt). lane/board items
+   use slugs ("D-url-routing", "D-comments-ledger"). the legacy
+   numbered lane items (D21-D25, ticked) stay as history — never mint
+   a NEW bare D-nn lane item; the collision already skipped one number
+   and made "D21" mean three different things.
 
 STATUS KEY (check before starting anything — don't redo merged work):
   [✓ x.y.z] = merged, see that CHANGELOG.md entry.  [~] = in flight in
@@ -193,6 +199,19 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       contract first. unblocks: B8, phase 12 trust&safety (the audit
       log + a future token-revoke are what make "ban takes effect now"
       possible).
+  [ ] A11. USERNAME CHARSET — the api rejects hyphens ("usernames take
+      only alphanumeric characters") while the flagship personas
+      (solar-flare-69, noodle-empress) were seeded straight into the
+      db WITH hyphens — so the demo shows names a real signup can't
+      have (gauntlet step 1). decide and implement one of: (a) allow
+      [a-z0-9-] — usernames name mongo collections, so the charset IS
+      a security boundary: validate strictly, audit every place a
+      username is parsed/regexed (auth.py, documentdb.py q_t/u_t,
+      media paths) before widening; or (b) keep the strict rule and
+      rename the personas alphanumeric (seed script + existing dev
+      data). either way the signup form surfaces a clear inline
+      charset message (small lane B seam — leave a note). small item;
+      gate: none.
 
 LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
   [✓ 1.0.12-1.0.14] B1. P0 js: auth2 -> vite + bun + typescript
@@ -389,6 +408,30 @@ LANE C — greenfield services  (owns: sdk/, mcp/, new dirs)
 
 LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
                                 *.md/txt)
+
+  LANE D SUB-LANES (23.07.2026): the killer-app push made every open
+  demo item lane D, which collapsed 4-wide parallelism into one
+  directory — and 1.0.148 (two branches independently shipping
+  DiscoverScreen.tsx, hand-reconciled) is what that costs. so the
+  same two rules apply one directory deeper. one sub-lane per
+  workspace, named in the PR:
+    D/feed      — web10-social/src/components/Feed/** + data/posts.ts,
+                  feed.ts, comments.ts, reactions.ts
+    D/profile   — web10-social/src/components/Bio/** + data/profile.ts
+    D/dms       — web10-social/src/components/Chat/** + data/dms.ts,
+                  contacts.ts
+    D/discover  — web10-social/src/components/Discover/** +
+                  data/follows.ts
+    D/shell     — web10-social/src/App.tsx, components/Social/
+                  Layout.tsx, main.tsx, index.css, routing
+    D/marketing — marketing/marketing-ui/** (as before)
+  SHARED SEAMS (all sub-lanes touch, none owns): data/types.ts,
+  data/wapi.ts, data/serviceTerms.ts, data/index.ts,
+  components/shared/**, components/ui/**. seam rule: touch a seam
+  file only to add your own exports, keep the diff single-purpose,
+  first-merged wins and the others rebase fast. needing another
+  sub-lane's file works like needing another lane's: leave a
+  .context/ note, don't reach in.
   [✓ 1.0.18, 1.0.20] D1. conventions doc (posts/media/contacts/inbox
       schemas) + protocol spec draft. docs/protocol-spec.md,
       docs/conventions.md, docs/schemas/*.json — C4/D4/D5 now unblocked.
@@ -605,7 +648,9 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         empty — it never stores the pre-profile mode. Fix: capture the
         mode before navigating to `user-profile` and restore it on back.
         Owns marketing/web10-social/src/App.tsx. Gate: none.
-[ ] D26. PROFILE AVATAR/BANNER VANISH ON REFRESH — (operator, 23.07:
+[ ] D-profile-media-refresh (sub-lane D/profile; was "D26" for a day —
+        renamed per rule 4/D33). PROFILE AVATAR/BANNER VANISH ON
+        REFRESH — (operator, 23.07:
         uploading a profile pic + banner now works and they render —
         1.0.149's presign fix — but after a page refresh they're gone
         and the browser makes NO request to load the images.) the load
@@ -623,11 +668,18 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         (3) `resolveMediaRefs` failing silently and returning [] for
         the refs. fix + a vitest regression: upload → save → fresh
         `readProfile` round-trip carries the refs → media request
-        fires. verify on dev with a hard refresh. owns marketing/
+        fires. verify on dev with a hard refresh. TEST-DEPTH NOTE:
+        this bug got past the step-6 playwright journey (it asserts
+        profile save+read, never refresh-with-media-refs) — the
+        regression also gets encoded into gauntlet.spec.ts step 6.
+        e2e/** is lane C: leave a .context/ note with the repro, or a
+        tiny cross-lane PR by agreement. journeys must assert the
+        BAR, not the happy path. owns marketing/
         web10-social/src/components/Bio/ProfileScreen.tsx + src/data/
         profile.ts. gate: none — gauntlet step 6 ("your profile reads
         as a creator page you'd screenshot") doesn't survive F5 today.
-[ ] D27. URL ROUTING — THE ADDRESS BAR HOLDS YOUR PLACE — (operator,
+[ ] D-url-routing (sub-lane D/shell; was "D27" for a day — renamed per
+        rule 4/D33). THE ADDRESS BAR HOLDS YOUR PLACE — (operator,
         23.07: refreshing the social app should put you back on the
         screen you were on.) navigation is one `useState<Mode>` in
         App.tsx:95 — the URL never changes, so refresh dumps you at
@@ -647,6 +699,70 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         to /u/<author> is a small same-lane follow-up touch. gate:
         none. acceptance: refresh anywhere → same screen; back/
         forward work; /u/<persona> loads while signed in.
+[ ] D-follower-count (sub-lane D/discover + a D/profile touch). THE
+        REAL FOLLOWER COUNT — gauntlet step 6's own words: "a creator
+        page without follower count is not a creator page — that's
+        the primary social proof metric." 1.0.149 (legacy item D24)
+        honestly REMOVED the fake stat; nothing was queued to build
+        the real one — this is it. follower count of X lives in every
+        follower's own collection, and I3 forbids cross-collection
+        reads, so the count comes from the public layer: `followUser`
+        (follows.ts) mirrors to /public/entries with
+        payload.action='follow' targeting the followed user — the
+        exact D32 pattern reactions/comments already use
+        (unconditional; collection-level terms is the lock; unfollow
+        deletes the entry like deleteComment). NOTE this makes the
+        follow graph public — record the call as decision D34 when
+        implementing (D32's logic extends: follows are public
+        discourse, the panic button is one terms flip). count reads
+        from the ledger; /discover/users gains follower_count in the
+        engagement aggregation (small lane A touch in documentdb.py —
+        coordinate via .context/, don't reach in). backfill: the
+        persona seed script mirrors the existing cross-follows
+        (persona-orchestration/, idempotent like 1.0.145). then the
+        Followers tile returns to ProfileScreen with a real number
+        (tabular-nums — this is the M0 screenshot stat). gate: none.
+        acceptance: personas show real cross-follow counts; following
+        someone increments their count; unfollow decrements.
+[ ] D-dm-compose (sub-lane D/dms). START A CONVERSATION — gauntlet
+        step 5: "no way to start a new conversation with someone you
+        don't already have a thread with" (listConversations only
+        returns existing threads; the step-5 playwright journey is a
+        test.fixme scaffold waiting on this). add a "New message"
+        button → picker over contacts + follows (+ compose-to-
+        username fallback); dms.ts already has deterministic
+        conversation service names, so composing to a fresh contact
+        is just writing the first record. persona reply seeding
+        (1.0.145) means the thread won't read as a monologue.
+        owns web10-social/src/components/Chat/** + data/dms.ts,
+        contacts.ts. gate: none. acceptance: DM a persona you've
+        never messaged, entirely from the UI; lane C note to flip the
+        step-5 fixme into a real journey.
+[ ] D-login-cta (sub-lane D/shell). THE LOGIN SCREEN NEVER SAYS YOU
+        CAN SIGN UP — gauntlet step 1: LoginScreen is a single "Log
+        in" button; account creation exists only inside the auth
+        popup (ConsentView → SignupForm, 1.0.135) and nothing tells a
+        first-time user that. smallest honest fix: the button copy
+        and a line under it ("Log in or create your account — one
+        step") so the affordance is stated, not discovered. if the
+        auth portal supports a signup-mode hint param, pass it;
+        don't build a second signup flow. owns web10-social/src/
+        App.tsx (LoginScreen). gate: none. design.md §12 (it's the
+        first screen of every demo).
+[ ] D-join-page (sub-lane D/marketing). THE MANIFESTO JOIN PAGE —
+        timeline.md week-2 item, the only one not started (flagged
+        23.07). marketing-ui gains /join: the fan-facing pitch page
+        built from THE STORY's user side (plan.txt) — the first
+        sentence is the fan's ("never miss a post from [creator]
+        again — you see 100% of what they make, always"), the
+        aspirant is honored at the door ("you're not joining the
+        crowd — you get your own page here too"), THE RISE arc as the
+        page's skeleton, quiet safety line second (delete actually
+        deletes). CTA → signup on the flagship node. voice:
+        manifesto.md's register — declarative, no gush, never claim
+        what isn't built. owns marketing/marketing-ui/src/pages/
+        Join.tsx + route + nav link. gate: none. design.md §12
+        (screenshot-grade; this page IS the pitch).
 [✓ 1.0.147] D21. MEDIA POLISH — photos + video v0 (plan.txt phase 8.5; item
         number D20 skipped — it reads as decisions.md's D20
         everywhere). the composer's 80x80 hover-square tray, the
@@ -907,10 +1023,21 @@ whose baseline chain A7/B6/D16.1/D17 is merged): THE KILLER APP,
 PROUD AND WORKING, before anything else. the only question a task
 must answer: "does this make web10-social something the operator
 opens on his phone, in front of someone, and is proud of?" (D29)
-[✓ 1.0.140] ws-G1: run THE GAUNTLET (plan.txt top, 8 steps) against dev from
-          a phone; write the honest fail list to .context/gauntlet.md;
+[✓ 1.0.140] ws-G1: run THE GAUNTLET (plan.txt top, 8 steps) against dev;
+          write the honest fail list (docs/gauntlet-23.07.2026.md);
           fix in order of demo impact. lane D owns app fixes, lane A
           owns api fixes, lane B owns the auth/consent seam.
+          HONESTY NOTE (23.07): the 1.0.140 run was a DESK gauntlet —
+          api probes + code audit; its own method line says "NOT a
+          real phone." the operator's actual phone passes (22-23.07)
+          found what the desk run missed (legacy D24/D25,
+          D-profile-media-refresh, the trending-card theater). the
+          tick stands for the fail list, not for the bar.
+  STANDING until the M0 gate: operator phone pass, weekly, a calendar
+          event not an intention (timeline.md standing rules). every
+          finding is filed as a lane item SAME-DAY — the 22-23.07
+          loop (find → file → fix within a day) is the referee that
+          works; keep it running.
   [✓ 1.0.145] ws-G2: keep the personas alive (persona-orchestration/) so feed +
          trending never demo empty. Seed script is now idempotent
          (read-before-write on every create; stable origin_id on posts +
@@ -918,17 +1045,37 @@ opens on his phone, in front of someone, and is proud of?" (D29)
          state without writing). 2 new posts/persona + 4 reply DMs added.
   [✓ 1.0.145] ws-G3: encode each passing gauntlet step as a playwright journey
          in e2e/ (lane C — this is C6 continued, NOT C2).
+GAUNTLET RESIDUE (in flight now — one workspace per SUB-LANE, see
+the lane D sub-lane map; all gates none, run all of these 4-wide+):
+  ws-D/profile:   D-profile-media-refresh (bug in shipped work — first)
+  ws-D/shell:     D-url-routing, then D-login-cta (small)
+  ws-D/dms:       D-dm-compose
+  ws-D/discover:  D-follower-count (its lane-A aggregation touch goes
+                  through .context/, not a reach-in)
+  ws-D/marketing: D-trending-comments + D-join-page
+  ws-A:           A11 username charset (small)
+  ws-C:           harden the gauntlet journeys — encode the
+                  media-refresh regression into step 6, flip step 5's
+                  fixme when D-dm-compose lands. journeys assert the
+                  BAR, not the happy path (D-profile-media-refresh got
+                  past step 6's save+read assertion).
+WEEK-3 STAGING (timeline.md aug 3-10 — staged NOW so no lane idles
+when the residue drains):
+  ws-E:           BOX EXECUTION remainder (AGENT-OPS.md §4.2) + the
+                  off-box backup + restore drill (plan.txt KNOWN GAPS)
+  ws-C/cross:     demo-node theming + seed via a REAL takeout import
+                  (the founder's own IG/YT exports — first exporter
+                  battle test; log every parser break, promote phase
+                  9's llm-assisted mapping on the first one)
   then: low-hanging fruit by demo impact — realtime feed refresh,
-          notifications, search-your-own-stuff, D16(3) store curation
-          [✓ 1.0.136 — D16(3) curation landed; D16 marked done above],
-          trending-page interactions (D-trending-interact cluster — make
-          like/repost/share/comment real + card→profile deep-link; the
-          trending cards are local-only theater today, gauntlet step 7).
-  new (23.07, operator phone pass): D26 profile avatar/banner vanish on
-          refresh (gauntlet step 6 — a bug in shipped work, fix now) +
-          D27 url routing so refresh keeps your place (demo-impact
-          plumbing; also unblocks D-trending-link's /u/<author>
-          deep-link). both lane D, gates: none — see the lane D queue.
+          notifications, search-your-own-stuff.
+ON DECK — M2 PREREQUISITES (stage when the gauntlet closes; these are
+plan.txt KNOWN GAPS with no lane items yet, and all three gate
+creator #1): memberships wired to stripe rails (B4.5 rung-0 →
+functional — owned revenue in month one is the retention lever);
+hosted ops floor decision (a $40 vps + one-container node + caddy is
+enough — pick it before the first yes); t&s gate (dmca/csam vendors +
+process decided before any hosted community posts media).
 PARKED until the gauntlet passes (do NOT pick up — they read as an
 infra company, not a social platform): C2 sdk rewrite, C3 mcp,
 C3.5 create-web10, D11 ux telemetry, A9 transcode pipeline, E4
