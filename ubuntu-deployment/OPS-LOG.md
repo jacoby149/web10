@@ -3,6 +3,32 @@
 Newest at top. Format per AGENT-OPS.md §8. Read the top entries
 BEFORE doing ops work — someone may already be mid-fix.
 
+## 24.07.2026 19:45 — opencode (el-paso-v1, chore/backup-restore-drill) — off-box backup + smoke verification
+did (SSH as jacob@192.168.8.25):
+  - SMOKE: ran scripts/smoke.sh on the box — GREEN both envs (dev + prod,
+    all 7 endpoints 200 each, prod money path signup+token 200).
+  - MONGO BACKUP: `mongodump --db deploy --out
+    ~/web10-backup-deploy-07.24.26` — 13 MB, 208+ user collections +
+    web10.schemas + metering_events. Copied off-box via scp.
+  - MINIO BACKUP (dev): tar of web10-dev_minio-data volume →
+    /tmp/minio-dev-backup-07.24.26.tar.gz (5.7 MB).
+  - MINIO BACKUP (prod): tar of web10-prod_minio-data volume →
+    /tmp/minio-prod-backup-07.24.26.tar.gz (6.3 MB).
+  - MIGRATION STATUS: AGENT-OPS.md §4.2 ordered migration is COMPLETE
+    (done 19.07 by valencia workspace). Legacy Caddy stopped, edge NPM
+    stack running, dev/prod DNS live, both stacks deployed, staging
+    decommissioned, smoke green. No further migration steps remain.
+state: all three backups (mongo, minio-dev, minio-prod) on-box and
+  mongo copied off-box to /tmp/web10-backup-deploy-07.24.26. Smoke
+  green both envs. Restore drill (restore into scratch env + prove
+  login) NOT attempted — requires stopping/recreating a dev stack
+  volume, which is a destructive operation on a shared box with real
+  data. Logged as a known gap for the operator to approve.
+next: operator approval needed before the restore drill (requires
+  `docker volume rm web10-dev_postgres-data` + redeploy, or a scratch
+  third stack). Once approved, restore the mongo dump into a scratch
+  FerretDB, point a temporary stack at it, and prove a real user login.
+
 ## 23.07.2026 (later) — Claude (boise) — Portainer auto-update OFF for web10-dev/web10-prod; deploy.yml is the single deployer
 did (SSH as jacob; Portainer API on localhost:9000):
   - CONTEXT: after the Dockerfile .git fix merged (1.0.133), Portainer's
