@@ -23,6 +23,7 @@
     "lucide-react": "^1.25.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "react-router-dom": "^7.6.2",
     "tailwind-merge": "^3.6.0",
     "tailwindcss": "^4.3.3",
     "web10-npm": "^1.0.8"
