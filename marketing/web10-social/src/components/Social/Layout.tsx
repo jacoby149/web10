@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { Home, User, MessageSquare, PlusCircle, LogOut, Bug } from 'lucide-react';
+import { Home, User, MessageSquare, PlusCircle, LogOut, Bug, Compass } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { Mode } from '@/types';
 
@@ -13,6 +13,7 @@ interface LayoutProps {
 
 const navItems = [
   { mode: 'feed' as const, icon: Home, label: 'Feed', testId: 'nav-feed' },
+  { mode: 'discover' as const, icon: Compass, label: 'Discover', testId: 'nav-discover' },
   { mode: 'my-bio' as const, icon: User, label: 'Profile', testId: 'nav-profile' },
   { mode: 'chat' as const, icon: MessageSquare, label: 'Messages', testId: 'nav-messages' },
 ];

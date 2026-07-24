@@ -5,6 +5,7 @@ import Layout from '@/components/Social/Layout';
 import FeedScreen from '@/components/Feed/FeedScreen';
 import ProfileScreen from '@/components/Bio/ProfileScreen';
 import DmsScreen from '@/components/Chat/DmsScreen';
+import DiscoverScreen from '@/components/Discover/DiscoverScreen';
 import PostComposer from '@/components/Feed/PostComposer';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { ReportBug } from '@/components/shared/ReportBug';
@@ -164,6 +165,7 @@ function App() {
           </>
         )}
         {mode === 'my-bio' && <ProfileScreen />}
+        {mode === 'discover' && <DiscoverScreen />}
         {(mode === 'chat' || mode === 'chat-edit') && <DmsScreen />}
       </Layout>
       {showReportBug && (
