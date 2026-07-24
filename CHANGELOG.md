@@ -1,3 +1,6 @@
+1.0.146 || 23.07.2026
+docs: add Phase 4.5 Operator Console spec to plan.txt and lane items A10 (API endpoints) + B8 (UI components) to parallel execution.txt. Full /admin moderation dashboard: Users, Moderation, Analytics, Overview, App Store, Node Config, and Audit Log tabs. Both lanes parked behind the gauntlet (D29).
+
 1.0.145 || 23.07.2026
 Fix the social app login screen showing a blank square instead of the keys mark (gauntlet step 1 + step 8). `App.tsx` LoginScreen, `Layout.tsx` sidebar/mobile wordmark, and `defaultIdentity.ts` mock profile pic all loaded `/alternative.png` — a guitar-player illustration, not the brand mark (white-on-transparent, invisible on dark backgrounds on a phone). Replaced all three references with `/keys-mark.png` (copied from `.context/brand-assets/keys-mark-source-transparent.png`). 248 tests green, vite build clean.
 
