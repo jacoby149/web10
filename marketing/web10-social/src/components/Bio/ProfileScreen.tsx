@@ -5,9 +5,9 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { readProfile, saveProfile, readMyPosts, resolveMediaRefs, uploadMedia, countFollows, readFollows } from '@/data';
+import { readProfile, saveProfile, readMyPosts, resolveMediaRefs, uploadMedia, countFollows, refreshMediaUrls } from '@/data';
 import type { ProfileRecord, PostRecord, MediaRecord } from '@/data/types';
-import { MapPin, Globe, Link, Camera, Edit3, Check, X, ImagePlus, Loader2, AlertTriangle, Users } from 'lucide-react';
+import { MapPin, Globe, Link, Camera, Edit3, Check, X, ImagePlus, Loader2, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
 
@@ -40,7 +40,6 @@ export default function ProfileScreen() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Partial<ProfileRecord>>({});
   const [activeTab, setActiveTab] = useState<'posts' | 'media'>('posts');
-  const [followerCount, setFollowerCount] = useState<number>(0);
   const [followingCount, setFollowingCount] = useState<number>(0);
 
   useEffect(() => {
@@ -50,19 +49,15 @@ export default function ProfileScreen() {
   async function loadData() {
     setLoading(true);
     try {
-      const [p, postsData, fc, follows] = await Promise.all([
+      const [p, postsData, fc] = await Promise.all([
         readProfile(),
         readMyPosts(),
         countFollows(),
-        readFollows().catch(() => []),
       ]);
       setProfile(p);
       setDraft(p || {});
       setPosts(postsData || []);
       setFollowingCount(fc);
-      // Follower count: count how many users follow you (from the follows service,
-      // we track who we follow; the reverse is computed server-side or via discovery)
-      setFollowerCount(follows.filter((f) => f.status === 'active').length);
 
       const allRefs = (postsData || []).flatMap((post) => post.media_refs || []);
       if (p?.avatar_ref) allRefs.push(p.avatar_ref);
@@ -105,7 +100,10 @@ export default function ProfileScreen() {
       setUploading(true);
       try {
         const media = await uploadMedia({ file });
-        if (media._id) setMediaMap((prev) => ({ ...prev, [media._id!]: media }));
+        if (media._id) {
+          const [presigned] = await refreshMediaUrls([media]);
+          setMediaMap((prev) => ({ ...prev, [media._id!]: presigned }));
+        }
         const updated = { ...(profile || {}), [field]: media._id || '' };
         setDraft(updated);
         const saved = await saveProfile(updated);
@@ -305,10 +303,6 @@ export default function ProfileScreen() {
           <div>
             <span className="tabular-nums font-display font-bold text-foreground text-lg block">{posts.length}</span>
             <span className="text-xs text-muted-foreground">Posts</span>
-          </div>
-          <div>
-            <span className="tabular-nums font-display font-bold text-foreground text-lg block">{followerCount}</span>
-            <span className="text-xs text-muted-foreground">Followers</span>
           </div>
           <div>
             <span className="tabular-nums font-display font-bold text-foreground text-lg block">{followingCount}</span>

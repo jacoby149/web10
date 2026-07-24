@@ -588,7 +588,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         §12 (PR screenshots). deferred: friends_posts (needs graph),
         unlisted_posts (anon-read, discovery-excluded).
         STATUS: Phase A LANDED (1.0.131). Phases B + C remain open.
-[ ] D24. PROFILE FOLLOWER/FOLLOWING COUNTS BUG — `ProfileScreen.tsx` loads
+[✓ 1.0.149] D24. PROFILE FOLLOWER/FOLLOWING COUNTS BUG — `ProfileScreen.tsx` loads
         `countFollows()` and `readFollows()` in parallel and assigns both
         `followingCount` AND `followerCount` from the same data source
         (people YOU follow). There is no reverse lookup for who follows
@@ -597,7 +597,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         ledger query or a discovery API call) or hide the follower stat
         until the backend supports it. Owns marketing/web10-social/src/
         components/Bio/ProfileScreen.tsx. Gate: none.
-[ ] D25. USER-PROFILE BACK NAVIGATION BUG — `handleBackFromProfile` in
+[✓ 1.0.149] D25. USER-PROFILE BACK NAVIGATION BUG — `handleBackFromProfile` in
         `App.tsx` hardcodes `setMode('discover')` so leaving any user
         profile always returns to Discover, even when the user came from
         Feed, Chat, or Profile. The `prevModeRef` useEffect (lines
@@ -957,13 +957,13 @@ ws5: C6 e2e deep sweep + bug hunt (lane C — e2e/** only; local
          the test_discovery.py:645 mock that hid it. Gate: none. Owns:
          web10-social/src/data/{comments,serviceTerms}.ts + the FeedScreen
          call site.
-    [ ] D-trending-link: TrendingCard → deep-link to the author's profile on
+     [✓ 1.0.149] D-trending-link: TrendingCard → deep-link to the author's profile on
          web10-social (`${SOCIAL_ORIGIN}/u/<author>`); until social gains a
          per-user profile route (lane-D sibling — App.tsx only has my-bio,
          flagged in gauntlet 1.0.142), link to social's root so the click still
          navigates instead of dead-clicking. Gate: none (degrades to root
          link). Owns: FeedPreview.tsx + Trending.tsx.
-    [ ] D-trending-share: Share2 button has no onClick → navigator.share +
+     [✓ 1.0.149] D-trending-share: Share2 button has no onClick → navigator.share +
          copy-link fallback (no auth). Gate: none. Owns: FeedPreview.tsx.
     [ ] D-trending-comments: MessageCircle only fires a funnel event → expand
          an inline comment panel (anon read via PATCH /public/entries, which
@@ -971,7 +971,7 @@ ws5: C6 e2e deep sweep + bug hunt (lane C — e2e/** only; local
          Gate: D-comments-ledger (nothing writes comments to the ledger today,
          so the read returns [] until the social-side mirror lands). Owns:
          FeedPreview.tsx + Trending.tsx.
-    [ ] D-trending-reactions: like + repost are fake local increments
+     [✓ 1.0.149] D-trending-reactions: like + repost are fake local increments
          (Trending.tsx:98) → real toggle via /public/entries mirroring
          reactions.ts; signed-out funnels to social. Gate: none. Owns:
          FeedPreview.tsx + Trending.tsx.
