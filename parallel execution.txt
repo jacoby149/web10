@@ -199,7 +199,7 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       contract first. unblocks: B8, phase 12 trust&safety (the audit
       log + a future token-revoke are what make "ban takes effect now"
       possible).
-  [ ] A11. USERNAME CHARSET — premise corrected 24.07 (code audit,
+  [✓ 1.0.155] A11. USERNAME CHARSET — premise corrected 24.07 (code audit,
       1.0.154): the api does NOT reject hyphens. kosher()
       (api/app/endpoints/auth.py:127) has allowed them since #89 —
       `c.isalnum() or c in ["-"]` — so the hyphenated personas

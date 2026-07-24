@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, timedelta
 
 import jwt
@@ -124,8 +125,11 @@ async def create_web10_token(form_data: TokenForm):
     return {"token": jwt.encode(token_data.model_dump(), settings.PRIVATE_KEY, algorithm=settings.ALGORITHM)}
 
 
+_USERNAME_RE = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,28}[a-z0-9])?$")
+
+
 def kosher(s):
-    return s == "".join([c for c in s if c.isalnum() or c in ["-"]])
+    return bool(_USERNAME_RE.match(s))
 
 
 @router.post("/signup", include_in_schema=False)
