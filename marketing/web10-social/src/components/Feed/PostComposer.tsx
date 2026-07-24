@@ -1,16 +1,141 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { createPost, uploadMedia, readProfile, resolveMediaRefs } from '@/data';
 import type { MediaRecord, ProfileRecord } from '@/data/types';
-import { Image, X, Send, Loader2, AlertTriangle } from 'lucide-react';
+import {
+  validateMedia,
+  processImage,
+  generateThumbnail,
+  captureVideoPoster,
+  getVideoInfo,
+  validateVideoDuration,
+} from '@/lib/mediaProcessing';
+import type { ProcessingError as MediaProcessingError } from '@/lib/mediaProcessing';
+import { Image, X, Send, Loader2, AlertTriangle, GripVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+let nextMediaId = 0;
+
+interface AttachedMedia {
+  id: number;
+  file: File;
+  previewUrl: string;
+  isVideo: boolean;
+  width: number;
+  height: number;
+  altText: string;
+  processing: boolean;
+  error?: MediaProcessingError;
+}
+
+function MediaTrayItem({
+  item,
+  index,
+  count,
+  onRemove,
+  onAltTextChange,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
+  disabled,
+}: {
+  item: AttachedMedia;
+  index: number;
+  count: number;
+  onRemove: () => void;
+  onAltTextChange: (alt: string) => void;
+  onDragStart: (e: React.DragEvent, index: number) => void;
+  onDragOver: (e: React.DragEvent, index: number) => void;
+  onDrop: (e: React.DragEvent, index: number) => void;
+  onDragEnd: () => void;
+  disabled: boolean;
+}) {
+  const aspectRatio = item.width && item.height ? item.width / item.height : 1;
+  const clampedRatio = Math.max(0.5, Math.min(2, aspectRatio));
+
+  return (
+    <div
+      className="relative group flex-shrink-0"
+      style={{ aspectRatio: clampedRatio, maxWidth: '33%' }}
+      draggable
+      onDragStart={(e) => onDragStart(e, index)}
+      onDragOver={(e) => onDragOver(e, index)}
+      onDrop={(e) => onDrop(e, index)}
+      onDragEnd={onDragEnd}
+    >
+      {item.isVideo ? (
+        <video
+          src={item.previewUrl}
+          className="w-full h-full object-cover rounded-lg ring-1 ring-border"
+          preload="metadata"
+          muted
+          playsInline
+        />
+      ) : (
+        <img
+          src={item.previewUrl}
+          alt={item.altText || `Media ${index + 1}`}
+          className="w-full h-full object-cover rounded-lg ring-1 ring-border"
+        />
+      )}
+
+      {item.processing && (
+        <div className="absolute inset-0 flex items-center justify-center bg-background/60 rounded-lg">
+          <Loader2 className="w-5 h-5 animate-spin text-brand" />
+        </div>
+      )}
+
+      {item.error && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-danger-muted/90 rounded-lg p-2">
+          <AlertTriangle className="w-4 h-4 text-danger mb-1" />
+          <span className="text-[0.6875rem] text-danger text-center leading-tight">{item.error.message}</span>
+        </div>
+      )}
+
+      {item.isVideo && (
+        <div className="absolute bottom-1.5 right-1.5 bg-background/80 rounded px-1 text-[0.625rem] font-mono tabular-nums text-foreground">
+          {item.width}×{item.height}
+        </div>
+      )}
+
+      {/* Always-visible remove button — 44px touch target */}
+      <button
+        onClick={onRemove}
+        disabled={disabled}
+        aria-label={`Remove ${item.isVideo ? 'video' : 'photo'}`}
+        className="absolute -top-2 -right-2 flex items-center justify-center h-8 w-8 rounded-full bg-background border border-border shadow-md z-10 hover:bg-elevated transition-colors duration-150"
+        style={{ minWidth: 44, minHeight: 44, padding: 0 }}
+      >
+        <X className="w-4 h-4" />
+      </button>
+
+      {/* Drag handle — visible on hover/focus, always touchable */}
+      <div className="absolute top-1 left-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150 cursor-grab active:cursor-grabbing">
+        <GripVertical className="w-4 h-4 text-foreground/60" />
+      </div>
+
+      {/* Alt text input — appears on hover/focus */}
+      <div className="absolute bottom-0 inset-x-0 p-1.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150">
+        <Input
+          value={item.altText}
+          onChange={(e) => onAltTextChange(e.target.value)}
+          placeholder="Alt text…"
+          disabled={disabled}
+          className="h-7 text-[0.6875rem] bg-background/90 backdrop-blur-sm border-border/50 placeholder:text-muted-foreground/50"
+          aria-label={`Alt text for ${item.isVideo ? 'video' : 'photo'} ${index + 1}`}
+        />
+      </div>
+    </div>
+  );
+}
 
 export default function PostComposer({ onPostCreated }: { onPostCreated?: () => void }) {
   const [text, setText] = useState('');
-  const [mediaPreview, setMediaPreview] = useState<string[]>([]);
-  const [files, setFiles] = useState<File[]>([]);
+  const [mediaItems, setMediaItems] = useState<AttachedMedia[]>([]);
   const [uploading, setUploading] = useState(false);
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,6 +144,7 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
   const [profile, setProfile] = useState<ProfileRecord | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dragIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     readProfile()
@@ -32,40 +158,218 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
       .catch(() => {});
   }, []);
 
-  function addFiles(selected: FileList | File[]) {
+  // Track all preview URLs for cleanup on unmount
+  const previewUrlsRef = useRef(new Set<string>());
+  useEffect(() => {
+    return () => {
+      previewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, []);
+
+  const processAndAddFiles = useCallback(async (selected: FileList | File[]) => {
     const newFiles = Array.from(selected);
     if (!newFiles.length) return;
-    setFiles((prev) => [...prev, ...newFiles]);
+
+    const itemsToAdd: AttachedMedia[] = [];
     for (const file of newFiles) {
-      setMediaPreview((prev) => [...prev, URL.createObjectURL(file)]);
+      const validationError = validateMedia(file);
+      const previewUrl = URL.createObjectURL(file);
+      previewUrlsRef.current.add(previewUrl);
+
+      if (validationError) {
+        itemsToAdd.push({
+          id: nextMediaId++,
+          file,
+          previewUrl,
+          isVideo: file.type.startsWith('video/'),
+          width: 0,
+          height: 0,
+          altText: '',
+          processing: false,
+          error: validationError,
+        });
+        continue;
+      }
+
+      const isVideo = file.type.startsWith('video/');
+
+      itemsToAdd.push({
+        id: nextMediaId++,
+        file,
+        previewUrl,
+        isVideo,
+        width: 0,
+        height: 0,
+        altText: '',
+        processing: true,
+      });
+
+      // Process in background
+      (async () => {
+        try {
+          if (isVideo) {
+            const info = await getVideoInfo(file);
+            const durationError = validateVideoDuration(info.duration);
+            if (durationError) {
+              setMediaItems((prev) =>
+                prev.map((item) =>
+                  item.file === file ? { ...item, processing: false, error: durationError } : item,
+                ),
+              );
+              return;
+            }
+            setMediaItems((prev) =>
+              prev.map((item) =>
+                item.file === file
+                  ? { ...item, width: info.width, height: info.height, processing: false }
+                  : item,
+              ),
+            );
+          } else {
+            const processed = await processImage(file);
+            const processedFile = new File([processed.blob], file.name, { type: processed.mimeType });
+            const newPreviewUrl = URL.createObjectURL(processedFile);
+            previewUrlsRef.current.delete(previewUrl);
+            previewUrlsRef.current.add(newPreviewUrl);
+            setMediaItems((prev) =>
+              prev.map((item) =>
+                item.file === file
+                  ? {
+                      ...item,
+                      file: processedFile,
+                      previewUrl: newPreviewUrl,
+                      width: processed.width,
+                      height: processed.height,
+                      processing: false,
+                    }
+                  : item,
+              ),
+            );
+          }
+        } catch (e) {
+          console.error('Media processing error:', e);
+          setMediaItems((prev) =>
+            prev.map((item) =>
+              item.file === file
+                ? {
+                    ...item,
+                    processing: false,
+                    error: { field: 'type', message: 'Failed to process media. Try a different file.' },
+                  }
+                : item,
+            ),
+          );
+        }
+      })();
     }
-  }
+
+    setMediaItems((prev) => [...prev, ...itemsToAdd]);
+  }, []);
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    if (e.target.files) addFiles(e.target.files);
+    if (e.target.files) processAndAddFiles(e.target.files);
+    e.target.value = '';
   }
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
     setDragOver(false);
-    if (e.dataTransfer.files) addFiles(e.dataTransfer.files);
+    if (e.dataTransfer.files) processAndAddFiles(e.dataTransfer.files);
   }
 
-  function removeMedia(index: number) {
-    URL.revokeObjectURL(mediaPreview[index]);
-    setMediaPreview((prev) => prev.filter((_, i) => i !== index));
-    setFiles((prev) => prev.filter((_, i) => i !== index));
+  function removeMedia(id: number) {
+    const item = mediaItems.find((m) => m.id === id);
+    if (item) {
+      previewUrlsRef.current.delete(item.previewUrl);
+    }
+    setMediaItems((prev) => prev.filter((m) => m.id !== id));
+  }
+
+  function updateAltText(id: number, alt: string) {
+    setMediaItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, altText: alt } : item)),
+    );
+  }
+
+  function handleDragStart(e: React.DragEvent, index: number) {
+    const item = mediaItems[index];
+    if (item) dragIdRef.current = item.id;
+    e.dataTransfer.effectAllowed = 'move';
+  }
+
+  function handleDragOver(e: React.DragEvent, _index: number) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  }
+
+  function handleMediaDrop(e: React.DragEvent, dropIndex: number) {
+    e.preventDefault();
+    const dragId = dragIdRef.current;
+    if (dragId === null) return;
+    setMediaItems((prev) => {
+      const dragIdx = prev.findIndex((m) => m.id === dragId);
+      if (dragIdx === -1 || dragIdx === dropIndex) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(dragIdx, 1);
+      next.splice(dropIndex, 0, moved);
+      return next;
+    });
+    dragIdRef.current = null;
+  }
+
+  function handleDragEnd() {
+    dragIdRef.current = null;
   }
 
   async function handleSubmit() {
-    if (!text.trim() && !files.length) return;
+    if (!text.trim() && !mediaItems.length) return;
     setError(null);
+
+    // Check for items with errors
+    const erroredItems = mediaItems.filter((item) => item.error);
+    if (erroredItems.length) {
+      setError('Fix the highlighted media issues before posting.');
+      return;
+    }
+
     setUploading(true);
 
     try {
       const mediaRecords: MediaRecord[] = [];
-      for (const file of files) {
-        const record = await uploadMedia({ file });
+
+      for (const item of mediaItems) {
+        let record: MediaRecord;
+
+        if (item.isVideo) {
+          // Capture poster frame
+          const poster = await captureVideoPoster(item.file);
+          const posterFile = new File([poster.blob], `poster-${Date.now()}.webp`, { type: poster.mimeType });
+
+          // Get video info
+          const info = await getVideoInfo(item.file);
+
+          record = await uploadMedia({
+            file: item.file,
+            thumbnailFile: posterFile,
+            width: info.width,
+            height: info.height,
+            durationSeconds: Math.round(info.duration * 100) / 100,
+            altText: item.altText || undefined,
+          });
+        } else {
+          // Generate thumbnail for images
+          const thumb = await generateThumbnail(item.file);
+          const thumbFile = new File([thumb.blob], `thumb-${Date.now()}.webp`, { type: thumb.mimeType });
+
+          record = await uploadMedia({
+            file: item.file,
+            thumbnailFile: thumbFile,
+            width: item.width,
+            height: item.height,
+            altText: item.altText || undefined,
+          });
+        }
+
         if (record._id) {
           mediaRecords.push(record);
         }
@@ -78,10 +382,10 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
         created_at: new Date().toISOString(),
       });
 
-      mediaPreview.forEach((url) => URL.revokeObjectURL(url));
+      mediaItems.forEach((item) => previewUrlsRef.current.delete(item.previewUrl));
+      previewUrlsRef.current.clear();
       setText('');
-      setMediaPreview([]);
-      setFiles([]);
+      setMediaItems([]);
       onPostCreated?.();
     } catch (e) {
       console.error('Failed to create post:', e);
@@ -92,7 +396,8 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
     }
   }
 
-  const canPost = (text.trim() || files.length) && !uploading && !posting;
+  const canPost = (text.trim() || mediaItems.length) && !uploading && !posting;
+  const hasErroredMedia = mediaItems.some((item) => item.error);
   const initials = (profile?.display_name || '?').charAt(0).toUpperCase();
 
   return (
@@ -110,7 +415,6 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
       onDrop={handleDrop}
       data-testid="post-composer"
     >
-      {/* Ambient glow when focused */}
       {focused && (
         <div
           className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-brand to-transparent"
@@ -145,24 +449,22 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
             </div>
           )}
 
-          {mediaPreview.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {mediaPreview.map((url, i) => (
-                <div key={i} className="relative group">
-                  <img
-                    src={url}
-                    alt={`Preview ${i + 1}`}
-                    className="w-20 h-20 rounded-lg object-cover transition-transform duration-150 group-hover:scale-105 ring-1 ring-transparent group-hover:ring-brand/30"
-                  />
-                  <button
-                    onClick={() => removeMedia(i)}
-                    aria-label="Remove attachment"
-                    disabled={posting || uploading}
-                    className="absolute -top-1.5 -right-1.5 flex items-center justify-center h-6 w-6 rounded-full bg-background border border-border opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
+          {mediaItems.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2" data-testid="media-tray">
+              {mediaItems.map((item, i) => (
+                <MediaTrayItem
+                  key={item.id}
+                  item={item}
+                  index={i}
+                  count={mediaItems.length}
+                  onRemove={() => removeMedia(item.id)}
+                  onAltTextChange={(alt) => updateAltText(item.id, alt)}
+                  onDragStart={handleDragStart}
+                  onDragOver={handleDragOver}
+                  onDrop={handleMediaDrop}
+                  onDragEnd={handleDragEnd}
+                  disabled={posting || uploading}
+                />
               ))}
             </div>
           )}
@@ -190,7 +492,7 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*,video/*"
+                accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm"
                 multiple
                 className="hidden"
                 onChange={handleFileSelect}
@@ -201,11 +503,17 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
                   Uploading…
                 </span>
               )}
+              {hasErroredMedia && (
+                <span className="flex items-center gap-1 text-xs text-danger">
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  {mediaItems.filter((i) => i.error).length} issue{mediaItems.filter((i) => i.error).length > 1 ? 's' : ''}
+                </span>
+              )}
             </div>
             <Button
               variant="brand"
               size="default"
-              disabled={!canPost}
+              disabled={!canPost || hasErroredMedia}
               onClick={handleSubmit}
               data-testid="post-submit"
               className="gap-2 font-semibold min-w-24"

@@ -27,6 +27,40 @@ Live-testing personas that make the social platform look alive. Five users with 
 fallback that only does accounts + profiles + follows (no posts/ledger/DMs) and
 is **superseded** — prefer the Python script.
 
+## Idempotency (re-runs are safe)
+
+**Re-running `seed_personas.py` on top of existing data is a no-op (or an
+upsert).** Every create path reads first and skips — or updates — if the record
+already exists:
+
+- **Posts + DMs** carry a stable `origin_id` (`seed-{username}-{idx}`,
+  `seed-dm-{from}-{to}-{idx}`). Read by `origin_id` → reuse the existing
+  `_id` if found; otherwise create.
+- **Contacts + follows** dedup by `(username, provider)` — skip if active,
+  update if stale, create if absent (same pattern as the social app's
+  `follows.ts:followUser`).
+- **Inbox fan-out** dedups by `post_id` — each post is delivered to each
+  follower's inbox exactly once.
+- **Reactions** dedup by `(target, author, type)` in the public ledger.
+- **Comments** dedup by `(target, author, text)` in the public ledger.
+- **Profile** is an upsert: update if a record exists, create if not (the old
+  script always POSTed, leaving N profile records after N runs).
+- **Schema registration** reuses the existing schema `_id` via a local
+  `.seed-state.json` file (gitignored), so the Reaction/Comment schemas aren't
+  re-registered every run (`register_schema` has no built-in dedup).
+
+If you have duplicates from prior **non-idempotent** runs (the bug fixed in
+this version — gauntlet step 8 reported "posts show 5 sets"), run `--cleanup`
+once to remove them:
+
+```bash
+python3 seed_personas.py --api https://api.dev.web10.app --cleanup
+```
+
+`--cleanup` groups each collection by its natural dedup key, keeps the oldest
+record (smallest `_id`), and deletes the rest. It covers posts, contacts,
+follows, DMs, inbox records, and public-ledger entries (reactions + comments).
+
 ## Quick Start
 
 ```bash
@@ -45,6 +79,12 @@ python3 seed_personas.py --api https://api.dev.web10.app \
 
 # Accounts only (skip posts/ledger/DMs):
 python3 seed_personas.py --api https://api.dev.web10.app --skip-content
+
+# Remove duplicates from prior non-idempotent runs:
+python3 seed_personas.py --api https://api.dev.web10.app --cleanup
+
+# Report current data state (no writes):
+python3 seed_personas.py --api https://api.dev.web10.app --verify
 ```
 
 ## How seeding reaches the discovery feed (post-D5.5)
@@ -116,14 +156,22 @@ All personas use `web10test!2026` as their password. Change it in `seed_personas
 
 ## API Endpoints Used
 
-- `POST /signup` — create account (idempotent here: existing user is treated as ok)
+- `POST /signup` — create account (idempotent: existing user is treated as ok)
 - `POST /web10token` — login, get JWT
 - `POST /{user}/services` — write the anon-whitelist term record for `public_posts`
 - `POST /schemas/register` — register the `Reaction` / `Comment` ledger schemas
-- `POST /{user}/profile` — set display name, bio
-- `POST /{user}/public_posts` — create discoverable posts
-- `POST /{user}/contacts` — add contacts
-- `POST /{user}/follows` — follow other personas
-- `POST /{user}/inbox` — fan-out delivery to follower inboxes
-- `POST /{user}/dms` — send DMs (single `dms` service, sender/recipient fields)
+  (idempotent: reuses the existing schema `_id` via `.seed-state.json`)
+- `PATCH /schemas/{id}` — verify a schema still exists before reusing its ID
+- `POST /{user}/profile` — create profile record
+- `PUT /{user}/profile` — update existing profile (upsert path)
+- `PATCH /{user}/{service}` — read records (idempotency check before every write)
+- `POST /{user}/public_posts` — create discoverable posts (with stable `origin_id`)
+- `PUT /{user}/follows` — update a stale follow back to `active`
+- `POST /{user}/contacts` — add contacts (idempotent: skip if exists)
+- `POST /{user}/follows` — follow other personas (idempotent: skip if active)
+- `POST /{user}/inbox` — fan-out delivery to follower inboxes (idempotent by `post_id`)
+- `POST /{user}/dms` — send DMs (single `dms` service, stable `origin_id`)
 - `POST /public/entries` — reactions & comments (public ledger, schema-validated)
+- `PATCH /public/entries` — query the ledger for existing entries (dedup check)
+- `DELETE /{user}/{service}` — remove duplicate records (`--cleanup` only)
+- `DELETE /public/entries/{id}` — remove duplicate ledger entries (`--cleanup` only)

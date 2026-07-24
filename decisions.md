@@ -9,6 +9,47 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D32 — Interactions (comments, reactions, reposts) are PUBLIC by default; collection-level terms is the lock [decided]
+Comments are NOT DMs — they are public discourse attached to a post, not
+private correspondence. So the `comments` service ships anon-readable (the
+same anon-read whitelist `public_posts` already carries,
+serviceTerms.ts:71), and `createComment` mirrors to the public ledger
+(`/public/entries`) **unconditionally** — matching `createReaction`
+(reactions.ts:35, already unconditional). The public ledger is anon-
+queryable (`PATCH /public/entries` is anon-OK, public.py:42), so any web
+visitor (the default anon user on any page) reads comments; the trending
+feed's comment count (currently always 0 — see D-comments-ledger) goes
+live. A second tap removes your reaction; a comment is owned by its
+author (delete is author-only per public.py:82).
+
+WHY collection-level, not per-post: this is D30 applied to interactions.
+D30 rejected per-record visibility fields because "the permission layer
+never looks inside the record" (decisions.md:55-59) — a `private` flag on
+a comment cannot be enforced by terms, which key on the COLLECTION. The
+earlier draft of D-trending-comments proposed gating the comment mirror
+on the PARENT POST's visibility ("mirror only if the post is public") —
+that is the same per-record-inspection mistake D30 already killed. If
+`comments` is a public collection, the mirror is unconditional; the
+lock-down is ONE terms change in the authenticator (flip `comments` to
+owner-only), not a per-post branch in the write path.
+
+Per-record permissions is a FUTURE decision, explicitly deferred. The
+layered model the operator named (23.07): collection-level = authoritative
+but lenient (public by default — one place to lock it all down); individual
+POSTS can be configured more privately (public_posts/private_posts/
+staging_posts collections, D30); comments/reactions/reposts ride their own
+collection's default ("public") and do NOT inherit the parent post's
+visibility. The panic button is the authenticator's terms editor — flip
+the `comments`/`reactions` service to owner-only and the whole interaction
+surface goes dark, server-side, for every post on the node at once.
+
+Rejects the per-post-visibility-gate-on-comments draft I proposed. The
+"reactions on private posts leak to the anon ledger" framing I raised is
+NOT a bug under this decision — it is the design: interactions are public,
+the collection terms is the boundary, and if you don't want interactions
+on a private post to be public, you lock the `comments`/`reactions`
+collection (one change), not each comment.
+
 ### D31 — App Store curation is ALLOWLIST, not takedown [decided]
 D16's status note (parallel execution.txt, written 1.0.84) recorded the
 operator choosing *takedown* ("a `removed` flag") over *allowlist* ("hide-

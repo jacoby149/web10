@@ -106,9 +106,20 @@ export async function deletePost(id: string): Promise<void> {
  * 2. Upload file to object storage
  * 3. Confirm upload to create the media record
  * Returns the media record with the _id to reference in posts.
+ *
+ * D21: if width/height/durationSeconds/thumbnailFile/altText are provided,
+ * they are sent to the confirm endpoint so the media record carries real
+ * dimensions, a thumbnail URL (for video posters), and alt text.
  */
 export async function uploadMedia(request: MediaUploadRequest): Promise<MediaRecord> {
   const wapi = getWapi();
+
+  // Upload the thumbnail/poster first (if provided) so we have its URL
+  let thumbnailUrl: string | null = null;
+  if (request.thumbnailFile) {
+    const thumbRecord = await uploadMedia({ file: request.thumbnailFile });
+    thumbnailUrl = thumbRecord.url;
+  }
 
   // 1. Get presigned URL from the API
   const { uploadUrl, fields, contentType, objectKey } = await wapi.getUploadUrl(
@@ -133,15 +144,16 @@ export async function uploadMedia(request: MediaUploadRequest): Promise<MediaRec
   }
 
   // 3. Confirm upload to create the media record in the user's collection.
-  //    Delegated to the wrapper: the raw JWT and API protocol live on the
-  //    underlying SDK, not on the wrapper object — reaching for `wapi.token`
-  //    here would send `token: undefined` and fail auth. The object URL is
-  //    built from the server-assigned objectKey, not the raw filename.
   return wapi.confirmUpload<MediaRecord>({
     url: `${uploadUrl}/${objectKey}`,
     filename: request.file.name,
     mimeType: contentType,
     sizeBytes: request.file.size,
+    width: request.width ?? null,
+    height: request.height ?? null,
+    durationSeconds: request.durationSeconds ?? null,
+    thumbnailUrl,
+    altText: request.altText ?? null,
   });
 }
 

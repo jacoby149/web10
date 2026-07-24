@@ -11,7 +11,9 @@ export type Mode =
   | "bulletin-edit"
   | "feed"
   | "crm"
-  | "mail";
+  | "mail"
+  | "discover"
+  | "user-profile";
 
 export type CrmColor = "green" | "yellow" | "red";
 

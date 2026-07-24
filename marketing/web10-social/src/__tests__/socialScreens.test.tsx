@@ -19,7 +19,7 @@ vi.mock('lucide-react', () => {
     'ClockArrowDown', 'Sparkles', 'Send', 'Image', 'ImagePlus', 'X', 'Loader2',
     'User', 'MapPin', 'Globe', 'Link', 'Camera', 'Edit3', 'Check',
     'ChevronLeft', 'MessageSquare', 'Home', 'PlusCircle', 'LogOut', 'Bug',
-    'AlertTriangle', 'CheckCircle',
+    'AlertTriangle', 'CheckCircle', 'Compass',
   ].forEach(name => { icons[name] = iconFactory(name); });
   return icons;
 });

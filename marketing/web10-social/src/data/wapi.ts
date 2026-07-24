@@ -69,11 +69,19 @@ export interface WapiWrapper {
   // Confirm an object-storage upload → creates the media record in the
   // user's collection. Lives here (not in the data layer) because the raw
   // JWT + API protocol are only reachable from inside the wrapper.
+  // Optional fields (width, height, durationSeconds, thumbnailUrl, altText)
+  // are accepted by the API's MetadataCreate but defaulted to null when
+  // absent — pydantic requires the keys to exist, so we send null explicitly.
   confirmUpload: <T = Record<string, unknown>>(params: {
     url: string;
     filename: string;
     mimeType: string;
     sizeBytes: number;
+    width?: number | null;
+    height?: number | null;
+    durationSeconds?: number | null;
+    thumbnailUrl?: string | null;
+    altText?: string | null;
   }) => Promise<T>;
 
   // Media presigned READ url (POST /media/{user}/read). Returns an
@@ -283,7 +291,7 @@ export function createWapiWrapper(authUrl?: string, rtcServer?: string): WapiWra
       };
     },
 
-    async confirmUpload<T>({ url, filename, mimeType, sizeBytes }) {
+    async confirmUpload<T>({ url, filename, mimeType, sizeBytes, width = null, height = null, durationSeconds = null, thumbnailUrl = null, altText = null }) {
       const token = getToken();
       if (!token) throw new Error('not authenticated');
       const proto = getProtocol();
@@ -292,7 +300,18 @@ export function createWapiWrapper(authUrl?: string, rtcServer?: string): WapiWra
       const resp = await fetch(`${proto}//${p}/${u}/upload/confirm`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, url, filename, mime_type: mimeType, size_bytes: sizeBytes }),
+        body: JSON.stringify({
+          token,
+          url,
+          filename,
+          mime_type: mimeType,
+          size_bytes: sizeBytes,
+          width,
+          height,
+          duration_seconds: durationSeconds,
+          thumbnail_url: thumbnailUrl,
+          alt_text: altText,
+        }),
       });
       if (!resp.ok) throw new Error(`confirm upload failed: ${resp.status}`);
       const json = await resp.json();

@@ -30,7 +30,7 @@ const icons = [
   'AlertTriangle', 'CheckCircle', 'Heart', 'MessageCircle', 'ArrowUp',
   'ArrowDown', 'Flame', 'Clock', 'ClockArrowDown', 'Sparkles', 'Send',
   'Image', 'ImagePlus', 'X', 'Loader2', 'MapPin', 'Globe', 'Link',
-  'Camera', 'Edit3', 'Check', 'ChevronLeft',
+  'Camera', 'Edit3', 'Check', 'ChevronLeft', 'Compass',
 ];
 vi.mock('lucide-react', () => Object.fromEntries(icons.map(n => [n, iconFactory(n)])));
 

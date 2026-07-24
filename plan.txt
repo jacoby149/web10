@@ -34,6 +34,8 @@ board, logged as D29).
      375px, on a real phone, on dev AND prod
 each step that passes gets encoded as a playwright journey in e2e/
 so it can't regress (C6 continued — the referee for "works").
+[✓ 1.0.145] gauntlet.spec.ts landed: 8 step-journeys (passing = real
+      assertions; failing = test.fixme scaffolds with documented blockers).
 when the gauntlet passes end to end, THEN low-hanging fruit in
 order of demo impact (realtime feed refresh, notifications, search
 your own stuff, D16(3) store curation) — judged by the same
@@ -1201,10 +1203,102 @@ Marketing-ui side (Lane D):
 [✓ 1.0.130] D-trending-sidebar: marketing-ui /trending sidebar (desktop only, wide
     screens) — "🔥 Top 10" ranked list, compact entries (position + author
     + snippet + score), click scrolls to card in main grid.
-[✓ 1.0.130] D-trending-polish: marketing-ui /trending loading + empty states —
-    shimmer skeleton grid (matches layout, no shift), empty state story
-    beat ("The network is quiet" + CTA to social app), infinite scroll
-    feel (load 20, "Load more" brand pill).
+[✓ 1.0.130] D-trending-polish: marketing-ui /trending loading + empty states — shimmer skeleton
+    grid (matches layout, no shift), empty state story beat ("The network is quiet"
+    + CTA to social app), infinite scroll feel (load 20, "Load more" brand pill).
+
+[ ] D-trending-interact — make /trending feel alive (operator, 23.07: the like
+    button "endlessly goes up not effecting the state of the app," the repost/
+    share icons are dead, the comment icon doesn't expand, clicking a card goes
+    nowhere). the D-trending-card cluster shipped read-only engagement buttons
+    that are pure local theater — Trending.tsx handleReaction only
+    setAllPosts-increments a counter, Share2 has no onClick, MessageCircle only
+    fires a funnel event, and the card isn't a link. this cluster makes them
+    real. the page is a PUBLIC, signed-out surface, so the work splits by what
+    auth allows: anon-OK ships first (card->profile deep-link, share, view-
+    comments inline via the anon-queryable PATCH /public/entries), then the
+    auth-gated writes (like/repost toggle, compose-comment; POST /public/entries
+    is "any authenticated user" and marketing-ui has no wapi/token today, so
+    ship the funnel-to-social design first -- the button opens web10-social at
+    the post and the reaction happens there, matching the existing
+    trending_comment_attempt funnel event's intent -- with an inline auth bridge
+    via AUTH_ORIGIN as a later upgrade). the endless fake local increment
+    STOPS either way; that's the minimum honest fix. acceptance: design.md §12.
+
+    PRIVACY MODEL (operator, 23.07, decided as D32): comments are NOT DMs —
+    they are public discourse. so `comments` ships anon-readable (the same
+    anon-read whitelist `public_posts` carries, serviceTerms.ts:71) and the
+    comment mirror to `/public/entries` is UNCONDITIONAL — matching reactions
+    (reactions.ts:35, already unconditional). any web visitor (the default anon
+    user) reads comments via PATCH /public/entries (anon-OK, public.py:42); the
+    trending comment count (currently always 0 — see D-comments-ledger) goes
+    live. this is D30 applied to interactions: the collection IS the security
+    boundary, NOT a per-record/per-post visibility flag — the earlier "gate the
+    comment mirror on the parent post's visibility" draft was a per-record-
+    inspection mistake D30 already rejects ("the permission layer never looks
+    inside the record"). the panic button is ONE terms change in the
+    authenticator: flip `comments` (or `reactions`) to owner-only and the
+    whole interaction surface goes dark server-side for every post on the node
+    at once. per-record permissions is a FUTURE decision, deferred. the
+    layered model (operator): collection-level = authoritative but lenient
+    (public by default, one place to lock down); individual POSTS configurable
+    via the public_posts/private_posts/staging_posts collections (D30);
+    comments/reactions/reposts ride their OWN collection's default and do NOT
+    inherit the parent post's visibility.
+
+[ ] D-comments-ledger (social-side prerequisite, lane D; decision D32):
+    (1) `createComment` (web10-social/src/data/comments.ts:36) mirrors to
+    /public/entries (POST, "any authenticated user") UNCONDITIONALLY — exactly
+    as `createReaction` does (reactions.ts:35). no per-post visibility gate;
+    comments are public by default (D32). fires the registered Comment schema
+    (feed.ts:33) with payload.action='comment' (what documentdb.py:828 counts).
+    fixes the always-0 trending comment count + the test_discovery.py:645 mock
+    that hid it.
+    (2) the `comments` service gains an anon-read whitelist in serviceTerms.ts
+    (matching `public_posts`:119) so any logged-in user reads comments on any
+    post via CRUD, not just the post's author (today `comments`:120 is owner-
+    only, which the social app's own feed-thread UI already works around by
+    reading the author's own collection — but it breaks for cross-user reads).
+    (3) mirror `deleteComment` to the ledger's DELETE /public/entries/{id}
+    (author-only, public.py:82) so a removed comment drops out of the engagement
+    count and the marketing-ui list; without this, deleted comments ghost-read.
+    unblocks D-trending-comments. owns: marketing/web10-social/src/data/
+    {comments,serviceTerms}.ts + the FeedScreen call site. gate: none — start
+    now.
+[ ] D-trending-link: wrap TrendingCard (or its author row) in a deep-link to
+    the author's profile on web10-social -- `${SOCIAL_ORIGIN}/u/<author>`
+    (origins.ts exports SOCIAL_ORIGIN). GATE: web10-social has no per-user
+    profile route yet -- ProfileScreen only renders the signed-in user's own
+    profile (App.tsx mode==='my-bio'); the gauntlet report (1.0.142) flags "no
+    user profiles." a social-side `/u/:username` public-profile route is a
+    lane-D sibling that must land first; until it does, the card links to
+    social's root (a real navigation, not a dead click). carry author_provider
+    so cross-node profiles resolve. owns: FeedPreview.tsx + Trending.tsx.
+[ ] D-trending-share: the Share2 button has NO onClick handler today. wire it
+    to navigator.share when available (title = post snippet, url = a canonical
+    post url; until social has a per-post route, share the card's /trending
+    anchor or social root), with a copy-link fallback (clipboard API + a "Link
+    copied" toast). no auth needed. owns: FeedPreview.tsx.
+[ ] D-trending-comments: the MessageCircle button only fires
+    trackFunnel('trending_comment_attempt'); it expands nothing. add an inline
+    comment panel under the card: fetch existing comments via PATCH
+    /public/entries?target=<author>/<service>/<post_id>&schema_id=<Comment>
+    (anon-OK, public.py:42) and render them with designed loading + empty states
+    (design.md §1, not a spinner). GATE: D-comments-ledger (today nothing writes
+    comments to the ledger, so the count is always 0 and the read returns [];
+    the social-side mirror must land first). compose is auth-gated -> signed-out
+    visitors get an "Open web10 social to comment" CTA (funnel-to-social); a
+    signed-in inline compose box is the later auth-bridge upgrade. owns:
+    FeedPreview.tsx + Trending.tsx.
+[ ] D-trending-reactions: like + repost call handleReaction (Trending.tsx:98)
+    which only setAllPosts-increments a parsed count -- endless, fake, never
+    toggles off. replace with a real toggle mirroring the social app's
+    reactions.ts (read existing, find mine, delete or create via /public/entries)
+    so the count reflects the ledger, not a local +1, and a second click
+    removes it. signed-out -> funnel-to-social or a "sign in to react" gate.
+    keep the heart-burst animation (D12 vibrancy). owns: FeedPreview.tsx +
+    Trending.tsx.
+
 
 Content lifecycle — staging + visibility management (Lane D, D19; decisions.md D30):
 The visibility split shipped half-built and crossed at both ends — the
@@ -1268,7 +1362,13 @@ Live testing — persona seeding (Cross-lane, persona-orchestration/):
     placeholder. the personas also test the social app's core flows
     (post, feed, DM, comment, react, follow) with actual cross-user
     interaction — no more empty-state screenshots in the demo.
-    the seed script is idempotent: re-run after a DB wipe to reseed.
+[✓ 1.0.145] the seed script is FULLY idempotent (ws-G2 fix): every
+    create path reads-before-writes (stable origin_id on posts + DMs,
+    natural-key dedup on contacts/follows/inbox/ledger), --cleanup
+    removes dups from prior non-idempotent runs (296 removed on dev),
+    --verify reports state without writing. re-running is a no-op
+    (proven: second run = 0 new records). 7 posts/persona + reply DM
+    threads added so the feed + trending demo alive.
     the action plans per persona define ongoing content so another
     agent can log in as a persona and keep the platform alive.
 
@@ -1571,19 +1671,19 @@ has no media surface at all.
 
 photos v1 -- the composer stops being ugly (lane D; gauntlet step
 2 territory, "post a photo -> it appears in the feed"):
-[ ] media tray: previews at real aspect ratio in the same grid the
-    feed will render (composer preview == post render, no
-    surprises), always-visible remove button (hover-only fails
-    touch, and the gauntlet runs on a phone), drag to reorder
-[ ] client-side processing at attach: downscale to max edge 2048 +
-    recompress (canvas -> webp/jpeg), extract width/height,
-    generate + upload a real thumbnail -- populate the media-record
-    fields (width, height, thumbnail_url) the confirm endpoint
-    already accepts but nobody fills
-[ ] alt text per image in the tray (design.md requires alt; the
-    schema has the field; the composer never asks)
-[ ] validation with a voice: wrong type / over the size cap gets
-    rejected at attach time with words, not a failed upload spinner
+[✓ 1.0.147] media tray: previews at real aspect ratio in the same grid the
+     feed will render (composer preview == post render, no
+     surprises), always-visible remove button (hover-only fails
+     touch, and the gauntlet runs on a phone), drag to reorder
+[✓ 1.0.147] client-side processing at attach: downscale to max edge 2048 +
+     recompress (canvas -> webp/jpeg), extract width/height,
+     generate + upload a real thumbnail -- populate the media-record
+     fields (width, height, thumbnail_url) the confirm endpoint
+     already accepts but nobody fills
+[✓ 1.0.147] alt text per image in the tray (design.md requires alt; the
+     schema has the field; the composer never asks)
+[✓ 1.0.147] validation with a voice: wrong type / over the size cap gets
+     rejected at attach time with words, not a failed upload spinner
 
 photos v2 -- the feed renders like it means it (lane D):
 [ ] lightbox: tap any image -> full-screen viewer, swipe between a
