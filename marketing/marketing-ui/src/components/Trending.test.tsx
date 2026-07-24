@@ -75,6 +75,37 @@ describe('TrendingCard interactions', () => {
     expect(screen.queryByRole('button', { name: /Like,/ })).not.toBeInTheDocument();
     expect(screen.getByLabelText(/Like,/).tagName).toBe('SPAN');
   });
+
+  it('does not change displayed counts on like/repost click', () => {
+    const onLike = vi.fn();
+    const onRepost = vi.fn();
+    render(
+      <TrendingCard post={basePost} rank={5} maxScore={100} onLike={onLike} onComment={noop} onRepost={onRepost} />,
+    );
+    const likeBtn = screen.getByLabelText(/Like, 10 likes/);
+    const repostBtn = screen.getByLabelText(/Repost, 1 reposts/);
+    fireEvent.click(likeBtn);
+    fireEvent.click(repostBtn);
+    expect(likeBtn).toHaveTextContent('10');
+    expect(repostBtn).toHaveTextContent('1');
+  });
+
+  it('renders a share button', () => {
+    render(
+      <TrendingCard post={basePost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
+    );
+    expect(screen.getByLabelText('Share')).toBeInTheDocument();
+  });
+
+  it('renders author name as a link to social origin', () => {
+    render(
+      <TrendingCard post={basePost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
+    );
+    const authorLink = screen.getByRole('link', { name: 'Ada Lovelace' });
+    expect(authorLink).toHaveAttribute('href', expect.stringContaining('social.web10'));
+    expect(authorLink).toHaveAttribute('target', '_blank');
+    expect(authorLink).toHaveAttribute('rel', 'noopener');
+  });
 });
 
 const jsonOk = (body: unknown) => ({
@@ -100,6 +131,7 @@ describe('Trending page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal('fetch', vi.fn());
+    vi.stubGlobal('open', vi.fn());
     // jsdom has no layout; stub the scroll the sidebar triggers.
     Element.prototype.scrollIntoView = vi.fn();
   });
@@ -150,5 +182,18 @@ describe('Trending page', () => {
     fireEvent.click(codeChip!);
     // 10 of the 20 posts carry the 'code' tag (odd indices).
     await waitFor(() => expect(screen.getAllByTestId('trending-card')).toHaveLength(10));
+  });
+
+  it('like/repost click does not change displayed counts (funnels to social)', async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonOk(makeDiscoveryPosts(20)) as unknown as Response);
+    const { default: Trending } = await import('@/pages/Trending');
+    render(<Trending />);
+    await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
+    const firstCard = screen.getAllByTestId('trending-card')[0];
+    const likeBtn = within(firstCard).getByLabelText(/Like,/);
+    const beforeText = likeBtn.textContent;
+    fireEvent.click(likeBtn);
+    expect(likeBtn.textContent).toBe(beforeText);
+    expect(window.open).toHaveBeenCalledOnce();
   });
 });
