@@ -52,18 +52,15 @@ describe('TrendingCard rank badge', () => {
 });
 
 describe('TrendingCard interactions', () => {
-  it('fires like/comment/repost handlers when interactive', () => {
+  it('fires like/repost handlers when interactive', () => {
     const onLike = vi.fn();
-    const onComment = vi.fn();
     const onRepost = vi.fn();
     render(
-      <TrendingCard post={basePost} rank={5} maxScore={100} onLike={onLike} onComment={onComment} onRepost={onRepost} />,
+      <TrendingCard post={basePost} rank={5} maxScore={100} onLike={onLike} onComment={noop} onRepost={onRepost} />,
     );
     fireEvent.click(screen.getByLabelText(/Like,/));
-    fireEvent.click(screen.getByLabelText(/Comment,/));
     fireEvent.click(screen.getByLabelText(/Repost,/));
     expect(onLike).toHaveBeenCalledWith('p1');
-    expect(onComment).toHaveBeenCalledWith('p1');
     expect(onRepost).toHaveBeenCalledWith('p1');
   });
 

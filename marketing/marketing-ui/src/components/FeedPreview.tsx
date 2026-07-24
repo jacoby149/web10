@@ -205,7 +205,6 @@ interface TrendingCardProps {
   post: FeedPost;
   rank: number;
   onLike: (postId: string) => void;
-  onComment: (postId: string) => void;
   onRepost: (postId: string) => void;
   onShare?: (postId: string) => void;
   maxScore: number;
@@ -364,7 +363,6 @@ function TrendingCard({
   post,
   rank,
   onLike,
-  onComment,
   onRepost,
   onShare,
   maxScore,
@@ -400,12 +398,7 @@ function TrendingCard({
   };
   const handleCommentClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (commentOpen) {
-      setCommentOpen(false);
-      return;
-    }
-    setCommentOpen(true);
-    onComment(post.id);
+    setCommentOpen(v => !v);
   };
   return (
     <Card
