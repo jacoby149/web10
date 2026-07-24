@@ -45,6 +45,22 @@ const DEFAULT_SCHEMAS: Omit<SchemaDefinition, '_id' | 'created_at'>[] = [
       },
     },
   },
+  {
+    name: 'Follow',
+    author_username: 'system',
+    author_provider: 'web10',
+    schema: {
+      type: 'object',
+      required: ['action', 'target_username'],
+      properties: {
+        action: { type: 'string', enum: ['follow'] },
+        target_username: { type: 'string', description: 'username of the followed user' },
+        target_provider: { type: 'string' },
+        author_username: { type: 'string' },
+        author_provider: { type: 'string' },
+      },
+    },
+  },
 ];
 
 /**
@@ -208,6 +224,24 @@ export async function queryPublicEntries(params: {
     return resp.json();
   } catch {
     return [];
+  }
+}
+
+/**
+ * Delete a public ledger entry by ID (author-only).
+ */
+export async function deletePublicEntry(entryId: string): Promise<void> {
+  try {
+    const token = getWapi().readToken();
+    const resp = await fetch(`${API_ORIGIN}/public/entries/${entryId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token?.site || ''}`,
+      },
+    });
+    if (!resp.ok) throw new Error(`delete public entry failed: ${resp.status}`);
+  } catch (e) {
+    // non-fatal — the local record is still the source of truth
   }
 }
 

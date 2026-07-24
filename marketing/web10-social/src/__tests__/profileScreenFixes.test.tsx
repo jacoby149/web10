@@ -32,6 +32,7 @@ const mockReadProfile = vi.fn().mockResolvedValue({
 });
 const mockReadMyPosts = vi.fn().mockResolvedValue([]);
 const mockCountFollows = vi.fn().mockResolvedValue(42);
+const mockCountFollowers = vi.fn().mockResolvedValue(3);
 const mockUploadMedia = vi.fn().mockResolvedValue({
   _id: 'media-new',
   url: 'http://minio.internal/web10-media/raw-avatar.png',
@@ -52,6 +53,7 @@ vi.mock('@/data', async (importOriginal) => {
     readProfile: mockReadProfile,
     readMyPosts: mockReadMyPosts,
     countFollows: mockCountFollows,
+    countFollowers: mockCountFollowers,
     uploadMedia: mockUploadMedia,
     refreshMediaUrls: mockRefreshMediaUrls,
     resolveMediaRefs: mockResolveMediaRefs,
@@ -136,12 +138,13 @@ describe('ProfileScreen upload presign fix', () => {
   });
 });
 
-describe('ProfileScreen D24 — follower stat hidden', () => {
+describe('ProfileScreen D24/D34 — follower stat is real (ledger-backed)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('does not render a Followers stat tile', async () => {
+  it('renders a Followers stat tile with real count from ledger', async () => {
+    // countFollowers is mocked in setup to return 3
     const { default: ProfileScreen } = await import('@/components/Bio/ProfileScreen');
     render(<ProfileScreen />);
 
@@ -151,10 +154,12 @@ describe('ProfileScreen D24 — follower stat hidden', () => {
 
     // Stats row should exist
     expect(screen.getByTestId('profile-stats')).toBeInTheDocument();
-    // Following should be present in stats row (Posts also appears as a tab label)
+    // Following should be present
     expect(screen.getByText('Following')).toBeInTheDocument();
-    // Followers should NOT be present
-    expect(screen.queryByText('Followers')).not.toBeInTheDocument();
+    // Followers IS present now (D34: real ledger-backed count)
+    expect(screen.getByText('Followers')).toBeInTheDocument();
+    // The count from the mock (3) should render
+    expect(screen.getByText('3')).toBeInTheDocument();
   });
 });
 

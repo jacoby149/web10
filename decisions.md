@@ -9,7 +9,32 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
-### D33 — Namespaces: decisions own bare D-nn; lane/board items use slugs [decided]
+### D34 — Follows are PUBLIC by default; the follow graph mirrors to the public ledger [decided]
+This extends D32 to the follow graph. `followUser` (follows.ts) mirrors to
+`/public/entries` with `payload.action='follow'` targeting the followed user —
+the exact D32 pattern reactions/comments already use (unconditional; collection-
+level terms is the lock; unfollow deletes the entry like `deleteComment`). The
+follower count of any user reads from the ledger, not from cross-collection
+reads (I3 forbids those). The `Follow` schema is registered alongside
+`Reaction`/`Comment` in `feed.ts` DEFAULT_SCHEMAS. The persona seed script
+backfills existing cross-follows into the ledger (idempotent, like 1.0.145).
+
+WHY public: follower count is social proof — "a creator page without follower
+count is not a creator page" (gauntlet step 6). The alternative (a dedicated
+API endpoint aggregating across collections) would require changing the
+discovery aggregation in `documentdb.py` to query every user's `follows`
+collection, which is O(N) across users and defeats the purpose of the
+inbox-pattern read model. The ledger is already O(1) per user.
+
+The panic button is one terms flip: flip the `follows` service to owner-only in
+the authenticator's terms editor, or stop mirroring new follows (the ledger
+entries are coarse — they only carry username, not private metadata). The
+collection-level boundary holds: the `follows` service itself remains
+owner-only; only the aggregated follow event is public.
+
+Rejects: a dedicated follower-count endpoint (O(N) across collections);
+per-user follower counters on the star record (stale without write-through);
+and keeping follows private (the gauntlet bar requires social proof).
 The D-number namespace collided: "D21" meant three different things
 (quotas, media polish, the studio M0 slice), lane D skipped "D20" to dodge
 this file's D20, and D24/D26 mean different things here vs. the lane
