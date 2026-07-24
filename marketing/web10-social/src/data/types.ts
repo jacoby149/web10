@@ -60,6 +60,12 @@ export interface MediaRecord {
 export interface MediaUploadRequest {
   file: File;
   onProgress?: (progress: number) => void;
+  // D21: optional metadata populated by client-side processing
+  width?: number;
+  height?: number;
+  durationSeconds?: number;
+  thumbnailFile?: File; // thumbnail/poster blob to upload alongside
+  altText?: string;
 }
 
 // ── profile ─────────────────────────────────────────────────────────────────

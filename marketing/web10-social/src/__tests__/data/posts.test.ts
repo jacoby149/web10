@@ -141,6 +141,11 @@ describe('posts data layer', () => {
         filename: 'pic.png',
         mimeType: 'image/png',
         sizeBytes: file.size,
+        width: null,
+        height: null,
+        durationSeconds: null,
+        thumbnailUrl: null,
+        altText: null,
       });
       expect(result._id).toBe('m1');
 
