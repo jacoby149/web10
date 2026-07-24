@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import '@testing-library/jest-dom';
 
 // Mock lucide-react icons as simple span elements
@@ -179,9 +180,11 @@ describe('Layout', () => {
   it('renders sidebar nav items', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     render(
-      <Layout mode="feed" setMode={() => {}} onLogout={() => {}} onReportBug={() => {}}>
-        <div>Content</div>
-      </Layout>,
+      <MemoryRouter initialEntries={['/feed']}>
+        <Layout onLogout={() => {}} onReportBug={() => {}}>
+          <div>Content</div>
+        </Layout>
+      </MemoryRouter>,
     );
     // Nav items render in both the desktop sidebar and the mobile bottom
     // nav (CSS breakpoints hide one in a real browser; both exist in the
@@ -200,9 +203,11 @@ describe('Layout', () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     const onLogout = vi.fn();
     render(
-      <Layout mode="feed" setMode={() => {}} onLogout={onLogout} onReportBug={() => {}}>
-        <div>Content</div>
-      </Layout>,
+      <MemoryRouter initialEntries={['/feed']}>
+        <Layout onLogout={onLogout} onReportBug={() => {}}>
+          <div>Content</div>
+        </Layout>
+      </MemoryRouter>,
     );
     expect(screen.getByText('Log out')).toBeInTheDocument();
   });
@@ -211,9 +216,11 @@ describe('Layout', () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     const onReportBug = vi.fn();
     render(
-      <Layout mode="feed" setMode={() => {}} onLogout={() => {}} onReportBug={onReportBug}>
-        <div>Content</div>
-      </Layout>,
+      <MemoryRouter initialEntries={['/feed']}>
+        <Layout onLogout={() => {}} onReportBug={onReportBug}>
+          <div>Content</div>
+        </Layout>
+      </MemoryRouter>,
     );
     expect(screen.getByText('Report a bug')).toBeInTheDocument();
   });
@@ -221,9 +228,11 @@ describe('Layout', () => {
   it('renders web10 branding', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     render(
-      <Layout mode="feed" setMode={() => {}} onLogout={() => {}} onReportBug={() => {}}>
-        <div>Content</div>
-      </Layout>,
+      <MemoryRouter initialEntries={['/feed']}>
+        <Layout onLogout={() => {}} onReportBug={() => {}}>
+          <div>Content</div>
+        </Layout>
+      </MemoryRouter>,
     );
     expect(screen.getAllByText('web').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('10').length).toBeGreaterThanOrEqual(1);
@@ -233,15 +242,23 @@ describe('Layout', () => {
 describe('LoginScreen', () => {
   it('renders login button', async () => {
     const { default: App } = await import('@/App');
-    render(<App />);
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>
+    );
     await waitFor(() => {
-      expect(screen.getByText('Log in')).toBeInTheDocument();
+      expect(screen.getByText('Log in or create your account')).toBeInTheDocument();
     });
   });
 
   it('renders branding', async () => {
     const { default: App } = await import('@/App');
-    render(<App />);
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>
+    );
     await waitFor(() => {
       expect(screen.getByText('web')).toBeInTheDocument();
       expect(screen.getByText('10')).toBeInTheDocument();

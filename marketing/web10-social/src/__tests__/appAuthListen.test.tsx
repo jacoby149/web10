@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, waitFor, screen, fireEvent } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import '@testing-library/jest-dom';
 
 // Regression for "profile didn't load until I refresh" (reported live on dev).
@@ -87,7 +88,11 @@ describe('App authListen registration regression', () => {
   it('registers authListen when signed-out at mount (preserved behavior)', async () => {
     isSignedInReturn = false;
     const { default: App } = await import('@/App');
-    render(<App />);
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>
+    );
     await waitFor(() => expect(screen.getByTestId('login-button')).toBeInTheDocument());
     expect(adapter.authListen).toHaveBeenCalled();
   });
@@ -95,7 +100,11 @@ describe('App authListen registration regression', () => {
   it('STILL registers authListen when signed-in at mount (the fix)', async () => {
     isSignedInReturn = true;
     const { default: App } = await import('@/App');
-    render(<App />);
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>
+    );
     // When signed-in at mount the login screen isn't rendered, but the
     // authListen hook MUST still have been called — otherwise a later
     // logout/login popup can't flip state without a page refresh.
@@ -105,7 +114,11 @@ describe('App authListen registration regression', () => {
   it('later login popup flips signedIn -> feed (no refresh needed)', async () => {
     isSignedInReturn = false; // signed out at mount: login screen visible
     const { default: App } = await import('@/App');
-    render(<App />);
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>
+    );
     await waitFor(() => expect(screen.getByTestId('login-button')).toBeInTheDocument());
 
     // Sanity: still on login screen.

@@ -690,7 +690,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         web10-social/src/components/Bio/ProfileScreen.tsx + src/data/
         profile.ts. gate: none — gauntlet step 6 ("your profile reads
         as a creator page you'd screenshot") doesn't survive F5 today.
-[ ] D-url-routing (sub-lane D/shell; was "D27" for a day — renamed per
+[✓ 1.0.155] D-url-routing (sub-lane D/shell; was "D27" for a day — renamed per
         rule 4/D33). THE ADDRESS BAR HOLDS YOUR PLACE — (operator,
         23.07: refreshing the social app should put you back on the
         screen you were on.) navigation is one `useState<Mode>` in
@@ -750,7 +750,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         contacts.ts. gate: none. acceptance: DM a persona you've
         never messaged, entirely from the UI; lane C note to flip the
         step-5 fixme into a real journey.
-[ ] D-login-cta (sub-lane D/shell). THE LOGIN SCREEN NEVER SAYS YOU
+[✓ 1.0.155] D-login-cta (sub-lane D/shell). THE LOGIN SCREEN NEVER SAYS YOU
         CAN SIGN UP — gauntlet step 1: LoginScreen is a single "Log
         in" button; account creation exists only inside the auth
         popup (ConsentView → SignupForm, 1.0.135) and nothing tells a
