@@ -1,5 +1,7 @@
-1.0.158 || 24.07.2026
+1.0.159 || 24.07.2026
 docs: add the `web10 gather up!` code word to CLAUDE.md (operator → strong model). It triggers a dev-batch quality gate: inspect the PRs merged to `dev` but not yet on `main` (git log origin/main..origin/dev + gh pr list), hunt for really-broken things only (invariant/auth regressions, red checks, seam collisions between merged PRs, design.md flunks, missing lane ticks) — style nitpicks are not findings. If clean, say so plainly; if broken, emit paste-ready fix kickoff blocks for Qwen-class agents per the existing kickoff block spec, one per independent fix. Docs only; no code touched.
+
+1.0.158 || 24.07.2026
 D-follower-count: real follower count from the public ledger (D34). `followUser` mirrors to `/public/entries` with `payload.action='follow'` targeting the followed user — the D32 pattern reactions/comments already use. `unfollowUser` deletes the ledger entry so the follower count decrements. `countFollowers` reads from the ledger (O(1), no cross-collection reads). ProfileScreen gains the Followers tile with a real ledger-backed number (tabular-nums). The `Follow` schema is registered in `feed.ts` DEFAULT_SCHEMAS. The persona seed script backfills existing cross-follows into the ledger (idempotent). `deletePublicEntry` added to `feed.ts`. Decision D34 recorded in decisions.md. 62 tests green (210 pre-existing failures unchanged), tsc -b clean, build clean.
 
 1.0.155 || 24.07.2026
