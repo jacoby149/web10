@@ -1315,13 +1315,17 @@ Marketing-ui side (Lane D):
     surface (the joke is they're playing a synth, not doing math); an
     unobtrusive "how does this work?" popover can tell the truth for the
     curious.
-    THE MATH (client-side, per fetched post): normalize each signal to
-    (0,1] over the fetched set — R = exp(-age/half_life) for recency,
-    L = minmax(log1p(likes)), C = minmax(log1p(comments)),
-    P = minmax(log1p(reposts)). score = (Σ wᵢ·xᵢ^p / Σ wᵢ)^(1/p), the
-    weighted power mean. p=0 is the weighted geometric mean (compute as
-    exp of the weighted log-mean; epsilon-floor zero signals so one dead
-    signal doesn't nuke a post at p<=0).
+    THE MATH (identical on client and server — see v1): normalize each
+    signal to (0,1] with SET-INDEPENDENT saturating normalizers (never
+    minmax-over-the-fetched-set — scores must not depend on what else
+    was fetched, or v0 and v1 disagree and cached rankings drift):
+    R = exp(-age/half_life) for recency, L = l/(l+K_l) with l =
+    log1p(likes), same shape for comments (K_c) and reposts (K_p);
+    pick K so a "good" count lands ~0.5 and record the choice.
+    score = (Σ wᵢ·xᵢ^p / Σ wᵢ)^(1/p), the weighted power mean. p=0 is
+    the weighted geometric mean (compute as exp of the weighted
+    log-mean; epsilon-floor zero signals so one dead signal doesn't
+    nuke a post at p<=0).
     THE KNOBS (rotary, synth-styled): RECENCY / LIKES / COMMENTS (weights
     w_r, w_l, w_c; add reposts if the bar fits), TIME HORIZON (half-life,
     log taper 1h → ∞ "all time"), and CHARACTER (p, -5..+5 — low = "every
@@ -1329,40 +1333,87 @@ Marketing-ui side (Lane D):
     (max-like), labeled by feel, not by p). one-tap PRESET chips: Newest
     (w_r only), Most loved · all time (w_l only, half-life ∞), Balanced
     (default ≈ the server's trending order so the page loads familiar).
-    ACCURACY MODEL (operator question, 24.07: "without server calls it
-    won't be accurate — it's just shuffling 100 posts, right?"). right —
-    a client-side re-rank is only exact over what was fetched, so the
-    plan stages it honestly:
-    V0 (now, exact): the discovery index is tiny (persona posts + the
-    node's public posts), so fetch the WHOLE index once — client-side
-    re-ranking is then EXACT for every knob setting, zero network calls
-    per twist, 60fps FLIP/spring reshuffle (prefers-reduced-motion →
-    fade). log/flag when the fetch hits its cap so v1 isn't a surprise.
-    V1 (when the corpus outgrows one fetch): MULTI-ANCHOR UNION — fetch
-    a window per signal extreme (top-N most-recent, top-N most-liked,
-    top-N most-commented, top-N server-trending) and union them. the
-    power mean is monotone in every signal, so its global winners sit on
-    the Pareto frontier of (recency, likes, comments); the per-signal
-    top-N windows cover the frontier's extremes and server-trending
-    covers the balanced middle — presets stay EXACT (Newest / Most
-    loved are literally their anchor windows) and mid-knob blends are
-    near-exact. /discover/posts already sorts by recent + trending; the
-    per-signal sort params (most-liked, most-commented — trivial indexed
-    sorts, engagement counts are already cached on the index) are a
-    SMALL LANE-A TOUCH via .context/, not a reach-in.
-    V2 (true scale, deferred): knob twists still re-rank locally for
-    the instant feel; a DEBOUNCED (~300ms) server refetch with the knob
-    params re-tops the window and the grid settles — server-side power-
-    mean sort ($pow pipeline or precomputed per-preset indexes) becomes
-    a real lane-A item ONLY here. do not build v2 speculatively (D29).
+    DETENTS (operator, 24.07): knobs are STEPPED, not continuous — 6
+    detents each (0, .2, .4, .6, .8, 1; half-life and p over 6 named
+    stops). this buys three things at once: (1) FEEL — snap-to-detent
+    with a tick is how real synth hardware behaves; (2) SHAREABILITY —
+    a full knob state serializes to a 5-char code in the URL hash
+    (#mix=40213), so "here's MY algorithm" is a copyable link, every
+    preset is just a code, and rankings are deterministic/reproducible
+    (ships in v0, zero infra); (3) a FINITE CACHE KEYSPACE for v2 —
+    6^5 = 7776 raw combos, far fewer effective ones (the power mean is
+    scale-invariant in the weights, so (0,.2,.2) ≡ (0,.4,.4); all-zero
+    weights is invalid; collapse to a canonical key). so when the server
+    eventually computes rankings, one user's "power mean shit" is
+    computed once per combo per TTL window and served to EVERYONE on
+    that combo — nothing a user dials in is wasted work.
+    ACCURACY MODEL (operator, 24.07: "without server calls it won't be
+    accurate — it's just shuffling 100 posts, right?" then the fix:
+    "it does a TRUE db search, saves it to the cache, and that is like
+    100 posts"). right on both counts — a client-side re-rank is only
+    exact over what was fetched, and the detent cache is what makes
+    the exact answer affordable at scale. two stages, both EXACT:
+    V0 (now): the discovery index is tiny (persona posts + the node's
+    public posts), so fetch the WHOLE index once — client-side
+    re-ranking is EXACT for every knob setting, zero network calls per
+    twist, 60fps FLIP/spring reshuffle (prefers-reduced-motion → fade).
+    log/flag when the fetch nears its cap so v1 isn't a surprise.
+    V1 (when the corpus outgrows one fetch): TRUE-SEARCH-ON-MISS +
+    DETENT CACHE (lane A). a knob twist still re-ranks the local
+    window instantly for feel; a debounced (~300ms) request sends the
+    CANONICAL DETENT CODE. server: cache hit → return the ranked
+    top-~100 for that combo; miss → run the TRUE db search (one-pass
+    $addFields power-mean pipeline over the whole discovery index —
+    the set-independent normalizers above make it single-pass: $exp/
+    $ln/$pow over the cached engagement counts + created_at — then
+    $sort + $limit 100), save under the detent key with a SHORT TTL
+    (~60s: recency decays continuously and engagement moves, so
+    entries stale by construction), return it. the grid settles on
+    the exact answer. compute-on-miss means cost scales with DISTINCT
+    COMBOS REQUESTED per TTL window, not the 7776-key keyspace, and
+    real traffic pre-warms the presets by itself — one user's power-
+    mean dialing is computed once and served to everyone on that
+    combo. the whole keyspace at top-100 ids is ~20MB — redis fits,
+    but so does a mongo TTL-index collection or an in-process LRU in
+    the api container; DECIDE AT V1, and do NOT add a redis service
+    before v1 exists (D29 — a cache tier for a page the client ranks
+    for free today reads as infra company). VERIFY at v1 that
+    ferretdb/documentdb supports the pipeline operators ($pow/$exp/
+    $ln); if not, rank in-process in the api over a projected cursor —
+    same cache, same contract. (a multi-anchor union of per-signal
+    top-N windows remains the fallback sketch ONLY if both prove too
+    slow; with the cache absorbing the cost, it shouldn't be needed.)
+    FUTURE (operator, 24.07 — noted, NOT in scope): TAG-SCOPED KNOBS —
+    rank within a topic ("show me the most-loved #guitar post of all
+    time"). the /trending topic chips already filter; composing them
+    with the knobs is free at v0 (client-side filter before ranking,
+    still exact — the whole index is local) and at v1 the cache key
+    becomes (tag, detent-code) — keyspace multiplies by active tags,
+    so cache only the popular tags and compute long-tail tags
+    in-process uncached. file it as its own item when v1 gets staged;
+    don't widen this one.
     D20 GUARDRAIL: this is marketing-ui's public pitch surface — the
     SOCIAL APP's feed stays chronological + sort dropdown (D20;
     lens/customizability remain in later.md). if the knobs prove the
     concept, a social-app lens is a later.md graduation, not a lane item.
-    UI BAR: design.md §13 tokens + glow only; knobs are draggable
-    (vertical drag + wheel) AND accessible (role="slider", arrow keys,
-    visible focus); tabular-nums readouts; mobile (375px): knobs in a
-    horizontal scroll rack or bottom sheet, never crammed. acceptance:
+    UI BAR: the north star is a VST/synth plugin — the guitar-center
+    feeling of walking in and being INVITED to touch the gear (operator,
+    24.07: "users actually tuning their experience like musicians").
+    it reads as an instrument you play, never a settings form: stepped
+    knobs that tick into their detents, readouts that respond mid-drag,
+    the rack visually one piece of hardware. ANTI-ANXIETY RULE
+    (operator, 24.07: a few sliders is play; too many is anxiety):
+    FIVE knobs max, ever — if a sixth wants in, something gets cut or
+    merged; the preset chips do the work for anyone who doesn't want
+    to twist (most people); there are NO WRONG SETTINGS — every combo
+    is a valid feed, nothing errors, nothing empties (worst case the
+    order just changes less than expected); and one tap on Balanced
+    resets the rack. play is only fun when you can't break anything —
+    that's also what makes a guitar center fun. design.md §13 tokens +
+    glow only; knobs are draggable (vertical drag + wheel) AND
+    accessible (role="slider", arrow keys, visible focus); tabular-nums
+    readouts; mobile (375px): knobs in a horizontal scroll rack or
+    bottom sheet, never crammed. acceptance:
     design.md §12 (PR screenshots desktop + 375px); twisting any knob
     reshuffles with zero network requests; presets match their promise
     ("Newest" is pure reverse-chron regardless of likes; "Most loved ·

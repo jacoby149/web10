@@ -1189,12 +1189,17 @@ ws5: C6 e2e deep sweep + bug hunt (lane C — e2e/** only; local
          /trending gains synth-styled rotary knobs (recency / likes /
          comments weights, time-horizon half-life, power-mean "character"
          p) that re-rank the grid LIVE, client-side, zero network calls
-         per twist. full spec incl. the math, presets (Newest / Most
-         loved · all time / Balanced), the honest accuracy staging
-         (v0 fetch-whole-index = exact today; v1 multi-anchor union when
-         the corpus outgrows one fetch — per-signal sort params are a
-         small lane-A touch via .context/; v2 debounced server re-rank,
-         deferred), and the D20 guardrail (the SOCIAL feed stays
+         per twist. knobs are STEPPED (6 detents) → a knob state
+         serializes to a shareable URL mix code (#mix=40213) and gives
+         v1 a finite cache keyspace. full spec incl. the math (set-
+         independent saturating normalizers so client and server score
+         identically), presets (Newest / Most loved · all time /
+         Balanced), the accuracy staging (v0 fetch-whole-index = exact
+         today; v1 when the corpus outgrows one fetch: true db search
+         on cache miss → top-~100 per detent combo cached w/ short TTL,
+         debounced local-then-settle — lane-A item then, cache tech
+         decided then, NO redis before v1), the tag-scoped-knobs future
+         note, and the D20 guardrail (the SOCIAL feed stays
          chronological — this is pitch theater on the marketing surface)
          in plan.txt PHASE 5.5. new lib/powerMean.ts is pure + unit-
          tested (p→±∞ limits, p=0 geometric mean, weight-zeroing).
