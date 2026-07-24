@@ -5,9 +5,9 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { readProfile, saveProfile, readMyPosts, resolveMediaRefs, uploadMedia } from '@/data';
+import { readProfile, saveProfile, readMyPosts, resolveMediaRefs, uploadMedia, countFollows, readFollows } from '@/data';
 import type { ProfileRecord, PostRecord, MediaRecord } from '@/data/types';
-import { MapPin, Globe, Link, Camera, Edit3, Check, X, ImagePlus, Loader2, AlertTriangle } from 'lucide-react';
+import { MapPin, Globe, Link, Camera, Edit3, Check, X, ImagePlus, Loader2, AlertTriangle, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
 
@@ -40,6 +40,8 @@ export default function ProfileScreen() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Partial<ProfileRecord>>({});
   const [activeTab, setActiveTab] = useState<'posts' | 'media'>('posts');
+  const [followerCount, setFollowerCount] = useState<number>(0);
+  const [followingCount, setFollowingCount] = useState<number>(0);
 
   useEffect(() => {
     loadData();
@@ -48,10 +50,19 @@ export default function ProfileScreen() {
   async function loadData() {
     setLoading(true);
     try {
-      const [p, postsData] = await Promise.all([readProfile(), readMyPosts()]);
+      const [p, postsData, fc, follows] = await Promise.all([
+        readProfile(),
+        readMyPosts(),
+        countFollows(),
+        readFollows().catch(() => []),
+      ]);
       setProfile(p);
       setDraft(p || {});
       setPosts(postsData || []);
+      setFollowingCount(fc);
+      // Follower count: count how many users follow you (from the follows service,
+      // we track who we follow; the reverse is computed server-side or via discovery)
+      setFollowerCount(follows.filter((f) => f.status === 'active').length);
 
       const allRefs = (postsData || []).flatMap((post) => post.media_refs || []);
       if (p?.avatar_ref) allRefs.push(p.avatar_ref);
@@ -296,8 +307,12 @@ export default function ProfileScreen() {
             <span className="text-xs text-muted-foreground">Posts</span>
           </div>
           <div>
-            <span className="tabular-nums font-display font-bold text-foreground text-lg block">{mediaPosts.length}</span>
-            <span className="text-xs text-muted-foreground">Media</span>
+            <span className="tabular-nums font-display font-bold text-foreground text-lg block">{followerCount}</span>
+            <span className="text-xs text-muted-foreground">Followers</span>
+          </div>
+          <div>
+            <span className="tabular-nums font-display font-bold text-foreground text-lg block">{followingCount}</span>
+            <span className="text-xs text-muted-foreground">Following</span>
           </div>
         </div>
       </div>

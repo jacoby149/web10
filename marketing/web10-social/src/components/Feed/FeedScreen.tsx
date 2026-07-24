@@ -177,6 +177,8 @@ function CommentThread({ postId, isOpen, onCountChange }: CommentThreadProps) {
 interface PostCardProps {
   post: PostRecord;
   authorName: string;
+  authorUsername?: string;
+  authorProvider?: string;
   authorAvatar?: string;
   mediaItems: MediaRecord[];
   reactionCount: number;
@@ -185,11 +187,14 @@ interface PostCardProps {
   timestamp: string;
   onToggleLike: () => void;
   onCommentCountChange: (n: number) => void;
+  onAuthorClick?: (username: string, provider: string) => void;
 }
 
 function PostCard({
   post,
   authorName,
+  authorUsername,
+  authorProvider,
   authorAvatar,
   mediaItems,
   reactionCount,
@@ -198,6 +203,7 @@ function PostCard({
   timestamp,
   onToggleLike,
   onCommentCountChange,
+  onAuthorClick,
 }: PostCardProps) {
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [localCount, setLocalCount] = useState(commentCount);
@@ -230,7 +236,22 @@ function PostCard({
           )}
         </Avatar>
         <div className="flex-1 min-w-0 flex items-baseline gap-1.5">
-          <span className="font-medium text-sm text-foreground truncate">{authorName}</span>
+          {authorUsername && onAuthorClick ? (
+            <button
+              type="button"
+              className="font-medium text-sm text-foreground truncate hover:text-brand-300 transition-colors duration-150"
+              onClick={(e) => {
+                e.stopPropagation();
+                onAuthorClick(authorUsername!, authorProvider!);
+              }}
+              aria-label={`View ${authorName}'s profile`}
+              data-testid="post-author-link"
+            >
+              {authorName}
+            </button>
+          ) : (
+            <span className="font-medium text-sm text-foreground truncate">{authorName}</span>
+          )}
           <span className="text-[0.8125rem] text-muted-foreground shrink-0">· {formatTimeAgo(timestamp)}</span>
         </div>
       </div>
@@ -347,7 +368,7 @@ function FeedSkeleton() {
   );
 }
 
-export default function FeedScreen() {
+export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (username: string, provider: string) => void }) {
   const [items, setItems] = useState<InboxRecord[]>([]);
   const [sort, setSort] = useState<FeedSort>('newest');
   const [loading, setLoading] = useState(true);
@@ -482,6 +503,8 @@ export default function FeedScreen() {
                 key={item._id || item.post_id}
                 post={post}
                 authorName={profile?.display_name || item.author_username}
+                authorUsername={item.author_username}
+                authorProvider={item.author_provider}
                 authorAvatar={
                   profile?.avatar_ref
                     ? mediaMap[item.post_id]?.find((m) => m._id === profile.avatar_ref)?.url
@@ -496,6 +519,7 @@ export default function FeedScreen() {
                 onCommentCountChange={(n) =>
                   setCommentMap((prev) => ({ ...prev, [item.post_id]: n }))
                 }
+                onAuthorClick={onAuthorClick}
               />
             );
           })

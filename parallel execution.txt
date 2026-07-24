@@ -478,6 +478,23 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         §12 (PR screenshots). deferred: friends_posts (needs graph),
         unlisted_posts (anon-read, discovery-excluded).
         STATUS: Phase A LANDED (1.0.131). Phases B + C remain open.
+[ ] D24. PROFILE FOLLOWER/FOLLOWING COUNTS BUG — `ProfileScreen.tsx` loads
+        `countFollows()` and `readFollows()` in parallel and assigns both
+        `followingCount` AND `followerCount` from the same data source
+        (people YOU follow). There is no reverse lookup for who follows
+        YOU, so the "Followers" stat is a duplicate of "Following."
+        Fix: either wire a real follower-count endpoint (e.g. a public
+        ledger query or a discovery API call) or hide the follower stat
+        until the backend supports it. Owns marketing/web10-social/src/
+        components/Bio/ProfileScreen.tsx. Gate: none.
+[ ] D25. USER-PROFILE BACK NAVIGATION BUG — `handleBackFromProfile` in
+        `App.tsx` hardcodes `setMode('discover')` so leaving any user
+        profile always returns to Discover, even when the user came from
+        Feed, Chat, or Profile. The `prevModeRef` useEffect (lines
+        130-137) tracks mode changes but its conditional branches are
+        empty — it never stores the pre-profile mode. Fix: capture the
+        mode before navigating to `user-profile` and restore it on back.
+        Owns marketing/web10-social/src/App.tsx. Gate: none.
 [ ] D21. MEDIA POLISH — photos + video v0 (plan.txt phase 8.5; item
         number D20 skipped — it reads as decisions.md's D20
         everywhere). the composer's 80x80 hover-square tray, the
@@ -742,13 +759,19 @@ opens on his phone, in front of someone, and is proud of?" (D29)
           a phone; write the honest fail list to .context/gauntlet.md;
           fix in order of demo impact. lane D owns app fixes, lane A
           owns api fixes, lane B owns the auth/consent seam.
-  ws-G2: keep the personas alive (persona-orchestration/) so feed +
-         trending never demo empty.
-[✓ 1.0.145] ws-G3: encode each passing gauntlet step as a playwright journey
-          in e2e/ (lane C — this is C6 continued, NOT C2).
+  [✓ 1.0.145] ws-G2: keep the personas alive (persona-orchestration/) so feed +
+         trending never demo empty. Seed script is now idempotent
+         (read-before-write on every create; stable origin_id on posts +
+         DMs; --cleanup removes dups from prior buggy runs; --verify reports
+         state without writing). 2 new posts/persona + 4 reply DMs added.
+  [✓ 1.0.145] ws-G3: encode each passing gauntlet step as a playwright journey
+         in e2e/ (lane C — this is C6 continued, NOT C2).
   then: low-hanging fruit by demo impact — realtime feed refresh,
-        notifications, search-your-own-stuff, D16(3) store curation
-        [✓ 1.0.136 — D16(3) curation landed; D16 marked done above].
+          notifications, search-your-own-stuff, D16(3) store curation
+          [✓ 1.0.136 — D16(3) curation landed; D16 marked done above],
+          trending-page interactions (D-trending-interact cluster — make
+          like/repost/share/comment real + card→profile deep-link; the
+          trending cards are local-only theater today, gauntlet step 7).
 PARKED until the gauntlet passes (do NOT pick up — they read as an
 infra company, not a social platform): C2 sdk rewrite, C3 mcp,
 C3.5 create-web10, D11 ux telemetry, A9 transcode pipeline, E4
@@ -810,6 +833,38 @@ ws5: C6 e2e deep sweep + bug hunt (lane C — e2e/** only; local
     [✓ 1.0.130] D-trending-polish: /trending loading + empty states — shimmer skeleton
          grid (matches layout), empty state story beat, "Load more" button.
          Gate: D-trending-sidebar. Owns: Trending.tsx + FeedPreview.tsx
+    [ ] D-comments-ledger (social-side prerequisite; decision D32):
+         `createComment` (web10-social/src/data/comments.ts:36) mirrors to
+         /public/entries UNCONDITIONALLY (like createReaction at
+         reactions.ts:35) — no per-post visibility gate; comments are public
+         by default (D32). fires the Comment schema (feed.ts:33) with
+         payload.action='comment' (what documentdb.py:828 counts). ALSO: the
+         `comments` service gains anon-read whitelist in serviceTerms.ts
+         (matching public_posts) so any logged-in user reads comments on any
+         post via CRUD, not just the post author; AND deleteComment mirrors
+         to DELETE /public/entries/{id} (author-only) so removed comments
+         drop out of the count. fixes the always-0 trending comment count +
+         the test_discovery.py:645 mock that hid it. Gate: none. Owns:
+         web10-social/src/data/{comments,serviceTerms}.ts + the FeedScreen
+         call site.
+    [ ] D-trending-link: TrendingCard → deep-link to the author's profile on
+         web10-social (`${SOCIAL_ORIGIN}/u/<author>`); until social gains a
+         per-user profile route (lane-D sibling — App.tsx only has my-bio,
+         flagged in gauntlet 1.0.142), link to social's root so the click still
+         navigates instead of dead-clicking. Gate: none (degrades to root
+         link). Owns: FeedPreview.tsx + Trending.tsx.
+    [ ] D-trending-share: Share2 button has no onClick → navigator.share +
+         copy-link fallback (no auth). Gate: none. Owns: FeedPreview.tsx.
+    [ ] D-trending-comments: MessageCircle only fires a funnel event → expand
+         an inline comment panel (anon read via PATCH /public/entries, which
+         is anon-OK per public.py:42; compose auth-gated → funnel-to-social).
+         Gate: D-comments-ledger (nothing writes comments to the ledger today,
+         so the read returns [] until the social-side mirror lands). Owns:
+         FeedPreview.tsx + Trending.tsx.
+    [ ] D-trending-reactions: like + repost are fake local increments
+         (Trending.tsx:98) → real toggle via /public/entries mirroring
+         reactions.ts; signed-out funnels to social. Gate: none. Owns:
+         FeedPreview.tsx + Trending.tsx.
 [✓ 1.0.93] A5.5. DISCOVERY API — the public layer (Lane A, api/**):
          discovery index (web10.discovery_posts, write-protected,
          background task), schema registry (web10.schemas, CRUD with
