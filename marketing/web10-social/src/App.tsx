@@ -98,7 +98,8 @@ function App() {
   const [showReportBug, setShowReportBug] = useState(false);
   const [reportTrigger, setReportTrigger] = useState<'button' | 'error-boundary'>('button');
   const [userProfileTarget, setUserProfileTarget] = useState<UserProfileTarget | null>(null);
-  const prevModeRef = useRef<Mode>('login');
+  const currentModeRef = useRef<Mode>('login');
+  const preProfileModeRef = useRef<Mode | null>(null);
 
   useEffect(() => {
     const a = web10SocialAdapterInit();
@@ -117,6 +118,7 @@ function App() {
     // Listen for custom navigate-user-profile events (from DiscoverScreen cards)
     const handler = (e: Event) => {
       const customEvent = e as CustomEvent<{ username: string; provider: string }>;
+      preProfileModeRef.current = currentModeRef.current;
       setUserProfileTarget(customEvent.detail);
       setMode('user-profile');
     };
@@ -126,14 +128,9 @@ function App() {
     };
   }, []);
 
-  // Track mode changes to restore previous mode when leaving user-profile
+  // Keep currentModeRef in sync with mode state
   useEffect(() => {
-    if (mode === 'user-profile' && prevModeRef.current !== 'user-profile') {
-      // Store current mode before switching to user-profile
-    } else if (mode !== 'user-profile' && prevModeRef.current === 'user-profile') {
-      // Returning from user-profile - keep current mode
-    }
-    prevModeRef.current = mode;
+    currentModeRef.current = mode;
   }, [mode]);
 
   function handleLogin() {
@@ -151,12 +148,14 @@ function App() {
   }
 
   function handleNavigateToUser(username: string, provider: string) {
+    preProfileModeRef.current = currentModeRef.current;
     setUserProfileTarget({ username, provider });
     setMode('user-profile');
   }
 
   function handleBackFromProfile() {
-    setMode('discover');
+    setMode(preProfileModeRef.current || 'discover');
+    preProfileModeRef.current = null;
   }
 
   const handleReportBug = useCallback((trigger: 'button' | 'error-boundary' = 'button') => {
