@@ -52,15 +52,38 @@ class TestPasswordHashing:
 
 
 class TestKosher:
+    # -- ACCEPTED --
+
     def test_alphanumeric_ok(self):
         assert kosher("alice123") is True
 
     def test_dash_ok(self):
         assert kosher("alice-bob") is True
 
-    def test_empty_ok(self):
-        """Empty string is technically kosher (the regex allows it)."""
-        assert kosher("") is True
+    def test_persona_style(self):
+        assert kosher("solar-flare-69") is True
+
+    def test_min_length(self):
+        """3 chars is the minimum (a-b)."""
+        assert kosher("a-b") is True
+
+    def test_max_length(self):
+        """30 chars is the maximum."""
+        assert kosher("a" + "b" * 28 + "c") is True
+
+    def test_single_char(self):
+        """Single char passes (e.g. "a")."""
+        assert kosher("a") is True
+
+    def test_two_chars(self):
+        """Two chars pass (e.g. "ab")."""
+        assert kosher("ab") is True
+
+    # -- REJECTED --
+
+    def test_empty_rejected(self):
+        """Empty string must be rejected."""
+        assert kosher("") is False
 
     def test_underscore_rejected(self):
         assert kosher("alice_bob") is False
@@ -76,6 +99,42 @@ class TestKosher:
 
     def test_dot_rejected(self):
         assert kosher("alice.bob") is False
+
+    def test_uppercase_rejected(self):
+        """Uppercase letters must be rejected."""
+        assert kosher("Alice") is False
+        assert kosher("ALICE") is False
+        assert kosher("aLiCe") is False
+
+    def test_unicode_rejected(self):
+        """Non-ASCII unicode (CJK, Greek, etc.) must be rejected."""
+        assert kosher("Ω") is False
+        assert kosher("αβγ") is False
+        assert kosher("日本語") is False
+        assert kosher("café") is False
+        assert kosher("naïve") is False
+
+    def test_leading_hyphen_rejected(self):
+        assert kosher("-alice") is False
+
+    def test_trailing_hyphen_rejected(self):
+        assert kosher("alice-") is False
+
+    def test_bare_hyphen_rejected(self):
+        assert kosher("-") is False
+
+    def test_over_length_rejected(self):
+        """31+ chars must be rejected."""
+        assert kosher("a" * 31) is False
+        assert kosher("a" * 32) is False
+
+    def test_reserved_web10_rejected_by_regex(self):
+        """'web10' is kosher per regex but blocked by create_user RESERVED."""
+        assert kosher("web10") is True
+
+    def test_reserved_anon_rejected_by_regex(self):
+        """'anon' is kosher per regex but blocked by create_user RESERVED."""
+        assert kosher("anon") is True
 
 
 # ---------------------------------------------------------------------------
