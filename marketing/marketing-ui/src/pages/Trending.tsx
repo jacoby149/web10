@@ -5,8 +5,6 @@ import {
   TrendingSkeleton,
   fetchDiscoverFeed,
   mapDiscoveryToFeedPost,
-  formatCount,
-  parseCount,
 } from '@/components/FeedPreview';
 import type { FeedPost } from '@/components/FeedPreview';
 import { TrendingSidebar } from '@/components/TrendingSidebar';
@@ -95,14 +93,9 @@ function Trending() {
     else cardRefs.current.delete(id);
   }, []);
 
-  const handleReaction = async (postId: string, type: 'like' | 'repost') => {
-    setAllPosts(prev => prev.map(p => {
-      if (p.id !== postId) return p;
-      const countKey = type === 'like' ? 'likes' : 'reposts';
-      const current = parseCount(p[countKey as 'likes' | 'reposts']);
-      const newVal = current >= 0 ? current + 1 : 1;
-      return { ...p, [countKey]: formatCount(newVal) };
-    }));
+  const handleReaction = (type: 'like' | 'repost') => {
+    trackFunnel(type === 'like' ? 'trending_like_attempt' : 'trending_repost_attempt');
+    window.open(SOCIAL_ORIGIN, '_blank');
   };
 
   const handleComment = useCallback(
@@ -209,9 +202,9 @@ function Trending() {
                       rank={post.rank}
                       featured={post.featured}
                       maxScore={maxScore}
-                      onLike={(id) => handleReaction(id, 'like')}
+                      onLike={() => handleReaction('like')}
                       onComment={handleComment}
-                      onRepost={(id) => handleReaction(id, 'repost')}
+                      onRepost={() => handleReaction('repost')}
                       cardRef={registerCard(post.id)}
                     />
                   ))}

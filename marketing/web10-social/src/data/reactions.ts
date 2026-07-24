@@ -36,6 +36,7 @@ export async function createReaction(reaction: Omit<ReactionRecord, '_id'>): Pro
       schema_id: reactionSchema._id,
       target: `${reaction.target_service}:${reaction.target_id}`,
       payload: {
+        action: reaction.type === 'like' ? 'like' : 'reaction',
         type: reaction.type,
         target: reaction.target_id,
         author_username: reaction.author_username,

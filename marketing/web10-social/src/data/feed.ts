@@ -1,6 +1,6 @@
 import { getWapi } from './wapi';
-import { API_ORIGIN } from '../lib/origins';
-import type { InboxRecord, FeedSort, DiscoverSort, DiscoveryPost, PublicEntry, SchemaDefinition } from './types';
+import { API_ORIGIN, API_HOST } from '../lib/origins';
+import type { InboxRecord, FeedSort, DiscoverSort, DiscoveryPost, RawDiscoveryPost, PublicEntry, SchemaDefinition } from './types';
 
 // ── Feed data layer ────────────────────────────────────────────────────────
 // The feed reads from the `inbox` service (fan-out on write).
@@ -123,6 +123,28 @@ export function clearSchemaCache(): void {
 // ── Discovery feed ─────────────────────────────────────────────────────────
 
 /**
+ * Map a raw wire response from PATCH /discover/posts to the client
+ * DiscoveryPost shape. The API returns nested engagement counts and
+ * engagement_score; the client expects flat likes/comments/reposts
+ * and score. The API has no `provider` field — the node's hostname
+ * is the provider (the discovery index is per-node).
+ */
+export function mapRawDiscoveryPost(raw: RawDiscoveryPost): DiscoveryPost {
+  return {
+    author: raw.author,
+    provider: API_HOST,
+    post_id: raw.post_id,
+    text: raw.body_text || undefined,
+    tags: raw.tags?.length ? raw.tags : undefined,
+    created_at: raw.created_at,
+    likes: raw.engagement.likes,
+    comments: raw.engagement.comments,
+    reposts: raw.engagement.reposts,
+    score: raw.engagement_score,
+  };
+}
+
+/**
  * Read the discovery feed from the public discovery API.
  * sort: 'recent' for chronological, 'trending' for engagement-scored.
  */
@@ -133,7 +155,8 @@ export async function readDiscoverFeed(sort: DiscoverSort = 'recent', limit = 20
       { method: 'PATCH' },
     );
     if (!resp.ok) return [];
-    return resp.json();
+    const raw = await resp.json() as RawDiscoveryPost[];
+    return raw.map(mapRawDiscoveryPost);
   } catch {
     return [];
   }
@@ -256,4 +279,57 @@ export async function countUnread(): Promise<number> {
   const wapi = getWapi();
   const records = await wapi.read<InboxRecord>('inbox', { read: { $ne: true } });
   return records.length;
+}
+
+// ── Discovery: suggested users ──────────────────────────────────────────────
+
+export interface SuggestedUser {
+  username: string;
+  provider: string;
+  display_name?: string;
+  bio?: string;
+  avatar_ref?: string;
+  followers_count?: number;
+  posts_count?: number;
+}
+
+/**
+ * Fetch suggested accounts from the discovery API.
+ * PATCH /discover/users returns a list of accounts the current user
+ * might want to follow (personas, popular creators, etc.).
+ */
+export async function fetchSuggestedUsers(limit = 20): Promise<SuggestedUser[]> {
+  try {
+    const resp = await fetch(
+      `${API_ORIGIN}/discover/users?limit=${limit}`,
+      { method: 'PATCH' },
+    );
+    if (!resp.ok) return [];
+    return resp.json();
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Fetch a single post from the discovery API by user/service/id.
+ * This is how we read another user's public posts without direct
+ * collection access (the discovery index is anon-readable).
+ */
+export async function fetchDiscoveryPost(
+  username: string,
+  service: string,
+  postId: string,
+): Promise<DiscoveryPost | null> {
+  try {
+    const resp = await fetch(
+      `${API_ORIGIN}/discover/post/${encodeURIComponent(username)}/${encodeURIComponent(service)}/${encodeURIComponent(postId)}`,
+      { method: 'PATCH' },
+    );
+    if (!resp.ok) return null;
+    const raw = await resp.json() as RawDiscoveryPost;
+    return mapRawDiscoveryPost(raw);
+  } catch {
+    return null;
+  }
 }

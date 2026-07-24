@@ -10,8 +10,11 @@ export type Mode =
   | "bio-edit"
   | "bulletin-edit"
   | "feed"
+  | "discover"
   | "crm"
-  | "mail";
+  | "mail"
+  | "discover"
+  | "user-profile";
 
 export type CrmColor = "green" | "yellow" | "red";
 

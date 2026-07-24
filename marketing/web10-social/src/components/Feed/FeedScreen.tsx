@@ -26,7 +26,7 @@ import type {
   ProfileRecord,
   CommentRecord,
 } from '@/data/types';
-import { Heart, MessageCircle, Send } from 'lucide-react';
+import { Heart, MessageCircle, Send, Play, Pause } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
 
@@ -42,9 +42,98 @@ function formatTimeAgo(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString();
 }
 
+function MediaItem({ media }: { media: MediaRecord }) {
+  const isVideo = media.mime_type?.startsWith('video/');
+  const [playing, setPlaying] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (!playing || !videoRef.current) return;
+    videoRef.current.play().catch(() => {});
+    return () => {
+      videoRef.current?.pause();
+    };
+  }, [playing]);
+
+  const src = media.thumbnail_url || media.url;
+
+  if (isVideo) {
+    return (
+      <div
+        className="bg-elevated overflow-hidden group relative cursor-pointer"
+        style={{ aspectRatio: media.width && media.height ? `${media.width}/${media.height}` : '1/1' }}
+        onClick={() => setPlaying((p) => !p)}
+        role="button"
+        tabIndex={0}
+        aria-label={playing ? 'Pause video' : 'Play video'}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setPlaying((p) => !p);
+          }
+        }}
+        data-testid="media-video"
+      >
+        <video
+          ref={videoRef}
+          src={media.url}
+          poster={media.thumbnail_url}
+          className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-105"
+          preload="metadata"
+          playsInline
+          muted={!playing}
+          loop
+        />
+        {!playing && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-background/80 backdrop-blur-sm">
+              <Play className="w-5 h-5 text-foreground ml-0.5" strokeWidth={2} />
+            </div>
+          </div>
+        )}
+        {playing && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <Pause className="w-8 h-8 text-foreground/60 animate-pulse" strokeWidth={1.5} />
+          </div>
+        )}
+        {media.duration_seconds && (
+          <div className="absolute bottom-1.5 right-1.5 bg-background/80 rounded px-1.5 text-[0.625rem] font-mono tabular-nums text-foreground">
+            {formatDuration(media.duration_seconds)}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="bg-elevated overflow-hidden group relative"
+      style={{ aspectRatio: media.width && media.height ? `${media.width}/${media.height}` : '1/1' }}
+      data-testid="media-image"
+    >
+      <img
+        src={src}
+        alt={media.alt_text || ''}
+        className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-105"
+        loading="lazy"
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-150" />
+    </div>
+  );
+}
+
+function formatDuration(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = Math.round(seconds % 60);
+  return m > 0 ? `${m}:${String(s).padStart(2, '0')}` : `${s}s`;
+}
+
 function MediaGrid({ mediaItems }: { mediaItems: MediaRecord[] }) {
   if (!mediaItems.length) return null;
   const count = mediaItems.length;
+  const displayItems = mediaItems.slice(0, 6);
+  const remaining = count - 6;
+
   return (
     <div
       className={cn(
@@ -52,23 +141,22 @@ function MediaGrid({ mediaItems }: { mediaItems: MediaRecord[] }) {
         count === 1 ? 'grid-cols-1' : count === 2 ? 'grid-cols-2' : 'grid-cols-3',
       )}
     >
-      {mediaItems.slice(0, 6).map((m, i) => (
-        <div
-          key={m._id || i}
-          className={cn(
-            'bg-elevated overflow-hidden group relative',
-            count === 1 ? 'aspect-[4/3]' : 'aspect-square',
-          )}
-        >
+      {displayItems.map((m) => (
+        <MediaItem key={m._id || m.url} media={m} />
+      ))}
+      {remaining > 0 && (
+        <div className="aspect-square bg-elevated flex items-center justify-center relative">
           <img
-            src={m.thumbnail_url || m.url}
-            alt={m.alt_text || ''}
-            className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-105"
+            src={mediaItems[6]?.thumbnail_url || mediaItems[6]?.url}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover"
             loading="lazy"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-150" />
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+            <span className="text-2xl font-semibold text-foreground">+{remaining}</span>
+          </div>
         </div>
-      ))}
+      )}
     </div>
   );
 }
@@ -177,6 +265,8 @@ function CommentThread({ postId, isOpen, onCountChange }: CommentThreadProps) {
 interface PostCardProps {
   post: PostRecord;
   authorName: string;
+  authorUsername?: string;
+  authorProvider?: string;
   authorAvatar?: string;
   mediaItems: MediaRecord[];
   reactionCount: number;
@@ -185,11 +275,14 @@ interface PostCardProps {
   timestamp: string;
   onToggleLike: () => void;
   onCommentCountChange: (n: number) => void;
+  onAuthorClick?: (username: string, provider: string) => void;
 }
 
 function PostCard({
   post,
   authorName,
+  authorUsername,
+  authorProvider,
   authorAvatar,
   mediaItems,
   reactionCount,
@@ -198,6 +291,7 @@ function PostCard({
   timestamp,
   onToggleLike,
   onCommentCountChange,
+  onAuthorClick,
 }: PostCardProps) {
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [localCount, setLocalCount] = useState(commentCount);
@@ -230,7 +324,22 @@ function PostCard({
           )}
         </Avatar>
         <div className="flex-1 min-w-0 flex items-baseline gap-1.5">
-          <span className="font-medium text-sm text-foreground truncate">{authorName}</span>
+          {authorUsername && onAuthorClick ? (
+            <button
+              type="button"
+              className="font-medium text-sm text-foreground truncate hover:text-brand-300 transition-colors duration-150"
+              onClick={(e) => {
+                e.stopPropagation();
+                onAuthorClick(authorUsername!, authorProvider!);
+              }}
+              aria-label={`View ${authorName}'s profile`}
+              data-testid="post-author-link"
+            >
+              {authorName}
+            </button>
+          ) : (
+            <span className="font-medium text-sm text-foreground truncate">{authorName}</span>
+          )}
           <span className="text-[0.8125rem] text-muted-foreground shrink-0">· {formatTimeAgo(timestamp)}</span>
         </div>
       </div>
@@ -347,7 +456,7 @@ function FeedSkeleton() {
   );
 }
 
-export default function FeedScreen() {
+export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (username: string, provider: string) => void }) {
   const [items, setItems] = useState<InboxRecord[]>([]);
   const [sort, setSort] = useState<FeedSort>('newest');
   const [loading, setLoading] = useState(true);
@@ -482,6 +591,8 @@ export default function FeedScreen() {
                 key={item._id || item.post_id}
                 post={post}
                 authorName={profile?.display_name || item.author_username}
+                authorUsername={item.author_username}
+                authorProvider={item.author_provider}
                 authorAvatar={
                   profile?.avatar_ref
                     ? mediaMap[item.post_id]?.find((m) => m._id === profile.avatar_ref)?.url
@@ -496,6 +607,7 @@ export default function FeedScreen() {
                 onCommentCountChange={(n) =>
                   setCommentMap((prev) => ({ ...prev, [item.post_id]: n }))
                 }
+                onAuthorClick={onAuthorClick}
               />
             );
           })

@@ -31,6 +31,11 @@ export type {
   LoginParams,
   SignupParams,
   PlanInfo,
+  MediaUploadUrlParams,
+  MediaUploadUrlResponse,
+  MediaConfirmParams,
+  MediaRecord,
+  MediaReadUrlResponse,
 } from './types'
 
 // Client
