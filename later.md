@@ -191,6 +191,65 @@ shipped (the demo video first per the file-wide bar), AND the RS256
 federation fix (lane A, I1) merged. then this is lane A + B work —
 admin panel surface (B) + federation endpoints + contract tests (A).
 
+
+## the goods marketplace (fb-marketplace-shaped, peer-to-peer)
+
+the idea (operator, 24.07 — "that would be top top on a decentralized
+social app"): users selling goods to users — listings, local/community
+commerce, the craigslist/fb-marketplace surface — inside and across
+web10 nodes. listings are records the seller owns (portable storefront:
+switch nodes and your listings, sale history, and reputation come with
+you — the ownership pitch generalized to commerce), discovery rides the
+node's feed/discover surfaces, payment rides the stripe rails that
+memberships already use, with inc's small % applying (business-model
+aligned by construction). NAMING GUARD: this is NOT the "sponsor
+marketplace" — that term is taken (plan.txt phase 4 rungs / M3 / D21:
+brand-deal rails between sponsors and creators). this entry is goods,
+peer to peer.
+
+why it's good:
+- marketplace is one of facebook's strongest daily-open habit loops,
+  and on a decentralized social app it may matter even more: commerce
+  gives a small node a reason to be opened daily before its content
+  volume can.
+- a creator community is a PRE-TRUSTED buyer pool with a shared niche
+  — scene commerce (the guitar node trading pedals, the fashion node
+  trading vintage) has the trust signal craigslist never had:
+  reputation inside a scene where the regulars know your name (THE
+  STORY, stage 3).
+- the plumbing is mostly already planned: listings/offers are ordinary
+  {service, body} records under a conventions schema, media via phase
+  5, payments via the phase 4 stripe rails, disputes/reports via the
+  phase 12 machinery. v0 is a listings convention + a lens, not an
+  ebay.
+
+why it's parked:
+- D20: the buyer is the creator, and the creator pitch closes on
+  ownership + no-shadowban + monetization. a goods marketplace closes
+  zero creator-#1 conversations.
+- liquidity physics: marketplaces die without density. one node's
+  community is thin inventory and thin demand; this earns its keep
+  only when real node populations exist (M2+), and cross-node
+  listings inherit the M3 federation gate on top.
+- the t&s burden is heavier than anything phase 12 currently scopes:
+  scams, prohibited goods, escrow/chargebacks, shipping disputes.
+  goods commerce is effectively a second company's worth of trust
+  work, and it would land on inc's rails.
+- the nearer rung already exists in-plan: creators selling THEIR
+  stuff (amazon tag, direct deals, membership-gated merch — phase 4
+  rung 0/1) covers most of the commerce demand the pitch actually
+  meets before any peer-to-peer surface is justified.
+
+promotion bar (on top of the file-wide bar): a hosted node's community
+starts trading organically — buy/sell behavior visible in real posts/
+DMs — or a founding creator asks for member-to-member selling. then
+v0 is a listings schema in the conventions doc + a marketplace lens
+over ordinary records, reusing payments and t&s rather than building
+either.
+
+
+## the paper: publish web10 as research
+
 the idea: the problem is validated at the highest level (berners-lee/
 solid, activitypub, at protocol, gdpr/dma) — if web10 advances the
 state of the art, publish it. worst case upgrades from "dope project"

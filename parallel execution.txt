@@ -199,7 +199,7 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       contract first. unblocks: B8, phase 12 trust&safety (the audit
       log + a future token-revoke are what make "ban takes effect now"
       possible).
-  [ ] A11. USERNAME CHARSET — premise corrected 24.07 (code audit,
+  [✓ 1.0.155] A11. USERNAME CHARSET — premise corrected 24.07 (code audit,
       1.0.154): the api does NOT reject hyphens. kosher()
       (api/app/endpoints/auth.py:127) has allowed them since #89 —
       `c.isalnum() or c in ["-"]` — so the hyphenated personas
@@ -1086,7 +1086,9 @@ when the residue drains):
                   battle test; log every parser break, promote phase
                   9's llm-assisted mapping on the first one)
   then: low-hanging fruit by demo impact — realtime feed refresh,
-          notifications, search-your-own-stuff.
+          notifications, search-your-own-stuff, D-trending-knobs (the
+          user-held algorithm knobs on /trending — gated on
+          D-trending-comments, same files).
 ON DECK — M2 PREREQUISITES (stage when the gauntlet closes; these are
 plan.txt KNOWN GAPS with no lane items yet, and all three gate
 creator #1): memberships wired to stripe rails (B4.5 rung-0 →
@@ -1183,6 +1185,30 @@ ws5: C6 e2e deep sweep + bug hunt (lane C — e2e/** only; local
          Gate: D-comments-ledger (nothing writes comments to the ledger today,
          so the read returns [] until the social-side mirror lands). Owns:
          FeedPreview.tsx + Trending.tsx.
+    [ ] D-trending-knobs (sub-lane D/marketing): THE ALGORITHM IS YOURS —
+         /trending gains synth-styled rotary knobs (recency / likes /
+         comments weights, time-horizon half-life, power-mean "character"
+         p) that re-rank the grid LIVE, client-side, zero network calls
+         per twist. knobs are STEPPED (6 detents) → a knob state
+         serializes to a shareable URL mix code (#mix=40213) and gives
+         v1 a finite cache keyspace. full spec incl. the math (set-
+         independent saturating normalizers so client and server score
+         identically), presets (Newest / Most loved · all time /
+         Balanced), the accuracy staging (v0 fetch-whole-index = exact
+         today; v1 when the corpus outgrows one fetch: true db search
+         on cache miss → top-~100 per detent combo cached w/ short TTL,
+         debounced local-then-settle — lane-A item then, cache tech
+         decided then, NO redis before v1), the tag-scoped-knobs future
+         note, and the D20 guardrail (the SOCIAL feed stays
+         chronological — this is pitch theater on the marketing surface)
+         in plan.txt PHASE 5.5. new lib/powerMean.ts is pure + unit-
+         tested (p→±∞ limits, p=0 geometric mean, weight-zeroing).
+         GATE: D-trending-comments merged (same files: Trending.tsx /
+         FeedPreview.tsx — in flight in ws-D/marketing now). owns:
+         marketing/marketing-ui/**. acceptance: design.md §12
+         (screenshots desktop + 375px); knob twist reshuffles with zero
+         network requests; "Newest" is pure reverse-chron regardless of
+         likes, "Most loved · all time" ignores age.
      [✓ 1.0.149] D-trending-reactions: like + repost are fake local increments
          (Trending.tsx:98) → real toggle via /public/entries mirroring
          reactions.ts; signed-out funnels to social. Gate: none. Owns:
