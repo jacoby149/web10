@@ -1398,19 +1398,19 @@ has no media surface at all.
 
 photos v1 -- the composer stops being ugly (lane D; gauntlet step
 2 territory, "post a photo -> it appears in the feed"):
-[ ] media tray: previews at real aspect ratio in the same grid the
-    feed will render (composer preview == post render, no
-    surprises), always-visible remove button (hover-only fails
-    touch, and the gauntlet runs on a phone), drag to reorder
-[ ] client-side processing at attach: downscale to max edge 2048 +
-    recompress (canvas -> webp/jpeg), extract width/height,
-    generate + upload a real thumbnail -- populate the media-record
-    fields (width, height, thumbnail_url) the confirm endpoint
-    already accepts but nobody fills
-[ ] alt text per image in the tray (design.md requires alt; the
-    schema has the field; the composer never asks)
-[ ] validation with a voice: wrong type / over the size cap gets
-    rejected at attach time with words, not a failed upload spinner
+[✓ 1.0.147] media tray: previews at real aspect ratio in the same grid the
+     feed will render (composer preview == post render, no
+     surprises), always-visible remove button (hover-only fails
+     touch, and the gauntlet runs on a phone), drag to reorder
+[✓ 1.0.147] client-side processing at attach: downscale to max edge 2048 +
+     recompress (canvas -> webp/jpeg), extract width/height,
+     generate + upload a real thumbnail -- populate the media-record
+     fields (width, height, thumbnail_url) the confirm endpoint
+     already accepts but nobody fills
+[✓ 1.0.147] alt text per image in the tray (design.md requires alt; the
+     schema has the field; the composer never asks)
+[✓ 1.0.147] validation with a voice: wrong type / over the size cap gets
+     rejected at attach time with words, not a failed upload spinner
 
 photos v2 -- the feed renders like it means it (lane D):
 [ ] lightbox: tap any image -> full-screen viewer, swipe between a
