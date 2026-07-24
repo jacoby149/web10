@@ -20,7 +20,7 @@ vi.mock('lucide-react', () => {
     'User', 'MapPin', 'Globe', 'Link', 'Camera', 'Edit3', 'Check',
     'ChevronLeft', 'MessageSquare', 'Home', 'PlusCircle', 'LogOut', 'Bug',
     'AlertTriangle', 'CheckCircle', 'Compass', 'Share2', 'Repeat2',
-    'Film', 'Music2', 'Users',
+    'Film', 'Music2', 'Users', 'Plus', 'X', 'Search',
   ].forEach(name => { icons[name] = iconFactory(name); });
   return icons;
 });
@@ -46,6 +46,10 @@ vi.mock('@/data', async (importOriginal) => {
     sendDm: vi.fn().mockResolvedValue({}),
     getLastDm: vi.fn().mockResolvedValue(null),
     readContacts: vi.fn().mockResolvedValue([]),
+    readFollows: vi.fn().mockResolvedValue([]),
+    startConversation: vi.fn().mockResolvedValue({ conversation: 'test.localhost/testuser--test.localhost/other', message: {} }),
+    addContact: vi.fn().mockResolvedValue({}),
+    conversationKey: vi.fn().mockReturnValue('test.localhost/testuser--test.localhost/other'),
   };
 });
 
@@ -128,6 +132,14 @@ describe('DmsScreen', () => {
       expect(screen.getByText(/No conversations yet/)).toBeInTheDocument();
     });
     expect(screen.getByText('import your contacts')).toBeInTheDocument();
+  });
+
+  it('shows new message button in empty state', async () => {
+    const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
+    render(<DmsScreen />);
+    await waitFor(() => {
+      expect(screen.getByTestId('dm-new-message-btn')).toBeInTheDocument();
+    });
   });
 });
 
