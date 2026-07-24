@@ -16,9 +16,7 @@ class ListRequest(BaseModel):
     @classmethod
     def validate_service(cls, v: str) -> str:
         if v not in MEDIA_SERVICE_ALLOWLIST:
-            raise ValueError(
-                f"service must be one of {sorted(MEDIA_SERVICE_ALLOWLIST)}, got '{v}'"
-            )
+            raise ValueError(f"service must be one of {sorted(MEDIA_SERVICE_ALLOWLIST)}, got '{v}'")
         return v
 
 
@@ -45,9 +43,7 @@ class ReadRequest(BaseModel):
     @classmethod
     def validate_service(cls, v: str) -> str:
         if v not in MEDIA_SERVICE_ALLOWLIST:
-            raise ValueError(
-                f"service must be one of {sorted(MEDIA_SERVICE_ALLOWLIST)}, got '{v}'"
-            )
+            raise ValueError(f"service must be one of {sorted(MEDIA_SERVICE_ALLOWLIST)}, got '{v}'")
         return v
 
 
@@ -77,9 +73,7 @@ class MetadataCreate(BaseModel):
     @classmethod
     def validate_service(cls, v: str) -> str:
         if v not in MEDIA_SERVICE_ALLOWLIST:
-            raise ValueError(
-                f"service must be one of {sorted(MEDIA_SERVICE_ALLOWLIST)}, got '{v}'"
-            )
+            raise ValueError(f"service must be one of {sorted(MEDIA_SERVICE_ALLOWLIST)}, got '{v}'")
         return v
 
 

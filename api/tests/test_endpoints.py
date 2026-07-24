@@ -1387,6 +1387,7 @@ class TestI6MetadataInjection:
 # 12. PUBLIC MEDIA SERVICE — permission matrix (A12 / D35)
 # ---------------------------------------------------------------------------
 
+
 class TestPublicMediaServiceAllowlist:
     """The service field on MetadataCreate and ReadRequest is validated
     against exactly {"media", "public_media"}. Any other value is rejected
@@ -1703,7 +1704,7 @@ class TestPublicMediaListPermission:
 
 class TestPublicMediaStarProtection:
     """Star protection is untouched — media endpoints don't expose the
-    star record, and the service allowlist prevents naming '*'. """
+    star record, and the service allowlist prevents naming '*'."""
 
     def test_service_star_rejected(self, client):
         """service='*' must be rejected at the model level."""
