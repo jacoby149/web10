@@ -1221,11 +1221,12 @@ IN FLIGHT NOW (24.07 — one workspace per sub-lane):
   ws-D/marketing: D-trending-knobs (gate D-trending-comments merged
                   1.0.155)
   ws-A:           A12 public-media read path (api side of D35)
-  ws-C:           gauntlet journeys — encode the step-6 refresh
-                  regression (gate merged 1.0.157), flip step 5's
-                  fixme (gate merged 1.0.155), add the step-3 follow
-                  journey (follow UI #254 + /u/:username 1.0.155 +
-                  follower count 1.0.158 all merged). e2e/** only.
+  ws-C:           gauntlet journeys — [✓ 1.0.164] step-6 refresh
+                  regression pin, step-5 fixme flip (D-dm-compose UI
+                  flow), step-3 follow journey (follow button +
+                  /u/:username + follower count, all UI-driven). Next
+                  ws-C item: ws-C/cross demo-node theming + real-takeout
+                  seed battle test (NEXT queue above, timeline.md week 3).
   ws-E:           BOX EXECUTION remainder (AGENT-OPS.md §4.2) + the
                   off-box backup + restore drill (plan.txt KNOWN
                   GAPS). operator gate: needs box SSH + .env — if the
