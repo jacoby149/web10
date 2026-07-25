@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import '@testing-library/jest-dom';
 
 // Mock lucide-react icons
@@ -20,6 +21,8 @@ vi.mock('lucide-react', () => {
     'ChevronLeft', 'MessageSquare', 'Home', 'PlusCircle', 'LogOut', 'Bug',
     'AlertTriangle', 'CheckCircle', 'Compass', 'Share2', 'Repeat2',
     'Film', 'Music2', 'Users',
+    'ArrowLeft', 'Lock', 'Trash2', 'Video', 'FileText', 'ChevronDown',
+    'ChevronRight', 'Inbox',
   ].forEach(name => { icons[name] = iconFactory(name); });
   return icons;
 });
@@ -45,6 +48,7 @@ const mockRefreshMediaUrls = vi.fn().mockImplementation((records) =>
 );
 const mockResolveMediaRefs = vi.fn().mockResolvedValue([]);
 const mockSaveProfile = vi.fn().mockImplementation((p) => Promise.resolve(p));
+const mockCountStagingPosts = vi.fn().mockResolvedValue(0);
 
 vi.mock('@/data', async (importOriginal) => {
   const original = await importOriginal() as Record<string, unknown>;
@@ -58,6 +62,7 @@ vi.mock('@/data', async (importOriginal) => {
     refreshMediaUrls: mockRefreshMediaUrls,
     resolveMediaRefs: mockResolveMediaRefs,
     saveProfile: mockSaveProfile,
+    countStagingPosts: mockCountStagingPosts,
   };
 });
 
@@ -113,7 +118,11 @@ describe('ProfileScreen upload presign fix', () => {
     );
 
     const { default: ProfileScreen } = await import('@/components/Bio/ProfileScreen');
-    render(<ProfileScreen />);
+    render(
+      <MemoryRouter>
+        <ProfileScreen />
+      </MemoryRouter>
+    );
 
     await waitFor(() => {
       expect(screen.getByText('Test User')).toBeInTheDocument();
@@ -146,7 +155,11 @@ describe('ProfileScreen D24/D34 — follower stat is real (ledger-backed)', () =
   it('renders a Followers stat tile with real count from ledger', async () => {
     // countFollowers is mocked in setup to return 3
     const { default: ProfileScreen } = await import('@/components/Bio/ProfileScreen');
-    render(<ProfileScreen />);
+    render(
+      <MemoryRouter>
+        <ProfileScreen />
+      </MemoryRouter>
+    );
 
     await waitFor(() => {
       expect(screen.getByText('Edit profile')).toBeInTheDocument();

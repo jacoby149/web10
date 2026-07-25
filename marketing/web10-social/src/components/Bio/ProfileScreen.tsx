@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { readProfile, saveProfile, readMyPosts, resolveMediaRefs, uploadMedia, countFollows, countFollowers, refreshMediaUrls } from '@/data';
+import { readProfile, saveProfile, readMyPosts, resolveMediaRefs, uploadMedia, countFollows, countFollowers, refreshMediaUrls, countStagingPosts } from '@/data';
 import { getWapi } from '@/data/wapi';
 import type { ProfileRecord, PostRecord, MediaRecord } from '@/data/types';
-import { MapPin, Globe, Link, Camera, Edit3, Check, X, ImagePlus, Loader2, AlertTriangle } from 'lucide-react';
+import { MapPin, Globe, Link, Camera, Edit3, Check, X, ImagePlus, Loader2, AlertTriangle, Inbox } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
 
@@ -31,6 +32,7 @@ function ProfileSkeleton() {
 }
 
 export default function ProfileScreen() {
+  const navigate = useNavigate();
   const [profile, setProfile] = useState<ProfileRecord | null>(null);
   const [posts, setPosts] = useState<PostRecord[]>([]);
   const [mediaMap, setMediaMap] = useState<Record<string, MediaRecord>>({});
@@ -43,6 +45,7 @@ export default function ProfileScreen() {
   const [activeTab, setActiveTab] = useState<'posts' | 'media'>('posts');
   const [followingCount, setFollowingCount] = useState<number>(0);
   const [followerCount, setFollowerCount] = useState<number>(0);
+  const [stagingCount, setStagingCount] = useState<number>(0);
 
   useEffect(() => {
     loadData();
@@ -52,17 +55,19 @@ export default function ProfileScreen() {
     setLoading(true);
     try {
       const token = getWapi().readToken();
-      const [p, postsData, fc, fCount] = await Promise.all([
+      const [p, postsData, fc, fCount, stgCount] = await Promise.all([
         readProfile(),
         readMyPosts(),
         countFollows(),
         token ? countFollowers(token.username, token.provider) : Promise.resolve(0),
+        countStagingPosts(),
       ]);
       setProfile(p);
       setDraft(p || {});
       setPosts(postsData || []);
       setFollowingCount(fc);
       setFollowerCount(fCount);
+      setStagingCount(stgCount);
 
       const allRefs = (postsData || []).flatMap((post) => post.media_refs || []);
       if (p?.avatar_ref) allRefs.push(p.avatar_ref);
@@ -318,6 +323,20 @@ export default function ProfileScreen() {
             <span className="text-xs text-muted-foreground">Following</span>
           </div>
         </div>
+
+        {/* Staging entry point — only shown when N > 0 */}
+        {stagingCount > 0 && (
+          <Button
+            variant="brand_subtle"
+            size="sm"
+            data-testid="review-imports-button"
+            className="mt-3 w-full gap-2"
+            onClick={() => navigate('/staging')}
+          >
+            <Inbox className="w-4 h-4" />
+            Review imports ({stagingCount})
+          </Button>
+        )}
       </div>
 
       {/* Tabs */}

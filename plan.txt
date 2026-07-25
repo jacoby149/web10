@@ -1472,7 +1472,7 @@ Phase B — visibility on native posts:
     the conventions-schema default). createPost already routes once set.
 
 Phase C — the staging + management UI (the feature):
-[ ] Staging/Review screen: reads `staging_posts`, imported content grouped by
+[✓ 1.0.164] Staging/Review screen: reads `staging_posts`, imported content grouped by
     origin, per-item + bulk actions Publish(public) / Keep private / Delete,
     each = a collection move. design.md-grade (§12, PR screenshots).
 [ ] post-publish management on the wall: change an existing post's visibility
