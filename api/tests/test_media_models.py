@@ -3,6 +3,7 @@
 import pytest
 
 from app.models.media import (
+    ListRequest,
     MediaToken,
     MetadataCreate,
     MetadataRecord,
@@ -25,6 +26,25 @@ class TestMediaToken:
     def test_extra_fields_allowed(self):
         t = MediaToken(token="x", extra="field")
         assert t.token == "x"
+
+
+class TestListRequest:
+    def test_default_service(self):
+        r = ListRequest()
+        assert r.service == "media"
+        assert r.token is None
+
+    def test_public_media_service(self):
+        r = ListRequest(service="public_media")
+        assert r.service == "public_media"
+
+    def test_invalid_service_rejected(self):
+        with pytest.raises(Exception, match="service must be one of"):
+            ListRequest(service="arbitrary_collection")
+
+    def test_invalid_service_arbitrary(self):
+        with pytest.raises(Exception, match="service must be one of"):
+            ListRequest(service="posts")
 
 
 class TestUploadRequest:
@@ -59,14 +79,27 @@ class TestReadRequest:
         r = ReadRequest(object_key="u/abc/photo.jpg")
         assert r.object_key == "u/abc/photo.jpg"
         assert r.token is None
+        assert r.service == "media"
 
     def test_with_token(self):
         r = ReadRequest(token="t", object_key="k")
         assert r.token == "t"
 
+    def test_public_media_service(self):
+        r = ReadRequest(object_key="u/abc/photo.jpg", service="public_media")
+        assert r.service == "public_media"
+
     def test_missing_object_key_raises(self):
         with pytest.raises(Exception):
             ReadRequest()
+
+    def test_invalid_service_rejected(self):
+        with pytest.raises(Exception, match="service must be one of"):
+            ReadRequest(object_key="k", service="arbitrary_collection")
+
+    def test_invalid_service_posts(self):
+        with pytest.raises(Exception, match="service must be one of"):
+            ReadRequest(object_key="k", service="posts")
 
 
 class TestReadResponse:
@@ -84,6 +117,11 @@ class TestMetadataCreate:
         assert m.mime_type is None
         assert m.origin == "web10"
         assert m.encrypted is False
+        assert m.service == "media"
+
+    def test_public_media_service(self):
+        m = MetadataCreate(url="https://s3/photo.jpg", filename="photo.jpg", service="public_media")
+        assert m.service == "public_media"
 
     def test_full(self):
         m = MetadataCreate(
@@ -114,6 +152,14 @@ class TestMetadataCreate:
     def test_missing_filename_raises(self):
         with pytest.raises(Exception):
             MetadataCreate(url="https://x")
+
+    def test_invalid_service_rejected(self):
+        with pytest.raises(Exception, match="service must be one of"):
+            MetadataCreate(url="u", filename="f", service="arbitrary_collection")
+
+    def test_invalid_service_posts(self):
+        with pytest.raises(Exception, match="service must be one of"):
+            MetadataCreate(url="u", filename="f", service="posts")
 
 
 class TestMetadataRecord:

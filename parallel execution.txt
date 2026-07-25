@@ -224,7 +224,7 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       are grandfathered — login/lookup must keep working, never a
       migration. the signup form's inline charset message is a small
       lane B seam (leave a .context/ note). small item; gate: none.
-  [ ] A12. PUBLIC MEDIA READ PATH — api side of decisions.md D35 (the
+  [✓ 1.0.164] A12. PUBLIC MEDIA READ PATH — api side of decisions.md D35 (the
       shape is DECIDED there; don't re-litigate). cross-user media is
       dead today: the `media` service registers no read whitelist
       (web10-social serviceTerms.ts — owner-only), and both

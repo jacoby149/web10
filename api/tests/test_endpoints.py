@@ -1381,3 +1381,352 @@ class TestI6MetadataInjection:
         # The source node is the REMOTE provider, not our PROVIDER
         assert body.get("_source_node") == remote_provider
         assert body.get("_source_node") != settings.PROVIDER
+
+
+# ---------------------------------------------------------------------------
+# 12. PUBLIC MEDIA SERVICE — permission matrix (A12 / D35)
+# ---------------------------------------------------------------------------
+
+
+class TestPublicMediaServiceAllowlist:
+    """The service field on MetadataCreate and ReadRequest is validated
+    against exactly {"media", "public_media"}. Any other value is rejected
+    at the Pydantic layer (422), not passed to is_permitted."""
+
+    def test_metadata_create_default_service_is_media(self, client):
+        """Default service for upload-confirm is 'media'."""
+        with (
+            patch("app.services.documentdb.get_star", return_value=MOCK_STAR),
+            patch("app.services.documentdb.get_term_record", return_value=MOCK_TERM),
+            patch("app.services.documentdb.user_collection_exists", return_value=True),
+            patch("app.services.documentdb.create_media_record") as m_create,
+        ):
+            m_create.return_value = {"_id": "1", "url": "https://s3/x.jpg"}
+            resp = client.post(
+                "/alice/upload/confirm",
+                json={
+                    "token": _owner_token("alice"),
+                    "url": "https://s3/x.jpg",
+                    "filename": "x.jpg",
+                },
+            )
+        assert resp.status_code == 200
+        call_kwargs = m_create.call_args[1]
+        assert call_kwargs.get("service") == "media"
+
+    def test_metadata_create_public_media_service(self, client):
+        """Explicit service='public_media' passes through to DB."""
+        mock_term_public = {
+            "service": "public_media",
+            "whitelist": [
+                {
+                    "username": "alice",
+                    "provider": settings.PROVIDER,
+                    "create": True,
+                }
+            ],
+            "blacklist": [],
+            "cross_origins": [],
+        }
+        with (
+            patch("app.services.documentdb.get_star", return_value=MOCK_STAR),
+            patch("app.services.documentdb.get_term_record", return_value=mock_term_public),
+            patch("app.services.documentdb.user_collection_exists", return_value=True),
+            patch("app.services.documentdb.create_media_record") as m_create,
+        ):
+            m_create.return_value = {"_id": "2", "url": "https://s3/y.jpg"}
+            resp = client.post(
+                "/alice/upload/confirm",
+                json={
+                    "token": _owner_token("alice"),
+                    "url": "https://s3/y.jpg",
+                    "filename": "y.jpg",
+                    "service": "public_media",
+                },
+            )
+        assert resp.status_code == 200
+        call_kwargs = m_create.call_args[1]
+        assert call_kwargs.get("service") == "public_media"
+
+    def test_metadata_create_arbitrary_service_rejected(self, client):
+        """service='posts' must be rejected at the model level (422)."""
+        resp = client.post(
+            "/alice/upload/confirm",
+            json={
+                "token": _owner_token("alice"),
+                "url": "https://s3/z.jpg",
+                "filename": "z.jpg",
+                "service": "posts",
+            },
+        )
+        assert resp.status_code == 422
+
+    def test_metadata_create_arbitrary_collection_rejected(self, client):
+        """service='arbitrary_collection' must be rejected (422)."""
+        resp = client.post(
+            "/alice/upload/confirm",
+            json={
+                "token": _owner_token("alice"),
+                "url": "https://s3/z.jpg",
+                "filename": "z.jpg",
+                "service": "arbitrary_collection",
+            },
+        )
+        assert resp.status_code == 422
+
+    def test_read_request_arbitrary_service_rejected(self, client):
+        """ReadRequest with service='anything' must be rejected (422)."""
+        resp = client.post(
+            "/alice/read",
+            json={
+                "token": _owner_token("alice"),
+                "object_key": "alice/abc/photo.jpg",
+                "service": "anything",
+            },
+        )
+        assert resp.status_code == 422
+
+
+class TestPublicMediaPresignPermission:
+    """Non-owner presign on public_media is allowed once terms grant it,
+    still denied on 'media'. Star protection untouched."""
+
+    def test_non_owner_presign_media_denied(self, client):
+        """Bob has no read permission on alice's 'media' — presign denied."""
+        mock_term_media = {
+            "service": "media",
+            "whitelist": [
+                {
+                    "username": "alice",
+                    "provider": settings.PROVIDER,
+                    "read": True,
+                }
+            ],
+            "blacklist": [],
+            "cross_origins": [],
+        }
+        with (
+            patch("app.services.documentdb.get_star", return_value=MOCK_STAR),
+            patch("app.services.documentdb.get_term_record", return_value=mock_term_media),
+            patch("app.services.documentdb.user_collection_exists", return_value=True),
+            patch("app.endpoints.media.get_s3_client"),
+            patch("app.endpoints.media.get_s3_signing_client") as m_sign,
+        ):
+            m_sign.return_value.generate_presigned_url.return_value = "https://presigned"
+            resp = client.post(
+                "/alice/read",
+                json={
+                    "token": _app_token("bob", "myapp.example.com"),
+                    "object_key": "alice/abc/photo.jpg",
+                },
+            )
+        assert resp.status_code == 401
+
+    def test_non_owner_presign_public_media_allowed(self, client):
+        """Bob has read permission on alice's 'public_media' — presign OK."""
+        mock_term_public = {
+            "service": "public_media",
+            "whitelist": [
+                {
+                    "username": "bob",
+                    "provider": settings.PROVIDER,
+                    "read": True,
+                }
+            ],
+            "blacklist": [],
+            "cross_origins": ["myapp.example.com"],
+        }
+        with (
+            patch("app.services.documentdb.get_star", return_value=MOCK_STAR),
+            patch("app.services.documentdb.get_term_record", return_value=mock_term_public),
+            patch("app.services.documentdb.user_collection_exists", return_value=True),
+            patch("app.endpoints.media.get_s3_client"),
+            patch("app.endpoints.media.get_s3_signing_client") as m_sign,
+        ):
+            m_sign.return_value.generate_presigned_url.return_value = "https://presigned"
+            resp = client.post(
+                "/alice/read",
+                json={
+                    "token": _app_token("bob", "myapp.example.com"),
+                    "object_key": "alice/abc/photo.jpg",
+                    "service": "public_media",
+                },
+            )
+        assert resp.status_code == 200
+        assert "read_url" in resp.json()
+
+    def test_non_owner_presign_public_media_denied_without_term(self, client):
+        """Bob has no whitelist on 'public_media' — presign denied."""
+        mock_term_public = {
+            "service": "public_media",
+            "whitelist": [],
+            "blacklist": [],
+            "cross_origins": [],
+        }
+        with (
+            patch("app.services.documentdb.get_star", return_value=MOCK_STAR),
+            patch("app.services.documentdb.get_term_record", return_value=mock_term_public),
+            patch("app.services.documentdb.user_collection_exists", return_value=True),
+            patch("app.endpoints.media.get_s3_client"),
+            patch("app.endpoints.media.get_s3_signing_client"),
+        ):
+            resp = client.post(
+                "/alice/read",
+                json={
+                    "token": _app_token("bob", "myapp.example.com"),
+                    "object_key": "alice/abc/photo.jpg",
+                    "service": "public_media",
+                },
+            )
+        assert resp.status_code == 401
+
+    def test_owner_presign_public_media_always_ok(self, client):
+        """Owner can always presign their own public_media."""
+        mock_term_public = {
+            "service": "public_media",
+            "whitelist": [],
+            "blacklist": [],
+            "cross_origins": [],
+        }
+        with (
+            patch("app.services.documentdb.get_star", return_value=MOCK_STAR),
+            patch("app.services.documentdb.get_term_record", return_value=mock_term_public),
+            patch("app.services.documentdb.user_collection_exists", return_value=True),
+            patch("app.endpoints.media.get_s3_client"),
+            patch("app.endpoints.media.get_s3_signing_client") as m_sign,
+        ):
+            m_sign.return_value.generate_presigned_url.return_value = "https://presigned"
+            resp = client.post(
+                "/alice/read",
+                json={
+                    "token": _owner_token("alice"),
+                    "object_key": "alice/abc/photo.jpg",
+                    "service": "public_media",
+                },
+            )
+        assert resp.status_code == 200
+
+    def test_owner_presign_media_always_ok(self, client):
+        """Owner can always presign their own media (default service)."""
+        mock_term_media = {
+            "service": "media",
+            "whitelist": [],
+            "blacklist": [],
+            "cross_origins": [],
+        }
+        with (
+            patch("app.services.documentdb.get_star", return_value=MOCK_STAR),
+            patch("app.services.documentdb.get_term_record", return_value=mock_term_media),
+            patch("app.services.documentdb.user_collection_exists", return_value=True),
+            patch("app.endpoints.media.get_s3_client"),
+            patch("app.endpoints.media.get_s3_signing_client") as m_sign,
+        ):
+            m_sign.return_value.generate_presigned_url.return_value = "https://presigned"
+            resp = client.post(
+                "/alice/read",
+                json={
+                    "token": _owner_token("alice"),
+                    "object_key": "alice/abc/photo.jpg",
+                },
+            )
+        assert resp.status_code == 200
+
+
+class TestPublicMediaListPermission:
+    """List route respects the service field for permission checks."""
+
+    def test_list_default_service_media(self, client):
+        """Default list uses 'media' service."""
+        mock_term = {
+            "service": "media",
+            "whitelist": [
+                {
+                    "username": "alice",
+                    "provider": settings.PROVIDER,
+                    "read": True,
+                }
+            ],
+            "blacklist": [],
+            "cross_origins": [],
+        }
+        with (
+            patch("app.services.documentdb.get_star", return_value=MOCK_STAR),
+            patch("app.services.documentdb.get_term_record", return_value=mock_term),
+            patch("app.services.documentdb.user_collection_exists", return_value=True),
+            patch("app.services.documentdb.read_media_records") as m_read,
+        ):
+            m_read.return_value = [{"_id": "1", "url": "https://s3/x.jpg"}]
+            resp = client.post(
+                "/alice/list",
+                json={"token": _owner_token("alice")},
+            )
+        assert resp.status_code == 200
+        call_kwargs = m_read.call_args[1]
+        assert call_kwargs.get("service") == "media"
+
+    def test_list_public_media_service(self, client):
+        """Explicit service='public_media' on list."""
+        mock_term = {
+            "service": "public_media",
+            "whitelist": [
+                {
+                    "username": "alice",
+                    "provider": settings.PROVIDER,
+                    "read": True,
+                }
+            ],
+            "blacklist": [],
+            "cross_origins": [],
+        }
+        with (
+            patch("app.services.documentdb.get_star", return_value=MOCK_STAR),
+            patch("app.services.documentdb.get_term_record", return_value=mock_term),
+            patch("app.services.documentdb.user_collection_exists", return_value=True),
+            patch("app.services.documentdb.read_media_records") as m_read,
+        ):
+            m_read.return_value = [{"_id": "2", "url": "https://s3/y.jpg"}]
+            resp = client.post(
+                "/alice/list",
+                json={"token": _owner_token("alice"), "service": "public_media"},
+            )
+        assert resp.status_code == 200
+        call_kwargs = m_read.call_args[1]
+        assert call_kwargs.get("service") == "public_media"
+
+    def test_list_arbitrary_service_rejected(self, client):
+        """List with service='posts' rejected at model level (422)."""
+        resp = client.post(
+            "/alice/list",
+            json={"token": _owner_token("alice"), "service": "posts"},
+        )
+        assert resp.status_code == 422
+
+
+class TestPublicMediaStarProtection:
+    """Star protection is untouched — media endpoints don't expose the
+    star record, and the service allowlist prevents naming '*'."""
+
+    def test_service_star_rejected(self, client):
+        """service='*' must be rejected at the model level."""
+        resp = client.post(
+            "/alice/upload/confirm",
+            json={
+                "token": _owner_token("alice"),
+                "url": "https://s3/x.jpg",
+                "filename": "x.jpg",
+                "service": "*",
+            },
+        )
+        assert resp.status_code == 422
+
+    def test_read_service_star_rejected(self, client):
+        """ReadRequest with service='*' rejected."""
+        resp = client.post(
+            "/alice/read",
+            json={
+                "token": _owner_token("alice"),
+                "object_key": "alice/abc/photo.jpg",
+                "service": "*",
+            },
+        )
+        assert resp.status_code == 422
