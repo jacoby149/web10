@@ -1319,7 +1319,7 @@ Marketing-ui side (Lane D):
     keep the heart-burst animation (D12 vibrancy). owns: FeedPreview.tsx +
     Trending.tsx.
 
-[ ] D-trending-knobs — THE ALGORITHM IS YOURS (operator, 24.07): /trending
+[✓ 1.0.164] D-trending-knobs — THE ALGORITHM IS YOURS (operator, 24.07): /trending
     gains a synth-rack of knobs that re-rank the feed live. the hero already
     says "What's actually trending. No algorithm." — this makes the claim
     tactile: the ranking function is a WEIGHTED POWER MEAN over the
