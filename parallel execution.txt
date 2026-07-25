@@ -224,7 +224,7 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       are grandfathered — login/lookup must keep working, never a
       migration. the signup form's inline charset message is a small
       lane B seam (leave a .context/ note). small item; gate: none.
-  [ ] A12. PUBLIC MEDIA READ PATH — api side of decisions.md D35 (the
+  [✓ 1.0.164] A12. PUBLIC MEDIA READ PATH — api side of decisions.md D35 (the
       shape is DECIDED there; don't re-litigate). cross-user media is
       dead today: the `media` service registers no read whitelist
       (web10-social serviceTerms.ts — owner-only), and both
@@ -759,7 +759,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         today, so the fix can't be verified before that path merges.
         acceptance: feed and discover show real avatars for authors who have
         uploaded profile pictures.
-[ ] D-post-delivery (sub-lane D/feed). A REAL USER'S POST REACHES NO ONE —
+[✓ 1.0.165] D-post-delivery (sub-lane D/feed). A REAL USER'S POST REACHES NO ONE —
         the 24.07 audit behind the pitch: PostComposer.tsx:379 calls
         createPost with NO visibility field, and posts.ts:37 routes
         visibility-less posts to private_posts (owner-only, never
@@ -792,7 +792,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         follower Y's Feed tab (two real accounts, dev or local stack);
         a private post doesn't; your own post shows in your own feed;
         the visibility control is design.md-grade at 375px (screenshots).
-[ ] D-staging-review (sub-lane D/staging — new screen, new sub-lane:
+[✓ 1.0.164] D-staging-review (sub-lane D/staging — new screen, new sub-lane:
         owns components/Staging/** + data/staging.ts). D19 PHASE C, the
         screen half: imports land in staging_posts (owner-only, Phase A
         1.0.131) and there is NO ui to triage them (grep components/ for
@@ -1337,7 +1337,7 @@ ws5: C6 e2e deep sweep + bug hunt (lane C — e2e/** only; local
          Gate: D-comments-ledger (nothing writes comments to the ledger today,
          so the read returns [] until the social-side mirror lands). Owns:
          FeedPreview.tsx + Trending.tsx.
-    [ ] D-trending-knobs (sub-lane D/marketing): THE ALGORITHM IS YOURS —
+    [✓ 1.0.164] D-trending-knobs (sub-lane D/marketing): THE ALGORITHM IS YOURS —
          /trending gains synth-styled rotary knobs (recency / likes /
          comments weights, time-horizon half-life, power-mean "character"
          p) that re-rank the grid LIVE, client-side, zero network calls

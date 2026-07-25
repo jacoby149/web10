@@ -1336,7 +1336,7 @@ Marketing-ui side (Lane D):
     keep the heart-burst animation (D12 vibrancy). owns: FeedPreview.tsx +
     Trending.tsx.
 
-[ ] D-trending-knobs — THE ALGORITHM IS YOURS (operator, 24.07): /trending
+[✓ 1.0.164] D-trending-knobs — THE ALGORITHM IS YOURS (operator, 24.07): /trending
     gains a synth-rack of knobs that re-rank the feed live. the hero already
     says "What's actually trending. No algorithm." — this makes the claim
     tactile: the ranking function is a WEIGHTED POWER MEAN over the
@@ -1489,7 +1489,7 @@ Phase B — visibility on native posts:
     the conventions-schema default). createPost already routes once set.
 
 Phase C — the staging + management UI (the feature):
-[ ] Staging/Review screen: reads `staging_posts`, imported content grouped by
+[✓ 1.0.164] Staging/Review screen: reads `staging_posts`, imported content grouped by
     origin, per-item + bulk actions Publish(public) / Keep private / Delete,
     each = a collection move. design.md-grade (§12, PR screenshots).
 [ ] post-publish management on the wall: change an existing post's visibility
