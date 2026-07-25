@@ -1,5 +1,6 @@
 import { getWapi, deriveObjectKey } from './wapi';
-import type { PostRecord, MediaRecord, MediaUploadRequest, PublicEntry, SchemaDefinition, DiscoverSort, DiscoveryPost } from './types';
+import { listFollowers } from './follows';
+import type { PostRecord, MediaRecord, MediaUploadRequest, PublicEntry, SchemaDefinition, DiscoverSort, DiscoveryPost, InboxRecord } from './types';
 
 // ── Post data layer ────────────────────────────────────────────────────────
 // Post visibility is a COLLECTION, not a status field (decisions.md D30):
@@ -36,6 +37,50 @@ export async function createPost(post: Omit<PostRecord, '_id'>): Promise<PostRec
   const wapi = getWapi();
   const service = post.visibility === 'public' ? 'public_posts' : 'private_posts';
   return wapi.create<PostRecord>(service, post);
+}
+
+/**
+ * Fan-out a public post to every follower's inbox + the author's own inbox.
+ * Reads the follower list from the D34 public ledger (listFollowers), then
+ * writes one inbox record per follower using the shape from
+ * seed_personas.py:658 deliver_to_inbox. The inbox service whitelists
+ * create for everyone, so this is permitted today.
+ *
+ * This is client-side O(followers) — the honest v0 at demo scale (D29).
+ * Server-side fan-out is a later lane-A item.
+ */
+export async function fanOutToFollowers(postRecord: PostRecord): Promise<void> {
+  const wapi = getWapi();
+  const token = wapi.readToken();
+  if (!token || !postRecord._id) return;
+
+  const postBody: Record<string, unknown> = {
+    text: postRecord.text,
+    media_refs: postRecord.media_refs,
+    created_at: postRecord.created_at,
+    visibility: postRecord.visibility,
+  };
+  if (postRecord.tags?.length) postBody.tags = postRecord.tags;
+
+  const inboxRecord = {
+    author_username: token.username,
+    author_provider: token.provider,
+    post_id: postRecord._id,
+    delivered_at: new Date().toISOString(),
+    post_body: postBody,
+    origin: 'web10',
+  };
+
+  // Write to own inbox first
+  await wapi.create<InboxRecord>('inbox', inboxRecord);
+
+  // Fan-out to every follower
+  const followers = await listFollowers(token.username, token.provider);
+  await Promise.allSettled(
+    followers.map((follower) =>
+      wapi.create<InboxRecord>('inbox', inboxRecord, follower.username, follower.provider),
+    ),
+  );
 }
 
 /**

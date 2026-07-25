@@ -176,6 +176,34 @@ export async function countFollows(): Promise<number> {
 }
 
 /**
+ * List all followers of a user by reading the public ledger.
+ * Returns the username + provider of each follower (deduped per author).
+ * Same ledger query as countFollowers, but returns the full list.
+ */
+export async function listFollowers(username: string, provider: string): Promise<{ username: string; provider: string }[]> {
+  const target = followTargetKey(username, provider);
+  const entries = await queryPublicEntries({ target });
+  const followers = entries.filter(
+    (e) =>
+      e.payload &&
+      (e.payload as Record<string, unknown>).action === 'follow',
+  );
+  // Dedupe: a user might have mirrored multiple times; keep unique (username, provider) pairs.
+  const seen = new Set<string>();
+  const unique: { username: string; provider: string }[] = [];
+  for (const e of followers) {
+    const author = (e.payload as Record<string, unknown>).author_username as string | undefined;
+    const authProvider = (e.payload as Record<string, unknown>).author_provider as string | undefined;
+    if (!author || !authProvider) continue;
+    const key = `${author}@${authProvider}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push({ username: author, provider: authProvider });
+  }
+  return unique;
+}
+
+/**
  * Count followers of a user by reading the public ledger.
  * Because I3 forbids cross-collection reads, the count comes from
  * ledger entries where payload.action='follow' and target points to
