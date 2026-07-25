@@ -792,7 +792,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         follower Y's Feed tab (two real accounts, dev or local stack);
         a private post doesn't; your own post shows in your own feed;
         the visibility control is design.md-grade at 375px (screenshots).
-[ ] D-staging-review (sub-lane D/staging — new screen, new sub-lane:
+[✓ 1.0.164] D-staging-review (sub-lane D/staging — new screen, new sub-lane:
         owns components/Staging/** + data/staging.ts). D19 PHASE C, the
         screen half: imports land in staging_posts (owner-only, Phase A
         1.0.131) and there is NO ui to triage them (grep components/ for
