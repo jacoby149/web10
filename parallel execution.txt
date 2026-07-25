@@ -1336,7 +1336,7 @@ ws5: C6 e2e deep sweep + bug hunt (lane C — e2e/** only; local
          Gate: D-comments-ledger (nothing writes comments to the ledger today,
          so the read returns [] until the social-side mirror lands). Owns:
          FeedPreview.tsx + Trending.tsx.
-    [ ] D-trending-knobs (sub-lane D/marketing): THE ALGORITHM IS YOURS —
+    [✓ 1.0.164] D-trending-knobs (sub-lane D/marketing): THE ALGORITHM IS YOURS —
          /trending gains synth-styled rotary knobs (recency / likes /
          comments weights, time-horizon half-life, power-mean "character"
          p) that re-rank the grid LIVE, client-side, zero network calls

@@ -40,6 +40,11 @@ interface FeedPost {
   reposts: string;
   engagementScore?: number;
   tags?: string[];
+  // Raw numeric counts for client-side ranking (knobs)
+  likesCount: number;
+  commentsCount: number;
+  repostsCount: number;
+  createdAt: string;
 }
 
 const AVATAR_COLORS = [
@@ -100,6 +105,10 @@ function mapDiscoveryToFeedPost(d: DiscoveryPost): FeedPost {
     reposts: formatCount(d.engagement.reposts),
     engagementScore: d.engagement_score,
     tags,
+    likesCount: d.engagement.likes ?? 0,
+    commentsCount: d.engagement.comments ?? 0,
+    repostsCount: d.engagement.reposts ?? 0,
+    createdAt: d.created_at,
   };
 }
 
@@ -205,6 +214,7 @@ interface TrendingCardProps {
   post: FeedPost;
   rank: number;
   onLike: (postId: string) => void;
+  onComment: (postId: string) => void;
   onRepost: (postId: string) => void;
   onShare?: (postId: string) => void;
   maxScore: number;
@@ -363,6 +373,7 @@ function TrendingCard({
   post,
   rank,
   onLike,
+  onComment,
   onRepost,
   onShare,
   maxScore,
