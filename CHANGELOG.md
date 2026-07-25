@@ -1,4 +1,7 @@
 1.0.164 || 24.07.2026
+feature(api): public media service field — A12 per D35. `MetadataCreate` (upload-confirm), `ReadRequest` (read presign), and `ListRequest` (list) accept an optional `service` field: `"media"` (default) | `"public_media"` ONLY. Validated against exactly that two-value allowlist at the Pydantic layer — any other value → 422. `is_permitted` checks the REQUESTED service, not hardcoded `"media"`. `create_media_record` and `read_media_records` in documentdb.py accept a `service` parameter so the metadata record lands in the correct collection. Quota/space accounting unchanged. 25 new tests: service-allowlist validation (rejects arbitrary collections, rejects `*`/star), non-owner presign on `public_media` allowed once terms grant it, still denied on `media`, owner always OK on both, list route respects service field. 429 tests green, ruff clean. .context/public-media-api-contract.md written for lane D (D-public-media-client).
+
+1.0.165 || 24.07.2026
 feature: post visibility selector + fan-out delivery to followers' inboxes. PostComposer gains a Public/Private visibility control (default Public). Public posts route to public_posts; private to private_posts. After a public post is created, inbox records fan out to every follower (via the D34 public ledger, new listFollowers export) plus the author's own inbox. Private posts do NOT fan out. Client-side O(followers) is the accepted v0 at demo scale (D29). Text delivery is the acceptance bar — follower-side image 403s are the known A12/D35 media wall, out of scope.
 
 1.0.163 || 24.07.2026
