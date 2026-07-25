@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException
 import app.settings as settings
 from app.models.auth import Token
 from app.models.media import (
+    ListRequest,
     MediaToken,
     MetadataCreate,
     ReadRequest,
@@ -52,8 +53,9 @@ async def request_upload_url(user: str, request: UploadRequest):
 
 @router.post("/{user}/upload/confirm")
 async def confirm_upload(user: str, request: MetadataCreate):
+    target_service = request.service
     token = Token(token=request.token)
-    if not is_permitted(token, user, "media", "create"):
+    if not is_permitted(token, user, target_service, "create"):
         raise HTTPException(status_code=401, detail="media access denied")
     if not db.user_collection_exists(user):
         raise HTTPException(status_code=404, detail="user not found")
@@ -74,13 +76,14 @@ async def confirm_upload(user: str, request: MetadataCreate):
         "origin_id": request.origin_id,
         "encrypted": request.encrypted,
     }
-    return db.create_media_record(user, record)
+    return db.create_media_record(user, record, service=target_service)
 
 
 @router.post("/{user}/read")
 async def request_read_url(user: str, request: ReadRequest):
+    target_service = request.service
     token = Token(token=request.token)
-    if not is_permitted(token, user, "media", "read"):
+    if not is_permitted(token, user, target_service, "read"):
         raise HTTPException(status_code=401, detail="media access denied")
     if not db.user_collection_exists(user):
         raise HTTPException(status_code=404, detail="user not found")
@@ -96,13 +99,14 @@ async def request_read_url(user: str, request: ReadRequest):
 
 
 @router.post("/{user}/list")
-async def list_media(user: str, token: MediaToken = MediaToken()):
-    auth_token = Token(token=token.token)
-    if not is_permitted(auth_token, user, "media", "read"):
+async def list_media(user: str, request: ListRequest = ListRequest()):
+    target_service = request.service
+    auth_token = Token(token=request.token)
+    if not is_permitted(auth_token, user, target_service, "read"):
         raise HTTPException(status_code=401, detail="media access denied")
     if not db.user_collection_exists(user):
         raise HTTPException(status_code=404, detail="user not found")
-    return db.read_media_records(user)
+    return db.read_media_records(user, service=target_service)
 
 
 @router.delete("/{user}/delete")
