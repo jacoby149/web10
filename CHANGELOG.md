@@ -1,4 +1,7 @@
 1.0.164 || 24.07.2026
+feature(api): public media service field — A12 per D35. `MetadataCreate` (upload-confirm), `ReadRequest` (read presign), and `ListRequest` (list) accept an optional `service` field: `"media"` (default) | `"public_media"` ONLY. Validated against exactly that two-value allowlist at the Pydantic layer — any other value → 422. `is_permitted` checks the REQUESTED service, not hardcoded `"media"`. `create_media_record` and `read_media_records` in documentdb.py accept a `service` parameter so the metadata record lands in the correct collection. Quota/space accounting unchanged. 25 new tests: service-allowlist validation (rejects arbitrary collections, rejects `*`/star), non-owner presign on `public_media` allowed once terms grant it, still denied on `media`, owner always OK on both, list route respects service field. 429 tests green, ruff clean. .context/public-media-api-contract.md written for lane D (D-public-media-client).
+
+1.0.165 || 24.07.2026
 ops: off-box backup of prod data + smoke verification. Fresh mongodump of
   the real mongo `deploy` DB (13 MB, 208+ user collections), plus tar
   backups of both minio volumes (dev 5.7 MB, prod 6.3 MB). smoke.sh
