@@ -1097,6 +1097,23 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       web10-social, is the fallback if DM delivery is heavier — see
       plan.txt PHASE 8.6.)
 
+[ ] D-follow-lists (sub-lane ws-D/profile, AFTER D-profile-post-
+      experience — small SEAM: ProfileScreen stat tiles become links):
+      a UI to SEE the follower + following LISTS (today the profile only
+      shows COUNTS — followerCount/followingCount stat tiles). Make the
+      "Followers" and "Following" tiles open a list (a modal or new
+      routes /followers + /following) of the actual accounts, each row
+      an avatar + name + handle linking to /u/:username, with a
+      follow/unfollow action where it applies. Data exists: follows.ts
+      (readFollows / listFollowers / countFollows / countFollowers).
+      Files: new components/Bio/FollowList.tsx (or a modal), ProfileScreen
+      .tsx (link the tiles), maybe App.tsx routes. Also applies to the
+      OTHER-user profile (UserProfileScreen). acceptance: tap Followers /
+      Following → a scrollable list of real accounts, each linking to
+      that profile; screenshot desktop + 375px. gate: none (independent
+      of the post-viewer work beyond the shared ProfileScreen file — run
+      after it in the same ws-D/profile chain).
+
 [ ] D-join-two-step (sub-lane ws-D/marketing; SEAM: marketing-ui
       Join.tsx): the /join flow is confusing — it conflates two steps
       (visit the web10-social app, THEN sign up for the account). Make
@@ -1376,6 +1393,7 @@ fix), bug-reports plan capture.
     ws-D/profile:    D-profile-post-experience (video thumbs + full
                      viewer/editor: like/comment/edit/delete), THEN
                      D-post-visibility-toggle + D-profile-image-placement
+                     + D-follow-lists (followers/following list UI)
                      (same ProfileScreen/PostLightbox seam — sequential)
     ws-D/messages:   D-messages-views (list/mail/crm toggle), THEN
                      D-message-controls (delete/edit — same seam)
