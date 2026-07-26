@@ -1570,6 +1570,19 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
             friends logging in see two different graphs, because the
             app holds no global view — it renders only what each
             user's token grants. ownership, felt.
+      FRAMING (operator): the anon global graph is the ENTRY POINT;
+      "SEE YOUR GRAPH!!!!" is the hero moment and the CTA — "more
+      than facebook ever let you in on" is the marketing line
+      (platforms always HAD your graph and never let you look; here
+      an outside app shows you, because it's yours). EXPLAIN IT
+      in-product: a "how does this work?" popover (the D-trending-
+      knobs truth-telling pattern) saying plainly: this is a separate
+      app reading web10 data — anon mode reads the public ledger,
+      logged-in mode reads YOUR records with a token you consented
+      to; any developer can build this. + one short paragraph in the
+      marketing-ui docs ("outside apps on your data"), manifesto
+      voice. wherever else it's told (social app, deck), reuse the
+      same copy — write it once.
       HOSTING: v0 is a marketing-ui route (/graph) —
       no new vhost/compose/DNS churn (that's a lane E touch when it
       earns graph.web10.app; leave a .context/ note then). rendering:
@@ -1586,6 +1599,32 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       cross-follows in the ledger via the seed script); real accounts
       populate as the mirror fix + follows land. D20 check: this is
       marketing/showcase surface, no ranking, no feed — on-thesis.
+
+[ ] D-social-analytics (sub-lane ws-D/marketing, AFTER D-graph-app —
+      same showcase surface, sequential; operator, 26.07: "ranked
+      chess.com analytics on your social media, you versus friends,
+      or the top creators… a cool analytical app interoperating on
+      your web10 data"): the second outside-analytical-app beat —
+      chess.com-feel stats over social data. signed-in, scoped-token,
+      read-only (same contract as D-graph-app mode 2): (1) YOUR
+      numbers — followers, posts, reactions/comments received, growth
+      over time (charts); (2) RANKED — you vs your friends (the
+      people you follow) and vs the node's top creators: percentiles,
+      leaderboards, the chess.com rating-page feeling — all computed
+      client-side from PUBLIC data (the ledger + /discover/users
+      engagement counts), so no one's private numbers leak: you rank
+      against what's already public. (3) honest-numbers framing ties
+      to the pitch: "your number is real here" (THE STORY) — the
+      analytics app is where that line becomes a dashboard. same
+      explainer popover pattern as D-graph-app. files: marketing-ui,
+      new /analytics route (or a tab inside the graph app's surface —
+      decide at build). read design.md AND the dataviz bar: tokens,
+      no chart-library default colors. acceptance: signed-in persona
+      sees own stats + ranked view vs follows and top creators;
+      anon visitors get a tasteful teaser + login CTA (no wall on
+      explanation, wall on personal data only); screenshots desktop +
+      375px. gate: D-graph-app merged (same chain); counts get real
+      for real accounts as D-ledger-mirror-fix + A14/A15 land.
 
 [ ] D-poke (sub-lane ws-D/engagement; mostly independent): an "advanced
       poke" — a playful, lightweight nudge primitive (the facebook-poke

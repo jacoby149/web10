@@ -2191,7 +2191,18 @@ web10 data… one outside analytical app on top of your social data"):
     (+ contacts if consented) and renders your ego graph client-side,
     nothing published: the third-party-app contract (consent → scoped
     read → lens, I5) demonstrated live, which is the deeper interop
-    proof.
+    proof. FRAMING (operator): the global graph is the entry point;
+    "SEE YOUR GRAPH" is the hero CTA — "more than facebook ever let
+    you in on." explain the interop story in-product (the truth-
+    telling popover pattern) + one docs paragraph, manifesto voice,
+    written once and reused.
+[ ] SOCIAL ANALYTICS, chess.com-style (operator, 26.07): the second
+    outside-app beat — ranked analytics on your social data: your
+    followers/engagement/growth, you vs your friends, you vs the top
+    creators, percentiles and leaderboards, computed client-side from
+    public data under your own scoped token. "your number is real
+    here" as a dashboard. lane item D-social-analytics
+    (ws-D/marketing, after D-graph-app).
     hosting: v0 ships as a marketing-ui route (/graph) to avoid new
     vhost/compose churn; graph.web10.app becomes its own vhost when it
     earns it (lane E touch then, not now). gate: D-ledger-mirror-fix —
