@@ -105,6 +105,8 @@ services:
     build: ../marketing/marketing-api
     environment:
       VIRTUAL_HOST: marketing-api.localhost
+      NODE_API_URL: http://api.localhost
+      NODE_API_TOKEN: ""
     networks:
       - e2e-net
 

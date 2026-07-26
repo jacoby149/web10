@@ -251,7 +251,7 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       lane D, gated on this — leave the JSON contract as a .context/
       note. gate: none.
 
-[ ] A13-discovery-terms — PRIORITY (26.07 operator pass): real users'
+[✓ 1.0.178] A13-discovery-terms — PRIORITY (26.07 operator pass): real users'
       public posts still don't reach the discover board (marketing
       /trending AND the social-app Discover, even sorted newest).
       1.0.171 fixed HALF of it: service_allows_anon (documentdb.py) now
@@ -870,6 +870,36 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         acceptance: a second account sees the author's public-post
         photos + avatar on dev (private bucket, zero 403s in console);
         DM/private-post media still 403s for non-owners.
+        STATUS 26.07: the gate (A12) merged 1.0.164 — this is UNBLOCKED
+        and staged on the 26.07 fleet (ws-D/feed). it is the single
+        biggest visible hole after A13: no follower can render ANY
+        image an author uploads.
+[ ] D-follow-backfill (sub-lane ws-D/feed, AFTER D-public-media-client
+        — same workspace chain, data-layer seam): "followed X, don't
+        see them in my feed" (operator, 26.07 — plan.txt PHASE 8.6
+        known gap, previously narrative-only). fan-out is push-only at
+        POST time to CURRENT followers (D-post-delivery 1.0.165), so
+        following someone surfaces NOTHING until they next post. fix:
+        on follow, BACKFILL — followUser (data/follows.ts) fetches the
+        followee's recent public posts (the pattern UserProfileScreen
+        .tsx already uses to render another user's post grid — the
+        discovery API filtered by author; direct public_posts CRUD
+        read works too once A13's terms land) and writes each into the
+        follower's OWN inbox, capped at the ~20 most recent, using the
+        exact inbox shape D-post-delivery fans out ({post_id,
+        post_body, author_username, author_provider, delivered_at}) —
+        dedupe on post_id so re-follow doesn't duplicate. unfollow
+        does NOT retract already-delivered inbox records (email
+        semantics); it only stops future delivery (already true).
+        files: data/follows.ts (+ own exports only; if a read helper
+        is needed, add it, don't repurpose another sub-lane's).
+        acceptance: a fresh account follows a persona → the persona's
+        existing posts appear in the Feed tab immediately, no waiting
+        for a new post; re-follow doesn't duplicate; text is the bar
+        (image 403s are D-public-media-client's). gate: none hard —
+        A13-discovery-terms makes the backfill source reliable on dev;
+        verify against the local stack if dev's terms aren't migrated
+        yet.
 [✓ 1.0.155] D-url-routing (sub-lane D/shell; was "D27" for a day — renamed per
         rule 4/D33). THE ADDRESS BAR HOLDS YOUR PLACE — (operator,
         23.07: refreshing the social app should put you back on the
@@ -1013,7 +1043,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
    self-contained; the SEAM note names the file two items must not both
    edit — run those in the SAME workspace sequentially, not parallel.
 
-[ ] D-profile-post-experience (sub-lane ws-D/profile; SEAM:
+[✓ 1.0.178] D-profile-post-experience (sub-lane ws-D/profile; SEAM:
       ProfileScreen.tsx + PostLightbox.tsx — this item owns both):
       make a profile post fully viewable + editable. (1) VIDEO THUMBS:
       the Posts/Media grid renders <img src=firstMedia.url> which shows
@@ -1050,7 +1080,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       leaves discovery + the public wall; flip back, it returns. gate:
       D-profile-post-experience merged.
 
-[ ] D-messages-views (sub-lane ws-D/messages; SEAM: components/Chat/**
+[x] D-messages-views (sub-lane ws-D/messages; SEAM: components/Chat/**
       + DmsScreen): three views behind a toggle on the messages screen.
       (1) current chat/DM list (exists). (2) MAIL view — the whole
       inbox rendered gmail-style (thread list, read/unread, preview
@@ -1083,7 +1113,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       it persists + renders framed on reload; screenshot. gate:
       D-profile-post-experience merged (same file).
 
-[ ] D-bug-reports-delivery (sub-lane ws-D/feedback; SEAM: marketing-api
+[✓ 1.0.181] D-bug-reports-delivery (sub-lane ws-D/feedback; SEAM: marketing-api
       main.py + web10-social ReportBug.tsx): route "Report a bug" to the
       operator instead of an in-memory list. marketing-api /feedback
       appends to `feedback_store: list` (main.py:394) — lost on restart.
@@ -1114,7 +1144,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       of the post-viewer work beyond the shared ProfileScreen file — run
       after it in the same ws-D/profile chain).
 
-[ ] D-join-two-step (sub-lane ws-D/marketing; SEAM: marketing-ui
+[✓ 1.0.178] D-join-two-step (sub-lane ws-D/marketing; SEAM: marketing-ui
       Join.tsx): the /join flow is confusing — it conflates two steps
       (visit the web10-social app, THEN sign up for the account). Make
       the two steps explicit and sequential on the page (numbered, or a
@@ -1122,6 +1152,37 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       marketing/marketing-ui/src/pages/Join.tsx. read design.md first.
       acceptance: a first-time reader understands it's two steps;
       screenshot desktop + 375px. gate: none.
+
+[ ] D-link-embeds (sub-lane ws-D/feed, AFTER D-follow-backfill — same
+      workspace chain; operator, 26.07): paste a link into a post and it
+      renders as an EMBED, the table-stakes feature every platform has
+      (a youtube link becomes a playable player, other links become a
+      preview card). v0, client-side only, no new api: (1) composer +
+      post renderers detect URLs in post text; (2) an allowlisted set of
+      KNOWN embeds renders a real player via the provider's public
+      iframe embed (youtube + vimeo to start — youtube-nocookie.com
+      privacy-enhanced src; lazy-load: render a thumbnail + play badge,
+      swap in the iframe on click so feeds never eat N iframes); (3) all
+      other links render as a plain external-link chip (favicon + domain
+      + open-in-new-tab, rel="noopener noreferrer") — NO server-side
+      og-scrape in v0 (that's a marketing-api/lane-A fetcher with SSRF
+      surface — the A-side og-preview fetcher is a LATER item, don't
+      build it here). embeds must render in FeedScreen, the profile
+      grid/PostLightbox, and DM bubbles. keep it design.md-grade: the
+      embed card uses tokens, never raw provider chrome beyond the
+      iframe itself. files: a new components/Feed/LinkEmbed.tsx + a pure
+      lib/linkEmbeds.ts (URL detect + provider parse, unit-tested:
+      youtu.be, youtube.com/watch, /shorts, vimeo, bare domains, no
+      false-positives inside words), wired into FeedScreen.tsx,
+      PostLightbox.tsx, Chat message renderer. SEAM: FeedScreen.tsx +
+      PostLightbox.tsx are the ws-D/profile chain's files — do NOT run
+      this in parallel with D-profile-post-experience; it runs in
+      ws-D/feed AFTER that chain merges (or coordinate via .context/).
+      acceptance: a post whose text contains a youtube URL shows a
+      playable embed in feed + lightbox (click-to-load), a random URL
+      shows a link chip, a DM with a link gets the same treatment;
+      no layout shift (reserve 16:9 space); screenshots desktop + 375px.
+      gate: D-profile-post-experience merged (file seam).
 
 [ ] D-poke (sub-lane ws-D/engagement; mostly independent): an "advanced
       poke" — a playful, lightweight nudge primitive (the facebook-poke
@@ -1390,6 +1451,14 @@ fix), bug-reports plan capture.
   PARALLEL-SAFE FLEET (26.07, one workspace per sub-lane, no shared
   seams — see each item for files/gates/acceptance):
     ws-A:            A13-discovery-terms (PRIORITY, above)
+    ws-D/feed:       D-public-media-client (UNBLOCKED 26.07 — gate A12
+                     merged 1.0.164; the "no follower can see any
+                     image" wall, biggest visible hole after A13),
+                     THEN D-follow-backfill (follow → their existing
+                     posts land in your feed; PHASE 8.6 known gap,
+                     filed 26.07), THEN D-link-embeds (paste a youtube
+                     link → playable embed; gate: ws-D/profile's
+                     D-profile-post-experience merged — file seam)
     ws-D/profile:    D-profile-post-experience (video thumbs + full
                      viewer/editor: like/comment/edit/delete), THEN
                      D-post-visibility-toggle + D-profile-image-placement
@@ -1405,6 +1474,11 @@ fix), bug-reports plan capture.
     GATED (don't pick up until the gate clears):
       D-inapp-discover-knobs (gate: D20 revisit in decisions.md — it's
       a product-decision reversal, not a bug; operator must sign off).
+      D-feed-avatar-resolution + the D-user-profile-media grid half
+      (gate: the public-media path END TO END — A12 ✓ 1.0.164 +
+      D-public-media-client merged and verified on dev).
+      D-link-embeds (gate: D-profile-post-experience merged — it wires
+      into FeedScreen/PostLightbox, the ws-D/profile chain's files).
   Selection rule (CLAUDE.md): only truly-parallel items at once. The
   ws-D/profile and ws-D/messages chains are SEQUENTIAL within their
   sub-lane (shared file seam) — don't split them across workspaces.

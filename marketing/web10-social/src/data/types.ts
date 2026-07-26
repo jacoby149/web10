@@ -66,6 +66,10 @@ export interface MediaUploadRequest {
   durationSeconds?: number;
   thumbnailFile?: File; // thumbnail/poster blob to upload alongside
   altText?: string;
+  // D35: target service for the media record. "public_media" for
+  // public-post attachments / avatar/banner so non-owners can
+  // presign reads. Defaults to "media" (owner-only, legacy fallback).
+  service?: 'media' | 'public_media';
 }
 
 // ── profile ─────────────────────────────────────────────────────────────────

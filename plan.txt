@@ -2001,16 +2001,16 @@ navigation / surfaces (coming-soon stubs shipped; builds pending):
 [ ] marketplace -- creator commerce. stub live.
 
 messages -- three views, a toggle on the messages screen (operator idea):
-[ ] view 1: current chat/DM list (shipped).
-[ ] view 2: MAIL view -- the whole inbox rendered gmail-style (threads,
+[x] view 1: current chat/DM list (shipped).
+[x] view 2: MAIL view -- the whole inbox rendered gmail-style (threads,
     read/unread, preview) as a toggle.
-[ ] view 3: CRM view -- notes + contact history per person, in-app, so
+[x] view 3: CRM view -- notes + contact history per person, in-app, so
     influencers remember who they reached out to. the web10-social CRM
     sub-app (here since 1.0.30) is the reference; this is a messages-only
     lens over the same contact/DM data.
 
 posts / profile -- controls the operator found missing:
-[ ] delete a post (owner action, on the wall + in the lightbox).
+[✓ 1.0.178] delete a post (owner action, on the wall + in the lightbox).
 [ ] change a post's visibility after publish (public <-> private is a
     collection move, D30; mirror the composer's selector post-hoc).
 [ ] profile avatar + banner PLACEMENT editing -- reposition/crop, fix
@@ -2030,23 +2030,35 @@ engagement:
     design TBD, keep it non-infringing; could ride the public-ledger
     reaction plumbing.
 
+posts -- rich content (operator, 26.07):
+[ ] LINK EMBEDS -- paste a url into a post (or dm) and it renders as an
+    embed, the table-stakes feature every platform has: a youtube link
+    becomes a playable player in the feed; other links become a preview
+    chip. v0 is client-side only (D-link-embeds in parallel
+    execution.txt, ws-D/feed): allowlisted iframe embeds (youtube +
+    vimeo, privacy-enhanced src, click-to-load thumbnail so feeds never
+    eat N iframes), every other url a favicon+domain external-link chip.
+    NO server-side og-scraping in v0 -- a generic link-preview fetcher
+    is a lane-A/marketing-api item with SSRF surface; it graduates
+    later, behind the same allowlist thinking, if plain chips prove too
+    thin. embeds render everywhere post text renders: feed, profile
+    grid/lightbox, dm bubbles.
+
 bug reports -> the operator (operator idea):
-[ ] route "Report a bug" submissions to the operator instead of dying in
-    memory. TODAY: ReportBug (web10-social) POSTs marketing-api /feedback,
-    which appends to an in-memory `feedback_store: list` (main.py:394) --
-    lost on restart, only readable via GET /feedback. WANT (operator's two
-    options): (a) deliver each report as a DM to jacoby149@web10.app so it
-    lands in the operator's own inbox (dogfoods the DM/inbox plumbing --
-    the report becomes a normal message record), OR (b) an operator-only
-    "Bugs" panel inside web10-social, visible only to the operator account,
-    that lists reports. (a) is the on-thesis choice: bugs are just messages
-    to the operator, no special surface, and it exercises the same delivery
-    path real users get. either way, persist first (the in-memory list is
-    the actual bug -- reports vanish on deploy).
+[✓ 1.0.181] route "Report a bug" submissions to the operator instead of dying in
+     memory. TODAY: ReportBug (web10-social) POSTs marketing-api /feedback,
+     which appends to an in-memory `feedback_store: list` (main.py:394) --
+     lost on restart, only readable via GET /feedback. WANT: persist first
+     (done — JSON file on disk, survives restart), then publish each report
+     as a public post in the `web10` system account's `public_posts`
+     collection tagged `#web10-bugs` — bug reports are discoverable,
+     searchable, and engageable on web10-social. The post delivery is
+     opt-in via `NODE_API_URL` + `NODE_API_TOKEN` env vars (fire-and-forget,
+     logged on skip/failure). When unset, the report still persists to disk.
 
 known gaps confirmed this session (see CHANGELOG 1.0.169-1.0.174):
-[ ] PRIORITY — public discoverability is still broken for real accounts
-    (A13-discovery-terms in parallel execution.txt, LANE A). 1.0.171
+[✓ 1.0.178] PRIORITY — public discoverability is still broken for real accounts
+     (A13-discovery-terms in parallel execution.txt, LANE A). 1.0.171
     fixed HALF: service_allows_anon now matches the app's `.*` anon-read
     whitelist by regex (was an exact "anon" compare). The remaining half:
     the public_posts anon-read TERM isn't provisioned for a real account.
@@ -2064,7 +2076,10 @@ known gaps confirmed this session (see CHANGELOG 1.0.169-1.0.174):
     surfaces nothing until THEY post again (fan-out is push-only, at
     post time, to current followers). "followed X, don't see them in my
     feed" is exactly this. needs on-follow backfill OR a pull over
-    followees' public_posts -- the D-post-delivery / D-feed core work.
+    followees' public_posts -- filed 26.07 as D-follow-backfill
+    (parallel execution.txt, ws-D/feed): on follow, deliver the
+    followee's recent public posts into the follower's own inbox,
+    capped, deduped on post_id.
 [ ] in-app Discover has NO knobs by design (D20: the social feed stays
     chronological; the knobs are the marketing page's "your algorithm"
     theater). operator wants them in-app too -- that's a D20 revisit,

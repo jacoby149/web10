@@ -72,3 +72,27 @@ class TestServicesRecord:
     def test_empty_blacklist(self):
         r = records.services_record()
         assert r["blacklist"] == []
+
+
+class TestPublicPostsTerm:
+    """A13: the canonical anon-read term for public_posts."""
+
+    def test_returns_dict(self):
+        r = records.public_posts_term()
+        assert isinstance(r, dict)
+
+    def test_service_is_public_posts(self):
+        r = records.public_posts_term()
+        assert r["service"] == "public_posts"
+
+    def test_whitelist_has_anon_read(self):
+        r = records.public_posts_term()
+        assert len(r["whitelist"]) == 1
+        entry = r["whitelist"][0]
+        assert entry["username"] == ".*"
+        assert entry["provider"] == ".*"
+        assert entry["read"] is True
+
+    def test_empty_blacklist(self):
+        r = records.public_posts_term()
+        assert r["blacklist"] == []

@@ -25,3 +25,20 @@ def services_record():
         "whitelist": [],
         "blacklist": [],
     }
+
+
+def public_posts_term():
+    """Canonical anon-read term for public_posts — discovery-indexed by default.
+
+    Every new account gets this term provisioned at signup so public posts
+    are discoverable without requiring an interactive SMR from the client.
+    The whitelist uses `.*` regex (matching `get_approved` and
+    `service_allows_anon`) so any user — including anon — may read.
+    """
+    return {
+        "service": "public_posts",
+        "whitelist": [
+            {"username": ".*", "provider": ".*", "read": True},
+        ],
+        "blacklist": [],
+    }

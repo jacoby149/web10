@@ -1,9 +1,13 @@
+import os
 import uuid
+import json
+import logging
 import zipfile
 import tempfile
 import asyncio
 from datetime import datetime
 from pathlib import Path
+from threading import Lock
 
 import requests as http_requests
 from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks
@@ -24,6 +28,8 @@ from .instagram import parse_instagram
 from .facebook import parse_facebook
 from .youtube import parse_youtube
 from .validation import validate_record
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="web10 Marketing API", version="0.1.0")
 
@@ -391,12 +397,111 @@ async def health():
 
 # ─── Feedback (report-a-bug) ──────────────────────────────────────────────────
 
-feedback_store: list[dict] = []
+# Durable feedback store: JSON file that persists across restarts.
+# Kept in memory for fast reads, flushed on every write.
+_feedback_lock = Lock()
+_feedback_store: list[dict] = []
+_feedback_file = Path(__file__).resolve().parent.parent / "data" / "feedback.json"
+
+
+def _load_feedback():
+    """Load feedback from disk into memory on startup."""
+    global _feedback_store
+    if _feedback_file.exists():
+        try:
+            _feedback_store = json.loads(_feedback_file.read_text())
+            logger.info("Loaded %d feedback entries from disk", len(_feedback_store))
+        except (json.JSONDecodeError, OSError) as e:
+            logger.warning("Failed to load feedback from disk: %s", e)
+            _feedback_store = []
+
+
+def _save_feedback():
+    """Persist in-memory feedback to disk."""
+    _feedback_file.parent.mkdir(parents=True, exist_ok=True)
+    _feedback_file.write_text(json.dumps(_feedback_store, indent=2))
+
+
+# Load feedback on module import (app startup).
+_load_feedback()
+
+
+def _deliver_bug_post(entry: dict) -> None:
+    """
+    Deliver a bug report as a public post tagged #web10-bugs.
+
+    Bug reports land in the `web10` system account's `public_posts`
+    collection so they appear on the discover feed and are searchable.
+    The on-thesis choice: bugs are public content, not private DMs.
+    """
+    node_api_url = os.environ.get("NODE_API_URL")
+    node_api_token = os.environ.get("NODE_API_TOKEN")
+
+    if not node_api_url or not node_api_token:
+        logger.warning(
+            "NODE_API_URL / NODE_API_TOKEN not set — bug post skipped for feedback %s",
+            entry.get("id"),
+        )
+        return
+
+    # Build a post record matching the public_posts conventions shape.
+    post_body = {
+        "text": _format_bug_post(entry),
+        "tags": ["web10-bugs", entry.get("app", "unknown")],
+        "created_at": entry["timestamp"],
+        "origin": "feedback",
+        "media_refs": [],
+    }
+
+    try:
+        resp = http_requests.post(
+            f"{node_api_url.rstrip('/')}/web10/public_posts",
+            json={"body": post_body},
+            headers={
+                "Authorization": f"Bearer {node_api_token}",
+                "Content-Type": "application/json",
+            },
+            timeout=10,
+        )
+        if resp.status_code >= 300:
+            logger.error(
+                "Bug post failed for feedback %s: HTTP %s %s",
+                entry.get("id"),
+                resp.status_code,
+                resp.text[:200],
+            )
+        else:
+            logger.info("Bug post created for feedback %s", entry.get("id"))
+    except Exception as e:
+        logger.error("Bug post exception for feedback %s: %s", entry.get("id"), e)
+
+
+def _format_bug_post(entry: dict) -> str:
+    """Format a bug report as a public post body with #web10-bugs tag."""
+    lines = [
+        "#web10-bugs",
+        "",
+        entry.get("message", ""),
+    ]
+    if entry.get("contact"):
+        lines.append(f"\nContact: {entry['contact']}")
+    if entry.get("route"):
+        lines.append(f"Route: {entry['route']}")
+    if entry.get("version"):
+        lines.append(f"Version: {entry['version']}")
+    if entry.get("console_errors"):
+        errors = entry["console_errors"][:3]
+        lines.append(f"\nConsole ({len(entry['console_errors'])} total):")
+        for err in errors:
+            lines.append(f"  - {err[:120]}")
+    if entry.get("stack_trace"):
+        lines.append(f"\nStack:\n```\n{entry['stack_trace'][:2000]}\n```")
+    return "\n".join(lines)
 
 
 @app.post("/feedback")
 async def submit_feedback(fb: FeedbackCreate):
-    """Accept a bug report / feedback from any UI."""
+    """Accept a bug report / feedback from any UI. Persists to disk and delivers as a DM to the operator."""
     entry = {
         "id": str(uuid.uuid4()),
         "type": "feedback",
@@ -410,12 +515,20 @@ async def submit_feedback(fb: FeedbackCreate):
         "stack_trace": fb.stack_trace,
         "timestamp": datetime.utcnow().isoformat(),
     }
-    feedback_store.append(entry)
+    with _feedback_lock:
+        _feedback_store.append(entry)
+        _save_feedback()
+
+    # Publish as a public post tagged #web10-bugs (non-blocking — fire and forget).
+    _deliver_bug_post(entry)
+
     return {"status": "ok", "id": entry["id"]}
 
 
 @app.get("/feedback")
 async def list_feedback(limit: int = 100):
     """List recent feedback entries (newest first)."""
-    items = list(reversed(feedback_store))[:limit]
-    return {"items": items, "total": len(feedback_store)}
+    with _feedback_lock:
+        items = list(reversed(_feedback_store))[:limit]
+        total = len(_feedback_store)
+    return {"items": items, "total": total}

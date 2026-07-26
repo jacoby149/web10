@@ -101,3 +101,19 @@ export async function searchContacts(query: string): Promise<ContactRecord[]> {
       c.username.toLowerCase().includes(q),
   );
 }
+
+/**
+ * Update a contact's note (CRM per-contact notes).
+ * Convenience wrapper around updateContact targeting the note field.
+ */
+export async function updateContactNote(id: string, note: string): Promise<ContactRecord> {
+  return updateContact(id, { note });
+}
+
+/**
+ * Bulk-read all contacts and their notes for the CRM view.
+ * Same as readContacts but explicit — the CRM view uses note + full record.
+ */
+export async function readContactsForCrm(): Promise<ContactRecord[]> {
+  return readContacts();
+}
