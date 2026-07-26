@@ -26,6 +26,17 @@ the two rules that make 4-wide parallelism safe:
    numbered lane items (D21-D25, ticked) stay as history — never mint
    a NEW bare D-nn lane item; the collision already skipped one number
    and made "D21" mean three different things.
+5. BITE SIZING (operator, 27.07 — the workhorse agents are Qwen-class
+   27B: sharp SWEs, small windows): ONE BITE = ONE PR ≈ 20-40 focused
+   minutes — a couple of files, one seam, one acceptance check an
+   agent can hold in its head. if an item's description needs an
+   "AND", it is probably two bites: split it with a BITES: breakdown
+   inside the item and hand agents ONE bite per kickoff. chains
+   (ws-D/profile etc.) are QUEUES of bites — an agent takes the next
+   bite, merges, then takes the next; never "do the whole chain" in
+   one branch. big items keep their slug as the umbrella; bites get
+   -a/-b suffixes or their own slugs. the digestibility IS the
+   throughput: a bite that merges beats a branch that balloons.
 
 STATUS KEY (check before starting anything — don't redo merged work):
   [✓ x.y.z] = merged, see that CHANGELOG.md entry.  [~] = in flight in
@@ -935,6 +946,18 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         ProfileScreen.tsx — coordinate with the ws-D/profile chain
         (run this FIRST; ws-D/profile's D-profile-image-placement
         rebases after).
+        BITES (rule 5 — one PR each):
+        bite a, UPLOADS: PostComposer public-post uploads +
+          ProfileScreen avatar/banner uploads pass
+          service='public_media'; tests pin the confirm-body service
+          field. acceptance: a fresh public post's media record lands
+          in public_media (local stack API check).
+        bite b, READERS + VERIFY: cross-user read paths
+          (UserProfileScreen, FeedScreen/DiscoverScreen resolve,
+          PostLightbox) pass service='public_media' for other users'
+          content, owner legacy fallback intact; then verify the
+          original acceptance on dev (second account sees images,
+          zero 403s). gate: bite a merged.
 [ ] D-follow-backfill (sub-lane ws-D/feed, AFTER D-public-media-client
         — same workspace chain, data-layer seam): "followed X, don't
         see them in my feed" (operator, 26.07 — plan.txt PHASE 8.6
@@ -1234,6 +1257,15 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       opens compose prefilled; a legacy DM thread renders fine in Mail;
       screenshots desktop + 375px, design.md §12. gate:
       D-message-controls merged (same files).
+      BITES (rule 5 — one PR each, in order):
+      bite a, FOLDERS: the Inbox/Sent/Spam rail (tabs at 375px) +
+        the spam-flag record + filtering. no compose changes.
+      bite b, THREAD ANATOMY: subject field (render + compose input),
+        From/To header block, Reply + Forward actions (quote into
+        thread / prefill compose). single-recipient only.
+      bite c, CC/BCC COMPOSE: multi-recipient send (one record per
+        recipient, cc/bcc metadata, bcc never leaks in others'
+        copies) + Reply-all. gate: bite b merged.
 
 [ ] D-crm-upgrade (sub-lane ws-D/messages, AFTER D-mail-experience —
       same Chat/** seam; operator, 26.07 night pass): the CRM view
@@ -1259,6 +1291,12 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       fresh contact; screenshots desktop + 375px. gate:
       D-mail-experience merged (same seam; can swap order with it if
       staged first — they're one chain).
+      BITES (rule 5 — one PR each):
+      bite a, STATUS COLORS: green/yellow/red status on the contact
+        record, settable from row + detail, filter chips + sort.
+      bite b, CONTACT FIELDS + CRUD: richer detail fields (email/
+        phone/company/links + free-form key/value) and add/edit/
+        delete a contact from the CRM view. gate: bite a merged.
 
 [ ] D-settings-tab (sub-lane ws-D/settings — new components/Settings/**
       + one App.tsx route line + one Layout.tsx nav entry; operator,
@@ -1287,6 +1325,14 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       settings; screenshots desktop + 375px, design.md §12. gate: none
       (the .context proposal covers the TBD part — v0 scope above is
       operator-safe).
+      BITES (rule 5 — one PR each):
+      bite a, SHELL: /settings route + nav entry + account section +
+        data/about sections + log out + the .context proposal doc.
+        static content only, no settings record yet.
+      bite b, POSTING DEFAULTS: data/settings.ts record + the
+        default-visibility control + PostComposer reads it for its
+        initial state (one-line composer touch — coordinate with
+        ws-D/feed via .context/). gate: bite a merged.
 
 [ ] D-feedback-contact-privacy (sub-lane ws-D/feedback; SEAM:
       marketing-api main.py — small, do promptly): 1.0.181 publishes
@@ -1317,9 +1363,11 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       banner PLACEMENT — reposition/crop, fix centering. Today the
       avatar/banner are object-cover with no offset control, so a
       non-centered source looks wrong. Add a drag-to-reposition (store a
-      focal point / object-position on the profile record) or a simple
-      crop step on upload. Files: ProfileScreen.tsx, data/profile.ts
-      (persist object_position/focal point), maybe a small cropper.
+      focal point / object-position on the profile record). SCOPE BOUND
+      (rule 5): focal-point drag ONLY — no cropper library, no crop
+      step, no image manipulation; one draggable offset persisted and
+      applied via object-position. that is the whole bite. Files:
+      ProfileScreen.tsx, data/profile.ts (persist the focal point).
       acceptance: upload an off-center avatar/banner, drag to reframe,
       it persists + renders framed on reload; screenshot. gate:
       D-profile-post-experience merged (same file).
@@ -1449,6 +1497,15 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       persona's post shows no edit/delete but does show Share; Share
       copies a link that reopens that post; screenshots desktop +
       375px. gate: file-seam with ws-D/profile (see above).
+      BITES (rule 5 — one PR each):
+      bite a, OPEN FROM FEED: feed posts clickable → PostLightbox
+        opens with an isOwner prop (edit/delete hidden on others'
+        posts). no new routes.
+      bite b, SHARE + PERMALINK: the /u/:username/p/:postId route
+        (opens the lightbox over the profile), Share action
+        (navigator.share + copy-link) on every post. gate: bite a
+        merged. (D-deep-links' ?comment= anchor builds on this
+        route later — leave a .context/ note when the route lands.)
 
 [ ] D-lightbox-media-sizing (sub-lane ws-D/profile — PostLightbox
       seam; operator, 26.07 night pass, screenshot): the lightbox
@@ -1498,6 +1555,13 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       gate: after D-feed-lightbox + the ws-D/profile chain items merge
       (it touches the same three surfaces — stage LAST of the lightbox
       cluster).
+      BITES (rule 5 — one PR each):
+      bite a, THE BACKGROUND: shared TextPostCard component with the
+        deterministic post-id-hash palette, wired into grid + feed +
+        lightbox. no composer changes.
+      bite b, AUTHOR STYLE: composer background picker + align
+        controls, text_style body fields, all surfaces render the
+        choice. gate: bite a merged.
 
 [ ] D-deep-links (sub-lane ws-D/shell; operator, 26.07: "everything
       should be a deep hyperlink on web10 social… every screen
@@ -1534,6 +1598,13 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       back/forward walk the history; screenshots desktop + 375px.
       gate: current 26.07-late fleet merged (it touches most of their
       files).
+      BITES (rule 5 — one bite PER SCREEN when staged, each its own
+      PR): messages (thread key + view param), discover (tag/q
+      params), profile (tab param), comment anchor (?comment= on the
+      permalink route — gate: D-feed-lightbox bite b), marketing
+      retarget (TrendingCard/comment/search links point at the deep
+      urls — gate: the relevant routes merged). never one sweeping
+      branch.
 
 [ ] D-marketing-search (sub-lane ws-D/marketing; operator, 26.07: "the
       one thing we are really missing now is search! searching by tag,
@@ -1563,6 +1634,13 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       state tells the story ("nothing yet — be the first"), no dead
       spinner; screenshots desktop + 375px. gate: none (post
       permalink deep-links degrade until D-feed-lightbox merges).
+      BITES (rule 5 — one PR each):
+      bite a, TRENDING SEARCH: the search bar on /trending + post
+        results in the existing grid (text + #tag queries), signed-
+        out. no nav changes, no user results.
+      bite b, USERS + NAV: matching-users row, the compact nav
+        search affordance, tag-chip routing polish. gate: bite a
+        merged.
 
 [ ] D-graph-app (sub-lane ws-D/marketing, AFTER D-marketing-search —
       same marketing-ui surface; operator, 26.07: "graph.web10.app,
@@ -1628,6 +1706,12 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       cross-follows in the ledger via the seed script); real accounts
       populate as the mirror fix + follows land. D20 check: this is
       marketing/showcase surface, no ranking, no feed — on-thesis.
+      BITES (rule 5 — one PR each):
+      bite a, ANON GRAPH: the /graph route, force-directed public
+        graph (ledger + /discover/users), node click → /u/:username,
+        the explainer popover. no auth code at all.
+      bite b, MY GRAPH: the signed-in ego view (consent flow, scoped
+        token, personal edges). gate: bite a merged.
 
 [ ] D-social-analytics (sub-lane ws-D/marketing, AFTER D-graph-app —
       same showcase surface, sequential; operator, 26.07: "ranked
@@ -1654,6 +1738,9 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       explanation, wall on personal data only); screenshots desktop +
       375px. gate: D-graph-app merged (same chain); counts get real
       for real accounts as D-ledger-mirror-fix + A14/A15 land.
+      BITES (rule 5 — one PR each): bite a, MY NUMBERS (own stats +
+      growth charts, signed-in); bite b, RANKED (percentiles +
+      leaderboards vs follows and top creators; gate: bite a).
 
 [ ] D-appstore-revamp (sub-lane ws-D/marketing — the App Store page
       only, so it may interleave with the search/graph chain if its
@@ -1737,6 +1824,14 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       the v1 revamp merged + the registration-shape decision; comment
       compose benefits from D-ledger-mirror-fix landing but the
       funnel pattern works without it.
+      BITES (rule 5 — one PR each): v1 is ONE bite (the card-grid
+      rework — one page, bounded). v2 splits: bite a, PRODUCT PAGE
+      (detail route: big logo, description, visits, Open — no
+      comments yet); bite b, APP COMMENTS (the D32 ledger panel on
+      the product page; gate: bite a); bite c is LANE A's
+      registration-shape spec note (a .context/decisions.md write-up,
+      no code — gates the rewire build, which bites separately once
+      specced).
 
 [ ] D-poke (sub-lane ws-D/engagement; mostly independent): an "advanced
       poke" — a playful, lightweight nudge primitive (the facebook-poke
@@ -1748,6 +1843,18 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       shows up for them; screenshot. gate: none (design first — propose
       the concept in a .context/ note for operator sign-off before
       building the surface).
+
+[ ] D-mobile-feature-gap (sub-lane ws-D/shell; operator, 27.07): the
+      mobile responsive site has NO access to the new features visible
+      on desktop — all "Coming soon" chips and new surfaces are hidden
+      on 375px. The mobile user is walled off from the product's
+      evolution. Audit every "Coming soon" toggle and responsive guard:
+      if a feature is ship-ready on desktop, it should either ship on
+      mobile too or have an explicit, documented reason for the
+      exclusion. Files: App.tsx routes, sidebar/nav responsive logic,
+      any viewport-gated feature flags. acceptance: a 375px viewport
+      can reach the same features as desktop (or the gap is documented
+      with a migration plan per feature). gate: none.
 
 [ ] D-inapp-discover-knobs (sub-lane ws-D/marketing or ws-D/feed;
       GATE: a D20 REVISIT decision — do NOT build before it): the
@@ -1774,6 +1881,29 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       — spec first), Groups (multi-user spaces), Marketplace (creator
       commerce). Each: own sub-lane, own components dir, own data
       service. gate: per-surface spec first; none blocks another.
+
+[ ] D-night-owl (sub-lane ws-E/infra — the AI team that moonlights so
+      you don't have to; operator, 27.07: "the 10x potential — i am not
+      orchestrating, i am in the back giving my two points on SMS"):
+      the supervisor loop runs every 40min on your Mac via Hammerspoon.
+      screenshots Conductor, an AI vision agent sees the UI and drives
+      it — creates workspaces, sends prompts, reads results, kicks off
+      K3 bites. on crucial moments (web10web10, gather up, brick),
+      texts you like your top engineer. the AI is the eyes — adapts to
+      UI changes, no hardcoded coordinates. files: night_owl/ (init.lua,
+      conductor_agent.lua, texter.lua, config.json, README.md).
+      BITES (rule 5 — one PR each):
+      bite a, SCAFFOLD: Hammerspoon config, AI vision pipeline, texter,
+        config, README. Cmd+Opt+Ctrl+C triggers manual cycle that
+        screenshots Conductor and returns valid AI actions.
+      bite b, CONDUCTOR PILOT: AI navigates Conductor — new workspace,
+        model select, type prompt, hit enter, read result.
+      bite c, SUPERVISOR LOOP: full "should we do it?" pipeline —
+        Fable audit, K3 workspaces created per bite, progress tracked.
+      bite d, TEXTING: crucial events fire SMS in Steve Jobs style.
+      bite e, 24/7: scheduler enabled, fleet runs overnight.
+      gate: Hammerspoon installed, Accessibility permissions granted.
+      acceptance: wake up to merged PRs and a summary text.
 
 LANE E — infrastructure / deployment (owns: proxmox provisioning,
     reverse proxy, CI/CD deploy targets)
@@ -2095,6 +2225,10 @@ STATUS). Meanwhile the operator ran a live pass on the deployed app
   PostLightbox/FeedScreen/PostComposer files form ONE seam cluster
   spanning ws-D/feed and ws-D/profile — the two chains coordinate via
   .context/ notes and never edit the same file concurrently.
+  BITE RULE (rule 5, operator 27.07): the chains above are QUEUES of
+  bites — a kickoff hands an agent exactly ONE bite (one PR, ~20-40
+  min); multi-bite items carry a BITES: breakdown in their lane text.
+  never kick off "the chain".
 
 
 PRIORITY ONE (plan.txt, top — supersedes 19.07's priority zero,

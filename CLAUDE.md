@@ -185,6 +185,114 @@ window is for code, not prose.
   lanes/sub-lanes, no shared seams, all gates merged. The count follows
   the board, not a quota: fewer safe blocks beats a fixed number of
   colliding ones.
+- **Bite sizing (rule 5 in `parallel execution.txt`; operator, 27.07):**
+  one kickoff = ONE BITE = one PR ≈ 20-40 focused minutes — a couple of
+  files, one seam, one acceptance check the agent can hold in its head.
+  Never hand an agent a whole chain or an item whose description needs
+  an "AND"; split those into a BITES: breakdown inside the lane item
+  first, kick off only the next unblocked bite, and name the follow-up
+  bite so the agent queues it after merge. The audit (step 3) is where
+  oversized items get split — a `web10web10!` that emits un-bitten
+  blocks has skipped its own step 3.
+
+## The `unbrick!` code word (operator → strong model)
+
+When the operator says `unbrick!`, it is addressed to a strong,
+large-context model (Claude-class). Small-context agents can ignore
+this section. It means: **a workhorse agent (Qwen-class) choked,
+bricked, or burned a workspace on a task — turn that failure into a
+process fix so it cannot recur.** The operator describes the task,
+what the agent did (error, stall, wrong turn), and roughly why. Then:
+
+1. **Diagnose the failure CLASS, not the instance.** Was it context
+   overflow (item too big / too many files named)? A missing gate
+   (built against unmerged work)? A seam collision? An ambiguous
+   acceptance bar? Missing environment knowledge (a command that
+   needs a flag, a test that needs a running stack, `--legacy-peer-deps`
+   -class friction)? A doc that lied (stale tick, wrong line number)?
+2. **Fix the FLOW — default to code, infra, dev tools. Docs are the
+    fallback, not the fix.** A Qwen 27B is a sharp SWE; if it got
+    mixed up, the first question is not "what rule was missing" but
+    "why was the system complex enough to mix up a competent SWE?" —
+    that complexity is the bug, and the brick is the opportunity to
+    remove it (operator, 27.07). The unbrick IS a structural software
+    change: code, infra, dev ops, dev tools. Anything that makes the
+    workflow foolproof for Qwen so no markdown adjustment is needed —
+    pure enhancement of the ease of use of the system to devs.
+    Default to the staff-SWE fix that makes the failure IMPOSSIBLE or
+    self-explaining: split the monolithic suite/file agents choke on,
+    add the fixture/harness that removes setup archaeology, add a
+    one-command runner for a fast feedback loop, extract the seam two
+    lanes keep colliding on, add a guard that fails fast with the
+    exact fix in its error message, a script for the step agents
+    fumble, a scaffold that makes the correct shape the path of least
+    resistance. Precedent: Qwen was bricking on the e2e testing; the
+    unbrick was a structural change to the suite plus making the
+    tests easier to RUN — the bricking stopped with no new rule.
+    Structural unbricks are code: full finish ritual (tests green,
+    checks green), often zero markdown touched. Fall back to a doc
+    fix (an `AGENTS.md` checklist line, a bite-split or gate fix in
+    `parallel execution.txt`, a sharper kickoff bullet here, an
+    environment note next to the thing that bit) only when code
+    genuinely can't encode the lesson.
+3. **Re-issue the kickoff block** for the bricked task, corrected —
+   with the failure's lesson baked in (smaller bite, explicit gate,
+   the exact command that works) — so the operator can paste it into
+   a fresh workspace immediately.
+4. **Log it:** CHANGELOG line (`docs: unbrick — <failure class>`),
+   and if the fix changed a rule, keep CLAUDE.md/AGENTS.md true in
+   the same branch. PR to dev per `AGENTS.md`.
+
+Rules of the ritual: no blaming the model in the docs (the docs
+failed the agent); one failure = one class = one durable fix — don't
+speculatively add rules for failures that haven't happened (rule
+bloat chokes small windows exactly like big tasks do); if the same
+class bricks twice, the previous fix was wrong — replace it, don't
+stack another rule on top.
+
+## The `should we do it?` command (operator → strong model)
+
+When the operator says `should we do it?`, it is addressed to a
+strong, large-context model (Claude/Fable — the mastermind). It
+means: **can the Qwen fleet run independently longer, and how can
+the mastermind self-improve the markdowns to make that happen?**
+This is not just a status check — it is coaching the mastermind to
+be a more efficient manager of the Qwens. The question is: is the
+mastermind writing tasks in a way that maximizes Qwen independence,
+clarity, and throughput? If the markdowns are better — more steps,
+more independence, more clarity for Qwen — that is a win even if it
+means more markdown, because each Qwen PR costs far less than a
+mastermind intervention.
+
+The goal: milk more independent throughput from the efficient Qwen
+workhorses to reduce reliance on costly strong-model rituals like
+`web10web10!` and `web10 gather up!`. The long-term strategy: use
+Fable less, Qwen more. If we get 2x independent horizon from the
+Qwens, that's the total beast scenario (and soon switching to Kimi
+K3 from Moonshot for 3x savings on top).
+
+1. **Scan the board.** Read `parallel execution.txt` — how many
+   items are `[ ]` vs `[~]` vs `[✓]`? How many bites remain before
+   the next gate? Are gates clear or blocked?
+2. **Assess Qwen autonomy.** Can the current open bites be picked up
+   by Qwen agents without coordination? Are seams isolated? Are
+   acceptance bars clear? Or is a `web10web10!` needed to unblock
+   or re-align?
+3. **Self-improve the markdowns.** This is the core. Look at every
+   open item through Qwen's eyes: is the task description digestible
+   for a 27B model? Does it name exact files? Are gates explicit? Is
+   the acceptance bar one check, not five? If an item would benefit
+   from more bite-splits, sharper file lists, or clearer gates, the
+   mastermind should propose those markdown improvements — more steps
+   and more independence is a win if each step is clearer for Qwen.
+   The `unbrick!` code word helps structurally, but `should we do
+   it?` is about the mastermind writing better tasks upfront so
+   Qwen doesn't brick in the first place.
+4. **Give a verdict.** "Yes, Qwens can run independently — here's
+   the horizon (X PRs before next intervention)" OR "No — the
+   markdowns need improvement first; here are the specific fixes to
+   parallel execution.txt / kickoff blocks that will extend the
+   horizon." Include estimated horizon either way.
 
 ## The `web10 gather up!` code word (operator → strong model)
 

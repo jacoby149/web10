@@ -3307,3 +3307,47 @@ phasing:
   become drop-in contracts for free. candidate to promote into phase 6
   alongside the update-widening work (same write path, same philosophy:
   flexibility with a violation check).
+
+PHASE 13 — night_owl (the AI team that moonlights so you don't have to)
+----------------------------------------------------------------------
+the 10x operator leverage: you stop orchestrating. you're in the back,
+giving two points on SMS. the fleet runs itself.
+
+the supervisor loop runs every 40 minutes on your Mac (Hammerspoon +
+AI vision). it screenshots Conductor, an AI agent sees the UI and
+drives it — creates workspaces, sends prompts, reads results, kicks
+off K3 bites. on crucial moments (web10web10, gather up, brick), it
+texts you like your top engineer.
+
+architecture: night_owl/ lives in the repo. Hammerspoon init.lua is the
+entry point. conductor_agent.lua handles screenshot → AI vision →
+click/keystroke pipeline. texter.lua fires SMS on crucial events.
+config.json holds API keys, phone numbers, schedule.
+
+the AI is the eyes — it adapts to UI changes. no hardcoded coordinates.
+each click is ~5-10s (screenshot → AI → response → click). a 5-step
+workflow takes a minute. fine for a 40min cycle.
+
+the long game: from manual conductor.build → Fable supervisor →
+night_owl autonomous fleet. you wake up to PRs merged, prod shipped,
+and a text: "12 PRs landed overnight. all green. ready for next round."
+
+[ ] night_owl scaffold: Hammerspoon config, AI vision pipeline, texter
+      (scaffolded in night_owl/ — init.lua, conductor_agent.lua,
+      texter.lua, config.json, README.md). acceptance: Cmd+Opt+Ctrl+C
+      triggers a manual cycle that screenshots Conductor and returns
+      valid actions from the AI.
+[ ] night_owl conductor pilot: the AI can navigate Conductor — find
+      the new workspace button, select a model, type a prompt, hit
+      enter, read the result. acceptance: one full cycle: screenshot →
+      AI creates a test workspace → AI types a prompt → AI reads the
+      response → text confirms.
+[ ] night_owl supervisor loop: the full "should we do it?" pipeline —
+      Fable runs the audit, K3 workspaces are created for each bite,
+      progress is tracked across cycles. acceptance: one end-to-end
+      cycle completes without human intervention.
+[ ] night_owl texting: crucial events fire SMS. acceptance: a simulated
+      web10web10 event texts the operator in the Steve Jobs top engineer
+      style.
+[ ] night_owl 24/7: scheduler enabled, fleet runs overnight. acceptance:
+      wake up to merged PRs and a summary text.
