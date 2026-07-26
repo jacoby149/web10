@@ -56,7 +56,7 @@ so it can't regress (C6 continued — the referee for "works").
       non-owners, so a follower can never render an author's photo and
       another user's avatar 403s on dev — fix is A12 + the
       D-public-media-client follow-up (decisions.md D35).
-[✓ 1.0.164] ws-C journey hardening: step 6's assert-the-bar gap from
+[✓ 1.0.167] ws-C journey hardening: step 6's assert-the-bar gap from
       HONESTY NOTE (above) is closed — the e2e pin now reproduces the
       1.0.157 duplicate-profile-record bug condition and asserts the
       correct record's avatar/banner refs are what the app actually

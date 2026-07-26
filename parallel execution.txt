@@ -1221,7 +1221,7 @@ IN FLIGHT NOW (24.07 — one workspace per sub-lane):
   ws-D/marketing: D-trending-knobs (gate D-trending-comments merged
                   1.0.155)
   ws-A:           A12 public-media read path (api side of D35)
-  ws-C:           gauntlet journeys — [✓ 1.0.164] step-6 refresh
+  ws-C:           gauntlet journeys — [✓ 1.0.167] step-6 refresh
                   regression pin, step-5 fixme flip (D-dm-compose UI
                   flow), step-3 follow journey (follow button +
                   /u/:username + follower count, all UI-driven). Next
