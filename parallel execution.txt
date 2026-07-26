@@ -251,7 +251,7 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       lane D, gated on this — leave the JSON contract as a .context/
       note. gate: none.
 
-[ ] A13-discovery-terms — PRIORITY (26.07 operator pass): real users'
+[✓ 1.0.178] A13-discovery-terms — PRIORITY (26.07 operator pass): real users'
       public posts still don't reach the discover board (marketing
       /trending AND the social-app Discover, even sorted newest).
       1.0.171 fixed HALF of it: service_allows_anon (documentdb.py) now
@@ -1043,7 +1043,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
    self-contained; the SEAM note names the file two items must not both
    edit — run those in the SAME workspace sequentially, not parallel.
 
-[ ] D-profile-post-experience (sub-lane ws-D/profile; SEAM:
+[✓ 1.0.178] D-profile-post-experience (sub-lane ws-D/profile; SEAM:
       ProfileScreen.tsx + PostLightbox.tsx — this item owns both):
       make a profile post fully viewable + editable. (1) VIDEO THUMBS:
       the Posts/Media grid renders <img src=firstMedia.url> which shows
@@ -1113,7 +1113,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       it persists + renders framed on reload; screenshot. gate:
       D-profile-post-experience merged (same file).
 
-[ ] D-bug-reports-delivery (sub-lane ws-D/feedback; SEAM: marketing-api
+[✓ 1.0.181] D-bug-reports-delivery (sub-lane ws-D/feedback; SEAM: marketing-api
       main.py + web10-social ReportBug.tsx): route "Report a bug" to the
       operator instead of an in-memory list. marketing-api /feedback
       appends to `feedback_store: list` (main.py:394) — lost on restart.
@@ -1144,7 +1144,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       of the post-viewer work beyond the shared ProfileScreen file — run
       after it in the same ws-D/profile chain).
 
-[ ] D-join-two-step (sub-lane ws-D/marketing; SEAM: marketing-ui
+[✓ 1.0.178] D-join-two-step (sub-lane ws-D/marketing; SEAM: marketing-ui
       Join.tsx): the /join flow is confusing — it conflates two steps
       (visit the web10-social app, THEN sign up for the account). Make
       the two steps explicit and sequential on the page (numbered, or a

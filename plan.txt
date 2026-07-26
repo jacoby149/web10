@@ -2010,7 +2010,7 @@ messages -- three views, a toggle on the messages screen (operator idea):
     lens over the same contact/DM data.
 
 posts / profile -- controls the operator found missing:
-[ ] delete a post (owner action, on the wall + in the lightbox).
+[✓ 1.0.178] delete a post (owner action, on the wall + in the lightbox).
 [ ] change a post's visibility after publish (public <-> private is a
     collection move, D30; mirror the composer's selector post-hoc).
 [ ] profile avatar + banner PLACEMENT editing -- reposition/crop, fix
@@ -2045,22 +2045,20 @@ posts -- rich content (operator, 26.07):
     grid/lightbox, dm bubbles.
 
 bug reports -> the operator (operator idea):
-[ ] route "Report a bug" submissions to the operator instead of dying in
-    memory. TODAY: ReportBug (web10-social) POSTs marketing-api /feedback,
-    which appends to an in-memory `feedback_store: list` (main.py:394) --
-    lost on restart, only readable via GET /feedback. WANT (operator's two
-    options): (a) deliver each report as a DM to jacoby149@web10.app so it
-    lands in the operator's own inbox (dogfoods the DM/inbox plumbing --
-    the report becomes a normal message record), OR (b) an operator-only
-    "Bugs" panel inside web10-social, visible only to the operator account,
-    that lists reports. (a) is the on-thesis choice: bugs are just messages
-    to the operator, no special surface, and it exercises the same delivery
-    path real users get. either way, persist first (the in-memory list is
-    the actual bug -- reports vanish on deploy).
+[✓ 1.0.181] route "Report a bug" submissions to the operator instead of dying in
+     memory. TODAY: ReportBug (web10-social) POSTs marketing-api /feedback,
+     which appends to an in-memory `feedback_store: list` (main.py:394) --
+     lost on restart, only readable via GET /feedback. WANT: persist first
+     (done — JSON file on disk, survives restart), then publish each report
+     as a public post in the `web10` system account's `public_posts`
+     collection tagged `#web10-bugs` — bug reports are discoverable,
+     searchable, and engageable on web10-social. The post delivery is
+     opt-in via `NODE_API_URL` + `NODE_API_TOKEN` env vars (fire-and-forget,
+     logged on skip/failure). When unset, the report still persists to disk.
 
 known gaps confirmed this session (see CHANGELOG 1.0.169-1.0.174):
-[ ] PRIORITY — public discoverability is still broken for real accounts
-    (A13-discovery-terms in parallel execution.txt, LANE A). 1.0.171
+[✓ 1.0.178] PRIORITY — public discoverability is still broken for real accounts
+     (A13-discovery-terms in parallel execution.txt, LANE A). 1.0.171
     fixed HALF: service_allows_anon now matches the app's `.*` anon-read
     whitelist by regex (was an exact "anon" compare). The remaining half:
     the public_posts anon-read TERM isn't provisioned for a real account.

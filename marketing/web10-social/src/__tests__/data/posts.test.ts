@@ -146,6 +146,7 @@ describe('posts data layer', () => {
         durationSeconds: null,
         thumbnailUrl: null,
         altText: null,
+        service: undefined,
       });
       expect(result._id).toBe('m1');
 
@@ -221,7 +222,7 @@ describe('posts data layer', () => {
       mock.getReadUrl.mockResolvedValue({ readUrl: presigned, expiresIn: 60 });
 
       const result = await posts.resolveMediaRefs(['m9']);
-      expect(mock.getReadUrl).toHaveBeenCalledWith('alice/abc/pic.png', undefined, undefined);
+      expect(mock.getReadUrl).toHaveBeenCalledWith('alice/abc/pic.png', undefined, undefined, undefined);
       expect(result[0].url).toBe(presigned);
     });
 
@@ -234,7 +235,7 @@ describe('posts data layer', () => {
       mock.getReadUrl.mockResolvedValue({ readUrl: 'https://signed/real', expiresIn: 60 });
 
       await posts.resolveMediaRefs(['mK']);
-      expect(mock.getReadUrl).toHaveBeenCalledWith('bob/zz/real.png', undefined, undefined);
+      expect(mock.getReadUrl).toHaveBeenCalledWith('bob/zz/real.png', undefined, undefined, undefined);
     });
 
     it('D23: thumbnail gets its own presigned URL when it differs from the full image', async () => {
@@ -251,8 +252,8 @@ describe('posts data layer', () => {
 
       const result = await posts.resolveMediaRefs(['m1']);
 
-      expect(mock.getReadUrl).toHaveBeenNthCalledWith(1, 'alice/abc/photo.png', undefined, undefined);
-      expect(mock.getReadUrl).toHaveBeenNthCalledWith(2, 'alice/abc/photo-thumb.png', undefined, undefined);
+      expect(mock.getReadUrl).toHaveBeenNthCalledWith(1, 'alice/abc/photo.png', undefined, undefined, undefined);
+      expect(mock.getReadUrl).toHaveBeenNthCalledWith(2, 'alice/abc/photo-thumb.png', undefined, undefined, undefined);
       expect(result[0].url).toBe('https://signed/photo?sig=full');
       expect(result[0].thumbnail_url).toBe('https://signed/photo-thumb?sig=thumb');
     });

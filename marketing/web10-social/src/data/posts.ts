@@ -155,6 +155,11 @@ export async function deletePost(id: string): Promise<void> {
  * D21: if width/height/durationSeconds/thumbnailFile/altText are provided,
  * they are sent to the confirm endpoint so the media record carries real
  * dimensions, a thumbnail URL (for video posters), and alt text.
+ *
+ * D35: the optional `service` on MediaUploadRequest targets the confirm
+ * endpoint. Public-post attachments and avatar/banner use `public_media`
+ * so non-owners can presign reads. DM/private-post media defaults to
+ * `media` (owner-only, legacy fallback).
  */
 export async function uploadMedia(request: MediaUploadRequest): Promise<MediaRecord> {
   const wapi = getWapi();
@@ -162,7 +167,7 @@ export async function uploadMedia(request: MediaUploadRequest): Promise<MediaRec
   // Upload the thumbnail/poster first (if provided) so we have its URL
   let thumbnailUrl: string | null = null;
   if (request.thumbnailFile) {
-    const thumbRecord = await uploadMedia({ file: request.thumbnailFile });
+    const thumbRecord = await uploadMedia({ file: request.thumbnailFile, service: request.service });
     thumbnailUrl = thumbRecord.url;
   }
 
@@ -199,6 +204,7 @@ export async function uploadMedia(request: MediaUploadRequest): Promise<MediaRec
     durationSeconds: request.durationSeconds ?? null,
     thumbnailUrl,
     altText: request.altText ?? null,
+    service: request.service,
   });
 }
 
@@ -241,15 +247,23 @@ export async function deleteMedia(id: string): Promise<void> {
  * user; pass an explicit `owner` to refresh media authored by someone
  * else (the feed's own posts resolve from the current user's media
  * collection — the cross-user avatar path is a separate concern).
+ *
+ * D35: the optional `service` parameter targets the correct collection.
+ * For cross-user reads of public content, `public_media` must be used
+ * so the presign endpoint checks the anon-readable terms instead of
+ * the owner-only `media` terms. Defaults to `media` for backward
+ * compatibility (owner reads, legacy records).
  */
 export async function resolveMediaRefs(
   refs: string[],
   owner?: { username: string; provider: string },
+  service?: 'media' | 'public_media',
 ): Promise<MediaRecord[]> {
   if (!refs.length) return [];
   const wapi = getWapi();
-  const records = await wapi.read<MediaRecord>('media', { _id: { $in: refs } });
-  return refreshMediaUrls(records, owner);
+  const targetService = service || 'media';
+  const records = await wapi.read<MediaRecord>(targetService, { _id: { $in: refs } });
+  return refreshMediaUrls(records, owner, service);
 }
 
 /**
@@ -259,10 +273,15 @@ export async function resolveMediaRefs(
  * from the stored URL. Records whose URL can't be resolved to a key
  * (e.g. a non-S3 legacy url) are passed through unchanged so a bad
  * derivation never breaks a render worse than before.
+ *
+ * D35: the optional `service` parameter is passed through to
+ * `getReadUrl` so presigns check the correct terms (`public_media`
+ * for cross-user public content, `media` for owner reads).
  */
 export async function refreshMediaUrls(
   records: MediaRecord[],
   owner?: { username: string; provider: string },
+  service?: 'media' | 'public_media',
 ): Promise<MediaRecord[]> {
   if (!records.length) return records;
   const wapi = getWapi();
@@ -271,13 +290,13 @@ export async function refreshMediaUrls(
       const objectKey = (r.object_key as string | undefined) || deriveObjectKey(r.url);
       if (!objectKey) return r;
       try {
-        const { readUrl } = await wapi.getReadUrl(objectKey, owner?.username, owner?.provider);
+        const { readUrl } = await wapi.getReadUrl(objectKey, owner?.username, owner?.provider, service);
         let thumbnail_url = r.thumbnail_url ? readUrl : r.thumbnail_url;
         if (r.thumbnail_url && r.thumbnail_url !== r.url) {
           const thumbKey = deriveObjectKey(r.thumbnail_url);
           if (thumbKey && thumbKey !== objectKey) {
             try {
-              const { readUrl: thumbReadUrl } = await wapi.getReadUrl(thumbKey, owner?.username, owner?.provider);
+              const { readUrl: thumbReadUrl } = await wapi.getReadUrl(thumbKey, owner?.username, owner?.provider, service);
               thumbnail_url = thumbReadUrl;
             } catch (thumbErr) {
               console.warn(
@@ -306,6 +325,7 @@ export async function refreshMediaUrls(
 export async function refreshMediaUrl(
   record: MediaRecord,
   owner?: { username: string; provider: string },
+  service?: 'media' | 'public_media',
 ): Promise<MediaRecord> {
-  return (await refreshMediaUrls([record], owner))[0];
+  return (await refreshMediaUrls([record], owner, service))[0];
 }

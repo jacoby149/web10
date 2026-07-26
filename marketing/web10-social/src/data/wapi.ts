@@ -82,6 +82,8 @@ export interface WapiWrapper {
     durationSeconds?: number | null;
     thumbnailUrl?: string | null;
     altText?: string | null;
+    // D35: target service for the media record. Defaults to "media".
+    service?: 'media' | 'public_media';
   }) => Promise<T>;
 
   // Media presigned READ url (POST /media/{user}/read). Returns an
@@ -95,6 +97,8 @@ export interface WapiWrapper {
     objectKey: string,
     username?: string,
     provider?: string,
+    // D35: service to presign against. Defaults to "media".
+    service?: 'media' | 'public_media',
   ) => Promise<{ readUrl: string; expiresIn: number }>;
 
   // P2P (legacy, kept for existing chat)
@@ -103,8 +107,9 @@ export interface WapiWrapper {
 }
 
 // ── Presigned read-URL cache (expiry-aware, in-flight dedupe) ────────────
-// Keyed by `${provider}/${username}/${objectKey}` so media owned by
-// different users on different nodes never collide. Each entry caches
+// Keyed by `${provider}/${username}/${objectKey}/${service}` so media
+// owned by different users, on different nodes, or in different
+// services never collide. Each entry caches
 // the presigned GET URL and the absolute time it expires (`now +
 // expiresIn*1000`); a request returns the cached URL if it is at least
 // `EXPIRY_MARGIN_MS` from expiry, otherwise re-fetches. A concurrent
@@ -122,8 +127,8 @@ interface CachedReadUrl {
 
 const readUrlCache = new Map<string, CachedReadUrl | Promise<CachedReadUrl>>();
 
-function readUrlCacheKey(provider: string, username: string, objectKey: string): string {
-  return `${provider}/${username}/${objectKey}`;
+function readUrlCacheKey(provider: string, username: string, objectKey: string, service: string = 'media'): string {
+  return `${provider}/${username}/${objectKey}/${service}`;
 }
 
 /**
@@ -291,7 +296,7 @@ export function createWapiWrapper(authUrl?: string, rtcServer?: string): WapiWra
       };
     },
 
-    async confirmUpload<T>({ url, filename, mimeType, sizeBytes, width = null, height = null, durationSeconds = null, thumbnailUrl = null, altText = null }) {
+    async confirmUpload<T>({ url, filename, mimeType, sizeBytes, width = null, height = null, durationSeconds = null, thumbnailUrl = null, altText = null, service = 'media' }) {
       const token = getToken();
       if (!token) throw new Error('not authenticated');
       const proto = getProtocol();
@@ -304,6 +309,7 @@ export function createWapiWrapper(authUrl?: string, rtcServer?: string): WapiWra
           token,
           url,
           filename,
+          service,
           mime_type: mimeType,
           size_bytes: sizeBytes,
           width,
@@ -318,13 +324,13 @@ export function createWapiWrapper(authUrl?: string, rtcServer?: string): WapiWra
       return (json.data || json) as T;
     },
 
-    async getReadUrl(objectKey, username, provider) {
+    async getReadUrl(objectKey, username, provider, service = 'media') {
       const token = getToken();
       if (!token) throw new Error('not authenticated');
       const proto = getProtocol();
       const p = provider || raw.readToken().provider;
       const u = username || raw.readToken().username;
-      const cacheKey = readUrlCacheKey(p, u, objectKey);
+      const cacheKey = readUrlCacheKey(p, u, objectKey, service);
 
       // Reuse a still-fresh cached URL...
       const cached = readUrlCache.get(cacheKey);
@@ -343,7 +349,7 @@ export function createWapiWrapper(authUrl?: string, rtcServer?: string): WapiWra
         const resp = await fetch(`${proto}//${p}/${u}/read`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token, object_key: objectKey }),
+          body: JSON.stringify({ token, object_key: objectKey, service }),
         });
         if (!resp.ok) throw new Error(`getReadUrl failed: ${resp.status}`);
         const json = await resp.json();

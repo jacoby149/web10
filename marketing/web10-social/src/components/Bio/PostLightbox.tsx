@@ -1,13 +1,20 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Heart, MessageCircle, Edit3, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import type { PostRecord, MediaRecord } from '@/data/types';
-
-interface PostLightboxProps {
-  post: PostRecord;
-  mediaMap: Record<string, MediaRecord>;
-  onClose: () => void;
-}
+import { getWapi } from '@/data/wapi';
+import {
+  toggleReaction,
+  countReactions,
+  readReactions,
+  countComments,
+  updatePost,
+  deletePost,
+} from '@/data';
+import { CommentThread } from '@/components/Feed/CommentThread';
+import { cn } from '@/lib/utils';
 
 function formatTimeAgo(dateStr: string): string {
   const then = new Date(dateStr).getTime();
@@ -23,18 +30,41 @@ function formatTimeAgo(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString();
 }
 
-// PostLightbox — Instagram-style enlarged view of a single post. Media
-// on the left (paged if there are several refs), caption + meta on the
-// right; stacks on mobile. Backdrop click, Escape, and the close button
-// all dismiss. Follows the app modal idiom (ReportBug): fixed overlay,
-// animate-overlay-in / animate-panel-in, shadow reserved for floats.
-export function PostLightbox({ post, mediaMap, onClose }: PostLightboxProps) {
+interface PostLightboxProps {
+  post: PostRecord;
+  mediaMap: Record<string, MediaRecord>;
+  onClose: () => void;
+  onReload?: () => void;
+}
+
+export function PostLightbox({ post, mediaMap, onClose, onReload }: PostLightboxProps) {
   const media = (post.media_refs || [])
     .map(ref => mediaMap[ref])
     .filter((m): m is MediaRecord => Boolean(m));
   const [index, setIndex] = useState(0);
   const hasMedia = media.length > 0;
   const multiple = media.length > 1;
+
+  // Like state
+  const [liked, setLiked] = useState(false);
+  const [reactionCount, setReactionCount] = useState(0);
+  const [burstKey, setBurstKey] = useState(0);
+
+  // Comment state
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [commentCount, setCommentCount] = useState(0);
+
+  // Edit state
+  const [editing, setEditing] = useState(false);
+  const [editDraft, setEditDraft] = useState(post.text || '');
+  const [saving, setSaving] = useState(false);
+
+  // Delete confirm state
+  const [deleteConfirm, setDeleteConfirm] = useState('');
+
+  // Check if current user is the owner
+  const token = getWapi().readToken();
+  const isOwner = token !== null; // profile posts are always owner's own
 
   const prev = useCallback(() => {
     setIndex(i => (i - 1 + media.length) % media.length);
@@ -50,7 +80,6 @@ export function PostLightbox({ post, mediaMap, onClose }: PostLightboxProps) {
       else if (e.key === 'ArrowRight' && multiple) next();
     };
     window.addEventListener('keydown', onKey);
-    // Lock body scroll while open.
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
@@ -58,6 +87,65 @@ export function PostLightbox({ post, mediaMap, onClose }: PostLightboxProps) {
       document.body.style.overflow = prevOverflow;
     };
   }, [onClose, prev, next, multiple]);
+
+  // Load like state
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      countReactions('posts', post._id || ''),
+      token ? readReactions('posts', post._id || '') : Promise.resolve([]),
+      countComments(post._id || ''),
+    ]).then(([count, reactions, cCount]) => {
+      if (cancelled) return;
+      setReactionCount(count);
+      setLiked(!!reactions.find(
+        r => r.author_username === token.username && r.author_provider === token.provider && r.type === 'like',
+      ));
+      setCommentCount(cCount);
+    }).catch(console.error);
+    return () => { cancelled = true; };
+  }, [post._id, token]);
+
+  async function handleToggleLike() {
+    if (!token) return;
+    const wasLiked = liked;
+    setLiked(!wasLiked);
+    setReactionCount(prev => prev + (wasLiked ? -1 : 1));
+    if (!wasLiked) {
+      setBurstKey(k => k + 1);
+    }
+    try {
+      await toggleReaction('posts', post._id || '', 'like', token.username, token.provider);
+    } catch (e) {
+      console.error('Failed to toggle reaction:', e);
+      setLiked(wasLiked);
+      setReactionCount(prev => prev + (wasLiked ? 1 : -1));
+    }
+  }
+
+  async function handleSaveEdit() {
+    setSaving(true);
+    try {
+      await updatePost(post._id || '', { text: editDraft, updated_at: new Date().toISOString() });
+      setEditing(false);
+      onClose();
+      onReload?.();
+    } catch (e) {
+      console.error('Failed to update post:', e);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    try {
+      await deletePost(post._id || '');
+      onClose();
+      onReload?.();
+    } catch (e) {
+      console.error('Failed to delete post:', e);
+    }
+  }
 
   const current = media[index];
 
@@ -135,18 +223,157 @@ export function PostLightbox({ post, mediaMap, onClose }: PostLightboxProps) {
 
         {/* Details pane */}
         <div className="flex min-h-0 shrink-0 flex-col overflow-y-auto p-5 pr-14 sm:w-80">
-          {post.text ? (
-            <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">
+          {/* Timestamp */}
+          <span className="text-xs text-muted-foreground">
+            {formatTimeAgo(post.created_at)}
+          </span>
+
+          {/* Text content (editable) */}
+          {editing ? (
+            <div className="mt-3 space-y-2">
+              <Textarea
+                value={editDraft}
+                onChange={(e) => setEditDraft(e.target.value)}
+                placeholder="Edit post…"
+                className="text-sm min-h-[80px] resize-none"
+                data-testid="post-edit-input"
+              />
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="brand"
+                  onClick={handleSaveEdit}
+                  disabled={saving}
+                  data-testid="post-edit-save"
+                  className="text-xs"
+                >
+                  {saving ? 'Saving…' : 'Save'}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => { setEditing(false); setEditDraft(post.text || ''); }}
+                  className="text-xs"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : post.text ? (
+            <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">
               {post.text}
             </p>
           ) : (
             !hasMedia && (
-              <p className="text-sm text-muted-foreground">This post has no content.</p>
+              <p className="mt-3 text-sm text-muted-foreground">This post has no content.</p>
             )
           )}
-          <span className="mt-4 text-xs text-muted-foreground">
-            {formatTimeAgo(post.created_at)}
-          </span>
+
+          {/* Actions bar */}
+          <div className="flex items-center gap-1 mt-3">
+            {/* Like */}
+            <button
+              key={burstKey}
+              data-testid="like-button"
+              aria-pressed={liked}
+              onClick={handleToggleLike}
+              className={cn(
+                'flex items-center gap-1.5 px-2.5 py-2 rounded-lg min-h-10 text-sm transition-all duration-150',
+                liked
+                  ? 'text-danger'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-elevated/80',
+                liked && 'animate-heart-burst',
+              )}
+            >
+              <Heart
+                className={cn(
+                  'w-[18px] h-[18px] transition-all duration-150',
+                  liked && 'drop-shadow-[0_0_6px_rgba(239,68,68,0.4)]',
+                )}
+                strokeWidth={1.75}
+                fill={liked ? 'currentColor' : 'none'}
+              />
+              <span className="tabular-nums">{reactionCount || ''}</span>
+            </button>
+
+            {/* Comment */}
+            <button
+              data-testid="comment-button"
+              aria-expanded={commentsOpen}
+              onClick={() => setCommentsOpen((o) => !o)}
+              className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg min-h-10 text-sm text-muted-foreground hover:text-foreground hover:bg-elevated/80 transition-all duration-150"
+            >
+              <MessageCircle className="w-[18px] h-[18px]" strokeWidth={1.75} />
+              <span className="tabular-nums">{commentCount || ''}</span>
+            </button>
+          </div>
+
+          {/* Comment thread */}
+          <CommentThread
+            postId={post._id || ''}
+            isOpen={commentsOpen}
+            count={commentCount}
+            onCountChange={setCommentCount}
+          />
+
+          {/* Owner actions */}
+          {isOwner && !editing && (
+            <div className="mt-3 pt-3 border-t border-border space-y-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setEditing(true); setEditDraft(post.text || ''); }}
+                className="text-sm text-muted-foreground hover:text-foreground gap-1.5 w-full justify-start"
+                data-testid="post-edit-button"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                Edit post
+              </Button>
+
+              {deleteConfirm === 'delete' ? (
+                <div className="space-y-2">
+                  <p className="text-xs text-danger">Type <span className="font-mono font-medium">delete</span> to confirm</p>
+                  <Input
+                    value={deleteConfirm}
+                    onChange={(e) => setDeleteConfirm(e.target.value)}
+                    placeholder="delete"
+                    className="h-8 text-xs"
+                    data-testid="post-delete-confirm-input"
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={handleDelete}
+                      className="text-xs flex-1"
+                      data-testid="post-delete-confirm-button"
+                    >
+                      Confirm Delete
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setDeleteConfirm('')}
+                      className="text-xs"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setDeleteConfirm('')}
+                  className="text-sm text-danger hover:text-danger hover:bg-danger-muted gap-1.5 w-full justify-start"
+                  data-testid="post-delete-button"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Delete post
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

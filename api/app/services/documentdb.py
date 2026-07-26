@@ -226,11 +226,17 @@ def create_user(form_data, hash):
     # (services) record that allows auth.localhost to modify service terms
     services_terms = to_db(records.services_record(), "services")
 
+    # (public_posts) canonical anon-read term — discovery-indexed by default.
+    # Provisioned here so every new account is discoverable without an
+    # interactive SMR from the client.
+    public_posts_terms = to_db(records.public_posts_term(), "services")
+
     # insert the records to create / sign up the user
     user_col = db[username]
     user_col.insert_one(new_user)
     set_phone_number(phone_number, username)
     user_col.insert_one(services_terms)
+    user_col.insert_one(public_posts_terms)
     return "successfully created a new user"
 
 
@@ -1130,3 +1136,100 @@ def background_remove_post(username: str, service: str, post_id: str):
         remove_discovery_post(username, service, post_id)
     except Exception:
         pass
+
+
+# ---------------------------------------------------------------------------
+# Migration helpers (A13: discovery terms provisioning + backfill)
+# ---------------------------------------------------------------------------
+
+
+def _user_collections():
+    """Yield usernames of user collections (excluding system collections).
+
+    System collections live under the `web10.` prefix (e.g. `web10.discovery_posts`,
+    `web10.public`, `web10.schemas`). User collections are bare names.
+    """
+    system_prefix = "web10."
+    for name in db.list_collection_names():
+        if not name.startswith(system_prefix):
+            yield name
+
+
+def migrate_public_posts_terms() -> dict:
+    """One-shot migration: provision the canonical public_posts anon-read term
+    for every existing account that lacks it.
+
+    Returns a summary dict with counts of migrated and skipped accounts.
+    """
+    migrated = 0
+    skipped = 0
+    errors = 0
+    for username in _user_collections():
+        try:
+            existing = get_term_record(username, "public_posts")
+            if existing is not None:
+                # Check if the existing term already grants anon read
+                for entry in existing.get("whitelist", []):
+                    uname = entry.get("username", "")
+                    try:
+                        if bool(re.fullmatch(uname, "anon")):
+                            grants_read = bool(entry.get("read")) or bool(entry.get("all"))
+                            if grants_read:
+                                skipped += 1
+                                break
+                    except re.error:
+                        pass
+                else:
+                    # Existing term exists but doesn't grant anon read — update it
+                    term = records.public_posts_term()
+                    user_col = db[username]
+                    user_col.update_one(
+                        {"service": "services", "body.service": "public_posts"},
+                        {"$set": {"body.whitelist": term["whitelist"], "body.blacklist": term["blacklist"]}},
+                    )
+                    migrated += 1
+                continue
+
+            # No existing term — create it
+            term = records.public_posts_term()
+            doc = to_db(term, "services")
+            db[username].insert_one(doc)
+            migrated += 1
+        except Exception:
+            log.warning("migration failed for %s: public_posts term", username, exc_info=True)
+            errors += 1
+    return {"migrated": migrated, "skipped": skipped, "errors": errors}
+
+
+def backfill_discovery() -> dict:
+    """One-shot backfill: iterate all user collections, read public_posts,
+    and upsert each into the discovery index.
+
+    This is needed because 1.0.171 only indexes posts on CREATE going forward.
+    Posts created before the fix are anon-readable but never indexed.
+
+    Returns a summary dict with counts of backfilled posts per user.
+    """
+    _ensure_discovery_collection()
+    total = 0
+    per_user: dict[str, int] = {}
+    errors = 0
+
+    for username in _user_collections():
+        try:
+            user_col = db[username]
+            posts = list(user_col.find({"service": "public_posts"}))
+            count = 0
+            for doc in posts:
+                body = doc.get("body", {})
+                body["_id"] = str(doc["_id"])
+                upsert_discovery_post(username, "public_posts", body)
+                count += 1
+            if count:
+                per_user[username] = count
+                total += count
+        except Exception:
+            log.warning("backfill failed for %s: public_posts", username, exc_info=True)
+            errors += 1
+
+    return {"total": total, "per_user": per_user, "errors": errors}

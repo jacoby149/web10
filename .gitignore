@@ -32,3 +32,6 @@ coverage/
 ui/public/YourOrgsLogo/*
 !ui/public/YourOrgsLogo/generic*
 !ui/public/YourOrgsLogo/key_*
+
+# marketing-api runtime data (feedback store, etc.)
+marketing/marketing-api/data/
