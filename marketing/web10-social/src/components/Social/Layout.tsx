@@ -1,6 +1,6 @@
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { Home, User, MessageSquare, PlusCircle, LogOut, Bug, Compass } from 'lucide-react';
+import { Home, User, MessageSquare, PlusCircle, LogOut, Bug, Compass, Users, Store, Gamepad2, Radio } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface LayoutProps {
@@ -14,6 +14,13 @@ const navItems = [
   { path: '/discover', icon: Compass, label: 'Discover', testId: 'nav-discover' },
   { path: '/profile', icon: User, label: 'Profile', testId: 'nav-profile' },
   { path: '/messages', icon: MessageSquare, label: 'Messages', testId: 'nav-messages' },
+];
+
+const comingSoonItems = [
+  { icon: Users, label: 'Groups', testId: 'nav-groups' },
+  { icon: Store, label: 'Marketplace', testId: 'nav-marketplace' },
+  { icon: Radio, label: 'Livestream', testId: 'nav-livestream' },
+  { icon: Gamepad2, label: 'Games', testId: 'nav-games' },
 ];
 
 function Wordmark({ className }: { className?: string }) {
@@ -84,6 +91,26 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
             <PlusCircle className="w-5 h-5" strokeWidth={1.75} />
             New post
           </button>
+
+          <div className="mt-6 pt-4 border-t border-border/60" aria-label="Coming soon">
+            <p className="px-3 pb-1 text-[0.625rem] font-medium uppercase tracking-wider text-muted-foreground/50">
+              Coming soon
+            </p>
+            {comingSoonItems.map(({ icon: Icon, label, testId }) => (
+              <div
+                key={testId}
+                data-testid={testId}
+                aria-disabled="true"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground/50 cursor-not-allowed select-none"
+              >
+                <Icon className="w-5 h-5" strokeWidth={1.75} />
+                {label}
+                <span className="ml-auto text-[0.5625rem] font-semibold uppercase tracking-wide text-brand-300/80 bg-brand-muted/50 border border-brand/15 rounded-full px-1.5 py-0.5">
+                  Soon
+                </span>
+              </div>
+            ))}
+          </div>
         </nav>
         <div className="relative p-4 border-t border-border space-y-1">
           <Button
