@@ -2030,6 +2030,20 @@ engagement:
     design TBD, keep it non-infringing; could ride the public-ledger
     reaction plumbing.
 
+posts -- rich content (operator, 26.07):
+[ ] LINK EMBEDS -- paste a url into a post (or dm) and it renders as an
+    embed, the table-stakes feature every platform has: a youtube link
+    becomes a playable player in the feed; other links become a preview
+    chip. v0 is client-side only (D-link-embeds in parallel
+    execution.txt, ws-D/feed): allowlisted iframe embeds (youtube +
+    vimeo, privacy-enhanced src, click-to-load thumbnail so feeds never
+    eat N iframes), every other url a favicon+domain external-link chip.
+    NO server-side og-scraping in v0 -- a generic link-preview fetcher
+    is a lane-A/marketing-api item with SSRF surface; it graduates
+    later, behind the same allowlist thinking, if plain chips prove too
+    thin. embeds render everywhere post text renders: feed, profile
+    grid/lightbox, dm bubbles.
+
 bug reports -> the operator (operator idea):
 [ ] route "Report a bug" submissions to the operator instead of dying in
     memory. TODAY: ReportBug (web10-social) POSTs marketing-api /feedback,
@@ -2064,7 +2078,10 @@ known gaps confirmed this session (see CHANGELOG 1.0.169-1.0.174):
     surfaces nothing until THEY post again (fan-out is push-only, at
     post time, to current followers). "followed X, don't see them in my
     feed" is exactly this. needs on-follow backfill OR a pull over
-    followees' public_posts -- the D-post-delivery / D-feed core work.
+    followees' public_posts -- filed 26.07 as D-follow-backfill
+    (parallel execution.txt, ws-D/feed): on follow, deliver the
+    followee's recent public posts into the follower's own inbox,
+    capped, deduped on post_id.
 [ ] in-app Discover has NO knobs by design (D20: the social feed stays
     chronological; the knobs are the marketing page's "your algorithm"
     theater). operator wants them in-app too -- that's a D20 revisit,
