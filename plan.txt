@@ -2010,7 +2010,7 @@ messages -- three views, a toggle on the messages screen (operator idea):
     lens over the same contact/DM data.
 
 posts / profile -- controls the operator found missing:
-[ ] delete a post (owner action, on the wall + in the lightbox).
+[✓ 1.0.178] delete a post (owner action, on the wall + in the lightbox).
 [ ] change a post's visibility after publish (public <-> private is a
     collection move, D30; mirror the composer's selector post-hoc).
 [ ] profile avatar + banner PLACEMENT editing -- reposition/crop, fix
