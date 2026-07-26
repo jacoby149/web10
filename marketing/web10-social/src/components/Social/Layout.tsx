@@ -1,6 +1,6 @@
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { Home, User, MessageSquare, PlusCircle, LogOut, Bug, Compass, Users, Store, Gamepad2, Radio } from 'lucide-react';
+import { Home, User, MessageSquare, PlusCircle, LogOut, Bug, Compass, Users, Store, Gamepad2, Radio, Zap, Clapperboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface LayoutProps {
@@ -16,11 +16,16 @@ const navItems = [
   { path: '/messages', icon: MessageSquare, label: 'Messages', testId: 'nav-messages' },
 ];
 
+// Provisional, non-infringing names for the ephemeral-post and short-video
+// surfaces (Flares ≈ stories, a brief bright signal you send up; Takes ≈
+// reels, a film take). Names are placeholders pending operator sign-off.
 const comingSoonItems = [
-  { icon: Users, label: 'Groups', testId: 'nav-groups' },
-  { icon: Store, label: 'Marketplace', testId: 'nav-marketplace' },
+  { icon: Zap, label: 'Flares', testId: 'nav-flares' },
+  { icon: Clapperboard, label: 'Takes', testId: 'nav-takes' },
   { icon: Radio, label: 'Livestream', testId: 'nav-livestream' },
   { icon: Gamepad2, label: 'Games', testId: 'nav-games' },
+  { icon: Users, label: 'Groups', testId: 'nav-groups' },
+  { icon: Store, label: 'Marketplace', testId: 'nav-marketplace' },
 ];
 
 function Wordmark({ className }: { className?: string }) {

@@ -21,7 +21,7 @@ vi.mock('lucide-react', () => {
     'User', 'MapPin', 'Globe', 'Link', 'Camera', 'Edit3', 'Check',
     'ChevronLeft', 'MessageSquare', 'Home', 'PlusCircle', 'LogOut', 'Bug',
     'AlertTriangle', 'CheckCircle', 'Compass', 'Share2', 'Repeat2',
-    'Film', 'Music2', 'Users', 'Store', 'Gamepad2', 'Radio', 'Plus', 'X', 'Search',
+    'Film', 'Music2', 'Users', 'Store', 'Gamepad2', 'Radio', 'Zap', 'Clapperboard', 'Plus', 'X', 'Search',
     'Video', 'FileText', 'Inbox', 'ChevronDown', 'ChevronRight', 'Lock', 'Trash2', 'ArrowLeft',
   ].forEach(name => { icons[name] = iconFactory(name); });
   return icons;
