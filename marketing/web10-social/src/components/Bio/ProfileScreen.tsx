@@ -12,6 +12,7 @@ import type { ProfileRecord, PostRecord, MediaRecord } from '@/data/types';
 import { MapPin, Globe, Link, Camera, Edit3, Check, X, ImagePlus, Loader2, AlertTriangle, Inbox } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
+import { PostLightbox } from './PostLightbox';
 
 function ProfileSkeleton() {
   return (
@@ -43,6 +44,7 @@ export default function ProfileScreen() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Partial<ProfileRecord>>({});
   const [activeTab, setActiveTab] = useState<'posts' | 'media'>('posts');
+  const [lightboxPost, setLightboxPost] = useState<PostRecord | null>(null);
   const [followingCount, setFollowingCount] = useState<number>(0);
   const [followerCount, setFollowerCount] = useState<number>(0);
   const [stagingCount, setStagingCount] = useState<number>(0);
@@ -383,7 +385,21 @@ export default function ProfileScreen() {
               {posts.map((post) => {
                 const firstMedia = post.media_refs?.[0] ? mediaMap[post.media_refs[0]] : null;
                 return (
-                  <div key={post._id} className="aspect-square bg-elevated overflow-hidden relative group">
+                  <div
+                    key={post._id}
+                    role="button"
+                    tabIndex={0}
+                    aria-label="View post"
+                    data-testid="profile-post-cell"
+                    onClick={() => setLightboxPost(post)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setLightboxPost(post);
+                      }
+                    }}
+                    className="aspect-square bg-elevated overflow-hidden relative group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                  >
                     {firstMedia ? (
                       <img
                         src={firstMedia.url}
@@ -428,7 +444,21 @@ export default function ProfileScreen() {
                 const media = mediaMap[ref];
                 if (!media) return null;
                 return (
-                  <div key={ref} className="aspect-square bg-elevated overflow-hidden group">
+                  <div
+                    key={ref}
+                    role="button"
+                    tabIndex={0}
+                    aria-label="View post"
+                    data-testid="profile-media-cell"
+                    onClick={() => setLightboxPost(post)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setLightboxPost(post);
+                      }
+                    }}
+                    className="aspect-square bg-elevated overflow-hidden relative group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                  >
                     <img
                       src={media.url}
                       alt={media.alt_text || ''}
@@ -447,6 +477,14 @@ export default function ProfileScreen() {
           </div>
         )}
       </div>
+
+      {lightboxPost && (
+        <PostLightbox
+          post={lightboxPost}
+          mediaMap={mediaMap}
+          onClose={() => setLightboxPost(null)}
+        />
+      )}
     </div>
   );
 }
