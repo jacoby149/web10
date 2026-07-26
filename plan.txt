@@ -2227,6 +2227,18 @@ PREMMIUMMM!!!!!"):
     lift, all design.md tokens. first-party apps need REAL icons
     (design.md §3 brand assets, not lucide glyphs). lane item
     D-appstore-revamp (ws-D/marketing).
+[ ] V2, the product page: click an app → big logo, description, and
+    COMMENTS/reviews (D32 public-ledger entries targeting the app id
+    — the machinery post comments already use; federated review
+    aggregation explicitly deferred to M3). AND the registration
+    rewire (operator): app registrations move onto the same public
+    data plane as everything else (an `App` schema in the registry,
+    discovery-indexed), with listing metadata as NODE-HOSTED records
+    — approval attaches to a metadata VERSION, any listing change
+    (a new pwa thumbnail, say) re-enters review; the store never
+    auto-pulls assets from the app's origin. moderation by
+    architecture; lane A spec note before v2 builds (see the
+    D-appstore-revamp lane item).
 
 engagement-count accuracy (operator, 26.07, screenshot: a post's badge
 says 3 comments while the expanded panel renders more than that):

@@ -1657,6 +1657,57 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       naturally; screenshot desktop + 375px and LOOK — the bar is
       "apple app store screenshot" credible. gate: none (independent
       page).
+      V2 — THE PRODUCT PAGE (operator follow-up: "when you see the
+      apps like it is on your iphone, the big logos… and when you
+      click them you see a description with comments! that would be
+      so cool"): (1) the grid goes iphone-home-screen icon-forward —
+      the BIG logo is the card; (2) click → an app DETAIL page:
+      big icon, name, description (from the registered-app record),
+      visit count, screenshots slot (empty-graceful), Open CTA, and
+      COMMENTS/reviews. BACKEND (the operator flagged it un-figured;
+      v0 needs NOTHING new): reviews are D32 public-ledger entries
+      targeting the APP id — the exact machinery post comments use
+      (anon read via PATCH /public/entries; compose auth-gated, the
+      trending-comments funnel pattern; same engagement counting).
+      FEDERATION honesty: where an app's reviews live when the app
+      runs on many nodes is genuinely unsolved — do NOT invent a
+      protocol here (CLAUDE.md rule); v0 renders THIS node's reviews
+      with an honest label, cross-node aggregation is an M3
+      federation question filed with the rest of M3.
+      REGISTRATION REWIRE (operator follow-up: "app registration may
+      need to be rewired to go through the same public avenue /
+      system as the other!"): today's registered apps live in a
+      legacy registration store (the A7-restored records from the
+      live app-store era). the on-thesis target: app registrations
+      become records on the SAME public data plane as everything
+      else — a schema-registered public entry (an `App` schema in the
+      registry, like Post/Comment/Follow/Reaction) that the discovery
+      layer indexes; then the store is just a lens over public data,
+      reviews target app entries natively, and federation inherits
+      whatever answer the public layer gets — one system, no side-
+      channel. AND IT'S THE MODERATION FIX (operator: "you approve
+      [an] app, and then [the] app changes photo to something
+      inappropriate — the pwa thing can totally bypass moderation
+      loopholes"): listing metadata (icon, name, description,
+      screenshots) must be NODE-HOSTED RECORDS, never hot-linked
+      from the app's own backend — then approval attaches to a
+      VERSION of the metadata, any listing edit is a write the node
+      sees, and a changed listing drops back into review
+      (approved → pending-on-change). the store NEVER auto-pulls
+      assets from the app's origin (a pwa manifest/thumbnail change
+      is not silently mirrored — "new thumbnail on a pwa got
+      submitted, that kind of thing": updates arrive only as
+      explicit re-submissions that enter the review queue).
+      bait-and-switch becomes structurally impossible instead of
+      policy-patrolled — moderation by architecture, and a phase 12
+      t&s input. this is
+      a LANE A spec question (write the shape + review-state
+      machine + migration of existing registered apps in a
+      .context/ note or decisions.md entry BEFORE v2 builds against
+      it; v1's visit-sorted card grid reads the legacy store as-is). gate for v2:
+      the v1 revamp merged + the registration-shape decision; comment
+      compose benefits from D-ledger-mirror-fix landing but the
+      funnel pattern works without it.
 
 [ ] D-poke (sub-lane ws-D/engagement; mostly independent): an "advanced
       poke" — a playful, lightweight nudge primitive (the facebook-poke

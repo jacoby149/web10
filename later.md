@@ -86,6 +86,45 @@ or a founding creator asks for an alternate feed/profile rendering,
 or the pitch deck needs the interoperability clinic slide made
 live. build then — one lens at a time, rendering only.
 
+
+## the super-app frame (wechat-shaped positioning)
+
+the idea (operator, 26.07, looking at the app store + the messages
+lens toggle): "this has some chinese wechat super app potential." one
+identity, many apps over the same data, an in-platform store, sub-
+apps inside the flagship (CRM/Mail already live there) — that IS the
+super-app shape. and web10's version is structurally stronger than
+wechat's: wechat mini-apps run on tencent's data under tencent's
+eyes; web10 mini-apps run on YOUR data under scoped tokens you
+consented to (I5). the super-app without the surveillance landlord.
+
+why it's good:
+- every ingredient is already in the plan for creator-platform
+  reasons: the store (D16 + D-appstore-revamp), sub-apps (1.0.182),
+  outside apps (D-graph-app, D-social-analytics), the sdk + scoped
+  tokens. the super-app emerges; nobody has to build "a super app."
+- post-M2, it's a powerful second act for the pitch deck: the
+  creator's node grows from "your instagram" into "your everything
+  app," and the store is how their community gets tools.
+
+why it's parked (the frame, not the ingredients):
+- "the western wechat" is a famously fatal startup pitch — huge,
+  vague, and it dissolves the wedge. D20's discipline is the whole
+  reason the current pitch lands: creator platform, ownership, no
+  shadow ban. the super-app story recruits nobody at M0 and
+  distracts everybody.
+- super-app economics ride on payments + daily-utility lock-in web10
+  doesn't have yet (stripe rails are creator-monetization-shaped,
+  phase 4).
+
+promotion bar: M2 creators are live and their communities start
+ASKING for more apps on the node (the store's visit counts prove
+it), or the raise narrative (business-plan §8c) needs the second-act
+slide. until then: build the ingredients, never say the word.
+
+
+## vibe-coded apps / themes (the real gutenberg)
+
 the idea: an llm generates a complete web10 app on request — react +
 the typed sdk (phase 6) + the conventions doc (D1) as its context —
 deployed as static files, talking to the user's node under a scoped
