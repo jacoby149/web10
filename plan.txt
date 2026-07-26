@@ -2015,6 +2015,10 @@ posts / profile -- controls the operator found missing:
     collection move, D30; mirror the composer's selector post-hoc).
 [ ] profile avatar + banner PLACEMENT editing -- reposition/crop, fix
     centering (today it's object-cover with no offset control).
+[ ] follower + following LIST UI -- the profile shows only counts today;
+    tapping Followers/Following should open the actual list of accounts
+    (avatar + handle, link to /u/:username). data exists in follows.ts
+    (D-follow-lists in parallel execution.txt, ws-D/profile).
 
 messages -- controls the operator found missing:
 [ ] delete a message / conversation.
@@ -2026,10 +2030,36 @@ engagement:
     design TBD, keep it non-infringing; could ride the public-ledger
     reaction plumbing.
 
-known gaps confirmed this session (see CHANGELOG 1.0.169-1.0.171):
-[✓ 1.0.171] real users' public posts now index into discovery (the
-    anon-regex gate fix) -- before this they were anon-readable but
-    invisible on the board; only seeded personas showed.
+bug reports -> the operator (operator idea):
+[ ] route "Report a bug" submissions to the operator instead of dying in
+    memory. TODAY: ReportBug (web10-social) POSTs marketing-api /feedback,
+    which appends to an in-memory `feedback_store: list` (main.py:394) --
+    lost on restart, only readable via GET /feedback. WANT (operator's two
+    options): (a) deliver each report as a DM to jacoby149@web10.app so it
+    lands in the operator's own inbox (dogfoods the DM/inbox plumbing --
+    the report becomes a normal message record), OR (b) an operator-only
+    "Bugs" panel inside web10-social, visible only to the operator account,
+    that lists reports. (a) is the on-thesis choice: bugs are just messages
+    to the operator, no special surface, and it exercises the same delivery
+    path real users get. either way, persist first (the in-memory list is
+    the actual bug -- reports vanish on deploy).
+
+known gaps confirmed this session (see CHANGELOG 1.0.169-1.0.174):
+[ ] PRIORITY — public discoverability is still broken for real accounts
+    (A13-discovery-terms in parallel execution.txt, LANE A). 1.0.171
+    fixed HALF: service_allows_anon now matches the app's `.*` anon-read
+    whitelist by regex (was an exact "anon" compare). The remaining half:
+    the public_posts anon-read TERM isn't provisioned for a real account.
+    records.services_record() ships an empty whitelist, and the only
+    thing that writes the term is SMROnReady's SIR consent (sdk
+    compat.ts:77) which posts the SMR ONLY while the auth portal window
+    is open — an already-signed-in user is never re-prompted, and a
+    server-only change triggers no SMR (the CLIENT contract didn't
+    change). So the operator "gets no SMR" and the term never lands →
+    not indexed AND anon GET 403s. Fix: provision the canonical public
+    terms by default + migrate existing accounts + backfill existing
+    public_posts into discovery (LANE A item has the full spec + a D30
+    "collection is the boundary" option c to decide first).
 [ ] follow does not backfill / there is no pull feed: following someone
     surfaces nothing until THEY post again (fan-out is push-only, at
     post time, to current followers). "followed X, don't see them in my

@@ -1,4 +1,5 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { ChevronDown, SlidersHorizontal } from 'lucide-react';
 import { RotaryKnob } from './RotaryKnob';
 import {
   PRESETS,
@@ -26,12 +27,13 @@ function KnobRack({ state, activePreset, onChange, onPreset }: KnobRackProps) {
     () => WEIGHT_DETENTS.map((_, i) => String(WEIGHT_DETENTS[i])),
     [],
   );
+  // Knobs are power-user controls — presets are the default, the synth rack
+  // hides behind "Advanced" so the surface reads clean (no heavy bordered
+  // card colliding with the page's header/topic bars).
+  const [expanded, setExpanded] = useState(false);
 
   return (
-    <div
-      data-testid="knob-rack"
-      className="mx-auto max-w-4xl rounded-2xl border border-border bg-surface/80 p-4 backdrop-blur-sm sm:p-6"
-    >
+    <div data-testid="knob-rack" className="mx-auto max-w-4xl">
       {/* Preset chips */}
       <div
         className="flex flex-wrap items-center justify-center gap-2"
@@ -59,8 +61,34 @@ function KnobRack({ state, activePreset, onChange, onPreset }: KnobRackProps) {
         })}
       </div>
 
-      {/* Knobs — scroll horizontally on narrow screens, center on desktop */}
-      <div className="knob-row -mx-2 mt-6 flex items-start justify-start gap-6 overflow-x-auto px-2 pb-1 sm:mx-0 sm:justify-center sm:gap-10 sm:overflow-visible sm:px-0">
+      {/* Advanced toggle — reveals the synth rack */}
+      <div className="mt-3 flex justify-center">
+        <button
+          type="button"
+          data-testid="knobs-advanced-toggle"
+          aria-expanded={expanded}
+          aria-controls="knob-advanced-panel"
+          onClick={() => setExpanded(e => !e)}
+          className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium uppercase tracking-[0.06em] text-muted-foreground transition-colors duration-150 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
+          <SlidersHorizontal className="h-3.5 w-3.5" />
+          {expanded ? 'Hide controls' : 'Advanced'}
+          <ChevronDown
+            className={`h-3.5 w-3.5 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
+          />
+        </button>
+      </div>
+
+      {/* Collapsible knob panel — knobs stay mounted; grid-rows trick animates
+          height without measuring. Presets keep working while collapsed. */}
+      <div
+        id="knob-advanced-panel"
+        className={`grid transition-all duration-300 ease-out ${
+          expanded ? 'mt-3 grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+        }`}
+      >
+        <div className="overflow-hidden">
+          <div className="knob-row flex items-start justify-start gap-6 overflow-x-auto rounded-2xl bg-surface/50 px-4 py-6 sm:justify-center sm:gap-10 sm:overflow-visible" aria-hidden={!expanded}>
         <RotaryKnob
           label="Recency"
           value={state.recency}
@@ -101,6 +129,8 @@ function KnobRack({ state, activePreset, onChange, onPreset }: KnobRackProps) {
           onChange={v => onChange('character', v)}
           dataTestId="knob-character"
         />
+          </div>
+        </div>
       </div>
     </div>
   );
