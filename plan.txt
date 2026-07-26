@@ -1803,6 +1803,14 @@ the boring plumbing social apps die without:
     /profile can. Full detail + suggested fix shape in
     .context/e2e-finding-public-ledger-mirror-dead.md. Not fixed here
     (e2e/** lane); re-open as a lane D + lane A item.
+    RE-OPENED (26.07 audit #4, verified still dead at HEAD): the lane D
+    half is D-ledger-mirror-fix (registerDefaultSchemas never called +
+    createPublicEntry sends the wrong body shape vs public.py — every
+    app-side mirror silently stubs), the lane A half is
+    A14-followers-count (/discover/users returns followers_count).
+    both in parallel execution.txt. until these merge, ALL real-account
+    social proof (follower counts, trending engagement) is theater —
+    persona-seeded numbers only.
 [ ] user profile media resolution (gauntlet step 6): viewing another
     user's profile always shows the default initial-letter avatar and
     gradient banner, even when the user has uploaded images.
@@ -2001,13 +2009,75 @@ navigation / surfaces (coming-soon stubs shipped; builds pending):
 [ ] marketplace -- creator commerce. stub live.
 
 messages -- three views, a toggle on the messages screen (operator idea):
-[x] view 1: current chat/DM list (shipped).
-[x] view 2: MAIL view -- the whole inbox rendered gmail-style (threads,
+[✓ 1.0.182] view 1: current chat/DM list (shipped).
+[✓ 1.0.182] view 2: MAIL view -- the whole inbox rendered gmail-style (threads,
     read/unread, preview) as a toggle.
-[x] view 3: CRM view -- notes + contact history per person, in-app, so
+[✓ 1.0.182] view 3: CRM view -- notes + contact history per person, in-app, so
     influencers remember who they reached out to. the web10-social CRM
     sub-app (here since 1.0.30) is the reference; this is a messages-only
     lens over the same contact/DM data.
+
+messages v2 -- the operator's 26.07 night pass on 1.0.182 (with
+screenshots; "these are the things that can give a platform flare" —
+the mail/crm lenses ARE the all-in-one-lens pitch made visible):
+[ ] MAIL must actually be email: "that doesn't look like email! where
+    is the inbox, outbox, spam" — folders (Inbox / Sent / Spam), and
+    the thread view gets real email anatomy: Subject, Reply / Reply-all
+    / Forward, To/Cc/Bcc on compose, From/To header per message. new
+    fields are BODY fields on existing message records (conventions
+    addition, no api change); legacy DMs render fine without them.
+    lane item D-mail-experience (ws-D/messages).
+[ ] CRM parity with the ORIGINAL crm sub-app ("the crm is actually
+    better, more on target, but missing the status colors from the old
+    crm! should have all the features of that original crm — bin and
+    sort people"): color-coded contact status (the old green/yellow/red
+    priority + color filters — components/Crm/Crm.tsx, deleted #120,
+    reference in git; crm-contacts/crm-notes services still registered),
+    sort/filter by status, richer contact fields (email/phone/company/
+    links + free-form), contact CRUD from the view. lane item
+    D-crm-upgrade (ws-D/messages).
+
+shell:
+[ ] SETTINGS TAB (operator, 26.07): "web10 social doesn't have a
+    settings tab, should be a settings tab, facebook style." v0 =
+    account section, posting defaults (default visibility), data/
+    ownership explainer + terms-editor link, about/version/report-bug;
+    full facebook-style tree proposed in .context for sign-off first.
+    settings persist as an ordinary owner-only `settings` record.
+    lane item D-settings-tab (ws-D/settings).
+
+feed / lightbox (operator, 26.07 night pass, screenshots):
+[ ] FEED POSTS AREN'T CLICKABLE — "can't click the posts in the feed to
+    make them big, only on my profile." clicking any feed post should
+    open the same lightbox the profile grid got in 1.0.170/1.0.180.
+    on someone ELSE's post the owner actions (edit/delete) are hidden —
+    "but should be share post! kind of a function": a Share action for
+    every post (navigator.share + copy-link fallback, the
+    D-trending-share pattern) copying a deep link that opens the post.
+    lane item D-feed-lightbox (ws-D/feed).
+[ ] LIGHTBOX MEDIA SIZING — "maybe they can be bigger? or some kind of
+    proper resizing to make it look right": the lightbox renders media
+    small with dead space around it. media-first sizing: scale the
+    modal to the media (up to ~90vh/vw), aspect-aware, no letterbox
+    voids. lane item D-lightbox-media-sizing (ws-D/profile,
+    PostLightbox seam).
+[ ] TEXT-ONLY POST TREATMENT — "something more creative and artistic
+    with the background with text only posts" (screenshot: a text post
+    renders as a huge empty dark cell with tiny top-left text). give
+    text-only posts the text-on-generated-background pattern: centered,
+    scaled type on a deterministic gradient/texture derived from the
+    post id (stable per post, picked from design.md token-based
+    palettes — never hardcoded colors), applied in the profile grid
+    cell, the feed card, and the lightbox. one shared component so all
+    three surfaces agree. PLUS author choice (operator follow-up):
+    "maybe some choice of background styles or formatting — facebook
+    has a markdownesque formatter for text only posts, center, left
+    align, that kind of stuff" — the composer gets a background-style
+    picker (the deterministic one stays as the default) and light
+    formatting controls (align center/left, maybe bold/emphasis),
+    persisted as body fields on the post record so every surface
+    renders the author's choice. lane item D-text-post-cards
+    (ws-D/profile, shared-component seam).
 
 posts / profile -- controls the operator found missing:
 [✓ 1.0.178] delete a post (owner action, on the wall + in the lightbox).
@@ -2044,6 +2114,36 @@ posts -- rich content (operator, 26.07):
     thin. embeds render everywhere post text renders: feed, profile
     grid/lightbox, dm bubbles.
 
+search (operator, 26.07: "the one thing we are really missing now is
+search! searching by tag, even on the marketing page — youtube-esque,
+an entry point into web10 social, if you could search from the
+marketing ui!"):
+[ ] PUBLIC SEARCH on marketing-ui — a search bar on /trending (+ the
+    site header) over the public corpus: posts by text, #tag, and
+    users, backed by the discovery API that already ships (A5.5:
+    PATCH /discover/search, /discover/topics, /discover/users — verify
+    the endpoints' current shapes before building). results render in
+    the trending grid's card language; every result deep-links INTO
+    web10-social (/u/:username, post links once D-feed-lightbox's
+    permalink route exists) — search IS the funnel. lane item
+    D-marketing-search (ws-D/marketing).
+[ ] in-app search parity note: DiscoverScreen's existing search (if
+    any) gets audited against the same corpus in the same pass —
+    "search your own stuff" stays a separate low-hanging-fruit item
+    (gauntlet follow-on list, top of this file).
+
+engagement-count accuracy (operator, 26.07, screenshot: a post's badge
+says 3 comments while the expanded panel renders more than that):
+[ ] the discovery index's CACHED like/comment counts disagree with
+    what the comment panel actually renders — the badge reads the
+    index's engagement aggregation (documentdb.py, cached at index/
+    aggregation time), the panel reads live ledger entries. audit what
+    each path counts (action values, dedup, edits/deletes) and when
+    the cache refreshes; make them agree or refresh-on-read. related
+    but distinct: real-account interactions don't mirror AT ALL
+    (D-ledger-mirror-fix) — this item is the seeded/ledger data
+    agreeing with itself. lane item A15-engagement-count-accuracy.
+
 bug reports -> the operator (operator idea):
 [✓ 1.0.181] route "Report a bug" submissions to the operator instead of dying in
      memory. TODAY: ReportBug (web10-social) POSTs marketing-api /feedback,
@@ -2055,9 +2155,27 @@ bug reports -> the operator (operator idea):
      searchable, and engageable on web10-social. The post delivery is
      opt-in via `NODE_API_URL` + `NODE_API_TOKEN` env vars (fire-and-forget,
      logged on skip/failure). When unset, the report still persists to disk.
+     HONESTY + PRIVACY NOTE (26.07 audit #4): what shipped is option (c)
+     — public posts — which was NOBODY's named option (the item said DM
+     to the operator, the fallback was an operator-only panel); operator
+     to confirm or redirect. And the public post INCLUDES THE REPORTER'S
+     CONTACT INFO (_format_bug_post appends `Contact: ...` into an
+     anon-readable, discovery-indexed post) — a PII leak on the platform
+     whose manifesto says "nobody is mining you." fix filed as
+     D-feedback-contact-privacy (parallel execution.txt, ws-D/feedback):
+     contact/user_agent never enter the public body; they stay in the
+     disk store the operator reads.
 
 known gaps confirmed this session (see CHANGELOG 1.0.169-1.0.174):
-[✓ 1.0.178] PRIORITY — public discoverability is still broken for real accounts
+[✓ 1.0.178] PRIORITY — public discoverability is still broken for real accounts.
+    RUN-IT NOTE (26.07 late, operator screenshot: his real public post
+    absent from /trending Newest on the deployed app): 1.0.178 ships
+    the fix as code + ADMIN ENDPOINTS (POST /admin/discovery/
+    migrate_terms + /admin/discovery/backfill) — merging does NOT run
+    them. Existing accounts (the operator's included) stay
+    undiscoverable on dev/prod until the migration + backfill are
+    EXECUTED per environment after deploy. filed as lane item
+    E-run-discovery-migration (ops, needs an admin token).
      (A13-discovery-terms in parallel execution.txt, LANE A). 1.0.171
     fixed HALF: service_allows_anon now matches the app's `.*` anon-read
     whitelist by regex (was an exact "anon" compare). The remaining half:
