@@ -190,10 +190,10 @@ window is for code, not prose.
 
 When the operator says `web10 gather up!`, it is addressed to a strong,
 large-context model (Claude-class). Small-context agents can ignore this
-section. It means: **inspect the recent PRs merged to `dev` that are not
-yet on `main`, and report honestly whether anything is really off or
-broken.** This is a quality gate before dev promotes, not a plan audit
-(that's `web10web10!!!`).
+section. It means: **quality-gate the dev batch, and if it's clean, SHIP
+IT — promote dev→main and verify prod is actually live.** Two halves, in
+order: the audit (steps 1–4), then the promotion (steps 5–7). This is
+not a plan audit (that's `web10web10!!!`).
 
 1. **Gather the batch.** `git fetch`, then `git log --oneline
    origin/main..origin/dev` for the commit list and `gh pr list --base dev
@@ -206,13 +206,43 @@ broken.** This is a quality gate before dev promotes, not a plan audit
    missing/wrong CHANGELOG or lane ticks that will cause redone work.
    Style preferences and could-be-nicer are NOT findings.
 3. **If nothing is broken, say so plainly** — one short paragraph, no
-   manufactured work, no churn.
+   manufactured work, no churn — then go straight to step 5.
 4. **If something IS broken, produce paste-ready fix blocks** for
    Qwen-class agents (~27B, 256k context), one per independent fix,
    following the kickoff block spec above: name the exact files and the
    offending PR/commit, quote the failing behavior, state the acceptance
    bar (tests green, checks green, screenshots for UI) and the finish
    ritual. Fixes that collide on a seam go in ONE block, not two.
+   **A red batch does not promote** — stop after the fix blocks; the
+   promotion happens on the next `gather up!` once the fixes merge. (If
+   the operator explicitly says ship anyway, obey — but restate what is
+   known-broken first, in one line.)
+5. **Promote dev→main with a MERGE COMMIT, never squash.** Open the
+   promotion PR (`gh pr create --base main --head dev`), check conflicts
+   (`gh pr view --json mergeable,mergeStateStatus`), then merge with
+   `gh pr merge --merge`. Squash-merging dev→main destroys the shared
+   merge base, so every later promote hits add/add conflicts on the
+   union-merged files (CHANGELOG.md, plan.txt, workflows) — this
+   happened once and the cleanup (80378e92) was manual; don't repeat it.
+   Known pre-existing red that does NOT block promotion: the e2e MinIO
+   host-port checks (no host port mapping in e2e/docker-compose.yml,
+   documented in 1.0.167) — name it in the report instead of chasing it.
+6. **Watch the deploy until it is actually green.** The push to `main`
+   fires the deploy (deploy-prod) and cd (publish images) workflows:
+   `gh run list --branch main`, then `gh run watch` each. A red deploy
+   job means prod is SILENTLY PINNED at the previous build while `main`
+   moves on — exactly how prod sat broken at 1.0.161 for a day
+   (CHANGELOG 1.0.169). Never end the ritual with a red deploy:
+   diagnose, fix (directly if small, else a fix block), re-deploy.
+7. **Verify prod is live, then report.** Hit the public prod endpoints
+   from the workspace — the prod slice of
+   `ubuntu-deployment/scripts/smoke.sh` (api `/docs` + `/`, auth,
+   social, www + apex, marketing-api `/docs`; all public). The dev
+   vhosts resolve only on the box/VPN — if unreachable, say "dev smoke
+   needs the box", don't pretend. If a user-facing surface changed,
+   load it and LOOK at it. The final report states: what merged, what
+   prod now serves (version/commit), any pre-existing reds by name,
+   and anything deliberately not done.
 
 ## Running it
 `docker-compose.yml` brings the stack up locally (`*.localhost` vhosts).
