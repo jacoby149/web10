@@ -103,6 +103,19 @@ function UserProfileRoute() {
   );
 }
 
+// /feed route: composing a post bumps `version`, which remounts FeedScreen
+// so a fresh post shows up immediately instead of only after a manual
+// refresh (the post is delivered to the author's own inbox on create).
+function FeedRoute({ onAuthorClick }: { onAuthorClick: (username: string, provider: string) => void }) {
+  const [version, setVersion] = useState(0);
+  return (
+    <>
+      <PostComposer onPostCreated={() => setVersion((v) => v + 1)} />
+      <FeedScreen key={version} onAuthorClick={onAuthorClick} />
+    </>
+  );
+}
+
 function App() {
   const [signedIn, setSignedIn] = useState(false);
   const [showReportBug, setShowReportBug] = useState(false);
@@ -168,12 +181,7 @@ function App() {
     <ErrorBoundary fallback={handleBoundaryFallback}>
       <Routes>
         <Route element={<Layout onLogout={handleLogout} onReportBug={() => handleReportBug('button')} />}>
-          <Route path="/feed" element={
-            <>
-              <PostComposer onPostCreated={() => {}} />
-              <FeedScreen onAuthorClick={handleAuthorClick} />
-            </>
-          } />
+          <Route path="/feed" element={<FeedRoute onAuthorClick={handleAuthorClick} />} />
           <Route path="/discover" element={<DiscoverScreen />} />
           <Route path="/messages" element={<DmsScreen />} />
           <Route path="/profile" element={<ProfileScreen />} />

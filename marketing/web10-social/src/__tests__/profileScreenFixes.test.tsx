@@ -176,6 +176,65 @@ describe('ProfileScreen D24/D34 — follower stat is real (ledger-backed)', () =
   });
 });
 
+describe('ProfileScreen — post grid is clickable + media tab does not freeze the page', () => {
+  const NOW = new Date().toISOString();
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockReadProfile.mockResolvedValue({ _id: 'profile-1', display_name: 'Test User', bio: 'hi' });
+    mockCountFollows.mockResolvedValue(0);
+    mockCountFollowers.mockResolvedValue(0);
+    mockCountStagingPosts.mockResolvedValue(0);
+    mockReadMyPosts.mockResolvedValue([
+      { _id: 'p1', text: 'A post with a photo', media_refs: ['m1'], created_at: NOW },
+    ]);
+    mockResolveMediaRefs.mockResolvedValue([
+      { _id: 'm1', url: 'https://img.example.com/m1.png', created_at: NOW },
+    ]);
+  });
+
+  async function renderProfile() {
+    const { default: ProfileScreen } = await import('@/components/Bio/ProfileScreen');
+    render(
+      <MemoryRouter>
+        <ProfileScreen />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(screen.getByText('Test User')).toBeInTheDocument());
+  }
+
+  it('clicking a post cell opens the lightbox; Escape closes it', async () => {
+    await renderProfile();
+    const cell = await screen.findByTestId('profile-post-cell');
+    fireEvent.click(cell);
+    const lightbox = await screen.findByTestId('post-lightbox');
+    expect(lightbox).toBeInTheDocument();
+    expect(screen.getByText('A post with a photo')).toBeInTheDocument();
+    // Escape dismisses
+    act(() => {
+      fireEvent.keyDown(window, { key: 'Escape' });
+    });
+    await waitFor(() => expect(screen.queryByTestId('post-lightbox')).not.toBeInTheDocument());
+  });
+
+  it('media grid cell is position:relative so its hover overlay cannot blanket the page (freeze regression)', async () => {
+    await renderProfile();
+    // Switch to the Media tab — this is where the freeze occurred.
+    fireEvent.click(screen.getByTestId('profile-tab-media'));
+    const mediaCell = await screen.findByTestId('profile-media-cell');
+    // The overlay inside uses `absolute inset-0`; without `relative` on the
+    // cell it escapes to a page-level ancestor and swallows every click.
+    expect(mediaCell.className).toContain('relative');
+  });
+
+  it('clicking a media cell opens the lightbox for that post', async () => {
+    await renderProfile();
+    fireEvent.click(screen.getByTestId('profile-tab-media'));
+    const mediaCell = await screen.findByTestId('profile-media-cell');
+    fireEvent.click(mediaCell);
+    expect(await screen.findByTestId('post-lightbox')).toBeInTheDocument();
+  });
+});
+
 describe('App D25 — back navigation restores previous mode', () => {
   beforeEach(() => {
     vi.clearAllMocks();
