@@ -1080,7 +1080,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       leaves discovery + the public wall; flip back, it returns. gate:
       D-profile-post-experience merged.
 
-[ ] D-messages-views (sub-lane ws-D/messages; SEAM: components/Chat/**
+[x] D-messages-views (sub-lane ws-D/messages; SEAM: components/Chat/**
       + DmsScreen): three views behind a toggle on the messages screen.
       (1) current chat/DM list (exists). (2) MAIL view — the whole
       inbox rendered gmail-style (thread list, read/unread, preview

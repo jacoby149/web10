@@ -22,7 +22,7 @@ vi.mock('lucide-react', () => {
     'ChevronLeft', 'MessageSquare', 'Home', 'PlusCircle', 'LogOut', 'Bug',
     'AlertTriangle', 'CheckCircle', 'Compass', 'Share2', 'Repeat2',
     'Film', 'Music2', 'Users', 'Store', 'Gamepad2', 'Radio', 'Zap', 'Clapperboard', 'Plus', 'X', 'Search',
-    'Video', 'FileText', 'Inbox', 'ChevronDown', 'ChevronRight', 'Lock', 'Trash2', 'ArrowLeft',
+    'Video', 'FileText', 'Inbox', 'ChevronDown', 'ChevronRight', 'Lock', 'Trash2', 'ArrowLeft', 'Mail', 'MailOpen', 'Calendar',
   ].forEach(name => { icons[name] = iconFactory(name); });
   return icons;
 });
@@ -147,6 +147,118 @@ describe('DmsScreen', () => {
     await waitFor(() => {
       expect(screen.getByTestId('dm-new-message-btn')).toBeInTheDocument();
     });
+  });
+
+  it('renders view toggle with all three views', async () => {
+    const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
+    render(<DmsScreen />);
+    await waitFor(() => {
+      expect(screen.getByTestId('messages-view-toggle')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('view-toggle-chat')).toBeInTheDocument();
+    expect(screen.getByTestId('view-toggle-mail')).toBeInTheDocument();
+    expect(screen.getByTestId('view-toggle-crm')).toBeInTheDocument();
+  });
+
+  it('switches to mail view on toggle click', async () => {
+    const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
+    render(<DmsScreen />);
+    await waitFor(() => {
+      expect(screen.getByTestId('messages-view-toggle')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('view-toggle-mail'));
+    await waitFor(() => {
+      expect(screen.getByTestId('mail-view')).toBeInTheDocument();
+    });
+  });
+
+  it('switches to crm view on toggle click', async () => {
+    const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
+    render(<DmsScreen />);
+    await waitFor(() => {
+      expect(screen.getByTestId('messages-view-toggle')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('view-toggle-crm'));
+    await waitFor(() => {
+      expect(screen.getByTestId('crm-view')).toBeInTheDocument();
+    });
+  });
+
+  it('switches back to chat view from mail', async () => {
+    const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
+    render(<DmsScreen />);
+    await waitFor(() => {
+      expect(screen.getByTestId('messages-view-toggle')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('view-toggle-mail'));
+    await waitFor(() => {
+      expect(screen.getByTestId('mail-view')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('view-toggle-chat'));
+    // After switching back, the chat view shows the empty state or conversation list
+    expect(screen.getByTestId('dms-empty')).toBeInTheDocument();
+  });
+});
+
+describe('MailView', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('renders mail view with heading', async () => {
+    const { default: MailView } = await import('@/components/Chat/MailView');
+    render(<MailView />);
+    await waitFor(() => {
+      expect(screen.getByText('Mail')).toBeInTheDocument();
+    });
+  });
+
+  it('renders search input', async () => {
+    const { default: MailView } = await import('@/components/Chat/MailView');
+    render(<MailView />);
+    await waitFor(() => {
+      expect(screen.getByTestId('mail-search')).toBeInTheDocument();
+    });
+  });
+
+  it('renders empty state when no threads', async () => {
+    const { default: MailView } = await import('@/components/Chat/MailView');
+    render(<MailView />);
+    await waitFor(() => {
+      expect(screen.getByTestId('mail-view')).toBeInTheDocument();
+    });
+    expect(screen.getByText(/No conversations yet/)).toBeInTheDocument();
+  });
+});
+
+describe('CrmView', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('renders crm view with heading', async () => {
+    const { default: CrmView } = await import('@/components/Chat/CrmView');
+    render(<CrmView />);
+    await waitFor(() => {
+      expect(screen.getByText('Contacts')).toBeInTheDocument();
+    });
+  });
+
+  it('renders search input', async () => {
+    const { default: CrmView } = await import('@/components/Chat/CrmView');
+    render(<CrmView />);
+    await waitFor(() => {
+      expect(screen.getByTestId('crm-search')).toBeInTheDocument();
+    });
+  });
+
+  it('renders empty state when no contacts', async () => {
+    const { default: CrmView } = await import('@/components/Chat/CrmView');
+    render(<CrmView />);
+    await waitFor(() => {
+      expect(screen.getByTestId('crm-view')).toBeInTheDocument();
+    });
+    expect(screen.getByText(/No contacts/)).toBeInTheDocument();
   });
 });
 

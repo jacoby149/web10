@@ -1,14 +1,19 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getWapi } from '@/data/wapi';
 import { listConversations, readDms, sendDm, getLastDm, readContacts, startConversation, conversationKey as deriveConversationKey, readFollows, addContact } from '@/data';
 import type { DmRecord, ContactRecord, FollowRecord } from '@/data/types';
-import { Send, ChevronLeft, Plus, X, Search } from 'lucide-react';
+import { Send, ChevronLeft, Plus, X, Search, MessageSquare, Mail, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
+import MailView from './MailView';
+import CrmView from './CrmView';
+
+type MessagesView = 'chat' | 'mail' | 'crm';
 
 function formatTime(dateStr: string): string {
   const d = new Date(dateStr);
@@ -411,6 +416,7 @@ export default function DmsScreen() {
   const [lastMessages, setLastMessages] = useState<Record<string, DmRecord | null>>({});
   const [contactMap, setContactMap] = useState<Record<string, ContactRecord>>({});
   const [showPicker, setShowPicker] = useState(false);
+  const [activeView, setActiveView] = useState<MessagesView>('chat');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const token = getWapi().readToken();
 
@@ -505,6 +511,83 @@ export default function DmsScreen() {
     );
   }
 
+  // Alternate views: mail and CRM
+  if (activeView === 'mail') {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="flex items-center border-b border-border" data-testid="messages-view-toggle">
+          {([
+            ['chat', 'Chat', MessageSquare],
+            ['mail', 'Mail', Mail],
+            ['crm', 'CRM', Users],
+          ] as [MessagesView, string, typeof MessageSquare][]).map(([view, label, Icon]) => (
+            <button
+              key={view}
+              onClick={() => {
+                setActiveView(view);
+                setSelectedConv(null);
+              }}
+              className={cn(
+                'flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-all duration-150 relative',
+                activeView === view
+                  ? 'text-foreground'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+              data-testid={`view-toggle-${view}`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{label}</span>
+              {activeView === view && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand" />
+              )}
+            </button>
+          ))}
+        </div>
+        <div className="flex-1 overflow-hidden">
+          <MailView />
+        </div>
+      </div>
+    );
+  }
+
+  if (activeView === 'crm') {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="flex items-center border-b border-border" data-testid="messages-view-toggle">
+          {([
+            ['chat', 'Chat', MessageSquare],
+            ['mail', 'Mail', Mail],
+            ['crm', 'CRM', Users],
+          ] as [MessagesView, string, typeof MessageSquare][]).map(([view, label, Icon]) => (
+            <button
+              key={view}
+              onClick={() => {
+                setActiveView(view);
+                setSelectedConv(null);
+              }}
+              className={cn(
+                'flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-all duration-150 relative',
+                activeView === view
+                  ? 'text-foreground'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+              data-testid={`view-toggle-${view}`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{label}</span>
+              {activeView === view && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand" />
+              )}
+            </button>
+          ))}
+        </div>
+        <div className="flex-1 overflow-hidden">
+          <CrmView />
+        </div>
+      </div>
+    );
+  }
+
   if (loading) {
     return <DmsSkeleton />;
   }
@@ -590,7 +673,35 @@ export default function DmsScreen() {
 
   if (!conversations.length) {
     return (
-      <div>
+      <div className="flex flex-col h-full">
+        <div className="flex items-center border-b border-border" data-testid="messages-view-toggle">
+          {([
+            ['chat', 'Chat', MessageSquare],
+            ['mail', 'Mail', Mail],
+            ['crm', 'CRM', Users],
+          ] as [MessagesView, string, typeof MessageSquare][]).map(([view, label, Icon]) => (
+            <button
+              key={view}
+              onClick={() => {
+                setActiveView(view);
+                setSelectedConv(null);
+              }}
+              className={cn(
+                'flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-all duration-150 relative',
+                activeView === view
+                  ? 'text-foreground'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+              data-testid={`view-toggle-${view}`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{label}</span>
+              {activeView === view && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand" />
+              )}
+            </button>
+          ))}
+        </div>
         <div className="px-4 py-4 border-b border-border flex items-center justify-between">
           <h1 className="font-display text-lg font-bold text-foreground">Messages</h1>
           <Button
@@ -609,7 +720,35 @@ export default function DmsScreen() {
   }
 
   return (
-    <div>
+    <div className="flex flex-col h-full">
+      <div className="flex items-center border-b border-border" data-testid="messages-view-toggle">
+        {([
+          ['chat', 'Chat', MessageSquare],
+          ['mail', 'Mail', Mail],
+          ['crm', 'CRM', Users],
+        ] as [MessagesView, string, typeof MessageSquare][]).map(([view, label, Icon]) => (
+          <button
+            key={view}
+            onClick={() => {
+              setActiveView(view);
+              setSelectedConv(null);
+            }}
+            className={cn(
+              'flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-all duration-150 relative',
+              activeView === view
+                ? 'text-foreground'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+            data-testid={`view-toggle-${view}`}
+          >
+            <Icon className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">{label}</span>
+            {activeView === view && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand" />
+            )}
+          </button>
+        ))}
+      </div>
       <div className="px-4 py-4 border-b border-border flex items-center justify-between">
         <h1 className="font-display text-lg font-bold text-foreground">Messages</h1>
         <Button
@@ -622,7 +761,7 @@ export default function DmsScreen() {
           New message
         </Button>
       </div>
-      <div>
+      <div className="flex-1 overflow-y-auto">
         {conversations.map((conv) => {
           const otherUser = getOtherUser(conv);
           const displayName = getDisplayName(otherUser);
