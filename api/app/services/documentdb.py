@@ -1084,12 +1084,30 @@ def delete_public_entry(entry_id: str, author: str) -> bool:
 
 
 def service_allows_anon(username: str, service: str) -> bool:
-    """Check if a service has anon whitelisted."""
+    """Check if a service grants anon *read* — the gate for discovery indexing.
+
+    This must match the same way real permission checks do (``get_approved``
+    uses ``re.fullmatch`` on the whitelist entry's ``username`` regex against
+    the requester). The canonical app whitelist for ``public_posts`` is
+    ``{"username": ".*", "provider": ".*", "read": True}`` — anon is granted
+    read via the ``.*`` regex, NOT the literal string ``"anon"``.
+
+    The old check was an exact ``username == "anon"`` string compare, so only
+    the seed script's literal-``anon`` term qualified; every real user's
+    public post (whitelisted via ``.*``) failed the gate and was never
+    indexed into discovery — anon-readable, but invisible on the board.
+    """
     term = get_term_record(username, service)
     if term is None:
         return False
     for entry in term.get("whitelist", []):
-        if entry.get("username") == "anon":
+        uname = entry.get("username", "")
+        try:
+            matches_anon = bool(re.fullmatch(uname, "anon"))
+        except re.error:
+            matches_anon = uname == "anon"
+        grants_read = bool(entry.get("read")) or bool(entry.get("all"))
+        if matches_anon and grants_read:
             return True
     return False
 
