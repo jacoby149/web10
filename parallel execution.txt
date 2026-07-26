@@ -1113,7 +1113,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       it persists + renders framed on reload; screenshot. gate:
       D-profile-post-experience merged (same file).
 
-[ ] D-bug-reports-delivery (sub-lane ws-D/feedback; SEAM: marketing-api
+[✓ 1.0.178] D-bug-reports-delivery (sub-lane ws-D/feedback; SEAM: marketing-api
       main.py + web10-social ReportBug.tsx): route "Report a bug" to the
       operator instead of an in-memory list. marketing-api /feedback
       appends to `feedback_store: list` (main.py:394) — lost on restart.
