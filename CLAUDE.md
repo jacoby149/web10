@@ -254,13 +254,22 @@ stack another rule on top.
 
 When the operator says `should we do it?`, it is addressed to a
 strong, large-context model (Claude/Fable — the mastermind). It
-means: **evaluate whether the Qwen fleet can run independently
-longer before we need the expensive `web10web10!` or `web10 gather
-up!` rituals.** The goal: milk more independent throughput from the
-efficient Qwen workhorses to reduce reliance on costly strong-model
-interventions. The long-term strategy is to use Fable less and Qwen
-more — if we can get 2x independent horizon from the Qwens, that's
-the total beast scenario.
+means: **can the Qwen fleet run independently longer, and how can
+the mastermind self-improve the markdowns to make that happen?**
+This is not just a status check — it is coaching the mastermind to
+be a more efficient manager of the Qwens. The question is: is the
+mastermind writing tasks in a way that maximizes Qwen independence,
+clarity, and throughput? If the markdowns are better — more steps,
+more independence, more clarity for Qwen — that is a win even if it
+means more markdown, because each Qwen PR costs far less than a
+mastermind intervention.
+
+The goal: milk more independent throughput from the efficient Qwen
+workhorses to reduce reliance on costly strong-model rituals like
+`web10web10!` and `web10 gather up!`. The long-term strategy: use
+Fable less, Qwen more. If we get 2x independent horizon from the
+Qwens, that's the total beast scenario (and soon switching to Kimi
+K3 from Moonshot for 3x savings on top).
 
 1. **Scan the board.** Read `parallel execution.txt` — how many
    items are `[ ]` vs `[~]` vs `[✓]`? How many bites remain before
@@ -269,10 +278,21 @@ the total beast scenario.
    by Qwen agents without coordination? Are seams isolated? Are
    acceptance bars clear? Or is a `web10web10!` needed to unblock
    or re-align?
-3. **Give a verdict.** "Yes, Qwens can run — here's how many
-   independent bites are ready" OR "No, we need `web10web10!` —
-   here's what's blocking." Include the estimated horizon: how many
-   PRs can land before the next strong-model intervention.
+3. **Self-improve the markdowns.** This is the core. Look at every
+   open item through Qwen's eyes: is the task description digestible
+   for a 27B model? Does it name exact files? Are gates explicit? Is
+   the acceptance bar one check, not five? If an item would benefit
+   from more bite-splits, sharper file lists, or clearer gates, the
+   mastermind should propose those markdown improvements — more steps
+   and more independence is a win if each step is clearer for Qwen.
+   The `unbrick!` code word helps structurally, but `should we do
+   it?` is about the mastermind writing better tasks upfront so
+   Qwen doesn't brick in the first place.
+4. **Give a verdict.** "Yes, Qwens can run independently — here's
+   the horizon (X PRs before next intervention)" OR "No — the
+   markdowns need improvement first; here are the specific fixes to
+   parallel execution.txt / kickoff blocks that will extend the
+   horizon." Include estimated horizon either way.
 
 ## The `web10 gather up!` code word (operator → strong model)
 
