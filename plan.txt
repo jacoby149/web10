@@ -2057,8 +2057,8 @@ bug reports -> the operator (operator idea):
      logged on skip/failure). When unset, the report still persists to disk.
 
 known gaps confirmed this session (see CHANGELOG 1.0.169-1.0.174):
-[ ] PRIORITY — public discoverability is still broken for real accounts
-    (A13-discovery-terms in parallel execution.txt, LANE A). 1.0.171
+[✓ 1.0.178] PRIORITY — public discoverability is still broken for real accounts
+     (A13-discovery-terms in parallel execution.txt, LANE A). 1.0.171
     fixed HALF: service_allows_anon now matches the app's `.*` anon-read
     whitelist by regex (was an exact "anon" compare). The remaining half:
     the public_posts anon-read TERM isn't provisioned for a real account.

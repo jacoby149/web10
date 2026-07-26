@@ -848,3 +848,303 @@ class TestServiceAllowsAnon:
         # private_posts ships no whitelist — owner only, never indexed.
         with patch.object(db_module, "get_term_record", return_value={"service": "private_posts"}):
             assert db_module.service_allows_anon("alice", "private_posts") is False
+
+
+# ---------------------------------------------------------------------------
+# A13: public_posts term provisioning at signup
+# ---------------------------------------------------------------------------
+
+
+class TestSignupProvisionsPublicPostsTerm:
+    """A13: every new account gets the canonical public_posts anon-read term."""
+
+    def test_create_user_inserts_public_posts_term(self):
+        """create_user should insert the public_posts term record."""
+        mock_col = MagicMock()
+        mock_phone = MagicMock()
+        mock_phone.find_one.return_value = None
+
+        with (
+            patch.object(db_module, "db") as mock_db,
+            patch.object(db_module, "get_star", return_value=None),
+            patch.object(db_module.records, "star_record", return_value={"service": "*", "username": "newuser"}),
+            patch.object(
+                db_module.records,
+                "services_record",
+                return_value={"service": "services", "whitelist": [], "blacklist": []},
+            ),
+            patch.object(
+                db_module.records,
+                "public_posts_term",
+                return_value={
+                    "service": "public_posts",
+                    "whitelist": [{"username": ".*", "provider": ".*", "read": True}],
+                    "blacklist": [],
+                },
+            ),
+            patch.object(db_module, "to_db", side_effect=lambda d, s: {"service": s, "body": d}),
+            patch.object(db_module, "set_phone_number"),
+        ):
+            mock_db.__getitem__ = MagicMock(side_effect=lambda k: mock_col if k == "newuser" else mock_phone)
+            mock_db.__getitem__.return_value = mock_col
+            mock_col.insert_one.return_value = MagicMock(inserted_id="id1")
+
+            form_data = MagicMock(username="newuser", password="pass", phone="+1234")
+            db_module.create_user(form_data, lambda p: "hashed")
+
+        # Should have inserted 2 records: star + services + public_posts
+        assert mock_col.insert_one.call_count == 3
+        calls = [c.args[0] for c in mock_col.insert_one.call_args_list]
+        services = [c for c in calls if c.get("service") == "services"]
+        # One is the general services record, one is the public_posts term
+        public_posts_calls = [c for c in services if c.get("body", {}).get("service") == "public_posts"]
+        assert len(public_posts_calls) == 1
+        body = public_posts_calls[0]["body"]
+        assert body["whitelist"] == [{"username": ".*", "provider": ".*", "read": True}]
+
+
+# ---------------------------------------------------------------------------
+# A13: migrate_public_posts_terms
+# ---------------------------------------------------------------------------
+
+
+class TestMigratePublicPostsTerms:
+    """A13: one-shot migration to provision public_posts terms for existing accounts."""
+
+    def test_migrates_accounts_without_term(self):
+        """Accounts without a public_posts term should get one created."""
+        mock_alice_col = MagicMock()
+        mock_alice_col.find_one.return_value = None  # no term record
+        mock_bob_col = MagicMock()
+        mock_bob_col.find_one.return_value = None  # no term record
+
+        def _getitem(key):
+            if key == "alice":
+                return mock_alice_col
+            if key == "bob":
+                return mock_bob_col
+            return MagicMock()
+
+        with (
+            patch.object(db_module.db, "list_collection_names", return_value=["alice", "bob"]),
+            patch.object(db_module.db, "__getitem__", side_effect=_getitem),
+            patch.object(db_module, "to_db", side_effect=lambda d, s: {"service": s, "body": d}),
+        ):
+            result = db_module.migrate_public_posts_terms()
+
+        assert result["migrated"] == 2
+        assert result["skipped"] == 0
+        mock_alice_col.insert_one.assert_called_once()
+        mock_bob_col.insert_one.assert_called_once()
+
+    def test_skips_accounts_with_existing_anon_term(self):
+        """Accounts that already have an anon-read public_posts term should be skipped."""
+        mock_alice_col = MagicMock()
+        existing_term = {
+            "service": "public_posts",
+            "whitelist": [{"username": ".*", "provider": ".*", "read": True}],
+            "blacklist": [],
+        }
+        mock_alice_col.find_one.return_value = {"_id": "x", "body": existing_term}
+
+        def _getitem(key):
+            return mock_alice_col if key == "alice" else MagicMock()
+
+        with (
+            patch.object(db_module.db, "list_collection_names", return_value=["alice"]),
+            patch.object(db_module.db, "__getitem__", side_effect=_getitem),
+        ):
+            result = db_module.migrate_public_posts_terms()
+
+        assert result["skipped"] == 1
+        assert result["migrated"] == 0
+        mock_alice_col.insert_one.assert_not_called()
+
+    def test_skips_system_collections(self):
+        """System collections (web10.*) should not be processed as user accounts."""
+        with (
+            patch.object(
+                db_module.db, "list_collection_names", return_value=["web10.discovery_posts", "web10.public", "alice"]
+            ),
+            patch.object(db_module.db, "__getitem__", return_value=MagicMock()),
+        ):
+            result = db_module.migrate_public_posts_terms()
+
+        # Only alice should be processed
+        assert result["migrated"] == 1 or result["skipped"] == 1
+        assert result["migrated"] + result["skipped"] == 1
+
+    def test_updates_existing_term_without_anon(self):
+        """An existing public_posts term that lacks anon read should be updated."""
+        mock_alice_col = MagicMock()
+        # Existing term with no whitelist (owner-only)
+        mock_alice_col.find_one.return_value = {
+            "_id": "x",
+            "body": {"service": "public_posts", "whitelist": [], "blacklist": []},
+        }
+
+        def _getitem(key):
+            return mock_alice_col if key == "alice" else MagicMock()
+
+        with (
+            patch.object(db_module.db, "list_collection_names", return_value=["alice"]),
+            patch.object(db_module.db, "__getitem__", side_effect=_getitem),
+        ):
+            result = db_module.migrate_public_posts_terms()
+
+        assert result["migrated"] == 1
+        mock_alice_col.update_one.assert_called_once()
+        call_args = mock_alice_col.update_one.call_args
+        assert call_args[0][1]["$set"]["body.whitelist"] == [{"username": ".*", "provider": ".*", "read": True}]
+
+
+# ---------------------------------------------------------------------------
+# A13: backfill_discovery
+# ---------------------------------------------------------------------------
+
+
+class TestBackfillDiscovery:
+    """A13: one-shot backfill of existing public_posts into the discovery index."""
+
+    def test_backfills_posts(self):
+        """All public_posts from user collections should be upserted into discovery."""
+        mock_alice_col = MagicMock()
+        mock_alice_col.find.return_value = [
+            {"_id": "post1", "service": "public_posts", "body": {"text": "hello", "created_at": "2026-01-01T00:00:00"}},
+            {"_id": "post2", "service": "public_posts", "body": {"text": "world", "created_at": "2026-01-02T00:00:00"}},
+        ]
+
+        def _getitem(key):
+            if key == "alice":
+                return mock_alice_col
+            return MagicMock()
+
+        with (
+            patch.object(db_module.db, "list_collection_names", return_value=["alice"]),
+            patch.object(db_module.db, "__getitem__", side_effect=_getitem),
+            patch.object(db_module, "upsert_discovery_post") as m_upsert,
+            patch.object(db_module, "_ensure_discovery_collection"),
+        ):
+            result = db_module.backfill_discovery()
+
+        assert result["total"] == 2
+        assert result["per_user"]["alice"] == 2
+        assert m_upsert.call_count == 2
+        # Verify first call has correct args
+        assert m_upsert.call_args_list[0][0] == (
+            "alice",
+            "public_posts",
+            {"_id": "post1", "text": "hello", "created_at": "2026-01-01T00:00:00"},
+        )
+
+    def test_backfill_empty(self):
+        """Users with no public_posts should not generate any upserts."""
+        mock_alice_col = MagicMock()
+        mock_alice_col.find.return_value = []
+
+        def _getitem(key):
+            return mock_alice_col if key == "alice" else MagicMock()
+
+        with (
+            patch.object(db_module.db, "list_collection_names", return_value=["alice"]),
+            patch.object(db_module.db, "__getitem__", side_effect=_getitem),
+            patch.object(db_module, "upsert_discovery_post") as m_upsert,
+            patch.object(db_module, "_ensure_discovery_collection"),
+        ):
+            result = db_module.backfill_discovery()
+
+        assert result["total"] == 0
+        assert result["per_user"] == {}
+        m_upsert.assert_not_called()
+
+    def test_backfill_skips_system_collections(self):
+        """System collections should not be iterated for backfill."""
+        with (
+            patch.object(db_module.db, "list_collection_names", return_value=["web10.discovery_posts", "web10.public"]),
+            patch.object(db_module, "upsert_discovery_post") as m_upsert,
+            patch.object(db_module, "_ensure_discovery_collection"),
+        ):
+            result = db_module.backfill_discovery()
+
+        assert result["total"] == 0
+        m_upsert.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# A13: admin discovery endpoints
+# ---------------------------------------------------------------------------
+
+
+class TestAdminDiscoveryEndpoints:
+    """A13: admin-only endpoints for triggering migration and backfill."""
+
+    def test_migrate_terms_requires_admin(self, client):
+        resp = client.post(
+            "/admin/discovery/migrate_terms",
+            json={"token": _owner_token("regular_user")},
+        )
+        assert resp.status_code == 403
+
+    def test_migrate_terms_no_token(self, client):
+        resp = client.post("/admin/discovery/migrate_terms", json={})
+        assert resp.status_code == 403
+
+    def test_backfill_requires_admin(self, client):
+        resp = client.post(
+            "/admin/discovery/backfill",
+            json={"token": _owner_token("regular_user")},
+        )
+        assert resp.status_code == 403
+
+    def test_backfill_no_token(self, client):
+        resp = client.post("/admin/discovery/backfill", json={})
+        assert resp.status_code == 403
+
+    def test_migrate_terms_admin_success(self, client):
+        mock_col = MagicMock()
+        mock_col.find_one.return_value = None
+
+        def _getitem(key):
+            return mock_col if key == "alice" else MagicMock()
+
+        with (
+            patch("app.services.config.is_admin", return_value=True),
+            patch.object(db_module.db, "list_collection_names", return_value=["alice"]),
+            patch.object(db_module.db, "__getitem__", side_effect=_getitem),
+            patch.object(db_module, "to_db", side_effect=lambda d, s: {"service": s, "body": d}),
+        ):
+            resp = client.post(
+                "/admin/discovery/migrate_terms",
+                json={"token": _owner_token("admin_user")},
+            )
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "migrated" in data
+        assert "skipped" in data
+
+    def test_backfill_admin_success(self, client):
+        mock_alice_col = MagicMock()
+        mock_alice_col.find.return_value = [
+            {"_id": "p1", "service": "public_posts", "body": {"text": "hello"}},
+        ]
+
+        def _getitem(key):
+            return mock_alice_col if key == "alice" else MagicMock()
+
+        with (
+            patch("app.services.config.is_admin", return_value=True),
+            patch.object(db_module.db, "list_collection_names", return_value=["alice"]),
+            patch.object(db_module.db, "__getitem__", side_effect=_getitem),
+            patch.object(db_module, "upsert_discovery_post"),
+            patch.object(db_module, "_ensure_discovery_collection"),
+        ):
+            resp = client.post(
+                "/admin/discovery/backfill",
+                json={"token": _owner_token("admin_user")},
+            )
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "total" in data
+        assert data["total"] == 1
