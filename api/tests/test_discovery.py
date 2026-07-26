@@ -1031,7 +1031,11 @@ class TestBackfillDiscovery:
         assert result["per_user"]["alice"] == 2
         assert m_upsert.call_count == 2
         # Verify first call has correct args
-        assert m_upsert.call_args_list[0][0] == ("alice", "public_posts", {"_id": "post1", "text": "hello", "created_at": "2026-01-01T00:00:00"})
+        assert m_upsert.call_args_list[0][0] == (
+            "alice",
+            "public_posts",
+            {"_id": "post1", "text": "hello", "created_at": "2026-01-01T00:00:00"},
+        )
 
     def test_backfill_empty(self):
         """Users with no public_posts should not generate any upserts."""
