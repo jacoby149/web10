@@ -85,6 +85,19 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
       setFollowRecord(fr);
       setFollowing(fr?.status === 'active' || false);
 
+      // Resolve avatar and banner media refs
+      const profileRefs: string[] = [];
+      if (p?.avatar_ref) profileRefs.push(p.avatar_ref);
+      if (p?.banner_ref) profileRefs.push(p.banner_ref);
+      if (profileRefs.length) {
+        const media = await resolveMediaRefs(profileRefs, { username, provider });
+        const map: Record<string, MediaRecord> = {};
+        media.forEach((m) => {
+          if (m._id) map[m._id] = m;
+        });
+        setMediaMap(map);
+      }
+
       // Fetch posts from discovery API (public posts index)
       try {
         const resp = await fetch(

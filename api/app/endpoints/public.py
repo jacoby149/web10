@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 
 import app.exceptions as exceptions
 from app.models.auth import Token
@@ -38,22 +38,17 @@ async def create_public_entry(token: Token):
 
 
 @router.patch("/public/entries", tags=["public"])
-async def query_public_entries(token: Token):
+async def query_public_entries(
+    schema_id: str | None = Query(None),
+    target: str | None = Query(None),
+    author: str | None = Query(None),
+    limit: int = Query(50, ge=1, le=200),
+    skip: int = Query(0, ge=0),
+):
     """Query the public ledger. Anon OK.
 
     Filter by schema_id, target, author via query params.
     """
-    schema_id = None
-    target = None
-    author = None
-    limit = 50
-    skip = 0
-    if token.query:
-        schema_id = token.query.get("schema_id")
-        target = token.query.get("target")
-        author = token.query.get("author")
-        limit = min(token.query.get("limit", 50), 200)
-        skip = token.query.get("skip", 0)
     return db.query_public_entries(
         schema_id=schema_id,
         target=target,

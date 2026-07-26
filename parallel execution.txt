@@ -224,6 +224,32 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       are grandfathered — login/lookup must keep working, never a
       migration. the signup form's inline charset message is a small
       lane B seam (leave a .context/ note). small item; gate: none.
+  [✓ 1.0.164] A12. PUBLIC MEDIA READ PATH — api side of decisions.md D35 (the
+      shape is DECIDED there; don't re-litigate). cross-user media is
+      dead today: the `media` service registers no read whitelist
+      (web10-social serviceTerms.ts — owner-only), and both
+      `POST /{user}/read` (media.py:83) and the media-records list
+      (media.py:101) gate on is_permitted(token, user, "media",
+      "read") — a follower can never presign an author's photo, and
+      another user's avatar dies at issue time; on dev's private
+      bucket (D23) every cross-user image 403s. this blocks
+      D-feed-avatar-resolution, the D-user-profile-media grid half,
+      and follower-side image rendering for D-post-delivery. build:
+      (1) MetadataCreate/upload-confirm accepts optional `service`
+          ("media" default | "public_media" ONLY — validate against
+          exactly that allowlist; the body must never name an
+          arbitrary collection) and writes the metadata record there.
+      (2) ReadRequest + the records-list route accept the same
+          optional `service`; is_permitted checks the REQUESTED
+          service. quota/space accounting unchanged.
+      api/** + tests only. permission-matrix additions: non-owner
+      presign on public_media allowed once terms grant it, still
+      denied on `media`; service allowlist rejects any other value;
+      star protection untouched. the client half (serviceTerms
+      public_media anon-read entry, uploadMedia targeting,
+      resolveMediaRefs passing service) is D-public-media-client,
+      lane D, gated on this — leave the JSON contract as a .context/
+      note. gate: none.
 
 LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
   [✓ 1.0.12-1.0.14] B1. P0 js: auth2 -> vite + bun + typescript
@@ -642,7 +668,10 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         native post with visibility choice; nothing auto-exposed; design.md
         §12 (PR screenshots). deferred: friends_posts (needs graph),
         unlisted_posts (anon-read, discovery-excluded).
-        STATUS: Phase A LANDED (1.0.131). Phases B + C remain open.
+        STATUS: Phase A LANDED (1.0.131). Phase B is now part of
+        D-post-delivery; Phase C's screen half is D-staging-review and
+        its media-grant half is A12 + D-public-media-client (D35) —
+        see those items below; nothing left to pick up under this tick.
 [✓ 1.0.149] D24. PROFILE FOLLOWER/FOLLOWING COUNTS BUG — `ProfileScreen.tsx` loads
         `countFollows()` and `readFollows()` in parallel and assigns both
         `followingCount` AND `followerCount` from the same data source
@@ -690,6 +719,110 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         web10-social/src/components/Bio/ProfileScreen.tsx + src/data/
         profile.ts. gate: none — gauntlet step 6 ("your profile reads
         as a creator page you'd screenshot") doesn't survive F5 today.
+[~ half: ✓ 1.0.162] D-user-profile-media (sub-lane D/profile). USER PROFILE AVATAR/BANNER BROKEN —
+        STATUS (24.07): the avatar/banner half LANDED in 1.0.162 (#284 —
+        loadData now resolves refs and populates mediaMap). REMAINING:
+        the post-media-in-grid half below — and it is GATED on the
+        public-media read path (A12 + D-public-media-client, decisions.md
+        D35): even with refs wired, a non-owner's presign is denied
+        today, so don't pick this up before that path merges.
+        viewing another user's profile always shows the default initial-letter
+        avatar and gradient banner, even when the user has uploaded images.
+        `UserProfileScreen.tsx` declares `mediaMap` state but never populates it.
+        `loadData()` fetches the profile (carrying `avatar_ref`/`banner_ref`) but
+        never calls `resolveMediaRefs()` — the lookups at lines 170-171 always
+        return `undefined`. Fix: same pattern as `ProfileScreen.tsx` lines 67-77
+        — collect refs after profile fetch, resolve, populate mediaMap.
+        Also fixes post media in the user profile grid: `media_refs` is dropped
+        during the discovery-post map (lines 98-106), so even with a populated
+        mediaMap, post images can't render. Deeper issue: the discovery API
+        (`DiscoveryPost`/`RawDiscoveryPost` types) does not return `media_refs` —
+        the index is lightweight metadata only. Full fix requires either adding
+        `media_refs` to the discovery API response (lane A touch in documentdb.py
+        discovery aggregation) OR reading actual post records from the user's
+        collection. owns marketing/web10-social/src/components/Bio/UserProfileScreen.tsx.
+        gate: none. acceptance: viewing any user profile with an uploaded avatar/
+        banner shows the images; post media renders in the profile grid.
+[ ] D-feed-avatar-resolution (sub-lane D/feed). FEED AVATAR FALLS BACK TO INITIAL —
+        `FeedScreen.tsx` tries to find the author's avatar inside the post's
+        media items: `mediaMap[item.post_id]?.find(m => m._id === profile.avatar_ref)`
+        (line 598). The avatar lives in the user's media collection independently,
+        not in the post's `media_refs`. This only works by accident if the avatar
+        image was also attached to the same post. Fix: collect all unique
+        `avatar_ref`/`banner_ref` from the profile map and resolve them separately
+        via `resolveMediaRefs(profileRefs, { username, provider })`. Same bug in
+        `DiscoverScreen.tsx` line 798 (`mediaItems.find(m => m._id === profile.avatar_ref)`).
+        owns marketing/web10-social/src/components/Feed/FeedScreen.tsx and
+        Discover/DiscoverScreen.tsx. gate (updated 24.07): the public-media
+        read path (A12 + D-public-media-client, decisions.md D35) — resolving
+        another user's avatar requires a non-owner presign, which is denied
+        today, so the fix can't be verified before that path merges.
+        acceptance: feed and discover show real avatars for authors who have
+        uploaded profile pictures.
+[✓ 1.0.165] D-post-delivery (sub-lane D/feed). A REAL USER'S POST REACHES NO ONE —
+        the 24.07 audit behind the pitch: PostComposer.tsx:379 calls
+        createPost with NO visibility field, and posts.ts:37 routes
+        visibility-less posts to private_posts (owner-only, never
+        discovery-indexed); AND nothing fans out on write anywhere — the
+        app never writes a follower's `inbox` (grep posts.ts + api/app:
+        zero); only persona-orchestration/seed_personas.py:652
+        deliver_to_inbox does, out-of-band, which is why gauntlet steps
+        2-3 pass on seeded personas and are THEATER for real accounts.
+        post once, reach ZERO followers — in the app whose pitch is 100%
+        delivery by architecture. two fixes, one arc (same files):
+        (1) D19 PHASE B — composer visibility selector, default PUBLIC
+            (public → public_posts, discovery indexes it; private →
+            private_posts).
+        (2) FAN-OUT ON WRITE — after a PUBLIC post lands, deliver to
+            every follower's inbox + your own: the follower list is the
+            D34 public ledger (payload.action='follow' entries targeting
+            you — countFollowers in follows.ts already queries it); the
+            `inbox` service already whitelists create for everyone
+            (serviceTerms.ts), so one POST /{follower}/inbox per follower
+            with {post_id, post_body, author_username, author_provider,
+            delivered_at} (the exact shape seed_personas.py:658 writes)
+            is permitted today. client-side O(followers) is the honest v0
+            at demo scale (server-side fan-out is a later lane-A item —
+            D29). private posts do NOT fan out.
+        owns PostComposer.tsx + data/posts.ts (+ a listFollowers export
+        in follows.ts — seam rule: own exports only). NOTE: follower-side
+        IMAGE rendering still hits the cross-user media wall (A12/D35) —
+        text delivery is this item's bar; don't chase media 403s here.
+        gate: none. acceptance: user X posts public → it appears in
+        follower Y's Feed tab (two real accounts, dev or local stack);
+        a private post doesn't; your own post shows in your own feed;
+        the visibility control is design.md-grade at 375px (screenshots).
+[✓ 1.0.164] D-staging-review (sub-lane D/staging — new screen, new sub-lane:
+        owns components/Staging/** + data/staging.ts). D19 PHASE C, the
+        screen half: imports land in staging_posts (owner-only, Phase A
+        1.0.131) and there is NO ui to triage them (grep components/ for
+        staging: zero). build the Staging/Review screen: list
+        staging_posts grouped by origin (instagram / facebook / youtube /
+        native draft), preview text + media (owner-only reads — no media
+        wall here), per-item + bulk actions publish-public /
+        keep-private / delete implemented as COLLECTION MOVES
+        (create-in-target + delete-from-source, D30 — same body, new
+        home; the move helper lives in data/staging.ts). route /staging
+        + an entry point (Profile screen "Review imports (N)" affordance
+        when N>0). the "publishing grants audience media read" bit is
+        NOT this item — that's D-public-media-client after A12. seam
+        touches: one Route line in App.tsx, one export line in
+        data/index.ts (seam rule). gate: none. acceptance: seed a few
+        staging records (or run an import), triage them entirely from
+        the ui, published ones appear on the wall/feed; design.md §12,
+        screenshots desktop + 375px.
+[ ] D-public-media-client (sub-lane D/feed + data seam). client half of
+        decisions.md D35, against A12's contract: serviceTerms.ts gains a
+        `public_media` service with the anon-read whitelist public_posts
+        already carries; uploadMedia targets public_media when the
+        content is public (a public post's attachments; avatar/banner —
+        the profile record is already anon-readable); resolveMediaRefs /
+        getReadUrl pass the service through so non-owner reads presign
+        against public_media. existing records stay in `media` (legacy
+        fallback keeps rendering for the owner). gate: A12 merged.
+        acceptance: a second account sees the author's public-post
+        photos + avatar on dev (private bucket, zero 403s in console);
+        DM/private-post media still 403s for non-owners.
 [✓ 1.0.155] D-url-routing (sub-lane D/shell; was "D27" for a day — renamed per
         rule 4/D33). THE ADDRESS BAR HOLDS YOUR PLACE — (operator,
         23.07: refreshing the social app should put you back on the
@@ -872,8 +1005,16 @@ LANE E — infrastructure / deployment (owns: proxmox provisioning,
   [ ] E4. automated provisioning: terraform or ssh-api script +
       ansible for idempotent VM/LXC setup. don't rush — manual is
       fine until E2 works.
-[~] E6. SSH-DEPLOY CI/CD (replaces Portainer GitOps as the deploy
-       trigger): the current Portainer GitOps loop (5-min poll, silent
+[✓ 1.0.134] E6. SSH-DEPLOY CI/CD — CORE LANDED: .github/workflows/deploy.yml
+       deploys web10-dev on dev pushes and web10-prod on main pushes,
+       runs scripts/smoke.sh in the job, and Portainer GitOps
+       auto-update was disabled box-side (OPS-LOG 23.07) — deploy.yml
+       is the single deployer per env, which is the item's load-bearing
+       goal. NOT built from the spec below: the Portainer stack-register
+       API call and the tagged-image rollback — re-open as a small
+       follow-up only if the operator misses them.
+       (original spec, kept for that follow-up:) the current Portainer
+       GitOps loop (5-min poll, silent
        retries on failure, zero signal back to GitHub) is brittle —
        when a deploy fails, Portainer retries forever in a loop and
        GitHub has no idea. the replacement: GitHub Actions SSHes into
@@ -1028,7 +1169,7 @@ M3 "the network"         = encryption integration (A rtc + C2 sdk
                            polish. the last big merge.
 
 
-CURRENT CONDUCTOR BOARD (as of 23.07.2026 — keep this section fresh)
+CURRENT CONDUCTOR BOARD (as of 24.07.2026 — keep this section fresh)
 --------------------------------------------------------------------
 PRIORITY ONE (plan.txt, top — supersedes 19.07's priority zero,
 whose baseline chain A7/B6/D16.1/D17 is merged): THE KILLER APP,
@@ -1057,38 +1198,49 @@ opens on his phone, in front of someone, and is proud of?" (D29)
          state without writing). 2 new posts/persona + 4 reply DMs added.
   [✓ 1.0.145] ws-G3: encode each passing gauntlet step as a playwright journey
          in e2e/ (lane C — this is C6 continued, NOT C2).
-GAUNTLET RESIDUE (in flight now — one workspace per SUB-LANE, see
-the lane D sub-lane map; all gates none, run all of these 4-wide+):
-  ws-D/profile:   D-profile-media-refresh (bug in shipped work — first)
-  ws-D/shell:     D-url-routing, then D-login-cta (small)
-  ws-D/dms:       D-dm-compose
-  ws-D/discover:  D-follower-count (its lane-A aggregation touch goes
-                  through .context/, not a reach-in)
-  ws-D/marketing: D-trending-comments + D-join-page
-  ws-A:           A11 username charset (small)
-  ws-C:           harden the gauntlet journeys — encode the
-                  media-refresh regression into step 6, flip step 5's
-                  fixme when D-dm-compose lands. journeys assert the
-                  BAR, not the happy path (D-profile-media-refresh got
-                  past step 6's save+read assertion).
-                  GATE NOTE (24.07): both named tasks are gated on
-                  UNMERGED work — a step-6 refresh assertion merged
-                  before the D-profile-media-refresh fix turns the
-                  e2e job red on dev ("nothing merges red"), and the
-                  step-5 flip waits on D-dm-compose by its own text.
-                  stage ws-C when ws-D/profile merges, not 4-wide now.
-WEEK-3 STAGING (timeline.md aug 3-10 — staged NOW so no lane idles
-when the residue drains):
+GAUNTLET RESIDUE — DRAINED 24.07: all six 23.07 kickoffs merged
+same-day (D-profile-media-refresh 1.0.157, D-url-routing +
+D-login-cta 1.0.155, D-dm-compose 1.0.155, D-follower-count 1.0.158,
+D-trending-comments + D-join-page 1.0.155, A11 1.0.155) plus the
+follow-on fixes 1.0.159-1.0.162. zero open PRs at board refresh.
+
+THE 24.07 AUDIT FINDING (drives this round): a real user's post
+reaches NO ONE (composer → private_posts, no fan-out anywhere — see
+D-post-delivery), and cross-user media has NO read path (owner-only
+terms + presign denial — see A12 / D-public-media-client / D35).
+gauntlet steps 2-3 pass on seeded personas only; the delivery pitch
+is unimplemented for real accounts. this round is delivery + public
+media, still squarely priority-one work.
+
+IN FLIGHT NOW (24.07 — one workspace per sub-lane):
+  ws-D/feed:      D-post-delivery (composer visibility default-public
+                  + inbox fan-out on write; gauntlet steps 2-3 for
+                  real accounts)
+  ws-D/staging:   D-staging-review (D19 Phase C screen; new sub-lane,
+                  components/Staging/** + data/staging.ts)
+  ws-D/marketing: D-trending-knobs (gate D-trending-comments merged
+                  1.0.155)
+  ws-A:           A12 public-media read path (api side of D35)
+  ws-C:           gauntlet journeys — [✓ 1.0.167] step-6 refresh
+                  regression pin, step-5 fixme flip (D-dm-compose UI
+                  flow), step-3 follow journey (follow button +
+                  /u/:username + follower count, all UI-driven). Next
+                  ws-C item: ws-C/cross demo-node theming + real-takeout
+                  seed battle test (NEXT queue above, timeline.md week 3).
   ws-E:           BOX EXECUTION remainder (AGENT-OPS.md §4.2) + the
-                  off-box backup + restore drill (plan.txt KNOWN GAPS)
-  ws-C/cross:     demo-node theming + seed via a REAL takeout import
-                  (the founder's own IG/YT exports — first exporter
-                  battle test; log every parser break, promote phase
-                  9's llm-assisted mapping on the first one)
-  then: low-hanging fruit by demo impact — realtime feed refresh,
-          notifications, search-your-own-stuff, D-trending-knobs (the
-          user-held algorithm knobs on /trending — gated on
-          D-trending-comments, same files).
+                  off-box backup + restore drill (plan.txt KNOWN
+                  GAPS). operator gate: needs box SSH + .env — if the
+                  workspace has no box access, stop and say so.
+NEXT (stage as gates merge — don't run now):
+  D-public-media-client (gate: A12) → then D-feed-avatar-resolution +
+  the D-user-profile-media grid half (gate: public-media path
+  end-to-end); D22 vertical feed (gate D21 merged — stage when
+  ws-D/feed frees up, same sub-lane); ws-C/cross demo-node theming +
+  seed via a REAL takeout import (timeline.md week 3, aug 3-10 —
+  first exporter battle test; log every parser break, promote phase
+  9's llm-assisted mapping on the first one); then low-hanging fruit
+  by demo impact — realtime feed refresh, notifications,
+  search-your-own-stuff.
 ON DECK — M2 PREREQUISITES (stage when the gauntlet closes; these are
 plan.txt KNOWN GAPS with no lane items yet, and all three gate
 creator #1): memberships wired to stripe rails (B4.5 rung-0 →
@@ -1185,7 +1337,7 @@ ws5: C6 e2e deep sweep + bug hunt (lane C — e2e/** only; local
          Gate: D-comments-ledger (nothing writes comments to the ledger today,
          so the read returns [] until the social-side mirror lands). Owns:
          FeedPreview.tsx + Trending.tsx.
-    [ ] D-trending-knobs (sub-lane D/marketing): THE ALGORITHM IS YOURS —
+    [✓ 1.0.164] D-trending-knobs (sub-lane D/marketing): THE ALGORITHM IS YOURS —
          /trending gains synth-styled rotary knobs (recency / likes /
          comments weights, time-horizon half-life, power-mean "character"
          p) that re-rank the grid LIVE, client-side, zero network calls

@@ -8,8 +8,19 @@ import {
 } from '@/components/FeedPreview';
 import type { FeedPost } from '@/components/FeedPreview';
 import { TrendingSidebar } from '@/components/TrendingSidebar';
+import { KnobRack } from '@/components/KnobRack';
 import { SOCIAL_ORIGIN } from '@/lib/origins';
 import { trackFunnel } from '@/lib/analytics';
+import {
+  defaultKnobState,
+  encodeMix,
+  decodeMix,
+  getPreset,
+  rankPosts,
+  type KnobState,
+  type PresetId,
+  type PostSignals,
+} from '@/lib/powerMean';
 
 const INITIAL_PAGE = 20;
 const PAGE_STEP = 20;
@@ -25,6 +36,32 @@ function buildTopic(allTags: string[]): string[] {
   return unique.slice(0, 12);
 }
 
+function postToSignals(post: FeedPost): PostSignals {
+  return {
+    ageMs: Date.now() - new Date(post.createdAt).getTime(),
+    likes: post.likesCount,
+    comments: post.commentsCount,
+    reposts: post.repostsCount,
+  };
+}
+
+function readMixFromHash(): { state: KnobState; preset: PresetId | null } {
+  const hash = window.location.hash.slice(1);
+  const match = hash.match(/^mix=(\d{5})/);
+  if (match) {
+    const state = decodeMix(match[1]);
+    if (state) {
+      return { state, preset: null };
+    }
+  }
+  return { state: defaultKnobState(), preset: 'balanced' };
+}
+
+function writeMixToHash(state: KnobState) {
+  const code = encodeMix(state);
+  window.location.hash = `mix=${code}`;
+}
+
 function Trending() {
   const [allPosts, setAllPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,13 +69,29 @@ function Trending() {
   const [limit, setLimit] = useState(INITIAL_PAGE);
   const [hasMore, setHasMore] = useState(true);
   const [topic, setTopic] = useState<string>('All');
+  const [knobState, setKnobState] = useState<KnobState>(() => readMixFromHash().state);
+  const [activePreset, setActivePreset] = useState<PresetId | null>(
+    () => readMixFromHash().preset,
+  );
   const cardRefs = useRef<Map<string, HTMLElement>>(new Map());
 
   const loadFeed = useCallback(async (nextLimit: number, append: boolean) => {
     if (append) setLoadingMore(true); else setLoading(true);
     try {
-      const results = await fetchDiscoverFeed('trending', nextLimit);
-      const posts = results.map(mapDiscoveryToFeedPost);
+      const [trendingResults, recentResults] = await Promise.all([
+        fetchDiscoverFeed('trending', nextLimit),
+        fetchDiscoverFeed('recent', nextLimit),
+      ]);
+      // Merge both sources, deduplicate by post id
+      const all = [...trendingResults];
+      const seen = new Set(all.map(p => p.id));
+      for (const p of recentResults) {
+        if (!seen.has(p.id)) {
+          all.push(p);
+          seen.add(p.id);
+        }
+      }
+      const posts = all.map(mapDiscoveryToFeedPost);
       setAllPosts(posts);
       setHasMore(posts.length === nextLimit && nextLimit < MAX_RESULTS);
     } catch {
@@ -55,6 +108,17 @@ function Trending() {
     trackFunnel('trending_view');
   }, [loadFeed]);
 
+  // Listen for hash changes (back/forward, manual paste)
+  useEffect(() => {
+    const onHash = () => {
+      const { state, preset } = readMixFromHash();
+      setKnobState(state);
+      setActivePreset(preset);
+    };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+
   const maxScore = useMemo(
     () => Math.max(1, ...allPosts.map(p => p.engagementScore ?? 0)),
     [allPosts],
@@ -65,20 +129,38 @@ function Trending() {
     [allPosts],
   );
 
-  const ranked: RankedPost[] = useMemo(
-    () =>
-      allPosts.map((post, i) => ({
-        ...post,
-        rank: i + 1,
-        featured: i === 0,
-      })),
-    [allPosts],
-  );
+  // Live re-rank by knob state (client-side, zero network calls)
+  const ranked: RankedPost[] = useMemo(() => {
+    const sorted = rankPosts(allPosts, postToSignals, knobState);
+    return sorted.map((post, i) => ({
+      ...post,
+      rank: i + 1,
+      featured: i === 0,
+    })) as RankedPost[];
+  }, [allPosts, knobState]);
 
   const visible = useMemo(
     () => (topic === 'All' ? ranked : ranked.filter(p => p.tags?.includes(topic) ?? false)),
     [ranked, topic],
   );
+
+  const handleKnobChange = useCallback((key: keyof KnobState, value: number) => {
+    setKnobState(prev => {
+      const next = { ...prev, [key]: value };
+      writeMixToHash(next);
+      setActivePreset(null);
+      return next;
+    });
+  }, []);
+
+  const handlePreset = useCallback((id: PresetId) => {
+    const preset = getPreset(id);
+    if (!preset) return;
+    setKnobState(preset.state);
+    setActivePreset(id);
+    writeMixToHash(preset.state);
+    trackFunnel('trending_preset', { preset: id });
+  }, []);
 
   const scrollToCard = useCallback((postId: string) => {
     const el = cardRefs.current.get(postId);
@@ -95,6 +177,11 @@ function Trending() {
 
   const handleReaction = (type: 'like' | 'repost') => {
     trackFunnel(type === 'like' ? 'trending_like_attempt' : 'trending_repost_attempt');
+    window.open(SOCIAL_ORIGIN, '_blank');
+  };
+
+  const handleComment = () => {
+    trackFunnel('trending_comment_attempt');
     window.open(SOCIAL_ORIGIN, '_blank');
   };
 
@@ -130,6 +217,18 @@ function Trending() {
         </div>
       </header>
 
+      {/* Knob Rack — synth control surface */}
+      {!isInitialLoad && allPosts.length > 0 && (
+        <div className="px-4 pb-4 sm:px-6">
+          <KnobRack
+            state={knobState}
+            activePreset={activePreset}
+            onChange={handleKnobChange}
+            onPreset={handlePreset}
+          />
+        </div>
+      )}
+
       {/* Topic filter — sticky, horizontal scroll */}
       <div
         data-testid="trending-topics"
@@ -146,26 +245,26 @@ function Trending() {
                   <span key={i} className="h-7 w-16 shrink-0 animate-pulse rounded-full bg-elevated" />
                 ))
               : topics.map(t => {
-                const active = t === topic;
-                return (
-                  <button
-                    key={t}
-                    type="button"
-                    role="tab"
-                    aria-selected={active}
-                    data-testid="trending-topic"
-                    onClick={() => setTopic(t)}
-                    className={[
-                      'shrink-0 rounded-full border px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                      active
-                        ? 'border-brand bg-brand-muted text-brand-300'
-                        : 'border-border bg-surface text-muted-foreground hover:text-foreground',
-                    ].join(' ')}
-                  >
-                    {t === 'All' ? 'All' : `#${t}`}
-                  </button>
-                );
-              })}
+                  const active = t === topic;
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      role="tab"
+                      aria-selected={active}
+                      data-testid="trending-topic"
+                      onClick={() => setTopic(t)}
+                      className={[
+                        'shrink-0 rounded-full border px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                        active
+                          ? 'border-brand bg-brand-muted text-brand-300'
+                          : 'border-border bg-surface text-muted-foreground hover:text-foreground',
+                      ].join(' ')}
+                    >
+                      {t === 'All' ? 'All' : `#${t}`}
+                    </button>
+                  );
+                })}
           </div>
         </div>
       </div>
@@ -198,6 +297,7 @@ function Trending() {
                       featured={post.featured}
                       maxScore={maxScore}
                       onLike={() => handleReaction('like')}
+                      onComment={() => handleComment()}
                       onRepost={() => handleReaction('repost')}
                       cardRef={registerCard(post.id)}
                     />

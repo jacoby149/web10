@@ -280,12 +280,28 @@ def create(user, service, _data, author=None, source_node=None):
     return _data
 
 
+def _cast_ids(query):
+    """Cast string _id values to ObjectId so queries match MongoDB records.
+    Handles bare _id, $in arrays, and $nin arrays."""
+    if query is None:
+        return
+    if isinstance(query.get("_id"), str):
+        query["_id"] = ObjectId(query["_id"])
+    in_val = query.get("_id", {}).get("$in")
+    if isinstance(in_val, list):
+        query["_id"]["$in"] = [ObjectId(v) if isinstance(v, str) else v for v in in_val]
+    nin_val = query.get("_id", {}).get("$nin")
+    if isinstance(nin_val, list):
+        query["_id"]["$nin"] = [ObjectId(v) if isinstance(v, str) else v for v in nin_val]
+
+
 def read(user, service, query):
     # get the skip sort, and limit values if they are there.
     # TODO add exceptions for each of the ways the inputs can be bad!!!!
     skip = query["$skip"] if "$skip" in query else 0
     sort = sort_t(query["$sort"]) if "$sort" in query else [("_id", 1)]
     limit = query["$limit"] if "$limit" in query else 0
+    _cast_ids(query)
     query = q_t(query, service)
 
     records = db[f"{user}"].find(query).sort(sort).skip(skip).limit(limit)
@@ -671,20 +687,20 @@ def register_app(info):
 # --- Media helpers ---
 
 
-def create_media_record(username: str, record: dict) -> dict:
+def create_media_record(username: str, record: dict, service: str = "media") -> dict:
     # I6: strip client-supplied immutable metadata
     record = {k: v for k, v in record.items() if k not in IMMUTABLE_METADATA}
     record["_created_at"] = datetime.datetime.utcnow()
-    doc = {"service": "media", "body": record}
+    doc = {"service": service, "body": record}
     result = db[username].insert_one(doc)
     record["_id"] = str(result.inserted_id)
     return record
 
 
-def read_media_records(username: str, query: dict | None = None) -> list[dict]:
+def read_media_records(username: str, query: dict | None = None, service: str = "media") -> list[dict]:
     if query is None:
         query = {}
-    mongo_query = {"service": "media"}
+    mongo_query = {"service": service}
     for field, value in query.items():
         if field.startswith("$"):
             continue

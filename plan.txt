@@ -43,6 +43,36 @@ so it can't regress (C6 continued — the referee for "works").
       lane items same-day (the 22-23.07 find→file→fix loop). journeys
       must assert the BAR, not the happy path — the profile-media-refresh
       bug got past step 6's save+read assertion.
+      HONESTY NOTE 2 (24.07 audit): steps 2-3 pass on SEEDED personas
+      only. a real account's post reaches NO ONE: the composer sets no
+      visibility (PostComposer.tsx:379 → posts.ts:37 routes to
+      private_posts — owner-only, never discovery-indexed), and nothing
+      fans out on write anywhere (the app never writes a follower's
+      inbox; only persona-orchestration/seed_personas.py does,
+      out-of-band). the "100% delivery by architecture" pitch is
+      unimplemented in product code — fix is D-post-delivery (lane D
+      queue). separately, cross-user media has NO read path: the media
+      service terms are owner-only and the presign endpoint denies
+      non-owners, so a follower can never render an author's photo and
+      another user's avatar 403s on dev — fix is A12 + the
+      D-public-media-client follow-up (decisions.md D35).
+[✓ 1.0.167] ws-C journey hardening: step 6's assert-the-bar gap from
+      HONESTY NOTE (above) is closed — the e2e pin now reproduces the
+      1.0.157 duplicate-profile-record bug condition and asserts the
+      correct record's avatar/banner refs are what the app actually
+      requests, verified live by reverting the fix locally and watching
+      the pin go red. Step 3 (follow -> feed, follower count) and step 5
+      (new-conversation compose) flipped from test.fixme to real,
+      UI-driven journeys — gates (follow UI #254, /u/:username 1.0.155,
+      follower count 1.0.158, D-dm-compose 1.0.155) were already merged.
+      Three findings filed in .context/ for other lanes, not fixed here
+      (e2e/** only): registerDefaultSchemas() (data/feed.ts) is dead code
+      — nothing calls it, so reactions/comments/follows never actually
+      mirror to the public ledger; createPublicEntry() sends a body with
+      no token field, so the mirror would 401 even if the schema cache
+      were fixed (silently swallowed); generic CRUD read() never
+      ObjectId-casts a queried _id, so resolveMediaRefs() — used for
+      every avatar/banner/post image app-wide — always returns empty.
 when the gauntlet passes end to end, THEN low-hanging fruit in
 order of demo impact (realtime feed refresh, notifications, search
 your own stuff, D16(3) store curation) — judged by the same
@@ -1306,7 +1336,7 @@ Marketing-ui side (Lane D):
     keep the heart-burst animation (D12 vibrancy). owns: FeedPreview.tsx +
     Trending.tsx.
 
-[ ] D-trending-knobs — THE ALGORITHM IS YOURS (operator, 24.07): /trending
+[✓ 1.0.164] D-trending-knobs — THE ALGORITHM IS YOURS (operator, 24.07): /trending
     gains a synth-rack of knobs that re-rank the feed live. the hero already
     says "What's actually trending. No algorithm." — this makes the claim
     tactile: the ranking function is a WEIGHTED POWER MEAN over the
@@ -1459,7 +1489,7 @@ Phase B — visibility on native posts:
     the conventions-schema default). createPost already routes once set.
 
 Phase C — the staging + management UI (the feature):
-[ ] Staging/Review screen: reads `staging_posts`, imported content grouped by
+[✓ 1.0.164] Staging/Review screen: reads `staging_posts`, imported content grouped by
     origin, per-item + bulk actions Publish(public) / Keep private / Delete,
     each = a collection move. design.md-grade (§12, PR screenshots).
 [ ] post-publish management on the wall: change an existing post's visibility
@@ -1757,6 +1787,37 @@ the boring plumbing social apps die without:
     in the engagement aggregation, and the Followers tile returns to
     ProfileScreen with a real number — the M0 screenshot stat.
     board item D-follower-count in parallel execution.txt.
+    HONESTY NOTE (25.07, found writing the ws-C gauntlet e2e pin): the
+    tick is only half true. ProfileScreen's Followers tile DOES read a
+    real number off the ledger (countFollowers(), self profile only) —
+    but the WRITE side never fires: followUser()'s mirror is gated on
+    getCachedSchema('Follow'), which is only ever populated by
+    registerDefaultSchemas() (data/feed.ts) — a function nothing in the
+    app calls. Even with that fixed, createPublicEntry() posts a body
+    with no `token` field, so the mirror would 401 anyway (caught
+    silently, returns a fake local stub). And /discover/users'
+    suggested_users() (api/app/services/documentdb.py) never actually
+    computes or returns a followers_count field — so UserProfileScreen's
+    /u/:username page (viewing someone ELSE's profile, where the follow
+    button lives) can never show a follower count at all, only your own
+    /profile can. Full detail + suggested fix shape in
+    .context/e2e-finding-public-ledger-mirror-dead.md. Not fixed here
+    (e2e/** lane); re-open as a lane D + lane A item.
+[ ] user profile media resolution (gauntlet step 6): viewing another
+    user's profile always shows the default initial-letter avatar and
+    gradient banner, even when the user has uploaded images.
+    `UserProfileScreen.tsx` never populates `mediaMap` with resolved
+    avatar/banner refs. Also: post media in the profile grid is
+    structurally broken — `media_refs` is dropped from the discovery
+    post map and the discovery API doesn't return media refs.
+    board items D-user-profile-media and D-feed-avatar-resolution in
+    parallel execution.txt.
+[ ] feed and discover avatar resolution: `FeedScreen.tsx` and
+    `DiscoverScreen.tsx` try to find the author's avatar inside the
+    post's media items — only works by accident if the avatar was also
+    attached to the post. Fix: resolve profile avatar/banner refs
+    separately from post media.
+    board item D-feed-avatar-resolution in parallel execution.txt.
 [ ] notifications: web push first (pwa), mobile push later. new post
     from a follow, comment on your post, dm, key request (phase 11).
     notification prefs are an ordinary settings record the user owns

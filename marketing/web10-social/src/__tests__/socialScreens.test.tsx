@@ -22,6 +22,7 @@ vi.mock('lucide-react', () => {
     'ChevronLeft', 'MessageSquare', 'Home', 'PlusCircle', 'LogOut', 'Bug',
     'AlertTriangle', 'CheckCircle', 'Compass', 'Share2', 'Repeat2',
     'Film', 'Music2', 'Users', 'Plus', 'X', 'Search',
+    'Video', 'FileText', 'Inbox', 'ChevronDown', 'ChevronRight', 'Lock', 'Trash2', 'ArrowLeft',
   ].forEach(name => { icons[name] = iconFactory(name); });
   return icons;
 });
@@ -51,6 +52,7 @@ vi.mock('@/data', async (importOriginal) => {
     startConversation: vi.fn().mockResolvedValue({ conversation: 'test.localhost/testuser--test.localhost/other', message: {} }),
     addContact: vi.fn().mockResolvedValue({}),
     conversationKey: vi.fn().mockReturnValue('test.localhost/testuser--test.localhost/other'),
+    countStagingPosts: vi.fn().mockResolvedValue(0),
   };
 });
 
@@ -112,7 +114,11 @@ describe('ProfileScreen', () => {
 
   it('renders full profile UI even when empty', async () => {
     const { default: ProfileScreen } = await import('@/components/Bio/ProfileScreen');
-    render(<ProfileScreen />);
+    render(
+      <MemoryRouter>
+        <ProfileScreen />
+      </MemoryRouter>,
+    );
     await waitFor(() => {
       expect(screen.getByText('Edit profile')).toBeInTheDocument();
     });

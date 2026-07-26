@@ -3,8 +3,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { createPost, uploadMedia, readProfile, resolveMediaRefs } from '@/data';
-import type { MediaRecord, ProfileRecord } from '@/data/types';
+import { createPost, uploadMedia, readProfile, resolveMediaRefs, fanOutToFollowers } from '@/data';
+import type { MediaRecord, ProfileRecord, Visibility } from '@/data';
 import {
   validateMedia,
   processImage,
@@ -14,7 +14,7 @@ import {
   validateVideoDuration,
 } from '@/lib/mediaProcessing';
 import type { ProcessingError as MediaProcessingError } from '@/lib/mediaProcessing';
-import { Image, X, Send, Loader2, AlertTriangle, GripVertical } from 'lucide-react';
+import { Image, X, Send, Loader2, AlertTriangle, GripVertical, Globe, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 let nextMediaId = 0;
@@ -143,6 +143,7 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
   const [focused, setFocused] = useState(false);
   const [profile, setProfile] = useState<ProfileRecord | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined);
+  const [visibility, setVisibility] = useState<Visibility>('public');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragIdRef = useRef<number | null>(null);
 
@@ -376,11 +377,21 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
       }
 
       setPosting(true);
-      await createPost({
+      const postRecord = await createPost({
         text: text.trim(),
         media_refs: mediaRecords.map((m) => m._id!).filter(Boolean),
+        visibility,
         created_at: new Date().toISOString(),
       });
+
+      // Fan-out to followers' inboxes (public posts only)
+      if (visibility === 'public') {
+        try {
+          await fanOutToFollowers(postRecord);
+        } catch (fanOutErr) {
+          console.warn('Fan-out to followers failed (non-fatal):', fanOutErr);
+        }
+      }
 
       mediaItems.forEach((item) => previewUrlsRef.current.delete(item.previewUrl));
       previewUrlsRef.current.clear();
@@ -489,6 +500,27 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
               >
                 <Image className="w-[18px] h-[18px]" strokeWidth={1.75} />
               </Button>
+
+              <div className="relative">
+                <select
+                  value={visibility}
+                  onChange={(e) => setVisibility(e.target.value as Visibility)}
+                  disabled={posting}
+                  aria-label="Post visibility"
+                  data-testid="visibility-selector"
+                  className="h-10 rounded text-xs font-medium bg-transparent px-2.5 py-2 text-muted-foreground hover:text-foreground hover:bg-elevated border border-transparent hover:border-border transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50 appearance-none cursor-pointer pr-7"
+                >
+                  <option value="public">Public</option>
+                  <option value="private">Private</option>
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-1 flex items-center">
+                  {visibility === 'public' ? (
+                    <Globe className="w-3.5 h-3.5 text-muted-foreground" />
+                  ) : (
+                    <Lock className="w-3.5 h-3.5 text-muted-foreground" />
+                  )}
+                </div>
+              </div>
               <input
                 ref={fileInputRef}
                 type="file"

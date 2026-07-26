@@ -6,6 +6,7 @@ import { TrendingCard, type FeedPost } from '@/components/FeedPreview';
 // Lane D — coverage for the /trending page pieces (D-trending-*).
 // TrendingCard rank tiers + engagement wiring, and the page's grid /
 // empty / load-more / sidebar states over a mocked discovery API.
+// D-trending-knobs: knob rack, presets, mix code, live re-ranking.
 
 const basePost: FeedPost = {
   id: 'p1',
@@ -18,6 +19,10 @@ const basePost: FeedPost = {
   likes: '10',
   comments: '2',
   reposts: '1',
+  likesCount: 10,
+  commentsCount: 2,
+  repostsCount: 1,
+  createdAt: '2026-07-23T00:00:00Z',
   engagementScore: 100,
   tags: ['math'],
 };
@@ -169,7 +174,7 @@ function makeDiscoveryPosts(n: number) {
     post_id: `post-${i}`,
     body_text: `post number ${i}`,
     tags: i % 2 === 0 ? ['art'] : ['code'],
-    created_at: '2026-07-23T00:00:00Z',
+    created_at: new Date(Date.now() - i * 3600_000).toISOString(),
     engagement: { likes: 100 - i, comments: 5, reposts: 2 },
     engagement_score: 1000 - i * 10,
   }));
@@ -180,7 +185,6 @@ describe('Trending page', () => {
     vi.clearAllMocks();
     vi.stubGlobal('fetch', vi.fn());
     vi.stubGlobal('open', vi.fn());
-    // jsdom has no layout; stub the scroll the sidebar triggers.
     Element.prototype.scrollIntoView = vi.fn();
   });
 
@@ -190,7 +194,6 @@ describe('Trending page', () => {
     render(<Trending />);
     await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
     expect(screen.getAllByTestId('trending-card')).toHaveLength(20);
-    // Top 10 sidebar shows exactly ten entries.
     const sidebar = screen.getByTestId('trending-sidebar');
     expect(within(sidebar).getAllByTestId('trending-sidebar-entry')).toHaveLength(10);
   });
@@ -204,7 +207,10 @@ describe('Trending page', () => {
       vi.mocked(fetch).mock.calls
         .filter(c => String(c[0]).includes('/discover/posts'))
         .map(c => String(c[1]?.body));
-    expect(discoverBodies()).toEqual(['{"query":{"sort":"trending","limit":20}}']);
+    expect(discoverBodies()).toEqual([
+      '{"query":{"sort":"trending","limit":20}}',
+      '{"query":{"sort":"recent","limit":20}}',
+    ]);
     fireEvent.click(loadMore);
     await waitFor(() =>
       expect(discoverBodies()).toContain('{"query":{"sort":"trending","limit":40}}'),
@@ -228,7 +234,6 @@ describe('Trending page', () => {
     const codeChip = screen.getAllByTestId('trending-topic').find(el => el.textContent === '#code');
     expect(codeChip).toBeDefined();
     fireEvent.click(codeChip!);
-    // 10 of the 20 posts carry the 'code' tag (odd indices).
     await waitFor(() => expect(screen.getAllByTestId('trending-card')).toHaveLength(10));
   });
 
@@ -243,5 +248,179 @@ describe('Trending page', () => {
     fireEvent.click(likeBtn);
     expect(likeBtn.textContent).toBe(beforeText);
     expect(window.open).toHaveBeenCalledOnce();
+  });
+});
+
+// ── D-trending-knobs: knob rack, presets, mix code, re-ranking ──────────────
+
+describe('Knob rack renders', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal('fetch', vi.fn());
+    vi.stubGlobal('open', vi.fn());
+    Element.prototype.scrollIntoView = vi.fn();
+  });
+
+  it('shows the knob rack with 5 knobs and 3 presets after load', async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonOk(makeDiscoveryPosts(10)) as unknown as Response);
+    const { default: Trending } = await import('@/pages/Trending');
+    render(<Trending />);
+    await waitFor(() => expect(screen.getByTestId('knob-rack')).toBeInTheDocument());
+    expect(screen.getByTestId('knob-recency')).toBeInTheDocument();
+    expect(screen.getByTestId('knob-likes')).toBeInTheDocument();
+    expect(screen.getByTestId('knob-comments')).toBeInTheDocument();
+    expect(screen.getByTestId('knob-time')).toBeInTheDocument();
+    expect(screen.getByTestId('knob-character')).toBeInTheDocument();
+    expect(screen.getByTestId('preset-newest')).toBeInTheDocument();
+    expect(screen.getByTestId('preset-most-loved')).toBeInTheDocument();
+    expect(screen.getByTestId('preset-balanced')).toBeInTheDocument();
+  });
+});
+
+describe('Knob re-ranking', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal('fetch', vi.fn());
+    vi.stubGlobal('open', vi.fn());
+    Element.prototype.scrollIntoView = vi.fn();
+  });
+
+  it('twisting a knob reshuffles the grid with zero network requests', async () => {
+    // Two posts close in age but very different in engagement. Balanced
+    // default (recency + likes + comments weighted, p = -1 "Flat") should
+    // still favor the high-engagement post. "Most loved · all time"
+    // (likes only, half-life ∞) also favors it. "Newest" should flip to
+    // the newer post.
+    const now = Date.now();
+    const posts = [
+      {
+        author: 'older',
+        service: 'public_posts',
+        post_id: 'older-post',
+        body_text: 'older high-engagement',
+        tags: ['test'],
+        created_at: new Date(now - 2 * 3600_000).toISOString(), // 2h ago
+        engagement: { likes: 9999, comments: 999, reposts: 999 },
+        engagement_score: 99999,
+      },
+      {
+        author: 'newer',
+        service: 'public_posts',
+        post_id: 'newer-post',
+        body_text: 'newer low-engagement',
+        tags: ['test'],
+        created_at: new Date(now - 10 * 60_000).toISOString(), // 10m ago
+        engagement: { likes: 1, comments: 0, reposts: 0 },
+        engagement_score: 1,
+      },
+    ];
+    vi.mocked(fetch).mockResolvedValue(jsonOk(posts) as unknown as Response);
+    const { default: Trending } = await import('@/pages/Trending');
+    render(<Trending />);
+    await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
+    const initialCards = screen.getAllByTestId('trending-card');
+    const initialOrder = initialCards.map(c => c.id);
+    const fetchCount = vi.mocked(fetch).mock.calls.filter(
+      c => String(c[0]).includes('/discover/posts'),
+    ).length;
+    // Click the "Newest" preset — should reorder to put the newer post first
+    fireEvent.click(screen.getByTestId('preset-newest'));
+    await waitFor(() => {
+      const newCards = screen.getAllByTestId('trending-card');
+      const newOrder = newCards.map(c => c.id);
+      return expect(newOrder).not.toEqual(initialOrder);
+    });
+    // No new /discover/posts calls after the preset click
+    expect(vi.mocked(fetch).mock.calls.filter(
+      c => String(c[0]).includes('/discover/posts'),
+    ).length).toBe(fetchCount);
+  });
+});
+
+describe('Preset behavior', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal('fetch', vi.fn());
+    vi.stubGlobal('open', vi.fn());
+    Element.prototype.scrollIntoView = vi.fn();
+  });
+
+  it('Newest preset sorts newest first regardless of engagement', async () => {
+    const posts = [
+      {
+        author: 'old',
+        service: 'public_posts',
+        post_id: 'old-post',
+        body_text: 'old post',
+        tags: ['test'],
+        created_at: '2020-01-01T00:00:00Z',
+        engagement: { likes: 9999, comments: 9999, reposts: 9999 },
+        engagement_score: 99999,
+      },
+      {
+        author: 'new',
+        service: 'public_posts',
+        post_id: 'new-post',
+        body_text: 'new post',
+        tags: ['test'],
+        created_at: new Date().toISOString(),
+        engagement: { likes: 0, comments: 0, reposts: 0 },
+        engagement_score: 0,
+      },
+    ];
+    vi.mocked(fetch).mockResolvedValue(jsonOk(posts) as unknown as Response);
+    const { default: Trending } = await import('@/pages/Trending');
+    render(<Trending />);
+    await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('preset-newest'));
+    await waitFor(() => {
+      const cards = screen.getAllByTestId('trending-card');
+      expect(cards[0]).toHaveAttribute('id', 'trending-card-new-post');
+    });
+  });
+
+  it('Most loved preset ignores age', async () => {
+    const posts = [
+      {
+        author: 'new',
+        service: 'public_posts',
+        post_id: 'new-post',
+        body_text: 'new post',
+        tags: ['test'],
+        created_at: new Date().toISOString(),
+        engagement: { likes: 1, comments: 0, reposts: 0 },
+        engagement_score: 1,
+      },
+      {
+        author: 'old',
+        service: 'public_posts',
+        post_id: 'old-post',
+        body_text: 'old post',
+        tags: ['test'],
+        created_at: '2020-01-01T00:00:00Z',
+        engagement: { likes: 9999, comments: 0, reposts: 0 },
+        engagement_score: 99999,
+      },
+    ];
+    vi.mocked(fetch).mockResolvedValue(jsonOk(posts) as unknown as Response);
+    const { default: Trending } = await import('@/pages/Trending');
+    render(<Trending />);
+    await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('preset-most-loved'));
+    await waitFor(() => {
+      const cards = screen.getAllByTestId('trending-card');
+      expect(cards[0]).toHaveAttribute('id', 'trending-card-old-post');
+    });
+  });
+});
+
+describe('Mix code URL round-trip', () => {
+  it('encodes and decodes a knob state', async () => {
+    const { encodeMix, decodeMix } = await import('@/lib/powerMean');
+    const state = { recency: 4, likes: 0, comments: 2, halfLife: 1, character: 3 };
+    const code = encodeMix(state);
+    expect(code).toMatch(/^\d{5}$/);
+    const decoded = decodeMix(code);
+    expect(decoded).toEqual(state);
   });
 });
