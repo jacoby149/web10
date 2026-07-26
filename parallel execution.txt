@@ -1882,6 +1882,29 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       commerce). Each: own sub-lane, own components dir, own data
       service. gate: per-surface spec first; none blocks another.
 
+[ ] D-night-owl (sub-lane ws-E/infra — the AI team that moonlights so
+      you don't have to; operator, 27.07: "the 10x potential — i am not
+      orchestrating, i am in the back giving my two points on SMS"):
+      the supervisor loop runs every 40min on your Mac via Hammerspoon.
+      screenshots Conductor, an AI vision agent sees the UI and drives
+      it — creates workspaces, sends prompts, reads results, kicks off
+      K3 bites. on crucial moments (web10web10, gather up, brick),
+      texts you like your top engineer. the AI is the eyes — adapts to
+      UI changes, no hardcoded coordinates. files: night_owl/ (init.lua,
+      conductor_agent.lua, texter.lua, config.json, README.md).
+      BITES (rule 5 — one PR each):
+      bite a, SCAFFOLD: Hammerspoon config, AI vision pipeline, texter,
+        config, README. Cmd+Opt+Ctrl+C triggers manual cycle that
+        screenshots Conductor and returns valid AI actions.
+      bite b, CONDUCTOR PILOT: AI navigates Conductor — new workspace,
+        model select, type prompt, hit enter, read result.
+      bite c, SUPERVISOR LOOP: full "should we do it?" pipeline —
+        Fable audit, K3 workspaces created per bite, progress tracked.
+      bite d, TEXTING: crucial events fire SMS in Steve Jobs style.
+      bite e, 24/7: scheduler enabled, fleet runs overnight.
+      gate: Hammerspoon installed, Accessibility permissions granted.
+      acceptance: wake up to merged PRs and a summary text.
+
 LANE E — infrastructure / deployment (owns: proxmox provisioning,
     reverse proxy, CI/CD deploy targets)
 [✓ 1.0.60] E1. proxmox staging node: Portainer + Nginx Proxy Manager
