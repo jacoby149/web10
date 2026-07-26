@@ -266,6 +266,9 @@ test.describe('social post with media -> feed -> comment -> DM', () => {
   test('social app renders login screen', async ({ page }) => {
     await page.goto(SOCIAL_BASE);
     await expect(page.locator('text=web10')).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('text=Log in')).toBeVisible({ timeout: 10000 });
+    // D-login-cta (1.0.155) changed the copy to "Log in or create your
+    // account", which now also appears in a subtitle paragraph — `text=Log
+    // in` matches both and violates Playwright's strict mode.
+    await expect(page.locator('[data-testid="login-button"]')).toBeVisible({ timeout: 10000 });
   });
 });

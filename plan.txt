@@ -56,6 +56,23 @@ so it can't regress (C6 continued — the referee for "works").
       non-owners, so a follower can never render an author's photo and
       another user's avatar 403s on dev — fix is A12 + the
       D-public-media-client follow-up (decisions.md D35).
+[✓ 1.0.167] ws-C journey hardening: step 6's assert-the-bar gap from
+      HONESTY NOTE (above) is closed — the e2e pin now reproduces the
+      1.0.157 duplicate-profile-record bug condition and asserts the
+      correct record's avatar/banner refs are what the app actually
+      requests, verified live by reverting the fix locally and watching
+      the pin go red. Step 3 (follow -> feed, follower count) and step 5
+      (new-conversation compose) flipped from test.fixme to real,
+      UI-driven journeys — gates (follow UI #254, /u/:username 1.0.155,
+      follower count 1.0.158, D-dm-compose 1.0.155) were already merged.
+      Three findings filed in .context/ for other lanes, not fixed here
+      (e2e/** only): registerDefaultSchemas() (data/feed.ts) is dead code
+      — nothing calls it, so reactions/comments/follows never actually
+      mirror to the public ledger; createPublicEntry() sends a body with
+      no token field, so the mirror would 401 even if the schema cache
+      were fixed (silently swallowed); generic CRUD read() never
+      ObjectId-casts a queried _id, so resolveMediaRefs() — used for
+      every avatar/banner/post image app-wide — always returns empty.
 when the gauntlet passes end to end, THEN low-hanging fruit in
 order of demo impact (realtime feed refresh, notifications, search
 your own stuff, D16(3) store curation) — judged by the same
@@ -1770,6 +1787,22 @@ the boring plumbing social apps die without:
     in the engagement aggregation, and the Followers tile returns to
     ProfileScreen with a real number — the M0 screenshot stat.
     board item D-follower-count in parallel execution.txt.
+    HONESTY NOTE (25.07, found writing the ws-C gauntlet e2e pin): the
+    tick is only half true. ProfileScreen's Followers tile DOES read a
+    real number off the ledger (countFollowers(), self profile only) —
+    but the WRITE side never fires: followUser()'s mirror is gated on
+    getCachedSchema('Follow'), which is only ever populated by
+    registerDefaultSchemas() (data/feed.ts) — a function nothing in the
+    app calls. Even with that fixed, createPublicEntry() posts a body
+    with no `token` field, so the mirror would 401 anyway (caught
+    silently, returns a fake local stub). And /discover/users'
+    suggested_users() (api/app/services/documentdb.py) never actually
+    computes or returns a followers_count field — so UserProfileScreen's
+    /u/:username page (viewing someone ELSE's profile, where the follow
+    button lives) can never show a follower count at all, only your own
+    /profile can. Full detail + suggested fix shape in
+    .context/e2e-finding-public-ledger-mirror-dead.md. Not fixed here
+    (e2e/** lane); re-open as a lane D + lane A item.
 [ ] user profile media resolution (gauntlet step 6): viewing another
     user's profile always shows the default initial-letter avatar and
     gradient banner, even when the user has uploaded images.
