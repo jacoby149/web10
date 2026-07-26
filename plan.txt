@@ -2059,6 +2059,16 @@ shell:
     the rationale, and makes it polished, aka killer." marketing-ui's
     TrendingCard/comment-panel links upgrade as the routes land
     (D-marketing-search + D-trending-link get the deep targets).
+    PRINCIPLE (operator, 26.07 — ten years on social media): shareable
+    links are how people get pulled in, and they build USER TRUST —
+    the incumbents degraded exactly this (instagram's login wall,
+    twitter's logged-out lockdown; the link opens, then a door slams).
+    web10's public layer is anon-readable by architecture, so the rule
+    is: A SHARED LINK TO PUBLIC CONTENT NEVER HITS A LOGIN WALL — it
+    opens, full quality, with joining as an invitation, not a ransom.
+    the link IS the demo. any agent adding an auth gate to a public
+    surface is breaking the funnel; private screens auth as they
+    always did.
     lane item D-deep-links (ws-D/shell; cross-screen seam — stage
     after the current fleet drains).
 [ ] SETTINGS TAB (operator, 26.07): "web10 social doesn't have a
