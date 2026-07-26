@@ -59,8 +59,8 @@ function KnobRack({ state, activePreset, onChange, onPreset }: KnobRackProps) {
         })}
       </div>
 
-      {/* Knobs */}
-      <div className="mt-6 flex items-start justify-center gap-6 sm:gap-10">
+      {/* Knobs — scroll horizontally on narrow screens, center on desktop */}
+      <div className="knob-row -mx-2 mt-6 flex items-start justify-start gap-6 overflow-x-auto px-2 pb-1 sm:mx-0 sm:justify-center sm:gap-10 sm:overflow-visible sm:px-0">
         <RotaryKnob
           label="Recency"
           value={state.recency}

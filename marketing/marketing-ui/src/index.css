@@ -128,6 +128,15 @@ body {
   animation: scale-tick 150ms ease-out;
 }
 
+/* Knob rack: let the row scroll on narrow screens without a chrome
+   scrollbar breaking the "one piece of hardware" look (design.md §12). */
+.knob-row {
+  scrollbar-width: none;
+}
+.knob-row::-webkit-scrollbar {
+  display: none;
+}
+
 /*
  * Docs prose (design.md §5: 65-75ch measure, Space Grotesk headings,
  * JetBrains Mono code). The markdown pipeline (remark) emits raw HTML via
