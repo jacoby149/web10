@@ -78,8 +78,20 @@ function Trending() {
   const loadFeed = useCallback(async (nextLimit: number, append: boolean) => {
     if (append) setLoadingMore(true); else setLoading(true);
     try {
-      const results = await fetchDiscoverFeed('trending', nextLimit);
-      const posts = results.map(mapDiscoveryToFeedPost);
+      const [trendingResults, recentResults] = await Promise.all([
+        fetchDiscoverFeed('trending', nextLimit),
+        fetchDiscoverFeed('recent', nextLimit),
+      ]);
+      // Merge both sources, deduplicate by post id
+      const all = [...trendingResults];
+      const seen = new Set(all.map(p => p.id));
+      for (const p of recentResults) {
+        if (!seen.has(p.id)) {
+          all.push(p);
+          seen.add(p.id);
+        }
+      }
+      const posts = all.map(mapDiscoveryToFeedPost);
       setAllPosts(posts);
       setHasMore(posts.length === nextLimit && nextLimit < MAX_RESULTS);
     } catch {

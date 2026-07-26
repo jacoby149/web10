@@ -207,7 +207,10 @@ describe('Trending page', () => {
       vi.mocked(fetch).mock.calls
         .filter(c => String(c[0]).includes('/discover/posts'))
         .map(c => String(c[1]?.body));
-    expect(discoverBodies()).toEqual(['{"query":{"sort":"trending","limit":20}}']);
+    expect(discoverBodies()).toEqual([
+      '{"query":{"sort":"trending","limit":20}}',
+      '{"query":{"sort":"recent","limit":20}}',
+    ]);
     fireEvent.click(loadMore);
     await waitFor(() =>
       expect(discoverBodies()).toContain('{"query":{"sort":"trending","limit":40}}'),
