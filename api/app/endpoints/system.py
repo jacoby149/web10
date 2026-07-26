@@ -198,3 +198,22 @@ async def apps_approve(req: AppApprovalRequest):
     check_admin(token)
     db.set_app_approval(req.url, req.approved)
     return {"status": "updated", "url": req.url, "approved": req.approved}
+
+
+# --- Discovery migration (admin only) ---
+
+
+@router.post("/admin/discovery/migrate_terms", include_in_schema=False)
+async def admin_discovery_migrate_terms(req: Token):
+    """Provision the canonical public_posts anon-read term for every existing
+    account that lacks it. Admin only. Idempotent — safe to call multiple times."""
+    check_admin(req)
+    return db.migrate_public_posts_terms()
+
+
+@router.post("/admin/discovery/backfill", include_in_schema=False)
+async def admin_discovery_backfill(req: Token):
+    """Backfill the discovery index with all existing public_posts from every
+    user collection. Admin only. Idempotent — safe to call multiple times."""
+    check_admin(req)
+    return db.backfill_discovery()

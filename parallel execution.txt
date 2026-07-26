@@ -251,7 +251,7 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       lane D, gated on this — leave the JSON contract as a .context/
       note. gate: none.
 
-[ ] A13-discovery-terms — PRIORITY (26.07 operator pass): real users'
+[✓ 1.0.178] A13-discovery-terms — PRIORITY (26.07 operator pass): real users'
       public posts still don't reach the discover board (marketing
       /trending AND the social-app Discover, even sorted newest).
       1.0.171 fixed HALF of it: service_allows_anon (documentdb.py) now
