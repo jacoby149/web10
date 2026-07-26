@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { readProfile, saveProfile, readMyPosts, resolveMediaRefs, uploadMedia, countFollows, countFollowers, refreshMediaUrls, countStagingPosts } from '@/data';
 import { getWapi } from '@/data/wapi';
 import type { ProfileRecord, PostRecord, MediaRecord } from '@/data/types';
-import { MapPin, Globe, Link, Camera, Edit3, Check, X, ImagePlus, Loader2, AlertTriangle, Inbox } from 'lucide-react';
+import { MapPin, Globe, Link, Camera, Edit3, Check, X, ImagePlus, Loader2, AlertTriangle, Inbox, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
 import { PostLightbox } from './PostLightbox';
@@ -401,12 +401,30 @@ export default function ProfileScreen() {
                     className="aspect-square bg-elevated overflow-hidden relative group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
                   >
                     {firstMedia ? (
-                      <img
-                        src={firstMedia.url}
-                        alt=""
-                        className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-110"
-                        loading="lazy"
-                      />
+                      firstMedia.mime_type?.startsWith('video/') ? (
+                        <div className="w-full h-full relative">
+                          <video
+                            src={firstMedia.url}
+                            poster={firstMedia.thumbnail_url}
+                            className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-110"
+                            preload="metadata"
+                            playsInline
+                            muted
+                          />
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                            <div className="flex items-center justify-center w-9 h-9 rounded-full bg-background/80 backdrop-blur-sm">
+                              <Play className="w-4 h-4 text-foreground ml-0.5" strokeWidth={2} />
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <img
+                          src={firstMedia.url}
+                          alt=""
+                          className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-110"
+                          loading="lazy"
+                        />
+                      )
                     ) : post.text ? (
                       <div className="w-full h-full p-3 flex items-start">
                         <p className="text-xs text-muted-foreground line-clamp-6">{post.text}</p>
@@ -459,12 +477,30 @@ export default function ProfileScreen() {
                     }}
                     className="aspect-square bg-elevated overflow-hidden relative group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
                   >
-                    <img
-                      src={media.url}
-                      alt={media.alt_text || ''}
-                      className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-110"
-                      loading="lazy"
-                    />
+                    {media.mime_type?.startsWith('video/') ? (
+                      <div className="w-full h-full relative">
+                        <video
+                          src={media.url}
+                          poster={media.thumbnail_url}
+                          className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-110"
+                          preload="metadata"
+                          playsInline
+                          muted
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                          <div className="flex items-center justify-center w-9 h-9 rounded-full bg-background/80 backdrop-blur-sm">
+                            <Play className="w-4 h-4 text-foreground ml-0.5" strokeWidth={2} />
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <img
+                        src={media.url}
+                        alt={media.alt_text || ''}
+                        className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-110"
+                        loading="lazy"
+                      />
+                    )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-150" />
                   </div>
                 );
@@ -483,6 +519,7 @@ export default function ProfileScreen() {
           post={lightboxPost}
           mediaMap={mediaMap}
           onClose={() => setLightboxPost(null)}
+          onReload={loadData}
         />
       )}
     </div>

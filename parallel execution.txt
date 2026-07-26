@@ -1043,7 +1043,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
    self-contained; the SEAM note names the file two items must not both
    edit — run those in the SAME workspace sequentially, not parallel.
 
-[ ] D-profile-post-experience (sub-lane ws-D/profile; SEAM:
+[✓ 1.0.178] D-profile-post-experience (sub-lane ws-D/profile; SEAM:
       ProfileScreen.tsx + PostLightbox.tsx — this item owns both):
       make a profile post fully viewable + editable. (1) VIDEO THUMBS:
       the Posts/Media grid renders <img src=firstMedia.url> which shows
