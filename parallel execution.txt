@@ -251,6 +251,53 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       lane D, gated on this — leave the JSON contract as a .context/
       note. gate: none.
 
+[ ] A13-discovery-terms — PRIORITY (26.07 operator pass): real users'
+      public posts still don't reach the discover board (marketing
+      /trending AND the social-app Discover, even sorted newest).
+      1.0.171 fixed HALF of it: service_allows_anon (documentdb.py) now
+      matches the app's `.*` anon-read whitelist via regex instead of an
+      exact "anon" string. The REMAINING half is that the anon-read term
+      for `public_posts` often DOESN'T EXIST for a real account, so
+      there's nothing to match:
+        - records.services_record() (api/app/services/records.py) ships
+          an EMPTY whitelist on signup. `public_posts` is not a default
+          service.
+        - the ONLY thing that creates the public_posts anon-read term is
+          the app's SMROnReady (sdk compat.ts:77) → SIR consent in the
+          auth portal — which only posts the SMR WHILE the portal child
+          window is open (login/signup). An already-signed-in user is
+          never re-prompted, and a server-only change (like 1.0.171)
+          triggers no SMR because the CLIENT contract (serviceTerms.ts)
+          didn't change. So the operator "gets no SMR" and the term
+          never lands → not indexed AND anon GET of the post 403s.
+      Fix (recommend a + b together; c is the deeper D30 option):
+        (a) provision the canonical PUBLIC service terms at account
+            setup — add `public_posts` (anon read: {username:'.*',
+            provider:'.*', read:true}) to the default account services
+            in records.services_record()/config.py, so every new account
+            is discoverable without an interactive SMR. + a one-shot
+            migration/backfill that writes the term for EXISTING accounts
+            that lack it.
+        (b) a discovery BACKFILL: iterate user collections, read
+            public_posts, upsert each into the discovery collection
+            (reuse upsert_discovery_post) so posts made BEFORE the fix
+            appear. 1.0.171 only indexes on CREATE going forward.
+        (c) [design, decide first] treat `public_posts` as anon-read +
+            discovery-indexed BY COLLECTION DEFINITION (D30: the
+            collection is the boundary), removing the per-user-term
+            dependency entirely. Bigger security-model call — do NOT
+            ship unilaterally; write it up in decisions.md and get
+            operator sign-off before (c).
+      Files: api/app/services/records.py, config.py, documentdb.py
+      (service_allows_anon done; add backfill + provisioning), + a
+      migration entry + tests. owns api/** only. Do NOT weaken
+      private_posts (owner-only) or star protection (I3). Acceptance:
+      a FRESH real account posts with visibility=public → the post
+      appears in PATCH /discover/posts?sort=recent within one request
+      AND an anon GET of that post succeeds (no 403); an EXISTING
+      account's pre-fix public posts appear after the backfill runs;
+      permission-matrix + discovery tests green, ruff clean. gate: none.
+
 LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
   [✓ 1.0.12-1.0.14] B1. P0 js: auth2 -> vite + bun + typescript
       (react 19, vitest, multi-stage dockerfiles, rtc to bun too)
@@ -961,6 +1008,140 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         dev (private bucket) with zero 403s in the console;
         presigned urls refresh when they expire.
 
+── 26.07 OPERATOR PASS — web10-social product surface (plan.txt PHASE
+   8.6 has the narrative; these are the executable lane items). Each is
+   self-contained; the SEAM note names the file two items must not both
+   edit — run those in the SAME workspace sequentially, not parallel.
+
+[ ] D-profile-post-experience (sub-lane ws-D/profile; SEAM:
+      ProfileScreen.tsx + PostLightbox.tsx — this item owns both):
+      make a profile post fully viewable + editable. (1) VIDEO THUMBS:
+      the Posts/Media grid renders <img src=firstMedia.url> which shows
+      a BROKEN-IMAGE icon for videos (mime_type startsWith 'video/');
+      render media.thumbnail_url (or a <video poster preload=metadata>
+      first-frame) + a play badge instead. (2) FULL VIEWER/EDITOR in
+      PostLightbox.tsx (shipped 1.0.170, currently media+caption only):
+      extract CommentThread from FeedScreen.tsx into
+      components/Feed/CommentThread.tsx (re-import in FeedScreen — pure
+      move, keep testids) and reuse it; add a like button
+      (toggleReaction('posts', postId, 'like', ...) + countReactions +
+      liked state from readReactions), the comment thread (see other
+      comments + add), and — for the owner — EDIT text (updatePost) +
+      DELETE (deletePost) with a confirm. Works for text / photo /
+      video posts. Video already gets a native seek bar + timer via
+      <video controls> (added 1.0.170) — keep it. On delete/edit, call
+      a prop so ProfileScreen reloads. Files: components/Bio/
+      PostLightbox.tsx, ProfileScreen.tsx, components/Feed/
+      CommentThread.tsx (new), FeedScreen.tsx (import only). data fns
+      all exist (posts.ts updatePost/deletePost, reactions.ts,
+      comments.ts). acceptance: click a video post → thumbnail in grid,
+      opens with a working scrubber; like toggles + persists; comments
+      load + post; owner can edit text + delete; screenshot desktop +
+      375px. gate: none.
+
+[ ] D-post-visibility-toggle (sub-lane ws-D/profile, AFTER
+      D-profile-post-experience — same SEAM ProfileScreen/PostLightbox):
+      change a post's visibility after publish. public<->private is a
+      COLLECTION MOVE (D30): create in the other of public_posts/
+      private_posts, delete from the current (mirror staging.ts's
+      movePostToPublic pattern). Surface it as a control in the lightbox
+      owner menu. Files: data/posts.ts (add movePostVisibility),
+      PostLightbox.tsx. acceptance: flip a post public→private, it
+      leaves discovery + the public wall; flip back, it returns. gate:
+      D-profile-post-experience merged.
+
+[ ] D-messages-views (sub-lane ws-D/messages; SEAM: components/Chat/**
+      + DmsScreen): three views behind a toggle on the messages screen.
+      (1) current chat/DM list (exists). (2) MAIL view — the whole
+      inbox rendered gmail-style (thread list, read/unread, preview
+      line, timestamp column). (3) CRM view — notes + contact history
+      per person, in-app, for influencers to remember who they reached
+      out to (the web10-social CRM sub-app, here since 1.0.30, is the
+      reference; this is a messages-only lens over the same contact/DM
+      data — data/dms.ts + data/contacts.ts). Files: components/Chat/**,
+      data/dms.ts, data/contacts.ts. acceptance: toggle cycles all three;
+      mail view lists threads gmail-style; crm view shows per-contact
+      notes you can edit + a message history; screenshot each. gate:
+      none. (message delete/edit is D-message-controls, same sub-lane,
+      AFTER this.)
+
+[ ] D-message-controls (sub-lane ws-D/messages, AFTER D-messages-views
+      — same SEAM): delete a message/conversation + edit a sent message.
+      Files: data/dms.ts (update/delete), components/Chat/**. acceptance:
+      edit a sent DM in place; delete a message + a whole conversation.
+      gate: D-messages-views merged.
+
+[ ] D-profile-image-placement (sub-lane ws-D/profile, AFTER
+      D-profile-post-experience — SEAM ProfileScreen): editing avatar +
+      banner PLACEMENT — reposition/crop, fix centering. Today the
+      avatar/banner are object-cover with no offset control, so a
+      non-centered source looks wrong. Add a drag-to-reposition (store a
+      focal point / object-position on the profile record) or a simple
+      crop step on upload. Files: ProfileScreen.tsx, data/profile.ts
+      (persist object_position/focal point), maybe a small cropper.
+      acceptance: upload an off-center avatar/banner, drag to reframe,
+      it persists + renders framed on reload; screenshot. gate:
+      D-profile-post-experience merged (same file).
+
+[ ] D-bug-reports-delivery (sub-lane ws-D/feedback; SEAM: marketing-api
+      main.py + web10-social ReportBug.tsx): route "Report a bug" to the
+      operator instead of an in-memory list. marketing-api /feedback
+      appends to `feedback_store: list` (main.py:394) — lost on restart.
+      PERSIST it (a collection / the operator's own store), and DELIVER
+      each report as a DM to jacoby149@web10.app (the on-thesis choice:
+      bugs become normal message records via the DM/inbox path). Files:
+      marketing/marketing-api/app/main.py (+ models), web10-social
+      ReportBug.tsx if the shape changes. acceptance: submit a bug →
+      it persists across restart AND lands as a DM in the operator's
+      inbox. gate: none. (option b, an operator-only Bugs panel in
+      web10-social, is the fallback if DM delivery is heavier — see
+      plan.txt PHASE 8.6.)
+
+[ ] D-join-two-step (sub-lane ws-D/marketing; SEAM: marketing-ui
+      Join.tsx): the /join flow is confusing — it conflates two steps
+      (visit the web10-social app, THEN sign up for the account). Make
+      the two steps explicit and sequential on the page (numbered, or a
+      "1. get the app → 2. create your account" flow). Files:
+      marketing/marketing-ui/src/pages/Join.tsx. read design.md first.
+      acceptance: a first-time reader understands it's two steps;
+      screenshot desktop + 375px. gate: none.
+
+[ ] D-poke (sub-lane ws-D/engagement; mostly independent): an "advanced
+      poke" — a playful, lightweight nudge primitive (the facebook-poke
+      feeling) reimagined as web10's OWN, NOT a clone (name + interaction
+      TBD, keep it non-infringing). Could ride the public-ledger
+      reaction plumbing (reactions.ts + /public/entries). Files: new
+      data/pokes.ts (or extend reactions), a small UI surface on the
+      profile / user card. acceptance: send a nudge to another user, it
+      shows up for them; screenshot. gate: none (design first — propose
+      the concept in a .context/ note for operator sign-off before
+      building the surface).
+
+[ ] D-inapp-discover-knobs (sub-lane ws-D/marketing or ws-D/feed;
+      GATE: a D20 REVISIT decision — do NOT build before it): the
+      operator wants the /trending "your algorithm" knobs in the SOCIAL
+      APP's Discover too. D20 currently says the social feed stays
+      chronological and the knobs are marketing-page theater. This is a
+      product-decision reversal, not a bug — record the decision in
+      decisions.md first. If approved, port KnobRack/RotaryKnob/
+      powerMean from marketing-ui into web10-social (separate package —
+      copy per design.md §D22 "verbatim copies beat premature sharing")
+      and wire them to DiscoverScreen's client-side ranking. Files:
+      web10-social components/Discover/**, copied knob components.
+      acceptance: knobs re-rank the in-app Discover live; screenshot.
+      gate: D20 revisit signed off in decisions.md.
+
+[ ] D-coming-soon-builds (sub-lane ws-D/surfaces; SEVERAL big
+      independent surfaces — one workspace EACH, not one item): the
+      sidebar "Coming soon" chips (shipped 1.0.170/1.0.172) are stubs;
+      these are the real builds, each its own workspace: Flares
+      (ephemeral 24h posts — the "stories" shape; provisional name,
+      confirm rename), Takes (short vertical video — the "reels" shape;
+      provisional name), Livestream (rtc small-scale → hls fan-out —
+      already plan.txt phase 8 later-milestone), Games (scope undefined
+      — spec first), Groups (multi-user spaces), Marketplace (creator
+      commerce). Each: own sub-lane, own components dir, own data
+      service. gate: per-surface spec first; none blocks another.
 
 LANE E — infrastructure / deployment (owns: proxmox provisioning,
     reverse proxy, CI/CD deploy targets)
@@ -1169,8 +1350,48 @@ M3 "the network"         = encryption integration (A rtc + C2 sdk
                            polish. the last big merge.
 
 
-CURRENT CONDUCTOR BOARD (as of 24.07.2026 — keep this section fresh)
+CURRENT CONDUCTOR BOARD (as of 26.07.2026 — keep this section fresh)
 --------------------------------------------------------------------
+26.07 NIGHT CAPTURE (operator pass on deployed dev/prod). Everything
+below is filed as full lane items above (LANE A / LANE D) + narrative
+in plan.txt PHASE 8.6. This round's shipped fixes (all on prod
+1.0.169→1.0.174): broken prod deploy (post_id dedup), trending-knob
+redesign + Advanced-collapse (PR #302), profile media-tab freeze, post
+lightbox, sidebar scroll, feed refresh, video preview controls,
+coming-soon sidebar surfaces (Groups/Marketplace/Livestream/Games/
+Flares/Takes), discovery anon-regex gate (1.0.171 — HALF the discovery
+fix), bug-reports plan capture.
+
+  PRIORITY (do first, blocks the pitch): A13-discovery-terms (LANE A).
+    Real users' public posts still aren't discoverable — 1.0.171 fixed
+    the regex gate but the public_posts anon-read TERM isn't provisioned
+    for real accounts (SMR consent only fires while the auth portal is
+    open; default services ship empty). Provision the term by default +
+    migrate + backfill existing posts. Full diagnosis + fix options in
+    the LANE A item. Server-only, gate: none.
+
+  PARALLEL-SAFE FLEET (26.07, one workspace per sub-lane, no shared
+  seams — see each item for files/gates/acceptance):
+    ws-A:            A13-discovery-terms (PRIORITY, above)
+    ws-D/profile:    D-profile-post-experience (video thumbs + full
+                     viewer/editor: like/comment/edit/delete), THEN
+                     D-post-visibility-toggle + D-profile-image-placement
+                     (same ProfileScreen/PostLightbox seam — sequential)
+    ws-D/messages:   D-messages-views (list/mail/crm toggle), THEN
+                     D-message-controls (delete/edit — same seam)
+    ws-D/feedback:   D-bug-reports-delivery (persist + DM to operator)
+    ws-D/marketing:  D-join-two-step (Join.tsx — independent)
+    ws-D/engagement: D-poke (design note first)
+    ws-D/surfaces:   D-coming-soon-builds (Flares/Takes/Livestream/
+                     Games/Groups/Marketplace — one workspace EACH)
+    GATED (don't pick up until the gate clears):
+      D-inapp-discover-knobs (gate: D20 revisit in decisions.md — it's
+      a product-decision reversal, not a bug; operator must sign off).
+  Selection rule (CLAUDE.md): only truly-parallel items at once. The
+  ws-D/profile and ws-D/messages chains are SEQUENTIAL within their
+  sub-lane (shared file seam) — don't split them across workspaces.
+
+
 PRIORITY ONE (plan.txt, top — supersedes 19.07's priority zero,
 whose baseline chain A7/B6/D16.1/D17 is merged): THE KILLER APP,
 PROUD AND WORKING, before anything else. the only question a task

@@ -2040,10 +2040,22 @@ bug reports -> the operator (operator idea):
     path real users get. either way, persist first (the in-memory list is
     the actual bug -- reports vanish on deploy).
 
-known gaps confirmed this session (see CHANGELOG 1.0.169-1.0.171):
-[✓ 1.0.171] real users' public posts now index into discovery (the
-    anon-regex gate fix) -- before this they were anon-readable but
-    invisible on the board; only seeded personas showed.
+known gaps confirmed this session (see CHANGELOG 1.0.169-1.0.174):
+[ ] PRIORITY — public discoverability is still broken for real accounts
+    (A13-discovery-terms in parallel execution.txt, LANE A). 1.0.171
+    fixed HALF: service_allows_anon now matches the app's `.*` anon-read
+    whitelist by regex (was an exact "anon" compare). The remaining half:
+    the public_posts anon-read TERM isn't provisioned for a real account.
+    records.services_record() ships an empty whitelist, and the only
+    thing that writes the term is SMROnReady's SIR consent (sdk
+    compat.ts:77) which posts the SMR ONLY while the auth portal window
+    is open — an already-signed-in user is never re-prompted, and a
+    server-only change triggers no SMR (the CLIENT contract didn't
+    change). So the operator "gets no SMR" and the term never lands →
+    not indexed AND anon GET 403s. Fix: provision the canonical public
+    terms by default + migrate existing accounts + backfill existing
+    public_posts into discovery (LANE A item has the full spec + a D30
+    "collection is the boundary" option c to decide first).
 [ ] follow does not backfill / there is no pull feed: following someone
     surfaces nothing until THEY post again (fan-out is push-only, at
     post time, to current followers). "followed X, don't see them in my
