@@ -2210,6 +2210,24 @@ web10 data… one outside analytical app on top of your social data"):
     (fine for the demo, say so honestly in the empty state). lane item
     D-graph-app (ws-D/marketing, after D-marketing-search).
 
+app store revamp (operator, 26.07, screenshot: "would be nice if it
+was all just apps… i actually liked the old app store, where they
+really really really looked like apps. web10 social is the flagship,
+and the authenticator — we don't need to plug them so hard, they will
+naturally get landed on… this is like the apple app store,
+PREMMIUMMM!!!!!"):
+[ ] EVERYTHING IS AN APP — kill the FLAGSHIP hero card and the
+    abstract "On web10" feature cards; first-party apps (social,
+    authenticator/node console, importer) get the SAME icon-forward
+    card as every registered app: real app icon, name, one-liner,
+    visit count, Open. prominence comes from the visit-count sort,
+    not editorial banners (the store doesn't rig itself — same trust
+    story as the no-algorithm feed). premium bar: apple-app-store
+    feel — big rounded icons, generous spacing, crisp type, hover
+    lift, all design.md tokens. first-party apps need REAL icons
+    (design.md §3 brand assets, not lucide glyphs). lane item
+    D-appstore-revamp (ws-D/marketing).
+
 engagement-count accuracy (operator, 26.07, screenshot: a post's badge
 says 3 comments while the expanded panel renders more than that):
 [ ] the discovery index's CACHED like/comment counts disagree with

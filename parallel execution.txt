@@ -1626,6 +1626,38 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       375px. gate: D-graph-app merged (same chain); counts get real
       for real accounts as D-ledger-mirror-fix + A14/A15 land.
 
+[ ] D-appstore-revamp (sub-lane ws-D/marketing — the App Store page
+      only, so it may interleave with the search/graph chain if its
+      files stay untouched by them; operator, 26.07, screenshot):
+      "ALL JUST APPS" — the store currently gives web10 social a
+      jumbo FLAGSHIP hero and the node console/importer abstract
+      feature-blurb cards, while actual registered apps (fallout
+      avatar, translator) look like real apps: icon, visits, Open.
+      the operator liked the OLD app store where "they really really
+      really looked like apps," and explicitly does NOT want the
+      first-party surfaces plugged so hard — "they will naturally get
+      landed on" (top of the visit sort). revamp: (1) ONE uniform
+      icon-forward app card for everything — real icon (first-party
+      apps get proper brand icons per design.md §3, NOT lucide
+      glyphs; registered apps already carry theirs), name, one-line
+      description, visit count, Open — first-party and third-party
+      identical shape; at most a small "flagship" chip, no hero, no
+      separate sections; (2) sort by visits (the D16/A7 restored
+      counts) — prominence is EARNED, which is itself the pitch (the
+      store doesn't rig itself; same trust story as the no-algorithm
+      feed — put that line in the page's subtitle if it fits the
+      voice); (3) PREMIUM bar — "this is like the apple app store,
+      PREMMIUMMM!!!!!": big rounded app icons, generous spacing,
+      crisp typography, hover lift, skeleton shimmer, all design.md
+      tokens, flawless at 375px. files: the marketing-ui App Store
+      page + its card components (find via the D16 curation work,
+      1.0.136). read design.md first. acceptance: every entry renders
+      as the same app-shaped card with a real icon; first-party has
+      no hero treatment; visit-sort puts social/authenticator on top
+      naturally; screenshot desktop + 375px and LOOK — the bar is
+      "apple app store screenshot" credible. gate: none (independent
+      page).
+
 [ ] D-poke (sub-lane ws-D/engagement; mostly independent): an "advanced
       poke" — a playful, lightweight nudge primitive (the facebook-poke
       feeling) reimagined as web10's OWN, NOT a clone (name + interaction
@@ -1934,7 +1966,11 @@ STATUS). Meanwhile the operator ran a live pass on the deployed app
                      THEN D-graph-app (the wooshy follow-graph
                      visualization — the "outside app on your social
                      data" existence proof; same marketing-ui surface,
-                     sequential)
+                     sequential), THEN D-social-analytics (chess.com-
+                     style ranked stats — same chain). D-appstore-
+                     revamp (store page only, no file overlap with
+                     the chain) may run as a SECOND marketing
+                     workspace in parallel.
     ws-D/feed:       D-public-media-client REMAINDER (wire the call
                      sites — see the item's late-26.07 STATUS; touches
                      ProfileScreen.tsx, run BEFORE the ws-D/profile
