@@ -2639,6 +2639,40 @@ deplatformed + payment-rail-burned segment alive):
     fighting that brand); market ownership, let the phase 4
     membership mechanics quietly BE the onlyfans economics.
 
+consent-contract abuse (operator, 26.07 — the bait-and-switch class,
+generalized from the app-store listing loophole: "new contracts asking
+for everything… security by flashing red danger in the auth app,
+telling the user don't accept — even blocking them until they hit
+proceed anyways, protecting them"). ROADMAP ONLY — operator: "this
+doesn't need to be soon, this is down the line, just talking about
+it." filed so the thinking isn't lost; NOT staged on any board, no
+lane item — stage it when the app ecosystem is real (M2+). lane B
+(the authenticator consent surface) when it comes. RISK-TIERED,
+explicitly NOT for every app or every contract (operator) — the
+ordinary consent flow stays frictionless:
+[ ] tier 1, unknown app: the requesting app isn't approved by THIS
+    node's admin in the app-store registry, AND no federated node the
+    operator trusts has approved it either ("this app isn't approved
+    by the admin on the app store, or another node federated hasn't
+    approved it" — approval travels the trust graph, an M3-flavored
+    web-of-trust detail; single-node v0 checks only the local
+    registry) → a modest caution treatment on the consent screen
+    ("a little flashing") — informative, not blocking.
+[ ] tier 2, scope escalation: the app HAS prior granted terms and the
+    new SMR asks for meaningfully more (new services, read→write/all,
+    wildcard identities) → show the DIFF prominently ("this app had
+    X, now wants Y") in danger styling.
+[ ] tier 3, hallmark-malicious shapes: a contract asking for
+    everything (broad wildcards across many services, all-permissions,
+    star-adjacent reach) → full red-flashing danger interstitial that
+    BLOCKS until an explicit "proceed anyway" — the user is protected
+    by default and sovereign on override.
+    design note: the risk heuristics are simple shape checks on the
+    SIR list (count of services × permission breadth × wildcard use ×
+    diff vs existing terms), not an ML thing. pairs with the
+    D-appstore-revamp v2 registration rewire (versioned, node-hosted
+    listings — the store registry is what tier 1 checks against).
+
 operator legal kit (part of the white-label product):
 [ ] tos + privacy policy templates per node
 [ ] gdpr story -- and say it loud: right-to-erasure and data export
