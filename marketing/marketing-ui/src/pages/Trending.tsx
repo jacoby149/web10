@@ -84,11 +84,11 @@ function Trending() {
       ]);
       // Merge both sources, deduplicate by post id
       const all = [...trendingResults];
-      const seen = new Set(all.map(p => p.id));
+      const seen = new Set(all.map(p => p.post_id));
       for (const p of recentResults) {
-        if (!seen.has(p.id)) {
+        if (!seen.has(p.post_id)) {
           all.push(p);
-          seen.add(p.id);
+          seen.add(p.post_id);
         }
       }
       const posts = all.map(mapDiscoveryToFeedPost);
