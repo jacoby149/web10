@@ -298,6 +298,47 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       account's pre-fix public posts appear after the backfill runs;
       permission-matrix + discovery tests green, ruff clean. gate: none.
 
+[ ] A14-followers-count (api half of the dead-social-proof finding,
+      plan.txt "real follower count" HONESTY NOTE 25.07 — the lane D
+      half is D-ledger-mirror-fix): /discover/users' suggested_users()
+      (api/app/services/documentdb.py) never computes or returns a
+      followers_count field, so UserProfileScreen (/u/:username — the
+      page with the follow button, the page a FAN sees) can never show
+      a follower count; only your own /profile can (client-side ledger
+      read). Fix: the discovery-users aggregation counts follow entries
+      in the public ledger (web10.public, payload.action='follow',
+      target=that user — the D34 shape countFollowers() already queries
+      client-side) and returns followers_count per user; expose it in
+      /discover/users' response model. Keep it aggregation-cached like
+      the existing engagement counts if cost demands. owns api/** only.
+      acceptance: /discover/users returns followers_count matching the
+      ledger for seeded personas; a fresh follow increments it (allow
+      cache lag if cached — document the TTL); discovery tests extended,
+      ruff clean. gate: none (works today for persona follows seeded by
+      script; real-account follows start mirroring when
+      D-ledger-mirror-fix lands — the two merge independently).
+
+[ ] A15-engagement-count-accuracy (operator, 26.07, screenshot: badge
+      says 3 comments, the expanded panel renders more): the discovery
+      index's cached engagement counts disagree with the live comment
+      read. the badge comes from the index's engagement aggregation
+      (api/app/services/documentdb.py — the cached counts around lines
+      ~820-830: likes sum 'like'+'reaction', comments count
+      payload.action='comment'); the panel reads live ledger entries
+      (PATCH /public/entries). Audit the two paths — what each counts
+      (action values, edit/delete cleanup, dedup) and when the cached
+      count refreshes — then make them agree: either the aggregation
+      recomputes on read/short-TTL, or the count and the panel query
+      the SAME predicate. add a test that writes N comments via the
+      ledger and asserts the discovery post's comment_count == N after
+      refresh, and that a deleted comment decrements. related-not-
+      duplicate: D-ledger-mirror-fix is about real accounts writing
+      NOTHING to the ledger; this is the ledger data disagreeing with
+      its own cached aggregate. owns api/** only. acceptance: the
+      badge number equals the panel's comment list length for seeded
+      personas on the local stack; discovery tests extended, ruff
+      clean. gate: none.
+
 LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
   [✓ 1.0.12-1.0.14] B1. P0 js: auth2 -> vite + bun + typescript
       (react 19, vitest, multi-stage dockerfiles, rtc to bun too)
@@ -874,6 +915,26 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         and staged on the 26.07 fleet (ws-D/feed). it is the single
         biggest visible hole after A13: no follower can render ANY
         image an author uploads.
+        STATUS 26.07 (late, audit #4): PARTIALLY landed as PR #311
+        (merged WITHOUT a CHANGELOG entry — logged retroactively in
+        1.0.183): the data layer now threads `service` end to end
+        (serviceTerms.ts public_media anon-read entry, uploadMedia /
+        resolveMediaRefs / refreshMediaUrls / wapi getReadUrl +
+        presign-cache key). But NO CALL SITE passes it — grep
+        components/ for public_media: zero. Uploads still confirm into
+        owner-only `media` (PostComposer.tsx:353/366, ProfileScreen
+        .tsx:114) and no reader passes service='public_media', so
+        cross-user images still 403. REMAINING WORK: (1) PostComposer
+        uploads target public_media when visibility=public (private/DM
+        stays `media`); (2) ProfileScreen avatar/banner uploads target
+        public_media; (3) cross-user read paths (UserProfileScreen,
+        FeedScreen/DiscoverScreen via resolveMediaRefs, PostLightbox)
+        pass service='public_media' for other users' public content
+        (owner's own legacy records keep the `media` fallback); (4)
+        verify the original acceptance on dev. seam note: touches
+        ProfileScreen.tsx — coordinate with the ws-D/profile chain
+        (run this FIRST; ws-D/profile's D-profile-image-placement
+        rebases after).
 [ ] D-follow-backfill (sub-lane ws-D/feed, AFTER D-public-media-client
         — same workspace chain, data-layer seam): "followed X, don't
         see them in my feed" (operator, 26.07 — plan.txt PHASE 8.6
@@ -1080,7 +1141,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       leaves discovery + the public wall; flip back, it returns. gate:
       D-profile-post-experience merged.
 
-[x] D-messages-views (sub-lane ws-D/messages; SEAM: components/Chat/**
+[✓ 1.0.182] D-messages-views (sub-lane ws-D/messages; SEAM: components/Chat/**
       + DmsScreen): three views behind a toggle on the messages screen.
       (1) current chat/DM list (exists). (2) MAIL view — the whole
       inbox rendered gmail-style (thread list, read/unread, preview
@@ -1100,6 +1161,156 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       Files: data/dms.ts (update/delete), components/Chat/**. acceptance:
       edit a sent DM in place; delete a message + a whole conversation.
       gate: D-messages-views merged.
+
+[ ] D-ledger-mirror-fix (sub-lane ws-D/ledger — data/feed.ts + one
+      bootstrap line; PRIORITY with A13-class weight): THE APP'S PUBLIC
+      LEDGER MIRROR IS DEAD FOR REAL ACCOUNTS — the social-proof
+      numbers (follower counts, trending like/comment counts) only work
+      for script-seeded personas. Found by ws-C 25.07 (plan.txt "real
+      follower count" HONESTY NOTE, which said "re-open as a lane D +
+      lane A item" — this is the lane D half; A14-followers-count is
+      the A half). Two dead links, both in data/feed.ts, both verified
+      live at HEAD 26.07:
+        (1) registerDefaultSchemas() (feed.ts:70) is NEVER CALLED from
+            app bootstrap — grep src/ outside feed.ts + tests: zero. So
+            getCachedSchema('Follow'/'Reaction'/'Comment') is always
+            undefined and every schema-gated mirror silently no-ops.
+            Fix: call it once at app startup after auth (main.tsx or
+            App.tsx auth-ready path), idempotent, non-blocking.
+        (2) createPublicEntry() (feed.ts:186) POSTs the raw entry as
+            the JSON body with a Bearer header — but POST
+            /public/entries (api/app/endpoints/public.py:12) expects
+            the wapi Token BODY shape: {token: <site-token>, query:
+            {schema_id, target, payload, ...}} and reads token.token /
+            token.query. The request 422s, the catch swallows it and
+            returns a fake local stub — so even with schemas cached,
+            nothing ever lands in the ledger. Fix: send
+            {token: readToken()?.site, query: entry} (match public.py;
+            deletePublicEntry/queries already work — mirror their
+            shape).
+      files: data/feed.ts + ONE bootstrap call line (seam note: App.tsx
+      is touched by other sub-lanes for route lines — keep it to one
+      line, first-merged-wins, rebase). callers (reactions.ts,
+      comments.ts, follows.ts) should need no changes — verify, don't
+      refactor them. acceptance: on a real (non-persona) account on the
+      local stack: follow someone → a payload.action='follow' entry
+      exists in the ledger (API query, not the stub) and the followee's
+      own /profile Followers count increments; like + comment → the
+      trending counts for that post increment. add tests that pin the
+      REQUEST BODY SHAPE against public.py's contract so this can't
+      silently regress to a stub again. tsc -b + tests green. gate:
+      none.
+
+[ ] D-mail-experience (sub-lane ws-D/messages, AFTER D-message-controls
+      — same Chat/** seam; operator, 26.07 night pass, with
+      screenshots): the Mail view (1.0.182) reads as a themed thread
+      list, NOT email — "that doesn't look like email! where is the
+      inbox, outbox, spam" and the thread detail has no email anatomy.
+      the operator's vision: a REAL email client lens over messages —
+      "it really elevates messages on web10 social… kickass feature of
+      a killer platform." build it in two layers:
+        (1) FOLDERS: a left rail (or top tabs at 375px) with Inbox /
+            Sent / Spam (+ Archive if cheap). Inbox = threads whose
+            latest message is inbound; Sent = your outbound; Spam =
+            senders you've flagged (a flag record on the contact/thread
+            — data/dms.ts or contacts.ts own export; no server change).
+        (2) EMAIL ANATOMY in the thread view: Subject line (a `subject`
+            field on the message record — optional, DM-compat: absent
+            subject renders as the first-line preview like today),
+            Reply / Reply-all / Forward actions, To/Cc/Bcc on compose
+            (multi-recipient send = one DM record per recipient +
+            cc/bcc metadata on the record body; bcc recipients never
+            leak in other recipients' copies), From/To header block on
+            each message, timestamp full-format.
+      keep DM/Chat compat: mail-composed messages still render in Chat
+      as plain messages (subject shown as a bold first line); nothing
+      breaks for records without the new fields. record-shape note: new
+      fields (subject, cc, bcc, spam-flag) are BODY fields on existing
+      message/contact records — conventions-doc addition, no api
+      change. files: components/Chat/MailView.tsx + DmsScreen.tsx,
+      data/dms.ts + contacts.ts (own exports). acceptance: folders
+      switch and hold their meaning; compose with subject + cc sends
+      and threads correctly; reply quotes into the same thread; forward
+      opens compose prefilled; a legacy DM thread renders fine in Mail;
+      screenshots desktop + 375px, design.md §12. gate:
+      D-message-controls merged (same files).
+
+[ ] D-crm-upgrade (sub-lane ws-D/messages, AFTER D-mail-experience —
+      same Chat/** seam; operator, 26.07 night pass): the CRM view
+      (1.0.182) is "more on target" but MISSING THE ORIGINAL CRM'S
+      FEATURES — parity bar is the old CRM sub-app (components/Crm/
+      Crm.tsx, integrated #90, UI deleted in #120 "dead rectangles" —
+      recover the reference from git; its state machinery still lives
+      in interfaces/Interface.ts:35-45 and the crm-contacts/crm-notes
+      services are still in serviceTerms.ts:92-96): (1) COLOR-CODED
+      STATUS on each contact (the old green/yellow/red priority — "so
+      you can bin and sort people"), settable from the contact row +
+      detail, persisted on the contact record; (2) color/status FILTER
+      chips + sort (by status, by last-message, by name — the old
+      crmColorFilter); (3) richer CONTACT FIELDS on the detail card:
+      email, phone, company/role, links/socials, free-form fields
+      ("or who knows" — keep it a flexible key/value section, records
+      are schemaless); (4) contact CRUD from the CRM view (add a
+      contact who isn't a DM thread yet — the old Rolodex could).
+      notes + message history (1.0.182) stay. files: components/Chat/
+      CrmView.tsx, data/contacts.ts (extend the contact record shape —
+      body fields only). acceptance: set a contact red/yellow/green →
+      persists, filterable, sortable; add/edit contact fields; add a
+      fresh contact; screenshots desktop + 375px. gate:
+      D-mail-experience merged (same seam; can swap order with it if
+      staged first — they're one chain).
+
+[ ] D-settings-tab (sub-lane ws-D/settings — new components/Settings/**
+      + one App.tsx route line + one Layout.tsx nav entry; operator,
+      26.07: "web10 social doesn't have a settings tab, should be a
+      settings tab, facebook style, TBD"): a real Settings surface.
+      v0 ships the uncontroversial core; the full facebook-style tree
+      is proposed, not built: (1) ACCOUNT section — username/provider
+      (read-only), link to /profile for avatar/banner, log out (move
+      the sidebar's orphan actions home; keep the sidebar shortcuts).
+      (2) POSTING DEFAULTS — default post visibility (public/private,
+      feeds PostComposer's initial state via a settings record).
+      (3) DATA — "your data lives in your collections" explainer +
+      link to the authenticator's terms editor (the panic-button
+      story, D32/D34) + export pointer. (4) ABOUT — version, report a
+      bug (reuse ReportBug), the manifesto link. settings persist as
+      an ordinary `settings` service record (owner-only, body fields —
+      conventions addition, no api change). ALSO: write the full
+      proposed tree (notifications prefs, blocked users, appearance,
+      language, sessions) as a .context/settings-tab-proposal.md for
+      operator sign-off — build only the four sections above now.
+      files: new components/Settings/**, data/settings.ts (new, own
+      file), App.tsx (one route line), Layout.tsx (one nav entry —
+      seam note: first-merged-wins, rebase). acceptance: /settings
+      route + nav entry; default-visibility setting actually changes
+      the composer's initial selector on next load; log out works from
+      settings; screenshots desktop + 375px, design.md §12. gate: none
+      (the .context proposal covers the TBD part — v0 scope above is
+      operator-safe).
+
+[ ] D-feedback-contact-privacy (sub-lane ws-D/feedback; SEAM:
+      marketing-api main.py — small, do promptly): 1.0.181 publishes
+      each bug report as a PUBLIC post tagged #web10-bugs — including
+      the reporter's CONTACT INFO: _format_bug_post() (marketing-api
+      main.py) appends `Contact: {email/phone}` into an anon-readable,
+      discovery-indexed public post. That leaks PII on the platform
+      whose manifesto line is "nobody is mining you" — and the reporter
+      never consented to public contact info (the form implies the
+      operator reads it). Fix: (1) NEVER include `contact` (or
+      user_agent) in the public post body — keep them in the disk store
+      + GET /feedback only; consider capping stack traces harder (they
+      can embed tokens/urls). (2) fix the stale docstring + PR-title
+      drift: submit_feedback's docstring says "delivers as a DM to the
+      operator" but the code publishes a public post — make the docs
+      tell the truth. (3) FLAG FOR OPERATOR (don't decide): the lane
+      item + plan.txt offered (a) DM-to-operator or (b) operator panel;
+      what shipped is (c) public posts. It's defensible (dogfooding,
+      transparency) but it was nobody's named option — operator
+      confirms or redirects; if he wants DMs, that's a follow-up item,
+      not this one. files: marketing/marketing-api/app/main.py + tests
+      (pin: contact never appears in the delivered post body).
+      acceptance: marketing-api tests green incl. the new pin, ruff
+      clean. gate: none.
 
 [ ] D-profile-image-placement (sub-lane ws-D/profile, AFTER
       D-profile-post-experience — SEAM ProfileScreen): editing avatar +
@@ -1153,6 +1364,35 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       acceptance: a first-time reader understands it's two steps;
       screenshot desktop + 375px. gate: none.
 
+[ ] D-join-steps-extend (sub-lane ws-D/marketing; SEAM: Join.tsx —
+      independent of the search/graph/store chain's files; operator,
+      26.07, screenshot of the shipped two-step strip: "i really like
+      this dora the explorer what steps to complete! i think that it
+      should be more! have the link to set up your monetization,
+      since that is in the web10 authenticator, and then to post! to
+      the feed"): grow the two-step strip into the full onboarding
+      path — the RISE arc as a checklist. steps (operator's order;
+      final order is a taste call at build, keep it one row that
+      wraps at 375px): 1. Get the app → 2. Create your account →
+      3. Set up your monetization → 4. Post to the feed. each step
+      DEEP-LINKS to where it actually happens (the deep-link
+      philosophy): step 3 → the Studio monetization screen in the
+      authenticator (the D21 money screen — auth origin, new tab);
+      step 4 → the social feed/composer (deep param like
+      /feed?compose=1 if cheap — coordinate one query param with the
+      D-deep-links item via .context/ note — else plain /feed).
+      keep the numbered-card visual language the 1.0.178 strip
+      established; both hero and bottom sections stay in sync.
+      acceptance: four numbered steps, each opening the right
+      surface in a new tab; reads as "what to do next" to a
+      first-timer; screenshots desktop + 375px. gate: none.
+      NOTE (operator follow-up): "really like how this is almost a
+      tutorial for web10 social!" — the steps ARE the product
+      tutorial. future echo (not this item): the same checklist
+      surfacing IN web10-social for fresh accounts (the empty-feed
+      first-run state walks you through post/follow/monetize) —
+      capture-only, stage when the onboarding pass comes.
+
 [ ] D-link-embeds (sub-lane ws-D/feed, AFTER D-follow-backfill — same
       workspace chain; operator, 26.07): paste a link into a post and it
       renders as an EMBED, the table-stakes feature every platform has
@@ -1183,6 +1423,320 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       shows a link chip, a DM with a link gets the same treatment;
       no layout shift (reserve 16:9 space); screenshots desktop + 375px.
       gate: D-profile-post-experience merged (file seam).
+
+[ ] D-feed-lightbox (sub-lane ws-D/feed; operator, 26.07 night pass,
+      screenshots): FEED POSTS AREN'T CLICKABLE — "can't click the
+      posts in the feed to make them big, only on my profile."
+      clicking any feed post (media or text) opens the same
+      PostLightbox the profile grid got (1.0.170/1.0.180): media
+      pager, like toggle, comment thread. differences from the
+      profile: (1) on someone ELSE's post the owner actions
+      (edit/delete) are HIDDEN (isOwner prop off the post's author vs
+      readToken()); (2) EVERY post gets a SHARE action ("should be
+      share post! kind of a function") — navigator.share + copy-link
+      fallback (the D-trending-share pattern, FeedPreview.tsx in
+      marketing-ui is the reference), sharing a deep link that opens
+      the post (add a light route that opens the lightbox over
+      /u/:username — e.g. /u/:username/p/:postId — so the copied link
+      lands somewhere real; unknown post id falls back to the
+      profile). files: components/Feed/FeedScreen.tsx (open the
+      lightbox), components/Bio/PostLightbox.tsx (isOwner prop +
+      Share action — IMPORT it, don't fork it), App.tsx (one route
+      line). SEAM: PostLightbox.tsx belongs to the ws-D/profile chain
+      (D-post-visibility-toggle, D-lightbox-media-sizing edit it too)
+      — do NOT run concurrently with those; chain order decided at
+      staging. acceptance: click a feed post → lightbox opens; a
+      persona's post shows no edit/delete but does show Share; Share
+      copies a link that reopens that post; screenshots desktop +
+      375px. gate: file-seam with ws-D/profile (see above).
+
+[ ] D-lightbox-media-sizing (sub-lane ws-D/profile — PostLightbox
+      seam; operator, 26.07 night pass, screenshot): the lightbox
+      renders media SMALL with dead space — "maybe they can be bigger?
+      or some kind of proper resizing to make it look right." media-
+      first sizing: the modal scales to the media's aspect (up to
+      ~90vh × ~90vw), the media pane sizes to the intrinsic
+      aspect-ratio (the media record carries width/height since D21 —
+      use them; fall back to on-load measurement), object-contain with
+      no letterbox voids, the caption/actions rail keeps a fixed
+      readable width beside (desktop) or below (mobile) the media.
+      files: components/Bio/PostLightbox.tsx. acceptance: a landscape
+      video fills most of the viewport width; a portrait photo fills
+      most of the height; no big empty bands; screenshots desktop +
+      375px with both orientations. gate: runs in the ws-D/profile
+      chain (same file as D-post-visibility-toggle — sequential).
+
+[ ] D-text-post-cards (sub-lane ws-D/profile chain, shared-component
+      seam; operator, 26.07 night pass, screenshot): TEXT-ONLY POSTS
+      ARE A VOID — a text post renders as a huge empty dark cell with
+      tiny top-left text. "we can do something more creative and
+      artistic with the background with text only posts." build ONE
+      shared component (components/shared/TextPostCard.tsx — the
+      shared/ dir is a named seam: own exports only) that renders
+      text-on-generated-background: centered type scaled to length
+      (short = display-size, long = comfortable paragraph), on a
+      deterministic gradient/texture picked from the post id hash out
+      of a small set of design.md token-derived palettes (stable per
+      post, never random per render, never hardcoded hex). use it in:
+      the profile Posts/Media grid cell, the feed card, and the
+      lightbox. PLUS AUTHOR CHOICE (operator follow-up, same pass):
+      "maybe some choice of background styles or formatting — facebook
+      has a markdownesque formatter for text only posts, center, left
+      align, that kind of stuff": the composer gets a background-style
+      picker for text-only posts (deterministic palette stays the
+      default when none chosen) and light formatting controls (align
+      center/left; keep the formatter minimal — this is not a rich-
+      text editor), persisted as body fields on the post record
+      (e.g. text_style: {bg, align}) so every surface renders the
+      author's choice; unknown/absent style falls back cleanly.
+      composer touch = PostComposer.tsx (ws-D/feed's file — coordinate
+      or stage after that chain's items merge). acceptance: the same
+      post gets the same background everywhere and across reloads;
+      an author-picked style + alignment persists and renders on grid,
+      feed, and lightbox; short vs long text both look intentional; no
+      hardcoded colors (review bar); screenshots desktop + 375px.
+      gate: after D-feed-lightbox + the ws-D/profile chain items merge
+      (it touches the same three surfaces — stage LAST of the lightbox
+      cluster).
+
+[ ] D-deep-links (sub-lane ws-D/shell; operator, 26.07: "everything
+      should be a deep hyperlink on web10 social… every screen
+      shareable, or bookmarkable if it's a private screen like dms" —
+      and the rationale: marketing /trending click-throughs land on
+      the EXACT thing: "when you click the comment [it] can bring up
+      the post to that exact comment… makes it polished, aka
+      killer"): D-url-routing (1.0.155) covered the five top-level
+      screens; the state INSIDE them is still useState-only. sweep:
+      (1) /messages/:conversationKey + ?view=chat|mail|crm (open
+      thread + view toggle restore on refresh; private = bookmarkable
+      by the owner, never renderable by others — auth already
+      guarantees that, just don't leak content into the url);
+      (2) /discover?tag=&q=; (3) /profile?tab=posts|media;
+      (4) /staging; (5) post permalink /u/:username/p/:postId
+      (COORDINATE: D-feed-lightbox files the same route — whichever
+      merges first owns it, the other rebases) + ?comment=<id> anchor
+      that scrolls to + highlights that comment in the thread;
+      (6) provider disambiguation on user routes — identity is
+      (username, provider), /u/:username assumes the home node;
+      decide the canonical shape at implementation (path seg or query
+      param), keep /u/:username back-compat. THEN upgrade marketing-ui
+      click-throughs (TrendingCard, comment panel, search results) to
+      the deep targets — funnel clicks land on the exact post/comment.
+      the standing rule for future screens is in AGENTS.md ("UI
+      screens: the URL holds the state"). files: App.tsx routes +
+      each screen's state lift (DmsScreen, DiscoverScreen,
+      ProfileScreen, PostLightbox) + marketing-ui FeedPreview/
+      Trending link targets — a CROSS-SUB-LANE seam sweep: run it as
+      ONE workspace AFTER the current fleet drains; do not run
+      concurrently with any ws-D chain. acceptance: refresh restores
+      every screen incl. open thread/view/tab/lightbox; a trending
+      comment click lands on that comment highlighted in social;
+      back/forward walk the history; screenshots desktop + 375px.
+      gate: current 26.07-late fleet merged (it touches most of their
+      files).
+
+[ ] D-marketing-search (sub-lane ws-D/marketing; operator, 26.07: "the
+      one thing we are really missing now is search! searching by tag,
+      even on the marketing page… youtube-esque and be an entry point
+      into web10 social, if you could search from the marketing ui!"):
+      PUBLIC SEARCH on marketing-ui as the funnel's front door. (1) a
+      search bar on /trending (prominent, youtube-placement: header
+      row) + a compact search affordance in the site nav; (2) queries
+      hit the discovery API that already exists — A5.5 shipped PATCH
+      /discover/search, /discover/topics, /discover/users (VERIFY
+      their current request/response shapes in api/app/endpoints/
+      discover.py before building; extend nothing server-side in this
+      item); (3) results: posts render in the existing TrendingCard
+      language, matching users as a compact row above; #tag queries
+      filter/route through the existing topic-chip mechanics; (4)
+      EVERY result deep-links into web10-social — /u/:username for
+      users/authors (route exists), post permalinks once
+      D-feed-lightbox's /u/:username/p/:postId route merges (until
+      then, link the author profile — degrade, don't dead-click);
+      (5) anon-first: search works signed-out (the discovery layer is
+      anon-queryable) — that's the whole entry-point thesis. files:
+      marketing/marketing-ui/src/pages/Trending.tsx + a new
+      SearchBar/SearchResults component, nav touch in the header
+      component. read design.md first. acceptance: type a word →
+      matching public posts + users; type #tag → tag-scoped results;
+      click-through lands on web10-social; works signed-out; empty
+      state tells the story ("nothing yet — be the first"), no dead
+      spinner; screenshots desktop + 375px. gate: none (post
+      permalink deep-links degrade until D-feed-lightbox merges).
+
+[ ] D-graph-app (sub-lane ws-D/marketing, AFTER D-marketing-search —
+      same marketing-ui surface; operator, 26.07: "graph.web10.app,
+      something wooshy is great marketing, because it is an app
+      interoperating on web10 data… one outside analytical app on top
+      of your social data"): a standalone, anon-first, read-only
+      visualization of the node's social graph — users as nodes,
+      follows as edges, force-directed ("wooshy": drag, zoom, physics,
+      it breathes), node click → that user's /u/:username on social
+      (the funnel again), hover → avatar/name card, maybe a "find me"
+      search. THE POINT is the existence proof: a separate app built
+      on the SAME public data from OUTSIDE the flagship — "apps are
+      just lenses" demonstrated, the wordpress-flywheel slide made
+      live. TWO MODES (operator follow-up: "it could render your
+      personal graph, not public necessarily only!"):
+        (1) ANON NODE VIEW — the whole node's public graph. DATA
+            CONTRACT (hard): the PUBLIC follow ledger only (PATCH
+            /public/entries, payload.action='follow' — D34, already
+            anon-queryable) + /discover/users for names/avatars.
+            NEVER private data in this mode — the anon view must be
+            the sovereignty story's friend.
+        (2) MY GRAPH (signed-in) — the ego graph: log in via the
+            normal web10 auth/consent flow, the app requests a SCOPED
+            token for the user's own follows (+ contacts if consented)
+            and renders YOUR world — followers, follows, optionally
+            contact/DM-derived edges. all client-side render under
+            your own token, nothing published, nothing written. THIS
+            IS THE DEEPER DEMO: an outside app walking the consent
+            screen → scoped read → lens pipeline is the third-party
+            app contract shown live (I5: least-privilege scoped
+            token doing exactly what it consented to). and the
+            personalization IS the pitch (operator: "you log in…
+            so your graph is different from a friend['s]"): two
+            friends logging in see two different graphs, because the
+            app holds no global view — it renders only what each
+            user's token grants. ownership, felt.
+      FRAMING (operator): the anon global graph is the ENTRY POINT;
+      "SEE YOUR GRAPH!!!!" is the hero moment and the CTA — "more
+      than facebook ever let you in on" is the marketing line
+      (platforms always HAD your graph and never let you look; here
+      an outside app shows you, because it's yours). EXPLAIN IT
+      in-product: a "how does this work?" popover (the D-trending-
+      knobs truth-telling pattern) saying plainly: this is a separate
+      app reading web10 data — anon mode reads the public ledger,
+      logged-in mode reads YOUR records with a token you consented
+      to; any developer can build this. + one short paragraph in the
+      marketing-ui docs ("outside apps on your data"), manifesto
+      voice. wherever else it's told (social app, deck), reuse the
+      same copy — write it once.
+      HOSTING: v0 is a marketing-ui route (/graph) —
+      no new vhost/compose/DNS churn (that's a lane E touch when it
+      earns graph.web10.app; leave a .context/ note then). rendering:
+      pick a maintained force-graph lib (or hand-rolled d3-force) —
+      design.md tokens for node/edge/glow colors, dark-canvas
+      spectacle is the bar ("wooshy" is a design requirement, not
+      decoration; read design.md first). files: marketing/marketing-ui
+      new page + components, nav link. acceptance: the seeded persona
+      graph renders alive and interactive, signed-out; node click
+      lands on social's /u/:username; empty/sparse state says honestly
+      that real follows appear as accounts join (see gate); 60fps-ish
+      at demo scale; screenshots desktop + 375px. gate: soft on
+      D-ledger-mirror-fix — build against personas now (they have
+      cross-follows in the ledger via the seed script); real accounts
+      populate as the mirror fix + follows land. D20 check: this is
+      marketing/showcase surface, no ranking, no feed — on-thesis.
+
+[ ] D-social-analytics (sub-lane ws-D/marketing, AFTER D-graph-app —
+      same showcase surface, sequential; operator, 26.07: "ranked
+      chess.com analytics on your social media, you versus friends,
+      or the top creators… a cool analytical app interoperating on
+      your web10 data"): the second outside-analytical-app beat —
+      chess.com-feel stats over social data. signed-in, scoped-token,
+      read-only (same contract as D-graph-app mode 2): (1) YOUR
+      numbers — followers, posts, reactions/comments received, growth
+      over time (charts); (2) RANKED — you vs your friends (the
+      people you follow) and vs the node's top creators: percentiles,
+      leaderboards, the chess.com rating-page feeling — all computed
+      client-side from PUBLIC data (the ledger + /discover/users
+      engagement counts), so no one's private numbers leak: you rank
+      against what's already public. (3) honest-numbers framing ties
+      to the pitch: "your number is real here" (THE STORY) — the
+      analytics app is where that line becomes a dashboard. same
+      explainer popover pattern as D-graph-app. files: marketing-ui,
+      new /analytics route (or a tab inside the graph app's surface —
+      decide at build). read design.md AND the dataviz bar: tokens,
+      no chart-library default colors. acceptance: signed-in persona
+      sees own stats + ranked view vs follows and top creators;
+      anon visitors get a tasteful teaser + login CTA (no wall on
+      explanation, wall on personal data only); screenshots desktop +
+      375px. gate: D-graph-app merged (same chain); counts get real
+      for real accounts as D-ledger-mirror-fix + A14/A15 land.
+
+[ ] D-appstore-revamp (sub-lane ws-D/marketing — the App Store page
+      only, so it may interleave with the search/graph chain if its
+      files stay untouched by them; operator, 26.07, screenshot):
+      "ALL JUST APPS" — the store currently gives web10 social a
+      jumbo FLAGSHIP hero and the node console/importer abstract
+      feature-blurb cards, while actual registered apps (fallout
+      avatar, translator) look like real apps: icon, visits, Open.
+      the operator liked the OLD app store where "they really really
+      really looked like apps," and explicitly does NOT want the
+      first-party surfaces plugged so hard — "they will naturally get
+      landed on" (top of the visit sort). revamp: (1) ONE uniform
+      icon-forward app card for everything — real icon (first-party
+      apps get proper brand icons per design.md §3, NOT lucide
+      glyphs; registered apps already carry theirs), name, one-line
+      description, visit count, Open — first-party and third-party
+      identical shape; at most a small "flagship" chip, no hero, no
+      separate sections; (2) sort by visits (the D16/A7 restored
+      counts) — prominence is EARNED, which is itself the pitch (the
+      store doesn't rig itself; same trust story as the no-algorithm
+      feed — put that line in the page's subtitle if it fits the
+      voice); (3) PREMIUM bar — "this is like the apple app store,
+      PREMMIUMMM!!!!!": big rounded app icons, generous spacing,
+      crisp typography, hover lift, skeleton shimmer, all design.md
+      tokens, flawless at 375px. files: the marketing-ui App Store
+      page + its card components (find via the D16 curation work,
+      1.0.136). read design.md first. acceptance: every entry renders
+      as the same app-shaped card with a real icon; first-party has
+      no hero treatment; visit-sort puts social/authenticator on top
+      naturally; screenshot desktop + 375px and LOOK — the bar is
+      "apple app store screenshot" credible. gate: none (independent
+      page).
+      V2 — THE PRODUCT PAGE (operator follow-up: "when you see the
+      apps like it is on your iphone, the big logos… and when you
+      click them you see a description with comments! that would be
+      so cool"): (1) the grid goes iphone-home-screen icon-forward —
+      the BIG logo is the card; (2) click → an app DETAIL page:
+      big icon, name, description (from the registered-app record),
+      visit count, screenshots slot (empty-graceful), Open CTA, and
+      COMMENTS/reviews. BACKEND (the operator flagged it un-figured;
+      v0 needs NOTHING new): reviews are D32 public-ledger entries
+      targeting the APP id — the exact machinery post comments use
+      (anon read via PATCH /public/entries; compose auth-gated, the
+      trending-comments funnel pattern; same engagement counting).
+      FEDERATION honesty: where an app's reviews live when the app
+      runs on many nodes is genuinely unsolved — do NOT invent a
+      protocol here (CLAUDE.md rule); v0 renders THIS node's reviews
+      with an honest label, cross-node aggregation is an M3
+      federation question filed with the rest of M3.
+      REGISTRATION REWIRE (operator follow-up: "app registration may
+      need to be rewired to go through the same public avenue /
+      system as the other!"): today's registered apps live in a
+      legacy registration store (the A7-restored records from the
+      live app-store era). the on-thesis target: app registrations
+      become records on the SAME public data plane as everything
+      else — a schema-registered public entry (an `App` schema in the
+      registry, like Post/Comment/Follow/Reaction) that the discovery
+      layer indexes; then the store is just a lens over public data,
+      reviews target app entries natively, and federation inherits
+      whatever answer the public layer gets — one system, no side-
+      channel. AND IT'S THE MODERATION FIX (operator: "you approve
+      [an] app, and then [the] app changes photo to something
+      inappropriate — the pwa thing can totally bypass moderation
+      loopholes"): listing metadata (icon, name, description,
+      screenshots) must be NODE-HOSTED RECORDS, never hot-linked
+      from the app's own backend — then approval attaches to a
+      VERSION of the metadata, any listing edit is a write the node
+      sees, and a changed listing drops back into review
+      (approved → pending-on-change). the store NEVER auto-pulls
+      assets from the app's origin (a pwa manifest/thumbnail change
+      is not silently mirrored — "new thumbnail on a pwa got
+      submitted, that kind of thing": updates arrive only as
+      explicit re-submissions that enter the review queue).
+      bait-and-switch becomes structurally impossible instead of
+      policy-patrolled — moderation by architecture, and a phase 12
+      t&s input. this is
+      a LANE A spec question (write the shape + review-state
+      machine + migration of existing registered apps in a
+      .context/ note or decisions.md entry BEFORE v2 builds against
+      it; v1's visit-sorted card grid reads the legacy store as-is). gate for v2:
+      the v1 revamp merged + the registration-shape decision; comment
+      compose benefits from D-ledger-mirror-fix landing but the
+      funnel pattern works without it.
 
 [ ] D-poke (sub-lane ws-D/engagement; mostly independent): an "advanced
       poke" — a playful, lightweight nudge primitive (the facebook-poke
@@ -1376,6 +1930,23 @@ LANE E — infrastructure / deployment (owns: proxmox provisioning,
       signing certs/provisioning, review. NOT now (post-M0, gated on
       the encryptor actually doing e2e key management) — parked here
       so it's on the board, not lost.
+  [ ] E-run-discovery-migration (ops, small, HIGH demo impact; operator
+      screenshot 26.07: his real public post absent from /trending
+      Newest on the deployed app): A13 (✓ 1.0.178) shipped the
+      discovery-terms fix as code + ADMIN ENDPOINTS — POST
+      /admin/discovery/migrate_terms and POST /admin/discovery/backfill
+      — which nobody has RUN. Until they execute per environment,
+      every pre-existing account (the operator's included) stays
+      undiscoverable: no anon-read term on public_posts → new posts
+      not indexed, old posts not backfilled. Task: after the next
+      dev→main promotion carries 1.0.178, run both endpoints against
+      dev, verify (the operator's post appears in PATCH
+      /discover/posts?sort=recent + on /trending Newest), then run
+      against prod and verify the same. needs an admin token + box/env
+      access — if the workspace has neither, stop and say so (operator
+      gate, same as the E box-execution items). record the run in
+      ubuntu-deployment/OPS-LOG.md. gate: 1.0.178 deployed to the
+      target env.
   [✓ 1.0.71] E9. DEPLOYMENT STATUS PAGE (operator, 19.07 — iterated from
       "portainer should alert github" down to what's actually
       wanted: "all i need is an easy way to know we are deployed, a
@@ -1428,60 +1999,102 @@ M3 "the network"         = encryption integration (A rtc + C2 sdk
                            polish. the last big merge.
 
 
-CURRENT CONDUCTOR BOARD (as of 26.07.2026 — keep this section fresh)
+CURRENT CONDUCTOR BOARD (as of 26.07.2026 LATE — audit #4; keep fresh)
 --------------------------------------------------------------------
-26.07 NIGHT CAPTURE (operator pass on deployed dev/prod). Everything
-below is filed as full lane items above (LANE A / LANE D) + narrative
-in plan.txt PHASE 8.6. This round's shipped fixes (all on prod
-1.0.169→1.0.174): broken prod deploy (post_id dedup), trending-knob
-redesign + Advanced-collapse (PR #302), profile media-tab freeze, post
-lightbox, sidebar scroll, feed refresh, video preview controls,
-coming-soon sidebar surfaces (Groups/Marketplace/Livestream/Games/
-Flares/Takes), discovery anon-regex gate (1.0.171 — HALF the discovery
-fix), bug-reports plan capture.
+The 26.07 night-capture fleet DRAINED SAME-DAY: A13-discovery-terms
+✓ 1.0.178, D-profile-post-experience ✓ 1.0.180, D-messages-views
+✓ 1.0.182, D-bug-reports-delivery ✓ 1.0.181 (as PUBLIC POSTS, not the
+DM option — operator to confirm; privacy fix filed, see PRIORITY 2),
+D-join-two-step ✓ 1.0.178, D-poke proposal filed 1.0.179 (awaiting
+operator sign-off). PR #311 landed the D-public-media-client DATA
+LAYER only — unlogged (retro-logged 1.0.183) and with zero call sites
+wired, so cross-user images STILL 403 (item stays open, see its
+STATUS). Meanwhile the operator ran a live pass on the deployed app
+(screenshots) — captures filed below and in plan.txt PHASE 8.6.
 
-  PRIORITY (do first, blocks the pitch): A13-discovery-terms (LANE A).
-    Real users' public posts still aren't discoverable — 1.0.171 fixed
-    the regex gate but the public_posts anon-read TERM isn't provisioned
-    for real accounts (SMR consent only fires while the auth portal is
-    open; default services ship empty). Provision the term by default +
-    migrate + backfill existing posts. Full diagnosis + fix options in
-    the LANE A item. Server-only, gate: none.
+  PRIORITY 1 (the pitch's numbers are theater for real accounts):
+    ws-D/ledger: D-ledger-mirror-fix — the app's public-ledger mirror
+      is DEAD (registerDefaultSchemas never called + createPublicEntry
+      sends the wrong body vs public.py → silent stub). No real
+      account's follows/likes/comments ever hit the ledger: follower
+      counts + trending engagement work for seeded personas ONLY.
+      Verified live at HEAD 26.07. data/feed.ts + one bootstrap line.
+    ws-A: A14-followers-count — the api half (/discover/users returns
+      followers_count so /u/:username can show social proof).
+    ws-E (operator-gated): E-run-discovery-migration — A13's admin
+      migrate+backfill endpoints have never been RUN; until they
+      execute on dev/prod, the operator's own posts stay off
+      /trending (his 26.07 screenshot). needs admin token + env.
 
-  PARALLEL-SAFE FLEET (26.07, one workspace per sub-lane, no shared
-  seams — see each item for files/gates/acceptance):
-    ws-A:            A13-discovery-terms (PRIORITY, above)
-    ws-D/feed:       D-public-media-client (UNBLOCKED 26.07 — gate A12
-                     merged 1.0.164; the "no follower can see any
-                     image" wall, biggest visible hole after A13),
-                     THEN D-follow-backfill (follow → their existing
-                     posts land in your feed; PHASE 8.6 known gap,
-                     filed 26.07), THEN D-link-embeds (paste a youtube
-                     link → playable embed; gate: ws-D/profile's
-                     D-profile-post-experience merged — file seam)
-    ws-D/profile:    D-profile-post-experience (video thumbs + full
-                     viewer/editor: like/comment/edit/delete), THEN
-                     D-post-visibility-toggle + D-profile-image-placement
-                     + D-follow-lists (followers/following list UI)
-                     (same ProfileScreen/PostLightbox seam — sequential)
-    ws-D/messages:   D-messages-views (list/mail/crm toggle), THEN
-                     D-message-controls (delete/edit — same seam)
-    ws-D/feedback:   D-bug-reports-delivery (persist + DM to operator)
-    ws-D/marketing:  D-join-two-step (Join.tsx — independent)
-    ws-D/engagement: D-poke (design note first)
-    ws-D/surfaces:   D-coming-soon-builds (Flares/Takes/Livestream/
-                     Games/Groups/Marketplace — one workspace EACH)
+  PRIORITY 2 (small, PII): ws-D/feedback: D-feedback-contact-privacy —
+    1.0.181 publishes the bug reporter's CONTACT INFO in an
+    anon-readable public post. strip it; fix the stale "DM" docstring;
+    flag the public-vs-DM deviation for operator confirmation.
+
+  PARALLEL-SAFE FLEET (26.07 late — one workspace per sub-lane; the
+  chains WITHIN a sub-lane are sequential, file seams):
+    ws-D/ledger:     D-ledger-mirror-fix (PRIORITY 1)
+    ws-A:            A14-followers-count (PRIORITY 1), THEN
+                     A15-engagement-count-accuracy (badge vs panel
+                     mismatch — same documentdb.py aggregation seam,
+                     sequential in this workspace)
+    ws-D/feedback:   D-feedback-contact-privacy (PRIORITY 2)
+    ws-D/marketing:  D-marketing-search (public search on /trending +
+                     nav — tags/text/users via the existing
+                     /discover/search + /topics; the youtube-esque
+                     entry point into web10-social; anon-first),
+                     THEN D-graph-app (the wooshy follow-graph
+                     visualization — the "outside app on your social
+                     data" existence proof; same marketing-ui surface,
+                     sequential), THEN D-social-analytics (chess.com-
+                     style ranked stats — same chain). D-appstore-
+                     revamp (store page only, no file overlap with
+                     the chain) may run as a SECOND marketing
+                     workspace in parallel.
+    ws-D/feed:       D-public-media-client REMAINDER (wire the call
+                     sites — see the item's late-26.07 STATUS; touches
+                     ProfileScreen.tsx, run BEFORE the ws-D/profile
+                     chain's placement item), THEN D-follow-backfill,
+                     THEN D-feed-lightbox (feed posts open the
+                     lightbox + Share action — PostLightbox seam with
+                     ws-D/profile: coordinate via .context/), THEN
+                     D-link-embeds (same seam cluster)
+    ws-D/profile:    D-post-visibility-toggle, THEN
+                     D-lightbox-media-sizing, THEN
+                     D-profile-image-placement (rebase after
+                     D-public-media-client's ProfileScreen touch),
+                     THEN D-follow-lists, THEN D-text-post-cards
+                     (stage LAST — spans grid+feed+lightbox+composer)
+    ws-D/messages:   D-message-controls (delete/edit), THEN
+                     D-mail-experience (REAL email: folders inbox/
+                     sent/spam + subject/reply/cc/bcc/forward —
+                     operator's "kickass feature" ask), THEN
+                     D-crm-upgrade (old-CRM parity: status colors,
+                     bins/sort, contact fields)
+    ws-D/settings:   D-settings-tab (v0 sections + .context proposal
+                     for the full facebook-style tree)
     GATED (don't pick up until the gate clears):
-      D-inapp-discover-knobs (gate: D20 revisit in decisions.md — it's
-      a product-decision reversal, not a bug; operator must sign off).
+      D-deep-links (gate: the current fleet merged — it sweeps most
+      ws-D files). NOTE ITS WEIGHT: the operator's funnel polish
+      ("trending click → the exact post, comment click → that exact
+      comment, highlighted") only works with advanced links to
+      EVERYTHING — total coverage, not partial ("it only works if
+      there are advanced links to everything"). it is the FIRST item
+      staged when the fleet drains, and the AGENTS.md url-holds-state
+      rule keeps new screens from re-opening the gap meanwhile.
+      D-poke build (gate: operator sign-off on the 1.0.179 proposal).
+      D-inapp-discover-knobs (gate: D20 revisit — operator sign-off).
       D-feed-avatar-resolution + the D-user-profile-media grid half
-      (gate: the public-media path END TO END — A12 ✓ 1.0.164 +
-      D-public-media-client merged and verified on dev).
-      D-link-embeds (gate: D-profile-post-experience merged — it wires
-      into FeedScreen/PostLightbox, the ws-D/profile chain's files).
+      (gate: public-media path END TO END — the D-public-media-client
+      remainder merged and verified on dev).
+      D-coming-soon-builds (gate: per-surface spec first; one
+      workspace each when staged).
+      E-run-discovery-migration (gate: 1.0.178 deployed to the target
+      env + admin token — operator provides).
   Selection rule (CLAUDE.md): only truly-parallel items at once. The
-  ws-D/profile and ws-D/messages chains are SEQUENTIAL within their
-  sub-lane (shared file seam) — don't split them across workspaces.
+  PostLightbox/FeedScreen/PostComposer files form ONE seam cluster
+  spanning ws-D/feed and ws-D/profile — the two chains coordinate via
+  .context/ notes and never edit the same file concurrently.
 
 
 PRIORITY ONE (plan.txt, top — supersedes 19.07's priority zero,
