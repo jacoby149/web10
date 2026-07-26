@@ -1364,6 +1364,35 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       acceptance: a first-time reader understands it's two steps;
       screenshot desktop + 375px. gate: none.
 
+[ ] D-join-steps-extend (sub-lane ws-D/marketing; SEAM: Join.tsx —
+      independent of the search/graph/store chain's files; operator,
+      26.07, screenshot of the shipped two-step strip: "i really like
+      this dora the explorer what steps to complete! i think that it
+      should be more! have the link to set up your monetization,
+      since that is in the web10 authenticator, and then to post! to
+      the feed"): grow the two-step strip into the full onboarding
+      path — the RISE arc as a checklist. steps (operator's order;
+      final order is a taste call at build, keep it one row that
+      wraps at 375px): 1. Get the app → 2. Create your account →
+      3. Set up your monetization → 4. Post to the feed. each step
+      DEEP-LINKS to where it actually happens (the deep-link
+      philosophy): step 3 → the Studio monetization screen in the
+      authenticator (the D21 money screen — auth origin, new tab);
+      step 4 → the social feed/composer (deep param like
+      /feed?compose=1 if cheap — coordinate one query param with the
+      D-deep-links item via .context/ note — else plain /feed).
+      keep the numbered-card visual language the 1.0.178 strip
+      established; both hero and bottom sections stay in sync.
+      acceptance: four numbered steps, each opening the right
+      surface in a new tab; reads as "what to do next" to a
+      first-timer; screenshots desktop + 375px. gate: none.
+      NOTE (operator follow-up): "really like how this is almost a
+      tutorial for web10 social!" — the steps ARE the product
+      tutorial. future echo (not this item): the same checklist
+      surfacing IN web10-social for fresh accounts (the empty-feed
+      first-run state walks you through post/follow/monetize) —
+      capture-only, stage when the onboarding pass comes.
+
 [ ] D-link-embeds (sub-lane ws-D/feed, AFTER D-follow-backfill — same
       workspace chain; operator, 26.07): paste a link into a post and it
       renders as an EMBED, the table-stakes feature every platform has
