@@ -2019,7 +2019,13 @@ messages -- three views, a toggle on the messages screen (operator idea):
 
 messages v2 -- the operator's 26.07 night pass on 1.0.182 (with
 screenshots; "these are the things that can give a platform flare" —
-the mail/crm lenses ARE the all-in-one-lens pitch made visible):
+the mail/crm lenses ARE the all-in-one-lens pitch made visible:
+"showing the robustness of web10 — you can make a mail app on the
+messages service, or a crm. it is a clinic on interoperable data."
+PITCH NOTE: the one-click chat→mail→crm flip over the SAME records is
+a demo-video beat — sovereignty made screenshot-able; no incumbent's
+data model can do it. generalizing lenses to feed/profile is parked
+in later.md "view lenses everywhere"):
 [ ] MAIL must actually be email: "that doesn't look like email! where
     is the inbox, outbox, spam" — folders (Inbox / Sent / Spam), and
     the thread view gets real email anatomy: Subject, Reply / Reply-all

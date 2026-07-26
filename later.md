@@ -51,7 +51,40 @@ ASK for feed control, or the creator-pitch wedge stalls and a
 consumer-attention wedge is needed.
 
 
-## vibe-coded apps / themes (the real gutenberg)
+## view lenses everywhere (feed/profile render toggles — the messages toggle, generalized)
+
+the idea (operator, 26.07, after the Chat/Mail/CRM toggle shipped in
+1.0.182): the messages screen proved the thesis on one screen — the
+SAME records rendering as a chat app, a mail client, and a CRM with
+one click is "a clinic on interoperable data." generalize it: the
+feed and profile get render toggles too (insta-shaped grid view,
+facebook-shaped card/markdown view; "or heck the email view too can
+be done! but that is getting carried away a little" — his words, and
+he's right). rendering lenses only — NEVER ranking lenses; the feed
+stays chronological (D20, THE STORY beat 3).
+
+why it's good:
+- it's the sovereignty pitch made visible and screenshot-able:
+  "apps are just lenses" as a ten-second in-product demo instead of
+  a protocol whitepaper claim. no incumbent can ship this toggle —
+  their data models don't allow it.
+- cheap per-lens: the data layer is already lens-agnostic (the
+  messages toggle reused data/dms.ts + contacts.ts untouched).
+- every new lens is marketing copy that writes itself ("one inbox,
+  three apps").
+
+why it's parked:
+- the messages toggle ALREADY makes the point in-product and in the
+  demo video — a second toggle proves nothing new to a creator.
+- breadth ahead of the spine: delivery truth, media, discovery, and
+  deep links come first (the 26.07-late board priorities).
+- view-toggle sprawl is settings-surface sprawl (<5% open settings;
+  same argument that parked the lens/chatbox above).
+
+promotion bar: the M0 demo video needs a second "wait, what" beat,
+or a founding creator asks for an alternate feed/profile rendering,
+or the pitch deck needs the interoperability clinic slide made
+live. build then — one lens at a time, rendering only.
 
 the idea: an llm generates a complete web10 app on request — react +
 the typed sdk (phase 6) + the conventions doc (D1) as its context —
