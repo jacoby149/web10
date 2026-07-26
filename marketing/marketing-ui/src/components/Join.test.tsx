@@ -55,18 +55,36 @@ describe('Join page', () => {
     expect(screen.getByText('You found this place early.')).toBeInTheDocument();
   });
 
-  it('has two CTAs pointing to signup', async () => {
+  it('renders two-step join flow in hero and footer', async () => {
     const { default: Join } = await import('@/pages/Join');
     render(<Join />);
-    const ctas = screen.getAllByTestId('join-cta');
-    expect(ctas).toHaveLength(1);
-    expect(screen.getByTestId('join-cta-bottom')).toBeInTheDocument();
+    expect(screen.getByTestId('join-step-1')).toBeInTheDocument();
+    expect(screen.getByTestId('join-step-2')).toBeInTheDocument();
+    expect(screen.getByTestId('join-step-1-bottom')).toBeInTheDocument();
+    expect(screen.getByTestId('join-step-2-bottom')).toBeInTheDocument();
   });
 
-  it('CTA triggers join_click funnel', async () => {
+  it('step 1 links to social app', async () => {
     const { default: Join } = await import('@/pages/Join');
     render(<Join />);
-    fireEvent.click(screen.getByTestId('join-cta'));
+    const step1 = screen.getByTestId('join-step-1');
+    expect(step1).toHaveAttribute('href', expect.stringContaining('social.web10'));
+    expect(step1).toHaveAttribute('target', '_blank');
+  });
+
+  it('step 2 links to signup', async () => {
+    const { default: Join } = await import('@/pages/Join');
+    render(<Join />);
+    const step2 = screen.getByTestId('join-step-2');
+    expect(step2).toHaveAttribute('href', expect.stringContaining('auth.web10'));
+    expect(step2).toHaveAttribute('target', '_blank');
+  });
+
+  it('renders step labels', async () => {
+    const { default: Join } = await import('@/pages/Join');
+    render(<Join />);
+    expect(screen.getAllByText('Get the app')).toHaveLength(2);
+    expect(screen.getAllByText('Create your account')).toHaveLength(2);
   });
 
   it('renders nav links in footer', async () => {

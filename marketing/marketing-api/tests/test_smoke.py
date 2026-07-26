@@ -5,9 +5,11 @@ The full mapper test suite (a port of the old exporters/ vitest suite,
 the CI wiring honest until it lands.
 """
 
+import json
+
 from fastapi.testclient import TestClient
 
-from app.main import app, analytics_events, feedback_store
+from app.main import app, analytics_events, _feedback_store, _feedback_file, _feedback_lock
 from app.validation import VALIDATORS, validate_record
 
 client = TestClient(app)
@@ -97,7 +99,9 @@ def test_submit_feedback_rejects_empty_message():
 
 
 def test_list_feedback():
-    feedback_store.clear()
+    with _feedback_lock:
+        _feedback_store.clear()
+        _feedback_file.unlink(missing_ok=True)
     client.post(
         "/feedback",
         json={"message": "test1", "app": "web10-social", "route": "/feed"},
@@ -115,7 +119,9 @@ def test_list_feedback():
 
 
 def test_list_feedback_limit():
-    feedback_store.clear()
+    with _feedback_lock:
+        _feedback_store.clear()
+        _feedback_file.unlink(missing_ok=True)
     for i in range(5):
         client.post(
             "/feedback",
@@ -124,6 +130,22 @@ def test_list_feedback_limit():
     r = client.get("/feedback?limit=3")
     assert r.status_code == 200
     assert len(r.json()["items"]) == 3
+
+
+def test_feedback_persists_to_disk():
+    """Feedback survives a process restart (written to JSON on disk)."""
+    with _feedback_lock:
+        _feedback_store.clear()
+        _feedback_file.unlink(missing_ok=True)
+    client.post(
+        "/feedback",
+        json={"message": "persist-test", "app": "web10-social", "route": "/feed"},
+    )
+    # Verify the file was written
+    assert _feedback_file.exists(), "feedback.json should exist after submit"
+    stored = json.loads(_feedback_file.read_text())
+    assert len(stored) == 1
+    assert stored[0]["message"] == "persist-test"
 
 
 # ─── JS Error beacon ─────────────────────────────────────────────────────────

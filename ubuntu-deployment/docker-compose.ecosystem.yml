@@ -199,6 +199,9 @@ services:
       context: ../marketing/marketing-api
       dockerfile: Dockerfile
     restart: unless-stopped
+    environment:
+      NODE_API_URL: ${NODE_API_URL:-}
+      NODE_API_TOKEN: ${NODE_API_TOKEN:-}
     networks:
       proxy:
         aliases:
