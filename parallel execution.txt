@@ -1144,7 +1144,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       of the post-viewer work beyond the shared ProfileScreen file — run
       after it in the same ws-D/profile chain).
 
-[ ] D-join-two-step (sub-lane ws-D/marketing; SEAM: marketing-ui
+[✓ 1.0.178] D-join-two-step (sub-lane ws-D/marketing; SEAM: marketing-ui
       Join.tsx): the /join flow is confusing — it conflates two steps
       (visit the web10-social app, THEN sign up for the account). Make
       the two steps explicit and sequential on the page (numbered, or a
