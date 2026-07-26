@@ -1535,6 +1535,58 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       spinner; screenshots desktop + 375px. gate: none (post
       permalink deep-links degrade until D-feed-lightbox merges).
 
+[ ] D-graph-app (sub-lane ws-D/marketing, AFTER D-marketing-search —
+      same marketing-ui surface; operator, 26.07: "graph.web10.app,
+      something wooshy is great marketing, because it is an app
+      interoperating on web10 data… one outside analytical app on top
+      of your social data"): a standalone, anon-first, read-only
+      visualization of the node's social graph — users as nodes,
+      follows as edges, force-directed ("wooshy": drag, zoom, physics,
+      it breathes), node click → that user's /u/:username on social
+      (the funnel again), hover → avatar/name card, maybe a "find me"
+      search. THE POINT is the existence proof: a separate app built
+      on the SAME public data from OUTSIDE the flagship — "apps are
+      just lenses" demonstrated, the wordpress-flywheel slide made
+      live. TWO MODES (operator follow-up: "it could render your
+      personal graph, not public necessarily only!"):
+        (1) ANON NODE VIEW — the whole node's public graph. DATA
+            CONTRACT (hard): the PUBLIC follow ledger only (PATCH
+            /public/entries, payload.action='follow' — D34, already
+            anon-queryable) + /discover/users for names/avatars.
+            NEVER private data in this mode — the anon view must be
+            the sovereignty story's friend.
+        (2) MY GRAPH (signed-in) — the ego graph: log in via the
+            normal web10 auth/consent flow, the app requests a SCOPED
+            token for the user's own follows (+ contacts if consented)
+            and renders YOUR world — followers, follows, optionally
+            contact/DM-derived edges. all client-side render under
+            your own token, nothing published, nothing written. THIS
+            IS THE DEEPER DEMO: an outside app walking the consent
+            screen → scoped read → lens pipeline is the third-party
+            app contract shown live (I5: least-privilege scoped
+            token doing exactly what it consented to). and the
+            personalization IS the pitch (operator: "you log in…
+            so your graph is different from a friend['s]"): two
+            friends logging in see two different graphs, because the
+            app holds no global view — it renders only what each
+            user's token grants. ownership, felt.
+      HOSTING: v0 is a marketing-ui route (/graph) —
+      no new vhost/compose/DNS churn (that's a lane E touch when it
+      earns graph.web10.app; leave a .context/ note then). rendering:
+      pick a maintained force-graph lib (or hand-rolled d3-force) —
+      design.md tokens for node/edge/glow colors, dark-canvas
+      spectacle is the bar ("wooshy" is a design requirement, not
+      decoration; read design.md first). files: marketing/marketing-ui
+      new page + components, nav link. acceptance: the seeded persona
+      graph renders alive and interactive, signed-out; node click
+      lands on social's /u/:username; empty/sparse state says honestly
+      that real follows appear as accounts join (see gate); 60fps-ish
+      at demo scale; screenshots desktop + 375px. gate: soft on
+      D-ledger-mirror-fix — build against personas now (they have
+      cross-follows in the ledger via the seed script); real accounts
+      populate as the mirror fix + follows land. D20 check: this is
+      marketing/showcase surface, no ranking, no feed — on-thesis.
+
 [ ] D-poke (sub-lane ws-D/engagement; mostly independent): an "advanced
       poke" — a playful, lightweight nudge primitive (the facebook-poke
       feeling) reimagined as web10's OWN, NOT a clone (name + interaction
@@ -1839,7 +1891,11 @@ STATUS). Meanwhile the operator ran a live pass on the deployed app
     ws-D/marketing:  D-marketing-search (public search on /trending +
                      nav — tags/text/users via the existing
                      /discover/search + /topics; the youtube-esque
-                     entry point into web10-social; anon-first)
+                     entry point into web10-social; anon-first),
+                     THEN D-graph-app (the wooshy follow-graph
+                     visualization — the "outside app on your social
+                     data" existence proof; same marketing-ui surface,
+                     sequential)
     ws-D/feed:       D-public-media-client REMAINDER (wire the call
                      sites — see the item's late-26.07 STATUS; touches
                      ProfileScreen.tsx, run BEFORE the ws-D/profile

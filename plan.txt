@@ -2171,6 +2171,34 @@ marketing ui!"):
     "search your own stuff" stays a separate low-hanging-fruit item
     (gauntlet follow-on list, top of this file).
 
+showcase app (operator, 26.07: "showing the web10 social network as a
+web, like an app outside of web10 social — graph.web10.app, something
+wooshy — is great marketing, because it is an app interoperating on
+web10 data… one outside analytical app on top of your social data"):
+[ ] THE GRAPH APP — a standalone, anon-first visualization of the
+    node's social graph: users as nodes, follows as edges, force-
+    directed and wooshy (drag, zoom, watch it breathe), click a node →
+    that user's /u/:username deep link. THE POINT is the pitch: a
+    separate app interoperating on web10 data — the existence proof
+    for "apps are just lenses" from OUTSIDE the flagship (the
+    wordpress-flywheel claim made visible; pairs with the messages
+    lens toggle as demo-video beats). two modes (operator: "it could
+    render your personal graph, not public necessarily only!"):
+    (1) anon node view — the PUBLIC follow ledger only (D34, already
+    anon-queryable) + /discover/users for avatars/names; never
+    private data here. (2) MY GRAPH, signed-in — the app walks the
+    normal consent flow, takes a SCOPED token to your own follows
+    (+ contacts if consented) and renders your ego graph client-side,
+    nothing published: the third-party-app contract (consent → scoped
+    read → lens, I5) demonstrated live, which is the deeper interop
+    proof.
+    hosting: v0 ships as a marketing-ui route (/graph) to avoid new
+    vhost/compose churn; graph.web10.app becomes its own vhost when it
+    earns it (lane E touch then, not now). gate: D-ledger-mirror-fix —
+    until real follows mirror, the graph renders seeded personas only
+    (fine for the demo, say so honestly in the empty state). lane item
+    D-graph-app (ws-D/marketing, after D-marketing-search).
+
 engagement-count accuracy (operator, 26.07, screenshot: a post's badge
 says 3 comments while the expanded panel renders more than that):
 [ ] the discovery index's CACHED like/comment counts disagree with
