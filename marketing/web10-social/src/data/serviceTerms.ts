@@ -129,6 +129,17 @@ export function buildSocialServiceSirs(crossOrigins: string[]): Sir[] {
       service: 'media',
       cross_origins: crossOrigins,
     },
+    // ── D35: public_media — anon-readable mirror of media for public
+    // content. Public-post attachments and avatar/banner confirm into
+    // `public_media` so non-owners can presign reads. DM/private-post
+    // media stays in `media` (owner-only). The anon-read whitelist
+    // matches `public_posts` / `profile` so any viewer (including
+    // unauthenticated) can presign against it once terms are active.
+    {
+      service: 'public_media',
+      cross_origins: crossOrigins,
+      whitelist: [{ provider: '.*', username: '.*', read: true }], // anon-read for public content
+    },
     {
       service: 'follows',
       cross_origins: crossOrigins,

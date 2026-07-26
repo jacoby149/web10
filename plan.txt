@@ -2010,7 +2010,7 @@ messages -- three views, a toggle on the messages screen (operator idea):
     lens over the same contact/DM data.
 
 posts / profile -- controls the operator found missing:
-[ ] delete a post (owner action, on the wall + in the lightbox).
+[✓ 1.0.178] delete a post (owner action, on the wall + in the lightbox).
 [ ] change a post's visibility after publish (public <-> private is a
     collection move, D30; mirror the composer's selector post-hoc).
 [ ] profile avatar + banner PLACEMENT editing -- reposition/crop, fix
@@ -2045,7 +2045,7 @@ posts -- rich content (operator, 26.07):
     grid/lightbox, dm bubbles.
 
 bug reports -> the operator (operator idea):
-[✓ 1.0.178] route "Report a bug" submissions to the operator instead of dying in
+[✓ 1.0.181] route "Report a bug" submissions to the operator instead of dying in
      memory. TODAY: ReportBug (web10-social) POSTs marketing-api /feedback,
      which appends to an in-memory `feedback_store: list` (main.py:394) --
      lost on restart, only readable via GET /feedback. WANT: persist first
