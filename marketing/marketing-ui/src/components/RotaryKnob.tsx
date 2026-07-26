@@ -112,7 +112,7 @@ function RotaryKnob({
 
   return (
     <div
-      className={`group/knob flex flex-col items-center gap-1 ${tickClass}`}
+      className={`group/knob flex flex-col items-center gap-2 ${tickClass}`}
       data-testid={dataTestId ?? 'rotary-knob'}
     >
       {/* Readout */}
@@ -124,7 +124,7 @@ function RotaryKnob({
       <div className="relative flex items-center justify-center">
         {/* Scale track */}
         <div
-          className="absolute z-0 h-24 w-1 rounded-full bg-elevated"
+          className="absolute z-0 h-20 w-1 rounded-full bg-elevated"
           onClick={handleScaleClick}
           role="presentation"
         >
