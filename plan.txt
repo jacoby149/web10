@@ -2038,6 +2038,29 @@ the mail/crm lenses ARE the all-in-one-lens pitch made visible):
     D-crm-upgrade (ws-D/messages).
 
 shell:
+[ ] DEEP LINKS EVERYWHERE (operator, 26.07: "everything should be a
+    deep hyperlink on web10 social… every screen in the social app is
+    shareable, or saveable/bookmarkable if it is a private screen like
+    dms"): D-url-routing (1.0.155) gave the five top-level routes;
+    the STATE inside them still lives in useState. sweep every screen
+    so the URL holds the state: /messages/:conversationKey +
+    ?view=chat|mail|crm, /discover?tag=&q=, /profile?tab=posts|media,
+    /staging, post permalinks (/u/:username/p/:postId — shared with
+    D-feed-lightbox), and provider disambiguation on user routes
+    (identity is (username, provider) — decide the canonical shape at
+    implementation, keep /u/:username back-compat). the standing rule
+    for all FUTURE pages is now in AGENTS.md ("UI screens: the URL
+    holds the state") — new screens that don't encode state in the
+    URL are a review rejection. THE RATIONALE (operator): the funnel —
+    marketing /trending click-throughs redirect to those advanced
+    urls: click a post → the exact post on social; click a COMMENT →
+    the post opened AT that comment (comment anchor:
+    /u/:username/p/:postId?comment=<id>, scroll + highlight). "that is
+    the rationale, and makes it polished, aka killer." marketing-ui's
+    TrendingCard/comment-panel links upgrade as the routes land
+    (D-marketing-search + D-trending-link get the deep targets).
+    lane item D-deep-links (ws-D/shell; cross-screen seam — stage
+    after the current fleet drains).
 [ ] SETTINGS TAB (operator, 26.07): "web10 social doesn't have a
     settings tab, should be a settings tab, facebook style." v0 =
     account section, posting defaults (default visibility), data/

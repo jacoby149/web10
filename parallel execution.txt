@@ -1470,6 +1470,42 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       (it touches the same three surfaces — stage LAST of the lightbox
       cluster).
 
+[ ] D-deep-links (sub-lane ws-D/shell; operator, 26.07: "everything
+      should be a deep hyperlink on web10 social… every screen
+      shareable, or bookmarkable if it's a private screen like dms" —
+      and the rationale: marketing /trending click-throughs land on
+      the EXACT thing: "when you click the comment [it] can bring up
+      the post to that exact comment… makes it polished, aka
+      killer"): D-url-routing (1.0.155) covered the five top-level
+      screens; the state INSIDE them is still useState-only. sweep:
+      (1) /messages/:conversationKey + ?view=chat|mail|crm (open
+      thread + view toggle restore on refresh; private = bookmarkable
+      by the owner, never renderable by others — auth already
+      guarantees that, just don't leak content into the url);
+      (2) /discover?tag=&q=; (3) /profile?tab=posts|media;
+      (4) /staging; (5) post permalink /u/:username/p/:postId
+      (COORDINATE: D-feed-lightbox files the same route — whichever
+      merges first owns it, the other rebases) + ?comment=<id> anchor
+      that scrolls to + highlights that comment in the thread;
+      (6) provider disambiguation on user routes — identity is
+      (username, provider), /u/:username assumes the home node;
+      decide the canonical shape at implementation (path seg or query
+      param), keep /u/:username back-compat. THEN upgrade marketing-ui
+      click-throughs (TrendingCard, comment panel, search results) to
+      the deep targets — funnel clicks land on the exact post/comment.
+      the standing rule for future screens is in AGENTS.md ("UI
+      screens: the URL holds the state"). files: App.tsx routes +
+      each screen's state lift (DmsScreen, DiscoverScreen,
+      ProfileScreen, PostLightbox) + marketing-ui FeedPreview/
+      Trending link targets — a CROSS-SUB-LANE seam sweep: run it as
+      ONE workspace AFTER the current fleet drains; do not run
+      concurrently with any ws-D chain. acceptance: refresh restores
+      every screen incl. open thread/view/tab/lightbox; a trending
+      comment click lands on that comment highlighted in social;
+      back/forward walk the history; screenshots desktop + 375px.
+      gate: current 26.07-late fleet merged (it touches most of their
+      files).
+
 [ ] D-marketing-search (sub-lane ws-D/marketing; operator, 26.07: "the
       one thing we are really missing now is search! searching by tag,
       even on the marketing page… youtube-esque and be an entry point
@@ -1827,6 +1863,14 @@ STATUS). Meanwhile the operator ran a live pass on the deployed app
     ws-D/settings:   D-settings-tab (v0 sections + .context proposal
                      for the full facebook-style tree)
     GATED (don't pick up until the gate clears):
+      D-deep-links (gate: the current fleet merged — it sweeps most
+      ws-D files). NOTE ITS WEIGHT: the operator's funnel polish
+      ("trending click → the exact post, comment click → that exact
+      comment, highlighted") only works with advanced links to
+      EVERYTHING — total coverage, not partial ("it only works if
+      there are advanced links to everything"). it is the FIRST item
+      staged when the fleet drains, and the AGENTS.md url-holds-state
+      rule keeps new screens from re-opening the gap meanwhile.
       D-poke build (gate: operator sign-off on the 1.0.179 proposal).
       D-inapp-discover-knobs (gate: D20 revisit — operator sign-off).
       D-feed-avatar-resolution + the D-user-profile-media grid half

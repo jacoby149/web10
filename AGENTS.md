@@ -15,6 +15,23 @@ logos — §3 names the real ones), the shared design tokens (§13), and
 the UI definition of done (§12: PR screenshots at desktop + 375px
 mobile, tokens-only colors, all states designed).
 
+## UI screens: the URL holds the state (deep links everywhere)
+
+Operator rule (26.07.2026): every screen and meaningful screen STATE
+in web10-social (and any user-facing app) must be reachable by URL —
+refresh restores it, back/forward work, and the link is shareable
+when the content is public or bookmarkable when it's private (a DM
+thread can't be opened by another user, but the owner bookmarking it
+must land back on that exact thread). When you ADD a page, a tab, a
+view toggle, a detail panel, or a lightbox: encode which one is open
+in the route or query string (react-router is already the stack —
+routes for screens, params/query for state like
+`/messages/:conversationKey?view=mail` or `/u/:username/p/:postId`).
+A screen whose state lives only in useState is a review rejection —
+the address bar is part of the product ("everything should be a deep
+hyperlink"). Auth-gated routes keep the intended destination through
+login and redirect after (the D-url-routing pattern, 1.0.155).
+
 ## Before starting ANY task: check it isn't already done
 
 Task completion state lives in three places. Check all three before
