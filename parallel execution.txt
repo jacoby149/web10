@@ -1844,6 +1844,18 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       the concept in a .context/ note for operator sign-off before
       building the surface).
 
+[ ] D-mobile-feature-gap (sub-lane ws-D/shell; operator, 27.07): the
+      mobile responsive site has NO access to the new features visible
+      on desktop — all "Coming soon" chips and new surfaces are hidden
+      on 375px. The mobile user is walled off from the product's
+      evolution. Audit every "Coming soon" toggle and responsive guard:
+      if a feature is ship-ready on desktop, it should either ship on
+      mobile too or have an explicit, documented reason for the
+      exclusion. Files: App.tsx routes, sidebar/nav responsive logic,
+      any viewport-gated feature flags. acceptance: a 375px viewport
+      can reach the same features as desktop (or the gap is documented
+      with a migration plan per feature). gate: none.
+
 [ ] D-inapp-discover-knobs (sub-lane ws-D/marketing or ws-D/feed;
       GATE: a D20 REVISIT decision — do NOT build before it): the
       operator wants the /trending "your algorithm" knobs in the SOCIAL
