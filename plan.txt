@@ -2666,7 +2666,14 @@ ordinary consent flow stays frictionless:
     everything (broad wildcards across many services, all-permissions,
     star-adjacent reach) → full red-flashing danger interstitial that
     BLOCKS until an explicit "proceed anyway" — the user is protected
-    by default and sovereign on override.
+    by default and sovereign on override. UX reference (operator): the
+    macOS GATEKEEPER pattern — the sketchy-download dialog has no
+    bypass button; "Open Anyway" lives in Settings → Privacy &
+    Security. same here: the danger screen itself offers only
+    decline; the override lives in the authenticator's own
+    settings/security page ("allow this app anyway"). the RELOCATION
+    is the security — a user following a phisher's script has to
+    break momentum and navigate elsewhere on purpose.
     design note: the risk heuristics are simple shape checks on the
     SIR list (count of services × permission breadth × wildcard use ×
     diff vs existing terms), not an ML thing. pairs with the
