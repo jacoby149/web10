@@ -2015,6 +2015,10 @@ posts / profile -- controls the operator found missing:
     collection move, D30; mirror the composer's selector post-hoc).
 [ ] profile avatar + banner PLACEMENT editing -- reposition/crop, fix
     centering (today it's object-cover with no offset control).
+[ ] follower + following LIST UI -- the profile shows only counts today;
+    tapping Followers/Following should open the actual list of accounts
+    (avatar + handle, link to /u/:username). data exists in follows.ts
+    (D-follow-lists in parallel execution.txt, ws-D/profile).
 
 messages -- controls the operator found missing:
 [ ] delete a message / conversation.
