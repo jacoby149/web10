@@ -72,6 +72,7 @@ function MediaTrayItem({
           src={item.previewUrl}
           className="w-full h-full object-cover rounded-lg ring-1 ring-border"
           preload="metadata"
+          controls
           muted
           playsInline
         />

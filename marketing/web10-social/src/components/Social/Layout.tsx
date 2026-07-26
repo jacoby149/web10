@@ -1,6 +1,6 @@
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { Home, User, MessageSquare, PlusCircle, LogOut, Bug, Compass } from 'lucide-react';
+import { Home, User, MessageSquare, PlusCircle, LogOut, Bug, Compass, Users, Store, Gamepad2, Radio, Zap, Clapperboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface LayoutProps {
@@ -14,6 +14,18 @@ const navItems = [
   { path: '/discover', icon: Compass, label: 'Discover', testId: 'nav-discover' },
   { path: '/profile', icon: User, label: 'Profile', testId: 'nav-profile' },
   { path: '/messages', icon: MessageSquare, label: 'Messages', testId: 'nav-messages' },
+];
+
+// Provisional, non-infringing names for the ephemeral-post and short-video
+// surfaces (Flares ≈ stories, a brief bright signal you send up; Takes ≈
+// reels, a film take). Names are placeholders pending operator sign-off.
+const comingSoonItems = [
+  { icon: Zap, label: 'Flares', testId: 'nav-flares' },
+  { icon: Clapperboard, label: 'Takes', testId: 'nav-takes' },
+  { icon: Radio, label: 'Livestream', testId: 'nav-livestream' },
+  { icon: Gamepad2, label: 'Games', testId: 'nav-games' },
+  { icon: Users, label: 'Groups', testId: 'nav-groups' },
+  { icon: Store, label: 'Marketplace', testId: 'nav-marketplace' },
 ];
 
 function Wordmark({ className }: { className?: string }) {
@@ -34,7 +46,7 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
   const isActive = (path: string) => pathname === path;
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex h-screen overflow-hidden bg-background">
       <aside className={cn(
         'hidden md:flex flex-col w-64 border-r border-border relative overflow-hidden',
         'bg-gradient-to-b from-surface to-background',
@@ -84,6 +96,26 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
             <PlusCircle className="w-5 h-5" strokeWidth={1.75} />
             New post
           </button>
+
+          <div className="mt-6 pt-4 border-t border-border/60" aria-label="Coming soon">
+            <p className="px-3 pb-1 text-[0.625rem] font-medium uppercase tracking-wider text-muted-foreground/50">
+              Coming soon
+            </p>
+            {comingSoonItems.map(({ icon: Icon, label, testId }) => (
+              <div
+                key={testId}
+                data-testid={testId}
+                aria-disabled="true"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground/50 cursor-not-allowed select-none"
+              >
+                <Icon className="w-5 h-5" strokeWidth={1.75} />
+                {label}
+                <span className="ml-auto text-[0.5625rem] font-semibold uppercase tracking-wide text-brand-300/80 bg-brand-muted/50 border border-brand/15 rounded-full px-1.5 py-0.5">
+                  Soon
+                </span>
+              </div>
+            ))}
+          </div>
         </nav>
         <div className="relative p-4 border-t border-border space-y-1">
           <Button
@@ -107,7 +139,7 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col min-w-0">
+      <main className="flex-1 flex flex-col min-w-0 min-h-0">
         <header className="md:hidden flex items-center justify-between px-4 h-14 border-b border-border bg-surface/95 backdrop-blur-md sticky top-0 z-20">
           <Wordmark />
           <Button
@@ -122,7 +154,7 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
           </Button>
         </header>
 
-        <div className="flex-1 overflow-y-auto pb-16 md:pb-0">
+        <div className="flex-1 min-h-0 overflow-y-auto pb-16 md:pb-0">
           {children || <Outlet />}
         </div>
 

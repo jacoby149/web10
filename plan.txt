@@ -1982,6 +1982,64 @@ milestone line (rtc small-scale, then hls fan-out). video v2's
 hls plumbing is deliberately the same tech so live inherits the
 player when it comes.
 
+PHASE 8.6 — social product surface (operator requests, 26.07.2026)
+------------------------------------------------------------------
+captured from a live operator pass on the deployed social app. the
+coming-soon sidebar entries are STUBS ONLY -- non-interactive "soon"
+chips so the roadmap is visible in-product (shipped 1.0.170); the real
+builds are the [ ] lines below.
+
+navigation / surfaces (coming-soon stubs shipped; builds pending):
+[ ] flares -- ephemeral 24h posts (the "stories" shape). provisional,
+    non-infringing name; rename pending operator sign-off. stub live.
+[ ] takes -- short vertical video (the "reels" shape). provisional
+    name. stub live.
+[ ] livestream -- rtc small-scale then hls fan-out (already phase 8's
+    later-milestone; the stub just surfaces it). stub live.
+[ ] games -- placeholder surface, scope undefined. stub live.
+[ ] groups -- multi-user spaces. stub live.
+[ ] marketplace -- creator commerce. stub live.
+
+messages -- three views, a toggle on the messages screen (operator idea):
+[ ] view 1: current chat/DM list (shipped).
+[ ] view 2: MAIL view -- the whole inbox rendered gmail-style (threads,
+    read/unread, preview) as a toggle.
+[ ] view 3: CRM view -- notes + contact history per person, in-app, so
+    influencers remember who they reached out to. the web10-social CRM
+    sub-app (here since 1.0.30) is the reference; this is a messages-only
+    lens over the same contact/DM data.
+
+posts / profile -- controls the operator found missing:
+[ ] delete a post (owner action, on the wall + in the lightbox).
+[ ] change a post's visibility after publish (public <-> private is a
+    collection move, D30; mirror the composer's selector post-hoc).
+[ ] profile avatar + banner PLACEMENT editing -- reposition/crop, fix
+    centering (today it's object-cover with no offset control).
+
+messages -- controls the operator found missing:
+[ ] delete a message / conversation.
+[ ] edit a sent message.
+
+engagement:
+[ ] an "advanced poke" -- a playful, lightweight nudge primitive (the
+    facebook-poke feeling) reimagined as web10's own, NOT a clone.
+    design TBD, keep it non-infringing; could ride the public-ledger
+    reaction plumbing.
+
+known gaps confirmed this session (see CHANGELOG 1.0.169-1.0.171):
+[✓ 1.0.171] real users' public posts now index into discovery (the
+    anon-regex gate fix) -- before this they were anon-readable but
+    invisible on the board; only seeded personas showed.
+[ ] follow does not backfill / there is no pull feed: following someone
+    surfaces nothing until THEY post again (fan-out is push-only, at
+    post time, to current followers). "followed X, don't see them in my
+    feed" is exactly this. needs on-follow backfill OR a pull over
+    followees' public_posts -- the D-post-delivery / D-feed core work.
+[ ] in-app Discover has NO knobs by design (D20: the social feed stays
+    chronological; the knobs are the marketing page's "your algorithm"
+    theater). operator wants them in-app too -- that's a D20 revisit,
+    not a bug. decide before building.
+
 PHASE 9 — the exporters (fill the collections)
 ----------------------------------------------
 apps that pull your social media life into your web10 services. paired

@@ -798,3 +798,53 @@ class TestCrudIndexingHook:
         assert resp.status_code == 200
         assert m_index.called
         assert m_index.call_args[0] == ("alice", "posts", {"_id": "post123", "text": "updated"})
+
+
+# ---------------------------------------------------------------------------
+# service_allows_anon — the discovery-indexing gate (regression)
+# ---------------------------------------------------------------------------
+
+
+class TestServiceAllowsAnon:
+    """The gate that decides whether a created post is indexed into discovery.
+
+    Regression: the app whitelists anon read on public_posts via the regex
+    `.*` (matching how get_approved matches), but the old gate did an exact
+    `username == "anon"` compare, so real users' public posts were never
+    indexed — anon-readable yet invisible on the discover board.
+    """
+
+    def _term(self, whitelist):
+        return {"service": "public_posts", "whitelist": whitelist}
+
+    def test_regex_dotstar_with_read_allows_anon(self):
+        # The canonical app whitelist — this is the regression case.
+        term = self._term([{"username": ".*", "provider": ".*", "read": True}])
+        with patch.object(db_module, "get_term_record", return_value=term):
+            assert db_module.service_allows_anon("alice", "public_posts") is True
+
+    def test_literal_anon_with_read_allows_anon(self):
+        # The seed script's shape — must keep working.
+        term = self._term([{"username": "anon", "provider": ".*", "read": True}])
+        with patch.object(db_module, "get_term_record", return_value=term):
+            assert db_module.service_allows_anon("alice", "public_posts") is True
+
+    def test_all_flag_allows_anon(self):
+        term = self._term([{"username": ".*", "provider": ".*", "all": True}])
+        with patch.object(db_module, "get_term_record", return_value=term):
+            assert db_module.service_allows_anon("alice", "public_posts") is True
+
+    def test_dotstar_without_read_does_not_allow_anon(self):
+        # e.g. an anon create-only whitelist must NOT trigger indexing.
+        term = self._term([{"username": ".*", "provider": ".*", "create": True}])
+        with patch.object(db_module, "get_term_record", return_value=term):
+            assert db_module.service_allows_anon("alice", "public_posts") is False
+
+    def test_no_term_record_denies(self):
+        with patch.object(db_module, "get_term_record", return_value=None):
+            assert db_module.service_allows_anon("alice", "private_posts") is False
+
+    def test_owner_only_service_denies(self):
+        # private_posts ships no whitelist — owner only, never indexed.
+        with patch.object(db_module, "get_term_record", return_value={"service": "private_posts"}):
+            assert db_module.service_allows_anon("alice", "private_posts") is False
