@@ -185,6 +185,67 @@ window is for code, not prose.
   lanes/sub-lanes, no shared seams, all gates merged. The count follows
   the board, not a quota: fewer safe blocks beats a fixed number of
   colliding ones.
+- **Bite sizing (rule 5 in `parallel execution.txt`; operator, 27.07):**
+  one kickoff = ONE BITE = one PR ≈ 20-40 focused minutes — a couple of
+  files, one seam, one acceptance check the agent can hold in its head.
+  Never hand an agent a whole chain or an item whose description needs
+  an "AND"; split those into a BITES: breakdown inside the lane item
+  first, kick off only the next unblocked bite, and name the follow-up
+  bite so the agent queues it after merge. The audit (step 3) is where
+  oversized items get split — a `web10web10!` that emits un-bitten
+  blocks has skipped its own step 3.
+
+## The `unbrick!` code word (operator → strong model)
+
+When the operator says `unbrick!`, it is addressed to a strong,
+large-context model (Claude-class). Small-context agents can ignore
+this section. It means: **a workhorse agent (Qwen-class) choked,
+bricked, or burned a workspace on a task — turn that failure into a
+process fix so it cannot recur.** The operator describes the task,
+what the agent did (error, stall, wrong turn), and roughly why. Then:
+
+1. **Diagnose the failure CLASS, not the instance.** Was it context
+   overflow (item too big / too many files named)? A missing gate
+   (built against unmerged work)? A seam collision? An ambiguous
+   acceptance bar? Missing environment knowledge (a command that
+   needs a flag, a test that needs a running stack, `--legacy-peer-deps`
+   -class friction)? A doc that lied (stale tick, wrong line number)?
+2. **Fix the FLOW — and PREFER CODE over docs.** A Qwen 27B is a
+   sharp SWE; if it got mixed up, the first question is not "what
+   rule was missing" but "why was the system complex enough to mix
+   up a competent SWE?" — that complexity is the bug, and the brick
+   is the opportunity to remove it (operator, 27.07). Default to the
+   staff-SWE structural fix that makes the failure IMPOSSIBLE or
+   self-explaining: split the monolithic suite/file agents choke on,
+   add the fixture/harness that removes setup archaeology, add a
+   one-command runner for a fast feedback loop, extract the seam two
+   lanes keep colliding on, add a guard that fails fast with the
+   exact fix in its error message, a script for the step agents
+   fumble, a scaffold that makes the correct shape the path of least
+   resistance. Precedent: Qwen was bricking on the e2e testing; the
+   unbrick was a structural change to the suite plus making the
+   tests easier to RUN — the bricking stopped with no new rule.
+   Structural unbricks are code: full finish ritual (tests green,
+   checks green), often zero markdown touched. Fall back to a doc
+   fix (an `AGENTS.md` checklist line, a bite-split or gate fix in
+   `parallel execution.txt`, a sharper kickoff bullet here, an
+   environment note next to the thing that bit) only when code
+   genuinely can't encode the lesson — a rule is the fallback, not
+   the fix.
+3. **Re-issue the kickoff block** for the bricked task, corrected —
+   with the failure's lesson baked in (smaller bite, explicit gate,
+   the exact command that works) — so the operator can paste it into
+   a fresh workspace immediately.
+4. **Log it:** CHANGELOG line (`docs: unbrick — <failure class>`),
+   and if the fix changed a rule, keep CLAUDE.md/AGENTS.md true in
+   the same branch. PR to dev per `AGENTS.md`.
+
+Rules of the ritual: no blaming the model in the docs (the docs
+failed the agent); one failure = one class = one durable fix — don't
+speculatively add rules for failures that haven't happened (rule
+bloat chokes small windows exactly like big tasks do); if the same
+class bricks twice, the previous fix was wrong — replace it, don't
+stack another rule on top.
 
 ## The `web10 gather up!` code word (operator → strong model)
 
