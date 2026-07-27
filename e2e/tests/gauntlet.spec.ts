@@ -102,19 +102,16 @@ async function uploadToPresignedPost(
   filename: string,
   contentType: string,
 ) {
-  const boundary = 'FormBoundary' + Math.random().toString(36).slice(2);
-  const parts: Buffer[] = [];
+  // Use Playwright's FormData for correct multipart encoding.
+  // generate_presigned_post returns a URL + form fields (signature, policy,
+  // Content-Type, key, etc.). All fields must be POSTed as multipart/form-data
+  // plus the file, or MinIO rejects it (400 Bad Request).
+  const formData = new FormData();
   for (const [key, value] of Object.entries(fields)) {
-    parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="${key}"\r\n\r\n${value}\r\n`));
+    formData.append(key, value);
   }
-  parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename}"\r\nContent-Type: ${contentType}\r\n\r\n`));
-  parts.push(fileData);
-  parts.push(Buffer.from(`\r\n--${boundary}--\r\n`));
-  const body = Buffer.concat(parts);
-  const resp = await request.post(upload_url, {
-    data: body,
-    headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
-  });
+  formData.append('file', new File([fileData], filename, { type: contentType }));
+  const resp = await request.post(upload_url, { formData });
   return resp;
 }
 
