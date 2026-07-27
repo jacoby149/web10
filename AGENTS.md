@@ -1,5 +1,32 @@
 # AGENTS.md — for every coding agent (Codex, Qwen, Claude, ...)
 
+## WAKE-UP (before answering ANYTHING beyond a greeting)
+
+This file is the ONLY file guaranteed to be in your context at session
+start. Everything else is a read you must choose to make. So, on every
+session start in this repo, before doing or answering anything else:
+**read `CLAUDE.md`.** If the operator's first message is a code word
+below, this is not optional.
+
+## Operator code words — recognize instantly, never treat as banter
+
+- `web10web10!` (any number of `!`s) → run the full plan-alignment
+  pass defined in `CLAUDE.md` ("The `web10web10!!!` code word"
+  section): re-read the strategy stack, audit alignment dead-honestly,
+  audit bite-size parallelizability, refactor planning docs IF needed,
+  THEN emit copy-pastable kickoff blocks. Audit before blocks, always.
+- `unbrick!` → an agent choked/bricked on a task. Diagnose the failure
+  CLASS and fix the SYSTEM (code/infra/tooling first; docs are the
+  fallback). Full ritual in `CLAUDE.md`'s `unbrick!` section.
+- `web10 gather up!` → run the dev-batch quality gate defined in
+  `CLAUDE.md`: hunt for really-broken things in PRs merged to `dev` but
+  not yet on `main`; if clean, promote dev→main, watch deploys, verify
+  prod live; if broken, emit fix kickoff blocks.
+
+A code word is a command, not a greeting. If you are a large-context
+model and one of these arrives, run the ritual — do not reply with
+banter.
+
 Now read `CLAUDE.md`. Despite the name it is the orientation file for
 ALL agents working on this repo — architecture, security invariants,
 and working conventions. Everything there applies to you.
