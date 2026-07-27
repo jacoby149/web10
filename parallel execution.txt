@@ -343,6 +343,28 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       operator console), user-facing /reports flagging, per-post moderation
       from the marketing/social surfaces directly.
 
+[ ] A17-discovery-media-projection (lane A, api/**, small; operator,
+      27.07, screenshot: "cant see images on posts either!"): the
+      discovery index is TEXT-ONLY — upsert_discovery_post projects
+      body_text/tags/created_at and drops media entirely, so a post
+      with photos is indistinguishable from a text post everywhere
+      downstream: marketing-ui /trending cards render no image (they
+      only show a placeholder when a TAG says image/video), the
+      D-user-profile-media grid half is blocked on exactly this (its
+      item already names it), and search results can't be media-first.
+      fix: upsert_discovery_post also projects `media_refs` (the post
+      body's list of media record ids, as-is) + `has_media` bool +
+      the first attachment's mime_type when present;
+      _discovery_post_to_dict returns them. no presigning server-side
+      — clients presign via public_media per D35. NOTE: existing
+      index docs gain the fields only on the next post edit/upsert —
+      the backfill (E-run-discovery-migration) must RE-RUN after this
+      deploys for the current corpus (idempotent; add the note to
+      that item's run list). permission-matrix/discovery tests
+      extended (a post with media_refs indexes them; a text post
+      indexes has_media=false), ruff clean. gate: none. unblocks:
+      D-trending-card-media, the D-user-profile-media grid half.
+
 [ ] A15-engagement-count-accuracy (operator, 26.07, screenshot: badge
       says 3 comments, the expanded panel renders more): the discovery
       index's cached engagement counts disagree with the live comment
@@ -1756,6 +1778,30 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       gate: D-marketing-search bite b merged (run after it in the
       ws-D/marketing chain; may swap order with D-search-fulltext).
 
+[ ] D-trending-card-media (sub-lane ws-D/marketing, AFTER
+      D-trending-controls-alignment — same Trending seam; operator,
+      27.07, screenshot: "cant see images on posts either!"): posts
+      with photos render as text-only cards on /trending — the
+      marketing surface of a media-first platform shows NO media.
+      once A17 lands (the index carries media_refs + has_media +
+      first-attachment mime), TrendingCard gains the real first
+      image: presign via the public_media read path (POST
+      /media/{author}/read with service='public_media' — anon-OK per
+      the A12/D35 terms; marketing-ui needs its own thin presign
+      helper + expiry-aware cache, the web10-social getReadUrl
+      pattern — copy per D22, don't reach into web10-social's
+      package). media-forward per the design.md MEDIA SPEC:
+      reserve-space-from-aspect (no layout shift), hover zoom, video
+      posts get a poster/first-frame + play badge, "+N" overflow.
+      text posts keep the current card. files: marketing-ui
+      FeedPreview.tsx (TrendingCard) + a lib/mediaPresign.ts.
+      acceptance: a /trending post with photos shows the actual
+      image (not a placeholder), zero 403s signed-out; video shows
+      poster + badge; screenshots desktop + 375px and LOOK. gate:
+      A17 merged + D-public-media-client bite b merged (the presign
+      path end-to-end) + the discovery backfill re-run on the env
+      (E-run-discovery-migration note).
+
 [ ] D-graph-app (sub-lane ws-D/marketing, AFTER D-marketing-search —
       same marketing-ui surface; operator, 26.07: "graph.web10.app,
       something wooshy is great marketing, because it is an app
@@ -2242,12 +2288,15 @@ LANE E — infrastructure / deployment (owns: proxmox provisioning,
       dev→main promotion carries 1.0.178, run both endpoints against
       dev, verify (the operator's post appears in PATCH
       /discover/posts?sort=recent + on /trending Newest), then run
-      against prod and verify the same. needs an admin token + box/env
+      against prod and verify the same.       needs an admin token + box/env
       access — if the workspace has neither, stop and say so (operator
       gate, same as the E box-execution items). record the run in
       ubuntu-deployment/OPS-LOG.md. gate: 1.0.178 deployed to the target
       env — CLEARED 27.07 for BOTH dev and prod (audit #7); the only
-      remaining gate is the admin token.
+      remaining gate is the admin token. RUN LIST (append, 27.07):
+      after A17-discovery-media-projection deploys, RE-RUN
+      /admin/discovery/backfill per env so the existing corpus gains
+      media_refs in the index (idempotent).
   [✓ 1.0.71] E9. DEPLOYMENT STATUS PAGE (operator, 19.07 — iterated from
       "portainer should alert github" down to what's actually
       wanted: "all i need is an easy way to know we are deployed, a
@@ -2350,8 +2399,10 @@ in parallel despite sharing the ws-D/feed chain label.
   sub-lane are sequential, file seams):
     ws-E/night-owl:  D-night-owl bite b (PRIORITY 0)
     ws-C:            C9-e2e-suite-repair (PRIORITY 1)
-    ws-A:            A15-engagement-count-accuracy (badge vs panel
-                     mismatch — documentdb.py aggregation seam)
+    ws-A:            A17-discovery-media-projection (27.07 complaint
+                     root cause — the index drops media; unblocks
+                     D-trending-card-media + the profile-media grid
+                     half), THEN A15-engagement-count-accuracy
     ws-D/feed:       D-public-media-client bite b (readers pass
                      service='public_media' + verify on dev), THEN
                      D-feed-lightbox bite a, THEN D-link-embeds
@@ -2364,6 +2415,8 @@ in parallel despite sharing the ws-D/feed chain label.
                      complaint: search only hits tags) +
                      D-trending-controls-alignment (27.07 complaint:
                      bricked controls stack — either order), THEN
+                     D-trending-card-media (27.07 complaint: no images
+                     on posts — gate A17 + public-media bite b), THEN
                      D-graph-app bite a, THEN D-social-analytics
     ws-D/marketing(2): D-join-steps-extend (Join.tsx only — disjoint
                      from the search chain) OR D-appstore-revamp v1

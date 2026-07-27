@@ -2183,6 +2183,16 @@ marketing ui!"):
     edge, and the presets row + Advanced toggle are centered under a
     left-aligned search bar — two axes colliding. lane item
     D-trending-controls-alignment (ws-D/marketing).
+[ ] NO IMAGES ON /trending POSTS (operator, 27.07, screenshot: "cant
+    see images on posts either!"): posts with photos render as
+    text-only cards — the discovery index is text-only (media_refs
+    never projected), so nothing downstream CAN show media. two-part
+    fix: A17-discovery-media-projection (lane A — index carries
+    media_refs + has_media + first-attachment mime; backfill re-run
+    needed per env) then D-trending-card-media (ws-D/marketing —
+    TrendingCard renders the real first image via the public_media
+    presign path, design.md MEDIA SPEC). the D-user-profile-media
+    grid half is unblocked by the same A17.
 [ ] in-app search parity note: DiscoverScreen's existing search (if
     any) gets audited against the same corpus in the same pass —
     "search your own stuff" stays a separate low-hanging-fruit item
