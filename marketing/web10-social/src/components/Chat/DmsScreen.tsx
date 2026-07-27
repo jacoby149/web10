@@ -5,9 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getWapi } from '@/data/wapi';
-import { listConversations, readDms, sendDm, getLastDm, readContacts, startConversation, conversationKey as deriveConversationKey, readFollows, addContact } from '@/data';
+import { listConversations, readDms, sendDm, getLastDm, readContacts, startConversation, conversationKey as deriveConversationKey, readFollows, addContact, deleteDm, updateDm, deleteConversation } from '@/data';
 import type { DmRecord, ContactRecord, FollowRecord } from '@/data/types';
-import { Send, ChevronLeft, Plus, X, Search, MessageSquare, Mail, Users } from 'lucide-react';
+import { Send, ChevronLeft, Plus, X, Search, MessageSquare, Mail, Users, MoreVertical, Edit3, Trash2, Check, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
 import MailView from './MailView';
@@ -382,12 +382,144 @@ function TypingIndicator() {
   );
 }
 
-function MessageBubble({ msg, isMe }: { msg: DmRecord; isMe: boolean }) {
+function MessageContextMenu({
+  onEdit,
+  onDelete,
+}: {
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => {
+      if (ref.current && ref.current.contains(e.target as Node)) return;
+      setOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [open]);
+
   return (
-    <div className={cn('flex', isMe ? 'justify-end' : 'justify-start')}>
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center justify-center h-6 w-6 hover:bg-white/20 rounded-full transition-colors duration-150"
+        aria-label="Message options"
+        data-testid="message-options-btn"
+      >
+        <MoreVertical className="w-3 h-3" />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-8 z-50 bg-surface border border-border rounded-lg shadow-lg overflow-hidden min-w-[140px]">
+          {onEdit && (
+            <button
+              onClick={() => { onEdit(); setOpen(false); }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-elevated transition-colors duration-150"
+              data-testid="message-edit-btn"
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+              Edit
+            </button>
+          )}
+          <button
+            onClick={() => { onDelete(); setOpen(false); }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-danger hover:bg-danger-muted transition-colors duration-150"
+            data-testid="message-delete-btn"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            Delete
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ConfirmDialog({
+  open,
+  title,
+  description,
+  onConfirm,
+  onCancel,
+  confirmLabel = 'Delete',
+  variant = 'destructive',
+}: {
+  open: boolean;
+  title: string;
+  description: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  confirmLabel?: string;
+  variant?: 'destructive' | 'default';
+}) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" data-testid="confirm-dialog">
+      <div className="absolute inset-0 bg-black/60" onClick={onCancel} />
+      <div className="relative bg-surface border border-border rounded-lg shadow-lg max-w-sm w-full p-5">
+        <h3 className="text-sm font-semibold text-foreground mb-1">{title}</h3>
+        <p className="text-xs text-muted-foreground mb-4">{description}</p>
+        <div className="flex gap-2 justify-end">
+          <Button variant="ghost" size="sm" onClick={onCancel} data-testid="confirm-cancel">
+            Cancel
+          </Button>
+          <Button
+            variant={variant === 'destructive' ? 'destructive' : 'brand'}
+            size="sm"
+            onClick={onConfirm}
+            data-testid="confirm-ok"
+          >
+            {confirmLabel}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MessageBubble({
+  msg,
+  isMe,
+  onDelete,
+  onEdit,
+}: {
+  msg: DmRecord;
+  isMe: boolean;
+  onDelete: (id: string) => void;
+  onEdit: (id: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(msg.message);
+  const [saving, setSaving] = useState(false);
+
+  async function handleSave() {
+    if (!draft.trim()) return;
+    setSaving(true);
+    try {
+      await onEdit(msg._id!);
+      setEditing(false);
+    } catch (e) {
+      console.error('Failed to edit message:', e);
+      setDraft(msg.message);
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function handleCancel() {
+    setDraft(msg.message);
+    setEditing(false);
+  }
+
+  return (
+    <div className={cn('flex items-end gap-1.5', isMe ? 'justify-end' : 'justify-start')}>
       <div
         className={cn(
-          'max-w-[75%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed transition-shadow duration-150',
+          'group max-w-[75%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed transition-shadow duration-150 relative',
           isMe
             ? cn(
                 'bg-gradient-to-br from-brand to-brand-600 text-brand-foreground rounded-br-md',
@@ -396,11 +528,52 @@ function MessageBubble({ msg, isMe }: { msg: DmRecord; isMe: boolean }) {
             : 'bg-elevated text-foreground rounded-bl-md',
         )}
       >
-        <p className="break-words">{msg.message}</p>
-        <p className={cn('text-xs mt-1', isMe ? 'text-brand-foreground/60' : 'text-muted-foreground')}>
-          {formatTime(msg.sent_at)}
-        </p>
+        {editing ? (
+          <div className="flex flex-col gap-1.5">
+            <textarea
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              autoFocus
+              rows={2}
+              className="w-full bg-transparent text-sm leading-relaxed break-words resize-none outline-none"
+              data-testid="message-edit-input"
+            />
+            <div className="flex gap-1.5 justify-end">
+              <button
+                onClick={handleCancel}
+                className="flex items-center justify-center h-6 w-6 hover:bg-white/20 rounded-full transition-colors duration-150"
+                aria-label="Cancel edit"
+                data-testid="message-edit-cancel"
+              >
+                <X className="w-3 h-3" />
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={!draft.trim() || saving}
+                className="flex items-center justify-center h-6 w-6 hover:bg-white/20 rounded-full transition-colors duration-150 disabled:opacity-50"
+                aria-label="Save edit"
+                data-testid="message-edit-save"
+              >
+                {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <p className="break-words">{msg.message}</p>
+            <p className={cn('text-xs mt-1', isMe ? 'text-brand-foreground/60' : 'text-muted-foreground')}>
+              {formatTime(msg.sent_at)}
+              {msg.updated_at ? ' (edited)' : ''}
+            </p>
+          </>
+        )}
       </div>
+      {isMe && !editing && (
+        <MessageContextMenu
+          onEdit={() => setEditing(true)}
+          onDelete={() => onDelete(msg._id!)}
+        />
+      )}
     </div>
   );
 }
@@ -417,6 +590,7 @@ export default function DmsScreen() {
   const [contactMap, setContactMap] = useState<Record<string, ContactRecord>>({});
   const [showPicker, setShowPicker] = useState(false);
   const [activeView, setActiveView] = useState<MessagesView>('chat');
+  const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; title: string; description: string; onConfirm: () => void; confirmLabel?: string; variant?: 'destructive' | 'default' }>({ open: false, title: '', description: '', onConfirm: () => {} });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const token = getWapi().readToken();
 
@@ -487,6 +661,57 @@ export default function DmsScreen() {
     } finally {
       setSending(false);
     }
+  }
+
+  async function handleDeleteMessage(id: string) {
+    setConfirmDialog({
+      open: true,
+      title: 'Delete message',
+      description: 'This will permanently delete this message.',
+      confirmLabel: 'Delete',
+      variant: 'destructive',
+      onConfirm: async () => {
+        try {
+          await deleteDm(id);
+          setMessages((prev) => prev.filter((m) => m._id !== id));
+        } catch (e) {
+          console.error('Failed to delete message:', e);
+        }
+        setConfirmDialog((prev) => ({ ...prev, open: false }));
+      },
+    });
+  }
+
+  async function handleEditMessage(id: string) {
+    try {
+      const msg = messages.find((m) => m._id === id);
+      if (!msg) return;
+      const updated = await updateDm(id, msg.message);
+      setMessages((prev) => prev.map((m) => m._id === id ? updated : m));
+    } catch (e) {
+      console.error('Failed to edit message:', e);
+    }
+  }
+
+  async function handleDeleteConversation(conv: string) {
+    setConfirmDialog({
+      open: true,
+      title: 'Delete conversation',
+      description: 'This will permanently delete all messages in this conversation.',
+      confirmLabel: 'Delete',
+      variant: 'destructive',
+      onConfirm: async () => {
+        try {
+          await deleteConversation(conv);
+          setSelectedConv(null);
+          setMessages([]);
+          await loadData();
+        } catch (e) {
+          console.error('Failed to delete conversation:', e);
+        }
+        setConfirmDialog((prev) => ({ ...prev, open: false }));
+      },
+    });
   }
 
   function getOtherUser(conv: string): string {
@@ -619,7 +844,15 @@ export default function DmsScreen() {
               'bg-success animate-glow-pulse',
             )} />
           </div>
-          <span className="font-medium text-sm text-foreground">{displayName}</span>
+          <span className="font-medium text-sm text-foreground flex-1">{displayName}</span>
+          <button
+            onClick={() => handleDeleteConversation(selectedConv)}
+            className="flex items-center justify-center h-11 w-11 hover:bg-danger-muted rounded-lg transition-colors duration-150 text-muted-foreground hover:text-danger"
+            aria-label="Delete conversation"
+            data-testid="dm-delete-conversation-btn"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
         </div>
 
         {/* Messages */}
@@ -639,6 +872,8 @@ export default function DmsScreen() {
                     ? `${token.provider}/${token.username}` === `${msg.sender_provider}/${msg.sender_username}`
                     : false
                 }
+                onDelete={handleDeleteMessage}
+                onEdit={handleEditMessage}
               />
             ))
           )}
@@ -768,38 +1003,60 @@ export default function DmsScreen() {
           const lastMsg = lastMessages[conv];
 
           return (
-            <button
-              key={conv}
-              data-testid="dm-conversation-item"
-              className="w-full flex items-center gap-3 px-4 py-3 min-h-[44px] hover:bg-elevated/80 transition-all duration-150 text-left border-b border-border/30"
-              onClick={() => openConversation(conv)}
-            >
-              <div className="relative shrink-0">
-                <Avatar className="h-12 w-12">
-                  <AvatarFallback className="bg-brand-muted text-brand-300 font-semibold">
-                    {displayName.charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className={cn(
-                  'absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-background',
-                  'bg-success',
-                )} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <span className="font-medium text-sm text-foreground truncate">{displayName}</span>
-                  <span className="text-xs text-muted-foreground ml-2 shrink-0">
-                    {lastMsg ? formatTime(lastMsg.sent_at) : ''}
-                  </span>
+            <div className="group relative" key={conv}>
+              <button
+                data-testid="dm-conversation-item"
+                className="w-full flex items-center gap-3 px-4 py-3 min-h-[44px] hover:bg-elevated/80 transition-all duration-150 text-left border-b border-border/30"
+                onClick={() => openConversation(conv)}
+              >
+                <div className="relative shrink-0">
+                  <Avatar className="h-12 w-12">
+                    <AvatarFallback className="bg-brand-muted text-brand-300 font-semibold">
+                      {displayName.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className={cn(
+                    'absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-background',
+                    'bg-success',
+                  )} />
                 </div>
-                <p className="text-sm text-muted-foreground truncate mt-0.5">
-                  {lastMsg?.message || 'No messages yet'}
-                </p>
-              </div>
-            </button>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-sm text-foreground truncate">{displayName}</span>
+                    <span className="text-xs text-muted-foreground ml-2 shrink-0">
+                      {lastMsg ? formatTime(lastMsg.sent_at) : ''}
+                    </span>
+                  </div>
+                  <p className="text-sm text-muted-foreground truncate mt-0.5">
+                    {lastMsg?.message || 'No messages yet'}
+                  </p>
+                </div>
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteConversation(conv);
+                }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 flex items-center justify-center h-8 w-8 hover:bg-danger-muted rounded-lg transition-all duration-150 text-muted-foreground hover:text-danger"
+                aria-label={`Delete conversation with ${displayName}`}
+                data-testid="dm-delete-conversation-list-btn"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
           );
         })}
       </div>
+
+      <ConfirmDialog
+        open={confirmDialog.open}
+        title={confirmDialog.title}
+        description={confirmDialog.description}
+        confirmLabel={confirmDialog.confirmLabel}
+        variant={confirmDialog.variant}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={() => setConfirmDialog((prev) => ({ ...prev, open: false }))}
+      />
     </div>
   );
 }
