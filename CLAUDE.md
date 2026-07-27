@@ -128,14 +128,29 @@ touches auth, the DB layer, or tokens, run those tests and keep them green.
 
 When the operator says `web10web10!` (any number of `!`s), it is addressed
 to a strong, large-context model (Claude-class). Small-context agents can
-ignore this section. It means: run the full plan-alignment pass, refactor
-if needed, THEN hand out parallel work. In this order — the audit comes
-before the kickoff blocks, always:
+ignore this section. It means: run the full ritual — gather the state of
+the world (including dangling PRs in OTHER workspaces), audit plan
+alignment, audit parallelizability, refactor if needed, quality-gate the
+dev batch and SHIP it if clean, THEN hand out parallel work. In this
+order — the audits and the ship gate come before the kickoff blocks,
+always (this section also absorbs the retired `should we do it?` and
+`web10 gather up!` commands — one ritual, not three):
 
-1. **Re-read the strategy stack.** `plan.txt` (THE STORY at the top + the
-   current priority block), `manifesto.md`, `outreach.md`, `timeline.md`,
-   recent `decisions.md`, the lane queues + CURRENT CONDUCTOR BOARD in
-   `parallel execution.txt`, and the top ~10 entries of `CHANGELOG.md`.
+1. **Gather the state of the world.** `git fetch`; read `plan.txt`
+   (THE STORY at the top + the current priority block), `manifesto.md`,
+   `outreach.md`, `timeline.md`, recent `decisions.md`, the lane queues
+   + CURRENT CONDUCTOR BOARD in `parallel execution.txt`, and the top
+   ~10 entries of `CHANGELOG.md`. PLUS the two live-state scans the
+   docs alone can't give you:
+   - **Dangling PRs:** `gh pr list --state open` — every open PR in ANY
+     workspace, not just this one. For each: how old, mergeable or
+     conflicting, checks green or red, does it duplicate/conflict with a
+     board item? A red, stale, or conflicting open PR makes kickoff
+     blocks lie about gates — name each one in the report (fix, close,
+     or flag for the operator), never silently work around it.
+   - **The dev batch:** `git log --oneline origin/main..origin/dev` +
+     `gh pr list --base dev --state merged` — what's merged to `dev`
+     but not yet shipped, for the gate in step 5.
 2. **Audit alignment — dead honest, no cheerleading.** Is the plan still
    aligned with the business (social platform first, protocol second —
    D20) and with the manifesto's promises? On target against
@@ -163,8 +178,21 @@ before the kickoff blocks, always:
  4. **Refactor IF needed.** Docs-only changes to `plan.txt` /
    `parallel execution.txt` / this file, changelog entry, PR to dev per
    `AGENTS.md`. If nothing needs changing, say so plainly and don't churn.
-5. **Then produce copy-pastable kickoff blocks**, one per Conductor
-   workspace, per the spec below. Not before steps 1-4. ~5 is the
+5. **Gate the dev batch, and SHIP it if clean** (the absorbed
+   `web10 gather up!` — the full rules live in their own section below
+   under "The dev-batch gate + dev→main promotion", which this step
+   executes): read the batch diffs, hunt for really-broken only
+   (invariants I1–I5, auth/DB regressions, star protection, red checks,
+   seam collisions between merged PRs, design.md flunks, missing
+   CHANGELOG/lane ticks — style nitpicks are NOT findings). If broken:
+   emit paste-ready fix kickoff blocks and DO NOT promote. If clean:
+   say so plainly, promote dev→main with a MERGE COMMIT (never squash),
+   watch deploy-prod + cd until actually green, verify prod live via
+   the public slice of `ubuntu-deployment/scripts/smoke.sh`, and report
+   what prod now serves. (If the operator explicitly says ship a known-
+   broken batch, obey — but restate what is broken first, in one line.)
+6. **Then produce copy-pastable kickoff blocks**, one per Conductor
+   workspace, per the spec below. Not before steps 1-5. ~5 is the
    default width, but the number is whatever the board actually
    supports: fewer if fewer items are truly parallel-safe, more if the
    lanes are wide open.
@@ -262,14 +290,14 @@ bloat chokes small windows exactly like big tasks do); if the same
 class bricks twice, the previous fix was wrong — replace it, don't
 stack another rule on top.
 
-## The `web10 gather up!` code word (operator → strong model)
+## The dev-batch gate + dev→main promotion (executed as `web10web10!` step 5)
 
-When the operator says `web10 gather up!`, it is addressed to a strong,
-large-context model (Claude-class). Small-context agents can ignore this
-section. It means: **quality-gate the dev batch, and if it's clean, SHIP
+This section was the standalone `web10 gather up!` code word; it is now
+step 5 of the single `web10web10!` ritual (folded 27.07 — one command,
+not three). It is kept verbatim because the ship rules here are
+load-bearing. **Quality-gate the dev batch, and if it's clean, SHIP
 IT — promote dev→main and verify prod is actually live.** Two halves, in
-order: the audit (steps 1–4), then the promotion (steps 5–7). This is
-not a plan audit (that's `web10web10!!!`).
+order: the audit (steps 1–4), then the promotion (steps 5–7).
 
 1. **Gather the batch.** `git fetch`, then `git log --oneline
    origin/main..origin/dev` for the commit list and `gh pr list --base dev
