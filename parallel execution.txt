@@ -1226,7 +1226,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       none. (message delete/edit is D-message-controls, same sub-lane,
       AFTER this.)
 
-[ ] D-message-controls (sub-lane ws-D/messages; GATE CLEARED 27.07 —
+[✓ 1.0.192] D-message-controls (sub-lane ws-D/messages; GATE CLEARED 27.07 —
       D-messages-views merged 1.0.182 — pick up now): delete a message/conversation + edit a sent message.
       Files: data/dms.ts (update/delete), components/Chat/**. acceptance:
       edit a sent DM in place; delete a message + a whole conversation.
