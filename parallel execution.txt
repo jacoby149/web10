@@ -2486,8 +2486,11 @@ in parallel despite sharing the ws-D/feed chain label.
     ws-D/feed:       D-public-media-client bite b (readers pass
                      service='public_media' + verify on dev), THEN
                      D-feed-lightbox bite a, THEN D-link-embeds
-    ws-D/feed (2):   D-follow-backfill (data/follows.ts ONLY — safe in
-                     parallel with bite b, see audit note)
+    ws-D/follow:     D-follow-persistence (PRIORITY 1), THEN
+                     D-follow-backfill (MOVED HERE audit #8 — it edits
+                     data/follows.ts, colliding with D-follow-
+                     persistence; no longer parallel-safe with it),
+                     THEN D-profile-message-button
     ws-D/messages:   D-mail-experience bite a (Inbox/Sent/Spam folders)
                      THEN bites b/c, THEN D-crm-upgrade
     ws-D/marketing:  D-marketing-search bite b (users row + nav
@@ -2505,7 +2508,13 @@ in parallel despite sharing the ws-D/feed chain label.
                      THEN D-text-post-cards bite a — NOTE the whole
                      chain shares the PostLightbox/ProfileScreen seam
                      with D-public-media-client bite b: ws-D/profile
-                     starts AFTER bite b merges (rebase).
+                     starts AFTER bite b merges (rebase). ALSO NOTE
+                     (audit #8): UserProfileScreen.tsx is the
+                     ws-D/follow chain's file now (D-follow-
+                     persistence → D-profile-message-button) — that
+                     chain and bite b coordinate via .context/, and
+                     the D-follow-lists item's UserProfileScreen touch
+                     rebases after BOTH.
     ws-D/settings:   D-settings-tab bite b (posting defaults record +
                      composer initial state)
     GATED (don't pick up until the gate clears):
