@@ -343,7 +343,7 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       operator console), user-facing /reports flagging, per-post moderation
       from the marketing/social surfaces directly.
 
-[ ] A17-discovery-media-projection (lane A, api/**, small; operator,
+[✓ 1.0.203 #347] A17-discovery-media-projection (lane A, api/**, small; operator,
       27.07, screenshot: "cant see images on posts either!"): the
       discovery index is TEXT-ONLY — upsert_discovery_post projects
       body_text/tags/created_at and drops media entirely, so a post
