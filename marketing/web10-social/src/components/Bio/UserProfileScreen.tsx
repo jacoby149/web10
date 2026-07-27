@@ -65,6 +65,8 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
   const [followingCount, setFollowingCount] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<'posts' | 'media'>('posts');
   const [followLoading, setFollowLoading] = useState(false);
+  const [followError, setFollowError] = useState<string | null>(null);
+  const [followingCountError, setFollowingCountError] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -166,6 +168,14 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
       if (isOwn && token) {
         const fc = await countFollows();
         setFollowingCount(fc);
+      } else {
+        // For other users, read the count from our own follows service
+        try {
+          const fc = await countFollows();
+          setFollowingCount(fc);
+        } catch {
+          setFollowingCountError(true);
+        }
       }
     } catch (e) {
       console.error('Failed to load user profile:', e);
@@ -176,6 +186,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
   async function handleFollow() {
     if (followLoading) return;
     setFollowLoading(true);
+    setFollowError(null);
     try {
       if (following) {
         await unfollowUser(username, provider);
@@ -188,6 +199,13 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
       }
     } catch (e) {
       console.error('Failed to toggle follow:', e);
+      setFollowError('Failed to follow. Please try again.');
+      // Revert optimistic state on failure
+      if (following) {
+        // unfollow failed — stay following
+      } else {
+        setFollowing(false);
+      }
     } finally {
       setFollowLoading(false);
     }
@@ -328,11 +346,25 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
           )}
           <div>
             <span className="tabular-nums font-display font-bold text-foreground text-lg block">
-              {followingCount ?? following ? '?' : ''}
+              {followingCountError ? '—' : followingCount ?? ''}
             </span>
             <span className="text-xs text-muted-foreground">Following</span>
           </div>
         </div>
+
+        {/* Follow error state */}
+        {followError && (
+          <div className="mt-3 flex items-center gap-2 text-sm text-danger" role="alert">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-danger flex-shrink-0" />
+            {followError}
+            <button
+              onClick={() => { setFollowError(null); handleFollow(); }}
+              className="text-brand-300 hover:text-brand-400 underline underline-offset-2 transition-colors duration-150"
+            >
+              Retry
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Tabs */}

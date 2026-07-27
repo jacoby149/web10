@@ -231,12 +231,20 @@ def create_user(form_data, hash):
     # interactive SMR from the client.
     public_posts_terms = to_db(records.public_posts_term(), "services")
 
+    # Core app services terms — provisioned at signup so the social app
+    # can operate (follows, inbox, reactions, comments, dms) without
+    # requiring an interactive SMR. SMR only fires while the auth portal
+    # child window is open; already-signed-in users never get re-prompted.
+    core_terms = [to_db(t, "services") for t in records.core_services_terms()]
+
     # insert the records to create / sign up the user
     user_col = db[username]
     user_col.insert_one(new_user)
     set_phone_number(phone_number, username)
     user_col.insert_one(services_terms)
     user_col.insert_one(public_posts_terms)
+    for ct in core_terms:
+        user_col.insert_one(ct)
     return "successfully created a new user"
 
 
@@ -1322,3 +1330,35 @@ def backfill_discovery() -> dict:
             errors += 1
 
     return {"total": total, "per_user": per_user, "errors": errors}
+
+
+def migrate_follows_terms() -> dict:
+    """One-shot migration: provision core app service terms (follows, inbox,
+    reactions, comments, dms) for every existing account that lacks them.
+
+    Without these terms, the social app's wapi.create('follows', ...) 403s
+    because there is no service-terms record authorizing the app to write
+    to the owner's collection. SMROnReady only fires while the auth portal
+    is open, so accounts created before this fix have no terms.
+
+    Returns a summary dict with counts of migrated and skipped accounts.
+    """
+    migrated = 0
+    skipped = 0
+    errors = 0
+    for username in _user_collections():
+        try:
+            user_col = db[username]
+            for term_def in records.core_services_terms():
+                svc = term_def["service"]
+                existing = user_col.find_one({"service": "services", "body.service": svc})
+                if existing:
+                    skipped += 1
+                    continue
+                doc = to_db(term_def, "services")
+                user_col.insert_one(doc)
+                migrated += 1
+        except Exception:
+            log.warning("migration failed for %s: core services terms", username, exc_info=True)
+            errors += 1
+    return {"migrated": migrated, "skipped": skipped, "errors": errors}
