@@ -13,6 +13,7 @@ import PostComposer from '@/components/Feed/PostComposer';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { ReportBug } from '@/components/shared/ReportBug';
 import { getWapi } from '@/data/wapi';
+import { registerDefaultSchemas } from '@/data/feed';
 
 function LoginScreen({ onLogin }: { onLogin: () => void }) {
   return (
@@ -129,10 +130,12 @@ function App() {
 
     if (a.isSignedIn()) {
       setSignedIn(true);
+      registerDefaultSchemas().catch(() => {});
     }
 
     a.authListen(() => {
       setSignedIn(true);
+      registerDefaultSchemas().catch(() => {});
     });
 
     const handler = (e: Event) => {
