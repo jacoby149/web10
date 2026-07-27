@@ -1153,8 +1153,9 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       load + post; owner can edit text + delete; screenshot desktop +
       375px. gate: none.
 
-[ ] D-post-visibility-toggle (sub-lane ws-D/profile, AFTER
-      D-profile-post-experience — same SEAM ProfileScreen/PostLightbox):
+[ ] D-post-visibility-toggle (sub-lane ws-D/profile; GATE CLEARED
+      27.07 — D-profile-post-experience merged 1.0.180 — pick up now;
+      same SEAM ProfileScreen/PostLightbox):
       change a post's visibility after publish. public<->private is a
       COLLECTION MOVE (D30): create in the other of public_posts/
       private_posts, delete from the current (mirror staging.ts's
@@ -1179,8 +1180,8 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       none. (message delete/edit is D-message-controls, same sub-lane,
       AFTER this.)
 
-[ ] D-message-controls (sub-lane ws-D/messages, AFTER D-messages-views
-      — same SEAM): delete a message/conversation + edit a sent message.
+[ ] D-message-controls (sub-lane ws-D/messages; GATE CLEARED 27.07 —
+      D-messages-views merged 1.0.182 — pick up now): delete a message/conversation + edit a sent message.
       Files: data/dms.ts (update/delete), components/Chat/**. acceptance:
       edit a sent DM in place; delete a message + a whole conversation.
       gate: D-messages-views merged.
@@ -1357,6 +1358,12 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       (pin: contact never appears in the delivered post body).
       acceptance: marketing-api tests green incl. the new pin, ruff
       clean. gate: none.
+      STATUS 27.07 (audit #6): STILL LEAKING at HEAD — main.py:487
+      appends `Contact: {...}` into the public post body. NOTE the
+      squash title of PR #312 ("deliver bug reports as DMs to
+      operator") does NOT match the merged code (public posts) — a
+      title/code drift to correct in passing; the actual PII strip
+      above is unbuilt and this item is wide open.
 
 [ ] D-profile-image-placement (sub-lane ws-D/profile, AFTER
       D-profile-post-experience — SEAM ProfileScreen): editing avatar +
@@ -2129,8 +2136,21 @@ M3 "the network"         = encryption integration (A rtc + C2 sdk
                            polish. the last big merge.
 
 
-CURRENT CONDUCTOR BOARD (as of 26.07.2026 LATE — audit #4; keep fresh)
+CURRENT CONDUCTOR BOARD (as of 27.07.2026 — audit #6; keep fresh)
 --------------------------------------------------------------------
+AUDIT #6 REFRESH (27.07): zero open PRs, zero [~] items — the fleet is
+IDLE, not in flight; every kickoff below starts fresh. Gates cleared
+since audit #4: D-messages-views merged 1.0.182 → D-message-controls
+UNBLOCKED; D-profile-post-experience merged 1.0.180 → the whole
+ws-D/profile chain (D-post-visibility-toggle first) UNBLOCKED.
+D-ledger-mirror-fix re-verified broken at HEAD (registerDefaultSchemas
+never called outside feed.ts; createPublicEntry still POSTs the raw
+entry vs public.py's {token, query} shape). D-feedback-contact-privacy
+re-verified leaking at HEAD (main.py:487 appends Contact: into an
+anon-readable public post; squash title of PR #312 wrongly says "DMs
+to operator" — the code does public posts; the PII strip is unbuilt).
+D-night-owl (27.07) is meta-tooling for running the fleet, NOT product
+surface — stage it only behind the product bites, never ahead.
 The 26.07 night-capture fleet DRAINED SAME-DAY: A13-discovery-terms
 ✓ 1.0.178, D-profile-post-experience ✓ 1.0.180, D-messages-views
 ✓ 1.0.182, D-bug-reports-delivery ✓ 1.0.181 (as PUBLIC POSTS, not the
