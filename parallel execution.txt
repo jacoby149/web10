@@ -1833,7 +1833,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       marketing-ui + api tests green, tsc -b + ruff clean. gate:
       D-marketing-search bite b merged.
 
-[ ] D-trending-controls-alignment (sub-lane ws-D/marketing, AFTER
+[✓ 1.0.209] D-trending-controls-alignment (sub-lane ws-D/marketing, AFTER
       D-marketing-search bite b — same Trending.tsx seam; operator,
       27.07, screenshot: "the alignment there looks kind of bricked"):
       the /trending controls stack reads broken. (1) The topic-chip rail
