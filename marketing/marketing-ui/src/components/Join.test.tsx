@@ -55,13 +55,17 @@ describe('Join page', () => {
     expect(screen.getByText('You found this place early.')).toBeInTheDocument();
   });
 
-  it('renders two-step join flow in hero and footer', async () => {
+  it('renders four-step join flow in hero and footer', async () => {
     const { default: Join } = await import('@/pages/Join');
     render(<Join />);
     expect(screen.getByTestId('join-step-1')).toBeInTheDocument();
     expect(screen.getByTestId('join-step-2')).toBeInTheDocument();
+    expect(screen.getByTestId('join-step-3')).toBeInTheDocument();
+    expect(screen.getByTestId('join-step-4')).toBeInTheDocument();
     expect(screen.getByTestId('join-step-1-bottom')).toBeInTheDocument();
     expect(screen.getByTestId('join-step-2-bottom')).toBeInTheDocument();
+    expect(screen.getByTestId('join-step-3-bottom')).toBeInTheDocument();
+    expect(screen.getByTestId('join-step-4-bottom')).toBeInTheDocument();
   });
 
   it('step 1 links to social app', async () => {
@@ -72,7 +76,7 @@ describe('Join page', () => {
     expect(step1).toHaveAttribute('target', '_blank');
   });
 
-  it('step 2 links to signup', async () => {
+  it('step 2 links to auth', async () => {
     const { default: Join } = await import('@/pages/Join');
     render(<Join />);
     const step2 = screen.getByTestId('join-step-2');
@@ -80,11 +84,31 @@ describe('Join page', () => {
     expect(step2).toHaveAttribute('target', '_blank');
   });
 
+  it('step 3 links to Studio', async () => {
+    const { default: Join } = await import('@/pages/Join');
+    render(<Join />);
+    const step3 = screen.getByTestId('join-step-3');
+    expect(step3).toHaveAttribute('href', expect.stringContaining('auth.web10'));
+    expect(step3).toHaveAttribute('href', expect.stringContaining('mode=studio'));
+    expect(step3).toHaveAttribute('target', '_blank');
+  });
+
+  it('step 4 links to feed', async () => {
+    const { default: Join } = await import('@/pages/Join');
+    render(<Join />);
+    const step4 = screen.getByTestId('join-step-4');
+    expect(step4).toHaveAttribute('href', expect.stringContaining('social.web10'));
+    expect(step4).toHaveAttribute('href', expect.stringContaining('/feed'));
+    expect(step4).toHaveAttribute('target', '_blank');
+  });
+
   it('renders step labels', async () => {
     const { default: Join } = await import('@/pages/Join');
     render(<Join />);
     expect(screen.getAllByText('Get the app')).toHaveLength(2);
     expect(screen.getAllByText('Create your account')).toHaveLength(2);
+    expect(screen.getAllByText('Set up your monetization')).toHaveLength(2);
+    expect(screen.getAllByText('Post to the feed')).toHaveLength(2);
   });
 
   it('renders nav links in footer', async () => {
