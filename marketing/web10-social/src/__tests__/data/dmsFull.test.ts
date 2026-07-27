@@ -150,6 +150,67 @@ describe('dms data layer (with wapi)', () => {
     });
   });
 
+  describe('updateDm', () => {
+    it('updates a DM message text and sets updated_at', async () => {
+      const updated = {
+        _id: 'dm1',
+        message: 'edited text',
+        sent_at: '2026-07-17T00:00:00Z',
+        updated_at: expect.any(String),
+        sender_username: 'alice',
+        sender_provider: 'api.web10.app',
+        recipient_username: 'bob',
+        recipient_provider: 'api.web10.app',
+      };
+      mock.update.mockResolvedValue(updated);
+      const result = await dms.updateDm('dm1', 'edited text');
+      expect(mock.update).toHaveBeenCalledWith(
+        'dms',
+        { _id: 'dm1' },
+        expect.objectContaining({
+          $set: expect.objectContaining({
+            message: 'edited text',
+            updated_at: expect.any(String),
+          }),
+        }),
+      );
+      expect(result.message).toBe('edited text');
+    });
+
+    it('throws when not authenticated', async () => {
+      const unauthMock = { ...mock, readToken: vi.fn(() => null) };
+      vi.spyOn(wapi, 'getWapi').mockReturnValue(unauthMock as any);
+      await expect(dms.updateDm('dm1', 'hello')).rejects.toThrow('not authenticated');
+    });
+  });
+
+  describe('deleteConversation', () => {
+    it('deletes all messages in both directions for a conversation', async () => {
+      mock.delete.mockResolvedValue(undefined);
+      await dms.deleteConversation('api.web10.app/alice--api.web10.app/bob');
+      expect(mock.delete).toHaveBeenCalledTimes(2);
+      const queries = mock.delete.mock.calls.map((c) => c[1]);
+      expect(queries).toContainEqual({
+        sender_username: 'alice',
+        sender_provider: 'api.web10.app',
+        recipient_username: 'bob',
+        recipient_provider: 'api.web10.app',
+      });
+      expect(queries).toContainEqual({
+        sender_username: 'bob',
+        sender_provider: 'api.web10.app',
+        recipient_username: 'alice',
+        recipient_provider: 'api.web10.app',
+      });
+    });
+
+    it('throws when not authenticated', async () => {
+      const unauthMock = { ...mock, readToken: vi.fn(() => null) };
+      vi.spyOn(wapi, 'getWapi').mockReturnValue(unauthMock as any);
+      await expect(dms.deleteConversation('api.web10.app/alice--api.web10.app/bob')).rejects.toThrow('not authenticated');
+    });
+  });
+
   describe('listConversations', () => {
     it('derives conversation keys from contacts', async () => {
       // First read: existingDms check (non-empty, skips migration)

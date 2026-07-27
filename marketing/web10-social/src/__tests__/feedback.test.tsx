@@ -2,21 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
-vi.mock('lucide-react', () => {
-  const iconFactory = (name: string) => {
-    const Comp = (props: Record<string, unknown>) => {
-      const { className, ...rest } = props;
-      return <span data-testid={`icon-${name.toLowerCase()}`} {...rest} />;
-    };
-    Comp.displayName = name;
-    return Comp;
-  };
-  const icons: Record<string, ReturnType<typeof iconFactory>> = {};
-  [
-    'Bug', 'AlertTriangle', 'Send', 'X', 'CheckCircle',
-  ].forEach(name => { icons[name] = iconFactory(name); });
-  return icons;
-});
+import { lucideMock } from './helpers/lucideMock';
+vi.mock('lucide-react', () => lucideMock);
 
 vi.mock('@/components/ui/button', () => ({
   Button: ({ children, variant, size, className, disabled, onClick, ...props }: Record<string, any>) => (

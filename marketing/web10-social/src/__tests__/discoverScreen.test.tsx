@@ -3,24 +3,9 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import * as data from '@/data';
 
-// Mock lucide-react icons as simple span elements
-vi.mock('lucide-react', () => {
-  const iconFactory = (name: string) => {
-    const Comp = (props: Record<string, unknown>) => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { className, ...rest } = props;
-      return <span data-testid={`icon-${name.toLowerCase()}`} {...rest} />;
-    };
-    Comp.displayName = name;
-    return Comp;
-  };
-  const icons: Record<string, ReturnType<typeof iconFactory>> = {};
-  [
-    'Compass', 'Flame', 'Heart', 'MessageCircle', 'Repeat2', 'Share2',
-    'Image', 'Film', 'Music2', 'Users',
-  ].forEach(name => { icons[name] = iconFactory(name); });
-  return icons;
-});
+// Mock lucide-react icons as simple span elements (any icon, no manual list)
+import { lucideMock } from './helpers/lucideMock';
+vi.mock('lucide-react', () => lucideMock);
 
 // Mock data layer
 vi.mock('@/data', async (importOriginal) => {

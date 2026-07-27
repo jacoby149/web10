@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight, X, Heart, MessageCircle, Edit3, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Heart, MessageCircle, Edit3, Trash2, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,7 @@ import {
   countComments,
   updatePost,
   deletePost,
+  movePostVisibility,
 } from '@/data';
 import { CommentThread } from '@/components/Feed/CommentThread';
 import { cn } from '@/lib/utils';
@@ -61,6 +62,9 @@ export function PostLightbox({ post, mediaMap, onClose, onReload }: PostLightbox
 
   // Delete confirm state
   const [deleteConfirm, setDeleteConfirm] = useState('');
+
+  // Visibility toggle state
+  const [togglingVisibility, setTogglingVisibility] = useState(false);
 
   // Check if current user is the owner
   const token = getWapi().readToken();
@@ -144,6 +148,19 @@ export function PostLightbox({ post, mediaMap, onClose, onReload }: PostLightbox
       onReload?.();
     } catch (e) {
       console.error('Failed to delete post:', e);
+    }
+  }
+
+  async function handleToggleVisibility() {
+    setTogglingVisibility(true);
+    try {
+      await movePostVisibility(post);
+      onClose();
+      onReload?.();
+    } catch (e) {
+      console.error('Failed to toggle visibility:', e);
+    } finally {
+      setTogglingVisibility(false);
     }
   }
 
@@ -319,6 +336,21 @@ export function PostLightbox({ post, mediaMap, onClose, onReload }: PostLightbox
           {/* Owner actions */}
           {isOwner && !editing && (
             <div className="mt-3 pt-3 border-t border-border space-y-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleToggleVisibility}
+                disabled={togglingVisibility}
+                className="text-sm text-muted-foreground hover:text-foreground gap-1.5 w-full justify-start"
+                data-testid="post-visibility-toggle-button"
+              >
+                {post.visibility === 'public' ? (
+                  <EyeOff className="w-3.5 h-3.5" />
+                ) : (
+                  <Eye className="w-3.5 h-3.5" />
+                )}
+                {togglingVisibility ? 'Updating…' : post.visibility === 'public' ? 'Make private' : 'Make public'}
+              </Button>
               <Button
                 variant="ghost"
                 size="sm"

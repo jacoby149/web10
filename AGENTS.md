@@ -130,9 +130,14 @@ failing check — required OR optional — is a false report. Right after
    means the PR is red — `mergeStateStatus: UNSTABLE` means a
    non-required check failed; treat it as a failure, not a pass. Do
    not stop at "required checks passed".
-3. **Fix until green.** For each failing check, read the log
-   (`gh run view --job <job-id> --log-failed`), fix it on the same
-   branch, push, and re-watch. Repeat until every check passes.
+3. **Fix until green.** For each failing check, get the real error lines
+   with `scripts/ci-failures.sh <n>` (one command, always lands on the
+   failing job's log — never do log archaeology, never guess), fix it on
+   the same branch, push, and re-watch. Repeat until every check passes.
+   **Never claim a failure is "pre-existing" without proof**: run the
+   same command on `origin/dev` locally and quote its output. An
+   unverified "not from my changes" claim that turns out wrong is how
+   workspaces stall.
 
 Only then report the PR ready. The one exception: if a failure is
 pre-existing on `dev` and not caused by your branch, prove it (link

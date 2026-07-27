@@ -470,8 +470,9 @@ class TestDiscoverPosts:
 
 
 class TestDiscoverUsers:
-    def test_suggested_users(self, client, mock_discovery_col):
-        mock_discovery_col.find.return_value = []
+    def test_suggested_users(self, client, mock_discovery_and_public):
+        mock_discovery, mock_public = mock_discovery_and_public
+        mock_discovery.find.return_value = []
         resp = client.patch(
             "/discover/users",
             json={"token": None},
@@ -479,20 +480,135 @@ class TestDiscoverUsers:
         assert resp.status_code == 200
         assert resp.json() == []
 
-    def test_suggested_users_anon_ok(self, client, mock_discovery_col):
-        mock_discovery_col.find.return_value = []
+    def test_suggested_users_anon_ok(self, client, mock_discovery_and_public):
+        mock_discovery, mock_public = mock_discovery_and_public
+        mock_discovery.find.return_value = []
         resp = client.patch(
             "/discover/users",
             json={},
         )
         assert resp.status_code == 200
 
-    def test_suggested_users_bodyless(self, client, mock_discovery_col):
+    def test_suggested_users_bodyless(self, client, mock_discovery_and_public):
         """Regression: bodyless PATCH with URL param must not 422."""
-        mock_discovery_col.find.return_value = []
+        mock_discovery, mock_public = mock_discovery_and_public
+        mock_discovery.find.return_value = []
         resp = client.patch("/discover/users?limit=5")
         assert resp.status_code == 200
         assert resp.json() == []
+
+    def test_suggested_users_returns_followers_count(self, client, mock_discovery_and_public):
+        """A14: /discover/users must return followers_count per user."""
+        mock_discovery, mock_public = mock_discovery_and_public
+        mock_discovery.find.return_value = [
+            {
+                "author": "alice",
+                "service": "public_posts",
+                "post_id": "p1",
+                "body_text": "Hello",
+                "tags": [],
+                "created_at": "2026-01-01T00:00:00",
+            },
+            {
+                "author": "bob",
+                "service": "public_posts",
+                "post_id": "p2",
+                "body_text": "World",
+                "tags": [],
+                "created_at": "2026-01-02T00:00:00",
+            },
+        ]
+        mock_public.aggregate.return_value = []  # no engagement
+        # Patch _count_followers to return different values per author
+        with patch.object(db_module, "_count_followers", side_effect=lambda u: {"alice": 2, "bob": 0}.get(u, 0)):
+            resp = client.patch(
+                "/discover/users",
+                json={"token": None},
+            )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data) == 2
+        alice_entry = [u for u in data if u["username"] == "alice"][0]
+        bob_entry = [u for u in data if u["username"] == "bob"][0]
+        assert "followers_count" in alice_entry
+        assert "followers_count" in bob_entry
+        assert alice_entry["followers_count"] == 2
+        assert bob_entry["followers_count"] == 0
+
+    def test_suggested_users_followers_count_zero_when_no_follows(self, client, mock_discovery_and_public):
+        """A14: followers_count is 0 when no follow entries exist."""
+        mock_discovery, mock_public = mock_discovery_and_public
+        mock_discovery.find.return_value = [
+            {
+                "author": "charlie",
+                "service": "public_posts",
+                "post_id": "p3",
+                "body_text": "Test",
+                "tags": [],
+                "created_at": "2026-01-03T00:00:00",
+            },
+        ]
+        mock_public.aggregate.return_value = []
+        with patch.object(db_module, "_count_followers", return_value=0):
+            resp = client.patch(
+                "/discover/users",
+                json={"token": None},
+            )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data) == 1
+        assert data[0]["username"] == "charlie"
+        assert data[0]["followers_count"] == 0
+
+    def test_suggested_users_followers_count_matches_ledger(self, client, mock_discovery_and_public):
+        """A14: followers_count matches the ledger for seeded personas."""
+        mock_discovery, mock_public = mock_discovery_and_public
+        mock_discovery.find.return_value = [
+            {
+                "author": "solar-flare-69",
+                "service": "public_posts",
+                "post_id": "p1",
+                "body_text": "Post",
+                "tags": [],
+                "created_at": "2026-01-01T00:00:00",
+            },
+        ]
+        mock_public.aggregate.return_value = []
+        with patch.object(db_module, "_count_followers", return_value=3):
+            resp = client.patch(
+                "/discover/users",
+                json={"token": None},
+            )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data[0]["username"] == "solar-flare-69"
+        assert data[0]["followers_count"] == 3
+
+    def test_count_followers_queries_correct_target(self):
+        """A14: _count_followers queries the ledger with the correct target key."""
+        mock_col = MagicMock()
+        mock_col.aggregate.return_value = [{"followers": 5}]
+        with (
+            patch.object(db_module.db["web10"], "__getitem__", return_value=mock_col),
+            patch.object(db_module.db, "list_collection_names", return_value=["web10.public"]),
+        ):
+            result = db_module._count_followers("alice")
+        assert result == 5
+        call_args = mock_col.aggregate.call_args[0][0]
+        match_stage = call_args[0]
+        assert match_stage["$match"]["target"] == "follow:alice@api.localhost"
+        assert match_stage["$match"]["payload.action"] == "follow"
+
+    def test_count_followers_returns_zero_when_empty(self):
+        """A14: _count_followers returns 0 when no follow entries match."""
+        mock_col = MagicMock()
+        mock_col.aggregate.return_value = []
+        with (
+            patch.object(db_module.db["web10"], "__getitem__", return_value=mock_col),
+            patch.object(db_module.db, "list_collection_names", return_value=["web10.public"]),
+        ):
+            result = db_module._count_followers("nobody")
+        assert result == 0
 
 
 class TestDiscoverSearch:

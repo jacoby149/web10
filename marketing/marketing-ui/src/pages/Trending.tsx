@@ -9,6 +9,7 @@ import {
 import type { FeedPost } from '@/components/FeedPreview';
 import { TrendingSidebar } from '@/components/TrendingSidebar';
 import { KnobRack } from '@/components/KnobRack';
+import { SearchBar } from '@/components/SearchBar';
 import { SOCIAL_ORIGIN } from '@/lib/origins';
 import { trackFunnel } from '@/lib/analytics';
 import {
@@ -22,6 +23,7 @@ import {
   type PostSignals,
 } from '@/lib/powerMean';
 
+const API_ORIGIN = import.meta.env.VITE_API_URL || 'https://api.web10.app';
 const INITIAL_PAGE = 20;
 const PAGE_STEP = 20;
 const MAX_RESULTS = 100;
@@ -29,6 +31,17 @@ const MAX_RESULTS = 100;
 interface RankedPost extends FeedPost {
   rank: number;
   featured: boolean;
+}
+
+async function fetchSearchResults(query: string, limit = 50): Promise<FeedPost[]> {
+  const resp = await fetch(`${API_ORIGIN}/discover/search`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query: { q: query, limit } }),
+  });
+  if (!resp.ok) return [];
+  const results = await resp.json();
+  return results.map(mapDiscoveryToFeedPost);
 }
 
 function buildTopic(allTags: string[]): string[] {
@@ -75,6 +88,12 @@ function Trending() {
   );
   const cardRefs = useRef<Map<string, HTMLElement>>(new Map());
 
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<FeedPost[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchSearched, setSearchSearched] = useState(false);
+
   const loadFeed = useCallback(async (nextLimit: number, append: boolean) => {
     if (append) setLoadingMore(true); else setLoading(true);
     try {
@@ -82,7 +101,6 @@ function Trending() {
         fetchDiscoverFeed('trending', nextLimit),
         fetchDiscoverFeed('recent', nextLimit),
       ]);
-      // Merge both sources, deduplicate by post id
       const all = [...trendingResults];
       const seen = new Set(all.map(p => p.post_id));
       for (const p of recentResults) {
@@ -108,7 +126,6 @@ function Trending() {
     trackFunnel('trending_view');
   }, [loadFeed]);
 
-  // Listen for hash changes (back/forward, manual paste)
   useEffect(() => {
     const onHash = () => {
       const { state, preset } = readMixFromHash();
@@ -118,6 +135,59 @@ function Trending() {
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
+
+  // Debounced search
+  const doSearch = useCallback(async (query: string) => {
+    const trimmed = query.trim();
+    if (!trimmed) {
+      setSearchResults([]);
+      setSearchSearched(false);
+      return;
+    }
+    setSearchLoading(true);
+    setSearchSearched(true);
+    trackFunnel('trending_search', { query: trimmed.startsWith('#') ? 'tag' : 'text' });
+    try {
+      const cleaned = trimmed.startsWith('#') ? trimmed.slice(1) : trimmed;
+      const results = await fetchSearchResults(cleaned);
+      setSearchResults(results);
+    } catch {
+      setSearchResults([]);
+    } finally {
+      setSearchLoading(false);
+    }
+  }, []);
+
+  const debouncedSearch = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      setSearchQuery(value);
+      clearTimeout(debouncedSearch.current);
+      debouncedSearch.current = setTimeout(() => doSearch(value), 300);
+    },
+    [doSearch],
+  );
+
+  const handleSearchClear = useCallback(() => {
+    setSearchQuery('');
+    setSearchResults([]);
+    setSearchSearched(false);
+    clearTimeout(debouncedSearch.current);
+  }, []);
+
+  // When a topic chip is clicked during search, filter search results by tag
+  const handleTopicClick = useCallback(
+    (t: string) => {
+      setTopic(t);
+      if (searchSearched && t !== 'All') {
+        // If searching and a tag is selected, add it to the search query
+        const tagQuery = `#${t}`;
+        setSearchQuery(tagQuery);
+        doSearch(tagQuery);
+      }
+    },
+    [searchSearched, doSearch],
+  );
 
   const maxScore = useMemo(
     () => Math.max(1, ...allPosts.map(p => p.engagementScore ?? 0)),
@@ -129,7 +199,6 @@ function Trending() {
     [allPosts],
   );
 
-  // Live re-rank by knob state (client-side, zero network calls)
   const ranked: RankedPost[] = useMemo(() => {
     const sorted = rankPosts(allPosts, postToSignals, knobState);
     return sorted.map((post, i) => ({
@@ -142,6 +211,29 @@ function Trending() {
   const visible = useMemo(
     () => (topic === 'All' ? ranked : ranked.filter(p => p.tags?.includes(topic) ?? false)),
     [ranked, topic],
+  );
+
+  const maxSearchScore = useMemo(
+    () => Math.max(1, ...searchResults.map(p => p.engagementScore ?? 0)),
+    [searchResults],
+  );
+
+  const rankedSearchResults: RankedPost[] = useMemo(() => {
+    if (!searchSearched || searchResults.length === 0) return [];
+    const sorted = rankPosts(searchResults, postToSignals, knobState);
+    return sorted.map((post, i) => ({
+      ...post,
+      rank: i + 1,
+      featured: i === 0,
+    })) as RankedPost[];
+  }, [searchResults, searchSearched, knobState]);
+
+  const visibleSearchResults = useMemo(
+    () =>
+      topic === 'All'
+        ? rankedSearchResults
+        : rankedSearchResults.filter(p => p.tags?.includes(topic) ?? false),
+    [rankedSearchResults, topic],
   );
 
   const handleKnobChange = useCallback((key: keyof KnobState, value: number) => {
@@ -193,6 +285,7 @@ function Trending() {
   };
 
   const isInitialLoad = loading && allPosts.length === 0;
+  const isSearching = searchSearched;
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -214,11 +307,20 @@ function Trending() {
             Live engagement across the network, ordered by real reactions —
             not a recommender. Ranked, not curated.
           </p>
+          {/* Search bar — YouTube placement, header row */}
+          <div className="reveal mt-6 max-w-xl [animation-delay:160ms]">
+            <SearchBar
+              value={searchQuery}
+              onChange={handleSearchChange}
+              onClear={handleSearchClear}
+              placeholder={isSearching ? 'Search posts, tags, topics…' : 'Search posts, tags, topics…'}
+            />
+          </div>
         </div>
       </header>
 
-      {/* Knob Rack — synth control surface */}
-      {!isInitialLoad && allPosts.length > 0 && (
+      {/* Knob Rack — only show when not searching */}
+      {!isInitialLoad && allPosts.length > 0 && !isSearching && (
         <div className="px-4 pb-4 sm:px-6">
           <KnobRack
             state={knobState}
@@ -253,7 +355,7 @@ function Trending() {
                       role="tab"
                       aria-selected={active}
                       data-testid="trending-topic"
-                      onClick={() => setTopic(t)}
+                      onClick={() => handleTopicClick(t)}
                       className={[
                         'shrink-0 rounded-full border px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
                         active
@@ -273,7 +375,65 @@ function Trending() {
       <main className="flex-1 px-4 py-8 sm:px-6">
         <div className="mx-auto flex max-w-6xl gap-8">
           <div className="min-w-0 flex-1">
-            {isInitialLoad ? (
+            {isSearching ? (
+              /* Search results */
+              searchLoading ? (
+                <div
+                  data-testid="trending-grid-skeleton"
+                  className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
+                >
+                  <TrendingSkeleton featured />
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <TrendingSkeleton key={i} />
+                  ))}
+                </div>
+              ) : visibleSearchResults.length > 0 ? (
+                <>
+                  <p className="mb-4 text-sm text-muted-foreground">
+                    {visibleSearchResults.length} result{visibleSearchResults.length !== 1 ? 's' : ''}
+                    {topic !== 'All' ? ` for #${topic}` : ` for "${searchQuery.trim()}"`}
+                  </p>
+                  <div
+                    data-testid="trending-grid"
+                    className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
+                  >
+                    {visibleSearchResults.map(post => (
+                      <TrendingCard
+                        key={post.id}
+                        post={post}
+                        rank={post.rank}
+                        featured={post.featured}
+                        maxScore={maxSearchScore}
+                        onLike={() => handleReaction('like')}
+                        onComment={() => handleComment()}
+                        onRepost={() => handleReaction('repost')}
+                        cardRef={registerCard(post.id)}
+                      />
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div
+                  data-testid="trending-empty"
+                  className="mx-auto flex max-w-md flex-col items-center rounded-xl border border-dashed border-border bg-surface/50 px-6 py-16 text-center"
+                >
+                  <MessageCircleOff className="h-10 w-10 text-muted-foreground" strokeWidth={1.5} />
+                  <h2 className="mt-4 font-display text-xl font-semibold text-foreground">
+                    Nothing matches &ldquo;{searchQuery.trim()}&rdquo;
+                  </h2>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Try a different term, or browse what&apos;s trending below.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleSearchClear}
+                    className="mt-6 inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                  >
+                    Clear search
+                  </button>
+                </div>
+              )
+            ) : isInitialLoad ? (
               <div
                 data-testid="trending-grid-skeleton"
                 className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
@@ -355,14 +515,16 @@ function Trending() {
             )}
           </div>
 
-          {/* Sidebar — desktop only */}
-          <TrendingSidebar
-            entries={ranked
-              .filter(p => topic === 'All' || (p.tags?.includes(topic) ?? false))
-              .slice(0, 10)
-              .map(p => ({ post: p, rank: p.rank }))}
-            onSelect={scrollToCard}
-          />
+          {/* Sidebar — desktop only, only when not searching */}
+          {!isSearching && (
+            <TrendingSidebar
+              entries={ranked
+                .filter(p => topic === 'All' || (p.tags?.includes(topic) ?? false))
+                .slice(0, 10)
+                .map(p => ({ post: p, rank: p.rank }))}
+              onSelect={scrollToCard}
+            />
+          )}
         </div>
       </main>
     </div>

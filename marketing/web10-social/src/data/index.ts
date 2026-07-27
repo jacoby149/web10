@@ -11,3 +11,4 @@ export * from './comments';
 export * from './reactions';
 export * from './serviceTerms';
 export * from './staging';
+export * from './settings';

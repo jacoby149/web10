@@ -309,7 +309,7 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       account's pre-fix public posts appear after the backfill runs;
       permission-matrix + discovery tests green, ruff clean. gate: none.
 
-[ ] A14-followers-count (api half of the dead-social-proof finding,
+[✓ 1.0.194] A14-followers-count (api half of the dead-social-proof finding,
       plan.txt "real follower count" HONESTY NOTE 25.07 — the lane D
       half is D-ledger-mirror-fix): /discover/users' suggested_users()
       (api/app/services/documentdb.py) never computes or returns a
@@ -956,7 +956,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         staging records (or run an import), triage them entirely from
         the ui, published ones appear on the wall/feed; design.md §12,
         screenshots desktop + 375px.
-[ ] D-public-media-client (sub-lane D/feed + data seam). client half of
+[✓ 1.0.192 bite a] D-public-media-client (sub-lane D/feed + data seam). client half of
         decisions.md D35, against A12's contract: serviceTerms.ts gains a
         `public_media` service with the anon-read whitelist public_posts
         already carries; uploadMedia targets public_media when the
@@ -993,7 +993,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         (run this FIRST; ws-D/profile's D-profile-image-placement
         rebases after).
         BITES (rule 5 — one PR each):
-        bite a, UPLOADS: PostComposer public-post uploads +
+        [✓ 1.0.192] bite a, UPLOADS: PostComposer public-post uploads +
           ProfileScreen avatar/banner uploads pass
           service='public_media'; tests pin the confirm-body service
           field. acceptance: a fresh public post's media record lands
@@ -1199,7 +1199,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       load + post; owner can edit text + delete; screenshot desktop +
       375px. gate: none.
 
-[ ] D-post-visibility-toggle (sub-lane ws-D/profile; GATE CLEARED
+[✓ 1.0.192] D-post-visibility-toggle (sub-lane ws-D/profile; GATE CLEARED
       27.07 — D-profile-post-experience merged 1.0.180 — pick up now;
       same SEAM ProfileScreen/PostLightbox):
       change a post's visibility after publish. public<->private is a
@@ -1226,13 +1226,13 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       none. (message delete/edit is D-message-controls, same sub-lane,
       AFTER this.)
 
-[ ] D-message-controls (sub-lane ws-D/messages; GATE CLEARED 27.07 —
+[✓ 1.0.192] D-message-controls (sub-lane ws-D/messages; GATE CLEARED 27.07 —
       D-messages-views merged 1.0.182 — pick up now): delete a message/conversation + edit a sent message.
       Files: data/dms.ts (update/delete), components/Chat/**. acceptance:
       edit a sent DM in place; delete a message + a whole conversation.
       gate: D-messages-views merged.
 
-[ ] D-ledger-mirror-fix (sub-lane ws-D/ledger — data/feed.ts + one
+[✓ 1.0.193] D-ledger-mirror-fix (sub-lane ws-D/ledger — data/feed.ts + one
       bootstrap line; PRIORITY with A13-class weight): THE APP'S PUBLIC
       LEDGER MIRROR IS DEAD FOR REAL ACCOUNTS — the social-proof
       numbers (follower counts, trending like/comment counts) only work
@@ -1345,7 +1345,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         phone/company/links + free-form key/value) and add/edit/
         delete a contact from the CRM view. gate: bite a merged.
 
-[ ] D-settings-tab (sub-lane ws-D/settings — new components/Settings/**
+[✓ 1.0.192] D-settings-tab (sub-lane ws-D/settings — new components/Settings/**
       + one App.tsx route line + one Layout.tsx nav entry; operator,
       26.07: "web10 social doesn't have a settings tab, should be a
       settings tab, facebook style, TBD"): a real Settings surface.
@@ -1381,7 +1381,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         initial state (one-line composer touch — coordinate with
         ws-D/feed via .context/). gate: bite a merged.
 
-[ ] D-feedback-contact-privacy (sub-lane ws-D/feedback; SEAM:
+[✓ 1.0.192] D-feedback-contact-privacy (sub-lane ws-D/feedback; SEAM:
       marketing-api main.py — small, do promptly): 1.0.181 publishes
       each bug report as a PUBLIC post tagged #web10-bugs — including
       the reporter's CONTACT INFO: _format_bug_post() (marketing-api
@@ -1659,7 +1659,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       urls — gate: the relevant routes merged). never one sweeping
       branch.
 
-[ ] D-marketing-search (sub-lane ws-D/marketing; operator, 26.07: "the
+[✓ 1.0.193 bite a] D-marketing-search (sub-lane ws-D/marketing; operator, 26.07: "the
       one thing we are really missing now is search! searching by tag,
       even on the marketing page… youtube-esque and be an entry point
       into web10 social, if you could search from the marketing ui!"):
@@ -1935,7 +1935,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       commerce). Each: own sub-lane, own components dir, own data
       service. gate: per-surface spec first; none blocks another.
 
-[ ] D-night-owl (sub-lane ws-E/infra — the AI team that moonlights so
+[✓ 1.0.192] D-night-owl (sub-lane ws-E/infra — the AI team that moonlights so
       you don't have to; operator, 27.07: "the 10x potential — i am not
       orchestrating, i am in the back giving my two points on SMS").
       PRIORITY (operator, 27.07): ESSENTIAL, priority-zero — the big
@@ -1959,7 +1959,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       `unbrick!` (text + a prepared kickoff) is a REQUIRED night-owl
       behavior, not a nice-to-have — the fire alarm is its job.
       BITES (rule 5 — one PR each):
-      bite a, SCAFFOLD: the loop skeleton — cron entry (40min), AI
+      [✓ 1.0.192] bite a, SCAFFOLD: the loop skeleton — cron entry (40min), AI
         vision pipeline (screenshot Conductor → valid AI actions out),
         texter, config, README. Cmd+Opt+Ctrl+C (or a --once flag)
         triggers a manual cycle that screenshots Conductor and returns
@@ -1974,6 +1974,16 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       gate: none (cron needs no special permissions; Accessibility/
       screen-recording perms only if the vision path drives the UI
       directly). acceptance: wake up to merged PRs and a summary text.
+      STATUS 27.07 (audit #6b): bite a PARTIALLY LANDED as part of the
+      #317 squash — night_owl/ exists on dev+main (init.lua,
+      conductor_agent.lua, texter.lua, config.json, README) but it is
+      the HAMMERSPOON flavor (timer + ~/.hammerspoon install +
+      Accessibility perms), predating the operator's cron correction
+      by hours. REMAINING bite a work (small): swap the scheduler to a
+      plain cron entry / launchd plist per the corrected spec (the
+      README's own diagram already says cron), keep the vision/texter
+      modules, add the --once manual-cycle flag, verify the unbrick
+      text path fires. THEN bite b (Conductor pilot) per the queue.
 
 LANE E — infrastructure / deployment (owns: proxmox provisioning,
     reverse proxy, CI/CD deploy targets)

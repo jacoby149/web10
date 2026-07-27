@@ -251,7 +251,9 @@ notices a stalled/looping/errored workspace, and raises `unbrick!`
 itself — that detection-and-trigger path is a night-owl acceptance
 criterion, so build it in when night-owl lands. The goal is the same
 either way: **turn the failure into a process fix so it cannot recur.**
-Then:
+**The bricked workspace itself is disposable — do NOT spend the ritual
+rescuing it.** The task gets re-issued (step 3) into a fresh workspace;
+the fix targets every future workspace, not the dead one. Then:
 
 1. **Diagnose the failure CLASS, not the instance.** Was it context
    overflow (item too big / too many files named)? A missing gate

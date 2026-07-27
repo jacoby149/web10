@@ -1804,10 +1804,11 @@ the boring plumbing social apps die without:
     .context/e2e-finding-public-ledger-mirror-dead.md. Not fixed here
     (e2e/** lane); re-open as a lane D + lane A item.
     RE-OPENED (26.07 audit #4, verified still dead at HEAD): the lane D
-    half is D-ledger-mirror-fix (registerDefaultSchemas never called +
-    createPublicEntry sends the wrong body shape vs public.py — every
-    app-side mirror silently stubs), the lane A half is
-    A14-followers-count (/discover/users returns followers_count).
+    half is [✓ 1.0.193] D-ledger-mirror-fix (registerDefaultSchemas never called +
+    createPublicEntry sends the wrong body shape vs public.py — fixed:
+    bootstrap call in App.tsx + correct {token, query} body shape), the
+    lane A half is A14-followers-count (/discover/users returns
+    followers_count).
     both in parallel execution.txt. until these merge, ALL real-account
     social proof (follower counts, trending engagement) is theater —
     persona-seeded numbers only.
@@ -2279,9 +2280,9 @@ bug reports -> the operator (operator idea):
      CONTACT INFO (_format_bug_post appends `Contact: ...` into an
      anon-readable, discovery-indexed post) — a PII leak on the platform
      whose manifesto says "nobody is mining you." fix filed as
-     D-feedback-contact-privacy (parallel execution.txt, ws-D/feedback):
-     contact/user_agent never enter the public body; they stay in the
-     disk store the operator reads.
+      [✓ 1.0.192] D-feedback-contact-privacy (parallel execution.txt, ws-D/feedback):
+      contact/user_agent never enter the public body; they stay in the
+      disk store the operator reads.
 
 known gaps confirmed this session (see CHANGELOG 1.0.169-1.0.174):
 [✓ 1.0.178] PRIORITY — public discoverability is still broken for real accounts.

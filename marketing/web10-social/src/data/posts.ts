@@ -1,6 +1,6 @@
 import { getWapi, deriveObjectKey } from './wapi';
 import { listFollowers } from './follows';
-import type { PostRecord, MediaRecord, MediaUploadRequest, PublicEntry, SchemaDefinition, DiscoverSort, DiscoveryPost, InboxRecord } from './types';
+import type { PostRecord, MediaRecord, MediaUploadRequest, PublicEntry, SchemaDefinition, DiscoverSort, DiscoveryPost, InboxRecord, Visibility } from './types';
 
 // ── Post data layer ────────────────────────────────────────────────────────
 // Post visibility is a COLLECTION, not a status field (decisions.md D30):
@@ -141,6 +141,29 @@ export async function updatePost(id: string, updates: Partial<PostRecord>): Prom
 export async function deletePost(id: string): Promise<void> {
   const wapi = getWapi();
   await wapi.delete('posts', { _id: id });
+}
+
+/**
+ * Move a post between public_posts and private_posts (D30 collection move).
+ * Creates the record in the target collection, deletes from the source.
+ * Preserves the body; the _id changes (new record in target collection).
+ *
+ * This is the post-hoc visibility toggle — the published counterpart to
+ * the staging moves in staging.ts.
+ */
+export async function movePostVisibility(post: PostRecord): Promise<PostRecord> {
+  const wapi = getWapi();
+  const sourceService = post.visibility === 'public' ? 'public_posts' : 'private_posts';
+  const targetVisibility: Visibility = post.visibility === 'public' ? 'private' : 'public';
+  const targetService = targetVisibility === 'public' ? 'public_posts' : 'private_posts';
+
+  const { _id: _sourceId, ...body } = post;
+  const targetRecord = { ...body, visibility: targetVisibility };
+  await wapi.create<PostRecord>(targetService, targetRecord);
+  if (_sourceId) {
+    await wapi.delete(sourceService, { _id: _sourceId });
+  }
+  return targetRecord;
 }
 
 // ── Media data layer ───────────────────────────────────────────────────────
