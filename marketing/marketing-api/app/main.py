@@ -432,7 +432,8 @@ def _deliver_bug_post(entry: dict) -> None:
 
     Bug reports land in the `web10` system account's `public_posts`
     collection so they appear on the discover feed and are searchable.
-    The on-thesis choice: bugs are public content, not private DMs.
+    PII fields (contact, user_agent) are stripped from the post body
+    and only stored on disk (visible via GET /feedback).
     """
     node_api_url = os.environ.get("NODE_API_URL")
     node_api_token = os.environ.get("NODE_API_TOKEN")
@@ -477,14 +478,22 @@ def _deliver_bug_post(entry: dict) -> None:
 
 
 def _format_bug_post(entry: dict) -> str:
-    """Format a bug report as a public post body with #web10-bugs tag."""
+    """Format a bug report as a public post body.
+
+    PII fields (contact, user_agent) are NEVER included in the public
+    post — they remain in the disk store and are only exposed via
+    GET /feedback. Stack traces are capped and stripped of potential
+    tokens and URLs to avoid leaking secrets in an anon-readable post.
+    """
+    import re
+
     lines = [
         "#web10-bugs",
         "",
         entry.get("message", ""),
     ]
-    if entry.get("contact"):
-        lines.append(f"\nContact: {entry['contact']}")
+    # contact and user_agent are intentionally excluded — PII that the
+    # reporter did not consent to publish publicly.
     if entry.get("route"):
         lines.append(f"Route: {entry['route']}")
     if entry.get("version"):
@@ -495,13 +504,19 @@ def _format_bug_post(entry: dict) -> str:
         for err in errors:
             lines.append(f"  - {err[:120]}")
     if entry.get("stack_trace"):
-        lines.append(f"\nStack:\n```\n{entry['stack_trace'][:2000]}\n```")
+        # Cap at 500 chars and strip URLs / token-like strings that
+        # could leak secrets in an anon-readable public post.
+        trace = entry["stack_trace"][:500]
+        trace = re.sub(r"https?://\S+", "<url-redacted>", trace)
+        trace = re.sub(r"[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}", "<token-redacted>", trace)
+        trace = re.sub(r"\b[A-Za-z0-9_-]{40,}\b", "<token-redacted>", trace)
+        lines.append(f"\nStack:\n```\n{trace}\n```")
     return "\n".join(lines)
 
 
 @app.post("/feedback")
 async def submit_feedback(fb: FeedbackCreate):
-    """Accept a bug report / feedback from any UI. Persists to disk and delivers as a DM to the operator."""
+    """Accept a bug report / feedback from any UI. Persists to disk and publishes as a public post tagged #web10-bugs (PII-stripped)."""
     entry = {
         "id": str(uuid.uuid4()),
         "type": "feedback",
