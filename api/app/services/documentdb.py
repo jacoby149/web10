@@ -812,6 +812,71 @@ def upsert_discovery_post(username: str, service: str, post: dict) -> dict:
     )
 
 
+def moderate_discovery_post(
+    author: str,
+    service: str,
+    post_id: str,
+    removed: bool,
+    actor: str,
+    reason: str = "",
+) -> dict:
+    """Hide or restore a post on the public discovery board (admin moderation).
+
+    Sets a ``removed`` flag on the discovery index document. The flag is
+    sticky: ``upsert_discovery_post`` only ``$set``s content fields, so an
+    author editing their post can never un-hide it. The underlying record in
+    the author's own collection is NOT touched (I3 — v0 is board-level
+    takedown, not record deletion).
+    """
+    _ensure_discovery_collection()
+    col = db["web10"][DISCOVERY_COLLECTION]
+    key = {"post_id": str(post_id), "author": author, "service": service}
+    if removed:
+        update = {
+            "$set": {
+                "removed": True,
+                "removed_by": actor,
+                "removed_at": datetime.datetime.utcnow().isoformat(),
+                "removal_reason": reason or "",
+            }
+        }
+    else:
+        update = {
+            "$unset": {
+                "removed": "",
+                "removed_by": "",
+                "removed_at": "",
+                "removal_reason": "",
+            }
+        }
+    result = col.update_one(key, update)
+    return {
+        "matched": result.matched_count,
+        "author": author,
+        "service": service,
+        "post_id": str(post_id),
+        "removed": removed,
+    }
+
+
+def list_removed_discovery_posts(limit: int = 100) -> list[dict]:
+    """List discovery posts hidden by admin moderation, most recent first."""
+    _ensure_discovery_collection()
+    col = db["web10"][DISCOVERY_COLLECTION]
+    docs = list(col.find({"removed": True}).sort("removed_at", -1).limit(limit))
+    out = []
+    for d in docs:
+        out.append(
+            {
+                **_discovery_post_to_dict(d),
+                "removed_by": d.get("removed_by"),
+                "removed_at": d.get("removed_at"),
+                "removal_reason": d.get("removal_reason", ""),
+            }
+        )
+    return out
+
+
 def remove_discovery_post(username: str, service: str, post_id: str):
     """Remove a post from the discovery index."""
     try:
@@ -884,14 +949,15 @@ def query_discovery_posts(sort_by: str = "recent", limit: int = 50, skip: int = 
     """
     _ensure_discovery_collection()
     col = db["web10"][DISCOVERY_COLLECTION]
+    visible = {"removed": {"$ne": True}}
 
     if sort_by == "trending":
-        docs = list(col.find().limit(limit + skip))
+        docs = list(col.find(visible).limit(limit + skip))
         enriched = [_discovery_post_to_dict(d) for d in docs]
         enriched.sort(key=lambda p: p["engagement_score"], reverse=True)
         return enriched[skip : skip + limit]
     else:
-        docs = list(col.find().sort("created_at", -1).skip(skip).limit(limit))
+        docs = list(col.find(visible).sort("created_at", -1).skip(skip).limit(limit))
         return [_discovery_post_to_dict(d) for d in docs]
 
 
@@ -907,7 +973,12 @@ def search_discovery_posts(query: str, limit: int = 50, skip: int = 0) -> list[d
     """
     _ensure_discovery_collection()
     col = db["web10"][DISCOVERY_COLLECTION]
-    docs = list(col.find({"$text": {"$search": query}}).sort("created_at", -1).skip(skip).limit(limit))
+    docs = list(
+        col.find({"$text": {"$search": query}, "removed": {"$ne": True}})
+        .sort("created_at", -1)
+        .skip(skip)
+        .limit(limit)
+    )
     return [_discovery_post_to_dict(d) for d in docs]
 
 
@@ -916,6 +987,7 @@ def trending_topics(limit: int = 20) -> list[dict]:
     _ensure_discovery_collection()
     col = db["web10"][DISCOVERY_COLLECTION]
     pipeline = [
+        {"$match": {"removed": {"$ne": True}}},
         {"$unwind": "$tags"},
         {"$match": {"tags": {"$regex": "^#"}}},
         {"$group": {"_id": "$tags", "count": {"$sum": 1}}},
@@ -947,7 +1019,7 @@ def suggested_users(limit: int = 20) -> list[dict]:
     """Suggest users based on discovery index activity + engagement."""
     _ensure_discovery_collection()
     col = db["web10"][DISCOVERY_COLLECTION]
-    docs = list(col.find())
+    docs = list(col.find({"removed": {"$ne": True}}))
     author_posts: dict[str, list[dict]] = {}
     for d in docs:
         author_posts.setdefault(d["author"], []).append(d)
@@ -971,6 +1043,8 @@ def lookup_discovery_post(username: str, service: str, post_id: str) -> dict:
     _ensure_discovery_collection()
     col = db["web10"][DISCOVERY_COLLECTION]
     doc = col.find_one({"post_id": str(post_id), "author": username, "service": service})
+    if doc is not None and doc.get("removed"):
+        return {}
     return _discovery_post_to_dict(doc)
 
 

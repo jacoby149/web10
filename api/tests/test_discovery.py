@@ -1264,3 +1264,151 @@ class TestAdminDiscoveryEndpoints:
         data = resp.json()
         assert "total" in data
         assert data["total"] == 1
+
+
+# ---------------------------------------------------------------------------
+# Admin board moderation (remove/restore/list-removed)
+# ---------------------------------------------------------------------------
+
+
+def _mod_body(username: str = "admin_user", **overrides) -> dict:
+    body = {
+        "token": _owner_token(username),
+        "author": "alice",
+        "service": "public_posts",
+        "post_id": "p1",
+        "reason": "spam",
+    }
+    body.update(overrides)
+    return body
+
+
+class TestAdminBoardModeration:
+    """Admin can hide/restore posts on the public discovery board."""
+
+    def test_remove_requires_admin(self, client):
+        resp = client.post("/admin/discovery/remove", json=_mod_body("regular_user"))
+        assert resp.status_code == 403
+
+    def test_remove_no_token(self, client):
+        resp = client.post("/admin/discovery/remove", json=_mod_body(token=""))
+        assert resp.status_code == 403
+
+    def test_restore_requires_admin(self, client):
+        resp = client.post("/admin/discovery/restore", json=_mod_body("regular_user"))
+        assert resp.status_code == 403
+
+    def test_removed_list_requires_admin(self, client):
+        resp = client.post(
+            "/admin/discovery/removed", json={"token": _owner_token("regular_user")}
+        )
+        assert resp.status_code == 403
+
+    def test_remove_rejects_protected_service(self, client):
+        with patch("app.services.config.is_admin", return_value=True):
+            resp = client.post("/admin/discovery/remove", json=_mod_body(service="*"))
+        assert resp.status_code == 400
+
+    def test_remove_admin_success(self, client, mock_discovery_col):
+        mock_discovery_col.update_one.return_value = MagicMock(matched_count=1)
+        with patch("app.services.config.is_admin", return_value=True):
+            resp = client.post("/admin/discovery/remove", json=_mod_body())
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data == {
+            "matched": 1,
+            "author": "alice",
+            "service": "public_posts",
+            "post_id": "p1",
+            "removed": True,
+        }
+        # Sticky moderation fields are $set on the index document
+        key, update = mock_discovery_col.update_one.call_args[0]
+        assert key == {"post_id": "p1", "author": "alice", "service": "public_posts"}
+        assert update["$set"]["removed"] is True
+        assert update["$set"]["removed_by"] == "admin_user"
+        assert update["$set"]["removal_reason"] == "spam"
+        assert "removed_at" in update["$set"]
+
+    def test_remove_not_found(self, client, mock_discovery_col):
+        mock_discovery_col.update_one.return_value = MagicMock(matched_count=0)
+        with patch("app.services.config.is_admin", return_value=True):
+            resp = client.post("/admin/discovery/remove", json=_mod_body())
+        assert resp.status_code == 404
+
+    def test_restore_admin_success(self, client, mock_discovery_col):
+        mock_discovery_col.update_one.return_value = MagicMock(matched_count=1)
+        with patch("app.services.config.is_admin", return_value=True):
+            resp = client.post("/admin/discovery/restore", json=_mod_body())
+        assert resp.status_code == 200
+        assert resp.json()["removed"] is False
+        _, update = mock_discovery_col.update_one.call_args[0]
+        assert set(update["$unset"].keys()) == {
+            "removed",
+            "removed_by",
+            "removed_at",
+            "removal_reason",
+        }
+
+    def test_removed_list_admin_success(self, client):
+        mock_col = MagicMock()
+        mock_col.create_index.return_value = "idx"
+        mock_col.find.return_value.sort.return_value.limit.return_value = [
+            {
+                "author": "alice",
+                "service": "public_posts",
+                "post_id": "p1",
+                "body_text": "bad post",
+                "tags": [],
+                "created_at": "2026-07-27T00:00:00",
+                "removed": True,
+                "removed_by": "admin_user",
+                "removed_at": "2026-07-27T01:00:00",
+                "removal_reason": "spam",
+            }
+        ]
+        mock_col.aggregate.return_value = []
+        with (
+            patch("app.services.config.is_admin", return_value=True),
+            patch.object(
+                db_module.db["web10"],
+                "list_collection_names",
+                return_value=["discovery_posts", "public"],
+            ),
+            patch.object(db_module.db["web10"], "__getitem__", return_value=mock_col),
+        ):
+            resp = client.post(
+                "/admin/discovery/removed", json={"token": _owner_token("admin_user")}
+            )
+        assert resp.status_code == 200
+        removed = resp.json()["removed"]
+        assert len(removed) == 1
+        assert removed[0]["post_id"] == "p1"
+        assert removed[0]["removed_by"] == "admin_user"
+        assert removed[0]["removal_reason"] == "spam"
+
+    def test_feed_excludes_removed(self, client, mock_discovery_and_public):
+        mock_discovery, _ = mock_discovery_and_public
+        resp = client.patch("/discover/posts")
+        assert resp.status_code == 200
+        query = mock_discovery.find.call_args[0][0]
+        assert query == {"removed": {"$ne": True}}
+
+    def test_search_excludes_removed(self, client, mock_discovery_and_public):
+        mock_discovery, _ = mock_discovery_and_public
+        resp = client.patch("/discover/search?q=hello")
+        assert resp.status_code == 200
+        query = mock_discovery.find.call_args[0][0]
+        assert query["removed"] == {"$ne": True}
+
+    def test_lookup_hides_removed(self, client, mock_discovery_and_public):
+        mock_discovery, _ = mock_discovery_and_public
+        mock_discovery.find_one.return_value = {
+            "author": "alice",
+            "service": "public_posts",
+            "post_id": "p1",
+            "removed": True,
+        }
+        resp = client.patch("/discover/post/alice/public_posts/p1")
+        # a removed post is indistinguishable from a nonexistent one
+        assert resp.status_code == 404
