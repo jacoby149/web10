@@ -152,6 +152,7 @@ export function mapRawDiscoveryPost(raw: RawDiscoveryPost): DiscoveryPost {
     post_id: raw.post_id,
     text: raw.body_text || undefined,
     tags: raw.tags?.length ? raw.tags : undefined,
+    media_refs: raw.media_refs?.length ? raw.media_refs : undefined,
     created_at: raw.created_at,
     likes: raw.engagement.likes,
     comments: raw.engagement.comments,

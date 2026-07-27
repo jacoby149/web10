@@ -185,4 +185,24 @@ describe('follows data layer', () => {
       expect(result).toBe(2);
     });
   });
+
+  describe('followUser error handling', () => {
+    it('throws when create fails (no terms record)', async () => {
+      // Regression pin: when the `follows` service has no terms record
+      // (the SMR-only gap), wapi.create throws. The caller (UserProfileScreen)
+      // must see this error, NOT a silent no-op with a fake "Following" state.
+      mock.read.mockResolvedValueOnce([]);
+      mock.create.mockRejectedValue(new Error('create failed: 403'));
+
+      await expect(follows.followUser('bob', 'web10')).rejects.toThrow('create failed: 403');
+    });
+
+    it('throws when update fails (reactivate existing)', async () => {
+      const existing = { _id: 'f1', username: 'bob', provider: 'web10', status: 'rejected', followed_at: '2024-01-01T00:00:00Z' };
+      mock.read.mockResolvedValueOnce([existing]);
+      mock.update.mockRejectedValue(new Error('update failed: 403'));
+
+      await expect(follows.followUser('bob', 'web10')).rejects.toThrow('update failed: 403');
+    });
+  });
 });
