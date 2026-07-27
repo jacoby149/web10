@@ -924,6 +924,56 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         collection. owns marketing/web10-social/src/components/Bio/UserProfileScreen.tsx.
         gate: none. acceptance: viewing any user profile with an uploaded avatar/
         banner shows the images; post media renders in the profile grid.
+[ ] D-follow-persistence (sub-lane ws-D/follow — UserProfileScreen.tsx +
+      data/follows.ts; PRIORITY — real accounts can't follow; operator,
+      27.07, screenshot: "tried to follow my friend coolguydavid, and
+      it gives a question mark, says following, i refresh and i am not
+      following him"). THREE symptoms on /u/coolguydavid, possibly one
+      root cause — REPRO FIRST against the local stack with two REAL
+      (non-persona) accounts and capture the actual failing request's
+      status + body in the PR (the app swallows errors everywhere in
+      this flow: the "?" Following count is a caught throw, the
+      optimistic "Following" button is a lie on failure):
+      (1) FOLLOW DOESN'T PERSIST — followUser (follows.ts:48) writes to
+          the follower's OWN `follows` service; the app's `follows` SIR
+          (serviceTerms.ts:144) carries NO whitelist and is registered
+          only via the SMROnReady consent — which fires ONLY while the
+          auth portal child window is open (the exact class A13 fixed
+          for public_posts). A real account that never got the SMR has
+          NO follows terms record → the create 403s, the UI shows
+          "Following" anyway, refresh loses it. suspects in order:
+          terms record absent (check the account's services record),
+          the update-vs-create branch (existing soft-deleted record),
+          a wapi.create throw being caught upstream. if (1) is the
+          terms gap, the fix mirrors A13: provision the app's CORE
+          service set at signup (follows, inbox, reactions, comments,
+          dms — owner-only, NO anon reads except the ones serviceTerms
+          already declares public) + a migration for existing accounts
+          (lane-A seam inside records.py — coordinate via .context/,
+          small); do NOT blanket-anon anything.
+      (2) "?" FOLLOWING COUNT — countFollows throws and the UI renders
+          "?"; after the root fix, swap the "?" for a real error/
+          retry state (never a placeholder glyph).
+      (3) "NO POSTS YET" ON A PROFILE THAT HAS POSTS — coolguydavid's
+          public post shows on /trending (indexed) but his profile
+          grid is empty. diagnose which read the grid uses: a direct
+          collection read needs HIS public_posts anon-read term (the
+          A13 migration — E-run-discovery-migration — has STILL not
+          been run on prod; if this is the cause, say so in the PR and
+          link the operator-gated item rather than hacking around it);
+          the discovery-API path would already show the post.
+      acceptance: two real accounts on the local stack — follow →
+      hard refresh → still following; the count never renders "?";
+      the profile shows the author's public posts (or the PR names
+      the un-run migration as the remaining gate); vitest pins the
+      failure path (a rejected create surfaces an error state, no
+      fake "Following"); tsc -b + tests green. gate: none. SEAM:
+      UserProfileScreen.tsx is also touched by D-public-media-client
+      bite b (ws-D/feed, kicked off) — this item touches its
+      FOLLOW/COUNT/POSTS-LOAD logic only, bite b touches media
+      resolution; if both are in flight, coordinate via .context/ and
+      rebase — do not run blind-parallel.
+
 [ ] D-feed-avatar-resolution (sub-lane D/feed). FEED AVATAR FALLS BACK TO INITIAL —
         `FeedScreen.tsx` tries to find the author's avatar inside the post's
         media items: `mediaMap[item.post_id]?.find(m => m._id === profile.avatar_ref)`
@@ -2390,6 +2440,10 @@ in parallel despite sharing the ws-D/feed chain label.
       dev/main push since 24.07; fix the step-3 grantSelfTerms failure
       + the MinIO host-port class. The seatbelt doesn't work if it's
       ignored; right now it's wallpaper.
+    ws-D/follow: D-follow-persistence (27.07 complaint — follow doesn't
+      persist for real accounts, "?" count, profile shows no posts;
+      likely the same SMR-only terms class A13 fixed, this time for
+      the follows service).
     ws-E (operator-gated): E-run-discovery-migration — the gate is now
       FULLY CLEAR: 1.0.178 is deployed to BOTH dev and prod. All that
       remains is running migrate_terms + backfill with an admin token
