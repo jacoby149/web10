@@ -36,7 +36,7 @@ function KnobRack({ state, activePreset, onChange, onPreset }: KnobRackProps) {
     <div data-testid="knob-rack" className="mx-auto max-w-4xl">
       {/* Preset chips */}
       <div
-        className="flex flex-wrap items-center justify-center gap-2"
+        className="flex flex-wrap items-center justify-start gap-2"
         role="group"
         aria-label="Presets"
       >
@@ -62,7 +62,7 @@ function KnobRack({ state, activePreset, onChange, onPreset }: KnobRackProps) {
       </div>
 
       {/* Advanced toggle — reveals the synth rack */}
-      <div className="mt-3 flex justify-center">
+      <div className="mt-3 flex justify-start">
         <button
           type="button"
           data-testid="knobs-advanced-toggle"
