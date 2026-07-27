@@ -107,6 +107,20 @@ class AppAdminQuery(BaseModel):
     token: str
 
 
+class DiscoveryModerationRequest(BaseModel):
+    """Admin hides or restores a post on the public discovery board.
+
+    Board-level takedown: sets a sticky ``removed`` flag on the discovery
+    index document. The author's underlying record is never touched (I3).
+    """
+
+    token: str
+    author: str
+    service: str
+    post_id: str
+    reason: str = ""
+
+
 class ConfigUpdate(BaseModel):
     """Partial config update — only provided fields are changed."""
 
