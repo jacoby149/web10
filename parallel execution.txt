@@ -329,6 +329,20 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       script; real-account follows start mirroring when
       D-ledger-mirror-fix lands — the two merge independently).
 
+[✓ 1.0.196] A16-board-moderation (operator, 27.07 — LIVE INCIDENT: "someone
+      posted something inappropriate on the public board, i need a way to
+      moderate as an admin!"). v0 board-level takedown, shipped same-day:
+      POST /admin/discovery/remove + /restore + /removed (admin-only) set a
+      sticky `removed` flag on the discovery index doc — the post drops out
+      of feed/search/topics/users/lookup and an author edit can't un-hide
+      it; the author's record is untouched (I3). PLUS the lane-B half in the
+      same PR (operator urgency): a "Board Moderation" card in the
+      authenticator's Node Config (recent posts + two-step Remove with
+      optional reason + removed list with Restore). NOT built (follow-ups):
+      hard record deletion / user suspension (A10 territory — the full
+      operator console), user-facing /reports flagging, per-post moderation
+      from the marketing/social surfaces directly.
+
 [ ] A15-engagement-count-accuracy (operator, 26.07, screenshot: badge
       says 3 comments, the expanded panel renders more): the discovery
       index's cached engagement counts disagree with the live comment

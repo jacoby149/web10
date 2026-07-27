@@ -8,12 +8,13 @@ from app.models.config import (
     AppAdminQuery,
     AppApprovalRequest,
     ConfigUpdate,
+    DiscoveryModerationRequest,
     SetupRequest,
     SetupStatus,
 )
 from app.services import config as config_svc
 from app.services import documentdb as db
-from app.services.auth import check_admin, get_password_hash
+from app.services.auth import check_admin, decode_token, get_password_hash
 
 router = APIRouter()
 
@@ -217,3 +218,49 @@ async def admin_discovery_backfill(req: Token):
     user collection. Admin only. Idempotent — safe to call multiple times."""
     check_admin(req)
     return db.backfill_discovery()
+
+
+# --- Discovery board moderation (admin only) ---
+
+
+def _check_moderation_request(req: DiscoveryModerationRequest) -> str:
+    """Admin-gate + input guard. Returns the admin's username (the actor)."""
+    check_admin(Token(token=req.token))
+    if req.service in ("*", "services"):
+        raise HTTPException(status_code=400, detail="invalid service")
+    decoded = decode_token(req.token, private_key=True)
+    return decoded.username
+
+
+@router.post("/admin/discovery/remove", include_in_schema=False)
+async def admin_discovery_remove(req: DiscoveryModerationRequest):
+    """Hide a post from the public discovery board. Admin only.
+
+    Sets a sticky ``removed`` flag on the discovery index document — the post
+    drops out of /discover/posts, /discover/search, /discover/topics,
+    /discover/users and single-post lookup, and an author editing their post
+    cannot un-hide it. The underlying record in the author's collection is
+    NOT touched (I3): this is board-level takedown, not record deletion.
+    """
+    actor = _check_moderation_request(req)
+    result = db.moderate_discovery_post(req.author, req.service, req.post_id, True, actor=actor, reason=req.reason)
+    if not result["matched"]:
+        raise HTTPException(status_code=404, detail="post not found on the discovery board")
+    return result
+
+
+@router.post("/admin/discovery/restore", include_in_schema=False)
+async def admin_discovery_restore(req: DiscoveryModerationRequest):
+    """Restore a previously hidden post to the public discovery board. Admin only."""
+    actor = _check_moderation_request(req)
+    result = db.moderate_discovery_post(req.author, req.service, req.post_id, False, actor=actor, reason=req.reason)
+    if not result["matched"]:
+        raise HTTPException(status_code=404, detail="post not found on the discovery board")
+    return result
+
+
+@router.post("/admin/discovery/removed", include_in_schema=False)
+async def admin_discovery_removed(req: Token):
+    """List posts currently hidden from the discovery board. Admin only."""
+    check_admin(req)
+    return {"removed": db.list_removed_discovery_posts()}

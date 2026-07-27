@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Lock, UserPlus, X, Check, Store } from 'lucide-react';
+import { Lock, UserPlus, X, Check, Store, ShieldAlert, RotateCcw } from 'lucide-react';
 
 function ToggleRow({ label, description, checked, onChange, testId }: {
   label: string; description: string; checked: boolean; onChange: () => void; testId: string;
@@ -52,6 +52,18 @@ interface AdminApp {
   registered_at?: string | null;
 }
 
+interface BoardPost {
+  author: string;
+  service: string;
+  post_id: string;
+  body_text: string;
+  tags: string[];
+  created_at?: string | null;
+  removed_by?: string | null;
+  removed_at?: string | null;
+  removal_reason?: string;
+}
+
 function ConfigPage({ I }: { I: Record<string, any> }) {
   const [config, setConfig] = React.useState<Record<string, any> | null>(null);
   const [loadedConfig, setLoadedConfig] = React.useState<Record<string, any>>({});
@@ -64,6 +76,14 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
   const [appsLoading, setAppsLoading] = React.useState(true);
   const [appsError, setAppsError] = React.useState<string | null>(null);
   const [approvingUrl, setApprovingUrl] = React.useState<string | null>(null);
+
+  const [board, setBoard] = React.useState<BoardPost[]>([]);
+  const [boardLoading, setBoardLoading] = React.useState(true);
+  const [boardError, setBoardError] = React.useState<string | null>(null);
+  const [removedPosts, setRemovedPosts] = React.useState<BoardPost[]>([]);
+  const [confirmRemoveId, setConfirmRemoveId] = React.useState<string | null>(null);
+  const [removeReason, setRemoveReason] = React.useState("");
+  const [moderatingId, setModeratingId] = React.useState<string | null>(null);
 
   const nodePost = async (path: string, body: Record<string, any>) => {
     const token = I.wapi.token;
@@ -100,13 +120,83 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
     }
   };
 
+  const loadBoard = async () => {
+    setBoardLoading(true);
+    setBoardError(null);
+    try {
+      const decoded = I.wapi.readToken();
+      const protocol = window.location.protocol;
+      const resp = await axios.patch(
+        `${protocol}//${decoded.provider}/discover/posts?sort=recent&limit=50`
+      );
+      setBoard(resp.data ?? []);
+    } catch (e: any) {
+      setBoardError(e.response?.data?.detail || "Failed to load the public board.");
+    } finally {
+      setBoardLoading(false);
+    }
+  };
+
+  const loadRemoved = async () => {
+    try {
+      const resp = await nodePost("/admin/discovery/removed", { token: I.wapi.token });
+      setRemovedPosts(resp.data?.removed ?? []);
+    } catch {
+      // the removed list is secondary — don't overwrite the board error
+    }
+  };
+
+  const removePost = async (post: BoardPost) => {
+    setModeratingId(post.post_id);
+    setBoardError(null);
+    try {
+      await nodePost("/admin/discovery/remove", {
+        token: I.wapi.token,
+        author: post.author,
+        service: post.service,
+        post_id: post.post_id,
+        reason: removeReason.trim(),
+      });
+      setBoard(prev => prev.filter(p => p.post_id !== post.post_id));
+      setConfirmRemoveId(null);
+      setRemoveReason("");
+      loadRemoved();
+    } catch (e: any) {
+      setBoardError(e.response?.data?.detail || "Failed to remove the post.");
+    } finally {
+      setModeratingId(null);
+    }
+  };
+
+  const restorePost = async (post: BoardPost) => {
+    setModeratingId(post.post_id);
+    setBoardError(null);
+    try {
+      await nodePost("/admin/discovery/restore", {
+        token: I.wapi.token,
+        author: post.author,
+        service: post.service,
+        post_id: post.post_id,
+      });
+      setRemovedPosts(prev => prev.filter(p => p.post_id !== post.post_id));
+      loadBoard();
+    } catch (e: any) {
+      setBoardError(e.response?.data?.detail || "Failed to restore the post.");
+    } finally {
+      setModeratingId(null);
+    }
+  };
+
   React.useEffect(() => {
     if (I.isAdmin) {
       loadConfig();
       loadApps();
+      loadBoard();
+      loadRemoved();
     } else {
       setLoading(false);
       setAppsLoading(false);
+      setBoardLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [I.isAdmin]);
@@ -393,6 +483,140 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
                           </>
                         )}
                       </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card data-testid="config-moderation-card">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="h-4 w-4 text-brand-300" strokeWidth={1.5} />
+                <CardTitle>Board Moderation</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-xs text-muted-foreground">
+                Hide an inappropriate post from the public board (trending, discover,
+                search). The author's own copy is untouched — this is board-level
+                takedown, and removed posts can be restored below.{" "}
+                {removedPosts.length > 0 && (
+                  <span className="font-medium text-warning">
+                    {removedPosts.length} removed {removedPosts.length === 1 ? "post" : "posts"}.
+                  </span>
+                )}
+              </p>
+
+              {boardError && (
+                <div className="rounded bg-danger-muted p-3 text-sm text-danger" data-testid="config-mod-error">
+                  {boardError}
+                </div>
+              )}
+
+              {boardLoading ? (
+                <Skeleton className="h-20 w-full" />
+              ) : board.length === 0 ? (
+                <p className="text-sm text-muted-foreground" data-testid="config-mod-empty">
+                  Nothing on the public board yet.
+                </p>
+              ) : (
+                <div className="space-y-2" data-testid="config-mod-list">
+                  {board.map((post) => (
+                    <div
+                      key={post.post_id}
+                      className="rounded-sm border border-border bg-elevated px-3 py-2"
+                      data-testid={`config-mod-row-${post.post_id}`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="truncate font-mono text-xs text-muted-foreground">
+                            @{post.author} · {post.service}
+                            {post.created_at && ` · ${new Date(post.created_at).toLocaleDateString()}`}
+                          </div>
+                          <div className="truncate text-sm text-foreground">
+                            {post.body_text || "(media post)"}
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="shrink-0"
+                          disabled={moderatingId === post.post_id}
+                          onClick={() => {
+                            setConfirmRemoveId(post.post_id);
+                            setRemoveReason("");
+                          }}
+                          data-testid={`config-mod-remove-${post.post_id}`}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                      {confirmRemoveId === post.post_id && (
+                        <div className="mt-2 space-y-2 border-t border-border pt-2" data-testid={`config-mod-confirm-${post.post_id}`}>
+                          <Input
+                            value={removeReason}
+                            onChange={(e) => setRemoveReason(e.target.value)}
+                            placeholder="reason (optional — shown to admins only)"
+                            aria-label="Removal reason"
+                            data-testid={`config-mod-reason-${post.post_id}`}
+                          />
+                          <div className="flex gap-2">
+                            <Button
+                              variant="brand"
+                              size="sm"
+                              disabled={moderatingId === post.post_id}
+                              onClick={() => removePost(post)}
+                              data-testid={`config-mod-confirm-remove-${post.post_id}`}
+                            >
+                              {moderatingId === post.post_id ? "Removing…" : "Confirm remove"}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setConfirmRemoveId(null)}
+                              data-testid={`config-mod-cancel-${post.post_id}`}
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {removedPosts.length > 0 && (
+                <div className="space-y-2 border-t border-border pt-3" data-testid="config-mod-removed-list">
+                  <p className="text-xs font-medium text-muted-foreground">Removed posts</p>
+                  {removedPosts.map((post) => (
+                    <div
+                      key={post.post_id}
+                      className="flex items-center justify-between gap-2 rounded-sm border border-dashed border-border px-3 py-2"
+                      data-testid={`config-mod-removed-row-${post.post_id}`}
+                    >
+                      <div className="min-w-0">
+                        <div className="truncate font-mono text-xs text-muted-foreground">
+                          @{post.author} · removed by {post.removed_by}
+                          {post.removal_reason && ` · ${post.removal_reason}`}
+                        </div>
+                        <div className="truncate text-sm text-muted-foreground">
+                          {post.body_text || "(media post)"}
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="shrink-0"
+                        disabled={moderatingId === post.post_id}
+                        onClick={() => restorePost(post)}
+                        data-testid={`config-mod-restore-${post.post_id}`}
+                      >
+                        <RotateCcw className="mr-1 h-3.5 w-3.5" strokeWidth={1.5} />
+                        Restore
+                      </Button>
                     </div>
                   ))}
                 </div>
