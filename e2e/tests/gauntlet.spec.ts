@@ -458,7 +458,10 @@ test.describe('Gauntlet Step 3: Follow -> feed', () => {
           },
         },
       });
-      expect(res.ok()).toBeTruthy();
+      // 409 DUPLICATE_SERVICE is expected for services auto-provisioned at
+      // signup (A13, 1.0.178: public_posts anon-read term). The term already
+      // exists, which is the desired state.
+      expect(res.ok() || res.status() === 409).toBeTruthy();
     };
     for (const service of ['follows', 'inbox', 'public_posts', 'private_posts', 'reactions', 'comments']) {
       await grantSelfTerms(follower, followerToken, service);
