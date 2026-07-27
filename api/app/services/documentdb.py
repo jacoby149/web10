@@ -286,6 +286,11 @@ def create(user, service, _data, author=None, source_node=None):
     return _data
 
 
+def _looks_like_oid(value: str) -> bool:
+    """Check if a string looks like a MongoDB ObjectId (24 hex chars)."""
+    return isinstance(value, str) and len(value) == 24 and all(c in "0123456789abcdefABCDEF" for c in value)
+
+
 def _cast_ids(query):
     """Cast string _id values to ObjectId so queries match MongoDB records.
     Handles bare _id, $in arrays, and $nin arrays."""
@@ -794,20 +799,54 @@ def upsert_discovery_post(username: str, service: str, post: dict) -> dict:
     created_at = post.get("created_at") or datetime.datetime.utcnow().isoformat()
     post_id = str(post.get("_id", ""))
 
+    # Media projection: media_refs are IDs into the author's media collection.
+    media_refs = post.get("media_refs") or []
+    if not isinstance(media_refs, list):
+        media_refs = []
+    has_media = len(media_refs) > 0
+
+    # Resolve first attachment's mime_type from the author's media collection.
+    first_attachment_mime = None
+    if has_media:
+        try:
+            user_db = db[username]
+            for mref in media_refs:
+                mref_str = str(mref)
+                # Check both media and public_media services
+                for msvc in ("media", "public_media"):
+                    rec = user_db.find_one(
+                        {"_id": ObjectId(mref_str) if _looks_like_oid(mref_str) else mref_str, "service": msvc}
+                    )
+                    if rec and rec.get("body", {}).get("mime_type"):
+                        first_attachment_mime = rec["body"]["mime_type"]
+                        break
+                    rec = user_db.find_one({"_id": mref_str, "service": msvc})
+                    if rec and rec.get("body", {}).get("mime_type"):
+                        first_attachment_mime = rec["body"]["mime_type"]
+                        break
+                if first_attachment_mime:
+                    break
+        except Exception:
+            pass  # Non-fatal — media lookup failure shouldn't block indexing
+
+    update_doc = {
+        "author": username,
+        "service": service,
+        "post_id": post_id,
+        "body_text": body_text,
+        "tags": tags,
+        "created_at": created_at,
+        "updated_at": datetime.datetime.utcnow().isoformat(),
+        "media_refs": media_refs,
+        "has_media": has_media,
+    }
+    if first_attachment_mime is not None:
+        update_doc["first_attachment_mime"] = first_attachment_mime
+
     col = db["web10"][DISCOVERY_COLLECTION]
     col.update_one(
         {"post_id": post_id, "author": username, "service": service},
-        {
-            "$set": {
-                "author": username,
-                "service": service,
-                "post_id": post_id,
-                "body_text": body_text,
-                "tags": tags,
-                "created_at": created_at,
-                "updated_at": datetime.datetime.utcnow().isoformat(),
-            }
-        },
+        {"$set": update_doc},
         upsert=True,
     )
 
@@ -937,6 +976,9 @@ def _discovery_post_to_dict(doc: dict) -> dict:
         "created_at": doc.get("created_at"),
         "engagement": engagement,
         "engagement_score": _engagement_score(engagement),
+        "media_refs": doc.get("media_refs", []),
+        "has_media": doc.get("has_media", False),
+        "first_attachment_mime": doc.get("first_attachment_mime"),
     }
 
 
