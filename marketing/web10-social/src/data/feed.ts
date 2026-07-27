@@ -182,6 +182,8 @@ export async function readDiscoverFeed(sort: DiscoverSort = 'recent', limit = 20
 
 /**
  * Write a public ledger entry (e.g., a reaction or comment).
+ * POST /public/entries expects the wapi Token body shape:
+ * {token: <site-token>, query: {schema_id, target, payload}}.
  */
 export async function createPublicEntry(entry: Omit<PublicEntry, '_id'>): Promise<PublicEntry> {
   try {
@@ -192,7 +194,14 @@ export async function createPublicEntry(entry: Omit<PublicEntry, '_id'>): Promis
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token?.site || ''}`,
       },
-      body: JSON.stringify(entry),
+      body: JSON.stringify({
+        token: token?.site,
+        query: {
+          schema_id: entry.schema_id,
+          target: entry.target,
+          payload: entry.payload,
+        },
+      }),
     });
     if (!resp.ok) throw new Error(`public entry failed: ${resp.status}`);
     return resp.json();

@@ -1232,7 +1232,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       edit a sent DM in place; delete a message + a whole conversation.
       gate: D-messages-views merged.
 
-[ ] D-ledger-mirror-fix (sub-lane ws-D/ledger — data/feed.ts + one
+[✓ 1.0.193] D-ledger-mirror-fix (sub-lane ws-D/ledger — data/feed.ts + one
       bootstrap line; PRIORITY with A13-class weight): THE APP'S PUBLIC
       LEDGER MIRROR IS DEAD FOR REAL ACCOUNTS — the social-proof
       numbers (follower counts, trending like/comment counts) only work
