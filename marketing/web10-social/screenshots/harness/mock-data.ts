@@ -132,3 +132,28 @@ export async function startConversation() {
 export async function addContact(): Promise<ContactRecord> {
   return { _id: 'new', username: '', provider: 'web10' };
 }
+
+// ── Generic safe stubs ───────────────────────────────────────────────────
+// The `@/data` barrel is `export *` over every data module, so any component
+// the harness mounts (Layout / DmsScreen / SettingsScreen, transitively) may
+// import names beyond the seeded ones above. These no-op stubs keep the page
+// rendering; if capture.mjs errors with "No matching export named X", the
+// barrel grew again — add X here in the same shape.
+export async function deleteConversation(): Promise<void> {}
+export async function deleteDm(): Promise<void> {}
+export async function updateDm(): Promise<DmRecord> {
+  return { _id: 'stub', message: '', sent_at: new Date().toISOString(), sender_username: 'me', sender_provider: 'web10', recipient_username: '', recipient_provider: 'web10' };
+}
+export async function countFollowers(): Promise<number> { return PEERS.length; }
+export async function countFollows(): Promise<number> { return PEERS.length; }
+export async function countStagingPosts(): Promise<number> { return 0; }
+export async function readProfile(): Promise<null> { return null; }
+export async function saveProfile(): Promise<void> {}
+export async function readMyPosts(): Promise<unknown[]> { return []; }
+export async function createPost(): Promise<Record<string, never>> { return {}; }
+export async function uploadMedia(): Promise<{ url: string }> { return { url: '' }; }
+export async function fanOutToFollowers(): Promise<void> {}
+export async function refreshMediaUrls<T>(records: T[]): Promise<T[]> { return records; }
+export async function resolveMediaRefs<T>(records: T[]): Promise<T[]> { return records; }
+export async function readComments(): Promise<unknown[]> { return []; }
+export async function createComment(): Promise<Record<string, never>> { return {}; }
