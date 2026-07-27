@@ -111,7 +111,7 @@ export default function ProfileScreen() {
       setUploadError(null);
       setUploading(true);
       try {
-        const media = await uploadMedia({ file });
+        const media = await uploadMedia({ file, service: 'public_media' });
         if (media._id) {
           const [presigned] = await refreshMediaUrls([media]);
           setMediaMap((prev) => ({ ...prev, [media._id!]: presigned }));

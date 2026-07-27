@@ -43,6 +43,7 @@ export function trackFunnel(
     | 'trending_like_attempt'
     | 'trending_repost_attempt'
     | 'trending_preset'
+    | 'trending_search'
     | 'join_view'
     | 'join_click'
     | 'sign_in_click'

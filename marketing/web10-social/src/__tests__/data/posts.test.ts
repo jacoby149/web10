@@ -152,6 +152,84 @@ describe('posts data layer', () => {
 
       vi.unstubAllGlobals();
     });
+
+    it('D35: passes service=public_media through to confirmUpload', async () => {
+      const file = new File(['x'], 'pic.png', { type: 'image/png' });
+      mock.getUploadUrl.mockResolvedValue({
+        uploadUrl: 'https://s3.local/bucket',
+        fields: { key: 'alice/abc/pic.png' },
+        objectKey: 'alice/abc/pic.png',
+        contentType: 'image/png',
+      });
+      mock.confirmUpload.mockResolvedValue({ _id: 'm2', url: 'https://s3.local/bucket/alice/abc/pic.png' });
+
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+      vi.stubGlobal('fetch', fetchMock);
+
+      await posts.uploadMedia({ file, service: 'public_media' });
+
+      expect(mock.confirmUpload).toHaveBeenCalledWith(
+        expect.objectContaining({ service: 'public_media' }),
+      );
+      vi.unstubAllGlobals();
+    });
+
+    it('D35: passes service=media through to confirmUpload', async () => {
+      const file = new File(['x'], 'pic.png', { type: 'image/png' });
+      mock.getUploadUrl.mockResolvedValue({
+        uploadUrl: 'https://s3.local/bucket',
+        fields: { key: 'alice/abc/pic.png' },
+        objectKey: 'alice/abc/pic.png',
+        contentType: 'image/png',
+      });
+      mock.confirmUpload.mockResolvedValue({ _id: 'm3', url: 'https://s3.local/bucket/alice/abc/pic.png' });
+
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+      vi.stubGlobal('fetch', fetchMock);
+
+      await posts.uploadMedia({ file, service: 'media' });
+
+      expect(mock.confirmUpload).toHaveBeenCalledWith(
+        expect.objectContaining({ service: 'media' }),
+      );
+      vi.unstubAllGlobals();
+    });
+
+    it('D35: thumbnail upload inherits the parent service', async () => {
+      // When a thumbnail is uploaded alongside a main file, the thumbnail's
+      // confirm should carry the same service as the parent.
+      const file = new File(['x'], 'video.mp4', { type: 'video/mp4' });
+      const thumbFile = new File(['t'], 'thumb.webp', { type: 'image/webp' });
+      let callCount = 0;
+      mock.getUploadUrl.mockImplementation(() => {
+        callCount++;
+        return Promise.resolve({
+          uploadUrl: 'https://s3.local/bucket',
+          fields: { key: callCount === 1 ? 'alice/abc/thumb.webp' : 'alice/abc/video.mp4' },
+          objectKey: callCount === 1 ? 'alice/abc/thumb.webp' : 'alice/abc/video.mp4',
+          contentType: callCount === 1 ? 'image/webp' : 'video/mp4',
+        });
+      });
+      mock.confirmUpload.mockImplementation((params: { url: string; service?: string }) =>
+        Promise.resolve({ _id: params.service === 'public_media' ? 'tm' : 'vm', url: params.url }),
+      );
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+      vi.stubGlobal('fetch', fetchMock);
+
+      await posts.uploadMedia({ file, thumbnailFile: thumbFile, service: 'public_media' });
+
+      // Both the thumbnail and the main upload should carry public_media
+      expect(mock.confirmUpload).toHaveBeenCalledTimes(2);
+      expect(mock.confirmUpload).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({ service: 'public_media' }),
+      );
+      expect(mock.confirmUpload).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({ service: 'public_media' }),
+      );
+      vi.unstubAllGlobals();
+    });
   });
 
   describe('readUserPosts', () => {
