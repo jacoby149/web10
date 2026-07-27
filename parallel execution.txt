@@ -974,6 +974,31 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       resolution; if both are in flight, coordinate via .context/ and
       rebase — do not run blind-parallel.
 
+[ ] D-profile-message-button (sub-lane ws-D/follow, AFTER
+      D-follow-persistence — same UserProfileScreen.tsx seam; operator,
+      27.07, screenshot: "there should be a button to message my friend
+      on his profile"): /u/:username has only a Follow button — no way
+      to start a DM from the profile, even though D-dm-compose
+      (1.0.155) built the new-conversation flow and dms.ts has
+      deterministic conversationKey(). add a Message button next to
+      Follow (icon + label, secondary-variant next to the brand Follow
+      button, both ≥44px touch targets) that navigates to the messages
+      screen WITH that thread open: preferred shape is the deep link
+      /messages?to=<username> (the URL-holds-the-state rule — D-deep-
+      links' /messages/:conversationKey builds on this later; if a
+      conversation already exists, open it by key, else open the
+      compose-to-username state prefilled). the button renders for
+      other users only, never on your own /profile. files:
+      components/Bio/UserProfileScreen.tsx (button + navigate),
+      DmsScreen.tsx (honor the ?to= param — open existing thread or
+      prefilled compose), maybe a small helper in data/dms.ts (own
+      exports). acceptance: from /u/<persona> click Message → the
+      messages screen opens with the thread (existing) or a prefilled
+      compose to that persona; sending works; refresh keeps the
+      thread open (deep link); your own profile shows no Message
+      button; screenshots desktop + 375px, design.md §12. gate:
+      D-follow-persistence merged (same file seam).
+
 [ ] D-feed-avatar-resolution (sub-lane D/feed). FEED AVATAR FALLS BACK TO INITIAL —
         `FeedScreen.tsx` tries to find the author's avatar inside the post's
         media items: `mediaMap[item.post_id]?.find(m => m._id === profile.avatar_ref)`
@@ -2443,7 +2468,8 @@ in parallel despite sharing the ws-D/feed chain label.
     ws-D/follow: D-follow-persistence (27.07 complaint — follow doesn't
       persist for real accounts, "?" count, profile shows no posts;
       likely the same SMR-only terms class A13 fixed, this time for
-      the follows service).
+      the follows service), THEN D-profile-message-button (27.07
+      complaint — Message button on /u/:username, same file seam).
     ws-E (operator-gated): E-run-discovery-migration — the gate is now
       FULLY CLEAR: 1.0.178 is deployed to BOTH dev and prod. All that
       remains is running migrate_terms + backfill with an admin token
