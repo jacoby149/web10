@@ -436,7 +436,7 @@ function Trending() {
 
       {/* Knob Rack — only show when not searching */}
       {!isInitialLoad && allPosts.length > 0 && !isSearching && (
-        <div className="px-4 pb-4 sm:px-6">
+        <div className="px-4 pt-6 pb-4 sm:px-6">
           <KnobRack
             state={knobState}
             activePreset={activePreset}
@@ -453,7 +453,7 @@ function Trending() {
       >
         <div className="mx-auto max-w-4xl px-4 sm:px-6">
           <div
-            className="flex gap-2 overflow-x-auto py-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="flex gap-2 overflow-x-auto py-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_left,transparent,black_40px)]"
             role="tablist"
             aria-label="Filter by topic"
           >
