@@ -1,5 +1,37 @@
 # AGENTS.md — for every coding agent (Codex, Qwen, Claude, ...)
 
+## WAKE-UP (before answering ANYTHING beyond a greeting)
+
+This file is the ONLY file guaranteed to be in your context at session
+start. Everything else is a read you must choose to make. So, on every
+session start in this repo, before doing or answering anything else:
+**read `CLAUDE.md`.** If the operator's first message is a code word
+below, this is not optional.
+
+## Operator code words — recognize instantly, never treat as banter
+
+- `web10web10!` (any number of `!`s) → run the full ritual defined in
+  `CLAUDE.md` ("The `web10web10!!!` code word" section), in this order:
+  SHIP FIRST — gather the state of the world (dangling open PRs in ANY
+  workspace, not just this one; the dev batch), gate the batch and
+  promote dev→main + verify prod if it's clean (fix blocks if not) —
+  THEN plan — re-read the strategy stack, audit alignment
+  dead-honestly, audit bite-size parallelizability + give the Qwen
+  autonomy horizon, refactor planning docs IF needed — THEN emit
+  copy-pastable kickoff blocks. (This one command also covers the
+  retired `should we do it?` and `web10 gather up!` code words —
+  folded 27.07.)
+- `unbrick!` → a workspace BROKE (agent choked/stalled/burned it).
+  Deliberately separate from `web10web10!` — the fire alarm, not a
+  planning ritual. Triggered by the operator OR by D-night-owl (the
+  supervisor loop notices a bricked workspace and raises it). Diagnose
+  the failure CLASS and fix the SYSTEM (code/infra/tooling first; docs
+  are the fallback). Full ritual in `CLAUDE.md`'s `unbrick!` section.
+
+A code word is a command, not a greeting. If you are a large-context
+model and one of these arrives, run the ritual — do not reply with
+banter.
+
 Now read `CLAUDE.md`. Despite the name it is the orientation file for
 ALL agents working on this repo — architecture, security invariants,
 and working conventions. Everything there applies to you.
@@ -14,6 +46,23 @@ canonical brand assets (the files named `logo*.png` are NOT the
 logos — §3 names the real ones), the shared design tokens (§13), and
 the UI definition of done (§12: PR screenshots at desktop + 375px
 mobile, tokens-only colors, all states designed).
+
+## UI screens: the URL holds the state (deep links everywhere)
+
+Operator rule (26.07.2026): every screen and meaningful screen STATE
+in web10-social (and any user-facing app) must be reachable by URL —
+refresh restores it, back/forward work, and the link is shareable
+when the content is public or bookmarkable when it's private (a DM
+thread can't be opened by another user, but the owner bookmarking it
+must land back on that exact thread). When you ADD a page, a tab, a
+view toggle, a detail panel, or a lightbox: encode which one is open
+in the route or query string (react-router is already the stack —
+routes for screens, params/query for state like
+`/messages/:conversationKey?view=mail` or `/u/:username/p/:postId`).
+A screen whose state lives only in useState is a review rejection —
+the address bar is part of the product ("everything should be a deep
+hyperlink"). Auth-gated routes keep the intended destination through
+login and redirect after (the D-url-routing pattern, 1.0.155).
 
 ## Before starting ANY task: check it isn't already done
 

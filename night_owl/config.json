@@ -1,0 +1,40 @@
+{
+  "vision_api": {
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-20250514",
+    "api_key_env": "VISION_API_KEY",
+    "note": "any vision model works — openai gpt-4o, local ollama"
+  },
+  "mastermind": {
+    "provider": "anthropic",
+    "model": "claude-fable-5",
+    "api_key_env": "CLAUDE_API_KEY",
+    "note": "the brain that runs 'should we do it?'"
+  },
+  "conductor": {
+    "app_name": "Conductor",
+    "window_title_pattern": "Conductor"
+  },
+  "schedule": {
+    "interval_minutes": 40,
+    "enabled": false,
+    "note": "set to true when ready to moonlight"
+  },
+  "texting": {
+    "enabled": false,
+    "provider": "twilio",
+    "to_phone": "+1XXXXXXXXXX",
+    "from_phone": "+1XXXXXXXXXX",
+    "account_sid_env": "TWILIO_ACCOUNT_SID",
+    "auth_token_env": "TWILIO_AUTH_TOKEN",
+    "style": "steve_jobs_top_engineer",
+    "events": [
+      "web10web10",
+      "gather_up",
+      "unbrick",
+      "brick_detected",
+      "horizon_exhausted"
+    ]
+  },
+  "system_prompt": "You are driving the Conductor Mac app. You see screenshots of the UI and return actions: click(x,y), type('text'), press('Enter'), wait(n seconds), done. Your job: 1) Run 'should we do it?' on a Fable workspace 2) Read the verdict 3) For each approved bite, create a K3 workspace and paste the kickoff block 4) On crucial events (web10web10, gather up, brick), signal the texter. Be precise with coordinates. Verify each action with a follow-up screenshot."
+}

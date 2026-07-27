@@ -1803,6 +1803,14 @@ the boring plumbing social apps die without:
     /profile can. Full detail + suggested fix shape in
     .context/e2e-finding-public-ledger-mirror-dead.md. Not fixed here
     (e2e/** lane); re-open as a lane D + lane A item.
+    RE-OPENED (26.07 audit #4, verified still dead at HEAD): the lane D
+    half is D-ledger-mirror-fix (registerDefaultSchemas never called +
+    createPublicEntry sends the wrong body shape vs public.py — every
+    app-side mirror silently stubs), the lane A half is
+    A14-followers-count (/discover/users returns followers_count).
+    both in parallel execution.txt. until these merge, ALL real-account
+    social proof (follower counts, trending engagement) is theater —
+    persona-seeded numbers only.
 [ ] user profile media resolution (gauntlet step 6): viewing another
     user's profile always shows the default initial-letter avatar and
     gradient banner, even when the user has uploaded images.
@@ -2001,13 +2009,114 @@ navigation / surfaces (coming-soon stubs shipped; builds pending):
 [ ] marketplace -- creator commerce. stub live.
 
 messages -- three views, a toggle on the messages screen (operator idea):
-[x] view 1: current chat/DM list (shipped).
-[x] view 2: MAIL view -- the whole inbox rendered gmail-style (threads,
+[✓ 1.0.182] view 1: current chat/DM list (shipped).
+[✓ 1.0.182] view 2: MAIL view -- the whole inbox rendered gmail-style (threads,
     read/unread, preview) as a toggle.
-[x] view 3: CRM view -- notes + contact history per person, in-app, so
+[✓ 1.0.182] view 3: CRM view -- notes + contact history per person, in-app, so
     influencers remember who they reached out to. the web10-social CRM
     sub-app (here since 1.0.30) is the reference; this is a messages-only
     lens over the same contact/DM data.
+
+messages v2 -- the operator's 26.07 night pass on 1.0.182 (with
+screenshots; "these are the things that can give a platform flare" —
+the mail/crm lenses ARE the all-in-one-lens pitch made visible:
+"showing the robustness of web10 — you can make a mail app on the
+messages service, or a crm. it is a clinic on interoperable data."
+PITCH NOTE: the one-click chat→mail→crm flip over the SAME records is
+a demo-video beat — sovereignty made screenshot-able; no incumbent's
+data model can do it. generalizing lenses to feed/profile is parked
+in later.md "view lenses everywhere"):
+[ ] MAIL must actually be email: "that doesn't look like email! where
+    is the inbox, outbox, spam" — folders (Inbox / Sent / Spam), and
+    the thread view gets real email anatomy: Subject, Reply / Reply-all
+    / Forward, To/Cc/Bcc on compose, From/To header per message. new
+    fields are BODY fields on existing message records (conventions
+    addition, no api change); legacy DMs render fine without them.
+    lane item D-mail-experience (ws-D/messages).
+[ ] CRM parity with the ORIGINAL crm sub-app ("the crm is actually
+    better, more on target, but missing the status colors from the old
+    crm! should have all the features of that original crm — bin and
+    sort people"): color-coded contact status (the old green/yellow/red
+    priority + color filters — components/Crm/Crm.tsx, deleted #120,
+    reference in git; crm-contacts/crm-notes services still registered),
+    sort/filter by status, richer contact fields (email/phone/company/
+    links + free-form), contact CRUD from the view. lane item
+    D-crm-upgrade (ws-D/messages).
+
+shell:
+[ ] DEEP LINKS EVERYWHERE (operator, 26.07: "everything should be a
+    deep hyperlink on web10 social… every screen in the social app is
+    shareable, or saveable/bookmarkable if it is a private screen like
+    dms"): D-url-routing (1.0.155) gave the five top-level routes;
+    the STATE inside them still lives in useState. sweep every screen
+    so the URL holds the state: /messages/:conversationKey +
+    ?view=chat|mail|crm, /discover?tag=&q=, /profile?tab=posts|media,
+    /staging, post permalinks (/u/:username/p/:postId — shared with
+    D-feed-lightbox), and provider disambiguation on user routes
+    (identity is (username, provider) — decide the canonical shape at
+    implementation, keep /u/:username back-compat). the standing rule
+    for all FUTURE pages is now in AGENTS.md ("UI screens: the URL
+    holds the state") — new screens that don't encode state in the
+    URL are a review rejection. THE RATIONALE (operator): the funnel —
+    marketing /trending click-throughs redirect to those advanced
+    urls: click a post → the exact post on social; click a COMMENT →
+    the post opened AT that comment (comment anchor:
+    /u/:username/p/:postId?comment=<id>, scroll + highlight). "that is
+    the rationale, and makes it polished, aka killer." marketing-ui's
+    TrendingCard/comment-panel links upgrade as the routes land
+    (D-marketing-search + D-trending-link get the deep targets).
+    PRINCIPLE (operator, 26.07 — ten years on social media): shareable
+    links are how people get pulled in, and they build USER TRUST —
+    the incumbents degraded exactly this (instagram's login wall,
+    twitter's logged-out lockdown; the link opens, then a door slams).
+    web10's public layer is anon-readable by architecture, so the rule
+    is: A SHARED LINK TO PUBLIC CONTENT NEVER HITS A LOGIN WALL — it
+    opens, full quality, with joining as an invitation, not a ransom.
+    the link IS the demo. any agent adding an auth gate to a public
+    surface is breaking the funnel; private screens auth as they
+    always did.
+    lane item D-deep-links (ws-D/shell; cross-screen seam — stage
+    after the current fleet drains).
+[ ] SETTINGS TAB (operator, 26.07): "web10 social doesn't have a
+    settings tab, should be a settings tab, facebook style." v0 =
+    account section, posting defaults (default visibility), data/
+    ownership explainer + terms-editor link, about/version/report-bug;
+    full facebook-style tree proposed in .context for sign-off first.
+    settings persist as an ordinary owner-only `settings` record.
+    lane item D-settings-tab (ws-D/settings).
+
+feed / lightbox (operator, 26.07 night pass, screenshots):
+[ ] FEED POSTS AREN'T CLICKABLE — "can't click the posts in the feed to
+    make them big, only on my profile." clicking any feed post should
+    open the same lightbox the profile grid got in 1.0.170/1.0.180.
+    on someone ELSE's post the owner actions (edit/delete) are hidden —
+    "but should be share post! kind of a function": a Share action for
+    every post (navigator.share + copy-link fallback, the
+    D-trending-share pattern) copying a deep link that opens the post.
+    lane item D-feed-lightbox (ws-D/feed).
+[ ] LIGHTBOX MEDIA SIZING — "maybe they can be bigger? or some kind of
+    proper resizing to make it look right": the lightbox renders media
+    small with dead space around it. media-first sizing: scale the
+    modal to the media (up to ~90vh/vw), aspect-aware, no letterbox
+    voids. lane item D-lightbox-media-sizing (ws-D/profile,
+    PostLightbox seam).
+[ ] TEXT-ONLY POST TREATMENT — "something more creative and artistic
+    with the background with text only posts" (screenshot: a text post
+    renders as a huge empty dark cell with tiny top-left text). give
+    text-only posts the text-on-generated-background pattern: centered,
+    scaled type on a deterministic gradient/texture derived from the
+    post id (stable per post, picked from design.md token-based
+    palettes — never hardcoded colors), applied in the profile grid
+    cell, the feed card, and the lightbox. one shared component so all
+    three surfaces agree. PLUS author choice (operator follow-up):
+    "maybe some choice of background styles or formatting — facebook
+    has a markdownesque formatter for text only posts, center, left
+    align, that kind of stuff" — the composer gets a background-style
+    picker (the deterministic one stays as the default) and light
+    formatting controls (align center/left, maybe bold/emphasis),
+    persisted as body fields on the post record so every surface
+    renders the author's choice. lane item D-text-post-cards
+    (ws-D/profile, shared-component seam).
 
 posts / profile -- controls the operator found missing:
 [✓ 1.0.178] delete a post (owner action, on the wall + in the lightbox).
@@ -2044,6 +2153,114 @@ posts -- rich content (operator, 26.07):
     thin. embeds render everywhere post text renders: feed, profile
     grid/lightbox, dm bubbles.
 
+search (operator, 26.07: "the one thing we are really missing now is
+search! searching by tag, even on the marketing page — youtube-esque,
+an entry point into web10 social, if you could search from the
+marketing ui!"):
+[ ] PUBLIC SEARCH on marketing-ui — a search bar on /trending (+ the
+    site header) over the public corpus: posts by text, #tag, and
+    users, backed by the discovery API that already ships (A5.5:
+    PATCH /discover/search, /discover/topics, /discover/users — verify
+    the endpoints' current shapes before building). results render in
+    the trending grid's card language; every result deep-links INTO
+    web10-social (/u/:username, post links once D-feed-lightbox's
+    permalink route exists) — search IS the funnel. lane item
+    D-marketing-search (ws-D/marketing).
+[ ] in-app search parity note: DiscoverScreen's existing search (if
+    any) gets audited against the same corpus in the same pass —
+    "search your own stuff" stays a separate low-hanging-fruit item
+    (gauntlet follow-on list, top of this file).
+
+showcase app (operator, 26.07: "showing the web10 social network as a
+web, like an app outside of web10 social — graph.web10.app, something
+wooshy — is great marketing, because it is an app interoperating on
+web10 data… one outside analytical app on top of your social data"):
+[ ] THE GRAPH APP — a standalone, anon-first visualization of the
+    node's social graph: users as nodes, follows as edges, force-
+    directed and wooshy (drag, zoom, watch it breathe), click a node →
+    that user's /u/:username deep link. THE POINT is the pitch: a
+    separate app interoperating on web10 data — the existence proof
+    for "apps are just lenses" from OUTSIDE the flagship (the
+    wordpress-flywheel claim made visible; pairs with the messages
+    lens toggle as demo-video beats). two modes (operator: "it could
+    render your personal graph, not public necessarily only!"):
+    (1) anon node view — the PUBLIC follow ledger only (D34, already
+    anon-queryable) + /discover/users for avatars/names; never
+    private data here. (2) MY GRAPH, signed-in — the app walks the
+    normal consent flow, takes a SCOPED token to your own follows
+    (+ contacts if consented) and renders your ego graph client-side,
+    nothing published: the third-party-app contract (consent → scoped
+    read → lens, I5) demonstrated live, which is the deeper interop
+    proof. FRAMING (operator): the global graph is the entry point;
+    "SEE YOUR GRAPH" is the hero CTA — "more than facebook ever let
+    you in on." explain the interop story in-product (the truth-
+    telling popover pattern) + one docs paragraph, manifesto voice,
+    written once and reused.
+[ ] SOCIAL ANALYTICS, chess.com-style (operator, 26.07): the second
+    outside-app beat — ranked analytics on your social data: your
+    followers/engagement/growth, you vs your friends, you vs the top
+    creators, percentiles and leaderboards, computed client-side from
+    public data under your own scoped token. "your number is real
+    here" as a dashboard. lane item D-social-analytics
+    (ws-D/marketing, after D-graph-app).
+    hosting: v0 ships as a marketing-ui route (/graph) to avoid new
+    vhost/compose churn; graph.web10.app becomes its own vhost when it
+    earns it (lane E touch then, not now). gate: D-ledger-mirror-fix —
+    until real follows mirror, the graph renders seeded personas only
+    (fine for the demo, say so honestly in the empty state). lane item
+    D-graph-app (ws-D/marketing, after D-marketing-search).
+
+join page — the steps grow (operator, 26.07, screenshot of the
+1.0.178 two-step strip: "i really like this dora the explorer what
+steps to complete! it should be more!"):
+[ ] extend the numbered steps to the full onboarding path — the Rise
+    arc as a checklist: get the app → create your account → set up
+    your monetization (deep link to the Studio money screen in the
+    authenticator) → post to the feed. each step links where it
+    actually happens. lane item D-join-steps-extend (ws-D/marketing).
+
+app store revamp (operator, 26.07, screenshot: "would be nice if it
+was all just apps… i actually liked the old app store, where they
+really really really looked like apps. web10 social is the flagship,
+and the authenticator — we don't need to plug them so hard, they will
+naturally get landed on… this is like the apple app store,
+PREMMIUMMM!!!!!"):
+[ ] EVERYTHING IS AN APP — kill the FLAGSHIP hero card and the
+    abstract "On web10" feature cards; first-party apps (social,
+    authenticator/node console, importer) get the SAME icon-forward
+    card as every registered app: real app icon, name, one-liner,
+    visit count, Open. prominence comes from the visit-count sort,
+    not editorial banners (the store doesn't rig itself — same trust
+    story as the no-algorithm feed). premium bar: apple-app-store
+    feel — big rounded icons, generous spacing, crisp type, hover
+    lift, all design.md tokens. first-party apps need REAL icons
+    (design.md §3 brand assets, not lucide glyphs). lane item
+    D-appstore-revamp (ws-D/marketing).
+[ ] V2, the product page: click an app → big logo, description, and
+    COMMENTS/reviews (D32 public-ledger entries targeting the app id
+    — the machinery post comments already use; federated review
+    aggregation explicitly deferred to M3). AND the registration
+    rewire (operator): app registrations move onto the same public
+    data plane as everything else (an `App` schema in the registry,
+    discovery-indexed), with listing metadata as NODE-HOSTED records
+    — approval attaches to a metadata VERSION, any listing change
+    (a new pwa thumbnail, say) re-enters review; the store never
+    auto-pulls assets from the app's origin. moderation by
+    architecture; lane A spec note before v2 builds (see the
+    D-appstore-revamp lane item).
+
+engagement-count accuracy (operator, 26.07, screenshot: a post's badge
+says 3 comments while the expanded panel renders more than that):
+[ ] the discovery index's CACHED like/comment counts disagree with
+    what the comment panel actually renders — the badge reads the
+    index's engagement aggregation (documentdb.py, cached at index/
+    aggregation time), the panel reads live ledger entries. audit what
+    each path counts (action values, dedup, edits/deletes) and when
+    the cache refreshes; make them agree or refresh-on-read. related
+    but distinct: real-account interactions don't mirror AT ALL
+    (D-ledger-mirror-fix) — this item is the seeded/ledger data
+    agreeing with itself. lane item A15-engagement-count-accuracy.
+
 bug reports -> the operator (operator idea):
 [✓ 1.0.181] route "Report a bug" submissions to the operator instead of dying in
      memory. TODAY: ReportBug (web10-social) POSTs marketing-api /feedback,
@@ -2055,9 +2272,27 @@ bug reports -> the operator (operator idea):
      searchable, and engageable on web10-social. The post delivery is
      opt-in via `NODE_API_URL` + `NODE_API_TOKEN` env vars (fire-and-forget,
      logged on skip/failure). When unset, the report still persists to disk.
+     HONESTY + PRIVACY NOTE (26.07 audit #4): what shipped is option (c)
+     — public posts — which was NOBODY's named option (the item said DM
+     to the operator, the fallback was an operator-only panel); operator
+     to confirm or redirect. And the public post INCLUDES THE REPORTER'S
+     CONTACT INFO (_format_bug_post appends `Contact: ...` into an
+     anon-readable, discovery-indexed post) — a PII leak on the platform
+     whose manifesto says "nobody is mining you." fix filed as
+     D-feedback-contact-privacy (parallel execution.txt, ws-D/feedback):
+     contact/user_agent never enter the public body; they stay in the
+     disk store the operator reads.
 
 known gaps confirmed this session (see CHANGELOG 1.0.169-1.0.174):
-[✓ 1.0.178] PRIORITY — public discoverability is still broken for real accounts
+[✓ 1.0.178] PRIORITY — public discoverability is still broken for real accounts.
+    RUN-IT NOTE (26.07 late, operator screenshot: his real public post
+    absent from /trending Newest on the deployed app): 1.0.178 ships
+    the fix as code + ADMIN ENDPOINTS (POST /admin/discovery/
+    migrate_terms + /admin/discovery/backfill) — merging does NOT run
+    them. Existing accounts (the operator's included) stay
+    undiscoverable on dev/prod until the migration + backfill are
+    EXECUTED per environment after deploy. filed as lane item
+    E-run-discovery-migration (ops, needs an admin token).
      (A13-discovery-terms in parallel execution.txt, LANE A). 1.0.171
     fixed HALF: service_allows_anon now matches the app's `.*` anon-read
     whitelist by regex (was an exact "anon" compare). The remaining half:
@@ -2412,6 +2647,47 @@ deplatformed + payment-rail-burned segment alive):
     story. never market as "sfw onlyfans" (fanhouse/oftv died
     fighting that brand); market ownership, let the phase 4
     membership mechanics quietly BE the onlyfans economics.
+
+consent-contract abuse (operator, 26.07 — the bait-and-switch class,
+generalized from the app-store listing loophole: "new contracts asking
+for everything… security by flashing red danger in the auth app,
+telling the user don't accept — even blocking them until they hit
+proceed anyways, protecting them"). ROADMAP ONLY — operator: "this
+doesn't need to be soon, this is down the line, just talking about
+it." filed so the thinking isn't lost; NOT staged on any board, no
+lane item — stage it when the app ecosystem is real (M2+). lane B
+(the authenticator consent surface) when it comes. RISK-TIERED,
+explicitly NOT for every app or every contract (operator) — the
+ordinary consent flow stays frictionless:
+[ ] tier 1, unknown app: the requesting app isn't approved by THIS
+    node's admin in the app-store registry, AND no federated node the
+    operator trusts has approved it either ("this app isn't approved
+    by the admin on the app store, or another node federated hasn't
+    approved it" — approval travels the trust graph, an M3-flavored
+    web-of-trust detail; single-node v0 checks only the local
+    registry) → a modest caution treatment on the consent screen
+    ("a little flashing") — informative, not blocking.
+[ ] tier 2, scope escalation: the app HAS prior granted terms and the
+    new SMR asks for meaningfully more (new services, read→write/all,
+    wildcard identities) → show the DIFF prominently ("this app had
+    X, now wants Y") in danger styling.
+[ ] tier 3, hallmark-malicious shapes: a contract asking for
+    everything (broad wildcards across many services, all-permissions,
+    star-adjacent reach) → full red-flashing danger interstitial that
+    BLOCKS until an explicit "proceed anyway" — the user is protected
+    by default and sovereign on override. UX reference (operator): the
+    macOS GATEKEEPER pattern — the sketchy-download dialog has no
+    bypass button; "Open Anyway" lives in Settings → Privacy &
+    Security. same here: the danger screen itself offers only
+    decline; the override lives in the authenticator's own
+    settings/security page ("allow this app anyway"). the RELOCATION
+    is the security — a user following a phisher's script has to
+    break momentum and navigate elsewhere on purpose.
+    design note: the risk heuristics are simple shape checks on the
+    SIR list (count of services × permission breadth × wildcard use ×
+    diff vs existing terms), not an ML thing. pairs with the
+    D-appstore-revamp v2 registration rewire (versioned, node-hosted
+    listings — the store registry is what tier 1 checks against).
 
 operator legal kit (part of the white-label product):
 [ ] tos + privacy policy templates per node
@@ -3031,3 +3307,47 @@ phasing:
   become drop-in contracts for free. candidate to promote into phase 6
   alongside the update-widening work (same write path, same philosophy:
   flexibility with a violation check).
+
+PHASE 13 — night_owl (the AI team that moonlights so you don't have to)
+----------------------------------------------------------------------
+the 10x operator leverage: you stop orchestrating. you're in the back,
+giving two points on SMS. the fleet runs itself.
+
+the supervisor loop runs every 40 minutes on your Mac (Hammerspoon +
+AI vision). it screenshots Conductor, an AI agent sees the UI and
+drives it — creates workspaces, sends prompts, reads results, kicks
+off K3 bites. on crucial moments (web10web10, gather up, brick), it
+texts you like your top engineer.
+
+architecture: night_owl/ lives in the repo. Hammerspoon init.lua is the
+entry point. conductor_agent.lua handles screenshot → AI vision →
+click/keystroke pipeline. texter.lua fires SMS on crucial events.
+config.json holds API keys, phone numbers, schedule.
+
+the AI is the eyes — it adapts to UI changes. no hardcoded coordinates.
+each click is ~5-10s (screenshot → AI → response → click). a 5-step
+workflow takes a minute. fine for a 40min cycle.
+
+the long game: from manual conductor.build → Fable supervisor →
+night_owl autonomous fleet. you wake up to PRs merged, prod shipped,
+and a text: "12 PRs landed overnight. all green. ready for next round."
+
+[ ] night_owl scaffold: Hammerspoon config, AI vision pipeline, texter
+      (scaffolded in night_owl/ — init.lua, conductor_agent.lua,
+      texter.lua, config.json, README.md). acceptance: Cmd+Opt+Ctrl+C
+      triggers a manual cycle that screenshots Conductor and returns
+      valid actions from the AI.
+[ ] night_owl conductor pilot: the AI can navigate Conductor — find
+      the new workspace button, select a model, type a prompt, hit
+      enter, read the result. acceptance: one full cycle: screenshot →
+      AI creates a test workspace → AI types a prompt → AI reads the
+      response → text confirms.
+[ ] night_owl supervisor loop: the full "should we do it?" pipeline —
+      Fable runs the audit, K3 workspaces are created for each bite,
+      progress is tracked across cycles. acceptance: one end-to-end
+      cycle completes without human intervention.
+[ ] night_owl texting: crucial events fire SMS. acceptance: a simulated
+      web10web10 event texts the operator in the Steve Jobs top engineer
+      style.
+[ ] night_owl 24/7: scheduler enabled, fleet runs overnight. acceptance:
+      wake up to merged PRs and a summary text.
