@@ -1008,15 +1008,20 @@ class TestSignupProvisionsPublicPostsTerm:
             form_data = MagicMock(username="newuser", password="pass", phone="+1234")
             db_module.create_user(form_data, lambda p: "hashed")
 
-        # Should have inserted 2 records: star + services + public_posts
-        assert mock_col.insert_one.call_count == 3
+        # Should have inserted: star + services + public_posts + 5 core terms = 8
+        assert mock_col.insert_one.call_count == 8
         calls = [c.args[0] for c in mock_col.insert_one.call_args_list]
         services = [c for c in calls if c.get("service") == "services"]
-        # One is the general services record, one is the public_posts term
+        # One is the general services record, one is the public_posts term, five are core terms
         public_posts_calls = [c for c in services if c.get("body", {}).get("service") == "public_posts"]
         assert len(public_posts_calls) == 1
         body = public_posts_calls[0]["body"]
         assert body["whitelist"] == [{"username": ".*", "provider": ".*", "read": True}]
+        core_services = {c.get("body", {}).get("service") for c in services if c.get("body", {}).get("service")}
+        core_services.discard("services")
+        core_services.discard("public_posts")
+        core_services.discard("*")  # star record also wrapped by to_db mock
+        assert core_services == {"follows", "inbox", "reactions", "comments", "dms"}
 
 
 # ---------------------------------------------------------------------------
@@ -1408,3 +1413,88 @@ class TestAdminBoardModeration:
         resp = client.patch("/discover/post/alice/public_posts/p1")
         # a removed post is indistinguishable from a nonexistent one
         assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Core services terms migration (follows persistence fix)
+# ---------------------------------------------------------------------------
+
+
+class TestMigrateFollowsTerms:
+    """Provision core app service terms for existing accounts."""
+
+    def test_migrates_accounts_without_terms(self):
+        """Accounts without core service terms should get them created."""
+        mock_alice_col = MagicMock()
+        mock_alice_col.find_one.return_value = None
+
+        def _getitem(key):
+            return mock_alice_col if key == "alice" else MagicMock()
+
+        with (
+            patch.object(db_module.db, "list_collection_names", return_value=["alice"]),
+            patch.object(db_module.db, "__getitem__", side_effect=_getitem),
+            patch.object(db_module, "to_db", side_effect=lambda d, s: {"service": s, "body": d}),
+        ):
+            result = db_module.migrate_follows_terms()
+
+        # 5 core services × 1 account = 5 inserts
+        assert result["migrated"] == 5
+        assert result["skipped"] == 0
+        assert mock_alice_col.insert_one.call_count == 5
+
+    def test_skips_accounts_with_existing_terms(self):
+        """Accounts that already have a term should be skipped."""
+        mock_alice_col = MagicMock()
+        mock_alice_col.find_one.return_value = {"_id": "x", "body": {"service": "follows"}}
+
+        def _getitem(key):
+            return mock_alice_col if key == "alice" else MagicMock()
+
+        with (
+            patch.object(db_module.db, "list_collection_names", return_value=["alice"]),
+            patch.object(db_module.db, "__getitem__", side_effect=_getitem),
+        ):
+            result = db_module.migrate_follows_terms()
+
+        # All 5 services exist → all skipped
+        assert result["skipped"] == 5
+        assert result["migrated"] == 0
+        mock_alice_col.insert_one.assert_not_called()
+
+    def test_partial_migration(self):
+        """If some terms exist and others don't, only missing ones are created."""
+        mock_alice_col = MagicMock()
+        # The actual query is {"service": "services", "body.service": svc}
+        def find_one_side_effect(query):
+            if query.get("body.service") == "follows":
+                return {"_id": "x", "body": {"service": "follows"}}
+            return None
+
+        mock_alice_col.find_one.side_effect = find_one_side_effect
+
+        def _getitem(key):
+            return mock_alice_col if key == "alice" else MagicMock()
+
+        with (
+            patch.object(db_module.db, "list_collection_names", return_value=["alice"]),
+            patch.object(db_module.db, "__getitem__", side_effect=_getitem),
+            patch.object(db_module, "to_db", side_effect=lambda d, s: {"service": s, "body": d}),
+        ):
+            result = db_module.migrate_follows_terms()
+
+        assert result["migrated"] == 4  # inbox, reactions, comments, dms
+        assert result["skipped"] == 1  # follows
+        assert mock_alice_col.insert_one.call_count == 4
+
+    def test_skips_system_collections(self):
+        """System collections (web10.*) should not be processed."""
+        with (
+            patch.object(
+                db_module.db, "list_collection_names", return_value=["web10.discovery_posts", "web10.public"]
+            ),
+        ):
+            result = db_module.migrate_follows_terms()
+
+        assert result["migrated"] == 0
+        assert result["skipped"] == 0

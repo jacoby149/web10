@@ -220,6 +220,14 @@ async def admin_discovery_backfill(req: Token):
     return db.backfill_discovery()
 
 
+@router.post("/admin/discovery/migrate_follows_terms", include_in_schema=False)
+async def admin_discovery_migrate_follows_terms(req: Token):
+    """Provision core app service terms (follows, inbox, reactions, comments,
+    dms) for every existing account that lacks them. Admin only. Idempotent."""
+    check_admin(req)
+    return db.migrate_follows_terms()
+
+
 # --- Discovery board moderation (admin only) ---
 
 
