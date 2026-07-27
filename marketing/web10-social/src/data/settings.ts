@@ -23,8 +23,9 @@ export async function readSettings(): Promise<AppSettings> {
   const records = await wapi.read<Record<string, unknown>>(SERVICE);
   const record = records[0];
   if (!record) return defaultSettings;
+  const body = record.body as Record<string, unknown> | undefined;
   cachedSettings = {
-    defaultVisibility: (record.body?.defaultVisibility as AppSettings['defaultVisibility']) || defaultSettings.defaultVisibility,
+    defaultVisibility: (body?.defaultVisibility as AppSettings['defaultVisibility']) || defaultSettings.defaultVisibility,
   };
   return cachedSettings;
 }
@@ -32,7 +33,8 @@ export async function readSettings(): Promise<AppSettings> {
 export async function saveSettings(settings: Partial<AppSettings>): Promise<AppSettings> {
   const wapi = getWapi();
   const records = await wapi.read<Record<string, unknown>>(SERVICE);
-  const current = records[0]?.body || {};
+  const body = records[0]?.body as Record<string, unknown> | undefined;
+  const current = body || {};
   const merged = { ...current, ...settings };
 
   if (records.length > 0) {
