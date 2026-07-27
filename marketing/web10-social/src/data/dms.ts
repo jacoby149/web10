@@ -321,22 +321,3 @@ export async function getLastDm(conversation: string): Promise<DmRecord | null> 
   const messages = await readDms(conversation);
   return messages[messages.length - 1] || null;
 }
-
-/**
- * Classify a conversation into a mail folder based on the last message
- * direction and spam flags.
- * - "spam" if the other user is spam-flagged
- * - "sent" if the last message was sent BY the current user
- * - "inbox" otherwise (last message received FROM the other user)
- */
-export function classifyThread(
-  lastMsg: DmRecord | null,
-  myKey: { provider: string; username: string },
-  otherSpamFlagged: boolean,
-): 'inbox' | 'sent' | 'spam' {
-  if (otherSpamFlagged) return 'spam';
-  if (!lastMsg) return 'inbox';
-  const senderKey = `${lastMsg.sender_provider}/${lastMsg.sender_username}`;
-  const meKey = `${myKey.provider}/${myKey.username}`;
-  return senderKey === meKey ? 'sent' : 'inbox';
-}
