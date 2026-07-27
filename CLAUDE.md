@@ -128,31 +128,75 @@ touches auth, the DB layer, or tokens, run those tests and keep them green.
 
 When the operator says `web10web10!` (any number of `!`s), it is addressed
 to a strong, large-context model (Claude-class). Small-context agents can
-ignore this section. It means: run the full plan-alignment pass, refactor
-if needed, THEN hand out parallel work. In this order — the audit comes
-before the kickoff blocks, always:
+ignore this section. It means: run the full ritual — SHIP FIRST (gate the
+dev batch and promote if clean, the old `web10 gather up!`), THEN plan
+(audit alignment + Qwen runway, the old plan-alignment pass and
+`should we do it?`), THEN hand out parallel work. You cannot plan
+honestly against an unpromoted or broken batch, so the ship gate comes
+before the audits, and the audits come before the kickoff blocks —
+always (this one command absorbs the retired `should we do it?` and
+`web10 gather up!` — one ritual, not three. `unbrick!` stays SEPARATE:
+it is the fire alarm, not a planning ritual — D-night-owl is the smoke
+detector that triggers it when a workspace stalls/bricks):
 
-1. **Re-read the strategy stack.** `plan.txt` (THE STORY at the top + the
-   current priority block), `manifesto.md`, `outreach.md`, `timeline.md`,
-   recent `decisions.md`, the lane queues + CURRENT CONDUCTOR BOARD in
-   `parallel execution.txt`, and the top ~10 entries of `CHANGELOG.md`.
-2. **Audit alignment — dead honest, no cheerleading.** Is the plan still
+1. **Gather the state of the world.** `git fetch`; read `plan.txt`
+   (THE STORY at the top + the current priority block), `manifesto.md`,
+   `outreach.md`, `timeline.md`, recent `decisions.md`, the lane queues
+   + CURRENT CONDUCTOR BOARD in `parallel execution.txt`, and the top
+   ~10 entries of `CHANGELOG.md`. PLUS the two live-state scans the
+   docs alone can't give you:
+   - **Dangling PRs:** `gh pr list --state open` — every open PR in ANY
+     workspace, not just this one. For each: how old, mergeable or
+     conflicting, checks green or red, does it duplicate/conflict with a
+     board item? A red, stale, or conflicting open PR makes kickoff
+     blocks lie about gates — name each one in the report (fix, close,
+     or flag for the operator), never silently work around it.
+   - **The dev batch:** `git log --oneline origin/main..origin/dev` +
+     `gh pr list --base dev --state merged` — what's merged to `dev`
+     but not yet shipped, for the gate in step 2.
+2. **Gate the dev batch, and SHIP it if clean** (the absorbed
+   `web10 gather up!` — the full rules live in their own section below
+   under "The dev-batch gate + dev→main promotion", which this step
+   executes): read the batch diffs, hunt for really-broken only
+   (invariants I1–I5, auth/DB regressions, star protection, red checks,
+   seam collisions between merged PRs, design.md flunks, missing
+   CHANGELOG/lane ticks — style nitpicks are NOT findings). If broken:
+   emit paste-ready fix kickoff blocks and DO NOT promote (unless the
+   operator explicitly overrides — then restate what is broken first,
+   in one line). If clean: say so plainly, promote dev→main with a
+   MERGE COMMIT (never squash), watch deploy-prod + cd until actually
+   green, verify prod live via the public slice of
+   `ubuntu-deployment/scripts/smoke.sh`, and report what prod now
+   serves.
+3. **Audit alignment — dead honest, no cheerleading.** Is the plan still
    aligned with the business (social platform first, protocol second —
    D20) and with the manifesto's promises? On target against
    `timeline.md`? Anything on the board that reads as an infra company
    rather than a social platform gets flagged for parking. Concede to
    evidence; don't re-litigate settled decisions (`decisions.md`).
-3. **Audit parallelizability for small-window agents.** The workhorse
+4. **Audit parallelizability for small-window agents.** The workhorse
    agents are Qwen-class: ~27B, 256k context, sharp (olympiad-level),
    multimodal (they CAN look at app screenshots — use that in acceptance
    bars). They cannot hold plan.txt + CHANGELOG + a whole lane file at
    once. Check every board item: self-contained? names exact files?
    gates and seams explicit? one sub-lane, no shared-seam collisions?
-4. **Refactor IF needed.** Docs-only changes to `plan.txt` /
+   Include the **board inventory + autonomy horizon** (this absorbs the
+   retired `should we do it?` command): count `[ ]` vs `[~]` vs `[✓]`,
+   how many bites remain before the next gate, and whether each open
+   bite can be picked up WITHOUT coordination. Then give an explicit
+   verdict in the report: "Qwens can run independently — horizon is ~X
+   PRs before the next intervention" or "No — here are the markdown
+   fixes that extend the horizon." The long-term strategy is use the
+   strong model less, Qwens more: sharper tasks upfront (more bite-
+   splits, exact file lists, one acceptance check) beat interventions
+   after a brick. Each Qwen PR costs far less than a mastermind pass,
+   so markdown that buys independence is a win even when it means more
+   markdown.
+5. **Refactor IF needed.** Docs-only changes to `plan.txt` /
    `parallel execution.txt` / this file, changelog entry, PR to dev per
    `AGENTS.md`. If nothing needs changing, say so plainly and don't churn.
-5. **Then produce copy-pastable kickoff blocks**, one per Conductor
-   workspace, per the spec below. Not before steps 1-4. ~5 is the
+6. **Then produce copy-pastable kickoff blocks**, one per Conductor
+   workspace, per the spec below. Not before steps 1-5. ~5 is the
    default width, but the number is whatever the board actually
    supports: fewer if fewer items are truly parallel-safe, more if the
    lanes are wide open.
@@ -195,14 +239,19 @@ window is for code, not prose.
   oversized items get split — a `web10web10!` that emits un-bitten
   blocks has skipped its own step 3.
 
-## The `unbrick!` code word (operator → strong model)
+## The `unbrick!` code word (operator or night-owl → strong model)
 
-When the operator says `unbrick!`, it is addressed to a strong,
-large-context model (Claude-class). Small-context agents can ignore
-this section. It means: **a workhorse agent (Qwen-class) choked,
-bricked, or burned a workspace on a task — turn that failure into a
-process fix so it cannot recur.** The operator describes the task,
-what the agent did (error, stall, wrong turn), and roughly why. Then:
+`unbrick!` is deliberately NOT part of `web10web10!`: it is the fire
+alarm, not a planning ritual. It fires when a workspace BREAKS — a
+workhorse agent choked, bricked, stalled, or burned a workspace on a
+task. The trigger is either the operator describing the failure (the
+task, what the agent did, roughly why) or **D-night-owl** (parallel
+execution.txt, lane ws-E/infra): the supervisor loop watches Conductor,
+notices a stalled/looping/errored workspace, and raises `unbrick!`
+itself — that detection-and-trigger path is a night-owl acceptance
+criterion, so build it in when night-owl lands. The goal is the same
+either way: **turn the failure into a process fix so it cannot recur.**
+Then:
 
 1. **Diagnose the failure CLASS, not the instance.** Was it context
    overflow (item too big / too many files named)? A missing gate
@@ -250,58 +299,14 @@ bloat chokes small windows exactly like big tasks do); if the same
 class bricks twice, the previous fix was wrong — replace it, don't
 stack another rule on top.
 
-## The `should we do it?` command (operator → strong model)
+## The dev-batch gate + dev→main promotion (executed as `web10web10!` step 5)
 
-When the operator says `should we do it?`, it is addressed to a
-strong, large-context model (Claude/Fable — the mastermind). It
-means: **can the Qwen fleet run independently longer, and how can
-the mastermind self-improve the markdowns to make that happen?**
-This is not just a status check — it is coaching the mastermind to
-be a more efficient manager of the Qwens. The question is: is the
-mastermind writing tasks in a way that maximizes Qwen independence,
-clarity, and throughput? If the markdowns are better — more steps,
-more independence, more clarity for Qwen — that is a win even if it
-means more markdown, because each Qwen PR costs far less than a
-mastermind intervention.
-
-The goal: milk more independent throughput from the efficient Qwen
-workhorses to reduce reliance on costly strong-model rituals like
-`web10web10!` and `web10 gather up!`. The long-term strategy: use
-Fable less, Qwen more. If we get 2x independent horizon from the
-Qwens, that's the total beast scenario (and soon switching to Kimi
-K3 from Moonshot for 3x savings on top).
-
-1. **Scan the board.** Read `parallel execution.txt` — how many
-   items are `[ ]` vs `[~]` vs `[✓]`? How many bites remain before
-   the next gate? Are gates clear or blocked?
-2. **Assess Qwen autonomy.** Can the current open bites be picked up
-   by Qwen agents without coordination? Are seams isolated? Are
-   acceptance bars clear? Or is a `web10web10!` needed to unblock
-   or re-align?
-3. **Self-improve the markdowns.** This is the core. Look at every
-   open item through Qwen's eyes: is the task description digestible
-   for a 27B model? Does it name exact files? Are gates explicit? Is
-   the acceptance bar one check, not five? If an item would benefit
-   from more bite-splits, sharper file lists, or clearer gates, the
-   mastermind should propose those markdown improvements — more steps
-   and more independence is a win if each step is clearer for Qwen.
-   The `unbrick!` code word helps structurally, but `should we do
-   it?` is about the mastermind writing better tasks upfront so
-   Qwen doesn't brick in the first place.
-4. **Give a verdict.** "Yes, Qwens can run independently — here's
-   the horizon (X PRs before next intervention)" OR "No — the
-   markdowns need improvement first; here are the specific fixes to
-   parallel execution.txt / kickoff blocks that will extend the
-   horizon." Include estimated horizon either way.
-
-## The `web10 gather up!` code word (operator → strong model)
-
-When the operator says `web10 gather up!`, it is addressed to a strong,
-large-context model (Claude-class). Small-context agents can ignore this
-section. It means: **quality-gate the dev batch, and if it's clean, SHIP
+This section was the standalone `web10 gather up!` code word; it is now
+step 5 of the single `web10web10!` ritual (folded 27.07 — one command,
+not three). It is kept verbatim because the ship rules here are
+load-bearing. **Quality-gate the dev batch, and if it's clean, SHIP
 IT — promote dev→main and verify prod is actually live.** Two halves, in
-order: the audit (steps 1–4), then the promotion (steps 5–7). This is
-not a plan audit (that's `web10web10!!!`).
+order: the audit (steps 1–4), then the promotion (steps 5–7).
 
 1. **Gather the batch.** `git fetch`, then `git log --oneline
    origin/main..origin/dev` for the commit list and `gh pr list --base dev

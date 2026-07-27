@@ -542,6 +542,52 @@ LANE C — greenfield services  (owns: sdk/, mcp/, new dirs)
       confirmUpload, upload (presigned POST + confirm), and getReadUrl
       (presigned GET exchange + expiry-aware cache) matching the
       contract the web10-social wrapper lands in D23. small; no gate.
+  [ ] C8-stripe-twilio-test-keys-e2e (lane C, e2e/** + compose; operator,
+      27.07: "we aren't testing with stripe test api keys / twilio test
+      api keys in any kind of e2e tests — we could use test keys!").
+      VERIFIED GAP at HEAD: api/tests/test_stripe.py + test_twilio.py
+      are pure-logic unit tests (helpers + TwiML strings, everything
+      mocked — zero real API calls), and e2e/ has no stripe/twilio
+      presence at all, so the MONEY path (dev pay, the memberships
+      rails the M2 gate depends on) and the SMS path (signup verify,
+      password recovery) have no end-to-end referee. the groundwork
+      exists: settings.py already has STRIPE_STATUS + STRIPE_TEST_KEY
+      — nothing ever flips it in a test env. build:
+      (1) STRIPE TEST-MODE E2E: the e2e compose stack runs the api
+          with STRIPE_STATUS=test + a sk_test key from CI secrets
+          (GitHub Actions secret, never in git — same pattern as
+          DEPLOY_SSH_KEY). playwright journey: a fan subscribes to a
+          creator's membership (stripe test card 4242...), the sub
+          lands, the connect transfer carries amount_percent (the 3%
+          rail — assert the split, that's the business model), and
+          cancel stops access. webhook signature verification gets a
+          real test (stripe-cli forward or a signed test payload),
+          because that's the production failure class mocking hides.
+      (2) TWILIO HONEST HALF: twilio test credentials only validate
+          auth + request shape (magic numbers +15005550006 valid /
+          +15005550001 invalid) — they never deliver SMS. e2e asserts
+          the api's verify/recovery endpoints call twilio with the
+          right shape against test creds; the actual SMS delivery
+          stays a documented manual pre-launch check (write it in the
+          test file header so nobody thinks the green check means
+          delivered texts).
+      files: e2e/** (new payments spec + sms spec), e2e/docker-
+      compose.yml (env wiring), .github/workflows/e2e.yml (secrets —
+      workflow file = wave-0/ws1 territory, fine), api/ untouched
+      (STRIPE_STATUS toggle already exists; if a code gap appears,
+      .context/ note for lane A, don't reach in).
+      acceptance: the payments journey runs green in CI against REAL
+      stripe test mode (no mocks); the 3% split is asserted; twilio
+      endpoints validated against test creds; zero secrets in the
+      repo; e2e suite stays green. gate: stage with the M2-prereq
+      block (memberships before creator #1 — ON DECK in the board) —
+      not part of the current gauntlet fleet, but the compose/CI
+      wiring (bite a) can land anytime.
+      BITES (rule 5): bite a, WIRING — e2e compose flips STRIPE_STATUS
+      + secrets plumbing + a trivial sk_test smoke assertion (api
+      reaches stripe test mode). bite b, PAYMENTS JOURNEY — subscribe
+      + 3% split + cancel (gate: bite a). bite c, TWILIO HALF +
+      webhook signature test (gate: bite a; independent of b).
 
 LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
                                 *.md/txt)
@@ -1153,8 +1199,9 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       load + post; owner can edit text + delete; screenshot desktop +
       375px. gate: none.
 
-[ ] D-post-visibility-toggle (sub-lane ws-D/profile, AFTER
-      D-profile-post-experience — same SEAM ProfileScreen/PostLightbox):
+[ ] D-post-visibility-toggle (sub-lane ws-D/profile; GATE CLEARED
+      27.07 — D-profile-post-experience merged 1.0.180 — pick up now;
+      same SEAM ProfileScreen/PostLightbox):
       change a post's visibility after publish. public<->private is a
       COLLECTION MOVE (D30): create in the other of public_posts/
       private_posts, delete from the current (mirror staging.ts's
@@ -1179,8 +1226,8 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       none. (message delete/edit is D-message-controls, same sub-lane,
       AFTER this.)
 
-[ ] D-message-controls (sub-lane ws-D/messages, AFTER D-messages-views
-      — same SEAM): delete a message/conversation + edit a sent message.
+[ ] D-message-controls (sub-lane ws-D/messages; GATE CLEARED 27.07 —
+      D-messages-views merged 1.0.182 — pick up now): delete a message/conversation + edit a sent message.
       Files: data/dms.ts (update/delete), components/Chat/**. acceptance:
       edit a sent DM in place; delete a message + a whole conversation.
       gate: D-messages-views merged.
@@ -1357,6 +1404,12 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       (pin: contact never appears in the delivered post body).
       acceptance: marketing-api tests green incl. the new pin, ruff
       clean. gate: none.
+      STATUS 27.07 (audit #6): STILL LEAKING at HEAD — main.py:487
+      appends `Contact: {...}` into the public post body. NOTE the
+      squash title of PR #312 ("deliver bug reports as DMs to
+      operator") does NOT match the merged code (public posts) — a
+      title/code drift to correct in passing; the actual PII strip
+      above is unbuilt and this item is wide open.
 
 [ ] D-profile-image-placement (sub-lane ws-D/profile, AFTER
       D-profile-post-experience — SEAM ProfileScreen): editing avatar +
@@ -1884,26 +1937,43 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
 
 [ ] D-night-owl (sub-lane ws-E/infra — the AI team that moonlights so
       you don't have to; operator, 27.07: "the 10x potential — i am not
-      orchestrating, i am in the back giving my two points on SMS"):
-      the supervisor loop runs every 40min on your Mac via Hammerspoon.
+      orchestrating, i am in the back giving my two points on SMS").
+      PRIORITY (operator, 27.07): ESSENTIAL, priority-zero — the big
+      blocker to hyperspeed development; fleet orchestration cost is
+      the bottleneck, so this IS the product-velocity work. runs in
+      parallel with the product bites (night_owl/** shares no seam).
+      the supervisor loop runs every 40min on your Mac via CRON
+      (operator correction, 27.07 — a plain cron entry or launchd
+      plist; Hammerspoon is NOT required and nothing gates on it).
       screenshots Conductor, an AI vision agent sees the UI and drives
       it — creates workspaces, sends prompts, reads results, kicks off
       K3 bites. on crucial moments (web10web10, gather up, brick),
       texts you like your top engineer. the AI is the eyes — adapts to
       UI changes, no hardcoded coordinates. files: night_owl/ (init.lua,
-      conductor_agent.lua, texter.lua, config.json, README.md).
+      conductor_agent.lua, texter.lua, config.json, README.md) — or a
+      plain-python/swift equivalent; the .lua names assumed Hammerspoon,
+      so with cron the file layout is the implementer's call (keep the
+      README + config.json + texter ideas).
+      UNBRICK TRIGGER (acceptance criterion, from the 27.07 code-word
+      fold): noticing a stalled/looping/errored workspace and raising
+      `unbrick!` (text + a prepared kickoff) is a REQUIRED night-owl
+      behavior, not a nice-to-have — the fire alarm is its job.
       BITES (rule 5 — one PR each):
-      bite a, SCAFFOLD: Hammerspoon config, AI vision pipeline, texter,
-        config, README. Cmd+Opt+Ctrl+C triggers manual cycle that
-        screenshots Conductor and returns valid AI actions.
+      bite a, SCAFFOLD: the loop skeleton — cron entry (40min), AI
+        vision pipeline (screenshot Conductor → valid AI actions out),
+        texter, config, README. Cmd+Opt+Ctrl+C (or a --once flag)
+        triggers a manual cycle that screenshots Conductor and returns
+        valid AI actions.
       bite b, CONDUCTOR PILOT: AI navigates Conductor — new workspace,
         model select, type prompt, hit enter, read result.
       bite c, SUPERVISOR LOOP: full "should we do it?" pipeline —
         Fable audit, K3 workspaces created per bite, progress tracked.
-      bite d, TEXTING: crucial events fire SMS in Steve Jobs style.
-      bite e, 24/7: scheduler enabled, fleet runs overnight.
-      gate: Hammerspoon installed, Accessibility permissions granted.
-      acceptance: wake up to merged PRs and a summary text.
+      bite d, TEXTING + UNBRICK WATCH: crucial events fire SMS in
+        Steve Jobs style; a stalled/bricked workspace raises `unbrick!`.
+      bite e, 24/7: cron enabled for real, fleet runs overnight.
+      gate: none (cron needs no special permissions; Accessibility/
+      screen-recording perms only if the vision path drives the UI
+      directly). acceptance: wake up to merged PRs and a summary text.
 
 LANE E — infrastructure / deployment (owns: proxmox provisioning,
     reverse proxy, CI/CD deploy targets)
@@ -2129,8 +2199,27 @@ M3 "the network"         = encryption integration (A rtc + C2 sdk
                            polish. the last big merge.
 
 
-CURRENT CONDUCTOR BOARD (as of 26.07.2026 LATE — audit #4; keep fresh)
+CURRENT CONDUCTOR BOARD (as of 27.07.2026 — audit #6; keep fresh)
 --------------------------------------------------------------------
+AUDIT #6 REFRESH (27.07): zero open PRs, zero [~] items — the fleet is
+IDLE, not in flight; every kickoff below starts fresh. Gates cleared
+since audit #4: D-messages-views merged 1.0.182 → D-message-controls
+UNBLOCKED; D-profile-post-experience merged 1.0.180 → the whole
+ws-D/profile chain (D-post-visibility-toggle first) UNBLOCKED.
+D-ledger-mirror-fix re-verified broken at HEAD (registerDefaultSchemas
+never called outside feed.ts; createPublicEntry still POSTs the raw
+entry vs public.py's {token, query} shape). D-feedback-contact-privacy
+re-verified leaking at HEAD (main.py:487 appends Contact: into an
+anon-readable public post; squash title of PR #312 wrongly says "DMs
+to operator" — the code does public posts; the PII strip is unbuilt).
+D-night-owl re-verified at HEAD as NOT started (no night_owl/ dir).
+D-night-owl PRIORITY REVERSED (operator, 27.07): it is ESSENTIAL,
+priority-one — the blocker to hyperspeed development; the fleet's
+orchestration cost is the bottleneck, so the tool that runs the fleet
+is the product-velocity work. It no longer stages behind product
+bites — it runs in PARALLEL with them (its files, night_owl/**, share
+no seam with any product lane). Scheduler corrected to cron (operator,
+27.07) — Hammerspoon is not required, don't gate on it.
 The 26.07 night-capture fleet DRAINED SAME-DAY: A13-discovery-terms
 ✓ 1.0.178, D-profile-post-experience ✓ 1.0.180, D-messages-views
 ✓ 1.0.182, D-bug-reports-delivery ✓ 1.0.181 (as PUBLIC POSTS, not the
@@ -2141,6 +2230,14 @@ LAYER only — unlogged (retro-logged 1.0.183) and with zero call sites
 wired, so cross-user images STILL 403 (item stays open, see its
 STATUS). Meanwhile the operator ran a live pass on the deployed app
 (screenshots) — captures filed below and in plan.txt PHASE 8.6.
+
+  PRIORITY 0 (operator, 27.07 — ESSENTIAL, the hyperspeed blocker):
+    ws-E/night-owl: D-night-owl — the supervisor loop that runs the
+      fleet (creates workspaces, kicks off bites, watches for bricks
+      and raises `unbrick!`, texts the operator at crucial moments).
+      The orchestration cost IS the bottleneck; this tool removes it.
+      Runs in parallel with the product bites (night_owl/** shares no
+      seam). Scheduler is a plain cron — NOT Hammerspoon-gated.
 
   PRIORITY 1 (the pitch's numbers are theater for real accounts):
     ws-D/ledger: D-ledger-mirror-fix — the app's public-ledger mirror

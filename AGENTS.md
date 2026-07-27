@@ -10,18 +10,23 @@ below, this is not optional.
 
 ## Operator code words — recognize instantly, never treat as banter
 
-- `web10web10!` (any number of `!`s) → run the full plan-alignment
-  pass defined in `CLAUDE.md` ("The `web10web10!!!` code word"
-  section): re-read the strategy stack, audit alignment dead-honestly,
-  audit bite-size parallelizability, refactor planning docs IF needed,
-  THEN emit copy-pastable kickoff blocks. Audit before blocks, always.
-- `unbrick!` → an agent choked/bricked on a task. Diagnose the failure
-  CLASS and fix the SYSTEM (code/infra/tooling first; docs are the
-  fallback). Full ritual in `CLAUDE.md`'s `unbrick!` section.
-- `web10 gather up!` → run the dev-batch quality gate defined in
-  `CLAUDE.md`: hunt for really-broken things in PRs merged to `dev` but
-  not yet on `main`; if clean, promote dev→main, watch deploys, verify
-  prod live; if broken, emit fix kickoff blocks.
+- `web10web10!` (any number of `!`s) → run the full ritual defined in
+  `CLAUDE.md` ("The `web10web10!!!` code word" section), in this order:
+  SHIP FIRST — gather the state of the world (dangling open PRs in ANY
+  workspace, not just this one; the dev batch), gate the batch and
+  promote dev→main + verify prod if it's clean (fix blocks if not) —
+  THEN plan — re-read the strategy stack, audit alignment
+  dead-honestly, audit bite-size parallelizability + give the Qwen
+  autonomy horizon, refactor planning docs IF needed — THEN emit
+  copy-pastable kickoff blocks. (This one command also covers the
+  retired `should we do it?` and `web10 gather up!` code words —
+  folded 27.07.)
+- `unbrick!` → a workspace BROKE (agent choked/stalled/burned it).
+  Deliberately separate from `web10web10!` — the fire alarm, not a
+  planning ritual. Triggered by the operator OR by D-night-owl (the
+  supervisor loop notices a bricked workspace and raises it). Diagnose
+  the failure CLASS and fix the SYSTEM (code/infra/tooling first; docs
+  are the fallback). Full ritual in `CLAUDE.md`'s `unbrick!` section.
 
 A code word is a command, not a greeting. If you are a large-context
 model and one of these arrives, run the ritual — do not reply with
