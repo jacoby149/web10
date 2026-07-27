@@ -956,7 +956,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         staging records (or run an import), triage them entirely from
         the ui, published ones appear on the wall/feed; design.md §12,
         screenshots desktop + 375px.
-[ ] D-public-media-client (sub-lane D/feed + data seam). client half of
+[✓ 1.0.192 bite a] D-public-media-client (sub-lane D/feed + data seam). client half of
         decisions.md D35, against A12's contract: serviceTerms.ts gains a
         `public_media` service with the anon-read whitelist public_posts
         already carries; uploadMedia targets public_media when the
@@ -993,7 +993,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         (run this FIRST; ws-D/profile's D-profile-image-placement
         rebases after).
         BITES (rule 5 — one PR each):
-        bite a, UPLOADS: PostComposer public-post uploads +
+        [✓ 1.0.192] bite a, UPLOADS: PostComposer public-post uploads +
           ProfileScreen avatar/banner uploads pass
           service='public_media'; tests pin the confirm-body service
           field. acceptance: a fresh public post's media record lands

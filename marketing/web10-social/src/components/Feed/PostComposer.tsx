@@ -339,6 +339,8 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
     try {
       const mediaRecords: MediaRecord[] = [];
 
+      const mediaService = visibility === 'public' ? 'public_media' : 'media';
+
       for (const item of mediaItems) {
         let record: MediaRecord;
 
@@ -357,6 +359,7 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
             height: info.height,
             durationSeconds: Math.round(info.duration * 100) / 100,
             altText: item.altText || undefined,
+            service: mediaService,
           });
         } else {
           // Generate thumbnail for images
@@ -369,6 +372,7 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
             width: item.width,
             height: item.height,
             altText: item.altText || undefined,
+            service: mediaService,
           });
         }
 
