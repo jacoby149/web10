@@ -98,6 +98,7 @@ export interface ContactRecord {
   labels?: string[];
   added_at?: string;
   note?: string;
+  spam_flagged?: boolean;
 }
 
 // ── follows ─────────────────────────────────────────────────────────────────
@@ -183,6 +184,7 @@ export interface RawDiscoveryPost {
   post_id: string;
   body_text: string;
   tags: string[];
+  media_refs?: string[];
   created_at: string;
   engagement: {
     likes: number;
@@ -198,6 +200,7 @@ export interface DiscoveryPost {
   post_id: string;
   text?: string;
   tags?: string[];
+  media_refs?: string[];
   created_at: string;
   likes: number;
   comments: number;

@@ -231,12 +231,20 @@ def create_user(form_data, hash):
     # interactive SMR from the client.
     public_posts_terms = to_db(records.public_posts_term(), "services")
 
+    # Core app services terms — provisioned at signup so the social app
+    # can operate (follows, inbox, reactions, comments, dms) without
+    # requiring an interactive SMR. SMR only fires while the auth portal
+    # child window is open; already-signed-in users never get re-prompted.
+    core_terms = [to_db(t, "services") for t in records.core_services_terms()]
+
     # insert the records to create / sign up the user
     user_col = db[username]
     user_col.insert_one(new_user)
     set_phone_number(phone_number, username)
     user_col.insert_one(services_terms)
     user_col.insert_one(public_posts_terms)
+    for ct in core_terms:
+        user_col.insert_one(ct)
     return "successfully created a new user"
 
 
@@ -284,6 +292,11 @@ def create(user, service, _data, author=None, source_node=None):
     _data["_source_node"] = source_node
     _data["_created_at"] = data["body"]["_created_at"]
     return _data
+
+
+def _looks_like_oid(value: str) -> bool:
+    """Check if a string looks like a MongoDB ObjectId (24 hex chars)."""
+    return isinstance(value, str) and len(value) == 24 and all(c in "0123456789abcdefABCDEF" for c in value)
 
 
 def _cast_ids(query):
@@ -794,20 +807,54 @@ def upsert_discovery_post(username: str, service: str, post: dict) -> dict:
     created_at = post.get("created_at") or datetime.datetime.utcnow().isoformat()
     post_id = str(post.get("_id", ""))
 
+    # Media projection: media_refs are IDs into the author's media collection.
+    media_refs = post.get("media_refs") or []
+    if not isinstance(media_refs, list):
+        media_refs = []
+    has_media = len(media_refs) > 0
+
+    # Resolve first attachment's mime_type from the author's media collection.
+    first_attachment_mime = None
+    if has_media:
+        try:
+            user_db = db[username]
+            for mref in media_refs:
+                mref_str = str(mref)
+                # Check both media and public_media services
+                for msvc in ("media", "public_media"):
+                    rec = user_db.find_one(
+                        {"_id": ObjectId(mref_str) if _looks_like_oid(mref_str) else mref_str, "service": msvc}
+                    )
+                    if rec and rec.get("body", {}).get("mime_type"):
+                        first_attachment_mime = rec["body"]["mime_type"]
+                        break
+                    rec = user_db.find_one({"_id": mref_str, "service": msvc})
+                    if rec and rec.get("body", {}).get("mime_type"):
+                        first_attachment_mime = rec["body"]["mime_type"]
+                        break
+                if first_attachment_mime:
+                    break
+        except Exception:
+            pass  # Non-fatal — media lookup failure shouldn't block indexing
+
+    update_doc = {
+        "author": username,
+        "service": service,
+        "post_id": post_id,
+        "body_text": body_text,
+        "tags": tags,
+        "created_at": created_at,
+        "updated_at": datetime.datetime.utcnow().isoformat(),
+        "media_refs": media_refs,
+        "has_media": has_media,
+    }
+    if first_attachment_mime is not None:
+        update_doc["first_attachment_mime"] = first_attachment_mime
+
     col = db["web10"][DISCOVERY_COLLECTION]
     col.update_one(
         {"post_id": post_id, "author": username, "service": service},
-        {
-            "$set": {
-                "author": username,
-                "service": service,
-                "post_id": post_id,
-                "body_text": body_text,
-                "tags": tags,
-                "created_at": created_at,
-                "updated_at": datetime.datetime.utcnow().isoformat(),
-            }
-        },
+        {"$set": update_doc},
         upsert=True,
     )
 
@@ -937,6 +984,9 @@ def _discovery_post_to_dict(doc: dict) -> dict:
         "created_at": doc.get("created_at"),
         "engagement": engagement,
         "engagement_score": _engagement_score(engagement),
+        "media_refs": doc.get("media_refs", []),
+        "has_media": doc.get("has_media", False),
+        "first_attachment_mime": doc.get("first_attachment_mime"),
     }
 
 
@@ -1322,3 +1372,35 @@ def backfill_discovery() -> dict:
             errors += 1
 
     return {"total": total, "per_user": per_user, "errors": errors}
+
+
+def migrate_follows_terms() -> dict:
+    """One-shot migration: provision core app service terms (follows, inbox,
+    reactions, comments, dms) for every existing account that lacks them.
+
+    Without these terms, the social app's wapi.create('follows', ...) 403s
+    because there is no service-terms record authorizing the app to write
+    to the owner's collection. SMROnReady only fires while the auth portal
+    is open, so accounts created before this fix have no terms.
+
+    Returns a summary dict with counts of migrated and skipped accounts.
+    """
+    migrated = 0
+    skipped = 0
+    errors = 0
+    for username in _user_collections():
+        try:
+            user_col = db[username]
+            for term_def in records.core_services_terms():
+                svc = term_def["service"]
+                existing = user_col.find_one({"service": "services", "body.service": svc})
+                if existing:
+                    skipped += 1
+                    continue
+                doc = to_db(term_def, "services")
+                user_col.insert_one(doc)
+                migrated += 1
+        except Exception:
+            log.warning("migration failed for %s: core services terms", username, exc_info=True)
+            errors += 1
+    return {"migrated": migrated, "skipped": skipped, "errors": errors}

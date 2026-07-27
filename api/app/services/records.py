@@ -27,6 +27,83 @@ def services_record():
     }
 
 
+def follows_term():
+    """Canonical owner-only term for the `follows` service.
+
+    Every new account gets this term provisioned at signup so the social
+    app can write follow records without requiring an interactive SMR
+    from the client. No whitelist — owner-only (the app acts under the
+    owner's own token; is_permitted allows it).
+    """
+    return {
+        "service": "follows",
+        "whitelist": [],
+        "blacklist": [],
+    }
+
+
+def inbox_term():
+    """Canonical term for the `inbox` service — fan-out delivery.
+
+    Any user may deliver into your inbox (the inbox pattern: follower
+    fan-out writes a record into the follower's collection). The
+    whitelist grants create to all so public-post delivery works
+    without per-follower terms negotiation.
+    """
+    return {
+        "service": "inbox",
+        "whitelist": [
+            {"username": ".*", "provider": ".*", "create": True},
+        ],
+        "blacklist": [],
+    }
+
+
+def reactions_term():
+    """Canonical owner-only term for the `reactions` service."""
+    return {
+        "service": "reactions",
+        "whitelist": [],
+        "blacklist": [],
+    }
+
+
+def comments_term():
+    """Canonical owner-only term for the `comments` service."""
+    return {
+        "service": "comments",
+        "whitelist": [],
+        "blacklist": [],
+    }
+
+
+def dms_term():
+    """Canonical owner-only term for the `dms` service."""
+    return {
+        "service": "dms",
+        "whitelist": [],
+        "blacklist": [],
+    }
+
+
+def core_services_terms():
+    """Return all core app service terms that must be provisioned at signup.
+
+    This is the set of services the social app needs to operate on the
+    owner's own collection. Without these, the app's SMROnReady consent
+    is the only thing that creates terms — and SMR only fires while the
+    auth portal child window is open. A13 fixed public_posts; this
+    fixes the rest (follows, inbox, reactions, comments, dms).
+    """
+    return [
+        follows_term(),
+        inbox_term(),
+        reactions_term(),
+        comments_term(),
+        dms_term(),
+    ]
+
+
 def public_posts_term():
     """Canonical anon-read term for public_posts — discovery-indexed by default.
 

@@ -65,6 +65,8 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
   const [followingCount, setFollowingCount] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<'posts' | 'media'>('posts');
   const [followLoading, setFollowLoading] = useState(false);
+  const [followError, setFollowError] = useState<string | null>(null);
+  const [followingCountError, setFollowingCountError] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -85,20 +87,20 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
       setFollowRecord(fr);
       setFollowing(fr?.status === 'active' || false);
 
-      // Resolve avatar and banner media refs
+      // Resolve avatar and banner media refs (cross-user: public_media)
       const profileRefs: string[] = [];
       if (p?.avatar_ref) profileRefs.push(p.avatar_ref);
       if (p?.banner_ref) profileRefs.push(p.banner_ref);
+      const mediaMapInit: Record<string, MediaRecord> = {};
       if (profileRefs.length) {
-        const media = await resolveMediaRefs(profileRefs, { username, provider });
-        const map: Record<string, MediaRecord> = {};
+        const media = await resolveMediaRefs(profileRefs, { username, provider }, 'public_media');
         media.forEach((m) => {
-          if (m._id) map[m._id] = m;
+          if (m._id) mediaMapInit[m._id] = m;
         });
-        setMediaMap(map);
       }
 
       // Fetch posts from discovery API (public posts index)
+      let postMediaRefs: string[] = [];
       try {
         const resp = await fetch(
           `${API_ORIGIN}/discover/posts?sort=recent&limit=50`,
@@ -108,20 +110,38 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
           const allPosts: DiscoveryPost[] = await resp.json();
           const userPosts = allPosts
             .filter((dp) => dp.author === username && dp.provider === provider)
-            .map((dp) => ({
-              _id: dp.post_id,
-              text: dp.text,
-              created_at: dp.created_at,
-              likes: dp.likes,
-              comments: dp.comments,
-              reposts: dp.reposts,
-              tags: dp.tags,
-            }));
-          setPosts(userPosts as unknown as PostRecord[]);
+            .map((dp) => {
+              const post: PostRecord = {
+                _id: dp.post_id,
+                text: dp.text,
+                created_at: dp.created_at,
+                tags: dp.tags,
+              };
+              if (dp.media_refs?.length) {
+                post.media_refs = dp.media_refs;
+                postMediaRefs.push(...dp.media_refs);
+              }
+              return post;
+            });
+          setPosts(userPosts);
         }
       } catch {
         // Discovery API unavailable - posts will be empty
       }
+
+      // Resolve post media refs (cross-user: public_media)
+      if (postMediaRefs.length) {
+        const postMedia = await resolveMediaRefs(
+          [...new Set(postMediaRefs)],
+          { username, provider },
+          'public_media',
+        );
+        postMedia.forEach((m) => {
+          if (m._id) mediaMapInit[m._id] = m;
+        });
+      }
+
+      setMediaMap(mediaMapInit);
 
       // Follower/following counts from discovery API
       try {
@@ -148,6 +168,14 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
       if (isOwn && token) {
         const fc = await countFollows();
         setFollowingCount(fc);
+      } else {
+        // For other users, read the count from our own follows service
+        try {
+          const fc = await countFollows();
+          setFollowingCount(fc);
+        } catch {
+          setFollowingCountError(true);
+        }
       }
     } catch (e) {
       console.error('Failed to load user profile:', e);
@@ -158,6 +186,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
   async function handleFollow() {
     if (followLoading) return;
     setFollowLoading(true);
+    setFollowError(null);
     try {
       if (following) {
         await unfollowUser(username, provider);
@@ -170,6 +199,13 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
       }
     } catch (e) {
       console.error('Failed to toggle follow:', e);
+      setFollowError('Failed to follow. Please try again.');
+      // Revert optimistic state on failure
+      if (following) {
+        // unfollow failed — stay following
+      } else {
+        setFollowing(false);
+      }
     } finally {
       setFollowLoading(false);
     }
@@ -310,11 +346,25 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
           )}
           <div>
             <span className="tabular-nums font-display font-bold text-foreground text-lg block">
-              {followingCount ?? following ? '?' : ''}
+              {followingCountError ? '—' : followingCount ?? ''}
             </span>
             <span className="text-xs text-muted-foreground">Following</span>
           </div>
         </div>
+
+        {/* Follow error state */}
+        {followError && (
+          <div className="mt-3 flex items-center gap-2 text-sm text-danger" role="alert">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-danger flex-shrink-0" />
+            {followError}
+            <button
+              onClick={() => { setFollowError(null); handleFollow(); }}
+              className="text-brand-300 hover:text-brand-400 underline underline-offset-2 transition-colors duration-150"
+            >
+              Retry
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Tabs */}

@@ -362,6 +362,7 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
   const [commentMap, setCommentMap] = useState<Record<string, number>>({});
   const [likedMap, setLikedMap] = useState<Record<string, boolean>>({});
   const [profileMap, setProfileMap] = useState<Record<string, ProfileRecord>>({});
+  const [avatarUrlMap, setAvatarUrlMap] = useState<Record<string, string>>({});
 
   const loadFeed = useCallback(async () => {
     setLoading(true);
@@ -397,12 +398,57 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
         if (p._id) posts[p._id] = p;
       }
 
+      // Resolve media refs — group by post author so cross-user media
+      // reads from the correct collection with public_media service.
       const allMediaRefs = [...new Set(Object.values(posts).flatMap((p) => p.media_refs || []))];
-      const mediaRecords = allMediaRefs.length ? await resolveMediaRefs(allMediaRefs) : [];
       const mMedia: Record<string, MediaRecord[]> = {};
-      for (const p of Object.values(posts)) {
-        if (p.media_refs?.length && p._id) {
-          mMedia[p._id] = mediaRecords.filter((m) => p.media_refs?.includes(m._id || ''));
+      if (allMediaRefs.length) {
+        // Build a post-id -> author map for grouping
+        const postAuthors = new Map<string, { username: string; provider: string }>();
+        for (const item of feed) {
+          const post = posts[item.post_id];
+          if (post && post.media_refs?.length) {
+            postAuthors.set(item.post_id, {
+              username: item.author_username,
+              provider: item.author_provider,
+            });
+          }
+        }
+        // Group refs by author
+        const refsByAuthor = new Map<string, string[]>();
+        for (const [postId, author] of postAuthors) {
+          const post = posts[postId];
+          const key = `${author.username}@${author.provider}`;
+          const existing = refsByAuthor.get(key) || [];
+          refsByAuthor.set(key, [...new Set([...existing, ...(post.media_refs || [])])]);
+        }
+        // Also handle own posts (author = current user)
+        const ownRefs = Object.entries(posts)
+          .filter(([postId]) => !postAuthors.has(postId))
+          .flatMap(([, p]) => p.media_refs || []);
+        if (ownRefs.length) {
+          refsByAuthor.set(`${token.username}@${token.provider}`, [...new Set(ownRefs)]);
+        }
+        // Resolve each author's refs
+        for (const [key, refs] of refsByAuthor) {
+          const [authorUsername, authorProvider] = key.split('@');
+          const isOwn = authorUsername === token.username && authorProvider === token.provider;
+          const mediaRecords = await resolveMediaRefs(
+            refs,
+            { username: authorUsername, provider: authorProvider },
+            isOwn ? 'media' : 'public_media',
+          );
+          // Assign resolved media to each post that references it
+          for (const [postId, author] of postAuthors) {
+            if (author.username === authorUsername && author.provider === authorProvider) {
+              const post = posts[postId];
+              if (post.media_refs?.length && !mMedia[postId]) {
+                mMedia[postId] = mediaRecords.filter((m) =>
+                  post.media_refs?.includes(m._id || ''),
+                );
+              }
+            }
+          }
         }
       }
 
@@ -420,9 +466,42 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
         }),
       );
 
+      // Resolve author avatars — collect unique avatar_refs from profiles
+      // and resolve them via public_media for cross-user reads.
+      const avatarByAuthor: Record<string, string> = {};
+      const avatarRefsByAuthor = new Map<string, string>();
+      for (const [key, profile] of Object.entries(profiles)) {
+        if (profile.avatar_ref) {
+          const [u, p] = key.split('@');
+          avatarRefsByAuthor.set(profile.avatar_ref, `${u}@${p}`);
+        }
+      }
+      if (avatarRefsByAuthor.size) {
+        const avatarRefs = [...avatarRefsByAuthor.keys()];
+        // Group by author
+        const avatarsByAuth = new Map<string, string[]>();
+        for (const [ref, key] of avatarRefsByAuthor) {
+          const existing = avatarsByAuth.get(key) || [];
+          avatarsByAuth.set(key, [...new Set([...existing, ref])]);
+        }
+        for (const [key, refs] of avatarsByAuth) {
+          const [u, p] = key.split('@');
+          const isOwn = u === token.username && p === token.provider;
+          const avatars = await resolveMediaRefs(
+            refs,
+            { username: u, provider: p },
+            isOwn ? 'media' : 'public_media',
+          );
+          for (const m of avatars) {
+            if (m._id) avatarByAuthor[m._id] = m.url;
+          }
+        }
+      }
+
       setPostsMap(posts);
       setMediaMap(mMedia);
       setProfileMap(profiles);
+      setAvatarUrlMap(avatarByAuthor);
       setReactionMap(reactions);
       setCommentMap(comments);
       setLikedMap(liked);
@@ -490,9 +569,7 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
                 authorUsername={item.author_username}
                 authorProvider={item.author_provider}
                 authorAvatar={
-                  profile?.avatar_ref
-                    ? mediaMap[item.post_id]?.find((m) => m._id === profile.avatar_ref)?.url
-                    : undefined
+                  profile?.avatar_ref ? avatarUrlMap[profile.avatar_ref] : undefined
                 }
                 mediaItems={mediaItems}
                 reactionCount={reactionMap[item.post_id] || 0}

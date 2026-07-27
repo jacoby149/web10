@@ -51,15 +51,45 @@ try {
   for (const [label, viewport] of Object.entries(VIEWPORTS)) {
     for (const view of VIEWS) {
       const page = await browser.newPage({ viewport, deviceScaleFactor: 2 });
-      const gotoUrl = view.route ? `${URL}?screen=${view.route.replace('/', '')}` : URL;
-      await page.goto(gotoUrl, { waitUntil: 'networkidle' });
+      // Buffer the page's console + uncaught errors so a capture failure is
+      // self-explaining. Without this, a crash in the harness page (e.g. a
+      // missing mock stub) surfaces only as a bare selector timeout and the
+      // agent cannot see WHY — this buffer IS "the logs".
+      const pageLog = [];
+      page.on('console', (msg) => {
+        const line = `[page:${msg.type()}] ${msg.text()}`;
+        pageLog.push(line);
+        if (msg.type() === 'error' || msg.type() === 'warning') console.error(line);
+      });
+      page.on('pageerror', (err) => {
+        const line = `[pageerror] ${err.message}`;
+        pageLog.push(line);
+        console.error(line);
+      });
 
-      if (view.route) {
-        await page.waitForSelector(view.ready, { timeout: 15000 });
-      } else {
-        await page.waitForSelector('[data-testid="messages-view-toggle"]', { timeout: 15000 });
-        if (view.toggle) await page.click(view.toggle);
-        await page.waitForSelector(view.ready, { timeout: 15000 });
+      const gotoUrl = view.route ? `${URL}?screen=${view.route.replace('/', '')}` : URL;
+      try {
+        await page.goto(gotoUrl, { waitUntil: 'networkidle' });
+
+        if (view.route) {
+          await page.waitForSelector(view.ready, { timeout: 15000 });
+        } else {
+          await page.waitForSelector('[data-testid="messages-view-toggle"]', { timeout: 15000 });
+          if (view.toggle) await page.click(view.toggle);
+          await page.waitForSelector(view.ready, { timeout: 15000 });
+        }
+      } catch (err) {
+        console.error(`\n=== CAPTURE FAILED: ${view.name}-${label} ===`);
+        console.error(`waiting for: ${view.ready}`);
+        console.error(err.message);
+        console.error('--- page console + errors (this is why it failed) ---');
+        console.error(pageLog.length ? pageLog.join('\n') : '(page logged nothing — check the Vite server output above)');
+        console.error('--- hints ---');
+        console.error('* "X is not a function" / "No matching export" → a harness mock is missing a stub:');
+        console.error('    @/data/wapi  → screenshots/harness/mock-wapi.ts (full WapiWrapper; tsc -b flags drift)');
+        console.error('    @/data barrel → screenshots/harness/mock-data.ts');
+        console.error('* New view / renamed data-testid → update VIEWS in screenshots/capture.mjs');
+        throw new Error(`capture failed on ${view.name}-${label} (diagnostics above)`);
       }
       await page.waitForTimeout(400); // settle skeletons/fonts
       const out = path.join(__dirname, `${view.name}-${label}.png`);
@@ -68,6 +98,9 @@ try {
       await page.close();
     }
   }
+} catch (err) {
+  console.error(err.message);
+  process.exitCode = 1;
 } finally {
   if (browser) await browser.close();
   server.kill('SIGTERM');
