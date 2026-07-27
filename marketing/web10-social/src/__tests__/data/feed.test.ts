@@ -120,7 +120,7 @@ describe('feed data layer', () => {
       fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
         ok: true,
         json: () => ({ _id: 'le-1', schema_id: 'web10.reaction', target: 'posts:p1', payload: {} }),
-      } as Response);
+      } as unknown as Response);
     });
 
     afterEach(() => {
@@ -149,7 +149,7 @@ describe('feed data layer', () => {
       fetchSpy.mockResolvedValue({
         ok: true,
         json: () => ({ _id: 'le-42', schema_id: 'web10.follow', target: 'follow:bob@api.web10.app', payload: { action: 'follow' } }),
-      } as Response);
+      } as unknown as Response);
 
       const result = await feed.createPublicEntry({
         schema_id: 'web10.follow',
@@ -175,7 +175,7 @@ describe('feed data layer', () => {
     });
 
     it('returns a local stub when the endpoint returns non-ok', async () => {
-      fetchSpy.mockResolvedValue({ ok: false, status: 422 } as Response);
+      fetchSpy.mockResolvedValue({ ok: false, status: 422 } as unknown as Response);
 
       const result = await feed.createPublicEntry({
         schema_id: 'web10.comment',
@@ -195,7 +195,7 @@ describe('feed data layer', () => {
       fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
         ok: true,
         json: () => ({ _id: 'web10.schema', name: 'Reaction', schema: {} }),
-      } as Response);
+      } as unknown as Response);
     });
 
     afterEach(() => {
@@ -214,7 +214,7 @@ describe('feed data layer', () => {
         Promise.resolve({
           ok: true,
           json: () => schemaResponses[callIndex++],
-        } as Response),
+        } as unknown as Response),
       );
 
       const schemas = await feed.registerDefaultSchemas();
