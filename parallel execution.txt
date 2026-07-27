@@ -1199,7 +1199,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       load + post; owner can edit text + delete; screenshot desktop +
       375px. gate: none.
 
-[ ] D-post-visibility-toggle (sub-lane ws-D/profile; GATE CLEARED
+[✓ 1.0.192] D-post-visibility-toggle (sub-lane ws-D/profile; GATE CLEARED
       27.07 — D-profile-post-experience merged 1.0.180 — pick up now;
       same SEAM ProfileScreen/PostLightbox):
       change a post's visibility after publish. public<->private is a
