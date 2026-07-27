@@ -2193,6 +2193,22 @@ marketing ui!"):
     TrendingCard renders the real first image via the public_media
     presign path, design.md MEDIA SPEC). the D-user-profile-media
     grid half is unblocked by the same A17.
+[ ] FOLLOW DOESN'T PERSIST FOR REAL ACCOUNTS (operator, 27.07,
+    screenshot: "tried to follow my friend coolguydavid, and it gives
+    a question mark, says following i refresh and i am not following
+    him"): /u/:username follow → optimistic "Following" → lost on
+    refresh; the Following count renders "?" (a swallowed throw); the
+    profile shows "No posts yet" for an author who HAS public posts.
+    the likely root is the SMR-only terms class A13 fixed for
+    public_posts: the app's `follows` SIR is registered only while
+    the auth portal is open, so real accounts that never got the SMR
+    have no follows terms and the write 403s into a catch. lane item
+    D-follow-persistence (ws-D/follow, PRIORITY) — repro first, quote
+    the failing request, provision the app's core service set at
+    signup + migrate, kill every fake-success state. NOTE the "No
+    posts yet" half likely needs E-run-discovery-migration RUN on
+    prod (still operator-gated) — the item names it instead of
+    hacking around it.
 [ ] in-app search parity note: DiscoverScreen's existing search (if
     any) gets audited against the same corpus in the same pass —
     "search your own stuff" stays a separate low-hanging-fruit item
