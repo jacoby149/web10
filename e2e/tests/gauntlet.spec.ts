@@ -102,18 +102,18 @@ async function uploadToPresignedPost(
   filename: string,
   contentType: string,
 ) {
-  const boundary = '----FormBoundary' + Math.random().toString(36).slice(2);
+  const boundary = 'FormBoundary' + Math.random().toString(36).slice(2);
   const parts: Buffer[] = [];
   for (const [key, value] of Object.entries(fields)) {
-    parts.push(Buffer.from(`------${boundary}\r\nContent-Disposition: form-data; name="${key}"\r\n\r\n${value}\r\n`));
+    parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="${key}"\r\n\r\n${value}\r\n`));
   }
-  parts.push(Buffer.from(`------${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename}"\r\nContent-Type: ${contentType}\r\n\r\n`));
+  parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename}"\r\nContent-Type: ${contentType}\r\n\r\n`));
   parts.push(fileData);
-  parts.push(Buffer.from(`\r\n------${boundary}--\r\n`));
+  parts.push(Buffer.from(`\r\n--${boundary}--\r\n`));
   const body = Buffer.concat(parts);
   const resp = await request.post(upload_url, {
     data: body,
-    headers: { 'Content-Type': `multipart/form-data; boundary=----${boundary}` },
+    headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
   });
   return resp;
 }
