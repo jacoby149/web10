@@ -10,6 +10,7 @@ import type { FeedPost } from '@/components/FeedPreview';
 import { TrendingSidebar } from '@/components/TrendingSidebar';
 import { KnobRack } from '@/components/KnobRack';
 import { SearchBar } from '@/components/SearchBar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { SOCIAL_ORIGIN } from '@/lib/origins';
 import { trackFunnel } from '@/lib/analytics';
 import {
@@ -27,6 +28,86 @@ const API_ORIGIN = import.meta.env.VITE_API_URL || 'https://api.web10.app';
 const INITIAL_PAGE = 20;
 const PAGE_STEP = 20;
 const MAX_RESULTS = 100;
+
+// ── Discover users (A14: followers_count included) ──────────────────────────
+
+interface DiscoverUser {
+  username: string;
+  post_count: number;
+  engagement_score: number;
+  followers_count: number;
+}
+
+const AVATAR_COLORS = [
+  'bg-rose-500', 'bg-sky-500', 'bg-amber-500', 'bg-emerald-500',
+  'bg-violet-500', 'bg-pink-500', 'bg-indigo-500', 'bg-orange-500',
+  'bg-teal-500', 'bg-red-500',
+];
+
+function hashToColor(str: string): string {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+async function fetchDiscoverUsers(limit = 20): Promise<DiscoverUser[]> {
+  const resp = await fetch(`${API_ORIGIN}/discover/users`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query: { limit } }),
+  });
+  if (!resp.ok) return [];
+  return resp.json();
+}
+
+function formatFollowers(n: number): string {
+  if (n >= 10000) return `${(n / 1000).toFixed(1)}k`;
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  return String(n);
+}
+
+// ── Matching users row ──────────────────────────────────────────────────────
+
+function MatchingUsersRow({ users, query }: { users: DiscoverUser[]; query: string }) {
+  if (users.length === 0) return null;
+  return (
+    <div className="mb-6">
+      <p className="mb-3 text-xs font-medium uppercase tracking-[0.06em] text-muted-foreground">
+        People
+      </p>
+      <div className="flex flex-wrap gap-3">
+        {users.slice(0, 6).map(u => {
+          const name = u.username.replace(/[-_]/g, ' ');
+          const initial = u.username.charAt(0).toUpperCase();
+          const color = hashToColor(u.username);
+          return (
+            <a
+              key={u.username}
+              href={`${SOCIAL_ORIGIN}/u/${u.username}`}
+              target="_blank"
+              rel="noopener"
+              className="flex items-center gap-3 rounded-full border border-border bg-surface px-4 py-2.5 transition-colors duration-150 ease-out hover:border-border/80 hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
+              <Avatar className={color}>
+                <AvatarFallback className="text-foreground">{initial}</AvatarFallback>
+              </Avatar>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-foreground">
+                  {name.charAt(0).toUpperCase() + name.slice(1)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {formatFollowers(u.followers_count)} followers
+                </p>
+              </div>
+            </a>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 interface RankedPost extends FeedPost {
   rank: number;
@@ -91,8 +172,10 @@ function Trending() {
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<FeedPost[]>([]);
+  const [searchUsers, setSearchUsers] = useState<DiscoverUser[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchSearched, setSearchSearched] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const loadFeed = useCallback(async (nextLimit: number, append: boolean) => {
     if (append) setLoadingMore(true); else setLoading(true);
@@ -126,6 +209,20 @@ function Trending() {
     trackFunnel('trending_view');
   }, [loadFeed]);
 
+  // Auto-focus search when navigated from nav (hash #search or ?focus=search)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const hash = window.location.hash;
+    if (params.get('focus') === 'search' || hash === '#search') {
+      searchInputRef.current?.focus();
+      // Clean up the param so refresh doesn't re-focus
+      params.delete('focus');
+      const newSearch = params.toString();
+      const newUrl = `${window.location.pathname}${newSearch ? `?${newSearch}` : ''}${hash === '#search' ? '' : window.location.hash}`;
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, []);
+
   useEffect(() => {
     const onHash = () => {
       const { state, preset } = readMixFromHash();
@@ -141,6 +238,7 @@ function Trending() {
     const trimmed = query.trim();
     if (!trimmed) {
       setSearchResults([]);
+      setSearchUsers([]);
       setSearchSearched(false);
       return;
     }
@@ -149,10 +247,21 @@ function Trending() {
     trackFunnel('trending_search', { query: trimmed.startsWith('#') ? 'tag' : 'text' });
     try {
       const cleaned = trimmed.startsWith('#') ? trimmed.slice(1) : trimmed;
-      const results = await fetchSearchResults(cleaned);
-      setSearchResults(results);
+      const [posts, users] = await Promise.all([
+        fetchSearchResults(cleaned),
+        fetchDiscoverUsers(6),
+      ]);
+      setSearchResults(posts);
+      // Filter users by query match on username
+      const filteredUsers = cleaned.includes('#')
+        ? users
+        : users.filter(u =>
+            u.username.toLowerCase().includes(cleaned.toLowerCase()),
+          );
+      setSearchUsers(filteredUsers);
     } catch {
       setSearchResults([]);
+      setSearchUsers([]);
     } finally {
       setSearchLoading(false);
     }
@@ -171,11 +280,13 @@ function Trending() {
   const handleSearchClear = useCallback(() => {
     setSearchQuery('');
     setSearchResults([]);
+    setSearchUsers([]);
     setSearchSearched(false);
     clearTimeout(debouncedSearch.current);
   }, []);
 
   // When a topic chip is clicked during search, filter search results by tag
+  // When not searching, the topic chip already filters the trending feed via setTopic
   const handleTopicClick = useCallback(
     (t: string) => {
       setTopic(t);
@@ -184,9 +295,12 @@ function Trending() {
         const tagQuery = `#${t}`;
         setSearchQuery(tagQuery);
         doSearch(tagQuery);
+      } else if (searchSearched && t === 'All') {
+        // Clear search tag filter when "All" is clicked during search
+        handleSearchClear();
       }
     },
-    [searchSearched, doSearch],
+    [searchSearched, doSearch, handleSearchClear],
   );
 
   const maxScore = useMemo(
@@ -313,6 +427,7 @@ function Trending() {
               value={searchQuery}
               onChange={handleSearchChange}
               onClear={handleSearchClear}
+              inputRef={searchInputRef}
               placeholder={isSearching ? 'Search posts, tags, topics…' : 'Search posts, tags, topics…'}
             />
           </div>
@@ -387,51 +502,56 @@ function Trending() {
                     <TrendingSkeleton key={i} />
                   ))}
                 </div>
-              ) : visibleSearchResults.length > 0 ? (
-                <>
-                  <p className="mb-4 text-sm text-muted-foreground">
-                    {visibleSearchResults.length} result{visibleSearchResults.length !== 1 ? 's' : ''}
-                    {topic !== 'All' ? ` for #${topic}` : ` for "${searchQuery.trim()}"`}
-                  </p>
-                  <div
-                    data-testid="trending-grid"
-                    className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
-                  >
-                    {visibleSearchResults.map(post => (
-                      <TrendingCard
-                        key={post.id}
-                        post={post}
-                        rank={post.rank}
-                        featured={post.featured}
-                        maxScore={maxSearchScore}
-                        onLike={() => handleReaction('like')}
-                        onComment={() => handleComment()}
-                        onRepost={() => handleReaction('repost')}
-                        cardRef={registerCard(post.id)}
-                      />
-                    ))}
-                  </div>
-                </>
               ) : (
-                <div
-                  data-testid="trending-empty"
-                  className="mx-auto flex max-w-md flex-col items-center rounded-xl border border-dashed border-border bg-surface/50 px-6 py-16 text-center"
-                >
-                  <MessageCircleOff className="h-10 w-10 text-muted-foreground" strokeWidth={1.5} />
-                  <h2 className="mt-4 font-display text-xl font-semibold text-foreground">
-                    Nothing matches &ldquo;{searchQuery.trim()}&rdquo;
-                  </h2>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Try a different term, or browse what&apos;s trending below.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={handleSearchClear}
-                    className="mt-6 inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                  >
-                    Clear search
-                  </button>
-                </div>
+                <>
+                  <MatchingUsersRow users={searchUsers} query={searchQuery} />
+                  {visibleSearchResults.length > 0 ? (
+                    <>
+                      <p className="mb-4 text-sm text-muted-foreground">
+                        {visibleSearchResults.length} result{visibleSearchResults.length !== 1 ? 's' : ''}
+                        {topic !== 'All' ? ` for #${topic}` : ` for "${searchQuery.trim()}"`}
+                      </p>
+                      <div
+                        data-testid="trending-grid"
+                        className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
+                      >
+                        {visibleSearchResults.map(post => (
+                          <TrendingCard
+                            key={post.id}
+                            post={post}
+                            rank={post.rank}
+                            featured={post.featured}
+                            maxScore={maxSearchScore}
+                            onLike={() => handleReaction('like')}
+                            onComment={() => handleComment()}
+                            onRepost={() => handleReaction('repost')}
+                            cardRef={registerCard(post.id)}
+                          />
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <div
+                      data-testid="trending-empty"
+                      className="mx-auto flex max-w-md flex-col items-center rounded-xl border border-dashed border-border bg-surface/50 px-6 py-16 text-center"
+                    >
+                      <MessageCircleOff className="h-10 w-10 text-muted-foreground" strokeWidth={1.5} />
+                      <h2 className="mt-4 font-display text-xl font-semibold text-foreground">
+                        Nothing matches &ldquo;{searchQuery.trim()}&rdquo;
+                      </h2>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Try a different term, or browse what&apos;s trending below.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleSearchClear}
+                        className="mt-6 inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                      >
+                        Clear search
+                      </button>
+                    </div>
+                  )}
+                </>
               )
             ) : isInitialLoad ? (
               <div

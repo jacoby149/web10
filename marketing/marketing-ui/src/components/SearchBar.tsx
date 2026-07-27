@@ -7,6 +7,7 @@ interface SearchBarProps {
   onChange: (value: string) => void;
   onClear: () => void;
   placeholder?: string;
+  inputRef?: React.RefObject<HTMLInputElement>;
 }
 
 function SearchBar({
@@ -14,18 +15,20 @@ function SearchBar({
   onChange,
   onClear,
   placeholder = 'Search posts, tags, topics…',
+  inputRef,
 }: SearchBarProps) {
   const [focused, setFocused] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const localRef = useRef<HTMLInputElement>(null);
+  const ref = inputRef || localRef;
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
-        inputRef.current?.focus();
+        ref.current?.focus();
       }
-      if (e.key === 'Escape' && document.activeElement === inputRef.current) {
-        inputRef.current?.blur();
+      if (e.key === 'Escape' && document.activeElement === ref.current) {
+        ref.current?.blur();
       }
     };
     window.addEventListener('keydown', down);
@@ -41,7 +44,7 @@ function SearchBar({
 
   const handleClear = useCallback(() => {
     onClear();
-    inputRef.current?.focus();
+    ref.current?.focus();
   }, [onClear]);
 
   return (
@@ -58,7 +61,7 @@ function SearchBar({
         strokeWidth={1.75}
       />
       <Input
-        ref={inputRef}
+        ref={ref}
         type="text"
         value={value}
         onChange={handleChange}
