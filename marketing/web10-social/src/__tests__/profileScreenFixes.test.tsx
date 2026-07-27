@@ -3,29 +3,9 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom';
 import '@testing-library/jest-dom';
 
-// Mock lucide-react icons
-vi.mock('lucide-react', () => {
-  const iconFactory = (name: string) => {
-    const Comp = (props: Record<string, unknown>) => {
-      const { ...rest } = props;
-      return <span data-testid={`icon-${name.toLowerCase()}`} {...rest} />;
-    };
-    Comp.displayName = name;
-    return Comp;
-  };
-  const icons: Record<string, ReturnType<typeof iconFactory>> = {};
-  [
-    'Heart', 'MessageCircle', 'ArrowUp', 'ArrowDown', 'Flame', 'Clock',
-    'ClockArrowDown', 'Sparkles', 'Send', 'Image', 'ImagePlus', 'X', 'Loader2',
-    'User', 'MapPin', 'Globe', 'Link', 'Camera', 'Edit3', 'Check',
-    'ChevronLeft', 'MessageSquare', 'Home', 'PlusCircle', 'LogOut', 'Bug',
-    'AlertTriangle', 'CheckCircle', 'Compass', 'Share2', 'Repeat2',
-    'Film', 'Music2', 'Users',
-    'ArrowLeft', 'Lock', 'Trash2', 'Video', 'FileText', 'ChevronDown',
-    'ChevronRight', 'Inbox',
-  ].forEach(name => { icons[name] = iconFactory(name); });
-  return icons;
-});
+// Mock lucide-react icons (Proxy fabricates any icon — never list them by hand)
+import { lucideMock } from './helpers/lucideMock';
+vi.mock('lucide-react', () => lucideMock);
 
 // Mock data layer — parameterized so tests can override
 const mockReadProfile = vi.fn().mockResolvedValue({

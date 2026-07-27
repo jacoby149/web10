@@ -3,30 +3,9 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import '@testing-library/jest-dom';
 
-// Mock lucide-react icons as simple span elements
-vi.mock('lucide-react', () => {
-  const iconFactory = (name: string) => {
-    const Comp = (props: Record<string, unknown>) => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { className, ...rest } = props;
-      return <span data-testid={`icon-${name.toLowerCase()}`} {...rest} />;
-    };
-    Comp.displayName = name;
-    return Comp;
-  };
-  const icons: Record<string, ReturnType<typeof iconFactory>> = {};
-  [
-    'Heart', 'MessageCircle', 'ArrowUp', 'ArrowDown', 'Flame', 'Clock',
-    'ClockArrowDown', 'Sparkles', 'Send', 'Image', 'ImagePlus', 'X', 'Loader2',
-    'User', 'MapPin', 'Globe', 'Link', 'Camera', 'Edit3', 'Check',
-    'ChevronLeft', 'MessageSquare', 'Home', 'PlusCircle', 'LogOut', 'Bug',
-    'AlertTriangle', 'CheckCircle', 'Compass', 'Share2', 'Repeat2',
-    'Film', 'Music2', 'Users', 'Store', 'Gamepad2', 'Radio', 'Zap', 'Clapperboard', 'Plus', 'X', 'Search',
-    'Video', 'FileText', 'Inbox', 'ChevronDown', 'ChevronRight', 'Lock', 'Trash2', 'ArrowLeft', 'Mail', 'MailOpen', 'Calendar',
-    'Settings', 'Database', 'Info', 'ExternalLink', 'Shield',
-  ].forEach(name => { icons[name] = iconFactory(name); });
-  return icons;
-});
+// Mock lucide-react icons as simple span elements (any icon, no manual list)
+import { lucideMock } from './helpers/lucideMock';
+vi.mock('lucide-react', () => lucideMock);
 
 // Mock data layer
 vi.mock('@/data', async (importOriginal) => {

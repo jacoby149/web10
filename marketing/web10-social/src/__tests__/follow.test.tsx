@@ -2,26 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
-// Mock lucide-react icons
-vi.mock('lucide-react', () => {
-  const iconFactory = (name: string) => {
-    const Comp = (props: Record<string, unknown>) => {
-      const { className, ...rest } = props;
-      return <span data-testid={`icon-${name.toLowerCase()}`} {...rest} />;
-    };
-    Comp.displayName = name;
-    return Comp;
-  };
-  const icons: Record<string, ReturnType<typeof iconFactory>> = {};
-  [
-    'Heart', 'MessageCircle', 'Send', 'Image', 'ImagePlus', 'X', 'Loader2',
-    'User', 'MapPin', 'Globe', 'Link', 'Camera', 'Edit3', 'Check',
-    'ChevronLeft', 'MessageSquare', 'Home', 'PlusCircle', 'LogOut', 'Bug',
-    'AlertTriangle', 'CheckCircle', 'Users', 'UserPlus', 'UserCheck', 'UserX',
-    'Sparkles', 'Compass', 'ArrowLeft',
-  ].forEach(name => { icons[name] = iconFactory(name); });
-  return icons;
-});
+// Mock lucide-react icons (Proxy fabricates any icon — never list them by hand)
+import { lucideMock } from './helpers/lucideMock';
+vi.mock('lucide-react', () => lucideMock);
 
 // Mock data layer
 vi.mock('@/data', async (importOriginal) => {

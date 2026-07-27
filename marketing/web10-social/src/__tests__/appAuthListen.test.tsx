@@ -18,24 +18,8 @@ import '@testing-library/jest-dom';
 // Stub the modules App pulls in; only the adapter's authListen/isSignedIn
 // behavior matters here. Icons + data layer must exist (the import forces it)
 // but never fire on the login screen.
-const iconFactory = (name: string) => {
-  const Comp = (props: Record<string, unknown>) => {
-    const { ...rest } = props;
-    return <span data-testid={`icon-${name.toLowerCase()}`} {...rest} />;
-  };
-  Comp.displayName = name;
-  return Comp;
-};
-const icons = [
-  'Home', 'User', 'MessageSquare', 'PlusCircle', 'LogOut', 'Bug',
-  'AlertTriangle', 'CheckCircle', 'Heart', 'MessageCircle', 'ArrowUp',
-  'ArrowDown', 'Flame', 'Clock', 'ClockArrowDown', 'Sparkles', 'Send',
-  'Image', 'ImagePlus', 'X', 'Loader2', 'MapPin', 'Globe', 'Link',
-  'Camera', 'Edit3', 'Check', 'ChevronLeft', 'Compass',
-  'ArrowLeft', 'Lock', 'Trash2', 'Video', 'FileText', 'ChevronDown',
-  'ChevronRight', 'Inbox', 'Users', 'Store', 'Gamepad2', 'Radio', 'Zap', 'Clapperboard', 'Settings', 'Database', 'Info', 'ExternalLink', 'Shield',
-];
-vi.mock('lucide-react', () => Object.fromEntries(icons.map(n => [n, iconFactory(n)])));
+import { lucideMock } from './helpers/lucideMock';
+vi.mock('lucide-react', () => lucideMock);
 
 vi.mock('@/data', async (importOriginal) => {
   const original = (await importOriginal()) as Record<string, unknown>;
