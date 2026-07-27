@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Bug, Menu, X } from 'lucide-react'
+import { Bug, Menu, X, Search } from 'lucide-react'
 import { Button } from './ui/button'
 import GitHubStarButton from './GitHubStarButton'
 import { trackFunnel } from '../lib/analytics'
@@ -50,6 +50,13 @@ function Navbar({ onReportBug }: { onReportBug: () => void }) {
         </div>
 
         <div className="hidden items-center gap-2 md:flex">
+          <Link
+            to="/trending?focus=search"
+            className="group flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 ease-out hover:bg-elevated hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label="Search"
+          >
+            <Search className="h-4 w-4" strokeWidth={1.75} />
+          </Link>
           <Button variant="outline" size="sm" onClick={onReportBug}>
             <Bug className="h-4 w-4" strokeWidth={1.75} />
             Report bug
