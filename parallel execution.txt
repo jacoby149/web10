@@ -924,7 +924,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         collection. owns marketing/web10-social/src/components/Bio/UserProfileScreen.tsx.
         gate: none. acceptance: viewing any user profile with an uploaded avatar/
         banner shows the images; post media renders in the profile grid.
-[ ] D-follow-persistence (sub-lane ws-D/follow — UserProfileScreen.tsx +
+[✓ 1.0.203 #346] D-follow-persistence (sub-lane ws-D/follow — UserProfileScreen.tsx +
       data/follows.ts; PRIORITY — real accounts can't follow; operator,
       27.07, screenshot: "tried to follow my friend coolguydavid, and
       it gives a question mark, says following, i refresh and i am not
