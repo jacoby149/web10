@@ -90,6 +90,31 @@ async function uploadTestImage(
   return confirmRes.json();
 }
 
+// Helper: upload a blob to MinIO via the presigned POST form.
+// generate_presigned_post returns a URL + form fields (signature, policy,
+// etc.). The client must POST a multipart/form-data body with every field
+// plus the file, or MinIO rejects it (400 Bad Request).
+async function uploadToPresignedPost(
+  request: APIRequestContext,
+  upload_url: string,
+  fields: Record<string, string>,
+  fileData: Buffer,
+  filename: string,
+  contentType: string,
+) {
+  // Use Playwright's FormData for correct multipart encoding.
+  // generate_presigned_post returns a URL + form fields (signature, policy,
+  // Content-Type, key, etc.). All fields must be POSTed as multipart/form-data
+  // plus the file, or MinIO rejects it (400 Bad Request).
+  const formData = new FormData();
+  for (const [key, value] of Object.entries(fields)) {
+    formData.append(key, value);
+  }
+  formData.append('file', new File([fileData], filename, { type: contentType }));
+  const resp = await request.post(upload_url, { formData });
+  return resp;
+}
+
 // ---------------------------------------------------------------------------
 // STEP 1: Sign up + log in on the social app without a broken screen
 // Status: PASS (core flow works; cosmetic issues don't block the journey)
@@ -276,7 +301,7 @@ test.describe('Gauntlet Step 2: Post -> feed', () => {
     await signUpUser(request, username, '+15552000003');
     const token = await getOwnerToken(request, username);
 
-    // 1. Request presigned URL
+    // 1. Request presigned POST form
     const uploadRes = await request.post(`${API_BASE}/${username}/upload`, {
       data: {
         token,
@@ -286,18 +311,15 @@ test.describe('Gauntlet Step 2: Post -> feed', () => {
       },
     });
     expect(uploadRes.ok()).toBeTruthy();
-    const { upload_url, object_key } = await uploadRes.json();
+    const { upload_url, fields, object_key } = await uploadRes.json();
 
-    // 2. Upload the blob to S3
+    // 2. Upload the blob to S3 via the presigned POST form.
     const tinyPng = Buffer.from(
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8D4HwAFBQIAX8jx0gAAAABJRU5ErkJggg==',
       'base64',
     );
-    const uploadResp = await request.put(upload_url, {
-      data: tinyPng,
-      headers: { 'Content-Type': 'image/png' },
-    });
-    expect(uploadResp.status()).toBe(200);
+    const uploadResp = await uploadToPresignedPost(request, upload_url, fields, tinyPng, 'e2e-photo.png', 'image/png');
+    expect(uploadResp.status()).toBe(204);
 
     // 3. Confirm the upload
     const confirmRes = await request.post(`${API_BASE}/${username}/upload/confirm`, {
@@ -335,11 +357,8 @@ test.describe('Gauntlet Step 2: Post -> feed', () => {
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8D4HwAFBQIAX8jx0gAAAABJRU5ErkJggg==',
       'base64',
     );
-    const { upload_url } = await uploadRes.json();
-    await request.put(upload_url, {
-      data: tinyPng,
-      headers: { 'Content-Type': 'image/png' },
-    });
+    const { upload_url, fields } = await uploadRes.json();
+    await uploadToPresignedPost(request, upload_url, fields, tinyPng, 'read-test.png', 'image/png');
 
     await request.post(`${API_BASE}/${username}/upload/confirm`, {
       data: {
@@ -385,11 +404,8 @@ test.describe('Gauntlet Step 2: Post -> feed', () => {
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8D4HwAFBQIAX8jx0gAAAABJRU5ErkJggg==',
       'base64',
     );
-    const { upload_url } = await uploadRes.json();
-    await request.put(upload_url, {
-      data: tinyPng,
-      headers: { 'Content-Type': 'image/png' },
-    });
+    const { upload_url, fields } = await uploadRes.json();
+    await uploadToPresignedPost(request, upload_url, fields, tinyPng, 'list-photo.png', 'image/png');
 
     await request.post(`${API_BASE}/${username}/upload/confirm`, {
       data: {
@@ -458,7 +474,10 @@ test.describe('Gauntlet Step 3: Follow -> feed', () => {
           },
         },
       });
-      expect(res.ok()).toBeTruthy();
+      // 409 DUPLICATE_SERVICE is expected for services auto-provisioned at
+      // signup (A13, 1.0.178: public_posts anon-read term). The term already
+      // exists, which is the desired state.
+      expect(res.ok() || res.status() === 409).toBeTruthy();
     };
     for (const service of ['follows', 'inbox', 'public_posts', 'private_posts', 'reactions', 'comments']) {
       await grantSelfTerms(follower, followerToken, service);

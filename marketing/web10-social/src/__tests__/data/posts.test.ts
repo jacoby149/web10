@@ -393,6 +393,39 @@ describe('posts data layer', () => {
 
       expect(mock.getReadUrl).toHaveBeenCalledTimes(1);
     });
+
+    it('D35: resolveMediaRefs reads from public_media when service is passed', async () => {
+      // Cross-user reads must use public_media so the presign endpoint
+      // checks the anon-readable terms instead of the owner-only media terms.
+      mock.read.mockResolvedValue([
+        { _id: 'm1', url: 'https://s3.local/bob/abc/photo.png', created_at: '2026-07-18T00:00:00Z' },
+      ]);
+      mock.getReadUrl.mockResolvedValue({ readUrl: 'https://signed/photo', expiresIn: 60 });
+
+      await posts.resolveMediaRefs(['m1'], { username: 'bob', provider: 'node.web10.app' }, 'public_media');
+
+      expect(mock.read).toHaveBeenCalledWith('public_media', { _id: { $in: ['m1'] } });
+      // deriveObjectKey strips the host prefix -> 'bob/abc/photo.png' becomes
+      // the path after the first / (the bucket). The URL's path is /bob/abc/photo.png,
+      // so the derived key is 'abc/photo.png' (bucket = first path segment).
+      expect(mock.getReadUrl).toHaveBeenCalledWith(
+        'abc/photo.png',
+        'bob',
+        'node.web10.app',
+        'public_media',
+      );
+    });
+
+    it('D35: resolveMediaRefs defaults to media service when not specified', async () => {
+      mock.read.mockResolvedValue([
+        { _id: 'm1', url: 'https://s3.local/alice/abc/photo.png', created_at: '2026-07-18T00:00:00Z' },
+      ]);
+      mock.getReadUrl.mockResolvedValue({ readUrl: 'https://signed/photo', expiresIn: 60 });
+
+      await posts.resolveMediaRefs(['m1']);
+
+      expect(mock.read).toHaveBeenCalledWith('media', { _id: { $in: ['m1'] } });
+    });
   });
 
   describe('refreshMediaUrl (single-record convenience)', () => {

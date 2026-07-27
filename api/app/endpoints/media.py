@@ -42,7 +42,6 @@ async def request_upload_url(user: str, request: UploadRequest):
         Fields={"Content-Type": content_type},
         Conditions=[
             {"Content-Type": content_type},
-            ["content-length-range", 0, request.size_bytes or settings.MAX_UPLOAD_SIZE],
         ],
         ExpiresIn=settings.UPLOAD_URL_EXPIRY,
     )

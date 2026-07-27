@@ -2183,7 +2183,7 @@ marketing ui!"):
     edge, and the presets row + Advanced toggle are centered under a
     left-aligned search bar — two axes colliding. lane item
     D-trending-controls-alignment (ws-D/marketing).
-[ ] NO IMAGES ON /trending POSTS (operator, 27.07, screenshot: "cant
+[✓ 1.0.203] NO IMAGES ON /trending POSTS (operator, 27.07, screenshot: "cant
     see images on posts either!"): posts with photos render as
     text-only cards — the discovery index is text-only (media_refs
     never projected), so nothing downstream CAN show media. two-part
@@ -2264,7 +2264,7 @@ web10 data… one outside analytical app on top of your social data"):
 join page — the steps grow (operator, 26.07, screenshot of the
 1.0.178 two-step strip: "i really like this dora the explorer what
 steps to complete! it should be more!"):
-[ ] extend the numbered steps to the full onboarding path — the Rise
+[✓ 1.0.203] extend the numbered steps to the full onboarding path — the Rise
     arc as a checklist: get the app → create your account → set up
     your monetization (deep link to the Studio money screen in the
     authenticator) → post to the feed. each step links where it
