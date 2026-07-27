@@ -83,6 +83,7 @@ const contacts: ContactRecord[] = PEERS.map((p, i) => ({
   display_name: p.display_name,
   note: p.note,
   added_at: p.added_at,
+  spam_flagged: p.username === 'sam',
 }));
 
 const threads: Record<string, DmRecord[]> = {};
@@ -132,3 +133,62 @@ export async function startConversation() {
 export async function addContact(): Promise<ContactRecord> {
   return { _id: 'new', username: '', provider: 'web10' };
 }
+export async function spamFlagUser(username: string, provider: string): Promise<void> {
+  const c = contacts.find((x) => x.username === username && x.provider === provider);
+  if (c) c.spam_flagged = true;
+}
+export async function unspamFlagUser(username: string, provider: string): Promise<void> {
+  const c = contacts.find((x) => x.username === username && x.provider === provider);
+  if (c) c.spam_flagged = false;
+}
+export function classifyThread(
+  lastMsg: DmRecord | null,
+  me: { provider: string; username: string },
+  otherSpamFlagged: boolean,
+): 'inbox' | 'sent' | 'spam' {
+  if (otherSpamFlagged) return 'spam';
+  if (!lastMsg) return 'inbox';
+  const senderKey = `${lastMsg.sender_provider}/${lastMsg.sender_username}`;
+  const meKey = `${me.provider}/${me.username}`;
+  return senderKey === meKey ? 'sent' : 'inbox';
+}
+
+// ── Additional exports the real barrel provides (no-ops for the harness) ──
+export async function deleteDm(): Promise<void> {}
+export async function updateDm(): Promise<DmRecord> {
+  return { _id: 'new', message: '', sent_at: new Date().toISOString(), sender_username: 'me', sender_provider: 'web10', recipient_username: '', recipient_provider: 'web10' };
+}
+export async function deleteConversation(): Promise<void> {}
+export async function searchContacts(): Promise<ContactRecord[]> { return contacts; }
+export async function readContact(): Promise<ContactRecord | null> { return contacts[0] || null; }
+export async function updateContact(): Promise<ContactRecord> { return contacts[0] || ({ _id: '', username: '', provider: 'web10' } as ContactRecord); }
+export async function deleteContact(): Promise<void> {}
+export async function readPost(): Promise<unknown> { return {}; }
+export async function readPosts(): Promise<unknown[]> { return []; }
+export async function createPost(): Promise<unknown> { return {}; }
+export async function updatePost(): Promise<unknown> { return {}; }
+export async function deletePost(): Promise<void> {}
+export async function readProfile(): Promise<unknown> { return {}; }
+export async function saveProfile(): Promise<unknown> { return {}; }
+export async function readFollowsByUser(): Promise<unknown[]> { return []; }
+export async function followUser(): Promise<unknown> { return {}; }
+export async function unfollowUser(): Promise<void> {}
+export async function countFollows(): Promise<number> { return 0; }
+export async function countFollowers(): Promise<number> { return 0; }
+export async function readComments(): Promise<unknown[]> { return []; }
+export async function createComment(): Promise<unknown> { return {}; }
+export async function deleteComment(): Promise<void> {}
+export async function countReactions(): Promise<number> { return 0; }
+export async function toggleReaction(): Promise<unknown> { return {}; }
+export async function readReactions(): Promise<unknown[]> { return []; }
+export async function resolveMediaRefs(): Promise<unknown[]> { return []; }
+export async function refreshMediaUrls(): Promise<unknown[]> { return []; }
+export async function uploadMedia(): Promise<unknown> { return {}; }
+export async function readServiceTerms(): Promise<unknown> { return {}; }
+export async function grantSelfTerms(): Promise<void> {}
+export async function readStaging(): Promise<unknown[]> { return []; }
+export async function movePostToPublic(): Promise<void> {}
+export async function movePostToPrivate(): Promise<void> {}
+export async function deleteStaging(): Promise<void> {}
+export async function readSettings(): Promise<unknown> { return {}; }
+export async function saveSettings(): Promise<void> {}

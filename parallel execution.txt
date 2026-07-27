@@ -1416,7 +1416,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       screenshots desktop + 375px, design.md §12. gate:
       D-message-controls merged (same files).
       BITES (rule 5 — one PR each, in order):
-      bite a, FOLDERS: the Inbox/Sent/Spam rail (tabs at 375px) +
+      [✓ 1.0.205] bite a, FOLDERS: the Inbox/Sent/Spam rail (tabs at 375px) +
         the spam-flag record + filtering. no compose changes.
       bite b, THREAD ANATOMY: subject field (render + compose input),
         From/To header block, Reply + Forward actions (quote into

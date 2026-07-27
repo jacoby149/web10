@@ -294,6 +294,29 @@ export async function startConversation(
 /**
  * Get the last message from a conversation (for the inbox preview).
  */
+export type DmFolder = 'inbox' | 'sent' | 'spam';
+
+/**
+ * Classify a conversation into a folder based on the last message direction.
+ * - inbox: the latest message is inbound (someone else sent it to me)
+ * - sent: the latest message is outbound (I sent it)
+ * - spam: the other user is spam-flagged
+ */
+export function classifyThread(
+  lastMsg: DmRecord | null,
+  me: { provider: string; username: string },
+  otherSpamFlagged: boolean,
+): DmFolder {
+  if (otherSpamFlagged) return 'spam';
+  if (!lastMsg) return 'inbox';
+  const senderKey = `${lastMsg.sender_provider}/${lastMsg.sender_username}`;
+  const meKey = `${me.provider}/${me.username}`;
+  return senderKey === meKey ? 'sent' : 'inbox';
+}
+
+/**
+ * Get the last message from a conversation (for the inbox preview).
+ */
 export async function getLastDm(conversation: string): Promise<DmRecord | null> {
   const messages = await readDms(conversation);
   return messages[messages.length - 1] || null;

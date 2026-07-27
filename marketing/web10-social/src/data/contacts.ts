@@ -117,3 +117,23 @@ export async function updateContactNote(id: string, note: string): Promise<Conta
 export async function readContactsForCrm(): Promise<ContactRecord[]> {
   return readContacts();
 }
+
+/**
+ * Flag a contact as spam (Mail view folder filter).
+ */
+export async function spamFlagUser(username: string, provider: string): Promise<void> {
+  const contact = await readContact(username, provider);
+  if (contact && contact._id) {
+    await updateContact(contact._id, { spam_flagged: true });
+  }
+}
+
+/**
+ * Remove spam flag from a contact.
+ */
+export async function unspamFlagUser(username: string, provider: string): Promise<void> {
+  const contact = await readContact(username, provider);
+  if (contact && contact._id) {
+    await updateContact(contact._id, { spam_flagged: false });
+  }
+}
