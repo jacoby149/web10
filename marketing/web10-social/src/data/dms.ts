@@ -181,6 +181,44 @@ export async function deleteDm(id: string): Promise<void> {
 }
 
 /**
+ * Update (edit) a DM message's text content.
+ * Only the `message` field and `updated_at` are patched; sender/recipient
+ * and media_refs are immutable.
+ */
+export async function updateDm(id: string, message: string): Promise<DmRecord> {
+  const wapi = getWapi();
+  const token = wapi.readToken();
+  if (!token) throw new Error('not authenticated');
+
+  const result = await wapi.update<DmRecord>(
+    'dms',
+    { _id: id },
+    { $set: { message, updated_at: new Date().toISOString() } },
+  );
+  return result;
+}
+
+/**
+ * Delete every message in a conversation.
+ */
+export async function deleteConversation(conversation: string): Promise<void> {
+  const wapi = getWapi();
+  const token = wapi.readToken();
+  if (!token) throw new Error('not authenticated');
+
+  const me = { provider: token.provider, username: token.username };
+  const meKey = `${me.provider}/${me.username}`;
+  const parts = conversation.split('--');
+  const themKey = parts.find((p) => p !== meKey) || parts[0];
+  const them = parseWeb10(themKey);
+
+  // Delete all messages in both directions for this conversation.
+  await Promise.all(
+    conversationQueries(me, them).map((q) => wapi.delete('dms', q)),
+  );
+}
+
+/**
  * List all conversations the current user participates in.
  * Reads contacts and derives conversation keys, but also checks for
  * legacy messages to discover conversations with non-contacts.

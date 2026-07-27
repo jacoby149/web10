@@ -23,6 +23,7 @@ vi.mock('lucide-react', () => {
     'AlertTriangle', 'CheckCircle', 'Compass', 'Share2', 'Repeat2',
     'Film', 'Music2', 'Users', 'Store', 'Gamepad2', 'Radio', 'Zap', 'Clapperboard', 'Plus', 'X', 'Search',
     'Video', 'FileText', 'Inbox', 'ChevronDown', 'ChevronRight', 'Lock', 'Trash2', 'ArrowLeft', 'Mail', 'MailOpen', 'Calendar',
+    'Settings', 'Database', 'Info', 'ExternalLink', 'Shield',
   ].forEach(name => { icons[name] = iconFactory(name); });
   return icons;
 });

@@ -1804,10 +1804,11 @@ the boring plumbing social apps die without:
     .context/e2e-finding-public-ledger-mirror-dead.md. Not fixed here
     (e2e/** lane); re-open as a lane D + lane A item.
     RE-OPENED (26.07 audit #4, verified still dead at HEAD): the lane D
-    half is D-ledger-mirror-fix (registerDefaultSchemas never called +
-    createPublicEntry sends the wrong body shape vs public.py — every
-    app-side mirror silently stubs), the lane A half is
-    A14-followers-count (/discover/users returns followers_count).
+    half is [✓ 1.0.193] D-ledger-mirror-fix (registerDefaultSchemas never called +
+    createPublicEntry sends the wrong body shape vs public.py — fixed:
+    bootstrap call in App.tsx + correct {token, query} body shape), the
+    lane A half is A14-followers-count (/discover/users returns
+    followers_count).
     both in parallel execution.txt. until these merge, ALL real-account
     social proof (follower counts, trending engagement) is theater —
     persona-seeded numbers only.
