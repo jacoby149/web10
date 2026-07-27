@@ -1067,7 +1067,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         staging records (or run an import), triage them entirely from
         the ui, published ones appear on the wall/feed; design.md §12,
         screenshots desktop + 375px.
-[✓ 1.0.192 #323 bite a] D-public-media-client (sub-lane D/feed + data seam). client half of
+[✓ 1.0.208 #344] D-public-media-client (sub-lane D/feed + data seam). client half of
         decisions.md D35, against A12's contract: serviceTerms.ts gains a
         `public_media` service with the anon-read whitelist public_posts
         already carries; uploadMedia targets public_media when the
@@ -1109,7 +1109,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
           service='public_media'; tests pin the confirm-body service
           field. acceptance: a fresh public post's media record lands
           in public_media (local stack API check).
-        bite b, READERS + VERIFY: cross-user read paths
+        [✓ 1.0.208 #344] bite b, READERS + VERIFY: cross-user read paths
           (UserProfileScreen, FeedScreen/DiscoverScreen resolve,
           PostLightbox) pass service='public_media' for other users'
           content, owner legacy fallback intact; then verify the
@@ -1770,7 +1770,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       urls — gate: the relevant routes merged). never one sweeping
       branch.
 
-[✓ 1.0.193 #327 bite a] D-marketing-search (sub-lane ws-D/marketing; operator, 26.07: "the
+[✓ 1.0.208 #348] D-marketing-search (sub-lane ws-D/marketing; operator, 26.07: "the
       one thing we are really missing now is search! searching by tag,
       even on the marketing page… youtube-esque and be an entry point
       into web10 social, if you could search from the marketing ui!"):
@@ -1802,7 +1802,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       bite a, TRENDING SEARCH: the search bar on /trending + post
         results in the existing grid (text + #tag queries), signed-
         out. no nav changes, no user results.
-      bite b, USERS + NAV: matching-users row, the compact nav
+      [✓ 1.0.208 #348] bite b, USERS + NAV: matching-users row, the compact nav
         search affordance, tag-chip routing polish. gate: bite a
         merged.
 
@@ -2172,7 +2172,19 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
        not be needed at all. Bites b-e remain open but blocked on the
        Pro trial outcome.
 
-  [✓ 1.0.203 #343] C9-e2e-suite-repair (lane C, e2e/**; PRIORITY 1, audit #7 27.07):
+  [~] C9-e2e-suite-repair (lane C, e2e/**; PRIORITY 1, audit #7 27.07):
+      RE-OPENED audit #9 (27.07): the [✓ 1.0.203 #343] tick was FALSE —
+      #343 fixed step-3 + the MinIO host port, but a THIRD failure class
+      persists at head: gauntlet step-2 "media upload: full cycle" gets
+      a 400 from MinIO on the presigned multipart POST (Expected 204,
+      Received 400) despite #349 + head commits 16045c18/cfaf9bca/
+      0f8dbc5f. prod upload path verified working (operator's fresh
+      uploads render) — this is CI-MinIO/harness class. Next bite:
+      REPRO locally (docker compose e2e stack), capture MinIO's exact
+      400 error body in the PR (the XML Error element names the failed
+      condition — SignatureDoesNotMatch vs policy condition vs bucket
+      CORS), fix that condition, never weaken the 204 assertion.
+      Original text (both fixed classes documented for history):
       the e2e suite has been RED on every dev + main push since 24.07
       (~50 consecutive runs) — the seatbelt is wallpaper. Two failure
       CLASSES, fix both:
@@ -2429,106 +2441,83 @@ M3 "the network"         = encryption integration (A rtc + C2 sdk
                            polish. the last big merge.
 
 
-CURRENT CONDUCTOR BOARD (as of 27.07.2026 — audit #7; keep fresh)
+CURRENT CONDUCTOR BOARD (as of 27.07.2026 — audit #9; keep fresh)
 --------------------------------------------------------------------
-AUDIT #7 REFRESH (27.07, late — second pass same day): SHIPPED TWICE.
-(1) The 12-commit dev batch (#321–#331: A14, D-ledger-mirror-fix,
-D-night-owl cron swap, D-post-visibility-toggle, D-settings-tab bite a,
-D-message-controls, D-marketing-search bite a, D-public-media-client
-bite a, D-feedback-contact-privacy, unbrick tooling + lucide-mock fix,
-docs) gated CLEAN and promoted dev→main via merge commit (#332);
-deploy-prod + cd green; prod verified live (all 7 public endpoints 200).
-(2) A16-board-moderation built + shipped SAME-SESSION for the operator's
-live incident ("someone posted something inappropriate on the public
-board"): #333 → dev, #334 → main, prod verified — the Board Moderation
-card is live in the authenticator's Node Config and the admin
-remove/restore endpoints answer on api.web10.app. Zero open PRs; fleet
-idle. CHANGELOG NOTE: the batch's union-merged entries collided on
-version numbers (1.0.192 ×3, 1.0.193 ×3, 1.0.194 ×2) — per the
-never-renumber-others rule the entries stay; the lane TICKS are now
-disambiguated with PR numbers ([✓ 1.0.192 #326]) so "which 1.0.192" is
-never a question again. E2E RED FOR 3 DAYS (~50 runs): the MinIO
-host-port failure (documented 1.0.167) AND the step-3 grantSelfTerms
-failure (red since its own merge in #291, pre-existing at main's head) —
-the seatbelt is OFF and nobody is fixing it; filed C9-e2e-suite-repair
-as lane C priority. Gates cleared since audit #6: D-message-controls
-merged → D-mail-experience bite a UNBLOCKED; D-marketing-search bite a
-merged → bite b UNBLOCKED; D-public-media-client bite a merged → bite b
-UNBLOCKED (wire the readers); night-owl bite a merged (cron flavor,
-#330) → bite b (Conductor pilot) UNBLOCKED; A14 merged → A15 is ws-A's
-next. D-follow-backfill's files (data/follows.ts only) are disjoint
-from D-public-media-client bite b's component files — the two MAY run
-in parallel despite sharing the ws-D/feed chain label.
-
-  PRIORITY 0 (operator, 27.07 — ESSENTIAL, the hyperspeed blocker):
-    ws-E/night-owl: D-night-owl bite b — the Conductor pilot (AI
-      navigates Conductor: new workspace, model select, type prompt,
-      hit enter, read result). Bite a (cron scaffold) merged #330.
+AUDIT #9 REFRESH (27.07, third pass same day): SHIPPED. The 21-commit
+dev batch (#341–#352) gated clean and promoted dev→main via merge
+commit (#353); deploy-prod + cd green; prod verified live (7/7 public
+endpoints 200). Zero open PRs; fleet idle. Gates CLEARED by this batch:
+A17 (#347) + D-public-media-client bite b (#344) merged →
+D-trending-card-media's gate is now FULLY CLEAR (its A17 half and its
+public-media half both landed); D-marketing-search bite b (#348) merged
+→ D-search-fulltext + D-trending-controls-alignment UNBLOCKED;
+D-follow-persistence (#346) merged → D-follow-backfill + then
+D-profile-message-button UNBLOCKED in the ws-D/follow chain;
+D-mail-experience bite a (#352) merged → bite b (thread anatomy)
+UNBLOCKED; ws-D/profile chain UNBLOCKED (its public-media bite b seam
+cleared — D-lightbox-media-sizing starts the chain). E-run-discovery-
+migration gains a RE-RUN note: A17's new index fields only reach
+existing docs on re-index — run backfill again after this deploy (the
+migration's run list already says so). PROCESS NAMED (not blocking):
+five direct pushes to dev bypassed PR flow (presigned-POST repair);
+C9's tick was false (e2e still red, third failure class — MinIO 400
+on the presigned multipart POST; prod upload verified working, so
+CI-MinIO/harness class) — C9 RE-OPENED, still PRIORITY 1. NIGHT-OWL:
+paused at bite a (#342) pending the operator's Conductor Pro trial —
+bite b is BLOCKED, not kickable.
 
   PRIORITY 1 (fresh, this audit):
-    ws-C: C9-e2e-suite-repair — the e2e suite has been red on every
-      dev/main push since 24.07; fix the step-3 grantSelfTerms failure
-      + the MinIO host-port class. The seatbelt doesn't work if it's
-      ignored; right now it's wallpaper.
-    ws-D/follow: D-follow-persistence (27.07 complaint — follow doesn't
-      persist for real accounts, "?" count, profile shows no posts;
-      likely the same SMR-only terms class A13 fixed, this time for
-      the follows service), THEN D-profile-message-button (27.07
-      complaint — Message button on /u/:username, same file seam).
-    ws-E (operator-gated): E-run-discovery-migration — the gate is now
-      FULLY CLEAR: 1.0.178 is deployed to BOTH dev and prod. All that
-      remains is running migrate_terms + backfill with an admin token
-      per env. needs admin token + env access (operator provides).
+    ws-C: C9-e2e-suite-repair — STILL RED at head (third class: MinIO
+      400 on presigned multipart POST in gauntlet step-2). Repro
+      locally, quote MinIO's XML error body in the PR, fix the failed
+      policy/signature condition. The seatbelt is still wallpaper.
+    ws-E (operator-gated): E-run-discovery-migration — env gate CLEAR
+      (A13 + A17 both deployed to prod). Run migrate_terms + backfill +
+      migrate_follows_terms with an admin token per env; the A17 media
+      fields need the backfill RE-RUN to reach existing index docs.
+      needs admin token + env access (operator provides).
 
   PARALLEL-SAFE FLEET (one workspace per sub-lane; chains WITHIN a
   sub-lane are sequential, file seams):
-    ws-E/night-owl:  D-night-owl bite b (PRIORITY 0)
     ws-C:            C9-e2e-suite-repair (PRIORITY 1)
-    ws-A:            A17-discovery-media-projection (27.07 complaint
-                     root cause — the index drops media; unblocks
-                     D-trending-card-media + the profile-media grid
-                     half), THEN A15-engagement-count-accuracy
-    ws-D/feed:       D-public-media-client bite b (readers pass
-                     service='public_media' + verify on dev), THEN
-                     D-feed-lightbox bite a, THEN D-link-embeds
-    ws-D/follow:     D-follow-persistence (PRIORITY 1), THEN
-                     D-follow-backfill (MOVED HERE audit #8 — it edits
-                     data/follows.ts, colliding with D-follow-
-                     persistence; no longer parallel-safe with it),
-                     THEN D-profile-message-button
-    ws-D/messages:   D-mail-experience bite a (Inbox/Sent/Spam folders)
-                     THEN bites b/c, THEN D-crm-upgrade
-    ws-D/marketing:  D-marketing-search bite b (users row + nav
-                     affordance), THEN D-search-fulltext (27.07
-                     complaint: search only hits tags) +
-                     D-trending-controls-alignment (27.07 complaint:
-                     bricked controls stack — either order), THEN
-                     D-trending-card-media (27.07 complaint: no images
-                     on posts — gate A17 + public-media bite b), THEN
+    ws-A:            A15-engagement-count-accuracy (A17 merged #347 —
+                     ws-A's queue is empty above it)
+    ws-D/feed:       D-feed-lightbox bite a (open-from-feed), THEN
+                     D-link-embeds — NOTE D-trending-card-media lives
+                     in ws-D/marketing, not this chain
+    ws-D/follow:     D-follow-backfill (gate D-follow-persistence
+                     merged #346 — CLEARED), THEN
+                     D-profile-message-button (same UserProfileScreen
+                     seam)
+    ws-D/messages:   D-mail-experience bite b (thread anatomy:
+                     subject/reply/forward), THEN bite c, THEN
+                     D-crm-upgrade
+    ws-D/marketing:  D-trending-card-media (27.07 complaint: no images
+                     on posts — gate A17 + public-media bite b BOTH
+                     MERGED, fully clear), THEN D-search-fulltext +
+                     D-trending-controls-alignment (either order), THEN
                      D-graph-app bite a, THEN D-social-analytics
-    ws-D/marketing(2): D-join-steps-extend (Join.tsx only — disjoint
-                     from the search chain) OR D-appstore-revamp v1
-    ws-D/profile:    D-lightbox-media-sizing, THEN
+    ws-D/marketing(2): D-appstore-revamp v1 (Join.tsx chain drained —
+                     D-join-steps-extend merged #345)
+    ws-D/profile:    D-lightbox-media-sizing (chain START — the
+                     public-media bite b seam cleared), THEN
                      D-profile-image-placement, THEN D-follow-lists,
-                     THEN D-text-post-cards bite a — NOTE the whole
-                     chain shares the PostLightbox/ProfileScreen seam
-                     with D-public-media-client bite b: ws-D/profile
-                     starts AFTER bite b merges (rebase). ALSO NOTE
-                     (audit #8): UserProfileScreen.tsx is the
-                     ws-D/follow chain's file now (D-follow-
-                     persistence → D-profile-message-button) — that
-                     chain and bite b coordinate via .context/, and
-                     the D-follow-lists item's UserProfileScreen touch
-                     rebases after BOTH.
+                     THEN D-text-post-cards bite a — the whole chain
+                     shares the PostLightbox/ProfileScreen seam; run
+                     sequentially.
     ws-D/settings:   D-settings-tab bite b (posting defaults record +
-                     composer initial state)
+                     composer initial state) — the #350 harness unbrick
+                     removed its blocker (the mock now self-explains)
     GATED (don't pick up until the gate clears):
+      D-night-owl bites b-e (gate: operator's Conductor Pro trial
+      outcome — paused #342).
       D-deep-links (gate: the current fleet merged — it sweeps most
       ws-D files). Still FIRST when the fleet drains.
       D-poke build (gate: operator sign-off on the 1.0.179 proposal).
       D-inapp-discover-knobs (gate: D20 revisit — operator sign-off).
       D-feed-avatar-resolution + the D-user-profile-media grid half
-      (gate: public-media path END TO END — bite b merged + verified).
+      (gate: public-media path END TO END — bite b merged #344; needs
+      the dev verification step, then these clear).
       D-coming-soon-builds (gate: per-surface spec first).
       E-run-discovery-migration (gate: admin token — operator provides;
       env gate CLEARED 27.07).
