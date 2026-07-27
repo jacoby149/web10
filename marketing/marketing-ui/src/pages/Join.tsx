@@ -3,6 +3,92 @@ import { ArrowUpRight, ArrowRight } from 'lucide-react';
 import { trackFunnel } from '@/lib/analytics';
 import { AUTH_ORIGIN, SOCIAL_ORIGIN } from '@/lib/origins';
 
+function StepCard({
+  number,
+  href,
+  title,
+  subtitle,
+  testid,
+}: {
+  number: number;
+  href: string;
+  title: string;
+  subtitle: string;
+  testid: string;
+}) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      data-testid={testid}
+      className="group flex items-center gap-4 rounded-lg border border-border bg-surface p-4 transition-colors duration-150 ease-out hover:border-brand/50"
+    >
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-elevated font-mono text-sm font-semibold tabular-nums text-brand">
+        {number}
+      </span>
+      <div>
+        <p className="font-display text-base font-semibold text-foreground">
+          {title}
+        </p>
+        <p className="text-sm text-muted-foreground">
+          {subtitle}
+          <ArrowUpRight
+            className="ml-1 align-middle h-3.5 w-3.5 transition-colors duration-150 group-hover:text-brand"
+            strokeWidth={1.75}
+          />
+        </p>
+      </div>
+    </a>
+  );
+}
+
+function StepArrow() {
+  return (
+    <div className="hidden self-center text-muted-foreground sm:block">
+      <ArrowRight className="h-5 w-5" strokeWidth={1.5} />
+    </div>
+  );
+}
+
+function StepStrip({ justify }: { justify?: string }) {
+  return (
+    <div className={`flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center ${justify ? `sm:${justify}` : ''}`}>
+      <StepCard
+        number={1}
+        href={SOCIAL_ORIGIN}
+        title="Get the app"
+        subtitle="Open web10 social"
+        testid="join-step-1"
+      />
+      <StepArrow />
+      <StepCard
+        number={2}
+        href={AUTH_ORIGIN}
+        title="Create your account"
+        subtitle="Sign up — it's free"
+        testid="join-step-2"
+      />
+      <StepArrow />
+      <StepCard
+        number={3}
+        href={`${AUTH_ORIGIN}?mode=studio`}
+        title="Set up your monetization"
+        subtitle="Open the Studio"
+        testid="join-step-3"
+      />
+      <StepArrow />
+      <StepCard
+        number={4}
+        href={`${SOCIAL_ORIGIN}/feed`}
+        title="Post to the feed"
+        subtitle="Share your first post"
+        testid="join-step-4"
+      />
+    </div>
+  );
+}
+
 function Join() {
   useEffect(() => {
     trackFunnel('join_view');
@@ -25,60 +111,9 @@ function Join() {
             first. That's it.
           </p>
 
-          {/* Two-step join flow */}
+          {/* Four-step join flow */}
           <div className="reveal mt-10 [animation-delay:240ms]">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-              {/* Step 1 */}
-              <a
-                href={SOCIAL_ORIGIN}
-                target="_blank"
-                rel="noopener noreferrer"
-                data-testid="join-step-1"
-                className="group flex items-center gap-4 rounded-lg border border-border bg-surface p-4 transition-colors duration-150 ease-out hover:border-brand/50"
-              >
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-elevated font-mono text-sm font-semibold tabular-nums text-brand">
-                  1
-                </span>
-                <div>
-                  <p className="font-display text-base font-semibold text-foreground">
-                    Get the app
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Open web10 social
-                    <ArrowUpRight
-                      className="ml-1 align-middle h-3.5 w-3.5 transition-colors duration-150 group-hover:text-brand"
-                      strokeWidth={1.75}
-                    />
-                  </p>
-                </div>
-              </a>
-
-              {/* Arrow connector — hidden on mobile */}
-              <div className="hidden self-center text-muted-foreground sm:block">
-                <ArrowRight className="h-5 w-5" strokeWidth={1.5} />
-              </div>
-
-              {/* Step 2 */}
-              <a
-                href={AUTH_ORIGIN}
-                target="_blank"
-                rel="noopener noreferrer"
-                data-testid="join-step-2"
-                className="group flex items-center gap-4 rounded-lg border border-border bg-surface p-4 transition-colors duration-150 ease-out hover:border-brand/50"
-              >
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-elevated font-mono text-sm font-semibold tabular-nums text-brand">
-                  2
-                </span>
-                <div>
-                  <p className="font-display text-base font-semibold text-foreground">
-                    Create your account
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Sign up — it's free
-                  </p>
-                </div>
-              </a>
-            </div>
+            <StepStrip />
           </div>
         </div>
       </section>
@@ -244,55 +279,7 @@ function Join() {
             works.
           </p>
           <div className="reveal mt-10 [animation-delay:160ms]">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-center">
-              <a
-                href={SOCIAL_ORIGIN}
-                target="_blank"
-                rel="noopener noreferrer"
-                data-testid="join-step-1-bottom"
-                className="group flex items-center gap-4 rounded-lg border border-border bg-surface p-4 transition-colors duration-150 ease-out hover:border-brand/50"
-              >
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-elevated font-mono text-sm font-semibold tabular-nums text-brand">
-                  1
-                </span>
-                <div>
-                  <p className="font-display text-base font-semibold text-foreground">
-                    Get the app
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Open web10 social
-                    <ArrowUpRight
-                      className="ml-1 align-middle h-3.5 w-3.5 transition-colors duration-150 group-hover:text-brand"
-                      strokeWidth={1.75}
-                    />
-                  </p>
-                </div>
-              </a>
-
-              <div className="hidden self-center text-muted-foreground sm:block">
-                <ArrowRight className="h-5 w-5" strokeWidth={1.5} />
-              </div>
-
-              <a
-                href={AUTH_ORIGIN}
-                target="_blank"
-                rel="noopener noreferrer"
-                data-testid="join-step-2-bottom"
-                className="group flex items-center gap-4 rounded-lg border border-border bg-surface p-4 transition-colors duration-150 ease-out hover:border-brand/50"
-              >
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-elevated font-mono text-sm font-semibold tabular-nums text-brand">
-                  2
-                </span>
-                <div>
-                  <p className="font-display text-base font-semibold text-foreground">
-                    Create your account
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Sign up — it's free
-                  </p>
-                </div>
-              </a>
-            </div>
+            <StepStrip justify="justify-center" />
           </div>
         </div>
       </section>
