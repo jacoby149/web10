@@ -9,7 +9,7 @@ import json
 
 from fastapi.testclient import TestClient
 
-from app.main import app, analytics_events, _feedback_store, _feedback_file, _feedback_lock
+from app.main import app, analytics_events, _feedback_store, _feedback_file, _feedback_lock, _format_bug_post
 from app.validation import VALIDATORS, validate_record
 
 client = TestClient(app)
@@ -146,6 +146,45 @@ def test_feedback_persists_to_disk():
     stored = json.loads(_feedback_file.read_text())
     assert len(stored) == 1
     assert stored[0]["message"] == "persist-test"
+
+
+def test_contact_never_in_public_post_body():
+    """PII pin: contact and user_agent must NOT appear in the public post body.
+
+    The reporter's contact info is PII — it stays in the disk store and
+    GET /feedback only. The public post is anon-readable and discovery-
+    indexed, so leaking contact info would violate the manifesto line
+    "nobody is mining you".
+    """
+    entry = {
+        "message": "white screen on feed",
+        "contact": "user@example.com",
+        "app": "web10-social",
+        "route": "/feed",
+        "version": "1.0.51",
+        "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+        "console_errors": ["TypeError: x is null"],
+        "stack_trace": "Error: x is null\n  at Foo.tsx:42:15\n  at http://localhost:3000/app.js:100\n  token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U",
+    }
+    post_body = _format_bug_post(entry)
+
+    # Contact must NOT appear in the public post body
+    assert "user@example.com" not in post_body, "contact email leaked into public post"
+    assert "Contact:" not in post_body, "Contact: label leaked into public post"
+
+    # User-agent must NOT appear in the public post body
+    assert "Mozilla" not in post_body, "user_agent leaked into public post"
+
+    # Stack trace must be capped and stripped of URLs / tokens
+    assert "localhost:3000" not in post_body, "URL leaked in stack trace"
+    assert "eyJhbGci" not in post_body, "token leaked in stack trace"
+    assert "<url-redacted>" in post_body, "URLs should be redacted in stack"
+    assert "<token-redacted>" in post_body, "long token-like strings should be redacted"
+
+    # Safe fields should still appear
+    assert entry["message"] in post_body
+    assert entry["route"] in post_body
+    assert entry["version"] in post_body
 
 
 # ─── JS Error beacon ─────────────────────────────────────────────────────────

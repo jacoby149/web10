@@ -33,7 +33,7 @@ const icons = [
   'Image', 'ImagePlus', 'X', 'Loader2', 'MapPin', 'Globe', 'Link',
   'Camera', 'Edit3', 'Check', 'ChevronLeft', 'Compass',
   'ArrowLeft', 'Lock', 'Trash2', 'Video', 'FileText', 'ChevronDown',
-  'ChevronRight', 'Inbox', 'Users', 'Store', 'Gamepad2', 'Radio', 'Zap', 'Clapperboard',
+  'ChevronRight', 'Inbox', 'Users', 'Store', 'Gamepad2', 'Radio', 'Zap', 'Clapperboard', 'Settings', 'Database', 'Info', 'ExternalLink', 'Shield',
 ];
 vi.mock('lucide-react', () => Object.fromEntries(icons.map(n => [n, iconFactory(n)])));
 

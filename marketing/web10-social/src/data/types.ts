@@ -162,6 +162,7 @@ export interface DmRecord {
   _id?: string;
   message: string;
   sent_at: string;
+  updated_at?: string;
   sender_username: string;
   sender_provider: string;
   recipient_username: string;
