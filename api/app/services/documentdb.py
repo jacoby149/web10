@@ -926,6 +926,23 @@ def trending_topics(limit: int = 20) -> list[dict]:
     return [{"topic": d["_id"], "count": d["count"]} for d in docs]
 
 
+def _count_followers(username: str) -> int:
+    """Count followers for a user from the public ledger.
+
+    Queries web10.public for entries where payload.action='follow' and
+    target matches the user's follow key (follow:{username}@{provider}).
+    """
+    _ensure_public_collection()
+    col = db["web10"][PUBLIC_COLLECTION]
+    target = f"follow:{username}@{settings.PROVIDER}"
+    pipeline = [
+        {"$match": {"target": target, "payload.action": "follow"}},
+        {"$count": "followers"},
+    ]
+    result = list(col.aggregate(pipeline))
+    return result[0]["followers"] if result else 0
+
+
 def suggested_users(limit: int = 20) -> list[dict]:
     """Suggest users based on discovery index activity + engagement."""
     _ensure_discovery_collection()
@@ -942,6 +959,7 @@ def suggested_users(limit: int = 20) -> list[dict]:
                 "username": author,
                 "post_count": len(posts),
                 "engagement_score": score,
+                "followers_count": _count_followers(author),
             }
         )
     users.sort(key=lambda u: u["engagement_score"], reverse=True)
