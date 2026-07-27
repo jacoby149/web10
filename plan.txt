@@ -2167,6 +2167,22 @@ marketing ui!"):
     web10-social (/u/:username, post links once D-feed-lightbox's
     permalink route exists) — search IS the funnel. lane item
     D-marketing-search (ws-D/marketing).
+[ ] SEARCH ONLY SEARCHES TAGS (operator, 27.07: "searching only
+    searches tags also. it doesnt search the other things") — a word
+    that appears in a post's BODY (not its tags) returns nothing, and
+    author handles don't hit either. /discover/search is a $text query
+    over (body_text, tags) in theory — suspects: the text index
+    missing/broken on the deployed DB (query errors → the client
+    swallows to []), body_text empty on indexed posts (field drift),
+    or $text whole-word semantics failing substrings. fix so body
+    words + author handles + tags ALL return results. lane item
+    D-search-fulltext (ws-D/marketing, small lane-A seam inside
+    /discover/search only).
+[ ] /trending CONTROLS ALIGNMENT BRICKED (operator, 27.07, screenshot):
+    the topic-chip rail starts with a half-clipped chip at the left
+    edge, and the presets row + Advanced toggle are centered under a
+    left-aligned search bar — two axes colliding. lane item
+    D-trending-controls-alignment (ws-D/marketing).
 [ ] in-app search parity note: DiscoverScreen's existing search (if
     any) gets audited against the same corpus in the same pass —
     "search your own stuff" stays a separate low-hanging-fruit item
