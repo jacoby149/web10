@@ -96,3 +96,80 @@ class TestPublicPostsTerm:
     def test_empty_blacklist(self):
         r = records.public_posts_term()
         assert r["blacklist"] == []
+
+
+class TestFollowsTerm:
+    """Core services provisioning: follows term is owner-only."""
+
+    def test_returns_dict(self):
+        r = records.follows_term()
+        assert isinstance(r, dict)
+
+    def test_service_is_follows(self):
+        r = records.follows_term()
+        assert r["service"] == "follows"
+
+    def test_empty_whitelist(self):
+        r = records.follows_term()
+        assert r["whitelist"] == []
+
+    def test_empty_blacklist(self):
+        r = records.follows_term()
+        assert r["blacklist"] == []
+
+
+class TestInboxTerm:
+    """Core services provisioning: inbox allows create from anyone."""
+
+    def test_service_is_inbox(self):
+        r = records.inbox_term()
+        assert r["service"] == "inbox"
+
+    def test_whitelist_grants_create(self):
+        r = records.inbox_term()
+        assert len(r["whitelist"]) == 1
+        entry = r["whitelist"][0]
+        assert entry["username"] == ".*"
+        assert entry["provider"] == ".*"
+        assert entry["create"] is True
+
+
+class TestReactionsTerm:
+    def test_service_is_reactions(self):
+        r = records.reactions_term()
+        assert r["service"] == "reactions"
+
+    def test_empty_whitelist(self):
+        r = records.reactions_term()
+        assert r["whitelist"] == []
+
+
+class TestCommentsTerm:
+    def test_service_is_comments(self):
+        r = records.comments_term()
+        assert r["service"] == "comments"
+
+    def test_empty_whitelist(self):
+        r = records.comments_term()
+        assert r["whitelist"] == []
+
+
+class TestDmsTerm:
+    def test_service_is_dms(self):
+        r = records.dms_term()
+        assert r["service"] == "dms"
+
+    def test_empty_whitelist(self):
+        r = records.dms_term()
+        assert r["whitelist"] == []
+
+
+class TestCoreServicesTerms:
+    def test_returns_list_of_five(self):
+        terms = records.core_services_terms()
+        assert len(terms) == 5
+
+    def test_services_cover_follows_inbox_reactions_comments_dms(self):
+        terms = records.core_services_terms()
+        services = {t["service"] for t in terms}
+        assert services == {"follows", "inbox", "reactions", "comments", "dms"}

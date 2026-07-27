@@ -92,6 +92,10 @@ def create_admin(username: str, password_hash: str, phone: str = "") -> str:
     services_terms = to_db(records.services_record(), "services")
     user_col.insert_one(services_terms)
 
+    # Core app services terms — same as create_user
+    for ct in [to_db(t, "services") for t in records.core_services_terms()]:
+        user_col.insert_one(ct)
+
     return "admin created"
 
 
