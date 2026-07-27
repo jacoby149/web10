@@ -153,12 +153,17 @@ export function classifyThread(
   return senderKey === meKey ? 'sent' : 'inbox';
 }
 
-// ── Additional exports the real barrel provides (no-ops for the harness) ──
+// ── Generic safe stubs ───────────────────────────────────────────────────
+// The `@/data` barrel is `export *` over every data module, so any component
+// the harness mounts (Layout / DmsScreen / SettingsScreen, transitively) may
+// import names beyond the seeded ones above. These no-op stubs keep the page
+// rendering; if capture.mjs errors with "No matching export named X", the
+// barrel grew again — add X here in the same shape.
+export async function deleteConversation(): Promise<void> {}
 export async function deleteDm(): Promise<void> {}
 export async function updateDm(): Promise<DmRecord> {
-  return { _id: 'new', message: '', sent_at: new Date().toISOString(), sender_username: 'me', sender_provider: 'web10', recipient_username: '', recipient_provider: 'web10' };
+  return { _id: 'stub', message: '', sent_at: new Date().toISOString(), sender_username: 'me', sender_provider: 'web10', recipient_username: '', recipient_provider: 'web10' };
 }
-export async function deleteConversation(): Promise<void> {}
 export async function searchContacts(): Promise<ContactRecord[]> { return contacts; }
 export async function readContact(): Promise<ContactRecord | null> { return contacts[0] || null; }
 export async function updateContact(): Promise<ContactRecord> { return contacts[0] || ({ _id: '', username: '', provider: 'web10' } as ContactRecord); }
@@ -168,22 +173,25 @@ export async function readPosts(): Promise<unknown[]> { return []; }
 export async function createPost(): Promise<unknown> { return {}; }
 export async function updatePost(): Promise<unknown> { return {}; }
 export async function deletePost(): Promise<void> {}
+export async function countFollowers(): Promise<number> { return PEERS.length; }
+export async function countFollows(): Promise<number> { return PEERS.length; }
+export async function countStagingPosts(): Promise<number> { return 0; }
 export async function readProfile(): Promise<unknown> { return {}; }
-export async function saveProfile(): Promise<unknown> { return {}; }
+export async function saveProfile(): Promise<void> {}
+export async function readMyPosts(): Promise<unknown[]> { return []; }
 export async function readFollowsByUser(): Promise<unknown[]> { return []; }
 export async function followUser(): Promise<unknown> { return {}; }
 export async function unfollowUser(): Promise<void> {}
-export async function countFollows(): Promise<number> { return 0; }
-export async function countFollowers(): Promise<number> { return 0; }
+export async function uploadMedia(): Promise<{ url: string }> { return { url: '' }; }
+export async function fanOutToFollowers(): Promise<void> {}
+export async function refreshMediaUrls<T>(records: T[]): Promise<T[]> { return records; }
+export async function resolveMediaRefs<T>(records: T[]): Promise<T[]> { return records; }
 export async function readComments(): Promise<unknown[]> { return []; }
 export async function createComment(): Promise<unknown> { return {}; }
 export async function deleteComment(): Promise<void> {}
 export async function countReactions(): Promise<number> { return 0; }
 export async function toggleReaction(): Promise<unknown> { return {}; }
 export async function readReactions(): Promise<unknown[]> { return []; }
-export async function resolveMediaRefs(): Promise<unknown[]> { return []; }
-export async function refreshMediaUrls(): Promise<unknown[]> { return []; }
-export async function uploadMedia(): Promise<unknown> { return {}; }
 export async function readServiceTerms(): Promise<unknown> { return {}; }
 export async function grantSelfTerms(): Promise<void> {}
 export async function readStaging(): Promise<unknown[]> { return []; }

@@ -55,3 +55,16 @@ its `data-testid`, and screenshots at 1440×900 and 375×812.
 - New view or renamed toggle testid → update the `VIEWS` array in
   `capture.mjs`.
 - Want different seed content → edit `PEERS` in `harness/mock-data.ts`.
+
+## When a capture fails (read the error — it tells you the fix)
+
+`capture.mjs` buffers the page's console + uncaught errors and dumps them on
+any failure, with hints. You do NOT need to hunt for dev-server logs — the
+failing run prints everything. The two drift classes, both self-explaining:
+
+- **`mock-wapi.ts` drift** (real `WapiWrapper` gained a method): impossible to
+  miss — the mock is `satisfies WapiWrapper`, so `tsc --noEmit` fails at
+  compile time and points at the mock file. Add the stub in the same commit.
+- **`mock-data.ts` drift** (the `@/data` barrel grew an export the harness
+  views import): the run errors with `No matching export named 'X'` followed
+  by the exact file to stub. Add `X` to `harness/mock-data.ts`.

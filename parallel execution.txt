@@ -343,7 +343,7 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       operator console), user-facing /reports flagging, per-post moderation
       from the marketing/social surfaces directly.
 
-[ ] A17-discovery-media-projection (lane A, api/**, small; operator,
+[✓ 1.0.203 #347] A17-discovery-media-projection (lane A, api/**, small; operator,
       27.07, screenshot: "cant see images on posts either!"): the
       discovery index is TEXT-ONLY — upsert_discovery_post projects
       body_text/tags/created_at and drops media entirely, so a post
@@ -1416,7 +1416,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       screenshots desktop + 375px, design.md §12. gate:
       D-message-controls merged (same files).
       BITES (rule 5 — one PR each, in order):
-      [✓ 1.0.205] bite a, FOLDERS: the Inbox/Sent/Spam rail (tabs at 375px) +
+      [✓ 1.0.207] bite a, FOLDERS: the Inbox/Sent/Spam rail (tabs at 375px) +
         the spam-flag record + filtering. no compose changes.
       bite b, THREAD ANATOMY: subject field (render + compose input),
         From/To header block, Reply + Forward actions (quote into
