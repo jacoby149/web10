@@ -2167,7 +2167,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       modules, add the --once manual-cycle flag, verify the unbrick
       text path fires. THEN bite b (Conductor pilot) per the queue.
 
-  [ ] C9-e2e-suite-repair (lane C, e2e/**; PRIORITY 1, audit #7 27.07):
+  [✓ 1.0.203 #343] C9-e2e-suite-repair (lane C, e2e/**; PRIORITY 1, audit #7 27.07):
       the e2e suite has been RED on every dev + main push since 24.07
       (~50 consecutive runs) — the seatbelt is wallpaper. Two failure
       CLASSES, fix both:
