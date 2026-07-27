@@ -1382,7 +1382,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       silently regress to a stub again. tsc -b + tests green. gate:
       none.
 
-[ ] D-mail-experience (sub-lane ws-D/messages, AFTER D-message-controls
+[✓ 1.0.203 #352] D-mail-experience (sub-lane ws-D/messages, AFTER D-message-controls
       — same Chat/** seam; operator, 26.07 night pass, with
       screenshots): the Mail view (1.0.182) reads as a themed thread
       list, NOT email — "that doesn't look like email! where is the

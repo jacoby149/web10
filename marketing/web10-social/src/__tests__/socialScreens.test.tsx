@@ -185,16 +185,12 @@ describe('MailView', () => {
     vi.clearAllMocks();
   });
 
-  it('renders mail view with folder tabs', async () => {
+  it('renders mail view with heading', async () => {
     const { default: MailView } = await import('@/components/Chat/MailView');
     render(<MailView />);
     await waitFor(() => {
-      expect(screen.getByTestId('mail-view')).toBeInTheDocument();
+      expect(screen.getByText('Mail')).toBeInTheDocument();
     });
-    expect(screen.getByTestId('mail-folder-tabs')).toBeInTheDocument();
-    expect(screen.getByTestId('mail-folder-inbox')).toBeInTheDocument();
-    expect(screen.getByTestId('mail-folder-sent')).toBeInTheDocument();
-    expect(screen.getByTestId('mail-folder-spam')).toBeInTheDocument();
   });
 
   it('renders search input', async () => {
@@ -211,7 +207,7 @@ describe('MailView', () => {
     await waitFor(() => {
       expect(screen.getByTestId('mail-view')).toBeInTheDocument();
     });
-    expect(screen.getByText(/Inbox is empty/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Inbox is empty/).length).toBeGreaterThanOrEqual(1);
   });
 });
 

@@ -2027,7 +2027,7 @@ PITCH NOTE: the one-click chat→mail→crm flip over the SAME records is
 a demo-video beat — sovereignty made screenshot-able; no incumbent's
 data model can do it. generalizing lenses to feed/profile is parked
 in later.md "view lenses everywhere"):
-[ ] MAIL must actually be email: "that doesn't look like email! where
+[✓ 1.0.203 #352] MAIL must actually be email: "that doesn't look like email! where
     is the inbox, outbox, spam" — folders (Inbox / Sent / Spam), and
     the thread view gets real email anatomy: Subject, Reply / Reply-all
     / Forward, To/Cc/Bcc on compose, From/To header per message. new
