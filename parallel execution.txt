@@ -1974,6 +1974,16 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       gate: none (cron needs no special permissions; Accessibility/
       screen-recording perms only if the vision path drives the UI
       directly). acceptance: wake up to merged PRs and a summary text.
+      STATUS 27.07 (audit #6b): bite a PARTIALLY LANDED as part of the
+      #317 squash — night_owl/ exists on dev+main (init.lua,
+      conductor_agent.lua, texter.lua, config.json, README) but it is
+      the HAMMERSPOON flavor (timer + ~/.hammerspoon install +
+      Accessibility perms), predating the operator's cron correction
+      by hours. REMAINING bite a work (small): swap the scheduler to a
+      plain cron entry / launchd plist per the corrected spec (the
+      README's own diagram already says cron), keep the vision/texter
+      modules, add the --once manual-cycle flag, verify the unbrick
+      text path fires. THEN bite b (Conductor pilot) per the queue.
 
 LANE E — infrastructure / deployment (owns: proxmox provisioning,
     reverse proxy, CI/CD deploy targets)
