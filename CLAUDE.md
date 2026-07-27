@@ -142,13 +142,25 @@ before the kickoff blocks, always:
    `timeline.md`? Anything on the board that reads as an infra company
    rather than a social platform gets flagged for parking. Concede to
    evidence; don't re-litigate settled decisions (`decisions.md`).
-3. **Audit parallelizability for small-window agents.** The workhorse
-   agents are Qwen-class: ~27B, 256k context, sharp (olympiad-level),
-   multimodal (they CAN look at app screenshots — use that in acceptance
-   bars). They cannot hold plan.txt + CHANGELOG + a whole lane file at
-   once. Check every board item: self-contained? names exact files?
-   gates and seams explicit? one sub-lane, no shared-seam collisions?
-4. **Refactor IF needed.** Docs-only changes to `plan.txt` /
+ 3. **Audit parallelizability for small-window agents.** The workhorse
+    agents are Qwen-class: ~27B, 256k context, sharp (olympiad-level),
+    multimodal (they CAN look at app screenshots — use that in acceptance
+    bars). They cannot hold plan.txt + CHANGELOG + a whole lane file at
+    once. Check every board item: self-contained? names exact files?
+    gates and seams explicit? one sub-lane, no shared-seam collisions?
+    Include the **board inventory + autonomy horizon** (this absorbs the
+    retired `should we do it?` command — one ritual, not two): count
+    `[ ]` vs `[~]` vs `[✓]`, how many bites remain before the next gate,
+    and whether each open bite can be picked up WITHOUT coordination.
+    Then give an explicit verdict in the report: "Qwens can run
+    independently — horizon is ~X PRs before the next intervention" or
+    "No — here are the markdown fixes that extend the horizon." The
+    long-term strategy is use the strong model less, Qwens more: sharper
+    tasks upfront (more bite-splits, exact file lists, one acceptance
+    check) beat interventions after a brick. Each Qwen PR costs far less
+    than a mastermind pass, so markdown that buys independence is a win
+    even when it means more markdown.
+ 4. **Refactor IF needed.** Docs-only changes to `plan.txt` /
    `parallel execution.txt` / this file, changelog entry, PR to dev per
    `AGENTS.md`. If nothing needs changing, say so plainly and don't churn.
 5. **Then produce copy-pastable kickoff blocks**, one per Conductor
@@ -249,50 +261,6 @@ speculatively add rules for failures that haven't happened (rule
 bloat chokes small windows exactly like big tasks do); if the same
 class bricks twice, the previous fix was wrong — replace it, don't
 stack another rule on top.
-
-## The `should we do it?` command (operator → strong model)
-
-When the operator says `should we do it?`, it is addressed to a
-strong, large-context model (Claude/Fable — the mastermind). It
-means: **can the Qwen fleet run independently longer, and how can
-the mastermind self-improve the markdowns to make that happen?**
-This is not just a status check — it is coaching the mastermind to
-be a more efficient manager of the Qwens. The question is: is the
-mastermind writing tasks in a way that maximizes Qwen independence,
-clarity, and throughput? If the markdowns are better — more steps,
-more independence, more clarity for Qwen — that is a win even if it
-means more markdown, because each Qwen PR costs far less than a
-mastermind intervention.
-
-The goal: milk more independent throughput from the efficient Qwen
-workhorses to reduce reliance on costly strong-model rituals like
-`web10web10!` and `web10 gather up!`. The long-term strategy: use
-Fable less, Qwen more. If we get 2x independent horizon from the
-Qwens, that's the total beast scenario (and soon switching to Kimi
-K3 from Moonshot for 3x savings on top).
-
-1. **Scan the board.** Read `parallel execution.txt` — how many
-   items are `[ ]` vs `[~]` vs `[✓]`? How many bites remain before
-   the next gate? Are gates clear or blocked?
-2. **Assess Qwen autonomy.** Can the current open bites be picked up
-   by Qwen agents without coordination? Are seams isolated? Are
-   acceptance bars clear? Or is a `web10web10!` needed to unblock
-   or re-align?
-3. **Self-improve the markdowns.** This is the core. Look at every
-   open item through Qwen's eyes: is the task description digestible
-   for a 27B model? Does it name exact files? Are gates explicit? Is
-   the acceptance bar one check, not five? If an item would benefit
-   from more bite-splits, sharper file lists, or clearer gates, the
-   mastermind should propose those markdown improvements — more steps
-   and more independence is a win if each step is clearer for Qwen.
-   The `unbrick!` code word helps structurally, but `should we do
-   it?` is about the mastermind writing better tasks upfront so
-   Qwen doesn't brick in the first place.
-4. **Give a verdict.** "Yes, Qwens can run independently — here's
-   the horizon (X PRs before next intervention)" OR "No — the
-   markdowns need improvement first; here are the specific fixes to
-   parallel execution.txt / kickoff blocks that will extend the
-   horizon." Include estimated horizon either way.
 
 ## The `web10 gather up!` code word (operator → strong model)
 
