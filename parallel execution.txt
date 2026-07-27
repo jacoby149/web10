@@ -1381,7 +1381,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         initial state (one-line composer touch — coordinate with
         ws-D/feed via .context/). gate: bite a merged.
 
-[ ] D-feedback-contact-privacy (sub-lane ws-D/feedback; SEAM:
+[✓ 1.0.192] D-feedback-contact-privacy (sub-lane ws-D/feedback; SEAM:
       marketing-api main.py — small, do promptly): 1.0.181 publishes
       each bug report as a PUBLIC post tagged #web10-bugs — including
       the reporter's CONTACT INFO: _format_bug_post() (marketing-api
