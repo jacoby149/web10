@@ -1,4 +1,4 @@
-1.0.192 || 27.07.2026
+1.0.194 || 27.07.2026
 feat(api): A14 followers count in /discover/users — `suggested_users()` now counts follow entries in the public ledger (`web10.public`, `payload.action='follow'`, `target=follow:{username}@{provider}`) and returns `followers_count` per user. New `_count_followers()` helper uses a $match + $count aggregation pipeline. 458 api tests green, ruff clean.
 
 1.0.193 || 27.07.2026

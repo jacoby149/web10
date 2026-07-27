@@ -309,7 +309,7 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       account's pre-fix public posts appear after the backfill runs;
       permission-matrix + discovery tests green, ruff clean. gate: none.
 
-[✓ 1.0.192] A14-followers-count (api half of the dead-social-proof finding,
+[✓ 1.0.194] A14-followers-count (api half of the dead-social-proof finding,
       plan.txt "real follower count" HONESTY NOTE 25.07 — the lane D
       half is D-ledger-mirror-fix): /discover/users' suggested_users()
       (api/app/services/documentdb.py) never computes or returns a
