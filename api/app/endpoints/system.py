@@ -243,9 +243,7 @@ async def admin_discovery_remove(req: DiscoveryModerationRequest):
     NOT touched (I3): this is board-level takedown, not record deletion.
     """
     actor = _check_moderation_request(req)
-    result = db.moderate_discovery_post(
-        req.author, req.service, req.post_id, True, actor=actor, reason=req.reason
-    )
+    result = db.moderate_discovery_post(req.author, req.service, req.post_id, True, actor=actor, reason=req.reason)
     if not result["matched"]:
         raise HTTPException(status_code=404, detail="post not found on the discovery board")
     return result
@@ -255,9 +253,7 @@ async def admin_discovery_remove(req: DiscoveryModerationRequest):
 async def admin_discovery_restore(req: DiscoveryModerationRequest):
     """Restore a previously hidden post to the public discovery board. Admin only."""
     actor = _check_moderation_request(req)
-    result = db.moderate_discovery_post(
-        req.author, req.service, req.post_id, False, actor=actor, reason=req.reason
-    )
+    result = db.moderate_discovery_post(req.author, req.service, req.post_id, False, actor=actor, reason=req.reason)
     if not result["matched"]:
         raise HTTPException(status_code=404, detail="post not found on the discovery board")
     return result

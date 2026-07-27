@@ -1299,9 +1299,7 @@ class TestAdminBoardModeration:
         assert resp.status_code == 403
 
     def test_removed_list_requires_admin(self, client):
-        resp = client.post(
-            "/admin/discovery/removed", json={"token": _owner_token("regular_user")}
-        )
+        resp = client.post("/admin/discovery/removed", json={"token": _owner_token("regular_user")})
         assert resp.status_code == 403
 
     def test_remove_rejects_protected_service(self, client):
@@ -1377,9 +1375,7 @@ class TestAdminBoardModeration:
             ),
             patch.object(db_module.db["web10"], "__getitem__", return_value=mock_col),
         ):
-            resp = client.post(
-                "/admin/discovery/removed", json={"token": _owner_token("admin_user")}
-            )
+            resp = client.post("/admin/discovery/removed", json={"token": _owner_token("admin_user")})
         assert resp.status_code == 200
         removed = resp.json()["removed"]
         assert len(removed) == 1

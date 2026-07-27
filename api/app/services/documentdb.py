@@ -974,10 +974,7 @@ def search_discovery_posts(query: str, limit: int = 50, skip: int = 0) -> list[d
     _ensure_discovery_collection()
     col = db["web10"][DISCOVERY_COLLECTION]
     docs = list(
-        col.find({"$text": {"$search": query}, "removed": {"$ne": True}})
-        .sort("created_at", -1)
-        .skip(skip)
-        .limit(limit)
+        col.find({"$text": {"$search": query}, "removed": {"$ne": True}}).sort("created_at", -1).skip(skip).limit(limit)
     )
     return [_discovery_post_to_dict(d) for d in docs]
 
