@@ -98,6 +98,7 @@ export interface ContactRecord {
   labels?: string[];
   added_at?: string;
   note?: string;
+  spam_flagged?: boolean;
 }
 
 // ── follows ─────────────────────────────────────────────────────────────────

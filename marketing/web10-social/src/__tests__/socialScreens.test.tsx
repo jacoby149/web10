@@ -207,7 +207,7 @@ describe('MailView', () => {
     await waitFor(() => {
       expect(screen.getByTestId('mail-view')).toBeInTheDocument();
     });
-    expect(screen.getByText(/No conversations yet/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Inbox is empty/).length).toBeGreaterThanOrEqual(1);
   });
 });
 

@@ -111,6 +111,22 @@ export async function updateContactNote(id: string, note: string): Promise<Conta
 }
 
 /**
+ * Toggle the spam flag on a contact (D-mail-experience: folders).
+ */
+export async function toggleSpamFlag(id: string, flagged: boolean): Promise<ContactRecord> {
+  return updateContact(id, { spam_flagged: flagged });
+}
+
+/**
+ * Read all spam-flagged contacts (returns their user keys).
+ */
+export async function readSpamFlaggedContacts(): Promise<ContactRecord[]> {
+  const wapi = getWapi();
+  const all = await wapi.read<ContactRecord>('contacts');
+  return all.filter((c) => c.spam_flagged);
+}
+
+/**
  * Bulk-read all contacts and their notes for the CRM view.
  * Same as readContacts but explicit — the CRM view uses note + full record.
  */
