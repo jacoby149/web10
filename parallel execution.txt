@@ -1935,7 +1935,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       commerce). Each: own sub-lane, own components dir, own data
       service. gate: per-surface spec first; none blocks another.
 
-[ ] D-night-owl (sub-lane ws-E/infra — the AI team that moonlights so
+[✓ 1.0.192] D-night-owl (sub-lane ws-E/infra — the AI team that moonlights so
       you don't have to; operator, 27.07: "the 10x potential — i am not
       orchestrating, i am in the back giving my two points on SMS").
       PRIORITY (operator, 27.07): ESSENTIAL, priority-zero — the big
@@ -1959,7 +1959,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       `unbrick!` (text + a prepared kickoff) is a REQUIRED night-owl
       behavior, not a nice-to-have — the fire alarm is its job.
       BITES (rule 5 — one PR each):
-      bite a, SCAFFOLD: the loop skeleton — cron entry (40min), AI
+      [✓ 1.0.192] bite a, SCAFFOLD: the loop skeleton — cron entry (40min), AI
         vision pipeline (screenshot Conductor → valid AI actions out),
         texter, config, README. Cmd+Opt+Ctrl+C (or a --once flag)
         triggers a manual cycle that screenshots Conductor and returns
