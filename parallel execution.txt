@@ -309,7 +309,7 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       account's pre-fix public posts appear after the backfill runs;
       permission-matrix + discovery tests green, ruff clean. gate: none.
 
-[✓ 1.0.194] A14-followers-count (api half of the dead-social-proof finding,
+[✓ 1.0.194 #328] A14-followers-count (api half of the dead-social-proof finding,
       plan.txt "real follower count" HONESTY NOTE 25.07 — the lane D
       half is D-ledger-mirror-fix): /discover/users' suggested_users()
       (api/app/services/documentdb.py) never computes or returns a
@@ -342,6 +342,28 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       hard record deletion / user suspension (A10 territory — the full
       operator console), user-facing /reports flagging, per-post moderation
       from the marketing/social surfaces directly.
+
+[ ] A17-discovery-media-projection (lane A, api/**, small; operator,
+      27.07, screenshot: "cant see images on posts either!"): the
+      discovery index is TEXT-ONLY — upsert_discovery_post projects
+      body_text/tags/created_at and drops media entirely, so a post
+      with photos is indistinguishable from a text post everywhere
+      downstream: marketing-ui /trending cards render no image (they
+      only show a placeholder when a TAG says image/video), the
+      D-user-profile-media grid half is blocked on exactly this (its
+      item already names it), and search results can't be media-first.
+      fix: upsert_discovery_post also projects `media_refs` (the post
+      body's list of media record ids, as-is) + `has_media` bool +
+      the first attachment's mime_type when present;
+      _discovery_post_to_dict returns them. no presigning server-side
+      — clients presign via public_media per D35. NOTE: existing
+      index docs gain the fields only on the next post edit/upsert —
+      the backfill (E-run-discovery-migration) must RE-RUN after this
+      deploys for the current corpus (idempotent; add the note to
+      that item's run list). permission-matrix/discovery tests
+      extended (a post with media_refs indexes them; a text post
+      indexes has_media=false), ruff clean. gate: none. unblocks:
+      D-trending-card-media, the D-user-profile-media grid half.
 
 [ ] A15-engagement-count-accuracy (operator, 26.07, screenshot: badge
       says 3 comments, the expanded panel renders more): the discovery
@@ -902,6 +924,81 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         collection. owns marketing/web10-social/src/components/Bio/UserProfileScreen.tsx.
         gate: none. acceptance: viewing any user profile with an uploaded avatar/
         banner shows the images; post media renders in the profile grid.
+[ ] D-follow-persistence (sub-lane ws-D/follow — UserProfileScreen.tsx +
+      data/follows.ts; PRIORITY — real accounts can't follow; operator,
+      27.07, screenshot: "tried to follow my friend coolguydavid, and
+      it gives a question mark, says following, i refresh and i am not
+      following him"). THREE symptoms on /u/coolguydavid, possibly one
+      root cause — REPRO FIRST against the local stack with two REAL
+      (non-persona) accounts and capture the actual failing request's
+      status + body in the PR (the app swallows errors everywhere in
+      this flow: the "?" Following count is a caught throw, the
+      optimistic "Following" button is a lie on failure):
+      (1) FOLLOW DOESN'T PERSIST — followUser (follows.ts:48) writes to
+          the follower's OWN `follows` service; the app's `follows` SIR
+          (serviceTerms.ts:144) carries NO whitelist and is registered
+          only via the SMROnReady consent — which fires ONLY while the
+          auth portal child window is open (the exact class A13 fixed
+          for public_posts). A real account that never got the SMR has
+          NO follows terms record → the create 403s, the UI shows
+          "Following" anyway, refresh loses it. suspects in order:
+          terms record absent (check the account's services record),
+          the update-vs-create branch (existing soft-deleted record),
+          a wapi.create throw being caught upstream. if (1) is the
+          terms gap, the fix mirrors A13: provision the app's CORE
+          service set at signup (follows, inbox, reactions, comments,
+          dms — owner-only, NO anon reads except the ones serviceTerms
+          already declares public) + a migration for existing accounts
+          (lane-A seam inside records.py — coordinate via .context/,
+          small); do NOT blanket-anon anything.
+      (2) "?" FOLLOWING COUNT — countFollows throws and the UI renders
+          "?"; after the root fix, swap the "?" for a real error/
+          retry state (never a placeholder glyph).
+      (3) "NO POSTS YET" ON A PROFILE THAT HAS POSTS — coolguydavid's
+          public post shows on /trending (indexed) but his profile
+          grid is empty. diagnose which read the grid uses: a direct
+          collection read needs HIS public_posts anon-read term (the
+          A13 migration — E-run-discovery-migration — has STILL not
+          been run on prod; if this is the cause, say so in the PR and
+          link the operator-gated item rather than hacking around it);
+          the discovery-API path would already show the post.
+      acceptance: two real accounts on the local stack — follow →
+      hard refresh → still following; the count never renders "?";
+      the profile shows the author's public posts (or the PR names
+      the un-run migration as the remaining gate); vitest pins the
+      failure path (a rejected create surfaces an error state, no
+      fake "Following"); tsc -b + tests green. gate: none. SEAM:
+      UserProfileScreen.tsx is also touched by D-public-media-client
+      bite b (ws-D/feed, kicked off) — this item touches its
+      FOLLOW/COUNT/POSTS-LOAD logic only, bite b touches media
+      resolution; if both are in flight, coordinate via .context/ and
+      rebase — do not run blind-parallel.
+
+[ ] D-profile-message-button (sub-lane ws-D/follow, AFTER
+      D-follow-persistence — same UserProfileScreen.tsx seam; operator,
+      27.07, screenshot: "there should be a button to message my friend
+      on his profile"): /u/:username has only a Follow button — no way
+      to start a DM from the profile, even though D-dm-compose
+      (1.0.155) built the new-conversation flow and dms.ts has
+      deterministic conversationKey(). add a Message button next to
+      Follow (icon + label, secondary-variant next to the brand Follow
+      button, both ≥44px touch targets) that navigates to the messages
+      screen WITH that thread open: preferred shape is the deep link
+      /messages?to=<username> (the URL-holds-the-state rule — D-deep-
+      links' /messages/:conversationKey builds on this later; if a
+      conversation already exists, open it by key, else open the
+      compose-to-username state prefilled). the button renders for
+      other users only, never on your own /profile. files:
+      components/Bio/UserProfileScreen.tsx (button + navigate),
+      DmsScreen.tsx (honor the ?to= param — open existing thread or
+      prefilled compose), maybe a small helper in data/dms.ts (own
+      exports). acceptance: from /u/<persona> click Message → the
+      messages screen opens with the thread (existing) or a prefilled
+      compose to that persona; sending works; refresh keeps the
+      thread open (deep link); your own profile shows no Message
+      button; screenshots desktop + 375px, design.md §12. gate:
+      D-follow-persistence merged (same file seam).
+
 [ ] D-feed-avatar-resolution (sub-lane D/feed). FEED AVATAR FALLS BACK TO INITIAL —
         `FeedScreen.tsx` tries to find the author's avatar inside the post's
         media items: `mediaMap[item.post_id]?.find(m => m._id === profile.avatar_ref)`
@@ -970,7 +1067,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         staging records (or run an import), triage them entirely from
         the ui, published ones appear on the wall/feed; design.md §12,
         screenshots desktop + 375px.
-[✓ 1.0.192 bite a] D-public-media-client (sub-lane D/feed + data seam). client half of
+[✓ 1.0.192 #323 bite a] D-public-media-client (sub-lane D/feed + data seam). client half of
         decisions.md D35, against A12's contract: serviceTerms.ts gains a
         `public_media` service with the anon-read whitelist public_posts
         already carries; uploadMedia targets public_media when the
@@ -1007,7 +1104,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         (run this FIRST; ws-D/profile's D-profile-image-placement
         rebases after).
         BITES (rule 5 — one PR each):
-        [✓ 1.0.192] bite a, UPLOADS: PostComposer public-post uploads +
+        [✓ 1.0.192 #323] bite a, UPLOADS: PostComposer public-post uploads +
           ProfileScreen avatar/banner uploads pass
           service='public_media'; tests pin the confirm-body service
           field. acceptance: a fresh public post's media record lands
@@ -1213,7 +1310,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       load + post; owner can edit text + delete; screenshot desktop +
       375px. gate: none.
 
-[✓ 1.0.192] D-post-visibility-toggle (sub-lane ws-D/profile; GATE CLEARED
+[✓ 1.0.192 #322] D-post-visibility-toggle (sub-lane ws-D/profile; GATE CLEARED
       27.07 — D-profile-post-experience merged 1.0.180 — pick up now;
       same SEAM ProfileScreen/PostLightbox):
       change a post's visibility after publish. public<->private is a
@@ -1240,13 +1337,13 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       none. (message delete/edit is D-message-controls, same sub-lane,
       AFTER this.)
 
-[✓ 1.0.192] D-message-controls (sub-lane ws-D/messages; GATE CLEARED 27.07 —
+[✓ 1.0.192 #326] D-message-controls (sub-lane ws-D/messages; GATE CLEARED 27.07 —
       D-messages-views merged 1.0.182 — pick up now): delete a message/conversation + edit a sent message.
       Files: data/dms.ts (update/delete), components/Chat/**. acceptance:
       edit a sent DM in place; delete a message + a whole conversation.
       gate: D-messages-views merged.
 
-[✓ 1.0.193] D-ledger-mirror-fix (sub-lane ws-D/ledger — data/feed.ts + one
+[✓ 1.0.193 #325] D-ledger-mirror-fix (sub-lane ws-D/ledger — data/feed.ts + one
       bootstrap line; PRIORITY with A13-class weight): THE APP'S PUBLIC
       LEDGER MIRROR IS DEAD FOR REAL ACCOUNTS — the social-proof
       numbers (follower counts, trending like/comment counts) only work
@@ -1359,7 +1456,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         phone/company/links + free-form key/value) and add/edit/
         delete a contact from the CRM view. gate: bite a merged.
 
-[✓ 1.0.192] D-settings-tab (sub-lane ws-D/settings — new components/Settings/**
+[✓ 1.0.192 #329] D-settings-tab (sub-lane ws-D/settings — new components/Settings/**
       + one App.tsx route line + one Layout.tsx nav entry; operator,
       26.07: "web10 social doesn't have a settings tab, should be a
       settings tab, facebook style, TBD"): a real Settings surface.
@@ -1395,7 +1492,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         initial state (one-line composer touch — coordinate with
         ws-D/feed via .context/). gate: bite a merged.
 
-[✓ 1.0.192] D-feedback-contact-privacy (sub-lane ws-D/feedback; SEAM:
+[✓ 1.0.192 #324] D-feedback-contact-privacy (sub-lane ws-D/feedback; SEAM:
       marketing-api main.py — small, do promptly): 1.0.181 publishes
       each bug report as a PUBLIC post tagged #web10-bugs — including
       the reporter's CONTACT INFO: _format_bug_post() (marketing-api
@@ -1673,7 +1770,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       urls — gate: the relevant routes merged). never one sweeping
       branch.
 
-[✓ 1.0.193 bite a] D-marketing-search (sub-lane ws-D/marketing; operator, 26.07: "the
+[✓ 1.0.193 #327 bite a] D-marketing-search (sub-lane ws-D/marketing; operator, 26.07: "the
       one thing we are really missing now is search! searching by tag,
       even on the marketing page… youtube-esque and be an entry point
       into web10 social, if you could search from the marketing ui!"):
@@ -1708,6 +1805,77 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       bite b, USERS + NAV: matching-users row, the compact nav
         search affordance, tag-chip routing polish. gate: bite a
         merged.
+
+[ ] D-search-fulltext (sub-lane ws-D/marketing, AFTER D-marketing-search
+      bite b — same Trending.tsx seam; operator, 27.07: "searching only
+      searches tags also. it doesnt search the other things"): a word
+      that appears only in a post's BODY returns nothing; author handles
+      don't hit either. /discover/search is a $text query over
+      (body_text, tags) IN THEORY (documentdb.py discovery_text_index) —
+      diagnose first, in order: (1) does the text index actually exist
+      on the DEPLOYED discovery collection (a failed/missing index makes
+      the $text query error, and fetchSearchResults swallows non-ok to
+      [] — indistinguishable from "no matches" in the UI); (2) is
+      body_text populated on indexed posts (upsert_discovery_post reads
+      post.text || post.body — field drift on older posts leaves it "");
+      (3) $text whole-word/stem semantics (substring "yoy" never matches
+      "yoyoyo" — if the corpus needs substring search, add a
+      case-insensitive regex fallback on body_text + author for short
+      queries, capped + escaped, no user regex metachars). fix so body
+      words, author handles, AND tags all return results; surface a
+      real error state in the UI when the search request fails (never
+      silently []). files: marketing-ui Trending/search components +
+      the /discover/search handler ONLY (small lane-A seam inside
+      discover.py/documentdb.search_discovery_posts — leave a .context/
+      note; do not touch anything else in api/). acceptance: searching
+      a body-only word returns the post on /trending; searching an
+      author handle returns their posts; #tag search unchanged;
+      marketing-ui + api tests green, tsc -b + ruff clean. gate:
+      D-marketing-search bite b merged.
+
+[ ] D-trending-controls-alignment (sub-lane ws-D/marketing, AFTER
+      D-marketing-search bite b — same Trending.tsx seam; operator,
+      27.07, screenshot: "the alignment there looks kind of bricked"):
+      the /trending controls stack reads broken. (1) The topic-chip rail
+      begins with a HALF-CLIPPED chip ("ies") — the horizontal scroll
+      container isn't aligned to the page's content column and shows a
+      cut chip at rest; align the rail to the same column as the grid
+      (or add scroll-padding/mask so resting state never shows a partial
+      chip). (2) The presets row (NEWEST / MOST LOVED / BALANCED) + the
+      ADVANCED toggle are CENTERED while the search bar above them is
+      LEFT-aligned in the content column — pick one axis (the content
+      column's) and put the whole controls stack on it. (3) sweep the
+      stack at 375px for edge-clipping. files: marketing-ui
+      src/pages/Trending.tsx + the chip rail component. read design.md
+      first. acceptance: chip rail aligned with the grid column, no
+      partial chip at rest, presets + search on one axis; you are
+      multimodal — screenshot desktop + 375px and LOOK at them.
+      gate: D-marketing-search bite b merged (run after it in the
+      ws-D/marketing chain; may swap order with D-search-fulltext).
+
+[ ] D-trending-card-media (sub-lane ws-D/marketing, AFTER
+      D-trending-controls-alignment — same Trending seam; operator,
+      27.07, screenshot: "cant see images on posts either!"): posts
+      with photos render as text-only cards on /trending — the
+      marketing surface of a media-first platform shows NO media.
+      once A17 lands (the index carries media_refs + has_media +
+      first-attachment mime), TrendingCard gains the real first
+      image: presign via the public_media read path (POST
+      /media/{author}/read with service='public_media' — anon-OK per
+      the A12/D35 terms; marketing-ui needs its own thin presign
+      helper + expiry-aware cache, the web10-social getReadUrl
+      pattern — copy per D22, don't reach into web10-social's
+      package). media-forward per the design.md MEDIA SPEC:
+      reserve-space-from-aspect (no layout shift), hover zoom, video
+      posts get a poster/first-frame + play badge, "+N" overflow.
+      text posts keep the current card. files: marketing-ui
+      FeedPreview.tsx (TrendingCard) + a lib/mediaPresign.ts.
+      acceptance: a /trending post with photos shows the actual
+      image (not a placeholder), zero 403s signed-out; video shows
+      poster + badge; screenshots desktop + 375px and LOOK. gate:
+      A17 merged + D-public-media-client bite b merged (the presign
+      path end-to-end) + the discovery backfill re-run on the env
+      (E-run-discovery-migration note).
 
 [ ] D-graph-app (sub-lane ws-D/marketing, AFTER D-marketing-search —
       same marketing-ui surface; operator, 26.07: "graph.web10.app,
@@ -1949,7 +2117,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       commerce). Each: own sub-lane, own components dir, own data
       service. gate: per-surface spec first; none blocks another.
 
-[✓ 1.0.192] D-night-owl (sub-lane ws-E/infra — the AI team that moonlights so
+[✓ 1.0.192 #330] D-night-owl (sub-lane ws-E/infra — the AI team that moonlights so
       you don't have to; operator, 27.07: "the 10x potential — i am not
       orchestrating, i am in the back giving my two points on SMS").
       PRIORITY (operator, 27.07): ESSENTIAL, priority-zero — the big
@@ -1973,7 +2141,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       `unbrick!` (text + a prepared kickoff) is a REQUIRED night-owl
       behavior, not a nice-to-have — the fire alarm is its job.
       BITES (rule 5 — one PR each):
-      [✓ 1.0.192] bite a, SCAFFOLD: the loop skeleton — cron entry (40min), AI
+      [✓ 1.0.192 #330] bite a, SCAFFOLD: the loop skeleton — cron entry (40min), AI
         vision pipeline (screenshot Conductor → valid AI actions out),
         texter, config, README. Cmd+Opt+Ctrl+C (or a --once flag)
         triggers a manual cycle that screenshots Conductor and returns
@@ -1998,6 +2166,35 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       README's own diagram already says cron), keep the vision/texter
       modules, add the --once manual-cycle flag, verify the unbrick
       text path fires. THEN bite b (Conductor pilot) per the queue.
+
+  [ ] C9-e2e-suite-repair (lane C, e2e/**; PRIORITY 1, audit #7 27.07):
+      the e2e suite has been RED on every dev + main push since 24.07
+      (~50 consecutive runs) — the seatbelt is wallpaper. Two failure
+      CLASSES, fix both:
+      (1) STEP-3 grantSelfTerms — gauntlet.spec.ts:461's
+          expect(res.ok()).toBeTruthy() fails POSTing /{user}/services
+          for the follower's own follows/inbox/public_posts/private_
+          posts/reactions/comments. Red since its OWN merge run (#291)
+          and at main's head — pre-existing, never diagnosed. suspects:
+          a services-record shape change (A13's provisioning added
+          terms at signup — maybe the POST now conflicts), the A11
+          username charset, or a stale request shape vs the current
+          endpoint. REPRO first against the local compose stack, quote
+          the actual status + body in the PR.
+      (2) MINIO HOST-PORT (documented 1.0.167): e2e/docker-compose.yml
+          gives minio no host port mapping, so presigned upload URLs
+          (host "minio") die with getaddrinfo EAI_AGAIN from the
+          playwright container — every media journey (step 2 upload/
+          read/list) fails. fix inside the e2e network (extra_hosts
+          alias or run the client container on the compose network),
+          never by weakening the assertions.
+      acceptance: `e2e` workflow GREEN on a push to the PR branch (or
+      a dispatch run on dev after merge) — every gauntlet step passing,
+      zero skips; if a step-3 assertion turns out to encode pre-A13
+      behavior, update the JOURNEY to the current consent/terms reality
+      and say so in the PR (never delete the bar). files: e2e/** only.
+      gate: none — highest-value lane C work on the board; nothing else
+      in lane C is unblocked-and-shipped-sized (C8 stages with M2).
 
 LANE E — infrastructure / deployment (owns: proxmox provisioning,
     reverse proxy, CI/CD deploy targets)
@@ -2166,11 +2363,15 @@ LANE E — infrastructure / deployment (owns: proxmox provisioning,
       dev→main promotion carries 1.0.178, run both endpoints against
       dev, verify (the operator's post appears in PATCH
       /discover/posts?sort=recent + on /trending Newest), then run
-      against prod and verify the same. needs an admin token + box/env
+      against prod and verify the same.       needs an admin token + box/env
       access — if the workspace has neither, stop and say so (operator
       gate, same as the E box-execution items). record the run in
-      ubuntu-deployment/OPS-LOG.md. gate: 1.0.178 deployed to the
-      target env.
+      ubuntu-deployment/OPS-LOG.md. gate: 1.0.178 deployed to the target
+      env — CLEARED 27.07 for BOTH dev and prod (audit #7); the only
+      remaining gate is the admin token. RUN LIST (append, 27.07):
+      after A17-discovery-media-projection deploys, RE-RUN
+      /admin/discovery/backfill per env so the existing corpus gains
+      media_refs in the index (idempotent).
   [✓ 1.0.71] E9. DEPLOYMENT STATUS PAGE (operator, 19.07 — iterated from
       "portainer should alert github" down to what's actually
       wanted: "all i need is an easy way to know we are deployed, a
@@ -2223,125 +2424,100 @@ M3 "the network"         = encryption integration (A rtc + C2 sdk
                            polish. the last big merge.
 
 
-CURRENT CONDUCTOR BOARD (as of 27.07.2026 — audit #6; keep fresh)
+CURRENT CONDUCTOR BOARD (as of 27.07.2026 — audit #7; keep fresh)
 --------------------------------------------------------------------
-AUDIT #6 REFRESH (27.07): zero open PRs, zero [~] items — the fleet is
-IDLE, not in flight; every kickoff below starts fresh. Gates cleared
-since audit #4: D-messages-views merged 1.0.182 → D-message-controls
-UNBLOCKED; D-profile-post-experience merged 1.0.180 → the whole
-ws-D/profile chain (D-post-visibility-toggle first) UNBLOCKED.
-D-ledger-mirror-fix re-verified broken at HEAD (registerDefaultSchemas
-never called outside feed.ts; createPublicEntry still POSTs the raw
-entry vs public.py's {token, query} shape). D-feedback-contact-privacy
-re-verified leaking at HEAD (main.py:487 appends Contact: into an
-anon-readable public post; squash title of PR #312 wrongly says "DMs
-to operator" — the code does public posts; the PII strip is unbuilt).
-D-night-owl re-verified at HEAD as NOT started (no night_owl/ dir).
-D-night-owl PRIORITY REVERSED (operator, 27.07): it is ESSENTIAL,
-priority-one — the blocker to hyperspeed development; the fleet's
-orchestration cost is the bottleneck, so the tool that runs the fleet
-is the product-velocity work. It no longer stages behind product
-bites — it runs in PARALLEL with them (its files, night_owl/**, share
-no seam with any product lane). Scheduler corrected to cron (operator,
-27.07) — Hammerspoon is not required, don't gate on it.
-The 26.07 night-capture fleet DRAINED SAME-DAY: A13-discovery-terms
-✓ 1.0.178, D-profile-post-experience ✓ 1.0.180, D-messages-views
-✓ 1.0.182, D-bug-reports-delivery ✓ 1.0.181 (as PUBLIC POSTS, not the
-DM option — operator to confirm; privacy fix filed, see PRIORITY 2),
-D-join-two-step ✓ 1.0.178, D-poke proposal filed 1.0.179 (awaiting
-operator sign-off). PR #311 landed the D-public-media-client DATA
-LAYER only — unlogged (retro-logged 1.0.183) and with zero call sites
-wired, so cross-user images STILL 403 (item stays open, see its
-STATUS). Meanwhile the operator ran a live pass on the deployed app
-(screenshots) — captures filed below and in plan.txt PHASE 8.6.
+AUDIT #7 REFRESH (27.07, late — second pass same day): SHIPPED TWICE.
+(1) The 12-commit dev batch (#321–#331: A14, D-ledger-mirror-fix,
+D-night-owl cron swap, D-post-visibility-toggle, D-settings-tab bite a,
+D-message-controls, D-marketing-search bite a, D-public-media-client
+bite a, D-feedback-contact-privacy, unbrick tooling + lucide-mock fix,
+docs) gated CLEAN and promoted dev→main via merge commit (#332);
+deploy-prod + cd green; prod verified live (all 7 public endpoints 200).
+(2) A16-board-moderation built + shipped SAME-SESSION for the operator's
+live incident ("someone posted something inappropriate on the public
+board"): #333 → dev, #334 → main, prod verified — the Board Moderation
+card is live in the authenticator's Node Config and the admin
+remove/restore endpoints answer on api.web10.app. Zero open PRs; fleet
+idle. CHANGELOG NOTE: the batch's union-merged entries collided on
+version numbers (1.0.192 ×3, 1.0.193 ×3, 1.0.194 ×2) — per the
+never-renumber-others rule the entries stay; the lane TICKS are now
+disambiguated with PR numbers ([✓ 1.0.192 #326]) so "which 1.0.192" is
+never a question again. E2E RED FOR 3 DAYS (~50 runs): the MinIO
+host-port failure (documented 1.0.167) AND the step-3 grantSelfTerms
+failure (red since its own merge in #291, pre-existing at main's head) —
+the seatbelt is OFF and nobody is fixing it; filed C9-e2e-suite-repair
+as lane C priority. Gates cleared since audit #6: D-message-controls
+merged → D-mail-experience bite a UNBLOCKED; D-marketing-search bite a
+merged → bite b UNBLOCKED; D-public-media-client bite a merged → bite b
+UNBLOCKED (wire the readers); night-owl bite a merged (cron flavor,
+#330) → bite b (Conductor pilot) UNBLOCKED; A14 merged → A15 is ws-A's
+next. D-follow-backfill's files (data/follows.ts only) are disjoint
+from D-public-media-client bite b's component files — the two MAY run
+in parallel despite sharing the ws-D/feed chain label.
 
   PRIORITY 0 (operator, 27.07 — ESSENTIAL, the hyperspeed blocker):
-    ws-E/night-owl: D-night-owl — the supervisor loop that runs the
-      fleet (creates workspaces, kicks off bites, watches for bricks
-      and raises `unbrick!`, texts the operator at crucial moments).
-      The orchestration cost IS the bottleneck; this tool removes it.
-      Runs in parallel with the product bites (night_owl/** shares no
-      seam). Scheduler is a plain cron — NOT Hammerspoon-gated.
+    ws-E/night-owl: D-night-owl bite b — the Conductor pilot (AI
+      navigates Conductor: new workspace, model select, type prompt,
+      hit enter, read result). Bite a (cron scaffold) merged #330.
 
-  PRIORITY 1 (the pitch's numbers are theater for real accounts):
-    ws-D/ledger: D-ledger-mirror-fix — the app's public-ledger mirror
-      is DEAD (registerDefaultSchemas never called + createPublicEntry
-      sends the wrong body vs public.py → silent stub). No real
-      account's follows/likes/comments ever hit the ledger: follower
-      counts + trending engagement work for seeded personas ONLY.
-      Verified live at HEAD 26.07. data/feed.ts + one bootstrap line.
-    ws-A: A14-followers-count — the api half (/discover/users returns
-      followers_count so /u/:username can show social proof).
-    ws-E (operator-gated): E-run-discovery-migration — A13's admin
-      migrate+backfill endpoints have never been RUN; until they
-      execute on dev/prod, the operator's own posts stay off
-      /trending (his 26.07 screenshot). needs admin token + env.
+  PRIORITY 1 (fresh, this audit):
+    ws-C: C9-e2e-suite-repair — the e2e suite has been red on every
+      dev/main push since 24.07; fix the step-3 grantSelfTerms failure
+      + the MinIO host-port class. The seatbelt doesn't work if it's
+      ignored; right now it's wallpaper.
+    ws-D/follow: D-follow-persistence (27.07 complaint — follow doesn't
+      persist for real accounts, "?" count, profile shows no posts;
+      likely the same SMR-only terms class A13 fixed, this time for
+      the follows service), THEN D-profile-message-button (27.07
+      complaint — Message button on /u/:username, same file seam).
+    ws-E (operator-gated): E-run-discovery-migration — the gate is now
+      FULLY CLEAR: 1.0.178 is deployed to BOTH dev and prod. All that
+      remains is running migrate_terms + backfill with an admin token
+      per env. needs admin token + env access (operator provides).
 
-  PRIORITY 2 (small, PII): ws-D/feedback: D-feedback-contact-privacy —
-    1.0.181 publishes the bug reporter's CONTACT INFO in an
-    anon-readable public post. strip it; fix the stale "DM" docstring;
-    flag the public-vs-DM deviation for operator confirmation.
-
-  PARALLEL-SAFE FLEET (26.07 late — one workspace per sub-lane; the
-  chains WITHIN a sub-lane are sequential, file seams):
-    ws-D/ledger:     D-ledger-mirror-fix (PRIORITY 1)
-    ws-A:            A14-followers-count (PRIORITY 1), THEN
-                     A15-engagement-count-accuracy (badge vs panel
-                     mismatch — same documentdb.py aggregation seam,
-                     sequential in this workspace)
-    ws-D/feedback:   D-feedback-contact-privacy (PRIORITY 2)
-    ws-D/marketing:  D-marketing-search (public search on /trending +
-                     nav — tags/text/users via the existing
-                     /discover/search + /topics; the youtube-esque
-                     entry point into web10-social; anon-first),
-                     THEN D-graph-app (the wooshy follow-graph
-                     visualization — the "outside app on your social
-                     data" existence proof; same marketing-ui surface,
-                     sequential), THEN D-social-analytics (chess.com-
-                     style ranked stats — same chain). D-appstore-
-                     revamp (store page only, no file overlap with
-                     the chain) may run as a SECOND marketing
-                     workspace in parallel.
-    ws-D/feed:       D-public-media-client REMAINDER (wire the call
-                     sites — see the item's late-26.07 STATUS; touches
-                     ProfileScreen.tsx, run BEFORE the ws-D/profile
-                     chain's placement item), THEN D-follow-backfill,
-                     THEN D-feed-lightbox (feed posts open the
-                     lightbox + Share action — PostLightbox seam with
-                     ws-D/profile: coordinate via .context/), THEN
-                     D-link-embeds (same seam cluster)
-    ws-D/profile:    D-post-visibility-toggle, THEN
-                     D-lightbox-media-sizing, THEN
-                     D-profile-image-placement (rebase after
-                     D-public-media-client's ProfileScreen touch),
-                     THEN D-follow-lists, THEN D-text-post-cards
-                     (stage LAST — spans grid+feed+lightbox+composer)
-    ws-D/messages:   D-message-controls (delete/edit), THEN
-                     D-mail-experience (REAL email: folders inbox/
-                     sent/spam + subject/reply/cc/bcc/forward —
-                     operator's "kickass feature" ask), THEN
-                     D-crm-upgrade (old-CRM parity: status colors,
-                     bins/sort, contact fields)
-    ws-D/settings:   D-settings-tab (v0 sections + .context proposal
-                     for the full facebook-style tree)
+  PARALLEL-SAFE FLEET (one workspace per sub-lane; chains WITHIN a
+  sub-lane are sequential, file seams):
+    ws-E/night-owl:  D-night-owl bite b (PRIORITY 0)
+    ws-C:            C9-e2e-suite-repair (PRIORITY 1)
+    ws-A:            A17-discovery-media-projection (27.07 complaint
+                     root cause — the index drops media; unblocks
+                     D-trending-card-media + the profile-media grid
+                     half), THEN A15-engagement-count-accuracy
+    ws-D/feed:       D-public-media-client bite b (readers pass
+                     service='public_media' + verify on dev), THEN
+                     D-feed-lightbox bite a, THEN D-link-embeds
+    ws-D/feed (2):   D-follow-backfill (data/follows.ts ONLY — safe in
+                     parallel with bite b, see audit note)
+    ws-D/messages:   D-mail-experience bite a (Inbox/Sent/Spam folders)
+                     THEN bites b/c, THEN D-crm-upgrade
+    ws-D/marketing:  D-marketing-search bite b (users row + nav
+                     affordance), THEN D-search-fulltext (27.07
+                     complaint: search only hits tags) +
+                     D-trending-controls-alignment (27.07 complaint:
+                     bricked controls stack — either order), THEN
+                     D-trending-card-media (27.07 complaint: no images
+                     on posts — gate A17 + public-media bite b), THEN
+                     D-graph-app bite a, THEN D-social-analytics
+    ws-D/marketing(2): D-join-steps-extend (Join.tsx only — disjoint
+                     from the search chain) OR D-appstore-revamp v1
+    ws-D/profile:    D-lightbox-media-sizing, THEN
+                     D-profile-image-placement, THEN D-follow-lists,
+                     THEN D-text-post-cards bite a — NOTE the whole
+                     chain shares the PostLightbox/ProfileScreen seam
+                     with D-public-media-client bite b: ws-D/profile
+                     starts AFTER bite b merges (rebase).
+    ws-D/settings:   D-settings-tab bite b (posting defaults record +
+                     composer initial state)
     GATED (don't pick up until the gate clears):
       D-deep-links (gate: the current fleet merged — it sweeps most
-      ws-D files). NOTE ITS WEIGHT: the operator's funnel polish
-      ("trending click → the exact post, comment click → that exact
-      comment, highlighted") only works with advanced links to
-      EVERYTHING — total coverage, not partial ("it only works if
-      there are advanced links to everything"). it is the FIRST item
-      staged when the fleet drains, and the AGENTS.md url-holds-state
-      rule keeps new screens from re-opening the gap meanwhile.
+      ws-D files). Still FIRST when the fleet drains.
       D-poke build (gate: operator sign-off on the 1.0.179 proposal).
       D-inapp-discover-knobs (gate: D20 revisit — operator sign-off).
       D-feed-avatar-resolution + the D-user-profile-media grid half
-      (gate: public-media path END TO END — the D-public-media-client
-      remainder merged and verified on dev).
-      D-coming-soon-builds (gate: per-surface spec first; one
-      workspace each when staged).
-      E-run-discovery-migration (gate: 1.0.178 deployed to the target
-      env + admin token — operator provides).
+      (gate: public-media path END TO END — bite b merged + verified).
+      D-coming-soon-builds (gate: per-surface spec first).
+      E-run-discovery-migration (gate: admin token — operator provides;
+      env gate CLEARED 27.07).
   Selection rule (CLAUDE.md): only truly-parallel items at once. The
   PostLightbox/FeedScreen/PostComposer files form ONE seam cluster
   spanning ws-D/feed and ws-D/profile — the two chains coordinate via
