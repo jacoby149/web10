@@ -1659,7 +1659,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       urls — gate: the relevant routes merged). never one sweeping
       branch.
 
-[ ] D-marketing-search (sub-lane ws-D/marketing; operator, 26.07: "the
+[✓ 1.0.193 bite a] D-marketing-search (sub-lane ws-D/marketing; operator, 26.07: "the
       one thing we are really missing now is search! searching by tag,
       even on the marketing page… youtube-esque and be an entry point
       into web10 social, if you could search from the marketing ui!"):
