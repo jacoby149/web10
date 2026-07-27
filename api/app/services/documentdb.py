@@ -1351,9 +1351,7 @@ def migrate_follows_terms() -> dict:
             user_col = db[username]
             for term_def in records.core_services_terms():
                 svc = term_def["service"]
-                existing = user_col.find_one(
-                    {"service": "services", "body.service": svc}
-                )
+                existing = user_col.find_one({"service": "services", "body.service": svc})
                 if existing:
                     skipped += 1
                     continue

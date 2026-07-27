@@ -1465,6 +1465,7 @@ class TestMigrateFollowsTerms:
     def test_partial_migration(self):
         """If some terms exist and others don't, only missing ones are created."""
         mock_alice_col = MagicMock()
+
         # The actual query is {"service": "services", "body.service": svc}
         def find_one_side_effect(query):
             if query.get("body.service") == "follows":
@@ -1490,9 +1491,7 @@ class TestMigrateFollowsTerms:
     def test_skips_system_collections(self):
         """System collections (web10.*) should not be processed."""
         with (
-            patch.object(
-                db_module.db, "list_collection_names", return_value=["web10.discovery_posts", "web10.public"]
-            ),
+            patch.object(db_module.db, "list_collection_names", return_value=["web10.discovery_posts", "web10.public"]),
         ):
             result = db_module.migrate_follows_terms()
 
