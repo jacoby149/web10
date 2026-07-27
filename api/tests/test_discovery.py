@@ -1416,6 +1416,286 @@ class TestAdminBoardModeration:
 
 
 # ---------------------------------------------------------------------------
+# A17: discovery media projection (media_refs, has_media, first_attachment_mime)
+# ---------------------------------------------------------------------------
+
+
+class TestDiscoveryMediaProjection:
+    """A17: upsert_discovery_post projects media fields; _discovery_post_to_dict returns them."""
+
+    def test_upsert_post_with_media_refs(self):
+        """A post with media_refs indexes them + has_media=true + first attachment mime."""
+        mock_discovery = MagicMock()
+        mock_web10_db = MagicMock()
+        mock_web10_db.list_collection_names.return_value = ["discovery_posts"]
+        mock_web10_db.__getitem__ = MagicMock(return_value=mock_discovery)
+
+        mock_user_db = MagicMock()
+        mock_media_rec = {
+            "_id": "507f1f77bcf86cd799439011",
+            "service": "media",
+            "body": {"mime_type": "image/jpeg", "url": "https://..."},
+        }
+        mock_user_db.find_one.return_value = mock_media_rec
+
+        def _getitem_db(key):
+            if key == "web10":
+                return mock_web10_db
+            if key == "alice":
+                return mock_user_db
+            return MagicMock()
+
+        post = {
+            "_id": "post123",
+            "text": "sunset photo",
+            "media_refs": ["507f1f77bcf86cd799439011"],
+            "tags": ["#photography"],
+            "created_at": "2026-07-27T00:00:00",
+        }
+
+        with patch.object(db_module.db, "__getitem__", side_effect=_getitem_db):
+            db_module.upsert_discovery_post("alice", "public_posts", post)
+
+        # Verify the upsert carried media fields
+        call_args = mock_discovery.update_one.call_args
+        update_doc = call_args[0][1]["$set"]
+        assert update_doc["media_refs"] == ["507f1f77bcf86cd799439011"]
+        assert update_doc["has_media"] is True
+        assert update_doc["first_attachment_mime"] == "image/jpeg"
+
+    def test_upsert_text_only_post(self):
+        """A text-only post indexes has_media=false and no media_refs."""
+        mock_discovery = MagicMock()
+        mock_web10_db = MagicMock()
+        mock_web10_db.list_collection_names.return_value = ["discovery_posts"]
+        mock_web10_db.__getitem__ = MagicMock(return_value=mock_discovery)
+
+        def _getitem_db(key):
+            if key == "web10":
+                return mock_web10_db
+            return MagicMock()
+
+        post = {
+            "_id": "textonly",
+            "text": "just words",
+            "tags": [],
+            "created_at": "2026-07-27T00:00:00",
+        }
+
+        with patch.object(db_module.db, "__getitem__", side_effect=_getitem_db):
+            db_module.upsert_discovery_post("bob", "public_posts", post)
+
+        call_args = mock_discovery.update_one.call_args
+        update_doc = call_args[0][1]["$set"]
+        assert update_doc["media_refs"] == []
+        assert update_doc["has_media"] is False
+        assert "first_attachment_mime" not in update_doc
+
+    def test_upsert_media_refs_not_in_db(self):
+        """When media records aren't found, has_media is still true but mime is absent."""
+        mock_discovery = MagicMock()
+        mock_web10_db = MagicMock()
+        mock_web10_db.list_collection_names.return_value = ["discovery_posts"]
+        mock_web10_db.__getitem__ = MagicMock(return_value=mock_discovery)
+
+        mock_user_db = MagicMock()
+        mock_user_db.find_one.return_value = None  # media record not found
+
+        def _getitem_db(key):
+            if key == "web10":
+                return mock_web10_db
+            if key == "alice":
+                return mock_user_db
+            return MagicMock()
+
+        post = {
+            "_id": "post456",
+            "text": "photo",
+            "media_refs": ["nonexistent"],
+            "created_at": "2026-07-27T00:00:00",
+        }
+
+        with patch.object(db_module.db, "__getitem__", side_effect=_getitem_db):
+            db_module.upsert_discovery_post("alice", "public_posts", post)
+
+        call_args = mock_discovery.update_one.call_args
+        update_doc = call_args[0][1]["$set"]
+        assert update_doc["media_refs"] == ["nonexistent"]
+        assert update_doc["has_media"] is True
+        assert "first_attachment_mime" not in update_doc
+
+    def test_discovery_post_to_dict_returns_media_fields(self):
+        """_discovery_post_to_dict returns media_refs, has_media, first_attachment_mime."""
+        doc = {
+            "author": "alice",
+            "service": "public_posts",
+            "post_id": "p1",
+            "body_text": "hello",
+            "tags": ["#test"],
+            "created_at": "2026-07-27T00:00:00",
+            "media_refs": ["m1", "m2"],
+            "has_media": True,
+            "first_attachment_mime": "image/png",
+        }
+        with patch.object(
+            db_module, "_ledger_engagement_for_post", return_value={"likes": 0, "comments": 0, "reposts": 0}
+        ):
+            result = db_module._discovery_post_to_dict(doc)
+
+        assert result["media_refs"] == ["m1", "m2"]
+        assert result["has_media"] is True
+        assert result["first_attachment_mime"] == "image/png"
+
+    def test_discovery_post_to_dict_defaults_for_legacy_docs(self):
+        """Legacy index docs without media fields get sensible defaults."""
+        doc = {
+            "author": "alice",
+            "service": "public_posts",
+            "post_id": "legacy",
+            "body_text": "old post",
+            "tags": [],
+            "created_at": "2026-01-01T00:00:00",
+        }
+        with patch.object(
+            db_module, "_ledger_engagement_for_post", return_value={"likes": 0, "comments": 0, "reposts": 0}
+        ):
+            result = db_module._discovery_post_to_dict(doc)
+
+        assert result["media_refs"] == []
+        assert result["has_media"] is False
+        assert result["first_attachment_mime"] is None
+
+    def test_feed_endpoint_returns_media_fields(self, client, mock_discovery_and_public):
+        """PATCH /discover/posts returns media fields in the response."""
+        mock_discovery, _ = mock_discovery_and_public
+        mock_discovery.find.return_value.sort.return_value.skip.return_value.limit.return_value = [
+            {
+                "author": "alice",
+                "service": "public_posts",
+                "post_id": "p1",
+                "body_text": "photo post",
+                "tags": ["#photo"],
+                "created_at": "2026-07-27T00:00:00",
+                "media_refs": ["m1"],
+                "has_media": True,
+                "first_attachment_mime": "image/jpeg",
+            },
+            {
+                "author": "bob",
+                "service": "public_posts",
+                "post_id": "p2",
+                "body_text": "text only",
+                "tags": [],
+                "created_at": "2026-07-27T01:00:00",
+                "media_refs": [],
+                "has_media": False,
+            },
+        ]
+
+        with patch.object(
+            db_module, "_ledger_engagement_for_post", return_value={"likes": 0, "comments": 0, "reposts": 0}
+        ):
+            resp = client.patch("/discover/posts")
+
+        assert resp.status_code == 200
+        posts = resp.json()
+        assert len(posts) == 2
+        assert posts[0]["has_media"] is True
+        assert posts[0]["media_refs"] == ["m1"]
+        assert posts[0]["first_attachment_mime"] == "image/jpeg"
+        assert posts[1]["has_media"] is False
+        assert posts[1]["media_refs"] == []
+        assert posts[1]["first_attachment_mime"] is None
+
+    def test_lookup_endpoint_returns_media_fields(self, client, mock_discovery_and_public):
+        """PATCH /discover/post/:user/:service/:id returns media fields."""
+        mock_discovery, _ = mock_discovery_and_public
+        mock_discovery.find_one.return_value = {
+            "author": "alice",
+            "service": "public_posts",
+            "post_id": "p1",
+            "body_text": "sunset",
+            "tags": [],
+            "created_at": "2026-07-27T00:00:00",
+            "media_refs": ["m1"],
+            "has_media": True,
+            "first_attachment_mime": "image/jpeg",
+        }
+
+        with patch.object(
+            db_module, "_ledger_engagement_for_post", return_value={"likes": 0, "comments": 0, "reposts": 0}
+        ):
+            resp = client.patch("/discover/post/alice/public_posts/p1")
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["has_media"] is True
+        assert data["media_refs"] == ["m1"]
+        assert data["first_attachment_mime"] == "image/jpeg"
+
+    def test_upsert_media_refs_non_list_ignored(self):
+        """media_refs that is not a list is treated as empty."""
+        mock_discovery = MagicMock()
+        mock_web10_db = MagicMock()
+        mock_web10_db.list_collection_names.return_value = ["discovery_posts"]
+        mock_web10_db.__getitem__ = MagicMock(return_value=mock_discovery)
+
+        def _getitem_db(key):
+            if key == "web10":
+                return mock_web10_db
+            return MagicMock()
+
+        post = {
+            "_id": "post789",
+            "text": "weird post",
+            "media_refs": "not-a-list",  # should be treated as empty
+            "created_at": "2026-07-27T00:00:00",
+        }
+
+        with patch.object(db_module.db, "__getitem__", side_effect=_getitem_db):
+            db_module.upsert_discovery_post("alice", "public_posts", post)
+
+        call_args = mock_discovery.update_one.call_args
+        update_doc = call_args[0][1]["$set"]
+        assert update_doc["media_refs"] == []
+        assert update_doc["has_media"] is False
+
+    def test_upsert_media_lookup_exception_non_fatal(self):
+        """A crash in media lookup doesn't prevent the post from being indexed."""
+        mock_discovery = MagicMock()
+        mock_web10_db = MagicMock()
+        mock_web10_db.list_collection_names.return_value = ["discovery_posts"]
+        mock_web10_db.__getitem__ = MagicMock(return_value=mock_discovery)
+
+        mock_user_db = MagicMock()
+        mock_user_db.find_one.side_effect = Exception("DB connection lost")
+
+        def _getitem_db(key):
+            if key == "web10":
+                return mock_web10_db
+            if key == "alice":
+                return mock_user_db
+            return MagicMock()
+
+        post = {
+            "_id": "postCrash",
+            "text": "photo",
+            "media_refs": ["m1"],
+            "created_at": "2026-07-27T00:00:00",
+        }
+
+        with patch.object(db_module.db, "__getitem__", side_effect=_getitem_db):
+            # Should not raise
+            db_module.upsert_discovery_post("alice", "public_posts", post)
+
+        call_args = mock_discovery.update_one.call_args
+        update_doc = call_args[0][1]["$set"]
+        assert update_doc["media_refs"] == ["m1"]
+        assert update_doc["has_media"] is True
+        # first_attachment_mime absent because lookup failed
+        assert "first_attachment_mime" not in update_doc
+
+
 # Core services terms migration (follows persistence fix)
 # ---------------------------------------------------------------------------
 
