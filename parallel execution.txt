@@ -1709,6 +1709,53 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         search affordance, tag-chip routing polish. gate: bite a
         merged.
 
+[ ] D-search-fulltext (sub-lane ws-D/marketing, AFTER D-marketing-search
+      bite b — same Trending.tsx seam; operator, 27.07: "searching only
+      searches tags also. it doesnt search the other things"): a word
+      that appears only in a post's BODY returns nothing; author handles
+      don't hit either. /discover/search is a $text query over
+      (body_text, tags) IN THEORY (documentdb.py discovery_text_index) —
+      diagnose first, in order: (1) does the text index actually exist
+      on the DEPLOYED discovery collection (a failed/missing index makes
+      the $text query error, and fetchSearchResults swallows non-ok to
+      [] — indistinguishable from "no matches" in the UI); (2) is
+      body_text populated on indexed posts (upsert_discovery_post reads
+      post.text || post.body — field drift on older posts leaves it "");
+      (3) $text whole-word/stem semantics (substring "yoy" never matches
+      "yoyoyo" — if the corpus needs substring search, add a
+      case-insensitive regex fallback on body_text + author for short
+      queries, capped + escaped, no user regex metachars). fix so body
+      words, author handles, AND tags all return results; surface a
+      real error state in the UI when the search request fails (never
+      silently []). files: marketing-ui Trending/search components +
+      the /discover/search handler ONLY (small lane-A seam inside
+      discover.py/documentdb.search_discovery_posts — leave a .context/
+      note; do not touch anything else in api/). acceptance: searching
+      a body-only word returns the post on /trending; searching an
+      author handle returns their posts; #tag search unchanged;
+      marketing-ui + api tests green, tsc -b + ruff clean. gate:
+      D-marketing-search bite b merged.
+
+[ ] D-trending-controls-alignment (sub-lane ws-D/marketing, AFTER
+      D-marketing-search bite b — same Trending.tsx seam; operator,
+      27.07, screenshot: "the alignment there looks kind of bricked"):
+      the /trending controls stack reads broken. (1) The topic-chip rail
+      begins with a HALF-CLIPPED chip ("ies") — the horizontal scroll
+      container isn't aligned to the page's content column and shows a
+      cut chip at rest; align the rail to the same column as the grid
+      (or add scroll-padding/mask so resting state never shows a partial
+      chip). (2) The presets row (NEWEST / MOST LOVED / BALANCED) + the
+      ADVANCED toggle are CENTERED while the search bar above them is
+      LEFT-aligned in the content column — pick one axis (the content
+      column's) and put the whole controls stack on it. (3) sweep the
+      stack at 375px for edge-clipping. files: marketing-ui
+      src/pages/Trending.tsx + the chip rail component. read design.md
+      first. acceptance: chip rail aligned with the grid column, no
+      partial chip at rest, presets + search on one axis; you are
+      multimodal — screenshot desktop + 375px and LOOK at them.
+      gate: D-marketing-search bite b merged (run after it in the
+      ws-D/marketing chain; may swap order with D-search-fulltext).
+
 [ ] D-graph-app (sub-lane ws-D/marketing, AFTER D-marketing-search —
       same marketing-ui surface; operator, 26.07: "graph.web10.app,
       something wooshy is great marketing, because it is an app
@@ -2313,8 +2360,11 @@ in parallel despite sharing the ws-D/feed chain label.
     ws-D/messages:   D-mail-experience bite a (Inbox/Sent/Spam folders)
                      THEN bites b/c, THEN D-crm-upgrade
     ws-D/marketing:  D-marketing-search bite b (users row + nav
-                     affordance), THEN D-graph-app bite a, THEN
-                     D-social-analytics
+                     affordance), THEN D-search-fulltext (27.07
+                     complaint: search only hits tags) +
+                     D-trending-controls-alignment (27.07 complaint:
+                     bricked controls stack — either order), THEN
+                     D-graph-app bite a, THEN D-social-analytics
     ws-D/marketing(2): D-join-steps-extend (Join.tsx only — disjoint
                      from the search chain) OR D-appstore-revamp v1
     ws-D/profile:    D-lightbox-media-sizing, THEN
