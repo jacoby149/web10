@@ -51,7 +51,8 @@ function StepArrow() {
   );
 }
 
-function StepStrip({ justify }: { justify?: string }) {
+function StepStrip({ justify, testidSuffix }: { justify?: string; testidSuffix?: string }) {
+  const s = testidSuffix || '';
   return (
     <div className={`flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center ${justify ? `sm:${justify}` : ''}`}>
       <StepCard
@@ -59,7 +60,7 @@ function StepStrip({ justify }: { justify?: string }) {
         href={SOCIAL_ORIGIN}
         title="Get the app"
         subtitle="Open web10 social"
-        testid="join-step-1"
+        testid={`join-step-1${s}`}
       />
       <StepArrow />
       <StepCard
@@ -67,7 +68,7 @@ function StepStrip({ justify }: { justify?: string }) {
         href={AUTH_ORIGIN}
         title="Create your account"
         subtitle="Sign up — it's free"
-        testid="join-step-2"
+        testid={`join-step-2${s}`}
       />
       <StepArrow />
       <StepCard
@@ -75,7 +76,7 @@ function StepStrip({ justify }: { justify?: string }) {
         href={`${AUTH_ORIGIN}?mode=studio`}
         title="Set up your monetization"
         subtitle="Open the Studio"
-        testid="join-step-3"
+        testid={`join-step-3${s}`}
       />
       <StepArrow />
       <StepCard
@@ -83,7 +84,7 @@ function StepStrip({ justify }: { justify?: string }) {
         href={`${SOCIAL_ORIGIN}/feed`}
         title="Post to the feed"
         subtitle="Share your first post"
-        testid="join-step-4"
+        testid={`join-step-4${s}`}
       />
     </div>
   );
@@ -279,7 +280,7 @@ function Join() {
             works.
           </p>
           <div className="reveal mt-10 [animation-delay:160ms]">
-            <StepStrip justify="justify-center" />
+            <StepStrip justify="justify-center" testidSuffix="-bottom" />
           </div>
         </div>
       </section>
