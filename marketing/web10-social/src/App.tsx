@@ -9,6 +9,7 @@ import UserProfileScreen from '@/components/Bio/UserProfileScreen';
 import DiscoverScreen from '@/components/Discover/DiscoverScreen';
 import DmsScreen from '@/components/Chat/DmsScreen';
 import StagingScreen from '@/components/Staging/StagingScreen';
+import SettingsScreen from '@/components/Settings/SettingsScreen';
 import PostComposer from '@/components/Feed/PostComposer';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { ReportBug } from '@/components/shared/ReportBug';
@@ -187,6 +188,7 @@ function App() {
           <Route path="/profile" element={<ProfileScreen />} />
           <Route path="/u/:username" element={<UserProfileRoute />} />
           <Route path="/staging" element={<StagingScreen />} />
+          <Route path="/settings" element={<SettingsScreen onLogout={handleLogout} onReportBug={() => handleReportBug('button')} />} />
           <Route path="*" element={<Navigate to="/feed" replace />} />
         </Route>
       </Routes>

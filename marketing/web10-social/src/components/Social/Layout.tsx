@@ -1,6 +1,6 @@
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { Home, User, MessageSquare, PlusCircle, LogOut, Bug, Compass, Users, Store, Gamepad2, Radio, Zap, Clapperboard } from 'lucide-react';
+import { Home, User, MessageSquare, PlusCircle, LogOut, Bug, Compass, Users, Store, Gamepad2, Radio, Zap, Clapperboard, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface LayoutProps {
@@ -14,6 +14,7 @@ const navItems = [
   { path: '/discover', icon: Compass, label: 'Discover', testId: 'nav-discover' },
   { path: '/profile', icon: User, label: 'Profile', testId: 'nav-profile' },
   { path: '/messages', icon: MessageSquare, label: 'Messages', testId: 'nav-messages' },
+  { path: '/settings', icon: Settings, label: 'Settings', testId: 'nav-settings' },
 ];
 
 // Provisional, non-infringing names for the ephemeral-post and short-video
