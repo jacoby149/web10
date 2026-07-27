@@ -1,3 +1,5 @@
+1.0.204 || 27.07.2026
+fix(e2e): C9-e2e-suite-repair — the e2e suite has been red on every dev + main push since 24.07 (~50 consecutive runs). Two failure classes, one fix: (1) gauntlet.spec.ts:461 grantSelfTerms — A13 (1.0.178) auto-provisions the public_posts anon-read term at signup. POSTing a duplicate to /{user}/services returns 409 DUPLICATE_SERVICE. The journey now accepts 409 as success (the term already exists, which is the desired state). (2) e2e/docker-compose.yml — MinIO had no host port mapping, so presigned upload URLs (http://minio:9000) resolve only inside the compose network. CI runs Playwright on the host, which gets getaddrinfo EAI_AGAIN. Expose MinIO on localhost:9000 and set S3_PUBLIC_ENDPOINT=http://localhost:9000 so presigned URLs are reachable from the CI host. Owns e2e/** only.
 1.0.203 || 28.07.2026
 docs: pause D-night-owl (bites b-e) — operator switching to Conductor Pro ($50/mo) first. The DIY supervisor is shelved until the Pro trial is evaluated; if it covers the orchestration gap, night_owl may not be needed at all. Bite a (scaffold, ✓ 1.0.192 #330) remains merged; bites b-e stay open but blocked on the Pro outcome.
 
