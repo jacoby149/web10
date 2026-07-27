@@ -87,20 +87,20 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
       setFollowRecord(fr);
       setFollowing(fr?.status === 'active' || false);
 
-      // Resolve avatar and banner media refs
+      // Resolve avatar and banner media refs (cross-user: public_media)
       const profileRefs: string[] = [];
       if (p?.avatar_ref) profileRefs.push(p.avatar_ref);
       if (p?.banner_ref) profileRefs.push(p.banner_ref);
+      const mediaMapInit: Record<string, MediaRecord> = {};
       if (profileRefs.length) {
-        const media = await resolveMediaRefs(profileRefs, { username, provider });
-        const map: Record<string, MediaRecord> = {};
+        const media = await resolveMediaRefs(profileRefs, { username, provider }, 'public_media');
         media.forEach((m) => {
-          if (m._id) map[m._id] = m;
+          if (m._id) mediaMapInit[m._id] = m;
         });
-        setMediaMap(map);
       }
 
       // Fetch posts from discovery API (public posts index)
+      let postMediaRefs: string[] = [];
       try {
         const resp = await fetch(
           `${API_ORIGIN}/discover/posts?sort=recent&limit=50`,
@@ -110,20 +110,38 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
           const allPosts: DiscoveryPost[] = await resp.json();
           const userPosts = allPosts
             .filter((dp) => dp.author === username && dp.provider === provider)
-            .map((dp) => ({
-              _id: dp.post_id,
-              text: dp.text,
-              created_at: dp.created_at,
-              likes: dp.likes,
-              comments: dp.comments,
-              reposts: dp.reposts,
-              tags: dp.tags,
-            }));
-          setPosts(userPosts as unknown as PostRecord[]);
+            .map((dp) => {
+              const post: PostRecord = {
+                _id: dp.post_id,
+                text: dp.text,
+                created_at: dp.created_at,
+                tags: dp.tags,
+              };
+              if (dp.media_refs?.length) {
+                post.media_refs = dp.media_refs;
+                postMediaRefs.push(...dp.media_refs);
+              }
+              return post;
+            });
+          setPosts(userPosts);
         }
       } catch {
         // Discovery API unavailable - posts will be empty
       }
+
+      // Resolve post media refs (cross-user: public_media)
+      if (postMediaRefs.length) {
+        const postMedia = await resolveMediaRefs(
+          [...new Set(postMediaRefs)],
+          { username, provider },
+          'public_media',
+        );
+        postMedia.forEach((m) => {
+          if (m._id) mediaMapInit[m._id] = m;
+        });
+      }
+
+      setMediaMap(mediaMapInit);
 
       // Follower/following counts from discovery API
       try {

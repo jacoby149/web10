@@ -569,25 +569,43 @@ export default function DiscoverScreen() {
       // Resolve media for posts that have image/video tags
       // Group refs by author so resolveMediaRefs reads from the correct
       // owner's media collection (discovery posts belong to other users).
-      const postsWithMedia = results.filter(p => p.tags?.some(t => ['image', 'video', 'music'].includes(t)));
+      const postsWithMedia = results.filter(p => p.media_refs?.length || p.tags?.some(t => ['image', 'video', 'music'].includes(t)));
       if (postsWithMedia.length) {
         try {
-          const byAuthor = new Map<string, { post: typeof results[0]; refs: string[] }>();
+          // Group posts by author, accumulate all refs per author
+          const byAuthor = new Map<string, { posts: typeof postsWithMedia; refs: string[] }>();
           for (const p of postsWithMedia) {
             const key = `${p.author}@${p.provider}`;
             const entry = byAuthor.get(key);
             if (entry) {
-              entry.post = p;
+              entry.posts.push(p);
+              if (p.media_refs?.length) {
+                entry.refs.push(...p.media_refs);
+              }
             } else {
-              byAuthor.set(key, { post: p, refs: [] });
+              byAuthor.set(key, {
+                posts: [p],
+                refs: p.media_refs || [],
+              });
             }
           }
+          // Resolve each author's media and assign to the correct posts
           const mMap: Record<string, MediaRecord[]> = {};
           for (const [key, entry] of byAuthor) {
             const [username, provider] = key.split('@');
-            const media = await resolveMediaRefs(entry.refs, { username, provider });
-            if (media.length) {
-              mMap[entry.post.post_id] = media;
+            const isOwn = username === token.username && provider === token.provider;
+            const uniqueRefs = [...new Set(entry.refs)];
+            if (!uniqueRefs.length) continue;
+            const media = await resolveMediaRefs(
+              uniqueRefs,
+              { username, provider },
+              isOwn ? 'media' : 'public_media',
+            );
+            // Assign resolved media to each post that references it
+            for (const p of entry.posts) {
+              if (p.media_refs?.length) {
+                mMap[p.post_id] = media.filter(m => p.media_refs?.includes(m._id || ''));
+              }
             }
           }
           if (Object.keys(mMap).length) {
