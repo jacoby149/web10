@@ -14,8 +14,9 @@ import {
 import { getWapi } from '@/data/wapi';
 import { API_ORIGIN } from '@/lib/origins';
 import type { ProfileRecord, PostRecord, MediaRecord, FollowRecord, DiscoveryPost } from '@/data/types';
-import { MapPin, Globe, Link, Users, UserPlus, UserCheck, Loader2, ArrowLeft } from 'lucide-react';
+import { MapPin, Globe, Link, Users, UserPlus, UserCheck, Loader2, ArrowLeft, MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useNavigate } from 'react-router-dom';
 
 function UserProfileSkeleton() {
   return (
@@ -67,6 +68,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
   const [followLoading, setFollowLoading] = useState(false);
   const [followError, setFollowError] = useState<string | null>(null);
   const [followingCountError, setFollowingCountError] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadData();
@@ -267,31 +269,45 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
             </Avatar>
           </div>
           {!isOwnProfile && (
-            <Button
-              variant={following ? 'outline' : 'brand'}
-              size="sm"
-              className={cn(
-                'mt-14 gap-1.5 min-w-[100px]',
-                following && 'border-border hover:border-danger/50 hover:text-danger hover:bg-danger-muted',
-              )}
-              data-testid="follow-button"
-              onClick={handleFollow}
-              disabled={followLoading}
-            >
-              {followLoading ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : following ? (
-                <>
-                  <UserCheck className="w-3.5 h-3.5" />
-                  Following
-                </>
-              ) : (
-                <>
-                  <UserPlus className="w-3.5 h-3.5" />
-                  Follow
-                </>
-              )}
-            </Button>
+            <div className="flex flex-col gap-2 mt-14">
+              <div className="flex gap-2">
+                <Button
+                  variant={following ? 'outline' : 'brand'}
+                  size="sm"
+                  className={cn(
+                    'gap-1.5 min-w-[100px]',
+                    following && 'border-border hover:border-danger/50 hover:text-danger hover:bg-danger-muted',
+                  )}
+                  data-testid="follow-button"
+                  onClick={handleFollow}
+                  disabled={followLoading}
+                >
+                  {followLoading ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : following ? (
+                    <>
+                      <UserCheck className="w-3.5 h-3.5" />
+                      Following
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="w-3.5 h-3.5" />
+                      Follow
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 min-w-[100px] border-border hover:bg-elevated"
+                  data-testid="message-button"
+                  onClick={() => navigate(`/messages?to=${username}`)}
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  Message
+                </Button>
+              </div>
+            </div>
           )}
         </div>
 

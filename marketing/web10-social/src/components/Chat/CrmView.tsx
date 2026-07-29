@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -6,9 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { getWapi } from '@/data/wapi';
-import { readContacts, listConversations, readDms, updateContactNote } from '@/data';
-import type { DmRecord, ContactRecord } from '@/data/types';
-import { Search, User, MessageSquare, Edit3, Save, X, ChevronLeft, Clock, Calendar } from 'lucide-react';
+import { readContacts, listConversations, readDms, updateContactNote, updateContactStatus } from '@/data';
+import type { DmRecord, ContactRecord, CrmStatus } from '@/data/types';
+import { Search, User, MessageSquare, Edit3, Save, X, ChevronLeft, Clock, Calendar, ArrowUpDown, Filter } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 function formatTime(dateStr: string): string {
@@ -45,6 +45,30 @@ interface CrmContactEntry {
   lastMessage: DmRecord | null;
   note: string;
   conversation: string;
+  crmStatus: CrmStatus | undefined;
+}
+
+const STATUS_COLORS: Record<CrmStatus, { bg: string; ring: string; label: string }> = {
+  green: { bg: 'bg-success', ring: 'ring-success/40', label: 'Green' },
+  yellow: { bg: 'bg-warning', ring: 'ring-warning/40', label: 'Yellow' },
+  red: { bg: 'bg-danger', ring: 'ring-danger/40', label: 'Red' },
+};
+
+function StatusDot({ status, size = 'sm' }: { status: CrmStatus | undefined; size?: 'sm' | 'md' }) {
+  if (!status) return null;
+  const c = STATUS_COLORS[status];
+  return (
+    <span
+      className={cn(
+        'shrink-0 rounded-full ring-1',
+        c.bg,
+        c.ring,
+        size === 'sm' ? 'h-2 w-2' : 'h-3 w-3',
+      )}
+      data-testid={`crm-status-${status}`}
+      title={c.label}
+    />
+  );
 }
 
 function ContactSkeleton() {
@@ -79,9 +103,12 @@ function ContactRow({
       </Avatar>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-sm font-medium text-foreground truncate">
-            {entry.displayName}
-          </span>
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-sm font-medium text-foreground truncate">
+              {entry.displayName}
+            </span>
+            <StatusDot status={entry.crmStatus} />
+          </div>
           <div className="flex items-center gap-1.5 shrink-0">
             {entry.note && (
               <Badge variant="brand">
@@ -113,10 +140,12 @@ function ContactDetail({
   entry,
   onBack,
   onSaveNote,
+  onSaveStatus,
 }: {
   entry: CrmContactEntry;
   onBack: () => void;
   onSaveNote: (userKey: string, note: string) => void;
+  onSaveStatus: (userKey: string, status: CrmStatus | undefined) => void;
 }) {
   const [messages, setMessages] = useState<DmRecord[]>([]);
   const [editingNote, setEditingNote] = useState(false);
@@ -207,6 +236,26 @@ function ContactDetail({
                 </span>
               </div>
             )}
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">Status</span>
+              <div className="flex items-center gap-1.5">
+                {(Object.keys(STATUS_COLORS) as CrmStatus[]).map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => onSaveStatus(entry.userKey, entry.crmStatus === s ? undefined : s)}
+                    className={cn(
+                      'rounded-full transition-all duration-150',
+                      entry.crmStatus === s
+                        ? `${STATUS_COLORS[s].bg} h-4 w-4 ring-2 ${STATUS_COLORS[s].ring}`
+                        : `${STATUS_COLORS[s].bg} h-2.5 w-2.5 opacity-30 hover:opacity-60`,
+                    )}
+                    aria-label={`Set status ${STATUS_COLORS[s].label}`}
+                    data-testid={`crm-detail-status-${s}`}
+                    title={STATUS_COLORS[s].label}
+                  />
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -341,6 +390,10 @@ export default function CrmView() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedContact, setSelectedContact] = useState<CrmContactEntry | null>(null);
+  const [statusFilter, setStatusFilter] = useState<CrmStatus | 'all'>('all');
+  const [sortBy, setSortBy] = useState<'lastMessage' | 'name' | 'status'>('lastMessage');
+
+  const statusOrder: Record<CrmStatus, number> = { red: 0, yellow: 1, green: 2 };
 
   const loadContacts = useCallback(async () => {
     setLoading(true);
@@ -384,16 +437,11 @@ export default function CrmView() {
           lastMessage: lastMsg,
           note: contact?.note || '',
           conversation: conv,
+          crmStatus: contact?.crm_status,
         } as CrmContactEntry;
       });
 
-      const loaded = await Promise.all(entryPromises);
-      loaded.sort((a, b) => {
-        const aTime = a.lastMessage ? new Date(a.lastMessage.sent_at).getTime() : 0;
-        const bTime = b.lastMessage ? new Date(b.lastMessage.sent_at).getTime() : 0;
-        return bTime - aTime;
-      });
-      setContacts(loaded);
+      setContacts(await Promise.all(entryPromises));
     } catch (e) {
       console.error('Failed to load CRM contacts:', e);
     }
@@ -423,13 +471,54 @@ export default function CrmView() {
     }
   }
 
-  const filtered = search.trim()
-    ? contacts.filter((c) =>
-        c.displayName.toLowerCase().includes(search.toLowerCase()) ||
-        c.username.toLowerCase().includes(search.toLowerCase()) ||
-        c.note.toLowerCase().includes(search.toLowerCase()),
-      )
-    : contacts;
+  async function handleSaveStatus(userKey: string, status: CrmStatus | undefined) {
+    try {
+      const contact = contacts.find((c) => c.userKey === userKey);
+      if (contact?.contact?._id) {
+        await updateContactStatus(contact.contact._id, status);
+      }
+      setContacts((prev) =>
+        prev.map((c) =>
+          c.userKey === userKey ? { ...c, crmStatus: status } : c,
+        ),
+      );
+      if (selectedContact?.userKey === userKey) {
+        setSelectedContact((prev) => prev ? { ...prev, crmStatus: status } : null);
+      }
+    } catch (e) {
+      console.error('Failed to save status:', e);
+    }
+  }
+
+  const filtered = useMemo(() => {
+    let result = contacts;
+    if (statusFilter !== 'all') {
+      result = result.filter((c) => c.crmStatus === statusFilter);
+    }
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter((c) =>
+        c.displayName.toLowerCase().includes(q) ||
+        c.username.toLowerCase().includes(q) ||
+        c.note.toLowerCase().includes(q),
+      );
+    }
+    result = [...result].sort((a, b) => {
+      if (sortBy === 'name') {
+        return a.displayName.localeCompare(b.displayName);
+      }
+      if (sortBy === 'status') {
+        const aS = a.crmStatus !== undefined ? statusOrder[a.crmStatus] : 99;
+        const bS = b.crmStatus !== undefined ? statusOrder[b.crmStatus] : 99;
+        return aS - bS;
+      }
+      // lastMessage
+      const aTime = a.lastMessage ? new Date(a.lastMessage.sent_at).getTime() : 0;
+      const bTime = b.lastMessage ? new Date(b.lastMessage.sent_at).getTime() : 0;
+      return bTime - aTime;
+    });
+    return result;
+  }, [contacts, statusFilter, search, sortBy]);
 
   if (selectedContact) {
     return (
@@ -437,6 +526,7 @@ export default function CrmView() {
         entry={selectedContact}
         onBack={() => setSelectedContact(null)}
         onSaveNote={handleSaveNote}
+        onSaveStatus={handleSaveStatus}
       />
     );
   }
@@ -454,6 +544,62 @@ export default function CrmView() {
             data-testid="crm-search"
             className="w-full h-8 pl-8 pr-2 rounded-sm border border-input bg-transparent text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand/50 transition-colors duration-150"
           />
+        </div>
+      </div>
+
+      {/* Filter chips + sort */}
+      <div className="px-4 py-2 border-b border-border/30 flex flex-col gap-2">
+        <div className="flex items-center gap-2 overflow-x-auto">
+          <Filter className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+          <button
+            onClick={() => setStatusFilter('all')}
+            className={cn(
+              'px-2.5 py-1 rounded-full text-xs font-medium transition-colors duration-150 shrink-0',
+              statusFilter === 'all'
+                ? 'bg-elevated text-foreground'
+                : 'text-muted-foreground hover:text-foreground hover:bg-elevated/50',
+            )}
+            data-testid="crm-filter-all"
+          >
+            All ({contacts.length})
+          </button>
+          {(Object.keys(STATUS_COLORS) as CrmStatus[]).map((s) => {
+            const count = contacts.filter((c) => c.crmStatus === s).length;
+            return (
+              <button
+                key={s}
+                onClick={() => setStatusFilter(s)}
+                className={cn(
+                  'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors duration-150 shrink-0',
+                  statusFilter === s
+                    ? `bg-elevated text-foreground`
+                    : 'text-muted-foreground hover:text-foreground hover:bg-elevated/50',
+                )}
+                data-testid={`crm-filter-${s}`}
+              >
+                <span className={cn('w-2 h-2 rounded-full', STATUS_COLORS[s].bg)} />
+                {STATUS_COLORS[s].label} ({count})
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex items-center gap-1">
+          <ArrowUpDown className="w-3 h-3 text-muted-foreground shrink-0" />
+          {(['lastMessage', 'name', 'status'] as const).map((s) => (
+            <button
+              key={s}
+              onClick={() => setSortBy(s)}
+              className={cn(
+                'px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider transition-colors duration-150',
+                sortBy === s
+                  ? 'bg-elevated text-foreground'
+                  : 'text-muted-foreground/60 hover:text-muted-foreground hover:bg-elevated/30',
+              )}
+              data-testid={`crm-sort-${s}`}
+            >
+              {s === 'lastMessage' ? 'Recent' : s}
+            </button>
+          ))}
         </div>
       </div>
 
