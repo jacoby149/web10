@@ -3,6 +3,73 @@
 Newest at top. Format per AGENT-OPS.md §8. Read the top entries
 BEFORE doing ops work — someone may already be mid-fix.
 
+## 29.07.2026 01:35 — opencode (prague) — host reboot test: onboot + watchdog VERIFIED end-to-end
+did:
+  - Operator rebooted the Proxmox HOST as a live test. Result: VM 100
+    auto-started ~1 min after the host (onboot: 1 works). All 20 docker
+    containers came up; mongod active (restart drop-in held).
+- Watchdog now fully live: i6300esb device visible in guest
+     (lspci 00:04.0), /dev/watchdog0 present, RuntimeWatchdogUSec=30s
+     armed (systemd pinging). A hung guest now gets hard-reset by the
+     host. Note: i6300esb needed one manual `modprobe` this boot —
+     root cause: Ubuntu ships `/etc/modprobe.d/97-blacklist-watchdog.conf`
+     that blocks watchdog modules at boot. Blacklist file removed;
+     `/etc/modules-load.d/watchdog.conf` (i6300esb) now loads it
+     automatically. Verified post-fix: module loads, /dev/watchdog
+     present, systemd armed at 30s — no manual steps needed.
+  - Prod public smoke green after it all: web10.app, api/docs, auth,
+    social, marketing-api/docs all 200.
+state: fully hardened chain verified: power loss -> host boots -> VM
+  boots (onboot) -> containers + mongo self-heal; guest hang ->
+  watchdog reset. No manual steps needed anymore.
+next: only the optional SSH-key-for-root@pve + password rotation
+  remains (password was shared in chat).
+
+## 29.07.2026 01:10 — opencode (prague) — hardening: VM watchdog + mongod auto-restart
+did (operator-approved follow-up to the entry above):
+  - HOST (pve): `qm set 100 --watchdog model=i6300esb,action=reset` —
+    Proxmox now hard-resets the VM if the guest OS hangs. Device is in
+    the config but NOT live yet: the i6300esb PCI device can't
+    hotplug, so it activates at the next VM reboot (no /dev/watchdog
+    in the guest until then).
+  - GUEST: `/etc/modules-load.d/watchdog.conf` loads i6300esb at boot;
+    `RuntimeWatchdogSec=30` set in /etc/systemd/system.conf so systemd
+    pings the watchdog once the device exists (active next boot).
+  - GUEST: systemd drop-in /etc/systemd/system/mongod.service.d/
+    restart.conf — Restart=on-failure, RestartSec=5, no start limit —
+    so the status-48 boot race self-heals instead of leaving mongo
+    down. daemon-reloaded; verified via systemctl show (active/running,
+    Restart=on-failure).
+state: prod untouched and green. Watchdog pending one VM reboot;
+  everything else live.
+next: reboot the VM in a maintenance window (~1 min prod downtime) to
+  activate the watchdog; after reboot verify /dev/watchdog exists and
+  `systemctl show mongod` still active. Optionally install an SSH key
+  for root@pve and rotate its password (currently shared in chat).
+
+## 29.07.2026 00:58 — opencode (prague) — power loss took down Proxmox host; VM onboot fixed; mongod restarted
+did:
+  - INCIDENT: all web10.app vhosts unreachable (no ping, no TCP 22/80/443
+    on the public IP). Root cause: NOT the VM — the Proxmox host
+    (192.168.8.20, "pve") lost power / hard-crashed ~05:17 EDT 28.07:
+    both host journal (prev boot, 5 months uptime since 04.02) and VM
+    journal end abruptly mid-cron with no shutdown sequence. Host came
+    back but the VM (100, server-rack-ubuntu-original) had no `onboot`
+    flag, so it stayed off until the operator started it manually.
+  - FIX (on pve): `qm set 100 --onboot 1` — VM now auto-starts with the
+    host. Verified in /etc/pve/qemu-server/100.conf. New-boot journal
+    shows no MCE/hardware errors; SMART on /dev/sdd clean (0
+    reallocated, 33C). Cause reads as power event, not hardware fault.
+  - Started the natively-installed mongod on the VM (`sudo systemctl
+    start mongod`): it had failed at boot with exit status 48 (port
+    already in use — startup race, also seen on the 17.07 boot). Now
+    `active`, `enabled`, ping `{ok:1}`, listening on 127.0.0.1:27017.
+  - Verified prod public slice: web10.app, www, auth, social,
+    marketing-api/docs all 200; api.web10.app / 307 + /docs 200.
+state: all green. Proxmox root login currently uses a password in
+  operator chat — recommend installing an SSH key and rotating it.
+  mongod boot-race (status 48) may recur on future VM boots.
+
 ## 24.07.2026 19:45 — opencode (el-paso-v1, chore/backup-restore-drill) — off-box backup + smoke verification
 did (SSH as jacob@192.168.8.25):
   - SMOKE: ran scripts/smoke.sh on the box — GREEN both envs (dev + prod,
