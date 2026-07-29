@@ -1942,7 +1942,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       populate as the mirror fix + follows land. D20 check: this is
       marketing/showcase surface, no ranking, no feed — on-thesis.
       BITES (rule 5 — one PR each):
-      bite a, ANON GRAPH: the /graph route, force-directed public
+      [✓ 1.0.210] bite a, ANON GRAPH: the /graph route, force-directed public
         graph (ledger + /discover/users), node click → /u/:username,
         the explainer popover. no auth code at all.
       bite b, MY GRAPH: the signed-in ego view (consent flow, scoped
