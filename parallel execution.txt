@@ -365,7 +365,7 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       indexes has_media=false), ruff clean. gate: none. unblocks:
       D-trending-card-media, the D-user-profile-media grid half.
 
-[ ] A15-engagement-count-accuracy (operator, 26.07, screenshot: badge
+[✓ 1.0.210] A15-engagement-count-accuracy (operator, 26.07, screenshot: badge
       says 3 comments, the expanded panel renders more): the discovery
       index's cached engagement counts disagree with the live comment
       read. the badge comes from the index's engagement aggregation
@@ -1450,7 +1450,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       D-mail-experience merged (same seam; can swap order with it if
       staged first — they're one chain).
       BITES (rule 5 — one PR each):
-      bite a, STATUS COLORS: green/yellow/red status on the contact
+      [✓ 1.0.210] bite a, STATUS COLORS: green/yellow/red status on the contact
         record, settable from row + detail, filter chips + sort.
       bite b, CONTACT FIELDS + CRUD: richer detail fields (email/
         phone/company/links + free-form key/value) and add/edit/

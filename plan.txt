@@ -2302,7 +2302,7 @@ PREMMIUMMM!!!!!"):
 
 engagement-count accuracy (operator, 26.07, screenshot: a post's badge
 says 3 comments while the expanded panel renders more than that):
-[ ] the discovery index's CACHED like/comment counts disagree with
+[✓ 1.0.210] the discovery index's CACHED like/comment counts disagree with
     what the comment panel actually renders — the badge reads the
     index's engagement aggregation (documentdb.py, cached at index/
     aggregation time), the panel reads live ledger entries. audit what
