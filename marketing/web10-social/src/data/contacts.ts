@@ -1,5 +1,5 @@
 import { getWapi } from './wapi';
-import type { ContactRecord } from './types';
+import type { ContactRecord, CrmStatus } from './types';
 
 // ── Contacts data layer ────────────────────────────────────────────────────
 // The `contacts` service: unilateral friend graph.
@@ -132,6 +132,13 @@ export async function readSpamFlaggedContacts(): Promise<ContactRecord[]> {
  */
 export async function readContactsForCrm(): Promise<ContactRecord[]> {
   return readContacts();
+}
+
+/**
+ * Update a contact's CRM status (green/yellow/red priority).
+ */
+export async function updateContactStatus(id: string, status: CrmStatus | undefined): Promise<ContactRecord> {
+  return updateContact(id, { crm_status: status });
 }
 
 /**
