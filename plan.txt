@@ -2209,14 +2209,14 @@ marketing ui!"):
     posts yet" half likely needs E-run-discovery-migration RUN on
     prod (still operator-gated) — the item names it instead of
     hacking around it.
-[ ] MESSAGE BUTTON ON USER PROFILES (operator, 27.07, screenshot:
-    "there should be a button to message my friend on his profile"):
-    /u/:username has only Follow. add a Message button that deep-links
-    to the messages screen with that thread open (existing thread by
-    key, else prefilled compose via D-dm-compose's flow) —
-    /messages?to=<username> per the URL-holds-state rule. lane item
-    D-profile-message-button (ws-D/follow, after D-follow-persistence
-    — same UserProfileScreen seam).
+[✓ 1.0.210] MESSAGE BUTTON ON USER PROFILES (operator, 27.07, screenshot:
+     "there should be a button to message my friend on his profile"):
+     /u/:username has only Follow. add a Message button that deep-links
+     to the messages screen with that thread open (existing thread by
+     key, else prefilled compose via D-dm-compose's flow) —
+     /messages?to=<username> per the URL-holds-state rule. lane item
+     D-profile-message-button (ws-D/follow, after D-follow-persistence
+     — same UserProfileScreen seam).
 [ ] in-app search parity note: DiscoverScreen's existing search (if
     any) gets audited against the same corpus in the same pass —
     "search your own stuff" stays a separate low-hanging-fruit item

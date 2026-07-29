@@ -84,6 +84,7 @@ const contacts: ContactRecord[] = PEERS.map((p, i) => ({
   note: p.note,
   added_at: p.added_at,
   spam_flagged: p.username === 'sam',
+  crm_status: i % 3 === 0 ? 'green' : i % 3 === 1 ? 'yellow' : 'red',
 }));
 
 const threads: Record<string, DmRecord[]> = {};
@@ -124,6 +125,11 @@ export async function updateContactNote(id: string, note: string): Promise<Conta
   if (c) c.note = note;
   return c ?? ({ _id: id, username: '', provider: 'web10', note } as ContactRecord);
 }
+export async function updateContactStatus(id: string, status: string | undefined): Promise<ContactRecord> {
+  const c = contacts.find((x) => x._id === id);
+  if (c) c.crm_status = status as any;
+  return c ?? ({ _id: id, username: '', provider: 'web10', crm_status: status } as ContactRecord);
+}
 export async function sendDm(): Promise<DmRecord> {
   return { _id: 'new', message: '', sent_at: new Date().toISOString(), sender_username: 'me', sender_provider: 'web10', recipient_username: '', recipient_provider: 'web10' };
 }
@@ -144,7 +150,10 @@ export async function unspamFlagUser(username: string, provider: string): Promis
 export async function toggleSpamFlag(id: string, flagged: boolean): Promise<ContactRecord> {
   const c = contacts.find((x) => x._id === id);
   if (c) c.spam_flagged = flagged;
-  return c || ({ _id: id, username: '', provider: 'web10' } as ContactRecord);
+  return c ?? ({ _id: id, username: '', provider: 'web10', spam_flagged: flagged } as ContactRecord);
+}
+export async function readSpamFlaggedContacts(): Promise<ContactRecord[]> {
+  return contacts.filter((c) => c.spam_flagged);
 }
 export function classifyThread(
   lastMsg: DmRecord | null,

@@ -145,4 +145,30 @@ describe('contacts data layer', () => {
       expect(result.length).toBe(1);
     });
   });
+
+  describe('updateContactStatus', () => {
+    it('sets crm_status on a contact', async () => {
+      const updated = { _id: 'c1', username: 'bob', provider: 'api.web10.app', crm_status: 'red' };
+      mock.update.mockResolvedValue(updated);
+      const result = await contacts.updateContactStatus('c1', 'red');
+      expect(mock.update).toHaveBeenCalledWith('contacts', { _id: 'c1' }, { $set: { crm_status: 'red' } });
+      expect(result.crm_status).toBe('red');
+    });
+
+    it('clears crm_status when set to undefined', async () => {
+      const updated = { _id: 'c1', username: 'bob', provider: 'api.web10.app', crm_status: undefined };
+      mock.update.mockResolvedValue(updated);
+      const result = await contacts.updateContactStatus('c1', undefined);
+      expect(mock.update).toHaveBeenCalledWith('contacts', { _id: 'c1' }, { $set: { crm_status: undefined } });
+      expect(result.crm_status).toBeUndefined();
+    });
+
+    it('supports all three status values', async () => {
+      for (const status of ['green', 'yellow', 'red'] as const) {
+        mock.update.mockResolvedValue({ _id: 'c1', crm_status: status });
+        const result = await contacts.updateContactStatus('c1', status);
+        expect(result.crm_status).toBe(status);
+      }
+    });
+  });
 });
