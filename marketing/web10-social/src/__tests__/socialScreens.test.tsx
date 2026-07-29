@@ -114,7 +114,11 @@ describe('DmsScreen', () => {
 
   it('renders empty state with subtle import link', async () => {
     const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
-    render(<DmsScreen />);
+    render(
+      <MemoryRouter>
+        <DmsScreen />
+      </MemoryRouter>,
+    );
     await waitFor(() => {
       expect(screen.getByText(/No conversations yet/)).toBeInTheDocument();
     });
@@ -123,7 +127,11 @@ describe('DmsScreen', () => {
 
   it('shows new message button in empty state', async () => {
     const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
-    render(<DmsScreen />);
+    render(
+      <MemoryRouter>
+        <DmsScreen />
+      </MemoryRouter>,
+    );
     await waitFor(() => {
       expect(screen.getByTestId('dm-new-message-btn')).toBeInTheDocument();
     });
@@ -131,7 +139,11 @@ describe('DmsScreen', () => {
 
   it('renders view toggle with all three views', async () => {
     const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
-    render(<DmsScreen />);
+    render(
+      <MemoryRouter>
+        <DmsScreen />
+      </MemoryRouter>,
+    );
     await waitFor(() => {
       expect(screen.getByTestId('messages-view-toggle')).toBeInTheDocument();
     });
@@ -142,7 +154,11 @@ describe('DmsScreen', () => {
 
   it('switches to mail view on toggle click', async () => {
     const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
-    render(<DmsScreen />);
+    render(
+      <MemoryRouter>
+        <DmsScreen />
+      </MemoryRouter>,
+    );
     await waitFor(() => {
       expect(screen.getByTestId('messages-view-toggle')).toBeInTheDocument();
     });
@@ -154,7 +170,11 @@ describe('DmsScreen', () => {
 
   it('switches to crm view on toggle click', async () => {
     const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
-    render(<DmsScreen />);
+    render(
+      <MemoryRouter>
+        <DmsScreen />
+      </MemoryRouter>,
+    );
     await waitFor(() => {
       expect(screen.getByTestId('messages-view-toggle')).toBeInTheDocument();
     });
@@ -166,7 +186,11 @@ describe('DmsScreen', () => {
 
   it('switches back to chat view from mail', async () => {
     const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
-    render(<DmsScreen />);
+    render(
+      <MemoryRouter>
+        <DmsScreen />
+      </MemoryRouter>,
+    );
     await waitFor(() => {
       expect(screen.getByTestId('messages-view-toggle')).toBeInTheDocument();
     });

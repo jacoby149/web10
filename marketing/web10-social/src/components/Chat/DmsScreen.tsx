@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -39,15 +40,17 @@ interface PickerPerson {
 function ContactPicker({
   onClose,
   onSelect,
+  prefilledUsername,
 }: {
   onClose: () => void;
   onSelect: (person: PickerPerson, initialMessage?: string) => void;
+  prefilledUsername?: string;
 }) {
   const [people, setPeople] = useState<PickerPerson[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
-  const [composeMode, setComposeMode] = useState(false);
-  const [composeUsername, setComposeUsername] = useState('');
+  const [composeMode, setComposeMode] = useState(!!prefilledUsername);
+  const [composeUsername, setComposeUsername] = useState(prefilledUsername || '');
   const [composeProvider, setComposeProvider] = useState('');
   const [composeMessage, setComposeMessage] = useState('');
   const [sending, setSending] = useState(false);
@@ -591,12 +594,31 @@ export default function DmsScreen() {
   const [showPicker, setShowPicker] = useState(false);
   const [activeView, setActiveView] = useState<MessagesView>('chat');
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; title: string; description: string; onConfirm: () => void; confirmLabel?: string; variant?: 'destructive' | 'default' }>({ open: false, title: '', description: '', onConfirm: () => {} });
+  const [searchParams] = useSearchParams();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const token = getWapi().readToken();
 
   useEffect(() => {
     loadData();
   }, []);
+
+  // Handle ?to=<username> deep link from profile Message button
+  useEffect(() => {
+    const to = searchParams.get('to');
+    if (!to || !token || loading) return;
+
+    const existingConv = conversations.find((conv) => {
+      const other = conv.split('--').find((p) => p !== `${token.provider}/${token.username}`);
+      return other && other.split('/')[1] === to;
+    });
+
+    if (existingConv) {
+      openConversation(existingConv);
+    } else {
+      // No existing conversation — open picker prefilled with the username
+      setShowPicker(true);
+    }
+  }, [searchParams, token, loading, conversations]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -732,6 +754,7 @@ export default function DmsScreen() {
       <ContactPicker
         onClose={() => setShowPicker(false)}
         onSelect={handlePickerSelect}
+        prefilledUsername={searchParams.get('to') || undefined}
       />
     );
   }

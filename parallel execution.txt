@@ -974,7 +974,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       resolution; if both are in flight, coordinate via .context/ and
       rebase — do not run blind-parallel.
 
-[ ] D-profile-message-button (sub-lane ws-D/follow, AFTER
+[✓ 1.0.210] D-profile-message-button (sub-lane ws-D/follow, AFTER
       D-follow-persistence — same UserProfileScreen.tsx seam; operator,
       27.07, screenshot: "there should be a button to message my friend
       on his profile"): /u/:username has only a Follow button — no way
@@ -1115,7 +1115,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
           content, owner legacy fallback intact; then verify the
           original acceptance on dev (second account sees images,
           zero 403s). gate: bite a merged.
-[✓ 1.0.210] D-follow-backfill (sub-lane ws-D/feed, AFTER D-public-media-client
+[✓ 1.0.211] D-follow-backfill (sub-lane ws-D/feed, AFTER D-public-media-client
         — same workspace chain, data-layer seam): "followed X, don't
         see them in my feed" (operator, 26.07 — plan.txt PHASE 8.6
         known gap, previously narrative-only). fan-out is push-only at
@@ -1450,7 +1450,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       D-mail-experience merged (same seam; can swap order with it if
       staged first — they're one chain).
       BITES (rule 5 — one PR each):
-      bite a, STATUS COLORS: green/yellow/red status on the contact
+      [✓ 1.0.210] bite a, STATUS COLORS: green/yellow/red status on the contact
         record, settable from row + detail, filter chips + sort.
       bite b, CONTACT FIELDS + CRUD: richer detail fields (email/
         phone/company/links + free-form key/value) and add/edit/
