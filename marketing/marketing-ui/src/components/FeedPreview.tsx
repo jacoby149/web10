@@ -5,11 +5,10 @@ import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Flame, Heart, MessageCircle, Repeat2, Share2, Image as ImageIcon, Film, Music2, Send } from 'lucide-react';
-import { SOCIAL_ORIGIN } from '@/lib/origins';
+import { Flame, Heart, MessageCircle, Repeat2, Share2, Image as ImageIcon, Film, Music2, Send, Play } from 'lucide-react';
+import { SOCIAL_ORIGIN, API_ORIGIN } from '@/lib/origins';
 import { trackFunnel } from '@/lib/analytics';
-
-const API_ORIGIN = import.meta.env.VITE_API_URL || 'https://api.web10.app';
+import { getPublicMediaUrl, getPublicMediaThumbnailUrl, resolveMediaRef, clearMediaCache } from '@/lib/mediaPresign';
 
 interface DiscoveryPost {
   author: string;
@@ -24,6 +23,10 @@ interface DiscoveryPost {
     reposts: number;
   };
   engagement_score: number;
+  // A17 media projection fields
+  media_refs?: string[];
+  has_media?: boolean;
+  first_attachment_mime?: string;
 }
 
 interface FeedPost {
@@ -35,6 +38,9 @@ interface FeedPost {
   time: string;
   content: string;
   media?: 'image' | 'video' | 'music';
+  mediaRefs?: string[];
+  firstAttachmentMime?: string;
+  author?: string;
   likes: string;
   comments: string;
   reposts: string;
@@ -91,6 +97,11 @@ function parseCount(s: string): number {
 function mapDiscoveryToFeedPost(d: DiscoveryPost): FeedPost {
   const name = d.author.replace(/[-_]/g, ' ');
   const tags = d.tags || [];
+  // Prefer A17 media projection over tag-based detection.
+  const mime = d.first_attachment_mime;
+  const mediaType = mime
+    ? mime.startsWith('video/') ? 'video' : mime.startsWith('image/') ? 'image' : mime.startsWith('audio/') ? 'music' : undefined
+    : tags.includes('video') ? 'video' : tags.includes('image') ? 'image' : tags.includes('music') ? 'music' : undefined;
   return {
     id: d.post_id,
     name: name.charAt(0).toUpperCase() + name.slice(1),
@@ -99,7 +110,10 @@ function mapDiscoveryToFeedPost(d: DiscoveryPost): FeedPost {
     avatarColor: hashToColor(d.author),
     time: timeAgo(d.created_at),
     content: d.body_text || '',
-    media: tags.includes('video') ? 'video' : tags.includes('image') ? 'image' : tags.includes('music') ? 'music' : undefined,
+    media: mediaType,
+    mediaRefs: d.media_refs,
+    firstAttachmentMime: mime,
+    author: d.author,
     likes: formatCount(d.engagement.likes),
     comments: formatCount(d.engagement.comments),
     reposts: formatCount(d.engagement.reposts),
@@ -145,6 +159,107 @@ function MediaPlaceholder({ type }: { type: 'image' | 'video' | 'music' }) {
       <div className="flex h-full w-full items-center justify-center">
         <ImageIcon className="h-8 w-8 text-muted-foreground/30" />
       </div>
+    </div>
+  );
+}
+
+// ── TrendingMedia: real media via public_media presign ──────────────────────
+//
+// Fetches the first media ref for a post, presigns it, and renders the
+// actual image (or video poster + play badge). Falls back to the
+// MediaPlaceholder if presign fails or no media refs exist.
+//
+// Media-forward per design.md: reserve-space-from-aspect (no layout shift),
+// hover zoom, video poster + play badge, "+N" overflow for multiple refs.
+
+interface TrendingMediaProps {
+  author: string;
+  mediaRefs?: string[];
+  mediaType?: 'image' | 'video' | 'music';
+  firstAttachmentMime?: string;
+}
+
+function TrendingMedia({ author, mediaRefs, mediaType, firstAttachmentMime }: TrendingMediaProps) {
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [thumbUrl, setThumbUrl] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState(false);
+  const resolvedType = mediaType || (firstAttachmentMime?.startsWith('video/') ? 'video' : firstAttachmentMime?.startsWith('image/') ? 'image' : undefined);
+  const isVideo = resolvedType === 'video';
+  const mediaCount = (mediaRefs?.length || 0);
+  const hasOverflow = mediaCount > 1;
+
+  useEffect(() => {
+    if (!mediaRefs?.length || !author) return;
+    let cancelled = false;
+    // Fetch the first media ref's presigned URL
+    getPublicMediaUrl(author, mediaRefs[0]).then(url => {
+      if (cancelled || !url) return;
+      setImageUrl(url);
+      if (isVideo) {
+        // For video, also try to get a thumbnail
+        resolveMediaRef(author, mediaRefs[0]).then(record => {
+          if (cancelled || !record) return;
+          getPublicMediaThumbnailUrl(author, record).then(thumb => {
+            if (!cancelled && thumb) setThumbUrl(thumb);
+          }).catch(() => {});
+        }).catch(() => {});
+      }
+    }).catch(() => {
+      if (!cancelled) setError(true);
+    });
+    return () => { cancelled = true; };
+  }, [author, mediaRefs, isVideo]);
+
+  // Loading state: skeleton with reserved aspect
+  if (!imageUrl && !error) {
+    return (
+      <div
+        className={`w-full overflow-hidden bg-elevated ${isVideo ? 'aspect-video' : 'aspect-[4/3]'}`}
+        data-testid="trending-media-skeleton"
+      >
+        <div className="h-full w-full animate-shimmer bg-gradient-to-r from-elevated via-muted to-elevated bg-[length:200%_100%]" />
+      </div>
+    );
+  }
+
+  // Error / fallback: show the old placeholder
+  if (error || !imageUrl) {
+    return <MediaPlaceholder type={resolvedType || 'image'} />;
+  }
+
+  const handleLoad = () => setLoaded(true);
+
+  return (
+    <div
+      className={`group/media relative w-full overflow-hidden ${isVideo ? 'aspect-video' : 'aspect-[4/3]'} bg-elevated`}
+      data-testid="trending-media"
+    >
+      <img
+        src={isVideo && thumbUrl ? thumbUrl : imageUrl}
+        alt=""
+        loading="lazy"
+        onLoad={handleLoad}
+        className={`h-full w-full object-cover transition-transform duration-150 ease-out group-hover/media:scale-105 motion-reduce:transform-none ${loaded ? 'opacity-100' : 'opacity-0'}`}
+      />
+      {!loaded && (
+        <div className="absolute inset-0 animate-shimmer bg-gradient-to-r from-elevated via-muted to-elevated bg-[length:200%_100%]" />
+      )}
+      {isVideo && (
+        <>
+          <div className="absolute inset-0 bg-gradient-to-t from-background/40 to-transparent" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-foreground/15 backdrop-blur-sm transition-transform duration-150 ease-out group-hover/media:scale-110 motion-reduce:transform-none">
+              <Play className="ml-1 h-6 w-6 text-foreground" fill="currentColor" />
+            </div>
+          </div>
+        </>
+      )}
+      {hasOverflow && (
+        <div className="absolute bottom-2 right-2 rounded bg-background/80 px-2 py-0.5 text-xs font-medium text-foreground backdrop-blur-sm">
+          +{mediaCount - 1}
+        </div>
+      )}
     </div>
   );
 }
@@ -449,7 +564,16 @@ function TrendingCard({
         </div>
         {post.media && (
           <div className="mt-3">
-            <MediaPlaceholder type={post.media} />
+            {post.author && post.mediaRefs ? (
+              <TrendingMedia
+                author={post.author}
+                mediaRefs={post.mediaRefs}
+                mediaType={post.media}
+                firstAttachmentMime={post.firstAttachmentMime}
+              />
+            ) : (
+              <MediaPlaceholder type={post.media} />
+            )}
           </div>
         )}
         {post.tags && post.tags.length > 0 && (

@@ -94,25 +94,35 @@ async function uploadTestImage(
 // generate_presigned_post returns a URL + form fields (signature, policy,
 // etc.). The client must POST a multipart/form-data body with every field
 // plus the file, or MinIO rejects it (400 Bad Request).
+// Playwright's APIRequestContext serializes Record-based formData with a
+// different boundary/format than S3 expects — MinIO returns 400 "An
+// unsupported API call for method: POST". Native fetch with FormData/File
+// produces the correct RFC-7578 multipart encoding that MinIO accepts.
 async function uploadToPresignedPost(
-  request: APIRequestContext,
+  _request: APIRequestContext,
   upload_url: string,
   fields: Record<string, string>,
   fileData: Buffer,
   filename: string,
   contentType: string,
 ) {
-  // Use Playwright's FormData for correct multipart encoding.
-  // generate_presigned_post returns a URL + form fields (signature, policy,
-  // Content-Type, key, etc.). All fields must be POSTed as multipart/form-data
-  // plus the file, or MinIO rejects it (400 Bad Request).
   const formData = new FormData();
   for (const [key, value] of Object.entries(fields)) {
     formData.append(key, value);
   }
   formData.append('file', new File([fileData], filename, { type: contentType }));
-  const resp = await request.post(upload_url, { formData });
-  return resp;
+  const resp = await fetch(upload_url, {
+    method: 'POST',
+    body: formData,
+  });
+  // Wrap in a Playwright-compatible response-like object so callers can
+  // call .status() and .ok() without changing.
+  return {
+    status: () => resp.status,
+    ok: () => resp.ok,
+    json: async () => resp.json(),
+    text: async () => resp.text(),
+  };
 }
 
 // ---------------------------------------------------------------------------
