@@ -1487,7 +1487,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       bite a, SHELL: /settings route + nav entry + account section +
         data/about sections + log out + the .context proposal doc.
         static content only, no settings record yet.
-      bite b, POSTING DEFAULTS: data/settings.ts record + the
+      bite b, POSTING DEFAULTS: [✓ 1.0.211 #365] data/settings.ts record + the
         default-visibility control + PostComposer reads it for its
         initial state (one-line composer touch — coordinate with
         ws-D/feed via .context/). gate: bite a merged.
