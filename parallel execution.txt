@@ -1977,7 +1977,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       growth charts, signed-in); bite b, RANKED (percentiles +
       leaderboards vs follows and top creators; gate: bite a).
 
-[ ] D-appstore-revamp (sub-lane ws-D/marketing — the App Store page
+[✓ 1.0.210] D-appstore-revamp (sub-lane ws-D/marketing — the App Store page
       only, so it may interleave with the search/graph chain if its
       files stay untouched by them; operator, 26.07, screenshot):
       "ALL JUST APPS" — the store currently gives web10 social a
@@ -2497,7 +2497,7 @@ bite b is BLOCKED, not kickable.
                      MERGED, fully clear), THEN D-search-fulltext +
                      D-trending-controls-alignment (either order), THEN
                      D-graph-app bite a, THEN D-social-analytics
-    ws-D/marketing(2): D-appstore-revamp v1 (Join.tsx chain drained —
+    ws-D/marketing(2): [✓ 1.0.210] D-appstore-revamp v1 (Join.tsx chain drained —
                      D-join-steps-extend merged #345)
     ws-D/profile:    D-lightbox-media-sizing (chain START — the
                      public-media bite b seam cleared), THEN

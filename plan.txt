@@ -2276,17 +2276,17 @@ really really really looked like apps. web10 social is the flagship,
 and the authenticator — we don't need to plug them so hard, they will
 naturally get landed on… this is like the apple app store,
 PREMMIUMMM!!!!!"):
-[ ] EVERYTHING IS AN APP — kill the FLAGSHIP hero card and the
-    abstract "On web10" feature cards; first-party apps (social,
-    authenticator/node console, importer) get the SAME icon-forward
-    card as every registered app: real app icon, name, one-liner,
-    visit count, Open. prominence comes from the visit-count sort,
-    not editorial banners (the store doesn't rig itself — same trust
-    story as the no-algorithm feed). premium bar: apple-app-store
-    feel — big rounded icons, generous spacing, crisp type, hover
-    lift, all design.md tokens. first-party apps need REAL icons
-    (design.md §3 brand assets, not lucide glyphs). lane item
-    D-appstore-revamp (ws-D/marketing).
+[✓] EVERYTHING IS AN APP — kill the FLAGSHIP hero card and the
+     abstract "On web10" feature cards; first-party apps (social,
+     authenticator/node console, importer) get the SAME icon-forward
+     card as every registered app: real app icon, name, one-liner,
+     visit count, Open. prominence comes from the visit-count sort,
+     not editorial banners (the store doesn't rig itself — same trust
+     story as the no-algorithm feed). premium bar: apple-app-store
+     feel — big rounded icons, generous spacing, crisp type, hover
+     lift, all design.md tokens. first-party apps need REAL icons
+     (design.md §3 brand assets, not lucide glyphs). lane item
+     D-appstore-revamp (ws-D/marketing). ✓ 1.0.210
 [ ] V2, the product page: click an app → big logo, description, and
     COMMENTS/reviews (D32 public-ledger entries targeting the app id
     — the machinery post comments already use; federated review
