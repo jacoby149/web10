@@ -1,3 +1,6 @@
+1.0.210 || 28.07.2026
+fix(api): A15 engagement-count-accuracy — the discovery badge always showed 0 because the ledger aggregation matched against the wrong target format. `_ledger_engagement_for_post` builds `author/service/post_id` as the target, but the client writes `service:post_id` (comments.ts, reactions.ts). The aggregation now converts the post_key to the `service:post_id` format so the `$match` finds the entries. 6 new discovery tests (103 total green), ruff check + format clean.
+
 1.0.209 || 27.07.2026
 fix(marketing-ui): D-trending-controls-alignment — the /trending controls stack padding/alignment (operator, 27.07, screenshot: presets crammed under the header border, centered off-axis). (1) The KnobRack container had `pb-4` but zero top padding, so the preset pills sat almost touching the header's border-b — now `pt-6 pb-4`. (2) The presets row + Advanced toggle were `justify-center` while the search bar above is left-aligned in the content column — the whole controls stack is now on the one content-column axis (`justify-start`). (3) The topic-chip rail's hard-clipped trailing chip now fades out via a right-edge mask gradient, so a partial chip reads as scrollable, not bricked. Swept at 375px — no edge clipping. 105 marketing-ui tests green, tsc + vite build clean; screenshotted desktop + 375px.
 1.0.208 || 27.07.2026
