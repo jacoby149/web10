@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import '@testing-library/jest-dom';
 
 // Mock lucide-react icons (Proxy fabricates any icon — never list them by hand)
@@ -119,10 +120,12 @@ describe('Follow button -> followUser call', () => {
     const { default: UserProfileScreen } = await import('@/components/Bio/UserProfileScreen');
 
     render(
-      <UserProfileScreen
-        username="noodle-empress"
-        provider="test.localhost"
-      />,
+      <MemoryRouter>
+        <UserProfileScreen
+          username="noodle-empress"
+          provider="test.localhost"
+        />
+      </MemoryRouter>,
     );
 
     await waitFor(() => {
@@ -158,10 +161,12 @@ describe('Follow button -> followUser call', () => {
     const { default: UserProfileScreen } = await import('@/components/Bio/UserProfileScreen');
 
     render(
-      <UserProfileScreen
-        username="noodle-empress"
-        provider="test.localhost"
-      />,
+      <MemoryRouter>
+        <UserProfileScreen
+          username="noodle-empress"
+          provider="test.localhost"
+        />
+      </MemoryRouter>,
     );
 
     await waitFor(() => {
@@ -234,10 +239,12 @@ describe('UserProfileScreen', () => {
     const { default: UserProfileScreen } = await import('@/components/Bio/UserProfileScreen');
 
     render(
-      <UserProfileScreen
-        username="noodle-empress"
-        provider="test.localhost"
-      />,
+      <MemoryRouter>
+        <UserProfileScreen
+          username="noodle-empress"
+          provider="test.localhost"
+        />
+      </MemoryRouter>,
     );
 
     await waitFor(() => {
@@ -252,10 +259,12 @@ describe('UserProfileScreen', () => {
     const { default: UserProfileScreen } = await import('@/components/Bio/UserProfileScreen');
 
     render(
-      <UserProfileScreen
-        username="noodle-empress"
-        provider="test.localhost"
-      />,
+      <MemoryRouter>
+        <UserProfileScreen
+          username="noodle-empress"
+          provider="test.localhost"
+        />
+      </MemoryRouter>,
     );
 
     await waitFor(() => {

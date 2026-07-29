@@ -974,7 +974,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       resolution; if both are in flight, coordinate via .context/ and
       rebase — do not run blind-parallel.
 
-[ ] D-profile-message-button (sub-lane ws-D/follow, AFTER
+[✓ 1.0.210] D-profile-message-button (sub-lane ws-D/follow, AFTER
       D-follow-persistence — same UserProfileScreen.tsx seam; operator,
       27.07, screenshot: "there should be a button to message my friend
       on his profile"): /u/:username has only a Follow button — no way
