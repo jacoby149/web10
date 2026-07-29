@@ -1,6 +1,9 @@
+import { useState, useEffect } from 'react';
 import { getWapi } from '@/data/wapi';
+import { readSettings, saveSettings, type AppSettings } from '@/data/settings';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Settings as SettingsIcon, User, Database, Info, LogOut, ExternalLink, Shield, Bug } from 'lucide-react';
+import { Settings as SettingsIcon, User, Database, Info, LogOut, ExternalLink, Shield, Bug, Eye, Lock, Loader2 } from 'lucide-react';
 
 const APP_VERSION = import.meta.env?.VITE_GIT_COMMIT || '0.1.0';
 const AUTH_ORIGIN = import.meta.env?.VITE_AUTH_ORIGIN || 'https://auth.web10.app';
@@ -46,10 +49,94 @@ function LinkRow({ label, description, href, onClick }: { label: string; descrip
   );
 }
 
+function PostingDefaultsSection({ settings, onSave }: { settings: AppSettings; onSave: (s: Partial<AppSettings>) => void }) {
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  async function handleSave(v: 'public' | 'private') {
+    setSaving(true);
+    setSaved(false);
+    await onSave({ defaultVisibility: v });
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
+
+  return (
+    <Section title="Posting Defaults" icon={Eye}>
+      <div className="px-4 py-3 space-y-3">
+        <p className="text-xs text-muted-foreground">
+          Choose the default visibility for new posts. You can still change it per post in the composer.
+        </p>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => handleSave('public')}
+            disabled={saving}
+            data-testid="settings-visibility-public"
+            className={cn(
+              'flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded text-sm font-medium border transition-colors duration-150',
+              settings.defaultVisibility === 'public'
+                ? 'bg-brand-muted border-brand/30 text-foreground'
+                : 'bg-transparent border-border text-muted-foreground hover:text-foreground hover:bg-elevated',
+              'disabled:cursor-not-allowed disabled:opacity-50',
+            )}
+          >
+            <Eye className="w-4 h-4" strokeWidth={1.75} />
+            Public
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSave('private')}
+            disabled={saving}
+            data-testid="settings-visibility-private"
+            className={cn(
+              'flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded text-sm font-medium border transition-colors duration-150',
+              settings.defaultVisibility === 'private'
+                ? 'bg-brand-muted border-brand/30 text-foreground'
+                : 'bg-transparent border-border text-muted-foreground hover:text-foreground hover:bg-elevated',
+              'disabled:cursor-not-allowed disabled:opacity-50',
+            )}
+          >
+            <Lock className="w-4 h-4" strokeWidth={1.75} />
+            Private
+          </button>
+        </div>
+        {saving && (
+          <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+            <Loader2 className="w-3 h-3 animate-spin text-brand" />
+            Saving…
+          </p>
+        )}
+        {saved && (
+          <p className="text-xs text-success" role="status">Saved.</p>
+        )}
+      </div>
+    </Section>
+  );
+}
+
 export default function SettingsScreen({ onLogout, onReportBug }: { onLogout: () => void; onReportBug: () => void }) {
   const token = getWapi().readToken();
   const username = token?.username || '';
   const provider = token?.provider || '';
+
+  const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [settingsLoading, setSettingsLoading] = useState(true);
+
+  useEffect(() => {
+    readSettings()
+      .then((s) => {
+        setSettings(s);
+      })
+      .catch(() => {})
+      .finally(() => setSettingsLoading(false));
+  }, []);
+
+  async function handleSaveSettings(partial: Partial<AppSettings>) {
+    const saved = await saveSettings(partial);
+    setSettings(saved);
+  }
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-8">
@@ -86,6 +173,10 @@ export default function SettingsScreen({ onLogout, onReportBug }: { onLogout: ()
           </Button>
         </div>
       </Section>
+
+      {!settingsLoading && settings && (
+        <PostingDefaultsSection settings={settings} onSave={handleSaveSettings} />
+      )}
 
       <Section title="Your Data" icon={Database}>
         <div className="px-4 py-3 space-y-2">

@@ -2078,7 +2078,7 @@ shell:
     always did.
     lane item D-deep-links (ws-D/shell; cross-screen seam — stage
     after the current fleet drains).
-[ ] SETTINGS TAB (operator, 26.07): "web10 social doesn't have a
+[✓ 1.0.211 #365] SETTINGS TAB (operator, 26.07): "web10 social doesn't have a
     settings tab, should be a settings tab, facebook style." v0 =
     account section, posting defaults (default visibility), data/
     ownership explainer + terms-editor link, about/version/report-bug;

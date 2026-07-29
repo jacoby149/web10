@@ -212,5 +212,6 @@ export async function readStaging(): Promise<unknown[]> { return []; }
 export async function movePostToPublic(): Promise<void> {}
 export async function movePostToPrivate(): Promise<void> {}
 export async function deleteStaging(): Promise<void> {}
-export async function readSettings(): Promise<unknown> { return {}; }
-export async function saveSettings(): Promise<void> {}
+export type AppSettings = { defaultVisibility?: 'public' | 'private' };
+export async function readSettings(): Promise<AppSettings> { return { defaultVisibility: 'public' }; }
+export async function saveSettings(partial: Partial<AppSettings>): Promise<AppSettings> { return { defaultVisibility: partial.defaultVisibility || 'public' }; }

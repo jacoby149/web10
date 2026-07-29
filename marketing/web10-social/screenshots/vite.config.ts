@@ -19,6 +19,7 @@ export default defineConfig({
   resolve: {
     alias: [
       { find: '@/data/wapi', replacement: path.resolve(here, './harness/mock-wapi.ts') },
+      { find: /^@\/data\/settings$/, replacement: path.resolve(here, './harness/mock-settings.ts') },
       { find: /^@\/data$/, replacement: path.resolve(here, './harness/mock-data.ts') },
       { find: '@', replacement: path.resolve(root, './src') },
     ],
