@@ -67,7 +67,7 @@ async function backfillFollow(followeeUsername: string, followeeProvider: string
         origin: 'web10',
       };
 
-      await wapi.create<InboxRecord>('inbox', inboxRecord);
+      await wapi.create<InboxRecord>('inbox', inboxRecord as unknown as Record<string, unknown>);
     }
   } catch {
     // Non-fatal — backfill failure doesn't break the follow

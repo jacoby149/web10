@@ -24,21 +24,21 @@ function mockWapi() {
 }
 
 function mockDiscoveryResponse(posts: Array<{ post_id: string; author: string; provider: string; text: string; created_at: string; tags?: string[]; media_refs?: string[] }>) {
-  return vi.spyOn(global, 'fetch').mockResolvedValueOnce({
+  return vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
     ok: true,
     json: async () => posts,
   } as Response);
 }
 
 function mockDiscoveryFail() {
-  return vi.spyOn(global, 'fetch').mockResolvedValueOnce({
+  return vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
     ok: false,
     status: 500,
   } as Response);
 }
 
 function mockDiscoveryError() {
-  return vi.spyOn(global, 'fetch').mockRejectedValueOnce(new Error('network error'));
+  return vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('network error'));
 }
 
 describe('follows data layer', () => {
