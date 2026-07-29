@@ -170,6 +170,7 @@ export interface DmRecord {
   recipient_provider: string;
   media_refs?: string[];
   encrypted?: boolean;
+  subject?: string;
 }
 
 // ── Feed sort options ───────────────────────────────────────────────────────

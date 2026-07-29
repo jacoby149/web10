@@ -97,6 +97,8 @@ PEERS.forEach((p, i) => {
     sender_provider: 'web10',
     recipient_username: m.from === 'me' ? p.username : 'me',
     recipient_provider: 'web10',
+    ...(i === 0 && j === 0 ? { subject: 'Q3 collab — rate card + exclusivity' } : {}),
+    ...(i === 1 && j === 0 ? { subject: 'Just subscribed! 🎉' } : {}),
   }));
 });
 
@@ -140,6 +142,10 @@ export async function spamFlagUser(username: string, provider: string): Promise<
 export async function unspamFlagUser(username: string, provider: string): Promise<void> {
   const c = contacts.find((x) => x.username === username && x.provider === provider);
   if (c) c.spam_flagged = false;
+}
+export async function toggleSpamFlag(id: string, flagged: boolean): Promise<void> {
+  const c = contacts.find((x) => x._id === id);
+  if (c) c.spam_flagged = flagged;
 }
 export function classifyThread(
   lastMsg: DmRecord | null,

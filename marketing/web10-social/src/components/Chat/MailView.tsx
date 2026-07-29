@@ -1,13 +1,15 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { getWapi } from '@/data/wapi';
 import {
   readContacts,
   listConversations,
   readDms,
+  sendDm,
   conversationKey as deriveConversationKey,
   updateContactNote,
   toggleSpamFlag,
@@ -24,6 +26,11 @@ import {
   ChevronLeft,
   Flag,
   FlagOff,
+  Reply,
+  Repeat2,
+  User,
+  ArrowRightLeft,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -134,7 +141,9 @@ function ThreadRow({
             </span>
           </div>
           <p className="text-sm text-muted-foreground truncate mt-0.5">
-            {thread.lastMessage?.message || 'No messages yet'}
+            {thread.lastMessage?.subject
+              ? `${thread.lastMessage.subject}${thread.lastMessage.message ? ' — ' + thread.lastMessage.message : ''}`
+              : thread.lastMessage?.message || 'No messages yet'}
           </p>
           <div className="flex items-center gap-2 mt-1">
             <Badge variant="outline" className="text-[10px]">
@@ -188,9 +197,91 @@ function ThreadDetail({
 }) {
   const token = getWapi().readToken();
   const myKey = token ? `${token.provider}/${token.username}` : '';
+  const myUsername = token?.username || '';
+  const [input, setInput] = useState('');
+  const [subject, setSubject] = useState('');
+  const [sending, setSending] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<DmRecord | null>(null);
+  const [forwardTarget, setForwardTarget] = useState<DmRecord | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Use the thread's first message's subject as the thread subject if available
+  const threadSubject = thread.messages.find((m) => m.subject)?.subject || '';
+
+  function formatFromTo(msg: DmRecord) {
+    const senderKey = `${msg.sender_provider}/${msg.sender_username}`;
+    const recipientKey = `${msg.recipient_provider}/${msg.recipient_username}`;
+    const isMe = myKey === senderKey;
+    const fromName = isMe ? myUsername : msg.sender_username;
+    const toName = isMe ? msg.recipient_username : myUsername;
+    return { fromName, toName, isMe };
+  }
+
+  async function handleSend() {
+    if (!input.trim() || sending) return;
+    setSending(true);
+    try {
+      const msg = await sendDm(thread.conversation, input.trim(), {
+        subject: subject.trim() || undefined,
+      });
+      // The parent component will reload; for now just clear input
+      setInput('');
+      setSubject('');
+      setReplyingTo(null);
+      setForwardTarget(null);
+      // Trigger a reload by going back and re-entering
+      onBack();
+    } catch (e) {
+      console.error('Failed to send message:', e);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  function handleReply(msg: DmRecord) {
+    const quoted = `\n\n--- ${msg.sender_username} wrote (${formatTimestamp(msg.sent_at)}) ---\n${msg.message}`;
+    setInput(quoted);
+    setSubject(msg.subject || '');
+    setReplyingTo(msg);
+    setForwardTarget(null);
+    setTimeout(() => inputRef.current?.focus(), 50);
+  }
+
+  function handleForward(msg: DmRecord) {
+    const fwdBody = `\n\n--- Forwarded from ${msg.sender_username} (${formatTimestamp(msg.sent_at)}) ---\n${msg.subject ? `Subject: ${msg.subject}\n` : ''}${msg.message}`;
+    setInput(fwdBody);
+    setSubject(`Fwd: ${msg.subject || 'No subject'}`);
+    setForwardTarget(msg);
+    setReplyingTo(null);
+    setTimeout(() => inputRef.current?.focus(), 50);
+  }
+
+  function handleCancelCompose() {
+    setInput('');
+    setSubject('');
+    setReplyingTo(null);
+    setForwardTarget(null);
+  }
+
+  async function handleQuickSend() {
+    if (!input.trim() || sending) return;
+    setSending(true);
+    try {
+      await sendDm(thread.conversation, input.trim(), {
+        subject: subject.trim() || undefined,
+      });
+      setInput('');
+      setSubject('');
+      onBack();
+    } catch (e) {
+      console.error('Failed to send message:', e);
+    } finally {
+      setSending(false);
+    }
+  }
 
   return (
-    <div className="flex flex-col h-full" data-testid="mail-thread-detail">
+    <div className="flex flex-col flex-1 min-h-0" data-testid="mail-thread-detail">
       <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
         <button
           onClick={onBack}
@@ -213,6 +304,11 @@ function ThreadDetail({
             </p>
           </div>
         </div>
+        {threadSubject && (
+          <Badge variant="outline" className="text-[10px] hidden sm:inline-flex shrink-0">
+            Re: {threadSubject}
+          </Badge>
+        )}
         <button
           onClick={onToggleSpam}
           className={cn(
@@ -228,7 +324,7 @@ function ThreadDetail({
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         {thread.messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center py-12">
             <p className="text-sm text-muted-foreground">No messages in this thread</p>
@@ -236,47 +332,163 @@ function ThreadDetail({
         ) : (
           thread.messages.map((msg) => {
             const isMe = myKey === `${msg.sender_provider}/${msg.sender_username}`;
+            const { fromName, toName } = formatFromTo(msg);
             return (
               <div
                 key={msg._id}
                 className={cn(
-                  'flex gap-3',
-                  isMe ? 'flex-row-reverse' : '',
+                  'border border-border/50 rounded-lg overflow-hidden',
+                  isMe ? 'bg-elevated/30' : 'bg-surface',
                 )}
               >
-                <Avatar className="h-8 w-8 shrink-0 mt-0.5">
-                  <AvatarFallback className="bg-brand-muted text-brand-300 text-xs font-semibold">
-                    {isMe ? 'You' : thread.displayName.charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className={cn(
-                  'max-w-[75%]',
-                  isMe ? 'text-right' : '',
-                )}>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-medium text-foreground">
-                      {isMe ? 'You' : thread.displayName}
-                    </span>
+                {/* From/To header block */}
+                <div className="px-3 py-2 border-b border-border/30 space-y-0.5">
+                  {msg.subject && (
+                    <p className="text-sm font-semibold text-foreground">
+                      {msg.subject}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center gap-1.5">
+                      <User className="w-3 h-3 text-muted-foreground shrink-0" />
+                      <span className="text-xs text-muted-foreground">From:</span>
+                      <span className="text-xs font-medium text-foreground">{fromName}</span>
+                    </div>
+                    <ArrowRightLeft className="w-3 h-3 text-muted-foreground/40 shrink-0" />
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-muted-foreground">To:</span>
+                      <span className="text-xs font-medium text-foreground">{toName}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
                     <span className="text-xs text-muted-foreground tabular-nums">
                       {formatTimestamp(msg.sent_at)}
                     </span>
                   </div>
-                  <div
-                    className={cn(
-                      'inline-block px-3 py-2 rounded-lg text-sm leading-relaxed',
-                      isMe
-                        ? 'bg-gradient-to-br from-brand to-brand-600 text-brand-foreground rounded-tr-sm'
-                        : 'bg-elevated text-foreground rounded-tl-sm',
-                    )}
+                </div>
+
+                {/* Message body */}
+                <div className="px-3 py-2.5">
+                  <p className="text-sm leading-relaxed text-foreground break-words whitespace-pre-wrap">
+                    {msg.message}
+                  </p>
+                </div>
+
+                {/* Action bar */}
+                <div className="px-3 py-1.5 border-t border-border/30 flex items-center gap-1">
+                  <button
+                    onClick={() => handleReply(msg)}
+                    className="flex items-center gap-1 px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-elevated rounded-md transition-colors duration-150"
+                    aria-label="Reply to this message"
+                    data-testid="mail-message-reply"
                   >
-                    <p className="break-words">{msg.message}</p>
-                  </div>
+                    <Reply className="w-3 h-3" />
+                    Reply
+                  </button>
+                  <button
+                    onClick={() => handleForward(msg)}
+                    className="flex items-center gap-1 px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-elevated rounded-md transition-colors duration-150"
+                    aria-label="Forward this message"
+                    data-testid="mail-message-forward"
+                  >
+                    <Repeat2 className="w-3 h-3" />
+                    Forward
+                  </button>
                 </div>
               </div>
             );
           })
         )}
       </div>
+
+      {/* Compose area */}
+      {(replyingTo || forwardTarget) ? (
+        <div className="border-t border-border bg-surface px-3 py-2 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground">
+              {replyingTo ? 'Replying' : 'Forwarding'}
+            </span>
+            <button
+              onClick={handleCancelCompose}
+              className="flex items-center justify-center h-6 w-6 hover:bg-elevated rounded-md transition-colors duration-150"
+              aria-label="Cancel compose"
+              data-testid="mail-compose-cancel"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+          <Input
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+            placeholder="Subject"
+            data-testid="mail-compose-subject"
+            className="h-8 text-xs"
+          />
+          <div className="flex gap-2">
+            <Input
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
+              placeholder="Type your message…"
+              disabled={sending}
+              data-testid="mail-compose-input"
+              className="flex-1"
+            />
+            <Button
+              variant="brand"
+              size="sm"
+              disabled={!input.trim() || sending}
+              onClick={handleSend}
+              data-testid="mail-compose-send"
+            >
+              <Send className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="border-t border-border px-3 py-2">
+          <div className="flex items-center gap-2">
+            <Input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleQuickSend();
+                }
+              }}
+              placeholder="Quick reply…"
+              disabled={sending}
+              data-testid="mail-quick-reply"
+              className="flex-1 h-8 text-xs"
+            />
+            <Input
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder="Subject"
+              data-testid="mail-quick-subject"
+              className="w-28 h-8 text-xs shrink-0"
+            />
+            <Button
+              variant="brand"
+              size="icon"
+              disabled={!input.trim() || sending}
+              onClick={handleQuickSend}
+              data-testid="mail-quick-send"
+              aria-label="Send message"
+              className="h-8 w-8"
+            >
+              <Send className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -438,7 +650,7 @@ export default function MailView() {
   }
 
   return (
-    <div className="flex flex-col h-full" data-testid="mail-view">
+    <div className="flex flex-col flex-1 min-h-0" data-testid="mail-view">
       {/* Header */}
       <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-3">
         <h1 className="font-display text-lg font-bold text-foreground">Mail</h1>
