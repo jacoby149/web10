@@ -1115,7 +1115,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
           content, owner legacy fallback intact; then verify the
           original acceptance on dev (second account sees images,
           zero 403s). gate: bite a merged.
-[ ] D-follow-backfill (sub-lane ws-D/feed, AFTER D-public-media-client
+[✓ 1.0.210] D-follow-backfill (sub-lane ws-D/feed, AFTER D-public-media-client
         — same workspace chain, data-layer seam): "followed X, don't
         see them in my feed" (operator, 26.07 — plan.txt PHASE 8.6
         known gap, previously narrative-only). fan-out is push-only at

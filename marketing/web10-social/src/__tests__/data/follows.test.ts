@@ -23,6 +23,24 @@ function mockWapi() {
   return mock;
 }
 
+function mockDiscoveryResponse(posts: Array<{ post_id: string; author: string; provider: string; text: string; created_at: string; tags?: string[]; media_refs?: string[] }>) {
+  return vi.spyOn(global, 'fetch').mockResolvedValueOnce({
+    ok: true,
+    json: async () => posts,
+  } as Response);
+}
+
+function mockDiscoveryFail() {
+  return vi.spyOn(global, 'fetch').mockResolvedValueOnce({
+    ok: false,
+    status: 500,
+  } as Response);
+}
+
+function mockDiscoveryError() {
+  return vi.spyOn(global, 'fetch').mockRejectedValueOnce(new Error('network error'));
+}
+
 describe('follows data layer', () => {
   let mock: ReturnType<typeof mockWapi>;
 
@@ -203,6 +221,168 @@ describe('follows data layer', () => {
       mock.update.mockRejectedValue(new Error('update failed: 403'));
 
       await expect(follows.followUser('bob', 'web10')).rejects.toThrow('update failed: 403');
+    });
+  });
+
+  describe('followUser backfill', () => {
+    beforeEach(() => {
+      vi.restoreAllMocks();
+      mock = mockWapi();
+    });
+
+    it('backfills inbox with followee posts on new follow', async () => {
+      mock.read.mockResolvedValueOnce([]);
+      mock.create.mockResolvedValue({ _id: 'f1', username: 'bob', provider: 'web10', status: 'active' });
+
+      // Discovery returns bob's posts + a post from another author
+      mockDiscoveryResponse([
+        { post_id: 'p1', author: 'bob', provider: 'web10', text: 'hello', created_at: '2024-01-01T00:00:00Z' },
+        { post_id: 'p2', author: 'bob', provider: 'web10', text: 'world', created_at: '2024-01-02T00:00:00Z' },
+        { post_id: 'p3', author: 'carol', provider: 'web10', text: 'not bob', created_at: '2024-01-03T00:00:00Z' },
+      ]);
+
+      // Empty inbox — no dedup needed
+      mock.read.mockResolvedValueOnce([]);
+
+      const result = await follows.followUser('bob', 'web10');
+      expect(result).toEqual({ _id: 'f1', username: 'bob', provider: 'web10', status: 'active' });
+
+      // Wait for async backfill to settle
+      await new Promise((r) => setTimeout(r, 10));
+
+      // Should have created 2 inbox records (bob's posts only, not carol's)
+      const inboxCalls = mock.create.mock.calls.filter((c) => c[0] === 'inbox');
+      expect(inboxCalls).toHaveLength(2);
+      expect(inboxCalls[0][1]).toMatchObject({
+        post_id: 'p1',
+        author_username: 'bob',
+        author_provider: 'web10',
+        post_body: { text: 'hello', created_at: '2024-01-01T00:00:00Z' },
+      });
+      expect(inboxCalls[1][1]).toMatchObject({
+        post_id: 'p2',
+        author_username: 'bob',
+        author_provider: 'web10',
+        post_body: { text: 'world', created_at: '2024-01-02T00:00:00Z' },
+      });
+    });
+
+    it('dedupes on post_id so re-follow does not duplicate', async () => {
+      mock.read.mockResolvedValueOnce([]);
+      mock.create.mockResolvedValue({ _id: 'f1', username: 'bob', provider: 'web10', status: 'active' });
+
+      mockDiscoveryResponse([
+        { post_id: 'p1', author: 'bob', provider: 'web10', text: 'hello', created_at: '2024-01-01T00:00:00Z' },
+        { post_id: 'p2', author: 'bob', provider: 'web10', text: 'world', created_at: '2024-01-02T00:00:00Z' },
+      ]);
+
+      // Inbox already has p1 — should only create p2
+      mock.read.mockResolvedValueOnce([
+        { _id: 'inbox-1', post_id: 'p1', author_username: 'bob', delivered_at: '2024-01-01T00:00:00Z' },
+      ]);
+
+      await follows.followUser('bob', 'web10');
+      await new Promise((r) => setTimeout(r, 10));
+
+      const inboxCalls = mock.create.mock.calls.filter((c) => c[0] === 'inbox');
+      expect(inboxCalls).toHaveLength(1);
+      expect(inboxCalls[0][1]).toMatchObject({ post_id: 'p2' });
+    });
+
+    it('skips backfill when discovery API fails', async () => {
+      mock.read.mockResolvedValueOnce([]);
+      mock.create.mockResolvedValue({ _id: 'f1', username: 'bob', provider: 'web10', status: 'active' });
+      mockDiscoveryFail();
+
+      const result = await follows.followUser('bob', 'web10');
+      expect(result).toEqual({ _id: 'f1', username: 'bob', provider: 'web10', status: 'active' });
+
+      await new Promise((r) => setTimeout(r, 10));
+
+      const inboxCalls = mock.create.mock.calls.filter((c) => c[0] === 'inbox');
+      expect(inboxCalls).toHaveLength(0);
+    });
+
+    it('skips backfill when discovery API errors', async () => {
+      mock.read.mockResolvedValueOnce([]);
+      mock.create.mockResolvedValue({ _id: 'f1', username: 'bob', provider: 'web10', status: 'active' });
+      mockDiscoveryError();
+
+      const result = await follows.followUser('bob', 'web10');
+      expect(result).toEqual({ _id: 'f1', username: 'bob', provider: 'web10', status: 'active' });
+
+      await new Promise((r) => setTimeout(r, 10));
+
+      const inboxCalls = mock.create.mock.calls.filter((c) => c[0] === 'inbox');
+      expect(inboxCalls).toHaveLength(0);
+    });
+
+    it('backfills on re-follow (reactivate existing)', async () => {
+      const existing = { _id: 'f1', username: 'bob', provider: 'web10', status: 'rejected', followed_at: '2024-01-01T00:00:00Z' };
+      mock.read.mockResolvedValueOnce([existing]);
+      mock.update.mockResolvedValue({ ...existing, status: 'active' });
+
+      mockDiscoveryResponse([
+        { post_id: 'p1', author: 'bob', provider: 'web10', text: 'new post', created_at: '2024-02-01T00:00:00Z' },
+      ]);
+      mock.read.mockResolvedValueOnce([]);
+
+      await follows.followUser('bob', 'web10');
+      await new Promise((r) => setTimeout(r, 10));
+
+      const inboxCalls = mock.create.mock.calls.filter((c) => c[0] === 'inbox');
+      expect(inboxCalls).toHaveLength(1);
+      expect(inboxCalls[0][1]).toMatchObject({ post_id: 'p1', author_username: 'bob' });
+    });
+
+    it('includes tags and media_refs in inbox post_body', async () => {
+      mock.read.mockResolvedValueOnce([]);
+      mock.create.mockResolvedValue({ _id: 'f1', username: 'bob', provider: 'web10', status: 'active' });
+
+      mockDiscoveryResponse([
+        {
+          post_id: 'p1',
+          author: 'bob',
+          provider: 'web10',
+          text: 'photo post',
+          created_at: '2024-01-01T00:00:00Z',
+          tags: ['photo', 'nature'],
+          media_refs: ['media-123'],
+        },
+      ]);
+      mock.read.mockResolvedValueOnce([]);
+
+      await follows.followUser('bob', 'web10');
+      await new Promise((r) => setTimeout(r, 10));
+
+      const inboxCalls = mock.create.mock.calls.filter((c) => c[0] === 'inbox');
+      expect(inboxCalls).toHaveLength(1);
+      expect(inboxCalls[0][1].post_body).toMatchObject({
+        text: 'photo post',
+        tags: ['photo', 'nature'],
+        media_refs: ['media-123'],
+      });
+    });
+
+    it('caps backfill at 20 posts', async () => {
+      mock.read.mockResolvedValueOnce([]);
+      mock.create.mockResolvedValue({ _id: 'f1', username: 'bob', provider: 'web10', status: 'active' });
+
+      const posts = Array.from({ length: 25 }, (_, i) => ({
+        post_id: `p${i}`,
+        author: 'bob',
+        provider: 'web10',
+        text: `post ${i}`,
+        created_at: '2024-01-01T00:00:00Z',
+      }));
+      mockDiscoveryResponse(posts);
+      mock.read.mockResolvedValueOnce([]);
+
+      await follows.followUser('bob', 'web10');
+      await new Promise((r) => setTimeout(r, 10));
+
+      const inboxCalls = mock.create.mock.calls.filter((c) => c[0] === 'inbox');
+      expect(inboxCalls).toHaveLength(20);
     });
   });
 });

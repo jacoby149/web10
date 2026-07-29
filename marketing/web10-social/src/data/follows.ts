@@ -1,6 +1,7 @@
 import { getWapi } from './wapi';
 import { getCachedSchema, createPublicEntry, queryPublicEntries, deletePublicEntry } from './feed';
-import type { FollowRecord, FollowStatus } from './types';
+import { API_ORIGIN } from '../lib/origins';
+import type { FollowRecord, FollowStatus, InboxRecord, DiscoveryPost } from './types';
 
 // ── Follows data layer ──────────────────────────────────────────────────────
 // The `follows` service: bidirectional follow graph with status tracking.
@@ -14,6 +15,63 @@ import type { FollowRecord, FollowStatus } from './types';
  */
 function followTargetKey(username: string, provider: string): string {
   return `follow:${username}@${provider}`;
+}
+
+/**
+ * Backfill the follower's inbox with the followee's recent public posts.
+ * Fetches up to ~20 most recent posts from the discovery API (same pattern
+ * as UserProfileScreen), then writes each into the follower's inbox using
+ * the D-post-delivery inbox shape. Dedupes on post_id so re-follow doesn't
+ * duplicate. Non-fatal — a failure here doesn't break the follow.
+ */
+async function backfillFollow(followeeUsername: string, followeeProvider: string): Promise<void> {
+  try {
+    const wapi = getWapi();
+    const token = wapi.readToken();
+    if (!token) return;
+
+    // Fetch followee's recent public posts from discovery API
+    const resp = await fetch(
+      `${API_ORIGIN}/discover/posts?sort=recent&limit=20`,
+      { method: 'PATCH' },
+    );
+    if (!resp.ok) return;
+
+    const allPosts: DiscoveryPost[] = await resp.json();
+    const followeePosts = allPosts
+      .filter((dp) => dp.author === followeeUsername && dp.provider === followeeProvider)
+      .slice(0, 20);
+
+    if (!followeePosts.length) return;
+
+    // Read existing inbox to dedupe on post_id
+    const existingInbox = await wapi.read<InboxRecord>('inbox');
+    const existingPostIds = new Set(existingInbox.map((r) => r.post_id));
+
+    for (const dp of followeePosts) {
+      if (existingPostIds.has(dp.post_id)) continue;
+
+      const postBody: Record<string, unknown> = {
+        text: dp.text,
+        created_at: dp.created_at,
+      };
+      if (dp.tags?.length) postBody.tags = dp.tags;
+      if (dp.media_refs?.length) postBody.media_refs = dp.media_refs;
+
+      const inboxRecord: InboxRecord = {
+        author_username: followeeUsername,
+        author_provider: followeeProvider,
+        post_id: dp.post_id,
+        delivered_at: new Date().toISOString(),
+        post_body: postBody,
+        origin: 'web10',
+      };
+
+      await wapi.create<InboxRecord>('inbox', inboxRecord);
+    }
+  } catch {
+    // Non-fatal — backfill failure doesn't break the follow
+  }
 }
 
 /**
@@ -71,6 +129,9 @@ export async function followUser(username: string, provider: string): Promise<Fo
       }).catch(() => { /* non-fatal */ });
     }
 
+    // Backfill inbox with followee's recent posts (non-fatal)
+    backfillFollow(username, provider).catch(() => {});
+
     return record;
   }
 
@@ -97,6 +158,9 @@ export async function followUser(username: string, provider: string): Promise<Fo
       },
     }).catch(() => { /* non-fatal */ });
   }
+
+  // Backfill inbox with followee's recent posts (non-fatal)
+  backfillFollow(username, provider).catch(() => {});
 
   return record;
 }
