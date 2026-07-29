@@ -141,6 +141,11 @@ export async function unspamFlagUser(username: string, provider: string): Promis
   const c = contacts.find((x) => x.username === username && x.provider === provider);
   if (c) c.spam_flagged = false;
 }
+export async function toggleSpamFlag(id: string, flagged: boolean): Promise<ContactRecord> {
+  const c = contacts.find((x) => x._id === id);
+  if (c) c.spam_flagged = flagged;
+  return c || ({ _id: id, username: '', provider: 'web10' } as ContactRecord);
+}
 export function classifyThread(
   lastMsg: DmRecord | null,
   me: { provider: string; username: string },
@@ -198,5 +203,6 @@ export async function readStaging(): Promise<unknown[]> { return []; }
 export async function movePostToPublic(): Promise<void> {}
 export async function movePostToPrivate(): Promise<void> {}
 export async function deleteStaging(): Promise<void> {}
-export async function readSettings(): Promise<unknown> { return {}; }
-export async function saveSettings(): Promise<void> {}
+export type AppSettings = { defaultVisibility?: 'public' | 'private' };
+export async function readSettings(): Promise<AppSettings> { return { defaultVisibility: 'public' }; }
+export async function saveSettings(partial: Partial<AppSettings>): Promise<AppSettings> { return { defaultVisibility: partial.defaultVisibility || 'public' }; }
