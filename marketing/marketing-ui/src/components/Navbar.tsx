@@ -13,6 +13,7 @@ const navItems = [
   { path: '/docs', label: 'Docs' },
   { path: '/app-store', label: 'App Store' },
   { path: '/import', label: 'Import Your Life' },
+  { path: '/graph', label: 'Graph' },
 ]
 
 function Navbar({ onReportBug }: { onReportBug: () => void }) {
