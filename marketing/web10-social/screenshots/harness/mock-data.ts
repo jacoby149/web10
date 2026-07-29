@@ -98,6 +98,8 @@ PEERS.forEach((p, i) => {
     sender_provider: 'web10',
     recipient_username: m.from === 'me' ? p.username : 'me',
     recipient_provider: 'web10',
+    ...(i === 0 && j === 0 ? { subject: 'Q3 collab — rate card + exclusivity' } : {}),
+    ...(i === 1 && j === 0 ? { subject: 'Just subscribed! 🎉' } : {}),
   }));
 });
 
@@ -147,10 +149,9 @@ export async function unspamFlagUser(username: string, provider: string): Promis
   const c = contacts.find((x) => x.username === username && x.provider === provider);
   if (c) c.spam_flagged = false;
 }
-export async function toggleSpamFlag(id: string, flagged: boolean): Promise<ContactRecord> {
+export async function toggleSpamFlag(id: string, flagged: boolean): Promise<void> {
   const c = contacts.find((x) => x._id === id);
   if (c) c.spam_flagged = flagged;
-  return c ?? ({ _id: id, username: '', provider: 'web10', spam_flagged: flagged } as ContactRecord);
 }
 export async function readSpamFlaggedContacts(): Promise<ContactRecord[]> {
   return contacts.filter((c) => c.spam_flagged);

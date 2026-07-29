@@ -24,7 +24,7 @@ export default defineConfig({
       { find: '@', replacement: path.resolve(root, './src') },
     ],
   },
-  server: { port: 4500, host: true },
+  server: { port: 4500, host: true, strictPort: true },
   // Only scan the harness entry — otherwise Vite crawls the app's own
   // index.html and errors on the many `@/data` exports the mock omits.
   optimizeDeps: { entries: ['screenshots/harness/index.html'] },
