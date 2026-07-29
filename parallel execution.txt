@@ -974,7 +974,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       resolution; if both are in flight, coordinate via .context/ and
       rebase — do not run blind-parallel.
 
-[ ] D-profile-message-button (sub-lane ws-D/follow, AFTER
+[✓ 1.0.210] D-profile-message-button (sub-lane ws-D/follow, AFTER
       D-follow-persistence — same UserProfileScreen.tsx seam; operator,
       27.07, screenshot: "there should be a button to message my friend
       on his profile"): /u/:username has only a Follow button — no way
@@ -1450,7 +1450,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       D-mail-experience merged (same seam; can swap order with it if
       staged first — they're one chain).
       BITES (rule 5 — one PR each):
-      bite a, STATUS COLORS: green/yellow/red status on the contact
+      [✓ 1.0.210] bite a, STATUS COLORS: green/yellow/red status on the contact
         record, settable from row + detail, filter chips + sort.
       bite b, CONTACT FIELDS + CRUD: richer detail fields (email/
         phone/company/links + free-form key/value) and add/edit/
@@ -1977,7 +1977,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       growth charts, signed-in); bite b, RANKED (percentiles +
       leaderboards vs follows and top creators; gate: bite a).
 
-[✓ 1.0.210] D-appstore-revamp (sub-lane ws-D/marketing — the App Store page
+[✓ 1.0.211] D-appstore-revamp (sub-lane ws-D/marketing — the App Store page
       only, so it may interleave with the search/graph chain if its
       files stay untouched by them; operator, 26.07, screenshot):
       "ALL JUST APPS" — the store currently gives web10 social a
@@ -2497,7 +2497,7 @@ bite b is BLOCKED, not kickable.
                      MERGED, fully clear), THEN D-search-fulltext +
                      D-trending-controls-alignment (either order), THEN
                      D-graph-app bite a, THEN D-social-analytics
-    ws-D/marketing(2): [✓ 1.0.210] D-appstore-revamp v1 (Join.tsx chain drained —
+    ws-D/marketing(2): [✓ 1.0.211] D-appstore-revamp v1 (Join.tsx chain drained —
                      D-join-steps-extend merged #345)
     ws-D/profile:    D-lightbox-media-sizing (chain START — the
                      public-media bite b seam cleared), THEN
