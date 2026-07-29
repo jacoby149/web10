@@ -2183,7 +2183,7 @@ marketing ui!"):
     edge, and the presets row + Advanced toggle are centered under a
     left-aligned search bar — two axes colliding. lane item
     D-trending-controls-alignment (ws-D/marketing).
-[✓ 1.0.203] NO IMAGES ON /trending POSTS (operator, 27.07, screenshot: "cant
+[✓ 1.0.210] NO IMAGES ON /trending POSTS (operator, 27.07, screenshot: "cant
     see images on posts either!"): posts with photos render as
     text-only cards — the discovery index is text-only (media_refs
     never projected), so nothing downstream CAN show media. two-part
