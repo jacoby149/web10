@@ -1418,9 +1418,11 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       BITES (rule 5 — one PR each, in order):
       [✓ 1.0.207] bite a, FOLDERS: the Inbox/Sent/Spam rail (tabs at 375px) +
         the spam-flag record + filtering. no compose changes.
-      bite b, THREAD ANATOMY: subject field (render + compose input),
-        From/To header block, Reply + Forward actions (quote into
-        thread / prefill compose). single-recipient only.
+      [✓ 1.0.212 #368] bite b, THREAD ANATOMY: subject field (render +
+        compose input), From/To header block, Reply + Forward actions
+        (quote into thread / prefill compose). single-recipient only.
+        (merged without a changelog entry — retroactive record in
+        1.0.212.)
       bite c, CC/BCC COMPOSE: multi-recipient send (one record per
         recipient, cc/bcc metadata, bcc never leaks in others'
         copies) + Reply-all. gate: bite b merged.
@@ -2068,6 +2070,42 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       no code — gates the rewire build, which bites separately once
       specced).
 
+[ ] D-appstore-plugs (sub-lane ws-D/marketing(2), AFTER D-appstore-revamp
+      v1 — same AppStore page; operator, 29.07, partial REVERSAL of
+      v1's "no hero" call, recorded honestly like the D16/D31
+      precedent): "i actually liked the social app had a bigger card
+      in the top in the old app store layout! but the logo was bad, i
+      like that it has its progressive web app logo!" — the OLD
+      layout's big top card was good in SHAPE, bad in ASSET (the
+      broken/legacy logo); the PWA icon is the good asset. so v1's
+      uniform grid stays, but the store gains CURATED PLUG SLOTS
+      above it: (1) FLAGSHIP — web10 social as ONE bigger card on
+      top, built from the same AppCard shape scaled up (big PWA
+      icon, name, description, visit count, Open) — the flagship
+      plug is editorial and honest (it IS the flagship; the chip
+      becomes the card); (2) MOST POPULAR — the #1 app by visits
+      gets a plug slot (prominence still earned — the v1 trust
+      story holds for everything except the one flagship slot);
+      (3) NEWEST — the most recently registered approved app gets
+      a "new" plug slot (freshness signal, makes the store feel
+      alive). plug cards share one bigger-card component (don't
+      hand-roll three); the uniform visit-sorted grid renders
+      below unchanged. CATEGORIES (operator: "would even be cool
+      if it had top games, like some categories, but there are so
+      few apps that can be down the line!"): FILED, NOT BUILT —
+      category rails (top games etc.) stage when the catalog is
+      big enough that a rail never renders empty (needs a category
+      field on app records then; note it in the v2 registration-
+      shape spec so the schema leaves room). files: marketing-ui
+      AppStore page + AppCard (extract a PlugCard or a size prop).
+      read design.md first. acceptance: flagship big card on top
+      with the real PWA icon (no legacy logo asset); most-popular
+      + newest slots fill from real store data and DEGRADE
+      GRACEFULLY (a slot with no eligible app hides itself, never
+      renders an empty shell; flagship==most-popular dedupes);
+      grid below unchanged; screenshots desktop + 375px and LOOK.
+      gate: none (v1 merged #364).
+
 [ ] D-poke (sub-lane ws-D/engagement; mostly independent): an "advanced
       poke" — a playful, lightweight nudge primitive (the facebook-poke
       feeling) reimagined as web10's OWN, NOT a clone (name + interaction
@@ -2172,19 +2210,17 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
        not be needed at all. Bites b-e remain open but blocked on the
        Pro trial outcome.
 
-  [~] C9-e2e-suite-repair (lane C, e2e/**; PRIORITY 1, audit #7 27.07):
-      RE-OPENED audit #9 (27.07): the [✓ 1.0.203 #343] tick was FALSE —
-      #343 fixed step-3 + the MinIO host port, but a THIRD failure class
-      persists at head: gauntlet step-2 "media upload: full cycle" gets
-      a 400 from MinIO on the presigned multipart POST (Expected 204,
-      Received 400) despite #349 + head commits 16045c18/cfaf9bca/
-      0f8dbc5f. prod upload path verified working (operator's fresh
-      uploads render) — this is CI-MinIO/harness class. Next bite:
-      REPRO locally (docker compose e2e stack), capture MinIO's exact
-      400 error body in the PR (the XML Error element names the failed
-      condition — SignatureDoesNotMatch vs policy condition vs bucket
-      CORS), fix that condition, never weaken the 204 assertion.
-      Original text (both fixed classes documented for history):
+  [✓ 1.0.211 #366] C9-e2e-suite-repair (lane C, e2e/**; PRIORITY 1, audit #7 27.07):
+      CLOSED audit #10 (29.07): the third failure class (MinIO 400 on
+      the presigned multipart POST) was the harness, not MinIO —
+      Playwright's APIRequestContext serializes Record-based formData
+      with a boundary/format S3 rejects ("An unsupported API call for
+      method: POST"); #366 switched uploadToPresignedPost to native
+      fetch + FormData/File (RFC-7578-correct). e2e GREEN at dev head
+      (run 30419570517) and on main after the #369 promotion
+      (run 30419740986) — every gauntlet step passing, zero skips.
+      The seatbelt is no longer wallpaper.
+      History (all three classes documented):
       the e2e suite has been RED on every dev + main push since 24.07
       (~50 consecutive runs) — the seatbelt is wallpaper. Two failure
       CLASSES, fix both:
@@ -2441,8 +2477,102 @@ M3 "the network"         = encryption integration (A rtc + C2 sdk
                            polish. the last big merge.
 
 
-CURRENT CONDUCTOR BOARD (as of 27.07.2026 — audit #9; keep fresh)
+CURRENT CONDUCTOR BOARD (as of 29.07.2026 — audit #10; keep fresh)
 --------------------------------------------------------------------
+AUDIT #10 REFRESH (29.07): SHIPPED. The 17-commit dev batch (#359–#368
+— profile message button, A15 engagement-count fix, CRM status colors,
+graph app bite a, follow backfill, appstore revamp v1, settings bite b,
+e2e presigned-POST repair #366, trending card media, mail thread
+anatomy) gated CLEAN and promoted dev→main via merge commit (#369);
+deploy-prod + cd + e2e on main ALL green; prod verified live (7/7
+public endpoints; api / 307s to /docs by design). C9 CLOSED: #366
+fixed the third e2e failure class (Playwright APIRequestContext
+multipart encoding → native fetch); e2e green at dev head AND on
+main — the seatbelt is real again. GATE NOTES: (1) PR #368
+(D-mail-experience bite b) merged WITHOUT a changelog entry or lane
+tick — retroactive record in CHANGELOG 1.0.212, bite ticked here.
+(2) D-graph-app bite a (#362) claimed "zero hardcoded colors" but
+GraphViz.tsx canvas paints hardcoded brand hex (#8b5cf6 etc.) —
+canvas can't take Tailwind classes, but the token rule stands: read
+the computed CSS variables. Filed as the micro-bite
+D-graph-token-polish at the front of ws-D/marketing. NOT a promotion
+blocker (rendered values match the palette exactly; cosmetic
+identical) — named, queued, not chased. (3) NEW ITEM from the
+operator (29.07): D-appstore-plugs — partial reversal of v1's "no
+hero": the big flagship card returns (with the PWA icon, not the bad
+legacy logo) + most-popular + newest plug slots; category rails
+(top games) filed for when the catalog grows. Board queues below
+fully refreshed — eight sub-lanes drained or advanced this batch.
+
+  PRIORITY 1 (fresh, this audit):
+    ws-E (operator-gated): E-run-discovery-migration — STILL the only
+      P1. env gate CLEAR (A13 + A17 both deployed to prod). Run
+      migrate_terms + backfill + migrate_follows_terms with an admin
+      token per env; the A17 media fields need the backfill RE-RUN to
+      reach existing index docs. needs admin token + env access
+      (operator provides).
+    (ws-C is CLEAR for the first time since 24.07 — C9 closed.)
+
+  PARALLEL-SAFE FLEET (one workspace per sub-lane; chains WITHIN a
+  sub-lane are sequential, file seams):
+    ws-C:            C8-stripe-twilio-test-keys bite a (WIRING — e2e
+                     compose flips STRIPE_STATUS=test + secrets
+                     plumbing + a trivial sk_test smoke assertion;
+                     its own text says bite a can land anytime)
+    ws-A:            D-appstore-revamp v2 bite c — the registration-
+                     shape SPEC NOTE (a .context/decisions.md write-up,
+                     no code; gates the v2 rewire build; lane A owns
+                     the record-shape call)
+    ws-D/feed:       D-feed-lightbox bite a (open-from-feed), THEN
+                     D-link-embeds
+    ws-D/messages:   D-mail-experience bite c (CC/BCC COMPOSE — gate
+                     bite b merged #368, CLEARED), THEN D-crm-upgrade
+                     bite b (contact fields + CRUD)
+    ws-D/marketing:  D-graph-token-polish (micro-bite, audit #10
+                     finding — GraphViz canvas reads computed token
+                     vars, ~15 min), THEN D-search-fulltext +
+                     D-trending-controls-alignment (either order),
+                     THEN D-graph-app bite b (MY GRAPH), THEN
+                     D-social-analytics
+    ws-D/marketing(2): D-appstore-plugs (NEW, operator 29.07 — see
+                     the lane item), THEN D-appstore-revamp v2 bite a
+                     (product page; gate: the lane-A spec note for the
+                     full rewire, but bite a reads the legacy store
+                     as-is — NOT gated on it)
+    ws-D/profile:    D-lightbox-media-sizing (chain START), THEN
+                     D-profile-image-placement, THEN D-follow-lists,
+                     THEN D-text-post-cards bite a — the whole chain
+                     shares the PostLightbox/ProfileScreen seam; run
+                     sequentially. HELD until ws-D/feed's lightbox
+                     bite merges (the seam cluster rule below).
+    ws-D/settings:   DRAINED (bite b merged #365; the full facebook-
+                     style tree awaits operator sign-off on the
+                     .context/settings-tab-proposal.md)
+    ws-D/follow:     DRAINED (backfill #363 + message button #359 both
+                     merged)
+    ws-E:            E-run-discovery-migration (operator-gated, P1)
+  GATED (don't pick up until the gate clears):
+      D-night-owl bites b-e (gate: operator's Conductor Pro trial
+      outcome — paused #342).
+      D-deep-links (gate: the current fleet merged — it sweeps most
+      ws-D files). Still FIRST when the fleet drains.
+      D-poke build (gate: operator sign-off on the 1.0.179 proposal).
+      D-inapp-discover-knobs (gate: D20 revisit — operator sign-off).
+      D-feed-avatar-resolution + the D-user-profile-media grid half
+      (gate: public-media path END TO END — bite b merged #344; needs
+      the dev verification step, then these clear).
+      D-coming-soon-builds (gate: per-surface spec first).
+      D-appstore category rails (gate: catalog size — filed in
+      D-appstore-plugs, not built).
+  Selection rule (CLAUDE.md): only truly-parallel items at once. The
+  PostLightbox/FeedScreen/PostComposer files form ONE seam cluster
+  spanning ws-D/feed and ws-D/profile — the two chains coordinate via
+  .context/ notes and never edit the same file concurrently.
+  BITE RULE (rule 5, operator 27.07): the chains above are QUEUES of
+  bites — a kickoff hands an agent exactly ONE bite (one PR, ~20-40
+  min); multi-bite items carry a BITES: breakdown in their lane text.
+  never kick off "the chain".
+
 AUDIT #9 REFRESH (27.07, third pass same day): SHIPPED. The 21-commit
 dev batch (#341–#352) gated clean and promoted dev→main via merge
 commit (#353); deploy-prod + cd green; prod verified live (7/7 public
