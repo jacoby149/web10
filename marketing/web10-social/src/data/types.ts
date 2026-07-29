@@ -90,6 +90,8 @@ export interface ProfileRecord {
 
 // ── contacts ────────────────────────────────────────────────────────────────
 
+export type CrmStatus = 'green' | 'yellow' | 'red';
+
 export interface ContactRecord {
   _id?: string;
   username: string;
@@ -99,6 +101,7 @@ export interface ContactRecord {
   added_at?: string;
   note?: string;
   spam_flagged?: boolean;
+  crm_status?: CrmStatus;
 }
 
 // ── follows ─────────────────────────────────────────────────────────────────
@@ -170,6 +173,7 @@ export interface DmRecord {
   recipient_provider: string;
   media_refs?: string[];
   encrypted?: boolean;
+  subject?: string;
 }
 
 // ── Feed sort options ───────────────────────────────────────────────────────

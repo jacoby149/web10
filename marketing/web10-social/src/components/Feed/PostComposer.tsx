@@ -5,6 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { createPost, uploadMedia, readProfile, resolveMediaRefs, fanOutToFollowers } from '@/data';
 import type { MediaRecord, ProfileRecord, Visibility } from '@/data';
+import { readSettings } from '@/data/settings';
 import {
   validateMedia,
   processImage,
@@ -155,6 +156,14 @@ export default function PostComposer({ onPostCreated }: { onPostCreated?: () => 
         if (p?.avatar_ref) {
           const [media] = await resolveMediaRefs([p.avatar_ref]);
           setAvatarUrl(media?.url);
+        }
+      })
+      .catch(() => {});
+
+    readSettings()
+      .then((s) => {
+        if (s.defaultVisibility === 'private') {
+          setVisibility('private');
         }
       })
       .catch(() => {});

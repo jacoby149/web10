@@ -147,7 +147,7 @@ export async function readDms(conversation: string): Promise<DmRecord[]> {
 export async function sendDm(
   conversation: string,
   message: string,
-  mediaRefs?: string[],
+  opts?: { mediaRefs?: string[]; subject?: string },
 ): Promise<DmRecord> {
   const wapi = getWapi();
   const token = wapi.readToken();
@@ -166,7 +166,8 @@ export async function sendDm(
     sender_provider: me.provider,
     recipient_username: them.username,
     recipient_provider: them.provider,
-    media_refs: mediaRefs || [],
+    media_refs: opts?.mediaRefs || [],
+    ...(opts?.subject ? { subject: opts.subject } : {}),
   };
 
   return wapi.create<DmRecord>('dms', record as unknown as Record<string, unknown>);
@@ -269,6 +270,7 @@ export async function listConversations(): Promise<string[]> {
 export async function startConversation(
   recipient: { username: string; provider: string },
   message: string,
+  opts?: { subject?: string; mediaRefs?: string[] },
 ): Promise<{ conversation: string; message: DmRecord }> {
   const wapi = getWapi();
   const token = wapi.readToken();
@@ -284,7 +286,8 @@ export async function startConversation(
     sender_provider: me.provider,
     recipient_username: recipient.username,
     recipient_provider: recipient.provider,
-    media_refs: [],
+    media_refs: opts?.mediaRefs || [],
+    ...(opts?.subject ? { subject: opts.subject } : {}),
   };
 
   const created = await wapi.create<DmRecord>('dms', dm as unknown as Record<string, unknown>);

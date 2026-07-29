@@ -135,7 +135,7 @@ interface Web10SocialAdapter {
     b: { provider: string; username: string },
   ) => string;
   readDmMessages: (conversation: string) => Promise<DmRecord[]>;
-  sendDmMessage: (conversation: string, message: string, mediaRefs?: string[]) => Promise<DmRecord>;
+  sendDmMessage: (conversation: string, message: string, opts?: { mediaRefs?: string[]; subject?: string }) => Promise<DmRecord>;
   deleteDmMessage: (conversation: string, id: string) => Promise<void>;
   listDmConversations: () => Promise<string[]>;
   getLastDmMessage: (conversation: string) => Promise<DmRecord | null>;
