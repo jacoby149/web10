@@ -1853,7 +1853,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       gate: D-marketing-search bite b merged (run after it in the
       ws-D/marketing chain; may swap order with D-search-fulltext).
 
-[ ] D-trending-card-media (sub-lane ws-D/marketing, AFTER
+[✓ 1.0.210] D-trending-card-media (sub-lane ws-D/marketing, AFTER
       D-trending-controls-alignment — same Trending seam; operator,
       27.07, screenshot: "cant see images on posts either!"): posts
       with photos render as text-only cards on /trending — the
