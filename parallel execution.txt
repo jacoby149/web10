@@ -1667,7 +1667,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       panel still renders comments. gate: none (A18 merges
       independently — the format is decided here, not in code order).
 
-[ ] D-join-steps-visuals (sub-lane ws-D/marketing(2); SEAM: Join.tsx —
+[✓ 1.0.247] D-join-steps-visuals (sub-lane ws-D/marketing(2); SEAM: Join.tsx —
       disjoint from the AppStore files, so it can interleave with
       D-appstore-plugs; operator, 29.07, screenshot of the shipped
       four-step strip): "i like this join but, i feel like the story

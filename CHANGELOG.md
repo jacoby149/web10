@@ -1,4 +1,5 @@
 1.0.247 || 30.07.2026
+feat(marketing-ui): D-join-steps-visuals — /join step-strip visuals leveled up. Each StepCard now has a real visual anchor: step 1 shows the actual PWA icon, step 2 uses a Key icon, step 3 a Wallet icon, step 4 a Send icon. Step numbers badge onto the icon. StepArrow redesigned as a subtle line + chevron connector. Cards gain hover lift (-translate-y-0.5), border glow, and elevated fill. Both strips (hero + founding-member) share the updated StepCard/StepArrow/StepStrip. Copy byte-identical. All tokens, zero hardcoded colors. 161 tests green, tsc clean, vite build clean.
 fix(ci): F1 — indent link-health.yml body string into run: block scalar. The multi-line body="..." string lines in the "Report failure as GitHub issue" step were at column 0, breaking out of the run: | block scalar; YAML parser died at line 37 (* alias). Indented all body-string lines to column 10. yaml.safe_load passes. scripts/link-health.sh unchanged.
 
 1.0.245 || 30.07.2026
