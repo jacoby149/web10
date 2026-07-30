@@ -1,3 +1,6 @@
+1.0.240 || 30.07.2026
+fix(marketing-ui): D-docs-gfm — added remark-gfm to the docs markdown pipeline (`.use(remarkGfm)` before `.use(remarkHtml)`); GFM tables now render as real styled tables with token-styled borders, header weight, row hover, mono code cells, and horizontal scroll wrapper for wide tables at 375px. Strikethrough and task-list styles added. 161 marketing-ui tests green, tsc clean, vite build clean.
+
 1.0.239 || 30.07.2026
 fix(marketing-ui): D-hero-cta-label — the hero CTA reads "Enter web10!" (the href stays SOCIAL_ORIGIN, correct since 1.0.215). 161 marketing-ui tests green, tsc clean.
 
