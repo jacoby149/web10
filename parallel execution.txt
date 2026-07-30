@@ -2166,12 +2166,12 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       gate: current 26.07-late fleet merged (it touches most of their
       files).
 BITES (rule 5 — one bite PER SCREEN when staged, each its own
-       PR): [✓ 1.0.266] messages (thread key + view param), discover (tag/q
-       params), profile (tab param), comment anchor (?comment= on the
-       permalink route — gate: D-feed-lightbox bite b), marketing
-       retarget (TrendingCard/comment/search links point at the deep
-       urls — gate: the relevant routes merged). never one sweeping
-       branch.
+        PR): [✓ 1.0.266] messages (thread key + view param), discover (tag/q
+        params), profile (tab param), [✓ 1.0.271] comment anchor (?comment= on the
+        permalink route — gate: D-feed-lightbox bite b), marketing
+        retarget (TrendingCard/comment/search links point at the deep
+        urls — gate: the relevant routes merged). never one sweeping
+        branch.
 
 [✓ 1.0.208 #348] D-marketing-search (sub-lane ws-D/marketing; operator, 26.07: "the
       one thing we are really missing now is search! searching by tag,
@@ -3216,7 +3216,7 @@ BITES (rule 5 — one bite PER SCREEN when staged, each its own
       the concept in a .context/ note for operator sign-off before
       building the surface).
 
-[ ] D-mobile-feature-gap (sub-lane ws-D/shell; operator, 27.07): the
+[✓ 1.0.271] D-mobile-feature-gap (sub-lane ws-D/shell; operator, 27.07): the
       mobile responsive site has NO access to the new features visible
       on desktop — all "Coming soon" chips and new surfaces are hidden
       on 375px. The mobile user is walled off from the product's
