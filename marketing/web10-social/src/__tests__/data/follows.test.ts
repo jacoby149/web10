@@ -23,6 +23,13 @@ function mockWapi() {
   return mock;
 }
 
+function mockFetchOnce(ok: boolean, json: unknown) {
+  return vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+    ok,
+    json: async () => json,
+  } as Response);
+}
+
 function mockDiscoveryResponse(posts: Array<{ post_id: string; author: string; provider: string; text: string; created_at: string; tags?: string[]; media_refs?: string[] }>) {
   return vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
     ok: true,
@@ -479,6 +486,75 @@ describe('follows data layer', () => {
       expect(afterUnfollow?.status).toBe('rejected');
       // The UI uses `fr?.status === 'active'` — rejected means NOT following
       expect(afterUnfollow?.status === 'active').toBe(false);
+    });
+  });
+
+  describe('countUserFollowing (D-user-profile-stats bug #1)', () => {
+    beforeEach(() => {
+      vi.restoreAllMocks();
+      mock = mockWapi();
+    });
+
+    it('counts per-user following from the public ledger, not the viewer', async () => {
+      // Regression: UserProfileScreen viewer path called countFollows()
+      // which reads the SIGNED-IN viewer's follows service. The fix queries
+      // the public ledger for entries where author=bob and action=follow.
+      mockFetchOnce(true, [
+        { _id: 'e1', target: 'follow:charlie@web10', payload: { action: 'follow', author_username: 'bob', author_provider: 'web10' } },
+        { _id: 'e2', target: 'follow:dave@web10', payload: { action: 'follow', author_username: 'bob', author_provider: 'web10' } },
+        { _id: 'e3', target: 'follow:eve@web10', payload: { action: 'like', author_username: 'bob', author_provider: 'web10' } },
+      ]);
+
+      const result = await follows.countUserFollowing('bob', 'web10');
+      expect(result).toBe(2);
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('author=bob'),
+        expect.objectContaining({ method: 'PATCH' }),
+      );
+    });
+
+    it('returns 0 when the user follows nobody', async () => {
+      mockFetchOnce(true, []);
+      const result = await follows.countUserFollowing('nobody', 'web10');
+      expect(result).toBe(0);
+    });
+
+    it('never calls countFollows (viewer own follows)', async () => {
+      // countUserFollowing must NOT read the viewer's follows service.
+      mockFetchOnce(true, []);
+      await follows.countUserFollowing('bob', 'web10');
+      // countFollows reads from 'follows' service via wapi.read
+      expect(mock.read).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('countFollowers (D-user-profile-stats bug #2)', () => {
+    beforeEach(() => {
+      vi.restoreAllMocks();
+      mock = mockWapi();
+    });
+
+    it('counts followers from the public ledger, not /discover/users', async () => {
+      // Regression: UserProfileScreen viewer path fetched /discover/users?limit=100
+      // and filtered client-side. A user outside the first 100 got null.
+      // The fix queries the public ledger for entries targeting the user.
+      mockFetchOnce(true, [
+        { _id: 'e1', target: 'follow:bob@web10', payload: { action: 'follow', author_username: 'alice', author_provider: 'web10' } },
+        { _id: 'e2', target: 'follow:bob@web10', payload: { action: 'follow', author_username: 'carol', author_provider: 'web10' } },
+      ]);
+
+      const result = await follows.countFollowers('bob', 'web10');
+      expect(result).toBe(2);
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('target=follow%3Abob%40web10'),
+        expect.objectContaining({ method: 'PATCH' }),
+      );
+    });
+
+    it('returns 0 when nobody follows the user', async () => {
+      mockFetchOnce(true, []);
+      const result = await follows.countFollowers('nobody', 'web10');
+      expect(result).toBe(0);
     });
   });
 });

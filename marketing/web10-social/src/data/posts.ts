@@ -1,5 +1,6 @@
 import { getWapi, deriveObjectKey } from './wapi';
 import { listFollowers } from './follows';
+import { API_ORIGIN } from '../lib/origins';
 import type { PostRecord, MediaRecord, MediaUploadRequest, PublicEntry, SchemaDefinition, DiscoverSort, DiscoveryPost, InboxRecord, Visibility } from './types';
 
 // ── Post data layer ────────────────────────────────────────────────────────
@@ -116,6 +117,57 @@ export async function readMyPosts(): Promise<PostRecord[]> {
 export async function readUserPosts(username: string, provider: string): Promise<PostRecord[]> {
   const wapi = getWapi();
   return wapi.read<PostRecord>('posts', {}, username, provider);
+}
+
+/**
+ * Read a specific user's posts from the discovery index via pagination.
+ * The discovery API has no author filter, so we paginate through /discover/posts
+ * with a large limit and filter client-side. Uses a higher limit (200, the
+ * API max) to capture posts that fall outside a smaller window.
+ */
+export async function readUserPostsFromDiscovery(username: string, provider: string): Promise<PostRecord[]> {
+  const posts: PostRecord[] = [];
+  const limit = 200; // API max
+  let skip = 0;
+
+  while (true) {
+    const resp = await fetch(
+      `${API_ORIGIN}/discover/posts?sort=recent&limit=${limit}&skip=${skip}`,
+      { method: 'PATCH' },
+    );
+    if (!resp.ok) break;
+
+    const allPosts: DiscoveryPost[] = await resp.json();
+    if (!allPosts.length) break;
+
+    const matched = allPosts.filter(
+      (dp) => dp.author === username && dp.provider === provider,
+    );
+    for (const dp of matched) {
+      const post: PostRecord = {
+        _id: dp.post_id,
+        text: dp.text,
+        created_at: dp.created_at,
+        tags: dp.tags,
+      };
+      if (dp.media_refs?.length) {
+        post.media_refs = dp.media_refs;
+      }
+      posts.push(post);
+    }
+
+    // If we got fewer results than the limit, we've reached the end
+    if (allPosts.length < limit) break;
+    // If we found posts in this batch, continue paginating
+    if (matched.length) {
+      skip += limit;
+    } else {
+      // No matched posts in this batch - continue to next page
+      skip += limit;
+    }
+  }
+
+  return posts;
 }
 
 /**

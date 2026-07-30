@@ -458,4 +458,143 @@ describe('posts data layer', () => {
       expect(result.url).toBe('https://signed/pic');
     });
   });
+
+  describe('readUserPostsFromDiscovery (D-user-profile-stats bug #3)', () => {
+    beforeEach(() => {
+      vi.restoreAllMocks();
+      mock = mockWapi();
+    });
+
+    it('paginates through discovery posts to find all posts by a specific author', async () => {
+      // Regression: UserProfileScreen viewer path fetched /discover/posts?limit=50
+      // and filtered client-side. A post outside the top 50 was invisible.
+      // The fix paginates with limit=200 (API max) until all posts are found.
+      const fetchMock = vi.fn();
+      vi.stubGlobal('fetch', fetchMock);
+
+      // Page 1: 200 posts, bob's post is at index 150
+      const page1 = Array.from({ length: 200 }, (_, i) => ({
+        post_id: `p${i}`,
+        author: i === 150 ? 'bob' : 'other',
+        provider: i === 150 ? 'web10' : 'web10',
+        text: `post ${i}`,
+        created_at: '2026-07-18T00:00:00Z',
+      }));
+      // Page 2: 50 more posts, bob has another at index 10
+      const page2 = Array.from({ length: 50 }, (_, i) => ({
+        post_id: `p${200 + i}`,
+        author: i === 10 ? 'bob' : 'other2',
+        provider: i === 10 ? 'web10' : 'web10',
+        text: `post ${200 + i}`,
+        created_at: '2026-07-17T00:00:00Z',
+      }));
+
+      fetchMock
+        .mockResolvedValueOnce({ ok: true, json: async () => page1 })
+        .mockResolvedValueOnce({ ok: true, json: async () => page2 });
+
+      const result = await posts.readUserPostsFromDiscovery('bob', 'web10');
+
+      expect(result).toHaveLength(2);
+      expect(result[0]._id).toBe('p150');
+      expect(result[1]._id).toBe('p210');
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(fetchMock).toHaveBeenNthCalledWith(
+        1,
+        expect.stringContaining('limit=200&skip=0'),
+        expect.objectContaining({ method: 'PATCH' }),
+      );
+      expect(fetchMock).toHaveBeenNthCalledWith(
+        2,
+        expect.stringContaining('limit=200&skip=200'),
+        expect.objectContaining({ method: 'PATCH' }),
+      );
+
+      vi.unstubAllGlobals();
+    });
+
+    it('stops paginating when fewer results than limit are returned', async () => {
+      const fetchMock = vi.fn();
+      vi.stubGlobal('fetch', fetchMock);
+
+      const page1 = Array.from({ length: 10 }, (_, i) => ({
+        post_id: `p${i}`,
+        author: i === 5 ? 'bob' : 'other',
+        provider: 'web10',
+        text: `post ${i}`,
+        created_at: '2026-07-18T00:00:00Z',
+      }));
+
+      fetchMock.mockResolvedValueOnce({ ok: true, json: async () => page1 });
+
+      const result = await posts.readUserPostsFromDiscovery('bob', 'web10');
+
+      expect(result).toHaveLength(1);
+      expect(result[0]._id).toBe('p5');
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+
+      vi.unstubAllGlobals();
+    });
+
+    it('returns empty array when author has no posts', async () => {
+      const fetchMock = vi.fn();
+      vi.stubGlobal('fetch', fetchMock);
+
+      const page1 = Array.from({ length: 5 }, (_, i) => ({
+        post_id: `p${i}`,
+        author: 'other',
+        provider: 'web10',
+        text: `post ${i}`,
+        created_at: '2026-07-18T00:00:00Z',
+      }));
+
+      fetchMock.mockResolvedValueOnce({ ok: true, json: async () => page1 });
+
+      const result = await posts.readUserPostsFromDiscovery('nobody', 'web10');
+
+      expect(result).toHaveLength(0);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+
+      vi.unstubAllGlobals();
+    });
+
+    it('returns empty array when discovery API fails', async () => {
+      const fetchMock = vi.fn();
+      vi.stubGlobal('fetch', fetchMock);
+
+      fetchMock.mockResolvedValueOnce({ ok: false, status: 500 });
+
+      const result = await posts.readUserPostsFromDiscovery('bob', 'web10');
+
+      expect(result).toHaveLength(0);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+
+      vi.unstubAllGlobals();
+    });
+
+    it('includes media_refs in returned posts', async () => {
+      const fetchMock = vi.fn();
+      vi.stubGlobal('fetch', fetchMock);
+
+      const page1 = [{
+        post_id: 'p1',
+        author: 'bob',
+        provider: 'web10',
+        text: 'photo post',
+        created_at: '2026-07-18T00:00:00Z',
+        media_refs: ['m1', 'm2'],
+        tags: ['photo'],
+      }];
+
+      fetchMock.mockResolvedValueOnce({ ok: true, json: async () => page1 });
+
+      const result = await posts.readUserPostsFromDiscovery('bob', 'web10');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].media_refs).toEqual(['m1', 'm2']);
+      expect(result[0].tags).toEqual(['photo']);
+
+      vi.unstubAllGlobals();
+    });
+  });
 });
