@@ -564,6 +564,50 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       norm); the SMS copy + verify-link target need B9's verify
       screen — coordinate via .context/.
 
+[ ] A24-utc-timestamps (lane A, api/** + a small ws-D/social half;
+      operator, 30.07 rant: "i believe someone in another time zone
+      used the web10 post, they were trending as newest, timestamp
+      was -12000 seconds something like that which makes me think
+      they were 3 hours or 4 hours ahead. so maybe they were in
+      cali, i am in nyc, but do you see the bug? does it have to
+      use UTC, or one time zone?"). ROOT CAUSE VERIFIED at HEAD —
+      NOT a user in another timezone: the api writes NAIVE UTC
+      timestamps with no offset marker (`datetime.utcnow()
+      .isoformat()` — documentdb.py:61 `_created_at`, :1080, :1175/
+      :1215 the discovery-index upsert, media.py:65 media
+      `created_at`, plus auth.py token `expires`). JavaScript's
+      `new Date("2026-07-30T16:00:00")` parses offset-less ISO as
+      LOCAL time, so a UTC server stamp is reinterpreted in the
+      viewer's zone: an NYC viewer (UTC-4) sees every server-stamped
+      post stamped ~4h in the FUTURE -> relative-time math goes
+      negative (-12000s ≈ the offset — exactly what the operator
+      saw) and "newest" sorts the future post above everything.
+      answer to "UTC or one time zone?": UTC everywhere, ALWAYS
+      with the explicit marker — the bug is the missing marker, not
+      the zone. shape: (a) api — one `utcnow_iso()` helper
+      (`datetime.now(timezone.utc).isoformat()`, emits `+00:00`
+      which JS parses correctly) replacing every naive utcnow
+      WRITE in documentdb.py / media.py / endpoints; sweep token
+      `expires` too (naive-vs-naive comparisons work today but
+      break the moment one side gains an offset). (b) web10-social
+      — defense-in-depth: the relative-time formatters
+      (FeedScreen.tsx:33, DiscoverScreen.tsx:46, PostLightbox.tsx:25,
+      UserProfileScreen.tsx:49, DmsScreen/MailView/CrmView/
+      StagingScreen) clamp negative diffs to "just now" so clock
+      skew can never render a negative age again. BITES (rule 5):
+      bite a, THE API SWEEP — helper + replacements + tests pinning
+      that `_created_at` / media `created_at` / discovery
+      `created_at` carry an offset (parse with
+      `datetime.fromisoformat`, assert tzinfo present); ruff green.
+      bite b, THE CLIENT CLAMP — shared formatter clamps to "just
+      now"; vitest with a future timestamp. acceptance: a post
+      created on the server renders a non-negative age for a viewer
+      in ANY timezone and newest-sort is viewer-tz-independent;
+      existing api + social suites green. gate: none. NOTE for
+      bite b: don't "fix" parsing by appending 'Z' client-side —
+      that hides other naive sources; the server emits offsets,
+      the client only clamps.
+
 [✓ 1.0.230] A18-engagement-target-canonical (lane A, api/**; PRIORITY 1 —
       REGRESSION, operator 29.07, screenshot: every /trending card
       shows 0 likes / 0 comments): A15's fix (#360) made counts WORSE
