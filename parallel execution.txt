@@ -365,7 +365,7 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       indexes has_media=false), ruff clean. gate: none. unblocks:
       D-trending-card-media, the D-user-profile-media grid half.
 
-[ ] A19-stats-s3-bytes (lane A, api/**, SMALL; operator, 30.07 rant:
+[✓ 1.0.263] A19-stats-s3-bytes (lane A, api/**, SMALL; operator, 30.07 rant:
       "the data liberated tab isnt counting s3 data! should also add
       up all s3 data in the count!"): the marketing homepage "data
       liberated" stat (Home.tsx → POST /stats → system.py:140-146)
@@ -2122,6 +2122,72 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       D-import-export-links-dead (the repaired URLs + shared
       constants exist to test against).
 
+[ ] D-import-youtube-first (sub-lane ws-D/marketing(2), SMALL; Exporter.tsx
+      seam — disjoint from Home/Join/AppStore; operator, 30.07 rant:
+      "my business outreach efforts are ONLY to youtubers for the
+      first go! therefore i want to on the import feature efforts to
+      make it youtube explicitly, and the other platforms TBD! and
+      get that suuuppper sharp!!!!!! maybe make it clear it is
+      Youtube first, rolling out to export from the others soon
+      after! because google takeout seems the most transparent!"):
+      the /import page (1.0.231's five EQUAL platform buttons) must
+      become YOUTUBE-FIRST — the business pitch is YouTubers-only
+      for the first go (outreach.md), so the import surface leads
+      with the one platform the outreach targets. shape: YouTube
+      (Google Takeout — "the most transparent" export flow, say so)
+      is THE primary path: the hero platform, full-width/featured
+      step-1 card, its export button + guide link suuuper sharp
+      (every state designed, design.md §12); the other four
+      platforms (Facebook, X, Instagram, TikTok) demoted to an
+      honest "rolling out soon after" / TBD treatment — visible
+      (the multi-platform promise stays) but clearly secondary,
+      never fake-working. the web10-export note stays proudly on
+      the page. copy names it: "YouTube first — export from the
+      others rolling out soon after." acceptance: /import reads
+      YouTube-first at a glance (screenshot desktop + 375px and
+      LOOK — the YouTube path is unmistakably primary, the others
+      unmistakably TBD); tokens-only styling; marketing-ui tests +
+      tsc green. gate: none (pure frontend on the shipped 1.0.231
+      page). NOTE for the bite-b/c pipeline bites: the WeTransfer
+      pipeline + authenticator tab should likewise build the
+      YOUTUBE mapper path first (the youtube.py mapper already
+      exists, 1.0.31) — other platforms' ingest stays TBD until
+      outreach widens.
+
+[ ] D-trending-views (sub-lane ws-D/marketing, Trending.tsx seam;
+      operator, 30.07 rant: "the same way that messages has views,
+      social media, mail, crm, i want the trending to be the same!
+      the current trending is very twitter/instagram looking kind
+      of a view! I would like youtube view where it only shows the
+      videos and maybe images? but with a youtube style of
+      layout!"): /trending gains a VIEW TOGGLE like the messages
+      screen's (DmsScreen's social/mail/crm toggle, 1.0.30-era) —
+      the current ranked-card grid stays as the default view, plus
+      a YOUTUBE VIEW: only posts with videos (and maybe images —
+      media-filtered, not text-only cards), laid out YouTube-style
+      (big 16:9 thumbnails, title + author row under the thumb,
+      the familiar video-list/grid rhythm — NOT the
+      twitter/instagram card look). PER THE DEEP-LINK RULE
+      (AGENTS.md): the active view lives in the URL
+      (/trending?view=youtube) — refresh restores it, back/forward
+      works, the link is shareable. BITES (rule 5):
+      bite a, THE TOGGLE + YOUTUBE VIEW: the view-switcher UI +
+      the ?view= query param + the media-filtered YouTube-layout
+      view (filter client-side on the already-fetched posts'
+      media_refs mime — the D-trending-card-media media data is
+      already on the cards). acceptance: /trending?view=youtube
+      shows only media posts in a YouTube-style layout
+      (screenshots desktop + 375px, LOOK — it reads YouTube, not
+      Twitter); the default view is unchanged; marketing-ui tests
+      + tsc green. gate: none.
+      bite b, DISCOVER PARITY: the same view toggle on web10-
+      social's DiscoverScreen (the D-inapp-discover-knobs port,
+      1.0.241) so the in-app surface matches — sub-lane
+      ws-D/discover, gate: bite a (the pattern exists to copy).
+      NOTE: pairs with the YouTube-first import push (D-import-
+      youtube-first) — the creator pitch is "import your YouTube
+      catalog, see it on a YouTube-shaped trending."
+
 [✓ 1.0.240] D-home-stats-bar (sub-lane ws-D/marketing(2); SEAM: Home.tsx —
       disjoint from AppStore/Join files; operator, 29.07 rant,
       screenshot of the App Store subtitle's inline counts: "on the
@@ -2153,7 +2219,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       tsc green; screenshots desktop + 375px and LOOK — the bar is
       "oh wow they have that many users" at a glance. gate: none.
 
-[ ] D-home-stats-bar-styling (sub-lane ws-D/marketing(2), SMALL; operator,
+[✓ 1.0.262] D-home-stats-bar-styling (sub-lane ws-D/marketing(2), SMALL; operator,
       30.07 rant, screenshot of the shipped stats bar: "i think this just
       looks bad! the border isnt necessary on those, and can just say data
       liberated under the data part to be consistent with the other two!
@@ -2460,7 +2526,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       remaining blocker with evidence; social tests + tsc green.
       gate: none.
 
-[ ] D-own-profile-canonical (sub-lane ws-D/shell, TINY; operator, 30.07
+[✓ 1.0.262] D-own-profile-canonical (sub-lane ws-D/shell, TINY; operator, 30.07
       rant: "when i click my username, it goes to my profile page
       instead of just /profile it goes to profile/u/jacoby149 — lets
       just have it always be profile/u/jacoby149!"): clicking your own
@@ -3305,8 +3371,105 @@ M3 "the network"         = encryption integration (A rtc + C2 sdk
                            polish. the last big merge.
 
 
-CURRENT CONDUCTOR BOARD (as of 30.07.2026 — audit #15; keep fresh)
+CURRENT CONDUCTOR BOARD (as of 30.07.2026 — audit #16; keep fresh)
 --------------------------------------------------------------------
+AUDIT #16 REFRESH (30.07, web10web10! pass #16): SHIPPED. Zero
+dangling PRs. The dev batch was a single docs-only commit (#428,
+the late-rant filings) — gated CLEAN by construction (no code, no
+seams; deploy + e2e green at dev head) and promoted dev→main via
+merge commit (#429); deploy-prod + cd on main green; prod verified
+live from the workspace (7/7 public endpoints; api / 307→/docs by
+design). BOARD DRIFT FIXED this pass: audit #15's fleet list still
+queued three items that merged after it was written —
+D-dm-header-profile-link [✓ 1.0.251 #423], D-appstore-browse
+[✓ 1.0.251 #422], D-follow-toggle [✓ 1.0.252 #424]; the fleet
+queues below are corrected (ws-D/messages now STARTS at
+D-deep-links bite 1; ws-D/marketing(2) is D-home-stats-bar-styling
+only). ALIGNMENT: unchanged — every open item is operator-complaint-
+driven social-product/funnel work or the M2 money-path referee (C8);
+no infra-company drift. Timeline: week 2 closing; week 3 (aug 3-10)
+is M0 integration — founder taste pass remains the schedule risk.
+QWEN HORIZON: 7 immediately-kickoffable parallel-safe bites across
+7 sub-lanes (deep-links bite 1, delete-post-broken,
+self-engagement-counts, own-profile-canonical, home-stats-bar-
+styling, A19-stats-s3-bytes, import-revamp bite b), ~12+ chained
+PRs behind them — Qwens run independently.
+
+  PRIORITY 1 (fresh, this audit):
+    ws-E (operator-gated): E-run-discovery-migration — STILL the
+      highest-demo-impact item on the board and still needs the admin
+      token. The 30.07 "lacks videos and images" complaint class
+      persists on prod until the backfill RE-RUN (A17 media fields)
+      executes; RUN LIST also carries POST /admin/apps/migrate_v2
+      (cleanup, not a blocker — the compat filter is live on prod).
+
+  PARALLEL-SAFE FLEET (one workspace per sub-lane; chains WITHIN a
+  sub-lane are sequential, file seams). OPERATOR PRIORITY CALL (30.07
+  rant): D-deep-links is the priority of this kickoff batch — stage
+  its per-screen bites FIRST:
+    ws-D/messages:   D-deep-links bite 1 (messages thread key +
+                     ?view=chat|mail|crm — DmsScreen seam; the
+                     dm-header link merged 1.0.251, sub-lane is free)
+    ws-D/profile:    D-delete-post-broken (operator rant — root cause
+                     named: hardcoded `posts` service vs the D30
+                     public_posts/private_posts split), THEN
+                     D-user-profile-stats (three confirmed bugs,
+                     viewer's count leaks onto another user's profile),
+                     THEN D-visibility-toggle-duplicate (REPRO first),
+                     THEN D-public-media-verify (TINY, no gate — the
+                     gate-CLEARER for the two GATED media items below),
+                     THEN D-follow-lists (twice-complained —
+                     deep-linkable /u/:username/followers|following
+                     routes), THEN D-lightbox-media-sizing (gate
+                     CLEARED), THEN D-profile-image-placement,
+                     D-text-post-cards (chain order)
+    ws-D/shell:      D-own-profile-canonical (TINY, no gate — /profile
+                     RETIRED, redirects to /u/<you> which IS the owner
+                     profile; operator decision 30.07. SEAM: App.tsx +
+                     Layout.tsx + the UserProfileScreen owner gate —
+                     disjoint from the ws-D/profile chain's
+                     posts.ts/PostLightbox files; coordinate via
+                     .context/, never concurrent edits on the same
+                     file), THEN D-mobile-feature-gap (no gate)
+    ws-D/feed:       D-self-engagement-counts (operator rant — self
+                     likes/comments/shares count; REPRO first, orphaned
+                     legacy-target suspect)
+    ws-D/marketing(2): D-home-stats-bar-styling (SMALL, no gate —
+                     kill the border, DATA LIBERATED as the third
+                     label, builder's taste on cards vs bare)
+    ws-A:            A19-stats-s3-bytes (SMALL, no gate — "data
+                     liberated" gains the object-store bytes)
+    ws-D/marketing-api: D-import-revamp bite b (the WeTransfer pipeline —
+                     gate bite a merged 1.0.231, CLEARED; NEW sub-lane,
+                     nothing in flight there)
+    ws-C:            C8 remainder — bite b (membership subscribe journey,
+                     3% split asserted) + bite c (twilio honest half);
+                     staged with the M2-prereq block, not the gauntlet
+                     fleet
+  GATED (don't pick up until the gate clears):
+      D-night-owl bites b-e (gate: operator's Conductor Pro trial).
+      D-poke build (gate: operator sign-off on the 1.0.179 proposal).
+      D-feed-avatar-resolution + the D-user-profile-media grid half
+        (gate: D-public-media-verify — the merged public-media path
+        verified END TO END; operator re-confirmed 30.07 it's still
+        broken on prod).
+      D-deep-links bites 2+ (discover ?tag=&q=, profile ?tab=, comment
+        anchor, marketing retarget) — staged one bite at a time after
+        bite 1 merges; the comment-anchor bite is gated on
+        D-feed-lightbox bite b (merged 1.0.248 — CLEAR).
+      D-coming-soon-builds (gate: per-surface spec first).
+      D-appstore category rails (gate: catalog size).
+      E-run-discovery-migration (gate: admin token — operator provides).
+      E-dependabot-hackathon (parked per operator "can be done later").
+  Selection rule (CLAUDE.md): only truly-parallel items at once. The
+  PostLightbox/FeedScreen/PostComposer files form ONE seam cluster
+  spanning ws-D/feed and ws-D/profile — the two chains coordinate via
+  .context/ notes and never edit the same file concurrently.
+  BITE RULE (rule 5, operator 27.07): the chains above are QUEUES of
+  bites — a kickoff hands an agent exactly ONE bite (one PR, ~20-40
+  min); multi-bite items carry a BITES: breakdown in their lane text.
+  never kick off "the chain".
+
 AUDIT #15 REFRESH (30.07): SHIPPED. Zero dangling PRs. The dev batch
 (#399–#418) gated CLEAN — pass #14's two RED findings verified fixed
 (F1: link-health dispatch green at dev head, run 30514764803; F2: the
