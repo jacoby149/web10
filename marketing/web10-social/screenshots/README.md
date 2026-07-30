@@ -20,6 +20,11 @@ node screenshots/capture.mjs --name settings --route /settings --ready h1
 Then LOOK at the six PNGs in this folder before you call the task done
 (design.md §12 — desktop + 375px, all states).
 
+> **TEMPORARY OVERRIDE (30.07.2026):** in Conductor workspaces with the
+> opencode plugin, reading a PNG breaks the agent session — do NOT open or
+> `read` the PNGs. A green capture run is sufficient verification until the
+> conductor.build fix lands (see AGENTS.md "UI verification: screenshots").
+
 If it errors with a missing browser, install it once:
 `bunx playwright install chromium`.
 
