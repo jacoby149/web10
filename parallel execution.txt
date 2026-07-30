@@ -1997,6 +1997,34 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       in staging, and see their old life on web10 social — with the
       originals deleted from the bucket. each bite has its own bar
       in its kickoff.
+
+[ ] D-import-export-links-dead (sub-lane ws-D/marketing(2), SMALL;
+      operator, 30.07 rant, screenshot of /import step 1's five
+      platform buttons: "those are actually all dead links, do you
+      have any creative ideas on how to do that right? should it
+      link to an llm with q=?, with the query how to export data?
+      redirect the user? just ranting"): bite a (1.0.231) hardcoded
+      five platform help-article URLs in Exporter.tsx
+      (EXPORT_LINKS, lines ~7-11 — facebook.com/help/…,
+      takeout.google.com, help.instagram.com/…, tiktok.com/support/…)
+      and they ROT — platforms move/retire help articles, so the
+      step-1 buttons 404. fix so each button lands on a WORKING,
+      current export path. options on the table (builder picks,
+      says why in the PR — operator is open to creativity here):
+      (1) link the platform's IN-PRODUCT export surface instead of
+      help articles where one exists (e.g. facebook.com/dyi,
+      takeout.google.com — product URLs rot slower than help
+      articles); (2) the operator's LLM idea — link to an llm with
+      a prefilled query ("how do I export my data from <platform>
+      as a zip, step by step, current year") so the answer is
+      always current; (3) a hybrid: product URL primary + our own
+      maintained /docs export-guide page as fallback that we can
+      update without a release. whatever the pick, EVERY one of the
+      five buttons must be clicked and verified to land somewhere
+      real. acceptance: all five platform buttons verified live
+      (state in the PR what each lands on); marketing-ui tests +
+      tsc green; screenshot step 1 and LOOK. gate: none.
+
 [ ] D-home-stats-bar (sub-lane ws-D/marketing(2); SEAM: Home.tsx —
       disjoint from AppStore/Join files; operator, 29.07 rant,
       screenshot of the App Store subtitle's inline counts: "on the

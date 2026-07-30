@@ -1,3 +1,6 @@
+1.0.234 || 30.07.2026
+docs: rant filing — D-import-export-links-dead (operator, 30.07, screenshot of /import step 1: "those are actually all dead links, do you have any creative ideas on how to do that right? should it link to an llm with q=?, with the query how to export data? redirect the user? just ranting"). The five platform export buttons hardcoded in Exporter.tsx (1.0.231) rot — help-article URLs 404 as platforms move them. Filed with the creative options on the table (in-product export surfaces like facebook.com/dyi, the operator's prefilled-LLM-query idea, or a hybrid with our own maintained guide) for the Qwen fleet — not implemented here per the `imma rant` rule.
+
 1.0.233 || 30.07.2026
 docs: rant filing — D-hero-cta-label (operator, 30.07, screenshot of the homepage hero button: "we can have this say enter web10! but it goes to web10 social! that is fine"). The hero CTA should read "Enter web10!"; the SOCIAL_ORIGIN destination is already correct (1.0.215), so this is a label-only bite. Filed in `parallel execution.txt` (sub-lane ws-D/marketing, TINY, no gate) for the Qwen fleet — not implemented here per the `imma rant` rule.
 
