@@ -2278,7 +2278,7 @@ steps to complete! it should be more!"):
     your monetization (deep link to the Studio money screen in the
     authenticator) → post to the feed. each step links where it
     actually happens. lane item D-join-steps-extend (ws-D/marketing).
-[✓ 1.0.245] step VISUALS (operator, 29.07, screenshot of the shipped strip:
+[✓ 1.0.247] step VISUALS (operator, 29.07, screenshot of the shipped strip:
      "i like this join but, i feel like the story doesnt have good
      icons / visuals… this doesnt feel a16z like a palantir or
      something, but i like the clarity actually on the other hand!"):
