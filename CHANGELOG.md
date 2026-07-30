@@ -1,3 +1,6 @@
+1.0.235 || 30.07.2026
+docs: rant re-confirmation — D-docs-gfm is STILL OPEN (operator, 30.07, second screenshot of the same /docs premise table still rendering as `| --- |` pipe soup: "more ranting i do still see the markdown looking meh with the || signs, has that been worked on yet?"). Not worked on yet — filed 29.07, queued for the fleet; now a twice-complained item, bumped for the next kickoff batch.
+
 1.0.234 || 30.07.2026
 docs: rant filing — D-import-export-links-dead (operator, 30.07, screenshot of /import step 1: "those are actually all dead links, do you have any creative ideas on how to do that right? should it link to an llm with q=?, with the query how to export data? redirect the user? just ranting"). The five platform export buttons hardcoded in Exporter.tsx (1.0.231) rot — help-article URLs 404 as platforms move them. Filed with the creative options on the table (in-product export surfaces like facebook.com/dyi, the operator's prefilled-LLM-query idea, or a hybrid with our own maintained guide) for the Qwen fleet — not implemented here per the `imma rant` rule.
 

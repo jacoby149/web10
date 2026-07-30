@@ -2060,7 +2060,12 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       screenshot of /docs "The premise, made concrete" rendering as
       raw pipe soup: "on the docs, are these absolute value signs on
       purpose????? it looks jank aff, i actually see that all over
-      the docs, i dont think that is on purpose"): NOT on purpose —
+      the docs, i dont think that is on purpose"). STILL OPEN —
+      operator re-confirmed 30.07 (second screenshot, same premise
+      table still pipe soup: "more ranting i do still see the
+      markdown looking meh with the || signs, has that been worked
+      on yet?") — bumped: this is now a TWICE-complained item,
+      prioritize it in the next kickoff batch: NOT on purpose —
       the docs markdown pipeline (Docs.tsx:100,
       `remark().use(remarkHtml)`) has NO remark-gfm, so every GFM
       table in the docs .md files renders as literal `| --- |` text.
