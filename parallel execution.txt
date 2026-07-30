@@ -2104,7 +2104,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       tsc green; screenshots desktop + 375px and LOOK — the bar is
       "oh wow they have that many users" at a glance. gate: none.
 
-[ ] D-docs-gfm (sub-lane ws-D/marketing; operator, 29.07 rant,
+[✓ 1.0.242] D-docs-gfm (sub-lane ws-D/marketing; operator, 29.07 rant,
       screenshot of /docs "The premise, made concrete" rendering as
       raw pipe soup: "on the docs, are these absolute value signs on
       purpose????? it looks jank aff, i actually see that all over

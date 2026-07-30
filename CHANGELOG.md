@@ -1,3 +1,6 @@
+1.0.242 || 30.07.2026
+fix(marketing-ui): D-docs-gfm — added remark-gfm to the docs markdown pipeline (`.use(remarkGfm)` before `.use(remarkHtml)`); GFM tables now render as real styled tables with token-styled borders, header weight, row hover, mono code cells, and horizontal scroll wrapper for wide tables at 375px. Strikethrough and task-list styles added. 161 marketing-ui tests green, tsc clean, vite build clean.
+
 1.0.241 || 30.07.2026
 feat(web10-social): D-inapp-discover-knobs bite b — KnobRack/RotaryKnob/powerMean ported, live client-side re-rank on DiscoverScreen. Copied RotaryKnob.tsx and KnobRack.tsx verbatim from marketing-ui (per design.md §D22: separate package, no premature sharing). Updated lib/powerMean.ts with missing exports (HALF_LIFE_LABELS, CHARACTER_LABELS, WEIGHT_DETENTS, CHARACTER_DETENTS, defaultKnobState, scorePost) and synced "Most loved" preset to match marketing-ui. KnobRack replaces the old preset-only chips: preset chips at top, collapsible "Advanced" toggle reveals 5 rotary knobs (Recency, Likes, Comments, Time, Character). Every knob twist re-ranks client-side via powerMean with zero network calls. Preset click resets knobs to preset defaults. Feed components byte-untouched. 368 tests green (2 updated for KnobRack testids), tsc clean.
 
