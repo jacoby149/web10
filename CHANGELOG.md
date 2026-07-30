@@ -1,4 +1,4 @@
-1.0.239 || 30.07.2026
+1.0.240 || 30.07.2026
 test(e2e): C8-stripe-test-mode-wiring — bite a. e2e compose stack runs the api with STRIPE_STATUS=test + STRIPE_TEST_KEY from CI secrets (GitHub Actions secret, never in git). Stripe smoke test asserts sk_test key reaches Stripe test mode via a real balance.retrieve() call. ZERO secrets in the repo.
 fix(marketing-ui): D-hero-cta-label — the hero CTA reads "Enter web10!" (the href stays SOCIAL_ORIGIN, correct since 1.0.215). 161 marketing-ui tests green, tsc clean.
 
