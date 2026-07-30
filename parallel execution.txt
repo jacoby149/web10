@@ -1460,7 +1460,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         recipient, cc/bcc metadata, bcc never leaks in others'
         copies) + Reply-all. gate: bite b merged.
 
-[ ] D-crm-upgrade (sub-lane ws-D/messages, AFTER D-mail-experience —
+[✓ 1.0.240] D-crm-upgrade (sub-lane ws-D/messages, AFTER D-mail-experience —
       same Chat/** seam; operator, 26.07 night pass): the CRM view
       (1.0.182) is "more on target" but MISSING THE ORIGINAL CRM'S
       FEATURES — parity bar is the old CRM sub-app (components/Crm/
@@ -1487,7 +1487,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       BITES (rule 5 — one PR each):
       [✓ 1.0.210] bite a, STATUS COLORS: green/yellow/red status on the contact
         record, settable from row + detail, filter chips + sort.
-      bite b, CONTACT FIELDS + CRUD: richer detail fields (email/
+      [✓ 1.0.240] bite b, CONTACT FIELDS + CRUD: richer detail fields (email/
         phone/company/links + free-form key/value) and add/edit/
         delete a contact from the CRM view. gate: bite a merged.
 
