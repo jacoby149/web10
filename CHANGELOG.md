@@ -1,5 +1,6 @@
-1.0.245 || 30.07.2026
+1.0.247 || 30.07.2026
 fix(ci): F1 — indent link-health.yml body string into run: block scalar. The multi-line body="..." string lines in the "Report failure as GitHub issue" step were at column 0, breaking out of the run: | block scalar; YAML parser died at line 37 (* alias). Indented all body-string lines to column 10. yaml.safe_load passes. scripts/link-health.sh unchanged.
+
 1.0.246 || 30.07.2026
 docs: `imma rant` filings (docs only, nothing built). Two operator complaints filed as lane items: D-dm-header-profile-link (ws-D/messages, tiny — the DM conversation header's avatar/name in DmsScreen.tsx are dead text; make them a Link to /u/:username) and D-follow-toggle (ws-D/profile — "when i hit follow, it doesnt toggle and let me unfollow!"; toggle handlers exist on UserProfileScreen + DiscoverScreen, so this is a runtime failure in the unfollow path — repro first, suspects: ledger cleanup throwing, stale/duplicate follow records read without a status filter). Both added to `parallel execution.txt` + plan.txt PHASE 8.6 for the next `web10web10!` kickoff batch.
 

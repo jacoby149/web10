@@ -3050,7 +3050,7 @@ discover-knobs DRAINED this batch), ~20+ chained PRs behind them — Qwens
 run independently once the two fix blocks land.
 
   PRIORITY 1 (fresh, this audit):
-ws-E/infra: [✓ 1.0.245] FIX F1 — link-health.yml invalid YAML (blocks a clean
+ws-E/infra: [✓ 1.0.247] FIX F1 — link-health.yml invalid YAML (blocks a clean
        dev head; tiny). FIX BLOCK in the pass-14 report.
     ws-A: FIX F2 — get_apps review_state compat filter (blocks dev→main
       promotion; tiny, test-pinned). FIX BLOCK in the pass-14 report.
@@ -3061,7 +3061,7 @@ ws-E/infra: [✓ 1.0.245] FIX F1 — link-health.yml invalid YAML (blocks a clea
 
   PARALLEL-SAFE FLEET (one workspace per sub-lane; chains WITHIN a
   sub-lane are sequential, file seams):
-    ws-E/infra:      [✓ 1.0.245] FIX F1 (link-health.yml YAML) — P1
+    ws-E/infra:      [✓ 1.0.247] FIX F1 (link-health.yml YAML) — P1
     ws-A:            FIX F2 (get_apps compat filter) — P1, THEN the lane
                      is clear (D37 spec + rewire both merged)
     ws-D/feed:       D-feed-lightbox bite b (share + permalink route
