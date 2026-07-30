@@ -161,17 +161,37 @@ never silently call a red PR ready.
 
 ## UI verification: screenshots
 
-When a task requires screenshots (design.md §12, any UI acceptance bar),
-use `scripts/screenshot.sh` — no playwright install needed, no repo
-dependency. It uses `npx playwright` with a shared cache:
+**Never run a dev server in the foreground of your shell** (`npm run dev`,
+`bun run dev`, `vite`) — it blocks until the command timeout and bricks the
+workspace. This is the #1 repeated workspace brick. Use a self-booting
+command that starts the server in the background, screenshots, and kills it:
 
-```
-scripts/screenshot.sh http://localhost:5173/docs /tmp/docs-desktop.png --full-page
-scripts/screenshot.sh http://localhost:5173/docs /tmp/docs-mobile.png --mobile --full-page
-```
+- **marketing/web10-social:** the app gates every route behind login, so a
+  dev-server screenshot renders the LOGIN page, not your view (and the port
+  is 3000, not 5173). Use the self-booting harness — no backend, no login:
+  ```
+  cd marketing/web10-social && bun run screenshots
+  # one-off view, no file edits:
+  node screenshots/capture.mjs --name my-view --ready '[data-testid="my-view"]'
+  ```
+  Full details: `marketing/web10-social/screenshots/README.md`.
+- **Any other Vite app** (marketing-ui, ui): `scripts/dev-shot.sh` boots the
+  dev server in the background itself, waits, shoots desktop + 375px, kills:
+  ```
+  scripts/dev-shot.sh --dir marketing/marketing-ui --path /docs --out /tmp/docs
+  ```
+- **An already-running server** (e2e stack, someone else's terminal):
+  `scripts/screenshot.sh` directly — no playwright install needed, no repo
+  dependency. It uses `npx playwright` with a shared cache:
+  ```
+  scripts/screenshot.sh http://localhost:5173/docs /tmp/docs-desktop.png --full-page
+  scripts/screenshot.sh http://localhost:5173/docs /tmp/docs-mobile.png --mobile --full-page
+  ```
 
 First run downloads Chromium into the shared playwright cache
-(`~/Library/Caches/ms-playwright`); subsequent runs are fast.
+(`~/Library/Caches/ms-playwright`); subsequent runs are fast. Write
+screenshots to /tmp or `.context/` (not the repo), and READ them one at a
+time — desktop first, then mobile — before calling the task done.
 
 ## Branch naming conventions
 
