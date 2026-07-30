@@ -76,8 +76,10 @@ const HALF_LIFE_DETENTS = [
   604_800_000,
   0,
 ];
+const HALF_LIFE_LABELS = ['1h', '4h', '12h', '1d', '7d', '∞'];
 
 const CHARACTER_DETENTS = [-5, -2.5, -1, 0, 1, 5];
+const CHARACTER_LABELS = ['Strict', 'Tight', 'Flat', 'Mean', 'Loose', 'Extreme'];
 
 // ── Knob State ──────────────────────────────────────────────────────────────
 
@@ -111,8 +113,8 @@ export const PRESETS: Preset[] = [
   },
   {
     id: 'most-loved',
-    label: 'Most loved',
-    state: { recency: 0, likes: 5, comments: 3, halfLife: 5, character: 0 },
+    label: 'Most loved · all time',
+    state: { recency: 0, likes: 5, comments: 0, halfLife: 5, character: 0 },
   },
   {
     id: 'balanced',
@@ -174,3 +176,13 @@ export function rankPosts<T extends { post_id: string }>(
 }
 
 export type { KnobState, PostSignals };
+
+export {
+  WEIGHT_DETENTS,
+  HALF_LIFE_DETENTS,
+  HALF_LIFE_LABELS,
+  CHARACTER_DETENTS,
+  CHARACTER_LABELS,
+  defaultKnobState,
+  scorePost,
+};

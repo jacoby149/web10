@@ -248,9 +248,13 @@ body {
   padding: 0;
 }
 
+.docs-table-scroll {
+  overflow-x: auto;
+  margin: 0 0 1.25rem;
+}
+
 .docs-prose table {
   width: 100%;
-  margin: 0 0 1.25rem;
   border-collapse: collapse;
   font-size: 0.875rem;
 }
@@ -266,6 +270,36 @@ body {
   background: var(--color-elevated);
   font-family: var(--font-sans);
   font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.docs-prose td {
+  color: var(--color-muted-foreground);
+}
+
+.docs-prose tbody tr:hover {
+  background: var(--color-surface);
+}
+
+.docs-prose td code,
+.docs-prose th code {
+  font-family: var(--font-mono);
+}
+
+/* GFM extras: strikethrough + task lists */
+.docs-prose del {
+  color: var(--color-muted-foreground);
+  opacity: 0.7;
+}
+
+.docs-prose .task-list-item {
+  list-style: none;
+  margin-left: -1.5rem;
+}
+
+.docs-prose .task-list-item input[type='checkbox'] {
+  margin-right: 0.5rem;
+  accent-color: var(--color-brand-400);
 }
 
 .docs-prose hr {

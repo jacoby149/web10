@@ -37,7 +37,8 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
-import { rankPosts, PRESETS, type PresetId, type KnobState } from '@/lib/powerMean';
+import { rankPosts, PRESETS, getPreset, type PresetId, type KnobState, defaultKnobState } from '@/lib/powerMean';
+import { KnobRack } from './KnobRack';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -542,7 +543,10 @@ export default function DiscoverScreen() {
   const [profileMap, setProfileMap] = useState<Record<string, ProfileRecord>>({});
   const [mediaMap, setMediaMap] = useState<Record<string, MediaRecord[]>>({});
   const [topic, setTopic] = useState<string>('All');
-  const [preset, setPreset] = useState<PresetId>('balanced');
+
+  // Knob state — starts at Balanced preset, knobs re-rank client-side live
+  const [knobState, setKnobState] = useState<KnobState>(defaultKnobState());
+  const [activePreset, setActivePreset] = useState<PresetId | null>('balanced');
 
   // People-to-follow rail
   const [suggested, setSuggested] = useState<SuggestedUser[]>([]);
@@ -691,12 +695,25 @@ export default function DiscoverScreen() {
     }
   }, []);
 
-  // Client-side re-ranking via preset (zero network calls)
+  // Knob change handler — clears active preset (custom tuning)
+  const handleKnobChange = useCallback((key: keyof KnobState, value: number) => {
+    setKnobState(prev => ({ ...prev, [key]: value }));
+    setActivePreset(null);
+  }, []);
+
+  // Preset handler — updates knob state to preset defaults
+  const handlePreset = useCallback((id: PresetId) => {
+    const presetDef = getPreset(id);
+    if (presetDef) {
+      setKnobState(presetDef.state);
+      setActivePreset(id);
+    }
+  }, []);
+
+  // Client-side re-ranking via knob state (zero network calls per twist)
   const rankedPosts = useMemo(() => {
-    const presetState = PRESETS.find(p => p.id === preset)?.state;
-    if (!presetState) return posts;
-    return rankPosts(posts, postToSignals, presetState);
-  }, [posts, preset]);
+    return rankPosts(posts, postToSignals, knobState);
+  }, [posts, knobState]);
 
   const maxScore = useMemo(
     () => Math.max(1, ...rankedPosts.map(p => p.score ?? 0)),
@@ -731,36 +748,14 @@ export default function DiscoverScreen() {
         </div>
       </div>
 
-      {/* Preset chips */}
+      {/* Controls: presets + knobs */}
       <div className="px-4 py-3 md:px-0">
-        <div
-          className="flex gap-2"
-          role="group"
-          aria-label="Sort presets"
-        >
-          {PRESETS.map(p => {
-            const active = p.id === preset;
-            return (
-              <button
-                key={p.id}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                data-testid={`discover-preset-${p.id}`}
-                onClick={() => setPreset(p.id)}
-                className={cn(
-                  'shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                  active
-                    ? 'border-brand bg-brand-muted text-brand-300'
-                    : 'border-border bg-surface text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {p.label}
-              </button>
-            );
-          })}
-        </div>
+        <KnobRack
+          state={knobState}
+          activePreset={activePreset}
+          onChange={handleKnobChange}
+          onPreset={handlePreset}
+        />
       </div>
 
       {/* People to follow rail */}

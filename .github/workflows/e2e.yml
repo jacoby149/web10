@@ -28,6 +28,8 @@ jobs:
 
       - name: Build & start e2e stack
         run: docker compose -f e2e/docker-compose.yml up --build -d
+        env:
+          STRIPE_TEST_KEY: ${{ secrets.STRIPE_TEST_KEY }}
 
       - name: Wait for stack health
         run: bash e2e/wait-for-stack.sh
@@ -43,6 +45,8 @@ jobs:
       - name: Run Playwright tests
         working-directory: e2e
         run: npx playwright test
+        env:
+          STRIPE_TEST_KEY: ${{ secrets.STRIPE_TEST_KEY }}
 
       - name: Upload Playwright traces on failure
         uses: actions/upload-artifact@v4
