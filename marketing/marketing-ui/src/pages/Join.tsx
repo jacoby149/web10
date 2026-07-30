@@ -13,7 +13,7 @@ const steps = [
   },
   {
     number: 2,
-    href: AUTH_ORIGIN,
+    href: SOCIAL_ORIGIN,
     title: 'Create your account',
     subtitle: "Sign up — it's free",
     icon: 'key',
@@ -137,7 +137,7 @@ function StepStrip({ justify, testidSuffix }: { justify?: string; testidSuffix?:
   const s = testidSuffix || '';
   return (
     <div className={`flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center ${justify ? `sm:${justify}` : ''}`}>
-      {steps.map((step, i) => (
+{steps.map((step, i) => (
         <span key={step.number}>
           {i > 0 && <StepArrow />}
           <StepCard
@@ -357,7 +357,7 @@ function Join() {
             <a href="/" className="hover:text-foreground">Home</a>
             <a href="/trending" className="hover:text-foreground">Trending</a>
             <a href="/docs" className="hover:text-foreground">Docs</a>
-            <a href={AUTH_ORIGIN} className="hover:text-foreground">Sign In</a>
+            <a href={SOCIAL_ORIGIN} className="hover:text-foreground">Sign In</a>
           </div>
         </div>
       </footer>
