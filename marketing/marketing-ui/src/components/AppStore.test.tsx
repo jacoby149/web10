@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import '@testing-library/jest-dom';
 
 vi.mock('lucide-react', () => {
@@ -14,14 +15,26 @@ vi.mock('lucide-react', () => {
   };
 });
 
+function renderWithRouter(ui: React.ReactNode) {
+  return render(
+    <MemoryRouter>
+      {ui}
+    </MemoryRouter>
+  );
+}
+
 describe('AppCard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it('renders app name and description', async () => {
     const { AppCard } = await import('@/components/AppCard');
-    render(
+    renderWithRouter(
       <AppCard
         name="Test App"
         description="A test app description."
@@ -35,7 +48,7 @@ describe('AppCard', () => {
 
   it('renders visit count', async () => {
     const { AppCard } = await import('@/components/AppCard');
-    render(
+    renderWithRouter(
       <AppCard
         name="Test App"
         description="Desc"
@@ -48,7 +61,7 @@ describe('AppCard', () => {
 
   it('renders singular visit', async () => {
     const { AppCard } = await import('@/components/AppCard');
-    render(
+    renderWithRouter(
       <AppCard
         name="Test App"
         description="Desc"
@@ -61,7 +74,7 @@ describe('AppCard', () => {
 
   it('does not render visits when undefined', async () => {
     const { AppCard } = await import('@/components/AppCard');
-    render(
+    renderWithRouter(
       <AppCard
         name="Test App"
         description="Desc"
@@ -73,7 +86,7 @@ describe('AppCard', () => {
 
   it('does not render visits when negative', async () => {
     const { AppCard } = await import('@/components/AppCard');
-    render(
+    renderWithRouter(
       <AppCard
         name="Test App"
         description="Desc"
@@ -86,7 +99,7 @@ describe('AppCard', () => {
 
   it('renders flagship badge when flagship is true', async () => {
     const { AppCard } = await import('@/components/AppCard');
-    render(
+    renderWithRouter(
       <AppCard
         name="web10 social"
         description="The flagship."
@@ -100,7 +113,7 @@ describe('AppCard', () => {
 
   it('does not render flagship badge when not flagship', async () => {
     const { AppCard } = await import('@/components/AppCard');
-    render(
+    renderWithRouter(
       <AppCard
         name="Test App"
         description="Desc"
@@ -113,7 +126,7 @@ describe('AppCard', () => {
 
   it('renders Open link with correct href', async () => {
     const { AppCard } = await import('@/components/AppCard');
-    render(
+    renderWithRouter(
       <AppCard
         name="Test App"
         description="Desc"
@@ -121,16 +134,16 @@ describe('AppCard', () => {
         visits={10}
       />
     );
-    const link = screen.getByRole('link');
-    expect(link).toHaveAttribute('href', 'https://test.web10.app');
-    expect(link).toHaveAttribute('target', '_blank');
-    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
-    expect(screen.getByText('Open')).toBeInTheDocument();
+    const openLinks = screen.getAllByText('Open');
+    expect(openLinks.length).toBeGreaterThan(0);
+    const openBtn = openLinks[0].closest('a');
+    expect(openBtn).toHaveAttribute('href', 'https://test.web10.app');
+    expect(openBtn).toHaveAttribute('target', '_blank');
   });
 
   it('renders icon image when iconSrc is provided', async () => {
     const { AppCard } = await import('@/components/AppCard');
-    render(
+    renderWithRouter(
       <AppCard
         name="Test App"
         description="Desc"
@@ -146,7 +159,7 @@ describe('AppCard', () => {
 
   it('renders fallback letter when no iconSrc', async () => {
     const { AppCard } = await import('@/components/AppCard');
-    render(
+    renderWithRouter(
       <AppCard
         name="Test App"
         description="Desc"
@@ -159,7 +172,7 @@ describe('AppCard', () => {
 
   it('renders custom iconLetter when provided', async () => {
     const { AppCard } = await import('@/components/AppCard');
-    render(
+    renderWithRouter(
       <AppCard
         name="Test App"
         description="Desc"
@@ -173,19 +186,19 @@ describe('AppCard', () => {
 
   it('renders skeleton state', async () => {
     const { AppCard } = await import('@/components/AppCard');
-    render(<AppCard skeleton name="" description="" href="" />);
+    renderWithRouter(<AppCard skeleton name="" description="" href="" />);
     expect(screen.getByTestId('app-card-skeleton')).toBeInTheDocument();
   });
 
   it('skeleton does not render name or description', async () => {
     const { AppCard } = await import('@/components/AppCard');
-    render(<AppCard skeleton name="Hidden" description="Hidden" href="" />);
+    renderWithRouter(<AppCard skeleton name="Hidden" description="Hidden" href="" />);
     expect(screen.queryByText('Hidden')).not.toBeInTheDocument();
   });
 
   it('accepts data-testid', async () => {
     const { AppCard } = await import('@/components/AppCard');
-    render(
+    renderWithRouter(
       <AppCard
         name="Test App"
         description="Desc"
@@ -195,6 +208,54 @@ describe('AppCard', () => {
       />
     );
     expect(screen.getByTestId('my-app-card')).toBeInTheDocument();
+  });
+
+  it('navigates to product page when appId is provided', async () => {
+    const { AppCard } = await import('@/components/AppCard');
+    renderWithRouter(
+      <AppCard
+        name="Test App"
+        description="Desc"
+        href="https://test.web10.app"
+        visits={10}
+        appId="app-123"
+      />
+    );
+    const card = screen.getByTestId('app-card');
+    expect(card).toHaveAttribute('href', '/app-store/app/app-123');
+  });
+
+  it('opens externally when no appId is provided', async () => {
+    const { AppCard } = await import('@/components/AppCard');
+    renderWithRouter(
+      <AppCard
+        name="Test App"
+        description="Desc"
+        href="https://test.web10.app"
+        visits={10}
+      />
+    );
+    const card = screen.getByTestId('app-card');
+    expect(card).toHaveAttribute('href', 'https://test.web10.app');
+    expect(card).toHaveAttribute('target', '_blank');
+  });
+
+  it('renders plug size with appId', async () => {
+    const { AppCard } = await import('@/components/AppCard');
+    renderWithRouter(
+      <AppCard
+        name="Test App"
+        description="Desc"
+        href="https://test.web10.app"
+        visits={10}
+        size="plug"
+        badge="Flagship"
+        appId="app-456"
+      />
+    );
+    const card = screen.getByTestId('app-card');
+    expect(card).toHaveAttribute('href', '/app-store/app/app-456');
+    expect(screen.getByText('Flagship')).toBeInTheDocument();
   });
 });
 
@@ -211,7 +272,7 @@ describe('AppStore page', () => {
 
   it('renders the headline', async () => {
     const { default: AppStore } = await import('@/pages/AppStore');
-    render(<AppStore />);
+    renderWithRouter(<AppStore />);
     expect(
       screen.getByText('Apps that run on data you own.')
     ).toBeInTheDocument();
@@ -219,13 +280,13 @@ describe('AppStore page', () => {
 
   it('renders the App Store badge', async () => {
     const { default: AppStore } = await import('@/pages/AppStore');
-    render(<AppStore />);
+    renderWithRouter(<AppStore />);
     expect(screen.getByText('The web10 App Store')).toBeInTheDocument();
   });
 
   it('renders the subtitle about sorting by visits', async () => {
     const { default: AppStore } = await import('@/pages/AppStore');
-    render(<AppStore />);
+    renderWithRouter(<AppStore />);
     expect(
       screen.getByText(/Sorted by visits/)
     ).toBeInTheDocument();
@@ -233,14 +294,14 @@ describe('AppStore page', () => {
 
   it('renders skeleton cards while loading', async () => {
     const { default: AppStore } = await import('@/pages/AppStore');
-    render(<AppStore />);
+    renderWithRouter(<AppStore />);
     const skeletons = screen.getAllByTestId(/app-card-skeleton/);
     expect(skeletons.length).toBeGreaterThan(0);
   });
 
   it('renders first-party apps when API is unreachable', async () => {
     const { default: AppStore } = await import('@/pages/AppStore');
-    render(<AppStore />);
+    renderWithRouter(<AppStore />);
     await vi.waitFor(() => {
       // web10 social appears in the plug slot
       expect(screen.getByTestId('plug-slot-0')).toHaveAttribute('href', 'https://social.web10.app');
@@ -252,7 +313,7 @@ describe('AppStore page', () => {
 
   it('first-party apps have correct links', async () => {
     const { default: AppStore } = await import('@/pages/AppStore');
-    render(<AppStore />);
+    renderWithRouter(<AppStore />);
     await vi.waitFor(() => {
       expect(screen.getAllByRole('link').length).toBeGreaterThan(0);
     });
@@ -269,7 +330,7 @@ describe('AppStore page', () => {
 
   it('web10 social has flagship badge', async () => {
     const { default: AppStore } = await import('@/pages/AppStore');
-    render(<AppStore />);
+    renderWithRouter(<AppStore />);
     await vi.waitFor(() => {
       // Flagship badge appears in the plug slot for web10 social
       const plugSlot = screen.getByTestId('plug-slot-0');

@@ -18,6 +18,11 @@ function nodeApi(): string {
 interface RegisteredApp {
   url: string
   visits: number
+  name?: string
+  description?: string
+  icon_url?: string
+  screenshots?: string[]
+  web10apps_post_id?: string
   pwaIcon?: string
   pwaName?: string
 }
@@ -80,6 +85,7 @@ interface StoreApp {
   iconSrc?: string
   visits: number
   flagship?: boolean
+  appId?: string
 }
 
 interface PlugSlot {
@@ -89,6 +95,7 @@ interface PlugSlot {
   iconSrc?: string
   visits: number
   badge: string
+  appId?: string
 }
 
 function AppStore() {
@@ -159,6 +166,9 @@ function AppStore() {
           (a) => hostOf(a.url) === FLAGSHIP_HOST,
         )?.visits ?? 0,
         flagship: true,
+        appId: stats?.apps.find(
+          (a) => hostOf(a.url) === FLAGSHIP_HOST,
+        )?.web10apps_post_id,
       },
       {
         name: 'The node console',
@@ -168,6 +178,9 @@ function AppStore() {
         visits: stats?.apps.find(
           (a) => hostOf(a.url) === 'auth.web10.app',
         )?.visits ?? 0,
+        appId: stats?.apps.find(
+          (a) => hostOf(a.url) === 'auth.web10.app',
+        )?.web10apps_post_id,
       },
       {
         name: 'The importer',
@@ -182,11 +195,12 @@ function AppStore() {
       .filter((a) => a.url && !KNOWN_HOSTS.includes(hostOf(a.url)))
       .filter((a) => hostOf(a.url) !== '' && !hostOf(a.url).endsWith('.localhost'))
       .map((a) => ({
-        name: a.pwaName || appName(a.url),
-        description: 'Registered on web10.',
+        name: a.pwaName || a.name || appName(a.url),
+        description: a.description || 'Registered on web10.',
         href: a.url,
-        iconSrc: a.pwaIcon,
+        iconSrc: a.icon_url || a.pwaIcon,
         visits: a.visits ?? 0,
+        appId: a.web10apps_post_id,
       }))
 
     return [...firstParty, ...registered].sort((a, b) => b.visits - a.visits)
@@ -208,6 +222,7 @@ function AppStore() {
       iconSrc: flagshipApp.iconSrc,
       visits: flagshipApp.visits,
       badge: 'Flagship',
+      appId: flagshipApp.appId,
     })
 
     // MOST POPULAR — #1 by visits that isn't the flagship
@@ -220,11 +235,9 @@ function AppStore() {
         iconSrc: mostPopular.iconSrc,
         visits: mostPopular.visits,
         badge: 'Most Popular',
+        appId: mostPopular.appId,
       })
     }
-
-    // NEWEST — not available from the public /stats endpoint (no registered_at field)
-    // Degrades gracefully: slot simply doesn't render
 
     return plugs
   }, [allApps])
@@ -270,6 +283,7 @@ function AppStore() {
                 href={plug.href}
                 visits={plug.visits}
                 badge={plug.badge}
+                appId={plug.appId}
                 data-testid={`plug-slot-${i}`}
               />
             ))}
@@ -299,6 +313,7 @@ function AppStore() {
                   href={app.href}
                   visits={app.visits}
                   flagship={app.flagship}
+                  appId={app.appId}
                   data-testid={`app-card-${i}`}
                 />
               ))}
