@@ -30,6 +30,7 @@ from .utils import detect_platform
 from .instagram import parse_instagram
 from .facebook import parse_facebook
 from .youtube import parse_youtube
+from .web10 import parse_web10
 from .validation import validate_record
 
 logger = logging.getLogger(__name__)
@@ -183,7 +184,12 @@ async def _run_pipeline(
             job["message"] = f"{platform} export detected. Parsing..."
             jobs[job_id] = job
 
-            parser = {"instagram": parse_instagram, "facebook": parse_facebook, "youtube": parse_youtube}[platform]
+            parser = {
+                "instagram": parse_instagram,
+                "facebook": parse_facebook,
+                "youtube": parse_youtube,
+                "web10": parse_web10,
+            }[platform]
             records = parser(zf, entries)
             job["total_records"] = len(records)
             job["message"] = f"Parsed {len(records)} records"
