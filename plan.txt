@@ -2694,10 +2694,11 @@ the join tab would work great for the import your life!"): rebuild
   5. posts enter staging — review privacy in the Staging screen
      (already built, 1.0.164), click done, they're on web10 social.
   reuses the 1.0.31 marketing-api ZIP pipeline + 1.0.131 staging_
-  posts writes. lane item D-import-revamp (bites: a = the step
-  strip + export links, ws-D/marketing(2); b = the WeTransfer
-  pipeline, ws-D/marketing-api; c = the authenticator import tab,
-  ws-B). follow-ups filed 30.07: D-import-export-links-dead
+   posts writes. lane item D-import-revamp (bites: a = the step
+   strip + export links, ws-D/marketing(2); b = the WeTransfer
+   pipeline, ws-D/marketing-api; c = the authenticator import tab,
+   ws-B; d = web10 node export import path, ws-D/marketing-api
+   [✓ 1.0.272]). follow-ups filed 30.07: D-import-export-links-dead
   (operator-verified working export URLs + our own /docs export-
   guidance article — operator supplies the content; NOT llm
   redirects) and D-export-links-health-e2e (a scheduled link-
