@@ -1704,7 +1704,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       first-timer still instantly knows what to do; the copy is
       byte-identical to today. gate: none.
 
-[ ] D-link-embeds (sub-lane ws-D/feed, AFTER D-follow-backfill — same
+[✓ 1.0.251] D-link-embeds (sub-lane ws-D/feed, AFTER D-follow-backfill — same
       workspace chain; operator, 26.07): paste a link into a post and it
       renders as an EMBED, the table-stakes feature every platform has
       (a youtube link becomes a playable player, other links become a

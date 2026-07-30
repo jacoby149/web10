@@ -2141,7 +2141,7 @@ engagement:
     reaction plumbing.
 
 posts -- rich content (operator, 26.07):
-[ ] LINK EMBEDS -- paste a url into a post (or dm) and it renders as an
+[✓ 1.0.251] LINK EMBEDS -- paste a url into a post (or dm) and it renders as an
     embed, the table-stakes feature every platform has: a youtube link
     becomes a playable player in the feed; other links become a preview
     chip. v0 is client-side only (D-link-embeds in parallel

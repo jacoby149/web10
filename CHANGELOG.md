@@ -1,3 +1,6 @@
+1.0.251 || 30.07.2026
+feat(web10-social): D-link-embeds — URLs in post text render as embeds. YouTube (youtu.be, /watch, /shorts) and Vimeo render as click-to-load players via youtube-nocookie.com (privacy-enhanced), thumbnail + play badge, no N iframes. All other links render as external-link chips (favicon + domain, rel="noopener noreferrer"). Wired into FeedScreen PostCard, PostLightbox, and DM MessageBubble. 24 unit tests for lib/linkEmbeds.ts. 392 tests green, tsc clean.
+
 1.0.250 || 30.07.2026
 docs: `imma rant` filing (docs only, nothing built). One operator complaint filed as a lane item: D-home-stats-bar-styling (ws-D/marketing(2), small — the 1.0.240 homepage stats bar's heavy bordered container "just looks bad"; kill the border, move "data liberated" up as the third stat's label for consistency with USERS/APPS, and bare-on-background vs sleek individual cards is explicitly the builder's taste call against design.md §12). Added to `parallel execution.txt` + plan.txt PHASE 8.6 for the next kickoff batch.
 
