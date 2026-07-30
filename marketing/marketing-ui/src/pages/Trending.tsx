@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Zap, ArrowUpRight, MessageCircleOff } from 'lucide-react';
+import { Zap, ArrowUpRight, MessageCircleOff, Grid3X3, Video } from 'lucide-react';
 import {
   TrendingCard,
   TrendingSkeleton,
+  YouTubeCard,
+  YouTubeSkeleton,
   fetchDiscoverFeed,
   mapDiscoveryToFeedPost,
 } from '@/components/FeedPreview';
@@ -28,6 +30,8 @@ const API_ORIGIN = import.meta.env.VITE_API_URL || 'https://api.web10.app';
 const INITIAL_PAGE = 20;
 const PAGE_STEP = 20;
 const MAX_RESULTS = 100;
+
+type TrendingView = 'grid' | 'youtube';
 
 // ── Discover users (A14: followers_count included) ──────────────────────────
 
@@ -168,6 +172,21 @@ function Trending() {
     () => readMixFromHash().preset,
   );
   const cardRefs = useRef<Map<string, HTMLElement>>(new Map());
+
+  // Search state
+  // View toggle: read from ?view= query param (deep-link rule)
+  const [view, setView] = useState<TrendingView>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return (params.get('view') as TrendingView) || 'grid';
+  });
+
+  const setViewUrl = useCallback((v: TrendingView) => {
+    setView(v);
+    const params = new URLSearchParams(window.location.search);
+    params.set('view', v);
+    window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
+    trackFunnel('trending_view_toggle', { view: v });
+  }, []);
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -332,6 +351,15 @@ function Trending() {
     [ranked, topic],
   );
 
+  // YouTube view: media posts only (video + image), filtered by topic
+  const mediaPosts = useMemo(
+    () => {
+      const mediaOnly = visible.filter(p => p.media === 'video' || p.media === 'image');
+      return topic === 'All' ? mediaOnly : mediaOnly.filter(p => p.tags?.includes(topic) ?? false);
+    },
+    [visible, topic],
+  );
+
   const maxSearchScore = useMemo(
     () => Math.max(1, ...searchResults.map(p => p.engagementScore ?? 0)),
     [searchResults],
@@ -491,6 +519,36 @@ function Trending() {
         </div>
       </div>
 
+      {/* View toggle — YouTube-style, below topics */}
+      {!isInitialLoad && !isSearching && (
+        <div className="border-b border-border bg-surface/50">
+          <div className="mx-auto max-w-4xl px-4 sm:px-6">
+            <div className="flex items-center gap-1 py-2" data-testid="trending-view-toggle">
+              {([
+                ['grid', 'Grid', Grid3X3],
+                ['youtube', 'YouTube', Video],
+              ] as [TrendingView, string, typeof Grid3X3][]).map(([v, label, Icon]) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => setViewUrl(v)}
+                  data-testid={`view-toggle-${v}`}
+                  className={[
+                    'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                    view === v
+                      ? 'bg-brand-muted text-brand-300'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-elevated',
+                  ].join(' ')}
+                >
+                  <Icon className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  <span>{label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Body: grid + sidebar */}
       <main className="flex-1 px-4 py-8 sm:px-6">
         <div className="mx-auto flex max-w-6xl gap-8">
@@ -595,6 +653,71 @@ function Trending() {
                   <TrendingSkeleton key={i} />
                 ))}
               </div>
+            ) : view === 'youtube' ? (
+              /* YouTube view — media posts only, 16:9 thumbnails */
+              <>
+                {mediaPosts.length > 0 ? (
+                  <>
+                    <div
+                      data-testid="trending-youtube-grid"
+                      className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+                    >
+                      {mediaPosts.map(post => (
+                        <YouTubeCard
+                          key={post.id}
+                          post={post}
+                          rank={post.rank}
+                        />
+                      ))}
+                    </div>
+                    {loadingMore && (
+                      <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                        {Array.from({ length: 4 }).map((_, i) => (
+                          <YouTubeSkeleton key={`yt-more-${i}`} />
+                        ))}
+                      </div>
+                    )}
+                    {hasMore && !loadingMore && (
+                      <div className="mt-8 flex justify-center">
+                        <button
+                          type="button"
+                          onClick={handleLoadMore}
+                          data-testid="trending-load-more"
+                          className="rounded-full border border-brand bg-brand-muted px-6 py-2.5 text-sm font-medium text-brand-300 transition-colors hover:bg-brand hover:text-brand-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                        >
+                          Load more
+                        </button>
+                      </div>
+                    )}
+                    {!hasMore && allPosts.length > 0 && (
+                      <p className="mt-8 text-center text-sm text-muted-foreground">
+                        That&apos;s all trending media right now.
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <div
+                    data-testid="trending-empty"
+                    className="mx-auto flex max-w-md flex-col items-center rounded-xl border border-dashed border-border bg-surface/50 px-6 py-16 text-center"
+                  >
+                    <MessageCircleOff className="h-10 w-10 text-muted-foreground" strokeWidth={1.5} />
+                    <h2 className="mt-4 font-display text-xl font-semibold text-foreground">
+                      No media posts yet
+                    </h2>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      The YouTube view shows posts with videos and images.
+                      Switch to the grid view to see all trending posts.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setViewUrl('grid')}
+                      className="mt-6 inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                    >
+                      Switch to grid view
+                    </button>
+                  </div>
+                )}
+              </>
             ) : visible.length > 0 ? (
               <>
                 <div
