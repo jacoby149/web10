@@ -2070,6 +2070,18 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       standing has a one-line justification in the PR; marketing-ui
       tests + tsc green. gate: none.
 
+[ ] D-hero-cta-label (sub-lane ws-D/marketing, TINY; operator, 30.07
+      rant, screenshot of the homepage hero button: "we can have this
+      say enter web10! but it goes to web10 social! that is fine"):
+      the hero CTA (marketing-ui src/pages/Home.tsx, the
+      `<a href={SOCIAL_ORIGIN}>Enter web10 social</a>` button) should
+      read "Enter web10!" — the destination is already correct
+      (SOCIAL_ORIGIN, fixed in 1.0.215); this is a LABEL-ONLY change,
+      do not touch the href. acceptance: the hero button reads
+      "Enter web10!" and still links to SOCIAL_ORIGIN; marketing-ui
+      tests + tsc green; screenshot the hero at desktop + 375px and
+      LOOK. gate: none.
+
 [✓ 1.0.230] D-search-fulltext (sub-lane ws-D/marketing, AFTER D-marketing-search
       bite b — same Trending.tsx seam; operator, 27.07: "searching only
       searches tags also. it doesnt search the other things"): a word
