@@ -76,7 +76,9 @@ export async function createComment(
         author_username: token?.username,
         author_provider: token?.provider,
       },
-    }).catch(() => { /* non-fatal */ });
+    }).catch((e) => {
+      console.error('ledger mirror failed (comment create):', e);
+    });
   }
 
   return record;
@@ -130,7 +132,9 @@ export async function updateComment(
         author_username: token?.username,
         author_provider: token?.provider,
       },
-    }).catch(() => { /* non-fatal */ });
+    }).catch((e) => {
+      console.error('ledger mirror failed (comment update):', e);
+    });
   }
 
   return record;
