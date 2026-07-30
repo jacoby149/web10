@@ -2652,7 +2652,7 @@ BITES (rule 5 — one bite PER SCREEN when staged, each its own
       per-visibility service selection; social tests + tsc green.
       gate: none.
 
-[ ] D-user-profile-stats (sub-lane ws-D/profile; operator, 30.07 rant,
+[✓ 1.0.272] D-user-profile-stats (sub-lane ws-D/profile; operator, 30.07 rant,
       screenshot of social.web10.app/u/coolguydavid — stats row shows
       only "0 Posts" + a numberless "Following" label, grid says "No
       posts yet": "that is my friend coolguydavid, i dont see how many

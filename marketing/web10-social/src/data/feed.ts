@@ -224,11 +224,17 @@ export async function createPublicEntry(entry: Omit<PublicEntry, '_id'>): Promis
 export async function queryPublicEntries(params: {
   schema_id?: string;
   target?: string;
+  author?: string;
+  limit?: number;
+  skip?: number;
 }): Promise<PublicEntry[]> {
   try {
     const qs = new URLSearchParams();
     if (params.schema_id) qs.set('schema_id', params.schema_id);
     if (params.target) qs.set('target', params.target);
+    if (params.author) qs.set('author', params.author);
+    if (params.limit) qs.set('limit', String(params.limit));
+    if (params.skip) qs.set('skip', String(params.skip));
     const resp = await fetch(`${API_ORIGIN}/public/entries?${qs}`, { method: 'PATCH' });
     if (!resp.ok) return [];
     return resp.json();
