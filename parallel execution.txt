@@ -1946,20 +1946,20 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       is a PRIVACY PROMISE — make it load-bearing: originals are
       deleted when the pipeline finishes, and the UI says so.
       BITES (rule 5 — one PR each):
-      bite a, THE STEP STRIP + EXPORT LINKS (sub-lane
-        ws-D/marketing(2); Exporter.tsx seam — disjoint from Home/
-        Join/AppStore): rebuild /import as the /join-format numbered
-        steps (reuse StepCard/StepStrip from 1.0.203); step 1 is
-        pure value TODAY — platform logo buttons deep-linking to
-        each platform's data-export page (Facebook, YouTube, X,
-        Instagram, TikTok — find the current export URLs, open in
-        new tab) PLUS the web10-export note rendered proudly on the
-        page ("yes, you can export from your current web10 node and
-        import somewhere else" — the anti-lock-in proof, visible
-        even before bite d builds the export button);
-        steps 2-5 render as the honest journey with the steps that
-        aren't built yet marked "coming soon" (never fake a working
-        step). no backend. gate: none.
+[✓ 1.0.230] bite a, THE STEP STRIP + EXPORT LINKS (sub-lane
+         ws-D/marketing(2); Exporter.tsx seam — disjoint from Home/
+         Join/AppStore): rebuild /import as the /join-format numbered
+         steps (reuse StepCard/StepStrip from 1.0.203); step 1 is
+         pure value TODAY — platform logo buttons deep-linking to
+         each platform's data-export page (Facebook, YouTube, X,
+         Instagram, TikTok — find the current export URLs, open in
+         new tab) PLUS the web10-export note rendered proudly on the
+         page ("yes, you can export from your current web10 node and
+         import somewhere else" — the anti-lock-in proof, visible
+         even before bite d builds the export button);
+         steps 2-5 render as the honest journey with the steps that
+         aren't built yet marked "coming soon" (never fake a working
+         step). no backend. gate: none.
       bite b, THE WETRANSFER PIPELINE (sub-lane ws-D/marketing-api —
         marketing/marketing-api/**; NEW sub-lane, nothing in flight
         there): authenticated ZIP upload to the hosted S3 (presigned
@@ -2960,15 +2960,12 @@ fully refreshed — eight sub-lanes drained or advanced this batch.
                      + browse search bar), THEN D-appstore-revamp v2
                      bite a (product page; gate: the lane-A spec note
                      for the full rewire, but bite a reads the legacy
-                     store as-is — NOT gated on it). ALSO PARALLEL-SAFE here:
-                     D-import-revamp bite a (operator 29.07 rant —
-                     the /join-style import step strip + platform
-                     export links; Exporter.tsx seam, disjoint from
-                     the AppStore files), D-join-steps-visuals (operator 29.07 —
-                     Join.tsx seam, disjoint from the AppStore files;
-                     the two can run in two workspaces at once) AND
-                     D-home-stats-bar (operator 29.07 rant —
-                     Home.tsx seam, disjoint from the AppStore files)
+store as-is — NOT gated on it). ALSO PARALLEL-SAFE here:
+                      D-join-steps-visuals (operator 29.07 —
+                      Join.tsx seam, disjoint from the AppStore files;
+                      the two can run in two workspaces at once) AND
+                      D-home-stats-bar (operator 29.07 rant —
+                      Home.tsx seam, disjoint from the AppStore files)
     ws-D/profile:    D-lightbox-media-sizing (chain START), THEN
                      D-profile-image-placement, THEN D-follow-lists,
                      THEN D-text-post-cards bite a — the whole chain
