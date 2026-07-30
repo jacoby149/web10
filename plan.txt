@@ -2477,6 +2477,16 @@ D-dm-header-profile-link (ws-D/messages, tiny). merged 1.0.251.
     bare-on-background vs sleek individual cards is the builder's
     taste call against design.md §12. lane item
     D-home-stats-bar-styling (ws-D/marketing(2), small).
+[ ] visibility toggle duplicates the post (operator, 30.07 rant: "i
+    tried publicing a post, privating the post, publicing it again,
+    there is now two posts one in public one in private of the same
+    post"): movePostVisibility is create-then-delete; a repeated
+    toggle leaves a copy in each collection. prime suspect: the
+    lightbox runs the second toggle against the STALE pre-toggle
+    record (the move mints a new _id in the target collection), so
+    the delete misses. also check the discovery index for a ghost
+    public copy after privatizing. lane item
+    D-visibility-toggle-duplicate (ws-D/profile).
 [ ] profile photos on someone else's profile (operator, 30.07 rant:
     "when i go to someones profile, i dont see their profile photos"):
     the public-media read path (A12 + D-public-media-client, D35) is

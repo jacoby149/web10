@@ -2245,6 +2245,38 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       decrements; a vitest regression on the toggle round-trip;
       social tests + tsc green. gate: none.
 
+[ ] D-visibility-toggle-duplicate (sub-lane ws-D/profile; operator, 30.07
+      rant: "i tried publicing a post, privating the post, publicing it
+      again, there is now two posts one in public one in private of the
+      same post"): D-post-visibility-toggle's movePostVisibility
+      (posts.ts:154) is create-in-target THEN delete-from-source — a
+      repeated toggle duplicates the post. REPRO FIRST on the local
+      stack (public → private → public, then read BOTH collections and
+      quote the records in the PR). suspects, in order: (1) STALE POST
+      OBJECT ACROSS TOGGLES — the lightbox keeps the pre-toggle
+      post record; after the first move the record has a NEW _id in
+      the target collection, but the second toggle runs against the
+      OLD object, so sourceService/visibility flip from stale state
+      and the delete targets an _id that no longer exists (or the
+      wrong service) — the copy survives; (2) delete-by-_id mismatch
+      when the post came from the discovery feed (post_id vs the
+      record's actual _id); (3) a swallowed delete error — the
+      create-then-delete pair isn't atomic and this flow catches
+      errors upstream (the D-follow-persistence class). fix direction:
+      reload/use the record returned by the move (or re-read the
+      source collection) before the next toggle, and surface a delete
+      failure as an error state, never silently. ALSO check the
+      discovery index: a post moved OUT of public_posts must drop its
+      discovery doc (else a ghost public copy renders on /trending
+      even after the collection delete works). files:
+      marketing/web10-social/src/data/posts.ts +
+      components/Bio/PostLightbox.tsx (the toggle call site). owns
+      ws-D/profile seam — coordinate with the PostLightbox cluster.
+      acceptance: public → private → public round-trip leaves EXACTLY
+      ONE record in exactly one collection; a vitest regression pins
+      the round-trip (incl. the stale-object case); no discovery
+      ghost after privatizing; social tests + tsc green. gate: none.
+
 [ ] D-public-media-verify (sub-lane ws-D/profile, TINY — the gate-clearing
       bite; operator, 30.07 rant: "when i go to someones profile, i
       dont see their profile photos"): the public-media read path is
@@ -3149,7 +3181,9 @@ the M2 money-path referee (C8); no infra-company drift. QWEN HORIZON:
     ws-D/messages:   D-dm-header-profile-link (TINY, no gate), THEN
                      D-deep-links bite 1 (messages thread key + view
                      param — same DmsScreen seam, sequential)
-    ws-D/profile:    D-public-media-verify (TINY, no gate — the
+    ws-D/profile:    D-visibility-toggle-duplicate (operator rant —
+                     REPRO first, stale-record delete-miss suspect),
+                     THEN D-public-media-verify (TINY, no gate — the
                      gate-CLEARER for the two GATED media items below),
                      THEN D-lightbox-media-sizing (gate CLEARED
                      this pass), THEN D-profile-image-placement,
