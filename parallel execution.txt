@@ -2572,7 +2572,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       in-app Discover when D-inapp-discover-knobs lands — note it in
       that PR's .context handoff, don't build it here.
 
-[ ] D-inapp-discover-knobs (sub-lane ws-D/discover — components/
+ [✓ 1.0.241] D-inapp-discover-knobs (sub-lane ws-D/discover — components/
        Discover/**; GATE CLEARED 29.07: the operator signed off —
        "the trending page on the marketing site is amazing! the
        discover should borrow much more heavily from it, the knobs to
@@ -2908,7 +2908,12 @@ LANE E — infrastructure / deployment (owns: proxmox provisioning,
       remaining gate is the admin token. RUN LIST (append, 27.07):
       after A17-discovery-media-projection deploys, RE-RUN
       /admin/discovery/backfill per env so the existing corpus gains
-      media_refs in the index (idempotent).
+      media_refs in the index (idempotent). RUN LIST (append, 30.07):
+      after the D37 appstore-v2 rewire deploys to an env, run POST
+      /admin/apps/migrate_v2 there (backfills review_state +
+      web10apps_post_id on legacy apps, projects approved apps to
+      #web10apps discovery; idempotent). NOTE: the F2 compat filter
+      (audit #14) makes this a cleanup, not a deploy blocker.
   [✓ 1.0.71] E9. DEPLOYMENT STATUS PAGE (operator, 19.07 — iterated from
       "portainer should alert github" down to what's actually
       wanted: "all i need is an easy way to know we are deployed, a
@@ -2961,8 +2966,109 @@ M3 "the network"         = encryption integration (A rtc + C2 sdk
                            polish. the last big merge.
 
 
-CURRENT CONDUCTOR BOARD (as of 30.07.2026 — audit #13; keep fresh)
+CURRENT CONDUCTOR BOARD (as of 30.07.2026 — audit #14; keep fresh)
 --------------------------------------------------------------------
+AUDIT #14 REFRESH (30.07): BATCH GATED RED — NOT PROMOTED. Zero dangling
+PRs; the dev batch (#399–#410 — pass #13 record, D-hero-cta-label, D37
+appstore-v2 spec + registration rewire, C8 stripe-test-mode bite a,
+D-import-export-links-dead repair, D-home-stats-bar, D-crm-upgrade bite b,
+D-docs-gfm, D-feed-lightbox bite a, D-inapp-discover-knobs bite b,
+D-export-links-health-e2e) is complaint-driven product work with green
+e2e + deploy at dev head, BUT two really-broken findings block promotion:
+  F1 (CI red at dev head): .github/workflows/link-health.yml (#410) is
+     INVALID YAML — the issue-body string lines in the "Report failure"
+     step (`**Checked:**`, `**Run:**`, the body markup) are unindented,
+     breaking out of the run: block scalar; the parser dies at line 37
+     (`*` alias). Every push to dev shows a 0s "workflow file issue"
+     failure (run 30512794334). Fix: indent the body lines inside the
+     run block (or rewrite the body build as a heredoc). FIX BLOCK below.
+  F2 (prod regression on promote): #409's get_apps filter changed from
+     {"approved": True} to {"review_state": "approved"} — legacy prod
+     apps carry approved:true but NO review_state, so the public App
+     Store renders EMPTY the moment this deploys, until someone runs the
+     admin-only /admin/apps/migrate_v2 (admin token = operator gate).
+     Fix: compat filter in get_apps — $or review_state=="approved" OR
+     (review_state absent AND approved==true). FIX BLOCK below. The
+     migrate_v2 run joins E-run-discovery-migration's run list as
+     cleanup, not a blocker.
+NOT findings (checked, cleared): #409's apps_rating uses the unsigned
+decode_token — the pre-existing codebase-wide pattern (public.py,
+payments.py, schemas.py all do it; the I2/RS256 fix is its own in-flight
+line), not a new deepening. e2e + deploy green at dev head (#410 push).
+C8 bite a's stripe smoke asserts sk_test reaches test mode, zero secrets.
+ALIGNMENT: unchanged — every open item is operator-complaint-driven
+social-product/funnel work or the M2 money-path referee (C8); no
+infra-company drift. Timeline: week 2 closing on target; week 3 (aug
+3-10) is M0 integration — the founder taste pass is the schedule risk,
+as standing.
+QWEN HORIZON: ~12 filed parallel-safe bites across 8 sub-lanes (the two
+fix blocks, feed-lightbox bite b, nav-signin-social, video-autoplay,
+join-steps-visuals, appstore-browse, appstore v2 bite a [gate CLEARED —
+spec #401 + api rewire #409 both merged], mobile-feature-gap, crm drained,
+discover-knobs DRAINED this batch), ~20+ chained PRs behind them — Qwens
+run independently once the two fix blocks land.
+
+  PRIORITY 1 (fresh, this audit):
+    ws-E/infra: FIX F1 — link-health.yml invalid YAML (blocks a clean
+      dev head; tiny). FIX BLOCK in the pass-14 report.
+    ws-A: FIX F2 — get_apps review_state compat filter (blocks dev→main
+      promotion; tiny, test-pinned). FIX BLOCK in the pass-14 report.
+    ws-E (operator-gated): E-run-discovery-migration — unchanged, still
+      needs the admin token; RUN LIST gains: POST /admin/apps/migrate_v2
+      per env after the D37 rewire deploys (backfills review_state +
+      web10apps_post_id, projects approved apps to #web10apps).
+
+  PARALLEL-SAFE FLEET (one workspace per sub-lane; chains WITHIN a
+  sub-lane are sequential, file seams):
+    ws-E/infra:      FIX F1 (link-health.yml YAML) — P1
+    ws-A:            FIX F2 (get_apps compat filter) — P1, THEN the lane
+                     is clear (D37 spec + rewire both merged)
+    ws-D/feed:       D-feed-lightbox bite b (share + permalink route
+                     /u/:username/p/:postId — gate bite a merged 1.0.239,
+                     CLEARED), THEN D-link-embeds
+    ws-D/marketing:  D-nav-signin-social (TINY, no gate) AND
+                     D-video-autoplay-muted (no gate) — disjoint seams
+                     (Navbar.tsx vs FeedPreview.tsx TrendingMedia), two
+                     workspaces OK
+    ws-D/marketing(2): D-appstore-browse (gate D-appstore-plugs merged
+                     1.0.230, CLEARED) AND D-join-steps-visuals (no gate)
+                     — disjoint seams (AppStore.tsx vs Join.tsx)
+    ws-D/marketing(3) NEW: D-appstore-revamp v2 bite a (product page UI —
+                     gate CLEARED: the lane-A spec note #401 + the D37
+                     rewire #409 both merged; /discover/app/{id} +
+                     /apps/rating(s) endpoints are LIVE on dev)
+    ws-D/profile:    D-lightbox-media-sizing (chain START) — HELD until
+                     ws-D/feed's lightbox bite b merges (PostLightbox
+                     seam cluster rule)
+    ws-D/shell:      D-mobile-feature-gap (no gate)
+    ws-D/discover:   DRAINED (knobs bite b merged 1.0.241 — umbrella
+                     ticked this audit)
+    ws-D/messages:   DRAINED (crm bite b merged 1.0.240)
+    ws-C:            C8 remainder — bite b (membership subscribe journey,
+                     3% split asserted) + bite c (twilio honest half);
+                     staged with the M2-prereq block, not the gauntlet
+                     fleet
+  GATED (don't pick up until the gate clears):
+      D-night-owl bites b-e (gate: operator's Conductor Pro trial).
+      D-deep-links (gate: the current fleet merged). Still FIRST when
+        the fleet drains; feed-lightbox bite b's permalink route is its
+        foundation.
+      D-poke build (gate: operator sign-off on the 1.0.179 proposal).
+      D-feed-avatar-resolution + the D-user-profile-media grid half
+        (gate: public-media path END TO END — needs the dev verification
+        step).
+      D-coming-soon-builds (gate: per-surface spec first).
+      D-appstore category rails (gate: catalog size).
+      E-run-discovery-migration (gate: admin token — operator provides).
+  Selection rule (CLAUDE.md): only truly-parallel items at once. The
+  PostLightbox/FeedScreen/PostComposer files form ONE seam cluster
+  spanning ws-D/feed and ws-D/profile — the two chains coordinate via
+  .context/ notes and never edit the same file concurrently.
+  BITE RULE (rule 5, operator 27.07): the chains above are QUEUES of
+  bites — a kickoff hands an agent exactly ONE bite (one PR, ~20-40
+  min); multi-bite items carry a BITES: breakdown in their lane text.
+  never kick off "the chain".
+
 AUDIT #13 REFRESH (30.07): SHIPPED. Dangling PR #396 (export-link
 guidance rant filing) un-conflicted via the local union-merge ritual
 (renumber 1.0.237) and merged; the docs-only dev batch (#394–#397 +
