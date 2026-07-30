@@ -38,9 +38,10 @@ interface PostLightboxProps {
   onReload?: () => void;
   postAuthor?: string;
   postService?: string;
+  isOwner?: boolean;
 }
 
-export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, postService }: PostLightboxProps) {
+export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, postService, isOwner: isOwnerProp }: PostLightboxProps) {
   const media = (post.media_refs || [])
     .map(ref => mediaMap[ref])
     .filter((m): m is MediaRecord => Boolean(m));
@@ -68,9 +69,9 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
   // Visibility toggle state
   const [togglingVisibility, setTogglingVisibility] = useState(false);
 
-  // Check if current user is the owner
+  // Check ownership: explicit prop wins, otherwise fall back to token presence (profile view)
   const token = getWapi().readToken();
-  const isOwner = token !== null; // profile posts are always owner's own
+  const isOwner = isOwnerProp !== undefined ? isOwnerProp : token !== null;
 
   const prev = useCallback(() => {
     setIndex(i => (i - 1 + media.length) % media.length);

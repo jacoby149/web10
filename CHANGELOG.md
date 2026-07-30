@@ -1,3 +1,5 @@
+1.0.239 || 30.07.2026
+feat(web10-social): D-feed-lightbox bite a — feed posts are now clickable. Clicking any feed post card opens the existing PostLightbox (media pager, like toggle, comment thread). PostLightbox gains an `isOwner` prop: when false, owner actions (edit/delete/visibility toggle) are hidden. FeedScreen computes `isOwner` by comparing the post's author against `readToken()`. ProfileScreen passes `isOwner={true}` explicitly. Interactive elements (like, comment, author link) use `stopPropagation` so they don't trigger the lightbox. 368 tests green, tsc clean.
 1.0.242 || 30.07.2026
 fix(marketing-ui): D-docs-gfm — added remark-gfm to the docs markdown pipeline (`.use(remarkGfm)` before `.use(remarkHtml)`); GFM tables now render as real styled tables with token-styled borders, header weight, row hover, mono code cells, and horizontal scroll wrapper for wide tables at 375px. Strikethrough and task-list styles added. 161 marketing-ui tests green, tsc clean, vite build clean.
 
