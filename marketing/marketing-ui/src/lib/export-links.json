@@ -1,0 +1,39 @@
+{
+  "links": [
+    {
+      "platform": "facebook",
+      "label": "Facebook",
+      "url": "https://www.facebook.com/help/212802592074644",
+      "expectedContent": ["download your information", "your activity"],
+      "botBlocked": true
+    },
+    {
+      "platform": "youtube",
+      "label": "YouTube",
+      "url": "https://takeout.google.com/settings/takeout",
+      "expectedContent": ["takeout", "download your data"],
+      "botBlocked": true
+    },
+    {
+      "platform": "x",
+      "label": "X",
+      "url": "https://help.x.com/en/managing-your-account/accessing-your-x-data",
+      "expectedContent": ["your data", "download"],
+      "botBlocked": true
+    },
+    {
+      "platform": "instagram",
+      "label": "Instagram",
+      "url": "https://help.instagram.com/181231772500920/",
+      "expectedContent": ["download", "your information"],
+      "botBlocked": true
+    },
+    {
+      "platform": "tiktok",
+      "label": "TikTok",
+      "url": "https://www.tiktok.com/support/faq_detail?id=7543597460594285112&category=web_account",
+      "expectedContent": ["download", "your data"],
+      "botBlocked": true
+    }
+  ]
+}

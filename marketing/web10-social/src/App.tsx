@@ -15,6 +15,9 @@ import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { ReportBug } from '@/components/shared/ReportBug';
 import { getWapi } from '@/data/wapi';
 import { registerDefaultSchemas } from '@/data/feed';
+import { resolveMediaRefs } from '@/data/posts';
+import { PostLightbox } from '@/components/Bio/PostLightbox';
+import type { PostRecord, MediaRecord } from '@/data/types';
 
 function LoginScreen({ onLogin }: { onLogin: () => void }) {
   return (
@@ -105,6 +108,87 @@ function UserProfileRoute() {
   );
 }
 
+function UserProfilePostLinkRoute() {
+  const { username, postId } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const provider = location.state?.provider || getWapi().readToken()?.provider || '';
+  const [post, setPost] = useState<PostRecord | null>(null);
+  const [mediaMap, setMediaMap] = useState<Record<string, MediaRecord>>({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = getWapi().readToken();
+        if (!token) return;
+        // Try reading from public_posts first, then posts
+        const wapi = getWapi();
+        let p: PostRecord | null = null;
+        let service = 'public_posts';
+        for (const s of ['public_posts', 'posts']) {
+          const results = await wapi.read<PostRecord>(s, { _id: postId });
+          if (results[0]) {
+            p = results[0];
+            service = s;
+            break;
+          }
+        }
+        if (!cancelled && p) {
+          setPost(p);
+          if (p.media_refs?.length) {
+            const media = await resolveMediaRefs(
+              p.media_refs,
+              { username: username!, provider: provider || token.provider },
+              username === token.username ? 'media' : 'public_media',
+            );
+            const flat: Record<string, MediaRecord> = {};
+            for (const m of media) {
+              if (m._id) flat[m._id] = m;
+            }
+            if (!cancelled) setMediaMap(flat);
+          }
+        }
+      } catch (e) {
+        if (!cancelled) console.error('Failed to load post:', e);
+      }
+      if (!cancelled) setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [username, postId, provider]);
+
+  if (loading) {
+    return (
+      <UserProfileScreen
+        username={username!}
+        provider={provider}
+        onBack={() => navigate(-1)}
+      />
+    );
+  }
+
+  return (
+    <>
+      <UserProfileScreen
+        username={username!}
+        provider={provider}
+        onBack={() => navigate(-1)}
+      />
+      {post && (
+        <PostLightbox
+          post={post}
+          mediaMap={mediaMap}
+          onClose={() => navigate(`/u/${username}`)}
+          postAuthor={username}
+          postService={post._id ? 'public_posts' : undefined}
+          isOwner={false}
+        />
+      )}
+    </>
+  );
+}
+
 // /feed route: composing a post bumps `version`, which remounts FeedScreen
 // so a fresh post shows up immediately instead of only after a manual
 // refresh (the post is delivered to the author's own inbox on create).
@@ -190,6 +274,7 @@ function App() {
           <Route path="/messages" element={<DmsScreen />} />
           <Route path="/profile" element={<ProfileScreen />} />
           <Route path="/u/:username" element={<UserProfileRoute />} />
+          <Route path="/u/:username/p/:postId" element={<UserProfilePostLinkRoute />} />
           <Route path="/staging" element={<StagingScreen />} />
           <Route path="/settings" element={<SettingsScreen onLogout={handleLogout} onReportBug={() => handleReportBug('button')} />} />
           <Route path="*" element={<Navigate to="/feed" replace />} />

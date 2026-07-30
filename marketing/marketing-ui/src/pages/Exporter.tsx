@@ -1,15 +1,8 @@
 import { useEffect } from 'react';
-import { ArrowUpRight, ArrowRight, Download, LogIn, UploadCloud, Server, Eye } from 'lucide-react';
+import { ArrowUpRight, ArrowRight, Download, LogIn, UploadCloud, Server, Eye, BookOpen } from 'lucide-react';
 import { trackFunnel } from '@/lib/analytics';
-import { AUTH_ORIGIN } from '@/lib/origins';
-
-const EXPORT_URLS = {
-  facebook: 'https://www.facebook.com/help/2128567812917891',
-  youtube: 'https://takeout.google.com/settings/takeout',
-  x: 'https://help.x.com/en/using-x/downloading-your-info',
-  instagram: 'https://help.instagram.com/2170638083883122',
-  tiktok: 'https://www.tiktok.com/support/download-your-data-from-tiktok/',
-};
+import { SOCIAL_ORIGIN } from '@/lib/origins';
+import { EXPORT_LINKS } from '@/lib/exportLinks';
 
 function StepCard({
   number,
@@ -88,29 +81,34 @@ function StepArrow() {
 function PlatformButtons() {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-      {Object.entries(EXPORT_URLS).map(([platform, url]) => {
-        const label =
-          platform === 'x' ? 'X' : platform.charAt(0).toUpperCase() + platform.slice(1);
-        return (
+      {EXPORT_LINKS.map(link => (
+        <div key={link.platform} className="group flex flex-col items-center gap-2 rounded-lg border border-border bg-surface p-4 text-center transition-colors duration-150 ease-out hover:border-brand/50">
           <a
-            key={platform}
-            href={url}
+            href={link.url}
             target="_blank"
             rel="noopener noreferrer"
-            data-testid={`import-platform-${platform}`}
-            className="group flex flex-col items-center gap-2 rounded-lg border border-border bg-surface p-4 text-center transition-colors duration-150 ease-out hover:border-brand/50"
+            data-testid={`import-platform-${link.platform}`}
+            className="flex flex-col items-center gap-2"
           >
             <span className="flex h-10 w-10 items-center justify-center rounded-full bg-elevated text-lg font-semibold text-foreground">
-              {label === 'X' ? '𝕏' : label.charAt(0)}
+              {link.label === 'X' ? '𝕏' : link.label.charAt(0)}
             </span>
-            <span className="text-sm font-medium text-foreground">{label}</span>
+            <span className="text-sm font-medium text-foreground">{link.label}</span>
             <ArrowUpRight
               className="mt-1 h-3 w-3 text-muted-foreground transition-colors duration-150 group-hover:text-brand"
               strokeWidth={1.75}
             />
           </a>
-        );
-      })}
+          <a
+            href={`/docs/export-guidance#${link.guideAnchor}`}
+            data-testid={`import-platform-${link.platform}-guide`}
+            className="flex items-center gap-1 text-xs text-muted-foreground transition-colors duration-150 hover:text-brand-300"
+          >
+            <BookOpen className="h-3 w-3" strokeWidth={1.5} />
+            Guide
+          </a>
+        </div>
+      ))}
     </div>
   );
 }
@@ -143,8 +141,8 @@ function ImportStepStrip({ testidSuffix }: { testidSuffix?: string }) {
       <StepArrow />
       <StepCard
         number={2}
-        href={AUTH_ORIGIN}
-        title="Log in to the authenticator"
+        href={SOCIAL_ORIGIN}
+        title="Log in"
         subtitle="Open the import tab"
         icon={LogIn}
         comingSoon
@@ -234,7 +232,7 @@ function Exporter() {
             <a href="/" className="hover:text-foreground">Home</a>
             <a href="/trending" className="hover:text-foreground">Trending</a>
             <a href="/docs" className="hover:text-foreground">Docs</a>
-            <a href={AUTH_ORIGIN} className="hover:text-foreground">Sign In</a>
+            <a href={SOCIAL_ORIGIN} className="hover:text-foreground">Sign In</a>
           </div>
         </div>
       </footer>

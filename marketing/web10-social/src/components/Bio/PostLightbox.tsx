@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight, X, Heart, MessageCircle, Edit3, Trash2, Eye, EyeOff } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Heart, MessageCircle, Edit3, Trash2, Eye, EyeOff, Share2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
@@ -38,9 +38,10 @@ interface PostLightboxProps {
   onReload?: () => void;
   postAuthor?: string;
   postService?: string;
+  isOwner?: boolean;
 }
 
-export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, postService }: PostLightboxProps) {
+export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, postService, isOwner: isOwnerProp }: PostLightboxProps) {
   const media = (post.media_refs || [])
     .map(ref => mediaMap[ref])
     .filter((m): m is MediaRecord => Boolean(m));
@@ -68,9 +69,12 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
   // Visibility toggle state
   const [togglingVisibility, setTogglingVisibility] = useState(false);
 
-  // Check if current user is the owner
+  // Share state
+  const [copied, setCopied] = useState(false);
+
+  // Check ownership: explicit prop wins, otherwise fall back to token presence (profile view)
   const token = getWapi().readToken();
-  const isOwner = token !== null; // profile posts are always owner's own
+  const isOwner = isOwnerProp !== undefined ? isOwnerProp : token !== null;
 
   const prev = useCallback(() => {
     setIndex(i => (i - 1 + media.length) % media.length);
@@ -163,6 +167,23 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
       console.error('Failed to toggle visibility:', e);
     } finally {
       setTogglingVisibility(false);
+    }
+  }
+
+  function handleShare() {
+    const url = `${window.location.origin}/u/${postAuthor || 'unknown'}/p/${post._id || 'unknown'}`;
+    if (navigator.share) {
+      navigator.share({ title: post.text?.slice(0, 100) || 'Post on web10', url }).catch(() => {
+        copyUrl();
+      });
+    } else {
+      copyUrl();
+    }
+    function copyUrl() {
+      navigator.clipboard.writeText(url).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      });
     }
   }
 
@@ -324,6 +345,25 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
             >
               <MessageCircle className="w-[18px] h-[18px]" strokeWidth={1.75} />
               <span className="tabular-nums">{commentCount || ''}</span>
+            </button>
+
+            {/* Share */}
+            <button
+              data-testid="share-button"
+              onClick={handleShare}
+              aria-label={copied ? 'Copied!' : 'Share'}
+              className={cn(
+                'flex items-center gap-1.5 px-2.5 py-2 rounded-lg min-h-10 text-sm transition-all duration-150',
+                copied
+                  ? 'text-success'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-elevated/80',
+              )}
+            >
+              {copied ? (
+                <Check className="w-[18px] h-[18px]" strokeWidth={1.75} />
+              ) : (
+                <Share2 className="w-[18px] h-[18px]" strokeWidth={1.75} />
+              )}
             </button>
           </div>
 

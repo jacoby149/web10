@@ -1,0 +1,60 @@
+name: link-health
+
+on:
+  schedule:
+    # Every day at 06:00 UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: link-health
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: check export links
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run link-health check
+        id: check
+        run: bash scripts/link-health.sh
+        continue-on-error: true
+
+      - name: Report failure as GitHub issue
+        if: steps.check.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Capture the failure output
+          output=$(bash scripts/link-health.sh 2>&1 || true)
+
+          # Build issue body
+          body="## Export Link Health Failure
+
+          **Checked:** $(date -u '+%Y-%m-%dT%H:%M:%SZ')
+          **Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+          ### Failed Links
+
+          $$(echo "$output" | sed -n '/=== FAILURE DETAILS ===/,//p' | tail -n +2 | sed 's/^/  /')
+
+          ---
+
+          This issue was auto-created by the \`link-health\` workflow. When a URL is fixed, update \`marketing/marketing-ui/src/lib/export-links.json\` and close this issue."
+
+          # Check if an open issue already exists for this failure
+          existing=$(gh issue list --search "export link health failure" --state open --json number --jq '.[0].number' 2>/dev/null || true)
+
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+            echo "Updated existing issue #$existing"
+          else
+            gh issue create \
+              --title "Export link health failure: rotted URLs detected" \
+              --label "bug" \
+              --body "$body"
+            echo "Created new issue"
+          fi

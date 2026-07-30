@@ -522,6 +522,7 @@ export default function ProfileScreen() {
           onReload={loadData}
           postAuthor={getWapi().readToken()?.username}
           postService={'public_posts'}
+          isOwner={true}
         />
       )}
     </div>

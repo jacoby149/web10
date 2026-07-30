@@ -50,7 +50,7 @@ describe('Exporter /import page', () => {
     render(<Exporter />);
     expect(screen.getByTestId('import-platform-facebook')).toHaveAttribute(
       'href',
-      'https://www.facebook.com/help/2128567812917891',
+      'https://www.facebook.com/help/212802592074644',
     );
   });
 
@@ -130,7 +130,7 @@ describe('Exporter /import page', () => {
     const { default: Exporter } = await import('@/pages/Exporter');
     render(<Exporter />);
     const step2 = screen.getByTestId('import-step-2');
-    expect(step2).toHaveTextContent('Log in to the authenticator');
+    expect(step2).toHaveTextContent('Log in');
   });
 
   it('step 3 is upload the ZIP', async () => {

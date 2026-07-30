@@ -2034,15 +2034,15 @@ in later.md "view lenses everywhere"):
     fields are BODY fields on existing message records (conventions
     addition, no api change); legacy DMs render fine without them.
     lane item D-mail-experience (ws-D/messages).
-[ ] CRM parity with the ORIGINAL crm sub-app ("the crm is actually
-    better, more on target, but missing the status colors from the old
-    crm! should have all the features of that original crm — bin and
-    sort people"): color-coded contact status (the old green/yellow/red
-    priority + color filters — components/Crm/Crm.tsx, deleted #120,
-    reference in git; crm-contacts/crm-notes services still registered),
-    sort/filter by status, richer contact fields (email/phone/company/
-    links + free-form), contact CRUD from the view. lane item
-    D-crm-upgrade (ws-D/messages).
+[✓] CRM parity with the ORIGINAL crm sub-app ("the crm is actually
+     better, more on target, but missing the status colors from the old
+     crm! should have all the features of that original crm — bin and
+     sort people"): color-coded contact status (the old green/yellow/red
+     priority + color filters — components/Crm/Crm.tsx, deleted #120,
+     reference in git; crm-contacts/crm-notes services still registered),
+     sort/filter by status, richer contact fields (email/phone/company/
+     links + free-form), contact CRUD from the view. lane item
+     D-crm-upgrade (ws-D/messages).
 
 shell:
 [ ] DEEP LINKS EVERYWHERE (operator, 26.07: "everything should be a
@@ -2087,7 +2087,7 @@ shell:
     lane item D-settings-tab (ws-D/settings).
 
 feed / lightbox (operator, 26.07 night pass, screenshots):
-[ ] FEED POSTS AREN'T CLICKABLE — "can't click the posts in the feed to
+[✓ 1.0.239] FEED POSTS AREN'T CLICKABLE — "can't click the posts in the feed to
     make them big, only on my profile." clicking any feed post should
     open the same lightbox the profile grid got in 1.0.170/1.0.180.
     on someone ELSE's post the owner actions (edit/delete) are hidden —
@@ -2278,18 +2278,18 @@ steps to complete! it should be more!"):
     your monetization (deep link to the Studio money screen in the
     authenticator) → post to the feed. each step links where it
     actually happens. lane item D-join-steps-extend (ws-D/marketing).
-[ ] step VISUALS (operator, 29.07, screenshot of the shipped strip:
-    "i like this join but, i feel like the story doesnt have good
-    icons / visuals… this doesnt feel a16z like a palantir or
-    something, but i like the clarity actually on the other hand!"):
-    the copy and clarity STAY (explicitly liked); the step cards
-    level up from bare numbered circles to real visual anchors —
-    step 1 shows the actual web10 social PWA icon, the keys-mark
-    motif for account, a money/Studio motif for monetization, a
-    composer motif for posting — with designed connectors and
-    hover states. a16z/palantir-grade storytelling with the
-    straightforwardness intact. lane item D-join-steps-visuals
-    (ws-D/marketing(2)).
+[✓ 1.0.247] step VISUALS (operator, 29.07, screenshot of the shipped strip:
+     "i like this join but, i feel like the story doesnt have good
+     icons / visuals… this doesnt feel a16z like a palantir or
+     something, but i like the clarity actually on the other hand!"):
+     the copy and clarity STAY (explicitly liked); the step cards
+     level up from bare numbered circles to real visual anchors —
+     step 1 shows the actual web10 social PWA icon, the keys-mark
+     motif for account, a money/Studio motif for monetization, a
+     composer motif for posting — with designed connectors and
+     hover states. a16z/palantir-grade storytelling with the
+     straightforwardness intact. lane item D-join-steps-visuals
+     (ws-D/marketing(2)).
 
 app store revamp (operator, 26.07, screenshot: "would be nice if it
 was all just apps… i actually liked the old app store, where they
@@ -2345,8 +2345,9 @@ PREMMIUMMM!!!!!"):
     — approval attaches to a metadata VERSION, any listing change
     (a new pwa thumbnail, say) re-enters review; the store never
     auto-pulls assets from the app's origin. moderation by
-    architecture; lane A spec note before v2 builds (see the
-    D-appstore-revamp lane item).
+architecture; lane A spec note before v2 builds (see the
+     D-appstore-revamp lane item). ✓ 1.0.239 (D37 spec in
+     .context/appstore-v2-registration-spec.md)
 
 engagement-count accuracy (operator, 26.07, screenshot: a post's badge
 says 3 comments while the expanded panel renders more than that):
@@ -2441,9 +2442,9 @@ known gaps confirmed this session (see CHANGELOG 1.0.169-1.0.174):
      chronological, full stop). port the TrendingCard language +
      presets + KnobRack/RotaryKnob/powerMean (copied, not shared) to
      DiscoverScreen; client-side re-rank, zero new api surface. lane
-     item D-inapp-discover-knobs (ws-D/discover, bites: [✓ 1.0.230] cards+controls,
-     then knobs).
-[ ] trending multimedia + AUTOPLAY (operator, 29.07: "trending lacks
+item D-inapp-discover-knobs (ws-D/discover, bites: [✓ 1.0.230] cards+controls,
+      [✓ 1.0.239] knobs).
+[✓ 1.0.245] trending multimedia + AUTOPLAY (operator, 29.07: "trending lacks
     videos and images, how are we going to compete with insta without
     multimedia on this kind of a page! also videos should auto play
     with no volume, otherwise how are we going to catch attention!"):
@@ -2454,6 +2455,18 @@ known gaps confirmed this session (see CHANGELOG 1.0.169-1.0.174):
     muted/loop/playsInline on cards, pause offscreen, sound on tap
     (insta pattern; respects prefers-reduced-motion). lane item
     D-video-autoplay-muted (ws-D/marketing).
+[ ] DM header links to profile (operator, 30.07 rant: "when i click my
+    friends bubble / name on the top of the chat, it doesnt bring me
+    to their profile"): the DM conversation header's avatar + name are
+    dead text — make them a Link to /u/:username. lane item
+    D-dm-header-profile-link (ws-D/messages, tiny).
+[ ] follow button toggles to unfollow (operator, 30.07 rant: "when i
+    hit follow, it doesnt toggle and let me unfollow!"): the toggle
+    handlers exist on both UserProfileScreen and DiscoverScreen — this
+    is a runtime failure in the unfollow path (suspects: ledger
+    cleanup throwing, stale/duplicate follow records read without a
+    status filter). repro first, capture the failing request. lane
+    item D-follow-toggle (ws-D/profile).
 
 PHASE 9 — the exporters (fill the collections)
 ----------------------------------------------
