@@ -1456,7 +1456,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         (quote into thread / prefill compose). single-recipient only.
         (merged without a changelog entry — retroactive record in
         1.0.212.)
-      bite c, CC/BCC COMPOSE: multi-recipient send (one record per
+      [✓ 1.0.231] bite c, CC/BCC COMPOSE: multi-recipient send (one record per
         recipient, cc/bcc metadata, bcc never leaks in others'
         copies) + Reply-all. gate: bite b merged.
 

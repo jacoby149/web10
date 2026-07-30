@@ -10,12 +10,14 @@ import {
   listConversations,
   readDms,
   sendDm,
+  sendDmMulti,
+  replyAllTargets,
   conversationKey as deriveConversationKey,
   updateContactNote,
   toggleSpamFlag,
   classifyThread,
 } from '@/data';
-import type { DmRecord, ContactRecord } from '@/data/types';
+import type { DmRecord, ContactRecord, DmRecipient } from '@/data/types';
 import {
   Search,
   Mail,
@@ -205,6 +207,11 @@ function ThreadDetail({
   const [sending, setSending] = useState(false);
   const [replyingTo, setReplyingTo] = useState<DmRecord | null>(null);
   const [forwardTarget, setForwardTarget] = useState<DmRecord | null>(null);
+  const [ccInput, setCcInput] = useState('');
+  const [bccInput, setBccInput] = useState('');
+  const [showCcBcc, setShowCcBcc] = useState(false);
+  const [replyAllMode, setReplyAllMode] = useState(false);
+  const [replyAllRecipients, setReplyAllRecipients] = useState<DmRecipient[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Use the thread's first message's subject as the thread subject if available
@@ -219,20 +226,54 @@ function ThreadDetail({
     return { fromName, toName, isMe };
   }
 
+  function parseRecipientList(raw: string): DmRecipient[] {
+    return raw.split(',').map(s => s.trim()).filter(Boolean).map(s => {
+      if (s.includes('/')) {
+        const [provider, username] = s.split('/');
+        return { username: username.trim(), provider: provider.trim() };
+      }
+      return { username: s, provider: token?.provider || 'web10' };
+    });
+  }
+
   async function handleSend() {
     if (!input.trim() || sending) return;
     setSending(true);
     try {
-      const msg = await sendDm(thread.conversation, input.trim(), {
-        subject: subject.trim() || undefined,
-      });
-      // Reflect the sent message in the parent's thread list immediately
-      // (operator, 29.07: Sent folder didn't update without a refresh).
-      onSent(msg);
+      const ccRecipients = ccInput.trim() ? parseRecipientList(ccInput) : [];
+      const bccRecipients = bccInput.trim() ? parseRecipientList(bccInput) : [];
+
+      if (ccRecipients.length || bccRecipients.length || replyAllMode) {
+        // Multi-recipient send
+        const primaryRecipients = replyAllMode
+          ? replyAllRecipients
+          : [{ username: thread.otherUser.split('/')[1] || thread.otherUser, provider: thread.otherUser.split('/')[0] || 'web10' }];
+        const allCreated = await sendDmMulti(
+          primaryRecipients,
+          ccRecipients,
+          bccRecipients,
+          input.trim(),
+          { subject: subject.trim() || undefined },
+        );
+        // Reflect first record in thread
+        if (allCreated.length) {
+          onSent(allCreated[0]);
+        }
+      } else {
+        const msg = await sendDm(thread.conversation, input.trim(), {
+          subject: subject.trim() || undefined,
+        });
+        onSent(msg);
+      }
       setInput('');
       setSubject('');
       setReplyingTo(null);
       setForwardTarget(null);
+      setReplyAllMode(false);
+      setReplyAllRecipients([]);
+      setCcInput('');
+      setBccInput('');
+      setShowCcBcc(false);
       onBack();
     } catch (e) {
       console.error('Failed to send message:', e);
@@ -246,7 +287,30 @@ function ThreadDetail({
     setInput(quoted);
     setSubject(msg.subject || '');
     setReplyingTo(msg);
+    setReplyAllMode(false);
+    setReplyAllRecipients([]);
+    setCcInput('');
+    setBccInput('');
     setForwardTarget(null);
+    setShowCcBcc(false);
+    setTimeout(() => inputRef.current?.focus(), 50);
+  }
+
+  function handleReplyAll(msg: DmRecord) {
+    const allTargets = replyAllTargets(msg, {
+      username: myUsername,
+      provider: token?.provider || '',
+    });
+    const quoted = `\n\n--- ${msg.sender_username} wrote (${formatTimestamp(msg.sent_at)}) ---\n${msg.message}`;
+    setInput(quoted);
+    setSubject(msg.subject || '');
+    setReplyingTo(msg);
+    setReplyAllMode(true);
+    setReplyAllRecipients(allTargets);
+    setCcInput(allTargets.map((r) => r.username).join(', '));
+    setBccInput('');
+    setForwardTarget(null);
+    setShowCcBcc(true);
     setTimeout(() => inputRef.current?.focus(), 50);
   }
 
@@ -256,6 +320,11 @@ function ThreadDetail({
     setSubject(`Fwd: ${msg.subject || 'No subject'}`);
     setForwardTarget(msg);
     setReplyingTo(null);
+    setReplyAllMode(false);
+    setReplyAllRecipients([]);
+    setCcInput('');
+    setBccInput('');
+    setShowCcBcc(true);
     setTimeout(() => inputRef.current?.focus(), 50);
   }
 
@@ -264,6 +333,11 @@ function ThreadDetail({
     setSubject('');
     setReplyingTo(null);
     setForwardTarget(null);
+    setReplyAllMode(false);
+    setReplyAllRecipients([]);
+    setCcInput('');
+    setBccInput('');
+    setShowCcBcc(false);
   }
 
   async function handleQuickSend() {
@@ -361,9 +435,21 @@ function ThreadDetail({
                     <ArrowRightLeft className="w-3 h-3 text-muted-foreground/40 shrink-0" />
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs text-muted-foreground">To:</span>
-                      <span className="text-xs font-medium text-foreground">{toName}</span>
+                      <span className="text-xs font-medium text-foreground">
+                        {msg.to?.length
+                          ? msg.to.map((r) => r.username).join(', ')
+                          : toName}
+                      </span>
                     </div>
                   </div>
+                  {msg.cc?.length && (
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-muted-foreground">Cc:</span>
+                      <span className="text-xs font-medium text-foreground">
+                        {msg.cc.map((r) => r.username).join(', ')}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-muted-foreground tabular-nums">
                       {formatTimestamp(msg.sent_at)}
@@ -390,6 +476,15 @@ function ThreadDetail({
                     Reply
                   </button>
                   <button
+                    onClick={() => handleReplyAll(msg)}
+                    className="flex items-center gap-1 px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-elevated rounded-md transition-colors duration-150"
+                    aria-label="Reply all to this message"
+                    data-testid="mail-message-reply-all"
+                  >
+                    <Reply className="w-3 h-3" />
+                    All
+                  </button>
+                  <button
                     onClick={() => handleForward(msg)}
                     className="flex items-center gap-1 px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-elevated rounded-md transition-colors duration-150"
                     aria-label="Forward this message"
@@ -410,7 +505,7 @@ function ThreadDetail({
         <div className="border-t border-border bg-surface px-3 py-2 space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-muted-foreground">
-              {replyingTo ? 'Replying' : 'Forwarding'}
+              {forwardTarget ? 'Forwarding' : replyAllMode ? 'Replying to all' : 'Replying'}
             </span>
             <button
               onClick={handleCancelCompose}
@@ -428,6 +523,42 @@ function ThreadDetail({
             data-testid="mail-compose-subject"
             className="h-8 text-xs"
           />
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowCcBcc(!showCcBcc)}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors duration-150"
+                data-testid="mail-toggle-cc-bcc"
+              >
+                {showCcBcc ? 'Hide' : 'Show'} CC/BCC
+              </button>
+            </div>
+            {showCcBcc && (
+              <>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground w-4 shrink-0">Cc</span>
+                  <Input
+                    value={ccInput}
+                    onChange={(e) => setCcInput(e.target.value)}
+                    placeholder="Comma-separated usernames"
+                    data-testid="mail-compose-cc"
+                    className="h-7 text-xs flex-1"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground w-4 shrink-0">Bcc</span>
+                  <Input
+                    value={bccInput}
+                    onChange={(e) => setBccInput(e.target.value)}
+                    placeholder="Comma-separated usernames"
+                    data-testid="mail-compose-bcc"
+                    className="h-7 text-xs flex-1"
+                  />
+                </div>
+              </>
+            )}
+          </div>
           <div className="flex gap-2">
             <Input
               ref={inputRef}
