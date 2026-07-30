@@ -159,6 +159,20 @@ pre-existing on `dev` and not caused by your branch, prove it (link
 the same failure on a `dev` run or another PR) and say so explicitly —
 never silently call a red PR ready.
 
+## UI verification: screenshots
+
+When a task requires screenshots (design.md §12, any UI acceptance bar),
+use `scripts/screenshot.sh` — no playwright install needed, no repo
+dependency. It uses `npx playwright` with a shared cache:
+
+```
+scripts/screenshot.sh http://localhost:5173/docs /tmp/docs-desktop.png --full-page
+scripts/screenshot.sh http://localhost:5173/docs /tmp/docs-mobile.png --mobile --full-page
+```
+
+First run downloads Chromium into the shared playwright cache
+(`~/Library/Caches/ms-playwright`); subsequent runs are fast.
+
 ## Branch naming conventions
 
 Every branch must use a type prefix so the history is scannable:
