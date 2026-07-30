@@ -242,8 +242,10 @@ describe('AppStore page', () => {
     const { default: AppStore } = await import('@/pages/AppStore');
     render(<AppStore />);
     await vi.waitFor(() => {
-      expect(screen.getByText('web10 social')).toBeInTheDocument();
+      // web10 social appears in the plug slot
+      expect(screen.getByTestId('plug-slot-0')).toHaveAttribute('href', 'https://social.web10.app');
     });
+    // The node console and The importer appear in the grid (plug slots only show flagship + most popular)
     expect(screen.getByText('The node console')).toBeInTheDocument();
     expect(screen.getByText('The importer')).toBeInTheDocument();
   });
@@ -269,7 +271,10 @@ describe('AppStore page', () => {
     const { default: AppStore } = await import('@/pages/AppStore');
     render(<AppStore />);
     await vi.waitFor(() => {
-      expect(screen.getByText('Flagship')).toBeInTheDocument();
+      // Flagship badge appears in the plug slot for web10 social
+      const plugSlot = screen.getByTestId('plug-slot-0');
+      expect(plugSlot).toHaveAttribute('href', 'https://social.web10.app');
+      expect(plugSlot.textContent).toContain('Flagship');
     });
   });
 });

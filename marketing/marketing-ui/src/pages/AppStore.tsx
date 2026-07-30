@@ -71,6 +71,7 @@ function resolveIcon(appUrl: string, iconSrc: string): string {
 }
 
 const KNOWN_HOSTS = ['social.web10.app', 'auth.web10.app', 'api.web10.app', 'www.web10.app', 'web10.app']
+const FLAGSHIP_HOST = 'social.web10.app'
 
 interface StoreApp {
   name: string
@@ -79,6 +80,15 @@ interface StoreApp {
   iconSrc?: string
   visits: number
   flagship?: boolean
+}
+
+interface PlugSlot {
+  name: string
+  description: string
+  href: string
+  iconSrc?: string
+  visits: number
+  badge: string
 }
 
 function AppStore() {
@@ -146,7 +156,7 @@ function AppStore() {
         href: SOCIAL_ORIGIN,
         iconSrc: ICON_PATH,
         visits: stats?.apps.find(
-          (a) => hostOf(a.url) === 'social.web10.app',
+          (a) => hostOf(a.url) === FLAGSHIP_HOST,
         )?.visits ?? 0,
         flagship: true,
       },
@@ -182,6 +192,43 @@ function AppStore() {
     return [...firstParty, ...registered].sort((a, b) => b.visits - a.visits)
   }, [stats])
 
+  const plugSlots: PlugSlot[] = useMemo(() => {
+    if (!allApps.length) return []
+
+    const flagshipApp = allApps.find((a) => hostOf(a.href) === FLAGSHIP_HOST)
+    if (!flagshipApp) return []
+
+    const plugs: PlugSlot[] = []
+
+    // FLAGSHIP — always first
+    plugs.push({
+      name: flagshipApp.name,
+      description: flagshipApp.description,
+      href: flagshipApp.href,
+      iconSrc: flagshipApp.iconSrc,
+      visits: flagshipApp.visits,
+      badge: 'Flagship',
+    })
+
+    // MOST POPULAR — #1 by visits that isn't the flagship
+    const mostPopular = allApps.find((a) => hostOf(a.href) !== FLAGSHIP_HOST)
+    if (mostPopular) {
+      plugs.push({
+        name: mostPopular.name,
+        description: mostPopular.description,
+        href: mostPopular.href,
+        iconSrc: mostPopular.iconSrc,
+        visits: mostPopular.visits,
+        badge: 'Most Popular',
+      })
+    }
+
+    // NEWEST — not available from the public /stats endpoint (no registered_at field)
+    // Degrades gracefully: slot simply doesn't render
+
+    return plugs
+  }, [allApps])
+
   return (
     <div className="min-h-screen bg-background px-4 py-16 text-foreground sm:px-6 sm:py-24">
       <div className="mx-auto max-w-5xl">
@@ -209,6 +256,27 @@ function AppStore() {
           </p>
         </div>
 
+        {/* Plug slots — curated, above the grid */}
+        {!loading && plugSlots.length > 0 && (
+          <div className="reveal mt-12 flex flex-col gap-4" data-testid="plug-slots">
+            {plugSlots.map((plug, i) => (
+              <AppCard
+                key={plug.href}
+                size="plug"
+                iconSrc={plug.iconSrc}
+                iconLetter={plug.name.charAt(0)}
+                name={plug.name}
+                description={plug.description}
+                href={plug.href}
+                visits={plug.visits}
+                badge={plug.badge}
+                data-testid={`plug-slot-${i}`}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Uniform grid */}
         <div className="reveal mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {loading
             ? Array.from({ length: 6 }).map((_, i) => (
@@ -221,7 +289,7 @@ function AppStore() {
                   data-testid={`app-card-skeleton-${i}`}
                 />
               ))
-            : allApps.map((app, i) => (
+            : allApps.filter((app) => !plugSlots.some((p) => p.href === app.href)).map((app, i) => (
                 <AppCard
                   key={app.href}
                   iconSrc={app.iconSrc}
