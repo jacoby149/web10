@@ -1,4 +1,5 @@
 1.0.251 || 30.07.2026
+fix(web10-social): D-dm-header-profile-link — DM conversation header avatar + display name now wrap in a Link to /u/:username. Clicking either navigates to the other user's profile; browser back returns to the thread. Back and delete-conversation buttons untouched. 368 tests green, tsc clean.
 feat(marketing-ui): D-appstore-browse — browse grid is now uniform small cards (icon, name, visits; no description text) with a client-side search bar filtering apps by name. AppCard gains `size='browse'` variant with fixed-height cells. Plug slots untouched. 167 tests green, tsc clean, vite build clean.
 
 1.0.250 || 30.07.2026

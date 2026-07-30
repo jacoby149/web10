@@ -2193,7 +2193,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       tests + tsc green; screenshot the hero at desktop + 375px and
       LOOK. gate: none.
 
-[ ] D-dm-header-profile-link (sub-lane ws-D/messages, TINY; operator,
+[✓ 1.0.251] D-dm-header-profile-link (sub-lane ws-D/messages, TINY; operator,
       30.07 rant: "i am in the chat, when i click my friends bubble /
       name on the top of the chat, it doesnt bring me to their
       profile."): the DM conversation header in DmsScreen.tsx
