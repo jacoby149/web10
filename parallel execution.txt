@@ -2343,11 +2343,57 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       BITES (rule 5 — one PR each): v1 is ONE bite (the card-grid
       rework — one page, bounded). v2 splits: bite a, PRODUCT PAGE
       (detail route: big logo, description, visits, Open — no
-      comments yet); bite b, APP COMMENTS (the D32 ledger panel on
-      the product page; gate: bite a); bite c is LANE A's
+      comments yet); bite b, APP COMMENTS + STAR RATINGS (the D32
+      ledger panel on the product page, PLUS 1-5 star reviews —
+      operator, 29.07 rant: "people can comment on them and give
+      them a review from 1 to 5 stars!" a review is a ledger entry
+      with a rating field; the product page shows the average +
+      count, the browse cards show the stars — see
+      D-appstore-browse); bite c is LANE A's
       registration-shape spec note (a .context/decisions.md write-up,
       no code — gates the rewire build, which bites separately once
-      specced).
+      specced). ALSO folded into v2 (operator, 29.07 rant): "would
+      be cool if these all get on the #web10apps thread on web10
+      social, or something like that!" — every registered app
+      surfaces as a post on the #web10apps hashtag on web10 social
+      (the store's catalog becomes discoverable/commentable IN the
+      app; the product page's comment panel and the social thread
+      read the SAME ledger entries targeting the app id — one
+      conversation, two lenses, the apps-are-lenses thesis again).
+      the social-side surfacing bites with the registration rewire
+      (it needs the App-schema public entries to exist — lane A's
+      spec note should spec the #web10apps projection explicitly).
+
+[ ] D-appstore-browse (sub-lane ws-D/marketing(2), AFTER
+      D-appstore-plugs — same AppStore page; operator, 29.07 rant,
+      two screenshots — the uneven v1 grid + a small icon+name-only
+      card as the desired size): "if the cards were like that big
+      with purely the number of visits, and rating, and then you
+      click them and see something more fully featured app store
+      style… since the descriptions arent even on the display of
+      the apps… also these are the non featured apps i am talking
+      about this is the browse, in the browse they will all be the
+      same size! also would love a search bar in the browse! to
+      search web10 apps~!": the BROWSE grid (everything below the
+      plug slots) becomes UNIFORM SMALL CARDS — big icon, name,
+      visits, star rating (once v2 bite b lands; until then the
+      rating slot hides, never a fake 0) — NO description text on
+      the card (the current "Registered on web10." placeholders are
+      why the cards are uneven; descriptions live on the product
+      page). every browse card the SAME size, always — fixed-height
+      grid cells, no content-dependent stretching. click a card →
+      the v2 product page (the full app-store-style detail). PLUS a
+      SEARCH BAR in the browse section — client-side filter over
+      the loaded catalog by name (the catalog is small; no server
+      search needed — say so honestly if it outgrows). files:
+      marketing-ui AppStore.tsx + AppCard.tsx. acceptance: every
+      browse card identical dimensions with icon/name/visits (+
+      rating when it exists); descriptions nowhere in the browse;
+      search filters live; click-through to the product page (or a
+      graceful "product page coming soon" if v2 bite a hasn't
+      landed — coordinate via .context/); screenshots desktop +
+      375px and LOOK. gate: D-appstore-plugs (the plugs own the top
+      of the page; the browse is everything below).
 
 [ ] D-appstore-plugs (sub-lane ws-D/marketing(2), AFTER D-appstore-revamp
       v1 — same AppStore page; operator, 29.07, partial REVERSAL of
@@ -2876,10 +2922,13 @@ fully refreshed — eight sub-lanes drained or advanced this batch.
                      removed in 1.0.213; D-graph-token-polish dies with
                      it. park record in later.md.)
     ws-D/marketing(2): D-appstore-plugs (NEW, operator 29.07 — see
-                     the lane item), THEN D-appstore-revamp v2 bite a
-                     (product page; gate: the lane-A spec note for the
-                     full rewire, but bite a reads the legacy store
-                     as-is — NOT gated on it). ALSO PARALLEL-SAFE here:
+                     the lane item), THEN D-appstore-browse (NEW,
+                     operator 29.07 rant — uniform small browse
+                     cards: icon/name/visits/rating, no descriptions,
+                     + browse search bar), THEN D-appstore-revamp v2
+                     bite a (product page; gate: the lane-A spec note
+                     for the full rewire, but bite a reads the legacy
+                     store as-is — NOT gated on it). ALSO PARALLEL-SAFE here:
                      D-import-revamp bite a (operator 29.07 rant —
                      the /join-style import step strip + platform
                      export links; Exporter.tsx seam, disjoint from
