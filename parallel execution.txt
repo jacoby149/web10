@@ -934,6 +934,12 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         profile.ts. gate: none — gauntlet step 6 ("your profile reads
         as a creator page you'd screenshot") doesn't survive F5 today.
 [~ half: ✓ 1.0.162] D-user-profile-media (sub-lane D/profile). USER PROFILE AVATAR/BANNER BROKEN —
+        OPERATOR RE-CONFIRMED 30.07 (rant): "when i go to someones
+        profile, i dont see their profile photos" — STILL the live
+        behavior on prod AFTER D-public-media-client bite b (#344)
+        merged. the gate is no longer "path doesn't exist" — it's
+        "path never verified end-to-end": run D-public-media-verify
+        (below) FIRST, then this.
         STATUS (24.07): the avatar/banner half LANDED in 1.0.162 (#284 —
         loadData now resolves refs and populates mediaMap). REMAINING:
         the post-media-in-grid half below — and it is GATED on the
@@ -1829,6 +1835,11 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
 [ ] D-deep-links (sub-lane ws-D/shell; operator, 26.07: "everything
       should be a deep hyperlink on web10 social… every screen
       shareable, or bookmarkable if it's a private screen like dms" —
+      OPERATOR PRIORITY CALL, 30.07 rant: "i guess when we make every
+      screen in the address bar have a link to it, that will happen.
+      maybe lets have that address bar for every screen be a priority
+      for the next web10web10!" — this item is the PRIORITY of the
+      next kickoff batch; stage its bites first. —
       and the rationale: marketing /trending click-throughs land on
       the EXACT thing: "when you click the comment [it] can bring up
       the post to that exact comment… makes it polished, aka
@@ -2234,7 +2245,55 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       decrements; a vitest regression on the toggle round-trip;
       social tests + tsc green. gate: none.
 
-[✓ 1.0.230] D-search-fulltext (sub-lane ws-D/marketing, AFTER D-marketing-search
+[ ] D-public-media-verify (sub-lane ws-D/profile, TINY — the gate-clearing
+      bite; operator, 30.07 rant: "when i go to someones profile, i
+      dont see their profile photos"): the public-media read path is
+      fully MERGED (A12 api 1.0.164, D-public-media-client bites a+b
+      #311/#344) but was never verified END TO END — the board gate on
+      D-feed-avatar-resolution + the D-user-profile-media grid half
+      says exactly that ("needs the dev verification step"), and the
+      operator's 30.07 report says it still doesn't work on prod.
+      this bite is the verification, not a feature: on the LOCAL
+      compose stack, two real accounts — A uploads an avatar + a
+      public post with a photo; B views A's /u/A profile and feed.
+      capture, in the PR: every cross-user media request's status
+      (expect 200s, zero 403s), which code path served it
+      (public_media presign vs legacy media fallback), and console
+      errors. whatever breaks IS the finding — fix it in this PR if
+      it's a one-file client bug; if it's api-side or the un-run
+      E-run-discovery-migration backfill (A17 media fields reach
+      existing index docs only via the RE-RUN — operator-gated), name
+      it explicitly and re-gate accordingly. THEN un-tick the gate on
+      D-feed-avatar-resolution + the D-user-profile-media grid half.
+      owns marketing/web10-social/** (read-only diagnosis + small
+      client fix only). acceptance: B sees A's avatar + post photo
+      with zero 403s on the local stack, OR the PR names the exact
+      remaining blocker with evidence; social tests + tsc green.
+      gate: none.
+
+[ ] D-own-profile-canonical (sub-lane ws-D/shell, TINY; operator, 30.07
+      rant: "when i click my username, it goes to my profile page
+      instead of just /profile it goes to profile/u/jacoby149 — lets
+      just have it always be profile/u/jacoby149!"): clicking your own
+      username lands on the bare /profile route; the operator wants
+      the canonical URL to ALWAYS be the /u/:username form — your own
+      profile is just your user profile. fix: every own-profile
+      navigation (the sidebar username/avatar link in Social/
+      Layout.tsx, any other own-profile entry point) navigates to
+      /u/<your-username>; the /profile route becomes a REDIRECT to
+      /u/:username for the signed-in user (back-compat for existing
+      bookmarks/links — never 404 a shipped route), and UserProfileScreen
+      renders your own profile with the owner affordances (edit etc.)
+      it already gates on is-own-profile — VERIFY that gate works on
+      the /u/ route for the owner, don't build a second own-profile
+      screen. files: web10-social/src/App.tsx (redirect route),
+      components/Social/Layout.tsx (link target). acceptance: clicking
+      your username lands on /u/<you>; /profile redirects to /u/<you>;
+      refresh + back/forward work; your own /u/ page still shows the
+      owner edit affordances; social tests + tsc green; screenshots
+      desktop + 375px. gate: none.
+
+
       bite b — same Trending.tsx seam; operator, 27.07: "searching only
       searches tags also. it doesnt search the other things"): a word
       that appears only in a post's BODY returns nothing; author handles
@@ -3054,7 +3113,16 @@ mode wiring in e2e. New since audit #14 (all filed, none built):
 D-dm-header-profile-link + D-follow-toggle (30.07 rant filings #413),
 D-home-stats-bar-styling (30.07 rant — kill the stats-bar border,
 "data liberated" as the third label, builder's taste on cards vs
-bare). GATES CLEARED this pass: D-lightbox-media-sizing (feed-lightbox
+bare). 30.07 LATE-RANT FILINGS (this branch, docs only):
+D-public-media-verify (operator: "when i go to someones profile, i
+dont see their profile photos" — the public-media path is merged but
+never verified end-to-end; this TINY bite is the gate-clearer for
+D-feed-avatar-resolution + the D-user-profile-media grid half),
+D-own-profile-canonical (operator: own profile should ALWAYS live at
+/u/<you> — /profile becomes a redirect), and D-deep-links is the
+operator-called PRIORITY of the next kickoff batch ("lets have that
+address bar for every screen be a priority for the next
+web10web10!"). GATES CLEARED this pass: D-lightbox-media-sizing (feed-lightbox
 bite b merged 1.0.248 — the PostLightbox seam cluster is free) and
 D-deep-links (the 26.07 fleet fully drained — it is FIRST now, one
 bite per screen per its BITES breakdown). ALIGNMENT: unchanged — every
@@ -3073,14 +3141,22 @@ the M2 money-path referee (C8); no infra-company drift. QWEN HORIZON:
       via the compat filter, so this is cleanup, not a blocker).
 
   PARALLEL-SAFE FLEET (one workspace per sub-lane; chains WITHIN a
-  sub-lane are sequential, file seams):
+  sub-lane are sequential, file seams). OPERATOR PRIORITY CALL (30.07
+  rant): D-deep-links is the priority of the next kickoff batch —
+  "lets have that address bar for every screen be a priority" — stage
+  its per-screen bites FIRST (one workspace, ws-D/shell cross-screen
+  seam, never concurrent with any ws-D chain), alongside:
     ws-D/messages:   D-dm-header-profile-link (TINY, no gate), THEN
                      D-deep-links bite 1 (messages thread key + view
                      param — same DmsScreen seam, sequential)
-    ws-D/profile:    D-follow-toggle (runtime bug, operator rant — REPRO
-                     first), THEN D-lightbox-media-sizing (gate CLEARED
+    ws-D/profile:    D-public-media-verify (TINY, no gate — the
+                     gate-CLEARER for the two GATED media items below),
+                     THEN D-lightbox-media-sizing (gate CLEARED
                      this pass), THEN D-profile-image-placement,
                      D-follow-lists, D-text-post-cards (chain order)
+    ws-D/shell:      D-own-profile-canonical (TINY, no gate — own
+                     profile always at /u/<you>, /profile redirects),
+                     THEN D-mobile-feature-gap (no gate)
     ws-D/feed:       D-link-embeds (feed-lightbox drained — the lane is
                      free; gate D-profile-post-experience long merged)
     ws-D/marketing:  [✓ 1.0.253] D-appstore-revamp v2 bite a (product page UI —
@@ -3092,7 +3168,6 @@ the M2 money-path referee (C8); no infra-company drift. QWEN HORIZON:
                      D-home-stats-bar-styling (SMALL, no gate) —
                      disjoint seams (AppStore.tsx vs Home.tsx), two
                      workspaces OK
-    ws-D/shell:      D-mobile-feature-gap (no gate)
     ws-C:            C8 remainder — bite b (membership subscribe journey,
                      3% split asserted) + bite c (twilio honest half);
                      staged with the M2-prereq block, not the gauntlet
@@ -3104,8 +3179,9 @@ the M2 money-path referee (C8); no infra-company drift. QWEN HORIZON:
       D-night-owl bites b-e (gate: operator's Conductor Pro trial).
       D-poke build (gate: operator sign-off on the 1.0.179 proposal).
       D-feed-avatar-resolution + the D-user-profile-media grid half
-        (gate: public-media path END TO END — needs the dev verification
-        step).
+        (gate: D-public-media-verify — the merged public-media path
+        verified END TO END; operator re-confirmed 30.07 it's still
+        broken on prod).
       D-coming-soon-builds (gate: per-surface spec first).
       D-appstore category rails (gate: catalog size).
       E-run-discovery-migration (gate: admin token — operator provides).

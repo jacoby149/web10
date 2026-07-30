@@ -2477,6 +2477,28 @@ D-dm-header-profile-link (ws-D/messages, tiny). merged 1.0.251.
     bare-on-background vs sleek individual cards is the builder's
     taste call against design.md §12. lane item
     D-home-stats-bar-styling (ws-D/marketing(2), small).
+[ ] profile photos on someone else's profile (operator, 30.07 rant:
+    "when i go to someones profile, i dont see their profile photos"):
+    the public-media read path (A12 + D-public-media-client, D35) is
+    fully merged but was never verified end-to-end — and the operator
+    confirms it's still broken on prod. the fix queue: FIRST
+    D-public-media-verify (ws-D/profile, tiny — two real accounts on
+    the local stack, capture every cross-user media request's status,
+    fix or name the exact blocker), which clears the gate on
+    D-feed-avatar-resolution + the D-user-profile-media grid half.
+[ ] own profile at the canonical /u URL (operator, 30.07 rant: "when i
+    click my username, it goes to my profile page instead of just
+    /profile it goes to profile/u/jacoby149 — lets just have it always
+    be profile/u/jacoby149!"): your own profile always lives at
+    /u/<you>; /profile becomes a redirect (back-compat, never 404 a
+    shipped route). lane item D-own-profile-canonical (ws-D/shell,
+    tiny).
+[ ] ADDRESS BAR EVERYWHERE — operator priority call (30.07 rant: "i
+    guess when we make every screen in the address bar have a link to
+    it, that will happen. maybe lets have that address bar for every
+    screen be a priority for the next web10web10!"): D-deep-links
+    (above, the 26.07 item) is the PRIORITY of the next kickoff batch
+    — stage its per-screen bites first.
 
 PHASE 9 — the exporters (fill the collections)
 ----------------------------------------------
