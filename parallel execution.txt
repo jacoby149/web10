@@ -1997,6 +1997,34 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       in staging, and see their old life on web10 social — with the
       originals deleted from the bucket. each bite has its own bar
       in its kickoff.
+
+[ ] D-import-export-links-dead (sub-lane ws-D/marketing(2), SMALL;
+      operator, 30.07 rant, screenshot of /import step 1's five
+      platform buttons: "those are actually all dead links, do you
+      have any creative ideas on how to do that right? should it
+      link to an llm with q=?, with the query how to export data?
+      redirect the user? just ranting"): bite a (1.0.231) hardcoded
+      five platform help-article URLs in Exporter.tsx
+      (EXPORT_LINKS, lines ~7-11 — facebook.com/help/…,
+      takeout.google.com, help.instagram.com/…, tiktok.com/support/…)
+      and they ROT — platforms move/retire help articles, so the
+      step-1 buttons 404. fix so each button lands on a WORKING,
+      current export path. options on the table (builder picks,
+      says why in the PR — operator is open to creativity here):
+      (1) link the platform's IN-PRODUCT export surface instead of
+      help articles where one exists (e.g. facebook.com/dyi,
+      takeout.google.com — product URLs rot slower than help
+      articles); (2) the operator's LLM idea — link to an llm with
+      a prefilled query ("how do I export my data from <platform>
+      as a zip, step by step, current year") so the answer is
+      always current; (3) a hybrid: product URL primary + our own
+      maintained /docs export-guide page as fallback that we can
+      update without a release. whatever the pick, EVERY one of the
+      five buttons must be clicked and verified to land somewhere
+      real. acceptance: all five platform buttons verified live
+      (state in the PR what each lands on); marketing-ui tests +
+      tsc green; screenshot step 1 and LOOK. gate: none.
+
 [ ] D-home-stats-bar (sub-lane ws-D/marketing(2); SEAM: Home.tsx —
       disjoint from AppStore/Join files; operator, 29.07 rant,
       screenshot of the App Store subtitle's inline counts: "on the
@@ -2032,7 +2060,12 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       screenshot of /docs "The premise, made concrete" rendering as
       raw pipe soup: "on the docs, are these absolute value signs on
       purpose????? it looks jank aff, i actually see that all over
-      the docs, i dont think that is on purpose"): NOT on purpose —
+      the docs, i dont think that is on purpose"). STILL OPEN —
+      operator re-confirmed 30.07 (second screenshot, same premise
+      table still pipe soup: "more ranting i do still see the
+      markdown looking meh with the || signs, has that been worked
+      on yet?") — bumped: this is now a TWICE-complained item,
+      prioritize it in the next kickoff batch: NOT on purpose —
       the docs markdown pipeline (Docs.tsx:100,
       `remark().use(remarkHtml)`) has NO remark-gfm, so every GFM
       table in the docs .md files renders as literal `| --- |` text.
@@ -2069,6 +2102,18 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       Sign In lands on the social app; every auth-origin link left
       standing has a one-line justification in the PR; marketing-ui
       tests + tsc green. gate: none.
+
+[ ] D-hero-cta-label (sub-lane ws-D/marketing, TINY; operator, 30.07
+      rant, screenshot of the homepage hero button: "we can have this
+      say enter web10! but it goes to web10 social! that is fine"):
+      the hero CTA (marketing-ui src/pages/Home.tsx, the
+      `<a href={SOCIAL_ORIGIN}>Enter web10 social</a>` button) should
+      read "Enter web10!" — the destination is already correct
+      (SOCIAL_ORIGIN, fixed in 1.0.215); this is a LABEL-ONLY change,
+      do not touch the href. acceptance: the hero button reads
+      "Enter web10!" and still links to SOCIAL_ORIGIN; marketing-ui
+      tests + tsc green; screenshot the hero at desktop + 375px and
+      LOOK. gate: none.
 
 [✓ 1.0.230] D-search-fulltext (sub-lane ws-D/marketing, AFTER D-marketing-search
       bite b — same Trending.tsx seam; operator, 27.07: "searching only
