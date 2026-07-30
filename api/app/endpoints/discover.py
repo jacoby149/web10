@@ -76,3 +76,24 @@ async def discover_post(username: str, service: str, post_id: str, token: Token 
     if not post:
         raise exceptions.ENTRY_NOT_FOUND
     return post
+
+
+@router.patch("/discover/app/{web10apps_post_id}", tags=["discovery"])
+async def discover_app(web10apps_post_id: str, token: Token | None = None):
+    """Look up an app's product page data by its web10apps_post_id (D37).
+    Returns the app record + aggregated ratings. Public read."""
+    app = db["web10"]["apps"].find_one({"web10apps_post_id": web10apps_post_id})
+    if not app or app.get("review_state") != "approved":
+        raise exceptions.ENTRY_NOT_FOUND
+    ratings = db._aggregate_app_ratings(web10apps_post_id)
+    return {
+        "url": app["url"],
+        "name": app.get("name", ""),
+        "description": app.get("description", ""),
+        "icon_url": app.get("icon_url"),
+        "screenshots": app.get("screenshots", []),
+        "visits": app.get("visits", 0),
+        "web10apps_post_id": web10apps_post_id,
+        "rating_average": round(ratings["average"], 1) if ratings["count"] else None,
+        "rating_count": ratings["count"],
+    }
