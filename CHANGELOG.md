@@ -1,3 +1,6 @@
+1.0.247 || 30.07.2026
+feat(web10-social): D-feed-lightbox bite b — Share + permalink route. Every post in PostLightbox now has a Share action (navigator.share + clipboard fallback with a 2s "Copied!" confirmation). New `/u/:username/p/:postId` route opens the PostLightbox over the profile with the specified post; unknown post IDs fall back to the profile. PostLightbox gains an `isOwner` prop (explicit wins, fallback to token presence) so feed posts hide owner actions. 368 tests green, tsc clean.
+
 1.0.245 || 30.07.2026
 fix(marketing-ui): D-nav-signin-social — ALL sign-in links in marketing-ui now point to SOCIAL_ORIGIN (web10 social), not AUTH_ORIGIN (the authenticator). Navbar Sign In (desktop + mobile), footer Sign In (Home, Exporter, Join), Join step-2 "Create your account", and Exporter step-2 "Log in" all flip to social. Two AUTH_ORIGIN links remain: AppStore "The node console" (operator/admin surface, separate app) and Join step-3 "Set up your monetization" → Studio (operator tool). 161 marketing-ui tests green, tsc clean.
 1.0.246 || 30.07.2026
