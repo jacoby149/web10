@@ -82,8 +82,18 @@ async def discover_post(username: str, service: str, post_id: str, token: Token 
 async def discover_app(web10apps_post_id: str, token: Token | None = None):
     """Look up an app's product page data by its web10apps_post_id (D37).
     Returns the app record + aggregated ratings. Public read."""
-    app = db["web10"]["apps"].find_one({"web10apps_post_id": web10apps_post_id})
-    if not app or app.get("review_state") != "approved":
+    # Compat filter: match v2 review_state=="approved" OR legacy approved:true
+    # with no review_state field (pre-migration).
+    app = db["web10"]["apps"].find_one(
+        {
+            "web10apps_post_id": web10apps_post_id,
+            "$or": [
+                {"review_state": "approved"},
+                {"review_state": {"$exists": False}, "approved": True},
+            ],
+        }
+    )
+    if not app:
         raise exceptions.ENTRY_NOT_FOUND
     ratings = db._aggregate_app_ratings(web10apps_post_id)
     return {
