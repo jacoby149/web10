@@ -2482,6 +2482,18 @@ D-dm-header-profile-link (ws-D/messages, tiny). merged 1.0.251.
     bare-on-background vs sleek individual cards is the builder's
     taste call against design.md §12. lane item
     D-home-stats-bar-styling (ws-D/marketing(2), small).
+[ ] another user's profile shows HIS stats + posts (operator, 30.07
+    rant, screenshot of /u/coolguydavid: "i dont see how many hes
+    following and how many followers! nor do i see his posts but i
+    know he has a post"): three confirmed UserProfileScreen bugs —
+    the "Following" count is the VIEWER's own countFollows() (and is
+    first set from posts_count, a mixup); the Followers tile vanishes
+    when the user is outside the client-side-filtered
+    /discover/users?limit=100; the post grid filters
+    /discover/posts?limit=50 client-side so his indexed post is cut.
+    fix: per-user counts from the public ledger (never the viewer's),
+    posts via a per-author discovery query. lane item
+    D-user-profile-stats (ws-D/profile).
 [ ] self-engagement counts (operator, 30.07 rant: "when i like my own
     posts it gives 0 likes, it should be one like! self likes count!
     same for comments, shares"): PRODUCT DECISION — self-engagement
