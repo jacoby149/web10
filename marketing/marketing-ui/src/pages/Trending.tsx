@@ -120,7 +120,7 @@ async function fetchSearchResults(query: string, limit = 50): Promise<FeedPost[]
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ query: { q: query, limit } }),
   });
-  if (!resp.ok) return [];
+  if (!resp.ok) throw new Error(`Search failed (${resp.status})`);
   const results = await resp.json();
   return results.map(mapDiscoveryToFeedPost);
 }
@@ -175,6 +175,7 @@ function Trending() {
   const [searchUsers, setSearchUsers] = useState<DiscoverUser[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchSearched, setSearchSearched] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const loadFeed = useCallback(async (nextLimit: number, append: boolean) => {
@@ -240,10 +241,12 @@ function Trending() {
       setSearchResults([]);
       setSearchUsers([]);
       setSearchSearched(false);
+      setSearchError(null);
       return;
     }
     setSearchLoading(true);
     setSearchSearched(true);
+    setSearchError(null);
     trackFunnel('trending_search', { query: trimmed.startsWith('#') ? 'tag' : 'text' });
     try {
       const cleaned = trimmed.startsWith('#') ? trimmed.slice(1) : trimmed;
@@ -259,9 +262,10 @@ function Trending() {
             u.username.toLowerCase().includes(cleaned.toLowerCase()),
           );
       setSearchUsers(filteredUsers);
-    } catch {
+    } catch (err) {
       setSearchResults([]);
       setSearchUsers([]);
+      setSearchError(err instanceof Error ? err.message : 'Search failed');
     } finally {
       setSearchLoading(false);
     }
@@ -282,6 +286,7 @@ function Trending() {
     setSearchResults([]);
     setSearchUsers([]);
     setSearchSearched(false);
+    setSearchError(null);
     clearTimeout(debouncedSearch.current);
   }, []);
 
@@ -501,6 +506,33 @@ function Trending() {
                   {Array.from({ length: 5 }).map((_, i) => (
                     <TrendingSkeleton key={i} />
                   ))}
+                </div>
+              ) : searchError ? (
+                <div
+                  data-testid="trending-search-error"
+                  className="mx-auto flex max-w-md flex-col items-center rounded-xl border border-danger/30 bg-danger-muted/50 px-6 py-16 text-center"
+                >
+                  <MessageCircleOff className="h-10 w-10 text-danger" strokeWidth={1.5} />
+                  <h2 className="mt-4 font-display text-xl font-semibold text-foreground">
+                    Search unavailable
+                  </h2>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {searchError}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => { setSearchError(null); doSearch(searchQuery); }}
+                    className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                  >
+                    Try again
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSearchClear}
+                    className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                  >
+                    Clear search
+                  </button>
                 </div>
               ) : (
                 <>

@@ -1027,6 +1027,12 @@ def query_discovery_posts(sort_by: str = "recent", limit: int = 50, skip: int = 
 def search_discovery_posts(query: str, limit: int = 50, skip: int = 0) -> list[dict]:
     """Full-text search the discovery index, most recent first.
 
+    Two-stage search:
+    1. MongoDB ``$text`` query over (body_text, tags) for whole-word + tag matches.
+    2. Case-insensitive substring regex fallback over body_text AND author for
+       short queries (≤ 2 words) — this catches partial matches like "yo"
+       finding "yoyoyo" that $text misses.
+
     We deliberately do NOT use a ``{"$meta": "textScore"}`` projection/sort:
     on FerretDB a meta projection returns only ``_id`` + score (dropping the
     document fields), which breaks the downstream projection. Returning full
@@ -1034,12 +1040,48 @@ def search_discovery_posts(query: str, limit: int = 50, skip: int = 0) -> list[d
     relevance ranking on the small discovery index isn't worth the
     incompatibility.
     """
+    import re
+
     _ensure_discovery_collection()
     col = db["web10"][DISCOVERY_COLLECTION]
-    docs = list(
-        col.find({"$text": {"$search": query}, "removed": {"$ne": True}}).sort("created_at", -1).skip(skip).limit(limit)
+    visible = {"removed": {"$ne": True}}
+
+    # Stage 1: $text whole-word search over body_text + tags
+    text_docs = list(
+        col.find({**visible, "$text": {"$search": query}})
+        .sort("created_at", -1)
     )
-    return [_discovery_post_to_dict(d) for d in docs]
+    seen_ids = {d["_id"] for d in text_docs}
+
+    # Stage 2: substring regex fallback for short queries (≤ 2 words).
+    # Escaped so user input can't be regex. Covers body_text AND author
+    # so searching a handle finds that author's posts.
+    regex_docs = []
+    if query and len(query.split()) <= 2:
+        safe = re.escape(query)
+        try:
+            regex_docs = list(
+                col.find({
+                    **visible,
+                    "$or": [
+                        {"body_text": {"$regex": safe, "$options": "i"}},
+                        {"author": {"$regex": safe, "$options": "i"}},
+                    ],
+                })
+                .sort("created_at", -1)
+            )
+        except Exception:
+            # Fallback failure is non-fatal — text results still work
+            pass
+
+    # Merge: text results first, then new regex hits, deduplicated, sorted by recency.
+    for d in regex_docs:
+        if d["_id"] not in seen_ids:
+            text_docs.append(d)
+            seen_ids.add(d["_id"])
+
+    text_docs.sort(key=lambda d: d.get("created_at", ""), reverse=True)
+    return [_discovery_post_to_dict(d) for d in text_docs[skip : skip + limit]]
 
 
 def trending_topics(limit: int = 20) -> list[dict]:
