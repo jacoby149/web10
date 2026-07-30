@@ -2842,8 +2842,40 @@ M3 "the network"         = encryption integration (A rtc + C2 sdk
                            polish. the last big merge.
 
 
-CURRENT CONDUCTOR BOARD (as of 29.07.2026 — audit #10; keep fresh)
+CURRENT CONDUCTOR BOARD (as of 30.07.2026 — audit #11; keep fresh)
 --------------------------------------------------------------------
+AUDIT #11 REFRESH (30.07): SHIPPED ×2 in one day. (1) The morning
+batch (#359–#368) promoted via #369 (see audit #10). (2) The
+evening MERGE TRAIN: 11 queued PRs (#371–#382 — graph removal,
+hero CTA + all-sign-in-links → web10 social, DM recency sort, mail
+Sent instant refresh, the `imma rant` command + D36 knobs sign-off,
+and 8 rant filings: docs-gfm, nav-signin, home-stats-bar,
+import-revamp + TikTok/web10-export, appstore-browse + star
+ratings/#web10apps, search-substring confirmation, A18/D-engagement-
+target P1 diagnosis) merged same-session with local union-merges
+(GitHub can't union CHANGELOG.md — every branch needed the local
+merge + spacing restore; three needed renumbers: 1.0.222→1.0.225,
+1.0.223→1.0.227, 1.0.225→1.0.228), gated CLEAN (e2e green at the
+last code push #377, deploys green, no api/auth/DB touches) and
+promoted dev→main via merge commit (#383); deploy-prod + cd + e2e
+on main ALL green; prod verified live (7/7 public endpoints).
+Zero open PRs; fleet idle and the board is FULL of filed bites.
+PROCESS NOTE for the fleet: six+ simultaneous docs branches all
+prepending CHANGELOG.md guarantees GitHub-side conflicts — the
+local union-merge + spacing + renumber ritual in AGENTS.md handled
+every one; keep rant filings on ONE branch per session when
+possible (cheaper than five). ALIGNMENT: unchanged — every open
+item is operator-complaint-driven social-product/funnel work; the
+graph park reduced showcase drift; the import revamp has an infra
+flavor (queue plumbing) but is operator-mandated product work
+(day-one-empty is core to the thesis). QWEN HORIZON: ~14 filed
+parallel-safe bites (A18, engagement-target-client, C8a, mail
+bite c, search-fulltext, trending-controls, docs-gfm, nav-signin,
+video-autoplay, appstore-plugs, appstore-browse, import-revamp
+bite a, join-steps-visuals, home-stats-bar, discover-knobs bite a,
+the appstore spec note) across 9 sub-lanes, ~25+ chained PRs
+behind them — Qwens run independently.
+
 AUDIT #10 REFRESH (29.07): SHIPPED. The 17-commit dev batch (#359–#368
 — profile message button, A15 engagement-count fix, CRM status colors,
 graph app bite a, follow backfill, appstore revamp v1, settings bite b,
