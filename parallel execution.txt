@@ -1735,7 +1735,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       no layout shift (reserve 16:9 space); screenshots desktop + 375px.
       gate: D-profile-post-experience merged (file seam).
 
-[ ] D-feed-lightbox (sub-lane ws-D/feed; operator, 26.07 night pass,
+[✓ 1.0.239] D-feed-lightbox (sub-lane ws-D/feed; operator, 26.07 night pass,
       screenshots): FEED POSTS AREN'T CLICKABLE — "can't click the
       posts in the feed to make them big, only on my profile."
       clicking any feed post (media or text) opens the same

@@ -2087,7 +2087,7 @@ shell:
     lane item D-settings-tab (ws-D/settings).
 
 feed / lightbox (operator, 26.07 night pass, screenshots):
-[ ] FEED POSTS AREN'T CLICKABLE — "can't click the posts in the feed to
+[✓ 1.0.239] FEED POSTS AREN'T CLICKABLE — "can't click the posts in the feed to
     make them big, only on my profile." clicking any feed post should
     open the same lightbox the profile grid got in 1.0.170/1.0.180.
     on someone ELSE's post the owner actions (edit/delete) are hidden —

@@ -26,6 +26,7 @@ import { Heart, MessageCircle, Play, Pause } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
 import { CommentThread } from './CommentThread';
+import { PostLightbox } from '@/components/Bio/PostLightbox';
 
 function formatTimeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -174,6 +175,7 @@ interface PostCardProps {
   onAuthorClick?: (username: string, provider: string) => void;
   postAuthor?: string;
   postService?: string;
+  onOpenLightbox?: () => void;
 }
 
 function PostCard({
@@ -192,6 +194,7 @@ function PostCard({
   onAuthorClick,
   postAuthor,
   postService,
+  onOpenLightbox,
 }: PostCardProps) {
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [localCount, setLocalCount] = useState(commentCount);
@@ -211,7 +214,9 @@ function PostCard({
       className={cn(
         'bg-card border-b border-border md:border md:rounded-lg md:mb-4 overflow-hidden',
         'glow-card transition-all duration-150',
+        onOpenLightbox && 'cursor-pointer',
       )}
+      onClick={onOpenLightbox}
     >
       <div className="flex items-center gap-2.5 px-4 py-3">
         <Avatar className="h-9 w-9 ring-2 ring-transparent hover:ring-brand/20 transition-all duration-150">
@@ -270,7 +275,7 @@ function PostCard({
           key={burstKey}
           data-testid="like-button"
           aria-pressed={liked}
-          onClick={onToggleLike}
+          onClick={(e) => { e.stopPropagation(); onToggleLike(); }}
           className={cn(
             'flex items-center gap-1.5 px-2.5 py-2 rounded-lg min-h-10 text-sm transition-all duration-150',
             liked
@@ -292,7 +297,7 @@ function PostCard({
         <button
           data-testid="comment-button"
           aria-expanded={commentsOpen}
-          onClick={() => setCommentsOpen((o) => !o)}
+          onClick={(e) => { e.stopPropagation(); setCommentsOpen((o) => !o); }}
           className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg min-h-10 text-sm text-muted-foreground hover:text-foreground hover:bg-elevated/80 transition-all duration-150"
         >
           <MessageCircle className="w-[18px] h-[18px]" strokeWidth={1.75} />
@@ -364,11 +369,13 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
   const [loading, setLoading] = useState(true);
   const [postsMap, setPostsMap] = useState<Record<string, PostRecord>>({});
   const [mediaMap, setMediaMap] = useState<Record<string, MediaRecord[]>>({});
+  const [flatMediaMap, setFlatMediaMap] = useState<Record<string, MediaRecord>>({});
   const [reactionMap, setReactionMap] = useState<Record<string, number>>({});
   const [commentMap, setCommentMap] = useState<Record<string, number>>({});
   const [likedMap, setLikedMap] = useState<Record<string, boolean>>({});
   const [profileMap, setProfileMap] = useState<Record<string, ProfileRecord>>({});
   const [avatarUrlMap, setAvatarUrlMap] = useState<Record<string, string>>({});
+  const [lightboxItem, setLightboxItem] = useState<InboxRecord | null>(null);
 
   const loadFeed = useCallback(async () => {
     setLoading(true);
@@ -506,6 +513,14 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
 
       setPostsMap(posts);
       setMediaMap(mMedia);
+      // Build flat media map for PostLightbox (keyed by media ref ID)
+      const flat: Record<string, MediaRecord> = {};
+      for (const arr of Object.values(mMedia)) {
+        for (const m of arr) {
+          if (m._id) flat[m._id] = m;
+        }
+      }
+      setFlatMediaMap(flat);
       setProfileMap(profiles);
       setAvatarUrlMap(avatarByAuthor);
       setReactionMap(reactions);
@@ -589,11 +604,31 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
                 onAuthorClick={onAuthorClick}
                 postAuthor={item.author_username}
                 postService={'public_posts'}
+                onOpenLightbox={() => setLightboxItem(item)}
               />
             );
           })
         )}
       </div>
+
+      {lightboxItem && (() => {
+        const post = postsMap[lightboxItem.post_id];
+        if (!post) return null;
+        const token = getWapi().readToken();
+        const isOwner = token
+          ? lightboxItem.author_username === token.username && lightboxItem.author_provider === token.provider
+          : false;
+        return (
+          <PostLightbox
+            post={post}
+            mediaMap={flatMediaMap}
+            onClose={() => setLightboxItem(null)}
+            postAuthor={lightboxItem.author_username}
+            postService={'public_posts'}
+            isOwner={isOwner}
+          />
+        );
+      })()}
     </div>
   );
 }
