@@ -3603,8 +3603,134 @@ M3 "the network"         = encryption integration (A rtc + C2 sdk
                            polish. the last big merge.
 
 
-CURRENT CONDUCTOR BOARD (as of 30.07.2026 — audit #16; keep fresh)
+CURRENT CONDUCTOR BOARD (as of 30.07.2026 — audit #17; keep fresh)
 --------------------------------------------------------------------
+AUDIT #17 REFRESH (30.07, web10web10! pass #17): SHIPPED — after the
+gate caught a RED batch and the fix landed in-pass. Zero dangling
+PRs. The dev batch (#430–#439) gated RED: e2e failing at three
+consecutive dev heads — bisect 88ac9e6e green → d095e2ae red — two
+distinct regressions from two merged PRs: (F1) #438's deep-links
+route `/messages/:conversationKey?` never matched real conversation
+keys (they contain slashes: `provider/user--provider/user`) —
+compose-to-new-contact rendered nothing (gauntlet step 5); (F2)
+#434's owner path `setFollowerCount(fCount || null)` turned a real
+zero into null and hid the Followers tile (gauntlet step 3). Fixed
+in #440 (splat route `/messages/*`; fCount `number|null`; step-3 pin
+moved to the canonical /u/<author> route), verified by a FULL LOCAL
+e2e run (64 passed, 8 skipped, 0 failed) before merge; dev e2e green
+at 7db09e88. Batch then promoted dev→main via merge commit (#441);
+deploy-prod + cd + e2e on main ALL green; prod verified live from
+the workspace (7/7 public endpoints 200). LESSON (unbrick-class):
+two PRs passed their unit suites and PR checks but broke journeys
+only e2e sees — e2e runs on dev push, NOT on PRs, so red was only
+visible after merge. Process note, not a new rule: the ship gate's
+dev-head e2e read is currently the referee that catches this class;
+consider e2e-on-PR for web10-social paths if the class repeats.
+HYGIENE repaired in #440: CHANGELOG 1.0.262 claimed twice (union-
+merge renumber missed) — batch entry renumbered 1.0.266, refs fixed;
+#439 merged with no changelog entry / lane / plan ticks — entry
+added as 1.0.267, D-self-engagement-counts ticked. PROD NOW SERVES:
+own profile canonical at /u/<you> (/profile redirects), messages
+deep links (/messages/<thread> + ?view=chat|mail|crm, refresh-safe),
+delete post actually deletes (per-visibility collection), self
+likes/comments/shares count, /stats includes S3 media bytes, import
+S3 presigned ZIP pipeline, bare-on-background stats bar. ALIGNMENT:
+unchanged — every open item is operator-complaint-driven social
+work, the account-permanence cluster (A20-A23/B9 — "accounts aren't
+ephemeral, they are permanent"), or the C8 money-path referee; no
+infra-company drift. Timeline: week 2 (jul 27–aug 3) closing; week 3
+is M0 integration — founder taste pass remains the schedule risk.
+QWEN HORIZON: 9 immediately-kickoffable parallel-safe bites across 9
+sub-lanes (below), ~15+ chained PRs behind them — Qwens run
+independently.
+
+  PRIORITY 1 (fresh, this audit):
+    ws-E (operator-gated): E-run-discovery-migration — STILL the
+      highest-demo-impact item on the board and still needs the admin
+      token. The "lacks videos and images" complaint class persists on
+      prod until the backfill RE-RUN (A17 media fields) executes; RUN
+      LIST also carries POST /admin/apps/migrate_v2 (cleanup, not a
+      blocker — the compat filter is live on prod).
+
+  PARALLEL-SAFE FLEET (one workspace per sub-lane; chains WITHIN a
+  sub-lane are sequential, file seams). All of audit #16's fleet
+  MERGED this batch (deep-links bite 1, delete-post, self-engagement,
+  own-profile-canonical, import bite b — de-queued). Next bites:
+    ws-D/profile:    D-user-profile-stats (operator rant + screenshot —
+                     three confirmed bugs named by line: viewer's
+                     countFollows() leaks onto another user's profile,
+                     Followers tile lost outside the limit=100 client
+                     filter, post grid cut by the limit=50 client
+                     filter), THEN D-visibility-toggle-duplicate (REPRO
+                     first), THEN D-public-media-verify (TINY — the
+                     gate-CLEARER for the two GATED media items below),
+                     THEN D-follow-lists (twice-complained — deep-
+                     linkable /u/:username/followers|following routes),
+                     THEN D-lightbox-media-sizing (gate CLEARED), THEN
+                     D-profile-image-placement, D-text-post-cards
+    ws-D/discover:   D-deep-links bite 2 (discover ?tag=&q= params —
+                     the operator's address-bar priority, bite 1 merged
+                     1.0.266; DiscoverScreen seam)
+    ws-D/shell:      D-mobile-feature-gap (no gate — own-profile-
+                     canonical merged 1.0.266, sub-lane free)
+    ws-D/feed:       D-deep-links comment-anchor bite (?comment= on the
+                     /u/:username/p/:postId permalink route — gate
+                     D-feed-lightbox bite b merged 1.0.248, CLEAR;
+                     self-engagement merged 1.0.267, sub-lane free)
+    ws-D/marketing:  D-trending-views bite a (30.07 rant — messages-
+                     style view toggle on /trending: ranked grid
+                     default + YouTube view, ?view=youtube deep link;
+                     Trending.tsx seam)
+    ws-D/marketing(2): D-import-youtube-first (SMALL, no gate —
+                     /import goes YouTube-first, others honestly TBD)
+                     + D-marketing-session-analytics (SMALL, no gate —
+                     hotjar-class session analytics pronto; reconcile
+                     vs the self-hosted posthog line, operator's call,
+                     record in decisions.md)
+    ws-D/marketing-api: D-import-revamp bite d (web10 node export —
+                     gate bite b merged 1.0.266, CLEAR)
+    ws-A:            A20-recovery-email-channel bite a (30.07 rant —
+                     accounts must be PERMANENT: star record gains a
+                     verified email field; email recovery mirrors the
+                     SMS flow; `email` is absent from api/app today),
+                     THEN A21-passwordless-phone-login bites a+b+c
+                     (PRIORITY per the 30.07 re-confirmation — prod
+                     stats bar inflates with unverified signups; bite b
+                     = legit-phone-required node policy toggle, NO
+                     one-account-per-phone; bite c = verified-only user
+                     count in /stats), THEN A22-forgot-username-by-
+                     phone, THEN A23-verification-enforcement (GATED on
+                     A21 bite b — REAP with reminders)
+    ws-B:            B9-recovery-contact-nudge bite a (30.07 rant —
+                     pester every user with no recovery contact set;
+                     no gate, phone already on the star record); bites
+                     b/c/d gated on A20/A21/A22 contracts
+    ws-C:            C8 remainder — bite b (membership subscribe
+                     journey, 3% split asserted) + bite c (twilio
+                     honest half); staged with the M2-prereq block, not
+                     the gauntlet fleet
+  GATED (don't pick up until the gate clears):
+      D-night-owl bites b-e (gate: operator's Conductor Pro trial).
+      D-poke build (gate: operator sign-off on the 1.0.179 proposal).
+      D-feed-avatar-resolution + the D-user-profile-media grid half
+        (gate: D-public-media-verify — the merged public-media path
+        verified END TO END; operator re-confirmed 30.07 it's still
+        broken on prod).
+      D-deep-links bites 3+ (profile ?tab=, marketing retarget) —
+        staged one bite at a time after bite 2 merges.
+      D-coming-soon-builds (gate: per-surface spec first).
+      D-appstore category rails (gate: catalog size).
+      E-run-discovery-migration (gate: admin token — operator provides).
+      E-dependabot-hackathon (parked per operator "can be done later").
+  Selection rule (CLAUDE.md): only truly-parallel items at once. The
+  PostLightbox/FeedScreen/PostComposer files form ONE seam cluster
+  spanning ws-D/feed and ws-D/profile — the two chains coordinate via
+  .context/ notes and never edit the same file concurrently.
+  BITE RULE (rule 5, operator 27.07): the chains above are QUEUES of
+  bites — a kickoff hands an agent exactly ONE bite (one PR, ~20-40
+  min); multi-bite items carry a BITES: breakdown in their lane text.
+  never kick off "the chain".
+
 AUDIT #16 REFRESH (30.07, web10web10! pass #16): SHIPPED. Zero
 dangling PRs. The dev batch was a single docs-only commit (#428,
 the late-rant filings) — gated CLEAN by construction (no code, no
