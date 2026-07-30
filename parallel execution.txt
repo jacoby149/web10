@@ -2581,7 +2581,7 @@ BITES (rule 5 — one bite PER SCREEN when staged, each its own
       decrements; a vitest regression on the toggle round-trip;
       social tests + tsc green. gate: none.
 
-[ ] D-delete-post-broken (sub-lane ws-D/profile, PostLightbox seam;
+[✓ 1.0.265] D-delete-post-broken (sub-lane ws-D/profile, PostLightbox seam;
       operator, 30.07 rant: "the delete post button isnt working for
       me!"): ROOT CAUSE visible in the code at filing — deletePost
       (posts.ts:141-143) hardcodes `wapi.delete('posts', { _id: id })`,

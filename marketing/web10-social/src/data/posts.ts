@@ -136,11 +136,18 @@ export async function updatePost(id: string, updates: Partial<PostRecord>): Prom
 }
 
 /**
- * Delete a post by ID.
+ * Delete a post by ID from its correct collection.
+ *
+ * D30: posts live in `public_posts` or `private_posts`, not the legacy
+ * `posts` service. The caller must provide the post's visibility so we
+ * delete from the right collection. The API's `_index_post_delete` hook
+ * (crud.py:32) automatically removes the discovery-index doc for public
+ * posts, so no separate un-index call is needed.
  */
-export async function deletePost(id: string): Promise<void> {
+export async function deletePost(id: string, visibility: Visibility): Promise<void> {
   const wapi = getWapi();
-  await wapi.delete('posts', { _id: id });
+  const service = visibility === 'public' ? 'public_posts' : 'private_posts';
+  await wapi.delete(service, { _id: id });
 }
 
 /**

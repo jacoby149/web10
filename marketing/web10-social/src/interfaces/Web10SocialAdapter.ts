@@ -102,7 +102,7 @@ interface Web10SocialAdapter {
   readMyPostRecords: () => Promise<PostRecord[]>;
   readUserPostRecords: (username: string, provider: string) => Promise<PostRecord[]>;
   updatePostRecord: (id: string, updates: Partial<PostRecord>) => Promise<PostRecord>;
-  deletePostRecord: (id: string) => Promise<void>;
+  deletePostRecord: (id: string, visibility: 'public' | 'private') => Promise<void>;
 
   // Media (presigned upload via API media router)
   uploadMediaFile: (request: MediaUploadRequest) => Promise<MediaRecord>;
@@ -346,7 +346,7 @@ const web10SocialAdapterInit = (): Web10SocialAdapter => {
   adapter.readMyPostRecords = dlReadMyPosts;
   adapter.readUserPostRecords = dlReadUserPosts;
   adapter.updatePostRecord = dlUpdatePost;
-  adapter.deletePostRecord = dlDeletePost;
+  adapter.deletePostRecord = (id, visibility) => dlDeletePost(id, visibility);
 
   // Media
   adapter.uploadMediaFile = dlUploadMedia;
