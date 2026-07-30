@@ -1823,7 +1823,14 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       (3) $text whole-word/stem semantics (substring "yoy" never matches
       "yoyoyo" — if the corpus needs substring search, add a
       case-insensitive regex fallback on body_text + author for short
-      queries, capped + escaped, no user regex metachars). fix so body
+      queries, capped + escaped, no user regex metachars).
+      CONFIRMED LIVE (operator, 29.07, screenshot: searching "yo"
+      returns nothing while multiple "yoyoyo" posts sit on the board):
+      "this only searches whole words! should search yo, and it
+      matchies yoyoyo in a post!" — case (3) is not a hypothesis, it
+      is THE behavior; the substring fallback is required, not
+      optional. HARD ACCEPTANCE CASE: searching "yo" returns the
+      "yoyoyo" posts. fix so body
       words, author handles, AND tags all return results; surface a
       real error state in the UI when the search request fails (never
       silently []). files: marketing-ui Trending/search components +
