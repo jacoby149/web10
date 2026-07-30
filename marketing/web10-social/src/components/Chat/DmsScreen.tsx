@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -864,18 +864,23 @@ export default function DmsScreen() {
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
-          <div className="relative">
-            <Avatar className="h-8 w-8">
-              <AvatarFallback className="bg-brand-muted text-brand-300 text-xs font-semibold">
-                {displayName.charAt(0).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <div className={cn(
-              'absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-background',
-              'bg-success animate-glow-pulse',
-            )} />
-          </div>
-          <span className="font-medium text-sm text-foreground flex-1">{displayName}</span>
+          <Link
+            to={`/u/${otherUser.split('/')[1]}`}
+            className="flex items-center gap-3 flex-1 min-w-0"
+          >
+            <div className="relative flex-shrink-0">
+              <Avatar className="h-8 w-8">
+                <AvatarFallback className="bg-brand-muted text-brand-300 text-xs font-semibold">
+                  {displayName.charAt(0).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div className={cn(
+                'absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-background',
+                'bg-success animate-glow-pulse',
+              )} />
+            </div>
+            <span className="font-medium text-sm text-foreground truncate">{displayName}</span>
+          </Link>
           <button
             onClick={() => handleDeleteConversation(selectedConv)}
             className="flex items-center justify-center h-11 w-11 hover:bg-danger-muted rounded-lg transition-colors duration-150 text-muted-foreground hover:text-danger"
