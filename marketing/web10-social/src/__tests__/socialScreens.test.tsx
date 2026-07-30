@@ -202,6 +202,42 @@ describe('DmsScreen', () => {
     // After switching back, the chat view shows the empty state or conversation list
     expect(screen.getByTestId('dms-empty')).toBeInTheDocument();
   });
+
+  it('restores mail view from ?view=mail on mount', async () => {
+    const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
+    render(
+      <MemoryRouter initialEntries={['/messages?view=mail']}>
+        <DmsScreen />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('mail-view')).toBeInTheDocument();
+    });
+  });
+
+  it('restores crm view from ?view=crm on mount', async () => {
+    const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
+    render(
+      <MemoryRouter initialEntries={['/messages?view=crm']}>
+        <DmsScreen />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('crm-view')).toBeInTheDocument();
+    });
+  });
+
+  it('defaults to chat view when ?view is missing', async () => {
+    const { default: DmsScreen } = await import('@/components/Chat/DmsScreen');
+    render(
+      <MemoryRouter initialEntries={['/messages']}>
+        <DmsScreen />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('dms-empty')).toBeInTheDocument();
+    });
+  });
 });
 
 describe('MailView', () => {
