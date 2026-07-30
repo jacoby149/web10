@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Flame, Heart, MessageCircle, Repeat2, Share2, Image as ImageIcon, Film, Music2, Send, Play } from 'lucide-react';
+import { Flame, Heart, MessageCircle, Repeat2, Share2, Image as ImageIcon, Film, Music2, Send, Play, Volume2, VolumeX } from 'lucide-react';
 import { SOCIAL_ORIGIN, API_ORIGIN } from '@/lib/origins';
 import { trackFunnel } from '@/lib/analytics';
 import { getPublicMediaUrl, getPublicMediaThumbnailUrl, resolveMediaRef, clearMediaCache } from '@/lib/mediaPresign';
@@ -166,11 +166,16 @@ function MediaPlaceholder({ type }: { type: 'image' | 'video' | 'music' }) {
 // ── TrendingMedia: real media via public_media presign ──────────────────────
 //
 // Fetches the first media ref for a post, presigns it, and renders the
-// actual image (or video poster + play badge). Falls back to the
+// actual image or an autoplaying muted video. Falls back to the
 // MediaPlaceholder if presign fails or no media refs exist.
 //
+// Videos: autoPlay muted loop playsInline preload="metadata". Paused when
+// scrolled out of view (IntersectionObserver). Tap unmutes / opens full
+// view (Insta/TikTok pattern: sound opt-in, motion free). Respects
+// prefers-reduced-motion (no autoplay, shows poster + play badge).
+//
 // Media-forward per design.md: reserve-space-from-aspect (no layout shift),
-// hover zoom, video poster + play badge, "+N" overflow for multiple refs.
+// hover zoom, "+N" overflow for multiple refs.
 
 interface TrendingMediaProps {
   author: string;
@@ -189,15 +194,23 @@ function TrendingMedia({ author, mediaRefs, mediaType, firstAttachmentMime }: Tr
   const mediaCount = (mediaRefs?.length || 0);
   const hasOverflow = mediaCount > 1;
 
+  // Video autoplay state
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [isMuted, setIsMuted] = useState(true);
+  const [isPaused, setIsPaused] = useState(false);
+
+  // prefers-reduced-motion: no autoplay
+  const prefersReducedMotion = useRef(
+    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  ).current;
+
   useEffect(() => {
     if (!mediaRefs?.length || !author) return;
     let cancelled = false;
-    // Fetch the first media ref's presigned URL
     getPublicMediaUrl(author, mediaRefs[0]).then(url => {
       if (cancelled || !url) return;
       setImageUrl(url);
       if (isVideo) {
-        // For video, also try to get a thumbnail
         resolveMediaRef(author, mediaRefs[0]).then(record => {
           if (cancelled || !record) return;
           getPublicMediaThumbnailUrl(author, record).then(thumb => {
@@ -210,6 +223,43 @@ function TrendingMedia({ author, mediaRefs, mediaType, firstAttachmentMime }: Tr
     });
     return () => { cancelled = true; };
   }, [author, mediaRefs, isVideo]);
+
+  // IntersectionObserver: pause video when offscreen, resume when visible
+  useEffect(() => {
+    if (!isVideo || prefersReducedMotion || !videoRef.current) return;
+    const el = videoRef.current;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            el.play().catch(() => {});
+            setIsPaused(false);
+          } else {
+            el.pause();
+            setIsPaused(true);
+          }
+        }
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isVideo, prefersReducedMotion]);
+
+  // Tap handler: unmute on first tap, open full view on second
+  const handleVideoTap = useCallback(() => {
+    if (isMuted) {
+      const video = videoRef.current;
+      if (video) {
+        video.muted = false;
+        video.volume = 1;
+        video.play().catch(() => {});
+        setIsMuted(false);
+      }
+    } else {
+      window.open(SOCIAL_ORIGIN, '_blank');
+    }
+  }, [isMuted]);
 
   // Loading state: skeleton with reserved aspect
   if (!imageUrl && !error) {
@@ -230,13 +280,98 @@ function TrendingMedia({ author, mediaRefs, mediaType, firstAttachmentMime }: Tr
 
   const handleLoad = () => setLoaded(true);
 
+  // Video with autoplay muted
+  if (isVideo) {
+    if (prefersReducedMotion) {
+      // Reduced motion: poster + play badge (no autoplay)
+      return (
+        <div
+          className="group/media relative w-full overflow-hidden aspect-video bg-elevated"
+          data-testid="trending-media"
+        >
+          <img
+            src={thumbUrl || imageUrl}
+            alt=""
+            loading="lazy"
+            onLoad={handleLoad}
+            className={`h-full w-full object-cover transition-transform duration-150 ease-out group-hover/media:scale-105 motion-reduce:transform-none ${loaded ? 'opacity-100' : 'opacity-0'}`}
+          />
+          {!loaded && (
+            <div className="absolute inset-0 animate-shimmer bg-gradient-to-r from-elevated via-muted to-elevated bg-[length:200%_100%]" />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-background/40 to-transparent" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-foreground/15 backdrop-blur-sm transition-transform duration-150 ease-out group-hover/media:scale-110 motion-reduce:transform-none">
+              <Play className="ml-1 h-6 w-6 text-foreground" fill="currentColor" />
+            </div>
+          </div>
+          {hasOverflow && (
+            <div className="absolute bottom-2 right-2 rounded bg-background/80 px-2 py-0.5 text-xs font-medium text-foreground backdrop-blur-sm">
+              +{mediaCount - 1}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div
+        className="group/media relative w-full overflow-hidden aspect-video bg-elevated cursor-pointer"
+        data-testid="trending-media"
+        onClick={handleVideoTap}
+        role="button"
+        tabIndex={0}
+        aria-label={isMuted ? 'Video (muted). Tap to unmute.' : 'Video (sound on). Tap to open full view.'}
+      >
+        <video
+          ref={videoRef}
+          src={imageUrl}
+          poster={thumbUrl || undefined}
+          autoPlay
+          muted={isMuted}
+          loop
+          playsInline
+          preload="metadata"
+          className="h-full w-full object-cover"
+          onLoad={() => setLoaded(true)}
+        />
+        {!loaded && (
+          <div className="absolute inset-0 animate-shimmer bg-gradient-to-r from-elevated via-muted to-elevated bg-[length:200%_100%]" />
+        )}
+        {isMuted && (
+          <div className="absolute bottom-2 left-2 rounded bg-background/80 px-2 py-0.5 backdrop-blur-sm transition-opacity duration-150 ease-out group-hover/media:opacity-0">
+            <VolumeX className="h-3.5 w-3.5 text-foreground" />
+          </div>
+        )}
+        {!isMuted && (
+          <div className="absolute bottom-2 left-2 rounded bg-background/80 px-2 py-0.5 backdrop-blur-sm">
+            <Volume2 className="h-3.5 w-3.5 text-foreground" />
+          </div>
+        )}
+        {hasOverflow && (
+          <div className="absolute bottom-2 right-2 rounded bg-background/80 px-2 py-0.5 text-xs font-medium text-foreground backdrop-blur-sm">
+            +{mediaCount - 1}
+          </div>
+        )}
+        {isPaused && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-foreground/15 backdrop-blur-sm">
+              <Play className="ml-1 h-6 w-6 text-foreground" fill="currentColor" />
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Image (unchanged)
   return (
     <div
-      className={`group/media relative w-full overflow-hidden ${isVideo ? 'aspect-video' : 'aspect-[4/3]'} bg-elevated`}
+      className={`group/media relative w-full overflow-hidden aspect-[4/3] bg-elevated`}
       data-testid="trending-media"
     >
       <img
-        src={isVideo && thumbUrl ? thumbUrl : imageUrl}
+        src={imageUrl}
         alt=""
         loading="lazy"
         onLoad={handleLoad}
@@ -244,16 +379,6 @@ function TrendingMedia({ author, mediaRefs, mediaType, firstAttachmentMime }: Tr
       />
       {!loaded && (
         <div className="absolute inset-0 animate-shimmer bg-gradient-to-r from-elevated via-muted to-elevated bg-[length:200%_100%]" />
-      )}
-      {isVideo && (
-        <>
-          <div className="absolute inset-0 bg-gradient-to-t from-background/40 to-transparent" />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-foreground/15 backdrop-blur-sm transition-transform duration-150 ease-out group-hover/media:scale-110 motion-reduce:transform-none">
-              <Play className="ml-1 h-6 w-6 text-foreground" fill="currentColor" />
-            </div>
-          </div>
-        </>
       )}
       {hasOverflow && (
         <div className="absolute bottom-2 right-2 rounded bg-background/80 px-2 py-0.5 text-xs font-medium text-foreground backdrop-blur-sm">

@@ -1764,7 +1764,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       bite a, OPEN FROM FEED: feed posts clickable → PostLightbox
         opens with an isOwner prop (edit/delete hidden on others'
         posts). no new routes.
-      bite b, SHARE + PERMALINK: [✓ 1.0.247] the /u/:username/p/:postId route
+      bite b, SHARE + PERMALINK: [✓ 1.0.248] the /u/:username/p/:postId route
         (opens the lightbox over the profile), Share action
         (navigator.share + copy-link) on every post. gate: bite a
         merged. (D-deep-links' ?comment= anchor builds on this
@@ -2588,7 +2588,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       can reach the same features as desktop (or the gap is documented
       with a migration plan per feature). gate: none.
 
-[ ] D-video-autoplay-muted (sub-lane ws-D/marketing; operator, 29.07:
+[✓ 1.0.245] D-video-autoplay-muted (sub-lane ws-D/marketing; operator, 29.07:
       "trending lacks videos and images, how are we going to compete
       with insta without multimedia on this kind of a page! also
       videos should auto play with no volume, otherwise how are we
@@ -3050,8 +3050,8 @@ discover-knobs DRAINED this batch), ~20+ chained PRs behind them — Qwens
 run independently once the two fix blocks land.
 
   PRIORITY 1 (fresh, this audit):
-    ws-E/infra: FIX F1 — link-health.yml invalid YAML (blocks a clean
-      dev head; tiny). FIX BLOCK in the pass-14 report.
+ws-E/infra: [✓ 1.0.247] FIX F1 — link-health.yml invalid YAML (blocks a clean
+       dev head; tiny). FIX BLOCK in the pass-14 report.
     ws-A: FIX F2 — get_apps review_state compat filter (blocks dev→main
       promotion; tiny, test-pinned). FIX BLOCK in the pass-14 report.
     ws-E (operator-gated): E-run-discovery-migration — unchanged, still
@@ -3061,7 +3061,7 @@ run independently once the two fix blocks land.
 
   PARALLEL-SAFE FLEET (one workspace per sub-lane; chains WITHIN a
   sub-lane are sequential, file seams):
-    ws-E/infra:      FIX F1 (link-health.yml YAML) — P1
+    ws-E/infra:      [✓ 1.0.247] FIX F1 (link-health.yml YAML) — P1
     ws-A:            FIX F2 (get_apps compat filter) — P1, THEN the lane
                      is clear (D37 spec + rewire both merged)
     ws-D/feed:       D-feed-lightbox bite b (share + permalink route
