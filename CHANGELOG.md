@@ -1,9 +1,13 @@
 1.0.239 || 30.07.2026
 feat(web10-social): D-feed-lightbox bite a — feed posts are now clickable. Clicking any feed post card opens the existing PostLightbox (media pager, like toggle, comment thread). PostLightbox gains an `isOwner` prop: when false, owner actions (edit/delete/visibility toggle) are hidden. FeedScreen computes `isOwner` by comparing the post's author against `readToken()`. ProfileScreen passes `isOwner={true}` explicitly. Interactive elements (like, comment, author link) use `stopPropagation` so they don't trigger the lightbox. 368 tests green, tsc clean.
+1.0.242 || 30.07.2026
+fix(marketing-ui): D-docs-gfm — added remark-gfm to the docs markdown pipeline (`.use(remarkGfm)` before `.use(remarkHtml)`); GFM tables now render as real styled tables with token-styled borders, header weight, row hover, mono code cells, and horizontal scroll wrapper for wide tables at 375px. Strikethrough and task-list styles added. 161 marketing-ui tests green, tsc clean, vite build clean.
+
 1.0.241 || 30.07.2026
 feat(web10-social): D-inapp-discover-knobs bite b — KnobRack/RotaryKnob/powerMean ported, live client-side re-rank on DiscoverScreen. Copied RotaryKnob.tsx and KnobRack.tsx verbatim from marketing-ui (per design.md §D22: separate package, no premature sharing). Updated lib/powerMean.ts with missing exports (HALF_LIFE_LABELS, CHARACTER_LABELS, WEIGHT_DETENTS, CHARACTER_DETENTS, defaultKnobState, scorePost) and synced "Most loved" preset to match marketing-ui. KnobRack replaces the old preset-only chips: preset chips at top, collapsible "Advanced" toggle reveals 5 rotary knobs (Recency, Likes, Comments, Time, Character). Every knob twist re-ranks client-side via powerMean with zero network calls. Preset click resets knobs to preset defaults. Feed components byte-untouched. 368 tests green (2 updated for KnobRack testids), tsc clean.
 
 1.0.240 || 30.07.2026
+test(e2e): C8-stripe-test-mode-wiring — bite a. e2e compose stack runs the api with STRIPE_STATUS=test + STRIPE_TEST_KEY from CI secrets (GitHub Actions secret, never in git). Stripe smoke test asserts sk_test key reaches Stripe test mode via a real balance.retrieve() call. ZERO secrets in the repo.
 feat(marketing-ui): D-home-stats-bar — raw stats bar on the homepage hero: three big stat blocks (users · apps · storage as formatted bytes) fetched live from /stats, with count-up animation (respects prefers-reduced-motion) and "data liberated on web10" framing. Bar hides on fetch failure — never a fake number. All design.md tokens (Space Grotesk display font, tabular-nums, brand-400 icons, zinc neutrals). 161 marketing-ui tests green, tsc clean, vite build clean.
 
 1.0.239 || 30.07.2026

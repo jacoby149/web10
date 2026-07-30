@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link, useLocation } from 'react-router-dom'
 import { remark } from 'remark'
+import remarkGfm from 'remark-gfm'
 import remarkHtml from 'remark-html'
 import { FileText, Code, Terminal, ExternalLink, Compass, BookOpen } from 'lucide-react'
 import { trackFunnel } from '../lib/analytics'
@@ -99,10 +100,17 @@ function DocsContent() {
       .then(r => r.text())
       .then(md => {
         remark()
+          .use(remarkGfm)
           .use(remarkHtml)
           .process(md)
           .then(result => {
-            setContent(String(result.value))
+            // Wrap tables in a scroll container so wide tables scroll
+            // horizontally at 375px instead of breaking the layout.
+            const html = String(result.value).replace(
+              /<table>/g,
+              '<div class="docs-table-scroll"><table>',
+            ).replace(/<\/table>/g, '</table></div>')
+            setContent(html)
             setLoading(false)
           })
           .catch(() => {
