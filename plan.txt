@@ -1407,7 +1407,7 @@ Marketing-ui side (Lane D):
     removes it. signed-out -> funnel-to-social or a "sign in to react" gate.
     keep the heart-burst animation (D12 vibrancy). owns: FeedPreview.tsx +
     Trending.tsx.
-[ ] D-trending-views (operator, 30.07 rant: "the same way that messages has
+[✓ 1.0.272] D-trending-views (operator, 30.07 rant: "the same way that messages has
     views, social media, mail, crm, i want the trending to be the same! the
     current trending is very twitter/instagram looking kind of a view! I
     would like youtube view where it only shows the videos and maybe images?

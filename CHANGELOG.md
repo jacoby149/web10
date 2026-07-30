@@ -1,3 +1,6 @@
+1.0.272 || 30.07.2026
+feat(marketing-ui): D-trending-views bite a — YouTube view toggle on /trending. Added a view-switcher (Grid / YouTube) below the topic pills. The YouTube view filters to media posts only (video + image), renders YouTube-style 16:9 thumbnail cards with title, author link, and engagement row. Active view is deep-linked via `?view=youtube` query param — refresh restores it, back/forward works. Analytics event `trending_view_toggle` tracks view switches. Empty state with CTA back to grid. 10 new vitest tests (view toggle, media filtering, empty state, YouTubeCard rendering). All CI checks green.
+
 1.0.271 || 30.07.2026
 feat(web10-social): D-mobile-feature-gap — mobile bottom nav parity with desktop. Added a "+" button to the mobile header navigating to /feed (New Post), matching the desktop sidebar's "New post" action. Made the mobile bottom nav horizontally scrollable and added all 6 "Coming soon" items (Flares, Takes, Livestream, Games, Groups, Marketplace) so the mobile user can see the product's full feature roadmap, just like desktop. Single file: Layout.tsx. 408 vitest green, tsc clean.
 

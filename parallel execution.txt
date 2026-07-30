@@ -2409,7 +2409,7 @@ BITES (rule 5 — one bite PER SCREEN when staged, each its own
       exists, 1.0.31) — other platforms' ingest stays TBD until
       outreach widens.
 
-[ ] D-trending-views (sub-lane ws-D/marketing, Trending.tsx seam;
+[✓ 1.0.272] D-trending-views (sub-lane ws-D/marketing, Trending.tsx seam;
       operator, 30.07 rant: "the same way that messages has views,
       social media, mail, crm, i want the trending to be the same!
       the current trending is very twitter/instagram looking kind
