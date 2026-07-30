@@ -611,7 +611,7 @@ LANE C — greenfield services  (owns: sdk/, mcp/, new dirs)
       confirmUpload, upload (presigned POST + confirm), and getReadUrl
       (presigned GET exchange + expiry-aware cache) matching the
       contract the web10-social wrapper lands in D23. small; no gate.
-  [ ] C8-stripe-twilio-test-keys-e2e (lane C, e2e/** + compose; operator,
+  [✓ 1.0.239] C8-stripe-twilio-test-keys-e2e (lane C, e2e/** + compose; operator,
       27.07: "we aren't testing with stripe test api keys / twilio test
       api keys in any kind of e2e tests — we could use test keys!").
       VERIFIED GAP at HEAD: api/tests/test_stripe.py + test_twilio.py
