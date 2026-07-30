@@ -2141,7 +2141,7 @@ engagement:
     reaction plumbing.
 
 posts -- rich content (operator, 26.07):
-[ ] LINK EMBEDS -- paste a url into a post (or dm) and it renders as an
+[✓ 1.0.251] LINK EMBEDS -- paste a url into a post (or dm) and it renders as an
     embed, the table-stakes feature every platform has: a youtube link
     becomes a playable player in the feed; other links become a preview
     chip. v0 is client-side only (D-link-embeds in parallel
@@ -2323,20 +2323,20 @@ PREMMIUMMM!!!!!"):
      rail never renders empty; the v2 registration-shape spec leaves
      room for a category field. lane item D-appstore-plugs
      (ws-D/marketing(2)). ✓ 1.0.230
-[ ] V2, the product page: click an app → big logo, description, and
-    COMMENTS/reviews (D32 public-ledger entries targeting the app id
-    — the machinery post comments already use; federated review
-    aggregation explicitly deferred to M3). operator, 29.07 rant:
-    reviews are 1-5 STAR RATINGS + comments, and every app surfaces
-    on a #web10apps thread on web10 social — "would be cool if these
-    all get on the #web10apps thread on web10 social, or something
-    like that! and people can comment on them and give them a review
-    from 1 to 5 stars!" the product page and the social thread read
-    the SAME ledger entries — one conversation, two lenses. the
-    BROWSE grid (operator, same rant): uniform small cards — big
-    icon, name, visits, rating, NO descriptions (they're why the
-    cards are uneven) — click → the full product page; plus a
-    browse search bar (client-side filter, the catalog is small).
+[ ] V2, the product page (UI only, no comments/ratings yet): click an app → big logo, description, visits, open link, screenshot carousel, 404 fallback. AppCard `appId` prop → internal nav. AppStore enriched data from API. ✓ 1.0.253
+     REMAINING: COMMENTS/reviews (D32 public-ledger entries targeting the app id
+     — the machinery post comments already use; federated review
+     aggregation explicitly deferred to M3). operator, 29.07 rant:
+     reviews are 1-5 STAR RATINGS + comments, and every app surfaces
+     on a #web10apps thread on web10 social — "would be cool if these
+     all get on the #web10apps thread on web10 social, or something
+     like that! and people can comment on them and give them a review
+     from 1 to 5 stars!" the product page and the social thread read
+     the SAME ledger entries — one conversation, two lenses. the
+     BROWSE grid (operator, same rant): uniform small cards — big
+     icon, name, visits, rating, NO descriptions (they're why the
+     cards are uneven) — click → the full product page; plus a
+     browse search bar (client-side filter, the catalog is small). ✓ 1.0.251
     lane items D-appstore-browse + D-appstore-revamp v2. AND the
     registration
     rewire (operator): app registrations move onto the same public
@@ -2455,18 +2455,28 @@ item D-inapp-discover-knobs (ws-D/discover, bites: [✓ 1.0.230] cards+controls,
     muted/loop/playsInline on cards, pause offscreen, sound on tap
     (insta pattern; respects prefers-reduced-motion). lane item
     D-video-autoplay-muted (ws-D/marketing).
-[ ] DM header links to profile (operator, 30.07 rant: "when i click my
+[✓] DM header links to profile (operator, 30.07 rant: "when i click my
     friends bubble / name on the top of the chat, it doesnt bring me
     to their profile"): the DM conversation header's avatar + name are
     dead text — make them a Link to /u/:username. lane item
-    D-dm-header-profile-link (ws-D/messages, tiny).
-[ ] follow button toggles to unfollow (operator, 30.07 rant: "when i
+D-dm-header-profile-link (ws-D/messages, tiny). merged 1.0.251.
+[✓ 1.0.252] follow button toggles to unfollow (operator, 30.07 rant: "when i
     hit follow, it doesnt toggle and let me unfollow!"): the toggle
     handlers exist on both UserProfileScreen and DiscoverScreen — this
     is a runtime failure in the unfollow path (suspects: ledger
     cleanup throwing, stale/duplicate follow records read without a
     status filter). repro first, capture the failing request. lane
     item D-follow-toggle (ws-D/profile).
+[ ] home stats bar styling (operator, 30.07 rant, screenshot: "the
+    border isnt necessary on those, and can just say data liberated
+    under the data part to be consistent with the other two! they
+    could just be on the background, or they can each be in their own
+    sleek card, or use your best judjgemen"): kill the heavy bordered
+    container on the 1.0.240 stats bar; "data liberated" becomes the
+    third stat's label (449 USERS · 9 APPS · 27.6 MB DATA LIBERATED);
+    bare-on-background vs sleek individual cards is the builder's
+    taste call against design.md §12. lane item
+    D-home-stats-bar-styling (ws-D/marketing(2), small).
 
 PHASE 9 — the exporters (fill the collections)
 ----------------------------------------------

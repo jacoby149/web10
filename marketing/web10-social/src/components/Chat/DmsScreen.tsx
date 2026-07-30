@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { listConversations, readDms, sendDm, getLastDm, readContacts, startConve
 import type { DmRecord, ContactRecord, FollowRecord } from '@/data/types';
 import { Send, ChevronLeft, Plus, X, Search, MessageSquare, Mail, Users, MoreVertical, Edit3, Trash2, Check, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { TextWithLinks } from '@/components/Feed/LinkEmbed';
 import { MARKETING_ORIGIN } from '@/lib/origins';
 import MailView from './MailView';
 import CrmView from './CrmView';
@@ -563,7 +564,7 @@ function MessageBubble({
           </div>
         ) : (
           <>
-            <p className="break-words">{msg.message}</p>
+            <TextWithLinks text={msg.message} className="break-words" />
             <p className={cn('text-xs mt-1', isMe ? 'text-brand-foreground/60' : 'text-muted-foreground')}>
               {formatTime(msg.sent_at)}
               {msg.updated_at ? ' (edited)' : ''}
@@ -864,18 +865,23 @@ export default function DmsScreen() {
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
-          <div className="relative">
-            <Avatar className="h-8 w-8">
-              <AvatarFallback className="bg-brand-muted text-brand-300 text-xs font-semibold">
-                {displayName.charAt(0).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <div className={cn(
-              'absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-background',
-              'bg-success animate-glow-pulse',
-            )} />
-          </div>
-          <span className="font-medium text-sm text-foreground flex-1">{displayName}</span>
+          <Link
+            to={`/u/${otherUser.split('/')[1]}`}
+            className="flex items-center gap-3 flex-1 min-w-0"
+          >
+            <div className="relative flex-shrink-0">
+              <Avatar className="h-8 w-8">
+                <AvatarFallback className="bg-brand-muted text-brand-300 text-xs font-semibold">
+                  {displayName.charAt(0).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div className={cn(
+                'absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-background',
+                'bg-success animate-glow-pulse',
+              )} />
+            </div>
+            <span className="font-medium text-sm text-foreground truncate">{displayName}</span>
+          </Link>
           <button
             onClick={() => handleDeleteConversation(selectedConv)}
             className="flex items-center justify-center h-11 w-11 hover:bg-danger-muted rounded-lg transition-colors duration-150 text-muted-foreground hover:text-danger"

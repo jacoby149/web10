@@ -1,3 +1,4 @@
+import { Search } from 'lucide-react'
 import { useEffect, useState, useMemo } from 'react'
 import { trackFunnel } from '@/lib/analytics'
 import { AUTH_ORIGIN, SOCIAL_ORIGIN } from '@/lib/origins'
@@ -18,6 +19,11 @@ function nodeApi(): string {
 interface RegisteredApp {
   url: string
   visits: number
+  name?: string
+  description?: string
+  icon_url?: string
+  screenshots?: string[]
+  web10apps_post_id?: string
   pwaIcon?: string
   pwaName?: string
 }
@@ -80,6 +86,7 @@ interface StoreApp {
   iconSrc?: string
   visits: number
   flagship?: boolean
+  appId?: string
 }
 
 interface PlugSlot {
@@ -89,11 +96,13 @@ interface PlugSlot {
   iconSrc?: string
   visits: number
   badge: string
+  appId?: string
 }
 
 function AppStore() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
     trackFunnel('app_store_view')
@@ -159,6 +168,9 @@ function AppStore() {
           (a) => hostOf(a.url) === FLAGSHIP_HOST,
         )?.visits ?? 0,
         flagship: true,
+        appId: stats?.apps.find(
+          (a) => hostOf(a.url) === FLAGSHIP_HOST,
+        )?.web10apps_post_id,
       },
       {
         name: 'The node console',
@@ -168,6 +180,9 @@ function AppStore() {
         visits: stats?.apps.find(
           (a) => hostOf(a.url) === 'auth.web10.app',
         )?.visits ?? 0,
+        appId: stats?.apps.find(
+          (a) => hostOf(a.url) === 'auth.web10.app',
+        )?.web10apps_post_id,
       },
       {
         name: 'The importer',
@@ -182,11 +197,12 @@ function AppStore() {
       .filter((a) => a.url && !KNOWN_HOSTS.includes(hostOf(a.url)))
       .filter((a) => hostOf(a.url) !== '' && !hostOf(a.url).endsWith('.localhost'))
       .map((a) => ({
-        name: a.pwaName || appName(a.url),
-        description: 'Registered on web10.',
+        name: a.pwaName || a.name || appName(a.url),
+        description: a.description || 'Registered on web10.',
         href: a.url,
-        iconSrc: a.pwaIcon,
+        iconSrc: a.icon_url || a.pwaIcon,
         visits: a.visits ?? 0,
+        appId: a.web10apps_post_id,
       }))
 
     return [...firstParty, ...registered].sort((a, b) => b.visits - a.visits)
@@ -208,6 +224,7 @@ function AppStore() {
       iconSrc: flagshipApp.iconSrc,
       visits: flagshipApp.visits,
       badge: 'Flagship',
+      appId: flagshipApp.appId,
     })
 
     // MOST POPULAR — #1 by visits that isn't the flagship
@@ -220,11 +237,9 @@ function AppStore() {
         iconSrc: mostPopular.iconSrc,
         visits: mostPopular.visits,
         badge: 'Most Popular',
+        appId: mostPopular.appId,
       })
     }
-
-    // NEWEST — not available from the public /stats endpoint (no registered_at field)
-    // Degrades gracefully: slot simply doesn't render
 
     return plugs
   }, [allApps])
@@ -270,38 +285,64 @@ function AppStore() {
                 href={plug.href}
                 visits={plug.visits}
                 badge={plug.badge}
+                appId={plug.appId}
                 data-testid={`plug-slot-${i}`}
               />
             ))}
           </div>
         )}
 
-        {/* Uniform grid */}
-        <div className="reveal mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {loading
-            ? Array.from({ length: 6 }).map((_, i) => (
-                <AppCard
-                  key={`skeleton-${i}`}
-                  skeleton
-                  name=""
-                  description=""
-                  href=""
-                  data-testid={`app-card-skeleton-${i}`}
-                />
-              ))
-            : allApps.filter((app) => !plugSlots.some((p) => p.href === app.href)).map((app, i) => (
-                <AppCard
-                  key={app.href}
-                  iconSrc={app.iconSrc}
-                  iconLetter={app.name.charAt(0)}
-                  name={app.name}
-                  description={app.description}
-                  href={app.href}
-                  visits={app.visits}
-                  flagship={app.flagship}
-                  data-testid={`app-card-${i}`}
-                />
-              ))}
+        {/* Browse — search + uniform small cards */}
+        <div className="reveal mt-12" data-testid="browse-section">
+          {!loading && allApps.length > 0 && (
+            <div className="relative mb-6">
+              <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" strokeWidth={2} />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search apps…"
+                className="w-full rounded-full border border-border bg-surface py-2.5 pl-10 pr-4 text-sm text-foreground placeholder-muted-foreground outline-none transition-colors duration-150 focus:border-brand"
+                data-testid="browse-search"
+              />
+            </div>
+          )}
+
+          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {loading
+              ? Array.from({ length: 10 }).map((_, i) => (
+                  <AppCard
+                    key={`skeleton-${i}`}
+                    size="browse"
+                    skeleton
+                    name=""
+                    description=""
+                    href=""
+                    data-testid={`browse-card-skeleton-${i}`}
+                  />
+                ))
+              : allApps
+                .filter((app) => !plugSlots.some((p) => p.href === app.href))
+                .filter((app) => app.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                .map((app, i) => (
+                  <AppCard
+                    key={app.href}
+                    size="browse"
+                    iconSrc={app.iconSrc}
+                    iconLetter={app.name.charAt(0)}
+                    name={app.name}
+                    description=""
+                    href={app.href}
+                    visits={app.visits}
+                    appId={app.appId}
+                    data-testid={`browse-card-${i}`}
+                  />
+                ))}
+          </div>
+
+          {!loading && searchQuery && allApps.filter((app) => !plugSlots.some((p) => p.href === app.href)).filter((app) => app.name.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
+            <p className="py-12 text-center text-muted-foreground">No apps match &ldquo;{searchQuery}&rdquo;.</p>
+          )}
         </div>
       </div>
     </div>

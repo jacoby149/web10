@@ -1704,7 +1704,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       first-timer still instantly knows what to do; the copy is
       byte-identical to today. gate: none.
 
-[ ] D-link-embeds (sub-lane ws-D/feed, AFTER D-follow-backfill — same
+[✓ 1.0.251] D-link-embeds (sub-lane ws-D/feed, AFTER D-follow-backfill — same
       workspace chain; operator, 26.07): paste a link into a post and it
       renders as an EMBED, the table-stakes feature every platform has
       (a youtube link becomes a playable player, other links become a
@@ -2104,6 +2104,36 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       tsc green; screenshots desktop + 375px and LOOK — the bar is
       "oh wow they have that many users" at a glance. gate: none.
 
+[ ] D-home-stats-bar-styling (sub-lane ws-D/marketing(2), SMALL; operator,
+      30.07 rant, screenshot of the shipped stats bar: "i think this just
+      looks bad! the border isnt necessary on those, and can just say data
+      liberated under the data part to be consistent with the other two!
+      they could just be on the background, or they can each be in their
+      own sleek card, or use your best judjgemen that would make this look
+      great!"): the D-home-stats-bar (1.0.240) visual pass. Two NAMED
+      fixes + one judgment call: (1) KILL THE BORDER — the three stats
+      currently sit inside one big rounded bordered container with
+      divider lines; the border reads heavy/janky against the hero's
+      dark background. (2) LABEL CONSISTENCY — "data liberated on web10"
+      is currently a sentence UNDER the whole bar; move "data liberated"
+      up as the third stat's LABEL (matching USERS / APPS), so the three
+      blocks read 449 USERS · 9 APPS · 27.6 MB DATA LIBERATED; the
+      trailing sentence goes away (or shrinks to a whisper caption if it
+      earns its place — taste call). (3) BUILDER'S JUDGMENT on the
+      container: bare-on-background (stats sit directly on the hero
+      background, no chrome) OR three individual sleek cards (subtle
+      fill/glow per the marketing register, never the current heavy
+      border) — pick whichever screenshots better against design.md §12;
+      the operator explicitly delegates this call. keep the live /stats
+      fetch, the hide-on-failure honesty, the count-up + reduced-motion
+      behavior, all tokens. files: marketing-ui Home.tsx stats bar
+      component (the 1.0.240 build). acceptance: the bar reads as three
+      clean stat callouts with consistent labels (USERS / APPS / DATA
+      LIBERATED), no heavy outer border; screenshots desktop + 375px and
+      LOOK — the "oh wow they have that many users" glance-impact must
+      survive the de-chroming; marketing-ui tests + tsc green. gate:
+      none.
+
 [✓ 1.0.242] D-docs-gfm (sub-lane ws-D/marketing; operator, 29.07 rant,
       screenshot of /docs "The premise, made concrete" rendering as
       raw pipe soup: "on the docs, are these absolute value signs on
@@ -2163,7 +2193,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       tests + tsc green; screenshot the hero at desktop + 375px and
       LOOK. gate: none.
 
-[ ] D-dm-header-profile-link (sub-lane ws-D/messages, TINY; operator,
+[✓ 1.0.251] D-dm-header-profile-link (sub-lane ws-D/messages, TINY; operator,
       30.07 rant: "i am in the chat, when i click my friends bubble /
       name on the top of the chat, it doesnt bring me to their
       profile."): the DM conversation header in DmsScreen.tsx
@@ -2178,7 +2208,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       browser back returns to the thread; social tests + tsc green;
       design.md §12 screenshots. gate: none.
 
-[ ] D-follow-toggle (sub-lane ws-D/profile; operator, 30.07 rant:
+[✓ 1.0.252] D-follow-toggle (sub-lane ws-D/profile; operator, 30.07 rant:
       "when i hit follow, it doesnt toggle and let me unfollow!"):
       the toggle handlers EXIST — UserProfileScreen.handleFollow
       (follow/unfollow branch) and DiscoverScreen's
@@ -2498,7 +2528,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       (it needs the App-schema public entries to exist — lane A's
       spec note should spec the #web10apps projection explicitly).
 
-[ ] D-appstore-browse (sub-lane ws-D/marketing(2), AFTER
+[✓ 1.0.251] D-appstore-browse (sub-lane ws-D/marketing(2), AFTER
       D-appstore-plugs — same AppStore page; operator, 29.07 rant,
       two screenshots — the uneven v1 grid + a small icon+name-only
       card as the desired size): "if the cards were like that big
@@ -3007,8 +3037,88 @@ M3 "the network"         = encryption integration (A rtc + C2 sdk
                            polish. the last big merge.
 
 
-CURRENT CONDUCTOR BOARD (as of 30.07.2026 — audit #14; keep fresh)
+CURRENT CONDUCTOR BOARD (as of 30.07.2026 — audit #15; keep fresh)
 --------------------------------------------------------------------
+AUDIT #15 REFRESH (30.07): SHIPPED. Zero dangling PRs. The dev batch
+(#399–#418) gated CLEAN — pass #14's two RED findings verified fixed
+(F1: link-health dispatch green at dev head, run 30514764803; F2: the
+get_apps compat filter live, prod /stats returns the legacy approved
+apps) — and promoted dev→main via merge commit (#419); deploy-prod +
+cd + e2e on main ALL green; prod verified live (7/7 public endpoints).
+PROD NOW SERVES: App Store v2 registration rewire (legacy apps visible
+pre-migration via the compat filter), clickable feed posts with Share
++ /u/:username/p/:postId permalinks, muted-autoplay videos on
+/trending, premium /join step visuals, all marketing sign-in links →
+web10 social, GFM tables in /docs, richer CRM contacts, stripe test-
+mode wiring in e2e. New since audit #14 (all filed, none built):
+D-dm-header-profile-link + D-follow-toggle (30.07 rant filings #413),
+D-home-stats-bar-styling (30.07 rant — kill the stats-bar border,
+"data liberated" as the third label, builder's taste on cards vs
+bare). GATES CLEARED this pass: D-lightbox-media-sizing (feed-lightbox
+bite b merged 1.0.248 — the PostLightbox seam cluster is free) and
+D-deep-links (the 26.07 fleet fully drained — it is FIRST now, one
+bite per screen per its BITES breakdown). ALIGNMENT: unchanged — every
+open item is operator-complaint-driven social-product/funnel work or
+the M2 money-path referee (C8); no infra-company drift. QWEN HORIZON:
+~8 immediately-kickoffable parallel-safe bites across 7 sub-lanes,
+~12+ chained PRs behind them — Qwens run independently.
+
+  PRIORITY 1 (fresh, this audit):
+    ws-E (operator-gated): E-run-discovery-migration — STILL the
+      highest-demo-impact item on the board and still needs the admin
+      token. The 30.07 "lacks videos and images" complaint class
+      persists on prod until the backfill RE-RUN (A17 media fields)
+      executes; RUN LIST now also carries POST /admin/apps/migrate_v2
+      (the D37 rewire is LIVE on prod as of #419 — legacy apps render
+      via the compat filter, so this is cleanup, not a blocker).
+
+  PARALLEL-SAFE FLEET (one workspace per sub-lane; chains WITHIN a
+  sub-lane are sequential, file seams):
+    ws-D/messages:   D-dm-header-profile-link (TINY, no gate), THEN
+                     D-deep-links bite 1 (messages thread key + view
+                     param — same DmsScreen seam, sequential)
+    ws-D/profile:    D-follow-toggle (runtime bug, operator rant — REPRO
+                     first), THEN D-lightbox-media-sizing (gate CLEARED
+                     this pass), THEN D-profile-image-placement,
+                     D-follow-lists, D-text-post-cards (chain order)
+    ws-D/feed:       D-link-embeds (feed-lightbox drained — the lane is
+                     free; gate D-profile-post-experience long merged)
+    ws-D/marketing:  [✓ 1.0.253] D-appstore-revamp v2 bite a (product page UI —
+                     gate CLEARED: spec #401 + rewire #409 live on prod;
+                     /discover/app/{id} + /apps/rating(s) endpoints
+                     serving)
+    ws-D/marketing(2): D-appstore-browse (uniform small cards + browse
+                     search — gate D-appstore-plugs long merged) AND
+                     D-home-stats-bar-styling (SMALL, no gate) —
+                     disjoint seams (AppStore.tsx vs Home.tsx), two
+                     workspaces OK
+    ws-D/shell:      D-mobile-feature-gap (no gate)
+    ws-C:            C8 remainder — bite b (membership subscribe journey,
+                     3% split asserted) + bite c (twilio honest half);
+                     staged with the M2-prereq block, not the gauntlet
+                     fleet
+    ws-D/marketing-api: D-import-revamp bite b (the WeTransfer pipeline —
+                     gate bite a merged 1.0.231, CLEARED; NEW sub-lane,
+                     nothing in flight there)
+  GATED (don't pick up until the gate clears):
+      D-night-owl bites b-e (gate: operator's Conductor Pro trial).
+      D-poke build (gate: operator sign-off on the 1.0.179 proposal).
+      D-feed-avatar-resolution + the D-user-profile-media grid half
+        (gate: public-media path END TO END — needs the dev verification
+        step).
+      D-coming-soon-builds (gate: per-surface spec first).
+      D-appstore category rails (gate: catalog size).
+      E-run-discovery-migration (gate: admin token — operator provides).
+      E-dependabot-hackathon (parked per operator "can be done later").
+  Selection rule (CLAUDE.md): only truly-parallel items at once. The
+  PostLightbox/FeedScreen/PostComposer files form ONE seam cluster
+  spanning ws-D/feed and ws-D/profile — the two chains coordinate via
+  .context/ notes and never edit the same file concurrently.
+  BITE RULE (rule 5, operator 27.07): the chains above are QUEUES of
+  bites — a kickoff hands an agent exactly ONE bite (one PR, ~20-40
+  min); multi-bite items carry a BITES: breakdown in their lane text.
+  never kick off "the chain".
+
 AUDIT #14 REFRESH (30.07): BATCH GATED RED — NOT PROMOTED. Zero dangling
 PRs; the dev batch (#399–#410 — pass #13 record, D-hero-cta-label, D37
 appstore-v2 spec + registration rewire, C8 stripe-test-mode bite a,
@@ -3048,67 +3158,6 @@ join-steps-visuals, appstore-browse, appstore v2 bite a [gate CLEARED —
 spec #401 + api rewire #409 both merged], mobile-feature-gap, crm drained,
 discover-knobs DRAINED this batch), ~20+ chained PRs behind them — Qwens
 run independently once the two fix blocks land.
-
-  PRIORITY 1 (fresh, this audit):
-ws-E/infra: [✓ 1.0.247] FIX F1 — link-health.yml invalid YAML (blocks a clean
-       dev head; tiny). FIX BLOCK in the pass-14 report.
-    ws-A: FIX F2 — get_apps review_state compat filter (blocks dev→main
-      promotion; tiny, test-pinned). FIX BLOCK in the pass-14 report.
-    ws-E (operator-gated): E-run-discovery-migration — unchanged, still
-      needs the admin token; RUN LIST gains: POST /admin/apps/migrate_v2
-      per env after the D37 rewire deploys (backfills review_state +
-      web10apps_post_id, projects approved apps to #web10apps).
-
-  PARALLEL-SAFE FLEET (one workspace per sub-lane; chains WITHIN a
-  sub-lane are sequential, file seams):
-    ws-E/infra:      [✓ 1.0.247] FIX F1 (link-health.yml YAML) — P1
-    ws-A:            FIX F2 (get_apps compat filter) — P1, THEN the lane
-                     is clear (D37 spec + rewire both merged)
-    ws-D/feed:       D-feed-lightbox bite b (share + permalink route
-                     /u/:username/p/:postId — gate bite a merged 1.0.239,
-                     CLEARED), THEN D-link-embeds
-    ws-D/marketing:  D-nav-signin-social (TINY, no gate) AND
-                     D-video-autoplay-muted (no gate) — disjoint seams
-                     (Navbar.tsx vs FeedPreview.tsx TrendingMedia), two
-                     workspaces OK
-    ws-D/marketing(2): D-appstore-browse (gate D-appstore-plugs merged
-                     1.0.230, CLEARED) AND D-join-steps-visuals (no gate)
-                     — disjoint seams (AppStore.tsx vs Join.tsx)
-    ws-D/marketing(3) NEW: D-appstore-revamp v2 bite a (product page UI —
-                     gate CLEARED: the lane-A spec note #401 + the D37
-                     rewire #409 both merged; /discover/app/{id} +
-                     /apps/rating(s) endpoints are LIVE on dev)
-    ws-D/profile:    D-lightbox-media-sizing (chain START) — HELD until
-                     ws-D/feed's lightbox bite b merges (PostLightbox
-                     seam cluster rule)
-    ws-D/shell:      D-mobile-feature-gap (no gate)
-    ws-D/discover:   DRAINED (knobs bite b merged 1.0.241 — umbrella
-                     ticked this audit)
-    ws-D/messages:   DRAINED (crm bite b merged 1.0.240)
-    ws-C:            C8 remainder — bite b (membership subscribe journey,
-                     3% split asserted) + bite c (twilio honest half);
-                     staged with the M2-prereq block, not the gauntlet
-                     fleet
-  GATED (don't pick up until the gate clears):
-      D-night-owl bites b-e (gate: operator's Conductor Pro trial).
-      D-deep-links (gate: the current fleet merged). Still FIRST when
-        the fleet drains; feed-lightbox bite b's permalink route is its
-        foundation.
-      D-poke build (gate: operator sign-off on the 1.0.179 proposal).
-      D-feed-avatar-resolution + the D-user-profile-media grid half
-        (gate: public-media path END TO END — needs the dev verification
-        step).
-      D-coming-soon-builds (gate: per-surface spec first).
-      D-appstore category rails (gate: catalog size).
-      E-run-discovery-migration (gate: admin token — operator provides).
-  Selection rule (CLAUDE.md): only truly-parallel items at once. The
-  PostLightbox/FeedScreen/PostComposer files form ONE seam cluster
-  spanning ws-D/feed and ws-D/profile — the two chains coordinate via
-  .context/ notes and never edit the same file concurrently.
-  BITE RULE (rule 5, operator 27.07): the chains above are QUEUES of
-  bites — a kickoff hands an agent exactly ONE bite (one PR, ~20-40
-  min); multi-bite items carry a BITES: breakdown in their lane text.
-  never kick off "the chain".
 
 AUDIT #13 REFRESH (30.07): SHIPPED. Dangling PR #396 (export-link
 guidance rant filing) un-conflicted via the local union-merge ritual
