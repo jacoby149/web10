@@ -2482,7 +2482,7 @@ D-dm-header-profile-link (ws-D/messages, tiny). merged 1.0.251.
     bare-on-background vs sleek individual cards is the builder's
     taste call against design.md §12. lane item
     D-home-stats-bar-styling (ws-D/marketing(2), small).
-[ ] data liberated counts S3 bytes too (operator, 30.07 rant: "the
+[✓ 1.0.263] data liberated counts S3 bytes too (operator, 30.07 rant: "the
     data liberated tab isnt counting s3 data! should also add up all
     s3 data in the count!"): /stats' `storage` is mongo dbstats
     storageSize only (documentdb.py:867) — media blobs live in the
