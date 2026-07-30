@@ -2294,7 +2294,15 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       via a per-author discovery query (check discover.py for an
       author param — if absent, that's a small lane-A touch, leave a
       .context/ note) or paginate until found, never limit-50-and-
-      pray. the stat tiles become links to the D-follow-lists routes
+      pray. OPERATOR RE-CONFIRMED 30.07 (rant #2, screenshot of
+      /u/jacoby149 — his OWN profile via /u/): "same when i visit my
+      own profile via /u/, i dont see how many followers just
+      following, and my posts dont render" — "0 Posts · 4 Following",
+      no Followers tile, "No posts yet" for an owner WITH posts. the
+      /u/ route takes the buggy discovery path EVEN FOR THE OWNER;
+      the owner case is folded into D-own-profile-canonical (owner
+      collection read), but the per-user counts fix here must cover
+      /u/<you> too until that lands. the stat tiles become links to the D-follow-lists routes
       (/u/:username/followers|following) when that lands — coordinate,
       same screen. files: components/Bio/UserProfileScreen.tsx,
       data/follows.ts (own exports). acceptance: /u/coolguydavid
@@ -2404,20 +2412,40 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       just have it always be profile/u/jacoby149!"): clicking your own
       username lands on the bare /profile route; the operator wants
       the canonical URL to ALWAYS be the /u/:username form — your own
-      profile is just your user profile. fix: every own-profile
+      profile is just your user profile. OPERATOR DECISION (30.07
+      rant #2, screenshot of /u/jacoby149 — record it, don't
+      re-litigate): "ultimately, /u/{your web10 username} should be
+      the same as /profile for the signed in user… should get rid of
+      /profile so you can share with friends! for example /u/jacoby149
+      i am jacoby149 so when i click profile address bar should show
+      that" — /profile is RETIRED as a screen: it becomes a redirect
+      to /u/<you> (back-compat for existing bookmarks/links — never
+      404 a shipped route), and /u/<you> IS the profile: the OWNER
+      experience (edit affordances, own-collection post read — the
+      current ProfileScreen), not the public-viewer experience.
+      NOTE the sharability win the operator names: /u/<you> is a
+      link you hand a friend; /profile never was. ALSO folded in
+      (same screenshot): /u/<you> TODAY renders the viewer experience
+      with the D-user-profile-stats bugs — "0 Posts · 4 Following",
+      no Followers tile, "No posts yet" for an owner WITH posts —
+      because the /u/ route takes the discovery path even for the
+      owner; the owner path must read the owner's own collection
+      like ProfileScreen does.
+      fix: every own-profile
       navigation (the sidebar username/avatar link in Social/
       Layout.tsx, any other own-profile entry point) navigates to
       /u/<your-username>; the /profile route becomes a REDIRECT to
-      /u/:username for the signed-in user (back-compat for existing
-      bookmarks/links — never 404 a shipped route), and UserProfileScreen
+      /u/:username for the signed-in user, and UserProfileScreen
       renders your own profile with the owner affordances (edit etc.)
       it already gates on is-own-profile — VERIFY that gate works on
       the /u/ route for the owner, don't build a second own-profile
       screen. files: web10-social/src/App.tsx (redirect route),
       components/Social/Layout.tsx (link target). acceptance: clicking
-      your username lands on /u/<you>; /profile redirects to /u/<you>;
-      refresh + back/forward work; your own /u/ page still shows the
-      owner edit affordances; social tests + tsc green; screenshots
+      your username lands on /u/<you> with the address bar showing
+      /u/<you>; /profile redirects to /u/<you>;
+      refresh + back/forward work; your own /u/ page shows the
+      owner edit affordances AND your real posts/counts (owner
+      collection read); social tests + tsc green; screenshots
       desktop + 375px. gate: none.
 
 
@@ -3289,9 +3317,12 @@ the M2 money-path referee (C8); no infra-company drift. QWEN HORIZON:
                      THEN D-lightbox-media-sizing (gate CLEARED
                      this pass), THEN D-profile-image-placement,
                      D-text-post-cards (chain order)
-    ws-D/shell:      D-own-profile-canonical (TINY, no gate — own
-                     profile always at /u/<you>, /profile redirects),
-                     THEN D-mobile-feature-gap (no gate)
+    ws-D/shell:      D-own-profile-canonical (TINY, no gate — /profile
+                     RETIRED, redirects to /u/<you> which IS the owner
+                     profile; operator decision 30.07. SEAM: touches the
+                     UserProfileScreen owner path — coordinate with the
+                     ws-D/profile chain via .context/, never concurrent
+                     edits), THEN D-mobile-feature-gap (no gate)
     ws-D/feed:       D-self-engagement-counts (operator rant — self
                      likes/comments/shares count; REPRO first, orphaned
                      legacy-target suspect)

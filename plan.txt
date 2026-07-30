@@ -2529,8 +2529,17 @@ D-dm-header-profile-link (ws-D/messages, tiny). merged 1.0.251.
     /profile it goes to profile/u/jacoby149 — lets just have it always
     be profile/u/jacoby149!"): your own profile always lives at
     /u/<you>; /profile becomes a redirect (back-compat, never 404 a
-    shipped route). lane item D-own-profile-canonical (ws-D/shell,
-    tiny).
+    shipped route). OPERATOR DECISION (30.07 rant #2, screenshot of
+    /u/jacoby149): "ultimately, /u/{your web10 username} should be the
+    same as /profile for the signed in user… should get rid of
+    /profile so you can share with friends!" — /profile is RETIRED as
+    a screen; /u/<you> IS the profile (owner experience: edit
+    affordances, own-collection post read), and it's the link you hand
+    a friend. the same screenshot shows the /u/ owner path today hits
+    the D-user-profile-stats bugs ("0 Posts", no Followers tile, "No
+    posts yet" with posts existing) — the owner path must read the
+    owner's own collection. lane item D-own-profile-canonical
+    (ws-D/shell, tiny).
 [ ] ADDRESS BAR EVERYWHERE — operator priority call (30.07 rant: "i
     guess when we make every screen in the address bar have a link to
     it, that will happen. maybe lets have that address bar for every
