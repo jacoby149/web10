@@ -1,3 +1,6 @@
+1.0.247 || 30.07.2026
+fix(ci): F1 — indent link-health.yml body string into run: block scalar. The multi-line body="..." string lines in the "Report failure as GitHub issue" step were at column 0, breaking out of the run: | block scalar; YAML parser died at line 37 (* alias). Indented all body-string lines to column 10. yaml.safe_load passes. scripts/link-health.sh unchanged.
+
 1.0.245 || 30.07.2026
 fix(marketing-ui): D-nav-signin-social — ALL sign-in links in marketing-ui now point to SOCIAL_ORIGIN (web10 social), not AUTH_ORIGIN (the authenticator). Navbar Sign In (desktop + mobile), footer Sign In (Home, Exporter, Join), Join step-2 "Create your account", and Exporter step-2 "Log in" all flip to social. Two AUTH_ORIGIN links remain: AppStore "The node console" (operator/admin surface, separate app) and Join step-3 "Set up your monetization" → Studio (operator tool). 161 marketing-ui tests green, tsc clean.
 1.0.246 || 30.07.2026
