@@ -1819,6 +1819,15 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
             the link! for whichever one you are importing! Facebook,
             Youtube, X, Instagram! (buttons with each platform's
             logo, deep-linking to that platform's data-export page)
+            PLUS (operator, 29.07 rant #2: "we should offer tiktok
+            export as well! and web10 export!"): TIKTOK gets a
+            button too (five legacy platforms), and WEB10 EXPORT —
+            "yes you can export from your current web10 node, and
+            import somewhere else!" — the sovereignty escape hatch
+            made visible: export your own node's collections as a
+            zip, import it on another node. the import page SAYS
+            this proudly (it's the anti-lock-in proof — the pitch
+            is that there is no lock-in).
         2 - log into the web10 authenticator! click the import from
             legacy social media tab!
         3 - upload the zip! we do a wetransfer like thing, where
@@ -1846,7 +1855,11 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         steps (reuse StepCard/StepStrip from 1.0.203); step 1 is
         pure value TODAY — platform logo buttons deep-linking to
         each platform's data-export page (Facebook, YouTube, X,
-        Instagram — find the current export URLs, open in new tab);
+        Instagram, TikTok — find the current export URLs, open in
+        new tab) PLUS the web10-export note rendered proudly on the
+        page ("yes, you can export from your current web10 node and
+        import somewhere else" — the anti-lock-in proof, visible
+        even before bite d builds the export button);
         steps 2-5 render as the honest journey with the steps that
         aren't built yet marked "coming soon" (never fake a working
         step). no backend. gate: none.
@@ -1867,6 +1880,21 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         bite b. NOTE: cross-lane — ws-B owns ui/**; the bite is
         small if bite b's API contract is documented in a .context/
         handoff note first.
+      bite d, WEB10 NODE EXPORT (sub-lane ws-D/marketing-api with a
+        lane-A seam — the node needs an export endpoint; operator,
+        29.07 rant #2: "web10 export! and make a note, yes you can
+        export from your current web10 node, and import somewhere
+        else!"): download YOUR collections as a zip (the whole
+        {service, body} corpus, media refs included — the format
+        mirrors the conventions doc so the bite-b pipeline ingests
+        it like any takeout), and the bite-b import path ACCEPTS a
+        web10 zip on another node (node-to-node migration = the
+        federation escape hatch, no new protocol — a zip is a zip).
+        the api side (an authenticated export endpoint on the node,
+        streaming the caller's own collection — I3-safe by
+        construction) is a small lane-A seam: leave the .context/
+        note, don't reach in from lane D. gate: bite b (the ingest
+        half exists to target).
       acceptance (umbrella): a user can click a platform logo, get
       the export zip, upload it, watch it process, review privacy
       in staging, and see their old life on web10 social — with the

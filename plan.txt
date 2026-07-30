@@ -2427,7 +2427,12 @@ the join tab would work great for the import your life!"): rebuild
 /import as a /join-style numbered-step journey:
   1. export the zip from legacy media — platform logo buttons deep-
      linking to each platform's own data-export page (Facebook,
-     YouTube, X, Instagram). pure links, pure value today.
+     YouTube, X, Instagram, TikTok). pure links, pure value today.
+     PLUS web10 export (operator, 29.07: "and web10 export! and make
+     a note, yes you can export from your current web10 node, and
+     import somewhere else!") — download your own node's collections
+     as a zip, import on another node; the page says it proudly
+     (the anti-lock-in proof is the pitch).
   2. log into the web10 authenticator → the import tab.
   3. upload the zip — a WeTransfer-like flow onto the hosted S3.
   4. we do the rest — a background queue in marketing-api (operator
