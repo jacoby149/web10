@@ -1,3 +1,6 @@
+1.0.253 || 30.07.2026
+feat(marketing-ui): D-appstore-revamp v2 bite a — app product page. New `/app-store/app/:id` route with AppDetail page: app name, description, visit count, open link, screenshot carousel, and 404 fallback. AppCard gains `appId` prop for internal navigation (react-router `Link` to the detail page) vs external open. AppStore populates enriched fields (name, description, icon_url, screenshots, web10apps_post_id) from the API for both first-party and registered apps. 11 new tests for AppDetail, 3 updated AppCard tests (appId navigation). 178 tests green, tsc clean, vite build clean.
+
 1.0.252 || 30.07.2026
 fix(web10-social): D-follow-toggle — follow button now toggles to unfollow. Root cause: `readFollow` returned `records[0]` with no status filter, so when duplicate follow records existed (one `active`, one `rejected`), the UI read the wrong one and the toggle never flipped. Fix: (1) `readFollow` now prefers `active` records, falling back to the most recent by `followed_at`; (2) `followUser` and `unfollowUser` update ALL matching records (not just one) so duplicates cannot stay stale. 5 new vitest regression tests pin the toggle round-trip with duplicates. 29 follows tests green, tsc clean.
 
