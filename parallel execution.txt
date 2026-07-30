@@ -2193,7 +2193,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       tests + tsc green; screenshot the hero at desktop + 375px and
       LOOK. gate: none.
 
-[ ] D-dm-header-profile-link (sub-lane ws-D/messages, TINY; operator,
+[✓ 1.0.251] D-dm-header-profile-link (sub-lane ws-D/messages, TINY; operator,
       30.07 rant: "i am in the chat, when i click my friends bubble /
       name on the top of the chat, it doesnt bring me to their
       profile."): the DM conversation header in DmsScreen.tsx
@@ -2528,7 +2528,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       (it needs the App-schema public entries to exist — lane A's
       spec note should spec the #web10apps projection explicitly).
 
-[ ] D-appstore-browse (sub-lane ws-D/marketing(2), AFTER
+[✓ 1.0.251] D-appstore-browse (sub-lane ws-D/marketing(2), AFTER
       D-appstore-plugs — same AppStore page; operator, 29.07 rant,
       two screenshots — the uneven v1 grid + a small icon+name-only
       card as the desired size): "if the cards were like that big
