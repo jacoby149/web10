@@ -2226,6 +2226,15 @@ showcase app (operator, 26.07: "showing the web10 social network as a
 web, like an app outside of web10 social — graph.web10.app, something
 wooshy — is great marketing, because it is an app interoperating on
 web10 data… one outside analytical app on top of your social data"):
+[PARKED 29.07 — operator: "the graph isnt aligned enough with the
+minimum necessities for the business… save this graph stuff for much
+later after we make some money!" the anon /graph route shipped as
+bite a (#362) and was REMOVED in 1.0.213 — it never worked on prod
+(GET on the PATCH-only endpoints; mocked tests hid it). both items
+below park to later.md with unpark notes (use PATCH; a top-N-by-
+followers aggregation over the public ledger is the right shape for
+a legible graph; add a real-data smoke assertion). original text
+kept for history:]
 [ ] THE GRAPH APP — a standalone, anon-first visualization of the
     node's social graph: users as nodes, follows as edges, force-
     directed and wooshy (drag, zoom, watch it breathe), click a node →
