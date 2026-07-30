@@ -424,3 +424,78 @@ describe('Mix code URL round-trip', () => {
     expect(decoded).toEqual(state);
   });
 });
+
+// ── D-video-autoplay-muted: video autoplay muted on /trending cards ──────────
+
+describe('TrendingCard video media', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal('fetch', vi.fn());
+    vi.stubGlobal('open', vi.fn());
+    Element.prototype.scrollIntoView = vi.fn();
+    // Mock IntersectionObserver
+    vi.stubGlobal('IntersectionObserver', class {
+      observe = vi.fn();
+      disconnect = vi.fn();
+    });
+    // Mock matchMedia (needed for prefers-reduced-motion check)
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: (query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }),
+    });
+  });
+
+  it('renders a video element for video posts', async () => {
+    const videoPost: FeedPost = {
+      ...basePost,
+      id: 'video-post',
+      media: 'video',
+      mediaRefs: ['ref-1'],
+      firstAttachmentMime: 'video/mp4',
+      author: 'testuser',
+    };
+    render(
+      <TrendingCard post={videoPost} rank={2} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
+    );
+    // Should show skeleton initially, then trending-media
+    expect(screen.getByTestId('trending-media-skeleton')).toBeInTheDocument();
+  });
+
+  it('renders an image for image posts (unchanged)', async () => {
+    const imagePost: FeedPost = {
+      ...basePost,
+      id: 'image-post',
+      media: 'image',
+      mediaRefs: ['ref-1'],
+      firstAttachmentMime: 'image/jpeg',
+      author: 'testuser',
+    };
+    render(
+      <TrendingCard post={imagePost} rank={2} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
+    );
+    expect(screen.getByTestId('trending-media-skeleton')).toBeInTheDocument();
+  });
+
+  it('renders placeholder when no media refs for video', async () => {
+    const videoPost: FeedPost = {
+      ...basePost,
+      id: 'video-post',
+      media: 'video',
+    };
+    render(
+      <TrendingCard post={videoPost} rank={2} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
+    );
+    // No media refs means MediaPlaceholder renders immediately
+    expect(screen.queryByTestId('trending-media')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('trending-media-skeleton')).not.toBeInTheDocument();
+  });
+});
