@@ -94,11 +94,20 @@ class SetupStatus(BaseModel):
 
 
 class AppApprovalRequest(BaseModel):
-    """Admin toggles an app's visibility in the public App Store."""
+    """Admin toggles an app's visibility in the public App Store (v2)."""
 
     token: str
     url: str
     approved: bool = True
+    reviewer_note: str = ""
+
+
+class AppRatingRequest(BaseModel):
+    """User submits a 1-5 star rating for an app."""
+
+    token: str
+    target_app_id: str
+    rating: int
 
 
 class AppAdminQuery(BaseModel):

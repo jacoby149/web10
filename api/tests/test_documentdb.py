@@ -1,6 +1,6 @@
 """Tests for the pure transformation & query-safety functions in services/documentdb.py."""
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -342,3 +342,238 @@ class TestIsInCrossOrigins:
 
     def test_no_record(self, mock_db_term_none):
         assert documentdb.is_in_cross_origins("anything", "owner", "svc") is False
+
+
+class TestWeb10AppsPostId:
+    """D37: web10apps_post_id generation is stable and URL-safe."""
+
+    def test_generates_stable_id(self):
+        url = "https://example.app"
+        id1 = documentdb._generate_web10apps_post_id(url)
+        id2 = documentdb._generate_web10apps_post_id(url)
+        assert id1 == id2
+        assert id1.startswith("app_")
+        assert len(id1) == 12  # "app_" + 8 hex chars
+
+    def test_different_urls_different_ids(self):
+        id1 = documentdb._generate_web10apps_post_id("https://a.app")
+        id2 = documentdb._generate_web10apps_post_id("https://b.app")
+        assert id1 != id2
+
+
+class TestAppRegistrationV2:
+    """D37: register_app v2 — new apps start pending, repeat visits bump visits,
+    listing edits on approved apps enter review."""
+
+    def _mock_db(self, find_one_result=None):
+        """Build a mock DB that responds to db["web10"]["apps"].find_one(...)."""
+        mock_apps_col = MagicMock()
+        mock_apps_col.find_one.return_value = find_one_result
+        mock_web10_db = MagicMock()
+        mock_web10_db.__getitem__.return_value = mock_apps_col
+        mock_db = MagicMock()
+        mock_db.__getitem__.return_value = mock_web10_db
+        return mock_db, mock_apps_col
+
+    def test_new_registration_starts_pending(self):
+        mock_db, mock_apps_col = self._mock_db(find_one_result=None)
+
+        with patch("app.services.documentdb.db", mock_db):
+            documentdb.register_app({"url": "https://new.app", "name": "New App"})
+
+        call_args = mock_apps_col.insert_one.call_args
+        doc = call_args[0][0]
+        assert doc["url"] == "https://new.app"
+        assert doc["review_state"] == "pending"
+        assert doc["approved"] is False
+        assert doc["metadata_version"] == 1
+        assert doc["name"] == "New App"
+        assert doc["web10apps_post_id"].startswith("app_")
+
+    def test_repeat_visit_increments_visits(self):
+        existing = {
+            "url": "https://existing.app",
+            "visits": 5,
+            "review_state": "approved",
+            "name": "Existing",
+        }
+        mock_db, mock_apps_col = self._mock_db(find_one_result=existing)
+
+        with patch("app.services.documentdb.db", mock_db):
+            documentdb.register_app({"url": "https://existing.app"})
+
+        update_call = mock_apps_col.update_one.call_args
+        assert update_call[0][1]["$inc"]["visits"] == 1
+        # Should NOT change review_state for a plain visit
+        assert "review_state" not in update_call[0][1].get("$set", {})
+
+    def test_listing_edit_on_approved_enters_review(self):
+        existing = {
+            "url": "https://approved.app",
+            "visits": 10,
+            "review_state": "approved",
+            "name": "Old Name",
+            "description": "Old desc",
+            "icon_url": None,
+            "screenshots": [],
+        }
+        mock_db, mock_apps_col = self._mock_db(find_one_result=existing)
+
+        with patch("app.services.documentdb.db", mock_db):
+            documentdb.register_app(
+                {
+                    "url": "https://approved.app",
+                    "name": "New Name",
+                    "description": "New desc",
+                    "icon_url": "https://new-icon.png",
+                }
+            )
+
+        update_call = mock_apps_col.update_one.call_args
+        assert update_call[0][1]["$inc"]["metadata_version"] == 1
+        assert update_call[0][1]["$set"]["review_state"] == "pending_on_change"
+        assert update_call[0][1]["$set"]["pending_name"] == "New Name"
+        assert update_call[0][1]["$set"]["pending_description"] == "New desc"
+        assert update_call[0][1]["$set"]["pending_icon_url"] == "https://new-icon.png"
+
+
+class TestAppApprovalV2:
+    """D37: set_app_approval v2 — review_state machine, pending metadata promotion."""
+
+    def _mock_db(self, find_one_results, discovery_col=None):
+        """Build a mock DB for set_app_approval tests.
+        find_one_results: list of results returned by find_one in order.
+        discovery_col: optional mock for the discovery collection."""
+        mock_apps_col = MagicMock()
+        mock_apps_col.find_one.side_effect = find_one_results
+        mock_discovery_col = discovery_col or MagicMock()
+
+        def db_getitem(name):
+            if name == "web10":
+
+                class Web10DB:
+                    def __getitem__(self, key):
+                        if key == "apps":
+                            return mock_apps_col
+                        return mock_discovery_col
+
+                return Web10DB()
+            return mock_discovery_col
+
+        mock_db = MagicMock()
+        mock_db.__getitem__.side_effect = db_getitem
+        return mock_db, mock_apps_col, mock_discovery_col
+
+    def test_approve_pending_sets_approved(self):
+        mock_db, mock_apps_col, _ = self._mock_db(
+            find_one_results=[
+                {"url": "https://a.app", "review_state": "pending", "web10apps_post_id": "app_123"},
+                {
+                    "url": "https://a.app",
+                    "review_state": "approved",
+                    "web10apps_post_id": "app_123",
+                    "name": "A",
+                    "description": "Desc",
+                    "icon_url": None,
+                    "registered_at": "2026-01-01",
+                },
+            ]
+        )
+
+        with patch("app.services.documentdb.db", mock_db):
+            documentdb.set_app_approval("https://a.app", True)
+
+        update_call = mock_apps_col.update_one.call_args
+        assert update_call[0][1]["$set"]["review_state"] == "approved"
+        assert update_call[0][1]["$set"]["approved"] is True
+
+    def test_approve_pending_on_change_promotes_metadata(self):
+        mock_db, mock_apps_col, _ = self._mock_db(
+            find_one_results=[
+                {
+                    "url": "https://a.app",
+                    "review_state": "pending_on_change",
+                    "web10apps_post_id": "app_123",
+                    "pending_description": "New desc",
+                    "pending_icon_url": "https://new.png",
+                    "pending_screenshots": ["https://ss.png"],
+                },
+                {
+                    "url": "https://a.app",
+                    "review_state": "approved",
+                    "web10apps_post_id": "app_123",
+                    "name": "A",
+                    "description": "New desc",
+                    "icon_url": "https://new.png",
+                    "registered_at": "2026-01-01",
+                },
+            ]
+        )
+
+        with patch("app.services.documentdb.db", mock_db):
+            documentdb.set_app_approval("https://a.app", True, "Looks good")
+
+        update_call = mock_apps_col.update_one.call_args
+        assert update_call[0][1]["$set"]["review_state"] == "approved"
+        assert update_call[0][1]["$set"]["description"] == "New desc"
+        assert update_call[0][1]["$set"]["icon_url"] == "https://new.png"
+        assert update_call[0][1]["$set"]["reviewer_note"] == "Looks good"
+
+    def test_reject_removes_discovery_projection(self):
+        mock_discovery_col = MagicMock()
+        mock_db, mock_apps_col, _ = self._mock_db(
+            find_one_results=[
+                {"url": "https://a.app", "review_state": "pending", "web10apps_post_id": "app_123"},
+            ],
+            discovery_col=mock_discovery_col,
+        )
+
+        with patch("app.services.documentdb.db", mock_db):
+            documentdb.set_app_approval("https://a.app", False, "Not suitable")
+
+        update_call = mock_apps_col.update_one.call_args
+        assert update_call[0][1]["$set"]["review_state"] == "rejected"
+        # Discovery projection should be removed
+        mock_discovery_col.delete_one.assert_called_once()
+
+
+class TestAppRatings:
+    """D37: star ratings as public ledger entries, per-user upsert."""
+
+    def _mock_db(self, find_one_result=None):
+        mock_col = MagicMock()
+        mock_col.find_one.return_value = find_one_result
+        mock_web10_db = MagicMock()
+        mock_web10_db.__getitem__.return_value = mock_col
+        mock_db = MagicMock()
+        mock_db.__getitem__.return_value = mock_web10_db
+        return mock_db, mock_col
+
+    def test_create_new_rating(self):
+        mock_db, mock_col = self._mock_db(find_one_result=None)
+
+        with (
+            patch("app.services.documentdb.db", mock_db),
+            patch("app.services.documentdb.settings", PROVIDER="api.localhost"),
+        ):
+            result = documentdb.create_app_rating("alice", "app_abc", 4, "api.localhost")
+
+        assert result["author"] == "alice"
+        assert result["payload"]["rating"] == 4
+        assert result["target"] == "system/web10_apps/app_abc"
+        assert result["payload"]["action"] == "rating"
+
+    def test_update_existing_rating(self):
+        existing = {
+            "_id": "old_id",
+            "author": "alice",
+            "payload": {"rating": 3, "action": "rating"},
+        }
+        mock_db, mock_col = self._mock_db(find_one_result=existing)
+
+        with patch("app.services.documentdb.db", mock_db):
+            result = documentdb.create_app_rating("alice", "app_abc", 5, "api.localhost")
+
+        assert result["payload"]["rating"] == 5
+        update_call = mock_col.update_one.call_args
+        assert update_call[0][1]["$set"]["payload.rating"] == 5

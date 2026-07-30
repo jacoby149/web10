@@ -1116,7 +1116,7 @@ class TestAppStoreCuration:
             )
         assert resp.status_code == 200
         assert resp.json() == {"status": "updated", "url": "https://a", "approved": True}
-        mock_set.assert_called_once_with("https://a", True)
+        mock_set.assert_called_once_with("https://a", True, "")
 
     def test_apps_approve_denied_for_non_admin(self, client):
         with patch("app.services.config.get_config", return_value=dict(self._CFG)):
@@ -1125,6 +1125,76 @@ class TestAppStoreCuration:
                 json={"token": _owner_token("bob"), "url": "https://a", "approved": True},
             )
         assert resp.status_code == 403
+
+    def test_apps_rating_valid(self, client):
+        """A valid rating creates a ledger entry."""
+        with patch("app.services.documentdb.create_app_rating") as mock_rate:
+            mock_rate.return_value = {
+                "_id": "test.id",
+                "author": "alice",
+                "target": "system/web10_apps/app_abc123",
+                "payload": {"action": "rating", "rating": 4, "target_app_id": "app_abc123"},
+            }
+            resp = client.post(
+                "/apps/rating",
+                json={"token": _owner_token("alice"), "target_app_id": "app_abc123", "rating": 4},
+            )
+        assert resp.status_code == 200
+        mock_rate.assert_called_once_with(
+            author="alice", target_app_id="app_abc123", rating=4, provider="api.localhost"
+        )
+
+    def test_apps_rating_out_of_range(self, client):
+        """Rating outside 1-5 is rejected."""
+        resp = client.post(
+            "/apps/rating",
+            json={"token": _owner_token("alice"), "target_app_id": "app_abc123", "rating": 0},
+        )
+        assert resp.status_code == 400
+
+        resp = client.post(
+            "/apps/rating",
+            json={"token": _owner_token("alice"), "target_app_id": "app_abc123", "rating": 6},
+        )
+        assert resp.status_code == 400
+
+    def test_apps_rating_no_token(self, client):
+        """Rating requires authentication."""
+        resp = client.post(
+            "/apps/rating",
+            json={"token": "", "target_app_id": "app_abc123", "rating": 4},
+        )
+        assert resp.status_code == 401
+
+    def test_apps_ratings_read(self, client):
+        """Reading ratings returns entries from the ledger."""
+        with patch("app.services.documentdb.query_app_ratings") as mock_query:
+            mock_query.return_value = [
+                {"_id": "e1", "author": "alice", "payload": {"rating": 5}},
+                {"_id": "e2", "author": "bob", "payload": {"rating": 3}},
+            ]
+            resp = client.patch("/apps/ratings/app_abc123")
+        assert resp.status_code == 200
+        assert len(resp.json()) == 2
+        mock_query.assert_called_once_with("app_abc123")
+
+    def test_apps_approve_with_reviewer_note(self, client):
+        """Approve endpoint accepts reviewer_note."""
+        with (
+            patch("app.services.config.get_config", return_value=dict(self._CFG)),
+            patch("app.services.documentdb.set_app_approval") as mock_set,
+        ):
+            resp = client.post(
+                "/apps/approve",
+                json={
+                    "token": _owner_token("alice"),
+                    "url": "https://a",
+                    "approved": True,
+                    "reviewer_note": "Looks good",
+                },
+            )
+        assert resp.status_code == 200
+        mock_set.assert_called_once_with("https://a", True, "Looks good")
 
 
 # ---------------------------------------------------------------------------

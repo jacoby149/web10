@@ -1,4 +1,5 @@
 import datetime
+import hashlib
 import itertools
 import logging
 import re
@@ -634,41 +635,218 @@ def _ensure_capped(name, max_docs):
 
 # appstore stats
 
+# D37: v2 app registration — review_state machine, node-hosted metadata,
+# #web10apps social projection, star ratings as ledger entries.
+
+
+def _generate_web10apps_post_id(url: str) -> str:
+    """Generate a stable, URL-safe post ID from an app URL."""
+    return "app_" + hashlib.sha256(url.encode()).hexdigest()[:8]
+
+
+def _project_app_to_discovery(app: dict):
+    """Write a synthetic discovery entry for an approved app (#web10apps projection)."""
+    _ensure_discovery_collection()
+    col = db["web10"][DISCOVERY_COLLECTION]
+    post_id = app.get("web10apps_post_id", _generate_web10apps_post_id(app["url"]))
+    body_text = app.get("name", "")
+    if app.get("description"):
+        body_text = f"{body_text} — {app['description']}" if body_text else app["description"]
+    media_refs = []
+    if app.get("icon_url"):
+        media_refs = [app["icon_url"]]
+
+    update_doc = {
+        "author": "system",
+        "service": "web10_apps",
+        "post_id": post_id,
+        "body_text": body_text,
+        "tags": ["#web10apps"],
+        "media_refs": media_refs,
+        "has_media": len(media_refs) > 0,
+        "created_at": app.get("registered_at", datetime.datetime.utcnow().isoformat()),
+        "updated_at": datetime.datetime.utcnow().isoformat(),
+        "_app_url": app["url"],
+    }
+    col.update_one(
+        {"author": "system", "service": "web10_apps", "post_id": post_id},
+        {"$set": update_doc},
+        upsert=True,
+    )
+
+
+def _remove_app_discovery_projection(post_id: str):
+    """Remove a #web10apps synthetic discovery entry."""
+    _ensure_discovery_collection()
+    db["web10"][DISCOVERY_COLLECTION].delete_one({"author": "system", "service": "web10_apps", "post_id": post_id})
+
+
+def _aggregate_app_ratings(target_app_id: str) -> dict:
+    """Aggregate star ratings for an app from the public ledger.
+    Returns {average: float, count: int} or {average: 0, count: 0} if none."""
+    _ensure_public_collection()
+    entries = query_public_entries(target=f"system/web10_apps/{target_app_id}")
+    ratings = [e["payload"].get("rating", 0) for e in entries if "rating" in e.get("payload", {})]
+    if not ratings:
+        return {"average": 0, "count": 0}
+    return {"average": sum(ratings) / len(ratings), "count": len(ratings)}
+
 
 def get_apps(skip=0, limit=0):
-    """Public storefront: only admin-approved apps appear here."""
-    apps = [
-        {"url": app["url"], "visits": app["visits"]}
-        for app in db["web10"]["apps"]
-        .find({"approved": True})
+    """Public storefront: only approved apps appear here (v2).
+    Returns v2 shape with web10apps_post_id, name, description, icon_url,
+    screenshots, and aggregated star rating."""
+    apps = []
+    for app in (
+        db["web10"]["apps"]
+        .find({"review_state": "approved"})
         .sort("visits", pymongo.DESCENDING)
         .skip(skip)
-        .limit(limit)
-    ]
+        .limit(limit if limit else 0)
+    ):
+        post_id = app.get("web10apps_post_id", "")
+        ratings = _aggregate_app_ratings(post_id)
+        apps.append(
+            {
+                "url": app["url"],
+                "visits": app.get("visits", 0),
+                "name": app.get("name", ""),
+                "description": app.get("description", ""),
+                "icon_url": app.get("icon_url"),
+                "screenshots": app.get("screenshots", []),
+                "web10apps_post_id": post_id,
+                "rating_average": round(ratings["average"], 1) if ratings["count"] else None,
+                "rating_count": ratings["count"],
+            }
+        )
     return apps
 
 
 def list_apps_admin():
-    """Admin-facing list of every registered app, including its approval
-    state. Historical apps that predate the `approved` flag arrive as
-    pending (the field is absent) so the operator can curate them once."""
+    """Admin-facing list of every registered app, including full v2 state."""
     apps = []
     for app in db["web10"]["apps"].find({}).sort("visits", pymongo.DESCENDING):
+        post_id = app.get("web10apps_post_id", "")
+        ratings = _aggregate_app_ratings(post_id)
         apps.append(
             {
                 "url": app.get("url"),
                 "visits": app.get("visits", 0),
                 "approved": bool(app.get("approved", False)),
                 "name": app.get("name", ""),
+                "description": app.get("description", ""),
+                "icon_url": app.get("icon_url"),
+                "screenshots": app.get("screenshots", []),
                 "registered_at": app.get("registered_at"),
+                "review_state": app.get("review_state", "pending"),
+                "metadata_version": app.get("metadata_version", 1),
+                "last_reviewed_at": app.get("last_reviewed_at"),
+                "reviewer_note": app.get("reviewer_note", ""),
+                "web10apps_post_id": post_id,
+                "pending_description": app.get("pending_description"),
+                "pending_icon_url": app.get("pending_icon_url"),
+                "pending_screenshots": app.get("pending_screenshots"),
+                "rating_average": round(ratings["average"], 1) if ratings["count"] else None,
+                "rating_count": ratings["count"],
             }
         )
     return apps
 
 
-def set_app_approval(url: str, approved: bool):
-    """Admin toggles whether an app is shown in the public App Store."""
-    db["web10"]["apps"].update_one({"url": url}, {"$set": {"approved": bool(approved)}})
+def set_app_approval(url: str, approved: bool, reviewer_note: str = ""):
+    """Admin approves or rejects an app (v2 review_state machine).
+    On approve of pending_on_change: promotes pending metadata to live fields.
+    On approve of pending: sets approved + projects to #web10apps.
+    On reject: sets review_state to rejected, preserves old metadata."""
+    now = datetime.datetime.utcnow().isoformat()
+    app = db["web10"]["apps"].find_one({"url": url})
+    if not app:
+        return
+
+    review_state = app.get("review_state", "pending")
+    post_id = app.get("web10apps_post_id", _generate_web10apps_post_id(url))
+
+    if approved:
+        if review_state == "pending_on_change":
+            # Promote pending metadata to live fields
+            promote = {"last_reviewed_at": now, "reviewer_note": reviewer_note}
+            if app.get("pending_description") is not None:
+                promote["description"] = app["pending_description"]
+            if app.get("pending_icon_url") is not None:
+                promote["icon_url"] = app["pending_icon_url"]
+            if app.get("pending_screenshots") is not None:
+                promote["screenshots"] = app["pending_screenshots"]
+            # Clear pending fields
+            promote["pending_description"] = None
+            promote["pending_icon_url"] = None
+            promote["pending_screenshots"] = None
+            promote["$unset"] = {}
+
+            db["web10"]["apps"].update_one(
+                {"url": url},
+                {
+                    "$set": {
+                        "review_state": "approved",
+                        "approved": True,
+                        **promote,
+                    },
+                    "$unset": {
+                        "pending_description": "",
+                        "pending_icon_url": "",
+                        "pending_screenshots": "",
+                    },
+                },
+            )
+        else:
+            # Initial approval (pending → approved)
+            db["web10"]["apps"].update_one(
+                {"url": url},
+                {
+                    "$set": {
+                        "review_state": "approved",
+                        "approved": True,
+                        "last_reviewed_at": now,
+                        "reviewer_note": reviewer_note,
+                    }
+                },
+            )
+        # Project to #web10apps discovery
+        updated_app = db["web10"]["apps"].find_one({"url": url})
+        _project_app_to_discovery(updated_app)
+    else:
+        # Reject
+        if review_state == "pending_on_change":
+            # Reject listing edit — old approved metadata stays live,
+            # but review_state goes to rejected for the edit
+            db["web10"]["apps"].update_one(
+                {"url": url},
+                {
+                    "$set": {
+                        "review_state": "rejected",
+                        "last_reviewed_at": now,
+                        "reviewer_note": reviewer_note,
+                    },
+                    "$unset": {
+                        "pending_description": "",
+                        "pending_icon_url": "",
+                        "pending_screenshots": "",
+                    },
+                },
+            )
+        else:
+            db["web10"]["apps"].update_one(
+                {"url": url},
+                {
+                    "$set": {
+                        "review_state": "rejected",
+                        "approved": False,
+                        "last_reviewed_at": now,
+                        "reviewer_note": reviewer_note,
+                    }
+                },
+            )
+        # Remove from #web10apps discovery
+        _remove_app_discovery_projection(post_id)
 
 
 def get_user_count():
@@ -683,23 +861,166 @@ def total_size():
 
 
 def register_app(info):
-    """Any app can self-register; new entries are pending admin approval
-    (setOnInsert so a repeat visit from an already-known app never resets
-    the approval state)."""
+    """Register an app (v2). New entries start as pending.
+    Repeat visits from an already-known app increment visits.
+    If metadata fields differ from stored values on an approved app,
+    bumps metadata_version and sets review_state to pending_on_change
+    (stores new values in pending_* fields for admin review)."""
     url = info.get("url")
     if not url:
         return
-    db["web10"]["apps"].update_one(
-        {"url": url},
+
+    post_id = _generate_web10apps_post_id(url)
+    now = datetime.datetime.utcnow().isoformat()
+
+    # Check if app already exists
+    existing = db["web10"]["apps"].find_one({"url": url})
+
+    if existing:
+        # App already registered — increment visits always
+        metadata_fields = ["name", "description", "icon_url", "screenshots"]
+        pending_updates = {}
+        metadata_changed = False
+
+        for field in metadata_fields:
+            new_value = info.get(field)
+            if new_value is not None and new_value != existing.get(field):
+                pending_updates[f"pending_{field}"] = new_value
+                metadata_changed = True
+
+        if metadata_changed and existing.get("review_state") == "approved":
+            # Listing edit from an approved app — enter review
+            db["web10"]["apps"].update_one(
+                {"url": url},
+                {
+                    "$inc": {"visits": 1, "metadata_version": 1},
+                    "$set": {
+                        "review_state": "pending_on_change",
+                        **pending_updates,
+                    },
+                },
+            )
+        else:
+            # Just a visit bump (or edit on non-approved app)
+            update_ops = {"$inc": {"visits": 1}}
+            if pending_updates:
+                update_ops["$set"] = pending_updates
+            db["web10"]["apps"].update_one({"url": url}, update_ops)
+    else:
+        # New registration
+        doc = {
+            "url": url,
+            "name": info.get("name", ""),
+            "description": info.get("description", ""),
+            "icon_url": info.get("icon_url"),
+            "screenshots": info.get("screenshots", []),
+            "visits": 1,
+            "approved": False,
+            "review_state": "pending",
+            "metadata_version": 1,
+            "registered_at": now,
+            "web10apps_post_id": post_id,
+        }
+        db["web10"]["apps"].insert_one(doc)
+
+
+def migrate_apps_to_v2():
+    """One-time migration: backfill v2 fields on legacy app records.
+    Sets review_state from approved flag, metadata_version=1,
+    generates web10apps_post_id, projects approved apps to discovery."""
+    migrated = 0
+    for app in db["web10"]["apps"].find({}):
+        needs_update = False
+        update = {}
+
+        if "review_state" not in app:
+            update["review_state"] = "approved" if app.get("approved") else "pending"
+            needs_update = True
+
+        if "metadata_version" not in app:
+            update["metadata_version"] = 1
+            needs_update = True
+
+        if "web10apps_post_id" not in app:
+            update["web10apps_post_id"] = _generate_web10apps_post_id(app["url"])
+            needs_update = True
+
+        if needs_update:
+            db["web10"]["apps"].update_one({"_id": app["_id"]}, {"$set": update})
+            migrated += 1
+
+        # Project approved apps to #web10apps discovery
+        updated_app = db["web10"]["apps"].find_one({"_id": app["_id"]})
+        if updated_app and updated_app.get("review_state") == "approved":
+            _project_app_to_discovery(updated_app)
+
+    return {"migrated": migrated}
+
+
+# app ratings (public ledger)
+
+
+def create_app_rating(author: str, target_app_id: str, rating: int, provider: str = "") -> dict:
+    """Create or update a star rating for an app. Upserts by
+    (target, author) so each user can rate an app once."""
+    _ensure_public_collection()
+    col = db["web10"][PUBLIC_COLLECTION]
+    target = f"system/web10_apps/{target_app_id}"
+
+    # Find existing rating by this author on this app
+    existing = col.find_one(
         {
-            "$inc": {"visits": 1},
-            "$setOnInsert": {
-                "approved": False,
-                "name": info.get("name", ""),
-                "registered_at": datetime.datetime.utcnow().isoformat(),
+            "target": target,
+            "author": author,
+            "payload.action": "rating",
+        }
+    )
+
+    now = datetime.datetime.utcnow().isoformat()
+
+    if existing:
+        # Update existing rating
+        col.update_one(
+            {"_id": existing["_id"]},
+            {
+                "$set": {
+                    "payload.rating": rating,
+                    "updated_at": now,
+                }
             },
+        )
+        existing["payload"]["rating"] = rating
+        existing["updated_at"] = now
+        return existing
+
+    # Create new rating entry
+    import uuid as uuid_mod
+
+    doc = {
+        "_id": f"{settings.PROVIDER}.uuid6:{uuid_mod.uuid4()}",
+        "author": author,
+        "schema_id": "apprating",  # placeholder — matched by payload.action
+        "target": target,
+        "payload": {
+            "action": "rating",
+            "rating": rating,
+            "target_app_id": target_app_id,
+            "author_username": author,
+            "author_provider": provider,
         },
-        upsert=True,
+        "created_at": now,
+        "updated_at": now,
+    }
+    col.insert_one(doc)
+    return doc
+
+
+def query_app_ratings(target_app_id: str, limit: int = 50, skip: int = 0) -> list[dict]:
+    """Query all star ratings for an app from the public ledger."""
+    return query_public_entries(
+        target=f"system/web10_apps/{target_app_id}",
+        limit=limit,
+        skip=skip,
     )
 
 
