@@ -1,3 +1,6 @@
+1.0.262 || 30.07.2026
+feat(marketing-api): D-import-revamp bite b — S3 presigned ZIP upload pipeline. POST /import/presign returns a presigned S3 POST for direct browser ZIP upload (WeTransfer-style, bypasses the API for large files). POST /import/{id}/start triggers background processing: download from S3 → parse/validate/dedup → batch-write to staging_posts → DELETE original from S3 (the load-bearing privacy promise). Legacy /import + /import/{id}/upload endpoints preserved for back-compat. 13 new tests, 40 total green, ruff clean.
+
 1.0.261 || 30.07.2026
 docs: `imma rant` filing (docs only, nothing built). Operator complaint: "the data liberated tab isnt counting s3 data! should also add up all s3 data in the count!" Filed A19-stats-s3-bytes (lane A, SMALL): the marketing homepage "data liberated" stat (Home.tsx → POST /stats) reports `storage` = mongo dbstats storageSize only (documentdb.py:867) — media blobs live in the object store (MinIO/S3), only their metadata records live in mongo, so every uploaded photo/video is missing from the landing-page number. Fix options recorded: bucket size from the object-store usage API vs summed size_bytes over media metadata records (cached either way, back-compat response shape so marketing-ui needs no change). Added to `parallel execution.txt` + plan.txt PHASE 8.6; board updated.
 
