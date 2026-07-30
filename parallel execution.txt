@@ -1764,7 +1764,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       bite a, OPEN FROM FEED: feed posts clickable → PostLightbox
         opens with an isOwner prop (edit/delete hidden on others'
         posts). no new routes.
-      bite b, SHARE + PERMALINK: the /u/:username/p/:postId route
+      bite b, SHARE + PERMALINK: [✓ 1.0.248] the /u/:username/p/:postId route
         (opens the lightbox over the profile), Share action
         (navigator.share + copy-link) on every post. gate: bite a
         merged. (D-deep-links' ?comment= anchor builds on this
