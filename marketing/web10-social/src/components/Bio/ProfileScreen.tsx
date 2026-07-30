@@ -520,6 +520,8 @@ export default function ProfileScreen() {
           mediaMap={mediaMap}
           onClose={() => setLightboxPost(null)}
           onReload={loadData}
+          postAuthor={getWapi().readToken()?.username}
+          postService={'public_posts'}
         />
       )}
     </div>

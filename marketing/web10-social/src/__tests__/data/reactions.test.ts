@@ -45,6 +45,24 @@ describe('reactions data layer', () => {
     vi.restoreAllMocks();
   });
 
+  describe('buildReactionTarget', () => {
+    it('builds canonical target when author and service provided', () => {
+      expect(reactions.buildReactionTarget('p1', 'alice', 'public_posts')).toBe('alice/public_posts/p1');
+    });
+
+    it('falls back to legacy format when author missing', () => {
+      expect(reactions.buildReactionTarget('p1', undefined, 'public_posts')).toBe('posts:p1');
+    });
+
+    it('falls back to legacy format when service missing', () => {
+      expect(reactions.buildReactionTarget('p1', 'alice', undefined)).toBe('posts:p1');
+    });
+
+    it('falls back to legacy format when both missing', () => {
+      expect(reactions.buildReactionTarget('p1')).toBe('posts:p1');
+    });
+  });
+
   describe('readReactions', () => {
     it('reads reactions for a post', async () => {
       const list = [
@@ -70,10 +88,11 @@ describe('reactions data layer', () => {
     it('mirrors to ledger with action=like for like reactions', async () => {
       const reaction: Omit<ReactionRecord, '_id'> = { target_service: 'posts', target_id: 'p1', type: 'like', created_at: '2026-07-18T00:00:00Z', author_username: 'alice', author_provider: 'api.web10.app' };
       mock.create.mockResolvedValue({ _id: 'r1', ...reaction });
-      await reactions.createReaction(reaction);
+      await reactions.createReaction(reaction, 'alice', 'public_posts');
 
       expect(feed.createPublicEntry).toHaveBeenCalledWith(
         expect.objectContaining({
+          target: 'alice/public_posts/p1',
           payload: expect.objectContaining({
             action: 'like',
           }),
@@ -84,13 +103,26 @@ describe('reactions data layer', () => {
     it('mirrors to ledger with action=reaction for non-like types', async () => {
       const reaction: Omit<ReactionRecord, '_id'> = { target_service: 'posts', target_id: 'p1', type: 'love', created_at: '2026-07-18T00:00:00Z', author_username: 'alice', author_provider: 'api.web10.app' };
       mock.create.mockResolvedValue({ _id: 'r2', ...reaction });
+      await reactions.createReaction(reaction, 'alice', 'public_posts');
+
+      expect(feed.createPublicEntry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          target: 'alice/public_posts/p1',
+          payload: expect.objectContaining({
+            action: 'reaction',
+          }),
+        }),
+      );
+    });
+
+    it('falls back to legacy target when author/service not provided', async () => {
+      const reaction: Omit<ReactionRecord, '_id'> = { target_service: 'posts', target_id: 'p1', type: 'like', created_at: '2026-07-18T00:00:00Z', author_username: 'alice', author_provider: 'api.web10.app' };
+      mock.create.mockResolvedValue({ _id: 'r1', ...reaction });
       await reactions.createReaction(reaction);
 
       expect(feed.createPublicEntry).toHaveBeenCalledWith(
         expect.objectContaining({
-          payload: expect.objectContaining({
-            action: 'reaction',
-          }),
+          target: 'posts:p1',
         }),
       );
     });

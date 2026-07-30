@@ -50,6 +50,24 @@ function mockWapi() {
     vi.restoreAllMocks();
   });
 
+  describe('buildCommentTarget', () => {
+    it('builds canonical target when author and service provided', () => {
+      expect(comments.buildCommentTarget('p1', 'alice', 'public_posts')).toBe('alice/public_posts/p1');
+    });
+
+    it('falls back to legacy format when author missing', () => {
+      expect(comments.buildCommentTarget('p1', undefined, 'public_posts')).toBe('posts:p1');
+    });
+
+    it('falls back to legacy format when service missing', () => {
+      expect(comments.buildCommentTarget('p1', 'alice', undefined)).toBe('posts:p1');
+    });
+
+    it('falls back to legacy format when both missing', () => {
+      expect(comments.buildCommentTarget('p1')).toBe('posts:p1');
+    });
+  });
+
   describe('readComments', () => {
     it('reads all comments for a post', async () => {
       const list = [
@@ -94,18 +112,30 @@ function mockWapi() {
     it('mirrors to the public ledger with action=comment', async () => {
       const comment = { post_id: 'p1', text: 'Great post!', created_at: '2026-07-18T00:00:00Z' };
       mock.create.mockResolvedValue({ _id: 'cm1', ...comment });
-      await comments.createComment(comment);
+      await comments.createComment(comment, 'alice', 'public_posts');
 
       expect(feed.createPublicEntry).toHaveBeenCalledWith(
         expect.objectContaining({
           schema_id: commentSchemaId,
-          target: 'posts:p1',
+          target: 'alice/public_posts/p1',
           payload: expect.objectContaining({
             action: 'comment',
             text: 'Great post!',
             author_username: 'alice',
             author_provider: 'api.web10.app',
           }),
+        }),
+      );
+    });
+
+    it('falls back to legacy target when author/service not provided', async () => {
+      const comment = { post_id: 'p1', text: 'fallback', created_at: '2026-07-18T00:00:00Z' };
+      mock.create.mockResolvedValue({ _id: 'cm1', ...comment });
+      await comments.createComment(comment);
+
+      expect(feed.createPublicEntry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          target: 'posts:p1',
         }),
       );
     });
@@ -135,17 +165,18 @@ function mockWapi() {
         {
           _id: 'le-old',
           schema_id: commentSchemaId,
-          target: 'posts:p1',
+          target: 'alice/public_posts/p1',
           payload: { action: 'comment', text: 'Old text', author_username: 'alice', author_provider: 'api.web10.app' },
         },
       ]);
-      await comments.updateComment('cm1', { text: 'Updated comment' });
+      await comments.updateComment('cm1', { text: 'Updated comment' }, 'alice', 'public_posts');
       expect(globalThis.fetch).toHaveBeenCalledWith(
         expect.stringContaining('/public/entries/le-old'),
         expect.objectContaining({ method: 'DELETE' }),
       );
       expect(feed.createPublicEntry).toHaveBeenCalledWith(
         expect.objectContaining({
+          target: 'alice/public_posts/p1',
           payload: expect.objectContaining({
             text: 'Updated comment',
           }),
@@ -167,8 +198,8 @@ function mockWapi() {
 
     it('queries the ledger for matching entries', async () => {
       mock.delete.mockResolvedValue(undefined);
-      await comments.deleteComment('cm1');
-      expect(feed.queryPublicEntries).toHaveBeenCalledWith({ target: 'posts:p1' });
+      await comments.deleteComment('cm1', 'alice', 'public_posts');
+      expect(feed.queryPublicEntries).toHaveBeenCalledWith({ target: 'alice/public_posts/p1' });
     });
 
     it('deletes matching ledger entry when found', async () => {
@@ -176,12 +207,12 @@ function mockWapi() {
         {
           _id: 'le-matching',
           schema_id: commentSchemaId,
-          target: 'posts:p1',
+          target: 'alice/public_posts/p1',
           payload: { action: 'comment', text: 'delete me', author_username: 'alice', author_provider: 'api.web10.app' },
         },
       ]);
       mock.delete.mockResolvedValue(undefined);
-      await comments.deleteComment('cm1');
+      await comments.deleteComment('cm1', 'alice', 'public_posts');
       expect(globalThis.fetch).toHaveBeenCalledWith(
         expect.stringContaining('/public/entries/le-matching'),
         expect.objectContaining({ method: 'DELETE' }),
@@ -193,12 +224,12 @@ function mockWapi() {
         {
           _id: 'le-other',
           schema_id: commentSchemaId,
-          target: 'posts:p1',
+          target: 'alice/public_posts/p1',
           payload: { action: 'comment', text: 'other text', author_username: 'bob', author_provider: 'other' },
         },
       ]);
       mock.delete.mockResolvedValue(undefined);
-      await comments.deleteComment('cm1');
+      await comments.deleteComment('cm1', 'alice', 'public_posts');
       expect(globalThis.fetch).not.toHaveBeenCalled();
     });
   });
