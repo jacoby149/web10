@@ -9,7 +9,7 @@ import {
   formatFollowerCount,
 } from '../lib/reachGap'
 import { trackFunnel } from '../lib/analytics'
-import { AUTH_ORIGIN, SOCIAL_ORIGIN } from '../lib/origins'
+import { SOCIAL_ORIGIN } from '../lib/origins'
 
 function nodeApi(): string {
   if (typeof window !== 'undefined') {
@@ -293,7 +293,7 @@ function Footer() {
           <a href="/docs" className="hover:text-foreground">Docs</a>
           <a href="/docs/sdk" className="hover:text-foreground">SDK</a>
           <a href="/app-store" className="hover:text-foreground">App Store</a>
-          <a href={AUTH_ORIGIN} className="hover:text-foreground">Sign In</a>
+          <a href={SOCIAL_ORIGIN} className="hover:text-foreground">Sign In</a>
           <a href="https://github.com/jacoby149/web10" className="hover:text-foreground">GitHub</a>
         </div>
       </div>

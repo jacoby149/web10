@@ -2131,7 +2131,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       styled table at desktop + 375px; marketing-ui tests + tsc
       green; screenshots and LOOK. gate: none.
 
-[ ] D-nav-signin-social (sub-lane ws-D/marketing, TINY; operator,
+[✓ 1.0.245] D-nav-signin-social (sub-lane ws-D/marketing, TINY; operator,
       29.07 rant, screenshot of the navbar: "that sign in on the very
       top right should sign into web10 social, this is marketing for
       web10 social!!!!"): the marketing-ui Navbar's Sign In button
