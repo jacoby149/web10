@@ -1997,6 +1997,82 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       in staging, and see their old life on web10 social — with the
       originals deleted from the bucket. each bite has its own bar
       in its kickoff.
+
+[ ] D-import-export-links-dead (sub-lane ws-D/marketing(2), SMALL;
+      operator, 30.07 rant, screenshot of /import step 1's five
+      platform buttons: "those are actually all dead links, do you
+      have any creative ideas on how to do that right? should it
+      link to an llm with q=?, with the query how to export data?
+      redirect the user? just ranting"): bite a (1.0.231) hardcoded
+      five platform help-article URLs in Exporter.tsx
+      (EXPORT_LINKS, lines ~7-11 — facebook.com/help/…,
+      takeout.google.com, help.instagram.com/…, tiktok.com/support/…)
+      and they ROT — platforms move/retire help articles, so the
+      step-1 buttons 404. OPERATOR DECISION (30.07 rant #2 — this
+      supersedes the open-options framing): REPAIR THE LINKS with
+      operator-verified working URLs + our own web10 guidance
+      article — NOT the LLM-redirect idea ("so we can repair the
+      links instead of referring to an llm"). the operator's
+      verified URLs (30.07):
+        Facebook:  https://www.facebook.com/help/212802592074644
+        X:         https://help.x.com/en/managing-your-account/accessing-your-x-data
+        TikTok:    https://www.tiktok.com/support/faq_detail?id=7543597460594285112&category=web_account
+        Instagram: https://help.instagram.com/181231772500920/
+        Google:    takeout.google.com — "the export on the google
+                   is great!" — leave it as-is.
+      PLUS the web10 guidance article (operator: "just needs a
+      web10 article on guidance, i can provide the information for
+      it!"): a maintained export-guide page under marketing-ui's
+      /docs (the dev-docs pipeline, Docs.tsx) that walks each
+      platform's export flow in web10's voice — the operator will
+      supply the content; the builder scaffolds the page with
+      per-platform sections + placeholder steps and wires each
+      step-1 button's "guide" affordance to its section (button =
+      platform link, secondary link = our guide). NOTE: the
+      operator provides content — do NOT block the bite on it;
+      scaffold + links first, content drops in as markdown.
+      acceptance: the four platform buttons point at the
+      operator-verified URLs above (Google untouched); the
+      /docs export-guide page exists with per-platform sections
+      and is linked from step 1; marketing-ui tests + tsc green;
+      screenshot step 1 + the guide page and LOOK. gate: none.
+      FOLLOW-UP named: D-export-links-health-e2e (below) keeps
+      these URLs from rotting silently again.
+
+[ ] D-export-links-health-e2e (sub-lane ws-E/infra — CI workflow
+      seam, .github/workflows/**; operator, 30.07 rant #2: "but we
+      should have a test to see is it a shit page, some kind of
+      e2e test! that makes sure those pages arent down /
+      changed"): a LINK-HEALTH e2e check for the /import step-1
+      export URLs so they never rot silently again (the original
+      complaint was dead links found by the OPERATOR, not by us —
+      the test finds them first). shape: a SCHEDULED GitHub
+      workflow (nightly cron + workflow_dispatch — NOT a per-PR
+      blocker; external sites flake and must not gate PRs) that
+      fetches every URL in the step-1 link set and fails when one
+      is down OR changed-into-junk: (a) HTTP status after
+      redirects is 200 (some platforms 403 bots — use a real
+      browser UA and treat 403-on-bot-but-200-in-browser per-URL
+      allowances as a documented config, not a silent skip);
+      (b) a per-URL content sniff — the page still mentions
+      exporting/downloading your data (a small per-URL expected-
+      substring table, e.g. "download" / "your information" —
+      catches a redirect to a generic help home, which is the
+      "shit page" case the operator named). the URL list must
+      have ONE source of truth: extract EXPORT_LINKS from
+      Exporter.tsx into a shared constants file the workflow's
+      script reads (or a checked-in export-links.json both import)
+      — never a second hardcoded copy that drifts. on failure the
+      workflow opens/updates a GitHub issue naming the rotted
+      URL(s) (gh CLI in the workflow) so the fix is a lane bite,
+      not a surprise. acceptance: workflow file + check script
+      merged; a manual workflow_dispatch run goes green against
+      the live URLs; a deliberate-bad-URL trial (point the config
+      at example.com/404 in a throwaway branch) FAILS and names
+      the URL — proof it catches rot, stated in the PR. gate:
+      D-import-export-links-dead (the repaired URLs + shared
+      constants exist to test against).
+
 [ ] D-home-stats-bar (sub-lane ws-D/marketing(2); SEAM: Home.tsx —
       disjoint from AppStore/Join files; operator, 29.07 rant,
       screenshot of the App Store subtitle's inline counts: "on the
@@ -2032,7 +2108,12 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       screenshot of /docs "The premise, made concrete" rendering as
       raw pipe soup: "on the docs, are these absolute value signs on
       purpose????? it looks jank aff, i actually see that all over
-      the docs, i dont think that is on purpose"): NOT on purpose —
+      the docs, i dont think that is on purpose"). STILL OPEN —
+      operator re-confirmed 30.07 (second screenshot, same premise
+      table still pipe soup: "more ranting i do still see the
+      markdown looking meh with the || signs, has that been worked
+      on yet?") — bumped: this is now a TWICE-complained item,
+      prioritize it in the next kickoff batch: NOT on purpose —
       the docs markdown pipeline (Docs.tsx:100,
       `remark().use(remarkHtml)`) has NO remark-gfm, so every GFM
       table in the docs .md files renders as literal `| --- |` text.
@@ -2069,6 +2150,18 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       Sign In lands on the social app; every auth-origin link left
       standing has a one-line justification in the PR; marketing-ui
       tests + tsc green. gate: none.
+
+[ ] D-hero-cta-label (sub-lane ws-D/marketing, TINY; operator, 30.07
+      rant, screenshot of the homepage hero button: "we can have this
+      say enter web10! but it goes to web10 social! that is fine"):
+      the hero CTA (marketing-ui src/pages/Home.tsx, the
+      `<a href={SOCIAL_ORIGIN}>Enter web10 social</a>` button) should
+      read "Enter web10!" — the destination is already correct
+      (SOCIAL_ORIGIN, fixed in 1.0.215); this is a LABEL-ONLY change,
+      do not touch the href. acceptance: the hero button reads
+      "Enter web10!" and still links to SOCIAL_ORIGIN; marketing-ui
+      tests + tsc green; screenshot the hero at desktop + 375px and
+      LOOK. gate: none.
 
 [✓ 1.0.230] D-search-fulltext (sub-lane ws-D/marketing, AFTER D-marketing-search
       bite b — same Trending.tsx seam; operator, 27.07: "searching only
@@ -2769,6 +2862,32 @@ LANE E — infrastructure / deployment (owns: proxmox provisioning,
       signing certs/provisioning, review. NOT now (post-M0, gated on
       the encryptor actually doing e2e key management) — parked here
       so it's on the board, not lost.
+  [ ] E-dependabot-hackathon (lane E/infra, LATER — operator, 30.07
+      rant, link to github.com/jacoby149/web10/security/dependabot:
+      "i am seeing alot of stuff in here, we should do a hackathon
+      and kill a bunch of these, can be done later though"): the
+      dependabot backlog is at 161 open alerts (13 critical, 67
+      high, 58 moderate, 23 low per the GitHub banner, 30.07) and
+      growing — a batch-cleanup HACKATHON, not a steady drip: one
+      dedicated session (or one fleet wave) that burns the list
+      down. shape when picked up: (1) group alerts by package
+      ecosystem + manifest (ui/, marketing-ui/, web10-social/,
+      sdk/, api/ pip, mobile/encryptor) — most of the 161 will
+      collapse into a handful of dependency bumps per lockfile;
+      (2) land the safe mechanical bumps first (patch/minor,
+      tests + tsc + builds green per package), then the majors
+      one breaking-change per PR; (3) criticals FIRST as their
+      own small PRs (13 of them — each is a bite); (4) dismiss
+      with a stated reason the alerts that don't apply (dev-only,
+      unreachable code path) so the count is HONEST, not just
+      hidden. operator sequencing note: "can be done later
+      though" — this is parked behind the current complaint-
+      driven product work; kick it off as a fleet wave when the
+      operator calls the hackathon, not before. acceptance (when
+      run): critical + high count driven to ~0 or every remaining
+      alert carries a dismissal reason; all package test suites
+      green after the bumps; CHANGELOG lines per bump batch.
+      gate: none (parked by operator priority, not by code).
   [ ] E-run-discovery-migration (ops, small, HIGH demo impact; operator
       screenshot 26.07: his real public post absent from /trending
       Newest on the deployed app): A13 (✓ 1.0.178) shipped the
@@ -2842,8 +2961,30 @@ M3 "the network"         = encryption integration (A rtc + C2 sdk
                            polish. the last big merge.
 
 
-CURRENT CONDUCTOR BOARD (as of 30.07.2026 — audit #11; keep fresh)
+CURRENT CONDUCTOR BOARD (as of 30.07.2026 — audit #12; keep fresh)
 --------------------------------------------------------------------
+AUDIT #12 REFRESH (30.07): SHIPPED. The overnight batch (#384–#392 —
+docs pass #11, A18 engagement-target revert, D-engagement-target-client,
+D-search-fulltext, D-mail-experience bite c CC/BCC, D-appstore-plugs,
+D-inapp-discover-knobs bite a, D-import-revamp bite a) gated CLEAN
+(api diff = the A18 raw-post_key $match revert + the escaped-regex
+search fallback, both test-pinned; no auth/star/I1–I5 touches; e2e +
+deploy green at dev head) and promoted dev→main via merge commit
+(#393); deploy-prod + cd + e2e on main ALL green; prod verified live
+(7/7 public endpoints 200). Zero open PRs; fleet idle. PROD NOW SERVES:
+trending badges show real persona engagement counts again (A18 P1
+regression closed), substring search ("yo" finds "yoyoyo"), Discover
+has trending cards + presets + topic chips, Mail has CC/BCC + Reply-all,
+App Store has plug slots, /import is the numbered-step journey with
+platform export links. ALIGNMENT: unchanged — every open item is
+operator-complaint-driven social-product/funnel work or the M2 money-
+path referee (C8); no infra-company drift on the board. QWEN HORIZON:
+~12 filed parallel-safe bites across 8 sub-lanes (C8a, the appstore
+spec note, feed-lightbox a, crm bite b, docs-gfm, nav-signin-social,
+video-autoplay, join-steps-visuals, home-stats-bar, appstore-browse,
+discover-knobs b, appstore v2 bite a), ~20+ chained PRs behind them —
+Qwens run independently.
+
 AUDIT #11 REFRESH (30.07): SHIPPED ×2 in one day. (1) The morning
 batch (#359–#368) promoted via #369 (see audit #10). (2) The
 evening MERGE TRAIN: 11 queued PRs (#371–#382 — graph removal,
@@ -2902,21 +3043,14 @@ legacy logo) + most-popular + newest plug slots; category rails
 fully refreshed — eight sub-lanes drained or advanced this batch.
 
   PRIORITY 1 (fresh, this audit):
-    ws-A: A18-engagement-target-canonical — REGRESSION (operator
-      29.07: every /trending card shows 0 likes/0 comments). A15's
-      `service:post_id` conversion matches NONE of the three ledger
-      target formats in prod data; canonical = `{author}/{service}/
-      {post_id}`, revert to the raw post_key $match. full diagnosis
-      in the lane item.
-    ws-D/feed: D-engagement-target-client — the client half (social
-      comments/reactions + the marketing trending panel write/read
-      the canonical target). independent PR, same decision.
     ws-E (operator-gated): E-run-discovery-migration — env gate CLEAR
       (A13 + A17 both deployed to prod). Run migrate_terms + backfill +
       migrate_follows_terms with an admin token per env; the A17 media
       fields need the backfill RE-RUN to reach existing index docs.
-      needs admin token + env access (operator provides).
-    (ws-C is CLEAR for the first time since 24.07 — C9 closed.)
+      needs admin token + env access (operator provides). NOW ALSO
+      blocking two visible complaints (card media on existing posts).
+    (ws-A/ws-C/ws-D are CLEAR of P1s — A18 + its client half shipped
+    in the #384–#392 batch; prod badges show real counts again.)
 
   PARALLEL-SAFE FLEET (one workspace per sub-lane; chains WITHIN a
   sub-lane are sequential, file seams):
@@ -2927,58 +3061,44 @@ fully refreshed — eight sub-lanes drained or advanced this batch.
     ws-A:            D-appstore-revamp v2 bite c — the registration-
                      shape SPEC NOTE (a .context/decisions.md write-up,
                      no code; gates the v2 rewire build; lane A owns
-                     the                      record-shape call)
-    ws-D/feed:       D-engagement-target-client (PRIORITY 1 — see
-                     above), THEN D-feed-lightbox bite a (open-from-
-                     feed), THEN D-link-embeds. NOTE (operator 29.07):
-                     "even better if i clicked them and it went to the
-                     hyperlink to the web10 social post" — the trending
-                     card → POST link needs social's post permalink
-                     route, which is D-feed-lightbox bite b (share +
-                     permalink) / D-deep-links territory; the URL-
-                     holds-state rule is already law (AGENTS.md), the
-                     permalink bite is the staged build. when bite b
-                     lands, a small ws-D/marketing bite switches
-                     TrendingCard's click target from /u/<author> to
-                     the post permalink.
-    ws-D/messages:   D-mail-experience bite c (CC/BCC COMPOSE — gate
-                     bite b merged #368, CLEARED), THEN D-crm-upgrade
-                     bite b (contact fields + CRUD)
-    ws-D/marketing:  D-search-fulltext + D-trending-controls-alignment
-                     (either order), THEN D-docs-gfm + D-nav-signin-
-                     social (operator 29.07 rant — both tiny; see the
-                     lane items), THEN D-video-autoplay-muted (operator
-                     29.07 — videos autoplay muted on cards; see the
-                     lane item). (D-graph-app + D-social-analytics
-                     PARKED 29.07 per operator — the /graph page was
-                     removed in 1.0.213; D-graph-token-polish dies with
-                     it. park record in later.md.)
-    ws-D/marketing(2): D-appstore-plugs (NEW, operator 29.07 — see
-                     the lane item), THEN D-appstore-browse (NEW,
-                     operator 29.07 rant — uniform small browse
-                     cards: icon/name/visits/rating, no descriptions,
-                     + browse search bar), THEN D-appstore-revamp v2
-                     bite a (product page; gate: the lane-A spec note
-                     for the full rewire, but bite a reads the legacy
-                     store as-is — NOT gated on it). ALSO PARALLEL-SAFE here:
-                     D-import-revamp bite a (operator 29.07 rant —
-                     the /join-style import step strip + platform
-                     export links; Exporter.tsx seam, disjoint from
-                     the AppStore files), D-join-steps-visuals (operator 29.07 —
-                     Join.tsx seam, disjoint from the AppStore files;
-                     the two can run in two workspaces at once) AND
-                     D-home-stats-bar (operator 29.07 rant —
-                     Home.tsx seam, disjoint from the AppStore files)
+                     the record-shape call)
+    ws-D/feed:       D-feed-lightbox bite a (open-from-feed), THEN
+                     bite b (share + permalink — the operator's 29.07
+                     "clicked them and it went to the hyperlink to the
+                     web10 social post"; when bite b lands, a small
+                     ws-D/marketing bite switches TrendingCard's click
+                     target from /u/<author> to the post permalink),
+                     THEN D-link-embeds.
+    ws-D/messages:   D-crm-upgrade bite b (contact fields + CRUD —
+                     mail-experience drained 1.0.231)
+    ws-D/marketing:  D-docs-gfm + D-nav-signin-social (operator 29.07
+                     rant — both tiny; see the lane items), THEN
+                     D-video-autoplay-muted (operator 29.07 — videos
+                     autoplay muted on cards; see the lane item).
+                     (D-graph-app + D-social-analytics PARKED 29.07 per
+                     operator — the /graph page was removed in 1.0.213;
+                     D-graph-token-polish dies with it. park record in
+                     later.md.)
+    ws-D/marketing(2): D-appstore-browse (operator 29.07 rant —
+                     uniform small browse cards: icon/name/visits/
+                     rating, no descriptions, + browse search bar),
+                     THEN D-appstore-revamp v2 bite a (product page;
+                     gate: the lane-A spec note for the full rewire,
+                     but bite a reads the legacy store as-is — NOT
+                     gated on it). ALSO PARALLEL-SAFE here (disjoint
+                     seams): D-join-steps-visuals (Join.tsx) AND
+                     D-home-stats-bar (Home.tsx) — three workspaces
+                     can run marketing(2) seams at once.
     ws-D/profile:    D-lightbox-media-sizing (chain START), THEN
                      D-profile-image-placement, THEN D-follow-lists,
                      THEN D-text-post-cards bite a — the whole chain
                      shares the PostLightbox/ProfileScreen seam; run
                      sequentially. HELD until ws-D/feed's lightbox
                      bite merges (the seam cluster rule below).
-    ws-D/discover:   D-inapp-discover-knobs bite a (GATE CLEARED
-                     29.07 — D36 sign-off; Discover borrows heavily
-                     from /trending: cards + presets + chips, then
-                     bite b the knobs)
+    ws-D/discover:   D-inapp-discover-knobs bite b — THE KNOBS
+                     (KnobRack/RotaryKnob/powerMean ported, live
+                     client-side re-rank; gate bite a merged #391,
+                     CLEARED)
     ws-D/settings:   DRAINED (bite b merged #365; the full facebook-
                      style tree awaits operator sign-off on the
                      .context/settings-tab-proposal.md)

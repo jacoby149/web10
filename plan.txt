@@ -2505,7 +2505,12 @@ the join tab would work great for the import your life!"): rebuild
   posts writes. lane item D-import-revamp (bites: a = the step
   strip + export links, ws-D/marketing(2); b = the WeTransfer
   pipeline, ws-D/marketing-api; c = the authenticator import tab,
-  ws-B). NOTE: this revises the "client-side first" principle above
+  ws-B). follow-ups filed 30.07: D-import-export-links-dead
+  (operator-verified working export URLs + our own /docs export-
+  guidance article — operator supplies the content; NOT llm
+  redirects) and D-export-links-health-e2e (a scheduled link-
+  health workflow that catches rotted/"shit page" export links
+  before the operator does). NOTE: this revises the "client-side first" principle above
   for the hosted path — the server-side pipeline is what the
   operator wants (the browser parse is the bricked part); the
   sovereignty story is preserved by the delete-after-processing
@@ -3095,6 +3100,13 @@ other known issues, fix early (phase 0/1, before any real users):
 [ ] before the first creator-node pitch: external security review /
     pen test of the node stack + a responsible disclosure policy.
     "we've been audited" is a sales document in this business.
+[ ] dependabot hackathon (operator, 30.07: "i am seeing alot of
+    stuff in here, we should do a hackathon and kill a bunch of
+    these, can be done later though"): the dependabot backlog
+    (161 alerts — 13 critical, 67 high at filing) gets burned
+    down in one dedicated batch session, criticals first, not a
+    steady drip. parked behind the complaint-driven product work
+    until the operator calls it. lane item E-dependabot-hackathon.
 
 quality:
 [ ] frontend cache headers: index.html must ship no-cache on all
