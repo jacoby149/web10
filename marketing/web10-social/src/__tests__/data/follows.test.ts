@@ -118,11 +118,13 @@ describe('follows data layer', () => {
     it('reactivates an existing rejected follow', async () => {
       const existing = { _id: 'f1', username: 'bob', provider: 'web10', status: 'rejected', followed_at: '2024-01-01T00:00:00Z' };
       mock.read.mockResolvedValueOnce([existing]);
-      const updated = { ...existing, status: 'active' };
-      mock.update.mockResolvedValue(updated);
 
       const result = await follows.followUser('bob', 'web10');
-      expect(result).toEqual(updated);
+      expect(result.status).toBe('active');
+      expect(result.username).toBe('bob');
+      expect(result.provider).toBe('web10');
+      // Now updates ALL matching records (not just one)
+      expect(mock.update).toHaveBeenCalledTimes(1);
       expect(mock.update).toHaveBeenCalledWith('follows', { _id: 'f1' }, {
         $set: expect.objectContaining({ status: 'active' }),
       });
@@ -383,6 +385,100 @@ describe('follows data layer', () => {
 
       const inboxCalls = mock.create.mock.calls.filter((c) => c[0] === 'inbox');
       expect(inboxCalls).toHaveLength(20);
+    });
+  });
+
+  describe('follow toggle round-trip regression (D-follow-toggle)', () => {
+    beforeEach(() => {
+      vi.restoreAllMocks();
+      mock = mockWapi();
+    });
+
+    it('readFollow prefers active over rejected when duplicates exist', async () => {
+      // Regression: readFollow used to return records[0] with no status
+      // filter. If a stale rejected record came first, the UI thought the
+      // user wasn't following and the toggle never flipped.
+      mock.read.mockResolvedValue([
+        { _id: 'f1', username: 'bob', provider: 'web10', status: 'rejected', followed_at: '2024-01-01T00:00:00Z' },
+        { _id: 'f2', username: 'bob', provider: 'web10', status: 'active', followed_at: '2024-02-01T00:00:00Z' },
+      ]);
+      const result = await follows.readFollow('bob', 'web10');
+      expect(result?._id).toBe('f2');
+      expect(result?.status).toBe('active');
+    });
+
+    it('readFollow returns most recent when no active record exists', async () => {
+      mock.read.mockResolvedValue([
+        { _id: 'f1', username: 'bob', provider: 'web10', status: 'rejected', followed_at: '2024-02-01T00:00:00Z' },
+        { _id: 'f2', username: 'bob', provider: 'web10', status: 'blocked', followed_at: '2024-01-01T00:00:00Z' },
+      ]);
+      const result = await follows.readFollow('bob', 'web10');
+      expect(result?._id).toBe('f1');
+    });
+
+    it('followUser updates ALL matching records (not just readFollow winner)', async () => {
+      // Regression: followUser only updated the single record from
+      // readFollow, leaving stale duplicates behind.
+      const stale = { _id: 'f1', username: 'bob', provider: 'web10', status: 'rejected', followed_at: '2024-01-01T00:00:00Z' };
+      const active = { _id: 'f2', username: 'bob', provider: 'web10', status: 'active', followed_at: '2024-02-01T00:00:00Z' };
+      mock.read.mockResolvedValueOnce([stale, active]);
+
+      const result = await follows.followUser('bob', 'web10');
+      expect(result.status).toBe('active');
+
+      // Both records must be updated
+      expect(mock.update).toHaveBeenCalledTimes(2);
+      expect(mock.update).toHaveBeenCalledWith('follows', { _id: 'f1' }, {
+        $set: expect.objectContaining({ status: 'active' }),
+      });
+      expect(mock.update).toHaveBeenCalledWith('follows', { _id: 'f2' }, {
+        $set: expect.objectContaining({ status: 'active' }),
+      });
+    });
+
+    it('unfollowUser updates ALL matching records (not just readFollow winner)', async () => {
+      // Regression: unfollowUser only updated the single record from
+      // readFollow, leaving a stale active record behind. After the
+      // unfollow, readFollow still returned the stale active record and
+      // the UI showed "Following" even though the user unfollowed.
+      const active = { _id: 'f1', username: 'bob', provider: 'web10', status: 'active', followed_at: '2024-02-01T00:00:00Z' };
+      const stale = { _id: 'f2', username: 'bob', provider: 'web10', status: 'rejected', followed_at: '2024-01-01T00:00:00Z' };
+      mock.read.mockResolvedValueOnce([active, stale]);
+
+      await follows.unfollowUser('bob', 'web10');
+
+      // Both records must be updated to rejected
+      expect(mock.update).toHaveBeenCalledTimes(2);
+      expect(mock.update).toHaveBeenCalledWith('follows', { _id: 'f1' }, { $set: { status: 'rejected' } });
+      expect(mock.update).toHaveBeenCalledWith('follows', { _id: 'f2' }, { $set: { status: 'rejected' } });
+    });
+
+    it('full toggle round-trip: follow → readFollow active → unfollow → readFollow null', async () => {
+      // End-to-end regression: follow → "Following" → click → unfollows
+      // back to "Follow". Hard refresh reflects the truth.
+      const mock = mockWapi();
+
+      // Step 1: follow (no existing record)
+      mock.read.mockResolvedValueOnce([]);
+      mock.create.mockResolvedValue({ _id: 'f1', username: 'bob', provider: 'web10', status: 'active', followed_at: '2024-03-01T00:00:00Z', notify: true });
+      await follows.followUser('bob', 'web10');
+
+      // Step 2: readFollow should return active
+      mock.read.mockResolvedValueOnce([{ _id: 'f1', username: 'bob', provider: 'web10', status: 'active', followed_at: '2024-03-01T00:00:00Z' }]);
+      const afterFollow = await follows.readFollow('bob', 'web10');
+      expect(afterFollow?.status).toBe('active');
+
+      // Step 3: unfollow
+      mock.read.mockResolvedValueOnce([{ _id: 'f1', username: 'bob', provider: 'web10', status: 'active', followed_at: '2024-03-01T00:00:00Z' }]);
+      await follows.unfollowUser('bob', 'web10');
+      expect(mock.update).toHaveBeenCalledWith('follows', { _id: 'f1' }, { $set: { status: 'rejected' } });
+
+      // Step 4: readFollow should NOT return active (status is rejected)
+      mock.read.mockResolvedValueOnce([{ _id: 'f1', username: 'bob', provider: 'web10', status: 'rejected', followed_at: '2024-03-01T00:00:00Z' }]);
+      const afterUnfollow = await follows.readFollow('bob', 'web10');
+      expect(afterUnfollow?.status).toBe('rejected');
+      // The UI uses `fr?.status === 'active'` — rejected means NOT following
+      expect(afterUnfollow?.status === 'active').toBe(false);
     });
   });
 });

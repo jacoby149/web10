@@ -92,26 +92,43 @@ export async function readFollowsByStatus(status: FollowStatus): Promise<FollowR
 
 /**
  * Read a specific follow record by username+provider.
+ * Returns the most authoritative record: prefers 'active' status;
+ * if none active, returns the most recent by followed_at.
+ * This guards against stale/duplicate records causing the UI to
+ * read a wrong state after a follow/unfollow toggle.
  */
 export async function readFollow(username: string, provider: string): Promise<FollowRecord | null> {
   const wapi = getWapi();
   const records = await wapi.read<FollowRecord>('follows', { username, provider });
-  return records[0] || null;
+  if (!records.length) return null;
+  const active = records.find((r) => r.status === 'active');
+  if (active) return active;
+  return records.sort(
+    (a, b) => new Date(b.followed_at || 0).getTime() - new Date(a.followed_at || 0).getTime(),
+  )[0];
 }
 
 /**
  * Follow a user. Creates a new follow record with 'active' status.
  * Also mirrors to the public ledger (D34: follows are public discourse).
+ * Updates ALL matching records (not just one) so duplicates cannot
+ * stay stale after a toggle.
  */
 export async function followUser(username: string, provider: string): Promise<FollowRecord> {
   const wapi = getWapi();
-  const existing = await readFollow(username, provider);
+  const existingRecords = await wapi.read<FollowRecord>('follows', { username, provider });
   const token = wapi.readToken();
 
-  if (existing?._id) {
-    const record = await wapi.update<FollowRecord>('follows', { _id: existing._id }, {
-      $set: { status: 'active', followed_at: existing.followed_at || new Date().toISOString() },
-    });
+  if (existingRecords.length) {
+    // Update ALL matching records so duplicates cannot diverge
+    const now = new Date().toISOString();
+    for (const existing of existingRecords) {
+      if (existing._id) {
+        await wapi.update<FollowRecord>('follows', { _id: existing._id }, {
+          $set: { status: 'active', followed_at: existing.followed_at || now },
+        });
+      }
+    }
 
     // Mirror to the public ledger
     const followSchema = getCachedSchema('Follow');
@@ -132,7 +149,7 @@ export async function followUser(username: string, provider: string): Promise<Fo
     // Backfill inbox with followee's recent posts (non-fatal)
     backfillFollow(username, provider).catch(() => {});
 
-    return record;
+    return { username, provider, status: 'active', followed_at: now } as FollowRecord;
   }
 
   const record = await wapi.create<FollowRecord>('follows', {
@@ -166,14 +183,20 @@ export async function followUser(username: string, provider: string): Promise<Fo
 }
 
 /**
- * Unfollow a user. Sets status to 'rejected' and removes the
- * public ledger entry so the follower count decrements.
+ * Unfollow a user. Sets ALL matching records to 'rejected' so
+ * duplicates cannot stay stale. Removes the public ledger entry
+ * so the follower count decrements.
  */
 export async function unfollowUser(username: string, provider: string): Promise<void> {
   const wapi = getWapi();
-  const existing = await readFollow(username, provider);
-  if (existing?._id) {
-    await wapi.update<FollowRecord>('follows', { _id: existing._id }, { $set: { status: 'rejected' } });
+  const existingRecords = await wapi.read<FollowRecord>('follows', { username, provider });
+  if (existingRecords.length) {
+    // Update ALL matching records so duplicates cannot diverge
+    for (const existing of existingRecords) {
+      if (existing._id) {
+        await wapi.update<FollowRecord>('follows', { _id: existing._id }, { $set: { status: 'rejected' } });
+      }
+    }
 
     // Remove the public ledger entry
     const target = followTargetKey(username, provider);

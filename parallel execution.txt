@@ -2208,7 +2208,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       browser back returns to the thread; social tests + tsc green;
       design.md §12 screenshots. gate: none.
 
-[ ] D-follow-toggle (sub-lane ws-D/profile; operator, 30.07 rant:
+[✓ 1.0.252] D-follow-toggle (sub-lane ws-D/profile; operator, 30.07 rant:
       "when i hit follow, it doesnt toggle and let me unfollow!"):
       the toggle handlers EXIST — UserProfileScreen.handleFollow
       (follow/unfollow branch) and DiscoverScreen's
