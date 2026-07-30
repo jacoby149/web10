@@ -13,10 +13,11 @@ import {
   readFollow,
   countFollows,
   countFollowers,
+  countUserFollowing,
+  readUserPostsFromDiscovery,
 } from '@/data';
 import { getWapi } from '@/data/wapi';
-import { API_ORIGIN } from '@/lib/origins';
-import type { ProfileRecord, PostRecord, MediaRecord, FollowRecord, DiscoveryPost } from '@/data/types';
+import type { ProfileRecord, PostRecord, MediaRecord, FollowRecord } from '@/data/types';
 import { MapPin, Globe, Link, Users, UserPlus, UserCheck, Loader2, ArrowLeft, MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
@@ -105,7 +106,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
         fc = fC;
         fCount = fCnt;
       } else {
-        // Viewer path: read from discovery API
+        // Viewer path: read from discovery API + public ledger
         const [p, fr] = await Promise.all([
           readUserProfile(username, provider),
           readFollow(username, provider).catch(() => null),
@@ -114,56 +115,23 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
         setFollowRecord(fr);
         setFollowing(fr?.status === 'active' || false);
 
-        // Fetch posts from discovery API (public posts index)
+        // Fetch posts from discovery API via pagination (per-author, never limit-50-and-pray)
         try {
-          const resp = await fetch(
-            `${API_ORIGIN}/discover/posts?sort=recent&limit=50`,
-            { method: 'PATCH' },
-          );
-          if (resp.ok) {
-            const allPosts: DiscoveryPost[] = await resp.json();
-            postsData = allPosts
-              .filter((dp) => dp.author === username && dp.provider === provider)
-              .map((dp) => {
-                const post: PostRecord = {
-                  _id: dp.post_id,
-                  text: dp.text,
-                  created_at: dp.created_at,
-                  tags: dp.tags,
-                };
-                if (dp.media_refs?.length) {
-                  post.media_refs = dp.media_refs;
-                }
-                return post;
-              });
-          }
+          postsData = await readUserPostsFromDiscovery(username, provider);
         } catch {
           // Discovery API unavailable
         }
 
-        // Follower/following counts from discovery API
+        // Follower count from the public ledger (per-user, never the viewer's)
         try {
-          const usersResp = await fetch(
-            `${API_ORIGIN}/discover/users?limit=100`,
-            { method: 'PATCH' },
-          );
-          if (usersResp.ok) {
-            const users = await usersResp.json();
-            const userEntry = users.find(
-              (u: { username: string; provider: string }) =>
-                u.username === username && u.provider === provider,
-            );
-            if (userEntry) {
-              fCount = userEntry.followers_count ?? 0;
-            }
-          }
+          fCount = await countFollowers(username, provider);
         } catch {
-          // Discovery users API unavailable
+          // Ledger unavailable — fCount stays null (hide tile)
         }
 
-        // Following count from our own follows service
+        // Following count from the public ledger (per-user, never the viewer's)
         try {
-          fc = await countFollows();
+          fc = await countUserFollowing(username, provider);
         } catch {
           setFollowingCountError(true);
         }
