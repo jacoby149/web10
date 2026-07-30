@@ -2039,7 +2039,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       FOLLOW-UP named: D-export-links-health-e2e (below) keeps
       these URLs from rotting silently again.
 
-[ ] D-export-links-health-e2e (sub-lane ws-E/infra — CI workflow
+[✓ 1.0.242] D-export-links-health-e2e (sub-lane ws-E/infra — CI workflow
       seam, .github/workflows/**; operator, 30.07 rant #2: "but we
       should have a test to see is it a shit page, some kind of
       e2e test! that makes sure those pages arent down /
