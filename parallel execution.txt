@@ -2842,8 +2842,30 @@ M3 "the network"         = encryption integration (A rtc + C2 sdk
                            polish. the last big merge.
 
 
-CURRENT CONDUCTOR BOARD (as of 30.07.2026 — audit #11; keep fresh)
+CURRENT CONDUCTOR BOARD (as of 30.07.2026 — audit #12; keep fresh)
 --------------------------------------------------------------------
+AUDIT #12 REFRESH (30.07): SHIPPED. The overnight batch (#384–#392 —
+docs pass #11, A18 engagement-target revert, D-engagement-target-client,
+D-search-fulltext, D-mail-experience bite c CC/BCC, D-appstore-plugs,
+D-inapp-discover-knobs bite a, D-import-revamp bite a) gated CLEAN
+(api diff = the A18 raw-post_key $match revert + the escaped-regex
+search fallback, both test-pinned; no auth/star/I1–I5 touches; e2e +
+deploy green at dev head) and promoted dev→main via merge commit
+(#393); deploy-prod + cd + e2e on main ALL green; prod verified live
+(7/7 public endpoints 200). Zero open PRs; fleet idle. PROD NOW SERVES:
+trending badges show real persona engagement counts again (A18 P1
+regression closed), substring search ("yo" finds "yoyoyo"), Discover
+has trending cards + presets + topic chips, Mail has CC/BCC + Reply-all,
+App Store has plug slots, /import is the numbered-step journey with
+platform export links. ALIGNMENT: unchanged — every open item is
+operator-complaint-driven social-product/funnel work or the M2 money-
+path referee (C8); no infra-company drift on the board. QWEN HORIZON:
+~12 filed parallel-safe bites across 8 sub-lanes (C8a, the appstore
+spec note, feed-lightbox a, crm bite b, docs-gfm, nav-signin-social,
+video-autoplay, join-steps-visuals, home-stats-bar, appstore-browse,
+discover-knobs b, appstore v2 bite a), ~20+ chained PRs behind them —
+Qwens run independently.
+
 AUDIT #11 REFRESH (30.07): SHIPPED ×2 in one day. (1) The morning
 batch (#359–#368) promoted via #369 (see audit #10). (2) The
 evening MERGE TRAIN: 11 queued PRs (#371–#382 — graph removal,
@@ -2902,21 +2924,14 @@ legacy logo) + most-popular + newest plug slots; category rails
 fully refreshed — eight sub-lanes drained or advanced this batch.
 
   PRIORITY 1 (fresh, this audit):
-    ws-A: A18-engagement-target-canonical — REGRESSION (operator
-      29.07: every /trending card shows 0 likes/0 comments). A15's
-      `service:post_id` conversion matches NONE of the three ledger
-      target formats in prod data; canonical = `{author}/{service}/
-      {post_id}`, revert to the raw post_key $match. full diagnosis
-      in the lane item.
-    ws-D/feed: D-engagement-target-client — the client half (social
-      comments/reactions + the marketing trending panel write/read
-      the canonical target). independent PR, same decision.
     ws-E (operator-gated): E-run-discovery-migration — env gate CLEAR
       (A13 + A17 both deployed to prod). Run migrate_terms + backfill +
       migrate_follows_terms with an admin token per env; the A17 media
       fields need the backfill RE-RUN to reach existing index docs.
-      needs admin token + env access (operator provides).
-    (ws-C is CLEAR for the first time since 24.07 — C9 closed.)
+      needs admin token + env access (operator provides). NOW ALSO
+      blocking two visible complaints (card media on existing posts).
+    (ws-A/ws-C/ws-D are CLEAR of P1s — A18 + its client half shipped
+    in the #384–#392 batch; prod badges show real counts again.)
 
   PARALLEL-SAFE FLEET (one workspace per sub-lane; chains WITHIN a
   sub-lane are sequential, file seams):
@@ -2927,58 +2942,44 @@ fully refreshed — eight sub-lanes drained or advanced this batch.
     ws-A:            D-appstore-revamp v2 bite c — the registration-
                      shape SPEC NOTE (a .context/decisions.md write-up,
                      no code; gates the v2 rewire build; lane A owns
-                     the                      record-shape call)
-    ws-D/feed:       D-engagement-target-client (PRIORITY 1 — see
-                     above), THEN D-feed-lightbox bite a (open-from-
-                     feed), THEN D-link-embeds. NOTE (operator 29.07):
-                     "even better if i clicked them and it went to the
-                     hyperlink to the web10 social post" — the trending
-                     card → POST link needs social's post permalink
-                     route, which is D-feed-lightbox bite b (share +
-                     permalink) / D-deep-links territory; the URL-
-                     holds-state rule is already law (AGENTS.md), the
-                     permalink bite is the staged build. when bite b
-                     lands, a small ws-D/marketing bite switches
-                     TrendingCard's click target from /u/<author> to
-                     the post permalink.
-    ws-D/messages:   D-mail-experience bite c (CC/BCC COMPOSE — gate
-                     bite b merged #368, CLEARED), THEN D-crm-upgrade
-                     bite b (contact fields + CRUD)
-    ws-D/marketing:  D-search-fulltext + D-trending-controls-alignment
-                     (either order), THEN D-docs-gfm + D-nav-signin-
-                     social (operator 29.07 rant — both tiny; see the
-                     lane items), THEN D-video-autoplay-muted (operator
-                     29.07 — videos autoplay muted on cards; see the
-                     lane item). (D-graph-app + D-social-analytics
-                     PARKED 29.07 per operator — the /graph page was
-                     removed in 1.0.213; D-graph-token-polish dies with
-                     it. park record in later.md.)
-    ws-D/marketing(2): D-appstore-plugs (NEW, operator 29.07 — see
-                     the lane item), THEN D-appstore-browse (NEW,
-                     operator 29.07 rant — uniform small browse
-                     cards: icon/name/visits/rating, no descriptions,
-                     + browse search bar), THEN D-appstore-revamp v2
-                     bite a (product page; gate: the lane-A spec note
-                     for the full rewire, but bite a reads the legacy
-                     store as-is — NOT gated on it). ALSO PARALLEL-SAFE here:
-                     D-import-revamp bite a (operator 29.07 rant —
-                     the /join-style import step strip + platform
-                     export links; Exporter.tsx seam, disjoint from
-                     the AppStore files), D-join-steps-visuals (operator 29.07 —
-                     Join.tsx seam, disjoint from the AppStore files;
-                     the two can run in two workspaces at once) AND
-                     D-home-stats-bar (operator 29.07 rant —
-                     Home.tsx seam, disjoint from the AppStore files)
+                     the record-shape call)
+    ws-D/feed:       D-feed-lightbox bite a (open-from-feed), THEN
+                     bite b (share + permalink — the operator's 29.07
+                     "clicked them and it went to the hyperlink to the
+                     web10 social post"; when bite b lands, a small
+                     ws-D/marketing bite switches TrendingCard's click
+                     target from /u/<author> to the post permalink),
+                     THEN D-link-embeds.
+    ws-D/messages:   D-crm-upgrade bite b (contact fields + CRUD —
+                     mail-experience drained 1.0.231)
+    ws-D/marketing:  D-docs-gfm + D-nav-signin-social (operator 29.07
+                     rant — both tiny; see the lane items), THEN
+                     D-video-autoplay-muted (operator 29.07 — videos
+                     autoplay muted on cards; see the lane item).
+                     (D-graph-app + D-social-analytics PARKED 29.07 per
+                     operator — the /graph page was removed in 1.0.213;
+                     D-graph-token-polish dies with it. park record in
+                     later.md.)
+    ws-D/marketing(2): D-appstore-browse (operator 29.07 rant —
+                     uniform small browse cards: icon/name/visits/
+                     rating, no descriptions, + browse search bar),
+                     THEN D-appstore-revamp v2 bite a (product page;
+                     gate: the lane-A spec note for the full rewire,
+                     but bite a reads the legacy store as-is — NOT
+                     gated on it). ALSO PARALLEL-SAFE here (disjoint
+                     seams): D-join-steps-visuals (Join.tsx) AND
+                     D-home-stats-bar (Home.tsx) — three workspaces
+                     can run marketing(2) seams at once.
     ws-D/profile:    D-lightbox-media-sizing (chain START), THEN
                      D-profile-image-placement, THEN D-follow-lists,
                      THEN D-text-post-cards bite a — the whole chain
                      shares the PostLightbox/ProfileScreen seam; run
                      sequentially. HELD until ws-D/feed's lightbox
                      bite merges (the seam cluster rule below).
-    ws-D/discover:   D-inapp-discover-knobs bite a (GATE CLEARED
-                     29.07 — D36 sign-off; Discover borrows heavily
-                     from /trending: cards + presets + chips, then
-                     bite b the knobs)
+    ws-D/discover:   D-inapp-discover-knobs bite b — THE KNOBS
+                     (KnobRack/RotaryKnob/powerMean ported, live
+                     client-side re-rank; gate bite a merged #391,
+                     CLEARED)
     ws-D/settings:   DRAINED (bite b merged #365; the full facebook-
                      style tree awaits operator sign-off on the
                      .context/settings-tab-proposal.md)
