@@ -75,7 +75,19 @@ def is_youtube_zip(entries: list[dict]) -> bool:
     return False
 
 
+def is_web10_zip(entries: list[dict]) -> bool:
+    for e in entries:
+        p = e["path"].lower()
+        if "web10_export.json" in p:
+            return True
+        if "web10_export" in p and "manifest" in p:
+            return True
+    return False
+
+
 def detect_platform(entries: list[dict]) -> str:
+    if is_web10_zip(entries):
+        return "web10"
     if is_instagram_zip(entries):
         return "instagram"
     if is_facebook_zip(entries):
