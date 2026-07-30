@@ -1808,6 +1808,37 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         search affordance, tag-chip routing polish. gate: bite a
         merged.
 
+[ ] D-home-stats-bar (sub-lane ws-D/marketing(2); SEAM: Home.tsx —
+      disjoint from AppStore/Join files; operator, 29.07 rant,
+      screenshot of the App Store subtitle's inline counts: "on the
+      home page of the marketing, these counts that are on the app
+      store page should be there, but in more of a raw way, where
+      when a VC sees the front front page, it is like oh wow they
+      have that many users etc. what i mean is that sentence is 402
+      members · 7 apps · 26.7 MB of data owned on web10. should be
+      402 users 7 apps 26.7 MB data liberated"): a RAW STATS BAR on
+      the marketing homepage — the real node numbers (the same
+      /stats endpoint the App Store reads, D16) as big, proud
+      callouts, not a buried sentence: the operator's shape is
+      "402 users · 7 apps · 26.7 MB data liberated" — three stat
+      blocks (big number, small label), "data liberated" framing
+      (the manifesto voice — it's the sovereignty pitch in one
+      glance). placement: in or directly under the hero, where a
+      VC's first scroll can't miss it. REAL DATA ONLY (the honesty
+      line): fetched live from /stats; if the fetch fails the bar
+      HIDES itself — never a fake or stale-hardcoded number; the
+      numbers format honestly (26.7 MB stays 26.7 MB, no rounding
+      up to GB). design: raw and confident — oversized tabular
+      numerals, generous spacing, maybe a count-up on load if it's
+      tasteful (respects prefers-reduced-motion), all design.md
+      tokens. files: marketing-ui Home.tsx + a small stats hook
+      (the AppStore's fetch pattern, extracted or copied per the
+      verbatim-copies rule). acceptance: the homepage shows the
+      live user/app/byte counts as three big stat blocks; kill the
+      fetch and the bar disappears gracefully; marketing-ui tests +
+      tsc green; screenshots desktop + 375px and LOOK — the bar is
+      "oh wow they have that many users" at a glance. gate: none.
+
 [ ] D-search-fulltext (sub-lane ws-D/marketing, AFTER D-marketing-search
       bite b — same Trending.tsx seam; operator, 27.07: "searching only
       searches tags also. it doesnt search the other things"): a word
@@ -2547,7 +2578,9 @@ fully refreshed — eight sub-lanes drained or advanced this batch.
                      the lane item), THEN D-appstore-revamp v2 bite a
                      (product page; gate: the lane-A spec note for the
                      full rewire, but bite a reads the legacy store
-                     as-is — NOT gated on it)
+                     as-is — NOT gated on it). ALSO PARALLEL-SAFE here:
+                     D-home-stats-bar (NEW, operator 29.07 rant —
+                     Home.tsx seam, disjoint from the AppStore files)
     ws-D/profile:    D-lightbox-media-sizing (chain START), THEN
                      D-profile-image-placement, THEN D-follow-lists,
                      THEN D-text-post-cards bite a — the whole chain
