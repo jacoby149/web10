@@ -2505,7 +2505,12 @@ the join tab would work great for the import your life!"): rebuild
   posts writes. lane item D-import-revamp (bites: a = the step
   strip + export links, ws-D/marketing(2); b = the WeTransfer
   pipeline, ws-D/marketing-api; c = the authenticator import tab,
-  ws-B). NOTE: this revises the "client-side first" principle above
+  ws-B). follow-ups filed 30.07: D-import-export-links-dead
+  (operator-verified working export URLs + our own /docs export-
+  guidance article — operator supplies the content; NOT llm
+  redirects) and D-export-links-health-e2e (a scheduled link-
+  health workflow that catches rotted/"shit page" export links
+  before the operator does). NOTE: this revises the "client-side first" principle above
   for the hosted path — the server-side pipeline is what the
   operator wants (the browser parse is the bricked part); the
   sovereignty story is preserved by the delete-after-processing
