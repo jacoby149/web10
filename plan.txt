@@ -2582,7 +2582,7 @@ D-dm-header-profile-link (ws-D/messages, tiny). merged 1.0.251.
     delete from the post's actual collection, remove the discovery
     ghost on public deletes, re-read the grid after delete. lane item
     D-delete-post-broken (ws-D/profile).
-[ ] another user's profile shows HIS stats + posts (operator, 30.07
+[✓ 1.0.272] another user's profile shows HIS stats + posts (operator, 30.07
     rant, screenshot of /u/coolguydavid: "i dont see how many hes
     following and how many followers! nor do i see his posts but i
     know he has a post"): three confirmed UserProfileScreen bugs —
