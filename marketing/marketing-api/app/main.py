@@ -9,6 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from threading import Lock
 
+import boto3
 import requests as http_requests
 from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,6 +19,8 @@ from .models import (
     Phase,
     ImportJob,
     ImportJobCreate,
+    ImportPresignRequest,
+    ImportPresignResponse,
     PageView,
     FunnelEventCreate,
     JsErrorReport,
@@ -40,6 +43,48 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ─── S3 Configuration ─────────────────────────────────────────────────────────
+# Same env vars as the node's media service so both share the hosted bucket.
+S3_ENDPOINT = os.getenv("S3_ENDPOINT", "http://minio:9000")
+S3_PUBLIC_ENDPOINT = os.getenv("S3_PUBLIC_ENDPOINT", S3_ENDPOINT)
+S3_BUCKET = os.getenv("S3_IMPORT_BUCKET", os.getenv("S3_BUCKET", "web10-media"))
+S3_ACCESS_KEY = os.getenv("S3_ACCESS_KEY", "minioadmin")
+S3_SECRET_KEY = os.getenv("S3_SECRET_KEY", "minioadmin")
+S3_REGION = os.getenv("S3_REGION", "us-east-1")
+S3_USE_SSL = os.getenv("S3_USE_SSL", "false").lower() == "true"
+S3_PUBLIC_USE_SSL = (
+    os.getenv(
+        "S3_PUBLIC_USE_SSL", "true" if S3_PUBLIC_ENDPOINT.startswith("https") else str(S3_USE_SSL).lower()
+    ).lower()
+    == "true"
+)
+IMPORT_URL_EXPIRY = int(os.getenv("IMPORT_URL_EXPIRY", "600"))  # 10 min for ZIP uploads
+IMPORT_MAX_SIZE = int(os.getenv("IMPORT_MAX_SIZE", "524288000"))  # 500 MB
+
+
+def _s3(internal: bool = True):
+    """Return an S3 client. internal=True uses S3_ENDPOINT (for downloads/deletes);
+    internal=False uses S3_PUBLIC_ENDPOINT (for presigned URLs the browser must reach)."""
+    endpoint = S3_ENDPOINT if internal else S3_PUBLIC_ENDPOINT
+    use_ssl = S3_USE_SSL if internal else S3_PUBLIC_USE_SSL
+    return boto3.client(
+        "s3",
+        endpoint_url=endpoint,
+        aws_access_key_id=S3_ACCESS_KEY,
+        aws_secret_access_key=S3_SECRET_KEY,
+        region_name=S3_REGION,
+        use_ssl=use_ssl,
+    )
+
+
+def _ensure_bucket():
+    """Create the import bucket if it doesn't exist (MinIO needs explicit creation)."""
+    try:
+        _s3(internal=True).head_bucket(Bucket=S3_BUCKET)
+    except Exception:
+        _s3(internal=True).create_bucket(Bucket=S3_BUCKET)
+
 
 # In-memory job store (replace with Redis/DB in production)
 jobs: dict[str, dict] = {}
@@ -85,22 +130,43 @@ def _write_record(node_api_url: str, token: str, service: str, body: dict) -> tu
 
 async def _run_pipeline(
     job_id: str,
-    zip_path: Path,
+    source: str,
     node_api_url: str,
     token: str,
     media_service_url: str | None = None,
 ):
-    """Background task: parse ZIP → validate → write records to node."""
+    """Background task: process ZIP → validate → write records → DELETE original.
+
+    source can be:
+    - An S3 object key (starts with 'imports/') — download from S3, process, delete from S3.
+    - A local file path — process in place, delete the temp file.
+    """
     job = jobs[job_id]
     errors = []
+    tmp_zip: Path | None = None
+    is_s3 = source.startswith("imports/")
 
     try:
-        with zipfile.ZipFile(zip_path, "r") as zf:
+        # ── Phase 0: Obtain the ZIP ────────────────────────────────────────
+        job["phase"] = Phase.PARSING
+        if is_s3:
+            job["message"] = "Downloading ZIP from storage..."
+        else:
+            job["message"] = "ZIP uploaded, starting pipeline..."
+        jobs[job_id] = job
+
+        if is_s3:
+            tmp_dir = Path(tempfile.mkdtemp())
+            tmp_zip = tmp_dir / f"{job_id}.zip"
+            _s3(internal=True).download_file(S3_BUCKET, source, str(tmp_zip))
+        else:
+            tmp_zip = Path(source)
+
+        # ── Parse ──────────────────────────────────────────────────────────
+        with zipfile.ZipFile(tmp_zip, "r") as zf:
             entries = [{"path": e.filename, "data": zf.read(e.filename)} for e in zf.infolist() if not e.is_dir()]
             total_entries = len(entries)
 
-            # Detect platform
-            job["phase"] = Phase.PARSING
             job["total_files"] = total_entries
             job["message"] = f"Found {total_entries} entries, detecting source..."
             jobs[job_id] = job
@@ -113,7 +179,6 @@ async def _run_pipeline(
                 jobs[job_id] = job
                 return
 
-            # Parse records
             job["phase"] = Phase.MAPPING
             job["message"] = f"{platform} export detected. Parsing..."
             jobs[job_id] = job
@@ -131,7 +196,7 @@ async def _run_pipeline(
                 jobs[job_id] = job
                 return
 
-            # Validate
+            # ── Validate ───────────────────────────────────────────────────
             job["phase"] = Phase.VALIDATING
             job["message"] = f"Validating {len(records)} records..."
             jobs[job_id] = job
@@ -148,7 +213,7 @@ async def _run_pipeline(
             job["skipped_records"] = len(skipped)
             jobs[job_id] = job
 
-            # Deduplicate by origin_id
+            # ── Deduplicate ────────────────────────────────────────────────
             seen_ids = set()
             deduped = []
             for rec in valid:
@@ -160,12 +225,11 @@ async def _run_pipeline(
                     deduped.append(rec)
             valid = deduped
 
-            # Write records to node
+            # ── Write to node ──────────────────────────────────────────────
             job["phase"] = Phase.WRITING
             job["message"] = f"Writing {len(valid)} records to node..."
             jobs[job_id] = job
 
-            # Group by service
             by_service: dict[str, list] = {}
             for rec in valid:
                 by_service.setdefault(rec["service"], []).append(rec)
@@ -189,7 +253,6 @@ async def _run_pipeline(
                         errors.append(f"[{service}] {err or 'write failed'}")
                     job["written_records"] = total_written + written
                     jobs[job_id] = job
-                    # Small delay to avoid overwhelming the node
                     if i < len(service_records) - 1:
                         await asyncio.sleep(0.05)
 
@@ -210,11 +273,101 @@ async def _run_pipeline(
         job["errors"] = [str(e)]
         jobs[job_id] = job
     finally:
-        # Clean up temp file
-        try:
-            zip_path.unlink()
-        except OSError:
-            pass
+        # ── Clean up: delete temp file ─────────────────────────────────────
+        if tmp_zip and tmp_zip.exists():
+            try:
+                tmp_zip.unlink()
+                tmp_zip.parent.rmdir()
+            except OSError:
+                pass
+
+        # ── PRIVACY PROMISE: delete the original ZIP from S3 ───────────────
+        # This is load-bearing: originals must not persist after processing.
+        if is_s3:
+            try:
+                _s3(internal=True).delete_object(Bucket=S3_BUCKET, Key=source)
+                logger.info("Deleted import ZIP from S3: %s/%s", S3_BUCKET, source)
+            except Exception as e:
+                logger.error("Failed to delete import ZIP from S3: %s — %s", source, e)
+
+
+# ─── Import Endpoints ─────────────────────────────────────────────────────────
+
+
+@app.post("/import/presign", response_model=ImportPresignResponse)
+async def presign_import_upload(req: ImportPresignRequest):
+    """Create an import job and return a presigned S3 POST for direct ZIP upload.
+
+    The client POSTs the ZIP to upload_url with the given fields, then calls
+    POST /import/{job_id}/start to begin processing.
+    """
+    _ensure_bucket()
+    job_id = str(uuid.uuid4())
+    object_key = f"imports/{job_id}/{job_id}.zip"
+
+    presigned = _s3(internal=False).generate_presigned_post(
+        S3_BUCKET,
+        object_key,
+        Conditions=[
+            ["content-length-range", 0, IMPORT_MAX_SIZE],
+        ],
+        ExpiresIn=IMPORT_URL_EXPIRY,
+    )
+
+    jobs[job_id] = {
+        "id": job_id,
+        "platform": req.platform,
+        "phase": Phase.PENDING,
+        "total_files": 0,
+        "processed_files": 0,
+        "total_records": 0,
+        "written_records": 0,
+        "skipped_records": 0,
+        "errors": [],
+        "current_service": None,
+        "message": "Job created. Upload ZIP to the presigned URL, then call /import/{id}/start.",
+        "services_summary": {},
+        "created_at": datetime.utcnow().isoformat(),
+        "node_api_url": req.node_api_url,
+        "user_token": req.user_token,
+        "object_key": object_key,
+    }
+
+    return ImportPresignResponse(
+        job_id=job_id,
+        upload_url=presigned["url"],
+        fields=presigned.get("fields", {}),
+        object_key=object_key,
+    )
+
+
+@app.post("/import/{job_id}/start")
+async def start_import_job(job_id: str, background_tasks: BackgroundTasks):
+    """Trigger background processing after the client has uploaded the ZIP to S3."""
+    if job_id not in jobs:
+        raise HTTPException(404, "Job not found")
+
+    job = jobs[job_id]
+    if job["phase"] != Phase.PENDING:
+        raise HTTPException(409, f"Job already processing or complete: {job['phase']}")
+
+    object_key = job.get("object_key")
+    if not object_key:
+        raise HTTPException(400, "Job has no S3 object key. Use /import/presign to create it.")
+
+    job["phase"] = Phase.PARSING
+    job["message"] = "Starting import pipeline..."
+    jobs[job_id] = job
+
+    background_tasks.add_task(
+        _run_pipeline,
+        job_id,
+        object_key,
+        job["node_api_url"],
+        job["user_token"],
+    )
+
+    return {"job_id": job_id, "status": "processing"}
 
 
 @app.post("/import", response_model=ImportJob)
@@ -246,7 +399,10 @@ async def create_import_job(
 
 @app.post("/import/{job_id}/upload")
 async def upload_zip(job_id: str, background_tasks: BackgroundTasks, file: UploadFile = File(...)):
-    """Upload the ZIP file for an import job. Triggers background processing."""
+    """Upload the ZIP file for an import job. Triggers background processing.
+
+    LEGACY: direct upload to the marketing-api. Prefer /import/presign for S3 uploads.
+    """
     if job_id not in jobs:
         raise HTTPException(404, "Job not found")
 
@@ -255,14 +411,13 @@ async def upload_zip(job_id: str, background_tasks: BackgroundTasks, file: Uploa
     job["message"] = "ZIP uploaded, starting pipeline..."
     jobs[job_id] = job
 
-    # Save ZIP to temp file
     tmp = Path(tempfile.mkdtemp()) / f"{job_id}.zip"
     tmp.write_bytes(await file.read())
 
     background_tasks.add_task(
         _run_pipeline,
         job_id,
-        tmp,
+        str(tmp),
         job["node_api_url"],
         job["user_token"],
     )
