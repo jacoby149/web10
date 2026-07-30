@@ -2,6 +2,8 @@ import { ArrowUpRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { LucideIcon } from 'lucide-react'
 
+export type AppCardSize = 'default' | 'plug'
+
 export interface AppCardProps {
   iconSrc?: string
   iconLetter?: string
@@ -11,6 +13,8 @@ export interface AppCardProps {
   visits?: number
   flagship?: boolean
   skeleton?: boolean
+  size?: AppCardSize
+  badge?: string
   'data-testid'?: string
 }
 
@@ -23,6 +27,8 @@ export function AppCard({
   visits,
   flagship,
   skeleton,
+  size = 'default',
+  badge,
   'data-testid': testId,
 }: AppCardProps) {
   if (skeleton) {
@@ -40,6 +46,84 @@ export function AppCard({
     )
   }
 
+  const iconBlock = (
+    <div className="relative flex shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-elevated">
+      {iconSrc ? (
+        <img
+          src={iconSrc}
+          alt={name}
+          className={cn(
+            'object-contain',
+            size === 'plug' ? 'h-11 w-11' : 'h-14 w-14 sm:h-16 sm:w-16',
+          )}
+          loading="lazy"
+          onError={(e) => {
+            e.currentTarget.style.display = 'none'
+            const sibling = e.currentTarget.nextElementSibling as HTMLElement | null
+            if (sibling?.dataset.fallback) sibling.style.display = 'flex'
+          }}
+        />
+      ) : null}
+      <div
+        data-fallback="true"
+        className={cn(
+          'absolute inset-0 flex items-center justify-center font-semibold text-muted-foreground',
+          size === 'plug' ? 'text-xl' : 'text-2xl sm:text-3xl',
+          iconSrc ? 'hidden' : '',
+        )}
+      >
+        {iconLetter ?? name.charAt(0).toUpperCase()}
+      </div>
+    </div>
+  )
+
+  const badgeEl = badge || flagship ? (
+    <span className="shrink-0 rounded-full bg-brand-muted px-2 py-0.5 text-[0.625rem] font-medium uppercase tracking-wide text-brand-300">
+      {badge ?? 'Flagship'}
+    </span>
+  ) : null
+
+  const visitsEl =
+    visits !== undefined && visits >= 0 ? (
+      <span className="text-xs text-muted-foreground">
+        {visits.toLocaleString()} {visits === 1 ? 'visit' : 'visits'}
+      </span>
+    ) : null
+
+  const openBtn = (
+    <span className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-elevated px-4 py-2 text-sm font-medium text-brand-300 transition-colors duration-150 ease-out group-hover:bg-brand-muted group-hover:text-brand-300">
+      Open
+      <ArrowUpRight className="h-3.5 w-3.5" strokeWidth={2} />
+    </span>
+  )
+
+  if (size === 'plug') {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="group block"
+        data-testid={testId ?? 'app-card'}
+      >
+        <div className="flex items-start gap-5 rounded-2xl border border-border bg-surface p-5 transition-all duration-150 ease-out hover:-translate-y-0.5 hover:border-brand-muted hover:shadow-lg hover:shadow-brand/5">
+          <div className="h-16 w-16">{iconBlock}</div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              {badgeEl}
+              <span className="truncate font-semibold text-foreground">{name}</span>
+            </div>
+            <p className="mt-1 line-clamp-2 text-sm leading-snug text-muted-foreground">
+              {description}
+            </p>
+            {visitsEl}
+          </div>
+          {openBtn}
+        </div>
+      </a>
+    )
+  }
+
   return (
     <a
       href={href}
@@ -49,55 +133,21 @@ export function AppCard({
       data-testid={testId ?? 'app-card'}
     >
       <div className="flex flex-col items-center gap-4 rounded-2xl border border-border bg-surface p-8 transition-all duration-150 ease-out hover:-translate-y-1 hover:border-brand-muted hover:shadow-lg hover:shadow-brand/5">
-        <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-elevated sm:h-24 sm:w-24">
-          {iconSrc ? (
-            <img
-              src={iconSrc}
-              alt={name}
-              className="h-14 w-14 object-contain sm:h-16 sm:w-16"
-              loading="lazy"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none'
-                const sibling = e.currentTarget.nextElementSibling as HTMLElement | null
-                if (sibling?.dataset.fallback) sibling.style.display = 'flex'
-              }}
-            />
-          ) : null}
-          <div
-            data-fallback="true"
-            className={cn(
-              'absolute inset-0 flex items-center justify-center text-2xl font-semibold text-muted-foreground sm:text-3xl',
-              iconSrc ? 'hidden' : '',
-            )}
-          >
-            {iconLetter ?? name.charAt(0).toUpperCase()}
-          </div>
-        </div>
+        <div className="h-20 w-20 sm:h-24 sm:w-24">{iconBlock}</div>
 
         <div className="flex flex-col items-center gap-1.5 text-center">
           <div className="flex items-center gap-2">
             <span className="font-semibold text-foreground">{name}</span>
-            {flagship && (
-              <span className="rounded-full bg-brand-muted px-2 py-0.5 text-[0.625rem] font-medium uppercase tracking-wide text-brand-300">
-                Flagship
-              </span>
-            )}
+            {badgeEl}
           </div>
           <p className="max-w-[200px] text-sm leading-snug text-muted-foreground">
             {description}
           </p>
         </div>
 
-        {visits !== undefined && visits >= 0 && (
-          <span className="text-xs text-muted-foreground">
-            {visits.toLocaleString()} {visits === 1 ? 'visit' : 'visits'}
-          </span>
-        )}
+        {visitsEl}
 
-        <span className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-elevated px-4 py-2 text-sm font-medium text-brand-300 transition-colors duration-150 ease-out group-hover:bg-brand-muted group-hover:text-brand-300">
-          Open
-          <ArrowUpRight className="h-3.5 w-3.5" strokeWidth={2} />
-        </span>
+        {openBtn}
       </div>
     </a>
   )

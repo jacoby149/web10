@@ -162,6 +162,11 @@ export interface InboxRecord {
 
 // ── dms (records-based, lives in a per-conversation service) ────────────────
 
+export interface DmRecipient {
+  username: string;
+  provider: string;
+}
+
 export interface DmRecord {
   _id?: string;
   message: string;
@@ -174,6 +179,13 @@ export interface DmRecord {
   media_refs?: string[];
   encrypted?: boolean;
   subject?: string;
+  // Multi-recipient metadata (D-mail-experience bite c).
+  // `to`: all primary recipients (for Reply-all across To recipients).
+  // `cc`: CC recipients visible to this copy (empty for BCC recipients).
+  // `bcc`: always empty on recipient copies — BCC never leaks.
+  to?: DmRecipient[];
+  cc?: DmRecipient[];
+  bcc?: DmRecipient[];
 }
 
 // ── Feed sort options ───────────────────────────────────────────────────────

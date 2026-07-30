@@ -941,27 +941,20 @@ def remove_discovery_post(username: str, service: str, post_id: str):
 def _ledger_engagement_for_post(post_key: str) -> dict:
     """Count engagement for a post from the public ledger.
 
-    The ledger target format is ``{service}:{post_id}`` (e.g. ``posts:123``),
-    set by the client-side mirror in comments.ts and reactions.ts.
-    The ``post_key`` parameter is the legacy ``{author}/{service}/{post_id}``
-    form; we extract the service and post_id to build the correct target.
+    The canonical ledger target is ``{author}/{service}/{post_id}``
+    (e.g. ``alice/public_posts/123``) — engine-native, seed-written,
+    globally unambiguous. The ``post_key`` parameter is already in this
+    form; we match it directly with no conversion.
+
+    Legacy targets like ``posts:{post_id}`` (hardcoded in older social
+    client code) are orphaned — they will NOT be matched here. The
+    client-side fix (D-engagement-target-client) threads author+service
+    from the call site so new writes use the canonical format.
     """
     _ensure_public_collection()
     col = db["web10"][PUBLIC_COLLECTION]
-    # Extract service and post_id from the post_key.
-    # post_key is ``{author}/{service}/{post_id}`` — split on ``/``.
-    parts = post_key.split("/")
-    if len(parts) >= 3:
-        # Handle post_ids that may contain slashes (rejoin trailing parts)
-        service = parts[1]
-        post_id = "/".join(parts[2:])
-    else:
-        # Fallback: treat entire post_key as target (backward compat)
-        service = None
-        post_id = None
-    target = f"{service}:{post_id}" if service and post_id else post_key
     pipeline = [
-        {"$match": {"target": target}},
+        {"$match": {"target": post_key}},
         {
             "$group": {
                 "_id": "$payload.action",

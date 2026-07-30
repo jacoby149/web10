@@ -365,7 +365,7 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       indexes has_media=false), ruff clean. gate: none. unblocks:
       D-trending-card-media, the D-user-profile-media grid half.
 
-[ ] A18-engagement-target-canonical (lane A, api/**; PRIORITY 1 —
+[✓ 1.0.230] A18-engagement-target-canonical (lane A, api/**; PRIORITY 1 —
       REGRESSION, operator 29.07, screenshot: every /trending card
       shows 0 likes / 0 comments): A15's fix (#360) made counts WORSE
       — it converted the aggregation's $match from the raw post_key
@@ -1456,7 +1456,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         (quote into thread / prefill compose). single-recipient only.
         (merged without a changelog entry — retroactive record in
         1.0.212.)
-      bite c, CC/BCC COMPOSE: multi-recipient send (one record per
+      [✓ 1.0.231] bite c, CC/BCC COMPOSE: multi-recipient send (one record per
         recipient, cc/bcc metadata, bcc never leaks in others'
         copies) + Reply-all. gate: bite b merged.
 
@@ -2395,7 +2395,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       375px and LOOK. gate: D-appstore-plugs (the plugs own the top
       of the page; the browse is everything below).
 
-[ ] D-appstore-plugs (sub-lane ws-D/marketing(2), AFTER D-appstore-revamp
+[✓ 1.0.230] D-appstore-plugs (sub-lane ws-D/marketing(2), AFTER D-appstore-revamp
       v1 — same AppStore page; operator, 29.07, partial REVERSAL of
       v1's "no hero" call, recorded honestly like the D16/D31
       precedent): "i actually liked the social app had a bigger card
