@@ -516,6 +516,54 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       the UI half (forgot-username link on CredentialPage) is B9
       bite d — leave the JSON contract as a .context/ note.
 
+[ ] A23-verification-enforcement (lane A, api/**; operator, 30.07
+      rant: "everyone puts a phone number, we should have some kind
+      of a schedule maybe daily? we should ask all the unverified
+      users platform wide to verify their number over text with a
+      link to verify! and if they dont, after three reminders, we
+      shut the accounts down, set the account INACTIVE, and someone
+      else could take the username it frees up the username"):
+      the verification ENFORCEMENT loop — this RESOLVES A21's open
+      keep-vs-reap question: the operator's call is REAP (with
+      reminders first). VERIFIED GAPS at HEAD: (1) no active/
+      inactive state exists — the star record (records.py:6-18)
+      has `verified` but no status field; (2) no scheduler infra
+      in the api (no apscheduler/celery/cron — keep it simple: an
+      asyncio background loop in the api or a cron-hit admin
+      endpoint, implementer's call, record in decisions.md); (3)
+      create_user's EXISTS check (documentdb.py:213-214) treats
+      ANY existing collection as taken, so freeing a username
+      needs a seam. shape: a DAILY pass over all users with
+      verified=false -> twilio SMS with a verify link (the
+      existing send_verification pair + a link into the ui's
+      verify screen) -> track reminder count + last-sent ON the
+      star record (reminders: int, last_reminder_at) -> after the
+      THIRD unheeded reminder, set status=INACTIVE and FREE THE
+      USERNAME. the username-freeing seam: RENAME the collection
+      (e.g. `inactive:<username>:<ts>`) rather than delete — the
+      data survives (I3, the permanence promise — the ACCOUNT is
+      shut, not erased; reactivation path is a follow-up decision,
+      note it in the item's PR), create_user's EXISTS check then
+      naturally sees the name as free, and get_user_count (A21
+      bite c's verified-only count) already excludes them. also:
+      login/passwordless/recovery paths must reject INACTIVE
+      accounts with a clear "this account was deactivated —
+      verify your phone to restore" (NOT a generic error — that's
+      a support-ticket generator). BITES (rule 5): bite a, the
+      status field + reminder tracking + the daily pass sending
+      SMS reminders (tests: a seeded unverified user gets
+      reminded, count increments, verified users untouched);
+      bite b, the three-strikes INACTIVE transition + collection
+      rename + create_user frees the name + auth paths reject
+      INACTIVE with the clear message (tests pin all four).
+      acceptance: a user who ignores 3 daily reminders goes
+      INACTIVE and their username can be re-registered; a user
+      who verifies from any reminder link is safe; auth tests +
+      ruff green. gate: A21 bite b (phone-required policy — the
+      enforcement only makes sense once verification is the
+      norm); the SMS copy + verify-link target need B9's verify
+      screen — coordinate via .context/.
+
 [✓ 1.0.230] A18-engagement-target-canonical (lane A, api/**; PRIORITY 1 —
       REGRESSION, operator 29.07, screenshot: every /trending card
       shows 0 likes / 0 comments): A15's fix (#360) made counts WORSE
@@ -3601,7 +3649,11 @@ is new users signing up verry frequently! and they arent verifying
 phone number" — A21 bumped to PRIORITY (bites b+c first: the
 headline number inflates daily and unverified collections pile
 up); existing unverified collections get a read-only audit then an
-operator keep-vs-reap call in decisions.md.
+operator keep-vs-reap call in decisions.md. KEEP-VS-REAP RESOLVED
+(same rant, 30.07): REAP with reminders first — A23-verification-
+enforcement filed (daily SMS verify link to every unverified user;
+3 unheeded reminders -> status=INACTIVE + collection RENAMED not
+deleted, freeing the username; gated on A21 bite b).
 
   PRIORITY 1 (fresh, this audit):
     ws-E (operator-gated): E-run-discovery-migration — STILL the
@@ -3667,7 +3719,12 @@ operator keep-vs-reap call in decisions.md.
                      texted code -> list of usernames under that
                      phone; the old project's phone registry is the
                      seed, get_phone_record's find_one is the
-                     single-user assumption to outgrow).
+                     single-user assumption to outgrow), THEN
+                     A23-verification-enforcement (GATED on A21
+                     bite b — daily SMS verify reminders to all
+                     unverified users, 3 strikes -> INACTIVE +
+                     collection RENAMED so the username frees up;
+                     resolves the keep-vs-reap question: REAP).
                      (A19-stats-s3-bytes merged 1.0.263 — board
                      drift fixed 30.07)
     ws-B:            B9-recovery-contact-nudge bite a (30.07 rant —

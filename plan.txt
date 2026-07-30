@@ -704,7 +704,18 @@ node policy (anti-abuse is the NODE'S call, not the protocol's):
     are inflating the headline number right now; bites b+c of A21
     are the priority, and the existing unverified collections need
     a read-only audit + a keep-vs-reap call recorded in
-    decisions.md; (c) FORGOT
+    decisions.md. KEEP-VS-REAP RESOLVED (operator, 30.07): REAP,
+    with reminders first — "we should ask all the unverified users
+    platform wide to verify their number over text with a link to
+    verify! and if they dont, after three reminders, we shut the
+    accounts down, set the account INACTIVE, and someone else
+    could take the username it frees up the username." filed as
+    A23-verification-enforcement: a daily pass texts every
+    unverified user a verify link, three unheeded reminders ->
+    status=INACTIVE + the collection is RENAMED (not deleted —
+    the data survives, the permanence promise holds for the
+    account owner; reactivation path is a follow-up) so the
+    username frees up for re-registration; (c) FORGOT
     USERNAME — "if they say forgot username, they enter their phone
     number, and it shows them a list of users under that phone
     number AFTER verifying their phone number through text... used
