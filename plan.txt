@@ -2359,7 +2359,7 @@ says 3 comments while the expanded panel renders more than that):
     but distinct: real-account interactions don't mirror AT ALL
     (D-ledger-mirror-fix) — this item is the seeded/ledger data
     agreeing with itself. lane item A15-engagement-count-accuracy.
-[ ] REGRESSION (operator, 29.07, screenshot: every /trending card at
+[✓ 1.0.230] REGRESSION (operator, 29.07, screenshot: every /trending card at
     0 likes / 0 comments): A15's fix made it worse — the prod ledger
     has THREE target formats (seed script writes
     `{author}/public_posts/{post_id}`, the app client writes
