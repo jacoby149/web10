@@ -365,7 +365,7 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       indexes has_media=false), ruff clean. gate: none. unblocks:
       D-trending-card-media, the D-user-profile-media grid half.
 
-[ ] A19-stats-s3-bytes (lane A, api/**, SMALL; operator, 30.07 rant:
+[✓ 1.0.263] A19-stats-s3-bytes (lane A, api/**, SMALL; operator, 30.07 rant:
       "the data liberated tab isnt counting s3 data! should also add
       up all s3 data in the count!"): the marketing homepage "data
       liberated" stat (Home.tsx → POST /stats → system.py:140-146)

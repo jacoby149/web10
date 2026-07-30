@@ -867,6 +867,43 @@ def total_size():
     return db.command("dbstats")["storageSize"]
 
 
+# --- Object-store (S3/MinIO) media size ---
+
+_S3_SIZE_CACHE: float = 0.0
+_S3_SIZE_CACHE_TIME: float = 0.0
+_S3_SIZE_TTL = 60  # seconds — dbstats is already a scan; don't hammer on every /stats
+
+
+def total_s3_size() -> int:
+    """Sum of size_bytes across all media metadata records in every user collection.
+
+    Media blobs live in the object store (MinIO/S3); only metadata lives in
+    MongoDB. This function scans the metadata to recover the total blob size
+    so the /stats "storage" number reflects both DB and object-store bytes.
+
+    Cached with a short TTL to avoid a cross-collection scan on every request.
+    """
+    global _S3_SIZE_CACHE, _S3_SIZE_CACHE_TIME
+    now = datetime.datetime.utcnow().timestamp()
+    if now - _S3_SIZE_CACHE_TIME < _S3_SIZE_TTL:
+        return int(_S3_SIZE_CACHE)
+
+    total = 0
+    for coll_name in db.list_collection_names():
+        coll = db[coll_name]
+        for doc in coll.find(
+            {"service": {"$in": ["media", "public_media"]}, "body.size_bytes": {"$exists": True}},
+            {"body.size_bytes": 1, "_id": 0},
+        ):
+            sb = doc.get("body", {}).get("size_bytes")
+            if isinstance(sb, (int, float)) and sb > 0:
+                total += int(sb)
+
+    _S3_SIZE_CACHE = total
+    _S3_SIZE_CACHE_TIME = now
+    return total
+
+
 # app registration
 
 
