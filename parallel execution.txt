@@ -2220,7 +2220,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         steps 2-5 render as the honest journey with the steps that
         aren't built yet marked "coming soon" (never fake a working
         step). no backend. gate: none.
-      bite b, THE WETRANSFER PIPELINE (sub-lane ws-D/marketing-api —
+      [✓ 1.0.262 #435] bite b, THE WETRANSFER PIPELINE (sub-lane ws-D/marketing-api —
         marketing/marketing-api/**; NEW sub-lane, nothing in flight
         there): authenticated ZIP upload to the hosted S3 (presigned
         PUT/POST like the node's media path), a background queue
