@@ -654,7 +654,7 @@ node policy (anti-abuse is the NODE'S call, not the protocol's):
     beta code / email verify / captcha-turnstile / phone verify.
     stackable. default for self-host: open or invite. twilio only
     needed if the operator chooses phone gates.
-[ ] recovery must not assume sms: recovery codes generated at signup
+[~] recovery must not assume sms: recovery codes generated at signup
     (download/print), email recovery, and later the phase 10/11
     escrow path. sms recovery stays as an option, not the only path.
     forgot-password must be SMOOTH (jacob, 19.07.2026): phone number
@@ -676,7 +676,8 @@ node policy (anti-abuse is the NODE'S call, not the protocol's):
     ephemeral. filed as A20-recovery-email-channel (api) +
     B9-recovery-contact-nudge (ui: pester every user with no
     recovery contact set until they set one). accounts are
-    PERMANENT is the product promise.
+    PERMANENT is the product promise. bite a merged [✓ 1.0.271],
+    bite b (email reset flow) still open.
 [ ] passwordless phone login (operator rant, 30.07.2026): "even
     better, passwordless phone text verification code is the goat!
     also cool if we dont let people make an account if the phone
