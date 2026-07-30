@@ -1946,7 +1946,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       is a PRIVACY PROMISE — make it load-bearing: originals are
       deleted when the pipeline finishes, and the UI says so.
       BITES (rule 5 — one PR each):
-      bite a, THE STEP STRIP + EXPORT LINKS (sub-lane
+      [✓ 1.0.231] bite a, THE STEP STRIP + EXPORT LINKS (sub-lane
         ws-D/marketing(2); Exporter.tsx seam — disjoint from Home/
         Join/AppStore): rebuild /import as the /join-format numbered
         steps (reuse StepCard/StepStrip from 1.0.203); step 1 is
