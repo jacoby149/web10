@@ -2073,7 +2073,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       D-import-export-links-dead (the repaired URLs + shared
       constants exist to test against).
 
-[ ] D-home-stats-bar (sub-lane ws-D/marketing(2); SEAM: Home.tsx —
+[✓ 1.0.240] D-home-stats-bar (sub-lane ws-D/marketing(2); SEAM: Home.tsx —
       disjoint from AppStore/Join files; operator, 29.07 rant,
       screenshot of the App Store subtitle's inline counts: "on the
       home page of the marketing, these counts that are on the app
