@@ -2308,21 +2308,21 @@ PREMMIUMMM!!!!!"):
      lift, all design.md tokens. first-party apps need REAL icons
      (design.md §3 brand assets, not lucide glyphs). lane item
      D-appstore-revamp (ws-D/marketing). ✓ 1.0.211
-[ ] plugs (operator, 29.07 — partial reversal of the no-hero call):
-    "i actually liked the social app had a bigger card in the top in
-    the old app store layout! but the logo was bad, i like that it
-    has its progressive web app logo!" the big top card was good in
-    SHAPE, bad in ASSET. the uniform grid stays; above it, curated
-    plug slots as one bigger-card component: FLAGSHIP (web10 social,
-    real PWA icon — the one editorial slot), MOST POPULAR (#1 by
-    visits — earned), NEWEST (latest approved registration —
-    freshness). slots degrade gracefully (no eligible app → slot
-    hides; flagship==most-popular dedupes). CATEGORIES (top games
-    etc. — "there are so few apps that can be down the line!"):
-    filed, not built — stage when the catalog is big enough that a
-    rail never renders empty; the v2 registration-shape spec leaves
-    room for a category field. lane item D-appstore-plugs
-    (ws-D/marketing(2)).
+[✓] plugs (operator, 29.07 — partial reversal of the no-hero call):
+     "i actually liked the social app had a bigger card in the top in
+     the old app store layout! but the logo was bad, i like that it
+     has its progressive web app logo!" the big top card was good in
+     SHAPE, bad in ASSET. the uniform grid stays; above it, curated
+     plug slots as one bigger-card component: FLAGSHIP (web10 social,
+     real PWA icon — the one editorial slot), MOST POPULAR (#1 by
+     visits — earned), NEWEST (latest approved registration —
+     freshness). slots degrade gracefully (no eligible app → slot
+     hides; flagship==most-popular dedupes). CATEGORIES (top games
+     etc. — "there are so few apps that can be down the line!"):
+     filed, not built — stage when the catalog is big enough that a
+     rail never renders empty; the v2 registration-shape spec leaves
+     room for a category field. lane item D-appstore-plugs
+     (ws-D/marketing(2)). ✓ 1.0.230
 [ ] V2, the product page: click an app → big logo, description, and
     COMMENTS/reviews (D32 public-ledger entries targeting the app id
     — the machinery post comments already use; federated review

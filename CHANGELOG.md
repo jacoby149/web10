@@ -1,4 +1,5 @@
 1.0.230 || 30.07.2026
+feature(marketing-ui): D-appstore-plugs — curated plug slots above the uniform App Store grid. FLAGSHIP (web10 social with real PWA icon) and MOST POPULAR (#1 by visits, excluding flagship) render as horizontal plug cards via a new `size="plug"` prop on AppCard. NEWEST slot degrades gracefully (hides — the public /stats endpoint has no registered_at field). Plug-slot apps are deduped from the grid below. 142 tests green, tsc clean, build green.
 fix(api): A18 — revert A15's engagement target conversion. `_ledger_engagement_for_post` now $matches the raw canonical post_key `{author}/{service}/{post_id}` directly instead of converting to `service:post_id`. The seed script writes canonical targets, so prod badges will show real counts again. Legacy `posts:{post_id}` entries are documented as orphaned (not matched). Discovery tests extended to pin the canonical format; A15's N-comments and delete-decrements tests ported to canonical targets.
 
 1.0.229 || 30.07.2026
