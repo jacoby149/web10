@@ -2226,6 +2226,15 @@ showcase app (operator, 26.07: "showing the web10 social network as a
 web, like an app outside of web10 social — graph.web10.app, something
 wooshy — is great marketing, because it is an app interoperating on
 web10 data… one outside analytical app on top of your social data"):
+[PARKED 29.07 — operator: "the graph isnt aligned enough with the
+minimum necessities for the business… save this graph stuff for much
+later after we make some money!" the anon /graph route shipped as
+bite a (#362) and was REMOVED in 1.0.213 — it never worked on prod
+(GET on the PATCH-only endpoints; mocked tests hid it). both items
+below park to later.md with unpark notes (use PATCH; a top-N-by-
+followers aggregation over the public ledger is the right shape for
+a legible graph; add a real-data smoke assertion). original text
+kept for history:]
 [ ] THE GRAPH APP — a standalone, anon-first visualization of the
     node's social graph: users as nodes, follows as edges, force-
     directed and wooshy (drag, zoom, watch it breathe), click a node →
@@ -2269,6 +2278,18 @@ steps to complete! it should be more!"):
     your monetization (deep link to the Studio money screen in the
     authenticator) → post to the feed. each step links where it
     actually happens. lane item D-join-steps-extend (ws-D/marketing).
+[ ] step VISUALS (operator, 29.07, screenshot of the shipped strip:
+    "i like this join but, i feel like the story doesnt have good
+    icons / visuals… this doesnt feel a16z like a palantir or
+    something, but i like the clarity actually on the other hand!"):
+    the copy and clarity STAY (explicitly liked); the step cards
+    level up from bare numbered circles to real visual anchors —
+    step 1 shows the actual web10 social PWA icon, the keys-mark
+    motif for account, a money/Studio motif for monetization, a
+    composer motif for posting — with designed connectors and
+    hover states. a16z/palantir-grade storytelling with the
+    straightforwardness intact. lane item D-join-steps-visuals
+    (ws-D/marketing(2)).
 
 app store revamp (operator, 26.07, screenshot: "would be nice if it
 was all just apps… i actually liked the old app store, where they

@@ -347,3 +347,34 @@ why it's parked: the m0 demo IS the evaluation artifact — a dozen
 real users reconfiguring feeds via the chatbox, with before/after
 measurements, is the eval section nearly for free. paper is a
 byproduct of shipping m0, never a substitute for the video.
+
+
+## the social graph app + ranked social analytics (D-graph-app, D-social-analytics — parked 29.07, operator)
+
+the idea: a wooshy force-directed visualization of the node's public
+follow graph (anon, read-only, node click → /u/:username), then a
+signed-in "SEE YOUR GRAPH" ego view, then chess.com-style ranked
+analytics over public social data. the apps-are-lenses existence
+proof from outside the flagship.
+
+why it's good: a separate app walking the consent flow → scoped read
+→ lens pipeline is the third-party app contract shown live; "more
+than facebook ever let you in on" is a real marketing line.
+
+why it's parked (operator, 29.07): "the graph isnt aligned enough
+with the minimum necessities for the business… save this graph stuff
+for much later after we make some money!" bite a (the anon /graph
+route, #362) shipped and was REMOVED the same week (1.0.213): it
+shipped broken on prod — graphData.ts called GET on the PATCH-only
+/public/entries + /discover/users endpoints, so the page only ever
+rendered its error state (the tests mocked the fetch, so nothing
+caught it). the removal diff deletes the route, nav link, page,
+GraphViz, graphData + the d3-force dep; git history preserves all
+of it for the eventual unpark. when this comes back: (1) use PATCH
+like the contract says; (2) the operator's popularity idea is the
+right shape — an aggregation over the public ledger (top-N users by
+follower count + the edges among them) keeps the graph legible at
+node scale instead of hairballing every account; (3) an e2e or
+smoke assertion that the page renders real nodes on prod data, not
+just mocked fetches. promotion bar: after M2 revenue, per the
+operator.
