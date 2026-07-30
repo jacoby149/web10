@@ -80,7 +80,7 @@ describe('Join page', () => {
     const { default: Join } = await import('@/pages/Join');
     render(<Join />);
     const step2 = screen.getByTestId('join-step-2');
-    expect(step2).toHaveAttribute('href', expect.stringContaining('auth.web10'));
+    expect(step2).toHaveAttribute('href', expect.stringContaining('social.web10'));
     expect(step2).toHaveAttribute('target', '_blank');
   });
 
