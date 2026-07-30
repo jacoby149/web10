@@ -1838,10 +1838,13 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       screen for a visitor, same class as the 1.0.215 hero CTA fix).
       point it at SOCIAL_ORIGIN. AUDIT SWEEP in the same bite: grep
       marketing-ui for every remaining AUTH_ORIGIN link and re-judge
-      each destination from a first-time visitor's seat (footer Sign
-      In was deliberately kept on auth in 1.0.215 — re-confirm or
-      flip per the operator's "this is marketing for web10 social"
-      principle: when in doubt, social). files: marketing-ui
+      each destination from a first-time visitor's seat. SETTLED
+      (operator, 29.07 rant #2, screenshot of the footer bar: "sign
+      in on the bottom bar should also take you to web10 social to
+      sign in!"): the footer Sign In — deliberately kept on auth in
+      1.0.215 — FLIPS TOO. ALL sign-in links go to social, no
+      exceptions; the authenticator is reached THROUGH the social
+      app's own login flow, never directly from marketing. files: marketing-ui
       Navbar.tsx (+ wherever the sweep finds). acceptance: navbar
       Sign In lands on the social app; every auth-origin link left
       standing has a one-line justification in the PR; marketing-ui
