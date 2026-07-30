@@ -1593,6 +1593,15 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
 
 [ ] D-follow-lists (sub-lane ws-D/profile, AFTER D-profile-post-
       experience — small SEAM: ProfileScreen stat tiles become links):
+      OPERATOR RE-CONFIRMED 30.07 (rant): "when i click my followers
+      or following count, i dont see a page with my list of followers
+      / following, it should link me there when i click the numbers!"
+      — twice-complained, bumped in the chain. URL-RULE SHARPENING
+      (the operator's 30.07 address-bar priority): the lists are
+      ROUTES, not a modal — /u/:username/followers and
+      /u/:username/following (your own profile included via the
+      D-own-profile-canonical /u/<you> form), so a list is
+      refresh-safe, back/forward works, and the link is shareable.
       a UI to SEE the follower + following LISTS (today the profile only
       shows COUNTS — followerCount/followingCount stat tiles). Make the
       "Followers" and "Following" tiles open a list (a modal or new
@@ -1603,8 +1612,10 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       Files: new components/Bio/FollowList.tsx (or a modal), ProfileScreen
       .tsx (link the tiles), maybe App.tsx routes. Also applies to the
       OTHER-user profile (UserProfileScreen). acceptance: tap Followers /
-      Following → a scrollable list of real accounts, each linking to
-      that profile; screenshot desktop + 375px. gate: none (independent
+      Following → a scrollable list of real accounts at a deep-linkable
+      /u/:username/followers|following route, each row linking to
+      that profile; refresh restores the list; screenshot desktop +
+      375px. gate: none (independent
       of the post-viewer work beyond the shared ProfileScreen file — run
       after it in the same ws-D/profile chain).
 
@@ -3221,9 +3232,12 @@ the M2 money-path referee (C8); no infra-company drift. QWEN HORIZON:
                      REPRO first, stale-record delete-miss suspect),
                      THEN D-public-media-verify (TINY, no gate — the
                      gate-CLEARER for the two GATED media items below),
+                     THEN D-follow-lists (twice-complained 30.07 —
+                     followers/following counts link to deep-linkable
+                     /u/:username/followers|following routes),
                      THEN D-lightbox-media-sizing (gate CLEARED
                      this pass), THEN D-profile-image-placement,
-                     D-follow-lists, D-text-post-cards (chain order)
+                     D-text-post-cards (chain order)
     ws-D/shell:      D-own-profile-canonical (TINY, no gate — own
                      profile always at /u/<you>, /profile redirects),
                      THEN D-mobile-feature-gap (no gate)
