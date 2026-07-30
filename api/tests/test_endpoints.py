@@ -1005,6 +1005,7 @@ class TestSystem:
             patch("app.services.documentdb.get_apps", return_value=[]),
             patch("app.services.documentdb.get_user_count", return_value=5),
             patch("app.services.documentdb.total_size", return_value=1024),
+            patch("app.services.documentdb.total_s3_size", return_value=2048),
         ):
             resp = client.post("/stats")
         assert resp.status_code == 200
@@ -1012,6 +1013,31 @@ class TestSystem:
         assert "apps" in data
         assert "users" in data
         assert "storage" in data
+        assert data["storage"] == 3072  # mongo 1024 + s3 2048
+
+    def test_stats_s3_bytes_included(self, client):
+        """storage must include both MongoDB dbstats and S3 media blob bytes."""
+        with (
+            patch("app.services.documentdb.get_apps", return_value=[]),
+            patch("app.services.documentdb.get_user_count", return_value=1),
+            patch("app.services.documentdb.total_size", return_value=0),
+            patch("app.services.documentdb.total_s3_size", return_value=5000),
+        ):
+            resp = client.post("/stats")
+        data = resp.json()
+        assert data["storage"] == 5000
+
+    def test_stats_s3_zero_when_no_media(self, client):
+        """When no media exists, S3 contribution is 0 and storage == mongo only."""
+        with (
+            patch("app.services.documentdb.get_apps", return_value=[]),
+            patch("app.services.documentdb.get_user_count", return_value=1),
+            patch("app.services.documentdb.total_size", return_value=4096),
+            patch("app.services.documentdb.total_s3_size", return_value=0),
+        ):
+            resp = client.post("/stats")
+        data = resp.json()
+        assert data["storage"] == 4096
 
 
 class TestNodeConfig:
