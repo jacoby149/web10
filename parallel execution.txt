@@ -2243,19 +2243,59 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       can reach the same features as desktop (or the gap is documented
       with a migration plan per feature). gate: none.
 
-[ ] D-inapp-discover-knobs (sub-lane ws-D/marketing or ws-D/feed;
-      GATE: a D20 REVISIT decision — do NOT build before it): the
-      operator wants the /trending "your algorithm" knobs in the SOCIAL
-      APP's Discover too. D20 currently says the social feed stays
-      chronological and the knobs are marketing-page theater. This is a
-      product-decision reversal, not a bug — record the decision in
-      decisions.md first. If approved, port KnobRack/RotaryKnob/
-      powerMean from marketing-ui into web10-social (separate package —
-      copy per design.md §D22 "verbatim copies beat premature sharing")
-      and wire them to DiscoverScreen's client-side ranking. Files:
-      web10-social components/Discover/**, copied knob components.
-      acceptance: knobs re-rank the in-app Discover live; screenshot.
-      gate: D20 revisit signed off in decisions.md.
+[ ] D-video-autoplay-muted (sub-lane ws-D/marketing; operator, 29.07:
+      "trending lacks videos and images, how are we going to compete
+      with insta without multimedia on this kind of a page! also
+      videos should auto play with no volume, otherwise how are we
+      going to catch attention!"): the TrendingMedia component
+      (1.0.210) renders video as a poster + play badge — make videos
+      AUTOPLAY MUTED on /trending cards: `autoPlay muted loop
+      playsInline preload="metadata"`, pause when scrolled out of
+      view (IntersectionObserver — never N videos playing offscreen),
+      tap/click unmutes or opens the full view (the insta/tiktok
+      pattern: sound is opt-in, motion is free). DATA NOTE for the
+      "lacks videos and images" half: the card-media code is LIVE
+      since 1.0.210 — the reason the board still renders text-only
+      is that A17's media fields only reach EXISTING index docs via
+      the backfill RE-RUN (E-run-discovery-migration, operator-gated
+      P1 — this complaint is another reason to run it); this bite is
+      the autoplay behavior, not the data. files: marketing-ui
+      FeedPreview.tsx TrendingMedia. acceptance: a video card plays
+      silently on load, pauses offscreen, sound on tap; images
+      unchanged; respects prefers-reduced-motion (no autoplay then —
+      a11y); marketing-ui tests + tsc green; screenshots desktop +
+      375px. gate: none. the same autoplay pattern applies to the
+      in-app Discover when D-inapp-discover-knobs lands — note it in
+      that PR's .context handoff, don't build it here.
+
+[ ] D-inapp-discover-knobs (sub-lane ws-D/discover — components/
+      Discover/**; GATE CLEARED 29.07: the operator signed off —
+      "the trending page on the marketing site is amazing! the
+      discover should borrow much more heavily from it, the knobs to
+      tune your algorithm should be on discover" — recorded as
+      decisions.md D36. the chronological FEED stays untouched;
+      Discover is already a ranked surface): port the /trending
+      experience into web10-social's DiscoverScreen, borrowing
+      HEAVILY (operator's word): the TrendingCard language (media-
+      forward cards, rank badges, engagement bar), the presets
+      (Newest / Most loved / Balanced), the KnobRack + RotaryKnob +
+      powerMean client-side re-ranking, the topic-chip rail. copy
+      the knob components + powerMean from marketing-ui per the
+      verbatim-copies rule (design.md §D22 — separate package, no
+      premature sharing); cards adapt the app's existing post card
+      toward the trending shape rather than a wholesale swap (the
+      app's cards carry owner actions + lightbox). data: Discover
+      already reads /discover/posts — the knobs re-rank CLIENT-side,
+      zero new api surface. files: web10-social components/
+      Discover/**, copied knob components + lib. read design.md
+      first. acceptance: knobs re-rank the in-app Discover live
+      with zero network calls per twist; presets work; the feed
+      (inbox) is byte-untouched; design.md §12 — screenshot desktop
+      + 375px and LOOK. gate: none (D36 signed).
+      BITES (rule 5): bite a, CARD + CONTROLS LANGUAGE — the
+      trending-shaped cards + presets + topic chips on Discover
+      (no knobs yet); bite b, THE KNOBS — KnobRack/RotaryKnob/
+      powerMean ported, live client-side re-rank (gate: bite a).
 
 [ ] D-coming-soon-builds (sub-lane ws-D/surfaces; SEVERAL big
       independent surfaces — one workspace EACH, not one item): the
@@ -2662,7 +2702,9 @@ fully refreshed — eight sub-lanes drained or advanced this batch.
                      bite b merged #368, CLEARED), THEN D-crm-upgrade
                      bite b (contact fields + CRUD)
     ws-D/marketing:  D-search-fulltext + D-trending-controls-alignment
-                     (either order). (D-graph-app + D-social-analytics
+                     (either order), THEN D-video-autoplay-muted (NEW,
+                     operator 29.07 — videos autoplay muted on cards;
+                     see the lane item). (D-graph-app + D-social-analytics
                      PARKED 29.07 per operator — the /graph page was
                      removed in 1.0.213; D-graph-token-polish dies with
                      it. park record in later.md.)
@@ -2680,6 +2722,10 @@ fully refreshed — eight sub-lanes drained or advanced this batch.
                      shares the PostLightbox/ProfileScreen seam; run
                      sequentially. HELD until ws-D/feed's lightbox
                      bite merges (the seam cluster rule below).
+    ws-D/discover:   D-inapp-discover-knobs bite a (GATE CLEARED
+                     29.07 — D36 sign-off; Discover borrows heavily
+                     from /trending: cards + presets + chips, then
+                     bite b the knobs)
     ws-D/settings:   DRAINED (bite b merged #365; the full facebook-
                      style tree awaits operator sign-off on the
                      .context/settings-tab-proposal.md)
@@ -2773,13 +2819,12 @@ bite b is BLOCKED, not kickable.
     ws-D/settings:   D-settings-tab bite b (posting defaults record +
                      composer initial state) — the #350 harness unbrick
                      removed its blocker (the mock now self-explains)
-    GATED (don't pick up until the gate clears):
+  GATED (don't pick up until the gate clears):
       D-night-owl bites b-e (gate: operator's Conductor Pro trial
       outcome — paused #342).
       D-deep-links (gate: the current fleet merged — it sweeps most
       ws-D files). Still FIRST when the fleet drains.
       D-poke build (gate: operator sign-off on the 1.0.179 proposal).
-      D-inapp-discover-knobs (gate: D20 revisit — operator sign-off).
       D-feed-avatar-resolution + the D-user-profile-media grid half
       (gate: public-media path END TO END — bite b merged #344; needs
       the dev verification step, then these clear).

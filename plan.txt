@@ -2419,10 +2419,29 @@ known gaps confirmed this session (see CHANGELOG 1.0.169-1.0.174):
     (parallel execution.txt, ws-D/feed): on follow, deliver the
     followee's recent public posts into the follower's own inbox,
     capped, deduped on post_id.
-[ ] in-app Discover has NO knobs by design (D20: the social feed stays
-    chronological; the knobs are the marketing page's "your algorithm"
-    theater). operator wants them in-app too -- that's a D20 revisit,
-    not a bug. decide before building.
+[ ] in-app Discover borrows HEAVILY from /trending (operator, 29.07,
+    screenshot of the knob rack: "the trending page on the marketing
+    site is amazing! the discover should borrow much more heavily
+    from it, the knobs to tune your algorithm should be on
+    discover"): the D20 revisit is SIGNED (decisions.md D36) —
+    Discover is already a ranked surface, so knobs there don't touch
+    the chronological feed's delivery pitch (the feed stays
+    chronological, full stop). port the TrendingCard language +
+    presets + KnobRack/RotaryKnob/powerMean (copied, not shared) to
+    DiscoverScreen; client-side re-rank, zero new api surface. lane
+    item D-inapp-discover-knobs (ws-D/discover, bites: cards+controls,
+    then knobs).
+[ ] trending multimedia + AUTOPLAY (operator, 29.07: "trending lacks
+    videos and images, how are we going to compete with insta without
+    multimedia on this kind of a page! also videos should auto play
+    with no volume, otherwise how are we going to catch attention!"):
+    the card-media code is live since 1.0.210 — the board renders
+    text-only because A17's media fields reach existing index docs
+    only via the backfill RE-RUN (E-run-discovery-migration,
+    operator-gated P1 — run it). the new build: videos autoplay
+    muted/loop/playsInline on cards, pause offscreen, sound on tap
+    (insta pattern; respects prefers-reduced-motion). lane item
+    D-video-autoplay-muted (ws-D/marketing).
 
 PHASE 9 — the exporters (fill the collections)
 ----------------------------------------------
