@@ -726,6 +726,17 @@ node policy (anti-abuse is the NODE'S call, not the protocol's):
     B9 bite d (ui).
 [ ] passkeys as a login option once phase 0 lands -- better than
     passwords, no phone number, phishing-proof. fits the vibe.
+[ ] UTC-explicit timestamps everywhere (operator rant, 30.07.2026):
+    "they were trending as newest, timestamp was -12000 seconds...
+    do you see the bug? does it have to use UTC, or one time zone?"
+    — the api writes NAIVE UTC timestamps (`datetime.utcnow()
+    .isoformat()`, no offset marker); JS parses offset-less ISO as
+    LOCAL time, so viewers see server-stamped posts up to their
+    utc-offset hours in the FUTURE: negative relative-time ages and
+    a broken newest sort. the rule: UTC everywhere, always with the
+    explicit offset marker — the server emits `+00:00`/`Z`, the
+    client clamps negative ages to "just now" as defense-in-depth.
+    filed as A24-utc-timestamps (api sweep + web10-social clamp).
 
 packaging:
 [ ] multi-stage Dockerfile: bun build ui static -> serve from fastapi

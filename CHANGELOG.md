@@ -1,4 +1,7 @@
 1.0.270 || 30.07.2026
+docs: rant filing — A24-utc-timestamps (operator, 30.07: "they were trending as newest, timestamp was -12000 seconds... does it have to use UTC, or one time zone?"). Root cause verified at HEAD, NOT implemented (rant ritual — filed for the fleet): the api writes naive UTC timestamps (`datetime.utcnow().isoformat()`, no offset marker — documentdb.py `_created_at`, discovery upsert, media `created_at`, token `expires`); JS parses offset-less ISO as LOCAL time, so viewers see server-stamped posts up to their UTC-offset hours in the future — negative relative-time ages (-12000s ≈ the NYC offset, exactly what the operator saw) and a newest sort that ranks future posts first. Answer: UTC everywhere, always with the explicit marker — server emits `+00:00`, client clamps negative ages to "just now" as defense-in-depth. Lane item (with bites a=api sweep, b=client clamp) in `parallel execution.txt`, plan entry in plan.txt.
+
+1.0.271 || 30.07.2026
 feat(web10-social): D-deep-links comment-anchor bite — `?comment=` on the permalink route. Opening `/u/:username/p/:postId?comment=<id>` auto-opens the comment thread, scrolls to the anchored comment, and highlights it with a brand-muted background + ring + pulse animation. The `highlightedCommentId` prop threads through `App.tsx` → `PostLightbox` → `CommentThread`. Share URL includes the `?comment=` param when a comment is anchored. 5 new vitest tests pin anchor restoration (highlight class, non-match, route param parse). 413 tests green, tsc clean.
 
 1.0.269 || 30.07.2026
