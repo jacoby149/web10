@@ -2278,18 +2278,18 @@ steps to complete! it should be more!"):
     your monetization (deep link to the Studio money screen in the
     authenticator) → post to the feed. each step links where it
     actually happens. lane item D-join-steps-extend (ws-D/marketing).
-[ ] step VISUALS (operator, 29.07, screenshot of the shipped strip:
-    "i like this join but, i feel like the story doesnt have good
-    icons / visuals… this doesnt feel a16z like a palantir or
-    something, but i like the clarity actually on the other hand!"):
-    the copy and clarity STAY (explicitly liked); the step cards
-    level up from bare numbered circles to real visual anchors —
-    step 1 shows the actual web10 social PWA icon, the keys-mark
-    motif for account, a money/Studio motif for monetization, a
-    composer motif for posting — with designed connectors and
-    hover states. a16z/palantir-grade storytelling with the
-    straightforwardness intact. lane item D-join-steps-visuals
-    (ws-D/marketing(2)).
+[✓ 1.0.245] step VISUALS (operator, 29.07, screenshot of the shipped strip:
+     "i like this join but, i feel like the story doesnt have good
+     icons / visuals… this doesnt feel a16z like a palantir or
+     something, but i like the clarity actually on the other hand!"):
+     the copy and clarity STAY (explicitly liked); the step cards
+     level up from bare numbered circles to real visual anchors —
+     step 1 shows the actual web10 social PWA icon, the keys-mark
+     motif for account, a money/Studio motif for monetization, a
+     composer motif for posting — with designed connectors and
+     hover states. a16z/palantir-grade storytelling with the
+     straightforwardness intact. lane item D-join-steps-visuals
+     (ws-D/marketing(2)).
 
 app store revamp (operator, 26.07, screenshot: "would be nice if it
 was all just apps… i actually liked the old app store, where they
