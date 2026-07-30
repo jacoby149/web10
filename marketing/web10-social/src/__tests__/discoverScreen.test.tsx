@@ -89,9 +89,10 @@ describe('DiscoverScreen', () => {
     });
 
     expect(screen.getByRole('heading', { name: 'Discover' })).toBeInTheDocument();
-    expect(screen.getByTestId('discover-preset-newest')).toBeInTheDocument();
-    expect(screen.getByTestId('discover-preset-most-loved')).toBeInTheDocument();
-    expect(screen.getByTestId('discover-preset-balanced')).toBeInTheDocument();
+    // KnobRack preset chips (testids: preset-{id})
+    expect(screen.getByTestId('preset-newest')).toBeInTheDocument();
+    expect(screen.getByTestId('preset-most-loved')).toBeInTheDocument();
+    expect(screen.getByTestId('preset-balanced')).toBeInTheDocument();
   });
 
   it('renders cards with rank badges', async () => {
@@ -306,21 +307,21 @@ describe('DiscoverScreen', () => {
       expect(screen.getByTestId('discover-grid')).toBeInTheDocument();
     });
 
-    // Balanced is the default preset
-    expect(screen.getByTestId('discover-preset-balanced').getAttribute('aria-selected')).toBe('true');
+    // Balanced is the default preset — KnobRack uses preset-{id} testids
+    expect(screen.getByTestId('preset-balanced').classList).toContain('border-brand');
 
     // Click "Newest" — the newest post (p2) should move to rank #1
-    fireEvent.click(screen.getByTestId('discover-preset-newest'));
+    fireEvent.click(screen.getByTestId('preset-newest'));
     await waitFor(() => {
-      expect(screen.getByTestId('discover-preset-newest').getAttribute('aria-selected')).toBe('true');
+      expect(screen.getByTestId('preset-newest').classList).toContain('border-brand');
     });
     const newestCards = screen.getAllByTestId('discover-card');
     expect(newestCards.length).toBeGreaterThanOrEqual(2);
 
     // Click "Most loved" — the high-engagement post (p1) should move to rank #1
-    fireEvent.click(screen.getByTestId('discover-preset-most-loved'));
+    fireEvent.click(screen.getByTestId('preset-most-loved'));
     await waitFor(() => {
-      expect(screen.getByTestId('discover-preset-most-loved').getAttribute('aria-selected')).toBe('true');
+      expect(screen.getByTestId('preset-most-loved').classList).toContain('border-brand');
     });
   });
 });
