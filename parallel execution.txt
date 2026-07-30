@@ -2008,22 +2008,70 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       (EXPORT_LINKS, lines ~7-11 — facebook.com/help/…,
       takeout.google.com, help.instagram.com/…, tiktok.com/support/…)
       and they ROT — platforms move/retire help articles, so the
-      step-1 buttons 404. fix so each button lands on a WORKING,
-      current export path. options on the table (builder picks,
-      says why in the PR — operator is open to creativity here):
-      (1) link the platform's IN-PRODUCT export surface instead of
-      help articles where one exists (e.g. facebook.com/dyi,
-      takeout.google.com — product URLs rot slower than help
-      articles); (2) the operator's LLM idea — link to an llm with
-      a prefilled query ("how do I export my data from <platform>
-      as a zip, step by step, current year") so the answer is
-      always current; (3) a hybrid: product URL primary + our own
-      maintained /docs export-guide page as fallback that we can
-      update without a release. whatever the pick, EVERY one of the
-      five buttons must be clicked and verified to land somewhere
-      real. acceptance: all five platform buttons verified live
-      (state in the PR what each lands on); marketing-ui tests +
-      tsc green; screenshot step 1 and LOOK. gate: none.
+      step-1 buttons 404. OPERATOR DECISION (30.07 rant #2 — this
+      supersedes the open-options framing): REPAIR THE LINKS with
+      operator-verified working URLs + our own web10 guidance
+      article — NOT the LLM-redirect idea ("so we can repair the
+      links instead of referring to an llm"). the operator's
+      verified URLs (30.07):
+        Facebook:  https://www.facebook.com/help/212802592074644
+        X:         https://help.x.com/en/managing-your-account/accessing-your-x-data
+        TikTok:    https://www.tiktok.com/support/faq_detail?id=7543597460594285112&category=web_account
+        Instagram: https://help.instagram.com/181231772500920/
+        Google:    takeout.google.com — "the export on the google
+                   is great!" — leave it as-is.
+      PLUS the web10 guidance article (operator: "just needs a
+      web10 article on guidance, i can provide the information for
+      it!"): a maintained export-guide page under marketing-ui's
+      /docs (the dev-docs pipeline, Docs.tsx) that walks each
+      platform's export flow in web10's voice — the operator will
+      supply the content; the builder scaffolds the page with
+      per-platform sections + placeholder steps and wires each
+      step-1 button's "guide" affordance to its section (button =
+      platform link, secondary link = our guide). NOTE: the
+      operator provides content — do NOT block the bite on it;
+      scaffold + links first, content drops in as markdown.
+      acceptance: the four platform buttons point at the
+      operator-verified URLs above (Google untouched); the
+      /docs export-guide page exists with per-platform sections
+      and is linked from step 1; marketing-ui tests + tsc green;
+      screenshot step 1 + the guide page and LOOK. gate: none.
+      FOLLOW-UP named: D-export-links-health-e2e (below) keeps
+      these URLs from rotting silently again.
+
+[ ] D-export-links-health-e2e (sub-lane ws-E/infra — CI workflow
+      seam, .github/workflows/**; operator, 30.07 rant #2: "but we
+      should have a test to see is it a shit page, some kind of
+      e2e test! that makes sure those pages arent down /
+      changed"): a LINK-HEALTH e2e check for the /import step-1
+      export URLs so they never rot silently again (the original
+      complaint was dead links found by the OPERATOR, not by us —
+      the test finds them first). shape: a SCHEDULED GitHub
+      workflow (nightly cron + workflow_dispatch — NOT a per-PR
+      blocker; external sites flake and must not gate PRs) that
+      fetches every URL in the step-1 link set and fails when one
+      is down OR changed-into-junk: (a) HTTP status after
+      redirects is 200 (some platforms 403 bots — use a real
+      browser UA and treat 403-on-bot-but-200-in-browser per-URL
+      allowances as a documented config, not a silent skip);
+      (b) a per-URL content sniff — the page still mentions
+      exporting/downloading your data (a small per-URL expected-
+      substring table, e.g. "download" / "your information" —
+      catches a redirect to a generic help home, which is the
+      "shit page" case the operator named). the URL list must
+      have ONE source of truth: extract EXPORT_LINKS from
+      Exporter.tsx into a shared constants file the workflow's
+      script reads (or a checked-in export-links.json both import)
+      — never a second hardcoded copy that drifts. on failure the
+      workflow opens/updates a GitHub issue naming the rotted
+      URL(s) (gh CLI in the workflow) so the fix is a lane bite,
+      not a surprise. acceptance: workflow file + check script
+      merged; a manual workflow_dispatch run goes green against
+      the live URLs; a deliberate-bad-URL trial (point the config
+      at example.com/404 in a throwaway branch) FAILS and names
+      the URL — proof it catches rot, stated in the PR. gate:
+      D-import-export-links-dead (the repaired URLs + shared
+      constants exist to test against).
 
 [ ] D-home-stats-bar (sub-lane ws-D/marketing(2); SEAM: Home.tsx —
       disjoint from AppStore/Join files; operator, 29.07 rant,
