@@ -15,6 +15,7 @@ import {
   movePostVisibility,
 } from '@/data';
 import { CommentThread } from '@/components/Feed/CommentThread';
+import { TextWithLinks } from '@/components/Feed/LinkEmbed';
 import { cn } from '@/lib/utils';
 
 function formatTimeAgo(dateStr: string): string {
@@ -299,11 +300,11 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
                 </Button>
               </div>
             </div>
-          ) : post.text ? (
-            <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">
-              {post.text}
-            </p>
-          ) : (
+) : post.text ? (
+             <div className="mt-3 whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">
+               <TextWithLinks text={post.text} />
+             </div>
+           ) : (
             !hasMedia && (
               <p className="mt-3 text-sm text-muted-foreground">This post has no content.</p>
             )
