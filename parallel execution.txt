@@ -437,23 +437,71 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       (I2 — no unsigned claims), rate-limit hard (this is an
       account-takeover surface if sloppy), and an unknown/unverified
       phone gets the same response shape as a known one (no user
-      enumeration). (2) LEGIT-PHONE-REQUIRED SIGNUP on web10 Inc.'s
+      enumeration).       (2) LEGIT-PHONE-REQUIRED SIGNUP on web10 Inc.'s
       node: phone verification at signup becomes MANDATORY, not
       optional — a legit verified number or no account ("everyone is
       a very legit user"). this is the plan.txt node-policy toggle
       (phone-required signup as operator policy, NOT a protocol
       hardcode — self-hosters keep open/invite defaults): grow
       VERIFY_REQUIRED into the real policy config and flip
-      web10.app's policy to phone-required. BITES (rule 5): bite a,
+      web10.app's policy to phone-required. OPERATOR CLARIFICATIONS
+      (30.07, same rant): (a) NO one-account-per-phone restriction —
+      "we dont need to restrict one user account per phone number!"
+      so the PHONE_NUMBER_TAKEN check in create_user
+      (documentdb.py:217-218) GOES AWAY under the new policy (the
+      phone registry's insert_one shape already allows N usernames
+      per phone — get_phone_record's find_one is the single-user
+      assumption to outgrow); (b) VERIFIED-ONLY USER COUNT — "they
+      need to verify to be added to the count of users!": the
+      marketing /stats users number (system.py:144 ->
+      get_user_count, documentdb.py:862) is currently
+      len(list_collection_names()) — it counts EVERY collection,
+      unverified signups AND the web10 system collection included.
+      under phone-required policy the count must only include
+      VERIFIED users (the star record's `verified` flag,
+      set_verified/is_verified exist) — the landing-page number
+      becomes "very legit users" honestly. BITES (rule 5): bite a,
       the passwordless login endpoint + tests; bite b, the
-      phone-required policy toggle + web10.app config flip + tests.
+      phone-required policy toggle + drop PHONE_NUMBER_TAKEN +
+      web10.app config flip + tests; bite c, verified-only
+      get_user_count (+ exclude system collections) + tests.
       acceptance: passwordless login works end to end against twilio
       (mocked in unit tests — real-keys e2e is C8's territory);
       signup without a verified phone is rejected when the policy is
-      on and allowed when off; auth tests + ruff green. gate: none.
-      the UI half (passwordless login option + mandatory-phone
-      signup copy) is B9 bite c — leave the JSON contract as a
-      .context/ note.
+      on and allowed when off; two accounts CAN share one phone;
+      /stats users counts verified users only; auth tests + ruff
+      green. gate: none. the UI half (passwordless login option +
+      mandatory-phone signup copy) is B9 bite c — leave the JSON
+      contract as a .context/ note.
+
+[ ] A22-forgot-username-by-phone (lane A, api/**, SMALL; operator,
+      30.07 rant: "if they say forgot username, they enter their
+      phone number, and it shows them a list of users under that
+      phone number AFTER verifying their phone number through text.
+      so the twilio integration definitely becoming useful after
+      all! used to have some logic like this in the old version of
+      the project before this hardcore summer development push"):
+      FORGOT-USERNAME flow. the old-project logic the operator
+      remembers is still here in seed form: the phone registry
+      (db["web10"]["phone_number"], register_phone_number /
+      get_phone_record, documentdb.py:147-169) + the twilio
+      recovery_bot — but get_phone_record is find_one (ONE username
+      per phone) and there is no forgot-username endpoint today.
+      shape: enter phone -> twilio Verify code (the existing
+      send/check pair) -> ONLY AFTER the code checks out, return
+      the LIST of usernames registered under that phone (a
+      find-all over the phone registry — N usernames per phone is
+      explicitly allowed per A21's operator clarification).
+      security care: usernames are revealed ONLY post-verification
+      (never a pre-verify "3 accounts found" — no enumeration
+      oracle), rate-limit hard, same response shape for
+      unknown phones. acceptance: a verified phone returns exactly
+      its registered usernames (0, 1, or N); an unverified request
+      learns nothing; auth tests + ruff green. gate: pairs with
+      A21 bite b (multi-account-per-phone makes the list real) but
+      the endpoint can land first against the existing registry.
+      the UI half (forgot-username link on CredentialPage) is B9
+      bite d — leave the JSON contract as a .context/ note.
 
 [✓ 1.0.230] A18-engagement-target-canonical (lane A, api/**; PRIORITY 1 —
       REGRESSION, operator 29.07, screenshot: every /trending card
@@ -685,6 +733,12 @@ LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
       contract pattern): the login screen offers "text me a code"
       passwordless login; signup copy + flow reflects mandatory
       phone verification when the node policy requires it.
+      bite d, FORGOT-USERNAME UI (gate: A22, same contract
+      pattern): the CredentialPage gains a "forgot username" link
+      — enter phone, verify the texted code, see the list of
+      usernames under that phone (operator, 30.07: "it shows them
+      a list of users under that phone number AFTER verifying
+      their phone number through text").
       acceptance per bite: design.md §12 screenshots desktop +
       375px and LOOK, ui tests green, deep-link rule respected for
       any new screen/state. owns ui/** only — never reach into
@@ -3521,6 +3575,14 @@ no recovery contact until set), D-marketing-session-analytics
 page, we NEED to!"; reconcile vs the self-hosted posthog decision,
 operator's call). Fleet queues above updated; A19 (1.0.263) +
 D-home-stats-bar-styling (1.0.262) merges de-queued.
+30.07 RANT CONTINUED (same branch): operator clarifications folded
+in — NO one-account-per-phone restriction (drop PHONE_NUMBER_TAKEN
+in A21 bite b), VERIFIED-ONLY user count in /stats (A21 bite c —
+get_user_count is len(list_collection_names()) today, counting
+unverified + system collections), and A22-forgot-username-by-phone
+filed (phone + texted code -> list of usernames; the old project's
+phone registry + recovery_bot is the surviving seed) with the UI
+half as B9 bite d.
 
   PRIORITY 1 (fresh, this audit):
     ws-E (operator-gated): E-run-discovery-migration — STILL the
@@ -3578,13 +3640,22 @@ D-home-stats-bar-styling (1.0.262) merges de-queued.
                      a (30.07 rant — login by phone + SMS code;
                      twilio Verify pair already exists) + bite b
                      (legit-phone-required signup as a node policy
-                     toggle, web10.app flips to phone-required).
+                     toggle, web10.app flips to phone-required; NO
+                     one-account-per-phone restriction — drop
+                     PHONE_NUMBER_TAKEN) + bite c (verified-only
+                     user count in /stats), THEN
+                     A22-forgot-username-by-phone (SMALL — phone +
+                     texted code -> list of usernames under that
+                     phone; the old project's phone registry is the
+                     seed, get_phone_record's find_one is the
+                     single-user assumption to outgrow).
                      (A19-stats-s3-bytes merged 1.0.263 — board
                      drift fixed 30.07)
     ws-B:            B9-recovery-contact-nudge bite a (30.07 rant —
                      pester every user with no recovery contact set;
                      no gate, phone already on the star record);
-                     bites b/c gated on A20/A21 contracts
+                     bites b/c/d gated on A20/A21/A22 contracts
+                     (bite d = forgot-username flow)
     ws-D/marketing-api: D-import-revamp bite b (the WeTransfer pipeline —
                      gate bite a merged 1.0.231, CLEARED; NEW sub-lane,
                      nothing in flight there)

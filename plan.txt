@@ -689,6 +689,23 @@ node policy (anti-abuse is the NODE'S call, not the protocol's):
     toggle per the item above (self-hosters pick open/invite); the
     web10.app policy flips to phone-required. filed as
     A21-passwordless-phone-login (api) + the ui half in B9.
+    OPERATOR CLARIFICATIONS (30.07, same rant): (a) NO
+    one-account-per-phone restriction — "we dont need to restrict
+    one user account per phone number!" (the PHONE_NUMBER_TAKEN
+    check in create_user goes away under the new policy); (b)
+    VERIFIED-ONLY USER COUNT — "they need to verify to be added to
+    the count of users!": get_user_count is currently
+    len(list_collection_names()) — every collection, unverified
+    signups and the web10 system collection included; the /stats
+    users number must count verified users only; (c) FORGOT
+    USERNAME — "if they say forgot username, they enter their phone
+    number, and it shows them a list of users under that phone
+    number AFTER verifying their phone number through text... used
+    to have some logic like this in the old version of the project
+    before this hardcore summer development push" — the seed of
+    that old logic survives (the phone registry + twilio
+    recovery_bot); filed as A22-forgot-username-by-phone (api) +
+    B9 bite d (ui).
 [ ] passkeys as a login option once phase 0 lands -- better than
     passwords, no phone number, phishing-proof. fits the vibe.
 
