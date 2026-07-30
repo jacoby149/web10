@@ -1905,6 +1905,48 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         search affordance, tag-chip routing polish. gate: bite a
         merged.
 
+[ ] D-docs-gfm (sub-lane ws-D/marketing; operator, 29.07 rant,
+      screenshot of /docs "The premise, made concrete" rendering as
+      raw pipe soup: "on the docs, are these absolute value signs on
+      purpose????? it looks jank aff, i actually see that all over
+      the docs, i dont think that is on purpose"): NOT on purpose —
+      the docs markdown pipeline (Docs.tsx:100,
+      `remark().use(remarkHtml)`) has NO remark-gfm, so every GFM
+      table in the docs .md files renders as literal `| --- |` text.
+      also broken without gfm: strikethrough, task lists, autolinks,
+      footnotes. fix: add remark-gfm and `.use(remarkGfm)` before
+      remarkHtml, then SWEEP every docs page
+      (marketing-ui/public/docs/*.md) for tables + other gfm syntax
+      and confirm each renders as designed — the docs prose styles
+      never had a table to style, so add token-styled table rules
+      (borders/header weight/row hover per design.md §13, mono for
+      code cells; wide tables scroll horizontally at 375px, never
+      break the layout). files: marketing-ui Docs.tsx + package.json
+      + the docs prose stylesheet. acceptance: the premise table
+      (and every other table in the docs corpus) renders as a real
+      styled table at desktop + 375px; marketing-ui tests + tsc
+      green; screenshots and LOOK. gate: none.
+
+[ ] D-nav-signin-social (sub-lane ws-D/marketing, TINY; operator,
+      29.07 rant, screenshot of the navbar: "that sign in on the very
+      top right should sign into web10 social, this is marketing for
+      web10 social!!!!"): the marketing-ui Navbar's Sign In button
+      links to AUTH_ORIGIN (the authenticator — a dead-end consent
+      screen for a visitor, same class as the 1.0.215 hero CTA fix).
+      point it at SOCIAL_ORIGIN. AUDIT SWEEP in the same bite: grep
+      marketing-ui for every remaining AUTH_ORIGIN link and re-judge
+      each destination from a first-time visitor's seat. SETTLED
+      (operator, 29.07 rant #2, screenshot of the footer bar: "sign
+      in on the bottom bar should also take you to web10 social to
+      sign in!"): the footer Sign In — deliberately kept on auth in
+      1.0.215 — FLIPS TOO. ALL sign-in links go to social, no
+      exceptions; the authenticator is reached THROUGH the social
+      app's own login flow, never directly from marketing. files: marketing-ui
+      Navbar.tsx (+ wherever the sweep finds). acceptance: navbar
+      Sign In lands on the social app; every auth-origin link left
+      standing has a one-line justification in the PR; marketing-ui
+      tests + tsc green. gate: none.
+
 [ ] D-search-fulltext (sub-lane ws-D/marketing, AFTER D-marketing-search
       bite b — same Trending.tsx seam; operator, 27.07: "searching only
       searches tags also. it doesnt search the other things"): a word
@@ -2702,9 +2744,11 @@ fully refreshed — eight sub-lanes drained or advanced this batch.
                      bite b merged #368, CLEARED), THEN D-crm-upgrade
                      bite b (contact fields + CRUD)
     ws-D/marketing:  D-search-fulltext + D-trending-controls-alignment
-                     (either order), THEN D-video-autoplay-muted (NEW,
-                     operator 29.07 — videos autoplay muted on cards;
-                     see the lane item). (D-graph-app + D-social-analytics
+                     (either order), THEN D-docs-gfm + D-nav-signin-
+                     social (operator 29.07 rant — both tiny; see the
+                     lane items), THEN D-video-autoplay-muted (operator
+                     29.07 — videos autoplay muted on cards; see the
+                     lane item). (D-graph-app + D-social-analytics
                      PARKED 29.07 per operator — the /graph page was
                      removed in 1.0.213; D-graph-token-polish dies with
                      it. park record in later.md.)
