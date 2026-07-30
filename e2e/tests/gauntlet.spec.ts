@@ -556,20 +556,20 @@ test.describe('Gauntlet Step 3: Follow -> feed', () => {
     expect(schemaRes.ok()).toBeTruthy();
     const followSchema = await schemaRes.json();
 
-    // Follower counts only render correctly on your OWN profile today —
-    // ProfileScreen reads countFollowers() straight off the ledger, while
-    // UserProfileScreen's /u/:username page sources followerCount from
-    // /discover/users, whose suggested_users() aggregation never computes
-    // a followers_count field at all (see the same .context/ note). Watch
-    // the author's own /profile in a second session to see the real thing.
+    // /profile is RETIRED (#434): it redirects to
+    // the canonical /u/<you>, where the owner path reads countFollowers()
+    // straight off the ledger and renders the user-profile-stats tiles —
+    // including a real "0" (the Followers tile renders at zero since the
+    // gauntlet-regression fix; the viewer path still hides it when the
+    // count never loaded).
     const authorContext = await browser.newContext();
     const authorPage = await authorContext.newPage();
     await authorContext.addCookies([
       { name: 'token', value: authorToken, domain: 'social.localhost', path: '/', secure: false },
     ]);
-    await authorPage.goto(`${SOCIAL_BASE}/profile`);
+    await authorPage.goto(`${SOCIAL_BASE}/u/${author}`);
     const followerStat = authorPage
-      .locator('[data-testid="profile-stats"] > div')
+      .locator('[data-testid="user-profile-stats"] > div')
       .filter({ hasText: 'Followers' })
       .locator('span')
       .first();

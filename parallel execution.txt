@@ -2122,7 +2122,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       gate: current 26.07-late fleet merged (it touches most of their
       files).
 BITES (rule 5 — one bite PER SCREEN when staged, each its own
-       PR): [✓ 1.0.262] messages (thread key + view param), discover (tag/q
+       PR): [✓ 1.0.266] messages (thread key + view param), discover (tag/q
        params), profile (tab param), comment anchor (?comment= on the
        permalink route — gate: D-feed-lightbox bite b), marketing
        retarget (TrendingCard/comment/search links point at the deep
@@ -2220,7 +2220,7 @@ BITES (rule 5 — one bite PER SCREEN when staged, each its own
         steps 2-5 render as the honest journey with the steps that
         aren't built yet marked "coming soon" (never fake a working
         step). no backend. gate: none.
-      [✓ 1.0.262 #435] bite b, THE WETRANSFER PIPELINE (sub-lane ws-D/marketing-api —
+      [✓ 1.0.266 #435] bite b, THE WETRANSFER PIPELINE (sub-lane ws-D/marketing-api —
         marketing/marketing-api/**; NEW sub-lane, nothing in flight
         there): authenticated ZIP upload to the hosted S3 (presigned
         PUT/POST like the node's media path), a background queue
@@ -2664,7 +2664,7 @@ BITES (rule 5 — one bite PER SCREEN when staged, each its own
       (ledger path); vitest pins the per-user count queries; social
       tests + tsc green; screenshots desktop + 375px. gate: none.
 
-[ ] D-self-engagement-counts (sub-lane ws-D/feed; operator, 30.07 rant:
+[✓ 1.0.267] D-self-engagement-counts (sub-lane ws-D/feed; operator, 30.07 rant:
       "when i like my own posts it gives 0 likes, it should be one
       like! self likes count! same for comments, shares"): PRODUCT
       DECISION (operator, 30.07 — record it, don't re-litigate):
@@ -2758,7 +2758,7 @@ BITES (rule 5 — one bite PER SCREEN when staged, each its own
       remaining blocker with evidence; social tests + tsc green.
       gate: none.
 
-[✓ 1.0.262] D-own-profile-canonical (sub-lane ws-D/shell, TINY; operator, 30.07
+[✓ 1.0.266] D-own-profile-canonical (sub-lane ws-D/shell, TINY; operator, 30.07
       rant: "when i click my username, it goes to my profile page
       instead of just /profile it goes to profile/u/jacoby149 — lets
       just have it always be profile/u/jacoby149!"): clicking your own
