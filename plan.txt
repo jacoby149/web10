@@ -1335,6 +1335,18 @@ Marketing-ui side (Lane D):
     removes it. signed-out -> funnel-to-social or a "sign in to react" gate.
     keep the heart-burst animation (D12 vibrancy). owns: FeedPreview.tsx +
     Trending.tsx.
+[ ] D-trending-views (operator, 30.07 rant: "the same way that messages has
+    views, social media, mail, crm, i want the trending to be the same! the
+    current trending is very twitter/instagram looking kind of a view! I
+    would like youtube view where it only shows the videos and maybe images?
+    but with a youtube style of layout!"): /trending gains a view toggle
+    like the messages screen's social/mail/crm switcher — the ranked-card
+    grid stays default, plus a YOUTUBE VIEW: media posts only (videos, maybe
+    images), YouTube-style layout (big 16:9 thumbs, title + author under
+    the thumb). the active view is in the URL (/trending?view=youtube) per
+    the deep-link rule. bites: a = toggle + youtube view (ws-D/marketing);
+    b = the same toggle on social's DiscoverScreen (ws-D/discover, gate:
+    a). pairs with the YouTube-first import push.
 
 [✓ 1.0.164] D-trending-knobs — THE ALGORITHM IS YOURS (operator, 24.07): /trending
     gains a synth-rack of knobs that re-rank the feed live. the hero already
@@ -2472,7 +2484,7 @@ D-dm-header-profile-link (ws-D/messages, tiny). merged 1.0.251.
     cleanup throwing, stale/duplicate follow records read without a
     status filter). repro first, capture the failing request. lane
     item D-follow-toggle (ws-D/profile).
-[ ] home stats bar styling (operator, 30.07 rant, screenshot: "the
+[✓ 1.0.262] home stats bar styling (operator, 30.07 rant, screenshot: "the
     border isnt necessary on those, and can just say data liberated
     under the data part to be consistent with the other two! they
     could just be on the background, or they can each be in their own
@@ -2482,7 +2494,7 @@ D-dm-header-profile-link (ws-D/messages, tiny). merged 1.0.251.
     bare-on-background vs sleek individual cards is the builder's
     taste call against design.md §12. lane item
     D-home-stats-bar-styling (ws-D/marketing(2), small).
-[ ] data liberated counts S3 bytes too (operator, 30.07 rant: "the
+[✓ 1.0.263] data liberated counts S3 bytes too (operator, 30.07 rant: "the
     data liberated tab isnt counting s3 data! should also add up all
     s3 data in the count!"): /stats' `storage` is mongo dbstats
     storageSize only (documentdb.py:867) — media blobs live in the
@@ -2540,7 +2552,7 @@ D-dm-header-profile-link (ws-D/messages, tiny). merged 1.0.251.
     the local stack, capture every cross-user media request's status,
     fix or name the exact blocker), which clears the gate on
     D-feed-avatar-resolution + the D-user-profile-media grid half.
-[ ] own profile at the canonical /u URL (operator, 30.07 rant: "when i
+[✓] own profile at the canonical /u URL (operator, 30.07 rant: "when i
     click my username, it goes to my profile page instead of just
     /profile it goes to profile/u/jacoby149 — lets just have it always
     be profile/u/jacoby149!"): your own profile always lives at
@@ -2555,7 +2567,7 @@ D-dm-header-profile-link (ws-D/messages, tiny). merged 1.0.251.
     the D-user-profile-stats bugs ("0 Posts", no Followers tile, "No
     posts yet" with posts existing) — the owner path must read the
     owner's own collection. lane item D-own-profile-canonical
-    (ws-D/shell, tiny).
+    (ws-D/shell, tiny). [✓ 1.0.262]
 [ ] ADDRESS BAR EVERYWHERE — operator priority call (30.07 rant: "i
     guess when we make every screen in the address bar have a link to
     it, that will happen. maybe lets have that address bar for every
@@ -2617,12 +2629,26 @@ the join tab would work great for the import your life!"): rebuild
   (operator-verified working export URLs + our own /docs export-
   guidance article — operator supplies the content; NOT llm
   redirects) and D-export-links-health-e2e (a scheduled link-
-  health workflow that catches rotted/"shit page" export links
-  before the operator does). NOTE: this revises the "client-side first" principle above
-  for the hosted path — the server-side pipeline is what the
-  operator wants (the browser parse is the bricked part); the
-  sovereignty story is preserved by the delete-after-processing
-  promise + the data landing in the user's own collection.
+   health workflow that catches rotted/"shit page" export links
+   before the operator does). NOTE: this revises the "client-side first" principle above
+   for the hosted path — the server-side pipeline is what the
+   operator wants (the browser parse is the bricked part); the
+   sovereignty story is preserved by the delete-after-processing
+   promise + the data landing in the user's own collection.
+
+[ ] YOUTUBE-FIRST IMPORT (operator, 30.07 rant: "my business outreach
+    efforts are ONLY to youtubers for the first go! therefore i want
+    to on the import feature efforts to make it youtube explicitly,
+    and the other platforms TBD! and get that suuuppper sharp!!!!!!
+    maybe make it clear it is Youtube first, rolling out to export
+    from the others soon after! because google takeout seems the most
+    transparent!"): the import surface leads with YouTube (Google
+    Takeout) as THE primary path — the outreach targets YouTubers
+    only for the first go, so /import must read YouTube-first at a
+    glance, with the other platforms honestly marked "rolling out
+    soon after" / TBD. lane item D-import-youtube-first
+    (ws-D/marketing(2)); the bite-b/c pipeline bites build the
+    YouTube mapper path first too.
 
 v2 (continuous):
 [ ] dma / official portability apis where they exist -> scheduled sync
