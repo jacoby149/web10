@@ -150,7 +150,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
 
   async function handleDelete() {
     try {
-      await deletePost(post._id || '');
+      await deletePost(post._id || '', post.visibility || 'private');
       onClose();
       onReload?.();
     } catch (e) {
