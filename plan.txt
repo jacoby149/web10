@@ -2578,7 +2578,7 @@ D-dm-header-profile-link (ws-D/messages, tiny). merged 1.0.251.
     the local stack, capture every cross-user media request's status,
     fix or name the exact blocker), which clears the gate on
     D-feed-avatar-resolution + the D-user-profile-media grid half.
-[ ] own profile at the canonical /u URL (operator, 30.07 rant: "when i
+[✓] own profile at the canonical /u URL (operator, 30.07 rant: "when i
     click my username, it goes to my profile page instead of just
     /profile it goes to profile/u/jacoby149 — lets just have it always
     be profile/u/jacoby149!"): your own profile always lives at
@@ -2593,7 +2593,7 @@ D-dm-header-profile-link (ws-D/messages, tiny). merged 1.0.251.
     the D-user-profile-stats bugs ("0 Posts", no Followers tile, "No
     posts yet" with posts existing) — the owner path must read the
     owner's own collection. lane item D-own-profile-canonical
-    (ws-D/shell, tiny).
+    (ws-D/shell, tiny). [✓ 1.0.262]
 [ ] ADDRESS BAR EVERYWHERE — operator priority call (30.07 rant: "i
     guess when we make every screen in the address bar have a link to
     it, that will happen. maybe lets have that address bar for every
