@@ -2526,7 +2526,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       remaining blocker with evidence; social tests + tsc green.
       gate: none.
 
-[ ] D-own-profile-canonical (sub-lane ws-D/shell, TINY; operator, 30.07
+[✓ 1.0.262] D-own-profile-canonical (sub-lane ws-D/shell, TINY; operator, 30.07
       rant: "when i click my username, it goes to my profile page
       instead of just /profile it goes to profile/u/jacoby149 — lets
       just have it always be profile/u/jacoby149!"): clicking your own

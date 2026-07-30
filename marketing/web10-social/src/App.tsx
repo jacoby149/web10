@@ -272,7 +272,7 @@ function App() {
           <Route path="/feed" element={<FeedRoute onAuthorClick={handleAuthorClick} />} />
           <Route path="/discover" element={<DiscoverScreen />} />
           <Route path="/messages" element={<DmsScreen />} />
-          <Route path="/profile" element={<ProfileScreen />} />
+          <Route path="/profile" element={<ProfileRedirectRoute />} />
           <Route path="/u/:username" element={<UserProfileRoute />} />
           <Route path="/u/:username/p/:postId" element={<UserProfilePostLinkRoute />} />
           <Route path="/staging" element={<StagingScreen />} />
@@ -288,6 +288,14 @@ function App() {
       )}
     </ErrorBoundary>
   );
+}
+
+function ProfileRedirectRoute() {
+  const token = getWapi().readToken();
+  if (!token) {
+    return <Navigate to="/feed" replace />;
+  }
+  return <Navigate to={`/u/${token.username}`} replace state={{ provider: token.provider }} />;
 }
 
 export default App;
