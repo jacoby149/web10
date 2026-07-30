@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
-import { ArrowUpRight, ArrowRight, Download, LogIn, UploadCloud, Server, Eye, BookOpen } from 'lucide-react';
+import { ArrowUpRight, ArrowRight, Download, LogIn, UploadCloud, Server, Eye, BookOpen, Clock, Play } from 'lucide-react';
 import { trackFunnel } from '@/lib/analytics';
 import { SOCIAL_ORIGIN } from '@/lib/origins';
-import { EXPORT_LINKS } from '@/lib/exportLinks';
+import { YOUTUBE_EXPORT, SECONDARY_PLATFORMS } from '@/lib/exportLinks';
 
 function StepCard({
   number,
@@ -78,37 +78,78 @@ function StepArrow() {
   );
 }
 
-function PlatformButtons() {
+function YouTubePrimaryCard() {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-      {EXPORT_LINKS.map(link => (
-        <div key={link.platform} className="group flex flex-col items-center gap-2 rounded-lg border border-border bg-surface p-4 text-center transition-colors duration-150 ease-out hover:border-brand/50">
-          <a
-            href={link.url}
-            target="_blank"
-            rel="noopener noreferrer"
+    <div className="group relative rounded-lg border-2 border-brand bg-surface p-6 transition-colors duration-150 ease-out hover:border-brand">
+      <div className="absolute -top-3 left-6 rounded-full bg-brand px-3 py-0.5 text-[0.625rem] font-semibold uppercase tracking-[0.04em] text-brand-foreground">
+        Now Available
+      </div>
+      <div className="flex items-start gap-4 sm:flex-row sm:items-center">
+        <a
+          href={YOUTUBE_EXPORT.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          data-testid="import-platform-youtube"
+          className="flex flex-1 items-center gap-4"
+        >
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-brand/10 text-xl font-bold text-brand">
+            <Play strokeWidth={2} className="h-6 w-6 fill-brand text-brand" />
+          </span>
+          <div className="flex-1">
+            <p className="font-display text-lg font-semibold text-foreground">YouTube</p>
+            <p className="text-sm text-muted-foreground">
+              Export via Google Takeout — the most transparent path.
+              <ArrowUpRight
+                className="ml-1 inline align-middle h-3.5 w-3.5 text-muted-foreground transition-colors duration-150 group-hover:text-brand"
+                strokeWidth={1.75}
+              />
+            </p>
+          </div>
+        </a>
+        <a
+          href={`/docs/export-guidance#${YOUTUBE_EXPORT.guideAnchor}`}
+          data-testid="import-platform-youtube-guide"
+          className="flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-elevated px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors duration-150 hover:border-brand/50 hover:text-brand-300"
+        >
+          <BookOpen className="h-3.5 w-3.5" strokeWidth={1.5} />
+          Guide
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function SecondaryPlatforms() {
+  return (
+    <div>
+      <div className="flex items-center gap-2">
+        <Clock className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+        <p className="text-sm font-medium text-muted-foreground">
+          Rolling out soon after
+        </p>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {SECONDARY_PLATFORMS.map(link => (
+          <div
+            key={link.platform}
             data-testid={`import-platform-${link.platform}`}
-            className="flex flex-col items-center gap-2"
+            className="flex flex-col items-center gap-2 rounded-lg border border-border bg-surface p-4 text-center opacity-70"
           >
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-elevated text-lg font-semibold text-foreground">
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-elevated text-lg font-semibold text-muted-foreground">
               {link.label === 'X' ? '𝕏' : link.label.charAt(0)}
             </span>
-            <span className="text-sm font-medium text-foreground">{link.label}</span>
-            <ArrowUpRight
-              className="mt-1 h-3 w-3 text-muted-foreground transition-colors duration-150 group-hover:text-brand"
-              strokeWidth={1.75}
-            />
-          </a>
-          <a
-            href={`/docs/export-guidance#${link.guideAnchor}`}
-            data-testid={`import-platform-${link.platform}-guide`}
-            className="flex items-center gap-1 text-xs text-muted-foreground transition-colors duration-150 hover:text-brand-300"
-          >
-            <BookOpen className="h-3 w-3" strokeWidth={1.5} />
-            Guide
-          </a>
-        </div>
-      ))}
+            <span className="text-sm font-medium text-muted-foreground">{link.label}</span>
+            <a
+              href={`/docs/export-guidance#${link.guideAnchor}`}
+              data-testid={`import-platform-${link.platform}-guide`}
+              className="flex items-center gap-1 text-xs text-muted-foreground/60 transition-colors duration-150 hover:text-brand-300"
+            >
+              <BookOpen className="h-3 w-3" strokeWidth={1.5} />
+              Guide
+            </a>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -196,17 +237,20 @@ function Exporter() {
             Bring your social life to web10.
           </h1>
           <p className="reveal mt-6 max-w-xl text-lg leading-[1.6] text-muted-foreground [animation-delay:160ms]">
-            Export your posts, photos, comments, and contacts from any
-            platform. Click a link below, download your data, and we'll
-            handle the rest.
+            YouTube first — export from the others rolling out soon after.
+            Start with Google Takeout, the most transparent path, and
+            we'll handle the rest.
           </p>
 
-          {/* Step 1: platform buttons */}
+          {/* Step 1: YouTube primary + secondary platforms */}
           <div className="reveal mt-10 [animation-delay:240ms]">
             <h2 className="mb-4 font-display text-lg font-medium text-foreground">
               Step 1 — Export from your platform
             </h2>
-            <PlatformButtons />
+            <YouTubePrimaryCard />
+            <div className="mt-6">
+              <SecondaryPlatforms />
+            </div>
           </div>
 
           {/* web10 export note */}

@@ -76,6 +76,16 @@ touches auth, the DB layer, or tokens, run those tests and keep them green.
       revocable token. Least privilege.
 
 ## Working conventions for parallel agents
+- **TEMPORARY OVERRIDE (30.07.2026): no PNG reading.** In Conductor
+  (conductor.build) workspaces with the opencode plugin, reading a PNG
+  immediately breaks the agent session. Until the conductor.build fix
+  lands and the operator gives the all-clear: never `read`/open a `.png`,
+  skip all screenshot-based UI verification (design.md §12 PR-screenshot
+  requirements suspended — capture green is enough, never LOOK at the
+  images), and wherever this file says to screenshot and LOOK (UI
+  acceptance bars, kickoff blocks, audits, prod verification), verify
+  via harness/tests/tsc instead. Full text: AGENTS.md "UI verification:
+  screenshots". Every screenshot instruction below is subject to this.
 - **UI work reads `design.md` first — every time, no exceptions.** Any
   change under `ui/`, `marketing/marketing-ui/`, or `marketing/web10-social/`
   (or any new user-facing surface) is judged against `design.md`: the
@@ -177,7 +187,8 @@ detector that triggers it when a workspace stalls/bricks):
 4. **Audit parallelizability for small-window agents.** The workhorse
    agents are Qwen-class: ~27B, 256k context, sharp (olympiad-level),
    multimodal (they CAN look at app screenshots — use that in acceptance
-   bars). They cannot hold plan.txt + CHANGELOG + a whole lane file at
+   bars — SUSPENDED under the temporary no-PNG override above until the
+   conductor.build fix lands). They cannot hold plan.txt + CHANGELOG + a whole lane file at
    once. Check every board item: self-contained? names exact files?
    gates and seams explicit? one sub-lane, no shared-seam collisions?
    Include the **board inventory + autonomy horizon** (this absorbs the
@@ -221,7 +232,9 @@ window is for code, not prose.
 - **Acceptance bar:** tests green (`tsc -b`/build clean where relevant);
   for UI, the `design.md` §12 definition of done — and since the agent
   is multimodal, tell it to screenshot at desktop + 375px and LOOK at
-  the screenshots before calling it done.
+  the screenshots before calling it done. (TEMPORARY: under the no-PNG
+  override, the bar is a green capture run + tests/tsc — never READ the
+  PNGs.)
 - **Finish ritual:** CHANGELOG line, tick plan.txt + the lane item,
   type-prefixed branch, PR to `dev`, then conflicts + ALL checks green
   per `AGENTS.md`.
@@ -329,7 +342,8 @@ order: the audit (steps 1–4), then the promotion (steps 5–7).
 2. **Look for really-broken, not nitpicks.** Security invariants I1–I5,
    auth/DB-layer regressions, star-record protection, broken builds or
    red/skipped checks, two merged PRs stepping on the same seam,
-   user-facing surfaces that flunk `design.md` (screenshot if runnable),
+   user-facing surfaces that flunk `design.md` (screenshot if runnable —
+   capture only, no PNG reading under the temporary override),
    missing/wrong CHANGELOG or lane ticks that will cause redone work.
    Style preferences and could-be-nicer are NOT findings.
 3. **If nothing is broken, say so plainly** — one short paragraph, no
@@ -338,7 +352,8 @@ order: the audit (steps 1–4), then the promotion (steps 5–7).
    Qwen-class agents (~27B, 256k context), one per independent fix,
    following the kickoff block spec above: name the exact files and the
    offending PR/commit, quote the failing behavior, state the acceptance
-   bar (tests green, checks green, screenshots for UI) and the finish
+   bar (tests green, checks green, screenshots for UI — capture-green
+   only under the temporary no-PNG override) and the finish
    ritual. Fixes that collide on a seam go in ONE block, not two.
    **A red batch does not promote** — stop after the fix blocks; the
    promotion happens on the next `gather up!` once the fixes merge. (If
@@ -367,7 +382,9 @@ order: the audit (steps 1–4), then the promotion (steps 5–7).
    social, www + apex, marketing-api `/docs`; all public). The dev
    vhosts resolve only on the box/VPN — if unreachable, say "dev smoke
    needs the box", don't pretend. If a user-facing surface changed,
-   load it and LOOK at it. The final report states: what merged, what
+   load it and LOOK at it (SUSPENDED under the temporary no-PNG
+   override — verify via smoke endpoints + tests, never screenshots).
+   The final report states: what merged, what
    prod now serves (version/commit), any pre-existing reds by name,
    and anything deliberately not done.
 

@@ -305,3 +305,17 @@ export async function countFollowers(username: string, provider: string): Promis
       (e.payload as Record<string, unknown>).action === 'follow',
   ).length;
 }
+
+/**
+ * Count how many users a specific user is following by reading the
+ * public ledger. Queries entries where the author is the given user
+ * and action='follow'. This is per-user (never the viewer's count).
+ */
+export async function countUserFollowing(username: string, provider: string): Promise<number> {
+  const entries = await queryPublicEntries({ author: username });
+  return entries.filter(
+    (e) =>
+      e.payload &&
+      (e.payload as Record<string, unknown>).action === 'follow',
+  ).length;
+}

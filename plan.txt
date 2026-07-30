@@ -1408,7 +1408,7 @@ Marketing-ui side (Lane D):
     removes it. signed-out -> funnel-to-social or a "sign in to react" gate.
     keep the heart-burst animation (D12 vibrancy). owns: FeedPreview.tsx +
     Trending.tsx.
-[ ] D-trending-views (operator, 30.07 rant: "the same way that messages has
+[✓ 1.0.272] D-trending-views (operator, 30.07 rant: "the same way that messages has
     views, social media, mail, crm, i want the trending to be the same! the
     current trending is very twitter/instagram looking kind of a view! I
     would like youtube view where it only shows the videos and maybe images?
@@ -2583,7 +2583,7 @@ D-dm-header-profile-link (ws-D/messages, tiny). merged 1.0.251.
     delete from the post's actual collection, remove the discovery
     ghost on public deletes, re-read the grid after delete. lane item
     D-delete-post-broken (ws-D/profile).
-[ ] another user's profile shows HIS stats + posts (operator, 30.07
+[✓ 1.0.272] another user's profile shows HIS stats + posts (operator, 30.07
     rant, screenshot of /u/coolguydavid: "i dont see how many hes
     following and how many followers! nor do i see his posts but i
     know he has a post"): three confirmed UserProfileScreen bugs —
@@ -2695,10 +2695,11 @@ the join tab would work great for the import your life!"): rebuild
   5. posts enter staging — review privacy in the Staging screen
      (already built, 1.0.164), click done, they're on web10 social.
   reuses the 1.0.31 marketing-api ZIP pipeline + 1.0.131 staging_
-  posts writes. lane item D-import-revamp (bites: a = the step
-  strip + export links, ws-D/marketing(2); b = the WeTransfer
-  pipeline, ws-D/marketing-api; c = the authenticator import tab,
-  ws-B). follow-ups filed 30.07: D-import-export-links-dead
+   posts writes. lane item D-import-revamp (bites: a = the step
+   strip + export links, ws-D/marketing(2); b = the WeTransfer
+   pipeline, ws-D/marketing-api; c = the authenticator import tab,
+   ws-B; d = web10 node export import path, ws-D/marketing-api
+   [✓ 1.0.272]). follow-ups filed 30.07: D-import-export-links-dead
   (operator-verified working export URLs + our own /docs export-
   guidance article — operator supplies the content; NOT llm
   redirects) and D-export-links-health-e2e (a scheduled link-

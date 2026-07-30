@@ -408,6 +408,14 @@ Kick-grade: vibrant, alive, never muted.
 
 ## 12. Definition of done for UI work
 
+> **TEMPORARY OVERRIDE (30.07.2026):** in Conductor (conductor.build)
+> workspaces with the opencode plugin, reading a PNG breaks the agent
+> session — items 1-2 are SUSPENDED until the conductor.build fix lands
+> and the operator gives the all-clear. Capture may still run (a green
+> capture is a useful smoke signal) but agents must never `read`/open
+> the PNGs; verify via harness/tests/tsc instead. See AGENTS.md "UI
+> verification: screenshots".
+
 A UI PR merges when:
 
 1. **The screenshot test (§1) passes** on every changed screen.

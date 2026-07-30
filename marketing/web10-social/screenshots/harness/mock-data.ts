@@ -215,6 +215,58 @@ export async function readStaging(): Promise<unknown[]> { return []; }
 export async function movePostToPublic(): Promise<void> {}
 export async function movePostToPrivate(): Promise<void> {}
 export async function deleteStaging(): Promise<void> {}
+export function replyAllTargets(): unknown[] { return []; }
 export type AppSettings = { defaultVisibility?: 'public' | 'private' };
 export async function readSettings(): Promise<AppSettings> { return { defaultVisibility: 'public' }; }
 export async function saveSettings(partial: Partial<AppSettings>): Promise<AppSettings> { return { defaultVisibility: partial.defaultVisibility || 'public' }; }
+
+// --- drift stubs (added 30.07.2026 unbrick — barrel grew; harness views don't
+// call these, they exist so the Vite pre-bundler finds every named export) ---
+export async function blockUser(): Promise<void> {}
+export function buildCommentTarget(): unknown { return {}; }
+export function buildReactionTarget(): unknown { return {}; }
+export function buildSocialServiceSirs(): unknown { return {}; }
+export async function bulkDeleteStagingPosts(): Promise<void> {}
+export async function bulkMovePosts(): Promise<void> {}
+export function clearReadUrlCache(): void {}
+export function clearSchemaCache(): void {}
+export function clearSettingsCache(): void {}
+export async function countUnread(): Promise<number> { return 0; }
+export async function createPublicEntry(): Promise<unknown> { return {}; }
+export async function createReaction(): Promise<unknown> { return {}; }
+export function createWapiWrapper(): unknown { return {}; }
+export async function deleteFollow(): Promise<void> {}
+export async function deleteMedia(): Promise<void> {}
+export async function deletePublicEntry(): Promise<void> {}
+export async function deleteReaction(): Promise<void> {}
+export async function deleteStagingPost(): Promise<void> {}
+export function deriveObjectKey(): string { return ''; }
+export async function fetchDiscoveryPost(): Promise<unknown> { return null; }
+export async function fetchSchema(): Promise<unknown> { return {}; }
+export async function fetchSuggestedUsers(): Promise<unknown[]> { return []; }
+export function getCachedSchema(): unknown { return null; }
+export async function getReactionCounts(): Promise<unknown> { return {}; }
+export function getWapi(): unknown { return null; }
+export function groupByOrigin(): unknown { return {}; }
+export async function listFollowers(): Promise<unknown[]> { return []; }
+export function mapRawDiscoveryPost(): unknown { return null; }
+export async function markInboxRead(): Promise<void> {}
+export async function queryPublicEntries(): Promise<unknown[]> { return []; }
+export async function readDiscoverFeed(): Promise<unknown[]> { return []; }
+export async function readFeed(): Promise<unknown[]> { return []; }
+export async function readFollow(): Promise<unknown> { return null; }
+export async function readFollowsByStatus(): Promise<unknown[]> { return []; }
+export async function readMedia(): Promise<unknown> { return null; }
+export async function readMediaRecord(): Promise<unknown> { return null; }
+export async function readReplies(): Promise<unknown[]> { return []; }
+export async function readStagingPosts(): Promise<unknown[]> { return []; }
+export async function readTopLevelComments(): Promise<unknown[]> { return []; }
+export async function readUserPosts(): Promise<unknown[]> { return []; }
+export async function readUserProfile(): Promise<unknown> { return null; }
+export async function recordRepost(): Promise<void> {}
+export async function refreshMediaUrl(): Promise<string> { return ''; }
+export function registerDefaultSchemas(): void {}
+export function resetWapi(): void {}
+export async function sendDmMulti(): Promise<unknown> { return {}; }
+export async function updateComment(): Promise<void> {}
+export async function updateFollowNotify(): Promise<void> {}

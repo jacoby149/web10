@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Send } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { readComments, createComment } from '@/data';
 import type { CommentRecord } from '@/data/types';
 
@@ -13,13 +14,16 @@ interface CommentThreadProps {
   onCountChange: (n: number) => void;
   postAuthor?: string;
   postService?: string;
+  highlightedCommentId?: string;
 }
 
-export function CommentThread({ postId, isOpen, onCountChange, postAuthor, postService }: CommentThreadProps) {
+export function CommentThread({ postId, isOpen, onCountChange, postAuthor, postService, highlightedCommentId }: CommentThreadProps) {
   const [comments, setComments] = useState<CommentRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
+  const commentRefs = useRef<Record<string, HTMLLIElement | null>>({});
+  const hasScrolled = useRef(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -37,6 +41,20 @@ export function CommentThread({ postId, isOpen, onCountChange, postAuthor, postS
       cancelled = true;
     };
   }, [isOpen, postId]);
+
+  // Scroll to + flash the anchored comment once comments are loaded
+  useEffect(() => {
+    if (!highlightedCommentId || hasScrolled.current || !comments.length || loading) return;
+    const el = commentRefs.current[highlightedCommentId];
+    if (el && typeof el.scrollIntoView === 'function') {
+      hasScrolled.current = true;
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [highlightedCommentId, comments, loading]);
+
+  const setCommentRef = useCallback((id: string) => (el: HTMLLIElement | null) => {
+    if (el) commentRefs.current[id] = el;
+  }, []);
 
   async function handleSend() {
     if (!draft.trim()) return;
@@ -70,7 +88,17 @@ export function CommentThread({ postId, isOpen, onCountChange, postAuthor, postS
       ) : comments.length ? (
         <ul className="space-y-2">
           {comments.map((c) => (
-            <li key={c._id} className="text-sm leading-relaxed">
+            <li
+              key={c._id}
+              ref={c._id ? setCommentRef(c._id) : undefined}
+              data-testid={`comment-${c._id}`}
+              className={cn(
+                'text-sm leading-relaxed rounded-md px-2 py-1 transition-colors duration-300',
+                c._id === highlightedCommentId
+                  ? 'bg-brand-muted ring-1 ring-brand text-foreground animate-pulse-once'
+                  : '',
+              )}
+            >
               <span className="font-medium text-brand-300">{c.author_username || 'you'}</span>{' '}
               <span className="text-foreground">{c.text}</span>
             </li>

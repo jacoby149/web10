@@ -161,17 +161,51 @@ never silently call a red PR ready.
 
 ## UI verification: screenshots
 
-When a task requires screenshots (design.md §12, any UI acceptance bar),
-use `scripts/screenshot.sh` — no playwright install needed, no repo
-dependency. It uses `npx playwright` with a shared cache:
+> **TEMPORARY OVERRIDE (30.07.2026, operator): do NOT read PNG files.**
+> In Conductor (conductor.build) workspaces running the opencode plugin,
+> reading a PNG immediately breaks the agent session. Until the
+> conductor.build fix lands and the operator gives the all-clear, SKIP all
+> screenshot-based UI verification: do not `read` any `.png`, do not open
+> screenshots to "look at the UI", and do not treat PR-screenshot
+> requirements (design.md §12) as binding. Verify UI work instead with the
+> harness/tests/tsc (a green `bun run screenshots` capture run is still a
+> useful smoke signal — just never READ the resulting images). When the
+> conductor.build fix hits, the operator will give guidance to resume
+> normal screenshot verification.
 
-```
-scripts/screenshot.sh http://localhost:5173/docs /tmp/docs-desktop.png --full-page
-scripts/screenshot.sh http://localhost:5173/docs /tmp/docs-mobile.png --mobile --full-page
-```
+**Never run a dev server in the foreground of your shell** (`npm run dev`,
+`bun run dev`, `vite`) — it blocks until the command timeout and bricks the
+workspace. This is the #1 repeated workspace brick. Use a self-booting
+command that starts the server in the background, screenshots, and kills it:
+
+- **marketing/web10-social:** the app gates every route behind login, so a
+  dev-server screenshot renders the LOGIN page, not your view (and the port
+  is 3000, not 5173). Use the self-booting harness — no backend, no login:
+  ```
+  cd marketing/web10-social && bun run screenshots
+  # one-off view, no file edits:
+  node screenshots/capture.mjs --name my-view --ready '[data-testid="my-view"]'
+  ```
+  Full details: `marketing/web10-social/screenshots/README.md`.
+- **Any other Vite app** (marketing-ui, ui): `scripts/dev-shot.sh` boots the
+  dev server in the background itself, waits, shoots desktop + 375px, kills:
+  ```
+  scripts/dev-shot.sh --dir marketing/marketing-ui --path /docs --out /tmp/docs
+  ```
+- **An already-running server** (e2e stack, someone else's terminal):
+  `scripts/screenshot.sh` directly — no playwright install needed, no repo
+  dependency. It uses `npx playwright` with a shared cache:
+  ```
+  scripts/screenshot.sh http://localhost:5173/docs /tmp/docs-desktop.png --full-page
+  scripts/screenshot.sh http://localhost:5173/docs /tmp/docs-mobile.png --mobile --full-page
+  ```
 
 First run downloads Chromium into the shared playwright cache
-(`~/Library/Caches/ms-playwright`); subsequent runs are fast.
+(`~/Library/Caches/ms-playwright`); subsequent runs are fast. Write
+screenshots to /tmp or `.context/` (not the repo), and READ them one at a
+time — desktop first, then mobile — before calling the task done. (READING
+is suspended under the temporary PNG override at the top of this section —
+capture green is enough for now.)
 
 ## Branch naming conventions
 

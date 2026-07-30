@@ -13,10 +13,10 @@ describe('Exporter /import page', () => {
     expect(screen.getByText('Bring your social life to web10.')).toBeInTheDocument();
   });
 
-  it('renders the subtitle', async () => {
+  it('renders the YouTube-first subtitle', async () => {
     const { default: Exporter } = await import('@/pages/Exporter');
     render(<Exporter />);
-    expect(screen.getByText(/Export your posts, photos, comments, and contacts/)).toBeInTheDocument();
+    expect(screen.getByText(/YouTube first/)).toBeInTheDocument();
   });
 
   it('renders the overline', async () => {
@@ -25,69 +25,57 @@ describe('Exporter /import page', () => {
     expect(screen.getByText('Import Your Life')).toBeInTheDocument();
   });
 
-  it('renders five platform export buttons', async () => {
+  it('renders YouTube as the primary featured platform', async () => {
+    const { default: Exporter } = await import('@/pages/Exporter');
+    render(<Exporter />);
+    expect(screen.getByTestId('import-platform-youtube')).toBeInTheDocument();
+    expect(screen.getByText('Now Available')).toBeInTheDocument();
+  });
+
+  it('renders secondary platforms as rolling out', async () => {
     const { default: Exporter } = await import('@/pages/Exporter');
     render(<Exporter />);
     expect(screen.getByTestId('import-platform-facebook')).toBeInTheDocument();
-    expect(screen.getByTestId('import-platform-youtube')).toBeInTheDocument();
     expect(screen.getByTestId('import-platform-x')).toBeInTheDocument();
     expect(screen.getByTestId('import-platform-instagram')).toBeInTheDocument();
     expect(screen.getByTestId('import-platform-tiktok')).toBeInTheDocument();
+    expect(screen.getByText('Rolling out soon after')).toBeInTheDocument();
   });
 
-  it('platform buttons open in new tab', async () => {
-    const { default: Exporter } = await import('@/pages/Exporter');
-    render(<Exporter />);
-    for (const platform of ['facebook', 'youtube', 'x', 'instagram', 'tiktok']) {
-      const btn = screen.getByTestId(`import-platform-${platform}`);
-      expect(btn).toHaveAttribute('target', '_blank');
-      expect(btn).toHaveAttribute('rel', 'noopener noreferrer');
-    }
-  });
-
-  it('Facebook button links to Facebook data export page', async () => {
-    const { default: Exporter } = await import('@/pages/Exporter');
-    render(<Exporter />);
-    expect(screen.getByTestId('import-platform-facebook')).toHaveAttribute(
-      'href',
-      'https://www.facebook.com/help/212802592074644',
-    );
-  });
-
-  it('YouTube button links to Google Takeout', async () => {
+  it('YouTube primary card links to Google Takeout', async () => {
     const { default: Exporter } = await import('@/pages/Exporter');
     render(<Exporter />);
     expect(screen.getByTestId('import-platform-youtube')).toHaveAttribute(
       'href',
       'https://takeout.google.com/settings/takeout',
     );
+    expect(screen.getByTestId('import-platform-youtube')).toHaveAttribute('target', '_blank');
+    expect(screen.getByTestId('import-platform-youtube')).toHaveAttribute('rel', 'noopener noreferrer');
   });
 
-  it('X button links to X data export page', async () => {
+  it('YouTube guide link is present', async () => {
     const { default: Exporter } = await import('@/pages/Exporter');
     render(<Exporter />);
-    expect(screen.getByTestId('import-platform-x')).toHaveAttribute(
+    expect(screen.getByTestId('import-platform-youtube-guide')).toHaveAttribute(
       'href',
-      expect.stringContaining('help.x.com'),
+      '/docs/export-guidance#google',
     );
   });
 
-  it('Instagram button links to Instagram data export page', async () => {
+  it('secondary platforms do not have export links (TBD)', async () => {
     const { default: Exporter } = await import('@/pages/Exporter');
     render(<Exporter />);
-    expect(screen.getByTestId('import-platform-instagram')).toHaveAttribute(
-      'href',
-      expect.stringContaining('help.instagram.com'),
-    );
+    for (const platform of ['facebook', 'x', 'instagram', 'tiktok']) {
+      const el = screen.getByTestId(`import-platform-${platform}`);
+      expect(el).not.toHaveAttribute('target', '_blank');
+    }
   });
 
-  it('TikTok button links to TikTok data export page', async () => {
+  it('subtitle mentions YouTube first', async () => {
     const { default: Exporter } = await import('@/pages/Exporter');
     render(<Exporter />);
-    expect(screen.getByTestId('import-platform-tiktok')).toHaveAttribute(
-      'href',
-      expect.stringContaining('tiktok.com'),
-    );
+    expect(screen.getByText(/YouTube first/)).toBeInTheDocument();
+    expect(screen.getByText(/rolling out soon after/)).toBeInTheDocument();
   });
 
   it('renders the web10 export note', async () => {

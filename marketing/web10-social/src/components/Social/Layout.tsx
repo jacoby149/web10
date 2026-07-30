@@ -150,18 +150,30 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0 min-h-0">
-        <header className="md:hidden flex items-center justify-between px-4 h-14 border-b border-border bg-surface/95 backdrop-blur-md sticky top-0 z-20">
+        <header className="md:hidden flex items-center justify-between px-4 h-14 border-b border-border bg-surface/95 backdrop-blur-md sticky top-0 z-20 gap-2">
           <Wordmark />
-          <Button
-            variant="ghost"
-            size="icon"
-            data-testid="logout-button-mobile"
-            className="h-11 w-11 text-muted-foreground hover:text-foreground"
-            aria-label="Log out"
-            onClick={onLogout}
-          >
-            <LogOut className="w-5 h-5" strokeWidth={1.75} />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              data-testid="new-post-button-mobile"
+              className="h-11 w-11 text-muted-foreground hover:text-foreground"
+              aria-label="New post"
+              onClick={() => navigate('/feed')}
+            >
+              <PlusCircle className="w-5 h-5" strokeWidth={1.75} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              data-testid="logout-button-mobile"
+              className="h-11 w-11 text-muted-foreground hover:text-foreground"
+              aria-label="Log out"
+              onClick={onLogout}
+            >
+              <LogOut className="w-5 h-5" strokeWidth={1.75} />
+            </Button>
+          </div>
         </header>
 
         <div className="flex-1 min-h-0 overflow-y-auto pb-16 md:pb-0">
@@ -170,7 +182,7 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
 
         <nav
           aria-label="Primary"
-          className="md:hidden fixed bottom-0 inset-x-0 z-20 flex items-stretch border-t border-border bg-surface/95 backdrop-blur-md"
+          className="md:hidden fixed bottom-0 inset-x-0 z-20 flex items-stretch border-t border-border bg-surface/95 backdrop-blur-md overflow-x-auto"
         >
           {navItems.map(({ path, icon: Icon, label, testId }) => {
             const target = path === '/profile' ? profilePath : path;
@@ -182,7 +194,7 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
               aria-label={label}
               onClick={() => navigate(target)}
               className={cn(
-                'flex-1 flex flex-col items-center justify-center gap-0.5 min-h-11 py-2.5 transition-all duration-150 relative',
+                'flex-1 min-w-fit flex flex-col items-center justify-center gap-0.5 min-h-11 py-2.5 transition-all duration-150 relative',
                 isActive(path) ? 'text-brand' : 'text-muted-foreground',
               )}
             >
@@ -197,11 +209,22 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
             </button>
             );
           })}
+          {comingSoonItems.map(({ icon: Icon, label, testId }) => (
+            <div
+              key={testId}
+              data-testid={`${testId}-mobile`}
+              aria-disabled="true"
+              className="flex-1 min-w-fit flex flex-col items-center justify-center gap-0.5 min-h-11 py-2.5 text-muted-foreground/50 cursor-not-allowed select-none"
+            >
+              <Icon className="w-5 h-5" strokeWidth={1.75} />
+              <span className="text-[0.625rem] font-medium uppercase tracking-wide">{label}</span>
+            </div>
+          ))}
           <button
             data-testid="report-bug-button-mobile"
             aria-label="Report a bug"
             onClick={onReportBug}
-            className="flex-1 flex flex-col items-center justify-center gap-0.5 min-h-11 py-2.5 text-muted-foreground transition-colors duration-150"
+            className="flex-1 min-w-fit flex flex-col items-center justify-center gap-0.5 min-h-11 py-2.5 text-muted-foreground transition-colors duration-150"
           >
             <Bug className="w-5 h-5" strokeWidth={1.75} />
             <span className="text-[0.625rem] font-medium uppercase tracking-wide">Help</span>
