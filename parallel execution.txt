@@ -1998,7 +1998,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       originals deleted from the bucket. each bite has its own bar
       in its kickoff.
 
-[✓ 1.0.239] D-import-export-links-dead (sub-lane ws-D/marketing(2), SMALL;
+[✓ 1.0.240] D-import-export-links-dead (sub-lane ws-D/marketing(2), SMALL;
       operator, 30.07 rant, screenshot of /import step 1's five
       platform buttons: "those are actually all dead links, do you
       have any creative ideas on how to do that right? should it
