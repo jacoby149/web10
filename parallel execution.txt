@@ -1998,7 +1998,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       originals deleted from the bucket. each bite has its own bar
       in its kickoff.
 
-[ ] D-import-export-links-dead (sub-lane ws-D/marketing(2), SMALL;
+[✓ 1.0.240] D-import-export-links-dead (sub-lane ws-D/marketing(2), SMALL;
       operator, 30.07 rant, screenshot of /import step 1's five
       platform buttons: "those are actually all dead links, do you
       have any creative ideas on how to do that right? should it
@@ -2073,7 +2073,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       D-import-export-links-dead (the repaired URLs + shared
       constants exist to test against).
 
-[ ] D-home-stats-bar (sub-lane ws-D/marketing(2); SEAM: Home.tsx —
+[✓ 1.0.240] D-home-stats-bar (sub-lane ws-D/marketing(2); SEAM: Home.tsx —
       disjoint from AppStore/Join files; operator, 29.07 rant,
       screenshot of the App Store subtitle's inline counts: "on the
       home page of the marketing, these counts that are on the app
@@ -2151,7 +2151,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       standing has a one-line justification in the PR; marketing-ui
       tests + tsc green. gate: none.
 
-[ ] D-hero-cta-label (sub-lane ws-D/marketing, TINY; operator, 30.07
+[✓ 1.0.239] D-hero-cta-label (sub-lane ws-D/marketing, TINY; operator, 30.07
       rant, screenshot of the homepage hero button: "we can have this
       say enter web10! but it goes to web10 social! that is fine"):
       the hero CTA (marketing-ui src/pages/Home.tsx, the
@@ -2596,10 +2596,10 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
        with zero network calls per twist; presets work; the feed
        (inbox) is byte-untouched; design.md §12 — screenshot desktop
        + 375px and LOOK. gate: none (D36 signed).
-       BITES (rule 5): [✓ 1.0.230] bite a, CARD + CONTROLS LANGUAGE — the
-       trending-shaped cards + presets + topic chips on Discover
-       (no knobs yet); bite b, THE KNOBS — KnobRack/RotaryKnob/
-       powerMean ported, live client-side re-rank (gate: bite a).
+BITES (rule 5): [✓ 1.0.230] bite a, CARD + CONTROLS LANGUAGE — the
+        trending-shaped cards + presets + topic chips on Discover
+        (no knobs yet); [✓ 1.0.241] bite b, THE KNOBS — KnobRack/RotaryKnob/
+        powerMean ported, live client-side re-rank (gate: bite a).
 
 [ ] D-coming-soon-builds (sub-lane ws-D/surfaces; SEVERAL big
       independent surfaces — one workspace EACH, not one item): the
@@ -3075,10 +3075,10 @@ fully refreshed — eight sub-lanes drained or advanced this batch.
                      compose flips STRIPE_STATUS=test + secrets
                      plumbing + a trivial sk_test smoke assertion;
                      its own text says bite a can land anytime)
-    ws-A:            D-appstore-revamp v2 bite c — the registration-
-                     shape SPEC NOTE (a .context/decisions.md write-up,
-                     no code; gates the v2 rewire build; lane A owns
-                     the record-shape call)
+ws-A:            [✓ 1.0.239] D-appstore-revamp v2 bite c — the registration-
+                      shape SPEC NOTE (a .context/decisions.md write-up,
+                      no code; gates the v2 rewire build; lane A owns
+                      the record-shape call)
     ws-D/feed:       D-feed-lightbox bite a (open-from-feed), THEN
                      bite b (share + permalink — the operator's 29.07
                      "clicked them and it went to the hyperlink to the

@@ -1,5 +1,5 @@
-import { useEffect } from 'react'
-import { Send, Inbox, ShieldCheck } from 'lucide-react'
+import { useEffect, useState, useRef, useCallback } from 'react'
+import { Send, Inbox, ShieldCheck, Users, Layers, HardDrive } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Card, CardHeader, CardTitle, CardDescription } from '../components/ui/card'
 import {
@@ -10,6 +10,129 @@ import {
 } from '../lib/reachGap'
 import { trackFunnel } from '../lib/analytics'
 import { AUTH_ORIGIN, SOCIAL_ORIGIN } from '../lib/origins'
+
+function nodeApi(): string {
+  if (typeof window !== 'undefined') {
+    const q = new URLSearchParams(window.location.search).get('api')
+    if (q) return q
+    const h = window.location.hostname
+    if (h === 'localhost' || h === '127.0.0.1' || h.endsWith('.localhost')) return 'http://api.localhost'
+  }
+  return (import.meta as any).env?.VITE_API_URL || 'https://api.web10.app'
+}
+
+function formatBytes(bytes: number): string {
+  if (!bytes || bytes < 1) return '0 B'
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  const i = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)))
+  const val = bytes / Math.pow(1024, i)
+  return `${val >= 100 || i <= 1 ? Math.round(val) : val.toFixed(1)} ${units[i]}`
+}
+
+function formatNumber(n: number): string {
+  return n.toLocaleString()
+}
+
+/* --- Count-up numeral (respects prefers-reduced-motion) --- */
+function CountUp({ value, duration = 1200 }: { value: number; duration?: number }) {
+  const [display, setDisplay] = useState(0)
+  const rafRef = useRef<number>(0)
+  const startRef = useRef<number>(0)
+  const reduced = useRef(
+    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+  ).current
+
+  const animate = useCallback((ts: number) => {
+    if (!startRef.current) startRef.current = ts
+    const progress = Math.min((ts - startRef.current) / duration, 1)
+    const eased = 1 - Math.pow(1 - progress, 3) // ease-out cubic
+    setDisplay(Math.round(eased * value))
+    if (progress < 1) rafRef.current = requestAnimationFrame(animate)
+  }, [value, duration])
+
+  useEffect(() => {
+    if (reduced) {
+      setDisplay(value)
+      return
+    }
+    startRef.current = 0
+    rafRef.current = requestAnimationFrame(animate)
+    return () => cancelAnimationFrame(rafRef.current)
+  }, [value, animate, reduced])
+
+  return <>{formatNumber(display)}</>
+}
+
+/* --- HomeStatsBar --- */
+interface HomeStats {
+  users: number
+  apps: number
+  storage: number
+}
+
+function HomeStatsBar() {
+  const [stats, setStats] = useState<HomeStats | null>(null)
+  const [error, setError] = useState(false)
+
+  useEffect(() => {
+    let alive = true
+    fetch(`${nodeApi()}/stats`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((data: any) => {
+        if (!alive) return
+        setStats({
+          users: data.users ?? 0,
+          apps: Array.isArray(data.apps) ? data.apps.length : 0,
+          storage: data.storage ?? 0,
+        })
+      })
+      .catch(() => {
+        if (!alive) return
+        setError(true)
+      })
+
+    return () => { alive = false }
+  }, [])
+
+  if (!stats || error) return null
+
+  const items = [
+    { value: stats.users, label: 'users', suffix: '', icon: Users },
+    { value: stats.apps, label: 'apps', suffix: '', icon: Layers },
+    { value: stats.storage, label: '', suffix: formatBytes(stats.storage), icon: HardDrive, isBytes: true },
+  ]
+
+  return (
+    <div className="reveal mx-auto mt-14 max-w-3xl [animation-delay:400ms]">
+      <div className="grid grid-cols-3 divide-x divide-border border-x border-border bg-surface rounded-lg overflow-hidden">
+        {items.map((item, i) => {
+          const Icon = item.icon
+          return (
+            <div
+              key={item.label || i}
+              className="flex flex-col items-center px-4 py-6 sm:px-6 sm:py-8"
+            >
+              <Icon className="mb-2 h-4 w-4 text-brand-400 opacity-60" strokeWidth={1.5} />
+              <span className="font-display text-2xl font-bold tracking-[-0.02em] text-foreground tabular-nums sm:text-3xl">
+                {item.isBytes ? formatBytes(stats.storage) : <CountUp value={item.value} />}
+              </span>
+              <span className="mt-1 text-[0.75rem] font-medium uppercase tracking-[0.04em] text-muted-foreground">
+                {item.label}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+      <p className="mt-3 text-center text-xs text-muted-foreground">
+        data liberated on web10
+      </p>
+    </div>
+  )
+}
 
 function Hero() {
   return (
@@ -37,9 +160,10 @@ function Hero() {
         </p>
         <div className="reveal mt-10 [animation-delay:320ms]">
           <Button asChild size="lg" variant="brand">
-            <a href={SOCIAL_ORIGIN}>Enter web10 social</a>
+            <a href={SOCIAL_ORIGIN}>Enter web10!</a>
           </Button>
         </div>
+        <HomeStatsBar />
       </div>
     </section>
   )

@@ -9,6 +9,20 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D37 — App Store v2 Registration Record Shape & #web10apps Social Projection [decided]
+Full spec: `.context/appstore-v2-registration-spec.md`. Summary: the `web10.apps`
+collection gains `review_state` (state machine: pending → approved/rejected,
+approved → pending_on_change on listing edit), `metadata_version` (monotonic),
+`web10apps_post_id` (stable anchor for social projection), and node-hosted
+listing metadata (`description`, `icon_url`, `screenshots` — never hot-linked
+from app origin). Every approved app projects as a synthetic discovery entry
+with `tags: ["#web10apps"]` so the social feed discovers apps as posts. The
+product page comment panel and the `#web10apps` thread read the SAME ledger
+entries targeting `system/web10_apps/{web10apps_post_id}` — one conversation,
+two lenses. Star ratings are `AppRating` schema ledger entries (1-5, per-user
+upsert). Gates v2 bite a (product page), v2 bite b (comments + ratings), and
+the v2 rewire build.
+
 ### D36 — The "your algorithm" knobs belong IN the app's Discover (D20 revisited) [decided]
 Operator, 29.07 (screenshot of /trending's knob rack): "the trending page on
 the marketing site is amazing! the discover should borrow much more heavily
