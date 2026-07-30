@@ -732,7 +732,7 @@ class TestEngagementFromLedger:
         mock_discovery, mock_public = mock_discovery_and_public
         mock_discovery.find_one.return_value = {
             "author": "alice",
-            "service": "posts",
+            "service": "public_posts",
             "post_id": "123",
             "body_text": "Hello",
             "tags": [],
@@ -743,7 +743,7 @@ class TestEngagementFromLedger:
             {"_id": "comment", "count": 2},
         ]
         resp = client.patch(
-            "/discover/post/alice/posts/123",
+            "/discover/post/alice/public_posts/123",
             json={"token": None},
         )
         assert resp.status_code == 200
@@ -758,7 +758,7 @@ class TestEngagementFromLedger:
         mock_discovery, mock_public = mock_discovery_and_public
         mock_discovery.find_one.return_value = {
             "author": "alice",
-            "service": "posts",
+            "service": "public_posts",
             "post_id": "456",
             "body_text": "Test",
             "tags": [],
@@ -770,23 +770,24 @@ class TestEngagementFromLedger:
             {"_id": "repost", "count": 2},
         ]
         resp = client.patch(
-            "/discover/post/alice/posts/456",
+            "/discover/post/alice/public_posts/456",
             json={"token": None},
         )
         assert resp.status_code == 200
         data = resp.json()
         assert data["engagement_score"] == 35  # 10*1 + 5*3 + 2*5
 
-    def test_engagement_target_format_converts_post_key(self, client, mock_discovery_and_public):
-        """The badge post_key is author/service/post_id but ledger targets are service:post_id.
+    def test_engagement_target_is_canonical_post_key(self, client, mock_discovery_and_public):
+        """The canonical ledger target is ``{author}/{service}/{post_id}``.
 
-        The aggregation must convert alice/posts/123 → posts:123 so the $match
-        finds the entries the client wrote (comments.ts target=posts:123).
+        The aggregation must $match the raw post_key directly — no conversion.
+        An entry written with target ``alice/public_posts/123`` counts toward
+        post alice/public_posts/123.
         """
         mock_discovery, mock_public = mock_discovery_and_public
         mock_discovery.find_one.return_value = {
             "author": "alice",
-            "service": "posts",
+            "service": "public_posts",
             "post_id": "123",
             "body_text": "Hello",
             "tags": [],
@@ -796,16 +797,47 @@ class TestEngagementFromLedger:
             {"_id": "comment", "count": 3},
         ]
         resp = client.patch(
-            "/discover/post/alice/posts/123",
+            "/discover/post/alice/public_posts/123",
             json={"token": None},
         )
         assert resp.status_code == 200
         data = resp.json()
         assert data["engagement"]["comments"] == 3
-        # Verify the aggregate was called with the converted target, not the raw post_key
+        # Verify the aggregate was called with the canonical target, NOT a conversion
         call_args = mock_public.aggregate.call_args
         pipeline = call_args[0][0]
-        assert pipeline[0] == {"$match": {"target": "posts:123"}}
+        assert pipeline[0] == {"$match": {"target": "alice/public_posts/123"}}
+
+    def test_engagement_legacy_posts_format_not_matched(self, client, mock_discovery_and_public):
+        """A ledger entry with the legacy ``posts:123`` target is NOT matched.
+
+        The social client historically wrote ``posts:{post_id}`` (hardcoded,
+        wrong service name). The API does NOT try to match these — they are
+        documented as orphaned. The client-side fix (D-engagement-target-client)
+        writes the canonical format going forward.
+        """
+        mock_discovery, mock_public = mock_discovery_and_public
+        mock_discovery.find_one.return_value = {
+            "author": "alice",
+            "service": "public_posts",
+            "post_id": "123",
+            "body_text": "Hello",
+            "tags": [],
+            "created_at": "2026-01-01T00:00:00",
+        }
+        # Ledger has entries under the legacy format, but we match canonical
+        mock_public.aggregate.return_value = []  # no matches for canonical target
+        resp = client.patch(
+            "/discover/post/alice/public_posts/123",
+            json={"token": None},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["engagement"]["comments"] == 0
+        # The $match must be for the canonical target, not the legacy format
+        call_args = mock_public.aggregate.call_args
+        pipeline = call_args[0][0]
+        assert pipeline[0] == {"$match": {"target": "alice/public_posts/123"}}
 
     def test_engagement_n_comments_via_ledger_assert_count(self, client, mock_discovery_and_public):
         """Write N comment ledger entries → discovery post comment_count == N."""
@@ -813,7 +845,7 @@ class TestEngagementFromLedger:
         mock_discovery, mock_public = mock_discovery_and_public
         mock_discovery.find_one.return_value = {
             "author": "bob",
-            "service": "posts",
+            "service": "public_posts",
             "post_id": "abc",
             "body_text": "Test post",
             "tags": [],
@@ -823,19 +855,23 @@ class TestEngagementFromLedger:
             {"_id": "comment", "count": N},
         ]
         resp = client.patch(
-            "/discover/post/bob/posts/abc",
+            "/discover/post/bob/public_posts/abc",
             json={"token": None},
         )
         assert resp.status_code == 200
         data = resp.json()
         assert data["engagement"]["comments"] == N
+        # Verify canonical target match
+        call_args = mock_public.aggregate.call_args
+        pipeline = call_args[0][0]
+        assert pipeline[0] == {"$match": {"target": "bob/public_posts/abc"}}
 
     def test_engagement_deleted_comment_decrements(self, client, mock_discovery_and_public):
         """After a comment is deleted from the ledger, the count decrements."""
         mock_discovery, mock_public = mock_discovery_and_public
         mock_discovery.find_one.return_value = {
             "author": "alice",
-            "service": "posts",
+            "service": "public_posts",
             "post_id": "123",
             "body_text": "Hello",
             "tags": [],
@@ -846,7 +882,7 @@ class TestEngagementFromLedger:
             {"_id": "comment", "count": 3},
         ]
         resp = client.patch(
-            "/discover/post/alice/posts/123",
+            "/discover/post/alice/public_posts/123",
             json={"token": None},
         )
         assert resp.status_code == 200
@@ -857,32 +893,44 @@ class TestEngagementFromLedger:
             {"_id": "comment", "count": 2},
         ]
         resp2 = client.patch(
-            "/discover/post/alice/posts/123",
+            "/discover/post/alice/public_posts/123",
             json={"token": None},
         )
         assert resp2.status_code == 200
         assert resp2.json()["engagement"]["comments"] == 2
 
     def test_engagement_post_id_with_slash_unit(self):
-        """post_ids containing slashes must be re-joined correctly.
+        """post_ids containing slashes are matched as-is in the canonical target.
 
-        This is a unit test because the FastAPI route cannot accept slashes in
-        path parameters — the integration path is tested at the function level.
+        The canonical target ``{author}/{service}/{post_id}`` handles slashes
+        in post_ids because _discovery_post_to_dict builds the key from the
+        three separate fields, and _ledger_engagement_for_post matches it
+        directly with no parsing.
         """
         doc = {
             "author": "alice",
-            "service": "posts",
+            "service": "public_posts",
             "post_id": "sub/123",
             "body_text": "Nested",
             "tags": [],
             "created_at": "2026-01-01T00:00:00",
         }
+        # _discovery_post_to_dict builds the post_key from the three fields
         post_key = f"{doc['author']}/{doc['service']}/{doc['post_id']}"
-        # Verify the function extracts service:post_id correctly
-        parts = post_key.split("/")
-        service = parts[1]
-        pid = "/".join(parts[2:])
-        assert f"{service}:{pid}" == "posts:sub/123"
+        assert post_key == "alice/public_posts/sub/123"
+        # The function should match this target directly — no parsing needed
+        mock_col = MagicMock()
+        mock_col.aggregate.return_value = [
+            {"_id": "comment", "count": 2},
+        ]
+        with (
+            patch.object(db_module.db["web10"], "__getitem__", return_value=mock_col),
+            patch.object(db_module.db, "list_collection_names", return_value=["web10.public"]),
+        ):
+            result = db_module._ledger_engagement_for_post(post_key)
+        assert result["comments"] == 2
+        call_args = mock_col.aggregate.call_args[0][0]
+        assert call_args[0] == {"$match": {"target": "alice/public_posts/sub/123"}}
 
 
 # ---------------------------------------------------------------------------
