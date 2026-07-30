@@ -2256,6 +2256,33 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       decrements; a vitest regression on the toggle round-trip;
       social tests + tsc green. gate: none.
 
+[ ] D-delete-post-broken (sub-lane ws-D/profile, PostLightbox seam;
+      operator, 30.07 rant: "the delete post button isnt working for
+      me!"): ROOT CAUSE visible in the code at filing — deletePost
+      (posts.ts:141-143) hardcodes `wapi.delete('posts', { _id: id })`,
+      but posts haven't lived in a `posts` service since the D30
+      collection split: createPost writes `public_posts` or
+      `private_posts` (posts.ts:38). the delete targets a service the
+      post is NOT in → matches nothing → the post survives (and this
+      flow swallows errors upstream, so the UI looks like it worked —
+      the same wrong-hardcoded-service class as the `posts:{id}`
+      ledger target in A18 and the stale-delete in
+      D-visibility-toggle-duplicate). fix: deletePost takes the post's
+      visibility (or the post record) and deletes from the CORRECT
+      collection (public_posts | private_posts); thread it from the
+      PostLightbox call site (handleDelete, PostLightbox.tsx:151).
+      ALSO: deleting a PUBLIC post must remove its discovery-index doc
+      (else a ghost renders on /trending + Discover after the
+      collection delete works — check whether the api un-indexes on
+      delete; if that's missing it's a small lane-A touch, leave a
+      .context/ note) — and the profile grid/feed must re-read after
+      delete so the post disappears without a manual refresh.
+      acceptance: delete a public post → it's gone from public_posts,
+      the discovery index, and the UI (no refresh); delete a private
+      post → gone from private_posts; a vitest regression pins the
+      per-visibility service selection; social tests + tsc green.
+      gate: none.
+
 [ ] D-user-profile-stats (sub-lane ws-D/profile; operator, 30.07 rant,
       screenshot of social.web10.app/u/coolguydavid — stats row shows
       only "0 Posts" + a numberless "Following" label, grid says "No
@@ -3304,7 +3331,10 @@ the M2 money-path referee (C8); no infra-company drift. QWEN HORIZON:
     ws-D/messages:   D-dm-header-profile-link (TINY, no gate), THEN
                      D-deep-links bite 1 (messages thread key + view
                      param — same DmsScreen seam, sequential)
-    ws-D/profile:    D-user-profile-stats (operator rant + screenshot —
+    ws-D/profile:    D-delete-post-broken (operator rant — root cause
+                     named: hardcoded `posts` service vs the D30
+                     public_posts/private_posts split), THEN
+                     D-user-profile-stats (operator rant + screenshot —
                      three confirmed bugs, viewer's count leaks onto
                      another user's profile), THEN
                      D-visibility-toggle-duplicate (operator rant —

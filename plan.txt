@@ -2482,6 +2482,14 @@ D-dm-header-profile-link (ws-D/messages, tiny). merged 1.0.251.
     bare-on-background vs sleek individual cards is the builder's
     taste call against design.md §12. lane item
     D-home-stats-bar-styling (ws-D/marketing(2), small).
+[ ] delete post button broken (operator, 30.07 rant: "the delete post
+    button isnt working for me!"): root cause visible in the code —
+    deletePost (posts.ts:141) hardcodes the `posts` service, but posts
+    live in public_posts/private_posts since the D30 collection split;
+    the delete matches nothing and the error is swallowed. fix:
+    delete from the post's actual collection, remove the discovery
+    ghost on public deletes, re-read the grid after delete. lane item
+    D-delete-post-broken (ws-D/profile).
 [ ] another user's profile shows HIS stats + posts (operator, 30.07
     rant, screenshot of /u/coolguydavid: "i dont see how many hes
     following and how many followers! nor do i see his posts but i
