@@ -1,31 +1,83 @@
 import { useEffect } from 'react';
-import { ArrowUpRight, ArrowRight } from 'lucide-react';
+import { Key, Wallet, Send, ArrowUpRight } from 'lucide-react';
 import { trackFunnel } from '@/lib/analytics';
 import { AUTH_ORIGIN, SOCIAL_ORIGIN } from '@/lib/origins';
+
+const steps = [
+  {
+    number: 1,
+    href: SOCIAL_ORIGIN,
+    title: 'Get the app',
+    subtitle: 'Open web10 social',
+    icon: 'pwa',
+  },
+  {
+    number: 2,
+    href: AUTH_ORIGIN,
+    title: 'Create your account',
+    subtitle: "Sign up — it's free",
+    icon: 'key',
+  },
+  {
+    number: 3,
+    href: `${AUTH_ORIGIN}?mode=studio`,
+    title: 'Set up your monetization',
+    subtitle: 'Open the Studio',
+    icon: 'wallet',
+  },
+  {
+    number: 4,
+    href: `${SOCIAL_ORIGIN}/feed`,
+    title: 'Post to the feed',
+    subtitle: 'Share your first post',
+    icon: 'send',
+  },
+] as const;
+
+const iconMap = {
+  key: Key,
+  wallet: Wallet,
+  send: Send,
+};
 
 function StepCard({
   number,
   href,
   title,
   subtitle,
+  icon,
   testid,
 }: {
   number: number;
   href: string;
   title: string;
   subtitle: string;
+  icon: 'pwa' | 'key' | 'wallet' | 'send';
   testid: string;
 }) {
+  const Icon = iconMap[icon];
+
   return (
     <a
       href={href}
       target="_blank"
       rel="noopener noreferrer"
       data-testid={testid}
-      className="group flex items-center gap-4 rounded-lg border border-border bg-surface p-4 transition-colors duration-150 ease-out hover:border-brand/50"
+      className="group relative flex items-center gap-4 rounded-lg border border-border bg-surface p-4 transition-all duration-150 ease-out hover:-translate-y-0.5 hover:border-brand/40 hover:bg-elevated"
     >
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-elevated font-mono text-sm font-semibold tabular-nums text-brand">
-        {number}
+      <span className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-elevated">
+        {icon === 'pwa' ? (
+          <img
+            src="/brand/icon-192.png"
+            alt=""
+            className="h-10 w-10 object-contain"
+          />
+        ) : Icon ? (
+          <Icon className="h-6 w-6 text-brand-400" strokeWidth={1.5} />
+        ) : null}
+        <span className="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full border-2 border-surface bg-brand text-[0.625rem] font-bold leading-none text-background">
+          {number}
+        </span>
       </span>
       <div>
         <p className="font-display text-base font-semibold text-foreground">
@@ -34,7 +86,7 @@ function StepCard({
         <p className="text-sm text-muted-foreground">
           {subtitle}
           <ArrowUpRight
-            className="ml-1 align-middle h-3.5 w-3.5 transition-colors duration-150 group-hover:text-brand"
+            className="ml-1 inline-block align-middle h-3.5 w-3.5 transition-colors duration-150 group-hover:text-brand"
             strokeWidth={1.75}
           />
         </p>
@@ -45,8 +97,38 @@ function StepCard({
 
 function StepArrow() {
   return (
-    <div className="hidden self-center text-muted-foreground sm:block">
-      <ArrowRight className="h-5 w-5" strokeWidth={1.5} />
+    <div className="hidden self-center sm:flex sm:items-center">
+      <svg
+        width="32"
+        height="2"
+        viewBox="0 0 32 2"
+        fill="none"
+        className="text-muted-foreground/30"
+      >
+        <line
+          x1="0"
+          y1="1"
+          x2="24"
+          y2="1"
+          stroke="currentColor"
+          strokeWidth="1"
+        />
+      </svg>
+      <svg
+        width="12"
+        height="12"
+        viewBox="0 0 12 12"
+        fill="none"
+        className="text-muted-foreground/50"
+      >
+        <path
+          d="M4.5 3L7.5 6L4.5 9"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
     </div>
   );
 }
@@ -55,37 +137,19 @@ function StepStrip({ justify, testidSuffix }: { justify?: string; testidSuffix?:
   const s = testidSuffix || '';
   return (
     <div className={`flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center ${justify ? `sm:${justify}` : ''}`}>
-      <StepCard
-        number={1}
-        href={SOCIAL_ORIGIN}
-        title="Get the app"
-        subtitle="Open web10 social"
-        testid={`join-step-1${s}`}
-      />
-      <StepArrow />
-      <StepCard
-        number={2}
-        href={AUTH_ORIGIN}
-        title="Create your account"
-        subtitle="Sign up — it's free"
-        testid={`join-step-2${s}`}
-      />
-      <StepArrow />
-      <StepCard
-        number={3}
-        href={`${AUTH_ORIGIN}?mode=studio`}
-        title="Set up your monetization"
-        subtitle="Open the Studio"
-        testid={`join-step-3${s}`}
-      />
-      <StepArrow />
-      <StepCard
-        number={4}
-        href={`${SOCIAL_ORIGIN}/feed`}
-        title="Post to the feed"
-        subtitle="Share your first post"
-        testid={`join-step-4${s}`}
-      />
+      {steps.map((step, i) => (
+        <span key={step.number}>
+          {i > 0 && <StepArrow />}
+          <StepCard
+            number={step.number}
+            href={step.href}
+            title={step.title}
+            subtitle={step.subtitle}
+            icon={step.icon}
+            testid={`join-step-${step.number}${s}`}
+          />
+        </span>
+      ))}
     </div>
   );
 }
