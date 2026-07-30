@@ -301,6 +301,18 @@ bloat chokes small windows exactly like big tasks do); if the same
 class bricks twice, the previous fix was wrong — replace it, don't
 stack another rule on top.
 
+## The `imma rant` code word (operator → any agent)
+
+`imma rant` means the operator is about to fire a stream of complaints
+(usually with screenshots). The full rule lives in AGENTS.md's code-word
+list; the short version: **file, don't build.** Every complaint becomes
+a lane item in `parallel execution.txt` + `plan.txt` (verbatim quote,
+screenshot referenced, diagnosis if cheap, acceptance bar, sub-lane +
+gates, bite-sized per rule 5) on one docs branch with a CHANGELOG line
+— and NOTHING gets implemented in this workspace, however small the
+fix feels. The next `web10web10!` turns the filings into Qwen kickoff
+blocks. Outside a declared rant, small direct fixes remain fine.
+
 ## The dev-batch gate + dev→main promotion (executed as `web10web10!` step 5)
 
 This section was the standalone `web10 gather up!` code word; it is now
