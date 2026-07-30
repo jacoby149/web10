@@ -101,8 +101,8 @@ function HomeStatsBar() {
   if (!stats || error) return null
 
   const items: Array<{ value: number | string; label: string; icon: typeof Users; isFormatted?: boolean }> = [
-    { value: stats.users, label: 'users', icon: Users },
-    { value: stats.apps, label: 'apps', icon: Layers },
+    { value: stats.users, label: 'platform users', icon: Users },
+    { value: stats.apps, label: 'appstore apps', icon: Layers },
     { value: formatBytes(stats.storage), label: 'data liberated', icon: HardDrive, isFormatted: true },
   ]
 
