@@ -392,6 +392,178 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       none. NOTE: the marketing-ui side needs nothing if `storage`
       stays the summed field (formatBytes already renders it).
 
+[ ] A20-recovery-email-channel (lane A, api/**; operator, 30.07 rant:
+      "really bad if people cant get into their web10, like really
+      bad! we need to pester every user to set a recovery email
+      pronto or number, if they havent! the recovery flow has to be
+      tight so the user accounts aren't ephemeral, they are
+      permanent!" — "probably more than half of users will forget
+      their password"). VERIFIED GAP at HEAD: `email` appears
+      NOWHERE in api/app — the star record holds phone but NO email
+      field, and recovery is SMS-ONLY (twilio /recovery_prompt +
+      /recovery_bot, endpoints/auth.py:30-40). a user who loses
+      password + phone has NO way back in — accounts are ephemeral
+      today, which is the exact thing the operator says must never
+      be true. plan.txt node-policy section carries the full
+      decision (email as a first-class reset channel since 19.07,
+      re-confirmed + escalated 30.07). shape: the account (star
+      record) gains an optional `email` field set via an
+      authenticated settings endpoint (verify-by-code before it
+      counts — same pattern as phone); email recovery mirrors the
+      SMS flow: enter email -> code sent (smtp/transactional
+      provider hookup — pick the cheapest reputable one, keys in
+      env never git per the secrets rule) -> set new password.
+      rate-limit the recovery endpoints (plan.txt CROSS-CUTTING
+      already names recovery-by-sms especially). BITES (rule 5):
+      bite a, THE EMAIL FIELD + VERIFIED-SET: star record gains
+      email, set/verify endpoints, tests. bite b, THE RESET FLOW:
+      email code -> password reset, mirroring the sms path, tests.
+      acceptance: a user with a verified email can reset a forgotten
+      password end to end with no phone involved; permission-matrix
+      + auth tests green, ruff clean. gate: none. the UI half
+      (CredentialPage + the pester nudge) is B9 — leave the JSON
+      contract as a .context/ note.
+
+[ ] A21-passwordless-phone-login (lane A, api/**; PRIORITY — operator,
+      30.07 rant: "even better, passwordless phone text verification code
+      is the goat! also cool if we dont let people make an account
+      if the phone number aint legit, so everyone is a very legit
+      user on web10!"): TWO halves. (1) PASSWORDLESS LOGIN: log in
+      by phone + SMS code, no password — the twilio Verify
+      send/check pair already exists (services/twilio.py:16-39, used
+      at signup); the new part is a LOGIN path: enter phone -> code
+      -> token minted for the account with that verified phone.
+      security care: the code MUST be the twilio-Verify-checked one
+      (I2 — no unsigned claims), rate-limit hard (this is an
+      account-takeover surface if sloppy), and an unknown/unverified
+      phone gets the same response shape as a known one (no user
+      enumeration).       (2) LEGIT-PHONE-REQUIRED SIGNUP on web10 Inc.'s
+      node: phone verification at signup becomes MANDATORY, not
+      optional — a legit verified number or no account ("everyone is
+      a very legit user"). this is the plan.txt node-policy toggle
+      (phone-required signup as operator policy, NOT a protocol
+      hardcode — self-hosters keep open/invite defaults): grow
+      VERIFY_REQUIRED into the real policy config and flip
+      web10.app's policy to phone-required. OPERATOR CLARIFICATIONS
+      (30.07, same rant): (a) NO one-account-per-phone restriction —
+      "we dont need to restrict one user account per phone number!"
+      so the PHONE_NUMBER_TAKEN check in create_user
+      (documentdb.py:217-218) GOES AWAY under the new policy (the
+      phone registry's insert_one shape already allows N usernames
+      per phone — get_phone_record's find_one is the single-user
+      assumption to outgrow); (b) VERIFIED-ONLY USER COUNT — "they
+      need to verify to be added to the count of users!": the
+      marketing /stats users number (system.py:144 ->
+      get_user_count, documentdb.py:862) is currently
+      len(list_collection_names()) — it counts EVERY collection,
+      unverified signups AND the web10 system collection included.
+      under phone-required policy the count must only include
+      VERIFIED users (the star record's `verified` flag,
+      set_verified/is_verified exist) — the landing-page number
+      becomes "very legit users" honestly. LIVE EVIDENCE (operator,
+      30.07, screenshot of the prod marketing stats bar reading
+      "464 USERS"): "problem is new users signing up verry
+      frequently! and they arent verifying phone number" — the
+      464 is inflated by unverified signups happening RIGHT NOW
+      (VERIFY_REQUIRED is off on prod), so bites b+c are the
+      priority half of this item, not an afterthought: every day
+      without them the headline number drifts further from real
+      users and more ephemeral unverified collections pile up.
+      OPEN QUESTION for the operator at implementation: the
+      EXISTING unverified collections — count them first (a
+      read-only audit: star records with verified=false), then
+      decide keep-vs-reap; record the call in decisions.md.
+      BITES (rule 5): bite a,
+      the passwordless login endpoint + tests; bite b, the
+      phone-required policy toggle + drop PHONE_NUMBER_TAKEN +
+      web10.app config flip + tests; bite c, verified-only
+      get_user_count (+ exclude system collections) + tests.
+      acceptance: passwordless login works end to end against twilio
+      (mocked in unit tests — real-keys e2e is C8's territory);
+      signup without a verified phone is rejected when the policy is
+      on and allowed when off; two accounts CAN share one phone;
+      /stats users counts verified users only; auth tests + ruff
+      green. gate: none. the UI half (passwordless login option +
+      mandatory-phone signup copy) is B9 bite c — leave the JSON
+      contract as a .context/ note.
+
+[ ] A22-forgot-username-by-phone (lane A, api/**, SMALL; operator,
+      30.07 rant: "if they say forgot username, they enter their
+      phone number, and it shows them a list of users under that
+      phone number AFTER verifying their phone number through text.
+      so the twilio integration definitely becoming useful after
+      all! used to have some logic like this in the old version of
+      the project before this hardcore summer development push"):
+      FORGOT-USERNAME flow. the old-project logic the operator
+      remembers is still here in seed form: the phone registry
+      (db["web10"]["phone_number"], register_phone_number /
+      get_phone_record, documentdb.py:147-169) + the twilio
+      recovery_bot — but get_phone_record is find_one (ONE username
+      per phone) and there is no forgot-username endpoint today.
+      shape: enter phone -> twilio Verify code (the existing
+      send/check pair) -> ONLY AFTER the code checks out, return
+      the LIST of usernames registered under that phone (a
+      find-all over the phone registry — N usernames per phone is
+      explicitly allowed per A21's operator clarification).
+      security care: usernames are revealed ONLY post-verification
+      (never a pre-verify "3 accounts found" — no enumeration
+      oracle), rate-limit hard, same response shape for
+      unknown phones. acceptance: a verified phone returns exactly
+      its registered usernames (0, 1, or N); an unverified request
+      learns nothing; auth tests + ruff green. gate: pairs with
+      A21 bite b (multi-account-per-phone makes the list real) but
+      the endpoint can land first against the existing registry.
+      the UI half (forgot-username link on CredentialPage) is B9
+      bite d — leave the JSON contract as a .context/ note.
+
+[ ] A23-verification-enforcement (lane A, api/**; operator, 30.07
+      rant: "everyone puts a phone number, we should have some kind
+      of a schedule maybe daily? we should ask all the unverified
+      users platform wide to verify their number over text with a
+      link to verify! and if they dont, after three reminders, we
+      shut the accounts down, set the account INACTIVE, and someone
+      else could take the username it frees up the username"):
+      the verification ENFORCEMENT loop — this RESOLVES A21's open
+      keep-vs-reap question: the operator's call is REAP (with
+      reminders first). VERIFIED GAPS at HEAD: (1) no active/
+      inactive state exists — the star record (records.py:6-18)
+      has `verified` but no status field; (2) no scheduler infra
+      in the api (no apscheduler/celery/cron — keep it simple: an
+      asyncio background loop in the api or a cron-hit admin
+      endpoint, implementer's call, record in decisions.md); (3)
+      create_user's EXISTS check (documentdb.py:213-214) treats
+      ANY existing collection as taken, so freeing a username
+      needs a seam. shape: a DAILY pass over all users with
+      verified=false -> twilio SMS with a verify link (the
+      existing send_verification pair + a link into the ui's
+      verify screen) -> track reminder count + last-sent ON the
+      star record (reminders: int, last_reminder_at) -> after the
+      THIRD unheeded reminder, set status=INACTIVE and FREE THE
+      USERNAME. the username-freeing seam: RENAME the collection
+      (e.g. `inactive:<username>:<ts>`) rather than delete — the
+      data survives (I3, the permanence promise — the ACCOUNT is
+      shut, not erased; reactivation path is a follow-up decision,
+      note it in the item's PR), create_user's EXISTS check then
+      naturally sees the name as free, and get_user_count (A21
+      bite c's verified-only count) already excludes them. also:
+      login/passwordless/recovery paths must reject INACTIVE
+      accounts with a clear "this account was deactivated —
+      verify your phone to restore" (NOT a generic error — that's
+      a support-ticket generator). BITES (rule 5): bite a, the
+      status field + reminder tracking + the daily pass sending
+      SMS reminders (tests: a seeded unverified user gets
+      reminded, count increments, verified users untouched);
+      bite b, the three-strikes INACTIVE transition + collection
+      rename + create_user frees the name + auth paths reject
+      INACTIVE with the clear message (tests pin all four).
+      acceptance: a user who ignores 3 daily reminders goes
+      INACTIVE and their username can be re-registered; a user
+      who verifies from any reminder link is safe; auth tests +
+      ruff green. gate: A21 bite b (phone-required policy — the
+      enforcement only makes sense once verification is the
+      norm); the SMS copy + verify-link target need B9's verify
+      screen — coordinate via .context/.
+
 [✓ 1.0.230] A18-engagement-target-canonical (lane A, api/**; PRIORITY 1 —
       REGRESSION, operator 29.07, screenshot: every /trending card
       shows 0 likes / 0 comments): A15's fix (#360) made counts WORSE
@@ -593,6 +765,45 @@ LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
       shows BOTH transitions. that test is the regression seatbelt for
       the whole phase — it's how "we shipped moderation with no test"
       doesn't happen.
+
+[ ] B9-recovery-contact-nudge (lane B, ui/**; operator, 30.07 rant:
+      "we need to pester every user to set a recovery email pronto
+      or number, if they havent! the recovery flow has to be tight
+      so the user accounts aren't ephemeral, they are permanent!"):
+      the authenticator (ui/) PESTERS every signed-in user who has
+      no recovery contact set — a persistent, dismissible-but-
+      returning banner/nudge on the authenticated home ("your
+      account is at risk — set a recovery email/phone") until one
+      is set, plus the recovery-flow UI halves of A20/A21. accounts
+      are PERMANENT is the product promise; the nudge is how every
+      existing user gets there. BITES (rule 5):
+      bite a, THE NUDGE (no gate — phone already exists on the star
+      record): the banner on the authenticated home when no
+      recovery phone/email is set, linking to a settings screen
+      where the user sets/verifies their phone (and email once A20
+      bite a lands — degrade gracefully until then). acceptance:
+      a fresh account sees the nudge, an account with a verified
+      phone does not; design.md §12 (screenshots desktop + 375px,
+      LOOK); ui tests green.
+      bite b, EMAIL RECOVERY UI (gate: A20 — get the JSON contract
+      from lane A's .context/ note, build against fixtures until it
+      merges): CredentialPage's forgot flow gains the email channel
+      (enter email -> code -> new password) next to the phone one;
+      the settings screen gains the verified-email setter.
+      bite c, PASSWORDLESS + LEGIT-PHONE UI (gate: A21, same
+      contract pattern): the login screen offers "text me a code"
+      passwordless login; signup copy + flow reflects mandatory
+      phone verification when the node policy requires it.
+      bite d, FORGOT-USERNAME UI (gate: A22, same contract
+      pattern): the CredentialPage gains a "forgot username" link
+      — enter phone, verify the texted code, see the list of
+      usernames under that phone (operator, 30.07: "it shows them
+      a list of users under that phone number AFTER verifying
+      their phone number through text").
+      acceptance per bite: design.md §12 screenshots desktop +
+      375px and LOOK, ui tests green, deep-link rule respected for
+      any new screen/state. owns ui/** only — never reach into
+      api/; the endpoint shapes come from lane A via .context/.
 
 LANE C — greenfield services  (owns: sdk/, mcp/, new dirs)
   [✓ 1.0.25] C1. P5 media service (presigned urls, minio profile,
@@ -1910,13 +2121,13 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       back/forward walk the history; screenshots desktop + 375px.
       gate: current 26.07-late fleet merged (it touches most of their
       files).
-      BITES (rule 5 — one bite PER SCREEN when staged, each its own
-      PR): messages (thread key + view param), discover (tag/q
-      params), profile (tab param), comment anchor (?comment= on the
-      permalink route — gate: D-feed-lightbox bite b), marketing
-      retarget (TrendingCard/comment/search links point at the deep
-      urls — gate: the relevant routes merged). never one sweeping
-      branch.
+BITES (rule 5 — one bite PER SCREEN when staged, each its own
+       PR): [✓ 1.0.262] messages (thread key + view param), discover (tag/q
+       params), profile (tab param), comment anchor (?comment= on the
+       permalink route — gate: D-feed-lightbox bite b), marketing
+       retarget (TrendingCard/comment/search links point at the deep
+       urls — gate: the relevant routes merged). never one sweeping
+       branch.
 
 [✓ 1.0.208 #348] D-marketing-search (sub-lane ws-D/marketing; operator, 26.07: "the
       one thing we are really missing now is search! searching by tag,
@@ -2009,7 +2220,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         steps 2-5 render as the honest journey with the steps that
         aren't built yet marked "coming soon" (never fake a working
         step). no backend. gate: none.
-      bite b, THE WETRANSFER PIPELINE (sub-lane ws-D/marketing-api —
+      [✓ 1.0.262 #435] bite b, THE WETRANSFER PIPELINE (sub-lane ws-D/marketing-api —
         marketing/marketing-api/**; NEW sub-lane, nothing in flight
         there): authenticated ZIP upload to the hosted S3 (presigned
         PUT/POST like the node's media path), a background queue
@@ -2187,6 +2398,27 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       NOTE: pairs with the YouTube-first import push (D-import-
       youtube-first) — the creator pitch is "import your YouTube
       catalog, see it on a YouTube-shaped trending."
+
+[ ] D-marketing-session-analytics (sub-lane ws-D/marketing(2), SMALL;
+      operator, 30.07 rant: "if we havent set up hotjar on the
+      marketing page, we NEED to!"): the marketing site (marketing-
+      ui, pre-signup visitors) gets session analytics PRONTO. the
+      standing plan.txt decision (ux telemetry item) is SELF-HOSTED
+      posthog or openreplay for marketing-ui — marketing traffic
+      never feeds a third-party saas — and hotjar/fullstory-class
+      recording is RADIOACTIVE on the platform surfaces (ui/ +
+      web10-social — that line stays bright, this item is
+      marketing-ui ONLY). the operator named hotjar explicitly, so
+      RECONCILE AT IMPLEMENTATION: if the self-hosted path can't be
+      live this week and hotjar-the-SaaS is what unblocks it, that
+      is the operator's explicit call — record whichever way in
+      decisions.md. scope: landing -> docs -> app store -> exporter
+      funnel visibility (pageview + funnel events already flow to
+      marketing-api; this adds the session-replay/heatmap leg).
+      acceptance: the operator can watch real marketing-page
+      sessions (replay or heatmap) within the week; the platform
+      surfaces remain recording-free; marketing-ui tests + tsc
+      green. gate: none.
 
 [✓ 1.0.240] D-home-stats-bar (sub-lane ws-D/marketing(2); SEAM: Home.tsx —
       disjoint from AppStore/Join files; operator, 29.07 rant,
@@ -2526,7 +2758,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       remaining blocker with evidence; social tests + tsc green.
       gate: none.
 
-[ ] D-own-profile-canonical (sub-lane ws-D/shell, TINY; operator, 30.07
+[✓ 1.0.262] D-own-profile-canonical (sub-lane ws-D/shell, TINY; operator, 30.07
       rant: "when i click my username, it goes to my profile page
       instead of just /profile it goes to profile/u/jacoby149 — lets
       just have it always be profile/u/jacoby149!"): clicking your own
@@ -3394,6 +3626,34 @@ QWEN HORIZON: 7 immediately-kickoffable parallel-safe bites across
 self-engagement-counts, own-profile-canonical, home-stats-bar-
 styling, A19-stats-s3-bytes, import-revamp bite b), ~12+ chained
 PRs behind them — Qwens run independently.
+30.07 RANT FILINGS (this branch, docs only — recovery/analytics
+rant): A20-recovery-email-channel + A21-passwordless-phone-login
+(lane A — "user accounts aren't ephemeral, they are permanent!";
+`email` verified ABSENT from api/app at HEAD, recovery is SMS-only
+today), B9-recovery-contact-nudge (lane B — pester every user with
+no recovery contact until set), D-marketing-session-analytics
+(ws-D/marketing(2) — "if we havent set up hotjar on the marketing
+page, we NEED to!"; reconcile vs the self-hosted posthog decision,
+operator's call). Fleet queues above updated; A19 (1.0.263) +
+D-home-stats-bar-styling (1.0.262) merges de-queued.
+30.07 RANT CONTINUED (same branch): operator clarifications folded
+in — NO one-account-per-phone restriction (drop PHONE_NUMBER_TAKEN
+in A21 bite b), VERIFIED-ONLY user count in /stats (A21 bite c —
+get_user_count is len(list_collection_names()) today, counting
+unverified + system collections), and A22-forgot-username-by-phone
+filed (phone + texted code -> list of usernames; the old project's
+phone registry + recovery_bot is the surviving seed) with the UI
+half as B9 bite d. RE-CONFIRMED with live evidence (operator,
+30.07, screenshot of the prod stats bar at "464 USERS"): "problem
+is new users signing up verry frequently! and they arent verifying
+phone number" — A21 bumped to PRIORITY (bites b+c first: the
+headline number inflates daily and unverified collections pile
+up); existing unverified collections get a read-only audit then an
+operator keep-vs-reap call in decisions.md. KEEP-VS-REAP RESOLVED
+(same rant, 30.07): REAP with reminders first — A23-verification-
+enforcement filed (daily SMS verify link to every unverified user;
+3 unheeded reminders -> status=INACTIVE + collection RENAMED not
+deleted, freeing the username; gated on A21 bite b).
 
   PRIORITY 1 (fresh, this audit):
     ws-E (operator-gated): E-run-discovery-migration — STILL the
@@ -3434,11 +3694,44 @@ PRs behind them — Qwens run independently.
     ws-D/feed:       D-self-engagement-counts (operator rant — self
                      likes/comments/shares count; REPRO first, orphaned
                      legacy-target suspect)
-    ws-D/marketing(2): D-home-stats-bar-styling (SMALL, no gate —
-                     kill the border, DATA LIBERATED as the third
-                     label, builder's taste on cards vs bare)
-    ws-A:            A19-stats-s3-bytes (SMALL, no gate — "data
-                     liberated" gains the object-store bytes)
+    ws-D/marketing(2): D-import-youtube-first (SMALL, no gate —
+                     /import goes YouTube-first, others honestly
+                     TBD) + D-marketing-session-analytics (SMALL,
+                     no gate — 30.07 rant: hotjar-class session
+                     analytics on the marketing page pronto;
+                     reconcile vs the self-hosted posthog line,
+                     operator's call, record in decisions.md).
+                     (D-home-stats-bar-styling merged 1.0.262 —
+                     board drift fixed 30.07)
+    ws-A:            A20-recovery-email-channel bite a (30.07 rant —
+                     accounts must be PERMANENT: star record gains a
+                     verified email field; email recovery mirrors
+                     the SMS flow; `email` is absent from api/app
+                     today), THEN A21-passwordless-phone-login bite
+                     a (30.07 rant — login by phone + SMS code;
+                     twilio Verify pair already exists) + bite b
+                     (legit-phone-required signup as a node policy
+                     toggle, web10.app flips to phone-required; NO
+                     one-account-per-phone restriction — drop
+                     PHONE_NUMBER_TAKEN) + bite c (verified-only
+                     user count in /stats), THEN
+                     A22-forgot-username-by-phone (SMALL — phone +
+                     texted code -> list of usernames under that
+                     phone; the old project's phone registry is the
+                     seed, get_phone_record's find_one is the
+                     single-user assumption to outgrow), THEN
+                     A23-verification-enforcement (GATED on A21
+                     bite b — daily SMS verify reminders to all
+                     unverified users, 3 strikes -> INACTIVE +
+                     collection RENAMED so the username frees up;
+                     resolves the keep-vs-reap question: REAP).
+                     (A19-stats-s3-bytes merged 1.0.263 — board
+                     drift fixed 30.07)
+    ws-B:            B9-recovery-contact-nudge bite a (30.07 rant —
+                     pester every user with no recovery contact set;
+                     no gate, phone already on the star record);
+                     bites b/c/d gated on A20/A21/A22 contracts
+                     (bite d = forgot-username flow)
     ws-D/marketing-api: D-import-revamp bite b (the WeTransfer pipeline —
                      gate bite a merged 1.0.231, CLEARED; NEW sub-lane,
                      nothing in flight there)

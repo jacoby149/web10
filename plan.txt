@@ -663,6 +663,67 @@ node policy (anti-abuse is the NODE'S call, not the protocol's):
     needs an smtp/provider hookup in api/ plus the same code flow in
     the ui CredentialPage. losing a password must never feel like
     losing the account.
+    RE-CONFIRMED + ESCALATED (operator rant, 30.07.2026): "really bad
+    if people cant get into their web10, like really bad! we need to
+    pester every user to set a recovery email pronto or number, if
+    they havent! the recovery flow has to be tight so the user
+    accounts aren't ephemeral, they are permanent!" — "probably more
+    than half of users will forget their password." VERIFIED GAP at
+    HEAD: `email` appears NOWHERE in api/app — the star record holds
+    phone but no email field, and recovery is SMS-only (twilio
+    /recovery_prompt + /recovery_bot). so today a user who loses
+    both password and phone has NO way back in — the account IS
+    ephemeral. filed as A20-recovery-email-channel (api) +
+    B9-recovery-contact-nudge (ui: pester every user with no
+    recovery contact set until they set one). accounts are
+    PERMANENT is the product promise.
+[ ] passwordless phone login (operator rant, 30.07.2026): "even
+    better, passwordless phone text verification code is the goat!
+    also cool if we dont let people make an account if the phone
+    number aint legit, so everyone is a very legit user on web10!"
+    — login by phone + SMS code, no password at all (the twilio
+    Verify send/check pair already exists for signup — the login
+    path is the new part), and on web10 Inc.'s node phone
+    verification is MANDATORY at signup (a legit verified number or
+    no account — every user a very legit user). stays a node policy
+    toggle per the item above (self-hosters pick open/invite); the
+    web10.app policy flips to phone-required. filed as
+    A21-passwordless-phone-login (api) + the ui half in B9.
+    OPERATOR CLARIFICATIONS (30.07, same rant): (a) NO
+    one-account-per-phone restriction — "we dont need to restrict
+    one user account per phone number!" (the PHONE_NUMBER_TAKEN
+    check in create_user goes away under the new policy); (b)
+    VERIFIED-ONLY USER COUNT — "they need to verify to be added to
+    the count of users!": get_user_count is currently
+    len(list_collection_names()) — every collection, unverified
+    signups and the web10 system collection included; the /stats
+    users number must count verified users only. LIVE EVIDENCE
+    (operator, 30.07, screenshot of the prod stats bar at "464
+    USERS"): "problem is new users signing up verry frequently!
+    and they arent verifying phone number" — unverified signups
+    are inflating the headline number right now; bites b+c of A21
+    are the priority, and the existing unverified collections need
+    a read-only audit + a keep-vs-reap call recorded in
+    decisions.md. KEEP-VS-REAP RESOLVED (operator, 30.07): REAP,
+    with reminders first — "we should ask all the unverified users
+    platform wide to verify their number over text with a link to
+    verify! and if they dont, after three reminders, we shut the
+    accounts down, set the account INACTIVE, and someone else
+    could take the username it frees up the username." filed as
+    A23-verification-enforcement: a daily pass texts every
+    unverified user a verify link, three unheeded reminders ->
+    status=INACTIVE + the collection is RENAMED (not deleted —
+    the data survives, the permanence promise holds for the
+    account owner; reactivation path is a follow-up) so the
+    username frees up for re-registration; (c) FORGOT
+    USERNAME — "if they say forgot username, they enter their phone
+    number, and it shows them a list of users under that phone
+    number AFTER verifying their phone number through text... used
+    to have some logic like this in the old version of the project
+    before this hardcore summer development push" — the seed of
+    that old logic survives (the phone registry + twilio
+    recovery_bot); filed as A22-forgot-username-by-phone (api) +
+    B9 bite d (ui).
 [ ] passkeys as a login option once phase 0 lands -- better than
     passwords, no phone number, phishing-proof. fits the vibe.
 
@@ -2552,7 +2613,7 @@ D-dm-header-profile-link (ws-D/messages, tiny). merged 1.0.251.
     the local stack, capture every cross-user media request's status,
     fix or name the exact blocker), which clears the gate on
     D-feed-avatar-resolution + the D-user-profile-media grid half.
-[ ] own profile at the canonical /u URL (operator, 30.07 rant: "when i
+[✓] own profile at the canonical /u URL (operator, 30.07 rant: "when i
     click my username, it goes to my profile page instead of just
     /profile it goes to profile/u/jacoby149 — lets just have it always
     be profile/u/jacoby149!"): your own profile always lives at
@@ -2567,7 +2628,7 @@ D-dm-header-profile-link (ws-D/messages, tiny). merged 1.0.251.
     the D-user-profile-stats bugs ("0 Posts", no Followers tile, "No
     posts yet" with posts existing) — the owner path must read the
     owner's own collection. lane item D-own-profile-canonical
-    (ws-D/shell, tiny).
+    (ws-D/shell, tiny). [✓ 1.0.262]
 [ ] ADDRESS BAR EVERYWHERE — operator priority call (30.07 rant: "i
     guess when we make every screen in the address bar have a link to
     it, that will happen. maybe lets have that address bar for every
@@ -3134,6 +3195,17 @@ testing:
         heatmaps here via SELF-HOSTED posthog or openreplay --
         self-hosted so even marketing traffic never feeds a
         third-party saas. brand consistency is cheap here; buy it.
+        OPERATOR ESCALATION (rant, 30.07.2026): "if we havent set
+        up hotjar on the marketing page, we NEED to!" — the
+        operator wants session analytics on the marketing page NOW
+        and named hotjar; the self-hosted posthog/openreplay line
+        above is the standing decision (marketing traffic never
+        feeds a third-party saas). RECONCILE AT IMPLEMENTATION:
+        ship SOMETHING on the marketing page pronto — if hotjar
+        the SaaS is what unblocks it this week, that's the
+        operator's call to make explicitly (it contradicts the
+        self-hosted line; record whichever way in decisions.md).
+        filed as D-marketing-session-analytics.
       - ui + web10-social (the platform, where users' lives
         live): third-party session-recording js (hotjar /
         fullstory / logrocket-class) is RADIOACTIVE. "nobody is
