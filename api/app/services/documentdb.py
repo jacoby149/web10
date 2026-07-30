@@ -169,6 +169,71 @@ def get_phone_record(phone_number):
     return phone_number_collection.find_one({"phone_number": phone_number})
 
 
+###############################
+###### EMAIL FUNCTIONS ########
+###############################
+
+
+def set_email(email: str, username: str):
+    """Set the email on a user's star record. Not verified yet."""
+    db[username].update_one(
+        q_t({"service": "*"}, "services"),
+        u_t({"$set": {"email": email, "email_verified": False}}),
+    )
+
+
+def get_email(username: str) -> str | None:
+    """Return the email from the star record, or None."""
+    res = get_star(username)
+    if res:
+        return res.get("email")
+    return None
+
+
+def get_email_record(email: str) -> dict | None:
+    """Look up which user owns an email (from the web10.email_index collection)."""
+    col = _ensure_email_index()
+    return col.find_one({"email": email})
+
+
+def register_email(email: str, username: str):
+    """Register an email→username mapping so we can look up users by email."""
+    col = _ensure_email_index()
+    col.update_one({"email": email}, {"$set": {"email": email, "username": username}}, upsert=True)
+
+
+def unregister_email(username: str):
+    """Remove the email index entry for a user."""
+    col = _ensure_email_index()
+    rec = col.find_one({"username": username})
+    if rec:
+        col.delete_one({"_id": rec["_id"]})
+
+
+def set_email_verified(username: str, verified: bool = True):
+    """Mark the email on the star record as verified (or unverified)."""
+    db[username].update_one(
+        q_t({"service": "*"}, "services"),
+        u_t({"$set": {"email_verified": verified}}),
+    )
+
+
+def is_email_verified(username: str) -> bool:
+    """Return whether the user's email is verified."""
+    res = get_star(username)
+    if res:
+        return bool(res.get("email_verified", False))
+    return False
+
+
+def _ensure_email_index():
+    """Return (or create) the web10.email_index collection."""
+    full_name = "web10.email_index"
+    if full_name not in set(db.list_collection_names()):
+        db.create_collection(full_name)
+    return db["web10"]["email_index"]
+
+
 ################################
 ####### USER FUNCTIONS #########
 ################################

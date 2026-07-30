@@ -9,6 +9,7 @@ import app.settings as settings
 from app.models.auth import PhoneForm, SignUpForm, Token, TokenData, TokenForm
 from app.models.core import dotdict
 from app.services import documentdb as db
+from app.services import email as email_svc
 from app.services import twilio as mobile
 from app.services.auth import (
     authenticate_user,
@@ -145,3 +146,52 @@ async def signup(form_data: SignUpForm):
     except Exception:
         pass
     return res
+
+
+# ---- Email verification (A20 bite a) ----
+
+
+@router.post("/set_email", include_in_schema=False)
+async def set_email(token: Token):
+    """Set the user's recovery email. Must be verified before it counts."""
+    check_admin(token)
+    decoded = decode_token(token.token)
+    email = token.query.get("email")
+    if not email or "@" not in email or len(email) > 254:
+        raise exceptions.BAD_EMAIL
+    # Check email not already claimed by another user
+    existing = db.get_email_record(email)
+    if existing and existing["username"] != decoded.username:
+        raise exceptions.EMAIL_TAKEN
+    db.set_email(email, decoded.username)
+    db.register_email(email, decoded.username)
+    code = email_svc.send_verification_code(email)
+    return {"code": code}
+
+
+@router.post("/get_email", include_in_schema=False)
+async def get_email(token: Token):
+    """Return the user's own email (if set)."""
+    check_admin(token)
+    decoded = decode_token(token.token)
+    email = db.get_email(decoded.username)
+    if not email:
+        raise exceptions.EMAIL_NOT_FOUND
+    return {"email": email, "email_verified": db.is_email_verified(decoded.username)}
+
+
+@router.post("/verify_email", include_in_schema=False)
+async def verify_email(token: Token):
+    """Verify an email with the code sent to it."""
+    check_admin(token)
+    decoded = decode_token(token.token)
+    email = token.query.get("email")
+    code = token.query.get("code")
+    if not email or not code:
+        raise exceptions.BAD_EMAIL
+    stored_email = db.get_email(decoded.username)
+    if stored_email != email:
+        raise exceptions.BAD_EMAIL
+    email_svc.check_verification(email, code)
+    db.set_email_verified(decoded.username, True)
+    return {"verified": True}

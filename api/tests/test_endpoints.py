@@ -1826,3 +1826,302 @@ class TestPublicMediaStarProtection:
             },
         )
         assert resp.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# 13. EMAIL VERIFICATION (A20 bite a)
+# ---------------------------------------------------------------------------
+
+
+class TestEmailSet:
+    """Owner can set their own email; non-owner cannot set another user's email."""
+
+    _CFG = {"provider": "api.localhost", "admins": ["alice", "bob"]}
+
+    def test_owner_sets_email(self, client):
+        with (
+            patch("app.services.config.get_config", return_value=dict(self._CFG)),
+            patch("app.services.documentdb.get_star", return_value={**MOCK_STAR, "email": None}),
+            patch("app.services.documentdb.get_email_record", return_value=None),
+            patch("app.services.documentdb.set_email"),
+            patch("app.services.documentdb.register_email"),
+            patch("app.services.email.send_verification_code") as m_send,
+        ):
+            m_send.return_value = "123456"
+            resp = client.post(
+                "/set_email",
+                json={
+                    "token": _owner_token("alice"),
+                    "query": {"email": "alice@example.com"},
+                },
+            )
+        assert resp.status_code == 200
+        assert resp.json()["code"] == "123456"
+
+    def test_non_owner_cannot_set_another_user_email(self, client):
+        """Bob cannot set alice's email — check_admin ensures only the
+        token's user acts on their own account."""
+        with (
+            patch("app.services.config.get_config", return_value=dict(self._CFG)),
+            patch("app.services.documentdb.get_star", return_value={**MOCK_STAR, "username": "bob", "email": None}),
+            patch("app.services.documentdb.get_email_record", return_value=None),
+            patch("app.services.documentdb.set_email") as m_set,
+            patch("app.services.documentdb.register_email") as m_reg,
+            patch("app.services.email.send_verification_code"),
+        ):
+            resp = client.post(
+                "/set_email",
+                json={
+                    "token": _owner_token("bob"),
+                    "query": {"email": "alice@example.com"},
+                },
+            )
+        # Bob's token decodes to bob, so set_email is called for bob, not alice
+        assert resp.status_code == 200
+        m_set.assert_called_once_with("alice@example.com", "bob")
+        m_reg.assert_called_once_with("alice@example.com", "bob")
+
+    def test_non_admin_cannot_set_email(self, client):
+        """Non-admin token is rejected."""
+        with patch("app.services.config.get_config", return_value=dict(self._CFG)):
+            resp = client.post(
+                "/set_email",
+                json={
+                    "token": _owner_token("charlie"),
+                    "query": {"email": "charlie@example.com"},
+                },
+            )
+        assert resp.status_code == 403
+
+    def test_bad_email_rejected(self, client):
+        with patch("app.services.config.get_config", return_value=dict(self._CFG)):
+            resp = client.post(
+                "/set_email",
+                json={
+                    "token": _owner_token("alice"),
+                    "query": {"email": "not-an-email"},
+                },
+            )
+        assert resp.status_code == 400
+
+    def test_email_taken_by_another_user(self, client):
+        with (
+            patch("app.services.config.get_config", return_value=dict(self._CFG)),
+            patch("app.services.documentdb.get_star", return_value={**MOCK_STAR, "email": None}),
+            patch("app.services.documentdb.get_email_record", return_value={"email": "taken@example.com", "username": "bob"}),
+        ):
+            resp = client.post(
+                "/set_email",
+                json={
+                    "token": _owner_token("alice"),
+                    "query": {"email": "taken@example.com"},
+                },
+            )
+        assert resp.status_code == 409
+
+
+class TestEmailGet:
+    """Owner can read their own email; non-owner cannot read another user's email."""
+
+    _CFG = {"provider": "api.localhost", "admins": ["alice"]}
+
+    def test_owner_gets_own_email(self, client):
+        with (
+            patch("app.services.config.get_config", return_value=dict(self._CFG)),
+            patch("app.services.documentdb.get_star", return_value={**MOCK_STAR, "email": "alice@example.com", "email_verified": True}),
+            patch("app.services.documentdb.get_email", return_value="alice@example.com"),
+            patch("app.services.documentdb.is_email_verified", return_value=True),
+        ):
+            resp = client.post(
+                "/get_email",
+                json={"token": _owner_token("alice")},
+            )
+        assert resp.status_code == 200
+        assert resp.json()["email"] == "alice@example.com"
+        assert resp.json()["email_verified"] is True
+
+    def test_owner_no_email_returns_404(self, client):
+        with (
+            patch("app.services.config.get_config", return_value=dict(self._CFG)),
+            patch("app.services.documentdb.get_email", return_value=None),
+        ):
+            resp = client.post(
+                "/get_email",
+                json={"token": _owner_token("alice")},
+            )
+        assert resp.status_code == 404
+
+    def test_non_owner_reads_own_email_not_others(self, client):
+        """Bob's token returns bob's email, not alice's — the endpoint
+        reads the token's username, not a target parameter."""
+        mock_bob_star = {**MOCK_STAR, "username": "bob", "email": "bob@example.com"}
+        with (
+            patch("app.services.config.get_config", return_value={"provider": "api.localhost", "admins": ["bob"]}),
+            patch("app.services.documentdb.get_star", return_value=mock_bob_star),
+            patch("app.services.documentdb.get_email", return_value="bob@example.com"),
+            patch("app.services.documentdb.is_email_verified", return_value=False),
+        ):
+            resp = client.post(
+                "/get_email",
+                json={"token": _owner_token("bob")},
+            )
+        assert resp.status_code == 200
+        assert resp.json()["email"] == "bob@example.com"
+
+    def test_non_admin_cannot_get_email(self, client):
+        with patch("app.services.config.get_config", return_value=dict(self._CFG)):
+            resp = client.post(
+                "/get_email",
+                json={"token": _owner_token("charlie")},
+            )
+        assert resp.status_code == 403
+
+
+class TestEmailVerify:
+    """Owner can verify their email with a code; non-owner cannot verify another user's email."""
+
+    _CFG = {"provider": "api.localhost", "admins": ["alice"]}
+
+    def test_owner_verifies_email(self, client):
+        with (
+            patch("app.services.config.get_config", return_value=dict(self._CFG)),
+            patch("app.services.documentdb.get_star", return_value={**MOCK_STAR, "email": "alice@example.com"}),
+            patch("app.services.documentdb.get_email", return_value="alice@example.com"),
+            patch("app.services.email.check_verification", return_value=True),
+            patch("app.services.documentdb.set_email_verified"),
+        ):
+            resp = client.post(
+                "/verify_email",
+                json={
+                    "token": _owner_token("alice"),
+                    "query": {"email": "alice@example.com", "code": "123456"},
+                },
+            )
+        assert resp.status_code == 200
+        assert resp.json()["verified"] is True
+
+    def test_wrong_email_rejected(self, client):
+        with (
+            patch("app.services.config.get_config", return_value=dict(self._CFG)),
+            patch("app.services.documentdb.get_email", return_value="alice@example.com"),
+        ):
+            resp = client.post(
+                "/verify_email",
+                json={
+                    "token": _owner_token("alice"),
+                    "query": {"email": "other@example.com", "code": "123456"},
+                },
+            )
+        assert resp.status_code == 400
+
+    def test_missing_code_rejected(self, client):
+        with patch("app.services.config.get_config", return_value=dict(self._CFG)):
+            resp = client.post(
+                "/verify_email",
+                json={
+                    "token": _owner_token("alice"),
+                    "query": {"email": "alice@example.com"},
+                },
+            )
+        assert resp.status_code == 400
+
+    def test_non_admin_cannot_verify_email(self, client):
+        with patch("app.services.config.get_config", return_value=dict(self._CFG)):
+            resp = client.post(
+                "/verify_email",
+                json={
+                    "token": _owner_token("charlie"),
+                    "query": {"email": "charlie@example.com", "code": "123456"},
+                },
+            )
+        assert resp.status_code == 403
+
+
+class TestEmailService:
+    """Unit tests for the email verification service."""
+
+    def test_generate_code_is_six_digits(self):
+        from app.services.email import generate_code
+        code = generate_code()
+        assert len(code) == 6
+        assert code.isdigit()
+
+    def test_send_verification_code_valid(self):
+        from app.services.email import send_verification_code
+        with patch("app.services.email.db") as mock_db:
+            mock_db.list_collection_names.return_value = []
+            mock_db.create_collection.return_value = None
+            mock_web10 = MagicMock()
+            mock_col = MagicMock()
+            mock_web10.__getitem__.return_value = mock_col
+            mock_db.__getitem__.return_value = mock_web10
+            code = send_verification_code("test@example.com")
+        assert len(code) == 6
+        assert code.isdigit()
+        mock_col.update_one.assert_called_once()
+
+    def test_send_verification_code_invalid_email(self):
+        from app.services.email import send_verification_code
+        with pytest.raises(Exception):
+            send_verification_code("not-an-email")
+
+    def test_check_verification_correct_code(self):
+        from app.services.email import check_verification, send_verification_code
+        with patch("app.services.email.db") as mock_db:
+            mock_db.list_collection_names.return_value = ["web10.email_verification_codes"]
+            mock_web10 = MagicMock()
+            mock_col = MagicMock()
+            mock_web10.__getitem__.return_value = mock_col
+            mock_db.__getitem__.return_value = mock_web10
+            code = send_verification_code("test@example.com")
+            mock_col.find_one.return_value = {
+                "email": "test@example.com",
+                "code": code,
+                "expires_at": datetime.utcnow() + timedelta(minutes=5),
+            }
+            result = check_verification("test@example.com", code)
+        assert result is True
+
+    def test_check_verification_wrong_code(self):
+        from app.services.email import check_verification
+        with patch("app.services.email.db") as mock_db:
+            mock_db.list_collection_names.return_value = ["web10.email_verification_codes"]
+            mock_web10 = MagicMock()
+            mock_col = MagicMock()
+            mock_web10.__getitem__.return_value = mock_col
+            mock_db.__getitem__.return_value = mock_web10
+            mock_col.find_one.return_value = {
+                "email": "test@example.com",
+                "code": "123456",
+                "expires_at": datetime.utcnow() + timedelta(minutes=5),
+            }
+            with pytest.raises(Exception):
+                check_verification("test@example.com", "000000")
+
+    def test_check_verification_expired_code(self):
+        from app.services.email import check_verification
+        with patch("app.services.email.db") as mock_db:
+            mock_db.list_collection_names.return_value = ["web10.email_verification_codes"]
+            mock_web10 = MagicMock()
+            mock_col = MagicMock()
+            mock_web10.__getitem__.return_value = mock_col
+            mock_db.__getitem__.return_value = mock_web10
+            mock_col.find_one.return_value = {
+                "email": "test@example.com",
+                "code": "123456",
+                "expires_at": datetime.utcnow() - timedelta(minutes=5),
+            }
+            with pytest.raises(Exception):
+                check_verification("test@example.com", "123456")
+
+
+class TestEmailStarRecord:
+    """The star record template includes email fields."""
+
+    def test_star_record_has_email_fields(self):
+        from app.services.records import star_record
+        rec = star_record()
+        assert "email" in rec
+        assert "email_verified" in rec
+        assert rec["email"] is None
+        assert rec["email_verified"] is False
