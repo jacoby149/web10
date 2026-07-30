@@ -652,11 +652,11 @@ LANE C — greenfield services  (owns: sdk/, mcp/, new dirs)
       block (memberships before creator #1 — ON DECK in the board) —
       not part of the current gauntlet fleet, but the compose/CI
       wiring (bite a) can land anytime.
-      BITES (rule 5): bite a, WIRING — e2e compose flips STRIPE_STATUS
-      + secrets plumbing + a trivial sk_test smoke assertion (api
-      reaches stripe test mode). bite b, PAYMENTS JOURNEY — subscribe
-      + 3% split + cancel (gate: bite a). bite c, TWILIO HALF +
-      webhook signature test (gate: bite a; independent of b).
+      BITES (rule 5): [✓ 1.0.240] bite a, WIRING — e2e compose flips STRIPE_STATUS
+       + secrets plumbing + a trivial sk_test smoke assertion (api
+       reaches stripe test mode). bite b, PAYMENTS JOURNEY — subscribe
+       + 3% split + cancel (gate: bite a). bite c, TWILIO HALF +
+       webhook signature test (gate: bite a; independent of b).
 
 LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
                                 *.md/txt)
@@ -1998,7 +1998,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       originals deleted from the bucket. each bite has its own bar
       in its kickoff.
 
-[ ] D-import-export-links-dead (sub-lane ws-D/marketing(2), SMALL;
+[✓ 1.0.240] D-import-export-links-dead (sub-lane ws-D/marketing(2), SMALL;
       operator, 30.07 rant, screenshot of /import step 1's five
       platform buttons: "those are actually all dead links, do you
       have any creative ideas on how to do that right? should it
@@ -2104,7 +2104,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       tsc green; screenshots desktop + 375px and LOOK — the bar is
       "oh wow they have that many users" at a glance. gate: none.
 
-[ ] D-docs-gfm (sub-lane ws-D/marketing; operator, 29.07 rant,
+[✓ 1.0.242] D-docs-gfm (sub-lane ws-D/marketing; operator, 29.07 rant,
       screenshot of /docs "The premise, made concrete" rendering as
       raw pipe soup: "on the docs, are these absolute value signs on
       purpose????? it looks jank aff, i actually see that all over
@@ -2596,10 +2596,10 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
        with zero network calls per twist; presets work; the feed
        (inbox) is byte-untouched; design.md §12 — screenshot desktop
        + 375px and LOOK. gate: none (D36 signed).
-       BITES (rule 5): [✓ 1.0.230] bite a, CARD + CONTROLS LANGUAGE — the
-       trending-shaped cards + presets + topic chips on Discover
-       (no knobs yet); bite b, THE KNOBS — KnobRack/RotaryKnob/
-       powerMean ported, live client-side re-rank (gate: bite a).
+BITES (rule 5): [✓ 1.0.230] bite a, CARD + CONTROLS LANGUAGE — the
+        trending-shaped cards + presets + topic chips on Discover
+        (no knobs yet); [✓ 1.0.241] bite b, THE KNOBS — KnobRack/RotaryKnob/
+        powerMean ported, live client-side re-rank (gate: bite a).
 
 [ ] D-coming-soon-builds (sub-lane ws-D/surfaces; SEVERAL big
       independent surfaces — one workspace EACH, not one item): the
@@ -3071,11 +3071,7 @@ fully refreshed — eight sub-lanes drained or advanced this batch.
 
   PARALLEL-SAFE FLEET (one workspace per sub-lane; chains WITHIN a
   sub-lane are sequential, file seams):
-    ws-C:            C8-stripe-twilio-test-keys bite a (WIRING — e2e
-                     compose flips STRIPE_STATUS=test + secrets
-                     plumbing + a trivial sk_test smoke assertion;
-                     its own text says bite a can land anytime)
-ws-A:            [✓ 1.0.239] D-appstore-revamp v2 bite c — the registration-
+ws-A:            D-appstore-revamp v2 bite c — the registration-
                       shape SPEC NOTE (a .context/decisions.md write-up,
                       no code; gates the v2 rewire build; lane A owns
                       the record-shape call)
