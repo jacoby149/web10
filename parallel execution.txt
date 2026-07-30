@@ -2395,7 +2395,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       375px and LOOK. gate: D-appstore-plugs (the plugs own the top
       of the page; the browse is everything below).
 
-[ ] D-appstore-plugs (sub-lane ws-D/marketing(2), AFTER D-appstore-revamp
+[✓ 1.0.230] D-appstore-plugs (sub-lane ws-D/marketing(2), AFTER D-appstore-revamp
       v1 — same AppStore page; operator, 29.07, partial REVERSAL of
       v1's "no hero" call, recorded honestly like the D16/D31
       precedent): "i actually liked the social app had a bigger card
