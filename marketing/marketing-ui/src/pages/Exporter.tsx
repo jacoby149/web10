@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { ArrowUpRight, ArrowRight, Download, LogIn, UploadCloud, Server, Eye, BookOpen } from 'lucide-react';
 import { trackFunnel } from '@/lib/analytics';
-import { AUTH_ORIGIN } from '@/lib/origins';
+import { SOCIAL_ORIGIN } from '@/lib/origins';
 import { EXPORT_LINKS } from '@/lib/exportLinks';
 
 function StepCard({
@@ -141,8 +141,8 @@ function ImportStepStrip({ testidSuffix }: { testidSuffix?: string }) {
       <StepArrow />
       <StepCard
         number={2}
-        href={AUTH_ORIGIN}
-        title="Log in to the authenticator"
+        href={SOCIAL_ORIGIN}
+        title="Log in"
         subtitle="Open the import tab"
         icon={LogIn}
         comingSoon
@@ -232,7 +232,7 @@ function Exporter() {
             <a href="/" className="hover:text-foreground">Home</a>
             <a href="/trending" className="hover:text-foreground">Trending</a>
             <a href="/docs" className="hover:text-foreground">Docs</a>
-            <a href={AUTH_ORIGIN} className="hover:text-foreground">Sign In</a>
+            <a href={SOCIAL_ORIGIN} className="hover:text-foreground">Sign In</a>
           </div>
         </div>
       </footer>

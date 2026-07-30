@@ -130,7 +130,7 @@ describe('Exporter /import page', () => {
     const { default: Exporter } = await import('@/pages/Exporter');
     render(<Exporter />);
     const step2 = screen.getByTestId('import-step-2');
-    expect(step2).toHaveTextContent('Log in to the authenticator');
+    expect(step2).toHaveTextContent('Log in');
   });
 
   it('step 3 is upload the ZIP', async () => {
