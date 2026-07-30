@@ -2528,7 +2528,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       (it needs the App-schema public entries to exist — lane A's
       spec note should spec the #web10apps projection explicitly).
 
-[ ] D-appstore-browse (sub-lane ws-D/marketing(2), AFTER
+[✓ 1.0.251] D-appstore-browse (sub-lane ws-D/marketing(2), AFTER
       D-appstore-plugs — same AppStore page; operator, 29.07 rant,
       two screenshots — the uneven v1 grid + a small icon+name-only
       card as the desired size): "if the cards were like that big
