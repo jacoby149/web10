@@ -2,6 +2,7 @@ import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Home, User, MessageSquare, PlusCircle, LogOut, Bug, Compass, Users, Store, Gamepad2, Radio, Zap, Clapperboard, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { getWapi } from '@/data/wapi';
 
 interface LayoutProps {
   onLogout: () => void;
@@ -43,8 +44,13 @@ function Wordmark({ className }: { className?: string }) {
 export default function Layout({ onLogout, onReportBug, children }: LayoutProps) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const token = getWapi().readToken();
+  const profilePath = token ? `/u/${token.username}` : '/feed';
 
-  const isActive = (path: string) => pathname === path;
+  const isActive = (path: string) => {
+    if (path === '/profile') return pathname.startsWith('/u/');
+    return pathname === path;
+  };
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -60,12 +66,14 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
           <Wordmark />
         </div>
         <nav className="relative flex-1 px-2 space-y-1" aria-label="Primary">
-          {navItems.map(({ path, icon: Icon, label, testId }) => (
+          {navItems.map(({ path, icon: Icon, label, testId }) => {
+            const target = path === '/profile' ? profilePath : path;
+            return (
             <button
               key={path}
               data-testid={testId}
-              aria-current={isActive(path) ? 'page' : undefined}
-              onClick={() => navigate(path)}
+              aria-current={path === '/profile' ? isActive('/profile') : isActive(path) ? 'page' : undefined}
+              onClick={() => navigate(target)}
               className={cn(
                 'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
                 isActive(path)
@@ -85,7 +93,8 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
                 />
               )}
             </button>
-          ))}
+            );
+          })}
           <button
             data-testid="nav-new-post"
             onClick={() => navigate('/feed')}
@@ -163,13 +172,15 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
           aria-label="Primary"
           className="md:hidden fixed bottom-0 inset-x-0 z-20 flex items-stretch border-t border-border bg-surface/95 backdrop-blur-md"
         >
-          {navItems.map(({ path, icon: Icon, label, testId }) => (
+          {navItems.map(({ path, icon: Icon, label, testId }) => {
+            const target = path === '/profile' ? profilePath : path;
+            return (
             <button
               key={path}
               data-testid={`${testId}-mobile`}
               aria-current={isActive(path) ? 'page' : undefined}
               aria-label={label}
-              onClick={() => navigate(path)}
+              onClick={() => navigate(target)}
               className={cn(
                 'flex-1 flex flex-col items-center justify-center gap-0.5 min-h-11 py-2.5 transition-all duration-150 relative',
                 isActive(path) ? 'text-brand' : 'text-muted-foreground',
@@ -184,7 +195,8 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
               <Icon className="w-5 h-5" strokeWidth={isActive(path) ? 2 : 1.75} />
               <span className="text-[0.625rem] font-medium uppercase tracking-wide">{label}</span>
             </button>
-          ))}
+            );
+          })}
           <button
             data-testid="report-bug-button-mobile"
             aria-label="Report a bug"
