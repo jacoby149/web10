@@ -101,8 +101,8 @@ function HomeStatsBar() {
   if (!stats || error) return null
 
   const items: Array<{ value: number | string; label: string; icon: typeof Users; isFormatted?: boolean }> = [
-    { value: stats.users, label: 'users', icon: Users },
-    { value: stats.apps, label: 'apps', icon: Layers },
+    { value: stats.users, label: 'platform users', icon: Users },
+    { value: stats.apps, label: 'appstore apps', icon: Layers },
     { value: formatBytes(stats.storage), label: 'data liberated', icon: HardDrive, isFormatted: true },
   ]
 
@@ -114,7 +114,7 @@ function HomeStatsBar() {
           return (
             <div
               key={item.label || i}
-              className="flex flex-col items-center gap-1.5 rounded-lg border border-border bg-surface px-4 py-6 sm:px-6 sm:py-8"
+              className="flex flex-col items-center gap-1.5 px-4 py-6 sm:px-6 sm:py-8"
             >
               <Icon className="h-4 w-4 text-brand-400 opacity-60" strokeWidth={1.5} />
               <span className="font-display text-2xl font-bold tracking-[-0.02em] text-foreground tabular-nums sm:text-3xl">

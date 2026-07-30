@@ -2472,7 +2472,7 @@ D-dm-header-profile-link (ws-D/messages, tiny). merged 1.0.251.
     cleanup throwing, stale/duplicate follow records read without a
     status filter). repro first, capture the failing request. lane
     item D-follow-toggle (ws-D/profile).
-[ ] home stats bar styling (operator, 30.07 rant, screenshot: "the
+[✓ 1.0.262] home stats bar styling (operator, 30.07 rant, screenshot: "the
     border isnt necessary on those, and can just say data liberated
     under the data part to be consistent with the other two! they
     could just be on the background, or they can each be in their own
