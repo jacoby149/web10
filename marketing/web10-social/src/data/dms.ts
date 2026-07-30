@@ -1,5 +1,5 @@
 import { getWapi } from './wapi';
-import type { DmRecord } from './types';
+import type { DmRecord, DmRecipient } from './types';
 
 // ── DMs data layer ──────────────────────────────────────────────────────────
 // All DMs live in a single `dms` service. Conversations are identified by
@@ -171,6 +171,96 @@ export async function sendDm(
   };
 
   return wapi.create<DmRecord>('dms', record as unknown as Record<string, unknown>);
+}
+
+/**
+ * Send a DM to multiple recipients (CC/BCC).
+ * Creates one record per recipient so each person gets their own copy.
+ * BCC recipients never appear in another recipient's cc/bcc metadata.
+ *
+ * @returns array of created records, one per recipient.
+ */
+export async function sendDmMulti(
+  recipients: DmRecipient[],
+  cc: DmRecipient[],
+  bcc: DmRecipient[],
+  message: string,
+  opts?: { subject?: string; mediaRefs?: string[] },
+): Promise<DmRecord[]> {
+  const wapi = getWapi();
+  const token = wapi.readToken();
+  if (!token) throw new Error('not authenticated');
+
+  const me: DmRecipient = {
+    username: token.username,
+    provider: token.provider,
+  };
+
+  // All visible recipients (to + cc) — never includes bcc.
+  const visibleTo = recipients.map((r) => ({ username: r.username, provider: r.provider }));
+  const visibleCc = cc.map((r) => ({ username: r.username, provider: r.provider }));
+
+  // BCC recipients get empty to/cc so they can't see who else got the mail.
+  const bccTo: DmRecipient[] = [];
+  const bccCc: DmRecipient[] = [];
+
+  const allTargets = [...recipients, ...cc, ...bcc];
+  const records = allTargets.map((target) => {
+    const isBcc = bcc.some((b) => b.username === target.username && b.provider === target.provider);
+    return {
+      message,
+      sent_at: new Date().toISOString(),
+      sender_username: me.username,
+      sender_provider: me.provider,
+      recipient_username: target.username,
+      recipient_provider: target.provider,
+      media_refs: opts?.mediaRefs || [],
+      ...(opts?.subject ? { subject: opts.subject } : {}),
+      to: isBcc ? bccTo : visibleTo,
+      cc: isBcc ? bccCc : visibleCc,
+    } as Omit<DmRecord, '_id'>;
+  });
+
+  const created: DmRecord[] = [];
+  for (const rec of records) {
+    created.push(await wapi.create<DmRecord>('dms', rec as unknown as Record<string, unknown>));
+  }
+  return created;
+}
+
+/**
+ * Derive the full set of reply targets from a message's to/cc fields.
+ * Excludes the sender (me). Falls back to the single recipient for
+ * legacy messages that lack to/cc metadata.
+ */
+export function replyAllTargets(
+  msg: DmRecord,
+  me: { username: string; provider: string },
+): DmRecipient[] {
+  const meKey = `${me.provider}/${me.username}`;
+  const seen = new Set<string>();
+  const targets: DmRecipient[] = [];
+
+  const add = (r: DmRecipient) => {
+    const key = `${r.provider}/${r.username}`;
+    if (key === meKey || seen.has(key)) return;
+    seen.add(key);
+    targets.push(r);
+  };
+
+  if (msg.to) msg.to.forEach(add);
+  if (msg.cc) msg.cc.forEach(add);
+
+  // Legacy fallback: no to/cc → reply to the other party in the 1:1 conversation
+  if (!msg.to?.length) {
+    const senderKey = `${msg.sender_provider}/${msg.sender_username}`;
+    const recipientKey = `${msg.recipient_provider}/${msg.recipient_username}`;
+    const otherKey = senderKey === meKey ? recipientKey : senderKey;
+    const [provider, username] = otherKey.split('/');
+    add({ username, provider });
+  }
+
+  return targets;
 }
 
 /**
