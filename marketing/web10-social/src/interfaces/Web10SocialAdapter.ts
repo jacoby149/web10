@@ -144,20 +144,22 @@ interface Web10SocialAdapter {
   readCommentsForPost: (postId: string) => Promise<CommentRecord[]>;
   readTopLevelComments: (postId: string) => Promise<CommentRecord[]>;
   readCommentReplies: (commentId: string) => Promise<CommentRecord[]>;
-  createCommentRecord: (comment: Omit<CommentRecord, '_id'>) => Promise<CommentRecord>;
-  updateCommentRecord: (id: string, updates: Partial<CommentRecord>) => Promise<CommentRecord>;
-  deleteCommentRecord: (id: string) => Promise<void>;
+  createCommentRecord: (comment: Omit<CommentRecord, '_id'>, postAuthor?: string, postService?: string) => Promise<CommentRecord>;
+  updateCommentRecord: (id: string, updates: Partial<CommentRecord>, postAuthor?: string, postService?: string) => Promise<CommentRecord>;
+  deleteCommentRecord: (id: string, postAuthor?: string, postService?: string) => Promise<void>;
   countCommentsForPost: (postId: string) => Promise<number>;
 
   // Reactions
   readReactionsForTarget: (targetService: 'posts' | 'comments', targetId: string) => Promise<ReactionRecord[]>;
-  createReactionRecord: (reaction: Omit<ReactionRecord, '_id'>) => Promise<ReactionRecord>;
+  createReactionRecord: (reaction: Omit<ReactionRecord, '_id'>, postAuthor?: string, postService?: string) => Promise<ReactionRecord>;
   toggleReactionOnTarget: (
     targetService: 'posts' | 'comments',
     targetId: string,
     type: string,
     authorUsername: string,
     authorProvider: string,
+    postAuthor?: string,
+    postService?: string,
   ) => Promise<boolean>;
   deleteReactionRecord: (id: string) => Promise<void>;
   countReactionsForTarget: (targetService: 'posts' | 'comments', targetId: string) => Promise<number>;

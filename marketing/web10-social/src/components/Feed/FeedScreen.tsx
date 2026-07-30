@@ -172,6 +172,8 @@ interface PostCardProps {
   onToggleLike: () => void;
   onCommentCountChange: (n: number) => void;
   onAuthorClick?: (username: string, provider: string) => void;
+  postAuthor?: string;
+  postService?: string;
 }
 
 function PostCard({
@@ -188,6 +190,8 @@ function PostCard({
   onToggleLike,
   onCommentCountChange,
   onAuthorClick,
+  postAuthor,
+  postService,
 }: PostCardProps) {
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [localCount, setLocalCount] = useState(commentCount);
@@ -305,6 +309,8 @@ function PostCard({
         postId={post._id || ''}
         isOpen={commentsOpen}
         count={localCount}
+        postAuthor={postAuthor}
+        postService={postService}
         onCountChange={(n) => {
           setLocalCount(n);
           onCommentCountChange(n);
@@ -515,13 +521,13 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
     loadFeed();
   }, [loadFeed]);
 
-  async function handleToggleLike(postId: string) {
+  async function handleToggleLike(postId: string, postAuthor?: string, postService?: string) {
     const token = getWapi().readToken();
     if (!token) return;
     setLikedMap((prev) => ({ ...prev, [postId]: !prev[postId] }));
     setReactionMap((prev) => ({ ...prev, [postId]: (prev[postId] || 0) + (likedMap[postId] ? -1 : 1) }));
     try {
-      await toggleReaction('posts', postId, 'like', token.username, token.provider);
+      await toggleReaction('posts', postId, 'like', token.username, token.provider, postAuthor, postService);
     } catch (e) {
       console.error('Failed to toggle reaction:', e);
       setLikedMap((prev) => ({ ...prev, [postId]: !prev[postId] }));
@@ -576,11 +582,13 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
                 commentCount={commentMap[item.post_id] || 0}
                 liked={!!likedMap[item.post_id]}
                 timestamp={post.created_at || item.delivered_at}
-                onToggleLike={() => handleToggleLike(item.post_id)}
+                onToggleLike={() => handleToggleLike(item.post_id, item.author_username, 'public_posts')}
                 onCommentCountChange={(n) =>
                   setCommentMap((prev) => ({ ...prev, [item.post_id]: n }))
                 }
                 onAuthorClick={onAuthorClick}
+                postAuthor={item.author_username}
+                postService={'public_posts'}
               />
             );
           })

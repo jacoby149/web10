@@ -53,7 +53,7 @@ describe('DiscoverScreen', () => {
     expect(screen.getByTestId('discover-empty-follow-cta')).toBeInTheDocument();
   });
 
-  it('renders discover header with sort dropdown', async () => {
+  it('renders discover header with preset chips', async () => {
     (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
       {
         author: 'noodle-empress',
@@ -89,7 +89,9 @@ describe('DiscoverScreen', () => {
     });
 
     expect(screen.getByRole('heading', { name: 'Discover' })).toBeInTheDocument();
-    expect(screen.getByTestId('discover-sort')).toBeInTheDocument();
+    expect(screen.getByTestId('discover-preset-newest')).toBeInTheDocument();
+    expect(screen.getByTestId('discover-preset-most-loved')).toBeInTheDocument();
+    expect(screen.getByTestId('discover-preset-balanced')).toBeInTheDocument();
   });
 
   it('renders cards with rank badges', async () => {
@@ -269,20 +271,56 @@ describe('DiscoverScreen', () => {
     expect(screen.getAllByTestId('icon-repeat2').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('switches sort between trending and recent', async () => {
-    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+  it('switches preset between newest, most-loved, and balanced', async () => {
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        author: 'user1',
+        provider: 'api.web10.app',
+        post_id: 'p1',
+        text: 'Old post with lots of likes',
+        tags: ['trending'],
+        created_at: new Date(Date.now() - 86400000 * 7).toISOString(),
+        likes: 500,
+        comments: 100,
+        reposts: 50,
+        score: 650,
+      },
+      {
+        author: 'user2',
+        provider: 'api.web10.app',
+        post_id: 'p2',
+        text: 'Brand new post',
+        tags: ['trending'],
+        created_at: new Date().toISOString(),
+        likes: 1,
+        comments: 0,
+        reposts: 0,
+        score: 1,
+      },
+    ]);
 
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
     render(<DiscoverScreen />);
 
     await waitFor(() => {
-      expect(screen.getByTestId('discover-sort')).toBeInTheDocument();
+      expect(screen.getByTestId('discover-grid')).toBeInTheDocument();
     });
 
-    const select = screen.getByTestId('discover-sort') as HTMLSelectElement;
-    expect(select.value).toBe('trending');
+    // Balanced is the default preset
+    expect(screen.getByTestId('discover-preset-balanced').getAttribute('aria-selected')).toBe('true');
 
-    fireEvent.change(select, { target: { value: 'recent' } });
-    expect(select.value).toBe('recent');
+    // Click "Newest" — the newest post (p2) should move to rank #1
+    fireEvent.click(screen.getByTestId('discover-preset-newest'));
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-preset-newest').getAttribute('aria-selected')).toBe('true');
+    });
+    const newestCards = screen.getAllByTestId('discover-card');
+    expect(newestCards.length).toBeGreaterThanOrEqual(2);
+
+    // Click "Most loved" — the high-engagement post (p1) should move to rank #1
+    fireEvent.click(screen.getByTestId('discover-preset-most-loved'));
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-preset-most-loved').getAttribute('aria-selected')).toBe('true');
+    });
   });
 });

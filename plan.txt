@@ -2167,7 +2167,7 @@ marketing ui!"):
     web10-social (/u/:username, post links once D-feed-lightbox's
     permalink route exists) — search IS the funnel. lane item
     D-marketing-search (ws-D/marketing).
-[ ] SEARCH ONLY SEARCHES TAGS (operator, 27.07: "searching only
+[✓ 1.0.230] SEARCH ONLY SEARCHES TAGS (operator, 27.07: "searching only
     searches tags also. it doesnt search the other things") — a word
     that appears in a post's BODY (not its tags) returns nothing, and
     author handles don't hit either. /discover/search is a $text query
@@ -2359,7 +2359,7 @@ says 3 comments while the expanded panel renders more than that):
     but distinct: real-account interactions don't mirror AT ALL
     (D-ledger-mirror-fix) — this item is the seeded/ledger data
     agreeing with itself. lane item A15-engagement-count-accuracy.
-[✓ 1.0.230] REGRESSION (operator, 29.07, screenshot: every /trending card at
+[✓ 1.0.230/1.0.231] REGRESSION (operator, 29.07, screenshot: every /trending card at
     0 likes / 0 comments): A15's fix made it worse — the prod ledger
     has THREE target formats (seed script writes
     `{author}/public_posts/{post_id}`, the app client writes
@@ -2431,18 +2431,18 @@ known gaps confirmed this session (see CHANGELOG 1.0.169-1.0.174):
     (parallel execution.txt, ws-D/feed): on follow, deliver the
     followee's recent public posts into the follower's own inbox,
     capped, deduped on post_id.
-[ ] in-app Discover borrows HEAVILY from /trending (operator, 29.07,
-    screenshot of the knob rack: "the trending page on the marketing
-    site is amazing! the discover should borrow much more heavily
-    from it, the knobs to tune your algorithm should be on
-    discover"): the D20 revisit is SIGNED (decisions.md D36) —
-    Discover is already a ranked surface, so knobs there don't touch
-    the chronological feed's delivery pitch (the feed stays
-    chronological, full stop). port the TrendingCard language +
-    presets + KnobRack/RotaryKnob/powerMean (copied, not shared) to
-    DiscoverScreen; client-side re-rank, zero new api surface. lane
-    item D-inapp-discover-knobs (ws-D/discover, bites: cards+controls,
-    then knobs).
+[✓ 1.0.230] in-app Discover borrows HEAVILY from /trending (operator, 29.07,
+     screenshot of the knob rack: "the trending page on the marketing
+     site is amazing! the discover should borrow much more heavily
+     from it, the knobs to tune your algorithm should be on
+     discover"): the D20 revisit is SIGNED (decisions.md D36) —
+     Discover is already a ranked surface, so knobs there don't touch
+     the chronological feed's delivery pitch (the feed stays
+     chronological, full stop). port the TrendingCard language +
+     presets + KnobRack/RotaryKnob/powerMean (copied, not shared) to
+     DiscoverScreen; client-side re-rank, zero new api surface. lane
+     item D-inapp-discover-knobs (ws-D/discover, bites: [✓ 1.0.230] cards+controls,
+     then knobs).
 [ ] trending multimedia + AUTOPLAY (operator, 29.07: "trending lacks
     videos and images, how are we going to compete with insta without
     multimedia on this kind of a page! also videos should auto play

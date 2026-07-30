@@ -642,6 +642,120 @@ class TestDiscoverSearch:
         resp = client.patch("/discover/search?q=hello")
         assert resp.status_code == 200
 
+    def test_search_substring_body_match(self, client, mock_discovery_col):
+        """Hard acceptance: searching 'yo' returns the 'yoyoyo' posts."""
+        doc = {
+            "_id": "post1",
+            "author": "alice",
+            "service": "public_posts",
+            "post_id": "1",
+            "body_text": "yoyoyo this is a test post",
+            "tags": [],
+            "created_at": "2026-07-29T00:00:00",
+        }
+        # Build chainable find mocks: find() → sort() → iterable
+        mock_find_text = MagicMock()
+        mock_find_text.sort.return_value = iter([])  # $text: no match
+        mock_find_regex = MagicMock()
+        mock_find_regex.sort.return_value = iter([doc])  # regex: matches
+        mock_discovery_col.find.side_effect = [mock_find_text, mock_find_regex]
+        resp = client.patch(
+            "/discover/search",
+            json={"token": None, "query": {"q": "yo"}},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data) == 1
+        assert data[0]["body_text"] == "yoyoyo this is a test post"
+
+    def test_search_author_handle_match(self, client, mock_discovery_col):
+        """Searching an author handle returns their posts."""
+        doc = {
+            "_id": "post2",
+            "author": "coolguydavid",
+            "service": "public_posts",
+            "post_id": "2",
+            "body_text": "check out my new setup",
+            "tags": ["#tech"],
+            "created_at": "2026-07-28T00:00:00",
+        }
+        mock_find_text = MagicMock()
+        mock_find_text.sort.return_value = iter([])
+        mock_find_regex = MagicMock()
+        mock_find_regex.sort.return_value = iter([doc])
+        mock_discovery_col.find.side_effect = [mock_find_text, mock_find_regex]
+        resp = client.patch(
+            "/discover/search",
+            json={"token": None, "query": {"q": "coolguy"}},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data) == 1
+        assert data[0]["author"] == "coolguydavid"
+
+    def test_search_dedup_text_and_regex(self, client, mock_discovery_col):
+        """A doc matched by both $text and regex appears only once."""
+        doc = {
+            "_id": "post3",
+            "author": "alice",
+            "service": "public_posts",
+            "post_id": "3",
+            "body_text": "hello world testing",
+            "tags": ["#hello"],
+            "created_at": "2026-07-29T00:00:00",
+        }
+        mock_find_text = MagicMock()
+        mock_find_text.sort.return_value = iter([doc])
+        mock_find_regex = MagicMock()
+        mock_find_regex.sort.return_value = iter([doc])
+        mock_discovery_col.find.side_effect = [mock_find_text, mock_find_regex]
+        resp = client.patch(
+            "/discover/search",
+            json={"token": None, "query": {"q": "hello"}},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data) == 1  # deduplicated
+
+    def test_search_long_query_skips_regex(self, client, mock_discovery_col):
+        """Queries with more than 2 words skip the regex fallback."""
+        mock_find_text = MagicMock()
+        mock_find_text.sort.return_value = iter([])
+        mock_discovery_col.find.side_effect = [mock_find_text]
+        resp = client.patch(
+            "/discover/search",
+            json={"token": None, "query": {"q": "one two three four"}},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data == []
+        # find() called exactly once ($text only, no regex fallback)
+        assert mock_discovery_col.find.call_count == 1
+
+    def test_search_regex_special_chars_escaped(self, client, mock_discovery_col):
+        """User input with regex metachars is escaped, not interpreted."""
+        doc = {
+            "_id": "post4",
+            "author": "alice",
+            "service": "public_posts",
+            "post_id": "4",
+            "body_text": "price is $10.00",
+            "tags": [],
+            "created_at": "2026-07-29T00:00:00",
+        }
+        mock_find_text = MagicMock()
+        mock_find_text.sort.return_value = iter([])
+        mock_find_regex = MagicMock()
+        mock_find_regex.sort.return_value = iter([doc])
+        mock_discovery_col.find.side_effect = [mock_find_text, mock_find_regex]
+        resp = client.patch(
+            "/discover/search",
+            json={"token": None, "query": {"q": "$10"}},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data) == 1
+
 
 class TestDiscoverTopics:
     def test_trending_topics(self, client, mock_discovery_col):
