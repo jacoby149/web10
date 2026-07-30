@@ -173,6 +173,23 @@
     animation: heart-burst 300ms ease-out;
   }
 
+  /* comment anchor highlight — single pulse to draw the eye, then settle */
+  @keyframes pulse-once {
+    0% {
+      background-color: transparent;
+    }
+    30% {
+      background-color: var(--color-brand-muted);
+    }
+    100% {
+      background-color: var(--color-brand-muted);
+    }
+  }
+
+  .animate-pulse-once {
+    animation: pulse-once 600ms ease-out;
+  }
+
   /* design.md §7 — glow-pulse for live/presence indicators (2s infinite) */
   @keyframes glow-pulse {
     0%, 100% {
