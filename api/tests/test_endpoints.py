@@ -1908,7 +1908,10 @@ class TestEmailSet:
         with (
             patch("app.services.config.get_config", return_value=dict(self._CFG)),
             patch("app.services.documentdb.get_star", return_value={**MOCK_STAR, "email": None}),
-            patch("app.services.documentdb.get_email_record", return_value={"email": "taken@example.com", "username": "bob"}),
+            patch(
+                "app.services.documentdb.get_email_record",
+                return_value={"email": "taken@example.com", "username": "bob"},
+            ),
         ):
             resp = client.post(
                 "/set_email",
@@ -1928,7 +1931,10 @@ class TestEmailGet:
     def test_owner_gets_own_email(self, client):
         with (
             patch("app.services.config.get_config", return_value=dict(self._CFG)),
-            patch("app.services.documentdb.get_star", return_value={**MOCK_STAR, "email": "alice@example.com", "email_verified": True}),
+            patch(
+                "app.services.documentdb.get_star",
+                return_value={**MOCK_STAR, "email": "alice@example.com", "email_verified": True},
+            ),
             patch("app.services.documentdb.get_email", return_value="alice@example.com"),
             patch("app.services.documentdb.is_email_verified", return_value=True),
         ):
@@ -2042,12 +2048,14 @@ class TestEmailService:
 
     def test_generate_code_is_six_digits(self):
         from app.services.email import generate_code
+
         code = generate_code()
         assert len(code) == 6
         assert code.isdigit()
 
     def test_send_verification_code_valid(self):
         from app.services.email import send_verification_code
+
         with patch("app.services.email.db") as mock_db:
             mock_db.list_collection_names.return_value = []
             mock_db.create_collection.return_value = None
@@ -2062,11 +2070,13 @@ class TestEmailService:
 
     def test_send_verification_code_invalid_email(self):
         from app.services.email import send_verification_code
+
         with pytest.raises(Exception):
             send_verification_code("not-an-email")
 
     def test_check_verification_correct_code(self):
         from app.services.email import check_verification, send_verification_code
+
         with patch("app.services.email.db") as mock_db:
             mock_db.list_collection_names.return_value = ["web10.email_verification_codes"]
             mock_web10 = MagicMock()
@@ -2084,6 +2094,7 @@ class TestEmailService:
 
     def test_check_verification_wrong_code(self):
         from app.services.email import check_verification
+
         with patch("app.services.email.db") as mock_db:
             mock_db.list_collection_names.return_value = ["web10.email_verification_codes"]
             mock_web10 = MagicMock()
@@ -2100,6 +2111,7 @@ class TestEmailService:
 
     def test_check_verification_expired_code(self):
         from app.services.email import check_verification
+
         with patch("app.services.email.db") as mock_db:
             mock_db.list_collection_names.return_value = ["web10.email_verification_codes"]
             mock_web10 = MagicMock()
@@ -2120,6 +2132,7 @@ class TestEmailStarRecord:
 
     def test_star_record_has_email_fields(self):
         from app.services.records import star_record
+
         rec = star_record()
         assert "email" in rec
         assert "email_verified" in rec
