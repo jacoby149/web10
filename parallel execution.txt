@@ -2480,33 +2480,33 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       that PR's .context handoff, don't build it here.
 
 [ ] D-inapp-discover-knobs (sub-lane ws-D/discover — components/
-      Discover/**; GATE CLEARED 29.07: the operator signed off —
-      "the trending page on the marketing site is amazing! the
-      discover should borrow much more heavily from it, the knobs to
-      tune your algorithm should be on discover" — recorded as
-      decisions.md D36. the chronological FEED stays untouched;
-      Discover is already a ranked surface): port the /trending
-      experience into web10-social's DiscoverScreen, borrowing
-      HEAVILY (operator's word): the TrendingCard language (media-
-      forward cards, rank badges, engagement bar), the presets
-      (Newest / Most loved / Balanced), the KnobRack + RotaryKnob +
-      powerMean client-side re-ranking, the topic-chip rail. copy
-      the knob components + powerMean from marketing-ui per the
-      verbatim-copies rule (design.md §D22 — separate package, no
-      premature sharing); cards adapt the app's existing post card
-      toward the trending shape rather than a wholesale swap (the
-      app's cards carry owner actions + lightbox). data: Discover
-      already reads /discover/posts — the knobs re-rank CLIENT-side,
-      zero new api surface. files: web10-social components/
-      Discover/**, copied knob components + lib. read design.md
-      first. acceptance: knobs re-rank the in-app Discover live
-      with zero network calls per twist; presets work; the feed
-      (inbox) is byte-untouched; design.md §12 — screenshot desktop
-      + 375px and LOOK. gate: none (D36 signed).
-      BITES (rule 5): bite a, CARD + CONTROLS LANGUAGE — the
-      trending-shaped cards + presets + topic chips on Discover
-      (no knobs yet); bite b, THE KNOBS — KnobRack/RotaryKnob/
-      powerMean ported, live client-side re-rank (gate: bite a).
+       Discover/**; GATE CLEARED 29.07: the operator signed off —
+       "the trending page on the marketing site is amazing! the
+       discover should borrow much more heavily from it, the knobs to
+       tune your algorithm should be on discover" — recorded as
+       decisions.md D36. the chronological FEED stays untouched;
+       Discover is already a ranked surface): port the /trending
+       experience into web10-social's DiscoverScreen, borrowing
+       HEAVILY (operator's word): the TrendingCard language (media-
+       forward cards, rank badges, engagement bar), the presets
+       (Newest / Most loved / Balanced), the KnobRack + RotaryKnob +
+       powerMean client-side re-ranking, the topic-chip rail. copy
+       the knob components + powerMean from marketing-ui per the
+       verbatim-copies rule (design.md §D22 — separate package, no
+       premature sharing); cards adapt the app's existing post card
+       toward the trending shape rather than a wholesale swap (the
+       app's cards carry owner actions + lightbox). data: Discover
+       already reads /discover/posts — the knobs re-rank CLIENT-side,
+       zero new api surface. files: web10-social components/
+       Discover/**, copied knob components + lib. read design.md
+       first. acceptance: knobs re-rank the in-app Discover live
+       with zero network calls per twist; presets work; the feed
+       (inbox) is byte-untouched; design.md §12 — screenshot desktop
+       + 375px and LOOK. gate: none (D36 signed).
+       BITES (rule 5): [✓ 1.0.230] bite a, CARD + CONTROLS LANGUAGE — the
+       trending-shaped cards + presets + topic chips on Discover
+       (no knobs yet); bite b, THE KNOBS — KnobRack/RotaryKnob/
+       powerMean ported, live client-side re-rank (gate: bite a).
 
 [ ] D-coming-soon-builds (sub-lane ws-D/surfaces; SEVERAL big
       independent surfaces — one workspace EACH, not one item): the

@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
+import { rankPosts, PRESETS, type PresetId, type KnobState } from '@/lib/powerMean';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -175,14 +176,14 @@ function MediaPlaceholder({ type }: { type: 'image' | 'video' | 'music' }) {
   );
 }
 
-// ── Topic chips (derived from post tags, degrades gracefully when API returns []) ──
+// ── Topic chips ────────────────────────────────────────────────────────────
 
 function buildTopics(tags: string[]): string[] {
   const unique = Array.from(new Set(tags)).sort();
   return unique.slice(0, 12);
 }
 
-// ── Suggested user card (People to follow rail) ──────────────────────────────
+// ── Suggested user card ────────────────────────────────────────────────────
 
 interface DiscoverUserCardProps {
   user: SuggestedUser;
@@ -522,15 +523,26 @@ function DiscoverEmptyState() {
   );
 }
 
+// ── Signals helper for powerMean ranking ────────────────────────────────────
+
+function postToSignals(post: DiscoveryPost) {
+  return {
+    ageMs: Date.now() - new Date(post.created_at).getTime(),
+    likes: post.likes,
+    comments: post.comments,
+    reposts: post.reposts,
+  };
+}
+
 // ── Main screen ────────────────────────────────────────────────────────────
 
 export default function DiscoverScreen() {
   const [posts, setPosts] = useState<DiscoveryPost[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sort, setSort] = useState<'recent' | 'trending'>('trending');
   const [profileMap, setProfileMap] = useState<Record<string, ProfileRecord>>({});
   const [mediaMap, setMediaMap] = useState<Record<string, MediaRecord[]>>({});
   const [topic, setTopic] = useState<string>('All');
+  const [preset, setPreset] = useState<PresetId>('balanced');
 
   // People-to-follow rail
   const [suggested, setSuggested] = useState<SuggestedUser[]>([]);
@@ -541,7 +553,9 @@ export default function DiscoverScreen() {
   const loadDiscover = useCallback(async () => {
     setLoading(true);
     try {
-      const results = await readDiscoverFeed(sort, 30);
+      // Fetch a large set from the API (both trending + recent merged)
+      // so client-side re-ranking has material to work with.
+      const results = await readDiscoverFeed('trending', 50);
       setPosts(results);
 
       const token = getWapi().readToken();
@@ -567,12 +581,9 @@ export default function DiscoverScreen() {
       setProfileMap(profiles);
 
       // Resolve media for posts that have image/video tags
-      // Group refs by author so resolveMediaRefs reads from the correct
-      // owner's media collection (discovery posts belong to other users).
       const postsWithMedia = results.filter(p => p.media_refs?.length || p.tags?.some(t => ['image', 'video', 'music'].includes(t)));
       if (postsWithMedia.length) {
         try {
-          // Group posts by author, accumulate all refs per author
           const byAuthor = new Map<string, { posts: typeof postsWithMedia; refs: string[] }>();
           for (const p of postsWithMedia) {
             const key = `${p.author}@${p.provider}`;
@@ -589,7 +600,6 @@ export default function DiscoverScreen() {
               });
             }
           }
-          // Resolve each author's media and assign to the correct posts
           const mMap: Record<string, MediaRecord[]> = {};
           for (const [key, entry] of byAuthor) {
             const [username, provider] = key.split('@');
@@ -601,7 +611,6 @@ export default function DiscoverScreen() {
               { username, provider },
               isOwn ? 'media' : 'public_media',
             );
-            // Assign resolved media to each post that references it
             for (const p of entry.posts) {
               if (p.media_refs?.length) {
                 mMap[p.post_id] = media.filter(m => p.media_refs?.includes(m._id || ''));
@@ -620,7 +629,7 @@ export default function DiscoverScreen() {
     } finally {
       setLoading(false);
     }
-  }, [sort]);
+  }, []);
 
   const loadSuggested = useCallback(async () => {
     setSuggestedLoading(true);
@@ -682,21 +691,28 @@ export default function DiscoverScreen() {
     }
   }, []);
 
+  // Client-side re-ranking via preset (zero network calls)
+  const rankedPosts = useMemo(() => {
+    const presetState = PRESETS.find(p => p.id === preset)?.state;
+    if (!presetState) return posts;
+    return rankPosts(posts, postToSignals, presetState);
+  }, [posts, preset]);
+
   const maxScore = useMemo(
-    () => Math.max(1, ...posts.map(p => p.score ?? 0)),
-    [posts],
+    () => Math.max(1, ...rankedPosts.map(p => p.score ?? 0)),
+    [rankedPosts],
   );
 
   const topics = useMemo(
-    () => ['All', ...buildTopics(posts.flatMap(p => p.tags ?? []))],
-    [posts],
+    () => ['All', ...buildTopics(rankedPosts.flatMap(p => p.tags ?? []))],
+    [rankedPosts],
   );
 
   const visiblePosts = useMemo(
     () => topic === 'All'
-      ? posts
-      : posts.filter(p => p.tags?.includes(topic) ?? false),
-    [posts, topic],
+      ? rankedPosts
+      : rankedPosts.filter(p => p.tags?.includes(topic) ?? false),
+    [rankedPosts, topic],
   );
 
   const isInitialLoad = loading && posts.length === 0;
@@ -712,19 +728,42 @@ export default function DiscoverScreen() {
             <Compass className="h-5 w-5 text-brand-400" strokeWidth={1.75} />
             <h1 className="font-display text-lg font-bold text-foreground">Discover</h1>
           </div>
-          <select
-            value={sort}
-            onChange={(e) => setSort(e.target.value as 'recent' | 'trending')}
-            data-testid="discover-sort"
-            className="h-8 text-xs w-28 rounded-full bg-elevated border-0 text-foreground px-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <option value="trending">Trending</option>
-            <option value="recent">Recent</option>
-          </select>
         </div>
       </div>
 
-      {/* People to follow rail — creators worth an audience */}
+      {/* Preset chips */}
+      <div className="px-4 py-3 md:px-0">
+        <div
+          className="flex gap-2"
+          role="group"
+          aria-label="Sort presets"
+        >
+          {PRESETS.map(p => {
+            const active = p.id === preset;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                data-testid={`discover-preset-${p.id}`}
+                onClick={() => setPreset(p.id)}
+                className={cn(
+                  'shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                  active
+                    ? 'border-brand bg-brand-muted text-brand-300'
+                    : 'border-border bg-surface text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {p.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* People to follow rail */}
       {showSuggested && (
         <section
           data-testid="discover-suggested"
@@ -756,7 +795,7 @@ export default function DiscoverScreen() {
         </section>
       )}
 
-      {/* Topic filter chips — only show when we have topics */}
+      {/* Topic filter chips */}
       {topics.length > 1 && (
         <div className="px-4 py-3 md:px-0">
           <div
