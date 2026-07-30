@@ -611,7 +611,7 @@ LANE C — greenfield services  (owns: sdk/, mcp/, new dirs)
       confirmUpload, upload (presigned POST + confirm), and getReadUrl
       (presigned GET exchange + expiry-aware cache) matching the
       contract the web10-social wrapper lands in D23. small; no gate.
-  [✓ 1.0.239] C8-stripe-twilio-test-keys-e2e (lane C, e2e/** + compose; operator,
+  [ ] C8-stripe-twilio-test-keys-e2e (lane C, e2e/** + compose; operator,
       27.07: "we aren't testing with stripe test api keys / twilio test
       api keys in any kind of e2e tests — we could use test keys!").
       VERIFIED GAP at HEAD: api/tests/test_stripe.py + test_twilio.py
@@ -652,11 +652,11 @@ LANE C — greenfield services  (owns: sdk/, mcp/, new dirs)
       block (memberships before creator #1 — ON DECK in the board) —
       not part of the current gauntlet fleet, but the compose/CI
       wiring (bite a) can land anytime.
-      BITES (rule 5): bite a, WIRING — e2e compose flips STRIPE_STATUS
-      + secrets plumbing + a trivial sk_test smoke assertion (api
-      reaches stripe test mode). bite b, PAYMENTS JOURNEY — subscribe
-      + 3% split + cancel (gate: bite a). bite c, TWILIO HALF +
-      webhook signature test (gate: bite a; independent of b).
+BITES (rule 5): [✓ 1.0.239] bite a, WIRING — e2e compose flips STRIPE_STATUS
+       + secrets plumbing + a trivial sk_test smoke assertion (api
+       reaches stripe test mode). bite b, PAYMENTS JOURNEY — subscribe
+       + 3% split + cancel (gate: bite a). bite c, TWILIO HALF +
+       webhook signature test (gate: bite a; independent of b).
 
 LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
                                 *.md/txt)
