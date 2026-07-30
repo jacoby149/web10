@@ -2455,6 +2455,18 @@ item D-inapp-discover-knobs (ws-D/discover, bites: [✓ 1.0.230] cards+controls,
     muted/loop/playsInline on cards, pause offscreen, sound on tap
     (insta pattern; respects prefers-reduced-motion). lane item
     D-video-autoplay-muted (ws-D/marketing).
+[ ] DM header links to profile (operator, 30.07 rant: "when i click my
+    friends bubble / name on the top of the chat, it doesnt bring me
+    to their profile"): the DM conversation header's avatar + name are
+    dead text — make them a Link to /u/:username. lane item
+    D-dm-header-profile-link (ws-D/messages, tiny).
+[ ] follow button toggles to unfollow (operator, 30.07 rant: "when i
+    hit follow, it doesnt toggle and let me unfollow!"): the toggle
+    handlers exist on both UserProfileScreen and DiscoverScreen — this
+    is a runtime failure in the unfollow path (suspects: ledger
+    cleanup throwing, stale/duplicate follow records read without a
+    status filter). repro first, capture the failing request. lane
+    item D-follow-toggle (ws-D/profile).
 
 PHASE 9 — the exporters (fill the collections)
 ----------------------------------------------
