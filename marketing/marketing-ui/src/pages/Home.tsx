@@ -37,7 +37,7 @@ function Hero() {
         </p>
         <div className="reveal mt-10 [animation-delay:320ms]">
           <Button asChild size="lg" variant="brand">
-            <a href={SOCIAL_ORIGIN}>Enter web10 social</a>
+            <a href={SOCIAL_ORIGIN}>Enter web10!</a>
           </Button>
         </div>
       </div>
