@@ -652,7 +652,7 @@ LANE C — greenfield services  (owns: sdk/, mcp/, new dirs)
       block (memberships before creator #1 — ON DECK in the board) —
       not part of the current gauntlet fleet, but the compose/CI
       wiring (bite a) can land anytime.
-      BITES (rule 5): [✓ 1.0.239] bite a, WIRING — e2e compose flips STRIPE_STATUS
+      BITES (rule 5): [✓ 1.0.240] bite a, WIRING — e2e compose flips STRIPE_STATUS
        + secrets plumbing + a trivial sk_test smoke assertion (api
        reaches stripe test mode). bite b, PAYMENTS JOURNEY — subscribe
        + 3% split + cancel (gate: bite a). bite c, TWILIO HALF +
@@ -1998,7 +1998,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       originals deleted from the bucket. each bite has its own bar
       in its kickoff.
 
-[ ] D-import-export-links-dead (sub-lane ws-D/marketing(2), SMALL;
+[✓ 1.0.240] D-import-export-links-dead (sub-lane ws-D/marketing(2), SMALL;
       operator, 30.07 rant, screenshot of /import step 1's five
       platform buttons: "those are actually all dead links, do you
       have any creative ideas on how to do that right? should it
@@ -2073,7 +2073,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       D-import-export-links-dead (the repaired URLs + shared
       constants exist to test against).
 
-[ ] D-home-stats-bar (sub-lane ws-D/marketing(2); SEAM: Home.tsx —
+[✓ 1.0.240] D-home-stats-bar (sub-lane ws-D/marketing(2); SEAM: Home.tsx —
       disjoint from AppStore/Join files; operator, 29.07 rant,
       screenshot of the App Store subtitle's inline counts: "on the
       home page of the marketing, these counts that are on the app
@@ -3072,9 +3072,9 @@ fully refreshed — eight sub-lanes drained or advanced this batch.
   PARALLEL-SAFE FLEET (one workspace per sub-lane; chains WITHIN a
   sub-lane are sequential, file seams):
 ws-A:            D-appstore-revamp v2 bite c — the registration-
-                     shape SPEC NOTE (a .context/decisions.md write-up,
-                     no code; gates the v2 rewire build; lane A owns
-                     the record-shape call)
+                      shape SPEC NOTE (a .context/decisions.md write-up,
+                      no code; gates the v2 rewire build; lane A owns
+                      the record-shape call)
     ws-D/feed:       D-feed-lightbox bite a (open-from-feed), THEN
                      bite b (share + permalink — the operator's 29.07
                      "clicked them and it went to the hyperlink to the
