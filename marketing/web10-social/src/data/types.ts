@@ -102,6 +102,14 @@ export interface ContactRecord {
   note?: string;
   spam_flagged?: boolean;
   crm_status?: CrmStatus;
+  // Richer CRM fields (bite b)
+  email?: string;
+  phone?: string;
+  company?: string;
+  role?: string;
+  links?: string; // semicolon-separated URLs
+  // Flexible free-form key/value section
+  custom_fields?: Record<string, string>;
 }
 
 // ── follows ─────────────────────────────────────────────────────────────────

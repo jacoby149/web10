@@ -2034,15 +2034,15 @@ in later.md "view lenses everywhere"):
     fields are BODY fields on existing message records (conventions
     addition, no api change); legacy DMs render fine without them.
     lane item D-mail-experience (ws-D/messages).
-[ ] CRM parity with the ORIGINAL crm sub-app ("the crm is actually
-    better, more on target, but missing the status colors from the old
-    crm! should have all the features of that original crm — bin and
-    sort people"): color-coded contact status (the old green/yellow/red
-    priority + color filters — components/Crm/Crm.tsx, deleted #120,
-    reference in git; crm-contacts/crm-notes services still registered),
-    sort/filter by status, richer contact fields (email/phone/company/
-    links + free-form), contact CRUD from the view. lane item
-    D-crm-upgrade (ws-D/messages).
+[✓] CRM parity with the ORIGINAL crm sub-app ("the crm is actually
+     better, more on target, but missing the status colors from the old
+     crm! should have all the features of that original crm — bin and
+     sort people"): color-coded contact status (the old green/yellow/red
+     priority + color filters — components/Crm/Crm.tsx, deleted #120,
+     reference in git; crm-contacts/crm-notes services still registered),
+     sort/filter by status, richer contact fields (email/phone/company/
+     links + free-form), contact CRUD from the view. lane item
+     D-crm-upgrade (ws-D/messages).
 
 shell:
 [ ] DEEP LINKS EVERYWHERE (operator, 26.07: "everything should be a
