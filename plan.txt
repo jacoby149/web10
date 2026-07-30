@@ -2326,6 +2326,23 @@ says 3 comments while the expanded panel renders more than that):
     but distinct: real-account interactions don't mirror AT ALL
     (D-ledger-mirror-fix) — this item is the seeded/ledger data
     agreeing with itself. lane item A15-engagement-count-accuracy.
+[ ] REGRESSION (operator, 29.07, screenshot: every /trending card at
+    0 likes / 0 comments): A15's fix made it worse — the prod ledger
+    has THREE target formats (seed script writes
+    `{author}/public_posts/{post_id}`, the app client writes
+    `posts:{post_id}`, A15's aggregation matches `public_posts:
+    {post_id}`) and A15's matches NONE of the real data. DECISION:
+    the canonical ledger target is `{author}/{service}/{post_id}`
+    (engine-native, seed-written, globally unambiguous). fix = A18
+    (lane A: revert to the raw post_key $match) +
+    D-engagement-target-client (ws-D/feed: social comments/reactions
+    + the marketing trending panel write/read the canonical target).
+    both PRIORITY 1. operator follow-up in the same pass: "even
+    better if i clicked them and it went to the hyperlink to the
+    web10 social post" — needs social's post permalink route
+    (D-feed-lightbox bite b / D-deep-links; the URL-holds-state rule
+    is already law), then a small marketing bite points TrendingCard
+    clicks at the permalink.
 
 bug reports -> the operator (operator idea):
 [✓ 1.0.181] route "Report a bug" submissions to the operator instead of dying in
