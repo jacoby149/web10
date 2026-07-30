@@ -656,3 +656,126 @@ class TestGetAppsLegacyCompat:
             result = documentdb.get_apps()
 
         assert len(result) == 0
+
+
+class TestTotalS3Size:
+    """total_s3_size sums size_bytes across media metadata in every user collection."""
+
+    @pytest.fixture(autouse=True)
+    def _reset_cache(self):
+        """Reset the module-level cache before each test."""
+        documentdb._S3_SIZE_CACHE = 0.0
+        documentdb._S3_SIZE_CACHE_TIME = 0.0
+
+    def test_sums_size_bytes_across_collections(self):
+        mock_db = MagicMock()
+        mock_db.list_collection_names.return_value = ["alice", "bob"]
+
+        alice_coll = MagicMock()
+        alice_coll.find.return_value = [
+            {"body": {"size_bytes": 1000}},
+            {"body": {"size_bytes": 2000}},
+        ]
+
+        bob_coll = MagicMock()
+        bob_coll.find.return_value = [
+            {"body": {"size_bytes": 3000}},
+        ]
+
+        mock_db.__getitem__.side_effect = lambda name: {"alice": alice_coll, "bob": bob_coll}[name]
+
+        with patch("app.services.documentdb.db", mock_db):
+            total = documentdb.total_s3_size()
+        assert total == 6000
+
+    def test_skips_missing_size_bytes(self):
+        mock_db = MagicMock()
+        mock_db.list_collection_names.return_value = ["alice"]
+
+        alice_coll = MagicMock()
+        alice_coll.find.return_value = [
+            {"body": {"filename": "no_size.jpg"}},  # no size_bytes
+            {"body": {"size_bytes": 500}},
+        ]
+        mock_db.__getitem__.return_value = alice_coll
+
+        with patch("app.services.documentdb.db", mock_db):
+            total = documentdb.total_s3_size()
+        assert total == 500
+
+    def test_skips_non_media_service(self):
+        """Only media and public_media services should be counted."""
+        mock_db = MagicMock()
+        mock_db.list_collection_names.return_value = ["alice"]
+
+        alice_coll = MagicMock()
+        alice_coll.find.return_value = [
+            {"body": {"size_bytes": 100}},
+        ]
+        mock_db.__getitem__.return_value = alice_coll
+
+        with patch("app.services.documentdb.db", mock_db):
+            total = documentdb.total_s3_size()
+        assert total == 100
+
+    def test_skips_zero_and_negative_size(self):
+        mock_db = MagicMock()
+        mock_db.list_collection_names.return_value = ["alice"]
+
+        alice_coll = MagicMock()
+        alice_coll.find.return_value = [
+            {"body": {"size_bytes": 0}},
+            {"body": {"size_bytes": -100}},
+            {"body": {"size_bytes": 200}},
+        ]
+        mock_db.__getitem__.return_value = alice_coll
+
+        with patch("app.services.documentdb.db", mock_db):
+            total = documentdb.total_s3_size()
+        assert total == 200
+
+    def test_empty_collections_return_zero(self):
+        mock_db = MagicMock()
+        mock_db.list_collection_names.return_value = ["alice"]
+
+        alice_coll = MagicMock()
+        alice_coll.find.return_value = []
+        mock_db.__getitem__.return_value = alice_coll
+
+        with patch("app.services.documentdb.db", mock_db):
+            total = documentdb.total_s3_size()
+        assert total == 0
+
+    def test_caches_result_within_ttl(self):
+        """Second call within TTL should not re-query the DB."""
+        mock_db = MagicMock()
+        mock_db.list_collection_names.return_value = ["alice"]
+        alice_coll = MagicMock()
+        alice_coll.find.return_value = [{"body": {"size_bytes": 100}}]
+        mock_db.__getitem__.return_value = alice_coll
+
+        with patch("app.services.documentdb.db", mock_db):
+            r1 = documentdb.total_s3_size()
+            r2 = documentdb.total_s3_size()
+        assert r1 == 100
+        assert r2 == 100
+        alice_coll.find.assert_called_once()
+
+    def test_cache_expires_after_ttl(self):
+        """After TTL expires, the DB is queried again."""
+        mock_db = MagicMock()
+        mock_db.list_collection_names.return_value = ["alice"]
+        alice_coll = MagicMock()
+        alice_coll.find.return_value = [{"body": {"size_bytes": 100}}]
+        mock_db.__getitem__.return_value = alice_coll
+
+        with patch("app.services.documentdb.db", mock_db):
+            documentdb.total_s3_size()
+
+        # Force cache expiry
+        documentdb._S3_SIZE_CACHE_TIME = documentdb._S3_SIZE_CACHE_TIME - documentdb._S3_SIZE_TTL - 1
+        alice_coll.find.reset_mock()
+
+        with patch("app.services.documentdb.db", mock_db):
+            documentdb.total_s3_size()
+        alice_coll.find.assert_called_once()
