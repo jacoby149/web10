@@ -2490,7 +2490,7 @@ D-dm-header-profile-link (ws-D/messages, tiny). merged 1.0.251.
     landing-page number. fix: add the bucket bytes (MinIO usage API
     or summed size_bytes over media metadata records, cached),
     back-compat response shape. lane item A19-stats-s3-bytes (lane A).
-[ ] delete post button broken (operator, 30.07 rant: "the delete post
+[✓ 1.0.262] delete post button broken (operator, 30.07 rant: "the delete post
     button isnt working for me!"): root cause visible in the code —
     deletePost (posts.ts:141) hardcodes the `posts` service, but posts
     live in public_posts/private_posts since the D30 collection split;
