@@ -1,3 +1,4 @@
+import { Search } from 'lucide-react'
 import { useEffect, useState, useMemo } from 'react'
 import { trackFunnel } from '@/lib/analytics'
 import { AUTH_ORIGIN, SOCIAL_ORIGIN } from '@/lib/origins'
@@ -101,6 +102,7 @@ interface PlugSlot {
 function AppStore() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
     trackFunnel('app_store_view')
@@ -290,33 +292,57 @@ function AppStore() {
           </div>
         )}
 
-        {/* Uniform grid */}
-        <div className="reveal mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {loading
-            ? Array.from({ length: 6 }).map((_, i) => (
-                <AppCard
-                  key={`skeleton-${i}`}
-                  skeleton
-                  name=""
-                  description=""
-                  href=""
-                  data-testid={`app-card-skeleton-${i}`}
-                />
-              ))
-            : allApps.filter((app) => !plugSlots.some((p) => p.href === app.href)).map((app, i) => (
-                <AppCard
-                  key={app.href}
-                  iconSrc={app.iconSrc}
-                  iconLetter={app.name.charAt(0)}
-                  name={app.name}
-                  description={app.description}
-                  href={app.href}
-                  visits={app.visits}
-                  flagship={app.flagship}
-                  appId={app.appId}
-                  data-testid={`app-card-${i}`}
-                />
-              ))}
+        {/* Browse — search + uniform small cards */}
+        <div className="reveal mt-12" data-testid="browse-section">
+          {!loading && allApps.length > 0 && (
+            <div className="relative mb-6">
+              <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" strokeWidth={2} />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search apps…"
+                className="w-full rounded-full border border-border bg-surface py-2.5 pl-10 pr-4 text-sm text-foreground placeholder-muted-foreground outline-none transition-colors duration-150 focus:border-brand"
+                data-testid="browse-search"
+              />
+            </div>
+          )}
+
+          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {loading
+              ? Array.from({ length: 10 }).map((_, i) => (
+                  <AppCard
+                    key={`skeleton-${i}`}
+                    size="browse"
+                    skeleton
+                    name=""
+                    description=""
+                    href=""
+                    data-testid={`browse-card-skeleton-${i}`}
+                  />
+                ))
+              : allApps
+                .filter((app) => !plugSlots.some((p) => p.href === app.href))
+                .filter((app) => app.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                .map((app, i) => (
+                  <AppCard
+                    key={app.href}
+                    size="browse"
+                    iconSrc={app.iconSrc}
+                    iconLetter={app.name.charAt(0)}
+                    name={app.name}
+                    description=""
+                    href={app.href}
+                    visits={app.visits}
+                    appId={app.appId}
+                    data-testid={`browse-card-${i}`}
+                  />
+                ))}
+          </div>
+
+          {!loading && searchQuery && allApps.filter((app) => !plugSlots.some((p) => p.href === app.href)).filter((app) => app.name.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
+            <p className="py-12 text-center text-muted-foreground">No apps match &ldquo;{searchQuery}&rdquo;.</p>
+          )}
         </div>
       </div>
     </div>

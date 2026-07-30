@@ -1,3 +1,10 @@
+1.0.252 || 30.07.2026
+fix(web10-social): D-follow-toggle — follow button now toggles to unfollow. Root cause: `readFollow` returned `records[0]` with no status filter, so when duplicate follow records existed (one `active`, one `rejected`), the UI read the wrong one and the toggle never flipped. Fix: (1) `readFollow` now prefers `active` records, falling back to the most recent by `followed_at`; (2) `followUser` and `unfollowUser` update ALL matching records (not just one) so duplicates cannot stay stale. 5 new vitest regression tests pin the toggle round-trip with duplicates. 29 follows tests green, tsc clean.
+
+1.0.251 || 30.07.2026
+fix(web10-social): D-dm-header-profile-link — DM conversation header avatar + display name now wrap in a Link to /u/:username. Clicking either navigates to the other user's profile; browser back returns to the thread. Back and delete-conversation buttons untouched. 368 tests green, tsc clean.
+feat(marketing-ui): D-appstore-browse — browse grid is now uniform small cards (icon, name, visits; no description text) with a client-side search bar filtering apps by name. AppCard gains `size='browse'` variant with fixed-height cells. Plug slots untouched. 167 tests green, tsc clean, vite build clean.
+
 1.0.250 || 30.07.2026
 docs: `imma rant` filing (docs only, nothing built). One operator complaint filed as a lane item: D-home-stats-bar-styling (ws-D/marketing(2), small — the 1.0.240 homepage stats bar's heavy bordered container "just looks bad"; kill the border, move "data liberated" up as the third stat's label for consistency with USERS/APPS, and bare-on-background vs sleek individual cards is explicitly the builder's taste call against design.md §12). Added to `parallel execution.txt` + plan.txt PHASE 8.6 for the next kickoff batch.
 

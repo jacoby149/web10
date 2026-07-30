@@ -6,6 +6,7 @@ import '@testing-library/jest-dom';
 vi.mock('lucide-react', () => {
   const icons: Record<string, React.FC<React.SVGProps<SVGSVGElement>>> = {
     ArrowUpRight: (props) => <svg data-testid="arrow-up-right" {...props} />,
+    Search: (props) => <svg data-testid="search-icon" {...props} />,
   };
   return {
     ...icons,
@@ -40,10 +41,27 @@ describe('AppCard', () => {
         description="A test app description."
         href="https://test.web10.app"
         visits={42}
+        size="default"
       />
     );
     expect(screen.getByText('Test App')).toBeInTheDocument();
     expect(screen.getByText('A test app description.')).toBeInTheDocument();
+  });
+
+  it('browse size renders name and visits but no description', async () => {
+    const { AppCard } = await import('@/components/AppCard');
+    render(
+      <AppCard
+        name="Test App"
+        description="Should not appear."
+        href="https://test.web10.app"
+        visits={42}
+        size="browse"
+      />
+    );
+    expect(screen.getByText('Test App')).toBeInTheDocument();
+    expect(screen.getByText('42 visits')).toBeInTheDocument();
+    expect(screen.queryByText('Should not appear.')).not.toBeInTheDocument();
   });
 
   it('renders visit count', async () => {
@@ -295,7 +313,7 @@ describe('AppStore page', () => {
   it('renders skeleton cards while loading', async () => {
     const { default: AppStore } = await import('@/pages/AppStore');
     renderWithRouter(<AppStore />);
-    const skeletons = screen.getAllByTestId(/app-card-skeleton/);
+    const skeletons = screen.getAllByTestId(/browse-card-skeleton/);
     expect(skeletons.length).toBeGreaterThan(0);
   });
 
@@ -336,6 +354,23 @@ describe('AppStore page', () => {
       const plugSlot = screen.getByTestId('plug-slot-0');
       expect(plugSlot).toHaveAttribute('href', 'https://social.web10.app');
       expect(plugSlot.textContent).toContain('Flagship');
+    });
+  });
+
+  it('renders browse search bar', async () => {
+    const { default: AppStore } = await import('@/pages/AppStore');
+    render(<AppStore />);
+    await vi.waitFor(() => {
+      expect(screen.getByTestId('browse-search')).toBeInTheDocument();
+    });
+    expect(screen.getByPlaceholderText('Search apps…')).toBeInTheDocument();
+  });
+
+  it('browse section renders', async () => {
+    const { default: AppStore } = await import('@/pages/AppStore');
+    render(<AppStore />);
+    await vi.waitFor(() => {
+      expect(screen.getByTestId('browse-section')).toBeInTheDocument();
     });
   });
 });
