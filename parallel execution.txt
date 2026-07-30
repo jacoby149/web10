@@ -365,6 +365,39 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       indexes has_media=false), ruff clean. gate: none. unblocks:
       D-trending-card-media, the D-user-profile-media grid half.
 
+[ ] A18-engagement-target-canonical (lane A, api/**; PRIORITY 1 —
+      REGRESSION, operator 29.07, screenshot: every /trending card
+      shows 0 likes / 0 comments): A15's fix (#360) made counts WORSE
+      — it converted the aggregation's $match from the raw post_key
+      to `service:post_id`, but the prod ledger has THREE target
+      formats and that one matches NONE of the real data:
+        (1) seed script (33 real comment entries on prod):
+            `{author}/public_posts/{post_id}` — the engine-native
+            format the aggregation ORIGINALLY matched (this is why
+            badges were nonzero before A15);
+        (2) social app client (comments.ts:53, reactions.ts:37):
+            `posts:{post_id}` — note the hardcoded `posts`, not even
+            the real service name `public_posts`;
+        (3) A15's aggregation: `public_posts:{post_id}` — matches
+            neither (1) nor (2), so every count is now 0.
+      DECISION (recorded here, don't re-litigate): the canonical
+      ledger target is `{author}/{service}/{post_id}` — engine-native,
+      seed-written, and the only unambiguous one (post_ids are unique
+      per user, not globally). the api half: revert A15's conversion
+      in _ledger_engagement_for_post (documentdb.py) — $match the RAW
+      post_key again — and extend the discovery tests to pin the
+      canonical format (an entry written with target
+      `alice/public_posts/123` counts toward post alice/public_posts/
+      123; an entry with the legacy `posts:123` format is documented
+      as orphaned, NOT matched). keep A15's good tests (N-comments,
+      delete-decrements) ported to the canonical format. owns api/**
+      only. acceptance: discovery tests green, ruff clean; on prod
+      data the persona posts' badges show the real comment counts
+      again after deploy (no migration needed — the seed entries are
+      already canonical). gate: none. the CLIENT half (social +
+      marketing-ui write/read paths) is D-engagement-target-client,
+      ws-D/feed — same canonical format, independent PR.
+
 [✓ 1.0.210] A15-engagement-count-accuracy (operator, 26.07, screenshot: badge
       says 3 comments, the expanded panel renders more): the discovery
       index's cached engagement counts disagree with the live comment
@@ -1607,6 +1640,70 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       first-run state walks you through post/follow/monetize) —
       capture-only, stage when the onboarding pass comes.
 
+[ ] D-engagement-target-client (sub-lane ws-D/feed + one marketing-ui
+      file; PRIORITY 1 with A18 — the client half of the 29.07
+      zero-counts regression; read A18's diagnosis first, the format
+      DECISION is recorded there): the canonical ledger target is
+      `{author}/{service}/{post_id}`. today the clients write/read a
+      hardcoded `posts:{post_id}` format that matches nothing the
+      engine counts: (1) web10-social comments.ts (write :53, read
+      :77, delete :127) and reactions.ts (:37) — thread the post's
+      author + service through from the call sites (FeedScreen /
+      PostLightbox / UserProfileScreen all have the post object) and
+      build the canonical target; (2) marketing-ui FeedPreview.tsx
+      (:378) — the trending comment panel reads `posts:{postId}`;
+      the DiscoveryPost already carries author/service/post_id, use
+      them. tests pin the canonical string against the A18 contract
+      so the two halves can't drift again. NOTE: app-written entries
+      in the old `posts:` format (real-account reactions/comments
+      since D-comments-ledger) become orphaned — acceptable (counts
+      were 0 anyway); do NOT write a ledger migration. files:
+      web10-social/src/data/{comments,reactions}.ts + the call
+      sites, marketing-ui FeedPreview.tsx. acceptance: vitest green;
+      commenting on a post in the social app → the entry lands with
+      the canonical target AND the /trending badge for that post
+      increments (the write→aggregate loop closed end to end);
+      screenshots not needed (data-layer) but verify the trending
+      panel still renders comments. gate: none (A18 merges
+      independently — the format is decided here, not in code order).
+
+[ ] D-join-steps-visuals (sub-lane ws-D/marketing(2); SEAM: Join.tsx —
+      disjoint from the AppStore files, so it can interleave with
+      D-appstore-plugs; operator, 29.07, screenshot of the shipped
+      four-step strip): "i like this join but, i feel like the story
+      doesnt have good icons / visuals. or just thinking about the
+      storytelling here, this doesnt feel a16z like a palantir or
+      something, but i like the clarity actually on the other hand!
+      that it is straightforward what it is." — the COPY AND CLARITY
+      STAY (explicitly liked — do not rewrite the steps, do not add
+      prose); the VISUALS level up. today each step is a bare
+      numbered circle — no iconography, no story imagery, generic.
+      the bar: a16z/palantir-grade visual storytelling WITH the
+      straightforward clarity intact. direction (taste at build,
+      screenshots judged against design.md §12): (1) each step card
+      gains a REAL visual anchor, not a stock glyph — step 1 "Get
+      the app" shows the actual web10 social PWA icon (the good
+      asset, same as the appstore plugs); step 2 account (user/
+      keys-mark motif per design.md §3); step 3 monetization (the
+      money screen — a coin/stripe motif or a mini Studio
+      thumbnail); step 4 post (composer/send motif). lucide is the
+      house set, but a step that has a REAL product asset (PWA
+      icon, keys mark) uses it — real assets beat glyphs, same
+      lesson as the appstore. (2) the strip reads as ONE journey:
+      connector arrows/line with designed weight (not the current
+      bare →), step numbers integrated with the icons, hover/lift
+      states per card, glow per the social vibrancy tokens where
+      it fits marketing-ui's calmer register. (3) both the hero
+      strip and the bottom founding-member strip get the same
+      treatment (they share StepCard/StepStrip — one change). all
+      design.md tokens, zero hardcoded colors. files: marketing-ui
+      Join.tsx + the StepCard/StepArrow/StepStrip components
+      (extracted in 1.0.203). acceptance: design.md §12 —
+      screenshot desktop + 375px and LOOK: the steps read as a
+      premium onboarding journey a16z would put in a deck, while a
+      first-timer still instantly knows what to do; the copy is
+      byte-identical to today. gate: none.
+
 [ ] D-link-embeds (sub-lane ws-D/feed, AFTER D-follow-backfill — same
       workspace chain; operator, 26.07): paste a link into a post and it
       renders as an EMBED, the table-stakes feature every platform has
@@ -1823,7 +1920,14 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       (3) $text whole-word/stem semantics (substring "yoy" never matches
       "yoyoyo" — if the corpus needs substring search, add a
       case-insensitive regex fallback on body_text + author for short
-      queries, capped + escaped, no user regex metachars). fix so body
+      queries, capped + escaped, no user regex metachars).
+      CONFIRMED LIVE (operator, 29.07, screenshot: searching "yo"
+      returns nothing while multiple "yoyoyo" posts sit on the board):
+      "this only searches whole words! should search yo, and it
+      matchies yoyoyo in a post!" — case (3) is not a hypothesis, it
+      is THE behavior; the substring fallback is required, not
+      optional. HARD ACCEPTANCE CASE: searching "yo" returns the
+      "yoyoyo" posts. fix so body
       words, author handles, AND tags all return results; surface a
       real error state in the UI when the search request fails (never
       silently []). files: marketing-ui Trending/search components +
@@ -1879,8 +1983,15 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       path end-to-end) + the discovery backfill re-run on the env
       (E-run-discovery-migration note).
 
-[ ] D-graph-app (sub-lane ws-D/marketing, AFTER D-marketing-search —
-      same marketing-ui surface; operator, 26.07: "graph.web10.app,
+[PARKED] D-graph-app (sub-lane ws-D/marketing — PARKED 29.07, operator:
+      "the graph isnt aligned enough with the minimum necessities for
+      the business… save this graph stuff for much later after we make
+      some money!"). bite a shipped #362 and was REMOVED in 1.0.213 —
+      it never worked on prod (graphData.ts called GET on the PATCH-
+      only /public/entries + /discover/users; mocked tests hid it).
+      full park record + unpark notes (PATCH, top-N-by-followers
+      aggregation shape, real-data smoke assertion) in later.md.
+      Original text kept for history (operator, 26.07: "graph.web10.app,
       something wooshy is great marketing, because it is an app
       interoperating on web10 data… one outside analytical app on top
       of your social data"): a standalone, anon-first, read-only
@@ -1950,7 +2061,10 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       bite b, MY GRAPH: the signed-in ego view (consent flow, scoped
         token, personal edges). gate: bite a merged.
 
-[ ] D-social-analytics (sub-lane ws-D/marketing, AFTER D-graph-app —
+[PARKED] D-social-analytics (PARKED 29.07 with D-graph-app — operator:
+      save the graph/analytics showcase stuff for after we make some
+      money; park record in later.md. original text kept for history):
+      (sub-lane ws-D/marketing, AFTER D-graph-app —
       same showcase surface, sequential; operator, 26.07: "ranked
       chess.com analytics on your social media, you versus friends,
       or the top creators… a cool analytical app interoperating on
@@ -2492,12 +2606,12 @@ main — the seatbelt is real again. GATE NOTES: (1) PR #368
 (D-mail-experience bite b) merged WITHOUT a changelog entry or lane
 tick — retroactive record in CHANGELOG 1.0.212, bite ticked here.
 (2) D-graph-app bite a (#362) claimed "zero hardcoded colors" but
-GraphViz.tsx canvas paints hardcoded brand hex (#8b5cf6 etc.) —
-canvas can't take Tailwind classes, but the token rule stands: read
-the computed CSS variables. Filed as the micro-bite
-D-graph-token-polish at the front of ws-D/marketing. NOT a promotion
-blocker (rendered values match the palette exactly; cosmetic
-identical) — named, queued, not chased. (3) NEW ITEM from the
+GraphViz.tsx canvas paints hardcoded brand hex — AND worse, the page
+never worked on prod at all (GET on PATCH-only endpoints; the mocked
+tests hid it). The operator parked the whole graph/analytics showcase
+line 29.07 ("save this graph stuff for much later after we make some
+money!") — /graph removed in 1.0.213, D-graph-app + D-social-analytics
++ the token-polish micro-bite all parked to later.md. (3) NEW ITEM from the
 operator (29.07): D-appstore-plugs — partial reversal of v1's "no
 hero": the big flagship card returns (with the PWA icon, not the bad
 legacy logo) + most-popular + newest plug slots; category rails
@@ -2505,12 +2619,20 @@ legacy logo) + most-popular + newest plug slots; category rails
 fully refreshed — eight sub-lanes drained or advanced this batch.
 
   PRIORITY 1 (fresh, this audit):
-    ws-E (operator-gated): E-run-discovery-migration — STILL the only
-      P1. env gate CLEAR (A13 + A17 both deployed to prod). Run
-      migrate_terms + backfill + migrate_follows_terms with an admin
-      token per env; the A17 media fields need the backfill RE-RUN to
-      reach existing index docs. needs admin token + env access
-      (operator provides).
+    ws-A: A18-engagement-target-canonical — REGRESSION (operator
+      29.07: every /trending card shows 0 likes/0 comments). A15's
+      `service:post_id` conversion matches NONE of the three ledger
+      target formats in prod data; canonical = `{author}/{service}/
+      {post_id}`, revert to the raw post_key $match. full diagnosis
+      in the lane item.
+    ws-D/feed: D-engagement-target-client — the client half (social
+      comments/reactions + the marketing trending panel write/read
+      the canonical target). independent PR, same decision.
+    ws-E (operator-gated): E-run-discovery-migration — env gate CLEAR
+      (A13 + A17 both deployed to prod). Run migrate_terms + backfill +
+      migrate_follows_terms with an admin token per env; the A17 media
+      fields need the backfill RE-RUN to reach existing index docs.
+      needs admin token + env access (operator provides).
     (ws-C is CLEAR for the first time since 24.07 — C9 closed.)
 
   PARALLEL-SAFE FLEET (one workspace per sub-lane; chains WITHIN a
@@ -2522,23 +2644,36 @@ fully refreshed — eight sub-lanes drained or advanced this batch.
     ws-A:            D-appstore-revamp v2 bite c — the registration-
                      shape SPEC NOTE (a .context/decisions.md write-up,
                      no code; gates the v2 rewire build; lane A owns
-                     the record-shape call)
-    ws-D/feed:       D-feed-lightbox bite a (open-from-feed), THEN
-                     D-link-embeds
+                     the                      record-shape call)
+    ws-D/feed:       D-engagement-target-client (PRIORITY 1 — see
+                     above), THEN D-feed-lightbox bite a (open-from-
+                     feed), THEN D-link-embeds. NOTE (operator 29.07):
+                     "even better if i clicked them and it went to the
+                     hyperlink to the web10 social post" — the trending
+                     card → POST link needs social's post permalink
+                     route, which is D-feed-lightbox bite b (share +
+                     permalink) / D-deep-links territory; the URL-
+                     holds-state rule is already law (AGENTS.md), the
+                     permalink bite is the staged build. when bite b
+                     lands, a small ws-D/marketing bite switches
+                     TrendingCard's click target from /u/<author> to
+                     the post permalink.
     ws-D/messages:   D-mail-experience bite c (CC/BCC COMPOSE — gate
                      bite b merged #368, CLEARED), THEN D-crm-upgrade
                      bite b (contact fields + CRUD)
-    ws-D/marketing:  D-graph-token-polish (micro-bite, audit #10
-                     finding — GraphViz canvas reads computed token
-                     vars, ~15 min), THEN D-search-fulltext +
-                     D-trending-controls-alignment (either order),
-                     THEN D-graph-app bite b (MY GRAPH), THEN
-                     D-social-analytics
+    ws-D/marketing:  D-search-fulltext + D-trending-controls-alignment
+                     (either order). (D-graph-app + D-social-analytics
+                     PARKED 29.07 per operator — the /graph page was
+                     removed in 1.0.213; D-graph-token-polish dies with
+                     it. park record in later.md.)
     ws-D/marketing(2): D-appstore-plugs (NEW, operator 29.07 — see
                      the lane item), THEN D-appstore-revamp v2 bite a
                      (product page; gate: the lane-A spec note for the
                      full rewire, but bite a reads the legacy store
-                     as-is — NOT gated on it)
+                     as-is — NOT gated on it). ALSO PARALLEL-SAFE here:
+                     D-join-steps-visuals (NEW, operator 29.07 —
+                     Join.tsx seam, disjoint from the AppStore files;
+                     the two can run in two workspaces at once)
     ws-D/profile:    D-lightbox-media-sizing (chain START), THEN
                      D-profile-image-placement, THEN D-follow-lists,
                      THEN D-text-post-cards bite a — the whole chain
