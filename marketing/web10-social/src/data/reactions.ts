@@ -8,6 +8,21 @@ import type { ReactionRecord, ReactionTargetService } from './types';
 // can read engagement counts.
 
 /**
+ * Build the canonical ledger target: `{author}/{service}/{post_id}`.
+ * Falls back to the legacy `{target_service}:{target_id}` if author/service unknown.
+ */
+export function buildReactionTarget(
+  targetId: string,
+  postAuthor?: string,
+  postService?: string,
+): string {
+  if (postAuthor && postService) {
+    return `${postAuthor}/${postService}/${targetId}`;
+  }
+  return `posts:${targetId}`;
+}
+
+/**
  * Read all reactions for a target (post or comment).
  */
 export async function readReactions(
@@ -25,7 +40,11 @@ export async function readReactions(
  * Create a new reaction.
  * Phase 5.5: also writes to the public ledger if the Reaction schema is registered.
  */
-export async function createReaction(reaction: Omit<ReactionRecord, '_id'>): Promise<ReactionRecord> {
+export async function createReaction(
+  reaction: Omit<ReactionRecord, '_id'>,
+  postAuthor?: string,
+  postService?: string,
+): Promise<ReactionRecord> {
   const wapi = getWapi();
   const record = await wapi.create<ReactionRecord>('reactions', reaction);
 
@@ -34,7 +53,7 @@ export async function createReaction(reaction: Omit<ReactionRecord, '_id'>): Pro
   if (reactionSchema?._id) {
     createPublicEntry({
       schema_id: reactionSchema._id,
-      target: `${reaction.target_service}:${reaction.target_id}`,
+      target: buildReactionTarget(reaction.target_id, postAuthor, postService),
       payload: {
         action: reaction.type === 'like' ? 'like' : 'reaction',
         type: reaction.type,
@@ -58,6 +77,8 @@ export async function toggleReaction(
   type: string,
   authorUsername: string,
   authorProvider: string,
+  postAuthor?: string,
+  postService?: string,
 ): Promise<boolean> {
   const existing = await readReactions(targetService, targetId);
   const mine = existing.find(
@@ -79,7 +100,7 @@ export async function toggleReaction(
     created_at: new Date().toISOString(),
     author_username: authorUsername,
     author_provider: authorProvider,
-  });
+  }, postAuthor, postService);
   return true;
 }
 

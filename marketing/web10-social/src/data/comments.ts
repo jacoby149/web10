@@ -10,6 +10,21 @@ import type { CommentRecord } from './types';
 // discourse, the collection-level terms is the security boundary.
 
 /**
+ * Build the canonical ledger target: `{author}/{service}/{post_id}`.
+ * Falls back to the legacy `posts:{post_id}` if author/service unknown.
+ */
+export function buildCommentTarget(
+  postId: string,
+  postAuthor?: string,
+  postService?: string,
+): string {
+  if (postAuthor && postService) {
+    return `${postAuthor}/${postService}/${postId}`;
+  }
+  return `posts:${postId}`;
+}
+
+/**
  * Read all comments for a post.
  */
 export async function readComments(postId: string): Promise<CommentRecord[]> {
@@ -40,7 +55,11 @@ export async function readReplies(commentId: string): Promise<CommentRecord[]> {
  * Create a new comment on a post.
  * Phase 5.5: also writes to the public ledger unconditionally (D32).
  */
-export async function createComment(comment: Omit<CommentRecord, '_id'>): Promise<CommentRecord> {
+export async function createComment(
+  comment: Omit<CommentRecord, '_id'>,
+  postAuthor?: string,
+  postService?: string,
+): Promise<CommentRecord> {
   const wapi = getWapi();
   const record = await wapi.create<CommentRecord>('comments', comment);
 
@@ -50,7 +69,7 @@ export async function createComment(comment: Omit<CommentRecord, '_id'>): Promis
     const token = wapi.readToken();
     createPublicEntry({
       schema_id: commentSchema._id,
-      target: `posts:${comment.post_id}`,
+      target: buildCommentTarget(comment.post_id, postAuthor, postService),
       payload: {
         action: 'comment',
         text: comment.text,
@@ -67,14 +86,19 @@ export async function createComment(comment: Omit<CommentRecord, '_id'>): Promis
  * Update a comment by ID.
  * Also updates the mirrored ledger entry so the trending feed reflects the edit.
  */
-export async function updateComment(id: string, updates: Partial<CommentRecord>): Promise<CommentRecord> {
+export async function updateComment(
+  id: string,
+  updates: Partial<CommentRecord>,
+  postAuthor?: string,
+  postService?: string,
+): Promise<CommentRecord> {
   const wapi = getWapi();
   const record = await wapi.update<CommentRecord>('comments', { _id: id }, { $set: updates });
 
   // Update the mirrored ledger entry: delete old, create new with updated text
   const commentSchema = getCachedSchema('Comment');
   if (commentSchema?._id && record.post_id) {
-    const target = `posts:${record.post_id}`;
+    const target = buildCommentTarget(record.post_id, postAuthor, postService);
     const entries = await queryPublicEntries({ target });
     const matching = entries.filter(
       (e) =>
@@ -116,7 +140,11 @@ export async function updateComment(id: string, updates: Partial<CommentRecord>)
  * Delete a comment by ID.
  * Also removes the mirrored ledger entry so the comment drops out of the count.
  */
-export async function deleteComment(id: string): Promise<void> {
+export async function deleteComment(
+  id: string,
+  postAuthor?: string,
+  postService?: string,
+): Promise<void> {
   const wapi = getWapi();
 
   // Read the comment to find its post_id and author for ledger cleanup
@@ -124,7 +152,7 @@ export async function deleteComment(id: string): Promise<void> {
   if (comment.length > 0) {
     const c = comment[0];
     const token = wapi.readToken();
-    const target = `posts:${c.post_id}`;
+    const target = buildCommentTarget(c.post_id, postAuthor, postService);
 
     // Query the ledger for the matching entry and delete it
     const entries = await queryPublicEntries({ target });

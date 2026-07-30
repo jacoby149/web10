@@ -11,9 +11,11 @@ interface CommentThreadProps {
   isOpen: boolean;
   count: number;
   onCountChange: (n: number) => void;
+  postAuthor?: string;
+  postService?: string;
 }
 
-export function CommentThread({ postId, isOpen, onCountChange }: CommentThreadProps) {
+export function CommentThread({ postId, isOpen, onCountChange, postAuthor, postService }: CommentThreadProps) {
   const [comments, setComments] = useState<CommentRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState('');
@@ -44,7 +46,7 @@ export function CommentThread({ postId, isOpen, onCountChange }: CommentThreadPr
         post_id: postId,
         text: draft.trim(),
         created_at: new Date().toISOString(),
-      });
+      }, postAuthor, postService);
       const next = [...comments, created];
       setComments(next);
       onCountChange(next.length);

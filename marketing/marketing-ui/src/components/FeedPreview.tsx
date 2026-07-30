@@ -370,12 +370,15 @@ function commentTimeAgo(dateStr: string): string {
   return `${days}d`;
 }
 
-async function fetchComments(postId: string): Promise<LedgerComment[]> {
+async function fetchComments(postId: string, postAuthor?: string, postService?: string): Promise<LedgerComment[]> {
+  const target = postAuthor && postService
+    ? `${postAuthor}/${postService}/${postId}`
+    : `posts:${postId}`;
   const resp = await fetch(`${COMMENT_API}/public/entries`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      query: { target: `posts:${postId}`, limit: 50 },
+      query: { target, limit: 50 },
     }),
   });
   if (!resp.ok) return [];
@@ -383,7 +386,7 @@ async function fetchComments(postId: string): Promise<LedgerComment[]> {
   return entries.filter(e => e.payload?.action === 'comment');
 }
 
-function InlineCommentPanel({ postId }: { postId: string }) {
+function InlineCommentPanel({ postId, postAuthor, postService }: { postId: string; postAuthor?: string; postService?: string }) {
   const [comments, setComments] = useState<LedgerComment[]>([]);
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
@@ -391,11 +394,11 @@ function InlineCommentPanel({ postId }: { postId: string }) {
 
   useEffect(() => {
     let cancelled = false;
-    fetchComments(postId)
+    fetchComments(postId, postAuthor, postService)
       .then(c => { if (!cancelled) { setComments(c); setLoading(false); } })
       .catch(() => { if (!cancelled) { setComments([]); setLoading(false); } });
     return () => { cancelled = true; };
-  }, [postId]);
+  }, [postId, postAuthor, postService]);
 
   const handleCompose = () => {
     trackFunnel('trending_comment_attempt', { post_id: postId });
@@ -645,7 +648,7 @@ function TrendingCard({
             </>
           )}
         </div>
-        {commentOpen && !readOnly && <InlineCommentPanel postId={post.id} />}
+        {commentOpen && !readOnly && <InlineCommentPanel postId={post.id} postAuthor={post.author} postService={'public_posts'} />}
       </div>
     </Card>
   );
