@@ -3083,7 +3083,7 @@ the M2 money-path referee (C8); no infra-company drift. QWEN HORIZON:
                      D-follow-lists, D-text-post-cards (chain order)
     ws-D/feed:       D-link-embeds (feed-lightbox drained — the lane is
                      free; gate D-profile-post-experience long merged)
-    ws-D/marketing:  D-appstore-revamp v2 bite a (product page UI —
+    ws-D/marketing:  [✓ 1.0.253] D-appstore-revamp v2 bite a (product page UI —
                      gate CLEARED: spec #401 + rewire #409 live on prod;
                      /discover/app/{id} + /apps/rating(s) endpoints
                      serving)

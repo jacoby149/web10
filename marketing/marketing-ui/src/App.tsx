@@ -7,6 +7,7 @@ import Trending from './pages/Trending'
 import Join from './pages/Join'
 import Docs from './pages/Docs'
 import AppStore from './pages/AppStore'
+import AppDetail from './pages/AppDetail'
 import Exporter from './pages/Exporter'
 
 function App({ onReportBug }: { onReportBug: () => void }) {
@@ -20,6 +21,7 @@ function App({ onReportBug }: { onReportBug: () => void }) {
         <Route path="/docs" element={<Docs />} />
         <Route path="/docs/:page" element={<Docs />} />
         <Route path="/app-store" element={<AppStore />} />
+        <Route path="/app-store/app/:id" element={<AppDetail />} />
         <Route path="/import" element={<Exporter />} />
       </Routes>
       <DeployStatus />
