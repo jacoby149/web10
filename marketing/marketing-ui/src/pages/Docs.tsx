@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, Link, useLocation } from 'react-router-dom'
 import { remark } from 'remark'
 import remarkHtml from 'remark-html'
-import { FileText, Code, Terminal, ExternalLink, Compass } from 'lucide-react'
+import { FileText, Code, Terminal, ExternalLink, Compass, BookOpen } from 'lucide-react'
 import { trackFunnel } from '../lib/analytics'
 
 const DOC_PAGES = [
@@ -11,6 +11,7 @@ const DOC_PAGES = [
   { slug: 'conventions', title: 'Conventions', file: '/docs/conventions.md' },
   { slug: 'sdk', title: 'SDK Guide', file: '/docs/sdk.md' },
   { slug: 'cli-quickstart', title: 'CLI Quickstart', file: '/docs/cli-quickstart.md' },
+  { slug: 'export-guidance', title: 'Export Guidance', file: '/docs/export-guidance.md' },
 ]
 
 const DEMO_APPS = [
@@ -32,7 +33,7 @@ function DocsSidebar() {
       </h3>
       <nav className="mb-6 flex flex-col gap-1">
         {DOC_PAGES.map(page => {
-          const Icon = page.slug === 'overview' ? Compass : FileText
+          const Icon = page.slug === 'overview' ? Compass : page.slug === 'export-guidance' ? BookOpen : FileText
           return (
             <Link
               key={page.slug}
