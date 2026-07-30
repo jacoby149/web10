@@ -1905,6 +1905,98 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         search affordance, tag-chip routing polish. gate: bite a
         merged.
 
+[ ] D-import-revamp (operator, 29.07 rant, screenshot of the /join
+      step format: "the import your life feature lets be real, this
+      is bricked right now… actually the format for the join tab
+      would work great for the import your life!"): rebuild Import
+      Your Life as a /join-style numbered-step journey over REAL
+      platform export links + a server-side pipeline. the operator's
+      five steps, verbatim:
+        1 - export the zip from legacy media! as easy as clicking
+            the link! for whichever one you are importing! Facebook,
+            Youtube, X, Instagram! (buttons with each platform's
+            logo, deep-linking to that platform's data-export page)
+            PLUS (operator, 29.07 rant #2: "we should offer tiktok
+            export as well! and web10 export!"): TIKTOK gets a
+            button too (five legacy platforms), and WEB10 EXPORT —
+            "yes you can export from your current web10 node, and
+            import somewhere else!" — the sovereignty escape hatch
+            made visible: export your own node's collections as a
+            zip, import it on another node. the import page SAYS
+            this proudly (it's the anti-lock-in proof — the pitch
+            is that there is no lock-in).
+        2 - log into the web10 authenticator! click the import from
+            legacy social media tab!
+        3 - upload the zip! we do a wetransfer like thing, where
+            data will hit the s3 service we are hosting.
+        4 - we do the rest! some kind of celery queue in the
+            background that gets all of it onto web10 social and
+            then deletes the original files from the bucket!! new
+            api plumbing, fastapi + celery next to each other, in
+            the marketing api!
+        5 - posts enter staging! use our editors to decide the
+            privacy settings of your posts! click done, and they
+            will be on web10 social!
+      EXISTING MACHINERY TO REUSE (don't rebuild): marketing-api's
+      ZIP import pipeline (1.0.31 — server-side parse/validate/
+      dedup/batch-write), staging_posts writes (1.0.131), the
+      Staging/Review screen (1.0.164, D19 Phase C — step 5 already
+      exists!). the current /import page (Exporter.tsx) is the
+      "bricked" UX this replaces. the bucket-delete-after-processing
+      is a PRIVACY PROMISE — make it load-bearing: originals are
+      deleted when the pipeline finishes, and the UI says so.
+      BITES (rule 5 — one PR each):
+      bite a, THE STEP STRIP + EXPORT LINKS (sub-lane
+        ws-D/marketing(2); Exporter.tsx seam — disjoint from Home/
+        Join/AppStore): rebuild /import as the /join-format numbered
+        steps (reuse StepCard/StepStrip from 1.0.203); step 1 is
+        pure value TODAY — platform logo buttons deep-linking to
+        each platform's data-export page (Facebook, YouTube, X,
+        Instagram, TikTok — find the current export URLs, open in
+        new tab) PLUS the web10-export note rendered proudly on the
+        page ("yes, you can export from your current web10 node and
+        import somewhere else" — the anti-lock-in proof, visible
+        even before bite d builds the export button);
+        steps 2-5 render as the honest journey with the steps that
+        aren't built yet marked "coming soon" (never fake a working
+        step). no backend. gate: none.
+      bite b, THE WETRANSFER PIPELINE (sub-lane ws-D/marketing-api —
+        marketing/marketing-api/**; NEW sub-lane, nothing in flight
+        there): authenticated ZIP upload to the hosted S3 (presigned
+        PUT/POST like the node's media path), a background queue
+        (operator says celery beside fastapi in marketing-api — if a
+        lighter in-process runner (FastAPI BackgroundTasks/arq)
+        covers v1 volume, the builder may choose it but must say why
+        in the PR), processing into staging_posts per the existing
+        1.0.31/1.0.131 pipeline, job status polling for the UI, and
+        DELETE the original zip from the bucket on completion.
+        gate: bite a (the page exists to point at it).
+      bite c, AUTHENTICATOR IMPORT TAB (sub-lane ws-B — ui/**; the
+        step-2 surface): the "import from legacy social media" tab
+        in the authenticator hosting the upload + status UI. gate:
+        bite b. NOTE: cross-lane — ws-B owns ui/**; the bite is
+        small if bite b's API contract is documented in a .context/
+        handoff note first.
+      bite d, WEB10 NODE EXPORT (sub-lane ws-D/marketing-api with a
+        lane-A seam — the node needs an export endpoint; operator,
+        29.07 rant #2: "web10 export! and make a note, yes you can
+        export from your current web10 node, and import somewhere
+        else!"): download YOUR collections as a zip (the whole
+        {service, body} corpus, media refs included — the format
+        mirrors the conventions doc so the bite-b pipeline ingests
+        it like any takeout), and the bite-b import path ACCEPTS a
+        web10 zip on another node (node-to-node migration = the
+        federation escape hatch, no new protocol — a zip is a zip).
+        the api side (an authenticated export endpoint on the node,
+        streaming the caller's own collection — I3-safe by
+        construction) is a small lane-A seam: leave the .context/
+        note, don't reach in from lane D. gate: bite b (the ingest
+        half exists to target).
+      acceptance (umbrella): a user can click a platform logo, get
+      the export zip, upload it, watch it process, review privacy
+      in staging, and see their old life on web10 social — with the
+      originals deleted from the bucket. each bite has its own bar
+      in its kickoff.
 [ ] D-home-stats-bar (sub-lane ws-D/marketing(2); SEAM: Home.tsx —
       disjoint from AppStore/Join files; operator, 29.07 rant,
       screenshot of the App Store subtitle's inline counts: "on the
@@ -2788,7 +2880,10 @@ fully refreshed — eight sub-lanes drained or advanced this batch.
                      (product page; gate: the lane-A spec note for the
                      full rewire, but bite a reads the legacy store
                      as-is — NOT gated on it). ALSO PARALLEL-SAFE here:
-                     D-join-steps-visuals (operator 29.07 —
+                     D-import-revamp bite a (operator 29.07 rant —
+                     the /join-style import step strip + platform
+                     export links; Exporter.tsx seam, disjoint from
+                     the AppStore files), D-join-steps-visuals (operator 29.07 —
                      Join.tsx seam, disjoint from the AppStore files;
                      the two can run in two workspaces at once) AND
                      D-home-stats-bar (operator 29.07 rant —
