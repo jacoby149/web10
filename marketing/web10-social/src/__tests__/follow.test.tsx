@@ -194,7 +194,11 @@ describe('Follow button -> followUser call', () => {
     const { followUser } = await import('@/data');
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
 
-    render(<DiscoverScreen />);
+    render(
+      <MemoryRouter initialEntries={['/discover']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
 
     await waitFor(() => {
       expect(screen.getAllByTestId('discover-user-card').length).toBeGreaterThan(0);
@@ -214,7 +218,11 @@ describe('Follow button -> followUser call', () => {
   it('discover screen shows suggested users', async () => {
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
 
-    render(<DiscoverScreen />);
+    render(
+      <MemoryRouter initialEntries={['/discover']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
 
     await waitFor(() => {
       const cards = screen.getAllByTestId('discover-user-card');
@@ -286,7 +294,11 @@ describe('DiscoverScreen', () => {
   it('renders discover header', async () => {
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
 
-    render(<DiscoverScreen />);
+    render(
+      <MemoryRouter initialEntries={['/discover']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
 
     await waitFor(() => {
       expect(screen.getByText('Discover')).toBeInTheDocument();
@@ -299,7 +311,11 @@ describe('DiscoverScreen', () => {
 
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
 
-    render(<DiscoverScreen />);
+    render(
+      <MemoryRouter initialEntries={['/discover']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
 
     await waitFor(() => {
       expect(screen.getByTestId('discover-empty')).toBeInTheDocument();

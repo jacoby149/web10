@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -34,6 +35,8 @@ import {
   UserPlus,
   UserX,
   Loader2,
+  Search,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
@@ -542,7 +545,31 @@ export default function DiscoverScreen() {
   const [loading, setLoading] = useState(true);
   const [profileMap, setProfileMap] = useState<Record<string, ProfileRecord>>({});
   const [mediaMap, setMediaMap] = useState<Record<string, MediaRecord[]>>({});
-  const [topic, setTopic] = useState<string>('All');
+
+  // Deep-link: active tag from ?tag= (refresh-safe, shareable)
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlTag = searchParams.get('tag') || '';
+  const [activeTag, setActiveTag] = useState<string>(urlTag || 'All');
+
+  // Deep-link: search query from ?q= (refresh-safe, shareable)
+  const urlQuery = searchParams.get('q') || '';
+  const [searchQuery, setSearchQuery] = useState<string>(urlQuery);
+
+  // Sync activeTag with ?tag= search param
+  useEffect(() => {
+    const current = searchParams.get('tag') || 'All';
+    if (activeTag !== current) {
+      setActiveTag(current);
+    }
+  }, [searchParams]);
+
+  // Sync searchQuery with ?q= search param
+  useEffect(() => {
+    const current = searchParams.get('q') || '';
+    if (searchQuery !== current) {
+      setSearchQuery(current);
+    }
+  }, [searchParams]);
 
   // Knob state — starts at Balanced preset, knobs re-rank client-side live
   const [knobState, setKnobState] = useState<KnobState>(defaultKnobState());
@@ -725,25 +752,75 @@ export default function DiscoverScreen() {
     [rankedPosts],
   );
 
-  const visiblePosts = useMemo(
-    () => topic === 'All'
-      ? rankedPosts
-      : rankedPosts.filter(p => p.tags?.includes(topic) ?? false),
-    [rankedPosts, topic],
-  );
+  const visiblePosts = useMemo(() => {
+    let filtered = rankedPosts;
+    if (activeTag && activeTag !== 'All') {
+      filtered = filtered.filter(p => p.tags?.includes(activeTag) ?? false);
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter(p =>
+        (p.text ?? '').toLowerCase().includes(q) ||
+        (p.tags ?? []).some(t => t.toLowerCase().includes(q)) ||
+        (p.author ?? '').toLowerCase().includes(q),
+      );
+    }
+    return filtered;
+  }, [rankedPosts, activeTag, searchQuery]);
 
   const isInitialLoad = loading && posts.length === 0;
   const showSuggested = suggestedLoading || suggested.length > 0;
+
+  function handleSearchChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const val = e.target.value;
+    setSearchQuery(val);
+    const params = new URLSearchParams(searchParams);
+    if (val.trim()) {
+      params.set('q', val.trim());
+    } else {
+      params.delete('q');
+    }
+    setSearchParams(params);
+  }
+
+  function handleSearchClear() {
+    setSearchQuery('');
+    const params = new URLSearchParams(searchParams);
+    params.delete('q');
+    setSearchParams(params);
+  }
 
   return (
     <div className="flex flex-col min-h-full bg-background">
       <div className="md:max-w-xl md:mx-auto">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-md border-b border-border md:static md:border-0 md:bg-transparent md:mb-4">
-        <div className="flex items-center justify-between px-4 py-3 md:px-0">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between px-4 py-3 md:px-0 gap-3">
+          <div className="flex items-center gap-2 shrink-0">
             <Compass className="h-5 w-5 text-brand-400" strokeWidth={1.75} />
             <h1 className="font-display text-lg font-bold text-foreground">Discover</h1>
+          </div>
+          <div className="relative flex-1 max-w-xs">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={handleSearchChange}
+              placeholder="Search posts…"
+              data-testid="discover-search"
+              className="w-full h-8 pl-8 pr-7 rounded-full border border-input bg-surface text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand/50 transition-colors duration-150"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={handleSearchClear}
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 h-5 w-5 flex items-center justify-center rounded-full hover:bg-elevated transition-colors duration-150"
+                aria-label="Clear search"
+                data-testid="discover-search-clear"
+              >
+                <X className="h-3 w-3 text-muted-foreground" />
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -799,7 +876,7 @@ export default function DiscoverScreen() {
             aria-label="Filter by topic"
           >
             {topics.map(t => {
-              const active = t === topic;
+              const active = t === activeTag;
               return (
                 <button
                   key={t}
@@ -807,7 +884,16 @@ export default function DiscoverScreen() {
                   role="tab"
                   aria-selected={active}
                   data-testid="discover-topic"
-                  onClick={() => setTopic(t)}
+                  onClick={() => {
+                    setActiveTag(t);
+                    const params = new URLSearchParams(searchParams);
+                    if (t === 'All') {
+                      params.delete('tag');
+                    } else {
+                      params.set('tag', t);
+                    }
+                    setSearchParams(params);
+                  }}
                   className={cn(
                     'shrink-0 rounded-full border px-3 py-1.5 text-sm transition-colors',
                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',

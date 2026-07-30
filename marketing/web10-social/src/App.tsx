@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { Routes, Route, Navigate, useNavigate, useLocation, useParams } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import web10SocialAdapterInit from '@/interfaces/Web10SocialAdapter';
 import Layout from '@/components/Social/Layout';
@@ -110,9 +110,11 @@ function UserProfileRoute() {
 
 function UserProfilePostLinkRoute() {
   const { username, postId } = useParams();
+  const [searchParams] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
   const provider = location.state?.provider || getWapi().readToken()?.provider || '';
+  const highlightedCommentId = searchParams.get('comment') || undefined;
   const [post, setPost] = useState<PostRecord | null>(null);
   const [mediaMap, setMediaMap] = useState<Record<string, MediaRecord>>({});
   const [loading, setLoading] = useState(true);
@@ -183,6 +185,7 @@ function UserProfilePostLinkRoute() {
           postAuthor={username}
           postService={post._id ? 'public_posts' : undefined}
           isOwner={false}
+          highlightedCommentId={highlightedCommentId}
         />
       )}
     </>

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import '@testing-library/jest-dom';
 import * as data from '@/data';
 
@@ -37,7 +38,11 @@ describe('DiscoverScreen', () => {
 
   it('renders skeleton while loading', async () => {
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
-    render(<DiscoverScreen />);
+    render(
+      <MemoryRouter initialEntries={['/discover']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
     await waitFor(() => {
       expect(screen.getByTestId('discover-grid-skeleton')).toBeInTheDocument();
     });
@@ -45,7 +50,11 @@ describe('DiscoverScreen', () => {
 
   it('renders empty state when discovery returns nothing', async () => {
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
-    render(<DiscoverScreen />);
+    render(
+      <MemoryRouter initialEntries={['/discover']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
     await waitFor(() => {
       expect(screen.getByTestId('discover-empty')).toBeInTheDocument();
     });
@@ -82,7 +91,11 @@ describe('DiscoverScreen', () => {
     ]);
 
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
-    render(<DiscoverScreen />);
+    render(
+      <MemoryRouter initialEntries={['/discover']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
 
     await waitFor(() => {
       expect(screen.getByTestId('discover-grid')).toBeInTheDocument();
@@ -148,7 +161,11 @@ describe('DiscoverScreen', () => {
     ]);
 
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
-    render(<DiscoverScreen />);
+    render(
+      <MemoryRouter initialEntries={['/discover']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
 
     await waitFor(() => {
       expect(screen.getAllByTestId('discover-card').length).toBeGreaterThanOrEqual(1);
@@ -187,7 +204,11 @@ describe('DiscoverScreen', () => {
     ]);
 
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
-    render(<DiscoverScreen />);
+    render(
+      <MemoryRouter initialEntries={['/discover']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
 
     // Wait for grid to appear (posts loaded)
     await waitFor(() => {
@@ -228,7 +249,11 @@ describe('DiscoverScreen', () => {
     ]);
 
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
-    render(<DiscoverScreen />);
+    render(
+      <MemoryRouter initialEntries={['/discover']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
 
     await waitFor(() => {
       expect(screen.getAllByTestId('discover-card').length).toBeGreaterThanOrEqual(2);
@@ -261,7 +286,11 @@ describe('DiscoverScreen', () => {
     ]);
 
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
-    render(<DiscoverScreen />);
+    render(
+      <MemoryRouter initialEntries={['/discover']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
 
     await waitFor(() => {
       expect(screen.getByTestId('discover-card')).toBeInTheDocument();
@@ -301,7 +330,11 @@ describe('DiscoverScreen', () => {
     ]);
 
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
-    render(<DiscoverScreen />);
+    render(
+      <MemoryRouter initialEntries={['/discover']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
 
     await waitFor(() => {
       expect(screen.getByTestId('discover-grid')).toBeInTheDocument();
@@ -323,5 +356,319 @@ describe('DiscoverScreen', () => {
     await waitFor(() => {
       expect(screen.getByTestId('preset-most-loved').classList).toContain('border-brand');
     });
+  });
+
+  // ── Deep-link tests: ?tag= and ?q= ──────────────────────────────────
+
+  it('restores active tag from ?tag= on initial render', async () => {
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        author: 'user1',
+        provider: 'api.web10.app',
+        post_id: 'p1',
+        text: 'Cooking post',
+        tags: ['cooking'],
+        created_at: new Date().toISOString(),
+        likes: 10,
+        comments: 2,
+        reposts: 1,
+        score: 14,
+      },
+      {
+        author: 'user2',
+        provider: 'api.web10.app',
+        post_id: 'p2',
+        text: 'Tech post',
+        tags: ['tech'],
+        created_at: new Date().toISOString(),
+        likes: 5,
+        comments: 1,
+        reposts: 0,
+        score: 7,
+      },
+    ]);
+
+    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
+    render(
+      <MemoryRouter initialEntries={['/discover?tag=cooking']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-grid')).toBeInTheDocument();
+    });
+
+    // The cooking topic chip should be active
+    const topics = screen.getAllByTestId('discover-topic');
+    const cookingChip = topics.find(t => t.textContent?.includes('cooking'));
+    expect(cookingChip).toBeTruthy();
+    expect(cookingChip!.classList).toContain('border-brand');
+
+    // Only cooking posts should be visible
+    const cards = screen.getAllByTestId('discover-card');
+    expect(cards.length).toBe(1);
+  });
+
+  it('restores search query from ?q= on initial render', async () => {
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        author: 'user1',
+        provider: 'api.web10.app',
+        post_id: 'p1',
+        text: 'Hello world post',
+        tags: ['general'],
+        created_at: new Date().toISOString(),
+        likes: 10,
+        comments: 2,
+        reposts: 1,
+        score: 14,
+      },
+      {
+        author: 'user2',
+        provider: 'api.web10.app',
+        post_id: 'p2',
+        text: 'Another post here',
+        tags: ['general'],
+        created_at: new Date().toISOString(),
+        likes: 5,
+        comments: 1,
+        reposts: 0,
+        score: 7,
+      },
+    ]);
+
+    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
+    render(
+      <MemoryRouter initialEntries={['/discover?q=hello']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-search')).toBeInTheDocument();
+    });
+
+    // Search input should have the query
+    expect(screen.getByTestId('discover-search')).toHaveValue('hello');
+
+    // Only matching posts should be visible
+    await waitFor(() => {
+      const cards = screen.getAllByTestId('discover-card');
+      expect(cards.length).toBe(1);
+    });
+  });
+
+  it('restores both ?tag= and ?q= together', async () => {
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        author: 'user1',
+        provider: 'api.web10.app',
+        post_id: 'p1',
+        text: 'Delicious cooking recipe',
+        tags: ['cooking'],
+        created_at: new Date().toISOString(),
+        likes: 10,
+        comments: 2,
+        reposts: 1,
+        score: 14,
+      },
+      {
+        author: 'user2',
+        provider: 'api.web10.app',
+        post_id: 'p2',
+        text: 'Baking is fun too',
+        tags: ['cooking'],
+        created_at: new Date().toISOString(),
+        likes: 5,
+        comments: 1,
+        reposts: 0,
+        score: 7,
+      },
+      {
+        author: 'user3',
+        provider: 'api.web10.app',
+        post_id: 'p3',
+        text: 'Tech news today',
+        tags: ['tech'],
+        created_at: new Date().toISOString(),
+        likes: 20,
+        comments: 5,
+        reposts: 2,
+        score: 28,
+      },
+    ]);
+
+    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
+    render(
+      <MemoryRouter initialEntries={['/discover?tag=cooking&q=delicious']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-grid')).toBeInTheDocument();
+    });
+
+    // Should show only 1 post: cooking tag AND contains "delicious"
+    const cards = screen.getAllByTestId('discover-card');
+    expect(cards.length).toBe(1);
+  });
+
+  it('clicking a topic chip writes ?tag= to URL', async () => {
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        author: 'user1',
+        provider: 'api.web10.app',
+        post_id: 'p1',
+        text: 'Cooking post',
+        tags: ['cooking'],
+        created_at: new Date().toISOString(),
+        likes: 10,
+        comments: 2,
+        reposts: 1,
+        score: 14,
+      },
+      {
+        author: 'user2',
+        provider: 'api.web10.app',
+        post_id: 'p2',
+        text: 'Tech post',
+        tags: ['tech'],
+        created_at: new Date().toISOString(),
+        likes: 5,
+        comments: 1,
+        reposts: 0,
+        score: 7,
+      },
+    ]);
+
+    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
+    render(
+      <MemoryRouter initialEntries={['/discover']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-grid')).toBeInTheDocument();
+    });
+
+    // Click the "cooking" topic chip
+    const topics = screen.getAllByTestId('discover-topic');
+    const cookingChip = topics.find(t => t.textContent?.includes('cooking'));
+    expect(cookingChip).toBeTruthy();
+    fireEvent.click(cookingChip!);
+
+    // Topic chip should now be active
+    await waitFor(() => {
+      expect(cookingChip!.classList).toContain('border-brand');
+    });
+  });
+
+  it('typing in search input filters posts and writes ?q=', async () => {
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        author: 'user1',
+        provider: 'api.web10.app',
+        post_id: 'p1',
+        text: 'Hello world post',
+        tags: ['general'],
+        created_at: new Date().toISOString(),
+        likes: 10,
+        comments: 2,
+        reposts: 1,
+        score: 14,
+      },
+      {
+        author: 'user2',
+        provider: 'api.web10.app',
+        post_id: 'p2',
+        text: 'Another post here',
+        tags: ['general'],
+        created_at: new Date().toISOString(),
+        likes: 5,
+        comments: 1,
+        reposts: 0,
+        score: 7,
+      },
+    ]);
+
+    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
+    render(
+      <MemoryRouter initialEntries={['/discover']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-grid')).toBeInTheDocument();
+    });
+
+    // Initially 2 cards visible
+    expect(screen.getAllByTestId('discover-card').length).toBe(2);
+
+    // Type in search
+    const input = screen.getByTestId('discover-search');
+    fireEvent.change(input, { target: { value: 'hello' } });
+
+    // Should filter to 1 card
+    await waitFor(() => {
+      expect(screen.getAllByTestId('discover-card').length).toBe(1);
+    });
+  });
+
+  it('clearing search removes ?q= and shows all posts', async () => {
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        author: 'user1',
+        provider: 'api.web10.app',
+        post_id: 'p1',
+        text: 'Hello world post',
+        tags: ['general'],
+        created_at: new Date().toISOString(),
+        likes: 10,
+        comments: 2,
+        reposts: 1,
+        score: 14,
+      },
+      {
+        author: 'user2',
+        provider: 'api.web10.app',
+        post_id: 'p2',
+        text: 'Another post here',
+        tags: ['general'],
+        created_at: new Date().toISOString(),
+        likes: 5,
+        comments: 1,
+        reposts: 0,
+        score: 7,
+      },
+    ]);
+
+    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
+    render(
+      <MemoryRouter initialEntries={['/discover?q=hello']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-search')).toHaveValue('hello');
+    });
+
+    // Only 1 card visible with query
+    expect(screen.getAllByTestId('discover-card').length).toBe(1);
+
+    // Click clear button
+    fireEvent.click(screen.getByTestId('discover-search-clear'));
+
+    // Should show all posts again
+    await waitFor(() => {
+      expect(screen.getAllByTestId('discover-card').length).toBe(2);
+    });
+
+    // Search input should be empty
+    expect(screen.getByTestId('discover-search')).toHaveValue('');
   });
 });
