@@ -628,8 +628,6 @@ export default function DmsScreen() {
     setLoading(true);
     try {
       const [convs, contactsData] = await Promise.all([listConversations(), readContacts()]);
-      setConversations(convs);
-      setContacts(contactsData);
 
       const cMap: Record<string, ContactRecord> = {};
       contactsData.forEach((c) => {
@@ -642,6 +640,16 @@ export default function DmsScreen() {
         lastMsgs[conv] = await getLastDm(conv);
       }
       setLastMessages(lastMsgs);
+
+      // Sort conversations by last-message recency, newest first
+      // (operator, 29.07: the list was in insertion order — oldest on top).
+      const sorted = [...convs].sort((a, b) => {
+        const aTime = lastMsgs[a] ? new Date(lastMsgs[a]!.sent_at).getTime() : 0;
+        const bTime = lastMsgs[b] ? new Date(lastMsgs[b]!.sent_at).getTime() : 0;
+        return bTime - aTime;
+      });
+      setConversations(sorted);
+      setContacts(contactsData);
     } catch (e) {
       console.error('Failed to load DMs:', e);
     }
