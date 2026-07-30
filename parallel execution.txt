@@ -1667,6 +1667,43 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       panel still renders comments. gate: none (A18 merges
       independently — the format is decided here, not in code order).
 
+[ ] D-join-steps-visuals (sub-lane ws-D/marketing(2); SEAM: Join.tsx —
+      disjoint from the AppStore files, so it can interleave with
+      D-appstore-plugs; operator, 29.07, screenshot of the shipped
+      four-step strip): "i like this join but, i feel like the story
+      doesnt have good icons / visuals. or just thinking about the
+      storytelling here, this doesnt feel a16z like a palantir or
+      something, but i like the clarity actually on the other hand!
+      that it is straightforward what it is." — the COPY AND CLARITY
+      STAY (explicitly liked — do not rewrite the steps, do not add
+      prose); the VISUALS level up. today each step is a bare
+      numbered circle — no iconography, no story imagery, generic.
+      the bar: a16z/palantir-grade visual storytelling WITH the
+      straightforward clarity intact. direction (taste at build,
+      screenshots judged against design.md §12): (1) each step card
+      gains a REAL visual anchor, not a stock glyph — step 1 "Get
+      the app" shows the actual web10 social PWA icon (the good
+      asset, same as the appstore plugs); step 2 account (user/
+      keys-mark motif per design.md §3); step 3 monetization (the
+      money screen — a coin/stripe motif or a mini Studio
+      thumbnail); step 4 post (composer/send motif). lucide is the
+      house set, but a step that has a REAL product asset (PWA
+      icon, keys mark) uses it — real assets beat glyphs, same
+      lesson as the appstore. (2) the strip reads as ONE journey:
+      connector arrows/line with designed weight (not the current
+      bare →), step numbers integrated with the icons, hover/lift
+      states per card, glow per the social vibrancy tokens where
+      it fits marketing-ui's calmer register. (3) both the hero
+      strip and the bottom founding-member strip get the same
+      treatment (they share StepCard/StepStrip — one change). all
+      design.md tokens, zero hardcoded colors. files: marketing-ui
+      Join.tsx + the StepCard/StepArrow/StepStrip components
+      (extracted in 1.0.203). acceptance: design.md §12 —
+      screenshot desktop + 375px and LOOK: the steps read as a
+      premium onboarding journey a16z would put in a deck, while a
+      first-timer still instantly knows what to do; the copy is
+      byte-identical to today. gate: none.
+
 [ ] D-link-embeds (sub-lane ws-D/feed, AFTER D-follow-backfill — same
       workspace chain; operator, 26.07): paste a link into a post and it
       renders as an EMBED, the table-stakes feature every platform has
@@ -1939,8 +1976,15 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       path end-to-end) + the discovery backfill re-run on the env
       (E-run-discovery-migration note).
 
-[ ] D-graph-app (sub-lane ws-D/marketing, AFTER D-marketing-search —
-      same marketing-ui surface; operator, 26.07: "graph.web10.app,
+[PARKED] D-graph-app (sub-lane ws-D/marketing — PARKED 29.07, operator:
+      "the graph isnt aligned enough with the minimum necessities for
+      the business… save this graph stuff for much later after we make
+      some money!"). bite a shipped #362 and was REMOVED in 1.0.213 —
+      it never worked on prod (graphData.ts called GET on the PATCH-
+      only /public/entries + /discover/users; mocked tests hid it).
+      full park record + unpark notes (PATCH, top-N-by-followers
+      aggregation shape, real-data smoke assertion) in later.md.
+      Original text kept for history (operator, 26.07: "graph.web10.app,
       something wooshy is great marketing, because it is an app
       interoperating on web10 data… one outside analytical app on top
       of your social data"): a standalone, anon-first, read-only
@@ -2010,7 +2054,10 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       bite b, MY GRAPH: the signed-in ego view (consent flow, scoped
         token, personal edges). gate: bite a merged.
 
-[ ] D-social-analytics (sub-lane ws-D/marketing, AFTER D-graph-app —
+[PARKED] D-social-analytics (PARKED 29.07 with D-graph-app — operator:
+      save the graph/analytics showcase stuff for after we make some
+      money; park record in later.md. original text kept for history):
+      (sub-lane ws-D/marketing, AFTER D-graph-app —
       same showcase surface, sequential; operator, 26.07: "ranked
       chess.com analytics on your social media, you versus friends,
       or the top creators… a cool analytical app interoperating on
@@ -2552,12 +2599,12 @@ main — the seatbelt is real again. GATE NOTES: (1) PR #368
 (D-mail-experience bite b) merged WITHOUT a changelog entry or lane
 tick — retroactive record in CHANGELOG 1.0.212, bite ticked here.
 (2) D-graph-app bite a (#362) claimed "zero hardcoded colors" but
-GraphViz.tsx canvas paints hardcoded brand hex (#8b5cf6 etc.) —
-canvas can't take Tailwind classes, but the token rule stands: read
-the computed CSS variables. Filed as the micro-bite
-D-graph-token-polish at the front of ws-D/marketing. NOT a promotion
-blocker (rendered values match the palette exactly; cosmetic
-identical) — named, queued, not chased. (3) NEW ITEM from the
+GraphViz.tsx canvas paints hardcoded brand hex — AND worse, the page
+never worked on prod at all (GET on PATCH-only endpoints; the mocked
+tests hid it). The operator parked the whole graph/analytics showcase
+line 29.07 ("save this graph stuff for much later after we make some
+money!") — /graph removed in 1.0.213, D-graph-app + D-social-analytics
++ the token-polish micro-bite all parked to later.md. (3) NEW ITEM from the
 operator (29.07): D-appstore-plugs — partial reversal of v1's "no
 hero": the big flagship card returns (with the PWA icon, not the bad
 legacy logo) + most-popular + newest plug slots; category rails
@@ -2607,17 +2654,19 @@ fully refreshed — eight sub-lanes drained or advanced this batch.
     ws-D/messages:   D-mail-experience bite c (CC/BCC COMPOSE — gate
                      bite b merged #368, CLEARED), THEN D-crm-upgrade
                      bite b (contact fields + CRUD)
-    ws-D/marketing:  D-graph-token-polish (micro-bite, audit #10
-                     finding — GraphViz canvas reads computed token
-                     vars, ~15 min), THEN D-search-fulltext +
-                     D-trending-controls-alignment (either order),
-                     THEN D-graph-app bite b (MY GRAPH), THEN
-                     D-social-analytics
+    ws-D/marketing:  D-search-fulltext + D-trending-controls-alignment
+                     (either order). (D-graph-app + D-social-analytics
+                     PARKED 29.07 per operator — the /graph page was
+                     removed in 1.0.213; D-graph-token-polish dies with
+                     it. park record in later.md.)
     ws-D/marketing(2): D-appstore-plugs (NEW, operator 29.07 — see
                      the lane item), THEN D-appstore-revamp v2 bite a
                      (product page; gate: the lane-A spec note for the
                      full rewire, but bite a reads the legacy store
-                     as-is — NOT gated on it)
+                     as-is — NOT gated on it). ALSO PARALLEL-SAFE here:
+                     D-join-steps-visuals (NEW, operator 29.07 —
+                     Join.tsx seam, disjoint from the AppStore files;
+                     the two can run in two workspaces at once)
     ws-D/profile:    D-lightbox-media-sizing (chain START), THEN
                      D-profile-image-placement, THEN D-follow-lists,
                      THEN D-text-post-cards bite a — the whole chain
