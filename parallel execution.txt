@@ -2153,7 +2153,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       tsc green; screenshots desktop + 375px and LOOK — the bar is
       "oh wow they have that many users" at a glance. gate: none.
 
-[ ] D-home-stats-bar-styling (sub-lane ws-D/marketing(2), SMALL; operator,
+[✓ 1.0.262] D-home-stats-bar-styling (sub-lane ws-D/marketing(2), SMALL; operator,
       30.07 rant, screenshot of the shipped stats bar: "i think this just
       looks bad! the border isnt necessary on those, and can just say data
       liberated under the data part to be consistent with the other two!

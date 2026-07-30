@@ -1,3 +1,6 @@
+1.0.262 || 30.07.2026
+fix(marketing-ui): D-home-stats-bar-styling — kill the heavy border on the stats bar. Bare-on-background: stats sit directly on the hero dark background with no chrome (no border, no card fill, no rounded corners). Labels already consistent (USERS / APPS / DATA LIBERATED). Keeps live /stats fetch, hide-on-failure, count-up + reduced-motion, all tokens.
+
 1.0.261 || 30.07.2026
 docs: `imma rant` filing (docs only, nothing built). Operator complaint: "the data liberated tab isnt counting s3 data! should also add up all s3 data in the count!" Filed A19-stats-s3-bytes (lane A, SMALL): the marketing homepage "data liberated" stat (Home.tsx → POST /stats) reports `storage` = mongo dbstats storageSize only (documentdb.py:867) — media blobs live in the object store (MinIO/S3), only their metadata records live in mongo, so every uploaded photo/video is missing from the landing-page number. Fix options recorded: bucket size from the object-store usage API vs summed size_bytes over media metadata records (cached either way, back-compat response shape so marketing-ui needs no change). Added to `parallel execution.txt` + plan.txt PHASE 8.6; board updated.
 
