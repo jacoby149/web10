@@ -365,6 +365,39 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       indexes has_media=false), ruff clean. gate: none. unblocks:
       D-trending-card-media, the D-user-profile-media grid half.
 
+[ ] A18-engagement-target-canonical (lane A, api/**; PRIORITY 1 —
+      REGRESSION, operator 29.07, screenshot: every /trending card
+      shows 0 likes / 0 comments): A15's fix (#360) made counts WORSE
+      — it converted the aggregation's $match from the raw post_key
+      to `service:post_id`, but the prod ledger has THREE target
+      formats and that one matches NONE of the real data:
+        (1) seed script (33 real comment entries on prod):
+            `{author}/public_posts/{post_id}` — the engine-native
+            format the aggregation ORIGINALLY matched (this is why
+            badges were nonzero before A15);
+        (2) social app client (comments.ts:53, reactions.ts:37):
+            `posts:{post_id}` — note the hardcoded `posts`, not even
+            the real service name `public_posts`;
+        (3) A15's aggregation: `public_posts:{post_id}` — matches
+            neither (1) nor (2), so every count is now 0.
+      DECISION (recorded here, don't re-litigate): the canonical
+      ledger target is `{author}/{service}/{post_id}` — engine-native,
+      seed-written, and the only unambiguous one (post_ids are unique
+      per user, not globally). the api half: revert A15's conversion
+      in _ledger_engagement_for_post (documentdb.py) — $match the RAW
+      post_key again — and extend the discovery tests to pin the
+      canonical format (an entry written with target
+      `alice/public_posts/123` counts toward post alice/public_posts/
+      123; an entry with the legacy `posts:123` format is documented
+      as orphaned, NOT matched). keep A15's good tests (N-comments,
+      delete-decrements) ported to the canonical format. owns api/**
+      only. acceptance: discovery tests green, ruff clean; on prod
+      data the persona posts' badges show the real comment counts
+      again after deploy (no migration needed — the seed entries are
+      already canonical). gate: none. the CLIENT half (social +
+      marketing-ui write/read paths) is D-engagement-target-client,
+      ws-D/feed — same canonical format, independent PR.
+
 [✓ 1.0.210] A15-engagement-count-accuracy (operator, 26.07, screenshot: badge
       says 3 comments, the expanded panel renders more): the discovery
       index's cached engagement counts disagree with the live comment
@@ -1607,6 +1640,70 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       first-run state walks you through post/follow/monetize) —
       capture-only, stage when the onboarding pass comes.
 
+[ ] D-engagement-target-client (sub-lane ws-D/feed + one marketing-ui
+      file; PRIORITY 1 with A18 — the client half of the 29.07
+      zero-counts regression; read A18's diagnosis first, the format
+      DECISION is recorded there): the canonical ledger target is
+      `{author}/{service}/{post_id}`. today the clients write/read a
+      hardcoded `posts:{post_id}` format that matches nothing the
+      engine counts: (1) web10-social comments.ts (write :53, read
+      :77, delete :127) and reactions.ts (:37) — thread the post's
+      author + service through from the call sites (FeedScreen /
+      PostLightbox / UserProfileScreen all have the post object) and
+      build the canonical target; (2) marketing-ui FeedPreview.tsx
+      (:378) — the trending comment panel reads `posts:{postId}`;
+      the DiscoveryPost already carries author/service/post_id, use
+      them. tests pin the canonical string against the A18 contract
+      so the two halves can't drift again. NOTE: app-written entries
+      in the old `posts:` format (real-account reactions/comments
+      since D-comments-ledger) become orphaned — acceptable (counts
+      were 0 anyway); do NOT write a ledger migration. files:
+      web10-social/src/data/{comments,reactions}.ts + the call
+      sites, marketing-ui FeedPreview.tsx. acceptance: vitest green;
+      commenting on a post in the social app → the entry lands with
+      the canonical target AND the /trending badge for that post
+      increments (the write→aggregate loop closed end to end);
+      screenshots not needed (data-layer) but verify the trending
+      panel still renders comments. gate: none (A18 merges
+      independently — the format is decided here, not in code order).
+
+[ ] D-join-steps-visuals (sub-lane ws-D/marketing(2); SEAM: Join.tsx —
+      disjoint from the AppStore files, so it can interleave with
+      D-appstore-plugs; operator, 29.07, screenshot of the shipped
+      four-step strip): "i like this join but, i feel like the story
+      doesnt have good icons / visuals. or just thinking about the
+      storytelling here, this doesnt feel a16z like a palantir or
+      something, but i like the clarity actually on the other hand!
+      that it is straightforward what it is." — the COPY AND CLARITY
+      STAY (explicitly liked — do not rewrite the steps, do not add
+      prose); the VISUALS level up. today each step is a bare
+      numbered circle — no iconography, no story imagery, generic.
+      the bar: a16z/palantir-grade visual storytelling WITH the
+      straightforward clarity intact. direction (taste at build,
+      screenshots judged against design.md §12): (1) each step card
+      gains a REAL visual anchor, not a stock glyph — step 1 "Get
+      the app" shows the actual web10 social PWA icon (the good
+      asset, same as the appstore plugs); step 2 account (user/
+      keys-mark motif per design.md §3); step 3 monetization (the
+      money screen — a coin/stripe motif or a mini Studio
+      thumbnail); step 4 post (composer/send motif). lucide is the
+      house set, but a step that has a REAL product asset (PWA
+      icon, keys mark) uses it — real assets beat glyphs, same
+      lesson as the appstore. (2) the strip reads as ONE journey:
+      connector arrows/line with designed weight (not the current
+      bare →), step numbers integrated with the icons, hover/lift
+      states per card, glow per the social vibrancy tokens where
+      it fits marketing-ui's calmer register. (3) both the hero
+      strip and the bottom founding-member strip get the same
+      treatment (they share StepCard/StepStrip — one change). all
+      design.md tokens, zero hardcoded colors. files: marketing-ui
+      Join.tsx + the StepCard/StepArrow/StepStrip components
+      (extracted in 1.0.203). acceptance: design.md §12 —
+      screenshot desktop + 375px and LOOK: the steps read as a
+      premium onboarding journey a16z would put in a deck, while a
+      first-timer still instantly knows what to do; the copy is
+      byte-identical to today. gate: none.
+
 [ ] D-link-embeds (sub-lane ws-D/feed, AFTER D-follow-backfill — same
       workspace chain; operator, 26.07): paste a link into a post and it
       renders as an EMBED, the table-stakes feature every platform has
@@ -1808,6 +1905,171 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         search affordance, tag-chip routing polish. gate: bite a
         merged.
 
+[ ] D-import-revamp (operator, 29.07 rant, screenshot of the /join
+      step format: "the import your life feature lets be real, this
+      is bricked right now… actually the format for the join tab
+      would work great for the import your life!"): rebuild Import
+      Your Life as a /join-style numbered-step journey over REAL
+      platform export links + a server-side pipeline. the operator's
+      five steps, verbatim:
+        1 - export the zip from legacy media! as easy as clicking
+            the link! for whichever one you are importing! Facebook,
+            Youtube, X, Instagram! (buttons with each platform's
+            logo, deep-linking to that platform's data-export page)
+            PLUS (operator, 29.07 rant #2: "we should offer tiktok
+            export as well! and web10 export!"): TIKTOK gets a
+            button too (five legacy platforms), and WEB10 EXPORT —
+            "yes you can export from your current web10 node, and
+            import somewhere else!" — the sovereignty escape hatch
+            made visible: export your own node's collections as a
+            zip, import it on another node. the import page SAYS
+            this proudly (it's the anti-lock-in proof — the pitch
+            is that there is no lock-in).
+        2 - log into the web10 authenticator! click the import from
+            legacy social media tab!
+        3 - upload the zip! we do a wetransfer like thing, where
+            data will hit the s3 service we are hosting.
+        4 - we do the rest! some kind of celery queue in the
+            background that gets all of it onto web10 social and
+            then deletes the original files from the bucket!! new
+            api plumbing, fastapi + celery next to each other, in
+            the marketing api!
+        5 - posts enter staging! use our editors to decide the
+            privacy settings of your posts! click done, and they
+            will be on web10 social!
+      EXISTING MACHINERY TO REUSE (don't rebuild): marketing-api's
+      ZIP import pipeline (1.0.31 — server-side parse/validate/
+      dedup/batch-write), staging_posts writes (1.0.131), the
+      Staging/Review screen (1.0.164, D19 Phase C — step 5 already
+      exists!). the current /import page (Exporter.tsx) is the
+      "bricked" UX this replaces. the bucket-delete-after-processing
+      is a PRIVACY PROMISE — make it load-bearing: originals are
+      deleted when the pipeline finishes, and the UI says so.
+      BITES (rule 5 — one PR each):
+      bite a, THE STEP STRIP + EXPORT LINKS (sub-lane
+        ws-D/marketing(2); Exporter.tsx seam — disjoint from Home/
+        Join/AppStore): rebuild /import as the /join-format numbered
+        steps (reuse StepCard/StepStrip from 1.0.203); step 1 is
+        pure value TODAY — platform logo buttons deep-linking to
+        each platform's data-export page (Facebook, YouTube, X,
+        Instagram, TikTok — find the current export URLs, open in
+        new tab) PLUS the web10-export note rendered proudly on the
+        page ("yes, you can export from your current web10 node and
+        import somewhere else" — the anti-lock-in proof, visible
+        even before bite d builds the export button);
+        steps 2-5 render as the honest journey with the steps that
+        aren't built yet marked "coming soon" (never fake a working
+        step). no backend. gate: none.
+      bite b, THE WETRANSFER PIPELINE (sub-lane ws-D/marketing-api —
+        marketing/marketing-api/**; NEW sub-lane, nothing in flight
+        there): authenticated ZIP upload to the hosted S3 (presigned
+        PUT/POST like the node's media path), a background queue
+        (operator says celery beside fastapi in marketing-api — if a
+        lighter in-process runner (FastAPI BackgroundTasks/arq)
+        covers v1 volume, the builder may choose it but must say why
+        in the PR), processing into staging_posts per the existing
+        1.0.31/1.0.131 pipeline, job status polling for the UI, and
+        DELETE the original zip from the bucket on completion.
+        gate: bite a (the page exists to point at it).
+      bite c, AUTHENTICATOR IMPORT TAB (sub-lane ws-B — ui/**; the
+        step-2 surface): the "import from legacy social media" tab
+        in the authenticator hosting the upload + status UI. gate:
+        bite b. NOTE: cross-lane — ws-B owns ui/**; the bite is
+        small if bite b's API contract is documented in a .context/
+        handoff note first.
+      bite d, WEB10 NODE EXPORT (sub-lane ws-D/marketing-api with a
+        lane-A seam — the node needs an export endpoint; operator,
+        29.07 rant #2: "web10 export! and make a note, yes you can
+        export from your current web10 node, and import somewhere
+        else!"): download YOUR collections as a zip (the whole
+        {service, body} corpus, media refs included — the format
+        mirrors the conventions doc so the bite-b pipeline ingests
+        it like any takeout), and the bite-b import path ACCEPTS a
+        web10 zip on another node (node-to-node migration = the
+        federation escape hatch, no new protocol — a zip is a zip).
+        the api side (an authenticated export endpoint on the node,
+        streaming the caller's own collection — I3-safe by
+        construction) is a small lane-A seam: leave the .context/
+        note, don't reach in from lane D. gate: bite b (the ingest
+        half exists to target).
+      acceptance (umbrella): a user can click a platform logo, get
+      the export zip, upload it, watch it process, review privacy
+      in staging, and see their old life on web10 social — with the
+      originals deleted from the bucket. each bite has its own bar
+      in its kickoff.
+[ ] D-home-stats-bar (sub-lane ws-D/marketing(2); SEAM: Home.tsx —
+      disjoint from AppStore/Join files; operator, 29.07 rant,
+      screenshot of the App Store subtitle's inline counts: "on the
+      home page of the marketing, these counts that are on the app
+      store page should be there, but in more of a raw way, where
+      when a VC sees the front front page, it is like oh wow they
+      have that many users etc. what i mean is that sentence is 402
+      members · 7 apps · 26.7 MB of data owned on web10. should be
+      402 users 7 apps 26.7 MB data liberated"): a RAW STATS BAR on
+      the marketing homepage — the real node numbers (the same
+      /stats endpoint the App Store reads, D16) as big, proud
+      callouts, not a buried sentence: the operator's shape is
+      "402 users · 7 apps · 26.7 MB data liberated" — three stat
+      blocks (big number, small label), "data liberated" framing
+      (the manifesto voice — it's the sovereignty pitch in one
+      glance). placement: in or directly under the hero, where a
+      VC's first scroll can't miss it. REAL DATA ONLY (the honesty
+      line): fetched live from /stats; if the fetch fails the bar
+      HIDES itself — never a fake or stale-hardcoded number; the
+      numbers format honestly (26.7 MB stays 26.7 MB, no rounding
+      up to GB). design: raw and confident — oversized tabular
+      numerals, generous spacing, maybe a count-up on load if it's
+      tasteful (respects prefers-reduced-motion), all design.md
+      tokens. files: marketing-ui Home.tsx + a small stats hook
+      (the AppStore's fetch pattern, extracted or copied per the
+      verbatim-copies rule). acceptance: the homepage shows the
+      live user/app/byte counts as three big stat blocks; kill the
+      fetch and the bar disappears gracefully; marketing-ui tests +
+      tsc green; screenshots desktop + 375px and LOOK — the bar is
+      "oh wow they have that many users" at a glance. gate: none.
+
+[ ] D-docs-gfm (sub-lane ws-D/marketing; operator, 29.07 rant,
+      screenshot of /docs "The premise, made concrete" rendering as
+      raw pipe soup: "on the docs, are these absolute value signs on
+      purpose????? it looks jank aff, i actually see that all over
+      the docs, i dont think that is on purpose"): NOT on purpose —
+      the docs markdown pipeline (Docs.tsx:100,
+      `remark().use(remarkHtml)`) has NO remark-gfm, so every GFM
+      table in the docs .md files renders as literal `| --- |` text.
+      also broken without gfm: strikethrough, task lists, autolinks,
+      footnotes. fix: add remark-gfm and `.use(remarkGfm)` before
+      remarkHtml, then SWEEP every docs page
+      (marketing-ui/public/docs/*.md) for tables + other gfm syntax
+      and confirm each renders as designed — the docs prose styles
+      never had a table to style, so add token-styled table rules
+      (borders/header weight/row hover per design.md §13, mono for
+      code cells; wide tables scroll horizontally at 375px, never
+      break the layout). files: marketing-ui Docs.tsx + package.json
+      + the docs prose stylesheet. acceptance: the premise table
+      (and every other table in the docs corpus) renders as a real
+      styled table at desktop + 375px; marketing-ui tests + tsc
+      green; screenshots and LOOK. gate: none.
+
+[ ] D-nav-signin-social (sub-lane ws-D/marketing, TINY; operator,
+      29.07 rant, screenshot of the navbar: "that sign in on the very
+      top right should sign into web10 social, this is marketing for
+      web10 social!!!!"): the marketing-ui Navbar's Sign In button
+      links to AUTH_ORIGIN (the authenticator — a dead-end consent
+      screen for a visitor, same class as the 1.0.215 hero CTA fix).
+      point it at SOCIAL_ORIGIN. AUDIT SWEEP in the same bite: grep
+      marketing-ui for every remaining AUTH_ORIGIN link and re-judge
+      each destination from a first-time visitor's seat. SETTLED
+      (operator, 29.07 rant #2, screenshot of the footer bar: "sign
+      in on the bottom bar should also take you to web10 social to
+      sign in!"): the footer Sign In — deliberately kept on auth in
+      1.0.215 — FLIPS TOO. ALL sign-in links go to social, no
+      exceptions; the authenticator is reached THROUGH the social
+      app's own login flow, never directly from marketing. files: marketing-ui
+      Navbar.tsx (+ wherever the sweep finds). acceptance: navbar
+      Sign In lands on the social app; every auth-origin link left
+      standing has a one-line justification in the PR; marketing-ui
+      tests + tsc green. gate: none.
+
 [ ] D-search-fulltext (sub-lane ws-D/marketing, AFTER D-marketing-search
       bite b — same Trending.tsx seam; operator, 27.07: "searching only
       searches tags also. it doesnt search the other things"): a word
@@ -1823,7 +2085,14 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       (3) $text whole-word/stem semantics (substring "yoy" never matches
       "yoyoyo" — if the corpus needs substring search, add a
       case-insensitive regex fallback on body_text + author for short
-      queries, capped + escaped, no user regex metachars). fix so body
+      queries, capped + escaped, no user regex metachars).
+      CONFIRMED LIVE (operator, 29.07, screenshot: searching "yo"
+      returns nothing while multiple "yoyoyo" posts sit on the board):
+      "this only searches whole words! should search yo, and it
+      matchies yoyoyo in a post!" — case (3) is not a hypothesis, it
+      is THE behavior; the substring fallback is required, not
+      optional. HARD ACCEPTANCE CASE: searching "yo" returns the
+      "yoyoyo" posts. fix so body
       words, author handles, AND tags all return results; surface a
       real error state in the UI when the search request fails (never
       silently []). files: marketing-ui Trending/search components +
@@ -2185,19 +2454,59 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       can reach the same features as desktop (or the gap is documented
       with a migration plan per feature). gate: none.
 
-[ ] D-inapp-discover-knobs (sub-lane ws-D/marketing or ws-D/feed;
-      GATE: a D20 REVISIT decision — do NOT build before it): the
-      operator wants the /trending "your algorithm" knobs in the SOCIAL
-      APP's Discover too. D20 currently says the social feed stays
-      chronological and the knobs are marketing-page theater. This is a
-      product-decision reversal, not a bug — record the decision in
-      decisions.md first. If approved, port KnobRack/RotaryKnob/
-      powerMean from marketing-ui into web10-social (separate package —
-      copy per design.md §D22 "verbatim copies beat premature sharing")
-      and wire them to DiscoverScreen's client-side ranking. Files:
-      web10-social components/Discover/**, copied knob components.
-      acceptance: knobs re-rank the in-app Discover live; screenshot.
-      gate: D20 revisit signed off in decisions.md.
+[ ] D-video-autoplay-muted (sub-lane ws-D/marketing; operator, 29.07:
+      "trending lacks videos and images, how are we going to compete
+      with insta without multimedia on this kind of a page! also
+      videos should auto play with no volume, otherwise how are we
+      going to catch attention!"): the TrendingMedia component
+      (1.0.210) renders video as a poster + play badge — make videos
+      AUTOPLAY MUTED on /trending cards: `autoPlay muted loop
+      playsInline preload="metadata"`, pause when scrolled out of
+      view (IntersectionObserver — never N videos playing offscreen),
+      tap/click unmutes or opens the full view (the insta/tiktok
+      pattern: sound is opt-in, motion is free). DATA NOTE for the
+      "lacks videos and images" half: the card-media code is LIVE
+      since 1.0.210 — the reason the board still renders text-only
+      is that A17's media fields only reach EXISTING index docs via
+      the backfill RE-RUN (E-run-discovery-migration, operator-gated
+      P1 — this complaint is another reason to run it); this bite is
+      the autoplay behavior, not the data. files: marketing-ui
+      FeedPreview.tsx TrendingMedia. acceptance: a video card plays
+      silently on load, pauses offscreen, sound on tap; images
+      unchanged; respects prefers-reduced-motion (no autoplay then —
+      a11y); marketing-ui tests + tsc green; screenshots desktop +
+      375px. gate: none. the same autoplay pattern applies to the
+      in-app Discover when D-inapp-discover-knobs lands — note it in
+      that PR's .context handoff, don't build it here.
+
+[ ] D-inapp-discover-knobs (sub-lane ws-D/discover — components/
+      Discover/**; GATE CLEARED 29.07: the operator signed off —
+      "the trending page on the marketing site is amazing! the
+      discover should borrow much more heavily from it, the knobs to
+      tune your algorithm should be on discover" — recorded as
+      decisions.md D36. the chronological FEED stays untouched;
+      Discover is already a ranked surface): port the /trending
+      experience into web10-social's DiscoverScreen, borrowing
+      HEAVILY (operator's word): the TrendingCard language (media-
+      forward cards, rank badges, engagement bar), the presets
+      (Newest / Most loved / Balanced), the KnobRack + RotaryKnob +
+      powerMean client-side re-ranking, the topic-chip rail. copy
+      the knob components + powerMean from marketing-ui per the
+      verbatim-copies rule (design.md §D22 — separate package, no
+      premature sharing); cards adapt the app's existing post card
+      toward the trending shape rather than a wholesale swap (the
+      app's cards carry owner actions + lightbox). data: Discover
+      already reads /discover/posts — the knobs re-rank CLIENT-side,
+      zero new api surface. files: web10-social components/
+      Discover/**, copied knob components + lib. read design.md
+      first. acceptance: knobs re-rank the in-app Discover live
+      with zero network calls per twist; presets work; the feed
+      (inbox) is byte-untouched; design.md §12 — screenshot desktop
+      + 375px and LOOK. gate: none (D36 signed).
+      BITES (rule 5): bite a, CARD + CONTROLS LANGUAGE — the
+      trending-shaped cards + presets + topic chips on Discover
+      (no knobs yet); bite b, THE KNOBS — KnobRack/RotaryKnob/
+      powerMean ported, live client-side re-rank (gate: bite a).
 
 [ ] D-coming-soon-builds (sub-lane ws-D/surfaces; SEVERAL big
       independent surfaces — one workspace EACH, not one item): the
@@ -2561,12 +2870,20 @@ legacy logo) + most-popular + newest plug slots; category rails
 fully refreshed — eight sub-lanes drained or advanced this batch.
 
   PRIORITY 1 (fresh, this audit):
-    ws-E (operator-gated): E-run-discovery-migration — STILL the only
-      P1. env gate CLEAR (A13 + A17 both deployed to prod). Run
-      migrate_terms + backfill + migrate_follows_terms with an admin
-      token per env; the A17 media fields need the backfill RE-RUN to
-      reach existing index docs. needs admin token + env access
-      (operator provides).
+    ws-A: A18-engagement-target-canonical — REGRESSION (operator
+      29.07: every /trending card shows 0 likes/0 comments). A15's
+      `service:post_id` conversion matches NONE of the three ledger
+      target formats in prod data; canonical = `{author}/{service}/
+      {post_id}`, revert to the raw post_key $match. full diagnosis
+      in the lane item.
+    ws-D/feed: D-engagement-target-client — the client half (social
+      comments/reactions + the marketing trending panel write/read
+      the canonical target). independent PR, same decision.
+    ws-E (operator-gated): E-run-discovery-migration — env gate CLEAR
+      (A13 + A17 both deployed to prod). Run migrate_terms + backfill +
+      migrate_follows_terms with an admin token per env; the A17 media
+      fields need the backfill RE-RUN to reach existing index docs.
+      needs admin token + env access (operator provides).
     (ws-C is CLEAR for the first time since 24.07 — C9 closed.)
 
   PARALLEL-SAFE FLEET (one workspace per sub-lane; chains WITHIN a
@@ -2578,14 +2895,29 @@ fully refreshed — eight sub-lanes drained or advanced this batch.
     ws-A:            D-appstore-revamp v2 bite c — the registration-
                      shape SPEC NOTE (a .context/decisions.md write-up,
                      no code; gates the v2 rewire build; lane A owns
-                     the record-shape call)
-    ws-D/feed:       D-feed-lightbox bite a (open-from-feed), THEN
-                     D-link-embeds
+                     the                      record-shape call)
+    ws-D/feed:       D-engagement-target-client (PRIORITY 1 — see
+                     above), THEN D-feed-lightbox bite a (open-from-
+                     feed), THEN D-link-embeds. NOTE (operator 29.07):
+                     "even better if i clicked them and it went to the
+                     hyperlink to the web10 social post" — the trending
+                     card → POST link needs social's post permalink
+                     route, which is D-feed-lightbox bite b (share +
+                     permalink) / D-deep-links territory; the URL-
+                     holds-state rule is already law (AGENTS.md), the
+                     permalink bite is the staged build. when bite b
+                     lands, a small ws-D/marketing bite switches
+                     TrendingCard's click target from /u/<author> to
+                     the post permalink.
     ws-D/messages:   D-mail-experience bite c (CC/BCC COMPOSE — gate
                      bite b merged #368, CLEARED), THEN D-crm-upgrade
                      bite b (contact fields + CRUD)
     ws-D/marketing:  D-search-fulltext + D-trending-controls-alignment
-                     (either order). (D-graph-app + D-social-analytics
+                     (either order), THEN D-docs-gfm + D-nav-signin-
+                     social (operator 29.07 rant — both tiny; see the
+                     lane items), THEN D-video-autoplay-muted (operator
+                     29.07 — videos autoplay muted on cards; see the
+                     lane item). (D-graph-app + D-social-analytics
                      PARKED 29.07 per operator — the /graph page was
                      removed in 1.0.213; D-graph-token-polish dies with
                      it. park record in later.md.)
@@ -2596,13 +2928,25 @@ fully refreshed — eight sub-lanes drained or advanced this batch.
                      + browse search bar), THEN D-appstore-revamp v2
                      bite a (product page; gate: the lane-A spec note
                      for the full rewire, but bite a reads the legacy
-                     store as-is — NOT gated on it)
+                     store as-is — NOT gated on it). ALSO PARALLEL-SAFE here:
+                     D-import-revamp bite a (operator 29.07 rant —
+                     the /join-style import step strip + platform
+                     export links; Exporter.tsx seam, disjoint from
+                     the AppStore files), D-join-steps-visuals (operator 29.07 —
+                     Join.tsx seam, disjoint from the AppStore files;
+                     the two can run in two workspaces at once) AND
+                     D-home-stats-bar (operator 29.07 rant —
+                     Home.tsx seam, disjoint from the AppStore files)
     ws-D/profile:    D-lightbox-media-sizing (chain START), THEN
                      D-profile-image-placement, THEN D-follow-lists,
                      THEN D-text-post-cards bite a — the whole chain
                      shares the PostLightbox/ProfileScreen seam; run
                      sequentially. HELD until ws-D/feed's lightbox
                      bite merges (the seam cluster rule below).
+    ws-D/discover:   D-inapp-discover-knobs bite a (GATE CLEARED
+                     29.07 — D36 sign-off; Discover borrows heavily
+                     from /trending: cards + presets + chips, then
+                     bite b the knobs)
     ws-D/settings:   DRAINED (bite b merged #365; the full facebook-
                      style tree awaits operator sign-off on the
                      .context/settings-tab-proposal.md)
@@ -2696,13 +3040,12 @@ bite b is BLOCKED, not kickable.
     ws-D/settings:   D-settings-tab bite b (posting defaults record +
                      composer initial state) — the #350 harness unbrick
                      removed its blocker (the mock now self-explains)
-    GATED (don't pick up until the gate clears):
+  GATED (don't pick up until the gate clears):
       D-night-owl bites b-e (gate: operator's Conductor Pro trial
       outcome — paused #342).
       D-deep-links (gate: the current fleet merged — it sweeps most
       ws-D files). Still FIRST when the fleet drains.
       D-poke build (gate: operator sign-off on the 1.0.179 proposal).
-      D-inapp-discover-knobs (gate: D20 revisit — operator sign-off).
       D-feed-avatar-resolution + the D-user-profile-media grid half
       (gate: public-media path END TO END — bite b merged #344; needs
       the dev verification step, then these clear).
