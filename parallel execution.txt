@@ -1607,6 +1607,43 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       first-run state walks you through post/follow/monetize) —
       capture-only, stage when the onboarding pass comes.
 
+[ ] D-join-steps-visuals (sub-lane ws-D/marketing(2); SEAM: Join.tsx —
+      disjoint from the AppStore files, so it can interleave with
+      D-appstore-plugs; operator, 29.07, screenshot of the shipped
+      four-step strip): "i like this join but, i feel like the story
+      doesnt have good icons / visuals. or just thinking about the
+      storytelling here, this doesnt feel a16z like a palantir or
+      something, but i like the clarity actually on the other hand!
+      that it is straightforward what it is." — the COPY AND CLARITY
+      STAY (explicitly liked — do not rewrite the steps, do not add
+      prose); the VISUALS level up. today each step is a bare
+      numbered circle — no iconography, no story imagery, generic.
+      the bar: a16z/palantir-grade visual storytelling WITH the
+      straightforward clarity intact. direction (taste at build,
+      screenshots judged against design.md §12): (1) each step card
+      gains a REAL visual anchor, not a stock glyph — step 1 "Get
+      the app" shows the actual web10 social PWA icon (the good
+      asset, same as the appstore plugs); step 2 account (user/
+      keys-mark motif per design.md §3); step 3 monetization (the
+      money screen — a coin/stripe motif or a mini Studio
+      thumbnail); step 4 post (composer/send motif). lucide is the
+      house set, but a step that has a REAL product asset (PWA
+      icon, keys mark) uses it — real assets beat glyphs, same
+      lesson as the appstore. (2) the strip reads as ONE journey:
+      connector arrows/line with designed weight (not the current
+      bare →), step numbers integrated with the icons, hover/lift
+      states per card, glow per the social vibrancy tokens where
+      it fits marketing-ui's calmer register. (3) both the hero
+      strip and the bottom founding-member strip get the same
+      treatment (they share StepCard/StepStrip — one change). all
+      design.md tokens, zero hardcoded colors. files: marketing-ui
+      Join.tsx + the StepCard/StepArrow/StepStrip components
+      (extracted in 1.0.203). acceptance: design.md §12 —
+      screenshot desktop + 375px and LOOK: the steps read as a
+      premium onboarding journey a16z would put in a deck, while a
+      first-timer still instantly knows what to do; the copy is
+      byte-identical to today. gate: none.
+
 [ ] D-link-embeds (sub-lane ws-D/feed, AFTER D-follow-backfill — same
       workspace chain; operator, 26.07): paste a link into a post and it
       renders as an EMBED, the table-stakes feature every platform has
@@ -2538,7 +2575,10 @@ fully refreshed — eight sub-lanes drained or advanced this batch.
                      the lane item), THEN D-appstore-revamp v2 bite a
                      (product page; gate: the lane-A spec note for the
                      full rewire, but bite a reads the legacy store
-                     as-is — NOT gated on it)
+                     as-is — NOT gated on it). ALSO PARALLEL-SAFE here:
+                     D-join-steps-visuals (NEW, operator 29.07 —
+                     Join.tsx seam, disjoint from the AppStore files;
+                     the two can run in two workspaces at once)
     ws-D/profile:    D-lightbox-media-sizing (chain START), THEN
                      D-profile-image-placement, THEN D-follow-lists,
                      THEN D-text-post-cards bite a — the whole chain
