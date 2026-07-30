@@ -3095,6 +3095,13 @@ other known issues, fix early (phase 0/1, before any real users):
 [ ] before the first creator-node pitch: external security review /
     pen test of the node stack + a responsible disclosure policy.
     "we've been audited" is a sales document in this business.
+[ ] dependabot hackathon (operator, 30.07: "i am seeing alot of
+    stuff in here, we should do a hackathon and kill a bunch of
+    these, can be done later though"): the dependabot backlog
+    (161 alerts — 13 critical, 67 high at filing) gets burned
+    down in one dedicated batch session, criticals first, not a
+    steady drip. parked behind the complaint-driven product work
+    until the operator calls it. lane item E-dependabot-hackathon.
 
 quality:
 [ ] frontend cache headers: index.html must ship no-cache on all

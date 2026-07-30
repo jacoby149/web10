@@ -2814,6 +2814,32 @@ LANE E — infrastructure / deployment (owns: proxmox provisioning,
       signing certs/provisioning, review. NOT now (post-M0, gated on
       the encryptor actually doing e2e key management) — parked here
       so it's on the board, not lost.
+  [ ] E-dependabot-hackathon (lane E/infra, LATER — operator, 30.07
+      rant, link to github.com/jacoby149/web10/security/dependabot:
+      "i am seeing alot of stuff in here, we should do a hackathon
+      and kill a bunch of these, can be done later though"): the
+      dependabot backlog is at 161 open alerts (13 critical, 67
+      high, 58 moderate, 23 low per the GitHub banner, 30.07) and
+      growing — a batch-cleanup HACKATHON, not a steady drip: one
+      dedicated session (or one fleet wave) that burns the list
+      down. shape when picked up: (1) group alerts by package
+      ecosystem + manifest (ui/, marketing-ui/, web10-social/,
+      sdk/, api/ pip, mobile/encryptor) — most of the 161 will
+      collapse into a handful of dependency bumps per lockfile;
+      (2) land the safe mechanical bumps first (patch/minor,
+      tests + tsc + builds green per package), then the majors
+      one breaking-change per PR; (3) criticals FIRST as their
+      own small PRs (13 of them — each is a bite); (4) dismiss
+      with a stated reason the alerts that don't apply (dev-only,
+      unreachable code path) so the count is HONEST, not just
+      hidden. operator sequencing note: "can be done later
+      though" — this is parked behind the current complaint-
+      driven product work; kick it off as a fleet wave when the
+      operator calls the hackathon, not before. acceptance (when
+      run): critical + high count driven to ~0 or every remaining
+      alert carries a dismissal reason; all package test suites
+      green after the bumps; CHANGELOG lines per bump batch.
+      gate: none (parked by operator priority, not by code).
   [ ] E-run-discovery-migration (ops, small, HIGH demo impact; operator
       screenshot 26.07: his real public post absent from /trending
       Newest on the deployed app): A13 (✓ 1.0.178) shipped the

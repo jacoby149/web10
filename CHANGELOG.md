@@ -1,3 +1,6 @@
+1.0.236 || 30.07.2026
+docs: rant filing — E-dependabot-hackathon (operator, 30.07, linking the repo's dependabot alerts page: "i am seeing alot of stuff in here, we should do a hackathon and kill a bunch of these, can be done later though"). The dependabot backlog (161 alerts — 13 critical, 67 high, 58 moderate, 23 low at filing) gets a dedicated batch-cleanup hackathon when the operator calls it: group by lockfile, criticals first as their own small PRs, mechanical bumps next, dismiss non-applicable alerts with stated reasons so the count is honest. Parked behind the complaint-driven product work per the operator's "can be done later though" — filed in `parallel execution.txt` (lane E) + `plan.txt` (cross-cutting security) for the fleet, not implemented here per the `imma rant` rule.
+
 1.0.235 || 30.07.2026
 docs: rant re-confirmation — D-docs-gfm is STILL OPEN (operator, 30.07, second screenshot of the same /docs premise table still rendering as `| --- |` pipe soup: "more ranting i do still see the markdown looking meh with the || signs, has that been worked on yet?"). Not worked on yet — filed 29.07, queued for the fleet; now a twice-complained item, bumped for the next kickoff batch.
 
