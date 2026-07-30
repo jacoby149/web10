@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Flame, Heart, MessageCircle, Repeat2, Share2, Image as ImageIcon, Film, Music2, Send, Play, Volume2, VolumeX } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { SOCIAL_ORIGIN, API_ORIGIN } from '@/lib/origins';
 import { trackFunnel } from '@/lib/analytics';
 import { getPublicMediaUrl, getPublicMediaThumbnailUrl, resolveMediaRef, clearMediaCache } from '@/lib/mediaPresign';
@@ -829,4 +830,107 @@ async function fetchDiscoverFeed(sort: 'recent' | 'trending', limit = 6): Promis
   return resp.json();
 }
 
-export { TrendingCard, TrendingSkeleton, fetchDiscoverFeed, mapDiscoveryToFeedPost, formatCount, parseCount, type FeedPost, type DiscoveryPost };
+// ── YouTubeCard (D-trending-views) ──────────────────────────────────────────
+//
+// YouTube-style card: 16:9 thumbnail, title + author + meta row below.
+// Used in the YouTube view of /trending — media posts only.
+
+interface YouTubeCardProps {
+  post: FeedPost;
+  rank?: number;
+}
+
+function YouTubeCard({ post, rank }: YouTubeCardProps) {
+  const hasMedia = post.media && post.author && post.mediaRefs;
+
+  return (
+    <div
+      data-testid="youtube-card"
+      id={`youtube-card-${post.id}`}
+      className="group/yt cursor-pointer"
+    >
+      {/* 16:9 thumbnail */}
+      <div className="relative overflow-hidden rounded-xl bg-elevated">
+        {hasMedia ? (
+          <TrendingMedia
+            author={post.author}
+            mediaRefs={post.mediaRefs}
+            mediaType={post.media}
+            firstAttachmentMime={post.firstAttachmentMime}
+          />
+        ) : (
+          <div className="aspect-video w-full flex items-center justify-center bg-elevated">
+            {post.media === 'video' ? (
+              <Film className="h-8 w-8 text-muted-foreground/40" />
+            ) : (
+              <ImageIcon className="h-8 w-8 text-muted-foreground/40" />
+            )}
+          </div>
+        )}
+        {/* Duration badge (shows post age as a time-like badge — YouTube pattern) */}
+        <div className="absolute bottom-2 right-2 rounded bg-background/90 px-1.5 py-0.5 text-[10px] font-medium text-foreground backdrop-blur-sm">
+          {post.time}
+        </div>
+        {rank !== undefined && rank <= 3 && (
+          <div className="absolute top-2 left-2">
+            <RankBadge rank={rank} />
+          </div>
+        )}
+      </div>
+
+      {/* Metadata row: avatar + title + channel info */}
+      <div className="mt-2.5 flex gap-2.5">
+        <Avatar className={cn(post.avatarColor, 'h-9 w-9')}>
+          <AvatarFallback className="text-foreground">{post.initial}</AvatarFallback>
+        </Avatar>
+        <div className="min-w-0 flex-1">
+          <p className="line-clamp-2 text-sm font-medium leading-snug text-foreground transition-colors group-hover/yt:text-brand-400">
+            {post.content || `${post.name}'s post`}
+          </p>
+          <div className="mt-0.5 flex items-center gap-1">
+            <a
+              href={`${SOCIAL_ORIGIN}/u/${post.author}`}
+              target="_blank"
+              rel="noopener"
+              className="text-xs text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {post.name}
+            </a>
+            <span className="text-xs text-muted-foreground">·</span>
+            <span className="text-xs text-muted-foreground">{post.time} ago</span>
+          </div>
+          <div className="mt-0.5 flex items-center gap-3 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <Heart className="h-3 w-3" strokeWidth={1.5} />
+              {post.likes}
+            </span>
+            <span className="flex items-center gap-1">
+              <MessageCircle className="h-3 w-3" strokeWidth={1.5} />
+              {post.comments}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function YouTubeSkeleton() {
+  return (
+    <div data-testid="youtube-skeleton">
+      <div className="overflow-hidden rounded-xl bg-elevated">
+        <Skeleton className="aspect-video w-full" />
+      </div>
+      <div className="mt-2.5 flex gap-2.5">
+        <Skeleton className="h-9 w-9 shrink-0 rounded-full" />
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-3 w-24" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export { TrendingCard, TrendingSkeleton, YouTubeCard, YouTubeSkeleton, fetchDiscoverFeed, mapDiscoveryToFeedPost, formatCount, parseCount, type FeedPost, type DiscoveryPost };

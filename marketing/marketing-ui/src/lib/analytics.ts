@@ -44,6 +44,7 @@ export function trackFunnel(
     | 'trending_repost_attempt'
     | 'trending_preset'
     | 'trending_search'
+    | 'trending_view_toggle'
     | 'join_view'
     | 'join_click'
     | 'sign_in_click'
