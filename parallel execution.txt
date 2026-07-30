@@ -424,8 +424,8 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       (CredentialPage + the pester nudge) is B9 — leave the JSON
       contract as a .context/ note.
 
-[ ] A21-passwordless-phone-login (lane A, api/**; operator, 30.07
-      rant: "even better, passwordless phone text verification code
+[ ] A21-passwordless-phone-login (lane A, api/**; PRIORITY — operator,
+      30.07 rant: "even better, passwordless phone text verification code
       is the goat! also cool if we dont let people make an account
       if the phone number aint legit, so everyone is a very legit
       user on web10!"): TWO halves. (1) PASSWORDLESS LOGIN: log in
@@ -460,7 +460,20 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       under phone-required policy the count must only include
       VERIFIED users (the star record's `verified` flag,
       set_verified/is_verified exist) — the landing-page number
-      becomes "very legit users" honestly. BITES (rule 5): bite a,
+      becomes "very legit users" honestly. LIVE EVIDENCE (operator,
+      30.07, screenshot of the prod marketing stats bar reading
+      "464 USERS"): "problem is new users signing up verry
+      frequently! and they arent verifying phone number" — the
+      464 is inflated by unverified signups happening RIGHT NOW
+      (VERIFY_REQUIRED is off on prod), so bites b+c are the
+      priority half of this item, not an afterthought: every day
+      without them the headline number drifts further from real
+      users and more ephemeral unverified collections pile up.
+      OPEN QUESTION for the operator at implementation: the
+      EXISTING unverified collections — count them first (a
+      read-only audit: star records with verified=false), then
+      decide keep-vs-reap; record the call in decisions.md.
+      BITES (rule 5): bite a,
       the passwordless login endpoint + tests; bite b, the
       phone-required policy toggle + drop PHONE_NUMBER_TAKEN +
       web10.app config flip + tests; bite c, verified-only
@@ -3582,7 +3595,13 @@ get_user_count is len(list_collection_names()) today, counting
 unverified + system collections), and A22-forgot-username-by-phone
 filed (phone + texted code -> list of usernames; the old project's
 phone registry + recovery_bot is the surviving seed) with the UI
-half as B9 bite d.
+half as B9 bite d. RE-CONFIRMED with live evidence (operator,
+30.07, screenshot of the prod stats bar at "464 USERS"): "problem
+is new users signing up verry frequently! and they arent verifying
+phone number" — A21 bumped to PRIORITY (bites b+c first: the
+headline number inflates daily and unverified collections pile
+up); existing unverified collections get a read-only audit then an
+operator keep-vs-reap call in decisions.md.
 
   PRIORITY 1 (fresh, this audit):
     ws-E (operator-gated): E-run-discovery-migration — STILL the
