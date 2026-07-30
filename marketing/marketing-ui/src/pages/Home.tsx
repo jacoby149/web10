@@ -100,36 +100,33 @@ function HomeStatsBar() {
 
   if (!stats || error) return null
 
-  const items = [
-    { value: stats.users, label: 'users', suffix: '', icon: Users },
-    { value: stats.apps, label: 'apps', suffix: '', icon: Layers },
-    { value: stats.storage, label: '', suffix: formatBytes(stats.storage), icon: HardDrive, isBytes: true },
+  const items: Array<{ value: number | string; label: string; icon: typeof Users; isFormatted?: boolean }> = [
+    { value: stats.users, label: 'users', icon: Users },
+    { value: stats.apps, label: 'apps', icon: Layers },
+    { value: formatBytes(stats.storage), label: 'data liberated', icon: HardDrive, isFormatted: true },
   ]
 
   return (
     <div className="reveal mx-auto mt-14 max-w-3xl [animation-delay:400ms]">
-      <div className="grid grid-cols-3 divide-x divide-border border-x border-border bg-surface rounded-lg overflow-hidden">
+      <div className="grid grid-cols-3 gap-4">
         {items.map((item, i) => {
           const Icon = item.icon
           return (
             <div
               key={item.label || i}
-              className="flex flex-col items-center px-4 py-6 sm:px-6 sm:py-8"
+              className="flex flex-col items-center gap-1.5 rounded-lg border border-border bg-surface px-4 py-6 sm:px-6 sm:py-8"
             >
-              <Icon className="mb-2 h-4 w-4 text-brand-400 opacity-60" strokeWidth={1.5} />
+              <Icon className="h-4 w-4 text-brand-400 opacity-60" strokeWidth={1.5} />
               <span className="font-display text-2xl font-bold tracking-[-0.02em] text-foreground tabular-nums sm:text-3xl">
-                {item.isBytes ? formatBytes(stats.storage) : <CountUp value={item.value} />}
+                {item.isFormatted ? item.value : <CountUp value={Number(item.value)} />}
               </span>
-              <span className="mt-1 text-[0.75rem] font-medium uppercase tracking-[0.04em] text-muted-foreground">
+              <span className="text-[0.75rem] font-medium uppercase tracking-[0.04em] text-muted-foreground">
                 {item.label}
               </span>
             </div>
           )
         })}
       </div>
-      <p className="mt-3 text-center text-xs text-muted-foreground">
-        data liberated on web10
-      </p>
     </div>
   )
 }
