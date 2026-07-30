@@ -2151,7 +2151,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       standing has a one-line justification in the PR; marketing-ui
       tests + tsc green. gate: none.
 
-[ ] D-hero-cta-label (sub-lane ws-D/marketing, TINY; operator, 30.07
+[✓ 1.0.239] D-hero-cta-label (sub-lane ws-D/marketing, TINY; operator, 30.07
       rant, screenshot of the homepage hero button: "we can have this
       say enter web10! but it goes to web10 social! that is fine"):
       the hero CTA (marketing-ui src/pages/Home.tsx, the
@@ -3075,10 +3075,10 @@ fully refreshed — eight sub-lanes drained or advanced this batch.
                      compose flips STRIPE_STATUS=test + secrets
                      plumbing + a trivial sk_test smoke assertion;
                      its own text says bite a can land anytime)
-    ws-A:            D-appstore-revamp v2 bite c — the registration-
-                     shape SPEC NOTE (a .context/decisions.md write-up,
-                     no code; gates the v2 rewire build; lane A owns
-                     the record-shape call)
+ws-A:            [✓ 1.0.239] D-appstore-revamp v2 bite c — the registration-
+                      shape SPEC NOTE (a .context/decisions.md write-up,
+                      no code; gates the v2 rewire build; lane A owns
+                      the record-shape call)
     ws-D/feed:       D-feed-lightbox bite a (open-from-feed), THEN
                      bite b (share + permalink — the operator's 29.07
                      "clicked them and it went to the hyperlink to the
