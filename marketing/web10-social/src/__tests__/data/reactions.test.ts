@@ -39,6 +39,8 @@ describe('reactions data layer', () => {
       schema: {},
     });
     vi.spyOn(feed, 'createPublicEntry').mockResolvedValue({ _id: 'le1', schema_id: reactionSchemaId, target: '', payload: {} });
+    vi.spyOn(feed, 'queryPublicEntries').mockResolvedValue([]);
+    vi.spyOn(feed, 'deletePublicEntry').mockResolvedValue();
   });
 
   afterEach(() => {
@@ -137,6 +139,20 @@ describe('reactions data layer', () => {
       expect(mock.create).toHaveBeenCalled();
     });
 
+    it('adds reaction with canonical ledger target when postAuthor/postService provided', async () => {
+      mock.read.mockResolvedValue([]);
+      mock.create.mockResolvedValue({ _id: 'r1' });
+      await reactions.toggleReaction('posts', 'p1', 'like', 'alice', 'api.web10.app', 'alice', 'public_posts');
+      expect(feed.createPublicEntry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          target: 'alice/public_posts/p1',
+          payload: expect.objectContaining({
+            action: 'like',
+          }),
+        }),
+      );
+    });
+
     it('removes reaction when already present', async () => {
       mock.read.mockResolvedValue([
         { _id: 'r1', target_service: 'posts', target_id: 'p1', type: 'like', author_username: 'alice', author_provider: 'api.web10.app', created_at: '2026-07-18T00:00:00Z' },
@@ -146,6 +162,65 @@ describe('reactions data layer', () => {
       expect(result).toBe(false);
       expect(mock.delete).toHaveBeenCalledWith('reactions', { _id: 'r1' });
     });
+
+    it('removes reaction and deletes ledger entry when postAuthor/postService provided', async () => {
+      mock.read.mockResolvedValue([
+        { _id: 'r1', target_service: 'posts', target_id: 'p1', type: 'like', author_username: 'alice', author_provider: 'api.web10.app', created_at: '2026-07-18T00:00:00Z' },
+      ]);
+      mock.delete.mockResolvedValue(undefined);
+      vi.spyOn(feed, 'queryPublicEntries').mockResolvedValue([
+        { _id: 'le1', schema_id: reactionSchemaId, target: 'alice/public_posts/p1', payload: { action: 'like' }, author_username: 'alice', author_provider: 'api.web10.app' },
+      ]);
+      const result = await reactions.toggleReaction('posts', 'p1', 'like', 'alice', 'api.web10.app', 'alice', 'public_posts');
+      expect(result).toBe(false);
+      expect(mock.delete).toHaveBeenCalledWith('reactions', { _id: 'r1' });
+      expect(feed.deletePublicEntry).toHaveBeenCalledWith('le1');
+    });
+
+    it('self-like round-trip: like own post → count 1, unlike → count 0', async () => {
+      const postId = 'my-post-123';
+      const postAuthor = 'alice';
+      const postService = 'public_posts';
+
+      // Step 1: no existing reactions → toggle adds
+      mock.read.mockResolvedValue([]);
+      mock.create.mockResolvedValue({ _id: 'r1', target_service: 'posts', target_id: postId, type: 'like', author_username: 'alice', author_provider: 'api.web10.app', created_at: '2026-07-30T00:00:00Z' });
+      let result = await reactions.toggleReaction('posts', postId, 'like', 'alice', 'api.web10.app', postAuthor, postService);
+      expect(result).toBe(true);
+
+      // Ledger entry written with canonical target
+      expect(feed.createPublicEntry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          target: 'alice/public_posts/my-post-123',
+          payload: expect.objectContaining({
+            action: 'like',
+            author_username: 'alice',
+          }),
+        }),
+      );
+
+      // Step 2: countReactions returns 1
+      mock.read.mockResolvedValue([{ _id: 'r1', type: 'like' }]);
+      let count = await reactions.countReactions('posts', postId);
+      expect(count).toBe(1);
+
+      // Step 3: toggle again → unlike
+      mock.read.mockResolvedValue([
+        { _id: 'r1', target_service: 'posts', target_id: postId, type: 'like', author_username: 'alice', author_provider: 'api.web10.app', created_at: '2026-07-30T00:00:00Z' },
+      ]);
+      mock.delete.mockResolvedValue(undefined);
+      vi.spyOn(feed, 'queryPublicEntries').mockResolvedValue([
+        { _id: 'le1', schema_id: reactionSchemaId, target: 'alice/public_posts/my-post-123', payload: { action: 'like' }, author_username: 'alice', author_provider: 'api.web10.app' },
+      ]);
+      result = await reactions.toggleReaction('posts', postId, 'like', 'alice', 'api.web10.app', postAuthor, postService);
+      expect(result).toBe(false);
+      expect(feed.deletePublicEntry).toHaveBeenCalledWith('le1');
+
+      // Step 4: countReactions returns 0
+      mock.read.mockResolvedValue([]);
+      count = await reactions.countReactions('posts', postId);
+      expect(count).toBe(0);
+    });
   });
 
   describe('deleteReaction', () => {
@@ -153,6 +228,16 @@ describe('reactions data layer', () => {
       mock.delete.mockResolvedValue(undefined);
       await reactions.deleteReaction('r1');
       expect(mock.delete).toHaveBeenCalledWith('reactions', { _id: 'r1' });
+    });
+
+    it('deletes the matching ledger entry when target info provided', async () => {
+      mock.delete.mockResolvedValue(undefined);
+      vi.spyOn(feed, 'queryPublicEntries').mockResolvedValue([
+        { _id: 'le1', schema_id: reactionSchemaId, target: 'alice/public_posts/p1', payload: { action: 'like' }, author_username: 'alice', author_provider: 'api.web10.app' },
+      ]);
+      await reactions.deleteReaction('r1', 'p1', 'alice', 'public_posts');
+      expect(mock.delete).toHaveBeenCalledWith('reactions', { _id: 'r1' });
+      expect(feed.deletePublicEntry).toHaveBeenCalledWith('le1');
     });
   });
 
@@ -181,6 +266,28 @@ describe('reactions data layer', () => {
       mock.aggregate.mockResolvedValue([]);
       const result = await reactions.getReactionCounts('posts', 'p1');
       expect(result).toEqual({});
+    });
+  });
+
+  describe('recordRepost', () => {
+    it('writes a repost ledger entry with canonical target', async () => {
+      await reactions.recordRepost('p1', 'alice', 'public_posts');
+      expect(feed.createPublicEntry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          target: 'alice/public_posts/p1',
+          payload: expect.objectContaining({
+            action: 'repost',
+          }),
+        }),
+      );
+    });
+
+    it('does nothing when not signed in', async () => {
+      vi.spyOn(wapi, 'getWapi').mockReturnValue({
+        readToken: vi.fn(() => null),
+      } as any);
+      await reactions.recordRepost('p1', 'alice', 'public_posts');
+      expect(feed.createPublicEntry).not.toHaveBeenCalled();
     });
   });
 });
