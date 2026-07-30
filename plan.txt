@@ -2167,7 +2167,7 @@ marketing ui!"):
     web10-social (/u/:username, post links once D-feed-lightbox's
     permalink route exists) — search IS the funnel. lane item
     D-marketing-search (ws-D/marketing).
-[ ] SEARCH ONLY SEARCHES TAGS (operator, 27.07: "searching only
+[✓ 1.0.230] SEARCH ONLY SEARCHES TAGS (operator, 27.07: "searching only
     searches tags also. it doesnt search the other things") — a word
     that appears in a post's BODY (not its tags) returns nothing, and
     author handles don't hit either. /discover/search is a $text query

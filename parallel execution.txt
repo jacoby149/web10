@@ -2070,7 +2070,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       standing has a one-line justification in the PR; marketing-ui
       tests + tsc green. gate: none.
 
-[ ] D-search-fulltext (sub-lane ws-D/marketing, AFTER D-marketing-search
+[✓ 1.0.230] D-search-fulltext (sub-lane ws-D/marketing, AFTER D-marketing-search
       bite b — same Trending.tsx seam; operator, 27.07: "searching only
       searches tags also. it doesnt search the other things"): a word
       that appears only in a post's BODY returns nothing; author handles
