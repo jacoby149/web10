@@ -1,5 +1,7 @@
-1.0.245 || 30.07.2026
+1.0.246 || 30.07.2026
 docs: `imma rant` filings (docs only, nothing built). Two operator complaints filed as lane items: D-dm-header-profile-link (ws-D/messages, tiny — the DM conversation header's avatar/name in DmsScreen.tsx are dead text; make them a Link to /u/:username) and D-follow-toggle (ws-D/profile — "when i hit follow, it doesnt toggle and let me unfollow!"; toggle handlers exist on UserProfileScreen + DiscoverScreen, so this is a runtime failure in the unfollow path — repro first, suspects: ledger cleanup throwing, stale/duplicate follow records read without a status filter). Both added to `parallel execution.txt` + plan.txt PHASE 8.6 for the next `web10web10!` kickoff batch.
+
+1.0.245 || 30.07.2026
 fix(api): App Store legacy compat — `get_apps` and `discover_app` now match `review_state=="approved"` OR `approved:true` with no `review_state` field, so legacy apps approved before D37 remain visible until the admin migration backfills `review_state`. 525 tests green, ruff clean.
 
 1.0.244 || 30.07.2026
