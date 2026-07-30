@@ -36,9 +36,11 @@ interface PostLightboxProps {
   mediaMap: Record<string, MediaRecord>;
   onClose: () => void;
   onReload?: () => void;
+  postAuthor?: string;
+  postService?: string;
 }
 
-export function PostLightbox({ post, mediaMap, onClose, onReload }: PostLightboxProps) {
+export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, postService }: PostLightboxProps) {
   const media = (post.media_refs || [])
     .map(ref => mediaMap[ref])
     .filter((m): m is MediaRecord => Boolean(m));
@@ -119,7 +121,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload }: PostLightbox
       setBurstKey(k => k + 1);
     }
     try {
-      await toggleReaction('posts', post._id || '', 'like', token.username, token.provider);
+      await toggleReaction('posts', post._id || '', 'like', token.username, token.provider, postAuthor, postService);
     } catch (e) {
       console.error('Failed to toggle reaction:', e);
       setLiked(wasLiked);
@@ -330,6 +332,8 @@ export function PostLightbox({ post, mediaMap, onClose, onReload }: PostLightbox
             postId={post._id || ''}
             isOpen={commentsOpen}
             count={commentCount}
+            postAuthor={postAuthor}
+            postService={postService}
             onCountChange={setCommentCount}
           />
 

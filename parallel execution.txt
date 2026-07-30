@@ -365,7 +365,7 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       indexes has_media=false), ruff clean. gate: none. unblocks:
       D-trending-card-media, the D-user-profile-media grid half.
 
-[ ] A18-engagement-target-canonical (lane A, api/**; PRIORITY 1 —
+[✓ 1.0.230] A18-engagement-target-canonical (lane A, api/**; PRIORITY 1 —
       REGRESSION, operator 29.07, screenshot: every /trending card
       shows 0 likes / 0 comments): A15's fix (#360) made counts WORSE
       — it converted the aggregation's $match from the raw post_key
@@ -1456,7 +1456,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         (quote into thread / prefill compose). single-recipient only.
         (merged without a changelog entry — retroactive record in
         1.0.212.)
-      bite c, CC/BCC COMPOSE: multi-recipient send (one record per
+      [✓ 1.0.231] bite c, CC/BCC COMPOSE: multi-recipient send (one record per
         recipient, cc/bcc metadata, bcc never leaks in others'
         copies) + Reply-all. gate: bite b merged.
 
@@ -1640,7 +1640,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       first-run state walks you through post/follow/monetize) —
       capture-only, stage when the onboarding pass comes.
 
-[ ] D-engagement-target-client (sub-lane ws-D/feed + one marketing-ui
+[✓ 1.0.231] D-engagement-target-client (sub-lane ws-D/feed + one marketing-ui
       file; PRIORITY 1 with A18 — the client half of the 29.07
       zero-counts regression; read A18's diagnosis first, the format
       DECISION is recorded there): the canonical ledger target is
@@ -1946,7 +1946,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       is a PRIVACY PROMISE — make it load-bearing: originals are
       deleted when the pipeline finishes, and the UI says so.
       BITES (rule 5 — one PR each):
-      bite a, THE STEP STRIP + EXPORT LINKS (sub-lane
+      [✓ 1.0.231] bite a, THE STEP STRIP + EXPORT LINKS (sub-lane
         ws-D/marketing(2); Exporter.tsx seam — disjoint from Home/
         Join/AppStore): rebuild /import as the /join-format numbered
         steps (reuse StepCard/StepStrip from 1.0.203); step 1 is
@@ -2070,7 +2070,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       standing has a one-line justification in the PR; marketing-ui
       tests + tsc green. gate: none.
 
-[ ] D-search-fulltext (sub-lane ws-D/marketing, AFTER D-marketing-search
+[✓ 1.0.230] D-search-fulltext (sub-lane ws-D/marketing, AFTER D-marketing-search
       bite b — same Trending.tsx seam; operator, 27.07: "searching only
       searches tags also. it doesnt search the other things"): a word
       that appears only in a post's BODY returns nothing; author handles
@@ -2395,7 +2395,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       375px and LOOK. gate: D-appstore-plugs (the plugs own the top
       of the page; the browse is everything below).
 
-[ ] D-appstore-plugs (sub-lane ws-D/marketing(2), AFTER D-appstore-revamp
+[✓ 1.0.230] D-appstore-plugs (sub-lane ws-D/marketing(2), AFTER D-appstore-revamp
       v1 — same AppStore page; operator, 29.07, partial REVERSAL of
       v1's "no hero" call, recorded honestly like the D16/D31
       precedent): "i actually liked the social app had a bigger card
@@ -2480,33 +2480,33 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       that PR's .context handoff, don't build it here.
 
 [ ] D-inapp-discover-knobs (sub-lane ws-D/discover — components/
-      Discover/**; GATE CLEARED 29.07: the operator signed off —
-      "the trending page on the marketing site is amazing! the
-      discover should borrow much more heavily from it, the knobs to
-      tune your algorithm should be on discover" — recorded as
-      decisions.md D36. the chronological FEED stays untouched;
-      Discover is already a ranked surface): port the /trending
-      experience into web10-social's DiscoverScreen, borrowing
-      HEAVILY (operator's word): the TrendingCard language (media-
-      forward cards, rank badges, engagement bar), the presets
-      (Newest / Most loved / Balanced), the KnobRack + RotaryKnob +
-      powerMean client-side re-ranking, the topic-chip rail. copy
-      the knob components + powerMean from marketing-ui per the
-      verbatim-copies rule (design.md §D22 — separate package, no
-      premature sharing); cards adapt the app's existing post card
-      toward the trending shape rather than a wholesale swap (the
-      app's cards carry owner actions + lightbox). data: Discover
-      already reads /discover/posts — the knobs re-rank CLIENT-side,
-      zero new api surface. files: web10-social components/
-      Discover/**, copied knob components + lib. read design.md
-      first. acceptance: knobs re-rank the in-app Discover live
-      with zero network calls per twist; presets work; the feed
-      (inbox) is byte-untouched; design.md §12 — screenshot desktop
-      + 375px and LOOK. gate: none (D36 signed).
-      BITES (rule 5): bite a, CARD + CONTROLS LANGUAGE — the
-      trending-shaped cards + presets + topic chips on Discover
-      (no knobs yet); bite b, THE KNOBS — KnobRack/RotaryKnob/
-      powerMean ported, live client-side re-rank (gate: bite a).
+       Discover/**; GATE CLEARED 29.07: the operator signed off —
+       "the trending page on the marketing site is amazing! the
+       discover should borrow much more heavily from it, the knobs to
+       tune your algorithm should be on discover" — recorded as
+       decisions.md D36. the chronological FEED stays untouched;
+       Discover is already a ranked surface): port the /trending
+       experience into web10-social's DiscoverScreen, borrowing
+       HEAVILY (operator's word): the TrendingCard language (media-
+       forward cards, rank badges, engagement bar), the presets
+       (Newest / Most loved / Balanced), the KnobRack + RotaryKnob +
+       powerMean client-side re-ranking, the topic-chip rail. copy
+       the knob components + powerMean from marketing-ui per the
+       verbatim-copies rule (design.md §D22 — separate package, no
+       premature sharing); cards adapt the app's existing post card
+       toward the trending shape rather than a wholesale swap (the
+       app's cards carry owner actions + lightbox). data: Discover
+       already reads /discover/posts — the knobs re-rank CLIENT-side,
+       zero new api surface. files: web10-social components/
+       Discover/**, copied knob components + lib. read design.md
+       first. acceptance: knobs re-rank the in-app Discover live
+       with zero network calls per twist; presets work; the feed
+       (inbox) is byte-untouched; design.md §12 — screenshot desktop
+       + 375px and LOOK. gate: none (D36 signed).
+       BITES (rule 5): [✓ 1.0.230] bite a, CARD + CONTROLS LANGUAGE — the
+       trending-shaped cards + presets + topic chips on Discover
+       (no knobs yet); bite b, THE KNOBS — KnobRack/RotaryKnob/
+       powerMean ported, live client-side re-rank (gate: bite a).
 
 [ ] D-coming-soon-builds (sub-lane ws-D/surfaces; SEVERAL big
       independent surfaces — one workspace EACH, not one item): the
@@ -2842,8 +2842,40 @@ M3 "the network"         = encryption integration (A rtc + C2 sdk
                            polish. the last big merge.
 
 
-CURRENT CONDUCTOR BOARD (as of 29.07.2026 — audit #10; keep fresh)
+CURRENT CONDUCTOR BOARD (as of 30.07.2026 — audit #11; keep fresh)
 --------------------------------------------------------------------
+AUDIT #11 REFRESH (30.07): SHIPPED ×2 in one day. (1) The morning
+batch (#359–#368) promoted via #369 (see audit #10). (2) The
+evening MERGE TRAIN: 11 queued PRs (#371–#382 — graph removal,
+hero CTA + all-sign-in-links → web10 social, DM recency sort, mail
+Sent instant refresh, the `imma rant` command + D36 knobs sign-off,
+and 8 rant filings: docs-gfm, nav-signin, home-stats-bar,
+import-revamp + TikTok/web10-export, appstore-browse + star
+ratings/#web10apps, search-substring confirmation, A18/D-engagement-
+target P1 diagnosis) merged same-session with local union-merges
+(GitHub can't union CHANGELOG.md — every branch needed the local
+merge + spacing restore; three needed renumbers: 1.0.222→1.0.225,
+1.0.223→1.0.227, 1.0.225→1.0.228), gated CLEAN (e2e green at the
+last code push #377, deploys green, no api/auth/DB touches) and
+promoted dev→main via merge commit (#383); deploy-prod + cd + e2e
+on main ALL green; prod verified live (7/7 public endpoints).
+Zero open PRs; fleet idle and the board is FULL of filed bites.
+PROCESS NOTE for the fleet: six+ simultaneous docs branches all
+prepending CHANGELOG.md guarantees GitHub-side conflicts — the
+local union-merge + spacing + renumber ritual in AGENTS.md handled
+every one; keep rant filings on ONE branch per session when
+possible (cheaper than five). ALIGNMENT: unchanged — every open
+item is operator-complaint-driven social-product/funnel work; the
+graph park reduced showcase drift; the import revamp has an infra
+flavor (queue plumbing) but is operator-mandated product work
+(day-one-empty is core to the thesis). QWEN HORIZON: ~14 filed
+parallel-safe bites (A18, engagement-target-client, C8a, mail
+bite c, search-fulltext, trending-controls, docs-gfm, nav-signin,
+video-autoplay, appstore-plugs, appstore-browse, import-revamp
+bite a, join-steps-visuals, home-stats-bar, discover-knobs bite a,
+the appstore spec note) across 9 sub-lanes, ~25+ chained PRs
+behind them — Qwens run independently.
+
 AUDIT #10 REFRESH (29.07): SHIPPED. The 17-commit dev batch (#359–#368
 — profile message button, A15 engagement-count fix, CRM status colors,
 graph app bite a, follow backfill, appstore revamp v1, settings bite b,
