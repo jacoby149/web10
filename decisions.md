@@ -9,6 +9,21 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D36 — The "your algorithm" knobs belong IN the app's Discover (D20 revisited) [decided]
+Operator, 29.07 (screenshot of /trending's knob rack): "the trending page on
+the marketing site is amazing! the discover should borrow much more heavily
+from it, the knobs to tune your algorithm should be on discover." This is the
+D20-revisit sign-off that D-inapp-discover-knobs was gated on. The nuance
+that makes it NOT a D20 reversal: D20's chronological guardrail governs the
+FEED (the follower inbox — "no algorithm" is the delivery pitch, untouched);
+Discover is already a ranked, ranked-by-definition surface, so client-side
+knobs there extend "the algorithm is yours" into the app without touching
+the delivery story. The feed stays chronological, full stop. What ships:
+the /trending card language + controls (presets, KnobRack/RotaryKnob,
+powerMean — copied per the verbatim-copies rule, not shared) ported to
+web10-social's DiscoverScreen. Rejects: knobs on the chronological feed
+(still rejected); a shared knobs package (premature).
+
 ### D35 — Public media is a COLLECTION (`public_media`), not a flag or a blanket whitelist [decided]
 Cross-user media reads are dead today: the `media` service ships with no read
 whitelist (web10-social serviceTerms.ts — owner-only), and both

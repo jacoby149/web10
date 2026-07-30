@@ -8,7 +8,6 @@ import Join from './pages/Join'
 import Docs from './pages/Docs'
 import AppStore from './pages/AppStore'
 import Exporter from './pages/Exporter'
-import Graph from './pages/Graph'
 
 function App({ onReportBug }: { onReportBug: () => void }) {
   return (
@@ -22,7 +21,6 @@ function App({ onReportBug }: { onReportBug: () => void }) {
         <Route path="/docs/:page" element={<Docs />} />
         <Route path="/app-store" element={<AppStore />} />
         <Route path="/import" element={<Exporter />} />
-        <Route path="/graph" element={<Graph />} />
       </Routes>
       <DeployStatus />
     </StarsProvider>

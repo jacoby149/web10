@@ -190,10 +190,12 @@ function ThreadDetail({
   thread,
   onBack,
   onToggleSpam,
+  onSent,
 }: {
   thread: MailThread;
   onBack: () => void;
   onToggleSpam: () => void;
+  onSent: (msg: DmRecord) => void;
 }) {
   const token = getWapi().readToken();
   const myKey = token ? `${token.provider}/${token.username}` : '';
@@ -224,12 +226,13 @@ function ThreadDetail({
       const msg = await sendDm(thread.conversation, input.trim(), {
         subject: subject.trim() || undefined,
       });
-      // The parent component will reload; for now just clear input
+      // Reflect the sent message in the parent's thread list immediately
+      // (operator, 29.07: Sent folder didn't update without a refresh).
+      onSent(msg);
       setInput('');
       setSubject('');
       setReplyingTo(null);
       setForwardTarget(null);
-      // Trigger a reload by going back and re-entering
       onBack();
     } catch (e) {
       console.error('Failed to send message:', e);
@@ -267,9 +270,10 @@ function ThreadDetail({
     if (!input.trim() || sending) return;
     setSending(true);
     try {
-      await sendDm(thread.conversation, input.trim(), {
+      const msg = await sendDm(thread.conversation, input.trim(), {
         subject: subject.trim() || undefined,
       });
+      onSent(msg);
       setInput('');
       setSubject('');
       onBack();
@@ -620,6 +624,34 @@ export default function MailView() {
     }
   }, [selectedThread]);
 
+  // Reflect a just-sent message in the thread list immediately — update
+  // lastMessage, reclassify the folder (a send moves the thread to Sent),
+  // and re-sort newest-first, all without a reload.
+  const handleSent = useCallback((conversation: string, msg: DmRecord) => {
+    const token = getWapi().readToken();
+    if (!token) return;
+    const me = { provider: token.provider, username: token.username };
+    setThreads((prev) =>
+      prev
+        .map((t) =>
+          t.conversation === conversation
+            ? {
+                ...t,
+                messages: [...t.messages, msg],
+                lastMessage: msg,
+                messageCount: t.messageCount + 1,
+                folder: classifyThread(msg, me, t.spamFlagged),
+              }
+            : t,
+        )
+        .sort((a, b) => {
+          const aTime = a.lastMessage ? new Date(a.lastMessage.sent_at).getTime() : 0;
+          const bTime = b.lastMessage ? new Date(b.lastMessage.sent_at).getTime() : 0;
+          return bTime - aTime;
+        }),
+    );
+  }, []);
+
   const folderThreads = threads.filter((t) => t.folder === activeFolder);
 
   const displayed = search.trim()
@@ -645,6 +677,7 @@ export default function MailView() {
         thread={currentThread}
         onBack={() => setSelectedThread(null)}
         onToggleSpam={() => handleToggleSpam(currentThread)}
+        onSent={(msg) => handleSent(currentThread.conversation, msg)}
       />
     );
   }

@@ -27,6 +27,21 @@ below, this is not optional.
   supervisor loop notices a bricked workspace and raises it). Diagnose
   the failure CLASS and fix the SYSTEM (code/infra/tooling first; docs
   are the fallback). Full ritual in `CLAUDE.md`'s `unbrick!` section.
+- `imma rant` → the operator is about to fire a stream of complaints
+  (usually with screenshots). Do NOT implement ANY of them — rants are
+  for capturing, the fleet is for building. File EACH complaint as a
+  lane item in `parallel execution.txt` + `plan.txt` (the complaint-
+  to-lane-item pipeline: verbatim quote, screenshot referenced,
+  root-cause diagnosis if it's cheap to find, acceptance bar, sub-lane
+  + gates + bite sizing per rule 5), one docs branch + PR with a
+  CHANGELOG line. Then the next `web10web10!` hands them to the Qwen
+  fleet as kickoff blocks. Implementing during a rant is a process
+  violation — a mastermind writing code is the most expensive way to
+  do what a Qwen PR does cheaper (operator, 29.07: "dont implement
+  them, lets add them to the plan!!!!! we want the qwens to knock them
+  out"). Small direct fixes are still fine OUTSIDE a declared rant;
+  once `imma rant` is called, everything gets filed, nothing gets
+  built in the mastermind workspace.
 
 A code word is a command, not a greeting. If you are a large-context
 model and one of these arrives, run the ritual — do not reply with

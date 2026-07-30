@@ -9,7 +9,7 @@ import {
   formatFollowerCount,
 } from '../lib/reachGap'
 import { trackFunnel } from '../lib/analytics'
-import { AUTH_ORIGIN } from '../lib/origins'
+import { AUTH_ORIGIN, SOCIAL_ORIGIN } from '../lib/origins'
 
 function Hero() {
   return (
@@ -37,7 +37,7 @@ function Hero() {
         </p>
         <div className="reveal mt-10 [animation-delay:320ms]">
           <Button asChild size="lg" variant="brand">
-            <a href={AUTH_ORIGIN}>Enter web10</a>
+            <a href={SOCIAL_ORIGIN}>Enter web10 social</a>
           </Button>
         </div>
       </div>
