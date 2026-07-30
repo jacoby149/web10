@@ -583,7 +583,11 @@ function MessageBubble({
 }
 
 export default function DmsScreen() {
-  const { conversationKey: urlConvKey } = useParams();
+  // Splat route (/messages/*): conversation keys contain slashes
+  // (`provider/user--provider/user`), so a single-segment
+  // `:conversationKey?` param never matched a real key (gauntlet step-5
+  // regression, #438).
+  const urlConvKey = useParams()['*'] || null;
   const navigate = useNavigate();
   const [conversations, setConversations] = useState<string[]>([]);
   const [contacts, setContacts] = useState<ContactRecord[]>([]);

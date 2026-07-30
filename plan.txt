@@ -2583,7 +2583,7 @@ D-dm-header-profile-link (ws-D/messages, tiny). merged 1.0.251.
     fix: per-user counts from the public ledger (never the viewer's),
     posts via a per-author discovery query. lane item
     D-user-profile-stats (ws-D/profile).
-[ ] self-engagement counts (operator, 30.07 rant: "when i like my own
+[✓ 1.0.267] self-engagement counts (operator, 30.07 rant: "when i like my own
     posts it gives 0 likes, it should be one like! self likes count!
     same for comments, shares"): PRODUCT DECISION — self-engagement
     counts. the server doesn't exclude it, so the 0 is a write/read
@@ -2628,7 +2628,7 @@ D-dm-header-profile-link (ws-D/messages, tiny). merged 1.0.251.
     the D-user-profile-stats bugs ("0 Posts", no Followers tile, "No
     posts yet" with posts existing) — the owner path must read the
     owner's own collection. lane item D-own-profile-canonical
-    (ws-D/shell, tiny). [✓ 1.0.262]
+    (ws-D/shell, tiny). [✓ 1.0.266]
 [ ] ADDRESS BAR EVERYWHERE — operator priority call (30.07 rant: "i
     guess when we make every screen in the address bar have a link to
     it, that will happen. maybe lets have that address bar for every

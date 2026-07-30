@@ -87,7 +87,10 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
       let profile: ProfileRecord | null = null;
       let postsData: PostRecord[] = [];
       let fc = 0;
-      let fCount = 0;
+      // null = count not loaded (hide the tile); 0 is a REAL count (render it) —
+      // `0 || null` here hid the Followers tile for every zero-follower profile
+      // (gauntlet step-3 regression, #434).
+      let fCount: number | null = null;
 
       if (isOwn) {
         // Owner path: read from own collections (same as ProfileScreen)
@@ -169,7 +172,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
       setProfile(profile);
       setPosts(postsData);
       setFollowingCount(fc);
-      setFollowerCount(fCount || null);
+      setFollowerCount(fCount);
 
       // Resolve media refs
       const allRefs = postsData.flatMap((post) => post.media_refs || []);
