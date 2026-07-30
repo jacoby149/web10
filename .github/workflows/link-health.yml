@@ -34,16 +34,16 @@ jobs:
           # Build issue body
           body="## Export Link Health Failure
 
-**Checked:** $(date -u '+%Y-%m-%dT%H:%M:%SZ')
-**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          **Checked:** $(date -u '+%Y-%m-%dT%H:%M:%SZ')
+          **Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
-### Failed Links
+          ### Failed Links
 
-\$$(echo "$output" | sed -n '/=== FAILURE DETAILS ===/,//p' | tail -n +2 | sed 's/^/  /')
+          $$(echo "$output" | sed -n '/=== FAILURE DETAILS ===/,//p' | tail -n +2 | sed 's/^/  /')
 
----
+          ---
 
-This issue was auto-created by the \`link-health\` workflow. When a URL is fixed, update \`marketing/marketing-ui/src/lib/export-links.json\` and close this issue."
+          This issue was auto-created by the \`link-health\` workflow. When a URL is fixed, update \`marketing/marketing-ui/src/lib/export-links.json\` and close this issue."
 
           # Check if an open issue already exists for this failure
           existing=$(gh issue list --search "export link health failure" --state open --json number --jq '.[0].number' 2>/dev/null || true)
