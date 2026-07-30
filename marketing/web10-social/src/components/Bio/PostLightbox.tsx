@@ -10,6 +10,7 @@ import {
   countReactions,
   readReactions,
   countComments,
+  recordRepost,
   updatePost,
   deletePost,
   movePostVisibility,
@@ -150,7 +151,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
 
   async function handleDelete() {
     try {
-      await deletePost(post._id || '');
+      await deletePost(post._id || '', post.visibility || 'private');
       onClose();
       onReload?.();
     } catch (e) {
@@ -171,8 +172,12 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
     }
   }
 
-  function handleShare() {
+  async function handleShare() {
     const url = `${window.location.origin}/u/${postAuthor || 'unknown'}/p/${post._id || 'unknown'}`;
+    // Record the share in the public ledger so the engagement count increments
+    if (postAuthor && postService) {
+      recordRepost(post._id || '', postAuthor, postService);
+    }
     if (navigator.share) {
       navigator.share({ title: post.text?.slice(0, 100) || 'Post on web10', url }).catch(() => {
         copyUrl();

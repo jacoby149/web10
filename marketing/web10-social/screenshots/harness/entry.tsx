@@ -18,7 +18,7 @@ createRoot(document.getElementById('root')!).render(
   <MemoryRouter initialEntries={[initialRoute]}>
     <Routes>
       <Route element={<Layout onLogout={() => {}} onReportBug={() => {}} />}>
-        <Route path="/messages" element={<DmsScreen />} />
+        <Route path="/messages/*" element={<DmsScreen />} />
         <Route path="/settings" element={<SettingsScreen onLogout={() => {}} onReportBug={() => {}} />} />
       </Route>
     </Routes>

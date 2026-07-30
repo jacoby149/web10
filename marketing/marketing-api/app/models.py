@@ -22,6 +22,23 @@ class ImportJobCreate(BaseModel):
     node_api_url: str = Field(..., description="Target node API URL, e.g. https://api.web10.app")
 
 
+class ImportPresignRequest(BaseModel):
+    """Request a presigned S3 POST for uploading a ZIP import file."""
+
+    platform: Optional[str] = None
+    user_token: str = Field(..., description="web10 JWT for the target node")
+    node_api_url: str = Field(..., description="Target node API URL, e.g. https://api.web10.app")
+
+
+class ImportPresignResponse(BaseModel):
+    """Returned after creating a job; the client uses these to POST the ZIP directly to S3."""
+
+    job_id: str
+    upload_url: str
+    fields: dict[str, str]
+    object_key: str
+
+
 class ImportJob(BaseModel):
     id: str
     platform: Optional[str] = None

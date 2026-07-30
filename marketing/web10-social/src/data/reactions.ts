@@ -1,5 +1,5 @@
 import { getWapi } from './wapi';
-import { getCachedSchema, createPublicEntry } from './feed';
+import { getCachedSchema, createPublicEntry, queryPublicEntries, deletePublicEntry } from './feed';
 import type { ReactionRecord, ReactionTargetService } from './types';
 
 // ── Reactions data layer ───────────────────────────────────────────────────
@@ -61,7 +61,9 @@ export async function createReaction(
         author_username: reaction.author_username,
         author_provider: reaction.author_provider,
       },
-    }).catch(() => { /* non-fatal */ });
+    }).catch((e) => {
+      console.error('ledger mirror failed (reaction create):', e);
+    });
   }
 
   return record;
@@ -89,7 +91,7 @@ export async function toggleReaction(
   );
 
   if (mine?._id) {
-    await deleteReaction(mine._id);
+    await deleteReaction(mine._id, targetId, postAuthor, postService);
     return false;
   }
 
@@ -106,10 +108,34 @@ export async function toggleReaction(
 
 /**
  * Delete a reaction by ID.
+ * Also removes the corresponding public ledger entry so engagement counts stay accurate.
  */
-export async function deleteReaction(id: string): Promise<void> {
+export async function deleteReaction(
+  id: string,
+  targetId?: string,
+  postAuthor?: string,
+  postService?: string,
+): Promise<void> {
   const wapi = getWapi();
   await wapi.delete('reactions', { _id: id });
+
+  // Remove the mirrored ledger entry so the engagement count decrements
+  const reactionSchema = getCachedSchema('Reaction');
+  if (reactionSchema?._id && targetId && postAuthor && postService) {
+    const target = buildReactionTarget(targetId, postAuthor, postService);
+    const entries = await queryPublicEntries({ schema_id: reactionSchema._id, target });
+    const token = wapi.readToken();
+    const mine = entries.find(
+      (e) =>
+        e.author_username === token?.username &&
+        e.author_provider === token?.provider,
+    );
+    if (mine?._id) {
+      await deletePublicEntry(mine._id).catch((e) => {
+        console.error('ledger mirror failed (reaction delete):', e);
+      });
+    }
+  }
 }
 
 /**
@@ -147,4 +173,35 @@ export async function getReactionCounts(
     counts[r._id] = r.count;
   }
   return counts;
+}
+
+/**
+ * Record a share/repost in the public ledger so the engagement count increments.
+ */
+export async function recordRepost(
+  targetId: string,
+  postAuthor: string,
+  postService: string,
+): Promise<void> {
+  const wapi = getWapi();
+  const token = wapi.readToken();
+  if (!token) return;
+
+  const reactionSchema = getCachedSchema('Reaction');
+  if (!reactionSchema?._id) return;
+
+  const target = buildReactionTarget(targetId, postAuthor, postService);
+  await createPublicEntry({
+    schema_id: reactionSchema._id,
+    target,
+    payload: {
+      action: 'repost',
+      type: 'repost',
+      target: targetId,
+      author_username: token.username,
+      author_provider: token.provider,
+    },
+  }).catch((e) => {
+    console.error('ledger mirror failed (repost):', e);
+  });
 }

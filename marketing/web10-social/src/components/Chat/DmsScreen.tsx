@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, Link, useParams, useNavigate } from 'react-router-dom';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -583,9 +583,15 @@ function MessageBubble({
 }
 
 export default function DmsScreen() {
+  // Splat route (/messages/*): conversation keys contain slashes
+  // (`provider/user--provider/user`), so a single-segment
+  // `:conversationKey?` param never matched a real key (gauntlet step-5
+  // regression, #438).
+  const urlConvKey = useParams()['*'] || null;
+  const navigate = useNavigate();
   const [conversations, setConversations] = useState<string[]>([]);
   const [contacts, setContacts] = useState<ContactRecord[]>([]);
-  const [selectedConv, setSelectedConv] = useState<string | null>(null);
+  const [selectedConv, setSelectedConv] = useState<string | null>(urlConvKey || null);
   const [messages, setMessages] = useState<DmRecord[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
@@ -593,15 +599,46 @@ export default function DmsScreen() {
   const [lastMessages, setLastMessages] = useState<Record<string, DmRecord | null>>({});
   const [contactMap, setContactMap] = useState<Record<string, ContactRecord>>({});
   const [showPicker, setShowPicker] = useState(false);
-  const [activeView, setActiveView] = useState<MessagesView>('chat');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialView = (searchParams.get('view') || 'chat') as MessagesView;
+  const [activeView, setActiveView] = useState<MessagesView>(initialView);
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; title: string; description: string; onConfirm: () => void; confirmLabel?: string; variant?: 'destructive' | 'default' }>({ open: false, title: '', description: '', onConfirm: () => {} });
-  const [searchParams] = useSearchParams();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const token = getWapi().readToken();
+
+  // Sync activeView with ?view= search param
+  useEffect(() => {
+    if (activeView !== initialView) {
+      setSearchParams({ view: initialView }, { replace: true });
+    }
+  }, [initialView]);
+
+  // Sync selectedConv with URL conversationKey param
+  useEffect(() => {
+    if (urlConvKey && urlConvKey !== selectedConv) {
+      setSelectedConv(urlConvKey);
+    } else if (!urlConvKey && selectedConv) {
+      setSelectedConv(null);
+    }
+  }, [urlConvKey]);
 
   useEffect(() => {
     loadData();
   }, []);
+
+  // Load messages when selectedConv changes (from URL or from UI)
+  useEffect(() => {
+    if (selectedConv) {
+      (async () => {
+        try {
+          const msgs = await readDms(selectedConv);
+          setMessages(msgs);
+        } catch (e) {
+          console.error('Failed to load messages:', e);
+        }
+      })();
+    }
+  }, [selectedConv]);
 
   // Handle ?to=<username> deep link from profile Message button
   useEffect(() => {
@@ -614,7 +651,7 @@ export default function DmsScreen() {
     });
 
     if (existingConv) {
-      openConversation(existingConv);
+      navigate(`/messages/${existingConv}`, { replace: true });
     } else {
       // No existing conversation — open picker prefilled with the username
       setShowPicker(true);
@@ -658,13 +695,7 @@ export default function DmsScreen() {
   }
 
   async function openConversation(conv: string) {
-    setSelectedConv(conv);
-    try {
-      const msgs = await readDms(conv);
-      setMessages(msgs);
-    } catch (e) {
-      console.error('Failed to load messages:', e);
-    }
+    navigate(`/messages/${conv}`);
   }
 
   const handlePickerSelect = useCallback(
@@ -675,7 +706,7 @@ export default function DmsScreen() {
           { provider: token!.provider, username: token!.username },
           { username: person.username, provider: person.provider },
         );
-      await openConversation(conv);
+      navigate(`/messages/${conv}`);
     },
     [token],
   );
@@ -734,8 +765,7 @@ export default function DmsScreen() {
       onConfirm: async () => {
         try {
           await deleteConversation(conv);
-          setSelectedConv(null);
-          setMessages([]);
+          navigate('/messages', { replace: true });
           await loadData();
         } catch (e) {
           console.error('Failed to delete conversation:', e);
@@ -756,6 +786,16 @@ export default function DmsScreen() {
     const contact = contactMap[userKey];
     if (contact) return contact.display_name || contact.username;
     return userKey.split('/')[1] || userKey;
+  }
+
+  function switchView(view: MessagesView) {
+    setActiveView(view);
+    const params: Record<string, string> = { view };
+    if (selectedConv) {
+      navigate(`/messages/${selectedConv}?view=${view}`);
+    } else {
+      navigate(`/messages?view=${view}`);
+    }
   }
 
   if (showPicker) {
@@ -780,10 +820,7 @@ export default function DmsScreen() {
           ] as [MessagesView, string, typeof MessageSquare][]).map(([view, label, Icon]) => (
             <button
               key={view}
-              onClick={() => {
-                setActiveView(view);
-                setSelectedConv(null);
-              }}
+              onClick={() => switchView(view)}
               className={cn(
                 'flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-all duration-150 relative',
                 activeView === view
@@ -818,10 +855,7 @@ export default function DmsScreen() {
           ] as [MessagesView, string, typeof MessageSquare][]).map(([view, label, Icon]) => (
             <button
               key={view}
-              onClick={() => {
-                setActiveView(view);
-                setSelectedConv(null);
-              }}
+              onClick={() => switchView(view)}
               className={cn(
                 'flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-all duration-150 relative',
                 activeView === view
@@ -859,7 +893,7 @@ export default function DmsScreen() {
         <div className="flex items-center gap-3 px-2 py-2 border-b border-border">
           <button
             className="flex items-center justify-center h-11 w-11 hover:bg-elevated rounded-lg transition-colors duration-150"
-            onClick={() => setSelectedConv(null)}
+            onClick={() => navigate('/messages', { replace: true })}
             aria-label="Back to messages"
             data-testid="dm-back-button"
           >
@@ -954,10 +988,7 @@ export default function DmsScreen() {
           ] as [MessagesView, string, typeof MessageSquare][]).map(([view, label, Icon]) => (
             <button
               key={view}
-              onClick={() => {
-                setActiveView(view);
-                setSelectedConv(null);
-              }}
+              onClick={() => switchView(view)}
               className={cn(
                 'flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-all duration-150 relative',
                 activeView === view
@@ -1001,10 +1032,7 @@ export default function DmsScreen() {
         ] as [MessagesView, string, typeof MessageSquare][]).map(([view, label, Icon]) => (
           <button
             key={view}
-            onClick={() => {
-              setActiveView(view);
-              setSelectedConv(null);
-            }}
+            onClick={() => switchView(view)}
             className={cn(
               'flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-all duration-150 relative',
               activeView === view

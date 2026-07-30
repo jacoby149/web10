@@ -5,11 +5,14 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   readUserProfile,
+  readProfile,
+  readMyPosts,
   resolveMediaRefs,
   followUser,
   unfollowUser,
   readFollow,
   countFollows,
+  countFollowers,
 } from '@/data';
 import { getWapi } from '@/data/wapi';
 import { API_ORIGIN } from '@/lib/origins';
@@ -81,104 +84,110 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
       const isOwn = token && token.username === username && token.provider === provider;
       setIsOwnProfile(!!isOwn);
 
-      const [p, fr] = await Promise.all([
-        readUserProfile(username, provider),
-        readFollow(username, provider).catch(() => null),
-      ]);
-      setProfile(p);
-      setFollowRecord(fr);
-      setFollowing(fr?.status === 'active' || false);
+      let profile: ProfileRecord | null = null;
+      let postsData: PostRecord[] = [];
+      let fc = 0;
+      // null = count not loaded (hide the tile); 0 is a REAL count (render it) —
+      // `0 || null` here hid the Followers tile for every zero-follower profile
+      // (gauntlet step-3 regression, #434).
+      let fCount: number | null = null;
 
-      // Resolve avatar and banner media refs (cross-user: public_media)
-      const profileRefs: string[] = [];
-      if (p?.avatar_ref) profileRefs.push(p.avatar_ref);
-      if (p?.banner_ref) profileRefs.push(p.banner_ref);
-      const mediaMapInit: Record<string, MediaRecord> = {};
-      if (profileRefs.length) {
-        const media = await resolveMediaRefs(profileRefs, { username, provider }, 'public_media');
-        media.forEach((m) => {
-          if (m._id) mediaMapInit[m._id] = m;
-        });
-      }
-
-      // Fetch posts from discovery API (public posts index)
-      let postMediaRefs: string[] = [];
-      try {
-        const resp = await fetch(
-          `${API_ORIGIN}/discover/posts?sort=recent&limit=50`,
-          { method: 'PATCH' },
-        );
-        if (resp.ok) {
-          const allPosts: DiscoveryPost[] = await resp.json();
-          const userPosts = allPosts
-            .filter((dp) => dp.author === username && dp.provider === provider)
-            .map((dp) => {
-              const post: PostRecord = {
-                _id: dp.post_id,
-                text: dp.text,
-                created_at: dp.created_at,
-                tags: dp.tags,
-              };
-              if (dp.media_refs?.length) {
-                post.media_refs = dp.media_refs;
-                postMediaRefs.push(...dp.media_refs);
-              }
-              return post;
-            });
-          setPosts(userPosts);
-        }
-      } catch {
-        // Discovery API unavailable - posts will be empty
-      }
-
-      // Resolve post media refs (cross-user: public_media)
-      if (postMediaRefs.length) {
-        const postMedia = await resolveMediaRefs(
-          [...new Set(postMediaRefs)],
-          { username, provider },
-          'public_media',
-        );
-        postMedia.forEach((m) => {
-          if (m._id) mediaMapInit[m._id] = m;
-        });
-      }
-
-      setMediaMap(mediaMapInit);
-
-      // Follower/following counts from discovery API
-      try {
-        const usersResp = await fetch(
-          `${API_ORIGIN}/discover/users?limit=100`,
-          { method: 'PATCH' },
-        );
-        if (usersResp.ok) {
-          const users = await usersResp.json();
-          const userEntry = users.find(
-            (u: { username: string; provider: string }) =>
-              u.username === username && u.provider === provider,
-          );
-          if (userEntry) {
-            setFollowerCount(userEntry.followers_count ?? null);
-            setFollowingCount(userEntry.posts_count ?? null);
-          }
-        }
-      } catch {
-        // Discovery users API unavailable
-      }
-
-      // If we have our own follow count, use it
-      if (isOwn && token) {
-        const fc = await countFollows();
-        setFollowingCount(fc);
+      if (isOwn) {
+        // Owner path: read from own collections (same as ProfileScreen)
+        const [p, postsRes, fC, fCnt] = await Promise.all([
+          readProfile(),
+          readMyPosts(),
+          countFollows(),
+          countFollowers(token.username, token.provider),
+        ]);
+        profile = p;
+        postsData = postsRes || [];
+        fc = fC;
+        fCount = fCnt;
       } else {
-        // For other users, read the count from our own follows service
+        // Viewer path: read from discovery API
+        const [p, fr] = await Promise.all([
+          readUserProfile(username, provider),
+          readFollow(username, provider).catch(() => null),
+        ]);
+        profile = p;
+        setFollowRecord(fr);
+        setFollowing(fr?.status === 'active' || false);
+
+        // Fetch posts from discovery API (public posts index)
         try {
-          const fc = await countFollows();
-          setFollowingCount(fc);
+          const resp = await fetch(
+            `${API_ORIGIN}/discover/posts?sort=recent&limit=50`,
+            { method: 'PATCH' },
+          );
+          if (resp.ok) {
+            const allPosts: DiscoveryPost[] = await resp.json();
+            postsData = allPosts
+              .filter((dp) => dp.author === username && dp.provider === provider)
+              .map((dp) => {
+                const post: PostRecord = {
+                  _id: dp.post_id,
+                  text: dp.text,
+                  created_at: dp.created_at,
+                  tags: dp.tags,
+                };
+                if (dp.media_refs?.length) {
+                  post.media_refs = dp.media_refs;
+                }
+                return post;
+              });
+          }
+        } catch {
+          // Discovery API unavailable
+        }
+
+        // Follower/following counts from discovery API
+        try {
+          const usersResp = await fetch(
+            `${API_ORIGIN}/discover/users?limit=100`,
+            { method: 'PATCH' },
+          );
+          if (usersResp.ok) {
+            const users = await usersResp.json();
+            const userEntry = users.find(
+              (u: { username: string; provider: string }) =>
+                u.username === username && u.provider === provider,
+            );
+            if (userEntry) {
+              fCount = userEntry.followers_count ?? 0;
+            }
+          }
+        } catch {
+          // Discovery users API unavailable
+        }
+
+        // Following count from our own follows service
+        try {
+          fc = await countFollows();
         } catch {
           setFollowingCountError(true);
         }
       }
+
+      setProfile(profile);
+      setPosts(postsData);
+      setFollowingCount(fc);
+      setFollowerCount(fCount);
+
+      // Resolve media refs
+      const allRefs = postsData.flatMap((post) => post.media_refs || []);
+      if (profile?.avatar_ref) allRefs.push(profile.avatar_ref);
+      if (profile?.banner_ref) allRefs.push(profile.banner_ref);
+      const mediaMapInit: Record<string, MediaRecord> = {};
+      if (allRefs.length) {
+        const media = isOwn
+          ? await resolveMediaRefs([...new Set(allRefs)])
+          : await resolveMediaRefs([...new Set(allRefs)], { username, provider }, 'public_media');
+        media.forEach((m) => {
+          if (m._id) mediaMapInit[m._id] = m;
+        });
+      }
+      setMediaMap(mediaMapInit);
     } catch (e) {
       console.error('Failed to load user profile:', e);
     }

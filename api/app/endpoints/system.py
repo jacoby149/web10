@@ -142,8 +142,9 @@ async def ready():
 async def stats(skip: int = 0, limit: int = 0):
     apps = db.get_apps(skip, limit)
     users = db.get_user_count()
-    size = db.total_size()
-    return {"apps": apps, "users": users, "storage": size}
+    mongo_size = db.total_size()
+    s3_size = db.total_s3_size()
+    return {"apps": apps, "users": users, "storage": mongo_size + s3_size}
 
 
 @router.get("/pwa_listing", include_in_schema=False)

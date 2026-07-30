@@ -266,10 +266,24 @@ describe('posts data layer', () => {
   });
 
   describe('deletePost', () => {
-    it('deletes a post by ID', async () => {
+    it('deletes a public post from public_posts', async () => {
       mock.delete.mockResolvedValue(undefined);
-      await posts.deletePost('p1');
-      expect(mock.delete).toHaveBeenCalledWith('posts', { _id: 'p1' });
+      await posts.deletePost('p1', 'public');
+      expect(mock.delete).toHaveBeenCalledWith('public_posts', { _id: 'p1' });
+    });
+
+    it('deletes a private post from private_posts', async () => {
+      mock.delete.mockResolvedValue(undefined);
+      await posts.deletePost('p2', 'private');
+      expect(mock.delete).toHaveBeenCalledWith('private_posts', { _id: 'p2' });
+    });
+
+    it('regression: does NOT delete from the legacy `posts` service', async () => {
+      // D30 split: posts live in public_posts/private_posts. The old
+      // deletePost hardcoded 'posts' which matched nothing.
+      mock.delete.mockResolvedValue(undefined);
+      await posts.deletePost('p3', 'public');
+      expect(mock.delete).not.toHaveBeenCalledWith('posts', expect.anything());
     });
   });
 
