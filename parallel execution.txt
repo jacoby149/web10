@@ -365,6 +365,33 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       indexes has_media=false), ruff clean. gate: none. unblocks:
       D-trending-card-media, the D-user-profile-media grid half.
 
+[ ] A19-stats-s3-bytes (lane A, api/**, SMALL; operator, 30.07 rant:
+      "the data liberated tab isnt counting s3 data! should also add
+      up all s3 data in the count!"): the marketing homepage "data
+      liberated" stat (Home.tsx → POST /stats → system.py:140-146)
+      reports `storage` = db.total_size() = the MongoDB
+      dbstats storageSize ONLY (documentdb.py:867). media BLOBS live
+      in the object store (MinIO/S3) — only their metadata records
+      live in mongo — so every photo/video ever uploaded is missing
+      from the count. the number undersells the liberation story on
+      the landing page. fix: /stats gains the object-store bytes.
+      two options, pick at implementation and record why: (a) BUCKET
+      SIZE from the object store (MinIO: the admin/data-usage info
+      API, or sum ListObjectsV2 sizes — bucket-wide is exactly the
+      node-wide number the stat wants; needs the media service's
+      bucket client, media.py territory); (b) SUM size_bytes over
+      media metadata records across user collections (works with any
+      S3-compatible backend, but a cross-collection scan — cache it
+      like the discovery aggregations if it's slow). either way:
+      cache/short-TTL the number (dbstats is already a scan; don't
+      add a second per-request scan), keep the response shape
+      back-compat (`storage` becomes mongo+s3, or add `storage_s3`
+      and let marketing-ui sum — decide and tell lane D via
+      .context/). tests: /stats includes media bytes (seed a media
+      metadata record / mock the bucket client), ruff clean. gate:
+      none. NOTE: the marketing-ui side needs nothing if `storage`
+      stays the summed field (formatBytes already renders it).
+
 [✓ 1.0.230] A18-engagement-target-canonical (lane A, api/**; PRIORITY 1 —
       REGRESSION, operator 29.07, screenshot: every /trending card
       shows 0 likes / 0 comments): A15's fix (#360) made counts WORSE
@@ -934,6 +961,12 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
         profile.ts. gate: none — gauntlet step 6 ("your profile reads
         as a creator page you'd screenshot") doesn't survive F5 today.
 [~ half: ✓ 1.0.162] D-user-profile-media (sub-lane D/profile). USER PROFILE AVATAR/BANNER BROKEN —
+        OPERATOR RE-CONFIRMED 30.07 (rant): "when i go to someones
+        profile, i dont see their profile photos" — STILL the live
+        behavior on prod AFTER D-public-media-client bite b (#344)
+        merged. the gate is no longer "path doesn't exist" — it's
+        "path never verified end-to-end": run D-public-media-verify
+        (below) FIRST, then this.
         STATUS (24.07): the avatar/banner half LANDED in 1.0.162 (#284 —
         loadData now resolves refs and populates mediaMap). REMAINING:
         the post-media-in-grid half below — and it is GATED on the
@@ -1587,6 +1620,15 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
 
 [ ] D-follow-lists (sub-lane ws-D/profile, AFTER D-profile-post-
       experience — small SEAM: ProfileScreen stat tiles become links):
+      OPERATOR RE-CONFIRMED 30.07 (rant): "when i click my followers
+      or following count, i dont see a page with my list of followers
+      / following, it should link me there when i click the numbers!"
+      — twice-complained, bumped in the chain. URL-RULE SHARPENING
+      (the operator's 30.07 address-bar priority): the lists are
+      ROUTES, not a modal — /u/:username/followers and
+      /u/:username/following (your own profile included via the
+      D-own-profile-canonical /u/<you> form), so a list is
+      refresh-safe, back/forward works, and the link is shareable.
       a UI to SEE the follower + following LISTS (today the profile only
       shows COUNTS — followerCount/followingCount stat tiles). Make the
       "Followers" and "Following" tiles open a list (a modal or new
@@ -1597,8 +1639,10 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       Files: new components/Bio/FollowList.tsx (or a modal), ProfileScreen
       .tsx (link the tiles), maybe App.tsx routes. Also applies to the
       OTHER-user profile (UserProfileScreen). acceptance: tap Followers /
-      Following → a scrollable list of real accounts, each linking to
-      that profile; screenshot desktop + 375px. gate: none (independent
+      Following → a scrollable list of real accounts at a deep-linkable
+      /u/:username/followers|following route, each row linking to
+      that profile; refresh restores the list; screenshot desktop +
+      375px. gate: none (independent
       of the post-viewer work beyond the shared ProfileScreen file — run
       after it in the same ws-D/profile chain).
 
@@ -1829,6 +1873,11 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
 [ ] D-deep-links (sub-lane ws-D/shell; operator, 26.07: "everything
       should be a deep hyperlink on web10 social… every screen
       shareable, or bookmarkable if it's a private screen like dms" —
+      OPERATOR PRIORITY CALL, 30.07 rant: "i guess when we make every
+      screen in the address bar have a link to it, that will happen.
+      maybe lets have that address bar for every screen be a priority
+      for the next web10web10!" — this item is the PRIORITY of the
+      next kickoff batch; stage its bites first. —
       and the rationale: marketing /trending click-throughs land on
       the EXACT thing: "when you click the comment [it] can bring up
       the post to that exact comment… makes it polished, aka
@@ -2234,7 +2283,226 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       decrements; a vitest regression on the toggle round-trip;
       social tests + tsc green. gate: none.
 
-[✓ 1.0.230] D-search-fulltext (sub-lane ws-D/marketing, AFTER D-marketing-search
+[ ] D-delete-post-broken (sub-lane ws-D/profile, PostLightbox seam;
+      operator, 30.07 rant: "the delete post button isnt working for
+      me!"): ROOT CAUSE visible in the code at filing — deletePost
+      (posts.ts:141-143) hardcodes `wapi.delete('posts', { _id: id })`,
+      but posts haven't lived in a `posts` service since the D30
+      collection split: createPost writes `public_posts` or
+      `private_posts` (posts.ts:38). the delete targets a service the
+      post is NOT in → matches nothing → the post survives (and this
+      flow swallows errors upstream, so the UI looks like it worked —
+      the same wrong-hardcoded-service class as the `posts:{id}`
+      ledger target in A18 and the stale-delete in
+      D-visibility-toggle-duplicate). fix: deletePost takes the post's
+      visibility (or the post record) and deletes from the CORRECT
+      collection (public_posts | private_posts); thread it from the
+      PostLightbox call site (handleDelete, PostLightbox.tsx:151).
+      ALSO: deleting a PUBLIC post must remove its discovery-index doc
+      (else a ghost renders on /trending + Discover after the
+      collection delete works — check whether the api un-indexes on
+      delete; if that's missing it's a small lane-A touch, leave a
+      .context/ note) — and the profile grid/feed must re-read after
+      delete so the post disappears without a manual refresh.
+      acceptance: delete a public post → it's gone from public_posts,
+      the discovery index, and the UI (no refresh); delete a private
+      post → gone from private_posts; a vitest regression pins the
+      per-visibility service selection; social tests + tsc green.
+      gate: none.
+
+[ ] D-user-profile-stats (sub-lane ws-D/profile; operator, 30.07 rant,
+      screenshot of social.web10.app/u/coolguydavid — stats row shows
+      only "0 Posts" + a numberless "Following" label, grid says "No
+      posts yet": "that is my friend coolguydavid, i dont see how many
+      hes following and how many followers! nor do i see his posts but
+      i know he has a post"): THREE confirmed code bugs in
+      UserProfileScreen.tsx loadData, no repro needed to believe them
+      (line numbers at filing):
+      (1) FOLLOWING COUNT IS THE VIEWER'S, NOT HIS — lines 169-181:
+          BOTH branches call countFollows() with no user argument,
+          which reads the SIGNED-IN viewer's own follows service — so
+          /u/coolguydavid's "Following" shows YOUR following count.
+          worse, line 162 first sets it from userEntry.posts_count
+          (posts ≠ following — a mixup) before the overwrite.
+      (2) FOLLOWERS TILE SILENTLY MISSING — lines 148-167: the counts
+          come from /discover/users?limit=100 filtered CLIENT-SIDE;
+          a user outside the first 100 (or with zero persona-style
+          engagement) isn't in the response → userEntry undefined →
+          followerCount stays null → the Followers tile doesn't render
+          AT ALL (the screenshot's numberless row). A14's
+          followers_count exists server-side; the client loses it.
+      (3) "NO POSTS YET" ON A PROFILE THAT HAS POSTS — lines 104-132:
+          the grid fetches /discover/posts?sort=recent&limit=50 and
+          filters by author CLIENT-SIDE — his post is indexed (it
+          showed on /trending) but falls outside the 50 most recent
+          posts node-wide, so the filter yields []. (the older
+          direct-collection-read path needs his public_posts anon-read
+          term — the still-un-run E-run-discovery-migration; the
+          discovery path is the right one, the limit-50 filter is the
+          bug.)
+      fix direction: per-user counts from the PUBLIC LEDGER (anon-
+      readable, the D34 shape — countFollowers/countFollows already
+      query it client-side for the home node; thread the PROFILE's
+      author, never the viewer) with /discover/users followers_count
+      as a cache-warm fallback, never the viewer's own count; posts
+      via a per-author discovery query (check discover.py for an
+      author param — if absent, that's a small lane-A touch, leave a
+      .context/ note) or paginate until found, never limit-50-and-
+      pray. OPERATOR RE-CONFIRMED 30.07 (rant #2, screenshot of
+      /u/jacoby149 — his OWN profile via /u/): "same when i visit my
+      own profile via /u/, i dont see how many followers just
+      following, and my posts dont render" — "0 Posts · 4 Following",
+      no Followers tile, "No posts yet" for an owner WITH posts. the
+      /u/ route takes the buggy discovery path EVEN FOR THE OWNER;
+      the owner case is folded into D-own-profile-canonical (owner
+      collection read), but the per-user counts fix here must cover
+      /u/<you> too until that lands. the stat tiles become links to the D-follow-lists routes
+      (/u/:username/followers|following) when that lands — coordinate,
+      same screen. files: components/Bio/UserProfileScreen.tsx,
+      data/follows.ts (own exports). acceptance: /u/coolguydavid
+      shows HIS real followers + following counts and HIS posts; a
+      viewer's own follow state never leaks into another user's
+      numbers; a user absent from /discover/users still gets counts
+      (ledger path); vitest pins the per-user count queries; social
+      tests + tsc green; screenshots desktop + 375px. gate: none.
+
+[ ] D-self-engagement-counts (sub-lane ws-D/feed; operator, 30.07 rant:
+      "when i like my own posts it gives 0 likes, it should be one
+      like! self likes count! same for comments, shares"): PRODUCT
+      DECISION (operator, 30.07 — record it, don't re-litigate):
+      self-engagement COUNTS — liking/commenting/sharing your own post
+      increments its counts like anyone else's. the server does NOT
+      exclude self-engagement (_ledger_engagement_for_post,
+      documentdb.py:1272, matches target + counts payload.action with
+      no author filter), so the 0 is a write/read-path bug. REPRO
+      FIRST on the local stack: like your own public post, then quote
+      in the PR (a) the ledger entry actually written (its `target`
+      string), (b) the discovery post's engagement, (c) where the
+      on-screen count renders from. suspects, in order: (1) ORPHANED
+      LEGACY TARGET AT THE OWN-POST CALL SITE — D-engagement-target-
+      client threaded postAuthor/postService "with fallback to legacy
+      format"; a call site that doesn't thread them (your own profile
+      grid / your own feed post) writes `posts:{post_id}`, which the
+      aggregation NEVER matches (documented orphaned) → count stays
+      0; (2) the ledger mirror's `.catch(() => { /* non-fatal */ })`
+      (reactions.ts:64) swallowing a failing write — the like exists
+      in your reactions collection but never reaches the ledger;
+      (3) COUNT SOURCE DISAGREEMENT — the badge reads discovery
+      engagement (public ledger) while countReactions reads the
+      signed-in user's OWN reactions collection; on your own post
+      these diverge and the UI may show the wrong source; (4) SHARES:
+      no repost/share count path exists client-side at all — the
+      Share action (D-feed-lightbox) copies a link but writes no
+      ledger entry, so shares can never count; add the repost ledger
+      write on share (payload.action='repost', canonical target) as
+      part of this item. acceptance: like your own post → the count
+      shows 1 immediately (optimistic or re-read), survives refresh,
+      and matches the ledger; unlike → 0; same for a self-comment;
+      a share increments the repost count; a vitest regression pins
+      the self-like round-trip incl. the call-site target format;
+      social tests + tsc green. gate: none.
+
+[ ] D-visibility-toggle-duplicate (sub-lane ws-D/profile; operator, 30.07
+      rant: "i tried publicing a post, privating the post, publicing it
+      again, there is now two posts one in public one in private of the
+      same post"): D-post-visibility-toggle's movePostVisibility
+      (posts.ts:154) is create-in-target THEN delete-from-source — a
+      repeated toggle duplicates the post. REPRO FIRST on the local
+      stack (public → private → public, then read BOTH collections and
+      quote the records in the PR). suspects, in order: (1) STALE POST
+      OBJECT ACROSS TOGGLES — the lightbox keeps the pre-toggle
+      post record; after the first move the record has a NEW _id in
+      the target collection, but the second toggle runs against the
+      OLD object, so sourceService/visibility flip from stale state
+      and the delete targets an _id that no longer exists (or the
+      wrong service) — the copy survives; (2) delete-by-_id mismatch
+      when the post came from the discovery feed (post_id vs the
+      record's actual _id); (3) a swallowed delete error — the
+      create-then-delete pair isn't atomic and this flow catches
+      errors upstream (the D-follow-persistence class). fix direction:
+      reload/use the record returned by the move (or re-read the
+      source collection) before the next toggle, and surface a delete
+      failure as an error state, never silently. ALSO check the
+      discovery index: a post moved OUT of public_posts must drop its
+      discovery doc (else a ghost public copy renders on /trending
+      even after the collection delete works). files:
+      marketing/web10-social/src/data/posts.ts +
+      components/Bio/PostLightbox.tsx (the toggle call site). owns
+      ws-D/profile seam — coordinate with the PostLightbox cluster.
+      acceptance: public → private → public round-trip leaves EXACTLY
+      ONE record in exactly one collection; a vitest regression pins
+      the round-trip (incl. the stale-object case); no discovery
+      ghost after privatizing; social tests + tsc green. gate: none.
+
+[ ] D-public-media-verify (sub-lane ws-D/profile, TINY — the gate-clearing
+      bite; operator, 30.07 rant: "when i go to someones profile, i
+      dont see their profile photos"): the public-media read path is
+      fully MERGED (A12 api 1.0.164, D-public-media-client bites a+b
+      #311/#344) but was never verified END TO END — the board gate on
+      D-feed-avatar-resolution + the D-user-profile-media grid half
+      says exactly that ("needs the dev verification step"), and the
+      operator's 30.07 report says it still doesn't work on prod.
+      this bite is the verification, not a feature: on the LOCAL
+      compose stack, two real accounts — A uploads an avatar + a
+      public post with a photo; B views A's /u/A profile and feed.
+      capture, in the PR: every cross-user media request's status
+      (expect 200s, zero 403s), which code path served it
+      (public_media presign vs legacy media fallback), and console
+      errors. whatever breaks IS the finding — fix it in this PR if
+      it's a one-file client bug; if it's api-side or the un-run
+      E-run-discovery-migration backfill (A17 media fields reach
+      existing index docs only via the RE-RUN — operator-gated), name
+      it explicitly and re-gate accordingly. THEN un-tick the gate on
+      D-feed-avatar-resolution + the D-user-profile-media grid half.
+      owns marketing/web10-social/** (read-only diagnosis + small
+      client fix only). acceptance: B sees A's avatar + post photo
+      with zero 403s on the local stack, OR the PR names the exact
+      remaining blocker with evidence; social tests + tsc green.
+      gate: none.
+
+[ ] D-own-profile-canonical (sub-lane ws-D/shell, TINY; operator, 30.07
+      rant: "when i click my username, it goes to my profile page
+      instead of just /profile it goes to profile/u/jacoby149 — lets
+      just have it always be profile/u/jacoby149!"): clicking your own
+      username lands on the bare /profile route; the operator wants
+      the canonical URL to ALWAYS be the /u/:username form — your own
+      profile is just your user profile. OPERATOR DECISION (30.07
+      rant #2, screenshot of /u/jacoby149 — record it, don't
+      re-litigate): "ultimately, /u/{your web10 username} should be
+      the same as /profile for the signed in user… should get rid of
+      /profile so you can share with friends! for example /u/jacoby149
+      i am jacoby149 so when i click profile address bar should show
+      that" — /profile is RETIRED as a screen: it becomes a redirect
+      to /u/<you> (back-compat for existing bookmarks/links — never
+      404 a shipped route), and /u/<you> IS the profile: the OWNER
+      experience (edit affordances, own-collection post read — the
+      current ProfileScreen), not the public-viewer experience.
+      NOTE the sharability win the operator names: /u/<you> is a
+      link you hand a friend; /profile never was. ALSO folded in
+      (same screenshot): /u/<you> TODAY renders the viewer experience
+      with the D-user-profile-stats bugs — "0 Posts · 4 Following",
+      no Followers tile, "No posts yet" for an owner WITH posts —
+      because the /u/ route takes the discovery path even for the
+      owner; the owner path must read the owner's own collection
+      like ProfileScreen does.
+      fix: every own-profile
+      navigation (the sidebar username/avatar link in Social/
+      Layout.tsx, any other own-profile entry point) navigates to
+      /u/<your-username>; the /profile route becomes a REDIRECT to
+      /u/:username for the signed-in user, and UserProfileScreen
+      renders your own profile with the owner affordances (edit etc.)
+      it already gates on is-own-profile — VERIFY that gate works on
+      the /u/ route for the owner, don't build a second own-profile
+      screen. files: web10-social/src/App.tsx (redirect route),
+      components/Social/Layout.tsx (link target). acceptance: clicking
+      your username lands on /u/<you> with the address bar showing
+      /u/<you>; /profile redirects to /u/<you>;
+      refresh + back/forward work; your own /u/ page shows the
+      owner edit affordances AND your real posts/counts (owner
+      collection read); social tests + tsc green; screenshots
+      desktop + 375px. gate: none.
+
+
       bite b — same Trending.tsx seam; operator, 27.07: "searching only
       searches tags also. it doesnt search the other things"): a word
       that appears only in a post's BODY returns nothing; author handles
@@ -3054,7 +3322,16 @@ mode wiring in e2e. New since audit #14 (all filed, none built):
 D-dm-header-profile-link + D-follow-toggle (30.07 rant filings #413),
 D-home-stats-bar-styling (30.07 rant — kill the stats-bar border,
 "data liberated" as the third label, builder's taste on cards vs
-bare). GATES CLEARED this pass: D-lightbox-media-sizing (feed-lightbox
+bare). 30.07 LATE-RANT FILINGS (this branch, docs only):
+D-public-media-verify (operator: "when i go to someones profile, i
+dont see their profile photos" — the public-media path is merged but
+never verified end-to-end; this TINY bite is the gate-clearer for
+D-feed-avatar-resolution + the D-user-profile-media grid half),
+D-own-profile-canonical (operator: own profile should ALWAYS live at
+/u/<you> — /profile becomes a redirect), and D-deep-links is the
+operator-called PRIORITY of the next kickoff batch ("lets have that
+address bar for every screen be a priority for the next
+web10web10!"). GATES CLEARED this pass: D-lightbox-media-sizing (feed-lightbox
 bite b merged 1.0.248 — the PostLightbox seam cluster is free) and
 D-deep-links (the 26.07 fleet fully drained — it is FIRST now, one
 bite per screen per its BITES breakdown). ALIGNMENT: unchanged — every
@@ -3073,16 +3350,39 @@ the M2 money-path referee (C8); no infra-company drift. QWEN HORIZON:
       via the compat filter, so this is cleanup, not a blocker).
 
   PARALLEL-SAFE FLEET (one workspace per sub-lane; chains WITHIN a
-  sub-lane are sequential, file seams):
+  sub-lane are sequential, file seams). OPERATOR PRIORITY CALL (30.07
+  rant): D-deep-links is the priority of the next kickoff batch —
+  "lets have that address bar for every screen be a priority" — stage
+  its per-screen bites FIRST (one workspace, ws-D/shell cross-screen
+  seam, never concurrent with any ws-D chain), alongside:
     ws-D/messages:   D-dm-header-profile-link (TINY, no gate), THEN
                      D-deep-links bite 1 (messages thread key + view
                      param — same DmsScreen seam, sequential)
-    ws-D/profile:    D-follow-toggle (runtime bug, operator rant — REPRO
-                     first), THEN D-lightbox-media-sizing (gate CLEARED
+    ws-D/profile:    D-delete-post-broken (operator rant — root cause
+                     named: hardcoded `posts` service vs the D30
+                     public_posts/private_posts split), THEN
+                     D-user-profile-stats (operator rant + screenshot —
+                     three confirmed bugs, viewer's count leaks onto
+                     another user's profile), THEN
+                     D-visibility-toggle-duplicate (operator rant —
+                     REPRO first, stale-record delete-miss suspect),
+                     THEN D-public-media-verify (TINY, no gate — the
+                     gate-CLEARER for the two GATED media items below),
+                     THEN D-follow-lists (twice-complained 30.07 —
+                     followers/following counts link to deep-linkable
+                     /u/:username/followers|following routes),
+                     THEN D-lightbox-media-sizing (gate CLEARED
                      this pass), THEN D-profile-image-placement,
-                     D-follow-lists, D-text-post-cards (chain order)
-    ws-D/feed:       D-link-embeds (feed-lightbox drained — the lane is
-                     free; gate D-profile-post-experience long merged)
+                     D-text-post-cards (chain order)
+    ws-D/shell:      D-own-profile-canonical (TINY, no gate — /profile
+                     RETIRED, redirects to /u/<you> which IS the owner
+                     profile; operator decision 30.07. SEAM: touches the
+                     UserProfileScreen owner path — coordinate with the
+                     ws-D/profile chain via .context/, never concurrent
+                     edits), THEN D-mobile-feature-gap (no gate)
+    ws-D/feed:       D-self-engagement-counts (operator rant — self
+                     likes/comments/shares count; REPRO first, orphaned
+                     legacy-target suspect)
     ws-D/marketing:  [✓ 1.0.253] D-appstore-revamp v2 bite a (product page UI —
                      gate CLEARED: spec #401 + rewire #409 live on prod;
                      /discover/app/{id} + /apps/rating(s) endpoints
@@ -3092,7 +3392,6 @@ the M2 money-path referee (C8); no infra-company drift. QWEN HORIZON:
                      D-home-stats-bar-styling (SMALL, no gate) —
                      disjoint seams (AppStore.tsx vs Home.tsx), two
                      workspaces OK
-    ws-D/shell:      D-mobile-feature-gap (no gate)
     ws-C:            C8 remainder — bite b (membership subscribe journey,
                      3% split asserted) + bite c (twilio honest half);
                      staged with the M2-prereq block, not the gauntlet
@@ -3100,12 +3399,15 @@ the M2 money-path referee (C8); no infra-company drift. QWEN HORIZON:
     ws-D/marketing-api: D-import-revamp bite b (the WeTransfer pipeline —
                      gate bite a merged 1.0.231, CLEARED; NEW sub-lane,
                      nothing in flight there)
+    ws-A:            A19-stats-s3-bytes (SMALL, no gate — "data
+                     liberated" gains the object-store bytes)
   GATED (don't pick up until the gate clears):
       D-night-owl bites b-e (gate: operator's Conductor Pro trial).
       D-poke build (gate: operator sign-off on the 1.0.179 proposal).
       D-feed-avatar-resolution + the D-user-profile-media grid half
-        (gate: public-media path END TO END — needs the dev verification
-        step).
+        (gate: D-public-media-verify — the merged public-media path
+        verified END TO END; operator re-confirmed 30.07 it's still
+        broken on prod).
       D-coming-soon-builds (gate: per-surface spec first).
       D-appstore category rails (gate: catalog size).
       E-run-discovery-migration (gate: admin token — operator provides).

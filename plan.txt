@@ -2129,6 +2129,11 @@ posts / profile -- controls the operator found missing:
     tapping Followers/Following should open the actual list of accounts
     (avatar + handle, link to /u/:username). data exists in follows.ts
     (D-follow-lists in parallel execution.txt, ws-D/profile).
+    OPERATOR RE-CONFIRMED 30.07 (rant): "when i click my followers or
+    following count, i dont see a page with my list of followers /
+    following, it should link me there when i click the numbers!" —
+    per the address-bar priority the lists are ROUTES
+    (/u/:username/followers + /following), not a modal.
 
 messages -- controls the operator found missing:
 [ ] delete a message / conversation.
@@ -2477,6 +2482,86 @@ D-dm-header-profile-link (ws-D/messages, tiny). merged 1.0.251.
     bare-on-background vs sleek individual cards is the builder's
     taste call against design.md §12. lane item
     D-home-stats-bar-styling (ws-D/marketing(2), small).
+[ ] data liberated counts S3 bytes too (operator, 30.07 rant: "the
+    data liberated tab isnt counting s3 data! should also add up all
+    s3 data in the count!"): /stats' `storage` is mongo dbstats
+    storageSize only (documentdb.py:867) — media blobs live in the
+    object store, so every uploaded photo/video is missing from the
+    landing-page number. fix: add the bucket bytes (MinIO usage API
+    or summed size_bytes over media metadata records, cached),
+    back-compat response shape. lane item A19-stats-s3-bytes (lane A).
+[ ] delete post button broken (operator, 30.07 rant: "the delete post
+    button isnt working for me!"): root cause visible in the code —
+    deletePost (posts.ts:141) hardcodes the `posts` service, but posts
+    live in public_posts/private_posts since the D30 collection split;
+    the delete matches nothing and the error is swallowed. fix:
+    delete from the post's actual collection, remove the discovery
+    ghost on public deletes, re-read the grid after delete. lane item
+    D-delete-post-broken (ws-D/profile).
+[ ] another user's profile shows HIS stats + posts (operator, 30.07
+    rant, screenshot of /u/coolguydavid: "i dont see how many hes
+    following and how many followers! nor do i see his posts but i
+    know he has a post"): three confirmed UserProfileScreen bugs —
+    the "Following" count is the VIEWER's own countFollows() (and is
+    first set from posts_count, a mixup); the Followers tile vanishes
+    when the user is outside the client-side-filtered
+    /discover/users?limit=100; the post grid filters
+    /discover/posts?limit=50 client-side so his indexed post is cut.
+    fix: per-user counts from the public ledger (never the viewer's),
+    posts via a per-author discovery query. lane item
+    D-user-profile-stats (ws-D/profile).
+[ ] self-engagement counts (operator, 30.07 rant: "when i like my own
+    posts it gives 0 likes, it should be one like! self likes count!
+    same for comments, shares"): PRODUCT DECISION — self-engagement
+    counts. the server doesn't exclude it, so the 0 is a write/read
+    bug: prime suspect is an own-post call site that doesn't thread
+    postAuthor/postService and falls back to the orphaned legacy
+    `posts:{id}` ledger target the aggregation never matches; also
+    the mirror's non-fatal catch swallowing the write, the
+    discovery-vs-own-collection count source split, and shares having
+    NO ledger write path at all (add payload.action='repost' on
+    share). lane item D-self-engagement-counts (ws-D/feed).
+[ ] visibility toggle duplicates the post (operator, 30.07 rant: "i
+    tried publicing a post, privating the post, publicing it again,
+    there is now two posts one in public one in private of the same
+    post"): movePostVisibility is create-then-delete; a repeated
+    toggle leaves a copy in each collection. prime suspect: the
+    lightbox runs the second toggle against the STALE pre-toggle
+    record (the move mints a new _id in the target collection), so
+    the delete misses. also check the discovery index for a ghost
+    public copy after privatizing. lane item
+    D-visibility-toggle-duplicate (ws-D/profile).
+[ ] profile photos on someone else's profile (operator, 30.07 rant:
+    "when i go to someones profile, i dont see their profile photos"):
+    the public-media read path (A12 + D-public-media-client, D35) is
+    fully merged but was never verified end-to-end — and the operator
+    confirms it's still broken on prod. the fix queue: FIRST
+    D-public-media-verify (ws-D/profile, tiny — two real accounts on
+    the local stack, capture every cross-user media request's status,
+    fix or name the exact blocker), which clears the gate on
+    D-feed-avatar-resolution + the D-user-profile-media grid half.
+[ ] own profile at the canonical /u URL (operator, 30.07 rant: "when i
+    click my username, it goes to my profile page instead of just
+    /profile it goes to profile/u/jacoby149 — lets just have it always
+    be profile/u/jacoby149!"): your own profile always lives at
+    /u/<you>; /profile becomes a redirect (back-compat, never 404 a
+    shipped route). OPERATOR DECISION (30.07 rant #2, screenshot of
+    /u/jacoby149): "ultimately, /u/{your web10 username} should be the
+    same as /profile for the signed in user… should get rid of
+    /profile so you can share with friends!" — /profile is RETIRED as
+    a screen; /u/<you> IS the profile (owner experience: edit
+    affordances, own-collection post read), and it's the link you hand
+    a friend. the same screenshot shows the /u/ owner path today hits
+    the D-user-profile-stats bugs ("0 Posts", no Followers tile, "No
+    posts yet" with posts existing) — the owner path must read the
+    owner's own collection. lane item D-own-profile-canonical
+    (ws-D/shell, tiny).
+[ ] ADDRESS BAR EVERYWHERE — operator priority call (30.07 rant: "i
+    guess when we make every screen in the address bar have a link to
+    it, that will happen. maybe lets have that address bar for every
+    screen be a priority for the next web10web10!"): D-deep-links
+    (above, the 26.07 item) is the PRIORITY of the next kickoff batch
+    — stage its per-screen bites first.
 
 PHASE 9 — the exporters (fill the collections)
 ----------------------------------------------
