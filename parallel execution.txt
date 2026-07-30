@@ -2961,8 +2961,25 @@ M3 "the network"         = encryption integration (A rtc + C2 sdk
                            polish. the last big merge.
 
 
-CURRENT CONDUCTOR BOARD (as of 30.07.2026 — audit #12; keep fresh)
+CURRENT CONDUCTOR BOARD (as of 30.07.2026 — audit #13; keep fresh)
 --------------------------------------------------------------------
+AUDIT #13 REFRESH (30.07): SHIPPED. Dangling PR #396 (export-link
+guidance rant filing) un-conflicted via the local union-merge ritual
+(renumber 1.0.237) and merged; the docs-only dev batch (#394–#397 +
+#396) gated CLEAN and promoted dev→main via merge commit (#398);
+deploy-prod + cd green; prod verified live (7/7 public endpoints).
+Zero open PRs; fleet idle. New since audit #12 (all filed, none
+built): D-hero-cta-label (TINY, ws-D/marketing), D-import-export-
+links-dead's repair DECISION (operator-verified URLs + /docs
+guidance article scaffold — ws-D/marketing(2), no gate),
+D-export-links-health-e2e (ws-E/infra, gated on the repair),
+E-dependabot-hackathon (PARKED per operator "can be done later
+though"), D-docs-gfm re-confirmed TWICE-complained — bumped to the
+front of ws-D/marketing. ALIGNMENT: unchanged — all complaint-driven
+product/funnel work + the C8 money-path referee. QWEN HORIZON: ~14
+filed parallel-safe bites across 9 sub-lanes, ~20+ chained PRs
+behind them — Qwens run independently.
+
 AUDIT #12 REFRESH (30.07): SHIPPED. The overnight batch (#384–#392 —
 docs pass #11, A18 engagement-target revert, D-engagement-target-client,
 D-search-fulltext, D-mail-experience bite c CC/BCC, D-appstore-plugs,
