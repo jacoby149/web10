@@ -1047,10 +1047,7 @@ def search_discovery_posts(query: str, limit: int = 50, skip: int = 0) -> list[d
     visible = {"removed": {"$ne": True}}
 
     # Stage 1: $text whole-word search over body_text + tags
-    text_docs = list(
-        col.find({**visible, "$text": {"$search": query}})
-        .sort("created_at", -1)
-    )
+    text_docs = list(col.find({**visible, "$text": {"$search": query}}).sort("created_at", -1))
     seen_ids = {d["_id"] for d in text_docs}
 
     # Stage 2: substring regex fallback for short queries (≤ 2 words).
@@ -1061,14 +1058,15 @@ def search_discovery_posts(query: str, limit: int = 50, skip: int = 0) -> list[d
         safe = re.escape(query)
         try:
             regex_docs = list(
-                col.find({
-                    **visible,
-                    "$or": [
-                        {"body_text": {"$regex": safe, "$options": "i"}},
-                        {"author": {"$regex": safe, "$options": "i"}},
-                    ],
-                })
-                .sort("created_at", -1)
+                col.find(
+                    {
+                        **visible,
+                        "$or": [
+                            {"body_text": {"$regex": safe, "$options": "i"}},
+                            {"author": {"$regex": safe, "$options": "i"}},
+                        ],
+                    }
+                ).sort("created_at", -1)
             )
         except Exception:
             # Fallback failure is non-fatal — text results still work
