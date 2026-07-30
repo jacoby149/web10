@@ -2345,8 +2345,9 @@ PREMMIUMMM!!!!!"):
     — approval attaches to a metadata VERSION, any listing change
     (a new pwa thumbnail, say) re-enters review; the store never
     auto-pulls assets from the app's origin. moderation by
-    architecture; lane A spec note before v2 builds (see the
-    D-appstore-revamp lane item).
+architecture; lane A spec note before v2 builds (see the
+     D-appstore-revamp lane item). ✓ 1.0.239 (D37 spec in
+     .context/appstore-v2-registration-spec.md)
 
 engagement-count accuracy (operator, 26.07, screenshot: a post's badge
 says 3 comments while the expanded panel renders more than that):
