@@ -188,6 +188,7 @@ export async function readPosts(): Promise<unknown[]> { return []; }
 export async function createPost(): Promise<unknown> { return {}; }
 export async function updatePost(): Promise<unknown> { return {}; }
 export async function deletePost(): Promise<void> {}
+export async function movePostVisibility(): Promise<void> {}
 export async function countFollowers(): Promise<number> { return PEERS.length; }
 export async function countFollows(): Promise<number> { return PEERS.length; }
 export async function countStagingPosts(): Promise<number> { return 0; }
@@ -205,6 +206,7 @@ export async function readComments(): Promise<unknown[]> { return []; }
 export async function createComment(): Promise<unknown> { return {}; }
 export async function deleteComment(): Promise<void> {}
 export async function countReactions(): Promise<number> { return 0; }
+export async function countComments(): Promise<number> { return 0; }
 export async function toggleReaction(): Promise<unknown> { return {}; }
 export async function readReactions(): Promise<unknown[]> { return []; }
 export async function readServiceTerms(): Promise<unknown> { return {}; }

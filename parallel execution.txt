@@ -2121,13 +2121,13 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       back/forward walk the history; screenshots desktop + 375px.
       gate: current 26.07-late fleet merged (it touches most of their
       files).
-      BITES (rule 5 — one bite PER SCREEN when staged, each its own
-      PR): messages (thread key + view param), discover (tag/q
-      params), profile (tab param), comment anchor (?comment= on the
-      permalink route — gate: D-feed-lightbox bite b), marketing
-      retarget (TrendingCard/comment/search links point at the deep
-      urls — gate: the relevant routes merged). never one sweeping
-      branch.
+BITES (rule 5 — one bite PER SCREEN when staged, each its own
+       PR): [✓ 1.0.262] messages (thread key + view param), discover (tag/q
+       params), profile (tab param), comment anchor (?comment= on the
+       permalink route — gate: D-feed-lightbox bite b), marketing
+       retarget (TrendingCard/comment/search links point at the deep
+       urls — gate: the relevant routes merged). never one sweeping
+       branch.
 
 [✓ 1.0.208 #348] D-marketing-search (sub-lane ws-D/marketing; operator, 26.07: "the
       one thing we are really missing now is search! searching by tag,
