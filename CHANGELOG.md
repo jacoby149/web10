@@ -1,3 +1,6 @@
+1.0.240 || 30.07.2026
+feat(marketing-ui): D-home-stats-bar — raw stats bar on the homepage hero: three big stat blocks (users · apps · storage as formatted bytes) fetched live from /stats, with count-up animation (respects prefers-reduced-motion) and "data liberated on web10" framing. Bar hides on fetch failure — never a fake number. All design.md tokens (Space Grotesk display font, tabular-nums, brand-400 icons, zinc neutrals). 161 marketing-ui tests green, tsc clean, vite build clean.
+
 1.0.239 || 30.07.2026
 fix(marketing-ui): D-hero-cta-label — the hero CTA reads "Enter web10!" (the href stays SOCIAL_ORIGIN, correct since 1.0.215). 161 marketing-ui tests green, tsc clean.
 
