@@ -2477,6 +2477,17 @@ D-dm-header-profile-link (ws-D/messages, tiny). merged 1.0.251.
     bare-on-background vs sleek individual cards is the builder's
     taste call against design.md §12. lane item
     D-home-stats-bar-styling (ws-D/marketing(2), small).
+[ ] self-engagement counts (operator, 30.07 rant: "when i like my own
+    posts it gives 0 likes, it should be one like! self likes count!
+    same for comments, shares"): PRODUCT DECISION — self-engagement
+    counts. the server doesn't exclude it, so the 0 is a write/read
+    bug: prime suspect is an own-post call site that doesn't thread
+    postAuthor/postService and falls back to the orphaned legacy
+    `posts:{id}` ledger target the aggregation never matches; also
+    the mirror's non-fatal catch swallowing the write, the
+    discovery-vs-own-collection count source split, and shares having
+    NO ledger write path at all (add payload.action='repost' on
+    share). lane item D-self-engagement-counts (ws-D/feed).
 [ ] visibility toggle duplicates the post (operator, 30.07 rant: "i
     tried publicing a post, privating the post, publicing it again,
     there is now two posts one in public one in private of the same

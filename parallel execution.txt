@@ -2245,6 +2245,42 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       decrements; a vitest regression on the toggle round-trip;
       social tests + tsc green. gate: none.
 
+[ ] D-self-engagement-counts (sub-lane ws-D/feed; operator, 30.07 rant:
+      "when i like my own posts it gives 0 likes, it should be one
+      like! self likes count! same for comments, shares"): PRODUCT
+      DECISION (operator, 30.07 — record it, don't re-litigate):
+      self-engagement COUNTS — liking/commenting/sharing your own post
+      increments its counts like anyone else's. the server does NOT
+      exclude self-engagement (_ledger_engagement_for_post,
+      documentdb.py:1272, matches target + counts payload.action with
+      no author filter), so the 0 is a write/read-path bug. REPRO
+      FIRST on the local stack: like your own public post, then quote
+      in the PR (a) the ledger entry actually written (its `target`
+      string), (b) the discovery post's engagement, (c) where the
+      on-screen count renders from. suspects, in order: (1) ORPHANED
+      LEGACY TARGET AT THE OWN-POST CALL SITE — D-engagement-target-
+      client threaded postAuthor/postService "with fallback to legacy
+      format"; a call site that doesn't thread them (your own profile
+      grid / your own feed post) writes `posts:{post_id}`, which the
+      aggregation NEVER matches (documented orphaned) → count stays
+      0; (2) the ledger mirror's `.catch(() => { /* non-fatal */ })`
+      (reactions.ts:64) swallowing a failing write — the like exists
+      in your reactions collection but never reaches the ledger;
+      (3) COUNT SOURCE DISAGREEMENT — the badge reads discovery
+      engagement (public ledger) while countReactions reads the
+      signed-in user's OWN reactions collection; on your own post
+      these diverge and the UI may show the wrong source; (4) SHARES:
+      no repost/share count path exists client-side at all — the
+      Share action (D-feed-lightbox) copies a link but writes no
+      ledger entry, so shares can never count; add the repost ledger
+      write on share (payload.action='repost', canonical target) as
+      part of this item. acceptance: like your own post → the count
+      shows 1 immediately (optimistic or re-read), survives refresh,
+      and matches the ledger; unlike → 0; same for a self-comment;
+      a share increments the repost count; a vitest regression pins
+      the self-like round-trip incl. the call-site target format;
+      social tests + tsc green. gate: none.
+
 [ ] D-visibility-toggle-duplicate (sub-lane ws-D/profile; operator, 30.07
       rant: "i tried publicing a post, privating the post, publicing it
       again, there is now two posts one in public one in private of the
@@ -3191,8 +3227,9 @@ the M2 money-path referee (C8); no infra-company drift. QWEN HORIZON:
     ws-D/shell:      D-own-profile-canonical (TINY, no gate — own
                      profile always at /u/<you>, /profile redirects),
                      THEN D-mobile-feature-gap (no gate)
-    ws-D/feed:       D-link-embeds (feed-lightbox drained — the lane is
-                     free; gate D-profile-post-experience long merged)
+    ws-D/feed:       D-self-engagement-counts (operator rant — self
+                     likes/comments/shares count; REPRO first, orphaned
+                     legacy-target suspect)
     ws-D/marketing:  [✓ 1.0.253] D-appstore-revamp v2 bite a (product page UI —
                      gate CLEARED: spec #401 + rewire #409 live on prod;
                      /discover/app/{id} + /apps/rating(s) endpoints
