@@ -1,3 +1,6 @@
+1.0.231 || 30.07.2026
+fix(web10-social+marketing-ui): D-engagement-target-client — the social client's comments.ts and reactions.ts now write ledger targets in the canonical format `{author}/{service}/{post_id}` (e.g. `alice/public_posts/p1`) instead of the hardcoded `posts:{post_id}` that the discovery aggregation cannot match. Added `buildCommentTarget`/`buildReactionTarget` helpers with fallback to legacy format. Threaded `postAuthor`/`postService` through createComment, updateComment, deleteComment, createReaction, toggleReaction and all call sites (FeedScreen, PostLightbox, ProfileScreen, CommentThread, Web10SocialAdapter). FeedPreview.tsx InlineCommentPanel reads the canonical target. Tests pin the canonical string. 368 web10-social + 142 marketing-ui tests green, tsc clean.
+
 1.0.230 || 30.07.2026
 fix(api): A18 — revert A15's engagement target conversion. `_ledger_engagement_for_post` now $matches the raw canonical post_key `{author}/{service}/{post_id}` directly instead of converting to `service:post_id`. The seed script writes canonical targets, so prod badges will show real counts again. Legacy `posts:{post_id}` entries are documented as orphaned (not matched). Discovery tests extended to pin the canonical format; A15's N-comments and delete-decrements tests ported to canonical targets.
 

@@ -1640,7 +1640,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       first-run state walks you through post/follow/monetize) —
       capture-only, stage when the onboarding pass comes.
 
-[ ] D-engagement-target-client (sub-lane ws-D/feed + one marketing-ui
+[✓ 1.0.231] D-engagement-target-client (sub-lane ws-D/feed + one marketing-ui
       file; PRIORITY 1 with A18 — the client half of the 29.07
       zero-counts regression; read A18's diagnosis first, the format
       DECISION is recorded there): the canonical ledger target is
