@@ -2122,6 +2122,72 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       D-import-export-links-dead (the repaired URLs + shared
       constants exist to test against).
 
+[ ] D-import-youtube-first (sub-lane ws-D/marketing(2), SMALL; Exporter.tsx
+      seam — disjoint from Home/Join/AppStore; operator, 30.07 rant:
+      "my business outreach efforts are ONLY to youtubers for the
+      first go! therefore i want to on the import feature efforts to
+      make it youtube explicitly, and the other platforms TBD! and
+      get that suuuppper sharp!!!!!! maybe make it clear it is
+      Youtube first, rolling out to export from the others soon
+      after! because google takeout seems the most transparent!"):
+      the /import page (1.0.231's five EQUAL platform buttons) must
+      become YOUTUBE-FIRST — the business pitch is YouTubers-only
+      for the first go (outreach.md), so the import surface leads
+      with the one platform the outreach targets. shape: YouTube
+      (Google Takeout — "the most transparent" export flow, say so)
+      is THE primary path: the hero platform, full-width/featured
+      step-1 card, its export button + guide link suuuper sharp
+      (every state designed, design.md §12); the other four
+      platforms (Facebook, X, Instagram, TikTok) demoted to an
+      honest "rolling out soon after" / TBD treatment — visible
+      (the multi-platform promise stays) but clearly secondary,
+      never fake-working. the web10-export note stays proudly on
+      the page. copy names it: "YouTube first — export from the
+      others rolling out soon after." acceptance: /import reads
+      YouTube-first at a glance (screenshot desktop + 375px and
+      LOOK — the YouTube path is unmistakably primary, the others
+      unmistakably TBD); tokens-only styling; marketing-ui tests +
+      tsc green. gate: none (pure frontend on the shipped 1.0.231
+      page). NOTE for the bite-b/c pipeline bites: the WeTransfer
+      pipeline + authenticator tab should likewise build the
+      YOUTUBE mapper path first (the youtube.py mapper already
+      exists, 1.0.31) — other platforms' ingest stays TBD until
+      outreach widens.
+
+[ ] D-trending-views (sub-lane ws-D/marketing, Trending.tsx seam;
+      operator, 30.07 rant: "the same way that messages has views,
+      social media, mail, crm, i want the trending to be the same!
+      the current trending is very twitter/instagram looking kind
+      of a view! I would like youtube view where it only shows the
+      videos and maybe images? but with a youtube style of
+      layout!"): /trending gains a VIEW TOGGLE like the messages
+      screen's (DmsScreen's social/mail/crm toggle, 1.0.30-era) —
+      the current ranked-card grid stays as the default view, plus
+      a YOUTUBE VIEW: only posts with videos (and maybe images —
+      media-filtered, not text-only cards), laid out YouTube-style
+      (big 16:9 thumbnails, title + author row under the thumb,
+      the familiar video-list/grid rhythm — NOT the
+      twitter/instagram card look). PER THE DEEP-LINK RULE
+      (AGENTS.md): the active view lives in the URL
+      (/trending?view=youtube) — refresh restores it, back/forward
+      works, the link is shareable. BITES (rule 5):
+      bite a, THE TOGGLE + YOUTUBE VIEW: the view-switcher UI +
+      the ?view= query param + the media-filtered YouTube-layout
+      view (filter client-side on the already-fetched posts'
+      media_refs mime — the D-trending-card-media media data is
+      already on the cards). acceptance: /trending?view=youtube
+      shows only media posts in a YouTube-style layout
+      (screenshots desktop + 375px, LOOK — it reads YouTube, not
+      Twitter); the default view is unchanged; marketing-ui tests
+      + tsc green. gate: none.
+      bite b, DISCOVER PARITY: the same view toggle on web10-
+      social's DiscoverScreen (the D-inapp-discover-knobs port,
+      1.0.241) so the in-app surface matches — sub-lane
+      ws-D/discover, gate: bite a (the pattern exists to copy).
+      NOTE: pairs with the YouTube-first import push (D-import-
+      youtube-first) — the creator pitch is "import your YouTube
+      catalog, see it on a YouTube-shaped trending."
+
 [✓ 1.0.240] D-home-stats-bar (sub-lane ws-D/marketing(2); SEAM: Home.tsx —
       disjoint from AppStore/Join files; operator, 29.07 rant,
       screenshot of the App Store subtitle's inline counts: "on the
@@ -2153,7 +2219,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       tsc green; screenshots desktop + 375px and LOOK — the bar is
       "oh wow they have that many users" at a glance. gate: none.
 
-[ ] D-home-stats-bar-styling (sub-lane ws-D/marketing(2), SMALL; operator,
+[✓ 1.0.262] D-home-stats-bar-styling (sub-lane ws-D/marketing(2), SMALL; operator,
       30.07 rant, screenshot of the shipped stats bar: "i think this just
       looks bad! the border isnt necessary on those, and can just say data
       liberated under the data part to be consistent with the other two!
