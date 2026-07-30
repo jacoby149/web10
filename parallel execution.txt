@@ -365,6 +365,33 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       indexes has_media=false), ruff clean. gate: none. unblocks:
       D-trending-card-media, the D-user-profile-media grid half.
 
+[ ] A19-stats-s3-bytes (lane A, api/**, SMALL; operator, 30.07 rant:
+      "the data liberated tab isnt counting s3 data! should also add
+      up all s3 data in the count!"): the marketing homepage "data
+      liberated" stat (Home.tsx → POST /stats → system.py:140-146)
+      reports `storage` = db.total_size() = the MongoDB
+      dbstats storageSize ONLY (documentdb.py:867). media BLOBS live
+      in the object store (MinIO/S3) — only their metadata records
+      live in mongo — so every photo/video ever uploaded is missing
+      from the count. the number undersells the liberation story on
+      the landing page. fix: /stats gains the object-store bytes.
+      two options, pick at implementation and record why: (a) BUCKET
+      SIZE from the object store (MinIO: the admin/data-usage info
+      API, or sum ListObjectsV2 sizes — bucket-wide is exactly the
+      node-wide number the stat wants; needs the media service's
+      bucket client, media.py territory); (b) SUM size_bytes over
+      media metadata records across user collections (works with any
+      S3-compatible backend, but a cross-collection scan — cache it
+      like the discovery aggregations if it's slow). either way:
+      cache/short-TTL the number (dbstats is already a scan; don't
+      add a second per-request scan), keep the response shape
+      back-compat (`storage` becomes mongo+s3, or add `storage_s3`
+      and let marketing-ui sum — decide and tell lane D via
+      .context/). tests: /stats includes media bytes (seed a media
+      metadata record / mock the bucket client), ruff clean. gate:
+      none. NOTE: the marketing-ui side needs nothing if `storage`
+      stays the summed field (formatBytes already renders it).
+
 [✓ 1.0.230] A18-engagement-target-canonical (lane A, api/**; PRIORITY 1 —
       REGRESSION, operator 29.07, screenshot: every /trending card
       shows 0 likes / 0 comments): A15's fix (#360) made counts WORSE
@@ -3372,6 +3399,8 @@ the M2 money-path referee (C8); no infra-company drift. QWEN HORIZON:
     ws-D/marketing-api: D-import-revamp bite b (the WeTransfer pipeline —
                      gate bite a merged 1.0.231, CLEARED; NEW sub-lane,
                      nothing in flight there)
+    ws-A:            A19-stats-s3-bytes (SMALL, no gate — "data
+                     liberated" gains the object-store bytes)
   GATED (don't pick up until the gate clears):
       D-night-owl bites b-e (gate: operator's Conductor Pro trial).
       D-poke build (gate: operator sign-off on the 1.0.179 proposal).
