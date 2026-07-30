@@ -2151,7 +2151,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       standing has a one-line justification in the PR; marketing-ui
       tests + tsc green. gate: none.
 
-[ ] D-hero-cta-label (sub-lane ws-D/marketing, TINY; operator, 30.07
+[✓ 1.0.239] D-hero-cta-label (sub-lane ws-D/marketing, TINY; operator, 30.07
       rant, screenshot of the homepage hero button: "we can have this
       say enter web10! but it goes to web10 social! that is fine"):
       the hero CTA (marketing-ui src/pages/Home.tsx, the
