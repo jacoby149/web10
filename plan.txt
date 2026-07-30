@@ -2421,6 +2421,31 @@ v1 (takeout-file based, works today, no api permission needed):
     formats get normalized by an llm instead of a hand-written parser
     breaking. this is what makes exporters durable.
 
+IMPORT YOUR LIFE, the revamp (operator, 29.07 rant: "the import your
+life feature lets be real, this is bricked right now… the format for
+the join tab would work great for the import your life!"): rebuild
+/import as a /join-style numbered-step journey:
+  1. export the zip from legacy media — platform logo buttons deep-
+     linking to each platform's own data-export page (Facebook,
+     YouTube, X, Instagram). pure links, pure value today.
+  2. log into the web10 authenticator → the import tab.
+  3. upload the zip — a WeTransfer-like flow onto the hosted S3.
+  4. we do the rest — a background queue in marketing-api (operator
+     says fastapi + celery; a lighter runner is allowed if argued)
+     processes it onto web10 social, then DELETES the originals from
+     the bucket (a load-bearing privacy promise, stated in the UI).
+  5. posts enter staging — review privacy in the Staging screen
+     (already built, 1.0.164), click done, they're on web10 social.
+  reuses the 1.0.31 marketing-api ZIP pipeline + 1.0.131 staging_
+  posts writes. lane item D-import-revamp (bites: a = the step
+  strip + export links, ws-D/marketing(2); b = the WeTransfer
+  pipeline, ws-D/marketing-api; c = the authenticator import tab,
+  ws-B). NOTE: this revises the "client-side first" principle above
+  for the hosted path — the server-side pipeline is what the
+  operator wants (the browser parse is the bricked part); the
+  sovereignty story is preserved by the delete-after-processing
+  promise + the data landing in the user's own collection.
+
 v2 (continuous):
 [ ] dma / official portability apis where they exist -> scheduled sync
     instead of one-shot import
