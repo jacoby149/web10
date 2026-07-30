@@ -50,7 +50,7 @@ describe('Exporter /import page', () => {
     render(<Exporter />);
     expect(screen.getByTestId('import-platform-facebook')).toHaveAttribute(
       'href',
-      'https://www.facebook.com/help/2128567812917891',
+      'https://www.facebook.com/help/212802592074644',
     );
   });
 
