@@ -3371,8 +3371,105 @@ M3 "the network"         = encryption integration (A rtc + C2 sdk
                            polish. the last big merge.
 
 
-CURRENT CONDUCTOR BOARD (as of 30.07.2026 — audit #15; keep fresh)
+CURRENT CONDUCTOR BOARD (as of 30.07.2026 — audit #16; keep fresh)
 --------------------------------------------------------------------
+AUDIT #16 REFRESH (30.07, web10web10! pass #16): SHIPPED. Zero
+dangling PRs. The dev batch was a single docs-only commit (#428,
+the late-rant filings) — gated CLEAN by construction (no code, no
+seams; deploy + e2e green at dev head) and promoted dev→main via
+merge commit (#429); deploy-prod + cd on main green; prod verified
+live from the workspace (7/7 public endpoints; api / 307→/docs by
+design). BOARD DRIFT FIXED this pass: audit #15's fleet list still
+queued three items that merged after it was written —
+D-dm-header-profile-link [✓ 1.0.251 #423], D-appstore-browse
+[✓ 1.0.251 #422], D-follow-toggle [✓ 1.0.252 #424]; the fleet
+queues below are corrected (ws-D/messages now STARTS at
+D-deep-links bite 1; ws-D/marketing(2) is D-home-stats-bar-styling
+only). ALIGNMENT: unchanged — every open item is operator-complaint-
+driven social-product/funnel work or the M2 money-path referee (C8);
+no infra-company drift. Timeline: week 2 closing; week 3 (aug 3-10)
+is M0 integration — founder taste pass remains the schedule risk.
+QWEN HORIZON: 7 immediately-kickoffable parallel-safe bites across
+7 sub-lanes (deep-links bite 1, delete-post-broken,
+self-engagement-counts, own-profile-canonical, home-stats-bar-
+styling, A19-stats-s3-bytes, import-revamp bite b), ~12+ chained
+PRs behind them — Qwens run independently.
+
+  PRIORITY 1 (fresh, this audit):
+    ws-E (operator-gated): E-run-discovery-migration — STILL the
+      highest-demo-impact item on the board and still needs the admin
+      token. The 30.07 "lacks videos and images" complaint class
+      persists on prod until the backfill RE-RUN (A17 media fields)
+      executes; RUN LIST also carries POST /admin/apps/migrate_v2
+      (cleanup, not a blocker — the compat filter is live on prod).
+
+  PARALLEL-SAFE FLEET (one workspace per sub-lane; chains WITHIN a
+  sub-lane are sequential, file seams). OPERATOR PRIORITY CALL (30.07
+  rant): D-deep-links is the priority of this kickoff batch — stage
+  its per-screen bites FIRST:
+    ws-D/messages:   D-deep-links bite 1 (messages thread key +
+                     ?view=chat|mail|crm — DmsScreen seam; the
+                     dm-header link merged 1.0.251, sub-lane is free)
+    ws-D/profile:    D-delete-post-broken (operator rant — root cause
+                     named: hardcoded `posts` service vs the D30
+                     public_posts/private_posts split), THEN
+                     D-user-profile-stats (three confirmed bugs,
+                     viewer's count leaks onto another user's profile),
+                     THEN D-visibility-toggle-duplicate (REPRO first),
+                     THEN D-public-media-verify (TINY, no gate — the
+                     gate-CLEARER for the two GATED media items below),
+                     THEN D-follow-lists (twice-complained —
+                     deep-linkable /u/:username/followers|following
+                     routes), THEN D-lightbox-media-sizing (gate
+                     CLEARED), THEN D-profile-image-placement,
+                     D-text-post-cards (chain order)
+    ws-D/shell:      D-own-profile-canonical (TINY, no gate — /profile
+                     RETIRED, redirects to /u/<you> which IS the owner
+                     profile; operator decision 30.07. SEAM: App.tsx +
+                     Layout.tsx + the UserProfileScreen owner gate —
+                     disjoint from the ws-D/profile chain's
+                     posts.ts/PostLightbox files; coordinate via
+                     .context/, never concurrent edits on the same
+                     file), THEN D-mobile-feature-gap (no gate)
+    ws-D/feed:       D-self-engagement-counts (operator rant — self
+                     likes/comments/shares count; REPRO first, orphaned
+                     legacy-target suspect)
+    ws-D/marketing(2): D-home-stats-bar-styling (SMALL, no gate —
+                     kill the border, DATA LIBERATED as the third
+                     label, builder's taste on cards vs bare)
+    ws-A:            A19-stats-s3-bytes (SMALL, no gate — "data
+                     liberated" gains the object-store bytes)
+    ws-D/marketing-api: D-import-revamp bite b (the WeTransfer pipeline —
+                     gate bite a merged 1.0.231, CLEARED; NEW sub-lane,
+                     nothing in flight there)
+    ws-C:            C8 remainder — bite b (membership subscribe journey,
+                     3% split asserted) + bite c (twilio honest half);
+                     staged with the M2-prereq block, not the gauntlet
+                     fleet
+  GATED (don't pick up until the gate clears):
+      D-night-owl bites b-e (gate: operator's Conductor Pro trial).
+      D-poke build (gate: operator sign-off on the 1.0.179 proposal).
+      D-feed-avatar-resolution + the D-user-profile-media grid half
+        (gate: D-public-media-verify — the merged public-media path
+        verified END TO END; operator re-confirmed 30.07 it's still
+        broken on prod).
+      D-deep-links bites 2+ (discover ?tag=&q=, profile ?tab=, comment
+        anchor, marketing retarget) — staged one bite at a time after
+        bite 1 merges; the comment-anchor bite is gated on
+        D-feed-lightbox bite b (merged 1.0.248 — CLEAR).
+      D-coming-soon-builds (gate: per-surface spec first).
+      D-appstore category rails (gate: catalog size).
+      E-run-discovery-migration (gate: admin token — operator provides).
+      E-dependabot-hackathon (parked per operator "can be done later").
+  Selection rule (CLAUDE.md): only truly-parallel items at once. The
+  PostLightbox/FeedScreen/PostComposer files form ONE seam cluster
+  spanning ws-D/feed and ws-D/profile — the two chains coordinate via
+  .context/ notes and never edit the same file concurrently.
+  BITE RULE (rule 5, operator 27.07): the chains above are QUEUES of
+  bites — a kickoff hands an agent exactly ONE bite (one PR, ~20-40
+  min); multi-bite items carry a BITES: breakdown in their lane text.
+  never kick off "the chain".
+
 AUDIT #15 REFRESH (30.07): SHIPPED. Zero dangling PRs. The dev batch
 (#399–#418) gated CLEAN — pass #14's two RED findings verified fixed
 (F1: link-health dispatch green at dev head, run 30514764803; F2: the
