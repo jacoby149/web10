@@ -26,6 +26,7 @@ import { Heart, MessageCircle, Play, Pause } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
 import { CommentThread } from './CommentThread';
+import { TextWithLinks } from './LinkEmbed';
 import { PostLightbox } from '@/components/Bio/PostLightbox';
 
 function formatTimeAgo(dateStr: string): string {
@@ -252,9 +253,9 @@ function PostCard({
       <MediaGrid mediaItems={mediaItems} />
 
       {post.text && (
-        <p className="px-4 pt-3 text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words">
-          {post.text}
-        </p>
+        <div className="px-4 pt-3 text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words">
+          <TextWithLinks text={post.text} />
+        </div>
       )}
 
       {post.tags?.length ? (

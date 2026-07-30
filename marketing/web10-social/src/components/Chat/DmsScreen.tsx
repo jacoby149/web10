@@ -10,6 +10,7 @@ import { listConversations, readDms, sendDm, getLastDm, readContacts, startConve
 import type { DmRecord, ContactRecord, FollowRecord } from '@/data/types';
 import { Send, ChevronLeft, Plus, X, Search, MessageSquare, Mail, Users, MoreVertical, Edit3, Trash2, Check, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { TextWithLinks } from '@/components/Feed/LinkEmbed';
 import { MARKETING_ORIGIN } from '@/lib/origins';
 import MailView from './MailView';
 import CrmView from './CrmView';
@@ -563,7 +564,7 @@ function MessageBubble({
           </div>
         ) : (
           <>
-            <p className="break-words">{msg.message}</p>
+            <TextWithLinks text={msg.message} className="break-words" />
             <p className={cn('text-xs mt-1', isMe ? 'text-brand-foreground/60' : 'text-muted-foreground')}>
               {formatTime(msg.sent_at)}
               {msg.updated_at ? ' (edited)' : ''}
