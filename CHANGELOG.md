@@ -1,3 +1,6 @@
+1.0.218 || 29.07.2026
+fix(web10-social): the DM conversation list rendered in insertion order (contacts first, then message-derived — effectively oldest on top) because DmsScreen rendered listConversations()' Set order directly (operator, 29.07: "the messages in web10 social should be sorted by descending recency, but are assorted ascending"). DmsScreen now sorts conversations by last-message sent_at descending after fetching lastMessages (the data was already there, just never used for ordering). MailView already sorted correctly. 358 tests green, tsc clean.
+
 1.0.217 || 29.07.2026
 docs: operator confirms D-search-fulltext diagnosis case (3) is the live behavior (29.07, screenshot: searching "yo" returns nothing while "yoyoyo" posts sit on the board — "this only searches whole words! should search yo, and it matchies yoyoyo in a post!"). The lane item updated: the case-insensitive substring fallback (escaped, capped regex over body_text + author for short queries) is now REQUIRED, not a hypothesis; hard acceptance case added — searching "yo" returns the "yoyoyo" posts. Docs only.
 
