@@ -2698,7 +2698,7 @@ the join tab would work great for the import your life!"): rebuild
    strip + export links, ws-D/marketing(2); b = the WeTransfer
    pipeline, ws-D/marketing-api; c = the authenticator import tab,
    ws-B; d = web10 node export import path, ws-D/marketing-api
-   [✓ 1.0.271]). follow-ups filed 30.07: D-import-export-links-dead
+   [✓ 1.0.272]). follow-ups filed 30.07: D-import-export-links-dead
   (operator-verified working export URLs + our own /docs export-
   guidance article — operator supplies the content; NOT llm
   redirects) and D-export-links-health-e2e (a scheduled link-

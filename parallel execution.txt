@@ -2281,7 +2281,7 @@ BITES (rule 5 — one bite PER SCREEN when staged, each its own
         bite b. NOTE: cross-lane — ws-B owns ui/**; the bite is
         small if bite b's API contract is documented in a .context/
         handoff note first.
-      [✓ 1.0.271] bite d, WEB10 NODE EXPORT (sub-lane ws-D/marketing-api with a
+      [✓ 1.0.272] bite d, WEB10 NODE EXPORT (sub-lane ws-D/marketing-api with a
         lane-A seam — the node needs an export endpoint; operator,
         29.07 rant #2: "web10 export! and make a note, yes you can
         export from your current web10 node, and import somewhere
