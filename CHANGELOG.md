@@ -1,5 +1,6 @@
 1.0.219 || 29.07.2026
 fix(web10-social): sending a message from the Mail view didn't update the thread list — the Sent folder (and the thread's preview) stayed stale until a full page refresh, because MailView loads threads once on mount and ThreadDetail's send just called onBack() against the stale state (operator, 29.07: "in the sent it doesnt update the ui with my message i just sent, i have to refresh the page"). ThreadDetail gains an onSent callback; the parent's new handleSent updates the thread's lastMessage, reclassifies the folder via classifyThread (a send moves the thread to Sent), and re-sorts newest-first — all in state, no reload. Both send paths (full compose + quick send) wired. 358 tests green, tsc clean.
+
 1.0.218 || 29.07.2026
 fix(web10-social): the DM conversation list rendered in insertion order (contacts first, then message-derived — effectively oldest on top) because DmsScreen rendered listConversations()' Set order directly (operator, 29.07: "the messages in web10 social should be sorted by descending recency, but are assorted ascending"). DmsScreen now sorts conversations by last-message sent_at descending after fetching lastMessages (the data was already there, just never used for ordering). MailView already sorted correctly. 358 tests green, tsc clean.
 
