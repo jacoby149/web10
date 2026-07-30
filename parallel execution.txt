@@ -2163,6 +2163,47 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       tests + tsc green; screenshot the hero at desktop + 375px and
       LOOK. gate: none.
 
+[ ] D-dm-header-profile-link (sub-lane ws-D/messages, TINY; operator,
+      30.07 rant: "i am in the chat, when i click my friends bubble /
+      name on the top of the chat, it doesnt bring me to their
+      profile."): the DM conversation header in DmsScreen.tsx
+      (~lines 868-879) renders the other user's Avatar + display name
+      as a plain div/span — no onClick, no Link, dead affordance.
+      fix: wrap avatar + name in a Link to /u/:username (react-router
+      is already the stack, D-url-routing 1.0.155; the profile route
+      exists). keep the back button and delete-conversation button
+      untouched. owns marketing/web10-social/src/components/Chat/
+      DmsScreen.tsx. acceptance: clicking the avatar OR the name in
+      an open DM thread lands on that user's /u/:username profile;
+      browser back returns to the thread; social tests + tsc green;
+      design.md §12 screenshots. gate: none.
+
+[ ] D-follow-toggle (sub-lane ws-D/profile; operator, 30.07 rant:
+      "when i hit follow, it doesnt toggle and let me unfollow!"):
+      the toggle handlers EXIST — UserProfileScreen.handleFollow
+      (follow/unfollow branch) and DiscoverScreen's
+      handleFollowToggle both call unfollowUser, and
+      data/follows.ts has unfollowUser — so this is a runtime
+      failure, not a missing feature. REPRO FIRST with two real
+      accounts on the local stack and capture the actual failing
+      request's status + body in the PR (this flow swallows errors
+      everywhere — the D-follow-persistence class). suspects, in
+      order: (1) unfollowUser's ledger cleanup —
+      queryPublicEntries/deletePublicEntries (follows.ts:170-190) —
+      throwing after the status update, so the catch in
+      handleFollow shows the generic 'Failed to follow' and the
+      button stays "Following"; (2) readFollow returns records[0]
+      with NO status filter — accounts with duplicate/stale follow
+      records (the same dup class as D-profile-media-refresh) can
+      update one record while the UI reads another, so the toggle
+      never flips; (3) followUser's existing-record branch sets
+      status 'active' but the UI's followRecord state goes stale.
+      acceptance: follow → button flips to "Following" → click
+      again → unfollows and flips back to "Follow"; hard refresh
+      reflects the truth; the follower count increments AND
+      decrements; a vitest regression on the toggle round-trip;
+      social tests + tsc green. gate: none.
+
 [✓ 1.0.230] D-search-fulltext (sub-lane ws-D/marketing, AFTER D-marketing-search
       bite b — same Trending.tsx seam; operator, 27.07: "searching only
       searches tags also. it doesnt search the other things"): a word
