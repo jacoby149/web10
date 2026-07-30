@@ -2588,7 +2588,7 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       can reach the same features as desktop (or the gap is documented
       with a migration plan per feature). gate: none.
 
-[ ] D-video-autoplay-muted (sub-lane ws-D/marketing; operator, 29.07:
+[✓ 1.0.245] D-video-autoplay-muted (sub-lane ws-D/marketing; operator, 29.07:
       "trending lacks videos and images, how are we going to compete
       with insta without multimedia on this kind of a page! also
       videos should auto play with no volume, otherwise how are we

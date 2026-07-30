@@ -2444,7 +2444,7 @@ known gaps confirmed this session (see CHANGELOG 1.0.169-1.0.174):
      DiscoverScreen; client-side re-rank, zero new api surface. lane
 item D-inapp-discover-knobs (ws-D/discover, bites: [✓ 1.0.230] cards+controls,
       [✓ 1.0.239] knobs).
-[ ] trending multimedia + AUTOPLAY (operator, 29.07: "trending lacks
+[✓ 1.0.245] trending multimedia + AUTOPLAY (operator, 29.07: "trending lacks
     videos and images, how are we going to compete with insta without
     multimedia on this kind of a page! also videos should auto play
     with no volume, otherwise how are we going to catch attention!"):
