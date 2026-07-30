@@ -696,10 +696,20 @@ def get_apps(skip=0, limit=0):
     """Public storefront: only approved apps appear here (v2).
     Returns v2 shape with web10apps_post_id, name, description, icon_url,
     screenshots, and aggregated star rating."""
+    # Compat filter: v2 uses review_state=="approved"; legacy records have
+    # approved:true with no review_state field. Both shapes must pass so the
+    # public App Store stays populated until the admin migration backfills
+    # review_state on legacy records.
+    _compat_filter = {
+        "$or": [
+            {"review_state": "approved"},
+            {"review_state": {"$exists": False}, "approved": True},
+        ]
+    }
     apps = []
     for app in (
         db["web10"]["apps"]
-        .find({"review_state": "approved"})
+        .find(_compat_filter)
         .sort("visits", pymongo.DESCENDING)
         .skip(skip)
         .limit(limit if limit else 0)

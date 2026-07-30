@@ -577,3 +577,82 @@ class TestAppRatings:
         assert result["payload"]["rating"] == 5
         update_call = mock_col.update_one.call_args
         assert update_call[0][1]["$set"]["payload.rating"] == 5
+
+
+class TestGetAppsLegacyCompat:
+    """Legacy apps (approved: true, no review_state) must appear in get_apps
+    until the admin migration backfills review_state."""
+
+    def _mock_cursor(self, docs):
+        mock_cursor = MagicMock()
+        mock_cursor.__iter__.return_value = iter(docs)
+        mock_cursor.skip.return_value = mock_cursor
+        mock_cursor.limit.return_value = mock_cursor
+        mock_cursor.sort.return_value = mock_cursor
+        return mock_cursor
+
+    def test_legacy_approved_app_appears(self):
+        """An app with approved:true and no review_state field must appear."""
+        legacy_app = {
+            "url": "https://legacy.app",
+            "visits": 100,
+            "approved": True,
+            "name": "Legacy App",
+        }
+        mock_apps_col = MagicMock()
+        mock_apps_col.find.return_value = self._mock_cursor([legacy_app])
+        mock_web10_db = MagicMock()
+        mock_web10_db.__getitem__.return_value = mock_apps_col
+        mock_db = MagicMock()
+        mock_db.__getitem__.return_value = mock_web10_db
+
+        with (
+            patch("app.services.documentdb.db", mock_db),
+            patch("app.services.documentdb._aggregate_app_ratings", return_value={"average": 0, "count": 0}),
+        ):
+            result = documentdb.get_apps()
+
+        assert len(result) == 1
+        assert result[0]["url"] == "https://legacy.app"
+        assert result[0]["name"] == "Legacy App"
+
+    def test_v2_approved_app_appears(self):
+        """An app with review_state: approved appears."""
+        v2_app = {
+            "url": "https://v2.app",
+            "visits": 50,
+            "review_state": "approved",
+            "name": "V2 App",
+        }
+        mock_apps_col = MagicMock()
+        mock_apps_col.find.return_value = self._mock_cursor([v2_app])
+        mock_web10_db = MagicMock()
+        mock_web10_db.__getitem__.return_value = mock_apps_col
+        mock_db = MagicMock()
+        mock_db.__getitem__.return_value = mock_web10_db
+
+        with (
+            patch("app.services.documentdb.db", mock_db),
+            patch("app.services.documentdb._aggregate_app_ratings", return_value={"average": 0, "count": 0}),
+        ):
+            result = documentdb.get_apps()
+
+        assert len(result) == 1
+        assert result[0]["url"] == "https://v2.app"
+
+    def test_rejected_app_hidden(self):
+        """An app with review_state: rejected must NOT appear."""
+        mock_apps_col = MagicMock()
+        mock_apps_col.find.return_value = self._mock_cursor([])
+        mock_web10_db = MagicMock()
+        mock_web10_db.__getitem__.return_value = mock_apps_col
+        mock_db = MagicMock()
+        mock_db.__getitem__.return_value = mock_web10_db
+
+        with (
+            patch("app.services.documentdb.db", mock_db),
+            patch("app.services.documentdb._aggregate_app_ratings", return_value={"average": 0, "count": 0}),
+        ):
+            result = documentdb.get_apps()
+
+        assert len(result) == 0
