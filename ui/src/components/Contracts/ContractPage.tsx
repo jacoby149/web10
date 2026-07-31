@@ -1,5 +1,6 @@
 import { FileText } from 'lucide-react';
 import AppShell from '../shared/AppShell';
+import RecoveryNudgeBanner from '../shared/RecoveryNudgeBanner';
 import Contract from './Contract';
 
 function EmptyContracts() {
@@ -48,7 +49,7 @@ function Contracts({ I }: { I: Record<string, any> }) {
         <EmptyContracts />
       ) : contracts.length === 0 ? (
         <p className="mt-8 text-center text-sm text-muted-foreground" data-testid="contracts-no-match">
-          No contracts match “{I.search}”.
+          No contracts match "{I.search}".
         </p>
       ) : (
         contracts.map((d: any, i: number) => (
@@ -60,8 +61,15 @@ function Contracts({ I }: { I: Record<string, any> }) {
 }
 
 function ContractPage({ I }: { I: Record<string, any> }) {
+  const showNudge = I.isAuthenticated?.() && !I.hasRecoveryContact?.();
+
   return (
     <AppShell I={I} maxWidth="max-w-4xl" testid="contract-page">
+      {showNudge && (
+        <div className="mb-4">
+          <RecoveryNudgeBanner onNavigate={() => I.setMode('settings')} />
+        </div>
+      )}
       <Contracts I={I} />
     </AppShell>
   );

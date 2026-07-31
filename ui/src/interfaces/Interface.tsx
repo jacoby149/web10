@@ -211,6 +211,14 @@ function useInterface() {
         return I.verified;
     }
 
+    // True when the account has at least one recovery channel (phone verified
+    // or email verified). Used by the recovery nudge banner to decide whether
+    // to show. Email is not yet implemented (A20 bite b), so today only phone
+    // + verified matters.
+    I.hasRecoveryContact = function () {
+        return !!(I.verified || (I.phone && I.phone.trim().length >= 7));
+    }
+
     I.changeTerms = function (service: any) {
         I.setStatus("Saving service terms...");
         I.wapi
