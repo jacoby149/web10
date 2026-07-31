@@ -853,7 +853,7 @@ async function fetchDiscoverFeed(sort: 'recent' | 'trending', limit = 6): Promis
   const resp = await fetch(`${API_ORIGIN}/discover/posts`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query: { sort, limit } }),
+    body: JSON.stringify({ query: { sort, limit, services: 'public_posts' } }),
   });
   if (!resp.ok) return [];
   return resp.json();

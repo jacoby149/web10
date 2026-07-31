@@ -33,7 +33,7 @@ async function backfillFollow(followeeUsername: string, followeeProvider: string
 
     // Fetch followee's recent public posts from discovery API
     const resp = await fetch(
-      `${API_ORIGIN}/discover/posts?sort=recent&limit=20`,
+      `${API_ORIGIN}/discover/posts?sort=recent&limit=20&services=public_posts`,
       { method: 'PATCH' },
     );
     if (!resp.ok) return;

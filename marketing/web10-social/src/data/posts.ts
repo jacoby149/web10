@@ -132,7 +132,7 @@ export async function readUserPostsFromDiscovery(username: string, provider: str
 
   while (true) {
     const resp = await fetch(
-      `${API_ORIGIN}/discover/posts?sort=recent&limit=${limit}&skip=${skip}`,
+      `${API_ORIGIN}/discover/posts?sort=recent&limit=${limit}&skip=${skip}&services=public_posts`,
       { method: 'PATCH' },
     );
     if (!resp.ok) break;

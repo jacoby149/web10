@@ -1241,27 +1241,31 @@ class TestServiceAllowsAnon:
 
 
 class TestDiscoveryBoardAllowlist:
-    """The board shows only board services, not every anon-readable service.
+    """The board is a general projection; READERS pick services.
 
-    Regression (prod, 30.07.2026): the fallout-avatar app whitelists anon
-    read on its own service, so its records were indexed into discovery and
-    ghosted into the trending feed as empty posts. Board membership is an
-    allowlist (public_posts + web10_apps), not "any anon-readable service".
+    Design (operator, 31.07.2026): the discovery index is the one public
+    cross-user read path, so ANY anon-readable service is indexed (write
+    side) and every board read takes a ``services`` filter — web10-social
+    passes ``public_posts``, fallout-avatar can pass ``fallout-avatar``.
+    The DEFAULT set (no param) stays posts-only so legacy callers never see
+    non-post records (prod 30.07.2026: fallout-avatar ghosted into the
+    social trending feed as empty posts).
     """
 
     def test_board_services_are_posts_and_apps(self):
         assert "public_posts" in db_module.DISCOVERY_BOARD_SERVICES
         assert "web10_apps" in db_module.DISCOVERY_BOARD_SERVICES
 
-    def test_non_board_anon_service_not_indexed(self):
-        # fallout-avatar grants anon read — must still NOT be indexed.
+    def test_non_board_anon_service_IS_indexed(self):
+        # fallout-avatar grants anon read — it IS indexed (the board is a
+        # general projection); readers filter it out via the services param.
         term = {"service": "fallout-avatar", "whitelist": [{"username": ".*", "provider": ".*", "read": True}]}
         with (
             patch.object(db_module, "get_term_record", return_value=term),
             patch.object(db_module, "upsert_discovery_post") as m_upsert,
         ):
             db_module.background_index_post("mad", "fallout-avatar", {"_id": "a1", "current_face": 1})
-        m_upsert.assert_not_called()
+        m_upsert.assert_called_once()
 
     def test_public_posts_still_indexed(self):
         term = {"service": "public_posts", "whitelist": [{"username": ".*", "provider": ".*", "read": True}]}
@@ -1296,6 +1300,57 @@ class TestDiscoveryBoardAllowlist:
     def test_suggested_users_filter_to_board_services(self, client, mock_discovery_and_public):
         mock_discovery, _ = mock_discovery_and_public
         resp = client.patch("/discover/users")
+        assert resp.status_code == 200
+        query = mock_discovery.find.call_args[0][0]
+        assert query["service"] == {"$in": list(db_module.DISCOVERY_BOARD_SERVICES)}
+
+    # ── services param: the caller asks the board for what it wants ────────
+
+    def test_feed_services_param_selects_requested_services(self, client, mock_discovery_and_public):
+        mock_discovery, _ = mock_discovery_and_public
+        resp = client.patch("/discover/posts?services=fallout-avatar")
+        assert resp.status_code == 200
+        query = mock_discovery.find.call_args[0][0]
+        assert query["service"] == {"$in": ["fallout-avatar"]}
+
+    def test_feed_services_param_comma_separated(self, client, mock_discovery_and_public):
+        mock_discovery, _ = mock_discovery_and_public
+        resp = client.patch("/discover/posts?services=public_posts,fallout-avatar")
+        assert resp.status_code == 200
+        query = mock_discovery.find.call_args[0][0]
+        assert query["service"] == {"$in": ["public_posts", "fallout-avatar"]}
+
+    def test_feed_services_param_via_body_query(self, client, mock_discovery_and_public):
+        mock_discovery, _ = mock_discovery_and_public
+        resp = client.patch("/discover/posts", json={"query": {"services": "fallout-avatar"}})
+        assert resp.status_code == 200
+        query = mock_discovery.find.call_args[0][0]
+        assert query["service"] == {"$in": ["fallout-avatar"]}
+
+    def test_search_services_param(self, client, mock_discovery_and_public):
+        mock_discovery, _ = mock_discovery_and_public
+        resp = client.patch("/discover/search?q=hello&services=fallout-avatar")
+        assert resp.status_code == 200
+        query = mock_discovery.find.call_args[0][0]
+        assert query["service"] == {"$in": ["fallout-avatar"]}
+
+    def test_topics_services_param(self, client, mock_discovery_and_public):
+        mock_discovery, _ = mock_discovery_and_public
+        resp = client.patch("/discover/topics?services=fallout-avatar")
+        assert resp.status_code == 200
+        match = mock_discovery.aggregate.call_args[0][0][0]["$match"]
+        assert match["service"] == {"$in": ["fallout-avatar"]}
+
+    def test_users_services_param(self, client, mock_discovery_and_public):
+        mock_discovery, _ = mock_discovery_and_public
+        resp = client.patch("/discover/users?services=fallout-avatar")
+        assert resp.status_code == 200
+        query = mock_discovery.find.call_args[0][0]
+        assert query["service"] == {"$in": ["fallout-avatar"]}
+
+    def test_empty_services_param_falls_back_to_default(self, client, mock_discovery_and_public):
+        mock_discovery, _ = mock_discovery_and_public
+        resp = client.patch("/discover/posts?services=")
         assert resp.status_code == 200
         query = mock_discovery.find.call_args[0][0]
         assert query["service"] == {"$in": list(db_module.DISCOVERY_BOARD_SERVICES)}

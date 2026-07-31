@@ -1196,20 +1196,25 @@ def user_collection_exists(username: str) -> bool:
 
 DISCOVERY_COLLECTION = "discovery_posts"
 
-# Services allowed on the public discovery board. Only web10-social's public
-# post tier (``public_posts``) and the #web10apps app-store projection
-# (``web10_apps``) belong on the board. Anon-readability is NOT sufficient:
-# any app can whitelist anon read on its own service (fallout-avatar,
-# identity, ...), and those records must never leak into
-# trending/recent/search/users (prod 30.07.2026: fallout-avatar records
-# ghosted into the trending feed as empty posts).
+# Default services on the public discovery board when the caller passes no
+# ``services`` filter: web10-social's public post tier (``public_posts``)
+# plus the #web10apps app-store projection (``web10_apps``).
+#
+# The discovery index itself is a GENERAL public projection — ANY
+# anon-readable service gets indexed (write side), and every board read
+# takes a ``services`` filter so each app asks the board for what it wants
+# (web10-social passes ``public_posts``; fallout-avatar can pass
+# ``fallout-avatar`` and get its own trending). The default exists so
+# legacy callers keep the posts-only board (prod 30.07.2026: unfiltered
+# reads let fallout-avatar records ghost into the social trending feed as
+# empty posts).
 DISCOVERY_BOARD_SERVICES = ("public_posts", "web10_apps")
 
 
-def _board_visible() -> dict:
-    """Base filter for every discovery-board read: not moderated away AND a
-    service that belongs on the board."""
-    return {"removed": {"$ne": True}, "service": {"$in": list(DISCOVERY_BOARD_SERVICES)}}
+def _board_visible(services: list[str] | None = None) -> dict:
+    """Base filter for every discovery-board read: not moderated away AND in
+    the caller's requested services (default: the posts board set)."""
+    return {"removed": {"$ne": True}, "service": {"$in": services or list(DISCOVERY_BOARD_SERVICES)}}
 
 
 def _ensure_system_collection(name: str):
@@ -1444,16 +1449,17 @@ def _discovery_post_to_dict(doc: dict) -> dict:
     }
 
 
-def query_discovery_posts(sort_by: str = "recent", limit: int = 50, skip: int = 0) -> list[dict]:
+def query_discovery_posts(sort_by: str = "recent", limit: int = 50, skip: int = 0, services: list[str] | None = None) -> list[dict]:
     """Query the discovery index for the feed.
 
     For trending sort, we enrich each doc with live engagement from the
     ledger and sort in Python (the index is small enough). For recent,
-    we sort by created_at from the index.
+    we sort by created_at from the index. ``services`` selects which
+    services the board reads back (default: the posts board set).
     """
     _ensure_discovery_collection()
     col = db["web10"][DISCOVERY_COLLECTION]
-    visible = _board_visible()
+    visible = _board_visible(services)
 
     if sort_by == "trending":
         docs = list(col.find(visible).limit(limit + skip))
@@ -1465,7 +1471,7 @@ def query_discovery_posts(sort_by: str = "recent", limit: int = 50, skip: int = 
         return [_discovery_post_to_dict(d) for d in docs]
 
 
-def search_discovery_posts(query: str, limit: int = 50, skip: int = 0) -> list[dict]:
+def search_discovery_posts(query: str, limit: int = 50, skip: int = 0, services: list[str] | None = None) -> list[dict]:
     """Full-text search the discovery index, most recent first.
 
     Two-stage search:
@@ -1485,7 +1491,7 @@ def search_discovery_posts(query: str, limit: int = 50, skip: int = 0) -> list[d
 
     _ensure_discovery_collection()
     col = db["web10"][DISCOVERY_COLLECTION]
-    visible = _board_visible()
+    visible = _board_visible(services)
 
     # Stage 1: $text whole-word search over body_text + tags
     text_docs = list(col.find({**visible, "$text": {"$search": query}}).sort("created_at", -1))
@@ -1523,12 +1529,12 @@ def search_discovery_posts(query: str, limit: int = 50, skip: int = 0) -> list[d
     return [_discovery_post_to_dict(d) for d in text_docs[skip : skip + limit]]
 
 
-def trending_topics(limit: int = 20) -> list[dict]:
+def trending_topics(limit: int = 20, services: list[str] | None = None) -> list[dict]:
     """Aggregate trending hashtags from the discovery index."""
     _ensure_discovery_collection()
     col = db["web10"][DISCOVERY_COLLECTION]
     pipeline = [
-        {"$match": _board_visible()},
+        {"$match": _board_visible(services)},
         {"$unwind": "$tags"},
         {"$match": {"tags": {"$regex": "^#"}}},
         {"$group": {"_id": "$tags", "count": {"$sum": 1}}},
@@ -1556,11 +1562,11 @@ def _count_followers(username: str) -> int:
     return result[0]["followers"] if result else 0
 
 
-def suggested_users(limit: int = 20) -> list[dict]:
+def suggested_users(limit: int = 20, services: list[str] | None = None) -> list[dict]:
     """Suggest users based on discovery index activity + engagement."""
     _ensure_discovery_collection()
     col = db["web10"][DISCOVERY_COLLECTION]
-    docs = list(col.find(_board_visible()))
+    docs = list(col.find(_board_visible(services)))
     author_posts: dict[str, list[dict]] = {}
     for d in docs:
         author_posts.setdefault(d["author"], []).append(d)
@@ -1752,13 +1758,13 @@ def service_allows_anon(username: str, service: str) -> bool:
 
 
 def background_index_post(username: str, service: str, post: dict):
-    """Background task: upsert a post into the discovery index if it belongs on the board."""
+    """Background task: upsert a post into the discovery index if the service allows anon.
+
+    The index is a general public projection — any anon-readable service is
+    indexed (fallout-avatar included); READERS select which services they
+    want via the ``services`` filter on the discover endpoints.
+    """
     try:
-        # Board membership is an allowlist, not "any anon-readable service" —
-        # otherwise any app with an anon-read term (fallout-avatar, identity)
-        # leaks non-post records into the feed.
-        if service not in DISCOVERY_BOARD_SERVICES:
-            return
         if service_allows_anon(username, service):
             upsert_discovery_post(username, service, post)
     except Exception:

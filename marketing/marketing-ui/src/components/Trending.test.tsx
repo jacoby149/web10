@@ -209,12 +209,12 @@ describe('Trending page', () => {
         .filter(c => String(c[0]).includes('/discover/posts'))
         .map(c => String(c[1]?.body));
     expect(discoverBodies()).toEqual([
-      '{"query":{"sort":"trending","limit":20}}',
-      '{"query":{"sort":"recent","limit":20}}',
+      '{"query":{"sort":"trending","limit":20,"services":"public_posts"}}',
+      '{"query":{"sort":"recent","limit":20,"services":"public_posts"}}',
     ]);
     fireEvent.click(loadMore);
     await waitFor(() =>
-      expect(discoverBodies()).toContain('{"query":{"sort":"trending","limit":40}}'),
+      expect(discoverBodies()).toContain('{"query":{"sort":"trending","limit":40,"services":"public_posts"}}'),
     );
   });
 

@@ -60,7 +60,7 @@ async function fetchDiscoverUsers(limit = 20): Promise<DiscoverUser[]> {
   const resp = await fetch(`${API_ORIGIN}/discover/users`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query: { limit } }),
+    body: JSON.stringify({ query: { limit, services: 'public_posts' } }),
   });
   if (!resp.ok) return [];
   return resp.json();
@@ -122,7 +122,7 @@ async function fetchSearchResults(query: string, limit = 50): Promise<FeedPost[]
   const resp = await fetch(`${API_ORIGIN}/discover/search`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query: { q: query, limit } }),
+    body: JSON.stringify({ query: { q: query, limit, services: 'public_posts' } }),
   });
   if (!resp.ok) throw new Error(`Search failed (${resp.status})`);
   const results = await resp.json();
