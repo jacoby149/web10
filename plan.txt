@@ -676,7 +676,7 @@ node policy (anti-abuse is the NODE'S call, not the protocol's):
     ephemeral. filed as A20-recovery-email-channel (api) +
     B9-recovery-contact-nudge (ui: pester every user with no
     recovery contact set until they set one). accounts are
-    PERMANENT is the product promise. bite a merged [✓ 1.0.280],
+    PERMANENT is the product promise. bite a merged [✓ 1.0.282],
     bite b (email reset flow) still open.
 [ ] passwordless phone login (operator rant, 30.07.2026): "even
     better, passwordless phone text verification code is the goat!
@@ -1419,7 +1419,7 @@ Marketing-ui side (Lane D):
     the thumb). the active view is in the URL (/trending?view=youtube) per
     the deep-link rule. bites: a = toggle + youtube view (ws-D/marketing);
     b = the same toggle on social's DiscoverScreen (ws-D/discover, gate:
-    a) [✓ 1.0.280]. pairs with the YouTube-first import push.
+    a) [✓ 1.0.286]. pairs with the YouTube-first import push.
 
 [✓ 1.0.164] D-trending-knobs — THE ALGORITHM IS YOURS (operator, 24.07): /trending
     gains a synth-rack of knobs that re-rank the feed live. the hero already
@@ -2164,7 +2164,7 @@ shell:
     lane item D-deep-links (ws-D/shell; cross-screen seam — stage
     after the current fleet drains). BITES MERGED: messages [✓ 1.0.266],
     discover ?tag=&q= [✓ 1.0.276], comment anchor [✓ 1.0.271]; open:
-    profile ?tab=, marketing click-through retarget [✓ 1.0.279].
+    profile ?tab=, marketing click-through retarget [✓ 1.0.287].
 [✓ 1.0.211 #365] SETTINGS TAB (operator, 26.07): "web10 social doesn't have a
     settings tab, should be a settings tab, facebook style." v0 =
     account section, posting defaults (default visibility), data/
@@ -2616,7 +2616,7 @@ D-dm-header-profile-link (ws-D/messages, tiny). merged 1.0.251.
     UserProfileScreen grids were plain divs (no lightbox) and rendered
     videos with <img>. grids now open PostLightbox and render video
     posters + play badges, matching the retired ProfileScreen.
-[✓ 1.0.281] visibility toggle duplicates the post (operator, 30.07 rant: "i
+[✓ 1.0.284] visibility toggle duplicates the post (operator, 30.07 rant: "i
     tried publicing a post, privating the post, publicing it again,
     there is now two posts one in public one in private of the same
     post"): movePostVisibility is create-then-delete; a repeated
@@ -3223,7 +3223,7 @@ testing:
      abandoned funnels, dead ends nobody bothers to report). the
      privacy line splits it by surface:
        - marketing-ui (web10 inc's own site, pre-signup visitors):
-         FULLY DONE (1.0.279): Hotjar session replay + heatmaps live
+         FULLY DONE (1.0.281): Hotjar session replay + heatmaps live
          (D38: Hotjar SaaS override, operator 30.07). marketing-api
          already ingests pageview + funnel events; Hotjar adds the
          session-replay/heatmap leg. self-hosted PostHog deferred
