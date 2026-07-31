@@ -2626,7 +2626,7 @@ D-dm-header-profile-link (ws-D/messages, tiny). merged 1.0.251.
     the delete misses. also check the discovery index for a ghost
     public copy after privatizing. lane item
     D-visibility-toggle-duplicate (ws-D/profile).
-[ ] profile photos on someone else's profile (operator, 30.07 rant:
+[✓ 1.0.282] profile photos on someone else's profile (operator, 30.07 rant:
     "when i go to someones profile, i dont see their profile photos"):
     the public-media read path (A12 + D-public-media-client, D35) is
     fully merged but was never verified end-to-end — and the operator

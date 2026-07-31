@@ -2804,7 +2804,7 @@ BITES (rule 5 — one bite PER SCREEN when staged, each its own
       the round-trip (incl. the stale-object case); no discovery
       ghost after privatizing; social tests + tsc green. gate: none.
 
-[ ] D-public-media-verify (sub-lane ws-D/profile, TINY — the gate-clearing
+[✓ 1.0.282] D-public-media-verify (sub-lane ws-D/profile, TINY — the gate-clearing
       bite; operator, 30.07 rant: "when i go to someones profile, i
       dont see their profile photos"): the public-media read path is
       fully MERGED (A12 api 1.0.164, D-public-media-client bites a+b
