@@ -1,4 +1,8 @@
+"""Auth endpoints — login, signup, recovery, token minting, email verification."""
+
 import re
+import time
+from collections import defaultdict
 from datetime import datetime, timedelta
 
 import jwt
@@ -6,7 +10,7 @@ from fastapi import APIRouter, Form, Response
 
 import app.exceptions as exceptions
 import app.settings as settings
-from app.models.auth import PhoneForm, SignUpForm, Token, TokenData, TokenForm
+from app.models.auth import EmailForm, PhoneForm, SignUpForm, Token, TokenData, TokenForm
 from app.models.core import dotdict
 from app.services import documentdb as db
 from app.services import email as email_svc
@@ -22,6 +26,37 @@ from app.services.auth import (
 
 router = APIRouter()
 
+# ---------------------------------------------------------------------------
+# Rate-limiting for recovery endpoints (in-memory, per-IP + per-identifier)
+# ---------------------------------------------------------------------------
+
+class _RateLimiter:
+    """Simple in-memory sliding-window rate limiter.
+
+    Tracks request timestamps per key. Rejects when count exceeds max
+    within the window. Good enough for recovery endpoints (not distributed,
+    but the API is single-node today).
+    """
+
+    def __init__(self, max_requests: int = 5, window_seconds: int = 300):
+        self._buckets: dict[str, list[float]] = defaultdict(list)
+        self._max = max_requests
+        self._window = window_seconds
+
+    def check(self, key: str) -> None:
+        now = time.time()
+        bucket = self._buckets[key]
+        # Prune old entries
+        cutoff = now - self._window
+        self._buckets[key] = [t for t in bucket if t > cutoff]
+        if len(self._buckets[key]) >= self._max:
+            raise exceptions.RATE_LIMITED
+        self._buckets[key].append(now)
+
+
+_recovery_limiter = _RateLimiter(max_requests=5, window_seconds=300)
+_reset_limiter = _RateLimiter(max_requests=3, window_seconds=600)
+
 
 def recover(From: str):
     password = db.temp_pass(From, get_password_hash)
@@ -30,15 +65,81 @@ def recover(From: str):
 
 @router.post("/recovery_bot", include_in_schema=False)
 async def recovery_bot(From: str = Form(...), Body: str = Form(...)):
+    _recovery_limiter.check(From.replace("+", ""))
     response = recover(From.replace("+", "")) if Body == "RESET" else mobile.actionless_response()
     return Response(content=str(response), media_type="application/xml")
 
 
 @router.post("/recovery_prompt")
 async def send_recovery_prompt(phone_form: PhoneForm):
+    _recovery_limiter.check(phone_form.phone_number)
     phone_rec = db.get_phone_record(phone_form.phone_number)
     user = phone_rec["username"]
     return mobile.recovery_prompt(phone_form.phone_number, user)
+
+
+# ---------------------------------------------------------------------------
+# Email recovery (A20 bite b) — mirrors the SMS recovery flow
+# ---------------------------------------------------------------------------
+
+
+@router.post("/email_recovery_prompt")
+async def send_email_recovery_prompt(email_form: EmailForm):
+    """Start email-based password recovery. Sends a 6-digit code to the user's verified email.
+
+    Rate-limited: 5 requests per 5 minutes per email address.
+    The email must be verified — unverified emails cannot recover, to prevent
+    email enumeration + forced registration.
+    """
+    _recovery_limiter.check(email_form.email)
+
+    # Look up the user by email
+    email_rec = db.get_email_record(email_form.email)
+    if not email_rec:
+        raise exceptions.EMAIL_NOT_FOUND
+
+    username = email_rec["username"]
+
+    # Email must be verified before recovery is allowed
+    if not db.is_email_verified(username):
+        raise exceptions.EMAIL_NOT_VERIFIED
+
+    email_svc.send_recovery_code(email_form.email)
+    return {"message": "recovery code sent"}
+
+
+@router.post("/email_recovery_reset")
+async def email_recovery_reset(token: Token):
+    """Complete email-based password recovery: code + new password -> reset.
+
+    Rate-limited: 3 attempts per 10 minutes per email address.
+    """
+    email = token.query.get("email")
+    code = token.query.get("code")
+    new_password = token.query.get("new_password")
+
+    if not email or not code or not new_password:
+        raise exceptions.BAD_EMAIL
+
+    if len(new_password) < 8:
+        raise exceptions.WEAK_PASSWORD
+
+    _reset_limiter.check(email)
+
+    # Validate the recovery code
+    email_svc.check_recovery_code(email, code)
+
+    # Look up the user
+    email_rec = db.get_email_record(email)
+    if not email_rec:
+        raise exceptions.EMAIL_NOT_FOUND
+
+    username = email_rec["username"]
+
+    # Set the new password
+    db.change_pass(username, new_password, get_password_hash)
+
+    return {"message": "password reset successfully"}
 
 
 @router.post("/change_pass", include_in_schema=False)

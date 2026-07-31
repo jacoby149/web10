@@ -197,3 +197,18 @@ SCHEMA_INVALID = HTTPException(
     status_code=status.HTTP_400_BAD_REQUEST,
     detail="payload does not match the registered schema",
 )
+
+RATE_LIMITED = HTTPException(
+    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+    detail="too many recovery attempts — please try again later",
+)
+
+EMAIL_NOT_VERIFIED = HTTPException(
+    status_code=status.HTTP_400_BAD_REQUEST,
+    detail="email must be verified before it can be used for recovery",
+)
+
+WEAK_PASSWORD = HTTPException(
+    status_code=status.HTTP_400_BAD_REQUEST,
+    detail="password must be at least 8 characters",
+)

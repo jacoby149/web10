@@ -2138,3 +2138,343 @@ class TestEmailStarRecord:
         assert "email_verified" in rec
         assert rec["email"] is None
         assert rec["email_verified"] is False
+
+
+# ---------------------------------------------------------------------------
+# 14. EMAIL RECOVERY (A20 bite b)
+# ---------------------------------------------------------------------------
+
+
+class TestEmailRecoveryPrompt:
+    """POST /email_recovery_prompt — start the email-based password recovery flow."""
+
+    def test_prompt_sends_code_for_verified_email(self, client):
+        with (
+            patch("app.services.documentdb.get_email_record", return_value={"email": "alice@example.com", "username": "alice"}),
+            patch("app.services.documentdb.is_email_verified", return_value=True),
+            patch("app.services.email.send_recovery_code") as m_send,
+        ):
+            m_send.return_value = "123456"
+            resp = client.post(
+                "/email_recovery_prompt",
+                json={"email": "alice@example.com"},
+            )
+        assert resp.status_code == 200
+        assert resp.json()["message"] == "recovery code sent"
+        m_send.assert_called_once_with("alice@example.com")
+
+    def test_prompt_rejects_unregistered_email(self, client):
+        with patch("app.services.documentdb.get_email_record", return_value=None):
+            resp = client.post(
+                "/email_recovery_prompt",
+                json={"email": "nobody@example.com"},
+            )
+        assert resp.status_code == 404
+
+    def test_prompt_rejects_unverified_email(self, client):
+        with (
+            patch("app.services.documentdb.get_email_record", return_value={"email": "alice@example.com", "username": "alice"}),
+            patch("app.services.documentdb.is_email_verified", return_value=False),
+        ):
+            resp = client.post(
+                "/email_recovery_prompt",
+                json={"email": "alice@example.com"},
+            )
+        assert resp.status_code == 400
+        assert "verified" in resp.json()["detail"]
+
+    def test_prompt_rate_limited(self, client):
+        """More than 5 requests in 5 minutes should be rate-limited."""
+        from app.endpoints.auth import _recovery_limiter
+        _recovery_limiter._buckets.clear()
+
+        for _ in range(5):
+            with (
+                patch("app.services.documentdb.get_email_record", return_value={"email": "a@b.com", "username": "a"}),
+                patch("app.services.documentdb.is_email_verified", return_value=True),
+                patch("app.services.email.send_recovery_code"),
+            ):
+                client.post("/email_recovery_prompt", json={"email": "a@b.com"})
+
+        # 6th request should be rate-limited
+        resp = client.post(
+            "/email_recovery_prompt",
+            json={"email": "a@b.com"},
+        )
+        assert resp.status_code == 429
+
+
+class TestEmailRecoveryReset:
+    """POST /email_recovery_reset — complete the password reset with code + new password."""
+
+    def test_reset_success(self, client):
+        with (
+            patch("app.services.email.check_recovery_code", return_value=True),
+            patch("app.services.documentdb.get_email_record", return_value={"email": "alice@example.com", "username": "alice"}),
+            patch("app.services.documentdb.change_pass") as m_change,
+        ):
+            m_change.return_value = "ok"
+            resp = client.post(
+                "/email_recovery_reset",
+                json={
+                    "token": "",
+                    "query": {
+                        "email": "alice@example.com",
+                        "code": "123456",
+                        "new_password": "newsecurepassword123",
+                    },
+                },
+            )
+        assert resp.status_code == 200
+        assert resp.json()["message"] == "password reset successfully"
+        m_change.assert_called_once()
+        call_args = m_change.call_args[0]
+        assert call_args[0] == "alice"
+
+    def test_reset_missing_fields_rejected(self, client):
+        resp = client.post(
+            "/email_recovery_reset",
+            json={
+                "token": "",
+                "query": {"email": "alice@example.com"},
+            },
+        )
+        assert resp.status_code == 400
+
+    def test_reset_weak_password_rejected(self, client):
+        resp = client.post(
+            "/email_recovery_reset",
+            json={
+                "token": "",
+                "query": {
+                    "email": "alice@example.com",
+                    "code": "123456",
+                    "new_password": "short",
+                },
+            },
+        )
+        assert resp.status_code == 400
+        assert "password" in resp.json()["detail"]
+
+    def test_reset_wrong_code_rejected(self, client):
+        with (
+            patch("app.services.email.check_recovery_code", side_effect=Exception("WRONG_CODE")),
+        ):
+            resp = client.post(
+                "/email_recovery_reset",
+                json={
+                    "token": "",
+                    "query": {
+                        "email": "alice@example.com",
+                        "code": "000000",
+                        "new_password": "newsecurepassword123",
+                    },
+                },
+            )
+        assert resp.status_code == 401
+
+    def test_reset_unknown_email_after_code_check(self, client):
+        with (
+            patch("app.services.email.check_recovery_code", return_value=True),
+            patch("app.services.documentdb.get_email_record", return_value=None),
+        ):
+            resp = client.post(
+                "/email_recovery_reset",
+                json={
+                    "token": "",
+                    "query": {
+                        "email": "nobody@example.com",
+                        "code": "123456",
+                        "new_password": "newsecurepassword123",
+                    },
+                },
+            )
+        assert resp.status_code == 404
+
+    def test_reset_rate_limited(self, client):
+        """More than 3 reset attempts in 10 minutes should be rate-limited."""
+        from app.endpoints.auth import _reset_limiter
+        _reset_limiter._buckets.clear()
+
+        for _ in range(3):
+            with (
+                patch("app.services.email.check_recovery_code", return_value=True),
+                patch("app.services.documentdb.get_email_record", return_value={"email": "a@b.com", "username": "a"}),
+                patch("app.services.documentdb.change_pass"),
+            ):
+                client.post(
+                    "/email_recovery_reset",
+                    json={
+                        "token": "",
+                        "query": {
+                            "email": "a@b.com",
+                            "code": "123456",
+                            "new_password": "newsecurepassword123",
+                        },
+                    },
+                )
+
+        # 4th attempt should be rate-limited
+        resp = client.post(
+            "/email_recovery_reset",
+            json={
+                "token": "",
+                "query": {
+                    "email": "a@b.com",
+                    "code": "123456",
+                    "new_password": "newsecurepassword123",
+                },
+            },
+        )
+        assert resp.status_code == 429
+
+
+class TestEmailRecoveryService:
+    """Unit tests for the email recovery service functions."""
+
+    def test_send_recovery_code_valid(self):
+        from app.services.email import send_recovery_code
+
+        with patch("app.services.email.db") as mock_db:
+            mock_db.list_collection_names.return_value = []
+            mock_db.create_collection.return_value = None
+            mock_web10 = MagicMock()
+            mock_col = MagicMock()
+            mock_web10.__getitem__.return_value = mock_col
+            mock_db.__getitem__.return_value = mock_web10
+            with patch("app.services.email._try_send"):
+                code = send_recovery_code("test@example.com")
+        assert len(code) == 6
+        assert code.isdigit()
+        mock_col.update_one.assert_called_once()
+
+    def test_send_recovery_code_invalid_email(self):
+        from app.services.email import send_recovery_code
+
+        with pytest.raises(Exception):
+            send_recovery_code("not-an-email")
+
+    def test_check_recovery_code_correct(self):
+        from app.services.email import check_recovery_code, send_recovery_code
+
+        with patch("app.services.email.db") as mock_db:
+            mock_db.list_collection_names.return_value = ["web10.email_recovery_codes"]
+            mock_web10 = MagicMock()
+            mock_col = MagicMock()
+            mock_web10.__getitem__.return_value = mock_col
+            mock_db.__getitem__.return_value = mock_web10
+            with patch("app.services.email._try_send"):
+                code = send_recovery_code("test@example.com")
+            mock_col.find_one.return_value = {
+                "email": "test@example.com",
+                "code": code,
+                "expires_at": datetime.utcnow() + timedelta(minutes=5),
+            }
+            result = check_recovery_code("test@example.com", code)
+        assert result is True
+        mock_col.delete_one.assert_called_once()
+
+    def test_check_recovery_code_wrong(self):
+        from app.services.email import check_recovery_code
+
+        with patch("app.services.email.db") as mock_db:
+            mock_db.list_collection_names.return_value = ["web10.email_recovery_codes"]
+            mock_web10 = MagicMock()
+            mock_col = MagicMock()
+            mock_web10.__getitem__.return_value = mock_col
+            mock_db.__getitem__.return_value = mock_web10
+            mock_col.find_one.return_value = {
+                "email": "test@example.com",
+                "code": "123456",
+                "expires_at": datetime.utcnow() + timedelta(minutes=5),
+            }
+            with pytest.raises(Exception):
+                check_recovery_code("test@example.com", "000000")
+
+    def test_check_recovery_code_expired(self):
+        from app.services.email import check_recovery_code
+
+        with patch("app.services.email.db") as mock_db:
+            mock_db.list_collection_names.return_value = ["web10.email_recovery_codes"]
+            mock_web10 = MagicMock()
+            mock_col = MagicMock()
+            mock_web10.__getitem__.return_value = mock_col
+            mock_db.__getitem__.return_value = mock_web10
+            mock_col.find_one.return_value = {
+                "email": "test@example.com",
+                "code": "123456",
+                "expires_at": datetime.utcnow() - timedelta(minutes=5),
+            }
+            with pytest.raises(Exception):
+                check_recovery_code("test@example.com", "123456")
+        mock_col.delete_one.assert_called_once()
+
+    def test_check_recovery_code_no_record(self):
+        from app.services.email import check_recovery_code
+
+        with patch("app.services.email.db") as mock_db:
+            mock_db.list_collection_names.return_value = ["web10.email_recovery_codes"]
+            mock_web10 = MagicMock()
+            mock_col = MagicMock()
+            mock_web10.__getitem__.return_value = mock_col
+            mock_db.__getitem__.return_value = mock_web10
+            mock_col.find_one.return_value = None
+            with pytest.raises(Exception):
+                check_recovery_code("nobody@example.com", "123456")
+
+
+class TestEmailSendGrid:
+    """Tests for SendGrid email delivery (mocked)."""
+
+    def test_try_send_uses_sendgrid_when_key_set(self):
+        from app.services.email import _try_send
+
+        with (
+            patch("app.services.email.settings.SENDGRID_API_KEY", "SG.test-key"),
+            patch("app.services.email._send_via_sendgrid") as m_sg,
+            patch("app.services.email._send_stub") as m_stub,
+        ):
+            _try_send("test@example.com", "Subject", "Body")
+        m_sg.assert_called_once_with("test@example.com", "Subject", "Body")
+        m_stub.assert_not_called()
+
+    def test_try_send_falls_back_to_stub_when_no_key(self):
+        from app.services.email import _try_send
+
+        with (
+            patch("app.services.email.settings.SENDGRID_API_KEY", ""),
+            patch("app.services.email._send_stub") as m_stub,
+        ):
+            _try_send("test@example.com", "Subject", "Body")
+        m_stub.assert_called_once()
+
+    def test_try_send_falls_back_to_stub_on_sendgrid_error(self):
+        from app.services.email import _try_send
+
+        with (
+            patch("app.services.email.settings.SENDGRID_API_KEY", "SG.test-key"),
+            patch("app.services.email._send_via_sendgrid", side_effect=Exception("connection error")),
+            patch("app.services.email._send_stub") as m_stub,
+        ):
+            _try_send("test@example.com", "Subject", "Body")
+        m_stub.assert_called_once()
+
+    def test_send_via_sendgrid_raises_without_key(self):
+        from app.services.email import _send_via_sendgrid
+
+        with patch("app.services.email.settings.SENDGRID_API_KEY", ""):
+            with pytest.raises(RuntimeError, match="SENDGRID_API_KEY"):
+                _send_via_sendgrid("test@example.com", "Subject", "Body")
+
+    def test_send_via_sendgrid_calls_correct_endpoint(self):
+        from app.services.email import _send_via_sendgrid
+
+        with (
+            patch("app.services.email.settings.SENDGRID_API_KEY", "SG.test"),
+            patch("app.services.email.settings.SENDGRID_FROM_EMAIL", "noreply@web10.app"),
+            patch("urllib.request.urlopen") as m_urlopen,
+        ):
+            _send_via_sendgrid("user@example.com", "Test Subject", "Test Body")
+        call_args = m_urlopen.call_args[0][0]
+        assert call_args.full_url == "https://api.sendgrid.com/v3/mail/send"
+        assert "Bearer SG.test" in call_args.headers["Authorization"]

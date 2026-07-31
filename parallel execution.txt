@@ -415,9 +415,9 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       env never git per the secrets rule) -> set new password.
       rate-limit the recovery endpoints (plan.txt CROSS-CUTTING
       already names recovery-by-sms especially). BITES (rule 5):
-      bite a [✓ 1.0.271], THE EMAIL FIELD + VERIFIED-SET: star record gains
-      email, set/verify endpoints, tests. bite b, THE RESET FLOW:
-      email code -> password reset, mirroring the sms path, tests.
+bite a [✓ 1.0.271], THE EMAIL FIELD + VERIFIED-SET: star record gains
+       email, set/verify endpoints, tests. bite b [✓ 1.0.279], THE RESET FLOW:
+       email code -> password reset, mirroring the sms path, tests.
       acceptance: a user with a verified email can reset a forgotten
       password end to end with no phone involved; permission-matrix
       + auth tests green, ruff clean. gate: none. the UI half

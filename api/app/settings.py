@@ -73,6 +73,11 @@ UPLOAD_URL_EXPIRY = int(os.getenv("UPLOAD_URL_EXPIRY", "300"))
 READ_URL_EXPIRY = int(os.getenv("READ_URL_EXPIRY", "60"))
 MAX_UPLOAD_SIZE = int(os.getenv("MAX_UPLOAD_SIZE", "524288000"))
 
+# SendGrid transactional email (recovery codes, verification)
+# Get a free API key at https://sendgrid.com (100 emails/day free tier)
+SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY", "")
+SENDGRID_FROM_EMAIL = os.getenv("SENDGRID_FROM_EMAIL", "noreply@web10.app")
+
 # Load environment variables into settings params.
 for v in list(globals()):
     env_val = os.getenv(v)
