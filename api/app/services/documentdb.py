@@ -1449,7 +1449,9 @@ def _discovery_post_to_dict(doc: dict) -> dict:
     }
 
 
-def query_discovery_posts(sort_by: str = "recent", limit: int = 50, skip: int = 0, services: list[str] | None = None) -> list[dict]:
+def query_discovery_posts(
+    sort_by: str = "recent", limit: int = 50, skip: int = 0, services: list[str] | None = None
+) -> list[dict]:
     """Query the discovery index for the feed.
 
     For trending sort, we enrich each doc with live engagement from the
