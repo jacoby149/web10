@@ -1,3 +1,6 @@
+1.0.290 || 31.07.2026
+fix(marketing-ui,web10-social): D-trending-single-column — operator feedback (31.07): the trending multi-column grids read cramped/overwhelming ("that 3 column thing, yuck… we should cave and show one wide column like twitter"). marketing-ui /trending card grids (main, search results, skeletons) → ONE wide column (max-w-xl, Twitter-style); the YouTube-shaped video view keeps its multi-column thumbnail grid and the Top Ten sidebar is untouched (operator: "i like the top ten panel!!!!!!"). web10-social DiscoverScreen: grid view sm:2-col → single column (the md:max-w-xl container made 2 cols ~280px cards), video view sm:2/lg:3/xl:4 → single column (3-4 cols were ~130-180px inside max-w-xl). View-toggle tabs renamed on both surfaces: "Grid" → "Hot Gossip" (Flame icon), "YouTube" → "Video"; ?view= param values unchanged (deep links stable). Empty-state copy swept to match. Tests query by testid — no test changes needed; marketing-ui Trending 41/41, web10-social discoverScreen 21/21, tsc -b clean both apps.
+
 1.0.289 || 31.07.2026
 fix(marketing-ui): D-how-it-works-story-copy — middle card title "It fans out on write" → "It lands in every inbox" (reader language, verb-first). overview.md step 2 swept to match. Cards 1+3 byte-untouched.
 

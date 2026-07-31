@@ -3873,6 +3873,15 @@ ws-B:            B9-recovery-contact-nudge bite a (the nudge — no
 ws-D/discover:   [✓ 1.0.280] D-trending-views bite b (Discover parity — the
                       view toggle ported to DiscoverScreen; gate: bite a
                       merged 1.0.272, CLEAR)
+                 [✓ 1.0.290] D-trending-single-column (operator feedback
+                      31.07, NOT a rant — direct fix): trending grids →
+                      ONE wide Twitter-style column on marketing /trending
+                      (max-w-xl; Top Ten sidebar kept per operator) AND
+                      web10-social Discover (2-col inside max-w-xl was
+                      ~280px cards; video view's lg:3/xl:4 was ~130-180px
+                      inside max-w-xl — both single-column now); tabs
+                      renamed Grid→"Hot Gossip", YouTube→"Video" on both
+                      surfaces; ?view= values unchanged)
     ws-D/social-analytics: D-ga4-social (SMALL, no gate — GA4 pageview +
                       event analytics on web10-social; aggregate only,
                       no recording, fits the "anonymous, aggregate,
