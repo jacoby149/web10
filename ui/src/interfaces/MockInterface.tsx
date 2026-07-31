@@ -92,6 +92,10 @@ function useMockInterface() {
         return I.verified;
     }
 
+    I.hasRecoveryContact = function () {
+        return !!(I.verified || (I.phone && I.phone.trim().length >= 7));
+    }
+
     // Mirror the real interface: only hand the token back once ALL pending
     // requests (SIRs + SCRs) are resolved (see Interface.tsx).
     I.resolveRequest = function (nextSMR: any) {

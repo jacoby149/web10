@@ -16,6 +16,7 @@ const basePost: FeedPost = {
   avatarColor: 'bg-violet-500',
   time: '2h',
   content: 'first program',
+  author: 'ada',
   likes: '10',
   comments: '2',
   reposts: '1',
@@ -99,12 +100,12 @@ describe('TrendingCard interactions', () => {
     expect(screen.getByLabelText('Share')).toBeInTheDocument();
   });
 
-  it('renders author name as a link to social origin', () => {
+  it('renders author name as a deep link to /u/:username', () => {
     render(
       <TrendingCard post={basePost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
     );
     const authorLink = screen.getByRole('link', { name: 'Ada Lovelace' });
-    expect(authorLink).toHaveAttribute('href', expect.stringContaining('social.web10'));
+    expect(authorLink).toHaveAttribute('href', expect.stringContaining('/u/'));
     expect(authorLink).toHaveAttribute('target', '_blank');
     expect(authorLink).toHaveAttribute('rel', 'noopener');
   });
@@ -208,12 +209,12 @@ describe('Trending page', () => {
         .filter(c => String(c[0]).includes('/discover/posts'))
         .map(c => String(c[1]?.body));
     expect(discoverBodies()).toEqual([
-      '{"query":{"sort":"trending","limit":20}}',
-      '{"query":{"sort":"recent","limit":20}}',
+      '{"query":{"sort":"trending","limit":20,"services":"public_posts"}}',
+      '{"query":{"sort":"recent","limit":20,"services":"public_posts"}}',
     ]);
     fireEvent.click(loadMore);
     await waitFor(() =>
-      expect(discoverBodies()).toContain('{"query":{"sort":"trending","limit":40}}'),
+      expect(discoverBodies()).toContain('{"query":{"sort":"trending","limit":40,"services":"public_posts"}}'),
     );
   });
 
@@ -648,5 +649,145 @@ describe('YouTubeCard', () => {
     expect(screen.getByTestId('youtube-card')).toBeInTheDocument();
     expect(screen.getByText("Ada Lovelace")).toBeInTheDocument();
     expect(screen.getByText('2h')).toBeInTheDocument();
+  });
+});
+
+// ── D-deep-links marketing retarget: deep link URLs ─────────────────────────
+
+describe('TrendingCard deep links', () => {
+  it('author link points to /u/:username', () => {
+    render(
+      <TrendingCard post={basePost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
+    );
+    const authorLink = screen.getByRole('link', { name: 'Ada Lovelace' });
+    expect(authorLink.getAttribute('href')).toMatch(/\/u\/ada$/);
+  });
+
+  it('post content links to /u/:username/p/:postId', () => {
+    render(
+      <TrendingCard post={basePost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
+    );
+    const contentLink = screen.getByRole('link', { name: /first program/ });
+    expect(contentLink.getAttribute('href')).toMatch(/\/u\/ada\/p\/p1$/);
+  });
+
+  it('tag badges link to /discover?tag=', () => {
+    render(
+      <TrendingCard post={basePost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
+    );
+    const tagLink = screen.getByText('#math');
+    expect(tagLink.tagName).toBe('A');
+    expect(tagLink.getAttribute('href')).toMatch(/\/discover\?tag=math$/);
+  });
+
+  it('falls back to SOCIAL_ORIGIN when author is missing', () => {
+    render(
+      <TrendingCard post={{ ...basePost, author: undefined }} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
+    );
+    const authorLink = screen.getByRole('link', { name: 'Ada Lovelace' });
+    expect(authorLink.getAttribute('href')).toMatch(/social\.web10\.app$/);
+  });
+});
+
+describe('YouTubeCard deep links', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal('fetch', vi.fn());
+    vi.stubGlobal('open', vi.fn());
+    Element.prototype.scrollIntoView = vi.fn();
+    vi.stubGlobal('IntersectionObserver', class {
+      observe = vi.fn();
+      disconnect = vi.fn();
+    });
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: (query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }),
+    });
+  });
+
+  it('wraps the card in a link to /u/:username/p/:postId', async () => {
+    const { YouTubeCard } = await import('@/components/FeedPreview');
+    const videoPost: FeedPost = {
+      ...basePost,
+      id: 'yt-video',
+      media: 'video',
+      mediaRefs: ['ref-1'],
+      firstAttachmentMime: 'video/mp4',
+      author: 'testuser',
+    };
+    render(<YouTubeCard post={videoPost} rank={1} />);
+    const card = screen.getByTestId('youtube-card');
+    expect(card.tagName).toBe('A');
+    expect(card.getAttribute('href')).toMatch(/\/u\/testuser\/p\/yt-video$/);
+    expect(card.getAttribute('target')).toBe('_blank');
+  });
+
+  it('falls back to SOCIAL_ORIGIN when author is missing', async () => {
+    const { YouTubeCard } = await import('@/components/FeedPreview');
+    const post: FeedPost = {
+      ...basePost,
+      author: undefined,
+    };
+    render(<YouTubeCard post={post} />);
+    const card = screen.getByTestId('youtube-card');
+    expect(card.getAttribute('href')).toMatch(/social\.web10\.app$/);
+  });
+});
+
+describe('InlineCommentPanel deep links', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal('fetch', vi.fn());
+    vi.stubGlobal('open', vi.fn());
+  });
+
+  it('comment entries link to /u/:username/p/:postId?comment=:id', async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve([
+        {
+          _id: 'comment-123',
+          payload: { action: 'comment', text: 'great post!', author_username: 'replybot' },
+          author: 'replybot',
+          created_at: new Date().toISOString(),
+        },
+      ]),
+    } as unknown as Response);
+    render(
+      <TrendingCard post={basePost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
+    );
+    fireEvent.click(screen.getByLabelText(/Comment,/));
+    await waitFor(() => expect(screen.getByTestId('comment-panel')).toBeInTheDocument());
+    const commentEntry = await screen.findByTestId('comment-entry');
+    expect(commentEntry.tagName).toBe('A');
+    const href = commentEntry.getAttribute('href');
+    expect(href).toMatch(/\/u\/ada\/p\/p1\?comment=comment-123$/);
+  });
+
+  it('comment compose button opens post permalink', async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve([]),
+    } as unknown as Response);
+    render(
+      <TrendingCard post={basePost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
+    );
+    fireEvent.click(screen.getByLabelText(/Comment,/));
+    const panel = screen.getByTestId('comment-panel');
+    const sendBtn = within(panel).getByRole('button', { name: 'Post comment' });
+    fireEvent.click(sendBtn);
+    expect(window.open).toHaveBeenCalledWith(
+      expect.stringMatching(/\/u\/ada\/p\/p1$/),
+      '_blank',
+    );
   });
 });

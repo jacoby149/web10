@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Zap, ArrowUpRight, MessageCircleOff, Grid3X3, Video } from 'lucide-react';
+import { Zap, ArrowUpRight, MessageCircleOff, Flame, Video } from 'lucide-react';
 import {
   TrendingCard,
   TrendingSkeleton,
@@ -60,7 +60,7 @@ async function fetchDiscoverUsers(limit = 20): Promise<DiscoverUser[]> {
   const resp = await fetch(`${API_ORIGIN}/discover/users`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query: { limit } }),
+    body: JSON.stringify({ query: { limit, services: 'public_posts' } }),
   });
   if (!resp.ok) return [];
   return resp.json();
@@ -122,7 +122,7 @@ async function fetchSearchResults(query: string, limit = 50): Promise<FeedPost[]
   const resp = await fetch(`${API_ORIGIN}/discover/search`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query: { q: query, limit } }),
+    body: JSON.stringify({ query: { q: query, limit, services: 'public_posts' } }),
   });
   if (!resp.ok) throw new Error(`Search failed (${resp.status})`);
   const results = await resp.json();
@@ -414,14 +414,24 @@ function Trending() {
     else cardRefs.current.delete(id);
   }, []);
 
-  const handleReaction = (type: 'like' | 'repost') => {
+  const handleReaction = (type: 'like' | 'repost', postId: string) => {
     trackFunnel(type === 'like' ? 'trending_like_attempt' : 'trending_repost_attempt');
-    window.open(SOCIAL_ORIGIN, '_blank');
+    const post = allPosts.find(p => p.id === postId) || searchResults.find(p => p.id === postId);
+    if (post?.author) {
+      window.open(`${SOCIAL_ORIGIN}/u/${encodeURIComponent(post.author)}/p/${encodeURIComponent(postId)}`, '_blank');
+    } else {
+      window.open(SOCIAL_ORIGIN, '_blank');
+    }
   };
 
-  const handleComment = () => {
+  const handleComment = (postId: string) => {
     trackFunnel('trending_comment_attempt');
-    window.open(SOCIAL_ORIGIN, '_blank');
+    const post = allPosts.find(p => p.id === postId) || searchResults.find(p => p.id === postId);
+    if (post?.author) {
+      window.open(`${SOCIAL_ORIGIN}/u/${encodeURIComponent(post.author)}/p/${encodeURIComponent(postId)}`, '_blank');
+    } else {
+      window.open(SOCIAL_ORIGIN, '_blank');
+    }
   };
 
   const handleLoadMore = () => {
@@ -525,9 +535,9 @@ function Trending() {
           <div className="mx-auto max-w-4xl px-4 sm:px-6">
             <div className="flex items-center gap-1 py-2" data-testid="trending-view-toggle">
               {([
-                ['grid', 'Grid', Grid3X3],
-                ['youtube', 'YouTube', Video],
-              ] as [TrendingView, string, typeof Grid3X3][]).map(([v, label, Icon]) => (
+                ['grid', 'Hot Gossip', Flame],
+                ['youtube', 'Video', Video],
+              ] as [TrendingView, string, typeof Flame][]).map(([v, label, Icon]) => (
                 <button
                   key={v}
                   type="button"
@@ -558,7 +568,7 @@ function Trending() {
               searchLoading ? (
                 <div
                   data-testid="trending-grid-skeleton"
-                  className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
+                  className="mx-auto grid w-full max-w-xl grid-cols-1 gap-4"
                 >
                   <TrendingSkeleton featured />
                   {Array.from({ length: 5 }).map((_, i) => (
@@ -603,21 +613,21 @@ function Trending() {
                       </p>
                       <div
                         data-testid="trending-grid"
-                        className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
+                        className="mx-auto grid w-full max-w-xl grid-cols-1 gap-4"
                       >
-                        {visibleSearchResults.map(post => (
-                          <TrendingCard
-                            key={post.id}
-                            post={post}
-                            rank={post.rank}
-                            featured={post.featured}
-                            maxScore={maxSearchScore}
-                            onLike={() => handleReaction('like')}
-                            onComment={() => handleComment()}
-                            onRepost={() => handleReaction('repost')}
-                            cardRef={registerCard(post.id)}
-                          />
-                        ))}
+{visibleSearchResults.map(post => (
+                           <TrendingCard
+                             key={post.id}
+                             post={post}
+                             rank={post.rank}
+                             featured={post.featured}
+                             maxScore={maxSearchScore}
+                             onLike={() => handleReaction('like', post.id)}
+                             onComment={() => handleComment(post.id)}
+                             onRepost={() => handleReaction('repost', post.id)}
+                             cardRef={registerCard(post.id)}
+                           />
+                         ))}
                       </div>
                     </>
                   ) : (
@@ -646,7 +656,7 @@ function Trending() {
             ) : isInitialLoad ? (
               <div
                 data-testid="trending-grid-skeleton"
-                className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
+                className="mx-auto grid w-full max-w-xl grid-cols-1 gap-4"
               >
                 <TrendingSkeleton featured />
                 {Array.from({ length: 5 }).map((_, i) => (
@@ -705,15 +715,15 @@ function Trending() {
                       No media posts yet
                     </h2>
                     <p className="mt-2 text-sm text-muted-foreground">
-                      The YouTube view shows posts with videos and images.
-                      Switch to the grid view to see all trending posts.
+                      The video view shows posts with videos and images.
+                      Switch to Hot Gossip to see all trending posts.
                     </p>
                     <button
                       type="button"
                       onClick={() => setViewUrl('grid')}
                       className="mt-6 inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                     >
-                      Switch to grid view
+                      Switch to Hot Gossip
                     </button>
                   </div>
                 )}
@@ -722,24 +732,24 @@ function Trending() {
               <>
                 <div
                   data-testid="trending-grid"
-                  className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
+                  className="mx-auto grid w-full max-w-xl grid-cols-1 gap-4"
                 >
-                  {visible.map(post => (
-                    <TrendingCard
-                      key={post.id}
-                      post={post}
-                      rank={post.rank}
-                      featured={post.featured}
-                      maxScore={maxScore}
-                      onLike={() => handleReaction('like')}
-                      onComment={() => handleComment()}
-                      onRepost={() => handleReaction('repost')}
-                      cardRef={registerCard(post.id)}
-                    />
-                  ))}
+{visible.map(post => (
+                     <TrendingCard
+                       key={post.id}
+                       post={post}
+                       rank={post.rank}
+                       featured={post.featured}
+                       maxScore={maxScore}
+                       onLike={() => handleReaction('like', post.id)}
+                       onComment={() => handleComment(post.id)}
+                       onRepost={() => handleReaction('repost', post.id)}
+                       cardRef={registerCard(post.id)}
+                     />
+                   ))}
                 </div>
                 {loadingMore && (
-                  <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  <div className="mx-auto mt-4 grid w-full max-w-xl grid-cols-1 gap-4">
                     {Array.from({ length: 3 }).map((_, i) => (
                       <TrendingSkeleton key={`more-${i}`} />
                     ))}

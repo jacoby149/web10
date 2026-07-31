@@ -9,6 +9,42 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D39 — Discovery board is a general projection; READERS pass `services` [decided]
+Operator, 31.07.2026: "the discovery board should take an input of the
+services, so the frontend can actually ask the discovery board what it
+wants… fallout avatar could post its services there — that way apps all
+benefit. That is the only means to have trending shit for the public,
+right?" Trigger: prod fallout-avatar records ghosted into the social
+trending feed as empty posts (30.07). First fix attempt gated the WRITE
+side to an allowlist; the operator overrode it — the index is the one
+public cross-user read path, so every app must be able to use it.
+**Decided:** WRITE side indexes ANY anon-readable service (unchanged);
+READ side — all four board endpoints (`/discover/posts`, `/search`,
+`/topics`, `/users`) take a `services` filter (comma-separated, URL or
+body `query.services`); omitted → default set `("public_posts",
+"web10_apps")` so legacy callers keep the posts-only board. web10-social
+and marketing-ui pass `services=public_posts`. Moderation (`removed`)
+applies per service on top. Rejects: write-side service allowlist (would
+have locked non-social apps out of the only public trending mechanism);
+per-app discovery indexes (one index, filtered reads, is simpler).
+Related: moderation is board-scoped only — profile walls and inbox
+fan-out are moderation-immune (1.0.292, #477).
+
+### D38 — Hotjar SaaS for marketing-ui session analytics (override self-hosted) [decided]
+Operator, 30.07 rant: "if we havent set up hotjar on the marketing page, we
+NEED to!" The standing plan.txt decision was self-hosted PostHog/OpenReplay
+(marketing traffic never feeds a third-party SaaS). **Override: Hotjar the
+SaaS ships first** because the operator needs it this week and self-hosted
+infrastructure cannot be provisioned in the same timeframe. Hotjar is scoped
+to `marketing/marketing-ui` ONLY — the platform surfaces (`ui/` +
+`marketing/web10-social`) remain recording-free (RADIOACTIVE, unchanged).
+The Hotjar snippet loads dynamically from `analytics.ts` via
+`VITE_HOTJAR_SITE_ID` / `VITE_HOTJAR_VERSION` env vars; without the site ID,
+it is a no-op (dev-safe). The self-hosted PostHog path remains the aspirational
+target for later if the operator wants to migrate away from Hotjar — it is
+not blocked, just deferred. Rejects: self-hosted PostHog/OpenReplay this sprint
+(operational urgency trumps the self-hosted principle for marketing-only traffic).
+
 ### D37 — App Store v2 Registration Record Shape & #web10apps Social Projection [decided]
 Full spec: `.context/appstore-v2-registration-spec.md`. Summary: the `web10.apps`
 collection gains `review_state` (state machine: pending → approved/rejected,

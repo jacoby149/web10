@@ -1,6 +1,7 @@
 import { getWapi } from './wapi';
 import { getCachedSchema, createPublicEntry, queryPublicEntries, deletePublicEntry } from './feed';
 import { API_ORIGIN } from '../lib/origins';
+import { trackEvent } from '../lib/analytics';
 import type { FollowRecord, FollowStatus, InboxRecord, DiscoveryPost } from './types';
 
 // ── Follows data layer ──────────────────────────────────────────────────────
@@ -32,7 +33,7 @@ async function backfillFollow(followeeUsername: string, followeeProvider: string
 
     // Fetch followee's recent public posts from discovery API
     const resp = await fetch(
-      `${API_ORIGIN}/discover/posts?sort=recent&limit=20`,
+      `${API_ORIGIN}/discover/posts?sort=recent&limit=20&services=public_posts`,
       { method: 'PATCH' },
     );
     if (!resp.ok) return;
@@ -149,6 +150,7 @@ export async function followUser(username: string, provider: string): Promise<Fo
     // Backfill inbox with followee's recent posts (non-fatal)
     backfillFollow(username, provider).catch(() => {});
 
+    trackEvent('follow');
     return { username, provider, status: 'active', followed_at: now } as FollowRecord;
   }
 
@@ -179,6 +181,7 @@ export async function followUser(username: string, provider: string): Promise<Fo
   // Backfill inbox with followee's recent posts (non-fatal)
   backfillFollow(username, provider).catch(() => {});
 
+  trackEvent('follow');
   return record;
 }
 
@@ -191,6 +194,7 @@ export async function unfollowUser(username: string, provider: string): Promise<
   const wapi = getWapi();
   const existingRecords = await wapi.read<FollowRecord>('follows', { username, provider });
   if (existingRecords.length) {
+    trackEvent('unfollow');
     // Update ALL matching records so duplicates cannot diverge
     for (const existing of existingRecords) {
       if (existing._id) {

@@ -15,11 +15,26 @@ def _anon_or_decode(token: Token):
     return decode_token(token.token)
 
 
+def _parse_services(raw: str | None) -> list[str] | None:
+    """Parse the ``services`` query param (comma-separated) into a list.
+
+    The discovery board is a GENERAL public projection: the caller names
+    which services it wants trending/searched (web10-social passes
+    ``public_posts``; another app can pass its own service, e.g.
+    ``fallout-avatar``). ``None`` = no param sent → the default board set.
+    """
+    if not raw:
+        return None
+    services = [s.strip() for s in raw.split(",") if s.strip()]
+    return services or None
+
+
 @router.patch("/discover/posts", tags=["discovery"])
 async def discover_posts(
     sort: str = "recent",
     limit: int = 50,
     skip: int = 0,
+    services: str | None = None,
     token: Token | None = None,
 ):
     """For-you feed: recent or trending discovery posts.
@@ -28,20 +43,25 @@ async def discover_posts(
     (what the social feed sends — a bodyless PATCH), with an optional JSON
     body's `query` taken as an override for richer clients. A request body
     is NOT required — requiring one made the feed's bodyless PATCH 422.
+
+    ``services`` (comma-separated) selects which services the board reads
+    back; omitted → the default board set (public_posts + web10_apps).
     """
     if token and token.query:
         sort = token.query.get("sort", sort)
         limit = token.query.get("limit", limit)
         skip = token.query.get("skip", skip)
-    return db.query_discovery_posts(sort_by=sort, limit=min(limit, 200), skip=skip)
+        services = token.query.get("services", services)
+    return db.query_discovery_posts(sort_by=sort, limit=min(limit, 200), skip=skip, services=_parse_services(services))
 
 
 @router.patch("/discover/users", tags=["discovery"])
-async def discover_users(limit: int = 20, token: Token | None = None):
+async def discover_users(limit: int = 20, services: str | None = None, token: Token | None = None):
     """Suggested accounts based on discovery index activity."""
     if token and token.query:
         limit = token.query.get("limit", limit)
-    return db.suggested_users(limit=min(limit, 100))
+        services = token.query.get("services", services)
+    return db.suggested_users(limit=min(limit, 100), services=_parse_services(services))
 
 
 @router.patch("/discover/search", tags=["discovery"])
@@ -49,6 +69,7 @@ async def discover_search(
     q: str | None = None,
     limit: int = 50,
     skip: int = 0,
+    services: str | None = None,
     token: Token | None = None,
 ):
     """Full-text search across the discovery index."""
@@ -56,17 +77,19 @@ async def discover_search(
         q = token.query.get("q", q)
         limit = token.query.get("limit", limit)
         skip = token.query.get("skip", skip)
+        services = token.query.get("services", services)
     if not q:
         return []
-    return db.search_discovery_posts(query=q, limit=min(limit, 200), skip=skip)
+    return db.search_discovery_posts(query=q, limit=min(limit, 200), skip=skip, services=_parse_services(services))
 
 
 @router.patch("/discover/topics", tags=["discovery"])
-async def discover_topics(limit: int = 20, token: Token | None = None):
+async def discover_topics(limit: int = 20, services: str | None = None, token: Token | None = None):
     """Trending hashtags from the discovery index."""
     if token and token.query:
         limit = token.query.get("limit", limit)
-    return db.trending_topics(limit=min(limit, 100))
+        services = token.query.get("services", services)
+    return db.trending_topics(limit=min(limit, 100), services=_parse_services(services))
 
 
 @router.patch("/discover/post/{username}/{service}/{post_id}", tags=["discovery"])

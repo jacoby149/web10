@@ -47,7 +47,7 @@ change.
 
 1. **You post once** — text, photos, video, published from your node, on
    your domain.
-2. **It fans out on write** — every follower's inbox gets the post the
+2. **It lands in every inbox** — every follower's inbox gets the post the
    instant you publish. No feed algorithm decides who's shown.
 3. **100% delivery, by architecture** — it can't be quietly revoked,
    because it isn't a policy; it's how the inbox pattern works.

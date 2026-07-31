@@ -193,6 +193,11 @@ ENTRY_NOT_FOUND = HTTPException(
     detail="entry not found",
 )
 
+RATE_LIMIT = HTTPException(
+    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+    detail="too many requests — try again later",
+)
+
 SCHEMA_INVALID = HTTPException(
     status_code=status.HTTP_400_BAD_REQUEST,
     detail="payload does not match the registered schema",

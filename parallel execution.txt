@@ -810,7 +810,7 @@ LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
       the whole phase — it's how "we shipped moderation with no test"
       doesn't happen.
 
-[ ] B9-recovery-contact-nudge (lane B, ui/**; operator, 30.07 rant:
+[✓ 1.0.282] B9-recovery-contact-nudge (lane B, ui/**; operator, 30.07 rant:
       "we need to pester every user to set a recovery email pronto
       or number, if they havent! the recovery flow has to be tight
       so the user accounts aren't ephemeral, they are permanent!"):
@@ -848,6 +848,38 @@ LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
       375px and LOOK, ui tests green, deep-link rule respected for
       any new screen/state. owns ui/** only — never reach into
       api/; the endpoint shapes come from lane A via .context/.
+      STATUS 31.07 (audit #19 ship gate — FINDING F1): bite a's
+      recovery-phone SAVE is a silent no-op against the real api
+      (#460). RecoveryContact.tsx calls
+      `wapi.update('*', {service:'*'}, {$set:{phone}})` — the star
+      record lives in the `services` service (documentdb.py:156),
+      so the update matches zero docs, returns matchedCount:0, and
+      the UI's .then() toasts "Recovery phone saved!" on a write
+      that persisted NOTHING (gone on refresh). Also wrong: the
+      server field is `phone_number`, not `phone`. Mocked wapi
+      tests hid it (the D-graph-app class). NOT a star-protection
+      break — the write never reaches the star record. FIX =
+      bite a-fix (ONE PR, lane A + lane B halves, cross-lane by
+      agreement like A16): lane A adds a small authenticated
+      POST /set_recovery_phone (auth token in, phone_number onto
+      the star record via set_phone_number — v0 unverified is
+      acceptable, the twilio-verify upgrade rides A21; rate-limit
+      it) + a permission-matrix pin (non-owner rejected); lane B
+      swaps RecoveryContact's wapi.update for the new endpoint and
+      reads the saved phone back from the server (never trust the
+      local echo — a refresh-persistence vitest against the real
+      fetch shape). acceptance: save a recovery phone against the
+      local stack, hard refresh, the phone is still there; api +
+      ui tests green, ruff + tsc clean. gate: none — PRIORITY,
+      this blocks the dev→main promotion.
+      STATUS 31.07: F1 FIXED [✓ 1.0.290] — POST /set_recovery_phone
+      (certified token sets its OWN user's phone via
+      set_phone_number, rate-limited 5/hr, non-owner impossible by
+      construction) + RecoveryContact call-site swap with server
+      read-back through servicesLoad (star record phone_number →
+      I.phone). Live-verified on the local compose stack (save →
+      fresh-token re-read persists; 429 after 5 saves). The
+      dev→main promotion is UNBLOCKED.
 
 LANE C — greenfield services  (owns: sdk/, mcp/, new dirs)
   [✓ 1.0.25] C1. P5 media service (presigned urls, minio profile,
@@ -2167,9 +2199,9 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       files).
 BITES (rule 5 — one bite PER SCREEN when staged, each its own
         PR): [✓ 1.0.266] messages (thread key + view param), [✓ 1.0.276 #449]
-        discover (tag/q params), profile (tab param), [✓ 1.0.271] comment anchor (?comment= on the
+        discover (tag/q params),         profile (tab param), [✓ 1.0.271] comment anchor (?comment= on the
         permalink route — gate: D-feed-lightbox bite b), marketing
-        retarget (TrendingCard/comment/search links point at the deep
+        retarget [✓ 1.0.287] (TrendingCard/comment/search links point at the deep
         urls — gate: the relevant routes merged). never one sweeping
         branch.
 
@@ -2435,7 +2467,7 @@ BITES (rule 5 — one bite PER SCREEN when staged, each its own
       (screenshots desktop + 375px, LOOK — it reads YouTube, not
       Twitter); the default view is unchanged; marketing-ui tests
       + tsc green. gate: none.
-      bite b, DISCOVER PARITY: the same view toggle on web10-
+      bite b, DISCOVER PARITY [✓ 1.0.286]: the same view toggle on web10-
       social's DiscoverScreen (the D-inapp-discover-knobs port,
       1.0.241) so the in-app surface matches — sub-lane
       ws-D/discover, gate: bite a (the pattern exists to copy).
@@ -2443,7 +2475,7 @@ BITES (rule 5 — one bite PER SCREEN when staged, each its own
       youtube-first) — the creator pitch is "import your YouTube
       catalog, see it on a YouTube-shaped trending."
 
-[ ] D-marketing-session-analytics (sub-lane ws-D/marketing(2), SMALL;
+[✓ 1.0.281] D-marketing-session-analytics (sub-lane ws-D/marketing(2), SMALL;
       operator, 30.07 rant: "if we havent set up hotjar on the
       marketing page, we NEED to!"): the marketing site (marketing-
       ui, pre-signup visitors) gets session analytics PRONTO. the
@@ -2463,6 +2495,34 @@ BITES (rule 5 — one bite PER SCREEN when staged, each its own
       sessions (replay or heatmap) within the week; the platform
       surfaces remain recording-free; marketing-ui tests + tsc
       green. gate: none.
+
+[✓ 1.0.289] D-how-it-works-story-copy (sub-lane ws-D/marketing(2), TINY;
+      operator, 30.07 rant: "the marketing page says this thing 'it
+      fans out on write' it doesnt make so much sense, dont know what
+      that means. the first and the third card were good though! lets
+      think of a way on how to better refactor that story"): the
+      homepage "How it works" trio (Home.tsx HOW_IT_WORKS, ~line 242)
+      is card 1 "You post once" (good) → card 2 "It fans out on write"
+      (JARGON — fan-out-on-write is engineer-speak; a first-time
+      visitor/VC has no idea what "it" is or what "fans out on write"
+      means) → card 3 "100% delivery, by architecture" (good). the
+      story refactor: keep cards 1+3, re-tell the middle beat in
+      READER language — the meaning to preserve is "the instant you
+      publish, the post lands in every follower's inbox; no algorithm
+      decides who's shown" (the current DESCRIPTION is fine, it's the
+      TITLE that flops). candidate directions for the builder (taste
+      call, operator delegates): "It lands in every inbox", "Every
+      follower gets it", "Straight to every inbox" — pick whichever
+      reads best in the trio's rhythm (verb-first like its siblings).
+      SWEEP: the same phrase is the overview docs page's step 2 title
+      (marketing-ui/public/docs/overview.md:50, "It fans out on
+      write —") — retitle it to match whatever the homepage lands on
+      so the story is told once, the same way, everywhere. files:
+      marketing-ui Home.tsx (HOW_IT_WORKS) + public/docs/overview.md.
+      acceptance: the middle card's title makes sense to a reader who
+      has never heard of fan-out architectures; cards 1+3 untouched;
+      overview.md step 2 matches; marketing-ui tests + tsc green;
+      dev-shot capture green (no-PNG override). gate: none.
 
 [✓ 1.0.240] D-home-stats-bar (sub-lane ws-D/marketing(2); SEAM: Home.tsx —
       disjoint from AppStore/Join files; operator, 29.07 rant,
@@ -2744,8 +2804,10 @@ BITES (rule 5 — one bite PER SCREEN when staged, each its own
       the self-like round-trip incl. the call-site target format;
       social tests + tsc green. gate: none.
 
-[ ] D-visibility-toggle-duplicate (sub-lane ws-D/profile; operator, 30.07
-      rant: "i tried publicing a post, privating the post, publicing it
+[✓ 1.0.284] D-visibility-toggle-duplicate (sub-lane ws-D/profile; operator, 30.07
+       rant: "i tried publicing a post, privating the post, publicing it
+       again, there is now two posts one in public one in private of the
+       same post"): D-post-visibility-toggle's movePostVisibility
       again, there is now two posts one in public one in private of the
       same post"): D-post-visibility-toggle's movePostVisibility
       (posts.ts:154) is create-in-target THEN delete-from-source — a
@@ -3647,8 +3709,111 @@ M3 "the network"         = encryption integration (A rtc + C2 sdk
                            polish. the last big merge.
 
 
-CURRENT CONDUCTOR BOARD (as of 30.07.2026 — audit #18; keep fresh)
+CURRENT CONDUCTOR BOARD (as of 31.07.2026 — audit #19; keep fresh)
 --------------------------------------------------------------------
+AUDIT #19 REFRESH (31.07, web10web10! pass #19): SHIP GATE RED — batch
+NOT promoted. Dangling PRs: three open, all healthy and in flight —
+#468 (D-public-media-verify, CLEAN), #467 (A21-passwordless bite a,
+CLEAN), #462 (A20-recovery-email bite b, CLEAN); none stale or
+conflicting. The dev batch (#457–#466) read with ONE really-broken
+finding: F1 — B9-recovery-contact-nudge bite a's recovery-phone save
+is a silent no-op against the real api (#460; wrong service path +
+wrong field name + no recovery-phone endpoint exists; mocked tests
+hid it; NOT a star-protection break — I1–I5 intact). Everything else
+read clean (e2e green at dev head, run 30596558599; deploy-dev green).
+Per the red-batch rule there was NO dev→main promotion this pass; the
+promotion happens once the B9 bite a-fix merges (kickoff block in the
+pass-#19 report). HYGIENE repaired in-pass: FOUR CHANGELOG version
+collisions (1.0.279–1.0.282 each claimed twice by stale parallel
+branches) renumbered by merge order — #457 keeps 1.0.279, #458 keeps
+1.0.280, then hotjar 1.0.281, B9 nudge 1.0.282, how-it-works filing
+1.0.283, visibility-toggle fix 1.0.284, own-profile filing 1.0.285,
+discover YouTube view 1.0.286, marketing retarget 1.0.287; refs
+updated in plan.txt + this file. ALIGNMENT: unchanged — operator-
+complaint-driven social work + the account-permanence cluster
+(A20–A23/B9) + the C8 money-path referee; no infra drift. Timeline:
+week 2 (jul 27–aug 3) closing; week 3 is M0 integration — founder
+taste pass remains the schedule risk. QWEN HORIZON: 8 immediately-
+kickoffable parallel-safe bites across 8 sub-lanes (below), ~15+
+chained PRs behind them — Qwens run independently.
+
+  PRIORITY 1 (fresh, this audit):
+    [✓ 1.0.290] ws-B + ws-A (ONE PR): B9-recovery-contact-nudge bite
+      a-fix — the recovery-phone save actually persists (lane A: POST
+      /set_recovery_phone; lane B: RecoveryContact call-site swap +
+      refresh-persistence test). MERGED — the dev→main promotion is
+      UNBLOCKED; the next web10web10! re-gates the batch and ships.
+    ws-E (operator-gated): E-run-discovery-migration — STILL the
+      highest-demo-impact item on the board and still needs the admin
+      token. The "lacks videos and images" complaint class persists on
+      prod until the backfill RE-RUN (A17 media fields) executes; RUN
+      LIST also carries POST /admin/apps/migrate_v2 (cleanup, not a
+      blocker — the compat filter is live on prod).
+
+  PARALLEL-SAFE FLEET (one workspace per sub-lane; chains WITHIN a
+  sub-lane are sequential, file seams). Audit #18's fleet: B9 bite a
+  merged (1.0.282 — see F1 above), trending-views bite b merged
+  (1.0.286), marketing retarget merged (1.0.287) — de-queued. In
+  flight (open PRs, do NOT re-kick): #468 D-public-media-verify,
+  #467 A21 bite a, #462 A20 bite b. Next bites:
+    ws-A:            A21-passwordless-phone-login bite b (the phone-
+                     required policy toggle + drop PHONE_NUMBER_TAKEN +
+                     web10.app config flip — PRIORITY, prod stats
+                     inflate daily; gate: bite a = #467 merged) THEN
+                     bite c (verified-only user count), THEN
+                     A22-forgot-username-by-phone, THEN A23 (GATED on
+                     A21 bite b). A20 bite b in flight as #462.
+    ws-B:            B9 bite a-fix MERGED (1.0.290 — de-queued). NEXT:
+                     B9 bite b (email recovery UI — gate: A20 bite b =
+                     #462 merged + the .context/ contract), THEN
+                     D-ga4-auth (SMALL, no gate).
+ws-D/profile:    [✓ 1.0.289] D-own-profile-edit-restore (owner edit affordances
+                      lost in the /u move — edit profile, avatar/banner
+                      upload, review-imports; isOwnProfile gate), THEN
+                      D-follow-lists (twice-complained —
+                     /u/:username/followers|following routes), THEN
+                     D-lightbox-media-sizing, THEN
+                     D-profile-image-placement, D-text-post-cards.
+                     (D-visibility-toggle-duplicate merged 1.0.284,
+                     D-public-media-verify in flight as #468 —
+                     de-queued.)
+    ws-D/discover:   FREE — trending-views bite b merged 1.0.286.
+                     Next: nothing queued; take D-ga4-social if
+                     ws-D/social-analytics is unstaffed.
+ws-D/social-analytics: [✓ 1.0.289] D-ga4-social (SMALL, no gate — GA4 pageview
+                      + event analytics on web10-social; aggregate only,
+                      no recording; acceptance: GA4 dashboard shows real
+                      social pageviews).
+    ws-D/shell:      D-deep-links bite 3 (profile ?tab=posts|media —
+                     SEAM NOTE: touches ProfileScreen.tsx, a ws-D/
+                     profile file; run INSIDE the ws-D/profile chain or
+                     coordinate via .context/, never blind-parallel).
+    ws-D/marketing(2): D-how-it-works-story-copy (TINY, no gate —
+                     the "It fans out on write" card re-told in reader
+                     language + overview.md sweep), THEN D-ga4-marketing
+                     (SMALL, no gate).
+    ws-C:            C8 remainder — bite b (membership subscribe
+                     journey, 3% split asserted) + bite c (twilio
+                     honest half); staged with the M2-prereq block, not
+                     the gauntlet fleet.
+  GATED (don't pick up until the gate clears):
+      D-night-owl bites b-e (gate: operator's Conductor Pro trial).
+      D-poke build (gate: operator sign-off on the 1.0.179 proposal).
+      D-feed-avatar-resolution + the D-user-profile-media grid half
+        (gate: D-public-media-verify = #468 merged).
+      D-coming-soon-builds (gate: per-surface spec first).
+      D-appstore category rails (gate: catalog size).
+      E-run-discovery-migration (gate: admin token — operator provides).
+      E-dependabot-hackathon (parked per operator "can be done later").
+  Selection rule (CLAUDE.md): only truly-parallel items at once. The
+  PostLightbox/FeedScreen/PostComposer files form ONE seam cluster
+  spanning ws-D/feed and ws-D/profile — the two chains coordinate via
+  .context/ notes and never edit the same file concurrently.
+  BITE RULE (rule 5, operator 27.07): the chains above are QUEUES of
+  bites — a kickoff hands an agent exactly ONE bite (one PR, ~20-40
+  min); multi-bite items carry a BITES: breakdown in their lane text.
+  never kick off "the chain".
+
 AUDIT #18 REFRESH (30.07, web10web10! pass #18): SHIPPED. Dangling PRs:
 two found, both closed as superseded (#446 + #450 — duplicates of the
 dev-server-screenshot unbrick whose content already landed via #454;
@@ -3697,19 +3862,40 @@ run independently.
                      unverified signups daily), THEN A22-forgot-
                      username-by-phone, THEN A23-verification-
                      enforcement (GATED on A21 bite b)
-    ws-B:            B9-recovery-contact-nudge bite a (the nudge — no
-                     gate, phone already on the star record); bites
-                     b/c/d gated on A20/A21/A22 contracts
-    ws-D/profile:    D-visibility-toggle-duplicate (REPRO first — stale
+ws-B:            B9-recovery-contact-nudge bite a (the nudge — no
+                      gate, phone already on the star record); bites
+                      b/c/d gated on A20/A21/A22 contracts, THEN
+                      D-ga4-auth (SMALL, no gate — GA4 pageview + event
+                      analytics on ui/auth; aggregate only, no
+                      recording; acceptance: GA4 dashboard shows real
+                      auth pageviews)
+ws-D/profile:    [✓ 1.0.289] D-own-profile-edit-restore (owner edit affordances
+                      lost in the /u move — edit profile, avatar/banner
+                      upload, review-imports; isOwnProfile gate), THEN
+                      D-visibility-toggle-duplicate (REPRO first — stale
                      post object across toggles), THEN D-public-media-
                      verify (TINY — the gate-CLEARER for the two GATED
                      media items below), THEN D-follow-lists (twice-
                      complained — /u/:username/followers|following
                      routes), THEN D-lightbox-media-sizing, THEN
                      D-profile-image-placement, D-text-post-cards
-    ws-D/discover:   D-trending-views bite b (Discover parity — the
-                     view toggle ported to DiscoverScreen; gate: bite a
-                     merged 1.0.272, CLEAR)
+ws-D/discover:   [✓ 1.0.280] D-trending-views bite b (Discover parity — the
+                      view toggle ported to DiscoverScreen; gate: bite a
+                      merged 1.0.272, CLEAR)
+                 [✓ 1.0.291] D-trending-single-column (operator feedback
+                      31.07, NOT a rant — direct fix): trending grids →
+                      ONE wide Twitter-style column on marketing /trending
+                      (max-w-xl; Top Ten sidebar kept per operator) AND
+                      web10-social Discover (2-col inside max-w-xl was
+                      ~280px cards; video view's lg:3/xl:4 was ~130-180px
+                      inside max-w-xl — both single-column now); tabs
+                      renamed Grid→"Hot Gossip", YouTube→"Video" on both
+                      surfaces; ?view= values unchanged)
+ws-D/social-analytics: [✓ 1.0.289] D-ga4-social (SMALL, no gate — GA4 pageview +
+                       event analytics on web10-social; aggregate only,
+                       no recording, fits the "anonymous, aggregate,
+                       CONTENT-FREE" allowance; acceptance: GA4
+                       dashboard shows real social pageviews)
     ws-D/shell:      D-deep-links bite 3 (profile ?tab=posts|media —
                      SEAM NOTE: touches ProfileScreen.tsx, a ws-D/
                      profile file; run INSIDE the ws-D/profile chain or
@@ -3717,10 +3903,17 @@ run independently.
                      THEN the marketing retarget bite (TrendingCard/
                      comment/search links -> the deep urls; all target
                      routes now merged — CLEAR)
-    ws-D/marketing(2): D-marketing-session-analytics (SMALL, no gate —
-                     hotjar-class session analytics pronto; reconcile
-                     vs the self-hosted posthog line, operator's call,
-                     record in decisions.md)
+    ws-D/marketing(2): D-how-it-works-story-copy (TINY, no gate —
+                       the "It fans out on write" card re-told in reader
+                       language + overview.md sweep), THEN D-ga4-marketing
+                       (SMALL, no gate — GA4 pageview + event analytics
+                       on marketing-ui; GA4 is aggregate only, no
+                       recording, fits the "anonymous, aggregate,
+                       CONTENT-FREE" allowance; one measurement ID
+                       shared or per-app; acceptance: GA4 dashboard
+                       shows real marketing-ui pageviews)
+                       (D-marketing-session-analytics merged 1.0.279 —
+                       de-queued)
     ws-C:            C8 remainder — bite b (membership subscribe
                      journey, 3% split asserted) + bite c (twilio
                      honest half); staged with the M2-prereq block, not

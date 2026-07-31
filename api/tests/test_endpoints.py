@@ -2043,6 +2043,135 @@ class TestEmailVerify:
         assert resp.status_code == 403
 
 
+# ---------------------------------------------------------------------------
+# 14. RECOVERY PHONE (B9 bite a-fix)
+# ---------------------------------------------------------------------------
+
+
+class TestSetRecoveryPhone:
+    """Owner can set their own recovery phone; a token can only ever write to
+    its OWN user's star record (non-owner pin); non-admins rejected; rate
+    limited per user."""
+
+    _CFG = {"provider": "api.localhost", "admins": ["alice", "bob"]}
+
+    @pytest.fixture(autouse=True)
+    def _clear_rate_limit(self):
+        from app.endpoints import auth as auth_endpoints
+
+        auth_endpoints._recovery_phone_attempts.clear()
+        yield
+        auth_endpoints._recovery_phone_attempts.clear()
+
+    def test_owner_sets_recovery_phone(self, client):
+        with (
+            patch("app.services.config.get_config", return_value=dict(self._CFG)),
+            patch("app.services.documentdb.set_phone_number") as m_set,
+        ):
+            resp = client.post(
+                "/set_recovery_phone",
+                json={
+                    "token": _owner_token("alice"),
+                    "query": {"phone": "+15559876543"},
+                },
+            )
+        assert resp.status_code == 200
+        assert resp.json()["phone_number"] == "+15559876543"
+        m_set.assert_called_once_with("+15559876543", "alice")
+
+    def test_non_owner_cannot_set_another_users_phone(self, client):
+        """Bob's token writes to bob's star record — there is no target
+        parameter, so a non-owner can never name another user."""
+        with (
+            patch("app.services.config.get_config", return_value=dict(self._CFG)),
+            patch("app.services.documentdb.set_phone_number") as m_set,
+        ):
+            resp = client.post(
+                "/set_recovery_phone",
+                json={
+                    "token": _owner_token("bob"),
+                    "query": {"phone": "+15559876543"},
+                },
+            )
+        assert resp.status_code == 200
+        m_set.assert_called_once_with("+15559876543", "bob")
+
+    def test_non_admin_user_can_set_own_phone(self, client):
+        """The B9 nudge targets EVERY user — unlike /set_email there is no
+        admin gate; any certified token sets its own user's phone."""
+        with patch("app.services.documentdb.set_phone_number") as m_set:
+            resp = client.post(
+                "/set_recovery_phone",
+                json={
+                    "token": _owner_token("charlie"),
+                    "query": {"phone": "+15559876543"},
+                },
+            )
+        assert resp.status_code == 200
+        m_set.assert_called_once_with("+15559876543", "charlie")
+
+    def test_anon_token_rejected(self, client):
+        resp = client.post(
+            "/set_recovery_phone",
+            json={"token": None, "query": {"phone": "+15559876543"}},
+        )
+        assert resp.status_code == 401
+
+    def test_forged_token_rejected(self, client):
+        with patch("app.services.config.get_config", return_value=dict(self._CFG)):
+            resp = client.post(
+                "/set_recovery_phone",
+                json={
+                    "token": _forged_token("alice"),
+                    "query": {"phone": "+15559876543"},
+                },
+            )
+        assert resp.status_code == 401
+
+    def test_bad_phone_rejected(self, client):
+        with patch("app.services.config.get_config", return_value=dict(self._CFG)):
+            resp = client.post(
+                "/set_recovery_phone",
+                json={
+                    "token": _owner_token("alice"),
+                    "query": {"phone": "abc"},
+                },
+            )
+        assert resp.status_code == 401  # BAD_NUM
+
+    def test_missing_phone_rejected(self, client):
+        with patch("app.services.config.get_config", return_value=dict(self._CFG)):
+            resp = client.post(
+                "/set_recovery_phone",
+                json={"token": _owner_token("alice"), "query": {}},
+            )
+        assert resp.status_code == 401  # BAD_NUM
+
+    def test_rate_limited_after_five_saves(self, client):
+        with (
+            patch("app.services.config.get_config", return_value=dict(self._CFG)),
+            patch("app.services.documentdb.set_phone_number") as m_set,
+        ):
+            for i in range(5):
+                resp = client.post(
+                    "/set_recovery_phone",
+                    json={
+                        "token": _owner_token("alice"),
+                        "query": {"phone": f"+1555987654{i}"},
+                    },
+                )
+                assert resp.status_code == 200
+            resp = client.post(
+                "/set_recovery_phone",
+                json={
+                    "token": _owner_token("alice"),
+                    "query": {"phone": "+15559876540"},
+                },
+            )
+        assert resp.status_code == 429
+        assert m_set.call_count == 5
+
+
 class TestEmailService:
     """Unit tests for the email verification service."""
 

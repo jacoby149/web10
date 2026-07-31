@@ -88,7 +88,7 @@ describe('readDiscoverFeed', () => {
       },
     ]);
     expect((globalThis as unknown as Record<string, unknown>).fetch).toHaveBeenCalledWith(
-      'https://api.web10.app/discover/posts?sort=trending&limit=10',
+      'https://api.web10.app/discover/posts?sort=trending&limit=10&services=public_posts',
       { method: 'PATCH' },
     );
   });
@@ -118,7 +118,7 @@ describe('readDiscoverFeed', () => {
 
     await feed.readDiscoverFeed();
     expect((globalThis as unknown as Record<string, unknown>).fetch).toHaveBeenCalledWith(
-      'https://api.web10.app/discover/posts?sort=recent&limit=20',
+      'https://api.web10.app/discover/posts?sort=recent&limit=20&services=public_posts',
       { method: 'PATCH' },
     );
   });

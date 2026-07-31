@@ -148,6 +148,51 @@ async def signup(form_data: SignUpForm):
     return res
 
 
+# ---- Recovery phone (B9 bite a-fix) ----
+
+# In-memory per-user rate limit for /set_recovery_phone: 5 saves per hour.
+# Process-local (single-node default); enough to stop scripted phone churn.
+_RECOVERY_PHONE_MAX = 5
+_RECOVERY_PHONE_WINDOW = timedelta(hours=1)
+_recovery_phone_attempts: dict[str, list[datetime]] = {}
+
+_PHONE_RE = re.compile(r"^\+?[0-9][0-9 ()-]{5,18}[0-9]$")
+
+
+def _rate_limit_recovery_phone(username: str):
+    now = datetime.utcnow()
+    attempts = [t for t in _recovery_phone_attempts.get(username, []) if now - t < _RECOVERY_PHONE_WINDOW]
+    if len(attempts) >= _RECOVERY_PHONE_MAX:
+        raise exceptions.RATE_LIMIT
+    attempts.append(now)
+    _recovery_phone_attempts[username] = attempts
+
+
+@router.post("/set_recovery_phone", include_in_schema=False)
+async def set_recovery_phone(token: Token):
+    """Set the recovery phone on the authenticated user's own star record.
+
+    Any certified (non-anon) token may set its OWN user's phone — this is the
+    B9 nudge's save path, so it must work for every user, not just node
+    admins (unlike /set_email, no admin gate). The username always comes from
+    the verified token — a token can only ever set its own owner's phone,
+    never another user's. v0: the phone is stored UNVERIFIED (the
+    twilio-verify upgrade rides A21).
+    """
+    if not token.token:
+        raise exceptions.TOKEN
+    certify(Token(token=token.token))  # signature, provider, expiry (raises TOKEN)
+    decoded = decode_token(token.token, private_key=True)  # verified claims (I2)
+    if decoded.username == "anon":
+        raise exceptions.TOKEN
+    phone = (token.query.get("phone") or "").strip()
+    if not _PHONE_RE.match(phone):
+        raise exceptions.BAD_NUM
+    _rate_limit_recovery_phone(decoded.username)
+    db.set_phone_number(phone, decoded.username)
+    return {"phone_number": phone}
+
+
 # ---- Email verification (A20 bite a) ----
 
 
