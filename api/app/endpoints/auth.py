@@ -30,6 +30,7 @@ router = APIRouter()
 # Rate-limiting for recovery endpoints (in-memory, per-IP + per-identifier)
 # ---------------------------------------------------------------------------
 
+
 class _RateLimiter:
     """Simple in-memory sliding-window rate limiter.
 

@@ -2150,7 +2150,10 @@ class TestEmailRecoveryPrompt:
 
     def test_prompt_sends_code_for_verified_email(self, client):
         with (
-            patch("app.services.documentdb.get_email_record", return_value={"email": "alice@example.com", "username": "alice"}),
+            patch(
+                "app.services.documentdb.get_email_record",
+                return_value={"email": "alice@example.com", "username": "alice"},
+            ),
             patch("app.services.documentdb.is_email_verified", return_value=True),
             patch("app.services.email.send_recovery_code") as m_send,
         ):
@@ -2173,7 +2176,10 @@ class TestEmailRecoveryPrompt:
 
     def test_prompt_rejects_unverified_email(self, client):
         with (
-            patch("app.services.documentdb.get_email_record", return_value={"email": "alice@example.com", "username": "alice"}),
+            patch(
+                "app.services.documentdb.get_email_record",
+                return_value={"email": "alice@example.com", "username": "alice"},
+            ),
             patch("app.services.documentdb.is_email_verified", return_value=False),
         ):
             resp = client.post(
@@ -2186,6 +2192,7 @@ class TestEmailRecoveryPrompt:
     def test_prompt_rate_limited(self, client):
         """More than 5 requests in 5 minutes should be rate-limited."""
         from app.endpoints.auth import _recovery_limiter
+
         _recovery_limiter._buckets.clear()
 
         for _ in range(5):
@@ -2210,7 +2217,10 @@ class TestEmailRecoveryReset:
     def test_reset_success(self, client):
         with (
             patch("app.services.email.check_recovery_code", return_value=True),
-            patch("app.services.documentdb.get_email_record", return_value={"email": "alice@example.com", "username": "alice"}),
+            patch(
+                "app.services.documentdb.get_email_record",
+                return_value={"email": "alice@example.com", "username": "alice"},
+            ),
             patch("app.services.documentdb.change_pass") as m_change,
         ):
             m_change.return_value = "ok"
@@ -2294,6 +2304,7 @@ class TestEmailRecoveryReset:
     def test_reset_rate_limited(self, client):
         """More than 3 reset attempts in 10 minutes should be rate-limited."""
         from app.endpoints.auth import _reset_limiter
+
         _reset_limiter._buckets.clear()
 
         for _ in range(3):
