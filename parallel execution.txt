@@ -2435,7 +2435,7 @@ BITES (rule 5 — one bite PER SCREEN when staged, each its own
       (screenshots desktop + 375px, LOOK — it reads YouTube, not
       Twitter); the default view is unchanged; marketing-ui tests
       + tsc green. gate: none.
-      bite b, DISCOVER PARITY: the same view toggle on web10-
+      bite b, DISCOVER PARITY [✓ 1.0.280]: the same view toggle on web10-
       social's DiscoverScreen (the D-inapp-discover-knobs port,
       1.0.241) so the in-app surface matches — sub-lane
       ws-D/discover, gate: bite a (the pattern exists to copy).
@@ -2772,8 +2772,10 @@ BITES (rule 5 — one bite PER SCREEN when staged, each its own
       the self-like round-trip incl. the call-site target format;
       social tests + tsc green. gate: none.
 
-[ ] D-visibility-toggle-duplicate (sub-lane ws-D/profile; operator, 30.07
-      rant: "i tried publicing a post, privating the post, publicing it
+[✓ 1.0.281] D-visibility-toggle-duplicate (sub-lane ws-D/profile; operator, 30.07
+       rant: "i tried publicing a post, privating the post, publicing it
+       again, there is now two posts one in public one in private of the
+       same post"): D-post-visibility-toggle's movePostVisibility
       again, there is now two posts one in public one in private of the
       same post"): D-post-visibility-toggle's movePostVisibility
       (posts.ts:154) is create-in-target THEN delete-from-source — a
@@ -3732,16 +3734,19 @@ ws-B:            B9-recovery-contact-nudge bite a (the nudge — no
                       analytics on ui/auth; aggregate only, no
                       recording; acceptance: GA4 dashboard shows real
                       auth pageviews)
-    ws-D/profile:    D-visibility-toggle-duplicate (REPRO first — stale
+    ws-D/profile:    D-own-profile-edit-restore (owner edit affordances
+                     lost in the /u move — edit profile, avatar/banner
+                     upload, review-imports; isOwnProfile gate), THEN
+                     D-visibility-toggle-duplicate (REPRO first — stale
                      post object across toggles), THEN D-public-media-
                      verify (TINY — the gate-CLEARER for the two GATED
                      media items below), THEN D-follow-lists (twice-
                      complained — /u/:username/followers|following
                      routes), THEN D-lightbox-media-sizing, THEN
                      D-profile-image-placement, D-text-post-cards
-    ws-D/discover:   D-trending-views bite b (Discover parity — the
-                     view toggle ported to DiscoverScreen; gate: bite a
-                     merged 1.0.272, CLEAR)
+ws-D/discover:   [✓ 1.0.280] D-trending-views bite b (Discover parity — the
+                      view toggle ported to DiscoverScreen; gate: bite a
+                      merged 1.0.272, CLEAR)
     ws-D/social-analytics: D-ga4-social (SMALL, no gate — GA4 pageview +
                       event analytics on web10-social; aggregate only,
                       no recording, fits the "anonymous, aggregate,
