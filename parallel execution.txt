@@ -2488,7 +2488,7 @@ BITES (rule 5 — one bite PER SCREEN when staged, each its own
       surfaces remain recording-free; marketing-ui tests + tsc
       green. gate: none.
 
-[ ] D-how-it-works-story-copy (sub-lane ws-D/marketing(2), TINY;
+[✓ 1.0.289] D-how-it-works-story-copy (sub-lane ws-D/marketing(2), TINY;
       operator, 30.07 rant: "the marketing page says this thing 'it
       fans out on write' it doesnt make so much sense, dont know what
       that means. the first and the third card were good though! lets
