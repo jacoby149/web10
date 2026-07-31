@@ -14,7 +14,7 @@ import {
   countFollows,
   countFollowers,
   countUserFollowing,
-  readUserPostsFromDiscovery,
+  readUserPublicPosts,
 } from '@/data';
 import { getWapi } from '@/data/wapi';
 import type { ProfileRecord, PostRecord, MediaRecord, FollowRecord } from '@/data/types';
@@ -117,11 +117,13 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
         setFollowRecord(fr);
         setFollowing(fr?.status === 'active' || false);
 
-        // Fetch posts from discovery API via pagination (per-author, never limit-50-and-pray)
+        // Fetch posts DIRECTLY from the author's public_posts collection —
+        // never via discovery, so admin board-moderation (discover-only
+        // takedown) can't rip the post off the author's profile.
         try {
-          postsData = await readUserPostsFromDiscovery(username, provider);
+          postsData = await readUserPublicPosts(username, provider);
         } catch {
-          // Discovery API unavailable
+          // Author collection unreadable
         }
 
         // Follower count from the public ledger (per-user, never the viewer's)
