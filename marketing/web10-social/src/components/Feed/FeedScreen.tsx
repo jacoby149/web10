@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  readFeed,
+  readPullFeed,
   readProfile,
   readUserProfile,
   readMyPosts,
@@ -397,7 +397,10 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
   const loadFeed = useCallback(async () => {
     setLoading(true);
     try {
-      const feed = await readFeed(sort);
+      // The feed PULLS: your own posts + one direct read per person you
+      // follow (their public_posts collection). No inbox fan-out, no
+      // discovery board — discovery is for the Discover page only.
+      const feed = await readPullFeed(sort);
       setItems(feed);
 
       const token = getWapi().readToken();
@@ -495,6 +498,14 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
           comments[item.post_id] = cc;
         }),
       );
+
+      // most_reacted sorts client-side with the counts fetched above
+      // (the pull feed returns newest ordering).
+      if (sort === 'most_reacted') {
+        setItems(
+          [...feed].sort((a, b) => (reactions[b.post_id] || 0) - (reactions[a.post_id] || 0)),
+        );
+      }
 
       // Resolve author avatars — collect unique avatar_refs from profiles
       // and resolve them via public_media for cross-user reads.

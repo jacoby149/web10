@@ -9,6 +9,32 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D40 — Feed + profile PULL directly; discovery board is Discover-only [decided]
+Operator, 31.07.2026: "it doesnt have to be on the discovery for me to see
+it… if i am on his page, it should hit his service directly. likewise on
+the feed, it should hit all the friends directly with get requests. the
+thing that should be public discover is only the discover page." And on
+the feed architecture: "the feed will have a more solid architecture,
+this is the v0! :) kind of whatsappy or something." **Decided:** (1) the
+profile wall reads the author's `public_posts` DIRECTLY from their
+collection (anon-read whitelisted by the canonical term) — shipped in
+1.0.297 (#477, `readUserPublicPosts`); (2) the friends feed PULLS — your
+own posts + one direct read per active followee's `public_posts`
+(`readPullFeed`, 1.0.298) — replacing the inbox fan-out read path for the
+feed v0; (3) the discovery board serves ONLY the Discover/trending/
+search surfaces (per D39 it remains the one public cross-user
+projection). Consequences: a board-moderated post stays on the author's
+profile and in friends' feeds (moderation is discover-only by design);
+the inbox fan-out write path (D-post-delivery) is now vestigial for the
+feed — left in place, retirement is a later cleanup; "100% delivery" is
+told as pull ("they are pulling from their friends"), the marketing page
+already dropped fan-out language (1.0.289). Rejects: feed-via-inbox
+(fan-out copies drift from the source of truth and break when follows
+don't persist); profile-via-discovery (a discover-only takedown ripped
+posts off profiles).
+
+---
+
 ### D39 — Discovery board is a general projection; READERS pass `services` [decided]
 Operator, 31.07.2026: "the discovery board should take an input of the
 services, so the frontend can actually ask the discovery board what it
