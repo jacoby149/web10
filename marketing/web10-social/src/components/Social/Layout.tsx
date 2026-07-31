@@ -181,7 +181,7 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
         </div>
 
         <nav
-          aria-label="Primary"
+          aria-label="Primary mobile"
           className="md:hidden fixed bottom-0 inset-x-0 z-20 flex items-stretch border-t border-border bg-surface/95 backdrop-blur-md overflow-x-auto"
         >
           {navItems.map(({ path, icon: Icon, label, testId }) => {
@@ -209,17 +209,12 @@ export default function Layout({ onLogout, onReportBug, children }: LayoutProps)
             </button>
             );
           })}
-          {comingSoonItems.map(({ icon: Icon, label, testId }) => (
-            <div
-              key={testId}
-              data-testid={`${testId}-mobile`}
-              aria-disabled="true"
-              className="flex-1 min-w-fit flex flex-col items-center justify-center gap-0.5 min-h-11 py-2.5 text-muted-foreground/50 cursor-not-allowed select-none"
-            >
-              <Icon className="w-5 h-5" strokeWidth={1.75} />
-              <span className="text-[0.625rem] font-medium uppercase tracking-wide">{label}</span>
-            </div>
-          ))}
+          {/* Mobile bottom bar shows only real destinations — the coming-
+              soon items stay on the desktop sidebar (operator, 31.07.2026:
+              "for the greyed out tabs, just dont even show them! the coming
+              soon ones for mobile, looked great on the bottom bar before!
+              … coming soon on desktop i actually really like, just dont
+              like seeing them on mobile"). */}
           <button
             data-testid="report-bug-button-mobile"
             aria-label="Report a bug"
