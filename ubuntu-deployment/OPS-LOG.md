@@ -351,3 +351,28 @@ state:
 next: (1) lane B lands the UI origin env fix + staging compose build
 args, (2) ops agent adds rtc/minio DNS records per §6, (3) redeploy
 + smoke test per §5.
+
+## 31.07.2026 — lincoln (web10web10! workspace) — prod terms migrations RUN (follow-persistence fix)
+did: ran the two terms migrations on PROD via the api container's own
+python (`docker exec -w /web10 web10-prod-api-1 /web10/.venv/bin/python`),
+idempotent + additive (inserts missing terms only):
+  - `db.migrate_follows_terms()` → {'migrated': 1880, 'skipped': 620, 'errors': 0}
+    (follows/inbox/reactions/comments/dms core terms for every account
+    that lacked them — the follow-write 403 class; jacoby149 + coolguydavid
+    both verified provisioned after)
+  - `db.migrate_public_posts_terms()` → {'migrated': 330, 'skipped': 170, 'errors': 0}
+why: operator report 31.07 — follow doesn't persist (refresh → "Follow"
+again), friends' posts unreachable. Root cause: accounts created before
+core-terms provisioning had no `follows` term, so wapi.create('follows')
+403'd silently. This is the E-run-discovery-migration item's terms half,
+executed with box access instead of the admin token.
+DELIBERATELY NOT RUN: the discovery backfill (`/admin/discovery/backfill`).
+(1) coolguydavid's only public post was admin-removed from the board by
+the operator 27.07 (the A16 incident post) — a backfill would resurrect
+it on trending; (2) per decisions.md D40 (31.07) the profile wall and the
+friends feed now read collections DIRECTLY, so the backfill is no longer
+load-bearing for those surfaces — it only affects Discover/trending media
+fields (A17). Run it when the operator explicitly wants the old corpus
+re-indexed for Discover.
+state: prod serving 1.0.298 (pull feed + direct profile wall); e2e green
+on main; anon direct read of coolguydavid/public_posts verified 200.
