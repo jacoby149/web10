@@ -18,7 +18,8 @@ import {
 } from '@/data';
 import { getWapi } from '@/data/wapi';
 import type { ProfileRecord, PostRecord, MediaRecord, FollowRecord } from '@/data/types';
-import { MapPin, Globe, Link, Users, UserPlus, UserCheck, Loader2, ArrowLeft, MessageSquare } from 'lucide-react';
+import { MapPin, Globe, Link, Users, UserPlus, UserCheck, Loader2, ArrowLeft, MessageSquare, Play } from 'lucide-react';
+import { PostLightbox } from './PostLightbox';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 
@@ -72,6 +73,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
   const [followLoading, setFollowLoading] = useState(false);
   const [followError, setFollowError] = useState<string | null>(null);
   const [followingCountError, setFollowingCountError] = useState(false);
+  const [lightboxPost, setLightboxPost] = useState<PostRecord | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -404,14 +406,46 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
               {posts.map((post) => {
                 const firstMedia = post.media_refs?.[0] ? mediaMap[post.media_refs[0]] : null;
                 return (
-                  <div key={post._id} className="aspect-square bg-elevated overflow-hidden relative group">
+                  <div
+                    key={post._id}
+                    role="button"
+                    tabIndex={0}
+                    aria-label="View post"
+                    data-testid="profile-post-cell"
+                    onClick={() => setLightboxPost(post)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setLightboxPost(post);
+                      }
+                    }}
+                    className="aspect-square bg-elevated overflow-hidden relative group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                  >
                     {firstMedia ? (
-                      <img
-                        src={firstMedia.url}
-                        alt=""
-                        className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-110"
-                        loading="lazy"
-                      />
+                      firstMedia.mime_type?.startsWith('video/') ? (
+                        <div className="w-full h-full relative">
+                          <video
+                            src={firstMedia.url}
+                            poster={firstMedia.thumbnail_url}
+                            className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-110"
+                            preload="metadata"
+                            playsInline
+                            muted
+                          />
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                            <div className="flex items-center justify-center w-9 h-9 rounded-full bg-background/80 backdrop-blur-sm">
+                              <Play className="w-4 h-4 text-foreground ml-0.5" strokeWidth={2} />
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <img
+                          src={firstMedia.url}
+                          alt=""
+                          className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-110"
+                          loading="lazy"
+                        />
+                      )
                     ) : post.text ? (
                       <div className="w-full h-full p-3 flex items-start">
                         <p className="text-xs text-muted-foreground line-clamp-6">{post.text}</p>
@@ -422,6 +456,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
                         {post.media_refs?.length}
                       </div>
                     )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-150" />
                   </div>
                 );
               })}
@@ -438,13 +473,46 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
                 const media = mediaMap[ref];
                 if (!media) return null;
                 return (
-                  <div key={ref} className="aspect-square bg-elevated overflow-hidden group">
-                    <img
-                      src={media.url}
-                      alt={media.alt_text || ''}
-                      className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-110"
-                      loading="lazy"
-                    />
+                  <div
+                    key={ref}
+                    role="button"
+                    tabIndex={0}
+                    aria-label="View post"
+                    data-testid="profile-media-cell"
+                    onClick={() => setLightboxPost(post)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setLightboxPost(post);
+                      }
+                    }}
+                    className="aspect-square bg-elevated overflow-hidden relative group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                  >
+                    {media.mime_type?.startsWith('video/') ? (
+                      <div className="w-full h-full relative">
+                        <video
+                          src={media.url}
+                          poster={media.thumbnail_url}
+                          className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-110"
+                          preload="metadata"
+                          playsInline
+                          muted
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                          <div className="flex items-center justify-center w-9 h-9 rounded-full bg-background/80 backdrop-blur-sm">
+                            <Play className="w-4 h-4 text-foreground ml-0.5" strokeWidth={2} />
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <img
+                        src={media.url}
+                        alt={media.alt_text || ''}
+                        className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-110"
+                        loading="lazy"
+                      />
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-150" />
                   </div>
                 );
               }),
@@ -456,6 +524,18 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
           </div>
         )}
       </div>
+
+      {lightboxPost && (
+        <PostLightbox
+          post={lightboxPost}
+          mediaMap={mediaMap}
+          onClose={() => setLightboxPost(null)}
+          onReload={loadData}
+          postAuthor={username}
+          postService={'public_posts'}
+          isOwner={isOwnProfile}
+        />
+      )}
     </div>
   );
 }
