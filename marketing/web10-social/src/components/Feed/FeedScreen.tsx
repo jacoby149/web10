@@ -418,10 +418,16 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
         }
         const authorKey = `${item.author_username}@${item.author_provider}`;
         if (!profiles[authorKey]) {
-          const profile =
-            item.author_username === token.username
-              ? await readProfile()
-              : await readUserProfile(item.author_username, item.author_provider);
+          // One author's profile being unreadable (e.g. their account
+          // predates the profile term) must never blank the whole feed —
+          // fall back to their username and keep going.
+          let profile: ProfileRecord | null = null;
+          try {
+            profile =
+              item.author_username === token.username
+                ? await readProfile()
+                : await readUserProfile(item.author_username, item.author_provider);
+          } catch { /* fall through to the username fallback */ }
           profiles[authorKey] = profile || { display_name: item.author_username };
         }
       }
@@ -462,15 +468,19 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
         if (ownRefs.length) {
           refsByAuthor.set(`${token.username}@${token.provider}`, [...new Set(ownRefs)]);
         }
-        // Resolve each author's refs
+        // Resolve each author's refs — one author's media being unreadable
+        // must never blank the feed; their posts render media-less.
         for (const [key, refs] of refsByAuthor) {
           const [authorUsername, authorProvider] = key.split('@');
           const isOwn = authorUsername === token.username && authorProvider === token.provider;
-          const mediaRecords = await resolveMediaRefs(
-            refs,
-            { username: authorUsername, provider: authorProvider },
-            isOwn ? 'media' : 'public_media',
-          );
+          let mediaRecords: MediaRecord[] = [];
+          try {
+            mediaRecords = await resolveMediaRefs(
+              refs,
+              { username: authorUsername, provider: authorProvider },
+              isOwn ? 'media' : 'public_media',
+            );
+          } catch { /* this author's media is skipped, not fatal */ }
           // Assign resolved media to each post that references it
           for (const [postId, author] of postAuthors) {
             if (author.username === authorUsername && author.provider === authorProvider) {
@@ -490,12 +500,15 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
       const liked: Record<string, boolean> = {};
       await Promise.all(
         feed.map(async (item) => {
-          const [rc, cc] = await Promise.all([
-            countReactions('posts', item.post_id),
-            countComments(item.post_id),
-          ]);
-          reactions[item.post_id] = rc;
-          comments[item.post_id] = cc;
+          // Per-item isolation: one post's count failing never blanks the feed.
+          try {
+            const [rc, cc] = await Promise.all([
+              countReactions('posts', item.post_id),
+              countComments(item.post_id),
+            ]);
+            reactions[item.post_id] = rc;
+            comments[item.post_id] = cc;
+          } catch { /* counts stay 0 for this post */ }
         }),
       );
 
@@ -528,14 +541,16 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
         for (const [key, refs] of avatarsByAuth) {
           const [u, p] = key.split('@');
           const isOwn = u === token.username && p === token.provider;
-          const avatars = await resolveMediaRefs(
-            refs,
-            { username: u, provider: p },
-            isOwn ? 'media' : 'public_media',
-          );
-          for (const m of avatars) {
-            if (m._id) avatarByAuthor[m._id] = m.url;
-          }
+          try {
+            const avatars = await resolveMediaRefs(
+              refs,
+              { username: u, provider: p },
+              isOwn ? 'media' : 'public_media',
+            );
+            for (const m of avatars) {
+              if (m._id) avatarByAuthor[m._id] = m.url;
+            }
+          } catch { /* this author's avatar is skipped, not fatal */ }
         }
       }
 

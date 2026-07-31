@@ -173,3 +173,59 @@ class TestCoreServicesTerms:
         terms = records.core_services_terms()
         services = {t["service"] for t in terms}
         assert services == {"follows", "inbox", "reactions", "comments", "dms"}
+
+
+class TestProfileTerm:
+    """Core services provisioning: profile is anon-read (D40 pull model —
+    the friends feed reads a friend's profile record directly)."""
+
+    def test_service_is_profile(self):
+        r = records.profile_term()
+        assert r["service"] == "profile"
+
+    def test_whitelist_grants_anon_read(self):
+        r = records.profile_term()
+        assert len(r["whitelist"]) == 1
+        entry = r["whitelist"][0]
+        assert entry["username"] == ".*"
+        assert entry["provider"] == ".*"
+        assert entry["read"] is True
+
+
+class TestPublicMediaTerm:
+    """Core services provisioning: public_media is anon-read (D35)."""
+
+    def test_service_is_public_media(self):
+        r = records.public_media_term()
+        assert r["service"] == "public_media"
+
+    def test_whitelist_grants_anon_read(self):
+        r = records.public_media_term()
+        assert len(r["whitelist"]) == 1
+        entry = r["whitelist"][0]
+        assert entry["read"] is True
+
+
+class TestCoreServicesTerms:
+    """The full core set provisioned at signup + by the migration."""
+
+    def test_full_set(self):
+        services = [t["service"] for t in records.core_services_terms()]
+        assert services == [
+            "follows",
+            "inbox",
+            "reactions",
+            "comments",
+            "dms",
+            "profile",
+            "public_media",
+            "private_posts",
+            "staging_posts",
+            "media",
+        ]
+
+    def test_owner_only_terms_have_empty_whitelist(self):
+        owner_only = {"follows", "reactions", "comments", "dms", "private_posts", "staging_posts", "media"}
+        for t in records.core_services_terms():
+            if t["service"] in owner_only:
+                assert t["whitelist"] == [], t["service"]

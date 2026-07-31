@@ -88,6 +88,64 @@ def dms_term():
     }
 
 
+def profile_term():
+    """Canonical anon-read term for the `profile` service.
+
+    The friends feed + user profiles read another user's profile record
+    DIRECTLY from their collection (D40 pull model) — every account needs
+    this term or a friend's profile read 403s.
+    """
+    return {
+        "service": "profile",
+        "whitelist": [
+            {"username": ".*", "provider": ".*", "read": True},
+        ],
+        "blacklist": [],
+    }
+
+
+def public_media_term():
+    """Canonical anon-read term for `public_media` (D35).
+
+    Public-post attachments and avatar/banner confirm into `public_media`
+    so non-owners can presign reads. Matches the app's serviceTerms.ts.
+    """
+    return {
+        "service": "public_media",
+        "whitelist": [
+            {"username": ".*", "provider": ".*", "read": True},
+        ],
+        "blacklist": [],
+    }
+
+
+def private_posts_term():
+    """Canonical owner-only term for the `private_posts` service."""
+    return {
+        "service": "private_posts",
+        "whitelist": [],
+        "blacklist": [],
+    }
+
+
+def staging_posts_term():
+    """Canonical owner-only term for the `staging_posts` service (D19)."""
+    return {
+        "service": "staging_posts",
+        "whitelist": [],
+        "blacklist": [],
+    }
+
+
+def media_term():
+    """Canonical owner-only term for the `media` service."""
+    return {
+        "service": "media",
+        "whitelist": [],
+        "blacklist": [],
+    }
+
+
 def core_services_terms():
     """Return all core app service terms that must be provisioned at signup.
 
@@ -95,7 +153,10 @@ def core_services_terms():
     owner's own collection. Without these, the app's SMROnReady consent
     is the only thing that creates terms — and SMR only fires while the
     auth portal child window is open. A13 fixed public_posts; this
-    fixes the rest (follows, inbox, reactions, comments, dms).
+    fixes the rest (follows, inbox, reactions, comments, dms, profile,
+    public_media, private_posts, staging_posts, media — the D40 pull
+    model reads friends' profile/public_media DIRECTLY, so the anon-read
+    pair is load-bearing for the feed, not just for discovery).
     """
     return [
         follows_term(),
@@ -103,6 +164,11 @@ def core_services_terms():
         reactions_term(),
         comments_term(),
         dms_term(),
+        profile_term(),
+        public_media_term(),
+        private_posts_term(),
+        staging_posts_term(),
+        media_term(),
     ]
 
 
