@@ -2164,7 +2164,7 @@ shell:
     lane item D-deep-links (ws-D/shell; cross-screen seam — stage
     after the current fleet drains). BITES MERGED: messages [✓ 1.0.266],
     discover ?tag=&q= [✓ 1.0.276], comment anchor [✓ 1.0.271]; open:
-    profile ?tab=, marketing click-through retarget.
+    profile ?tab=, marketing click-through retarget [✓ 1.0.279].
 [✓ 1.0.211 #365] SETTINGS TAB (operator, 26.07): "web10 social doesn't have a
     settings tab, should be a settings tab, facebook style." v0 =
     account section, posting defaults (default visibility), data/
