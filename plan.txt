@@ -3260,7 +3260,7 @@ testing:
         CONTENT-FREE: fits squarely within the standing "aggregate
         exhaust only" allowance. One measurement ID shared across all
         three apps (or per-app if the operator wants property separation).
-        File: D-ga4-marketing (ws-D/marketing(2)), [✓ 1.0.289] D-ga4-social (ws-D/
+        File: D-ga4-marketing (ws-D/marketing(2)), [✓ 1.0.294] D-ga4-social (ws-D/
         social-analytics, merged), D-ga4-auth
        (ws-B). Each is SMALL, no gate, parallel-safe (different
        directories). Acceptance: GA4 dashboard shows real pageviews
