@@ -3758,10 +3758,10 @@ chained PRs behind them — Qwens run independently.
                      bite b (email recovery UI — gate: A20 bite b =
                      #462 merged + the .context/ contract), THEN
                      D-ga4-auth (SMALL, no gate).
-    ws-D/profile:    D-own-profile-edit-restore (owner edit affordances
-                     lost in the /u move — edit profile, avatar/banner
-                     upload, review-imports; isOwnProfile gate), THEN
-                     D-follow-lists (twice-complained —
+ws-D/profile:    [✓ 1.0.289] D-own-profile-edit-restore (owner edit affordances
+                      lost in the /u move — edit profile, avatar/banner
+                      upload, review-imports; isOwnProfile gate), THEN
+                      D-follow-lists (twice-complained —
                      /u/:username/followers|following routes), THEN
                      D-lightbox-media-sizing, THEN
                      D-profile-image-placement, D-text-post-cards.
@@ -3860,10 +3860,10 @@ ws-B:            B9-recovery-contact-nudge bite a (the nudge — no
                       analytics on ui/auth; aggregate only, no
                       recording; acceptance: GA4 dashboard shows real
                       auth pageviews)
-    ws-D/profile:    D-own-profile-edit-restore (owner edit affordances
-                     lost in the /u move — edit profile, avatar/banner
-                     upload, review-imports; isOwnProfile gate), THEN
-                     D-visibility-toggle-duplicate (REPRO first — stale
+ws-D/profile:    [✓ 1.0.289] D-own-profile-edit-restore (owner edit affordances
+                      lost in the /u move — edit profile, avatar/banner
+                      upload, review-imports; isOwnProfile gate), THEN
+                      D-visibility-toggle-duplicate (REPRO first — stale
                      post object across toggles), THEN D-public-media-
                      verify (TINY — the gate-CLEARER for the two GATED
                      media items below), THEN D-follow-lists (twice-
