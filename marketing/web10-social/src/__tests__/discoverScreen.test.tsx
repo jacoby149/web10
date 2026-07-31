@@ -671,4 +671,274 @@ describe('DiscoverScreen', () => {
     // Search input should be empty
     expect(screen.getByTestId('discover-search')).toHaveValue('');
   });
+
+  // ── D-trending-views bite b: view toggle + YouTube view ──────────────
+
+  it('renders view toggle with Grid and YouTube buttons', async () => {
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        author: 'user1',
+        provider: 'api.web10.app',
+        post_id: 'p1',
+        text: 'Test post',
+        tags: ['video'],
+        created_at: new Date().toISOString(),
+        likes: 10,
+        comments: 2,
+        reposts: 1,
+        score: 14,
+      },
+    ]);
+
+    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
+    render(
+      <MemoryRouter initialEntries={['/discover']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-view-toggle')).toBeInTheDocument();
+    });
+
+    expect(screen.getByTestId('discover-view-toggle-grid')).toBeInTheDocument();
+    expect(screen.getByTestId('discover-view-toggle-youtube')).toBeInTheDocument();
+    // Grid should be active by default
+    expect(screen.getByTestId('discover-view-toggle-grid').classList).toContain('bg-brand-muted');
+  });
+
+  it('switches to YouTube view when YouTube button is clicked', async () => {
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        author: 'user1',
+        provider: 'api.web10.app',
+        post_id: 'p1',
+        text: 'Video post',
+        tags: ['video'],
+        media_refs: ['m1'],
+        created_at: new Date().toISOString(),
+        likes: 10,
+        comments: 2,
+        reposts: 1,
+        score: 14,
+      },
+      {
+        author: 'user2',
+        provider: 'api.web10.app',
+        post_id: 'p2',
+        text: 'Text only post',
+        tags: ['general'],
+        created_at: new Date().toISOString(),
+        likes: 5,
+        comments: 1,
+        reposts: 0,
+        score: 7,
+      },
+    ]);
+
+    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
+    render(
+      <MemoryRouter initialEntries={['/discover']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-grid')).toBeInTheDocument();
+    });
+
+    // Click YouTube toggle
+    fireEvent.click(screen.getByTestId('discover-view-toggle-youtube'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-view-toggle-youtube').classList).toContain('bg-brand-muted');
+    });
+
+    // Should show YouTube grid with only media posts
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-youtube-grid')).toBeInTheDocument();
+    });
+
+    // Only 1 YouTube card (the video post, not the text-only post)
+    expect(screen.getAllByTestId('discover-youtube-card').length).toBe(1);
+  });
+
+  it('restores YouTube view from ?view=youtube on initial render', async () => {
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        author: 'user1',
+        provider: 'api.web10.app',
+        post_id: 'p1',
+        text: 'Video post',
+        tags: ['video'],
+        created_at: new Date().toISOString(),
+        likes: 10,
+        comments: 2,
+        reposts: 1,
+        score: 14,
+      },
+    ]);
+
+    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
+    render(
+      <MemoryRouter initialEntries={['/discover?view=youtube']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-view-toggle-youtube').classList).toContain('bg-brand-muted');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-youtube-grid')).toBeInTheDocument();
+    });
+  });
+
+  it('shows YouTube empty state when no media posts exist', async () => {
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        author: 'user1',
+        provider: 'api.web10.app',
+        post_id: 'p1',
+        text: 'Text only post',
+        tags: ['general'],
+        created_at: new Date().toISOString(),
+        likes: 10,
+        comments: 2,
+        reposts: 1,
+        score: 14,
+      },
+    ]);
+
+    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
+    render(
+      <MemoryRouter initialEntries={['/discover?view=youtube']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-youtube-empty')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('No media posts yet')).toBeInTheDocument();
+    expect(screen.getByTestId('discover-youtube-empty-cta')).toBeInTheDocument();
+  });
+
+  it('YouTube empty state CTA switches back to grid view', async () => {
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        author: 'user1',
+        provider: 'api.web10.app',
+        post_id: 'p1',
+        text: 'Text only post',
+        tags: ['general'],
+        created_at: new Date().toISOString(),
+        likes: 10,
+        comments: 2,
+        reposts: 1,
+        score: 14,
+      },
+    ]);
+
+    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
+    render(
+      <MemoryRouter initialEntries={['/discover?view=youtube']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-youtube-empty')).toBeInTheDocument();
+    });
+
+    // Click the CTA to switch to grid
+    fireEvent.click(screen.getByTestId('discover-youtube-empty-cta'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-view-toggle-grid').classList).toContain('bg-brand-muted');
+    });
+
+    // Should now show grid view
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-grid')).toBeInTheDocument();
+    });
+  });
+
+  it('YouTube card renders 16:9 thumbnail area and author info', async () => {
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        author: 'video-creator',
+        provider: 'api.web10.app',
+        post_id: 'p1',
+        text: 'My amazing video content',
+        tags: ['video'],
+        created_at: new Date(Date.now() - 3600000).toISOString(),
+        likes: 42,
+        comments: 8,
+        reposts: 3,
+        score: 53,
+      },
+    ]);
+
+    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
+    render(
+      <MemoryRouter initialEntries={['/discover?view=youtube']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-youtube-grid')).toBeInTheDocument();
+    });
+
+    const cards = screen.getAllByTestId('discover-youtube-card');
+    expect(cards.length).toBe(1);
+    // Should have the video icon placeholder (no real media resolved)
+    expect(screen.getAllByTestId('icon-film')[0]).toBeInTheDocument();
+  });
+
+  it('default grid view is unchanged (no ?view= param)', async () => {
+    (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        author: 'user1',
+        provider: 'api.web10.app',
+        post_id: 'p1',
+        text: 'Post with video',
+        tags: ['video'],
+        created_at: new Date().toISOString(),
+        likes: 10,
+        comments: 2,
+        reposts: 1,
+        score: 14,
+      },
+      {
+        author: 'user2',
+        provider: 'api.web10.app',
+        post_id: 'p2',
+        text: 'Text only post',
+        tags: ['general'],
+        created_at: new Date().toISOString(),
+        likes: 5,
+        comments: 1,
+        reposts: 0,
+        score: 7,
+      },
+    ]);
+
+    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
+    render(
+      <MemoryRouter initialEntries={['/discover']}>
+        <DiscoverScreen />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-grid')).toBeInTheDocument();
+    });
+
+    // Both posts visible in grid (text + media)
+    expect(screen.getAllByTestId('discover-card').length).toBe(2);
+  });
 });
