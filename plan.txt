@@ -3251,15 +3251,15 @@ testing:
          session"), self-hosted, staging-first. watch real usage
          without surveilling fans; the consent is the feature,
          and it's a pitch line ("they record everyone; we asked").
-     - Google Analytics 4 (operator, 30.07): aggregate pageview +
-       event analytics across ALL surfaces (marketing-ui, web10-social,
-       ui/auth). GA4 is NOT session recording — no DOM capture, no
-       keystroke logging, no replay. It is anonymous, aggregate,
-       CONTENT-FREE: fits squarely within the standing "aggregate
-       exhaust only" allowance. One measurement ID shared across all
-       three apps (or per-app if the operator wants property separation).
-       File: D-ga4-marketing (ws-D/marketing(2)), D-ga4-social (ws-D/
-       social-analytics or nearest open ws-D sub-lane), D-ga4-auth
+- Google Analytics 4 (operator, 30.07): aggregate pageview +
+        event analytics across ALL surfaces (marketing-ui, web10-social,
+        ui/auth). GA4 is NOT session recording — no DOM capture, no
+        keystroke logging, no replay. It is anonymous, aggregate,
+        CONTENT-FREE: fits squarely within the standing "aggregate
+        exhaust only" allowance. One measurement ID shared across all
+        three apps (or per-app if the operator wants property separation).
+        File: D-ga4-marketing (ws-D/marketing(2)), [✓ 1.0.289] D-ga4-social (ws-D/
+        social-analytics, merged), D-ga4-auth
        (ws-B). Each is SMALL, no gate, parallel-safe (different
        directories). Acceptance: GA4 dashboard shows real pageviews
        from the corresponding surface; no content leaves the app.

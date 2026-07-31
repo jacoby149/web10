@@ -16,6 +16,7 @@ import { ReportBug } from '@/components/shared/ReportBug';
 import { getWapi } from '@/data/wapi';
 import { registerDefaultSchemas } from '@/data/feed';
 import { resolveMediaRefs } from '@/data/posts';
+import { trackEvent } from '@/lib/analytics';
 import { PostLightbox } from '@/components/Bio/PostLightbox';
 import type { PostRecord, MediaRecord } from '@/data/types';
 
@@ -199,7 +200,10 @@ function FeedRoute({ onAuthorClick }: { onAuthorClick: (username: string, provid
   const [version, setVersion] = useState(0);
   return (
     <>
-      <PostComposer onPostCreated={() => setVersion((v) => v + 1)} />
+      <PostComposer onPostCreated={() => {
+        setVersion((v) => v + 1);
+        trackEvent('post_created');
+      }} />
       <FeedScreen key={version} onAuthorClick={onAuthorClick} />
     </>
   );
@@ -224,6 +228,7 @@ function App() {
     a.authListen(() => {
       setSignedIn(true);
       registerDefaultSchemas().catch(() => {});
+      trackEvent('login');
     });
 
     const handler = (e: Event) => {
