@@ -3197,30 +3197,20 @@ testing:
     to reproduce. storage starts dumb (marketing-api's store,
     surfaced however is cheapest); dogfooding it as web10 records
     on the operator's node is a nice later, not the blocker.
-[ ] ux telemetry -- seeing users silently fail. the third leg of
-    the stool: e2e catches what we predicted, bug reports catch
-    what users SAY, this catches what they don't (rage clicks,
-    abandoned funnels, dead ends nobody bothers to report). the
-    privacy line splits it by surface:
-      - marketing-ui (web10 inc's own site, pre-signup visitors):
-        full ux analytics is fair game -- marketing-api already
-        ingests pageview + funnel events; extend to the whole
-        acquisition funnel (landing -> docs -> app store ->
-        exporter) with per-step drop-off. session replay /
-        heatmaps here via SELF-HOSTED posthog or openreplay --
-        self-hosted so even marketing traffic never feeds a
-        third-party saas. brand consistency is cheap here; buy it.
-        OPERATOR ESCALATION (rant, 30.07.2026): "if we havent set
-        up hotjar on the marketing page, we NEED to!" — the
-        operator wants session analytics on the marketing page NOW
-        and named hotjar; the self-hosted posthog/openreplay line
-        above is the standing decision (marketing traffic never
-        feeds a third-party saas). RECONCILE AT IMPLEMENTATION:
-        ship SOMETHING on the marketing page pronto — if hotjar
-        the SaaS is what unblocks it this week, that's the
-        operator's call to make explicitly (it contradicts the
-        self-hosted line; record whichever way in decisions.md).
-        filed as D-marketing-session-analytics.
+[✓] ux telemetry -- seeing users silently fail. the third leg of
+     the stool: e2e catches what we predicted, bug reports catch
+     what users SAY, this catches what they don't (rage clicks,
+     abandoned funnels, dead ends nobody bothers to report). the
+     privacy line splits it by surface:
+       - marketing-ui (web10 inc's own site, pre-signup visitors):
+         FULLY DONE (1.0.279): Hotjar session replay + heatmaps live
+         (D38: Hotjar SaaS override, operator 30.07). marketing-api
+         already ingests pageview + funnel events; Hotjar adds the
+         session-replay/heatmap leg. self-hosted PostHog deferred
+         but not blocked (decisions.md D38).
+         OPERATOR ESCALATION (rant, 30.07.2026): "if we havent set
+         up hotjar on the marketing page, we NEED to!" — SHIPPED.
+         filed as D-marketing-session-analytics.
       - ui + web10-social (the platform, where users' lives
         live): third-party session-recording js (hotjar /
         fullstory / logrocket-class) is RADIOACTIVE. "nobody is

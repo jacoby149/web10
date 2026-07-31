@@ -2443,7 +2443,7 @@ BITES (rule 5 — one bite PER SCREEN when staged, each its own
       youtube-first) — the creator pitch is "import your YouTube
       catalog, see it on a YouTube-shaped trending."
 
-[ ] D-marketing-session-analytics (sub-lane ws-D/marketing(2), SMALL;
+[✓ 1.0.279] D-marketing-session-analytics (sub-lane ws-D/marketing(2), SMALL;
       operator, 30.07 rant: "if we havent set up hotjar on the
       marketing page, we NEED to!"): the marketing site (marketing-
       ui, pre-signup visitors) gets session analytics PRONTO. the
