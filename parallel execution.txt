@@ -2464,6 +2464,34 @@ BITES (rule 5 — one bite PER SCREEN when staged, each its own
       surfaces remain recording-free; marketing-ui tests + tsc
       green. gate: none.
 
+[ ] D-how-it-works-story-copy (sub-lane ws-D/marketing(2), TINY;
+      operator, 30.07 rant: "the marketing page says this thing 'it
+      fans out on write' it doesnt make so much sense, dont know what
+      that means. the first and the third card were good though! lets
+      think of a way on how to better refactor that story"): the
+      homepage "How it works" trio (Home.tsx HOW_IT_WORKS, ~line 242)
+      is card 1 "You post once" (good) → card 2 "It fans out on write"
+      (JARGON — fan-out-on-write is engineer-speak; a first-time
+      visitor/VC has no idea what "it" is or what "fans out on write"
+      means) → card 3 "100% delivery, by architecture" (good). the
+      story refactor: keep cards 1+3, re-tell the middle beat in
+      READER language — the meaning to preserve is "the instant you
+      publish, the post lands in every follower's inbox; no algorithm
+      decides who's shown" (the current DESCRIPTION is fine, it's the
+      TITLE that flops). candidate directions for the builder (taste
+      call, operator delegates): "It lands in every inbox", "Every
+      follower gets it", "Straight to every inbox" — pick whichever
+      reads best in the trio's rhythm (verb-first like its siblings).
+      SWEEP: the same phrase is the overview docs page's step 2 title
+      (marketing-ui/public/docs/overview.md:50, "It fans out on
+      write —") — retitle it to match whatever the homepage lands on
+      so the story is told once, the same way, everywhere. files:
+      marketing-ui Home.tsx (HOW_IT_WORKS) + public/docs/overview.md.
+      acceptance: the middle card's title makes sense to a reader who
+      has never heard of fan-out architectures; cards 1+3 untouched;
+      overview.md step 2 matches; marketing-ui tests + tsc green;
+      dev-shot capture green (no-PNG override). gate: none.
+
 [✓ 1.0.240] D-home-stats-bar (sub-lane ws-D/marketing(2); SEAM: Home.tsx —
       disjoint from AppStore/Join files; operator, 29.07 rant,
       screenshot of the App Store subtitle's inline counts: "on the
@@ -3726,16 +3754,17 @@ ws-B:            B9-recovery-contact-nudge bite a (the nudge — no
                      THEN the marketing retarget bite (TrendingCard/
                      comment/search links -> the deep urls; all target
                      routes now merged — CLEAR)
-ws-D/marketing(2): D-marketing-session-analytics (SMALL, no gate —
-                      hotjar-class session analytics pronto; reconcile
-                      vs the self-hosted posthog line, operator's call,
-                      record in decisions.md), THEN D-ga4-marketing
-                      (SMALL, no gate — GA4 pageview + event analytics
-                      on marketing-ui; GA4 is aggregate only, no
-                      recording, fits the "anonymous, aggregate,
-                      CONTENT-FREE" allowance; one measurement ID
-                      shared or per-app; acceptance: GA4 dashboard
-                      shows real marketing-ui pageviews)
+    ws-D/marketing(2): D-how-it-works-story-copy (TINY, no gate —
+                       the "It fans out on write" card re-told in reader
+                       language + overview.md sweep), THEN D-ga4-marketing
+                       (SMALL, no gate — GA4 pageview + event analytics
+                       on marketing-ui; GA4 is aggregate only, no
+                       recording, fits the "anonymous, aggregate,
+                       CONTENT-FREE" allowance; one measurement ID
+                       shared or per-app; acceptance: GA4 dashboard
+                       shows real marketing-ui pageviews)
+                       (D-marketing-session-analytics merged 1.0.279 —
+                       de-queued)
     ws-C:            C8 remainder — bite b (membership subscribe
                      journey, 3% split asserted) + bite c (twilio
                      honest half); staged with the M2-prereq block, not
