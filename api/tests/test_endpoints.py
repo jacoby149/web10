@@ -2138,3 +2138,160 @@ class TestEmailStarRecord:
         assert "email_verified" in rec
         assert rec["email"] is None
         assert rec["email_verified"] is False
+
+
+# ---------------------------------------------------------------------------
+# 14. PASSWORDLESS PHONE LOGIN (A21 bite a)
+# ---------------------------------------------------------------------------
+
+
+class TestPasswordlessSend:
+    """POST /passwordless/send — sends a Twilio Verify code for passwordless login."""
+
+    def test_send_code_for_registered_phone(self, client):
+        with patch("app.services.twilio.send_verification") as m_send:
+            m_send.return_value = "VER123"
+            resp = client.post(
+                "/passwordless/send",
+                json={"phone_number": "+15551234567"},
+            )
+        assert resp.status_code == 200
+        assert resp.json()["message"] == "code sent"
+        m_send.assert_called_once_with("+15551234567", "user")
+
+    def test_send_code_for_unknown_phone_returns_same_shape(self, client):
+        """Unknown phone gets the same response shape — no user enumeration."""
+        with patch("app.services.twilio.send_verification") as m_send:
+            m_send.return_value = "VER123"
+            resp = client.post(
+                "/passwordless/send",
+                json={"phone_number": "+15559999999"},
+            )
+        assert resp.status_code == 200
+        assert resp.json()["message"] == "code sent"
+
+    def test_send_code_twilio_failure_returns_same_shape(self, client):
+        """Twilio failure still returns 'code sent' — don't leak info."""
+        with patch("app.services.twilio.send_verification", side_effect=Exception("twilio error")):
+            resp = client.post(
+                "/passwordless/send",
+                json={"phone_number": "+15551234567"},
+            )
+        assert resp.status_code == 200
+        assert resp.json()["message"] == "code sent"
+
+    def test_send_rate_limited(self, client):
+        """More than 5 sends in 5 minutes should be rate-limited."""
+        from app.endpoints.auth import _passwordless_send_limiter
+
+        _passwordless_send_limiter._buckets.clear()
+
+        for _ in range(5):
+            with patch("app.services.twilio.send_verification"):
+                client.post("/passwordless/send", json={"phone_number": "+15551234567"})
+
+        resp = client.post(
+            "/passwordless/send",
+            json={"phone_number": "+15551234567"},
+        )
+        assert resp.status_code == 429
+
+
+class TestPasswordlessVerify:
+    """POST /passwordless/verify — verifies SMS code and mints a token."""
+
+    def test_verify_success(self, client):
+        with (
+            patch("app.services.twilio.check_verification"),
+            patch(
+                "app.services.documentdb.get_phone_record",
+                return_value={"phone_number": "+15551234567", "username": "alice"},
+            ),
+        ):
+            resp = client.post(
+                "/passwordless/verify",
+                json={
+                    "token": "",
+                    "query": {"phone": "+15551234567", "code": "123456"},
+                },
+            )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert "token" in body
+        decoded = jwt.decode(body["token"], settings.PRIVATE_KEY, algorithms=[settings.ALGORITHM])
+        assert decoded["username"] == "alice"
+        assert decoded["site"] == "passwordless"
+        assert decoded["provider"] == settings.PROVIDER
+
+    def test_verify_wrong_code_rejected(self, client):
+        with patch("app.services.twilio.check_verification", side_effect=Exception("WRONG_CODE")):
+            resp = client.post(
+                "/passwordless/verify",
+                json={
+                    "token": "",
+                    "query": {"phone": "+15551234567", "code": "000000"},
+                },
+            )
+        assert resp.status_code == 401
+
+    def test_verify_unregistered_phone_rejected(self, client):
+        with (
+            patch("app.services.twilio.check_verification"),
+            patch("app.services.documentdb.get_phone_record", return_value=None),
+        ):
+            resp = client.post(
+                "/passwordless/verify",
+                json={
+                    "token": "",
+                    "query": {"phone": "+15559999999", "code": "123456"},
+                },
+            )
+        assert resp.status_code == 401
+
+    def test_verify_missing_phone_rejected(self, client):
+        resp = client.post(
+            "/passwordless/verify",
+            json={
+                "token": "",
+                "query": {"code": "123456"},
+            },
+        )
+        assert resp.status_code == 401
+
+    def test_verify_missing_code_rejected(self, client):
+        resp = client.post(
+            "/passwordless/verify",
+            json={
+                "token": "",
+                "query": {"phone": "+15551234567"},
+            },
+        )
+        assert resp.status_code == 401
+
+    def test_verify_rate_limited(self, client):
+        """More than 3 verify attempts in 10 minutes should be rate-limited."""
+        from app.endpoints.auth import _passwordless_verify_limiter
+
+        _passwordless_verify_limiter._buckets.clear()
+
+        for _ in range(3):
+            with (
+                patch("app.services.twilio.check_verification"),
+                patch("app.services.documentdb.get_phone_record", return_value=None),
+            ):
+                client.post(
+                    "/passwordless/verify",
+                    json={
+                        "token": "",
+                        "query": {"phone": "+15551234567", "code": "123456"},
+                    },
+                )
+
+        resp = client.post(
+            "/passwordless/verify",
+            json={
+                "token": "",
+                "query": {"phone": "+15551234567", "code": "123456"},
+            },
+        )
+        assert resp.status_code == 429

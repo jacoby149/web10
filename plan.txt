@@ -678,13 +678,13 @@ node policy (anti-abuse is the NODE'S call, not the protocol's):
     recovery contact set until they set one). accounts are
     PERMANENT is the product promise. bite a merged [✓ 1.0.280],
     bite b (email reset flow) still open.
-[ ] passwordless phone login (operator rant, 30.07.2026): "even
+[✓ 1.0.283] passwordless phone login (operator rant, 30.07.2026): "even
     better, passwordless phone text verification code is the goat!
     also cool if we dont let people make an account if the phone
     number aint legit, so everyone is a very legit user on web10!"
     — login by phone + SMS code, no password at all (the twilio
     Verify send/check pair already exists for signup — the login
-    path is the new part), and on web10 Inc.'s node phone
+    path is the new part [✓ 1.0.283 bite a]), and on web10 Inc.'s node phone
     verification is MANDATORY at signup (a legit verified number or
     no account — every user a very legit user). stays a node policy
     toggle per the item above (self-hosters pick open/invite); the

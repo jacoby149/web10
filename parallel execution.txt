@@ -473,7 +473,7 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       EXISTING unverified collections — count them first (a
       read-only audit: star records with verified=false), then
       decide keep-vs-reap; record the call in decisions.md.
-      BITES (rule 5): bite a,
+      BITES (rule 5): bite a [✓ 1.0.283],
       the passwordless login endpoint + tests; bite b, the
       phone-required policy toggle + drop PHONE_NUMBER_TAKEN +
       web10.app config flip + tests; bite c, verified-only

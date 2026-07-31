@@ -1,4 +1,6 @@
 import re
+import time
+from collections import defaultdict
 from datetime import datetime, timedelta
 
 import jwt
@@ -21,6 +23,38 @@ from app.services.auth import (
 )
 
 router = APIRouter()
+
+
+# ---------------------------------------------------------------------------
+# Rate-limiting (in-memory, sliding-window, per-identifier)
+# ---------------------------------------------------------------------------
+
+
+class _RateLimiter:
+    """Simple in-memory sliding-window rate limiter.
+
+    Tracks request timestamps per key. Rejects when count exceeds max
+    within the window. Good enough for auth endpoints (not distributed,
+    but the API is single-node today).
+    """
+
+    def __init__(self, max_requests: int = 5, window_seconds: int = 300):
+        self._buckets: dict[str, list[float]] = defaultdict(list)
+        self._max = max_requests
+        self._window = window_seconds
+
+    def check(self, key: str) -> None:
+        now = time.time()
+        bucket = self._buckets[key]
+        cutoff = now - self._window
+        self._buckets[key] = [t for t in bucket if t > cutoff]
+        if len(self._buckets[key]) >= self._max:
+            raise exceptions.RATE_LIMITED
+        self._buckets[key].append(now)
+
+
+_passwordless_send_limiter = _RateLimiter(max_requests=5, window_seconds=300)
+_passwordless_verify_limiter = _RateLimiter(max_requests=3, window_seconds=600)
 
 
 def recover(From: str):
@@ -84,6 +118,63 @@ async def mobile_login(token: Token):
         username=rec["username"],
         provider=settings.PROVIDER,
         site="mobile",
+        expires=(datetime.utcnow() + timedelta(minutes=settings.TOKEN_EXPIRE_MINUTES)).isoformat(),
+    )
+    return {"token": jwt.encode(token_data.model_dump(), settings.PRIVATE_KEY, algorithm=settings.ALGORITHM)}
+
+
+# ---------------------------------------------------------------------------
+# Passwordless phone login (A21 bite a)
+# ---------------------------------------------------------------------------
+
+
+@router.post("/passwordless/send")
+async def passwordless_send(phone_form: PhoneForm):
+    """Send a Twilio Verify SMS code for passwordless login.
+
+    Rate-limited: 5 sends per 5 minutes per phone number.
+    Does NOT reveal whether the phone is registered — same response shape
+    for known and unknown numbers (prevents user enumeration).
+    """
+    _passwordless_send_limiter.check(phone_form.phone_number)
+    # Always attempt to send, even if phone isn't registered, to avoid
+    # user enumeration. The verify step is where we check ownership.
+    try:
+        sid = mobile.send_verification(phone_form.phone_number, "user")
+        return {"message": "code sent", "sid": sid}
+    except Exception:
+        # Even on Twilio failure, return the same shape (don't leak info)
+        return {"message": "code sent"}
+
+
+@router.post("/passwordless/verify")
+async def passwordless_verify(token: Token):
+    """Verify the SMS code and mint a token for passwordless login.
+
+    Rate-limited: 3 verify attempts per 10 minutes per phone number.
+    The code MUST pass Twilio Verify (I2 — cryptographically verified,
+    no unsigned claims). The phone must be registered to an account.
+    """
+    code = token.query.get("code")
+    phone_number = token.query.get("phone")
+
+    if not code or not phone_number:
+        raise exceptions.BAD_NUM
+
+    _passwordless_verify_limiter.check(phone_number)
+
+    # Verify the code via Twilio (cryptographic check, satisfies I2)
+    mobile.check_verification(phone_number, code)
+
+    # Look up the account(s) registered to this phone
+    rec = db.get_phone_record(phone_number)
+    if not rec:
+        raise exceptions.PHONE_NUMBER_NOT_REGISTERED
+
+    token_data = TokenData(
+        username=rec["username"],
+        provider=settings.PROVIDER,
+        site="passwordless",
         expires=(datetime.utcnow() + timedelta(minutes=settings.TOKEN_EXPIRE_MINUTES)).isoformat(),
     )
     return {"token": jwt.encode(token_data.model_dump(), settings.PRIVATE_KEY, algorithm=settings.ALGORITHM)}
