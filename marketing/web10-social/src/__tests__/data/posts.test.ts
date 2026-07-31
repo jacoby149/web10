@@ -300,7 +300,7 @@ describe('posts data layer', () => {
       mock.read.mockResolvedValue(mediaRecords);
       mock.getReadUrl.mockRejectedValue(new Error('no presign in legacy test'));
       const result = await posts.resolveMediaRefs(['m1']);
-      expect(mock.read).toHaveBeenCalledWith('media', { _id: { $in: ['m1'] } });
+      expect(mock.read).toHaveBeenCalledWith('media', { _id: { $in: ['m1'] } }, undefined, undefined);
       // Degrade: refreshMediaUrls fails gracefully -> original url kept.
       expect(result).toEqual(mediaRecords);
     });
@@ -418,7 +418,7 @@ describe('posts data layer', () => {
 
       await posts.resolveMediaRefs(['m1'], { username: 'bob', provider: 'node.web10.app' }, 'public_media');
 
-      expect(mock.read).toHaveBeenCalledWith('public_media', { _id: { $in: ['m1'] } });
+      expect(mock.read).toHaveBeenCalledWith('public_media', { _id: { $in: ['m1'] } }, 'bob', 'node.web10.app');
       // deriveObjectKey strips the host prefix -> 'bob/abc/photo.png' becomes
       // the path after the first / (the bucket). The URL's path is /bob/abc/photo.png,
       // so the derived key is 'abc/photo.png' (bucket = first path segment).
@@ -438,7 +438,30 @@ describe('posts data layer', () => {
 
       await posts.resolveMediaRefs(['m1']);
 
-      expect(mock.read).toHaveBeenCalledWith('media', { _id: { $in: ['m1'] } });
+      expect(mock.read).toHaveBeenCalledWith('media', { _id: { $in: ['m1'] } }, undefined, undefined);
+    });
+
+    it('regression: cross-user resolveMediaRefs passes owner to wapi.read (not viewer)', async () => {
+      // Before fix: wapi.read('public_media', { _id: $in: refs }) omitted the
+      // owner params, so the wapi wrapper defaulted to the CURRENT signed-in
+      // user (the viewer). The viewer's collection has no records for the
+      // author's media IDs → zero records → empty avatar, no post photos.
+      mock.read.mockResolvedValue([
+        { _id: 'm1', url: 'https://s3.local/bob/abc/photo.png', created_at: '2026-07-18T00:00:00Z' },
+      ]);
+      mock.getReadUrl.mockResolvedValue({ readUrl: 'https://signed/photo', expiresIn: 60 });
+
+      // Viewer is 'alice' (the wapi mock defaults to alice), but the media
+      // belongs to 'bob'. resolveMediaRefs must read from bob's collection.
+      await posts.resolveMediaRefs(['m1'], { username: 'bob', provider: 'node.web10.app' }, 'public_media');
+
+      // The critical assertion: owner params must reach wapi.read
+      expect(mock.read).toHaveBeenCalledWith(
+        'public_media',
+        { _id: { $in: ['m1'] } },
+        'bob',
+        'node.web10.app',
+      );
     });
   });
 

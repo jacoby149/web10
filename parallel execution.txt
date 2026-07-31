@@ -2776,9 +2776,7 @@ BITES (rule 5 — one bite PER SCREEN when staged, each its own
        rant: "i tried publicing a post, privating the post, publicing it
        again, there is now two posts one in public one in private of the
        same post"): D-post-visibility-toggle's movePostVisibility
-      again, there is now two posts one in public one in private of the
-      same post"): D-post-visibility-toggle's movePostVisibility
-      (posts.ts:154) is create-in-target THEN delete-from-source — a
+       (posts.ts:154) is create-in-target THEN delete-from-source — a
       repeated toggle duplicates the post. REPRO FIRST on the local
       stack (public → private → public, then read BOTH collections and
       quote the records in the PR). suspects, in order: (1) STALE POST

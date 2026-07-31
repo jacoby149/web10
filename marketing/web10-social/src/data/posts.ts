@@ -347,7 +347,7 @@ export async function resolveMediaRefs(
   if (!refs.length) return [];
   const wapi = getWapi();
   const targetService = service || 'media';
-  const records = await wapi.read<MediaRecord>(targetService, { _id: { $in: refs } });
+  const records = await wapi.read<MediaRecord>(targetService, { _id: { $in: refs } }, owner?.username, owner?.provider);
   return refreshMediaUrls(records, owner, service);
 }
 
