@@ -160,6 +160,39 @@ describe('TrendingCard comment panel', () => {
     expect(within(panel).getByPlaceholderText(/Add a comment/)).toBeInTheDocument();
     expect(within(panel).getByRole('button', { name: 'Post comment' })).toBeInTheDocument();
   });
+
+  it('queries the ledger with target as a URL query param (never the body)', async () => {
+    // Regression pin (31.07 hotfix): PATCH /public/entries reads filters from
+    // FastAPI Query params — a body-carried target is ignored, so every
+    // post's panel showed the same unfiltered mixed comments on prod.
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve([]),
+    } as unknown as Response);
+    render(
+      <TrendingCard post={basePost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
+    );
+    fireEvent.click(screen.getByLabelText(/Comment,/));
+    await waitFor(() => expect(screen.getByTestId('comment-panel')).toBeInTheDocument());
+    await waitFor(() => expect(vi.mocked(fetch)).toHaveBeenCalled());
+    const [url, init] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit?];
+    expect(url).toContain('/public/entries?');
+    expect(url).toContain(`target=${encodeURIComponent('ada/public_posts/p1')}`);
+    expect(url).toContain('limit=50');
+    expect(init?.body).toBeUndefined();
+  });
+});
+
+describe('TrendingCard featured layout', () => {
+  it('featured card never carries a col-span class (one-column grid void regression)', () => {
+    // Regression pin (31.07 hotfix): sm:col-span-2 inside grid-cols-1 forced
+    // an implicit 0px track — every second card rendered invisible and each
+    // visible card stretched to the crushed neighbor's height.
+    render(
+      <TrendingCard post={basePost} rank={1} featured maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
+    );
+    expect(screen.getByTestId('trending-card').className).not.toMatch(/col-span/);
+  });
 });
 
 const jsonOk = (body: unknown) => ({
