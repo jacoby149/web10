@@ -165,14 +165,14 @@ class TestDmsTerm:
 
 
 class TestCoreServicesTerms:
-    def test_returns_list_of_five(self):
+    def test_returns_list_of_ten(self):
         terms = records.core_services_terms()
-        assert len(terms) == 5
+        assert len(terms) == 10
 
-    def test_services_cover_follows_inbox_reactions_comments_dms(self):
+    def test_services_cover_the_full_app_core_set(self):
         terms = records.core_services_terms()
         services = {t["service"] for t in terms}
-        assert services == {"follows", "inbox", "reactions", "comments", "dms"}
+        assert services == {"follows", "inbox", "reactions", "comments", "dms", "profile", "public_media", "private_posts", "staging_posts", "media"}
 
 
 class TestProfileTerm:
@@ -206,7 +206,7 @@ class TestPublicMediaTerm:
         assert entry["read"] is True
 
 
-class TestCoreServicesTerms:
+class TestCoreServicesTermsFullSet:
     """The full core set provisioned at signup + by the migration."""
 
     def test_full_set(self):
