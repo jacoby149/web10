@@ -26,6 +26,7 @@ vi.mock('@/data', async (importOriginal) => {
   return {
     ...original,
     readFeed: vi.fn().mockResolvedValue([]),
+    readPullFeed: vi.fn().mockResolvedValue([]),
     readProfile: vi.fn().mockResolvedValue(null),
     readMyPosts: vi.fn().mockResolvedValue([]),
     resolveMediaRefs: vi.fn().mockResolvedValue([]),

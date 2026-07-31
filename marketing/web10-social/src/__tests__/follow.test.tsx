@@ -13,6 +13,7 @@ vi.mock('@/data', async (importOriginal) => {
   return {
     ...original,
     readFeed: vi.fn().mockResolvedValue([]),
+    readPullFeed: vi.fn().mockResolvedValue([]),
     readPost: vi.fn().mockResolvedValue(null),
     countReactions: vi.fn().mockResolvedValue(0),
     countComments: vi.fn().mockResolvedValue(0),
@@ -430,9 +431,9 @@ describe('FeedScreen author navigation', () => {
   });
 
   it('passes onAuthorClick to PostCard and calls it on author click', async () => {
-    const { readFeed, readProfile, readUserProfile, readMyPosts, resolveMediaRefs, countReactions, countComments } = await import('@/data');
+    const { readPullFeed, readProfile, readUserProfile, readMyPosts, resolveMediaRefs, countReactions, countComments } = await import('@/data');
 
-    vi.mocked(readFeed).mockResolvedValueOnce([{
+    vi.mocked(readPullFeed).mockResolvedValueOnce([{
       _id: 'inbox-1',
       author_username: 'noodle-empress',
       author_provider: 'test.localhost',
