@@ -47,6 +47,10 @@ services:
       CORS_SERVICE_MANAGERS: auth.localhost,social.localhost,marketing.localhost
       STRIPE_STATUS: test
       STRIPE_TEST_KEY: ${STRIPE_TEST_KEY:-sk_test_placeholder}
+      TWILIO_ACCOUNT_SID: ${TWILIO_TEST_ACCOUNT_SID:-AC_test_placeholder}
+      TWILIO_AUTH_TOKEN: ${TWILIO_TEST_AUTH_TOKEN:-test_auth_placeholder}
+      TWILIO_SERVICE: ${TWILIO_TEST_SERVICE_SID:-VA_test_placeholder}
+      TWILIO_NUMBER: ${TWILIO_TEST_NUMBER:-+15005550000}
     command: ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80", "--reload"]
     networks:
       - e2e-net

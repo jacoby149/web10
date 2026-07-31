@@ -30,6 +30,10 @@ jobs:
         run: docker compose -f e2e/docker-compose.yml up --build -d
         env:
           STRIPE_TEST_KEY: ${{ secrets.STRIPE_TEST_KEY }}
+          TWILIO_TEST_ACCOUNT_SID: ${{ secrets.TWILIO_TEST_ACCOUNT_SID }}
+          TWILIO_TEST_AUTH_TOKEN: ${{ secrets.TWILIO_TEST_AUTH_TOKEN }}
+          TWILIO_TEST_SERVICE_SID: ${{ secrets.TWILIO_TEST_SERVICE_SID }}
+          TWILIO_TEST_NUMBER: ${{ secrets.TWILIO_TEST_NUMBER }}
 
       - name: Wait for stack health
         run: bash e2e/wait-for-stack.sh
@@ -47,6 +51,10 @@ jobs:
         run: npx playwright test
         env:
           STRIPE_TEST_KEY: ${{ secrets.STRIPE_TEST_KEY }}
+          TWILIO_TEST_ACCOUNT_SID: ${{ secrets.TWILIO_TEST_ACCOUNT_SID }}
+          TWILIO_TEST_AUTH_TOKEN: ${{ secrets.TWILIO_TEST_AUTH_TOKEN }}
+          TWILIO_TEST_SERVICE_SID: ${{ secrets.TWILIO_TEST_SERVICE_SID }}
+          TWILIO_TEST_NUMBER: ${{ secrets.TWILIO_TEST_NUMBER }}
 
       - name: Upload Playwright traces on failure
         uses: actions/upload-artifact@v4
