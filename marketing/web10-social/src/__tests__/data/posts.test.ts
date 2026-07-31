@@ -459,6 +459,43 @@ describe('posts data layer', () => {
     });
   });
 
+  describe('readUserPublicPosts (moderation-immune profile wall)', () => {
+    beforeEach(() => {
+      vi.restoreAllMocks();
+      mock = mockWapi();
+    });
+
+    it('reads public_posts directly from the author collection, never discovery', async () => {
+      // Regression (31.07.2026): the profile wall read via /discover/posts,
+      // so an admin board-takedown (discover-only by design) also ripped the
+      // post off the author's profile. The wall must read the collection.
+      const fetchMock = vi.fn();
+      vi.stubGlobal('fetch', fetchMock);
+      mock.read.mockResolvedValue([{ _id: 'p1', text: 'still here', created_at: '2026-07-26T00:00:00Z' }]);
+
+      const result = await posts.readUserPublicPosts('coolguydavid', 'web10');
+
+      expect(mock.read).toHaveBeenCalledWith('public_posts', {}, 'coolguydavid', 'web10');
+      expect(result).toHaveLength(1);
+      expect(result[0].text).toBe('still here');
+      // No discovery API call may happen on this path.
+      expect(fetchMock).not.toHaveBeenCalled();
+      vi.unstubAllGlobals();
+    });
+
+    it('returns whatever the collection holds, including board-removed posts', async () => {
+      // A post with removed:true on the discovery index still lives in the
+      // author's collection — the wall shows it.
+      mock.read.mockResolvedValue([
+        { _id: 'p1', text: 'moderated off discover', created_at: '2026-07-26T00:00:00Z' },
+        { _id: 'p2', text: 'normal post', created_at: '2026-07-27T00:00:00Z' },
+      ]);
+
+      const result = await posts.readUserPublicPosts('coolguydavid', 'web10');
+      expect(result).toHaveLength(2);
+    });
+  });
+
   describe('readUserPostsFromDiscovery (D-user-profile-stats bug #3)', () => {
     beforeEach(() => {
       vi.restoreAllMocks();

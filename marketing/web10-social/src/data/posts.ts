@@ -120,6 +120,25 @@ export async function readUserPosts(username: string, provider: string): Promise
 }
 
 /**
+ * Read another user's public posts DIRECTLY from their `public_posts`
+ * collection (anon-read is whitelisted by the canonical term).
+ *
+ * This is the profile-wall read path. It deliberately does NOT go through
+ * the discovery index: admin board moderation (`/admin/discovery/remove`)
+ * only hides a post from discover/trending/search — it must NOT rip the
+ * post off the author's profile or out of friends' feeds (operator,
+ * 31.07.2026: "if moderation takes something off the discover it still
+ * stays on profile and feed of friends"). The friends feed was already
+ * immune (inbox fan-out copies `post_body`); the wall was not — it read
+ * via `readUserPostsFromDiscovery`, so a moderated post vanished from the
+ * profile too.
+ */
+export async function readUserPublicPosts(username: string, provider: string): Promise<PostRecord[]> {
+  const wapi = getWapi();
+  return wapi.read<PostRecord>('public_posts', {}, username, provider);
+}
+
+/**
  * Read a specific user's posts from the discovery index via pagination.
  * The discovery API has no author filter, so we paginate through /discover/posts
  * with a large limit and filter client-side. Uses a higher limit (200, the
