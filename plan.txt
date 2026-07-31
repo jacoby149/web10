@@ -1419,7 +1419,7 @@ Marketing-ui side (Lane D):
     the thumb). the active view is in the URL (/trending?view=youtube) per
     the deep-link rule. bites: a = toggle + youtube view (ws-D/marketing);
     b = the same toggle on social's DiscoverScreen (ws-D/discover, gate:
-    a). pairs with the YouTube-first import push.
+    a) [✓ 1.0.280]. pairs with the YouTube-first import push.
 
 [✓ 1.0.164] D-trending-knobs — THE ALGORITHM IS YOURS (operator, 24.07): /trending
     gains a synth-rack of knobs that re-rank the feed live. the hero already
