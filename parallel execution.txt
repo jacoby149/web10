@@ -810,7 +810,7 @@ LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
       the whole phase — it's how "we shipped moderation with no test"
       doesn't happen.
 
-[ ] B9-recovery-contact-nudge (lane B, ui/**; operator, 30.07 rant:
+[✓ 1.0.280] B9-recovery-contact-nudge (lane B, ui/**; operator, 30.07 rant:
       "we need to pester every user to set a recovery email pronto
       or number, if they havent! the recovery flow has to be tight
       so the user accounts aren't ephemeral, they are permanent!"):
@@ -2443,7 +2443,7 @@ BITES (rule 5 — one bite PER SCREEN when staged, each its own
       youtube-first) — the creator pitch is "import your YouTube
       catalog, see it on a YouTube-shaped trending."
 
-[ ] D-marketing-session-analytics (sub-lane ws-D/marketing(2), SMALL;
+[✓ 1.0.279] D-marketing-session-analytics (sub-lane ws-D/marketing(2), SMALL;
       operator, 30.07 rant: "if we havent set up hotjar on the
       marketing page, we NEED to!"): the marketing site (marketing-
       ui, pre-signup visitors) gets session analytics PRONTO. the
@@ -2463,6 +2463,34 @@ BITES (rule 5 — one bite PER SCREEN when staged, each its own
       sessions (replay or heatmap) within the week; the platform
       surfaces remain recording-free; marketing-ui tests + tsc
       green. gate: none.
+
+[ ] D-how-it-works-story-copy (sub-lane ws-D/marketing(2), TINY;
+      operator, 30.07 rant: "the marketing page says this thing 'it
+      fans out on write' it doesnt make so much sense, dont know what
+      that means. the first and the third card were good though! lets
+      think of a way on how to better refactor that story"): the
+      homepage "How it works" trio (Home.tsx HOW_IT_WORKS, ~line 242)
+      is card 1 "You post once" (good) → card 2 "It fans out on write"
+      (JARGON — fan-out-on-write is engineer-speak; a first-time
+      visitor/VC has no idea what "it" is or what "fans out on write"
+      means) → card 3 "100% delivery, by architecture" (good). the
+      story refactor: keep cards 1+3, re-tell the middle beat in
+      READER language — the meaning to preserve is "the instant you
+      publish, the post lands in every follower's inbox; no algorithm
+      decides who's shown" (the current DESCRIPTION is fine, it's the
+      TITLE that flops). candidate directions for the builder (taste
+      call, operator delegates): "It lands in every inbox", "Every
+      follower gets it", "Straight to every inbox" — pick whichever
+      reads best in the trio's rhythm (verb-first like its siblings).
+      SWEEP: the same phrase is the overview docs page's step 2 title
+      (marketing-ui/public/docs/overview.md:50, "It fans out on
+      write —") — retitle it to match whatever the homepage lands on
+      so the story is told once, the same way, everywhere. files:
+      marketing-ui Home.tsx (HOW_IT_WORKS) + public/docs/overview.md.
+      acceptance: the middle card's title makes sense to a reader who
+      has never heard of fan-out architectures; cards 1+3 untouched;
+      overview.md step 2 matches; marketing-ui tests + tsc green;
+      dev-shot capture green (no-PNG override). gate: none.
 
 [✓ 1.0.240] D-home-stats-bar (sub-lane ws-D/marketing(2); SEAM: Home.tsx —
       disjoint from AppStore/Join files; operator, 29.07 rant,
@@ -3697,9 +3725,13 @@ run independently.
                      unverified signups daily), THEN A22-forgot-
                      username-by-phone, THEN A23-verification-
                      enforcement (GATED on A21 bite b)
-    ws-B:            B9-recovery-contact-nudge bite a (the nudge — no
-                     gate, phone already on the star record); bites
-                     b/c/d gated on A20/A21/A22 contracts
+ws-B:            B9-recovery-contact-nudge bite a (the nudge — no
+                      gate, phone already on the star record); bites
+                      b/c/d gated on A20/A21/A22 contracts, THEN
+                      D-ga4-auth (SMALL, no gate — GA4 pageview + event
+                      analytics on ui/auth; aggregate only, no
+                      recording; acceptance: GA4 dashboard shows real
+                      auth pageviews)
     ws-D/profile:    D-visibility-toggle-duplicate (REPRO first — stale
                      post object across toggles), THEN D-public-media-
                      verify (TINY — the gate-CLEARER for the two GATED
@@ -3710,6 +3742,11 @@ run independently.
     ws-D/discover:   D-trending-views bite b (Discover parity — the
                      view toggle ported to DiscoverScreen; gate: bite a
                      merged 1.0.272, CLEAR)
+    ws-D/social-analytics: D-ga4-social (SMALL, no gate — GA4 pageview +
+                      event analytics on web10-social; aggregate only,
+                      no recording, fits the "anonymous, aggregate,
+                      CONTENT-FREE" allowance; acceptance: GA4
+                      dashboard shows real social pageviews)
     ws-D/shell:      D-deep-links bite 3 (profile ?tab=posts|media —
                      SEAM NOTE: touches ProfileScreen.tsx, a ws-D/
                      profile file; run INSIDE the ws-D/profile chain or
@@ -3717,10 +3754,17 @@ run independently.
                      THEN the marketing retarget bite (TrendingCard/
                      comment/search links -> the deep urls; all target
                      routes now merged — CLEAR)
-    ws-D/marketing(2): D-marketing-session-analytics (SMALL, no gate —
-                     hotjar-class session analytics pronto; reconcile
-                     vs the self-hosted posthog line, operator's call,
-                     record in decisions.md)
+    ws-D/marketing(2): D-how-it-works-story-copy (TINY, no gate —
+                       the "It fans out on write" card re-told in reader
+                       language + overview.md sweep), THEN D-ga4-marketing
+                       (SMALL, no gate — GA4 pageview + event analytics
+                       on marketing-ui; GA4 is aggregate only, no
+                       recording, fits the "anonymous, aggregate,
+                       CONTENT-FREE" allowance; one measurement ID
+                       shared or per-app; acceptance: GA4 dashboard
+                       shows real marketing-ui pageviews)
+                       (D-marketing-session-analytics merged 1.0.279 —
+                       de-queued)
     ws-C:            C8 remainder — bite b (membership subscribe
                      journey, 3% split asserted) + bite c (twilio
                      honest half); staged with the M2-prereq block, not

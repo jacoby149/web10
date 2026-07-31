@@ -9,6 +9,21 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D38 — Hotjar SaaS for marketing-ui session analytics (override self-hosted) [decided]
+Operator, 30.07 rant: "if we havent set up hotjar on the marketing page, we
+NEED to!" The standing plan.txt decision was self-hosted PostHog/OpenReplay
+(marketing traffic never feeds a third-party SaaS). **Override: Hotjar the
+SaaS ships first** because the operator needs it this week and self-hosted
+infrastructure cannot be provisioned in the same timeframe. Hotjar is scoped
+to `marketing/marketing-ui` ONLY — the platform surfaces (`ui/` +
+`marketing/web10-social`) remain recording-free (RADIOACTIVE, unchanged).
+The Hotjar snippet loads dynamically from `analytics.ts` via
+`VITE_HOTJAR_SITE_ID` / `VITE_HOTJAR_VERSION` env vars; without the site ID,
+it is a no-op (dev-safe). The self-hosted PostHog path remains the aspirational
+target for later if the operator wants to migrate away from Hotjar — it is
+not blocked, just deferred. Rejects: self-hosted PostHog/OpenReplay this sprint
+(operational urgency trumps the self-hosted principle for marketing-only traffic).
+
 ### D37 — App Store v2 Registration Record Shape & #web10apps Social Projection [decided]
 Full spec: `.context/appstore-v2-registration-spec.md`. Summary: the `web10.apps`
 collection gains `review_state` (state machine: pending → approved/rejected,

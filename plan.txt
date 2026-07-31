@@ -676,7 +676,7 @@ node policy (anti-abuse is the NODE'S call, not the protocol's):
     ephemeral. filed as A20-recovery-email-channel (api) +
     B9-recovery-contact-nudge (ui: pester every user with no
     recovery contact set until they set one). accounts are
-    PERMANENT is the product promise. bite a merged [✓ 1.0.271],
+    PERMANENT is the product promise. bite a merged [✓ 1.0.280],
     bite b (email reset flow) still open.
 [ ] passwordless phone login (operator rant, 30.07.2026): "even
     better, passwordless phone text verification code is the goat!
@@ -2608,6 +2608,14 @@ D-dm-header-profile-link (ws-D/messages, tiny). merged 1.0.251.
     discovery-vs-own-collection count source split, and shares having
     NO ledger write path at all (add payload.action='repost' on
     share). lane item D-self-engagement-counts (ws-D/feed).
+[✓ 1.0.279] profile posts clickable + videos visible again (operator, 30.07
+    rant: "not able to click on my posts anymore, and cant see the
+    videos, maybe it is that play feature that plays them?" — fixed
+    directly on operator call, severe enough to skip the filing queue):
+    regression from D-own-profile-canonical (1.0.266) — /u/<you>'s
+    UserProfileScreen grids were plain divs (no lightbox) and rendered
+    videos with <img>. grids now open PostLightbox and render video
+    posters + play badges, matching the retired ProfileScreen.
 [ ] visibility toggle duplicates the post (operator, 30.07 rant: "i
     tried publicing a post, privating the post, publicing it again,
     there is now two posts one in public one in private of the same
@@ -2649,6 +2657,18 @@ D-dm-header-profile-link (ws-D/messages, tiny). merged 1.0.251.
     screen be a priority for the next web10web10!"): D-deep-links
     (above, the 26.07 item) is the PRIORITY of the next kickoff batch
     — stage its per-screen bites first.
+[ ] how-it-works middle card is jargon (operator, 30.07 rant: "the
+    marketing page says this thing 'it fans out on write' it doesnt
+    make so much sense, dont know what that means. the first and the
+    third card were good though! lets think of a way on how to better
+    refactor that story"): the homepage How-it-works trio's card 2
+    title "It fans out on write" is engineer-speak — re-tell the
+    middle beat in reader language (the description "every follower's
+    inbox gets the post the instant you publish" is the meaning;
+    candidate titles: "It lands in every inbox" / "Every follower
+    gets it" — builder's taste call, keep cards 1+3). sweep
+    overview.md:50, which uses the same phrase as its step-2 title.
+    lane item D-how-it-works-story-copy (ws-D/marketing(2), tiny).
 
 PHASE 9 — the exporters (fill the collections)
 ----------------------------------------------
@@ -3197,30 +3217,20 @@ testing:
     to reproduce. storage starts dumb (marketing-api's store,
     surfaced however is cheapest); dogfooding it as web10 records
     on the operator's node is a nice later, not the blocker.
-[ ] ux telemetry -- seeing users silently fail. the third leg of
-    the stool: e2e catches what we predicted, bug reports catch
-    what users SAY, this catches what they don't (rage clicks,
-    abandoned funnels, dead ends nobody bothers to report). the
-    privacy line splits it by surface:
-      - marketing-ui (web10 inc's own site, pre-signup visitors):
-        full ux analytics is fair game -- marketing-api already
-        ingests pageview + funnel events; extend to the whole
-        acquisition funnel (landing -> docs -> app store ->
-        exporter) with per-step drop-off. session replay /
-        heatmaps here via SELF-HOSTED posthog or openreplay --
-        self-hosted so even marketing traffic never feeds a
-        third-party saas. brand consistency is cheap here; buy it.
-        OPERATOR ESCALATION (rant, 30.07.2026): "if we havent set
-        up hotjar on the marketing page, we NEED to!" — the
-        operator wants session analytics on the marketing page NOW
-        and named hotjar; the self-hosted posthog/openreplay line
-        above is the standing decision (marketing traffic never
-        feeds a third-party saas). RECONCILE AT IMPLEMENTATION:
-        ship SOMETHING on the marketing page pronto — if hotjar
-        the SaaS is what unblocks it this week, that's the
-        operator's call to make explicitly (it contradicts the
-        self-hosted line; record whichever way in decisions.md).
-        filed as D-marketing-session-analytics.
+[✓] ux telemetry -- seeing users silently fail. the third leg of
+     the stool: e2e catches what we predicted, bug reports catch
+     what users SAY, this catches what they don't (rage clicks,
+     abandoned funnels, dead ends nobody bothers to report). the
+     privacy line splits it by surface:
+       - marketing-ui (web10 inc's own site, pre-signup visitors):
+         FULLY DONE (1.0.279): Hotjar session replay + heatmaps live
+         (D38: Hotjar SaaS override, operator 30.07). marketing-api
+         already ingests pageview + funnel events; Hotjar adds the
+         session-replay/heatmap leg. self-hosted PostHog deferred
+         but not blocked (decisions.md D38).
+         OPERATOR ESCALATION (rant, 30.07.2026): "if we havent set
+         up hotjar on the marketing page, we NEED to!" — SHIPPED.
+         filed as D-marketing-session-analytics.
       - ui + web10-social (the platform, where users' lives
         live): third-party session-recording js (hotjar /
         fullstory / logrocket-class) is RADIOACTIVE. "nobody is
@@ -3235,12 +3245,24 @@ testing:
         unhandledrejection -> endpoint) on all three uis: that
         is "is the ui doing it" with zero content cost, and it
         catches the errors users never report.
-      - replay-grade insight on the platform, when genuinely
-        needed: OPT-IN recorded sessions from dogfooding and
-        design-partner creators ("help us improve -- record this
-        session"), self-hosted, staging-first. watch real usage
-        without surveilling fans; the consent is the feature,
-        and it's a pitch line ("they record everyone; we asked").
+- replay-grade insight on the platform, when genuinely
+         needed: OPT-IN recorded sessions from dogfooding and
+         design-partner creators ("help us improve -- record this
+         session"), self-hosted, staging-first. watch real usage
+         without surveilling fans; the consent is the feature,
+         and it's a pitch line ("they record everyone; we asked").
+     - Google Analytics 4 (operator, 30.07): aggregate pageview +
+       event analytics across ALL surfaces (marketing-ui, web10-social,
+       ui/auth). GA4 is NOT session recording — no DOM capture, no
+       keystroke logging, no replay. It is anonymous, aggregate,
+       CONTENT-FREE: fits squarely within the standing "aggregate
+       exhaust only" allowance. One measurement ID shared across all
+       three apps (or per-app if the operator wants property separation).
+       File: D-ga4-marketing (ws-D/marketing(2)), D-ga4-social (ws-D/
+       social-analytics or nearest open ws-D sub-lane), D-ga4-auth
+       (ws-B). Each is SMALL, no gate, parallel-safe (different
+       directories). Acceptance: GA4 dashboard shows real pageviews
+       from the corresponding surface; no content leaves the app.
 [ ] ci from phase 0: github actions on every pr -- lint, typecheck,
     tests, docker builds. nothing merges red. (specced in full in
     CROSS-CUTTING — ci/cd below; landable today, don't wait.)

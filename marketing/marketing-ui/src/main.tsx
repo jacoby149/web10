@@ -5,11 +5,14 @@ import App from './App.tsx'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ReportBug } from './components/ReportBug'
 import { Button } from './components/ui/button'
-import { trackPageview, installErrorBeacon } from './lib/analytics'
+import { trackPageview, installErrorBeacon, installHotjar } from './lib/analytics'
 import './index.css'
 
 // Install JS error beacon (window.onerror + unhandledrejection)
 installErrorBeacon()
+
+// Install Hotjar session recording (marketing-ui only — platform surfaces stay recording-free)
+installHotjar()
 
 function AnalyticsTracker() {
   const location = useLocation()
