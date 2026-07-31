@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import '@testing-library/jest-dom';
 
@@ -356,6 +356,34 @@ describe('Layout', () => {
     expect(screen.getAllByText('Discover').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Profile').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Messages').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('coming-soon items render on the desktop sidebar but NOT in the mobile bottom nav', async () => {
+    // Operator, 31.07.2026: "for the greyed out tabs, just dont even show
+    // them! … coming soon on desktop i actually really like, just dont like
+    // seeing them on mobile."
+    const { default: Layout } = await import('@/components/Social/Layout');
+    render(
+      <MemoryRouter initialEntries={['/feed']}>
+        <Layout onLogout={() => {}} onReportBug={() => {}}>
+          <div>Content</div>
+        </Layout>
+      </MemoryRouter>,
+    );
+    // Desktop sidebar keeps the coming-soon section.
+    expect(screen.getByTestId('nav-flares')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-takes')).toBeInTheDocument();
+    // Mobile bottom nav (aria-label="Primary mobile") renders none of them.
+    const mobileNav = screen.getByLabelText('Primary mobile');
+    expect(within(mobileNav).queryByTestId('nav-flares-mobile')).not.toBeInTheDocument();
+    expect(within(mobileNav).queryByTestId('nav-takes-mobile')).not.toBeInTheDocument();
+    expect(within(mobileNav).queryByTestId('nav-livestream-mobile')).not.toBeInTheDocument();
+    expect(within(mobileNav).queryByTestId('nav-games-mobile')).not.toBeInTheDocument();
+    expect(within(mobileNav).queryByTestId('nav-groups-mobile')).not.toBeInTheDocument();
+    expect(within(mobileNav).queryByTestId('nav-marketplace-mobile')).not.toBeInTheDocument();
+    // …and the real destinations are all still there.
+    expect(within(mobileNav).getByTestId('nav-feed-mobile')).toBeInTheDocument();
+    expect(within(mobileNav).getByTestId('nav-discover-mobile')).toBeInTheDocument();
   });
 
   it('renders logout button', async () => {
