@@ -599,6 +599,9 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       that `_created_at` / media `created_at` / discovery
       `created_at` carry an offset (parse with
       `datetime.fromisoformat`, assert tzinfo present); ruff green.
+      SCOPE NOTE (audit #20): leave auth.py token `expires` OUT of
+      bite a — the auth.py seam is held by in-flight PRs (#467/#462);
+      the expires sweep is follow-up bite a2, gate: those merged.
       bite b, THE CLIENT CLAMP — shared formatter clamps to "just
       now"; vitest with a future timestamp. acceptance: a post
       created on the server renders a non-negative age for a viewer
@@ -3709,8 +3712,99 @@ M3 "the network"         = encryption integration (A rtc + C2 sdk
                            polish. the last big merge.
 
 
-CURRENT CONDUCTOR BOARD (as of 31.07.2026 — audit #19; keep fresh)
+CURRENT CONDUCTOR BOARD (as of 31.07.2026 — audit #20; keep fresh)
 --------------------------------------------------------------------
+AUDIT #20 REFRESH (31.07, web10web10! pass #20): SHIPPED. The dev batch
+(#457–#476) gated CLEAN — audit #19 read #457–#466 (one finding F1, fixed
+in #474/1.0.290); this pass read the six new merges (#470, #472, #473,
+#474, #475, #476) with no invariant/auth/star/seam findings; e2e GREEN at
+dev head (run 30600869495), deploy-dev green — and promoted dev→main via
+merge commit (#478); deploy-prod + cd + e2e on main ALL green; prod
+verified live from the workspace (7/7 public endpoints 200 + signup +
+token money path, 9/9). PROD NOW SERVES: the B9 recovery-phone save that
+actually persists, owner edit affordances on /u/<you>, GA4 on
+web10-social, one wide Twitter-style trending column (Hot Gossip/Video
+tabs) on both trending surfaces, the discovery board services filter
+(fallout-avatar no longer ghosts into social trending; every app asks the
+board for its own services), profile posts clickable + videos on /u/,
+Hotjar on marketing, marketing deep-link retarget. DANGLING PRs: FIVE
+open, all in flight — #477 (discover takedown no longer removes posts
+from the profile wall; checks green; UserProfileScreen.tsx + data/posts.ts
+seam — D-follow-lists rebases after it), #471 (C8 bite c twilio/webhook
+e2e; FLAG: no checks reported on the branch — confirm the e2e workflow
+triggers or dispatch a run before merge), #468 (D-public-media-verify,
+green), #467 (A21 bite a, green), #462 (A20 bite b, green). Seam note:
+#467 + #462 both touch auth.py/exceptions.py/test_endpoints.py —
+first-merged wins, the other rebases. HYGIENE repaired in-pass: 1.0.289
+claimed by THREE merges (#470/#472/#473) — split by merge order: #470
+keeps 1.0.289, #472 → 1.0.293, #473 → 1.0.294; refs updated. ALIGNMENT:
+unchanged — operator-complaint-driven social work + the account-
+permanence cluster (A20–A23/B9) + the C8 money-path referee; no infra
+drift. Timeline: week 2 (jul 27–aug 3) closing; week 3 is M0 integration
+— founder taste pass remains the schedule risk. QWEN HORIZON: 4
+immediately-kickoffable parallel-safe bites (below) + 4 more the moment
+the in-flight PRs merge — Qwens run independently.
+
+  PRIORITY 1 (fresh, this audit):
+    ws-E (operator-gated): E-run-discovery-migration — STILL the
+      highest-demo-impact item on the board and still needs the admin
+      token. The "lacks videos and images" complaint class persists on
+      prod until the backfill RE-RUN (A17 media fields) executes; RUN
+      LIST also carries POST /admin/apps/migrate_v2 (cleanup, not a
+      blocker — the compat filter is live on prod).
+
+  PARALLEL-SAFE FLEET (one workspace per sub-lane; chains WITHIN a
+  sub-lane are sequential, file seams). In flight (open PRs, do NOT
+  re-kick): #477 profile-wall-moderation-immune, #471 C8 bite c, #468
+  D-public-media-verify, #467 A21 bite a, #462 A20 bite b. Next bites:
+    ws-A:            A24-utc-timestamps bite a (the api sweep — utcnow_iso()
+                      helper + every naive utcnow WRITE in documentdb.py +
+                      media.py; SCOPE NOTE: leave auth.py token `expires`
+                      OUT of this bite — #467/#462 hold the auth.py seam;
+                      the expires sweep is follow-up bite a2, gate: #467 +
+                      #462 merged), THEN A21 bite b (gate: #467 merged),
+                      THEN A22, THEN A23 (GATED on A21 bite b).
+    ws-B:            D-ga4-auth (SMALL, no gate — GA4 pageview + event
+                      analytics on ui/auth; aggregate only, no recording),
+                      THEN B9 bite b (email recovery UI — gate: #462
+                      merged + the .context/ contract), THEN D-import-
+                      revamp bite c (authenticator import tab — gate:
+                      bite b merged 1.0.266, CLEAR).
+    ws-D/profile:    D-lightbox-media-sizing (PostLightbox seam — FREE, no
+                      in-flight PR touches it), THEN D-follow-lists (gate:
+                      #477 merged — UserProfileScreen seam), THEN
+                      D-profile-image-placement, D-text-post-cards.
+                      (D-own-profile-edit-restore merged 1.0.293,
+                      D-public-media-verify in flight as #468.)
+    ws-D/marketing(2): D-ga4-marketing (SMALL, no gate — GA4 pageview +
+                      event analytics on marketing-ui; one measurement ID
+                      shared or per-app; acceptance: GA4 dashboard shows
+                      real marketing-ui pageviews).
+    ws-D/shell:      D-deep-links bite 3 (profile ?tab=posts|media —
+                      SEAM NOTE: the /u/<you> profile is UserProfileScreen
+                      now, a ws-D/profile file; run INSIDE the ws-D/
+                      profile chain or coordinate via .context/, never
+                      blind-parallel).
+    ws-C:            C8 bite b (payments journey — gate: #471 merged;
+                      e2e/** is one lane, sequential).
+  GATED (don't pick up until the gate clears):
+      D-night-owl bites b-e (gate: operator's Conductor Pro trial).
+      D-poke build (gate: operator sign-off on the 1.0.179 proposal).
+      D-feed-avatar-resolution + the D-user-profile-media grid half
+        (gate: D-public-media-verify = #468 merged).
+      D-coming-soon-builds (gate: per-surface spec first).
+      D-appstore category rails (gate: catalog size).
+      E-run-discovery-migration (gate: admin token — operator provides).
+      E-dependabot-hackathon (parked per operator "can be done later").
+  Selection rule (CLAUDE.md): only truly-parallel items at once. The
+  PostLightbox/FeedScreen/PostComposer files form ONE seam cluster
+  spanning ws-D/feed and ws-D/profile — the two chains coordinate via
+  .context/ notes and never edit the same file concurrently.
+  BITE RULE (rule 5, operator 27.07): the chains above are QUEUES of
+  bites — a kickoff hands an agent exactly ONE bite (one PR, ~20-40
+  min); multi-bite items carry a BITES: breakdown in their lane text.
+  never kick off "the chain".
+
 AUDIT #19 REFRESH (31.07, web10web10! pass #19): SHIP GATE RED — batch
 NOT promoted. Dangling PRs: three open, all healthy and in flight —
 #468 (D-public-media-verify, CLEAN), #467 (A21-passwordless bite a,
@@ -3767,20 +3861,20 @@ chained PRs behind them — Qwens run independently.
                      B9 bite b (email recovery UI — gate: A20 bite b =
                      #462 merged + the .context/ contract), THEN
                      D-ga4-auth (SMALL, no gate).
-ws-D/profile:    [✓ 1.0.289] D-own-profile-edit-restore (owner edit affordances
-                      lost in the /u move — edit profile, avatar/banner
-                      upload, review-imports; isOwnProfile gate), THEN
-                      D-follow-lists (twice-complained —
-                     /u/:username/followers|following routes), THEN
-                     D-lightbox-media-sizing, THEN
-                     D-profile-image-placement, D-text-post-cards.
-                     (D-visibility-toggle-duplicate merged 1.0.284,
-                     D-public-media-verify in flight as #468 —
-                     de-queued.)
+ws-D/profile:    [✓ 1.0.293] D-own-profile-edit-restore (owner edit affordances
+                       lost in the /u move — edit profile, avatar/banner
+                       upload, review-imports; isOwnProfile gate), THEN
+                       D-follow-lists (twice-complained —
+                      /u/:username/followers|following routes), THEN
+                      D-lightbox-media-sizing, THEN
+                      D-profile-image-placement, D-text-post-cards.
+                      (D-visibility-toggle-duplicate merged 1.0.284,
+                      D-public-media-verify in flight as #468 —
+                      de-queued.)
     ws-D/discover:   FREE — trending-views bite b merged 1.0.286.
-                     Next: nothing queued; take D-ga4-social if
-                     ws-D/social-analytics is unstaffed.
-ws-D/social-analytics: [✓ 1.0.289] D-ga4-social (SMALL, no gate — GA4 pageview
+                      Next: nothing queued; take D-ga4-social if
+                      ws-D/social-analytics is unstaffed.
+ws-D/social-analytics: [✓ 1.0.294] D-ga4-social (SMALL, no gate — GA4 pageview
                       + event analytics on web10-social; aggregate only,
                       no recording; acceptance: GA4 dashboard shows real
                       social pageviews).
@@ -3869,29 +3963,29 @@ ws-B:            B9-recovery-contact-nudge bite a (the nudge — no
                       analytics on ui/auth; aggregate only, no
                       recording; acceptance: GA4 dashboard shows real
                       auth pageviews)
-ws-D/profile:    [✓ 1.0.289] D-own-profile-edit-restore (owner edit affordances
-                      lost in the /u move — edit profile, avatar/banner
-                      upload, review-imports; isOwnProfile gate), THEN
-                      D-visibility-toggle-duplicate (REPRO first — stale
-                     post object across toggles), THEN D-public-media-
-                     verify (TINY — the gate-CLEARER for the two GATED
-                     media items below), THEN D-follow-lists (twice-
-                     complained — /u/:username/followers|following
-                     routes), THEN D-lightbox-media-sizing, THEN
-                     D-profile-image-placement, D-text-post-cards
+ws-D/profile:    [✓ 1.0.293] D-own-profile-edit-restore (owner edit affordances
+                       lost in the /u move — edit profile, avatar/banner
+                       upload, review-imports; isOwnProfile gate), THEN
+                       D-visibility-toggle-duplicate (REPRO first — stale
+                      post object across toggles), THEN D-public-media-
+                      verify (TINY — the gate-CLEARER for the two GATED
+                      media items below), THEN D-follow-lists (twice-
+                      complained — /u/:username/followers|following
+                      routes), THEN D-lightbox-media-sizing, THEN
+                      D-profile-image-placement, D-text-post-cards
 ws-D/discover:   [✓ 1.0.280] D-trending-views bite b (Discover parity — the
-                      view toggle ported to DiscoverScreen; gate: bite a
-                      merged 1.0.272, CLEAR)
+                       view toggle ported to DiscoverScreen; gate: bite a
+                       merged 1.0.272, CLEAR)
                  [✓ 1.0.291] D-trending-single-column (operator feedback
-                      31.07, NOT a rant — direct fix): trending grids →
-                      ONE wide Twitter-style column on marketing /trending
-                      (max-w-xl; Top Ten sidebar kept per operator) AND
-                      web10-social Discover (2-col inside max-w-xl was
-                      ~280px cards; video view's lg:3/xl:4 was ~130-180px
-                      inside max-w-xl — both single-column now); tabs
-                      renamed Grid→"Hot Gossip", YouTube→"Video" on both
-                      surfaces; ?view= values unchanged)
-ws-D/social-analytics: [✓ 1.0.289] D-ga4-social (SMALL, no gate — GA4 pageview +
+                       31.07, NOT a rant — direct fix): trending grids →
+                       ONE wide Twitter-style column on marketing /trending
+                       (max-w-xl; Top Ten sidebar kept per operator) AND
+                       web10-social Discover (2-col inside max-w-xl was
+                       ~280px cards; video view's lg:3/xl:4 was ~130-180px
+                       inside max-w-xl — both single-column now); tabs
+                       renamed Grid→"Hot Gossip", YouTube→"Video" on both
+                       surfaces; ?view= values unchanged)
+ws-D/social-analytics: [✓ 1.0.294] D-ga4-social (SMALL, no gate — GA4 pageview +
                        event analytics on web10-social; aggregate only,
                        no recording, fits the "anonymous, aggregate,
                        CONTENT-FREE" allowance; acceptance: GA4
