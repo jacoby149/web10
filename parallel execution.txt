@@ -810,7 +810,7 @@ LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
       the whole phase — it's how "we shipped moderation with no test"
       doesn't happen.
 
-[ ] B9-recovery-contact-nudge (lane B, ui/**; operator, 30.07 rant:
+[✓ 1.0.280] B9-recovery-contact-nudge (lane B, ui/**; operator, 30.07 rant:
       "we need to pester every user to set a recovery email pronto
       or number, if they havent! the recovery flow has to be tight
       so the user accounts aren't ephemeral, they are permanent!"):

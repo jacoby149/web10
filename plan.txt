@@ -676,7 +676,7 @@ node policy (anti-abuse is the NODE'S call, not the protocol's):
     ephemeral. filed as A20-recovery-email-channel (api) +
     B9-recovery-contact-nudge (ui: pester every user with no
     recovery contact set until they set one). accounts are
-    PERMANENT is the product promise. bite a merged [✓ 1.0.271],
+    PERMANENT is the product promise. bite a merged [✓ 1.0.280],
     bite b (email reset flow) still open.
 [ ] passwordless phone login (operator rant, 30.07.2026): "even
     better, passwordless phone text verification code is the goat!
