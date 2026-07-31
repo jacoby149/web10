@@ -501,12 +501,12 @@ async function fetchComments(postId: string, postAuthor?: string, postService?: 
   const target = postAuthor && postService
     ? `${postAuthor}/${postService}/${postId}`
     : `posts:${postId}`;
-  const resp = await fetch(`${COMMENT_API}/public/entries`, {
+  // PATCH /public/entries reads its filters from QUERY PARAMS (FastAPI
+  // Query(...)), not the request body — a body-carried target is ignored and
+  // returns the unfiltered ledger (every post's comments mixed together).
+  const params = new URLSearchParams({ target, limit: '50' });
+  const resp = await fetch(`${COMMENT_API}/public/entries?${params.toString()}`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      query: { target, limit: 50 },
-    }),
   });
   if (!resp.ok) return [];
   const entries: LedgerComment[] = await resp.json();
@@ -681,7 +681,9 @@ function TrendingCard({
       className={[
         'group relative scroll-mt-24 overflow-hidden bg-surface transition-transform duration-150 ease-out hover:-translate-y-0.5 focus-within:-translate-y-0.5 motion-reduce:transform-none',
         HEAT_SHADOW[tier],
-        featured ? 'sm:col-span-2' : '',
+        // NOTE: never col-span the featured card — inside the one-column
+        // grid a span forces an implicit 0px track that swallows every
+        // second card (invisible) and inflates the row (dead space).
         className ?? '',
       ].join(' ')}
     >
@@ -813,7 +815,7 @@ function TrendingSkeleton({ featured = false }: { featured?: boolean }) {
   return (
     <Card
       data-testid="trending-skeleton"
-      className={['bg-surface', featured ? 'sm:col-span-2' : ''].join(' ')}
+      className={['bg-surface', ''].join(' ')}
     >
       <div className="p-4">
         <div className="flex items-center justify-between">
@@ -853,7 +855,7 @@ async function fetchDiscoverFeed(sort: 'recent' | 'trending', limit = 6): Promis
   const resp = await fetch(`${API_ORIGIN}/discover/posts`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query: { sort, limit } }),
+    body: JSON.stringify({ query: { sort, limit, services: 'public_posts' } }),
   });
   if (!resp.ok) return [];
   return resp.json();

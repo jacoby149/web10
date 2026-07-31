@@ -2,12 +2,18 @@ import { useState, useEffect, useCallback } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   readUserProfile,
   readProfile,
+  saveProfile,
   readMyPosts,
   resolveMediaRefs,
+  uploadMedia,
+  refreshMediaUrls,
+  countStagingPosts,
   followUser,
   unfollowUser,
   readFollow,
@@ -18,9 +24,10 @@ import {
 } from '@/data';
 import { getWapi } from '@/data/wapi';
 import type { ProfileRecord, PostRecord, MediaRecord, FollowRecord } from '@/data/types';
-import { MapPin, Globe, Link, Users, UserPlus, UserCheck, Loader2, ArrowLeft, MessageSquare, Play } from 'lucide-react';
+import { MapPin, Globe, Link, Users, UserPlus, UserCheck, Loader2, ArrowLeft, MessageSquare, Play, Camera, Edit3, Check, X, ImagePlus, AlertTriangle, Inbox } from 'lucide-react';
 import { PostLightbox } from './PostLightbox';
 import { cn } from '@/lib/utils';
+import { MARKETING_ORIGIN } from '@/lib/origins';
 import { useNavigate } from 'react-router-dom';
 
 function UserProfileSkeleton() {
@@ -74,6 +81,13 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
   const [followError, setFollowError] = useState<string | null>(null);
   const [followingCountError, setFollowingCountError] = useState(false);
   const [lightboxPost, setLightboxPost] = useState<PostRecord | null>(null);
+  // Owner-edit state
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [draft, setDraft] = useState<Partial<ProfileRecord>>({});
+  const [stagingCount, setStagingCount] = useState<number>(0);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -97,16 +111,18 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
 
       if (isOwn) {
         // Owner path: read from own collections (same as ProfileScreen)
-        const [p, postsRes, fC, fCnt] = await Promise.all([
+        const [p, postsRes, fC, fCnt, stgCount] = await Promise.all([
           readProfile(),
           readMyPosts(),
           countFollows(),
           countFollowers(token.username, token.provider),
+          countStagingPosts(),
         ]);
         profile = p;
         postsData = postsRes || [];
         fc = fC;
         fCount = fCnt;
+        setStagingCount(stgCount);
       } else {
         // Viewer path: read from discovery API + public ledger
         const [p, fr] = await Promise.all([
@@ -142,6 +158,9 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
       }
 
       setProfile(profile);
+      if (isOwn) {
+        setDraft(profile || {});
+      }
       setPosts(postsData);
       setFollowingCount(fc);
       setFollowerCount(fCount);
@@ -194,6 +213,50 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
     }
   }
 
+  async function handleSave() {
+    setSaving(true);
+    try {
+      const saved = await saveProfile(draft);
+      setProfile(saved);
+      setEditing(false);
+    } catch (e) {
+      console.error('Failed to save profile:', e);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleUpload(field: 'avatar_ref' | 'banner_ref') {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      setUploadError(null);
+      setUploading(true);
+      try {
+        const media = await uploadMedia({ file, service: 'public_media' });
+        if (media._id) {
+          const [presigned] = await refreshMediaUrls([media]);
+          setMediaMap((prev) => ({ ...prev, [media._id!]: presigned }));
+        }
+        const updated = { ...(profile || {}), [field]: media._id || '' };
+        setDraft(updated);
+        const saved = await saveProfile(updated);
+        setProfile(saved);
+      } catch (err) {
+        console.error('Failed to upload image:', err);
+        setUploadError(
+          err instanceof Error ? err.message : 'Upload failed. Please try again.',
+        );
+      } finally {
+        setUploading(false);
+      }
+    };
+    input.click();
+  }
+
   if (loading) {
     return <UserProfileSkeleton />;
   }
@@ -203,7 +266,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
   const avatarMedia = profile?.avatar_ref ? mediaMap[profile.avatar_ref] : undefined;
 
   return (
-    <div>
+    <div className="mx-auto max-w-3xl">
       {/* Back button (mobile) */}
       {onBack && (
         <div className="md:hidden px-3 py-2 border-b border-border">
@@ -230,15 +293,27 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
         {bannerMedia && (
           <img src={bannerMedia.url} alt="" className="absolute inset-0 w-full h-full object-cover" />
         )}
+        {isOwnProfile && (
+          <button
+            onClick={() => handleUpload('banner_ref')}
+            disabled={uploading}
+            aria-label="Change banner"
+            data-testid="edit-banner-button"
+            className="absolute bottom-2 right-2 flex items-center gap-1.5 px-2.5 h-9 rounded-lg bg-background/70 border border-border text-xs text-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity backdrop-blur-sm hover:border-brand/30 hover:bg-background/90"
+          >
+            <ImagePlus className="w-3.5 h-3.5" />
+            Banner
+          </button>
+        )}
       </div>
 
       {/* Header */}
       <div className="px-4 pt-4 pb-4">
         <div className="flex items-start justify-between gap-6 -mt-14">
-          <div className="flex-shrink-0">
+          <div className={cn(isOwnProfile ? 'relative group' : 'flex-shrink-0')}>
             <Avatar className={cn(
               'h-20 w-20 border-4 border-background',
-              'ring-2 ring-brand/20',
+              isOwnProfile ? 'ring-2 ring-brand/20 hover:ring-brand/40 transition-shadow duration-150' : '',
             )}>
               {avatarMedia ? (
                 <AvatarImage src={avatarMedia.url} alt={profile?.display_name || username} />
@@ -248,6 +323,21 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
                 </AvatarFallback>
               )}
             </Avatar>
+            {isOwnProfile && (
+              <button
+                className="absolute bottom-0 right-0 flex items-center justify-center h-7 w-7 rounded-full bg-background border border-border shadow-md opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity hover:border-brand/30"
+                aria-label="Change avatar"
+                data-testid="edit-avatar-button"
+                disabled={uploading}
+                onClick={() => handleUpload('avatar_ref')}
+              >
+                {uploading ? (
+                  <Loader2 className="w-3.5 h-3.5 text-foreground animate-spin" />
+                ) : (
+                  <Camera className="w-3.5 h-3.5 text-foreground" />
+                )}
+              </button>
+            )}
           </div>
           {!isOwnProfile && (
             <div className="flex flex-col gap-2 mt-14">
@@ -290,41 +380,120 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
               </div>
             </div>
           )}
+          {isOwnProfile && !editing && (
+            <Button
+              variant="brand_subtle"
+              size="sm"
+              className="mt-14 gap-1.5"
+              data-testid="edit-profile-button"
+              onClick={() => setEditing(true)}
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+              Edit profile
+            </Button>
+          )}
         </div>
 
+        {uploadError && (
+          <div
+            className="mt-3 flex items-center gap-2 text-sm text-danger"
+            role="alert"
+            data-testid="profile-upload-error"
+          >
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            {uploadError}
+          </div>
+        )}
+
         <div className="mt-3">
-          <h1 className="font-display text-xl font-bold text-foreground truncate">
-            {profile?.display_name || username}
-          </h1>
-          <p className="text-xs text-muted-foreground">@{username}</p>
+          {isOwnProfile && editing ? (
+            <div className="flex flex-col gap-3">
+              <Input
+                value={draft.display_name || ''}
+                onChange={(e) => setDraft({ ...draft, display_name: e.target.value })}
+                placeholder="Display name"
+                data-testid="profile-name-input"
+              />
+              <div className="flex gap-2">
+                <Button size="sm" variant="brand" onClick={handleSave} disabled={saving} data-testid="save-profile-button" className="gap-1.5">
+                  <Check className="w-3.5 h-3.5" />
+                  {saving ? 'Saving…' : 'Save'}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setEditing(false);
+                    setDraft(profile || {});
+                  }}
+                  className="gap-1.5"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <h1 className="font-display text-xl font-bold text-foreground truncate">
+                {profile?.display_name || username}
+              </h1>
+              {!isOwnProfile && (
+                <p className="text-xs text-muted-foreground">@{username}</p>
+              )}
+            </>
+          )}
         </div>
 
         {/* Bio section */}
-        <div className="mt-3 space-y-1.5">
-          {profile?.bio && (
-            <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{profile.bio}</p>
-          )}
-          {profile?.location && (
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <MapPin className="w-3.5 h-3.5" />
-              <span>{profile.location}</span>
+        <div className="mt-3">
+          {isOwnProfile && editing ? (
+            <div className="flex flex-col gap-3">
+              <Textarea
+                value={draft.bio || ''}
+                onChange={(e) => setDraft({ ...draft, bio: e.target.value })}
+                placeholder="Bio"
+                className="text-sm min-h-[60px] resize-none"
+              />
+              <Input
+                value={draft.website || ''}
+                onChange={(e) => setDraft({ ...draft, website: e.target.value })}
+                placeholder="Website"
+              />
+              <Input
+                value={draft.location || ''}
+                onChange={(e) => setDraft({ ...draft, location: e.target.value })}
+                placeholder="Location"
+              />
             </div>
-          )}
-          {profile?.website && (
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              {profile.website.startsWith('http') ? (
-                <Globe className="w-3.5 h-3.5" />
-              ) : (
-                <Link className="w-3.5 h-3.5" />
+          ) : (
+            <div className="space-y-1.5">
+              {profile?.bio && (
+                <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{profile.bio}</p>
               )}
-              <a
-                href={profile.website.startsWith('http') ? profile.website : `https://${profile.website}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-brand-300 hover:text-brand-400 hover:underline transition-colors duration-150"
-              >
-                {profile.website}
-              </a>
+              {profile?.location && (
+                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <MapPin className="w-3.5 h-3.5" />
+                  <span>{profile.location}</span>
+                </div>
+              )}
+              {profile?.website && (
+                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                  {profile.website.startsWith('http') ? (
+                    <Globe className="w-3.5 h-3.5" />
+                  ) : (
+                    <Link className="w-3.5 h-3.5" />
+                  )}
+                  <a
+                    href={profile.website.startsWith('http') ? profile.website : `https://${profile.website}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-brand-300 hover:text-brand-400 hover:underline transition-colors duration-150"
+                  >
+                    {profile.website}
+                  </a>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -348,6 +517,20 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
             <span className="text-xs text-muted-foreground">Following</span>
           </div>
         </div>
+
+        {/* Staging entry point — only shown to owner when N > 0 */}
+        {isOwnProfile && stagingCount > 0 && (
+          <Button
+            variant="brand_subtle"
+            size="sm"
+            data-testid="review-imports-button"
+            className="mt-3 w-full gap-2"
+            onClick={() => navigate('/staging')}
+          >
+            <Inbox className="w-4 h-4" />
+            Review imports ({stagingCount})
+          </Button>
+        )}
 
         {/* Follow error state */}
         {followError && (
@@ -464,8 +647,20 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
               })}
             </div>
           ) : (
-            <div className="py-16 text-center">
-              <p className="text-sm text-muted-foreground">No posts yet</p>
+            <div className="py-16 text-center" data-testid="profile-posts-empty">
+              <p className="text-sm text-muted-foreground mb-2">No posts yet</p>
+              {isOwnProfile && (
+                <p className="text-xs text-muted-foreground/50">
+                  Or{' '}
+                  <button
+                    data-testid="profile-import-cta"
+                    className="text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
+                    onClick={() => window.open(`${MARKETING_ORIGIN}/import`, '_blank', 'noopener,noreferrer')}
+                  >
+                    import your archive
+                  </button>
+                </p>
+              )}
             </div>
           )
         ) : mediaPosts.length ? (

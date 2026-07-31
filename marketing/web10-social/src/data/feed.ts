@@ -168,7 +168,7 @@ export function mapRawDiscoveryPost(raw: RawDiscoveryPost): DiscoveryPost {
 export async function readDiscoverFeed(sort: DiscoverSort = 'recent', limit = 20): Promise<DiscoveryPost[]> {
   try {
     const resp = await fetch(
-      `${API_ORIGIN}/discover/posts?sort=${sort}&limit=${limit}`,
+      `${API_ORIGIN}/discover/posts?sort=${sort}&limit=${limit}&services=public_posts`,
       { method: 'PATCH' },
     );
     if (!resp.ok) return [];
@@ -351,7 +351,7 @@ export interface SuggestedUser {
 export async function fetchSuggestedUsers(limit = 20): Promise<SuggestedUser[]> {
   try {
     const resp = await fetch(
-      `${API_ORIGIN}/discover/users?limit=${limit}`,
+      `${API_ORIGIN}/discover/users?limit=${limit}&services=public_posts`,
       { method: 'PATCH' },
     );
     if (!resp.ok) return [];
