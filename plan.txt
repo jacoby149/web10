@@ -2616,7 +2616,7 @@ D-dm-header-profile-link (ws-D/messages, tiny). merged 1.0.251.
     UserProfileScreen grids were plain divs (no lightbox) and rendered
     videos with <img>. grids now open PostLightbox and render video
     posters + play badges, matching the retired ProfileScreen.
-[ ] visibility toggle duplicates the post (operator, 30.07 rant: "i
+[✓ 1.0.281] visibility toggle duplicates the post (operator, 30.07 rant: "i
     tried publicing a post, privating the post, publicing it again,
     there is now two posts one in public one in private of the same
     post"): movePostVisibility is create-then-delete; a repeated
