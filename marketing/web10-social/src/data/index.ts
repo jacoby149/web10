@@ -2,6 +2,7 @@
 export * from './types';
 export * from './wapi';
 export * from './posts';
+export * from './pullFeed';
 export * from './feed';
 export * from './profile';
 export * from './contacts';

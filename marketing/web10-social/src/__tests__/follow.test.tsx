@@ -13,6 +13,7 @@ vi.mock('@/data', async (importOriginal) => {
   return {
     ...original,
     readFeed: vi.fn().mockResolvedValue([]),
+    readPullFeed: vi.fn().mockResolvedValue([]),
     readPost: vi.fn().mockResolvedValue(null),
     countReactions: vi.fn().mockResolvedValue(0),
     countComments: vi.fn().mockResolvedValue(0),
@@ -47,6 +48,7 @@ vi.mock('@/data', async (importOriginal) => {
     countFollowers: vi.fn().mockResolvedValue(0),
     countUserFollowing: vi.fn().mockResolvedValue(0),
     readUserPostsFromDiscovery: vi.fn().mockResolvedValue([]),
+    readUserPublicPosts: vi.fn().mockResolvedValue([]),
     readReactions: vi.fn().mockResolvedValue([]),
     readFollows: vi.fn().mockResolvedValue([]),
     fetchSuggestedUsers: vi.fn().mockResolvedValue([
@@ -429,9 +431,9 @@ describe('FeedScreen author navigation', () => {
   });
 
   it('passes onAuthorClick to PostCard and calls it on author click', async () => {
-    const { readFeed, readProfile, readUserProfile, readMyPosts, resolveMediaRefs, countReactions, countComments } = await import('@/data');
+    const { readPullFeed, readProfile, readUserProfile, readMyPosts, resolveMediaRefs, countReactions, countComments } = await import('@/data');
 
-    vi.mocked(readFeed).mockResolvedValueOnce([{
+    vi.mocked(readPullFeed).mockResolvedValueOnce([{
       _id: 'inbox-1',
       author_username: 'noodle-empress',
       author_provider: 'test.localhost',
