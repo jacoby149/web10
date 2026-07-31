@@ -21,12 +21,11 @@ function nodeApi(): string {
   return (import.meta as any).env?.VITE_API_URL || 'https://api.web10.app'
 }
 
-function formatBytes(bytes: number): string {
-  if (!bytes || bytes < 1) return '0 B'
+function formatBytes(bytes: number): { value: number; unit: string } {
+  if (!bytes || bytes < 1) return { value: 0, unit: 'B' }
   const units = ['B', 'KB', 'MB', 'GB', 'TB']
   const i = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)))
-  const val = bytes / Math.pow(1024, i)
-  return `${Math.round(val)} ${units[i]}`
+  return { value: Math.round(bytes / Math.pow(1024, i)), unit: units[i] }
 }
 
 function formatNumber(n: number): string {
@@ -100,10 +99,11 @@ function HomeStatsBar() {
 
   if (!stats || error) return null
 
-  const items: Array<{ value: number | string; label: string; icon: typeof Users; isFormatted?: boolean }> = [
+  const storage = formatBytes(stats.storage)
+  const items: Array<{ value: number; unit?: string; label: string; icon: typeof Users }> = [
     { value: stats.users, label: 'platform users', icon: Users },
     { value: stats.apps, label: 'appstore apps', icon: Layers },
-    { value: formatBytes(stats.storage), label: 'data liberated', icon: HardDrive, isFormatted: true },
+    { value: storage.value, unit: storage.unit, label: 'data liberated', icon: HardDrive },
   ]
 
   return (
@@ -118,7 +118,12 @@ function HomeStatsBar() {
             >
               <Icon className="h-4 w-4 text-brand-400 opacity-60" strokeWidth={1.5} />
               <span className="font-display text-2xl font-bold tracking-[-0.02em] text-foreground tabular-nums sm:text-3xl">
-                {item.isFormatted ? item.value : <CountUp value={Number(item.value)} />}
+                <CountUp value={item.value} />
+                {item.unit && (
+                  <span className="ml-1 text-[0.6em] font-medium text-muted-foreground">
+                    {item.unit}
+                  </span>
+                )}
               </span>
               <span className="text-[0.75rem] font-medium uppercase tracking-[0.04em] text-muted-foreground">
                 {item.label}
