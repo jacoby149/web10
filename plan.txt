@@ -3233,12 +3233,24 @@ testing:
         unhandledrejection -> endpoint) on all three uis: that
         is "is the ui doing it" with zero content cost, and it
         catches the errors users never report.
-      - replay-grade insight on the platform, when genuinely
-        needed: OPT-IN recorded sessions from dogfooding and
-        design-partner creators ("help us improve -- record this
-        session"), self-hosted, staging-first. watch real usage
-        without surveilling fans; the consent is the feature,
-        and it's a pitch line ("they record everyone; we asked").
+- replay-grade insight on the platform, when genuinely
+         needed: OPT-IN recorded sessions from dogfooding and
+         design-partner creators ("help us improve -- record this
+         session"), self-hosted, staging-first. watch real usage
+         without surveilling fans; the consent is the feature,
+         and it's a pitch line ("they record everyone; we asked").
+     - Google Analytics 4 (operator, 30.07): aggregate pageview +
+       event analytics across ALL surfaces (marketing-ui, web10-social,
+       ui/auth). GA4 is NOT session recording — no DOM capture, no
+       keystroke logging, no replay. It is anonymous, aggregate,
+       CONTENT-FREE: fits squarely within the standing "aggregate
+       exhaust only" allowance. One measurement ID shared across all
+       three apps (or per-app if the operator wants property separation).
+       File: D-ga4-marketing (ws-D/marketing(2)), D-ga4-social (ws-D/
+       social-analytics or nearest open ws-D sub-lane), D-ga4-auth
+       (ws-B). Each is SMALL, no gate, parallel-safe (different
+       directories). Acceptance: GA4 dashboard shows real pageviews
+       from the corresponding surface; no content leaves the app.
 [ ] ci from phase 0: github actions on every pr -- lint, typecheck,
     tests, docker builds. nothing merges red. (specced in full in
     CROSS-CUTTING — ci/cd below; landable today, don't wait.)
