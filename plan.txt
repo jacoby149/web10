@@ -654,7 +654,7 @@ node policy (anti-abuse is the NODE'S call, not the protocol's):
     beta code / email verify / captcha-turnstile / phone verify.
     stackable. default for self-host: open or invite. twilio only
     needed if the operator chooses phone gates.
-[ ] recovery must not assume sms: recovery codes generated at signup
+[~] recovery must not assume sms: recovery codes generated at signup
     (download/print), email recovery, and later the phase 10/11
     escrow path. sms recovery stays as an option, not the only path.
     forgot-password must be SMOOTH (jacob, 19.07.2026): phone number
@@ -676,7 +676,8 @@ node policy (anti-abuse is the NODE'S call, not the protocol's):
     ephemeral. filed as A20-recovery-email-channel (api) +
     B9-recovery-contact-nudge (ui: pester every user with no
     recovery contact set until they set one). accounts are
-    PERMANENT is the product promise.
+    PERMANENT is the product promise. bite a merged [✓ 1.0.271],
+    bite b (email reset flow) still open.
 [ ] passwordless phone login (operator rant, 30.07.2026): "even
     better, passwordless phone text verification code is the goat!
     also cool if we dont let people make an account if the phone
@@ -726,6 +727,17 @@ node policy (anti-abuse is the NODE'S call, not the protocol's):
     B9 bite d (ui).
 [ ] passkeys as a login option once phase 0 lands -- better than
     passwords, no phone number, phishing-proof. fits the vibe.
+[ ] UTC-explicit timestamps everywhere (operator rant, 30.07.2026):
+    "they were trending as newest, timestamp was -12000 seconds...
+    do you see the bug? does it have to use UTC, or one time zone?"
+    — the api writes NAIVE UTC timestamps (`datetime.utcnow()
+    .isoformat()`, no offset marker); JS parses offset-less ISO as
+    LOCAL time, so viewers see server-stamped posts up to their
+    utc-offset hours in the FUTURE: negative relative-time ages and
+    a broken newest sort. the rule: UTC everywhere, always with the
+    explicit offset marker — the server emits `+00:00`/`Z`, the
+    client clamps negative ages to "just now" as defense-in-depth.
+    filed as A24-utc-timestamps (api sweep + web10-social clamp).
 
 packaging:
 [ ] multi-stage Dockerfile: bun build ui static -> serve from fastapi
@@ -1396,7 +1408,7 @@ Marketing-ui side (Lane D):
     removes it. signed-out -> funnel-to-social or a "sign in to react" gate.
     keep the heart-burst animation (D12 vibrancy). owns: FeedPreview.tsx +
     Trending.tsx.
-[ ] D-trending-views (operator, 30.07 rant: "the same way that messages has
+[✓ 1.0.272] D-trending-views (operator, 30.07 rant: "the same way that messages has
     views, social media, mail, crm, i want the trending to be the same! the
     current trending is very twitter/instagram looking kind of a view! I
     would like youtube view where it only shows the videos and maybe images?
@@ -2150,7 +2162,9 @@ shell:
     surface is breaking the funnel; private screens auth as they
     always did.
     lane item D-deep-links (ws-D/shell; cross-screen seam — stage
-    after the current fleet drains).
+    after the current fleet drains). BITES MERGED: messages [✓ 1.0.266],
+    discover ?tag=&q= [✓ 1.0.276], comment anchor [✓ 1.0.271]; open:
+    profile ?tab=, marketing click-through retarget.
 [✓ 1.0.211 #365] SETTINGS TAB (operator, 26.07): "web10 social doesn't have a
     settings tab, should be a settings tab, facebook style." v0 =
     account section, posting defaults (default visibility), data/
@@ -2571,7 +2585,7 @@ D-dm-header-profile-link (ws-D/messages, tiny). merged 1.0.251.
     delete from the post's actual collection, remove the discovery
     ghost on public deletes, re-read the grid after delete. lane item
     D-delete-post-broken (ws-D/profile).
-[ ] another user's profile shows HIS stats + posts (operator, 30.07
+[✓ 1.0.272] another user's profile shows HIS stats + posts (operator, 30.07
     rant, screenshot of /u/coolguydavid: "i dont see how many hes
     following and how many followers! nor do i see his posts but i
     know he has a post"): three confirmed UserProfileScreen bugs —
@@ -2683,10 +2697,11 @@ the join tab would work great for the import your life!"): rebuild
   5. posts enter staging — review privacy in the Staging screen
      (already built, 1.0.164), click done, they're on web10 social.
   reuses the 1.0.31 marketing-api ZIP pipeline + 1.0.131 staging_
-  posts writes. lane item D-import-revamp (bites: a = the step
-  strip + export links, ws-D/marketing(2); b = the WeTransfer
-  pipeline, ws-D/marketing-api; c = the authenticator import tab,
-  ws-B). follow-ups filed 30.07: D-import-export-links-dead
+   posts writes. lane item D-import-revamp (bites: a = the step
+   strip + export links, ws-D/marketing(2); b = the WeTransfer
+   pipeline, ws-D/marketing-api; c = the authenticator import tab,
+   ws-B; d = web10 node export import path, ws-D/marketing-api
+   [✓ 1.0.272]). follow-ups filed 30.07: D-import-export-links-dead
   (operator-verified working export URLs + our own /docs export-
   guidance article — operator supplies the content; NOT llm
   redirects) and D-export-links-health-e2e (a scheduled link-
@@ -2697,7 +2712,7 @@ the join tab would work great for the import your life!"): rebuild
    sovereignty story is preserved by the delete-after-processing
    promise + the data landing in the user's own collection.
 
-[ ] YOUTUBE-FIRST IMPORT (operator, 30.07 rant: "my business outreach
+[✓ 1.0.277] YOUTUBE-FIRST IMPORT (operator, 30.07 rant: "my business outreach
     efforts are ONLY to youtubers for the first go! therefore i want
     to on the import feature efforts to make it youtube explicitly,
     and the other platforms TBD! and get that suuuppper sharp!!!!!!

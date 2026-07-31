@@ -49,3 +49,12 @@ class TokenForm(BaseModel):
 
 class PhoneForm(BaseModel):
     phone_number: str
+
+
+class EmailForm(BaseModel):
+    email: str
+
+
+class EmailVerifyForm(BaseModel):
+    email: str
+    code: str

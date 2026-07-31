@@ -499,3 +499,154 @@ describe('TrendingCard video media', () => {
     expect(screen.queryByTestId('trending-media-skeleton')).not.toBeInTheDocument();
   });
 });
+
+// ── D-trending-views: view toggle + YouTube view ─────────────────────────────
+
+function makeDiscoveryPostsMedia(n: number) {
+  return Array.from({ length: n }, (_, i) => ({
+    author: `user${i}`,
+    service: 'public_posts',
+    post_id: `post-media-${i}`,
+    body_text: `media post number ${i}`,
+    tags: i % 3 === 0 ? ['video'] : i % 3 === 1 ? ['image'] : ['text'],
+    created_at: new Date(Date.now() - i * 3600_000).toISOString(),
+    engagement: { likes: 50 - i, comments: 3, reposts: 1 },
+    engagement_score: 500 - i * 5,
+    media_refs: i % 3 !== 2 ? [`ref-${i}`] : undefined,
+    first_attachment_mime: i % 3 === 0 ? 'video/mp4' : i % 3 === 1 ? 'image/jpeg' : undefined,
+  }));
+}
+
+describe('Trending view toggle', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal('fetch', vi.fn());
+    vi.stubGlobal('open', vi.fn());
+    Element.prototype.scrollIntoView = vi.fn();
+  });
+
+  it('renders the view toggle with Grid and YouTube buttons after load', async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonOk(makeDiscoveryPosts(10)) as unknown as Response);
+    const { default: Trending } = await import('@/pages/Trending');
+    render(<Trending />);
+    await waitFor(() => expect(screen.getByTestId('trending-view-toggle')).toBeInTheDocument());
+    expect(screen.getByTestId('view-toggle-grid')).toBeInTheDocument();
+    expect(screen.getByTestId('view-toggle-youtube')).toBeInTheDocument();
+  });
+
+  it('shows the grid view by default (no ?view= param)', async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonOk(makeDiscoveryPosts(10)) as unknown as Response);
+    const { default: Trending } = await import('@/pages/Trending');
+    render(<Trending />);
+    await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
+    expect(screen.queryByTestId('trending-youtube-grid')).not.toBeInTheDocument();
+  });
+
+  it('switches to YouTube view when clicking the YouTube button', async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonOk(makeDiscoveryPostsMedia(6)) as unknown as Response);
+    const { default: Trending } = await import('@/pages/Trending');
+    render(<Trending />);
+    await waitFor(() => expect(screen.getByTestId('trending-view-toggle')).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('view-toggle-youtube'));
+    await waitFor(() => expect(screen.getByTestId('trending-youtube-grid')).toBeInTheDocument());
+  });
+
+  it('switches back to grid view when clicking the Grid button', async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonOk(makeDiscoveryPostsMedia(6)) as unknown as Response);
+    const { default: Trending } = await import('@/pages/Trending');
+    render(<Trending />);
+    await waitFor(() => expect(screen.getByTestId('trending-view-toggle')).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('view-toggle-youtube'));
+    await waitFor(() => expect(screen.getByTestId('trending-youtube-grid')).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('view-toggle-grid'));
+    await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
+  });
+
+  it('YouTube view shows only media posts (video + image, not text-only)', async () => {
+    // 6 posts: 2 video, 2 image, 2 text-only
+    vi.mocked(fetch).mockResolvedValue(jsonOk(makeDiscoveryPostsMedia(6)) as unknown as Response);
+    const { default: Trending } = await import('@/pages/Trending');
+    render(<Trending />);
+    await waitFor(() => expect(screen.getByTestId('trending-view-toggle')).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('view-toggle-youtube'));
+    await waitFor(() => expect(screen.getByTestId('trending-youtube-grid')).toBeInTheDocument());
+    // Should show 4 media cards (2 video + 2 image), not 6
+    expect(screen.getAllByTestId('youtube-card')).toHaveLength(4);
+  });
+
+  it('YouTube view shows empty state when no media posts exist', async () => {
+    const textOnlyPosts = Array.from({ length: 5 }, (_, i) => ({
+      author: `user${i}`,
+      service: 'public_posts',
+      post_id: `text-only-${i}`,
+      body_text: `text post ${i}`,
+      tags: ['text'],
+      created_at: new Date().toISOString(),
+      engagement: { likes: 10, comments: 1, reposts: 0 },
+      engagement_score: 100,
+    }));
+    vi.mocked(fetch).mockResolvedValue(jsonOk(textOnlyPosts) as unknown as Response);
+    const { default: Trending } = await import('@/pages/Trending');
+    render(<Trending />);
+    await waitFor(() => expect(screen.getByTestId('trending-view-toggle')).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('view-toggle-youtube'));
+    await waitFor(() => expect(screen.getByText('No media posts yet')).toBeInTheDocument());
+  });
+});
+
+describe('YouTubeCard', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal('fetch', vi.fn());
+    vi.stubGlobal('open', vi.fn());
+    Element.prototype.scrollIntoView = vi.fn();
+    vi.stubGlobal('IntersectionObserver', class {
+      observe = vi.fn();
+      disconnect = vi.fn();
+    });
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: (query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }),
+    });
+  });
+
+  it('renders a YouTubeCard with 16:9 thumbnail area for a video post', async () => {
+    const { YouTubeCard } = await import('@/components/FeedPreview');
+    const videoPost: FeedPost = {
+      ...basePost,
+      id: 'yt-video',
+      media: 'video',
+      mediaRefs: ['ref-1'],
+      firstAttachmentMime: 'video/mp4',
+      author: 'testuser',
+    };
+    render(<YouTubeCard post={videoPost} rank={1} />);
+    expect(screen.getByTestId('youtube-card')).toBeInTheDocument();
+    expect(screen.getByTestId('trending-media-skeleton')).toBeInTheDocument();
+  });
+
+  it('renders a YouTubeCard with content as title and author link', async () => {
+    const { YouTubeCard } = await import('@/components/FeedPreview');
+    const imagePost: FeedPost = {
+      ...basePost,
+      id: 'yt-image',
+      media: 'image',
+      mediaRefs: ['ref-1'],
+      firstAttachmentMime: 'image/jpeg',
+      author: 'testuser',
+    };
+    render(<YouTubeCard post={imagePost} />);
+    expect(screen.getByTestId('youtube-card')).toBeInTheDocument();
+    expect(screen.getByText("Ada Lovelace")).toBeInTheDocument();
+    expect(screen.getByText('2h')).toBeInTheDocument();
+  });
+});

@@ -156,7 +156,26 @@ BUSINESS_NOT_READY = HTTPException(
 PHONE_NUMBER_NOT_REGISTERED = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
     detail="Phone number isn't registered with a web10 account.",
-    headers={"WWW-Authenticate": "Basic"},
+)
+
+BAD_EMAIL = HTTPException(
+    status_code=status.HTTP_400_BAD_REQUEST,
+    detail="invalid email address",
+)
+
+EMAIL_NOT_FOUND = HTTPException(
+    status_code=status.HTTP_404_NOT_FOUND,
+    detail="no email registered for this account",
+)
+
+EMAIL_TAKEN = HTTPException(
+    status_code=status.HTTP_409_CONFLICT,
+    detail="that email is already linked to another account",
+)
+
+EXPIRED_CODE = HTTPException(
+    status_code=status.HTTP_401_UNAUTHORIZED,
+    detail="verification code has expired",
 )
 
 SCHEMA_NOT_FOUND = HTTPException(

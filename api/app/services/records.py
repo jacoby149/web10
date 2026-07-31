@@ -10,6 +10,8 @@ def star_record():
         "hashed_password": "PASSWORD",
         "phone_number": "PHONE_NUMBER",
         "verified": False,
+        "email": None,
+        "email_verified": False,
         "customer_id": None,
         "business_id": None,
         "credit_limit": settings.FREE_CREDITS,  # operator-set quota: rate/abuse throttle

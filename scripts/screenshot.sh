@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # screenshot.sh — one-command screenshots for PR evidence and the
 # multimodal "LOOK at the screenshots" acceptance bar.
+# TEMPORARY OVERRIDE (30.07.2026): reading PNGs breaks Conductor+opencode
+# agent sessions — capture is fine, but agents must NOT read the output
+# PNGs until the conductor.build fix lands (see AGENTS.md).
 #
 # Usage:
 #   scripts/screenshot.sh <url> <out.png> [options]

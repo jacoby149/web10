@@ -12,11 +12,19 @@ export interface ExportLink {
   guideAnchor: string;
 }
 
-export const EXPORT_LINKS: ExportLink[] = exportLinksData.links.map(
-  (l) => ({
-    platform: l.platform,
-    label: l.label,
-    url: l.url,
-    guideAnchor: l.platform === 'youtube' ? 'google' : l.platform,
-  }),
+const toExportLink = (l: typeof exportLinksData.links[0]): ExportLink => ({
+  platform: l.platform,
+  label: l.label,
+  url: l.url,
+  guideAnchor: l.platform === 'youtube' ? 'google' : l.platform,
+});
+
+export const EXPORT_LINKS: ExportLink[] = exportLinksData.links.map(toExportLink);
+
+export const YOUTUBE_EXPORT: ExportLink = toExportLink(
+  exportLinksData.links.find(l => l.platform === 'youtube')!,
 );
+
+export const SECONDARY_PLATFORMS: ExportLink[] = exportLinksData.links
+  .filter(l => l.platform !== 'youtube')
+  .map(toExportLink);

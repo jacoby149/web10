@@ -41,9 +41,10 @@ interface PostLightboxProps {
   postAuthor?: string;
   postService?: string;
   isOwner?: boolean;
+  highlightedCommentId?: string;
 }
 
-export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, postService, isOwner: isOwnerProp }: PostLightboxProps) {
+export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, postService, isOwner: isOwnerProp, highlightedCommentId }: PostLightboxProps) {
   const media = (post.media_refs || [])
     .map(ref => mediaMap[ref])
     .filter((m): m is MediaRecord => Boolean(m));
@@ -118,6 +119,13 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
     return () => { cancelled = true; };
   }, [post._id, token]);
 
+  // Auto-open comments when a comment anchor is present
+  useEffect(() => {
+    if (highlightedCommentId && !commentsOpen) {
+      setCommentsOpen(true);
+    }
+  }, [highlightedCommentId, commentsOpen]);
+
   async function handleToggleLike() {
     if (!token) return;
     const wasLiked = liked;
@@ -173,7 +181,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
   }
 
   async function handleShare() {
-    const url = `${window.location.origin}/u/${postAuthor || 'unknown'}/p/${post._id || 'unknown'}`;
+    const url = `${window.location.origin}/u/${postAuthor || 'unknown'}/p/${post._id || 'unknown'}${highlightedCommentId ? `?comment=${highlightedCommentId}` : ''}`;
     // Record the share in the public ledger so the engagement count increments
     if (postAuthor && postService) {
       recordRepost(post._id || '', postAuthor, postService);
@@ -381,6 +389,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
             postAuthor={postAuthor}
             postService={postService}
             onCountChange={setCommentCount}
+            highlightedCommentId={highlightedCommentId}
           />
 
           {/* Owner actions */}
