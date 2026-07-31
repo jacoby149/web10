@@ -90,6 +90,13 @@ The user sees a toggle. The app handles the routing.
    tags, media_count, created_at, updated_at. No full body.
 ```
 
+**ANY anon-readable service is indexed — not just `public_posts`.** The
+index is a general public projection of everything terms already allow
+anon to read (D39). What a given reader sees is selected at READ time via
+the `services` filter (below) — web10-social asks for `public_posts`,
+another app can ask for its own service and get its own trending board
+off the same index.
+
 > **`background_index_post` swallows exceptions — mind the silent failure.**
 > The only writer to the index catches and logs (never raises) so a bad post
 > can't fail a user's write. The cost: if the index path is broken, posts
@@ -384,6 +391,34 @@ well-formed under the shared `Token` model; it is idempotent and read-only.
 > Regression tests live in `api/tests/test_discovery.py`
 > (`test_posts_bodyless_patch` and friends).
 
+### The `services` filter — every app gets its own board (D39)
+
+All four board endpoints (`/discover/posts`, `/discover/users`,
+`/discover/search`, `/discover/topics`) accept **`services`**: a
+comma-separated list of service names, sent as a URL query param or as
+`query.services` in the optional body. The board reads back only index
+entries whose `service` is in the list.
+
+- **Omitted (or empty)** → the default board set
+  `("public_posts", "web10_apps")` — the social posts board plus the
+  #web10apps app-store projection. Legacy callers are unaffected.
+- **web10-social and marketing-ui** pass `services=public_posts` — the
+  social trending/recent/search/users surfaces are posts-only and can
+  never be tainted by other apps' anon-readable records (prod 30.07.2026:
+  `fallout-avatar` records ghosted into the social trending feed as empty
+  posts before this filter existed).
+- **Any app can query its own service** — e.g.
+  `PATCH /discover/posts?sort=trending&services=fallout-avatar` gives the
+  avatar app its own trending board off the same public index. This is
+  the intended way for every app to benefit from the one public
+  cross-user read path.
+
+Admin moderation (`removed` via `/admin/discovery/remove`) applies on top
+of the filter, per service — and it is board-scoped only: a moderated
+post stays on the author's profile wall and in friends' inbox feeds
+(those read the author's collection / inbox copies directly, never the
+index).
+
 #### `PATCH /discover/posts` — For You feed
 
 Returns public posts sorted by engagement or recency.
@@ -392,8 +427,9 @@ Returns public posts sorted by engagement or recency.
 - `sort`: `recent` (default) | `trending` (by engagement score)
 - `limit`: int, default 50, max 200
 - `skip`: int, default 0
+- `services`: comma-separated service filter (default: the posts board set — see D39 above)
 
-**Request body:** optional Token; `query.sort`/`query.limit`/`query.skip`
+**Request body:** optional Token; `query.sort`/`query.limit`/`query.skip`/`query.services`
 override the URL params. No body is fine.
 
 **Response:**
@@ -424,6 +460,7 @@ activity or follower count.
 - `sort`: `active` (default, most posts in last 7 days) | `followers`
 - `limit`: int, default 20, max 100
 - `skip`: int, default 0
+- `services`: comma-separated service filter (default: the posts board set)
 
 **Request body:** Token (can be null for anon).
 
@@ -449,6 +486,7 @@ Text search across public post content.
 - `q`: search query (required)
 - `limit`: int, default 20, max 100
 - `skip`: int, default 0
+- `services`: comma-separated service filter (default: the posts board set)
 
 **Request body:** Token (can be null for anon).
 
@@ -461,6 +499,7 @@ Returns most-used tags in public posts over a time window.
 **Query params:**
 - `limit`: int, default 20, max 50
 - `window`: `24h` (default) | `7d`
+- `services`: comma-separated service filter (default: the posts board set)
 
 **Request body:** Token (can be null for anon).
 
