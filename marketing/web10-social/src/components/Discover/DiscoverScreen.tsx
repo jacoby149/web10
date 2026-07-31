@@ -37,6 +37,8 @@ import {
   Loader2,
   Search,
   X,
+  Grid3X3,
+  Video,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
@@ -538,6 +540,170 @@ function postToSignals(post: DiscoveryPost) {
   };
 }
 
+// ── View toggle (D-trending-views bite b: Discover parity) ──────────────────
+
+type DiscoverView = 'grid' | 'youtube';
+
+function postHasMedia(post: DiscoveryPost): boolean {
+  return !!(post.tags?.includes('video') || post.tags?.includes('image') || post.media_refs?.length);
+}
+
+// ── YouTubeCard (Discover parity with marketing-ui YouTubeCard) ─────────────
+
+interface DiscoverYouTubeCardProps {
+  post: DiscoveryPost;
+  rank: number;
+  authorName: string;
+  authorAvatar?: string;
+  mediaItems: MediaRecord[];
+  onAuthorClick: () => void;
+}
+
+function DiscoverYouTubeCard({
+  post,
+  rank,
+  authorName,
+  authorAvatar,
+  mediaItems,
+  onAuthorClick,
+}: DiscoverYouTubeCardProps) {
+  const displayName = authorName.charAt(0).toUpperCase() + authorName.slice(1);
+  const initial = post.author.charAt(0).toUpperCase();
+  const avatarColor = hashToColor(post.author);
+  const hasImage = mediaItems.length > 0 && mediaItems[0].url;
+  const isVideo = post.tags?.includes('video');
+
+  return (
+    <div
+      data-testid="discover-youtube-card"
+      className="group/yt cursor-pointer"
+    >
+      {/* 16:9 thumbnail */}
+      <div className="relative overflow-hidden rounded-xl bg-elevated">
+        {hasImage ? (
+          <img
+            src={mediaItems[0].thumbnail_url || mediaItems[0].url}
+            alt={mediaItems[0].alt_text || ''}
+            className="aspect-video w-full object-cover transition-transform duration-150 group-hover/yt:scale-105"
+            loading="lazy"
+          />
+        ) : isVideo ? (
+          <div className="aspect-video w-full flex items-center justify-center bg-elevated">
+            <Film className="h-8 w-8 text-muted-foreground/40" />
+          </div>
+        ) : (
+          <div className="aspect-video w-full flex items-center justify-center bg-elevated">
+            <ImageIcon className="h-8 w-8 text-muted-foreground/40" />
+          </div>
+        )}
+        {/* Time badge */}
+        <div className="absolute bottom-2 right-2 rounded bg-background/90 px-1.5 py-0.5 text-[10px] font-medium text-foreground backdrop-blur-sm">
+          {formatTimeAgo(post.created_at)}
+        </div>
+        {rank !== undefined && rank <= 3 && (
+          <div className="absolute top-2 left-2">
+            <RankBadge rank={rank} />
+          </div>
+        )}
+      </div>
+
+      {/* Metadata row: avatar + title + author + engagement */}
+      <div className="mt-2.5 flex gap-2.5">
+        <button
+          type="button"
+          onClick={onAuthorClick}
+          className="shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-full"
+          aria-label={`View ${displayName}'s profile`}
+        >
+          <Avatar className={cn(avatarColor, 'h-9 w-9')}>
+            {authorAvatar ? (
+              <img src={authorAvatar} alt={displayName} className="h-full w-full object-cover" />
+            ) : (
+              <AvatarFallback className="text-foreground">{initial}</AvatarFallback>
+            )}
+          </Avatar>
+        </button>
+        <div className="min-w-0 flex-1">
+          <p className="line-clamp-2 text-sm font-medium leading-snug text-foreground transition-colors group-hover/yt:text-brand-400">
+            {post.text || `${displayName}'s post`}
+          </p>
+          <div className="mt-0.5 flex items-center gap-1">
+            <button
+              type="button"
+              onClick={onAuthorClick}
+              className="text-xs text-muted-foreground transition-colors hover:text-foreground text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+            >
+              {displayName}
+            </button>
+            <span className="text-xs text-muted-foreground">·</span>
+            <span className="text-xs text-muted-foreground">{formatTimeAgo(post.created_at)} ago</span>
+          </div>
+          <div className="mt-0.5 flex items-center gap-3 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <Heart className="h-3 w-3" strokeWidth={1.5} />
+              {formatCount(post.likes)}
+            </span>
+            <span className="flex items-center gap-1">
+              <MessageCircle className="h-3 w-3" strokeWidth={1.5} />
+              {formatCount(post.comments)}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DiscoverYouTubeSkeleton() {
+  return (
+    <div data-testid="discover-youtube-skeleton">
+      <div className="overflow-hidden rounded-xl bg-elevated">
+        <Skeleton className="aspect-video w-full" />
+      </div>
+      <div className="mt-2.5 flex gap-2.5">
+        <Skeleton className="h-9 w-9 shrink-0 rounded-full" />
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-3 w-24" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── YouTube empty state ────────────────────────────────────────────────────
+
+function DiscoverYouTubeEmptyState({ onSwitchToGrid }: { onSwitchToGrid: () => void }) {
+  return (
+    <div
+      data-testid="discover-youtube-empty"
+      className="flex flex-col items-center justify-center py-16 px-8 text-center"
+    >
+      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-muted/50 mb-4">
+        <Video className="h-8 w-8 text-brand-400" strokeWidth={1.5} />
+      </div>
+      <h2 className="font-display text-xl font-semibold text-foreground">
+        No media posts yet
+      </h2>
+      <p className="mt-2 text-sm text-muted-foreground max-w-sm">
+        The YouTube view shows posts with videos and images.
+        Switch to the grid view to see all trending posts.
+      </p>
+      <Button
+        variant="outline"
+        size="sm"
+        data-testid="discover-youtube-empty-cta"
+        onClick={onSwitchToGrid}
+        className="mt-6 gap-2"
+      >
+        <Grid3X3 className="h-4 w-4" strokeWidth={1.75} />
+        Switch to grid view
+      </Button>
+    </div>
+  );
+}
+
 // ── Main screen ────────────────────────────────────────────────────────────
 
 export default function DiscoverScreen() {
@@ -555,6 +721,22 @@ export default function DiscoverScreen() {
   const urlQuery = searchParams.get('q') || '';
   const [searchQuery, setSearchQuery] = useState<string>(urlQuery);
 
+  // Deep-link: view toggle from ?view= (refresh-safe, shareable)
+  const [view, setView] = useState<DiscoverView>(() => {
+    return (searchParams.get('view') as DiscoverView) || 'grid';
+  });
+
+  const setViewUrl = useCallback((v: DiscoverView) => {
+    setView(v);
+    const params = new URLSearchParams(searchParams);
+    if (v === 'youtube') {
+      params.set('view', 'youtube');
+    } else {
+      params.delete('view');
+    }
+    setSearchParams(params);
+  }, [searchParams, setSearchParams]);
+
   // Sync activeTag with ?tag= search param
   useEffect(() => {
     const current = searchParams.get('tag') || 'All';
@@ -568,6 +750,14 @@ export default function DiscoverScreen() {
     const current = searchParams.get('q') || '';
     if (searchQuery !== current) {
       setSearchQuery(current);
+    }
+  }, [searchParams]);
+
+  // Sync view with ?view= search param
+  useEffect(() => {
+    const current = (searchParams.get('view') as DiscoverView) || 'grid';
+    if (view !== current) {
+      setView(current);
     }
   }, [searchParams]);
 
@@ -768,6 +958,12 @@ export default function DiscoverScreen() {
     return filtered;
   }, [rankedPosts, activeTag, searchQuery]);
 
+  // YouTube view: media posts only (video + image)
+  const mediaPosts = useMemo(
+    () => visiblePosts.filter(p => postHasMedia(p)),
+    [visiblePosts],
+  );
+
   const isInitialLoad = loading && posts.length === 0;
   const showSuggested = suggestedLoading || suggested.length > 0;
 
@@ -910,6 +1106,37 @@ export default function DiscoverScreen() {
         </div>
       )}
 
+      {/* View toggle — YouTube-style, below topics */}
+      {!isInitialLoad && posts.length > 0 && (
+        <div className="border-b border-border bg-surface/50">
+          <div className="px-4 md:px-0">
+            <div className="flex items-center gap-1 py-2" data-testid="discover-view-toggle">
+              {([
+                ['grid', 'Grid', Grid3X3],
+                ['youtube', 'YouTube', Video],
+              ] as [DiscoverView, string, typeof Grid3X3][]).map(([v, label, Icon]) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => setViewUrl(v)}
+                  data-testid={`discover-view-toggle-${v}`}
+                  className={cn(
+                    'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                    view === v
+                      ? 'bg-brand-muted text-brand-300'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-elevated',
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  <span>{label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Content */}
       <div className="flex-1 px-4 py-4 md:px-0">
         {isInitialLoad ? (
@@ -918,6 +1145,36 @@ export default function DiscoverScreen() {
               <DiscoverSkeleton key={i} />
             ))}
           </div>
+        ) : view === 'youtube' ? (
+          /* YouTube view — media posts only, 16:9 thumbnails */
+          mediaPosts.length > 0 ? (
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" data-testid="discover-youtube-grid">
+              {mediaPosts.map((post, i) => {
+                const authorKey = `${post.author}@${post.provider}`;
+                const profile = profileMap[authorKey];
+                const mediaItems = mediaMap[post.post_id] || [];
+                const authorName = profile?.display_name || post.author.replace(/[-_]/g, ' ');
+
+                return (
+                  <DiscoverYouTubeCard
+                    key={post.post_id}
+                    post={post}
+                    rank={i + 1}
+                    authorName={authorName}
+                    authorAvatar={
+                      profile?.avatar_ref
+                        ? mediaItems.find(m => m._id === profile.avatar_ref)?.url
+                        : undefined
+                    }
+                    mediaItems={mediaItems}
+                    onAuthorClick={() => navigateToUserProfile(post.author, post.provider)}
+                  />
+                );
+              })}
+            </div>
+          ) : (
+            <DiscoverYouTubeEmptyState onSwitchToGrid={() => setViewUrl('grid')} />
+          )
         ) : visiblePosts.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-testid="discover-grid">
             {visiblePosts.map((post, i) => {
