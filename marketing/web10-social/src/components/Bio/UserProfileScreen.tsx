@@ -264,7 +264,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
   const avatarMedia = profile?.avatar_ref ? mediaMap[profile.avatar_ref] : undefined;
 
   return (
-    <div>
+    <div className="mx-auto max-w-3xl">
       {/* Back button (mobile) */}
       {onBack && (
         <div className="md:hidden px-3 py-2 border-b border-border">
