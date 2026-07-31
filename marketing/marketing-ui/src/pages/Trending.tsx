@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Zap, ArrowUpRight, MessageCircleOff, Grid3X3, Video } from 'lucide-react';
+import { Zap, ArrowUpRight, MessageCircleOff, Flame, Video } from 'lucide-react';
 import {
   TrendingCard,
   TrendingSkeleton,
@@ -535,9 +535,9 @@ function Trending() {
           <div className="mx-auto max-w-4xl px-4 sm:px-6">
             <div className="flex items-center gap-1 py-2" data-testid="trending-view-toggle">
               {([
-                ['grid', 'Grid', Grid3X3],
-                ['youtube', 'YouTube', Video],
-              ] as [TrendingView, string, typeof Grid3X3][]).map(([v, label, Icon]) => (
+                ['grid', 'Hot Gossip', Flame],
+                ['youtube', 'Video', Video],
+              ] as [TrendingView, string, typeof Flame][]).map(([v, label, Icon]) => (
                 <button
                   key={v}
                   type="button"
@@ -568,7 +568,7 @@ function Trending() {
               searchLoading ? (
                 <div
                   data-testid="trending-grid-skeleton"
-                  className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
+                  className="mx-auto grid w-full max-w-xl grid-cols-1 gap-4"
                 >
                   <TrendingSkeleton featured />
                   {Array.from({ length: 5 }).map((_, i) => (
@@ -613,7 +613,7 @@ function Trending() {
                       </p>
                       <div
                         data-testid="trending-grid"
-                        className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
+                        className="mx-auto grid w-full max-w-xl grid-cols-1 gap-4"
                       >
 {visibleSearchResults.map(post => (
                            <TrendingCard
@@ -656,7 +656,7 @@ function Trending() {
             ) : isInitialLoad ? (
               <div
                 data-testid="trending-grid-skeleton"
-                className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
+                className="mx-auto grid w-full max-w-xl grid-cols-1 gap-4"
               >
                 <TrendingSkeleton featured />
                 {Array.from({ length: 5 }).map((_, i) => (
@@ -715,15 +715,15 @@ function Trending() {
                       No media posts yet
                     </h2>
                     <p className="mt-2 text-sm text-muted-foreground">
-                      The YouTube view shows posts with videos and images.
-                      Switch to the grid view to see all trending posts.
+                      The video view shows posts with videos and images.
+                      Switch to Hot Gossip to see all trending posts.
                     </p>
                     <button
                       type="button"
                       onClick={() => setViewUrl('grid')}
                       className="mt-6 inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                     >
-                      Switch to grid view
+                      Switch to Hot Gossip
                     </button>
                   </div>
                 )}
@@ -732,7 +732,7 @@ function Trending() {
               <>
                 <div
                   data-testid="trending-grid"
-                  className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
+                  className="mx-auto grid w-full max-w-xl grid-cols-1 gap-4"
                 >
 {visible.map(post => (
                      <TrendingCard
@@ -749,7 +749,7 @@ function Trending() {
                    ))}
                 </div>
                 {loadingMore && (
-                  <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  <div className="mx-auto mt-4 grid w-full max-w-xl grid-cols-1 gap-4">
                     {Array.from({ length: 3 }).map((_, i) => (
                       <TrendingSkeleton key={`more-${i}`} />
                     ))}

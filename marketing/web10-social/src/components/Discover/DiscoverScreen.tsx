@@ -37,7 +37,6 @@ import {
   Loader2,
   Search,
   X,
-  Grid3X3,
   Video,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -687,8 +686,8 @@ function DiscoverYouTubeEmptyState({ onSwitchToGrid }: { onSwitchToGrid: () => v
         No media posts yet
       </h2>
       <p className="mt-2 text-sm text-muted-foreground max-w-sm">
-        The YouTube view shows posts with videos and images.
-        Switch to the grid view to see all trending posts.
+        The video view shows posts with videos and images.
+        Switch to Hot Gossip to see all trending posts.
       </p>
       <Button
         variant="outline"
@@ -697,8 +696,8 @@ function DiscoverYouTubeEmptyState({ onSwitchToGrid }: { onSwitchToGrid: () => v
         onClick={onSwitchToGrid}
         className="mt-6 gap-2"
       >
-        <Grid3X3 className="h-4 w-4" strokeWidth={1.75} />
-        Switch to grid view
+        <Flame className="h-4 w-4" strokeWidth={1.75} />
+        Switch to Hot Gossip
       </Button>
     </div>
   );
@@ -1112,9 +1111,9 @@ export default function DiscoverScreen() {
           <div className="px-4 md:px-0">
             <div className="flex items-center gap-1 py-2" data-testid="discover-view-toggle">
               {([
-                ['grid', 'Grid', Grid3X3],
-                ['youtube', 'YouTube', Video],
-              ] as [DiscoverView, string, typeof Grid3X3][]).map(([v, label, Icon]) => (
+                ['grid', 'Hot Gossip', Flame],
+                ['youtube', 'Video', Video],
+              ] as [DiscoverView, string, typeof Flame][]).map(([v, label, Icon]) => (
                 <button
                   key={v}
                   type="button"
@@ -1140,7 +1139,7 @@ export default function DiscoverScreen() {
       {/* Content */}
       <div className="flex-1 px-4 py-4 md:px-0">
         {isInitialLoad ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-testid="discover-grid-skeleton">
+          <div className="grid grid-cols-1 gap-4" data-testid="discover-grid-skeleton">
             {Array.from({ length: 4 }).map((_, i) => (
               <DiscoverSkeleton key={i} />
             ))}
@@ -1148,7 +1147,7 @@ export default function DiscoverScreen() {
         ) : view === 'youtube' ? (
           /* YouTube view — media posts only, 16:9 thumbnails */
           mediaPosts.length > 0 ? (
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" data-testid="discover-youtube-grid">
+            <div className="grid grid-cols-1 gap-6" data-testid="discover-youtube-grid">
               {mediaPosts.map((post, i) => {
                 const authorKey = `${post.author}@${post.provider}`;
                 const profile = profileMap[authorKey];
@@ -1176,7 +1175,7 @@ export default function DiscoverScreen() {
             <DiscoverYouTubeEmptyState onSwitchToGrid={() => setViewUrl('grid')} />
           )
         ) : visiblePosts.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-testid="discover-grid">
+          <div className="grid grid-cols-1 gap-4" data-testid="discover-grid">
             {visiblePosts.map((post, i) => {
               const authorKey = `${post.author}@${post.provider}`;
               const profile = profileMap[authorKey];
