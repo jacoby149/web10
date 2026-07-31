@@ -1,4 +1,5 @@
 import * as React from 'react';
+import axios from 'axios';
 import { ShieldCheck, Phone } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,14 +18,18 @@ function RecoveryContact({ I }: { I: Record<string, any> }) {
     }
     setSaving(true);
     I.setStatus('Saving recovery phone…');
-    // The phone already exists on the star record; we just need to persist
-    // the user-chosen recovery number.  Use the same changePhone path but
-    // without requiring a password (the user is already authenticated).
-    // If the API gains a dedicated /set_recovery_phone endpoint, swap here.
-    I.wapi
-      .update('*', { service: '*' }, { $set: { phone: phone.trim() } })
+    // Persist via the dedicated authenticated endpoint (B9 bite a-fix) — the
+    // star record is server-write-only, so CRUD can't touch it. Then re-read
+    // the phone from the SERVER (servicesLoad pulls the star record into
+    // I.phone) — never trust the local echo.
+    const decoded = I.wapi.readToken?.();
+    axios
+      .post(`${window.location.protocol}//${decoded.provider}/set_recovery_phone`, {
+        token: I.wapi.token,
+        query: { phone: phone.trim() },
+      })
+      .then(() => I.servicesLoad())
       .then(() => {
-        I.setPhone(phone.trim());
         I.setStatus('Recovery phone saved!');
         setSaving(false);
         setTimeout(() => I.setStatus(null), 2000);
