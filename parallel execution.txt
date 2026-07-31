@@ -564,6 +564,37 @@ LANE A — api / backend        (owns: api/**, docker-compose, settings)
       norm); the SMS copy + verify-link target need B9's verify
       screen — coordinate via .context/.
 
+[ ] A25-de-social-records-py (lane A, api/**, DESIGN-FIRST; operator,
+      31.07: "in records there is so much bespoke to the social app…
+      but to make a web10 app can all be done in javascript without
+      all that records.py fluff right specific to the social app"):
+      the operator is RIGHT — the protocol path is app-agnostic: an
+      app declares its SIRs client-side (serviceTerms.ts), the user
+      consents via SMR, then plain CRUD; the node needs ZERO app-
+      specific code (fallout-avatar works exactly this way today).
+      records.py's core_services_terms (follows/inbox/reactions/
+      comments/dms/profile/public_media/private_posts/staging_posts/
+      media) is web10-social's schema hardcoded into the node — a
+      pragmatic bootstrap because SMR only fires while the auth
+      portal child window is open (the A13 class), but it doesn't
+      scale: a third-party app can't get its terms provisioned, and
+      every first-party service change edits the node. candidate
+      directions (decide at implementation, record in decisions.md):
+      (a) APP-DECLARED PROVISIONING — the client posts its SIR set
+          to an authenticated endpoint (e.g. POST /provision_terms)
+          and the node writes exactly those terms for the caller's
+          own collection (I3-safe by construction; the app
+          self-provisions on first login, no SMR-timing dependency);
+      (b) FIX THE SMR TRIGGER — let the consent flow fire outside
+          the portal-open window (deeper auth-portal work, lane B
+          seam), then delete provisioning entirely;
+      (c) status quo + document records.py as "first-party bootstrap,
+          not protocol". gate: none urgent — the pull model (D40)
+      works with the current provisioning; this is protocol-purity
+      cleanup, not a product blocker. acceptance depends on the
+      direction chosen; any direction must keep the permission-
+      matrix suite green and not break existing accounts' terms.
+
 [ ] A24-utc-timestamps (lane A, api/** + a small ws-D/social half;
       operator, 30.07 rant: "i believe someone in another time zone
       used the web10 post, they were trending as newest, timestamp

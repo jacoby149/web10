@@ -1398,8 +1398,8 @@ class TestSignupProvisionsPublicPostsTerm:
             form_data = MagicMock(username="newuser", password="pass", phone="+1234")
             db_module.create_user(form_data, lambda p: "hashed")
 
-        # Should have inserted: star + services + public_posts + 5 core terms = 8
-        assert mock_col.insert_one.call_count == 8
+        # Should have inserted: star + services + public_posts + 10 core terms = 13
+        assert mock_col.insert_one.call_count == 13
         calls = [c.args[0] for c in mock_col.insert_one.call_args_list]
         services = [c for c in calls if c.get("service") == "services"]
         # One is the general services record, one is the public_posts term, five are core terms
@@ -1411,7 +1411,18 @@ class TestSignupProvisionsPublicPostsTerm:
         core_services.discard("services")
         core_services.discard("public_posts")
         core_services.discard("*")  # star record also wrapped by to_db mock
-        assert core_services == {"follows", "inbox", "reactions", "comments", "dms"}
+        assert core_services == {
+            "follows",
+            "inbox",
+            "reactions",
+            "comments",
+            "dms",
+            "profile",
+            "public_media",
+            "private_posts",
+            "staging_posts",
+            "media",
+        }
 
 
 # ---------------------------------------------------------------------------
@@ -2111,10 +2122,10 @@ class TestMigrateFollowsTerms:
         ):
             result = db_module.migrate_follows_terms()
 
-        # 5 core services × 1 account = 5 inserts
-        assert result["migrated"] == 5
+        # 10 core services × 1 account = 10 inserts
+        assert result["migrated"] == 10
         assert result["skipped"] == 0
-        assert mock_alice_col.insert_one.call_count == 5
+        assert mock_alice_col.insert_one.call_count == 10
 
     def test_skips_accounts_with_existing_terms(self):
         """Accounts that already have a term should be skipped."""
@@ -2130,8 +2141,8 @@ class TestMigrateFollowsTerms:
         ):
             result = db_module.migrate_follows_terms()
 
-        # All 5 services exist → all skipped
-        assert result["skipped"] == 5
+        # All 10 services exist → all skipped
+        assert result["skipped"] == 10
         assert result["migrated"] == 0
         mock_alice_col.insert_one.assert_not_called()
 
@@ -2157,9 +2168,9 @@ class TestMigrateFollowsTerms:
         ):
             result = db_module.migrate_follows_terms()
 
-        assert result["migrated"] == 4  # inbox, reactions, comments, dms
+        assert result["migrated"] == 9  # all except follows
         assert result["skipped"] == 1  # follows
-        assert mock_alice_col.insert_one.call_count == 4
+        assert mock_alice_col.insert_one.call_count == 9
 
     def test_skips_system_collections(self):
         """System collections (web10.*) should not be processed."""
