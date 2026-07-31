@@ -2608,6 +2608,14 @@ D-dm-header-profile-link (ws-D/messages, tiny). merged 1.0.251.
     discovery-vs-own-collection count source split, and shares having
     NO ledger write path at all (add payload.action='repost' on
     share). lane item D-self-engagement-counts (ws-D/feed).
+[✓ 1.0.279] profile posts clickable + videos visible again (operator, 30.07
+    rant: "not able to click on my posts anymore, and cant see the
+    videos, maybe it is that play feature that plays them?" — fixed
+    directly on operator call, severe enough to skip the filing queue):
+    regression from D-own-profile-canonical (1.0.266) — /u/<you>'s
+    UserProfileScreen grids were plain divs (no lightbox) and rendered
+    videos with <img>. grids now open PostLightbox and render video
+    posters + play badges, matching the retired ProfileScreen.
 [ ] visibility toggle duplicates the post (operator, 30.07 rant: "i
     tried publicing a post, privating the post, publicing it again,
     there is now two posts one in public one in private of the same

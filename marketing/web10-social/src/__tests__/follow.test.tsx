@@ -44,6 +44,10 @@ vi.mock('@/data', async (importOriginal) => {
     unfollowUser: vi.fn().mockResolvedValue(undefined),
     readFollow: vi.fn().mockResolvedValue(null),
     countFollows: vi.fn().mockResolvedValue(0),
+    countFollowers: vi.fn().mockResolvedValue(0),
+    countUserFollowing: vi.fn().mockResolvedValue(0),
+    readUserPostsFromDiscovery: vi.fn().mockResolvedValue([]),
+    readReactions: vi.fn().mockResolvedValue([]),
     readFollows: vi.fn().mockResolvedValue([]),
     fetchSuggestedUsers: vi.fn().mockResolvedValue([
       {
@@ -278,6 +282,101 @@ describe('UserProfileScreen', () => {
     await waitFor(() => {
       expect(screen.getByTestId('profile-tab-posts')).toBeInTheDocument();
       expect(screen.getByTestId('profile-tab-media')).toBeInTheDocument();
+    });
+  });
+
+  it('post grid cells are clickable and open the lightbox (own profile)', async () => {
+    const { readMyPosts } = await import('@/data');
+    vi.mocked(readMyPosts).mockResolvedValueOnce([
+      { _id: 'post-1', text: 'hello world', created_at: new Date().toISOString() },
+    ]);
+
+    const { default: UserProfileScreen } = await import('@/components/Bio/UserProfileScreen');
+
+    render(
+      <MemoryRouter>
+        <UserProfileScreen
+          username="testuser"
+          provider="test.localhost"
+        />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('profile-post-cell')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId('profile-post-cell'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('post-lightbox')).toBeInTheDocument();
+    });
+  });
+
+  it('video posts render a <video> thumbnail in the grid, not a broken <img>', async () => {
+    const { readMyPosts, resolveMediaRefs } = await import('@/data');
+    vi.mocked(readMyPosts).mockResolvedValueOnce([
+      { _id: 'post-v1', text: 'clip', media_refs: ['m-v1'], created_at: new Date().toISOString() },
+    ]);
+    vi.mocked(resolveMediaRefs).mockResolvedValueOnce([
+      { _id: 'm-v1', url: 'http://test.com/clip.mp4', mime_type: 'video/mp4', created_at: new Date().toISOString() },
+    ]);
+
+    const { default: UserProfileScreen } = await import('@/components/Bio/UserProfileScreen');
+
+    const { container } = render(
+      <MemoryRouter>
+        <UserProfileScreen
+          username="testuser"
+          provider="test.localhost"
+        />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('profile-post-cell')).toBeInTheDocument();
+    });
+
+    const cell = screen.getByTestId('profile-post-cell');
+    expect(cell.querySelector('video')).not.toBeNull();
+    expect(cell.querySelector('img')).toBeNull();
+    expect(container.querySelector('video')?.getAttribute('src')).toBe('http://test.com/clip.mp4');
+  });
+
+  it('media tab cells are clickable and open the lightbox', async () => {
+    const { readMyPosts, resolveMediaRefs } = await import('@/data');
+    vi.mocked(readMyPosts).mockResolvedValueOnce([
+      { _id: 'post-m1', text: 'pic', media_refs: ['m-i1'], created_at: new Date().toISOString() },
+    ]);
+    vi.mocked(resolveMediaRefs).mockResolvedValueOnce([
+      { _id: 'm-i1', url: 'http://test.com/pic.png', mime_type: 'image/png', created_at: new Date().toISOString() },
+    ]);
+
+    const { default: UserProfileScreen } = await import('@/components/Bio/UserProfileScreen');
+
+    render(
+      <MemoryRouter>
+        <UserProfileScreen
+          username="testuser"
+          provider="test.localhost"
+        />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('profile-tab-media')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId('profile-tab-media'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('profile-media-cell')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId('profile-media-cell'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('post-lightbox')).toBeInTheDocument();
     });
   });
 });
