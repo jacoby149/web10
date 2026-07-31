@@ -1236,6 +1236,72 @@ class TestServiceAllowsAnon:
 
 
 # ---------------------------------------------------------------------------
+# Discovery board service allowlist (fallout-avatar ghost-posts regression)
+# ---------------------------------------------------------------------------
+
+
+class TestDiscoveryBoardAllowlist:
+    """The board shows only board services, not every anon-readable service.
+
+    Regression (prod, 30.07.2026): the fallout-avatar app whitelists anon
+    read on its own service, so its records were indexed into discovery and
+    ghosted into the trending feed as empty posts. Board membership is an
+    allowlist (public_posts + web10_apps), not "any anon-readable service".
+    """
+
+    def test_board_services_are_posts_and_apps(self):
+        assert "public_posts" in db_module.DISCOVERY_BOARD_SERVICES
+        assert "web10_apps" in db_module.DISCOVERY_BOARD_SERVICES
+
+    def test_non_board_anon_service_not_indexed(self):
+        # fallout-avatar grants anon read — must still NOT be indexed.
+        term = {"service": "fallout-avatar", "whitelist": [{"username": ".*", "provider": ".*", "read": True}]}
+        with (
+            patch.object(db_module, "get_term_record", return_value=term),
+            patch.object(db_module, "upsert_discovery_post") as m_upsert,
+        ):
+            db_module.background_index_post("mad", "fallout-avatar", {"_id": "a1", "current_face": 1})
+        m_upsert.assert_not_called()
+
+    def test_public_posts_still_indexed(self):
+        term = {"service": "public_posts", "whitelist": [{"username": ".*", "provider": ".*", "read": True}]}
+        with (
+            patch.object(db_module, "get_term_record", return_value=term),
+            patch.object(db_module, "upsert_discovery_post") as m_upsert,
+        ):
+            db_module.background_index_post("alice", "public_posts", {"_id": "p1", "text": "hi"})
+        m_upsert.assert_called_once()
+
+    def test_feed_filters_to_board_services(self, client, mock_discovery_and_public):
+        mock_discovery, _ = mock_discovery_and_public
+        resp = client.patch("/discover/posts?sort=trending")
+        assert resp.status_code == 200
+        query = mock_discovery.find.call_args[0][0]
+        assert query["service"] == {"$in": list(db_module.DISCOVERY_BOARD_SERVICES)}
+
+    def test_search_filters_to_board_services(self, client, mock_discovery_and_public):
+        mock_discovery, _ = mock_discovery_and_public
+        resp = client.patch("/discover/search?q=hello")
+        assert resp.status_code == 200
+        query = mock_discovery.find.call_args[0][0]
+        assert query["service"] == {"$in": list(db_module.DISCOVERY_BOARD_SERVICES)}
+
+    def test_topics_filter_to_board_services(self, client, mock_discovery_and_public):
+        mock_discovery, _ = mock_discovery_and_public
+        resp = client.patch("/discover/topics")
+        assert resp.status_code == 200
+        match = mock_discovery.aggregate.call_args[0][0][0]["$match"]
+        assert match["service"] == {"$in": list(db_module.DISCOVERY_BOARD_SERVICES)}
+
+    def test_suggested_users_filter_to_board_services(self, client, mock_discovery_and_public):
+        mock_discovery, _ = mock_discovery_and_public
+        resp = client.patch("/discover/users")
+        assert resp.status_code == 200
+        query = mock_discovery.find.call_args[0][0]
+        assert query["service"] == {"$in": list(db_module.DISCOVERY_BOARD_SERVICES)}
+
+
+# ---------------------------------------------------------------------------
 # A13: public_posts term provisioning at signup
 # ---------------------------------------------------------------------------
 
@@ -1662,7 +1728,10 @@ class TestAdminBoardModeration:
         resp = client.patch("/discover/posts")
         assert resp.status_code == 200
         query = mock_discovery.find.call_args[0][0]
-        assert query == {"removed": {"$ne": True}}
+        assert query == {
+            "removed": {"$ne": True},
+            "service": {"$in": list(db_module.DISCOVERY_BOARD_SERVICES)},
+        }
 
     def test_search_excludes_removed(self, client, mock_discovery_and_public):
         mock_discovery, _ = mock_discovery_and_public

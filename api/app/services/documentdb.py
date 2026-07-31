@@ -1196,6 +1196,21 @@ def user_collection_exists(username: str) -> bool:
 
 DISCOVERY_COLLECTION = "discovery_posts"
 
+# Services allowed on the public discovery board. Only web10-social's public
+# post tier (``public_posts``) and the #web10apps app-store projection
+# (``web10_apps``) belong on the board. Anon-readability is NOT sufficient:
+# any app can whitelist anon read on its own service (fallout-avatar,
+# identity, ...), and those records must never leak into
+# trending/recent/search/users (prod 30.07.2026: fallout-avatar records
+# ghosted into the trending feed as empty posts).
+DISCOVERY_BOARD_SERVICES = ("public_posts", "web10_apps")
+
+
+def _board_visible() -> dict:
+    """Base filter for every discovery-board read: not moderated away AND a
+    service that belongs on the board."""
+    return {"removed": {"$ne": True}, "service": {"$in": list(DISCOVERY_BOARD_SERVICES)}}
+
 
 def _ensure_system_collection(name: str):
     """Return the web10-system collection ``web10.<name>``, creating it if absent.
@@ -1438,7 +1453,7 @@ def query_discovery_posts(sort_by: str = "recent", limit: int = 50, skip: int = 
     """
     _ensure_discovery_collection()
     col = db["web10"][DISCOVERY_COLLECTION]
-    visible = {"removed": {"$ne": True}}
+    visible = _board_visible()
 
     if sort_by == "trending":
         docs = list(col.find(visible).limit(limit + skip))
@@ -1470,7 +1485,7 @@ def search_discovery_posts(query: str, limit: int = 50, skip: int = 0) -> list[d
 
     _ensure_discovery_collection()
     col = db["web10"][DISCOVERY_COLLECTION]
-    visible = {"removed": {"$ne": True}}
+    visible = _board_visible()
 
     # Stage 1: $text whole-word search over body_text + tags
     text_docs = list(col.find({**visible, "$text": {"$search": query}}).sort("created_at", -1))
@@ -1513,7 +1528,7 @@ def trending_topics(limit: int = 20) -> list[dict]:
     _ensure_discovery_collection()
     col = db["web10"][DISCOVERY_COLLECTION]
     pipeline = [
-        {"$match": {"removed": {"$ne": True}}},
+        {"$match": _board_visible()},
         {"$unwind": "$tags"},
         {"$match": {"tags": {"$regex": "^#"}}},
         {"$group": {"_id": "$tags", "count": {"$sum": 1}}},
@@ -1545,7 +1560,7 @@ def suggested_users(limit: int = 20) -> list[dict]:
     """Suggest users based on discovery index activity + engagement."""
     _ensure_discovery_collection()
     col = db["web10"][DISCOVERY_COLLECTION]
-    docs = list(col.find({"removed": {"$ne": True}}))
+    docs = list(col.find(_board_visible()))
     author_posts: dict[str, list[dict]] = {}
     for d in docs:
         author_posts.setdefault(d["author"], []).append(d)
@@ -1737,8 +1752,13 @@ def service_allows_anon(username: str, service: str) -> bool:
 
 
 def background_index_post(username: str, service: str, post: dict):
-    """Background task: upsert a post into the discovery index if the service allows anon."""
+    """Background task: upsert a post into the discovery index if it belongs on the board."""
     try:
+        # Board membership is an allowlist, not "any anon-readable service" —
+        # otherwise any app with an anon-read term (fallout-avatar, identity)
+        # leaks non-post records into the feed.
+        if service not in DISCOVERY_BOARD_SERVICES:
+            return
         if service_allows_anon(username, service):
             upsert_discovery_post(username, service, post)
     except Exception:
