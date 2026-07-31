@@ -6,12 +6,23 @@ import VerifyPhone from './VerifyPhone';
 import Subscription from './Subscription';
 import DevPay from './DevPay';
 import Changelog from './Changelog';
+import RecoveryContact from './RecoveryContact';
 import { cn } from '@/lib/utils';
 
 type Tab = 'settings' | 'changes';
 
 function Settings({ I }: { I: Record<string, any> }) {
   const [tab, setTab] = React.useState<Tab>('settings');
+
+  // Deep-link: ?section=recovery scrolls to / focuses the recovery card
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('section') === 'recovery') {
+      setTab('settings');
+      const el = document.querySelector('[data-testid="recovery-contact-section"]');
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, []);
 
   return (
     <AppShell I={I} maxWidth="max-w-2xl" testid="settings-page">
@@ -40,6 +51,7 @@ function Settings({ I }: { I: Record<string, any> }) {
       </div>
       {tab === 'settings' ? (
         <div className="space-y-4">
+          <RecoveryContact I={I} />
           <Subscription I={I} />
           {I.isVerified() ? <ChangePhone I={I} /> : <VerifyPhone I={I} />}
           <ChangePass I={I} />

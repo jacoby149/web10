@@ -810,7 +810,7 @@ LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
       the whole phase — it's how "we shipped moderation with no test"
       doesn't happen.
 
-[ ] B9-recovery-contact-nudge (lane B, ui/**; operator, 30.07 rant:
+[✓ 1.0.280] B9-recovery-contact-nudge (lane B, ui/**; operator, 30.07 rant:
       "we need to pester every user to set a recovery email pronto
       or number, if they havent! the recovery flow has to be tight
       so the user accounts aren't ephemeral, they are permanent!"):
@@ -2443,7 +2443,7 @@ BITES (rule 5 — one bite PER SCREEN when staged, each its own
       youtube-first) — the creator pitch is "import your YouTube
       catalog, see it on a YouTube-shaped trending."
 
-[ ] D-marketing-session-analytics (sub-lane ws-D/marketing(2), SMALL;
+[✓ 1.0.279] D-marketing-session-analytics (sub-lane ws-D/marketing(2), SMALL;
       operator, 30.07 rant: "if we havent set up hotjar on the
       marketing page, we NEED to!"): the marketing site (marketing-
       ui, pre-signup visitors) gets session analytics PRONTO. the
@@ -3697,9 +3697,13 @@ run independently.
                      unverified signups daily), THEN A22-forgot-
                      username-by-phone, THEN A23-verification-
                      enforcement (GATED on A21 bite b)
-    ws-B:            B9-recovery-contact-nudge bite a (the nudge — no
-                     gate, phone already on the star record); bites
-                     b/c/d gated on A20/A21/A22 contracts
+ws-B:            B9-recovery-contact-nudge bite a (the nudge — no
+                      gate, phone already on the star record); bites
+                      b/c/d gated on A20/A21/A22 contracts, THEN
+                      D-ga4-auth (SMALL, no gate — GA4 pageview + event
+                      analytics on ui/auth; aggregate only, no
+                      recording; acceptance: GA4 dashboard shows real
+                      auth pageviews)
     ws-D/profile:    D-visibility-toggle-duplicate (REPRO first — stale
                      post object across toggles), THEN D-public-media-
                      verify (TINY — the gate-CLEARER for the two GATED
@@ -3710,6 +3714,11 @@ run independently.
     ws-D/discover:   D-trending-views bite b (Discover parity — the
                      view toggle ported to DiscoverScreen; gate: bite a
                      merged 1.0.272, CLEAR)
+    ws-D/social-analytics: D-ga4-social (SMALL, no gate — GA4 pageview +
+                      event analytics on web10-social; aggregate only,
+                      no recording, fits the "anonymous, aggregate,
+                      CONTENT-FREE" allowance; acceptance: GA4
+                      dashboard shows real social pageviews)
     ws-D/shell:      D-deep-links bite 3 (profile ?tab=posts|media —
                      SEAM NOTE: touches ProfileScreen.tsx, a ws-D/
                      profile file; run INSIDE the ws-D/profile chain or
@@ -3717,10 +3726,16 @@ run independently.
                      THEN the marketing retarget bite (TrendingCard/
                      comment/search links -> the deep urls; all target
                      routes now merged — CLEAR)
-    ws-D/marketing(2): D-marketing-session-analytics (SMALL, no gate —
-                     hotjar-class session analytics pronto; reconcile
-                     vs the self-hosted posthog line, operator's call,
-                     record in decisions.md)
+ws-D/marketing(2): D-marketing-session-analytics (SMALL, no gate —
+                      hotjar-class session analytics pronto; reconcile
+                      vs the self-hosted posthog line, operator's call,
+                      record in decisions.md), THEN D-ga4-marketing
+                      (SMALL, no gate — GA4 pageview + event analytics
+                      on marketing-ui; GA4 is aggregate only, no
+                      recording, fits the "anonymous, aggregate,
+                      CONTENT-FREE" allowance; one measurement ID
+                      shared or per-app; acceptance: GA4 dashboard
+                      shows real marketing-ui pageviews)
     ws-C:            C8 remainder — bite b (membership subscribe
                      journey, 3% split asserted) + bite c (twilio
                      honest half); staged with the M2-prereq block, not
