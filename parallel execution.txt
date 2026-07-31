@@ -872,7 +872,7 @@ LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
       local stack, hard refresh, the phone is still there; api +
       ui tests green, ruff + tsc clean. gate: none — PRIORITY,
       this blocks the dev→main promotion.
-      STATUS 31.07: F1 FIXED [✓ 1.0.289] — POST /set_recovery_phone
+      STATUS 31.07: F1 FIXED [✓ 1.0.290] — POST /set_recovery_phone
       (certified token sets its OWN user's phone via
       set_phone_number, rate-limited 5/hr, non-owner impossible by
       construction) + RecoveryContact call-site swap with server
@@ -3738,7 +3738,7 @@ kickoffable parallel-safe bites across 8 sub-lanes (below), ~15+
 chained PRs behind them — Qwens run independently.
 
   PRIORITY 1 (fresh, this audit):
-    [✓ 1.0.289] ws-B + ws-A (ONE PR): B9-recovery-contact-nudge bite
+    [✓ 1.0.290] ws-B + ws-A (ONE PR): B9-recovery-contact-nudge bite
       a-fix — the recovery-phone save actually persists (lane A: POST
       /set_recovery_phone; lane B: RecoveryContact call-site swap +
       refresh-persistence test). MERGED — the dev→main promotion is
@@ -3763,7 +3763,7 @@ chained PRs behind them — Qwens run independently.
                      bite c (verified-only user count), THEN
                      A22-forgot-username-by-phone, THEN A23 (GATED on
                      A21 bite b). A20 bite b in flight as #462.
-    ws-B:            B9 bite a-fix MERGED (1.0.289 — de-queued). NEXT:
+    ws-B:            B9 bite a-fix MERGED (1.0.290 — de-queued). NEXT:
                      B9 bite b (email recovery UI — gate: A20 bite b =
                      #462 merged + the .context/ contract), THEN
                      D-ga4-auth (SMALL, no gate).
