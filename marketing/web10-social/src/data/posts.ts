@@ -218,11 +218,14 @@ export async function movePostVisibility(post: PostRecord): Promise<PostRecord> 
 
   const { _id: _sourceId, ...body } = post;
   const targetRecord = { ...body, visibility: targetVisibility };
-  await wapi.create<PostRecord>(targetService, targetRecord);
+  // Must use the server-created record — it carries the new _id in the
+  // target collection. Returning a local copy (without _id) caused the
+  // caller's second toggle to delete the wrong _id, leaving a duplicate.
+  const created = await wapi.create<PostRecord>(targetService, targetRecord);
   if (_sourceId) {
     await wapi.delete(sourceService, { _id: _sourceId });
   }
-  return targetRecord;
+  return created;
 }
 
 // ── Media data layer ───────────────────────────────────────────────────────

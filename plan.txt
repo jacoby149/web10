@@ -2616,21 +2616,7 @@ D-dm-header-profile-link (ws-D/messages, tiny). merged 1.0.251.
     UserProfileScreen grids were plain divs (no lightbox) and rendered
     videos with <img>. grids now open PostLightbox and render video
     posters + play badges, matching the retired ProfileScreen.
-[ ] own-profile edit features lost in the /u move (operator, 30.07 rant:
-    "changing my profile page to /u/profile made it so we lost the
-    features of our original profile page! when it is my own user
-    profile, i should be able to change my profile picutre, the banner,
-    and really dig deep! any other features that are missing because of
-    the change?"): second regression from D-own-profile-canonical
-    (1.0.266) — /u/<you> renders UserProfileScreen read-only even for
-    the owner. the audit (in the lane item): edit profile (name/bio/
-    location/website), avatar upload, banner upload, review-imports +
-    the import CTA all still live only in the now-orphaned
-    ProfileScreen.tsx; post-click/video was already restored (1.0.279).
-    the /u/<you> URL stays (settled) — the owner affordances get ported
-    behind the existing isOwnProfile gate. lane item
-    D-own-profile-edit-restore (ws-D/profile).
-[ ] visibility toggle duplicates the post (operator, 30.07 rant: "i
+[✓ 1.0.281] visibility toggle duplicates the post (operator, 30.07 rant: "i
     tried publicing a post, privating the post, publicing it again,
     there is now two posts one in public one in private of the same
     post"): movePostVisibility is create-then-delete; a repeated
