@@ -597,4 +597,183 @@ describe('posts data layer', () => {
       vi.unstubAllGlobals();
     });
   });
+
+  describe('movePostVisibility', () => {
+    it('returns the server-created record with the new _id', async () => {
+      // The old code returned a local object without _id. The second toggle
+      // then deleted the wrong _id, leaving a duplicate.
+      const original = {
+        _id: 'old-id',
+        text: 'hello',
+        visibility: 'public' as const,
+        created_at: '2026-07-18T00:00:00Z',
+      };
+      const serverCreated = {
+        _id: 'new-id',
+        text: 'hello',
+        visibility: 'private' as const,
+        created_at: '2026-07-18T00:00:00Z',
+      };
+      mock.create.mockResolvedValue(serverCreated);
+      mock.delete.mockResolvedValue(undefined);
+
+      const result = await posts.movePostVisibility(original);
+
+      expect(mock.create).toHaveBeenCalledWith('private_posts', {
+        text: 'hello',
+        visibility: 'private',
+        created_at: '2026-07-18T00:00:00Z',
+      });
+      expect(mock.delete).toHaveBeenCalledWith('public_posts', { _id: 'old-id' });
+      expect(result._id).toBe('new-id');
+      expect(result.visibility).toBe('private');
+    });
+
+    it('public → private → public round-trip leaves exactly one record', async () => {
+      // Regression: a stale post object across toggles duplicates the post.
+      // The first toggle must return the server record, and the second toggle
+      // must use that return value (not the original).
+      const original = {
+        _id: 'p1',
+        text: 'test',
+        visibility: 'public' as const,
+        created_at: '2026-07-18T00:00:00Z',
+      };
+
+      // Toggle 1: public → private
+      const afterFirst = {
+        _id: 'p2',
+        text: 'test',
+        visibility: 'private' as const,
+        created_at: '2026-07-18T00:00:00Z',
+      };
+      mock.create.mockResolvedValueOnce(afterFirst);
+      mock.delete.mockResolvedValue(undefined);
+      const step1 = await posts.movePostVisibility(original);
+
+      expect(step1._id).toBe('p2');
+      expect(mock.create).toHaveBeenLastCalledWith('private_posts', expect.objectContaining({ visibility: 'private' }));
+      expect(mock.delete).toHaveBeenLastCalledWith('public_posts', { _id: 'p1' });
+
+      // Toggle 2: private → public — uses the RETURNED record from step 1
+      const afterSecond = {
+        _id: 'p3',
+        text: 'test',
+        visibility: 'public' as const,
+        created_at: '2026-07-18T00:00:00Z',
+      };
+      mock.create.mockResolvedValueOnce(afterSecond);
+      const step2 = await posts.movePostVisibility(step1);
+
+      expect(step2._id).toBe('p3');
+      expect(mock.create).toHaveBeenLastCalledWith('public_posts', expect.objectContaining({ visibility: 'public' }));
+      expect(mock.delete).toHaveBeenLastCalledWith('private_posts', { _id: 'p2' });
+
+      // Verify: p1 deleted from public, p2 deleted from private, p3 in public
+      // Exactly one record exists (p3 in public_posts)
+      expect(mock.delete).toHaveBeenCalledTimes(2);
+      expect(mock.create).toHaveBeenCalledTimes(2);
+    });
+
+    it('stale-object case: using original record for second toggle creates duplicate', async () => {
+      // This test documents the BUG path: if the caller re-uses the original
+      // post object instead of the return value, the second toggle targets
+      // the wrong _id and the first toggle's copy survives.
+      const original = {
+        _id: 'p1',
+        text: 'test',
+        visibility: 'public' as const,
+        created_at: '2026-07-18T00:00:00Z',
+      };
+
+      // Toggle 1: public → private
+      mock.create.mockResolvedValueOnce({
+        _id: 'p2',
+        text: 'test',
+        visibility: 'private' as const,
+        created_at: '2026-07-18T00:00:00Z',
+      });
+      mock.delete.mockResolvedValueOnce(undefined);
+      await posts.movePostVisibility(original);
+
+      // BUG: second toggle uses `original` (visibility=public, _id=p1)
+      // instead of the returned record (visibility=private, _id=p2)
+      mock.create.mockResolvedValueOnce({
+        _id: 'p3',
+        text: 'test',
+        visibility: 'private' as const,
+        created_at: '2026-07-18T00:00:00Z',
+      });
+      await posts.movePostVisibility(original);
+
+      // The stale-object path: second toggle sees visibility=public, so it
+      // creates in private_posts AND deletes from public_posts. But p1 was
+      // already deleted from public_posts by toggle 1. So p2 (private)
+      // survives AND p3 is created in private — DUPLICATE.
+      expect(mock.create).toHaveBeenCalledTimes(2);
+      // First create: private_posts (toggle 1)
+      expect(mock.create).toHaveBeenNthCalledWith(1, 'private_posts', expect.anything());
+      // Second create: private_posts (stale toggle 2, because original.visibility is still 'public')
+      expect(mock.create).toHaveBeenNthCalledWith(2, 'private_posts', expect.anything());
+      // Delete 1: public_posts p1 (toggle 1, correct)
+      expect(mock.delete).toHaveBeenNthCalledWith(1, 'public_posts', { _id: 'p1' });
+      // Delete 2: public_posts p1 (stale toggle 2 — p1 already gone, no-op)
+      expect(mock.delete).toHaveBeenNthCalledWith(2, 'public_posts', { _id: 'p1' });
+    });
+
+    it('private → public toggle works correctly', async () => {
+      const original = {
+        _id: 'priv1',
+        text: 'secret',
+        visibility: 'private' as const,
+        created_at: '2026-07-18T00:00:00Z',
+      };
+      const serverCreated = {
+        _id: 'pub1',
+        text: 'secret',
+        visibility: 'public' as const,
+        created_at: '2026-07-18T00:00:00Z',
+      };
+      mock.create.mockResolvedValue(serverCreated);
+      mock.delete.mockResolvedValue(undefined);
+
+      const result = await posts.movePostVisibility(original);
+
+      expect(mock.create).toHaveBeenCalledWith('public_posts', {
+        text: 'secret',
+        visibility: 'public',
+        created_at: '2026-07-18T00:00:00Z',
+      });
+      expect(mock.delete).toHaveBeenCalledWith('private_posts', { _id: 'priv1' });
+      expect(result._id).toBe('pub1');
+    });
+
+    it('preserves media_refs and tags across the move', async () => {
+      const original = {
+        _id: 'p1',
+        text: 'photo',
+        visibility: 'public' as const,
+        created_at: '2026-07-18T00:00:00Z',
+        media_refs: ['m1', 'm2'],
+        tags: ['photo'],
+      };
+      const serverCreated = {
+        ...original,
+        _id: 'p2',
+        visibility: 'private' as const,
+      };
+      mock.create.mockResolvedValue(serverCreated);
+      mock.delete.mockResolvedValue(undefined);
+
+      const result = await posts.movePostVisibility(original);
+
+      expect(mock.create).toHaveBeenCalledWith('private_posts', expect.objectContaining({
+        media_refs: ['m1', 'm2'],
+        tags: ['photo'],
+        visibility: 'private',
+      }));
+      expect(result.media_refs).toEqual(['m1', 'm2']);
+      expect(result.tags).toEqual(['photo']);
+    });
+  });
 });

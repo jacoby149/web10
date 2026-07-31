@@ -45,7 +45,12 @@ interface PostLightboxProps {
 }
 
 export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, postService, isOwner: isOwnerProp, highlightedCommentId }: PostLightboxProps) {
-  const media = (post.media_refs || [])
+  // Track the live post — initialized from the prop but updated in-place
+  // after mutations (visibility toggle, edit) so a re-toggle uses the fresh
+  // _id + visibility, not the stale prop. Without this, public→private→public
+  // duplicates the post because the second toggle deletes the old _id.
+  const [currentPost, setCurrentPost] = useState(post);
+  const media = (currentPost.media_refs || [])
     .map(ref => mediaMap[ref])
     .filter((m): m is MediaRecord => Boolean(m));
   const [index, setIndex] = useState(0);
@@ -63,7 +68,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
 
   // Edit state
   const [editing, setEditing] = useState(false);
-  const [editDraft, setEditDraft] = useState(post.text || '');
+  const [editDraft, setEditDraft] = useState(currentPost.text || '');
   const [saving, setSaving] = useState(false);
 
   // Delete confirm state
@@ -105,9 +110,9 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
   useEffect(() => {
     let cancelled = false;
     Promise.all([
-      countReactions('posts', post._id || ''),
-      token ? readReactions('posts', post._id || '') : Promise.resolve([]),
-      countComments(post._id || ''),
+      countReactions('posts', currentPost._id || ''),
+      token ? readReactions('posts', currentPost._id || '') : Promise.resolve([]),
+      countComments(currentPost._id || ''),
     ]).then(([count, reactions, cCount]) => {
       if (cancelled) return;
       setReactionCount(count);
@@ -117,7 +122,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
       setCommentCount(cCount);
     }).catch(console.error);
     return () => { cancelled = true; };
-  }, [post._id, token]);
+  }, [currentPost._id, token]);
 
   // Auto-open comments when a comment anchor is present
   useEffect(() => {
@@ -135,7 +140,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
       setBurstKey(k => k + 1);
     }
     try {
-      await toggleReaction('posts', post._id || '', 'like', token.username, token.provider, postAuthor, postService);
+      await toggleReaction('posts', currentPost._id || '', 'like', token.username, token.provider, postAuthor, postService);
     } catch (e) {
       console.error('Failed to toggle reaction:', e);
       setLiked(wasLiked);
@@ -146,7 +151,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
   async function handleSaveEdit() {
     setSaving(true);
     try {
-      await updatePost(post._id || '', { text: editDraft, updated_at: new Date().toISOString() });
+      await updatePost(currentPost._id || '', { text: editDraft, updated_at: new Date().toISOString() });
       setEditing(false);
       onClose();
       onReload?.();
@@ -159,7 +164,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
 
   async function handleDelete() {
     try {
-      await deletePost(post._id || '', post.visibility || 'private');
+      await deletePost(currentPost._id || '', currentPost.visibility || 'private');
       onClose();
       onReload?.();
     } catch (e) {
@@ -170,7 +175,11 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
   async function handleToggleVisibility() {
     setTogglingVisibility(true);
     try {
-      await movePostVisibility(post);
+      const moved = await movePostVisibility(currentPost);
+      // Update local state with the server-created record (new _id) so a
+      // re-toggle targets the right record. Without this, the second toggle
+      // deletes the old _id, leaving a duplicate.
+      setCurrentPost(moved);
       onClose();
       onReload?.();
     } catch (e) {
@@ -181,13 +190,13 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
   }
 
   async function handleShare() {
-    const url = `${window.location.origin}/u/${postAuthor || 'unknown'}/p/${post._id || 'unknown'}${highlightedCommentId ? `?comment=${highlightedCommentId}` : ''}`;
+    const url = `${window.location.origin}/u/${postAuthor || 'unknown'}/p/${currentPost._id || 'unknown'}${highlightedCommentId ? `?comment=${highlightedCommentId}` : ''}`;
     // Record the share in the public ledger so the engagement count increments
     if (postAuthor && postService) {
-      recordRepost(post._id || '', postAuthor, postService);
+      recordRepost(currentPost._id || '', postAuthor, postService);
     }
     if (navigator.share) {
-      navigator.share({ title: post.text?.slice(0, 100) || 'Post on web10', url }).catch(() => {
+      navigator.share({ title: currentPost.text?.slice(0, 100) || 'Post on web10', url }).catch(() => {
         copyUrl();
       });
     } else {
@@ -279,7 +288,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
         <div className="flex min-h-0 shrink-0 flex-col overflow-y-auto p-5 pr-14 sm:w-80">
           {/* Timestamp */}
           <span className="text-xs text-muted-foreground">
-            {formatTimeAgo(post.created_at)}
+            {formatTimeAgo(currentPost.created_at)}
           </span>
 
           {/* Text content (editable) */}
@@ -306,16 +315,16 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
                 <Button
                   size="sm"
                   variant="ghost"
-                  onClick={() => { setEditing(false); setEditDraft(post.text || ''); }}
+                  onClick={() => { setEditing(false); setEditDraft(currentPost.text || ''); }}
                   className="text-xs"
                 >
                   Cancel
                 </Button>
               </div>
             </div>
-) : post.text ? (
-             <div className="mt-3 whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">
-               <TextWithLinks text={post.text} />
+) : currentPost.text ? (
+              <div className="mt-3 whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">
+                <TextWithLinks text={currentPost.text} />
              </div>
            ) : (
             !hasMedia && (
@@ -383,7 +392,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
 
           {/* Comment thread */}
           <CommentThread
-            postId={post._id || ''}
+            postId={currentPost._id || ''}
             isOpen={commentsOpen}
             count={commentCount}
             postAuthor={postAuthor}
@@ -403,17 +412,17 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
                 className="text-sm text-muted-foreground hover:text-foreground gap-1.5 w-full justify-start"
                 data-testid="post-visibility-toggle-button"
               >
-                {post.visibility === 'public' ? (
+                {currentPost.visibility === 'public' ? (
                   <EyeOff className="w-3.5 h-3.5" />
                 ) : (
                   <Eye className="w-3.5 h-3.5" />
                 )}
-                {togglingVisibility ? 'Updating…' : post.visibility === 'public' ? 'Make private' : 'Make public'}
+                {togglingVisibility ? 'Updating…' : currentPost.visibility === 'public' ? 'Make private' : 'Make public'}
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => { setEditing(true); setEditDraft(post.text || ''); }}
+                onClick={() => { setEditing(true); setEditDraft(currentPost.text || ''); }}
                 className="text-sm text-muted-foreground hover:text-foreground gap-1.5 w-full justify-start"
                 data-testid="post-edit-button"
               >

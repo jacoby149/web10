@@ -2169,7 +2169,7 @@ BITES (rule 5 — one bite PER SCREEN when staged, each its own
         PR): [✓ 1.0.266] messages (thread key + view param), [✓ 1.0.276 #449]
         discover (tag/q params), profile (tab param), [✓ 1.0.271] comment anchor (?comment= on the
         permalink route — gate: D-feed-lightbox bite b), marketing
-        retarget (TrendingCard/comment/search links point at the deep
+        retarget [✓ 1.0.284] (TrendingCard/comment/search links point at the deep
         urls — gate: the relevant routes merged). never one sweeping
         branch.
 
@@ -2772,47 +2772,10 @@ BITES (rule 5 — one bite PER SCREEN when staged, each its own
       the self-like round-trip incl. the call-site target format;
       social tests + tsc green. gate: none.
 
-[ ] D-own-profile-edit-restore (sub-lane ws-D/profile; operator, 30.07
-      rant, screenshot .context/attachments/OtEoeT/image.png: "changing
-      my profile page to /u/profile made it so we lost the features of
-      our original profile page! when it is my own user profile, i
-      should be able to change my profile picutre, the banner, and
-      really dig deep! any other features that are missing because of
-      the change?"): regression from D-own-profile-canonical (1.0.266)
-      — retiring /profile moved the owner to /u/<you> →
-      UserProfileScreen, which is READ-ONLY for everyone including the
-      owner. the retired ProfileScreen's owner affordances never got
-      ported. MISSING-FEATURES AUDIT (cheap code read, 30.07 — the
-      "any other features?" half of the rant, answered): (1) EDIT
-      PROFILE — no edit-profile-button, no inline editing of display
-      name / bio / location / website (ProfileScreen.tsx:205-250);
-      (2) AVATAR change — no edit-avatar-button / handleUpload
-      ('avatar_ref') (ProfileScreen.tsx:189, :104); (3) BANNER change
-      — no edit-banner-button (ProfileScreen.tsx:162); (4) REVIEW
-      IMPORTS — no review-imports-button with the staging count, and
-      the empty-posts state lost its "import your archive" CTA
-      (ProfileScreen.tsx:334, :449); (5) post cells + video rendering
-      — ALREADY restored (1.0.279), don't redo. ProfileScreen.tsx is
-      now ORPHANED (imported in App.tsx:7, routed nowhere) — the edit
-      UI is lifted from there, not rewritten. fix shape: when
-      isOwnProfile (the gate already in UserProfileScreen), render the
-      owner affordances — edit profile inline editing, avatar/banner
-      upload buttons, review-imports — reusing ProfileScreen's
-      handleSave/handleUpload against data/profile.ts; visitors see
-      the same read-only page as today. keep the /u/<you> URL (the
-      canonical form is the operator's settled call — the FEATURES
-      come back, the old route doesn't). files:
-      components/Bio/UserProfileScreen.tsx (+ maybe delete the
-      orphaned ProfileScreen.tsx once its affordances are ported —
-      builder's call, say which in the PR). acceptance: on /u/<you>
-      the owner can change avatar, banner, display name, bio,
-      location, website and sees the review-imports entry; a
-      non-owner viewing the same URL sees none of it; vitest pins the
-      isOwnProfile gate on the edit affordances; social tests + tsc
-      green; capture green (no-PNG override). gate: none.
-
-[ ] D-visibility-toggle-duplicate (sub-lane ws-D/profile; operator, 30.07
-      rant: "i tried publicing a post, privating the post, publicing it
+[✓ 1.0.281] D-visibility-toggle-duplicate (sub-lane ws-D/profile; operator, 30.07
+       rant: "i tried publicing a post, privating the post, publicing it
+       again, there is now two posts one in public one in private of the
+       same post"): D-post-visibility-toggle's movePostVisibility
       again, there is now two posts one in public one in private of the
       same post"): D-post-visibility-toggle's movePostVisibility
       (posts.ts:154) is create-in-target THEN delete-from-source — a

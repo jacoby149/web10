@@ -183,9 +183,10 @@ interface TrendingMediaProps {
   mediaRefs?: string[];
   mediaType?: 'image' | 'video' | 'music';
   firstAttachmentMime?: string;
+  postId?: string;
 }
 
-function TrendingMedia({ author, mediaRefs, mediaType, firstAttachmentMime }: TrendingMediaProps) {
+function TrendingMedia({ author, mediaRefs, mediaType, firstAttachmentMime, postId }: TrendingMediaProps) {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [thumbUrl, setThumbUrl] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -257,10 +258,10 @@ function TrendingMedia({ author, mediaRefs, mediaType, firstAttachmentMime }: Tr
         video.play().catch(() => {});
         setIsMuted(false);
       }
-    } else {
-      window.open(SOCIAL_ORIGIN, '_blank');
+    } else if (postId) {
+      window.open(`${SOCIAL_ORIGIN}/u/${encodeURIComponent(author)}/p/${encodeURIComponent(postId)}`, '_blank');
     }
-  }, [isMuted]);
+  }, [isMuted, postId, author]);
 
   // Loading state: skeleton with reserved aspect
   if (!imageUrl && !error) {
@@ -528,7 +529,11 @@ function InlineCommentPanel({ postId, postAuthor, postService }: { postId: strin
 
   const handleCompose = () => {
     trackFunnel('trending_comment_attempt', { post_id: postId });
-    window.open(SOCIAL_ORIGIN, '_blank');
+    if (postAuthor) {
+      window.open(`${SOCIAL_ORIGIN}/u/${encodeURIComponent(postAuthor)}/p/${encodeURIComponent(postId)}`, '_blank');
+    } else {
+      window.open(SOCIAL_ORIGIN, '_blank');
+    }
   };
 
   useEffect(() => {
@@ -565,8 +570,16 @@ function InlineCommentPanel({ postId, postAuthor, postService }: { postId: strin
             const author = c.payload.author_username || c.author || 'anonymous';
             const initial = author.charAt(0).toUpperCase();
             const color = hashToColor(author);
+            const commentUrl = `${SOCIAL_ORIGIN}/u/${encodeURIComponent(postAuthor || 'unknown')}/p/${encodeURIComponent(postId)}?comment=${encodeURIComponent(c._id)}`;
             return (
-              <div key={c._id} className="flex gap-2">
+              <a
+                key={c._id}
+                href={commentUrl}
+                target="_blank"
+                rel="noopener"
+                data-testid="comment-entry"
+                className="flex gap-2 transition-colors hover:bg-elevated/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              >
                 <Avatar className={color}>
                   <AvatarFallback className="text-foreground">{initial}</AvatarFallback>
                 </Avatar>
@@ -583,7 +596,7 @@ function InlineCommentPanel({ postId, postAuthor, postService }: { postId: strin
                     {c.payload.text}
                   </p>
                 </div>
-              </div>
+              </a>
             );
           })
         )}
@@ -629,23 +642,28 @@ function TrendingCard({
   const [copied, setCopied] = useState(false);
   const [commentOpen, setCommentOpen] = useState(false);
   const tier = heatTier(post.engagementScore, maxScore);
+  const postPermalink = post.author
+    ? `${SOCIAL_ORIGIN}/u/${encodeURIComponent(post.author)}/p/${encodeURIComponent(post.id)}`
+    : SOCIAL_ORIGIN;
+  const authorPermalink = post.author
+    ? `${SOCIAL_ORIGIN}/u/${encodeURIComponent(post.author)}`
+    : SOCIAL_ORIGIN;
   const handleShare = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    const url = `${window.location.origin}${window.location.pathname}#post-${post.id}`;
     if (onShare) {
       onShare(post.id);
       return;
     }
     if (navigator.share) {
-      navigator.share({ title: post.name, url }).catch(() => {
+      navigator.share({ title: post.name, url: postPermalink }).catch(() => {
         copyUrl();
       });
     } else {
       copyUrl();
     }
     function copyUrl() {
-      navigator.clipboard.writeText(url).then(() => {
+      navigator.clipboard.writeText(postPermalink).then(() => {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       });
@@ -680,15 +698,19 @@ function TrendingCard({
           </Avatar>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 truncate">
-              {/* TODO: /u/<author> once social ships the route */}
-              <a href={SOCIAL_ORIGIN} target="_blank" rel="noopener" className="truncate text-sm font-semibold text-foreground transition-colors hover:text-brand-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">
+              <a href={authorPermalink} target="_blank" rel="noopener" className="truncate text-sm font-semibold text-foreground transition-colors hover:text-brand-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">
                 {post.name}
               </a>
               <span className="truncate text-sm text-muted-foreground">{post.handle}</span>
             </div>
-            <p className="mt-1 line-clamp-3 text-sm leading-relaxed text-foreground">
+            <a
+              href={postPermalink}
+              target="_blank"
+              rel="noopener"
+              className="mt-1 block line-clamp-3 text-sm leading-relaxed text-foreground transition-colors hover:text-brand-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
               {post.content}
-            </p>
+            </a>
           </div>
         </div>
         {post.media && (
@@ -699,6 +721,7 @@ function TrendingCard({
                 mediaRefs={post.mediaRefs}
                 mediaType={post.media}
                 firstAttachmentMime={post.firstAttachmentMime}
+                postId={post.id}
               />
             ) : (
               <MediaPlaceholder type={post.media} />
@@ -708,9 +731,15 @@ function TrendingCard({
         {post.tags && post.tags.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-1.5">
             {post.tags.filter(t => !['image', 'video', 'music'].includes(t)).slice(0, 4).map(tag => (
-              <Badge key={tag} variant="outline" className="normal-case tracking-normal text-muted-foreground">
+              <a
+                key={tag}
+                href={`${SOCIAL_ORIGIN}/discover?tag=${encodeURIComponent(tag)}`}
+                target="_blank"
+                rel="noopener"
+                className="inline-flex items-center rounded-full border border-border px-2 py-0.5 text-xs transition-colors hover:border-border/80 hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              >
                 #{tag}
-              </Badge>
+              </a>
             ))}
           </div>
         )}
@@ -842,12 +871,21 @@ interface YouTubeCardProps {
 
 function YouTubeCard({ post, rank }: YouTubeCardProps) {
   const hasMedia = post.media && post.author && post.mediaRefs;
+  const postPermalink = post.author
+    ? `${SOCIAL_ORIGIN}/u/${encodeURIComponent(post.author)}/p/${encodeURIComponent(post.id)}`
+    : SOCIAL_ORIGIN;
+  const authorPermalink = post.author
+    ? `${SOCIAL_ORIGIN}/u/${encodeURIComponent(post.author)}`
+    : SOCIAL_ORIGIN;
 
   return (
-    <div
+    <a
       data-testid="youtube-card"
       id={`youtube-card-${post.id}`}
-      className="group/yt cursor-pointer"
+      href={postPermalink}
+      target="_blank"
+      rel="noopener"
+      className="group/yt"
     >
       {/* 16:9 thumbnail */}
       <div className="relative overflow-hidden rounded-xl bg-elevated">
@@ -857,6 +895,7 @@ function YouTubeCard({ post, rank }: YouTubeCardProps) {
             mediaRefs={post.mediaRefs}
             mediaType={post.media}
             firstAttachmentMime={post.firstAttachmentMime}
+            postId={post.id}
           />
         ) : (
           <div className="aspect-video w-full flex items-center justify-center bg-elevated">
@@ -888,14 +927,9 @@ function YouTubeCard({ post, rank }: YouTubeCardProps) {
             {post.content || `${post.name}'s post`}
           </p>
           <div className="mt-0.5 flex items-center gap-1">
-            <a
-              href={`${SOCIAL_ORIGIN}/u/${post.author}`}
-              target="_blank"
-              rel="noopener"
-              className="text-xs text-muted-foreground transition-colors hover:text-foreground"
-            >
+            <span className="text-xs text-muted-foreground transition-colors group-hover/yt:text-foreground">
               {post.name}
-            </a>
+            </span>
             <span className="text-xs text-muted-foreground">·</span>
             <span className="text-xs text-muted-foreground">{post.time} ago</span>
           </div>
@@ -911,7 +945,7 @@ function YouTubeCard({ post, rank }: YouTubeCardProps) {
           </div>
         </div>
       </div>
-    </div>
+    </a>
   );
 }
 

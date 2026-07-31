@@ -414,14 +414,24 @@ function Trending() {
     else cardRefs.current.delete(id);
   }, []);
 
-  const handleReaction = (type: 'like' | 'repost') => {
+  const handleReaction = (type: 'like' | 'repost', postId: string) => {
     trackFunnel(type === 'like' ? 'trending_like_attempt' : 'trending_repost_attempt');
-    window.open(SOCIAL_ORIGIN, '_blank');
+    const post = allPosts.find(p => p.id === postId) || searchResults.find(p => p.id === postId);
+    if (post?.author) {
+      window.open(`${SOCIAL_ORIGIN}/u/${encodeURIComponent(post.author)}/p/${encodeURIComponent(postId)}`, '_blank');
+    } else {
+      window.open(SOCIAL_ORIGIN, '_blank');
+    }
   };
 
-  const handleComment = () => {
+  const handleComment = (postId: string) => {
     trackFunnel('trending_comment_attempt');
-    window.open(SOCIAL_ORIGIN, '_blank');
+    const post = allPosts.find(p => p.id === postId) || searchResults.find(p => p.id === postId);
+    if (post?.author) {
+      window.open(`${SOCIAL_ORIGIN}/u/${encodeURIComponent(post.author)}/p/${encodeURIComponent(postId)}`, '_blank');
+    } else {
+      window.open(SOCIAL_ORIGIN, '_blank');
+    }
   };
 
   const handleLoadMore = () => {
@@ -605,19 +615,19 @@ function Trending() {
                         data-testid="trending-grid"
                         className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
                       >
-                        {visibleSearchResults.map(post => (
-                          <TrendingCard
-                            key={post.id}
-                            post={post}
-                            rank={post.rank}
-                            featured={post.featured}
-                            maxScore={maxSearchScore}
-                            onLike={() => handleReaction('like')}
-                            onComment={() => handleComment()}
-                            onRepost={() => handleReaction('repost')}
-                            cardRef={registerCard(post.id)}
-                          />
-                        ))}
+{visibleSearchResults.map(post => (
+                           <TrendingCard
+                             key={post.id}
+                             post={post}
+                             rank={post.rank}
+                             featured={post.featured}
+                             maxScore={maxSearchScore}
+                             onLike={() => handleReaction('like', post.id)}
+                             onComment={() => handleComment(post.id)}
+                             onRepost={() => handleReaction('repost', post.id)}
+                             cardRef={registerCard(post.id)}
+                           />
+                         ))}
                       </div>
                     </>
                   ) : (
@@ -724,19 +734,19 @@ function Trending() {
                   data-testid="trending-grid"
                   className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
                 >
-                  {visible.map(post => (
-                    <TrendingCard
-                      key={post.id}
-                      post={post}
-                      rank={post.rank}
-                      featured={post.featured}
-                      maxScore={maxScore}
-                      onLike={() => handleReaction('like')}
-                      onComment={() => handleComment()}
-                      onRepost={() => handleReaction('repost')}
-                      cardRef={registerCard(post.id)}
-                    />
-                  ))}
+{visible.map(post => (
+                     <TrendingCard
+                       key={post.id}
+                       post={post}
+                       rank={post.rank}
+                       featured={post.featured}
+                       maxScore={maxScore}
+                       onLike={() => handleReaction('like', post.id)}
+                       onComment={() => handleComment(post.id)}
+                       onRepost={() => handleReaction('repost', post.id)}
+                       cardRef={registerCard(post.id)}
+                     />
+                   ))}
                 </div>
                 {loadingMore && (
                   <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
