@@ -872,6 +872,14 @@ LANE B — ui / frontend        (owns: auth2->ui/**, auth/**)
       local stack, hard refresh, the phone is still there; api +
       ui tests green, ruff + tsc clean. gate: none — PRIORITY,
       this blocks the dev→main promotion.
+      STATUS 31.07: F1 FIXED [✓ 1.0.290] — POST /set_recovery_phone
+      (certified token sets its OWN user's phone via
+      set_phone_number, rate-limited 5/hr, non-owner impossible by
+      construction) + RecoveryContact call-site swap with server
+      read-back through servicesLoad (star record phone_number →
+      I.phone). Live-verified on the local compose stack (save →
+      fresh-token re-read persists; 429 after 5 saves). The
+      dev→main promotion is UNBLOCKED.
 
 LANE C — greenfield services  (owns: sdk/, mcp/, new dirs)
   [✓ 1.0.25] C1. P5 media service (presigned urls, minio profile,
@@ -3730,10 +3738,11 @@ kickoffable parallel-safe bites across 8 sub-lanes (below), ~15+
 chained PRs behind them — Qwens run independently.
 
   PRIORITY 1 (fresh, this audit):
-    ws-B + ws-A (ONE PR): B9-recovery-contact-nudge bite a-fix — the
-      recovery-phone save actually persists (lane A: POST
+    [✓ 1.0.290] ws-B + ws-A (ONE PR): B9-recovery-contact-nudge bite
+      a-fix — the recovery-phone save actually persists (lane A: POST
       /set_recovery_phone; lane B: RecoveryContact call-site swap +
-      refresh-persistence test). BLOCKS the dev→main promotion.
+      refresh-persistence test). MERGED — the dev→main promotion is
+      UNBLOCKED; the next web10web10! re-gates the batch and ships.
     ws-E (operator-gated): E-run-discovery-migration — STILL the
       highest-demo-impact item on the board and still needs the admin
       token. The "lacks videos and images" complaint class persists on
@@ -3754,8 +3763,8 @@ chained PRs behind them — Qwens run independently.
                      bite c (verified-only user count), THEN
                      A22-forgot-username-by-phone, THEN A23 (GATED on
                      A21 bite b). A20 bite b in flight as #462.
-    ws-B:            B9 bite a-fix FIRST (PRIORITY 1 above), THEN B9
-                     bite b (email recovery UI — gate: A20 bite b =
+    ws-B:            B9 bite a-fix MERGED (1.0.290 — de-queued). NEXT:
+                     B9 bite b (email recovery UI — gate: A20 bite b =
                      #462 merged + the .context/ contract), THEN
                      D-ga4-auth (SMALL, no gate).
     ws-D/profile:    D-own-profile-edit-restore (owner edit affordances
@@ -3771,10 +3780,10 @@ chained PRs behind them — Qwens run independently.
     ws-D/discover:   FREE — trending-views bite b merged 1.0.286.
                      Next: nothing queued; take D-ga4-social if
                      ws-D/social-analytics is unstaffed.
-    ws-D/social-analytics: D-ga4-social (SMALL, no gate — GA4 pageview
-                     + event analytics on web10-social; aggregate only,
-                     no recording; acceptance: GA4 dashboard shows real
-                     social pageviews).
+ws-D/social-analytics: [✓ 1.0.289] D-ga4-social (SMALL, no gate — GA4 pageview
+                      + event analytics on web10-social; aggregate only,
+                      no recording; acceptance: GA4 dashboard shows real
+                      social pageviews).
     ws-D/shell:      D-deep-links bite 3 (profile ?tab=posts|media —
                      SEAM NOTE: touches ProfileScreen.tsx, a ws-D/
                      profile file; run INSIDE the ws-D/profile chain or
@@ -3873,7 +3882,7 @@ ws-B:            B9-recovery-contact-nudge bite a (the nudge — no
 ws-D/discover:   [✓ 1.0.280] D-trending-views bite b (Discover parity — the
                       view toggle ported to DiscoverScreen; gate: bite a
                       merged 1.0.272, CLEAR)
-                 [✓ 1.0.290] D-trending-single-column (operator feedback
+                 [✓ 1.0.291] D-trending-single-column (operator feedback
                       31.07, NOT a rant — direct fix): trending grids →
                       ONE wide Twitter-style column on marketing /trending
                       (max-w-xl; Top Ten sidebar kept per operator) AND
@@ -3882,11 +3891,11 @@ ws-D/discover:   [✓ 1.0.280] D-trending-views bite b (Discover parity — the
                       inside max-w-xl — both single-column now); tabs
                       renamed Grid→"Hot Gossip", YouTube→"Video" on both
                       surfaces; ?view= values unchanged)
-    ws-D/social-analytics: D-ga4-social (SMALL, no gate — GA4 pageview +
-                      event analytics on web10-social; aggregate only,
-                      no recording, fits the "anonymous, aggregate,
-                      CONTENT-FREE" allowance; acceptance: GA4
-                      dashboard shows real social pageviews)
+ws-D/social-analytics: [✓ 1.0.289] D-ga4-social (SMALL, no gate — GA4 pageview +
+                       event analytics on web10-social; aggregate only,
+                       no recording, fits the "anonymous, aggregate,
+                       CONTENT-FREE" allowance; acceptance: GA4
+                       dashboard shows real social pageviews)
     ws-D/shell:      D-deep-links bite 3 (profile ?tab=posts|media —
                      SEAM NOTE: touches ProfileScreen.tsx, a ws-D/
                      profile file; run INSIDE the ws-D/profile chain or

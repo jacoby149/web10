@@ -77,6 +77,11 @@ function useInterface() {
             .read("services")
             .then(function (response) {
                 response.data.sort((a, b) => a["_id"].localeCompare(b["_id"]));
+                // The star record carries the account phone — read it back
+                // from the server (never a local echo) so the recovery phone
+                // survives a hard refresh (B9 bite a-fix).
+                const star = response.data.find((s: any) => s["service"] === "*");
+                I.setPhone(star?.phone_number || "");
                 const currServices = response.data.map((service: any) => service["service"]);
                 const SIRS = I.SMR["sirs"]
                     .filter((service: any) => !currServices.includes(service["service"]) && service["service"] !== "*")

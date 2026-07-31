@@ -86,9 +86,10 @@ describe('RecoveryContact', () => {
     phone: '',
     setPhone: vi.fn(),
     setStatus: vi.fn(),
+    servicesLoad: vi.fn(() => Promise.resolve()),
     config: { REACT_APP_VERIFY_REQUIRED: true },
     wapi: {
-      update: vi.fn(),
+      token: 'tok123',
       readToken: () => ({ username: 'test', provider: 'api.localhost' }),
     },
   }

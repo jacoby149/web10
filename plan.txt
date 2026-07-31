@@ -677,7 +677,8 @@ node policy (anti-abuse is the NODE'S call, not the protocol's):
     B9-recovery-contact-nudge (ui: pester every user with no
     recovery contact set until they set one). accounts are
     PERMANENT is the product promise. bite a merged [✓ 1.0.282],
-    bite b (email reset flow) still open.
+    bite a-fix (the save actually persists — audit #19 F1) merged
+    [✓ 1.0.290], bite b (email reset flow) still open.
 [ ] passwordless phone login (operator rant, 30.07.2026): "even
     better, passwordless phone text verification code is the goat!
     also cool if we dont let people make an account if the phone
@@ -3252,15 +3253,15 @@ testing:
          session"), self-hosted, staging-first. watch real usage
          without surveilling fans; the consent is the feature,
          and it's a pitch line ("they record everyone; we asked").
-     - Google Analytics 4 (operator, 30.07): aggregate pageview +
-       event analytics across ALL surfaces (marketing-ui, web10-social,
-       ui/auth). GA4 is NOT session recording — no DOM capture, no
-       keystroke logging, no replay. It is anonymous, aggregate,
-       CONTENT-FREE: fits squarely within the standing "aggregate
-       exhaust only" allowance. One measurement ID shared across all
-       three apps (or per-app if the operator wants property separation).
-       File: D-ga4-marketing (ws-D/marketing(2)), D-ga4-social (ws-D/
-       social-analytics or nearest open ws-D sub-lane), D-ga4-auth
+- Google Analytics 4 (operator, 30.07): aggregate pageview +
+        event analytics across ALL surfaces (marketing-ui, web10-social,
+        ui/auth). GA4 is NOT session recording — no DOM capture, no
+        keystroke logging, no replay. It is anonymous, aggregate,
+        CONTENT-FREE: fits squarely within the standing "aggregate
+        exhaust only" allowance. One measurement ID shared across all
+        three apps (or per-app if the operator wants property separation).
+        File: D-ga4-marketing (ws-D/marketing(2)), [✓ 1.0.289] D-ga4-social (ws-D/
+        social-analytics, merged), D-ga4-auth
        (ws-B). Each is SMALL, no gate, parallel-safe (different
        directories). Acceptance: GA4 dashboard shows real pageviews
        from the corresponding surface; no content leaves the app.
