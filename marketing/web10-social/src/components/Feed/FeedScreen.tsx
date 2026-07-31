@@ -22,7 +22,7 @@ import type {
   FeedSort,
   ProfileRecord,
 } from '@/data/types';
-import { Heart, MessageCircle, Play, Pause } from 'lucide-react';
+import { Heart, MessageCircle, Play, Pause, Edit3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
 import { CommentThread } from './CommentThread';
@@ -177,6 +177,7 @@ interface PostCardProps {
   postAuthor?: string;
   postService?: string;
   onOpenLightbox?: () => void;
+  isOwnPost?: boolean;
 }
 
 function PostCard({
@@ -196,6 +197,7 @@ function PostCard({
   postAuthor,
   postService,
   onOpenLightbox,
+  isOwnPost,
 }: PostCardProps) {
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [localCount, setLocalCount] = useState(commentCount);
@@ -248,6 +250,17 @@ function PostCard({
           )}
           <span className="text-[0.8125rem] text-muted-foreground shrink-0">· {formatTimeAgo(timestamp)}</span>
         </div>
+        {isOwnPost && (
+          <button
+            type="button"
+            aria-label="Edit post"
+            data-testid="post-edit-pencil"
+            onClick={(e) => { e.stopPropagation(); onOpenLightbox?.(); }}
+            className="shrink-0 p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-elevated transition-all duration-150"
+          >
+            <Edit3 className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
 
       <MediaGrid mediaItems={mediaItems} />
@@ -377,6 +390,9 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
   const [profileMap, setProfileMap] = useState<Record<string, ProfileRecord>>({});
   const [avatarUrlMap, setAvatarUrlMap] = useState<Record<string, string>>({});
   const [lightboxItem, setLightboxItem] = useState<InboxRecord | null>(null);
+  const token = getWapi().readToken();
+  const isOwnPost = (item: InboxRecord) =>
+    token && item.author_username === token.username && item.author_provider === token.provider;
 
   const loadFeed = useCallback(async () => {
     setLoading(true);
@@ -556,7 +572,7 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
   }
 
   return (
-    <div className="md:max-w-xl md:mx-auto">
+    <div className="md:max-w-2xl md:mx-auto">
       <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-md border-b border-border md:static md:border-0 md:bg-transparent md:mb-4">
         <div className="flex items-center justify-between px-4 py-3 md:px-0">
           <h1 className="font-display text-lg font-bold text-foreground">Feed</h1>
@@ -606,6 +622,7 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
                 postAuthor={item.author_username}
                 postService={'public_posts'}
                 onOpenLightbox={() => setLightboxItem(item)}
+                isOwnPost={isOwnPost(item)}
               />
             );
           })
