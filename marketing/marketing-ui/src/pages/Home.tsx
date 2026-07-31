@@ -26,7 +26,7 @@ function formatBytes(bytes: number): string {
   const units = ['B', 'KB', 'MB', 'GB', 'TB']
   const i = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)))
   const val = bytes / Math.pow(1024, i)
-  return `${val >= 100 || i <= 1 ? Math.round(val) : val.toFixed(1)} ${units[i]}`
+  return `${Math.round(val)} ${units[i]}`
 }
 
 function formatNumber(n: number): string {
@@ -114,7 +114,7 @@ function HomeStatsBar() {
           return (
             <div
               key={item.label || i}
-              className="flex flex-col items-center gap-1.5 px-4 py-6 sm:px-6 sm:py-8"
+              className="flex flex-col items-center gap-1.5 rounded-lg border border-border bg-card px-4 py-6 sm:px-6 sm:py-8"
             >
               <Icon className="h-4 w-4 text-brand-400 opacity-60" strokeWidth={1.5} />
               <span className="font-display text-2xl font-bold tracking-[-0.02em] text-foreground tabular-nums sm:text-3xl">
