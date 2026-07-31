@@ -1411,7 +1411,18 @@ class TestSignupProvisionsPublicPostsTerm:
         core_services.discard("services")
         core_services.discard("public_posts")
         core_services.discard("*")  # star record also wrapped by to_db mock
-        assert core_services == {"follows", "inbox", "reactions", "comments", "dms", "profile", "public_media", "private_posts", "staging_posts", "media"}
+        assert core_services == {
+            "follows",
+            "inbox",
+            "reactions",
+            "comments",
+            "dms",
+            "profile",
+            "public_media",
+            "private_posts",
+            "staging_posts",
+            "media",
+        }
 
 
 # ---------------------------------------------------------------------------

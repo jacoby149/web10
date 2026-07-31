@@ -172,7 +172,18 @@ class TestCoreServicesTerms:
     def test_services_cover_the_full_app_core_set(self):
         terms = records.core_services_terms()
         services = {t["service"] for t in terms}
-        assert services == {"follows", "inbox", "reactions", "comments", "dms", "profile", "public_media", "private_posts", "staging_posts", "media"}
+        assert services == {
+            "follows",
+            "inbox",
+            "reactions",
+            "comments",
+            "dms",
+            "profile",
+            "public_media",
+            "private_posts",
+            "staging_posts",
+            "media",
+        }
 
 
 class TestProfileTerm:
