@@ -2166,8 +2166,8 @@ LANE D — docs / apps / mobile (owns: mobile/**, marketing/, examples/
       gate: current 26.07-late fleet merged (it touches most of their
       files).
 BITES (rule 5 — one bite PER SCREEN when staged, each its own
-        PR): [✓ 1.0.266] messages (thread key + view param), discover (tag/q
-        params), profile (tab param), [✓ 1.0.271] comment anchor (?comment= on the
+        PR): [✓ 1.0.266] messages (thread key + view param), [✓ 1.0.276 #449]
+        discover (tag/q params), profile (tab param), [✓ 1.0.271] comment anchor (?comment= on the
         permalink route — gate: D-feed-lightbox bite b), marketing
         retarget (TrendingCard/comment/search links point at the deep
         urls — gate: the relevant routes merged). never one sweeping
@@ -2377,7 +2377,7 @@ BITES (rule 5 — one bite PER SCREEN when staged, each its own
       D-import-export-links-dead (the repaired URLs + shared
       constants exist to test against).
 
-[ ] D-import-youtube-first (sub-lane ws-D/marketing(2), SMALL; Exporter.tsx
+[✓ 1.0.277 #452] D-import-youtube-first (sub-lane ws-D/marketing(2), SMALL; Exporter.tsx
       seam — disjoint from Home/Join/AppStore; operator, 30.07 rant:
       "my business outreach efforts are ONLY to youtubers for the
       first go! therefore i want to on the import feature efforts to
@@ -3647,8 +3647,104 @@ M3 "the network"         = encryption integration (A rtc + C2 sdk
                            polish. the last big merge.
 
 
-CURRENT CONDUCTOR BOARD (as of 30.07.2026 — audit #17; keep fresh)
+CURRENT CONDUCTOR BOARD (as of 30.07.2026 — audit #18; keep fresh)
 --------------------------------------------------------------------
+AUDIT #18 REFRESH (30.07, web10web10! pass #18): SHIPPED. Dangling PRs:
+two found, both closed as superseded (#446 + #450 — duplicates of the
+dev-server-screenshot unbrick whose content already landed via #454;
+both CONFLICTING, zero unique diff vs dev). The dev batch (#442–#454)
+gated CLEAN — e2e green at dev head (run 30591748191), deploy-dev
+green, diffs read with no invariant/auth/star/seam findings — and
+promoted dev→main via merge commit; deploy-prod + cd watched green;
+prod verified live (see the pass-#18 changelog entry, 1.0.278).
+HYGIENE repaired in-pass (the #439 class again): #449 (discover deep
+links bite 2) + #452 (YouTube-first exporter) merged with no changelog
+entry and no lane/plan ticks — entries 1.0.276/1.0.277 added, ticks
+landed. PROD NOW SERVES: A20 recovery-email field + verified-set
+endpoints, web10-export ZIP import path (node-to-node migration
+ingest), discover ?tag=&q= deep links + search, comment-anchor
+permalinks (?comment= scrolls + highlights), per-user profile stats
+(his counts, not yours; paginated post grid), YouTube-first /import,
+/trending YouTube view (?view=youtube), mobile bottom-nav parity,
+self-booting screenshot tooling + the no-PNG override. ALIGNMENT:
+unchanged — every open item is operator-complaint-driven social work,
+the account-permanence cluster (A20–A23/B9), or the C8 money-path
+referee; no infra-company drift. Timeline: week 2 (jul 27–aug 3)
+closing; week 3 is M0 integration — founder taste pass remains the
+schedule risk. QWEN HORIZON: 8 immediately-kickoffable parallel-safe
+bites across 8 sub-lanes (below), ~15+ chained PRs behind them — Qwens
+run independently.
+
+  PRIORITY 1 (fresh, this audit):
+    ws-E (operator-gated): E-run-discovery-migration — STILL the
+      highest-demo-impact item on the board and still needs the admin
+      token. The "lacks videos and images" complaint class persists on
+      prod until the backfill RE-RUN (A17 media fields) executes; RUN
+      LIST also carries POST /admin/apps/migrate_v2 (cleanup, not a
+      blocker — the compat filter is live on prod).
+
+  PARALLEL-SAFE FLEET (one workspace per sub-lane; chains WITHIN a
+  sub-lane are sequential, file seams). All of audit #17's fleet
+  MERGED this batch (user-profile-stats, deep-links bite 2, mobile-
+  feature-gap, comment-anchor, trending-views bite a, import-youtube-
+  first, import-revamp bite d, A20 bite a — de-queued). Next bites:
+    ws-A:            A20-recovery-email-channel bite b (the email RESET
+                     flow — code -> password reset mirroring the SMS
+                     path + the real SMTP/transactional hookup replacing
+                     the bite-a stub; gate: bite a merged 1.0.271,
+                     CLEAR), THEN A21-passwordless-phone-login bites
+                     a+b+c (PRIORITY — prod stats inflate with
+                     unverified signups daily), THEN A22-forgot-
+                     username-by-phone, THEN A23-verification-
+                     enforcement (GATED on A21 bite b)
+    ws-B:            B9-recovery-contact-nudge bite a (the nudge — no
+                     gate, phone already on the star record); bites
+                     b/c/d gated on A20/A21/A22 contracts
+    ws-D/profile:    D-visibility-toggle-duplicate (REPRO first — stale
+                     post object across toggles), THEN D-public-media-
+                     verify (TINY — the gate-CLEARER for the two GATED
+                     media items below), THEN D-follow-lists (twice-
+                     complained — /u/:username/followers|following
+                     routes), THEN D-lightbox-media-sizing, THEN
+                     D-profile-image-placement, D-text-post-cards
+    ws-D/discover:   D-trending-views bite b (Discover parity — the
+                     view toggle ported to DiscoverScreen; gate: bite a
+                     merged 1.0.272, CLEAR)
+    ws-D/shell:      D-deep-links bite 3 (profile ?tab=posts|media —
+                     SEAM NOTE: touches ProfileScreen.tsx, a ws-D/
+                     profile file; run INSIDE the ws-D/profile chain or
+                     coordinate via .context/, never blind-parallel),
+                     THEN the marketing retarget bite (TrendingCard/
+                     comment/search links -> the deep urls; all target
+                     routes now merged — CLEAR)
+    ws-D/marketing(2): D-marketing-session-analytics (SMALL, no gate —
+                     hotjar-class session analytics pronto; reconcile
+                     vs the self-hosted posthog line, operator's call,
+                     record in decisions.md)
+    ws-C:            C8 remainder — bite b (membership subscribe
+                     journey, 3% split asserted) + bite c (twilio
+                     honest half); staged with the M2-prereq block, not
+                     the gauntlet fleet
+  GATED (don't pick up until the gate clears):
+      D-night-owl bites b-e (gate: operator's Conductor Pro trial).
+      D-poke build (gate: operator sign-off on the 1.0.179 proposal).
+      D-feed-avatar-resolution + the D-user-profile-media grid half
+        (gate: D-public-media-verify — the merged public-media path
+        verified END TO END; operator re-confirmed 30.07 it's still
+        broken on prod).
+      D-coming-soon-builds (gate: per-surface spec first).
+      D-appstore category rails (gate: catalog size).
+      E-run-discovery-migration (gate: admin token — operator provides).
+      E-dependabot-hackathon (parked per operator "can be done later").
+  Selection rule (CLAUDE.md): only truly-parallel items at once. The
+  PostLightbox/FeedScreen/PostComposer files form ONE seam cluster
+  spanning ws-D/feed and ws-D/profile — the two chains coordinate via
+  .context/ notes and never edit the same file concurrently.
+  BITE RULE (rule 5, operator 27.07): the chains above are QUEUES of
+  bites — a kickoff hands an agent exactly ONE bite (one PR, ~20-40
+  min); multi-bite items carry a BITES: breakdown in their lane text.
+  never kick off "the chain".
+
 AUDIT #17 REFRESH (30.07, web10web10! pass #17): SHIPPED — after the
 gate caught a RED batch and the fix landed in-pass. Zero dangling
 PRs. The dev batch (#430–#439) gated RED: e2e failing at three
