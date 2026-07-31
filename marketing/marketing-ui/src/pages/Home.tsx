@@ -247,7 +247,7 @@ const HOW_IT_WORKS = [
   },
   {
     icon: Inbox,
-    title: 'It fans out on write',
+    title: 'It lands in every inbox',
     description:
       "Every follower's inbox gets the post the instant you publish. No feed algorithm decides who's shown.",
   },
