@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { trackPageview, trackFunnel, reportError, installErrorBeacon } from './analytics'
+import { trackPageview, trackFunnel, reportError, installErrorBeacon, installHotjar, hotjarIdentify } from './analytics'
 
 describe('analytics', () => {
   beforeEach(() => {
@@ -101,6 +101,87 @@ describe('analytics', () => {
         expect.stringContaining('/analytics/error'),
         expect.stringContaining('unhandled'),
       )
+    })
+  })
+
+  describe('installHotjar', () => {
+    let appendChildSpy: ReturnType<typeof vi.spyOn>
+
+    beforeEach(() => {
+      delete (window as any).hj
+      delete (window as any).hjs
+      appendChildSpy = vi.spyOn(document.head, 'appendChild')
+      // Clear env before each test
+      vi.stubEnv('VITE_HOTJAR_SITE_ID', undefined)
+      vi.stubEnv('VITE_HOTJAR_VERSION', undefined)
+    })
+
+    afterEach(() => {
+      appendChildSpy.mockRestore()
+      vi.unstubAllEnvs()
+    })
+
+    it('is a no-op when VITE_HOTJAR_SITE_ID is not set', () => {
+      installHotjar()
+      expect(appendChildSpy).not.toHaveBeenCalled()
+      expect((window as any).hj).toBeUndefined()
+    })
+
+    it('loads the Hotjar script when site ID is set', () => {
+      vi.stubEnv('VITE_HOTJAR_SITE_ID', '12345')
+      installHotjar()
+      expect(appendChildSpy).toHaveBeenCalledTimes(1)
+      const script = appendChildSpy.mock.calls[0][0] as HTMLScriptElement
+      expect(script.src).toBe('https://script.hotjar.com/12345.js')
+      expect(script.async).toBe(true)
+    })
+
+    it('initialises Hotjar with site ID and default version', () => {
+      vi.stubEnv('VITE_HOTJAR_SITE_ID', '12345')
+      installHotjar()
+      expect((window as any).hjs).toContainEqual(['initialize', 12345, 1])
+    })
+
+    it('uses VITE_HOTJAR_VERSION when provided', () => {
+      vi.stubEnv('VITE_HOTJAR_SITE_ID', '12345')
+      vi.stubEnv('VITE_HOTJAR_VERSION', '3')
+      installHotjar()
+      expect((window as any).hjs).toContainEqual(['initialize', 12345, 3])
+    })
+
+    it('sets up the hjs queue array', () => {
+      vi.stubEnv('VITE_HOTJAR_SITE_ID', '12345')
+      installHotjar()
+      expect(Array.isArray((window as any).hjs)).toBe(true)
+    })
+  })
+
+  describe('hotjarIdentify', () => {
+    beforeEach(() => {
+      delete (window as any).hj
+    })
+
+    afterEach(() => {
+      delete (window as any).hj
+    })
+
+    it('is a no-op when Hotjar is not installed', () => {
+      hotjarIdentify('user-123')
+      // No error thrown, silently no-ops
+    })
+
+    it('calls hj identify when Hotjar is present', () => {
+      const mockHj = vi.fn()
+      ;(window as any).hj = mockHj
+      hotjarIdentify('user-123', { plan: 'pro' })
+      expect(mockHj).toHaveBeenCalledWith('identify', 'user-123', { plan: 'pro' })
+    })
+
+    it('calls hj identify with minimal args when no props given', () => {
+      const mockHj = vi.fn()
+      ;(window as any).hj = mockHj
+      hotjarIdentify('user-456')
+      expect(mockHj).toHaveBeenCalledWith('identify', 'user-456', undefined)
     })
   })
 })

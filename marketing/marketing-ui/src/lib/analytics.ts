@@ -86,3 +86,45 @@ export function installErrorBeacon() {
     reportError(e.reason?.message || String(e.reason))
   })
 }
+
+// ---------------------------------------------------------------------------
+// Hotjar — session replay + heatmaps (marketing-ui ONLY).
+// Platform surfaces (ui/ + web10-social) remain recording-free.
+// Site ID is required: VITE_HOTJAR_SITE_ID. Version defaults to 1.
+// ---------------------------------------------------------------------------
+
+/**
+ * Load the Hotjar snippet dynamically and initialise it.
+ * No-op when VITE_HOTJAR_SITE_ID is not set (dev without env vars).
+ */
+export function installHotjar() {
+  if (typeof window === 'undefined') return
+  const siteIdRaw = import.meta.env?.VITE_HOTJAR_SITE_ID
+  const siteId = siteIdRaw ? parseInt(siteIdRaw, 10) : 0
+  if (!siteId || isNaN(siteId)) return
+
+  const versionRaw = import.meta.env?.VITE_HOTJAR_VERSION
+  const version = versionRaw ? parseInt(versionRaw, 10) : 1
+
+  // Standard Hotjar queue pattern
+  ;(window as any).hjs = (window as any).hjs || []
+  ;(window as any).hj = function (...args: unknown[]) {
+    ;(window as any).hjs.push(args)
+  }
+
+  const s = document.createElement('script')
+  s.src = `https://script.hotjar.com/${siteId}.js`
+  s.async = true
+  document.head.appendChild(s)
+
+  ;(window as any).hj('initialize', siteId, version)
+}
+
+/**
+ * Identify a known user in Hotjar (e.g., after login on a marketing flow).
+ * Safe no-op when Hotjar is not installed.
+ */
+export function hotjarIdentify(userId: string, props?: Record<string, unknown>) {
+  if (typeof window === 'undefined' || !(window as any).hj) return
+  ;(window as any).hj('identify', userId, props)
+}
