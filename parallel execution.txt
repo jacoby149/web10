@@ -3771,10 +3771,10 @@ chained PRs behind them — Qwens run independently.
     ws-D/discover:   FREE — trending-views bite b merged 1.0.286.
                      Next: nothing queued; take D-ga4-social if
                      ws-D/social-analytics is unstaffed.
-    ws-D/social-analytics: D-ga4-social (SMALL, no gate — GA4 pageview
-                     + event analytics on web10-social; aggregate only,
-                     no recording; acceptance: GA4 dashboard shows real
-                     social pageviews).
+ws-D/social-analytics: [✓ 1.0.289] D-ga4-social (SMALL, no gate — GA4 pageview
+                      + event analytics on web10-social; aggregate only,
+                      no recording; acceptance: GA4 dashboard shows real
+                      social pageviews).
     ws-D/shell:      D-deep-links bite 3 (profile ?tab=posts|media —
                      SEAM NOTE: touches ProfileScreen.tsx, a ws-D/
                      profile file; run INSIDE the ws-D/profile chain or
@@ -3873,11 +3873,11 @@ ws-B:            B9-recovery-contact-nudge bite a (the nudge — no
 ws-D/discover:   [✓ 1.0.280] D-trending-views bite b (Discover parity — the
                       view toggle ported to DiscoverScreen; gate: bite a
                       merged 1.0.272, CLEAR)
-    ws-D/social-analytics: D-ga4-social (SMALL, no gate — GA4 pageview +
-                      event analytics on web10-social; aggregate only,
-                      no recording, fits the "anonymous, aggregate,
-                      CONTENT-FREE" allowance; acceptance: GA4
-                      dashboard shows real social pageviews)
+ws-D/social-analytics: [✓ 1.0.289] D-ga4-social (SMALL, no gate — GA4 pageview +
+                       event analytics on web10-social; aggregate only,
+                       no recording, fits the "anonymous, aggregate,
+                       CONTENT-FREE" allowance; acceptance: GA4
+                       dashboard shows real social pageviews)
     ws-D/shell:      D-deep-links bite 3 (profile ?tab=posts|media —
                      SEAM NOTE: touches ProfileScreen.tsx, a ws-D/
                      profile file; run INSIDE the ws-D/profile chain or
