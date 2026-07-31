@@ -2162,7 +2162,9 @@ shell:
     surface is breaking the funnel; private screens auth as they
     always did.
     lane item D-deep-links (ws-D/shell; cross-screen seam — stage
-    after the current fleet drains).
+    after the current fleet drains). BITES MERGED: messages [✓ 1.0.266],
+    discover ?tag=&q= [✓ 1.0.276], comment anchor [✓ 1.0.271]; open:
+    profile ?tab=, marketing click-through retarget.
 [✓ 1.0.211 #365] SETTINGS TAB (operator, 26.07): "web10 social doesn't have a
     settings tab, should be a settings tab, facebook style." v0 =
     account section, posting defaults (default visibility), data/
@@ -2710,7 +2712,7 @@ the join tab would work great for the import your life!"): rebuild
    sovereignty story is preserved by the delete-after-processing
    promise + the data landing in the user's own collection.
 
-[ ] YOUTUBE-FIRST IMPORT (operator, 30.07 rant: "my business outreach
+[✓ 1.0.277] YOUTUBE-FIRST IMPORT (operator, 30.07 rant: "my business outreach
     efforts are ONLY to youtubers for the first go! therefore i want
     to on the import feature efforts to make it youtube explicitly,
     and the other platforms TBD! and get that suuuppper sharp!!!!!!
