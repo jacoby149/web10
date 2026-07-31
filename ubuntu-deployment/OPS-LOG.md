@@ -376,3 +376,13 @@ fields (A17). Run it when the operator explicitly wants the old corpus
 re-indexed for Discover.
 state: prod serving 1.0.298 (pull feed + direct profile wall); e2e green
 on main; anon direct read of coolguydavid/public_posts verified 200.
+
+## 31.07.2026 (second run) — lincoln — 10-term core set migration on PROD
+did: re-ran `db.migrate_follows_terms()` after core_services_terms grew to
+the full 10-term app set (1.0.300: + profile, public_media anon-read;
++ private_posts, staging_posts, media owner-only):
+  {'migrated': 2515, 'skipped': 2545, 'errors': 0}
+why: the blank-feed hotfix — coolguydavid's account predated the `profile`
+term, so the friends feed's per-author profile read 403'd and (pre-fix)
+blanked the whole feed. Verified after: coolguydavid carries all 14 terms;
+anon PATCH /coolguydavid/profile → 200 (was 403).
