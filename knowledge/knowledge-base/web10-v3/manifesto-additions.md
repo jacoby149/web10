@@ -47,8 +47,27 @@ The certification isn't a feature you build. It's a consequence of the design. A
 
 The user can choose: "do I trust this app with my data?" The verified badge says "this app respects sender deletion."
 
+## Groups Are Hard on the Internet
+
+Groups are hard on the current internet. Every platform reinvents them: Instagram Close Friends, Twitter Lists, Facebook Groups, Discord Servers. None of them talk to each other. You rebuild your circles in every app. Your "close friends" on Instagram are strangers on Twitter. Your Discord guild doesn't know your Facebook group.
+
+web10 makes groups easy. One group. Infinite apps. The group is a platform primitive, not an app feature.
+
+**Your groups follow you everywhere:**
+```
+alice.close-friends → social app sees posts, music app sees playlists, doc app sees files
+jazz-collectors → music app, social app, podcast app — same circle
+web10-dev → teams, communities, collaboration — same membership
+```
+
+The group is managed once, at the platform level. Every app can scope content to it. No rebuilding. No silos. No "close friends" trapped in one app.
+
+This is the difference between Instagram Close Friends (trapped in Instagram) and web10 groups (platform-wide). An app developer doesn't build groups — they query the platform's groups endpoint and scope their feature to them.
+
 ## Summary
 
 The internet is too permanent. web10 v3 makes it hard to save. Content lives in the author's collection. Groups define discovery. When the author deletes, it's gone. No mirrors. No copies. No archives. Sender deletion is the feature. The past doesn't own you.
+
+Groups are hard on the internet. web10 makes them easy. One group. Infinite apps. Your circles follow you everywhere.
 
 This limitation is a positive. It creates natural app certification — verified apps respect the protocol, unverified apps fight it. The user chooses.
