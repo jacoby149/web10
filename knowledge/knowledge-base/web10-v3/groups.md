@@ -149,6 +149,33 @@ jazz-collectors     → admin: dave, members: alice, dave, eve
 
 When you remove someone from a group, they instantly lose access to every document attached to that group. Atomic. One place to manage it.
 
+## The Authenticator — Group Management
+
+The web10 authenticator is where you manage groups. Two perspectives:
+
+**Groups you administer** — you control membership, edit the contract, remove members.
+```
+alice.close-friends → admin: you
+  members: bob, charlie, dave
+  [Edit contract] [Remove member] [Leave]
+```
+
+**Groups you belong to** — you can view the contract, leave, or opt out your posts.
+```
+jazz-collectors → admin: dave
+  members: alice (you), dave, eve
+  [View contract] [Leave] [Opt out all posts]
+```
+
+**Opt out all posts** — bulk remove every post you've attached to a group. Your content disappears from that group's discover. Reversible — you can re-attach later.
+
+```ts
+await optOutGroup({ group_id: 'jazz-collectors' });
+// Deletes all post_groups rows where post_id belongs to you AND group_id = 'jazz-collectors'
+```
+
+**Scale** — no Gmail mailing list limits. A group can have 100k members. ClickHouse filters it in milliseconds. One insert serves everyone. No fan-out.
+
 ## Follows as Groups
 
 Follows are groups. `alice.followers` is a group where Alice is the admin. Bob requests to join → Alice approves → Bob is a member → Bob sees posts attached to that group.
