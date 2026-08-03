@@ -64,10 +64,47 @@ The group is managed once, at the platform level. Every app can scope content to
 
 This is the difference between Instagram Close Friends (trapped in Instagram) and web10 groups (platform-wide). An app developer doesn't build groups — they query the platform's groups endpoint and scope their feature to them.
 
+## Groups Protect Individual Data
+
+Groups don't just organize content — they protect it. The individual controls everything about how their data is seen. Not the platform. Not the group admin. You.
+
+- You decide which groups your content attaches to
+- You decide the permission level (read/write)
+- You can block sharing with a group without leaving
+- You can remove all your content from a group in one click
+- You can make everything private in one click
+- You can turn off all app access in one click
+
+The group admin manages membership. You manage your data. The group can moderate (remove from discover), but they can't edit your content or escalate permissions.
+
+## Blocking
+
+Conventional social media has blocking — but it's all-or-nothing. You block someone, they disappear entirely. web10 has two levels:
+
+**User-wide blacklist** — block someone entirely. They can't see any of your content, anywhere.
+
+```
+user-wide blacklist:
+  blocked: bob, charlie
+```
+
+**Per-group blacklist** — block someone from seeing your content in a specific group. They're still in the group. They still see everyone else's content. Just not yours.
+
+```
+jazz-collectors → per-group blacklist: dave
+  dave is still a member
+  dave sees alice's posts from other groups
+  dave does NOT see alice's posts in jazz-collectors
+```
+
+The per-group blacklist is the nuance. You can be in a group with someone you don't want seeing your content. You don't have to leave the group. You don't have to kick them out. You just block them from your content in that group.
+
 ## Summary
 
 The internet is too permanent. web10 v3 makes it hard to save. Content lives in the author's collection. Groups define discovery. When the author deletes, it's gone. No mirrors. No copies. No archives. Sender deletion is the feature. The past doesn't own you.
 
-Groups are hard on the internet. web10 makes them easy. One group. Infinite apps. Your circles follow you everywhere.
+Groups are hard on the internet. web10 makes them easy. One group. Infinite apps. Your circles follow you everywhere. Groups protect individual data — you control everything about how your content is seen.
+
+Two levels of blocking: user-wide blacklist (block someone entirely) and per-group blacklist (block someone from your content in one group). You don't have to leave the group. You just block them from your posts.
 
 This limitation is a positive. It creates natural app certification — verified apps respect the protocol, unverified apps fight it. The user chooses.
