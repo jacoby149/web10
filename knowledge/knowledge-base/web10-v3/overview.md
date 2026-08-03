@@ -326,14 +326,14 @@ Two views:
 
 **Groups you administer** — you control membership.
 ```
-alice.close-friends → admin: you, members: bob, charlie, dave
-alice.public        → admin: you, members: (open)
+alice.close-friends → admin: you, invite only
+alice.public        → admin: you, open
 ```
 
 **Groups you belong to** — you can view, leave, or opt out your posts.
 ```
-jazz-collectors → admin: dave, members: alice, dave, eve
-web10-dev       → admin: charlie, members: alice, bob, charlie, ...
+jazz-collectors → admin: dave, request
+web10-dev       → admin: charlie, open
 ```
 
 **Opt out all posts** — bulk remove every post you've attached to a group. Reversible.

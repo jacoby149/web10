@@ -54,13 +54,13 @@ Bob owns his mail. Alice owns her inbox group. The group is the bridge.
 - Cross-app — any app can send mail by attaching to the group
 - Scale — ClickHouse filters 100k inboxes in milliseconds
 
-**The group admin controls who can post:**
+**The group admin controls who can join:**
 
-| Policy | Who can send |
+| Policy | How it works |
 |---|---|
-| Open | Anyone |
-| Invite-only | Approved members |
-| Closed | Only Alice |
+| Open | Anyone joins automatically |
+| Request | Anyone can request, admin approves or denies |
+| Invite only | Only people the admin explicitly adds can join |
 
 ## The Notes Pattern
 
@@ -134,8 +134,8 @@ alice.close-friends → invite only [Add member] [Remove member]
 
 **Groups you belong to** — what you can see.
 ```
-web10-dev → admin: charlie [Block sharing] [Leave]
-post-123-comments → admin: alice [Leave]
+web10-dev → admin: charlie, open join [Block sharing] [Leave]
+post-123-comments → admin: alice, request [Leave]
 ```
 
 **Block sharing** — pause sharing without leaving. You stay a member. You still see their posts. They can't see yours. Reversible.

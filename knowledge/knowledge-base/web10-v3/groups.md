@@ -69,7 +69,21 @@ Anyone in either group can read it. Union of members.
 
 A post with no groups is private — only the author sees it.
 
-## Permission Levels
+## Join Policies
+
+Groups have three join policies:
+
+| Policy | How it works |
+|---|---|
+| Open | Anyone joins automatically |
+| Request | Anyone can request, admin approves or denies |
+| Invite only | Only people the admin explicitly adds can join |
+
+**Open** — `alice.public`. Anyone can see posts attached to it. No gatekeeping.
+
+**Request** — `alice.followers`. Bob requests to join → Alice approves → Bob is a member. This is the follow flow.
+
+**Invite only** — `alice.close-friends`. Alice adds Bob and Charlie. No one else can join unless Alice invites them.
 
 The author decides the permission level, not the group. You set it when you attach:
 
@@ -123,14 +137,14 @@ The web10 authenticator is where you manage groups and take charge of your data.
 
 **Groups you administer** — you control membership.
 ```
-alice.close-friends → admin: you
+alice.close-friends → admin: you, invite only
   members: bob, charlie, dave
   [Add member] [Remove member]
 ```
 
 **Groups you belong to** — you can view membership, leave, or control sharing.
 ```
-jazz-collectors → admin: dave
+jazz-collectors → admin: dave, request
   members: alice (you), dave, eve
   [View members] [Block sharing] [Leave]
 ```
