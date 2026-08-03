@@ -175,6 +175,39 @@ WHERE deleted = 0
 GROUP BY target_post_id;
 ```
 
+## Media Library
+
+Media is a separate endpoint. Users upload media, get stable URLs. Documents reference those URLs.
+
+```
+POST /alice/upload → web10.app/alice/photo.jpg
+POST /alice/upload → web10.app/alice/video.mp4
+```
+
+The media library is independent. Media can be shared across multiple documents. Media has its own groups/permissions.
+
+**Document references media:**
+```json
+{
+  "text": "check this out",
+  "media": [
+    "web10.app/alice/photo.jpg",
+    "web10.app/alice/video.mp4"
+  ]
+}
+```
+
+**The API converts URLs:**
+```
+1. Request: GET /alice/posts/123
+2. API: check group permissions → allowed
+3. API: scan JSON for web10.app/alice/* URLs
+4. API: convert to presigned MinIO URLs
+5. Return document with temporary URLs
+```
+
+If permissions fail, the whole document is hidden. No URLs exposed. Clean.
+
 ## Discovery: `?discover=true`
 
 `/discover` and `/public` endpoints disappear. Discovery is a CRUD parameter. One endpoint. One table.
