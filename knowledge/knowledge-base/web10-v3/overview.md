@@ -30,7 +30,7 @@ graph TB
     subgraph API
         CRUD["CRUD Endpoints\n/{user}/{service}"]
         Groups["Groups Endpoint\n/groups"]
-        Media["Media Endpoint\n/{user}/upload, /read"]
+        Media["Media Endpoint\n/{user}/upload, /read, /list, /delete"]
     end
 
     subgraph ClickHouse
@@ -406,7 +406,8 @@ sequenceDiagram
 
 - **The CRUD pattern.** `/{user}/{service}` is still the API surface. The dev writes to it. The API routes to ClickHouse.
 - **The sovereignty story.** Collections set the default. Posts can only narrow. The privacy panel manages collections. The user controls their data.
-- **The contract model.** Apps get scoped access. The user can revoke. The platform can't read data without permission.
+- **The layered permissions model.** Collection ceiling + post-level narrowing. Apps get scoped access. The user can revoke. The platform can't read data without permission.
+- **Groups as platform primitive.** One membership, infinite apps. Cross-app identity.
 
 ## Summary
 
