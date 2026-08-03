@@ -126,6 +126,28 @@ The post still exists in your collection. It's just removed from that group's di
 
 The group is a curation layer, not an ownership layer.
 
+## Blocking
+
+Two levels of blocking. The author controls both.
+
+**User-wide blacklist** — block someone entirely. They can't see any of your content, anywhere.
+
+```
+user-wide blacklist:
+  blocked: bob, charlie
+```
+
+**Per-group blacklist** — block someone from seeing your content in a specific group. They're still in the group. They still see everyone else's content. Just not yours.
+
+```
+jazz-collectors → per-group blacklist: dave
+  dave is still a member
+  dave sees everyone's posts in jazz-collectors
+  dave does NOT see alice's posts in jazz-collectors
+```
+
+The per-group blacklist is the nuance. You can be in a group with someone you don't want seeing your content. You don't have to leave the group. You don't have to kick them out. You just block them from your posts in that group.
+
 ## Cross-App Identity
 
 Groups carry across apps. The same membership works everywhere:

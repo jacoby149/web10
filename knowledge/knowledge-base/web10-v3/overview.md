@@ -99,6 +99,23 @@ CREATE TABLE post_groups (
 ) ENGINE = MergeTree()
 ORDER BY (post_id, group_id);
 
+-- User-wide blacklist. Blocks someone entirely.
+CREATE TABLE user_blacklist (
+    user_key String,
+    blocked_key String,
+    created_at DateTime64(3)
+) ENGINE = MergeTree()
+ORDER BY (user_key, blocked_key);
+
+-- Per-group blacklist. Blocks someone from your content in one group.
+CREATE TABLE group_blacklist (
+    user_key String,
+    group_id String,
+    blocked_key String,
+    created_at DateTime64(3)
+) ENGINE = MergeTree()
+ORDER BY (user_key, group_id, blocked_key);
+
 -- Reactions: append-only. Tombstone deletes.
 CREATE TABLE reactions (
     reaction_id String,
