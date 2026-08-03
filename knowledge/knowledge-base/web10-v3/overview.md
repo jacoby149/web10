@@ -195,45 +195,45 @@ Alice sees every post attached to a group she belongs to. No visibility column. 
 
 The `discoverable` flag is per-record. The author controls it. `discoverable: false` means the post exists but doesn't appear in feeds — only visible by direct link or to the author.
 
-## Permissions: Service Contracts + Group Contracts
+## Permissions: Service Contracts + Groups
 
-Two contract types. They do different things.
+Two contract types. They control different things.
 
-**Service contract** — on a collection. Restricts access by default.
-
-```
-alice.posts:
-  allow: user:alice
-  allow: app:blog
-```
-
-**Group contract** — manages a membership list. Grants access when a post references it.
+**Service contract** — which websites can access your data. CORS. App-level.
 
 ```
-alice.close-friends:
-  admin: alice
-  members: bob, charlie, dave
+app:twitter-clone → allowed: alice.posts
+app:music-app → allowed: alice.playlists
 ```
 
-A post lives in a collection (service contract sets the floor) and attaches to groups (group contracts widen the boundary). Being in a group grants access the collection alone wouldn't give you.
+The browser enforces this. Turn off all service contracts → no website touches your data. Kill switch.
+
+**Group contract** — which people can see which content. Sharing. People-level.
+
+```
+jazz-collectors → members: alice, dave, eve
+```
+
+Both must pass. The app needs a service contract to even make the call. The groups decide what's visible.
 
 ```mermaid
 flowchart LR
-    subgraph Service["Service Contract\n(restricts)"]
-        S["alice.posts\nallow: alice"]
+    subgraph Service["Service Contract\n(outer wall)"]
+        S["app:twitter-clone\nallowed: alice.posts"]
     end
 
-    subgraph Group["Group Contract\n(grants)"]
-        G["alice.close-friends\nmembers: bob, charlie"]
+    subgraph Group["Group Contract\n(inner permissions)"]
+        G["jazz-collectors\nmembers: alice, dave, eve"]
     end
 
     subgraph Post["Post"]
-        P["Lives in alice.posts\nAttached to alice.close-friends"]
+        P["Attached to\njazz-collectors"]
     end
 
-    S --> P
+    S --> Q{"App allowed?"}
+    Q -->|"yes"| G
     G --> P
-    P --> Result["alice, bob, charlie\ncan read"]
+    P --> Result["dave sees post\nvia twitter-clone"]
 
     style S fill:#ffebee,stroke:#c62828,color:#000
     style G fill:#e8f5e9,stroke:#2e7d32,color:#000
@@ -241,7 +241,7 @@ flowchart LR
     style Result fill:#e3f2fd,stroke:#1565c0,color:#000
 ```
 
-A post attached to `alice.public` group is readable by everyone in that group. A post attached to `alice.close-friends` is readable by those members. Same collection. Different groups. Different access.
+A post with no groups is private. Attaching it to a group makes it visible to group members. The author decides the permission level (read/write). The group admin manages membership and can moderate (remove from discover, not edit).
 
 ## Private Post Viewing
 
@@ -320,23 +320,24 @@ await unfollow('alice');          // leave alice.followers
 
 No separate follows table. Groups handle it.
 
-### The User Panel
+### The Authenticator
 
 Two views:
 
-**Service contracts** — your data, who can read each service by default.
-```
-alice.posts      → user:alice, app:blog
-alice.private    → user:alice (only you)
-```
-
-**Group contracts** — your circles, who's in each one.
+**Groups you administer** — you control membership.
 ```
 alice.close-friends → admin: you, members: bob, charlie, dave
-jazz-collectors     → admin: dave, members: alice, dave, eve
+alice.public        → admin: you, members: (open)
 ```
 
-When you remove someone from a group, they instantly lose access to every document attached to that group. Atomic. One place to manage it.
+**Groups you belong to** — you can view, leave, or opt out your posts.
+```
+jazz-collectors → admin: dave, members: alice, dave, eve
+web10-dev       → admin: charlie, members: alice, bob, charlie, ...
+```
+
+**Opt out all posts** — bulk remove every post you've attached to a group. Reversible.
+**Make everything private** — remove all groups from all your posts. One click.
 
 ## The Write Flow
 
@@ -397,7 +398,7 @@ sequenceDiagram
 ## What Stays
 
 - **The CRUD pattern.** `/{user}/{service}` is still the API surface. The dev writes to it. The API routes to ClickHouse.
-- **The sovereignty story.** Service contracts restrict. Group contracts grant. The privacy panel manages both. The user controls their data.
+- **The sovereignty story.** Service contracts control which apps access your data. Groups control which people see your content. The authenticator manages both — block sharing, opt out, privatize all, kill switch. The user controls their data.
 - **Groups as platform primitive.** One membership, infinite apps. Cross-app identity.
 
 ## Summary
@@ -406,8 +407,8 @@ ClickHouse + MinIO. Two services. One table for posts. One table for reactions. 
 
 No mirrors. No sync. No double-write. No discovery index. No ledger. No FerretDB. No MongoDB. No Postgres.
 
-One CRUD endpoint. `?discover=true` for cross-user visibility. Groups define who sees what. Service contracts restrict. Group contracts grant.
+One CRUD endpoint. `?discover=true` for cross-user visibility. Service contracts control app access. Groups control people access. Both must pass.
 
-Groups are policy containers. They hold people, not data. One membership. Infinite apps. Follows are groups. The user panel manages both contract types.
+Groups are policy containers. They hold people, not data. One membership. Infinite apps. Follows are groups. The authenticator manages everything — block sharing, opt out, privatize all, kill switch.
 
 The dev calls `createPost({ text, tags, groups: ["alice.close-friends"] })`. The API writes one post row, one post_groups row. ClickHouse queries it. That's it.

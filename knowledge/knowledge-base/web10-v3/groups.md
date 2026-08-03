@@ -4,42 +4,45 @@ Groups are not data containers. They are policy containers — they define who g
 
 ## What Groups Are
 
-A group is a named membership list with a policy. It doesn't hold posts, files, or playlists. It holds people. When you attach a document to a group, the group's policy decides who can see it.
+A group is a named membership list. It doesn't hold posts, files, or playlists. It holds people. When you attach a document to a group, group members can see it.
 
 ```
-Group "alice.close-friends":
-  admin: alice
-  members: bob, charlie, dave
-  policy: members get read, admins get write
+Group "jazz-collectors":
+  admin: dave
+  members: alice, dave, eve
 ```
 
-That's it. No data. Just who's in it and what they can do.
-
-## What Groups Are Not
-
-Groups are not collections. A collection holds data. A group holds permissions. A post lives in Alice's collection but can be attached to a group so Bob can read it.
-
-Groups are not restrictions. They are grants. A collection's service contract says who can access it by default. Attaching to a group *widens* that access to group members.
+Alice attaches a post, a file, and a playlist to this group. Dave and eve can see all three. Same group. Different doc types. The group doesn't care what the document is.
 
 ## Two Contract Types
 
-v3 has two contract types. They do different things:
+v3 has two contract types. They control different things.
 
-**Service contract** — on a service (collection). Restricts access.
-```
-alice.posts:
-  allow: user:alice
-  allow: app:blog
-```
+**Service contract** — which websites can access your data. CORS. App-level.
 
-**Group contract** — manages a membership list. Grants access when referenced.
 ```
-alice.close-friends:
-  admin: alice
-  members: bob, charlie, dave
+app:twitter-clone → allowed: alice.posts
+app:music-app → allowed: alice.playlists
 ```
 
-The service contract is the floor. The group contract widens the boundary. A post in `alice.posts` attached to `alice.close-friends` is readable by alice (service contract) plus bob, charlie, dave (group grant).
+The browser enforces this. A malicious site can't spoof the `Origin` header. If you turn off all service contracts, no website touches your data. Ever. Kill switch.
+
+**Group contract** — which people can see which content. Sharing. People-level.
+
+```
+jazz-collectors → members: alice, dave, eve
+```
+
+Both must pass. The app needs a service contract to even make the call. The groups decide what's visible.
+
+```
+app:twitter-clone → GET /alice/posts?discover=true
+  1. Service contract: app allowed? → yes
+  2. Groups: which posts are in groups bob belongs to? → post-1, post-2
+  3. Return post-1, post-2
+```
+
+The service contract is the outer wall. The groups are the inner permissions.
 
 ## Posting to Groups
 
@@ -52,7 +55,7 @@ await createPost({
 });
 ```
 
-Bob sees it because he's a member. Eve doesn't. No visibility column needed — the groups *are* the visibility.
+Bob sees it because he's a member. Eve doesn't.
 
 A post can belong to multiple groups:
 ```ts
@@ -64,117 +67,100 @@ await createPost({
 
 Anyone in either group can read it. Union of members.
 
-## The Data Model
+A post with no groups is private — only the author sees it.
 
-Two tables. One for groups, one for membership.
+## Permission Levels
 
-```sql
-CREATE TABLE groups (
-    group_id String,
-    name String,
-    admin_key String,
-    created_at DateTime64(3),
-    updated_at DateTime64(3),
-    deleted UInt8 DEFAULT 0
-) ENGINE = ReplacingMergeTree(updated_at)
-ORDER BY group_id;
+The author decides the permission level, not the group. You set it when you attach:
 
-CREATE TABLE group_members (
-    group_id String,
-    member_key String,
-    role String,               -- 'admin', 'member'
-    joined_at DateTime64(3),
-    updated_at DateTime64(3),
-    deleted UInt8 DEFAULT 0
-) ENGINE = ReplacingMergeTree(updated_at)
-ORDER BY (group_id, member_key);
+```ts
+await attachToGroup({
+  post_id: "post-1",
+  group_id: "jazz-collectors",
+  permission: "read"   // or "write"
+});
 ```
 
-Posts reference groups:
-```sql
-CREATE TABLE post_groups (
-    post_id String,
-    group_id String,
-    created_at DateTime64(3)
-) ENGINE = MergeTree()
-ORDER BY (post_id, group_id);
+The group admin can add/remove people, but they can't change `read` to `write` on your doc. Two separate controls:
+
+- **Group admin** — who's in the group
+- **Document author** — what access the group gets
+
+## Moderation
+
+Group admins can moderate content in their group. They can remove a post from the group's discover — hiding it from group members. They cannot edit the content.
+
+```
+Group admin can:
+  ✓ Remove a post from group discover
+  ✓ Remove a member
+  ✗ Edit the content
+  ✗ Escalate read to write
 ```
 
-## Discover Query
+The post still exists in your collection. It's just removed from that group's discover. Like YouTube taking down a video — your file is still yours, it's just not on their platform.
 
-Discover returns posts the user can see through any group membership:
-
-```sql
-SELECT p.* FROM posts p
-JOIN post_groups pg ON p.post_id = pg.post_id
-JOIN group_members gm ON pg.group_id = gm.group_id
-WHERE p.deleted = 0
-  AND gm.member_key = 'bob'
-  AND gm.deleted = 0
-ORDER BY p.created_at DESC;
-```
-
-Bob sees every post attached to a group he belongs to.
+The group is a curation layer, not an ownership layer.
 
 ## Cross-App Identity
 
 Groups carry across apps. The same membership works everywhere:
 
 ```
-alice.close-friends:
-  members: bob, charlie
+jazz-collectors:
+  members: alice, dave, eve
 
-Social app → bob sees alice's posts in this group
-Music app  → bob sees alice's playlists in this group
-Doc app    → bob sees alice's files in this group
+Social app → dave sees alice's posts in this group
+Music app  → dave sees alice's playlists in this group
+Doc app    → dave sees alice's files in this group
 ```
 
-One membership. Infinite apps. The group is managed once, at the platform level. Every app can scope content to it.
-
-## The User Panel
-
-The privacy panel has two views:
-
-**Service contracts** — your data, who can read each service by default.
-```
-alice.posts      → user:alice, app:blog
-alice.private    → user:alice (only you)
-```
-
-**Group contracts** — your circles, who's in each one.
-```
-alice.close-friends → admin: you, members: bob, charlie, dave
-jazz-collectors     → admin: dave, members: alice, dave, eve
-```
-
-When you remove someone from a group, they instantly lose access to every document attached to that group. Atomic. One place to manage it.
+One membership. Infinite apps. The group is managed once, at the platform level.
 
 ## The Authenticator — Group Management
 
-The web10 authenticator is where you manage groups. Two perspectives:
+The web10 authenticator is where you manage groups and take charge of your data.
 
-**Groups you administer** — you control membership, edit the contract, remove members.
+**Groups you administer** — you control membership.
 ```
 alice.close-friends → admin: you
   members: bob, charlie, dave
-  [Edit contract] [Remove member] [Leave]
+  [Add member] [Remove member]
 ```
 
-**Groups you belong to** — you can view the contract, leave, or opt out your posts.
+**Groups you belong to** — you can view membership, leave, or control sharing.
 ```
 jazz-collectors → admin: dave
   members: alice (you), dave, eve
-  [View contract] [Leave] [Opt out all posts]
+  [View members] [Block sharing] [Leave]
 ```
 
-**Opt out all posts** — bulk remove every post you've attached to a group. Your content disappears from that group's discover. Reversible — you can re-attach later.
+**Block sharing** — pause sharing with a group without leaving. You stay a member. You still see their posts. They can't see yours. Reversible.
 
-```ts
-await optOutGroup({ group_id: 'jazz-collectors' });
-// Deletes all post_groups rows where post_id belongs to you AND group_id = 'jazz-collectors'
+```
+jazz-collectors → [Block sharing]
+  Your posts: hidden from group
+  Their posts: still visible to you
+  [Unblock]
 ```
 
-**Scale** — no Gmail mailing list limits. A group can have 100k members. ClickHouse filters it in milliseconds. One insert serves everyone. No fan-out.
+**Opt out all posts** — bulk remove every post you've attached to a group. Reversible.
+
+**Make everything private** — remove all groups from all your posts. One click. Everything goes dark.
+
+**Turn off all service contracts** — no website touches your data. Ever. Kill switch.
+
+## Scale
+
+No Gmail mailing list limits. A group can have 100k members. ClickHouse filters it in milliseconds. One insert serves everyone. No fan-out.
+
+```
+alice.followers → 50k members
+web10-dev → 100k members
+jazz-collectors → 500k members
+```
+
+A post attached to any of these groups is discoverable by all members. One insert. Zero fan-out. The query filters at read time.
 
 ## Follows as Groups
 
@@ -186,26 +172,12 @@ await approveFollower('bob');     // approve bob into alice.followers
 await unfollow('alice');          // leave alice.followers
 ```
 
-No separate follows table needed. Groups handle it.
-
-## Why Groups Replace Collections-as-Permissions
-
-v2 uses collections as permissions — `public_posts` is readable by everyone, `private_posts` is readable by the owner. The problem: you can't have a middle ground. No "followers only." No "these three people." No "this community."
-
-Groups solve it. One collection. Many groups. Any combination of access.
-
-```
-alice.posts collection:
-  service contract: user:alice (private by default)
-
-Groups that widen access:
-  alice.public       → open join, anyone can read posts attached to it
-  alice.followers    → request to join, followers can read posts attached to it
-  alice.close-friends → invite only, close friends can read posts attached to it
-```
-
-A post attached to `alice.public` is public. A post attached to `alice.close-friends` is private to that circle. Same collection. Different groups.
+No separate follows table. Groups handle it.
 
 ## Summary
 
-Groups are policy containers. They don't hold data — they hold people and permissions. Any document from any service can be attached to any group. The group's policy decides who sees it. Groups carry across apps. One membership. Infinite apps. Two contract types: service contracts restrict, group contracts grant. Together they define access.
+Groups are policy containers. They hold people, not data. Any document from any service can be attached to any group. The author decides the permission level. The group admin manages membership and can moderate (remove from discover, not edit). Groups carry across apps. One membership. Infinite apps.
+
+Service contracts control which websites can access your data. Group contracts control which people can see your content. Both must pass. Browser enforces the outer wall. Server enforces the inner permissions.
+
+The authenticator is where you take charge: block sharing, opt out, privatize all, kill switch. One toggle. Everything goes dark.
