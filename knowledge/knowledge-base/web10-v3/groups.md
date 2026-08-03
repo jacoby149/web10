@@ -27,6 +27,16 @@ service:playlists → allowed: music.web10.com
 
 The browser enforces this. A malicious site can't spoof the `Origin` header. If you turn off all service contracts, no website touches your data. Ever. Kill switch.
 
+**Provider level** — which apps can participate on this node. Server-enforced. A bad app floods the network → providers block it at the node level.
+
+```
+provider-a:
+  allowed apps: twitter-clone.web10.com, music.web10.com
+  blocked apps: spamapp.com
+```
+
+The provider protects itself. The user protects their data. Two layers.
+
 **Group contract** — which people can see which content. Sharing. People-level.
 
 ```

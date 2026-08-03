@@ -117,6 +117,32 @@ web10-dev → admin: you
   [Add member] [Remove member] [Query provider-a] [Query provider-b] [Query provider-c]
 ```
 
+## Provider Service Contracts
+
+Providers can control which apps participate on their nodes. Two levels of service contracts:
+
+**User level** — which websites can access my data (CORS, browser-enforced)
+```
+service:notes → allowed: notesapp.com
+```
+
+**Provider level** — which apps can participate on this node (server-enforced)
+```
+provider-a:
+  allowed apps: notesapp.com, mailapp.com
+  blocked apps: spamapp.com
+```
+
+A bad mailer app floods the network → providers block it at the node level. No more federated queries from that app.
+
+```
+spamapp.com → GET /alice/posts?discover=true
+  1. Provider service contract: app allowed? → NO, blocked
+  2. Request never reaches user service contract
+```
+
+The provider protects itself. The user protects their data. Two layers. Clean.
+
 ## Scale
 
 The group membership list is small. A group with 100k members might span 10 providers. You query 10 instances, not 100k rows. The federation is efficient.

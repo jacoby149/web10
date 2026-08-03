@@ -156,9 +156,29 @@ jazz-collectors → 500k members
 
 A post attached to any of these groups is discoverable by all members. One insert. Zero fan-out. The query filters at read time.
 
+## Provider Service Contracts
+
+Providers control which apps participate on their nodes. Two levels of service contracts:
+
+**User level** — which websites can access my data (CORS, browser-enforced)
+```
+service:notes → allowed: notesapp.com
+```
+
+**Provider level** — which apps can participate on this node (server-enforced)
+```
+provider-a:
+  allowed apps: notesapp.com, mailapp.com
+  blocked apps: spamapp.com
+```
+
+A bad app floods the network → providers block it at the node level. The provider protects itself. The user protects their data. Two layers.
+
 ## Summary
 
 Content lives in the author's collection. Groups define who discovers it. Service contracts let apps make the call. Group contracts let people see the content. Both must pass.
+
+Two levels of service contracts: user level (CORS, browser-enforced) and provider level (app filtering, server-enforced). The provider protects itself. The user protects their data.
 
 The mailer pattern is the model: sender writes to their outbox, attaches to receiver's inbox group, receiver discovers via group membership. Works for mail, DMs, comments, everything.
 
