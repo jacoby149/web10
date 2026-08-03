@@ -233,46 +233,43 @@ LIMIT 50;
 
 The `discoverable` flag is per-record. The author controls it. `discoverable: false` means the post exists but doesn't appear in feeds — only visible by direct link or to the author.
 
-## Layered Permissions: Collection Ceiling + Post Narrowing
+## Layered Permissions: Set Intersection
 
-The collection is the ceiling. The post can only narrow, never widen. Strictest wins.
+There's no hierarchy. Each permission defines a set of people who can see the content. The effective visibility is the **intersection** of all sets — whoever is allowed by every layer.
 
 ```mermaid
 flowchart TD
-    A["Post created in\ncollection"] --> B{"Collection\ndefault visibility"}
-    B -->|"public"| C["Post inherits 'public'"]
-    B -->|"private"| D["Post inherits 'private'"]
-    B -->|"followers"| E["Post inherits 'followers'"]
-    B -->|"group"| F["Post inherits 'group'"]
+    subgraph Collection["Collection Permission\n(set of allowed viewers)"]
+        C["Everyone / Followers /\nGroup Members / Owner Only"]
+    end
 
-    C --> G{"Post-level\noverride?"}
-    D --> G
-    E --> G
-    F --> G
+    subgraph Post["Post Permission\n(set of allowed viewers)"]
+        P["Everyone / Followers /\nGroup Members / Owner Only"]
+    end
 
-    G -->|"narrower"| H["Use post-level\n(stricter wins)"]
-    G -->|"wider"| I["REJECTED\nAPI blocks it"]
-    G -->|"none"| J["Use collection default"]
+    C --> Intersect["∩ INTERSECTION"]
+    P --> Intersect
+    Intersect --> Result["Whoever is in\nBOTH sets"]
 
-    H --> K["Post stored with\neffective visibility"]
-    J --> K
-    I --> L["403 Error"]
-
-    style A fill:#f5f5f5,stroke:#333,color:#000
-    style B fill:#fff9c4,stroke:#f57f17,color:#000
-    style H fill:#e8f5e9,stroke:#2e7d32,color:#000
-    style I fill:#ffebee,stroke:#c62828,color:#000
-    style K fill:#e3f2fd,stroke:#1565c0,color:#000
-    style L fill:#ffebee,stroke:#c62828,color:#000
+    style C fill:#fff3e0,stroke:#e65100,color:#000
+    style P fill:#fff3e0,stroke:#e65100,color:#000
+    style Intersect fill:#fff9c4,stroke:#f57f17,color:#000
+    style Result fill:#e8f5e9,stroke:#2e7d32,color:#000
 ```
 
-The visibility hierarchy (most permissive to least):
+Examples:
 
-```
-public > followers > group > private
-```
+| Collection | Post | Result (intersection) |
+|---|---|---|
+| `public` (everyone) | `followers` | Followers |
+| `public` (everyone) | `group:dev-team` | Group members |
+| `group:dev-team` | `followers` | People who are **both** members and followers |
+| `private` (owner only) | anything | Owner only (smallest possible set) |
+| `public` (everyone) | `public` (everyone) | Everyone |
 
-A post in `public_posts` can be `public` or `followers` or `group` or `private`. A post in `private_posts` can only be `private`. The API enforces this at write time.
+The post can't expand the set beyond what the collection allows. The API enforces this at write time — if the post-level set is larger than the collection-level set, the write is rejected.
+
+A post in `public_posts` can be `public`, `followers`, `group`, or `private`. A post in `private_posts` can only be `private` — because the intersection of "owner only" with anything is always "owner only."
 
 ## Private Post Viewing
 
