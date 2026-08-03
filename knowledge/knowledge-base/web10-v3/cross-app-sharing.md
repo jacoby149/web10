@@ -4,11 +4,11 @@ How apps share data across the platform. Two contract types. One permission mode
 
 ## The Two Contracts
 
-**Service contract** — which websites can access your data. CORS. App-level.
+**Service contract** — which websites can access your service. CORS. App-level.
 
 ```
-app:notes → allowed: alice.notes
-app:mailer → allowed: alice.mail
+service:notes → allowed: notesapp.com
+service:mail → allowed: mailapp.com
 ```
 
 The browser enforces this. A site without a service contract can't touch your data. Turn off all service contracts → kill switch. No website reaches your data.
@@ -67,7 +67,7 @@ Bob owns his mail. Alice owns her inbox group. The group is the bridge.
 Personal. No sharing.
 
 ```
-Service contract: docs.web10.app → allowed: alice.notes
+Service contract: service:notes → allowed: notesapp.com
 No groups → private, only alice sees them
 ```
 
@@ -119,10 +119,10 @@ Author writes → attaches to group → members discover
 
 Where you manage both:
 
-**Service contracts** — which apps can access your data.
+**Service contracts** — which websites can access your services.
 ```
-app:notes → allowed: alice.notes [Revoke]
-app:mailer → allowed: alice.mail [Revoke]
+service:notes → allowed: notesapp.com [Revoke]
+service:mail → allowed: mailapp.com [Revoke]
 [Turn off all] ← kill switch
 ```
 

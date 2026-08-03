@@ -18,11 +18,11 @@ Alice attaches a post, a file, and a playlist to this group. Dave and eve can se
 
 v3 has two contract types. They control different things.
 
-**Service contract** — which websites can access your data. CORS. App-level.
+**Service contract** — which websites can access your service. CORS. App-level.
 
 ```
-app:twitter-clone → allowed: alice.posts
-app:music-app → allowed: alice.playlists
+service:posts → allowed: twitter-clone.web10.com
+service:playlists → allowed: music.web10.com
 ```
 
 The browser enforces this. A malicious site can't spoof the `Origin` header. If you turn off all service contracts, no website touches your data. Ever. Kill switch.
@@ -36,8 +36,8 @@ jazz-collectors → members: alice, dave, eve
 Both must pass. The app needs a service contract to even make the call. The groups decide what's visible.
 
 ```
-app:twitter-clone → GET /alice/posts?discover=true
-  1. Service contract: app allowed? → yes
+service:posts → allowed: twitter-clone.web10.com → GET /alice/posts?discover=true
+  1. Service contract: origin allowed? → yes
   2. Groups: which posts are in groups bob belongs to? → post-1, post-2
   3. Return post-1, post-2
 ```

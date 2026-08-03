@@ -199,11 +199,11 @@ The `discoverable` flag is per-record. The author controls it. `discoverable: fa
 
 Two contract types. They control different things.
 
-**Service contract** — which websites can access your data. CORS. App-level.
+**Service contract** — which websites can access your service. CORS. App-level.
 
 ```
-app:twitter-clone → allowed: alice.posts
-app:music-app → allowed: alice.playlists
+service:posts → allowed: twitter-clone.web10.com
+service:playlists → allowed: music.web10.com
 ```
 
 The browser enforces this. Turn off all service contracts → no website touches your data. Kill switch.
@@ -219,7 +219,7 @@ Both must pass. The app needs a service contract to even make the call. The grou
 ```mermaid
 flowchart LR
     subgraph Service["Service Contract\n(outer wall)"]
-        S["app:twitter-clone\nallowed: alice.posts"]
+        S["service:posts\nallowed: twitter-clone.web10.com"]
     end
 
     subgraph Group["Group Contract\n(inner permissions)"]
