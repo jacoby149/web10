@@ -5,7 +5,7 @@
 Two services. That's it.
 
 ```
-ClickHouse  — everything structured (posts, reactions, comments, follows, groups, permissions)
+ClickHouse  — everything structured (posts, reactions, comments, groups, permissions)
 MinIO       — every blob (images, video, audio)
 ```
 
@@ -35,9 +35,9 @@ graph TB
 
     subgraph ClickHouse
         Posts["posts"]
+        PostGroups["post_groups"]
         Reactions["reactions"]
         Comments["comments"]
-        Follows["follows"]
         GroupsTable["groups"]
         GroupMembers["group_members"]
         Engagement["engagement\n(materialized view)"]
@@ -51,9 +51,9 @@ graph TB
     App --> Groups
     App --> Media
     CRUD --> Posts
+    CRUD --> PostGroups
     CRUD --> Reactions
     CRUD --> Comments
-    CRUD --> Follows
     CRUD --> Engagement
     Groups --> GroupsTable
     Groups --> GroupMembers
@@ -64,9 +64,9 @@ graph TB
     style Groups fill:#e3f2fd,stroke:#1565c0,color:#000
     style Media fill:#e3f2fd,stroke:#1565c0,color:#000
     style Posts fill:#fff3e0,stroke:#e65100,color:#000
+    style PostGroups fill:#fff3e0,stroke:#e65100,color:#000
     style Reactions fill:#fff3e0,stroke:#e65100,color:#000
     style Comments fill:#fff3e0,stroke:#e65100,color:#000
-    style Follows fill:#fff3e0,stroke:#e65100,color:#000
     style GroupsTable fill:#fff3e0,stroke:#e65100,color:#000
     style GroupMembers fill:#fff3e0,stroke:#e65100,color:#000
     style Engagement fill:#fff3e0,stroke:#e65100,color:#000
@@ -82,8 +82,6 @@ CREATE TABLE posts (
     author_key String,
     collection_name String,     -- 'public_posts', 'private_posts', etc.
     body String,                -- JSON: full post content
-    visibility String,          -- 'public', 'private', 'followers', 'group'
-    visibility_scope String,    -- group_id, if group
     discoverable UInt8,         -- can this post appear in feeds?
     tags Array(String),
     created_at DateTime64(3),
@@ -92,6 +90,31 @@ CREATE TABLE posts (
 ) ENGINE = ReplacingMergeTree(updated_at)
 ORDER BY (author_key, post_id)
 TTL created_at + INTERVAL 90 DAY;
+
+-- Post-to-group mapping. Groups define who can see the post.
+CREATE TABLE post_groups (
+    post_id String,
+    group_id String,
+    created_at DateTime64(3)
+) ENGINE = MergeTree()
+ORDER BY (post_id, group_id);
+
+-- User-wide blacklist. Blocks someone entirely.
+CREATE TABLE user_blacklist (
+    user_key String,
+    blocked_key String,
+    created_at DateTime64(3)
+) ENGINE = MergeTree()
+ORDER BY (user_key, blocked_key);
+
+-- Per-group blacklist. Blocks someone from your content in one group.
+CREATE TABLE group_blacklist (
+    user_key String,
+    group_id String,
+    blocked_key String,
+    created_at DateTime64(3)
+) ENGINE = MergeTree()
+ORDER BY (user_key, group_id, blocked_key);
 
 -- Reactions: append-only. Tombstone deletes.
 CREATE TABLE reactions (
@@ -117,22 +140,11 @@ CREATE TABLE comments (
 ) ENGINE = ReplacingMergeTree(updated_at)
 ORDER BY (target_post_id, created_at);
 
--- Follows: the social graph.
-CREATE TABLE follows (
-    follower_key String,
-    following_key String,
-    created_at DateTime64(3),
-    deleted UInt8 DEFAULT 0
-) ENGINE = MergeTree()
-ORDER BY (follower_key, following_key);
-
--- Groups: platform primitive. Cross-app identity.
+-- Groups: policy containers. Hold people, not data.
 CREATE TABLE groups (
     group_id String,
     name String,
-    description String,
     admin_key String,
-    settings String,            -- JSON: join_policy, post_policy
     created_at DateTime64(3),
     updated_at DateTime64(3),
     deleted UInt8 DEFAULT 0
@@ -149,17 +161,6 @@ CREATE TABLE group_members (
     deleted UInt8 DEFAULT 0
 ) ENGINE = ReplacingMergeTree(updated_at)
 ORDER BY (group_id, member_key);
-
--- Collection permissions (the ceiling).
-CREATE TABLE collection_permissions (
-    author_key String,
-    collection_name String,
-    visibility String,          -- default visibility for this collection
-    visibility_scope String,    -- group_id, if group
-    updated_at DateTime64(3),
-    deleted UInt8 DEFAULT 0
-) ENGINE = ReplacingMergeTree(updated_at)
-ORDER BY (author_key, collection_name);
 
 -- Engagement: materialized view, auto-updates on reaction insert.
 CREATE MATERIALIZED VIEW engagement
@@ -185,7 +186,7 @@ sequenceDiagram
     participant ClickHouse
 
     Client->>API: GET /alice/posts?discover=true
-    API->>ClickHouse: SELECT posts WHERE<br/>visibility check for alice<br/>+ discoverable = 1<br/>+ deleted = 0
+    API->>ClickHouse: SELECT posts WHERE<br/>group membership check for alice<br/>+ discoverable = 1<br/>+ deleted = 0
     ClickHouse-->>API: 50 post IDs + metadata
     API-->>Client: feed response
 
@@ -195,115 +196,105 @@ sequenceDiagram
 The query ClickHouse runs:
 
 ```sql
-SELECT post_id, author_key, body, tags, created_at
-FROM posts
-WHERE deleted = 0
-  AND discoverable = 1
-  AND (
-    -- Public posts from anyone
-    visibility = 'public'
-    AND collection_visibility = 'public'
-
-    OR
-
-    -- Followers-only: Alice sees them if she follows the author
-    (visibility = 'followers'
-     AND author_key IN (
-       SELECT following_key FROM follows
-       WHERE follower_key = 'alice' AND deleted = 0
-     ))
-
-    OR
-
-    -- Group posts: Alice sees them if she's a member
-    (visibility = 'group'
-     AND visibility_scope IN (
-       SELECT group_id FROM group_members
-       WHERE member_key = 'alice' AND deleted = 0
-     ))
-
-    OR
-
-    -- Alice's own posts (always visible)
-    author_key = 'alice'
-  )
-ORDER BY created_at DESC
+SELECT p.post_id, p.author_key, p.body, p.tags, p.created_at
+FROM posts p
+JOIN post_groups pg ON p.post_id = pg.post_id
+JOIN group_members gm ON pg.group_id = gm.group_id
+WHERE p.deleted = 0
+  AND p.discoverable = 1
+  AND gm.member_key = 'alice'
+  AND gm.deleted = 0
+ORDER BY p.created_at DESC
 LIMIT 50;
 ```
 
+Alice sees every post attached to a group she belongs to. No visibility column. No collection ceiling. Just group membership.
+
 The `discoverable` flag is per-record. The author controls it. `discoverable: false` means the post exists but doesn't appear in feeds — only visible by direct link or to the author.
 
-## Layered Permissions: Collection Ceiling + Post Narrowing
+## Permissions: Service Contracts + Groups
 
-The collection is the ceiling. The post can only narrow, never widen. Strictest wins.
+Two contract types. They control different things.
+
+**Service contract** — which websites can access your service. CORS. App-level.
+
+```
+service:posts → allowed: twitter-clone.web10.com
+service:playlists → allowed: music.web10.com
+```
+
+The browser enforces this. Turn off all service contracts → no website touches your data. Kill switch.
+
+**Provider level** — which apps can participate on this node. Server-enforced. A bad app floods the network → providers block it at the node level.
+
+```
+provider-a:
+  allowed apps: twitter-clone.web10.com, music.web10.com
+  blocked apps: spamapp.com
+```
+
+The provider protects itself. The user protects their data. Two layers.
+
+**Group contract** — which people can see which content. Sharing. People-level.
+
+```
+jazz-collectors → members: alice, dave, eve
+```
+
+Both must pass. The app needs a service contract to even make the call. The groups decide what's visible.
 
 ```mermaid
-flowchart TD
-    A["Post created in\ncollection"] --> B{"Collection\ndefault visibility"}
-    B -->|"public"| C["Post inherits 'public'"]
-    B -->|"private"| D["Post inherits 'private'"]
-    B -->|"followers"| E["Post inherits 'followers'"]
-    B -->|"group"| F["Post inherits 'group'"]
+flowchart LR
+    subgraph Service["Service Contract\n(outer wall)"]
+        S["service:posts\nallowed: twitter-clone.web10.com"]
+    end
 
-    C --> G{"Post-level\noverride?"}
-    D --> G
-    E --> G
-    F --> G
+    subgraph Group["Group Contract\n(inner permissions)"]
+        G["jazz-collectors\nmembers: alice, dave, eve"]
+    end
 
-    G -->|"narrower"| H["Use post-level\n(stricter wins)"]
-    G -->|"wider"| I["REJECTED\nAPI blocks it"]
-    G -->|"none"| J["Use collection default"]
+    subgraph Post["Post"]
+        P["Attached to\njazz-collectors"]
+    end
 
-    H --> K["Post stored with\neffective visibility"]
-    J --> K
-    I --> L["403 Error"]
+    S --> Q{"App allowed?"}
+    Q -->|"yes"| G
+    G --> P
+    P --> Result["dave sees post\nvia twitter-clone"]
 
-    style A fill:#f5f5f5,stroke:#333,color:#000
-    style B fill:#fff9c4,stroke:#f57f17,color:#000
-    style H fill:#e8f5e9,stroke:#2e7d32,color:#000
-    style I fill:#ffebee,stroke:#c62828,color:#000
-    style K fill:#e3f2fd,stroke:#1565c0,color:#000
-    style L fill:#ffebee,stroke:#c62828,color:#000
+    style S fill:#ffebee,stroke:#c62828,color:#000
+    style G fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style P fill:#fff3e0,stroke:#e65100,color:#000
+    style Result fill:#e3f2fd,stroke:#1565c0,color:#000
 ```
 
-The visibility hierarchy (most permissive to least):
-
-```
-public > followers > group > private
-```
-
-A post in `public_posts` can be `public` or `followers` or `group` or `private`. A post in `private_posts` can only be `private`. The API enforces this at write time.
+A post with no groups is private. Attaching it to a group makes it visible to group members. The author decides the permission level (read/write). The group admin manages membership and can moderate (remove from discover, not edit).
 
 ## Private Post Viewing
 
-Private posts are only visible to the author. The discover query includes the author's own posts regardless of visibility.
+A post is private by default. Attaching it to a group makes it visible to group members.
 
 ```mermaid
 flowchart TD
     A["User requests\nposts"] --> B{"discover flag?"}
-    B -->|"false"| C["Only user's own posts\nvisibility doesn't matter"]
-    B -->|"true"| D["Permission-filtered query"]
+    B -->|"false"| C["Only user's own posts\n(groups don't matter)"]
+    B -->|"true"| D["Group membership check"]
 
-    D --> E{"For each post, check:"}
-    E --> F{"Is it public?"}
-    F -->|"yes"| G["Show it"]
-    F -->|"no"| H{"Is author followed\nby requester?"}
-    H -->|"yes + followers"| G
-    H -->|"no"| I{"Is requester in\nthe group?"}
-    I -->|"yes + group"| G
-    I -->|"no"| J{"Is requester\nthe author?"}
-    J -->|"yes"| G
-    J -->|"no"| K["Hide it"]
+    D --> E{"Is requester a member\nof any group the post\nis attached to?"}
+    E -->|"yes"| F["Show it"]
+    E -->|"no"| G{"Is requester\nthe author?"}
+    G -->|"yes"| F
+    G -->|"no"| H["Hide it"]
 
     style A fill:#f5f5f5,stroke:#333,color:#000
     style B fill:#fff9c4,stroke:#f57f17,color:#000
-    style G fill:#e8f5e9,stroke:#2e7d32,color:#000
-    style K fill:#ffebee,stroke:#c62828,color:#000
+    style F fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style H fill:#ffebee,stroke:#c62828,color:#000
 ```
 
-## Groups: Platform Primitive
+## Groups: Policy Containers
 
-Groups are managed by the platform. Membership carries across app experiences. One group, infinite apps.
+Groups are not data containers. They hold people and permissions. Any document from any service can be attached to any group. The group's policy decides who sees it.
 
 ```mermaid
 graph TB
@@ -314,16 +305,16 @@ graph TB
     end
 
     subgraph SocialApp
-        SocialPosts["Posts with\nvisibility: 'group'"]
+        SocialPosts["Posts attached to groups"]
         SocialFeed["Group feed\n?discover=true"]
     end
 
     subgraph MusicApp
-        SharedPlaylist["Playlist with\nvisibility: 'group'"]
+        SharedPlaylist["Playlists attached to groups"]
     end
 
     subgraph VideoApp
-        WatchParty["Watch party with\nvisibility: 'group'"]
+        WatchParty["Watch parties attached to groups"]
     end
 
     GroupsAPI --> GroupsTable
@@ -342,7 +333,38 @@ graph TB
     style WatchParty fill:#f5f5f5,stroke:#333,color:#000
 ```
 
-Alice creates a group. Bob and Charlie join. Now any app on web10 can scope content to that group. The social app posts to it. The music app shares a playlist. The video app hosts a watch party. Same group. Same membership. Managed once.
+Alice creates a group. Bob and Charlie join. Now any app on web10 can attach content to that group. The social app posts to it. The music app shares a playlist. The video app hosts a watch party. Same group. Same membership. Managed once.
+
+### Follows Are Groups
+
+Follows are groups. `alice.followers` is a group where Alice is the admin. Bob requests to join → Alice approves → Bob is a member → Bob sees posts attached to that group.
+
+```ts
+await followUser('alice');        // request to join alice.followers
+await approveFollower('bob');     // approve bob into alice.followers
+await unfollow('alice');          // leave alice.followers
+```
+
+No separate follows table. Groups handle it.
+
+### The Authenticator
+
+Two views:
+
+**Groups you administer** — you control membership.
+```
+alice.close-friends → admin: you, invite only
+alice.public        → admin: you, open
+```
+
+**Groups you belong to** — you can view, leave, or opt out your posts.
+```
+jazz-collectors → admin: dave, request
+web10-dev       → admin: charlie, open
+```
+
+**Opt out all posts** — bulk remove every post you've attached to a group. Reversible.
+**Make everything private** — remove all groups from all your posts. One click.
 
 ## The Write Flow
 
@@ -354,11 +376,9 @@ sequenceDiagram
     participant API
     participant ClickHouse
 
-    Client->>API: POST /alice/posts<br/>{ text, tags, visibility }
-    API->>API: Check collection ceiling<br/>(post can't exceed collection)
+    Client->>API: POST /alice/posts<br/>{ text, tags, groups: ["alice.close-friends"] }
     API->>ClickHouse: INSERT INTO posts
-    ClickHouse-->>API: OK
-    API->>ClickHouse: INSERT INTO reactions<br/>(if reaction, materialized view updates)
+    API->>ClickHouse: INSERT INTO post_groups
     ClickHouse-->>API: OK
     API-->>Client: 201 Created
 
@@ -388,9 +408,9 @@ sequenceDiagram
 | v2 (MongoDB) | v3 (ClickHouse) |
 |---|---|
 | One collection per user | One table for everything |
-| Term records (whitelist/blacklist) | `visibility` column + `collection_permissions` |
+| Term records (whitelist/blacklist) | Service contracts + group contracts |
 | `/discover` endpoint | `?discover=true` on CRUD |
-| `/public` endpoint | Gone (visibility filter) |
+| `/public` endpoint | Gone (group membership filter) |
 | Discovery index table | Gone (posts table IS the index) |
 | Public ledger | Gone (reactions table + materialized view) |
 | Client-side ledger mirrors | Gone (server writes once) |
@@ -405,18 +425,17 @@ sequenceDiagram
 ## What Stays
 
 - **The CRUD pattern.** `/{user}/{service}` is still the API surface. The dev writes to it. The API routes to ClickHouse.
-- **The sovereignty story.** Collections set the default. Posts can only narrow. The privacy panel manages collections. The user controls their data.
-- **The layered permissions model.** Collection ceiling + post-level narrowing. Apps get scoped access. The user can revoke. The platform can't read data without permission.
+- **The sovereignty story.** Service contracts control which apps access your data. Groups control which people see your content. The authenticator manages both — block sharing, opt out, privatize all, kill switch. The user controls their data.
 - **Groups as platform primitive.** One membership, infinite apps. Cross-app identity.
 
 ## Summary
 
-ClickHouse + MinIO. Two services. One table for posts. One table for reactions. One table for comments. One table for follows. One table for groups. One table for group membership. Materialized views for engagement. TTL for cleanup. Tombstones for deletes. JSON columns for schema flexibility. Inverted index for search.
+ClickHouse + MinIO. Two services. One table for posts. One table for reactions. One table for comments. One table for groups. One table for group membership. One table for post-to-group mapping. Materialized views for engagement. TTL for cleanup. Tombstones for deletes. JSON columns for schema flexibility. Inverted index for search.
 
 No mirrors. No sync. No double-write. No discovery index. No ledger. No FerretDB. No MongoDB. No Postgres.
 
-One CRUD endpoint. `?discover=true` for cross-user visibility. `visibility` column for permissions. `collection_permissions` for the ceiling. Strictest wins.
+One CRUD endpoint. `?discover=true` for cross-user visibility. Service contracts control app access. Groups control people access. Both must pass.
 
-Groups are a platform primitive. One membership. Infinite apps. The building block for teams, communities, circles.
+Groups are policy containers. They hold people, not data. One membership. Infinite apps. Follows are groups. The authenticator manages everything — block sharing, opt out, privatize all, kill switch.
 
-The dev calls `createPost({ text, tags, visibility })`. The API writes one row. ClickHouse queries it. That's it.
+The dev calls `createPost({ text, tags, groups: ["alice.close-friends"] })`. The API writes one post row, one post_groups row. ClickHouse queries it. That's it.
