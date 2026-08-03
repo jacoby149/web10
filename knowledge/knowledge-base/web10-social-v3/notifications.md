@@ -19,9 +19,9 @@ Notifications are not a table. They're events derived from writes.
 
 **Reaction notification:** Someone created a post in the `reactions` collection with a ref to your post.
 ```sql
--- New reactions on your posts in the last hour
-SELECT p.post_id, p.author_key, p.body, p.created_at
-FROM posts p
+-- New reactions on your documents in the last hour
+SELECT p.doc_id, p.author_key, p.body, p.created_at
+FROM documents p
 WHERE p.deleted = 0
   AND p.collection_name = 'reactions'
   AND p.created_at > now() - INTERVAL 1 HOUR
@@ -30,11 +30,11 @@ WHERE p.deleted = 0
 
 But you need to know which posts are yours. Join:
 ```sql
-SELECT r.post_id AS reaction_id, r.author_key AS reactor,
+SELECT r.doc_id AS reaction_id, r.author_key AS reactor,
        extractJSONString(r.body, '$.reaction_type.value') AS rtype,
-       p.post_id AS target_post
-FROM posts r
-JOIN posts p ON hasToken(r.body, p.post_id)
+       p.doc_id AS target_post
+FROM documents r
+JOIN documents p ON hasToken(r.body, p.doc_id)
 WHERE r.deleted = 0
   AND r.collection_name = 'reactions'
   AND p.author_key = 'jacoby149'
@@ -44,8 +44,8 @@ ORDER BY r.created_at DESC;
 
 **Comment notification:** Someone created a post in the `comments` collection with a ref to your post.
 ```sql
-SELECT c.post_id AS comment_id, c.author_key AS commenter, c.body, c.created_at
-FROM posts c
+SELECT c.doc_id AS comment_id, c.author_key AS commenter, c.body, c.created_at
+FROM documents c
 WHERE c.deleted = 0
   AND c.collection_name = 'comments'
   AND c.created_at > now() - INTERVAL 1 HOUR
@@ -80,10 +80,10 @@ Polling is wasteful. The right model is push:
 **On every write, the API emits a notification event:**
 ```
 Bob reacts to jacoby149's post
-  → API writes reaction to posts table
+  → API writes reaction to documents table
   → API: who is the post author? (read the target post)
   → API: push notification to jacoby149 via WebSocket
-     { "type": "reaction", "from": "bob", "post_id": "post-123", "reaction_type": "like" }
+     { "type": "reaction", "from": "bob", "doc_id": "post-123", "reaction_type": "like" }
 ```
 
 **On every join request:**
@@ -110,7 +110,7 @@ CREATE TABLE notifications (
     user_key String,          -- who gets the notification
     type String,              -- 'reaction', 'comment', 'follow_request', 'group_join'
     from_key String,          -- who triggered it
-    ref_post_id String,       -- related post (if any)
+    ref_doc_id String,       -- related post (if any)
     ref_group_id String,      -- related group (if any)
     read UInt8 DEFAULT 0,
     created_at DateTime64(3),

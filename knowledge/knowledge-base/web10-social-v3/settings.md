@@ -79,12 +79,12 @@ WHERE user_key = 'jacoby149' AND blocked_key = 'spammer';
 INSERT INTO user_group_sharing VALUES ('jacoby149', 'jazz-collectors', 0, now(), now(), 0);
 ```
 
-**Make everything private:** Bulk tombstone all post_groups entries.
+**Make everything private:** Bulk tombstone all doc_groups entries.
 ```sql
-INSERT INTO post_groups (post_id, group_id, permission, created_at, updated_at, deleted)
-SELECT pg.post_id, pg.group_id, pg.permission, pg.created_at, now(), 1
-FROM post_groups pg
-JOIN posts p ON pg.post_id = p.post_id
+INSERT INTO doc_groups (doc_id, group_id, permission, created_at, updated_at, deleted)
+SELECT pg.doc_id, pg.group_id, pg.permission, pg.created_at, now(), 1
+FROM doc_groups pg
+JOIN documents p ON pg.doc_id = p.doc_id
 WHERE p.author_key = 'jacoby149'
   AND pg.deleted = 0;
 ```
@@ -92,7 +92,7 @@ One query. All posts detached from all groups. Everything goes dark.
 
 **Export data:** Query all your posts, groups, and contracts. Return as JSON.
 ```sql
-SELECT * FROM posts WHERE author_key = 'jacoby149' AND deleted = 0;
+SELECT * FROM documents WHERE author_key = 'jacoby149' AND deleted = 0;
 SELECT * FROM service_contracts WHERE user_key = 'jacoby149' AND deleted = 0;
 SELECT gm.group_id FROM group_members gm WHERE gm.member_key = 'jacoby149' AND gm.deleted = 0;
 ```
@@ -100,7 +100,7 @@ SELECT gm.group_id FROM group_members gm WHERE gm.member_key = 'jacoby149' AND g
 **Delete account:** Tombstone everything.
 ```sql
 -- Tombstone all posts
-INSERT INTO posts SELECT post_id, author_key, collection_name, body, discoverable, tags, created_at, now(), 1 FROM posts WHERE author_key = 'jacoby149' AND deleted = 0;
+INSERT INTO documents SELECT doc_id, author_key, collection_name, body, discoverable, tags, created_at, now(), 1 FROM documents WHERE author_key = 'jacoby149' AND deleted = 0;
 
 -- Tombstone all service contracts
 INSERT INTO service_contracts SELECT user_key, service_name, allowed_origin, created_at, now(), 1 FROM service_contracts WHERE user_key = 'jacoby149' AND deleted = 0;
@@ -139,7 +139,7 @@ jazz-collectors → per-group blacklist: dave
 - [ ] Service contract management — list, revoke, kill switch
 - [ ] Block/unblock user — user_blacklist CRUD
 - [ ] Per-group block sharing — user_group_sharing toggle
-- [ ] Make everything private — bulk tombstone post_groups
+- [ ] Make everything private — bulk tombstone doc_groups
 - [ ] Export data — query all user data, return JSON blob
 - [ ] Delete account — tombstone everything, TTL cleans up
 - [ ] Notification preferences — per-type toggle (notifications table)

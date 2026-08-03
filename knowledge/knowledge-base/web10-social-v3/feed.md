@@ -19,12 +19,12 @@ Feed
 
 ## Protocol Mapping
 
-**The feed is discover filtered to your followers groups.** You follow people → you're a member of their `username.followers` groups → their posts attached to that group appear in your feed.
+**The feed is discover filtered to your followers groups.** You follow people → you're a member of their `username.followers` groups → their documents attached to that group appear in your feed.
 
 ```sql
-SELECT p.post_id, p.author_key, p.body, p.created_at
-FROM posts p
-JOIN post_groups pg ON p.post_id = pg.post_id
+SELECT p.doc_id, p.author_key, p.body, p.created_at
+FROM documents p
+JOIN doc_groups pg ON p.doc_id = pg.doc_id
 JOIN group_members gm ON pg.group_id = gm.group_id
 WHERE p.deleted = 0
   AND p.discoverable = 1

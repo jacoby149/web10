@@ -23,11 +23,11 @@ When Bob posts to `alice.followers`:
 
 ```
 1. API receives POST /bob/posts { groups: ["alice.followers"] }
-2. API writes to ClickHouse (INSERT INTO posts, post_groups)
+2. API writes to ClickHouse (INSERT INTO documents, doc_groups)
 3. API writes to Redis:
-   - SET group:alice.followers:recent:{post_id} → post data, TTL 30s
-   - RPUSH group:alice.followers:feed → post_id, LTRIM to 100
-   - PUBLISH group:alice.followers:updates → { post_id, author: "bob" }
+   - SET group:alice.followers:recent:{doc_id} → post data, TTL 30s
+   - RPUSH group:alice.followers:feed → doc_id, LTRIM to 100
+   - PUBLISH group:alice.followers:updates → { doc_id, author: "bob" }
 4. WebSocket server subscribes to channel, pushes to all clients in the group
 ```
 
@@ -39,7 +39,7 @@ The API does the Redis write. No pub/sub from ClickHouse needed. The API knows a
 ```
 1. Client opens /alice/posts?discover=true
 2. API checks Redis: group:alice.followers:recent
-3. If cache hit → return cached posts (fast)
+3. If cache hit → return cached documents (fast)
 4. If cache miss → query ClickHouse, populate cache, return
 ```
 
@@ -55,7 +55,7 @@ No polling. No long-polling. Real push.
 ## The Redis Keys
 
 ```
-group:{group_id}:recent:{post_id}   → Hash: post data, TTL 30s
+group:{group_id}:recent:{doc_id}   → Hash: post data, TTL 30s
 group:{group_id}:feed               → List: post IDs (newest first), LTRIM 100
 group:{group_id}:trending           → Sorted Set: post IDs scored by engagement, TTL 5m
 group:{group_id}:updates            → Pub/Sub channel: live push
@@ -77,8 +77,8 @@ async def handle_websocket(ws):
     # Forward messages to client
     async for message in pubsub.listen():
         if message['type'] == 'message':
-            post_id = message['data']['post_id']
-            post = redis.hgetall(f'group:{g}:recent:{post_id}')
+            doc_id = message['data']['doc_id']
+            post = redis.hgetall(f'group:{g}:recent:{doc_id}')
             await ws.send(json.dumps(post))
 ```
 

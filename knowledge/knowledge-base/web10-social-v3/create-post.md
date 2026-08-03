@@ -50,23 +50,23 @@ User taps POST
        "tags": ["web10", "groups"],
        "groups": ["jacoby149.public", "web10-dev"],
        "discoverable": true }
-  → API: INSERT INTO posts
-  → API: INSERT INTO post_groups (one row per group)
+  → API: INSERT INTO documents
+  → API: INSERT INTO doc_groups (one row per group)
   → WebSocket: push to subscribers in both groups
 ```
 
-One insert into posts. N inserts into post_groups. Done.
+One insert into documents. N inserts into doc_groups. Done.
 
 ## The Write Flow
 
 ```
 Client → POST /jacoby149/posts { body, groups: [...] }
-  API → INSERT INTO posts (post_id, author_key, 'posts', body_json, discoverable, tags, ...)
-  API → INSERT INTO post_groups (post_id, 'jacoby149.public', 'read', ...)
-  API → INSERT INTO post_groups (post_id, 'web10-dev', 'read', ...)
+  API → INSERT INTO documents (doc_id, author_key, 'posts', body_json, discoverable, tags, ...)
+  API → INSERT INTO doc_groups (doc_id, 'jacoby149.public', 'read', ...)
+  API → INSERT INTO doc_groups (doc_id, 'web10-dev', 'read', ...)
   API → Redis: update group:jacoby149.public:recent, group:web10-dev:recent
   API → WebSocket: PUBLISH to both group channels
-  API → 201 Created { post_id }
+  API → 201 Created { doc_id }
 ```
 
 One table write. N group attachments. Cache update. Push notification. Done.

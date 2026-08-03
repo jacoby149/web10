@@ -8,7 +8,7 @@ Every update or delete is an insert. A tombstone row with `deleted = 1` and a hi
 
 **Update a post:**
 ```sql
-INSERT INTO posts VALUES (
+INSERT INTO documents VALUES (
     'post-1', 'alice', 'posts', '{"text": "updated"}', 1, [],
     '2026-01-01 00:00:00.000', '2026-01-02 00:00:00.000', 0
 );
@@ -17,7 +17,7 @@ ReplacingMergeTree keeps the row with the highest `updated_at`. Old version is g
 
 **Delete a post:**
 ```sql
-INSERT INTO posts VALUES (
+INSERT INTO documents VALUES (
     'post-1', 'alice', 'posts', '{"text": "original"}', 1, [],
     '2026-01-01 00:00:00.000', '2026-01-03 00:00:00.000', 1
 );
@@ -26,7 +26,7 @@ Tombstone stays. Query filters `WHERE deleted = 0`. TTL physically removes it.
 
 **Revoke a post_group attachment:**
 ```sql
-INSERT INTO post_groups VALUES (
+INSERT INTO doc_groups VALUES (
     'post-1', 'alice.close-friends', 'read',
     '2026-01-01 00:00:00.000', '2026-01-03 00:00:00.000', 1
 );
@@ -41,7 +41,7 @@ ClickHouse is optimized for inserts, not deletes. A `DELETE FROM` is a heavy mut
 
 Two mechanisms:
 
-**1. ReplacingMergeTree auto-compact.** When ClickHouse merges parts, it keeps only the row with the highest `updated_at` for each `(post_id, group_id)` key. Old versions disappear. No action needed.
+**1. ReplacingMergeTree auto-compact.** When ClickHouse merges parts, it keeps only the row with the highest `updated_at` for each `(doc_id, group_id)` key. Old versions disappear. No action needed.
 
 **2. TTL physical removal.** Every table has a TTL clause:
 ```sql
@@ -60,8 +60,8 @@ Runs weekly. Lightweight. Only touches old tombstones.
 
 | Table | Strategy | Cleanup |
 |---|---|---|
-| `posts` | ReplacingMergeTree + TTL | 90 day TTL, physical removal |
-| `post_groups` | ReplacingMergeTree + TTL | 90 day TTL, physical removal |
+| `documents` | ReplacingMergeTree + TTL | 90 day TTL, physical removal |
+| `doc_groups` | ReplacingMergeTree + TTL | 90 day TTL, physical removal |
 | `groups` | ReplacingMergeTree | Weekly DELETE of old tombstones |
 | `group_members` | ReplacingMergeTree | Weekly DELETE of old tombstones |
 | `group_contracts` | ReplacingMergeTree | Weekly DELETE of old tombstones |
@@ -71,7 +71,7 @@ Runs weekly. Lightweight. Only touches old tombstones.
 | `user_group_sharing` | ReplacingMergeTree | Weekly DELETE of old tombstones |
 | `group_join_requests` | ReplacingMergeTree | Weekly DELETE of old tombstones |
 
-Reactions and comments are posts — they use the `posts` table TTL. No separate cleanup needed.
+Reactions and comments are documents — they use the `documents` table TTL. No separate cleanup needed.
 
 ## The Trade-off
 

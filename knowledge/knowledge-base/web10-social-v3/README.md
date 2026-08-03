@@ -3,8 +3,8 @@
 The social app is the proof. If a full-featured social platform maps cleanly to the v3 protocol, the protocol is right.
 
 **The v3 primitives:**
-- One `posts` table — everything is a post
-- `ref` type — links posts together (reactions, comments, replies)
+- One `documents` table — everything is a document
+- `ref` type — links documents together (reactions, comments, replies)
 - Groups — policy containers for people, not data
 - Service contracts — which websites can access your data
 - Groups define discovery — one query, no fan-out
@@ -40,13 +40,13 @@ Then the protocol is simpler than v2. If any screen needs a dedicated endpoint, 
 
 | v2 Social | v3 Social |
 |---|---|
-| `/reactions` endpoint | posts table, `reactions` collection |
-| `/comments` endpoint | posts table, `comments` collection |
+| `/reactions` endpoint | documents table, `reactions` collection |
+| `/comments` endpoint | documents table, `comments` collection |
 | `/follows` endpoint | group membership |
 | `/discover` endpoint | `?discover=true` on CRUD |
-| Discovery index mirror | posts table IS the index |
+| Discovery index mirror | documents table IS the index |
 | Client-side double-write | server writes once |
-| Public ledger | posts with `ref` type |
+| Public ledger | documents with `ref` type |
 | Dedicated notifications | lightweight app-owned table |
 
 The protocol exists to enable the platform to be the very best. The social app is the proof.

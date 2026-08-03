@@ -27,7 +27,7 @@ Posts:
 ```sql
 SELECT p.author_key, extractJSONString(p.body, '$.bio.value') AS bio,
        extractJSONString(p.body, '$.avatar.value') AS avatar
-FROM posts p
+FROM documents p
 WHERE p.deleted = 0
   AND p.collection_name = 'profile'
   AND (p.author_key LIKE '%query%'
@@ -36,7 +36,7 @@ WHERE p.deleted = 0
 
 Or better — ClickHouse full-text search on the body JSON:
 ```sql
-SELECT author_key, body FROM posts
+SELECT author_key, body FROM documents
 WHERE deleted = 0
   AND collection_name = 'profile'
   AND match(body, '.*query.*');
@@ -52,8 +52,8 @@ WHERE deleted = 0
 
 **Search posts:** Query posts by body text and tags.
 ```sql
-SELECT p.post_id, p.author_key, p.body, p.created_at
-FROM posts p
+SELECT p.doc_id, p.author_key, p.body, p.created_at
+FROM documents p
 WHERE p.deleted = 0
   AND p.collection_name = 'posts'
   AND (match(p.body, '.*query.*')
@@ -64,12 +64,12 @@ LIMIT 50;
 
 **Ngram index (better search):** ClickHouse has ngram functions for fuzzy search.
 ```sql
-SELECT post_id, author_key, body, created_at,
+SELECT doc_id, author_key, body, created_at,
        sum(ngramDistance('query', p.body)) AS score
-FROM posts
+FROM documents
 WHERE deleted = 0
   AND collection_name = 'posts'
-GROUP BY post_id, author_key, body, created_at
+GROUP BY doc_id, author_key, body, created_at
 HAVING score > 0
 ORDER BY score DESC
 LIMIT 50;
@@ -87,7 +87,7 @@ User types in search bar
   → render combined results
 ```
 
-Three parallel queries. One table (posts) for people and posts. One table (group_contracts) for groups.
+Three parallel queries. One table (documents) for people and posts. One table (group_contracts) for groups.
 
 ## Search Optimization
 
@@ -106,11 +106,11 @@ Day one: ngram index. Eventually: tokenbf or Elasticsearch if needed.
 
 - [ ] Debounced search input — 300ms delay
 - [ ] Search result tabs — People, Groups, Posts
-- [ ] Ngram index on posts.body — CREATE INDEX on the posts table
+- [ ] Ngram index on documents.body — CREATE INDEX on the documents table
 - [ ] Group member count in results — JOIN with group_members count
 - [ ] Recent searches — client-side localStorage
 - [ ] Search within a group — `?group=web10-dev&q=query`
 
 ## Proof
 
-Search is queries on the posts and group_contracts tables. No dedicated search index. No mirrors. No sync. ClickHouse full-text search handles it. The protocol handles it.
+Search is queries on the documents and group_contracts tables. No dedicated search index. No mirrors. No sync. ClickHouse full-text search handles it. The protocol handles it.

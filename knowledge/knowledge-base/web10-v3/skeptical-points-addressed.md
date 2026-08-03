@@ -9,9 +9,9 @@ The v2-to-v3 transition raised real concerns. Here's how each resolves.
 **The resolution:** It's a WHERE clause. Mechanical fix, not a model problem.
 
 ```sql
-SELECT p.post_id, p.author_key, p.body, p.tags, p.created_at
-FROM posts p
-JOIN post_groups pg ON p.post_id = pg.post_id
+SELECT p.doc_id, p.author_key, p.body, p.tags, p.created_at
+FROM documents p
+JOIN doc_groups pg ON p.doc_id = pg.doc_id
 JOIN group_members gm ON pg.group_id = gm.group_id
 WHERE p.deleted = 0
   AND p.discoverable = 1
@@ -35,20 +35,20 @@ Two anti-joins. ClickHouse handles them fine. The model was always correct — t
 
 ## "The permission model is hand-wavy — where does read/write live?"
 
-**The concern:** The docs say the author decides permission level (read/write) at attachment time, but `post_groups` only had `post_id` and `group_id`. No column for the permission.
+**The concern:** The docs say the author decides permission level (read/write) at attachment time, but `doc_groups` only had `doc_id` and `group_id`. No column for the permission.
 
-**The resolution:** Per-document permission on the `post_groups` row. Uses `ReplacingMergeTree(updated_at)` — same tombstone-append pattern as every other table. Full schema in `contract-schemas.md`. Cleanup strategy in `tombstone-cleanup.md`.
+**The resolution:** Per-document permission on the `doc_groups` row. Uses `ReplacingMergeTree(updated_at)` — same tombstone-append pattern as every other table. Full schema in `contract-schemas.md`. Cleanup strategy in `tombstone-cleanup.md`.
 
 ```sql
-CREATE TABLE post_groups (
-    post_id String,
+CREATE TABLE doc_groups (
+    doc_id String,
     group_id String,
     permission String,   -- 'read', 'write' — author decides at attachment time
     created_at DateTime64(3),
     updated_at DateTime64(3),
     deleted UInt8 DEFAULT 0
 ) ENGINE = ReplacingMergeTree(updated_at)
-ORDER BY (post_id, group_id);
+ORDER BY (doc_id, group_id);
 ```
 
 The group manages who. The author manages how. Separated at the row level. The group admin can add/remove people but can't escalate `read` to `write` on your doc.
@@ -99,7 +99,7 @@ Post in alice.close-friends, discoverable: false
 
 **The concern:** v2 had weird dedicated social media endpoints — `/reactions`, `/comments`, `/follows`. v3 is supposed to be a ubiquitous system, not a social media API. Why carry dedicated tables?
 
-**The resolution:** They're gone. Everything is a post. The `ref` type (see `document-typing.md`) is the universal pointer.
+**The resolution:** They're gone. Everything is a document. The `ref` type (see `document-typing.md`) is the universal pointer.
 
 ```json
 // A reaction is a post
@@ -112,7 +112,7 @@ Post in alice.close-friends, discoverable: false
 { "ref": {"type": "ref", "value": "post-123"}, "parent_ref": {"type": "ref", "value": "comment-abc"}, "text": {"type": "text", "value": "agree"} }
 ```
 
-One table. One CRUD. One permission model. The app decides what a ref means — reaction, comment, reply, quote, remix, pin. The platform doesn't care. Engagement is a query on the posts table, not a materialized view on a reactions table.
+One table. One CRUD. One permission model. The app decides what a ref means — reaction, comment, reply, quote, remix, pin. The platform doesn't care. Engagement is a query on the documents table, not a materialized view on a reactions table.
 
 ## "Big groups will hammer ClickHouse — every member queries the full table"
 
@@ -131,7 +131,7 @@ alice.followers → 100k members
 Discover flow with cache:
 1. **Hot group** (recent activity) → Redis returns cached post IDs. Sub-millisecond.
 2. **Trending** (engagement-sorted) → Redis returns cached trending list. Sub-millisecond.
-3. **Real-time** (live updates) → WebSocket push. New posts arrive without polling.
+3. **Real-time** (live updates) → WebSocket push. New documents arrive without polling.
 4. **Cold path** (cache miss, deep pagination, older posts) → ClickHouse query. Still fast.
 
 The API writes both ClickHouse and Redis on every insert — no pub/sub needed. TTL as fallback. No stale data longer than 30 seconds. The node protects itself. ClickHouse handles the writes. Redis handles the read fan-out. WebSockets handle the live updates.
@@ -140,4 +140,4 @@ Eventually, yes. Not day one. Day one, ClickHouse alone handles reasonable group
 
 ## Summary
 
-Every skeptical point resolved without changing the architecture. The model collapsed further: no dedicated reactions table, no dedicated comments table, no dedicated social media endpoints. Everything is a post. The `ref` type links posts together. The app decides semantics. One table. One CRUD. One permission model. The foundation holds.
+Every skeptical point resolved without changing the architecture. The model collapsed further: no dedicated reactions table, no dedicated comments table, no dedicated social media endpoints. Everything is a document. The `ref` type links posts together. The app decides semantics. One table. One CRUD. One permission model. The foundation holds.

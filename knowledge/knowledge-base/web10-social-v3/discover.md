@@ -25,10 +25,10 @@ Discover
 
 **Discover query:** The same query from overview.md, but broader — all groups, not one.
 ```sql
-SELECT p.post_id, p.author_key, p.body, p.tags, p.created_at,
+SELECT p.doc_id, p.author_key, p.body, p.tags, p.created_at,
        pg.group_id
-FROM posts p
-JOIN post_groups pg ON p.post_id = pg.post_id
+FROM documents p
+JOIN doc_groups pg ON p.doc_id = pg.doc_id
 JOIN group_members gm ON pg.group_id = gm.group_id
 WHERE p.deleted = 0
   AND p.discoverable = 1
@@ -44,16 +44,16 @@ LIMIT 50;
 
 One query. All groups. Filtered by membership. Blacklisted authors excluded.
 
-**Sorted by engagement:** Count reactions (posts with ref type pointing to this post).
+**Sorted by engagement:** Count reactions (documents with ref type pointing to this post).
 ```sql
-SELECT p.post_id, p.author_key, p.body, p.created_at,
-       (SELECT count() FROM posts r
+SELECT p.doc_id, p.author_key, p.body, p.created_at,
+       (SELECT count() FROM documents r
         WHERE r.deleted = 0
           AND r.collection_name = 'reactions'
-          AND hasToken(r.body, p.post_id)
+          AND hasToken(r.body, p.doc_id)
        ) AS reaction_count
-FROM posts p
-JOIN post_groups pg ON p.post_id = pg.post_id
+FROM documents p
+JOIN doc_groups pg ON p.doc_id = pg.doc_id
 JOIN group_members gm ON pg.group_id = gm.group_id
 WHERE p.deleted = 0
   AND p.discoverable = 1
@@ -63,9 +63,9 @@ ORDER BY reaction_count DESC, p.created_at DESC
 LIMIT 50;
 ```
 
-Subquery on posts table. No dedicated reactions table. The `hasToken` function scans the JSON body for the ref value.
+Subquery on documents table. No dedicated reactions table. The `hasToken` function scans the JSON body for the ref value.
 
-**Group label:** The `post_groups` join returns the group_id. Resolve to group name from `group_contracts`.
+**Group label:** The `doc_groups` join returns the group_id. Resolve to group name from `group_contracts`.
 
 ## The Data Flow
 
@@ -83,9 +83,9 @@ One heavy query. Parallel lookups for avatars and group names. Cache avatars in 
 ## Engagement Count Optimization
 
 The subquery on every row is expensive. Options:
-1. **Redis cache** — on reaction write, increment `post:{post_id}:reactions` counter. Read from Redis, fallback to query.
+1. **Redis cache** — on reaction write, increment `post:{doc_id}:reactions` counter. Read from Redis, fallback to query.
 2. **ClickHouse JSON path index** — index the `ref` field in the body JSON for faster `hasToken` lookups.
-3. **Aggregation table** — a lightweight table that the API writes to on reaction insert: `post_engagement(post_id, count)`. Not a materialized view — just a counter the API maintains.
+3. **Aggregation table** — a lightweight table that the API writes to on reaction insert: `post_engagement(doc_id, count)`. Not a materialized view — just a counter the API maintains.
 
 Option 3 is simplest. The API already knows about the write. Increment a counter. No materialized view needed.
 
@@ -95,9 +95,9 @@ Option 3 is simplest. The API already knows about the write. Increment a counter
 - [ ] Pagination — keyset on created_at (cursor-based, not OFFSET)
 - [ ] Author avatar caching — Redis, TTL 5m
 - [ ] Group name caching — Redis, TTL 1h (groups don't change often)
-- [ ] Engagement counter table — `post_engagement(post_id, reaction_count, comment_count)`
+- [ ] Engagement counter table — `post_engagement(doc_id, reaction_count, comment_count)`
 - [ ] Filter by group — `?group=jazz-collectors` to narrow discover
 
 ## Proof
 
-Discover is one query. One table. Group membership is the filter. Engagement is a count of posts with refs. No dedicated reactions table. No discovery index. No mirrors. The protocol handles it.
+Discover is one query. One table. Group membership is the filter. Engagement is a count of documents with refs. No dedicated reactions table. No discovery index. No mirrors. The protocol handles it.

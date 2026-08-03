@@ -34,8 +34,8 @@ graph TB
     end
 
     subgraph ClickHouse
-        Posts["posts (everything)"]
-        PostGroups["post_groups"]
+        Documents["documents (everything)"]
+        DocGroups["doc_groups"]
         GroupsTable["groups"]
         GroupMembers["group_members"]
     end
@@ -47,8 +47,8 @@ graph TB
     App --> CRUD
     App --> Groups
     App --> Media
-    CRUD --> Posts
-    CRUD --> PostGroups
+    CRUD --> Documents
+    CRUD --> DocGroups
     Groups --> GroupsTable
     Groups --> GroupMembers
     Media --> Blobs
@@ -57,8 +57,8 @@ graph TB
     style CRUD fill:#e3f2fd,stroke:#1565c0,color:#000
     style Groups fill:#e3f2fd,stroke:#1565c0,color:#000
     style Media fill:#e3f2fd,stroke:#1565c0,color:#000
-    style Posts fill:#fff3e0,stroke:#e65100,color:#000
-    style PostGroups fill:#fff3e0,stroke:#e65100,color:#000
+    style Documents fill:#fff3e0,stroke:#e65100,color:#000
+    style DocGroups fill:#fff3e0,stroke:#e65100,color:#000
     style GroupsTable fill:#fff3e0,stroke:#e65100,color:#000
     style GroupMembers fill:#fff3e0,stroke:#e65100,color:#000
     style Blobs fill:#fce4ec,stroke:#c62828,color:#000
@@ -68,8 +68,8 @@ graph TB
 
 ```sql
 -- Posts: everything. JSON body for schema flexibility.
-CREATE TABLE posts (
-    post_id String,
+CREATE TABLE documents (
+    doc_id String,
     author_key String,
     collection_name String,     -- 'public_posts', 'private_posts', etc.
     body String,                -- JSON: full post content
@@ -79,19 +79,19 @@ CREATE TABLE posts (
     updated_at DateTime64(3),
     deleted UInt8 DEFAULT 0
 ) ENGINE = ReplacingMergeTree(updated_at)
-ORDER BY (author_key, post_id)
+ORDER BY (author_key, doc_id)
 TTL created_at + INTERVAL 90 DAY;
 
 -- Post-to-group mapping. Groups define who can see the post.
-CREATE TABLE post_groups (
-    post_id String,
+CREATE TABLE doc_groups (
+    doc_id String,
     group_id String,
     permission String,          -- 'read', 'write' — author decides at attachment time
     created_at DateTime64(3),
     updated_at DateTime64(3),
     deleted UInt8 DEFAULT 0
 ) ENGINE = ReplacingMergeTree(updated_at)
-ORDER BY (post_id, group_id);
+ORDER BY (doc_id, group_id);
 
 -- Service contracts. Which websites can access your service. CORS.
 CREATE TABLE service_contracts (
@@ -197,7 +197,7 @@ No dedicated reactions table. No dedicated comments table. No dedicated follows 
 **A reaction is a post:**
 ```json
 {
-  "post_id": "react-abc",
+  "doc_id": "react-abc",
   "author_key": "bob",
   "collection_name": "reactions",
   "body": {
@@ -210,7 +210,7 @@ No dedicated reactions table. No dedicated comments table. No dedicated follows 
 **A comment is a post:**
 ```json
 {
-  "post_id": "comment-xyz",
+  "doc_id": "comment-xyz",
   "author_key": "charlie",
   "collection_name": "comments",
   "body": {
@@ -232,23 +232,23 @@ The `ref` type (see `document-typing.md`) is the universal pointer. Any post can
 ```sql
 -- Reaction count for post-123
 SELECT count(), any(body)
-FROM posts
+FROM documents
 WHERE deleted = 0
   AND collection_name = 'reactions'
-  AND hasToken(body, 'post-123');  -- ref contains the target post_id
+  AND hasToken(body, 'post-123');  -- ref contains the target doc_id
 ```
 
 **Comments for a post:**
 ```sql
-SELECT post_id, author_key, body, created_at
-FROM posts
+SELECT doc_id, author_key, body, created_at
+FROM documents
 WHERE deleted = 0
   AND collection_name = 'comments'
   AND hasToken(body, 'post-123')
 ORDER BY created_at ASC;
 ```
 
-The `hasToken` function scans the JSON body for the ref value. ClickHouse can index JSON paths for faster lookup. No dedicated table. No dedicated endpoint. Just posts with refs.
+The `hasToken` function scans the JSON body for the ref value. ClickHouse can index JSON paths for faster lookup. No dedicated table. No dedicated endpoint. Just documents with refs.
 
 ## Media Library
 
@@ -294,7 +294,7 @@ sequenceDiagram
     participant ClickHouse
 
     Client->>API: GET /alice/posts?discover=true
-    API->>ClickHouse: SELECT posts WHERE<br/>group membership check for alice<br/>+ discoverable = 1<br/>+ deleted = 0
+    API->>ClickHouse: SELECT documents WHERE<br/>group membership check for alice<br/>+ discoverable = 1<br/>+ deleted = 0
     ClickHouse-->>API: 50 post IDs + metadata
     API-->>Client: feed response
 
@@ -304,9 +304,9 @@ sequenceDiagram
 The query ClickHouse runs:
 
 ```sql
-SELECT p.post_id, p.author_key, p.body, p.tags, p.created_at
-FROM posts p
-JOIN post_groups pg ON p.post_id = pg.post_id
+SELECT p.doc_id, p.author_key, p.body, p.tags, p.created_at
+FROM documents p
+JOIN doc_groups pg ON p.doc_id = pg.doc_id
 JOIN group_members gm ON pg.group_id = gm.group_id
 WHERE p.deleted = 0
   AND p.discoverable = 1
@@ -481,7 +481,7 @@ jazz-collectors → admin: dave, request
 web10-dev       → admin: charlie, open
 ```
 
-**Opt out all posts** — bulk remove every post you've attached to a group. Reversible.
+**Opt out all documents** — bulk remove every post you've attached to a group. Reversible.
 **Make everything private** — remove all groups from all your posts. One click.
 
 ## The Write Flow
@@ -495,8 +495,8 @@ sequenceDiagram
     participant ClickHouse
 
     Client->>API: POST /alice/posts<br/>{ text, tags, groups: ["alice.close-friends"] }
-    API->>ClickHouse: INSERT INTO posts
-    API->>ClickHouse: INSERT INTO post_groups
+    API->>ClickHouse: INSERT INTO documents
+    API->>ClickHouse: INSERT INTO doc_groups
     ClickHouse-->>API: OK
     API-->>Client: 201 Created
 
@@ -514,7 +514,7 @@ sequenceDiagram
     participant ClickHouse
 
     Client->>API: DELETE /alice/posts/abc
-    API->>ClickHouse: INSERT tombstone<br/>(same post_id, deleted=1,<br/>higher updated_at)
+    API->>ClickHouse: INSERT tombstone<br/>(same doc_id, deleted=1,<br/>higher updated_at)
     ClickHouse-->>API: OK
     API-->>Client: 200 OK
 
@@ -529,8 +529,8 @@ sequenceDiagram
 | Term records (whitelist/blacklist) | Service contracts + group contracts |
 | `/discover` endpoint | `?discover=true` on CRUD |
 | `/public` endpoint | Gone (group membership filter) |
-| Discovery index table | Gone (posts table IS the index) |
-| Public ledger | Gone (posts with `ref` type) |
+| Discovery index table | Gone (documents table IS the index) |
+| Public ledger | Gone (documents with `ref` type) |
 | Client-side ledger mirrors | Gone (server writes once) |
 | Server-side indexing hooks | Gone (single insert) |
 | FerretDB translation layer | Gone |
@@ -548,7 +548,7 @@ sequenceDiagram
 
 ## Summary
 
-ClickHouse + MinIO. Two services. One table for everything structured. One table for posts — reactions, comments, notes, mail, everything is a post. The `ref` type in the JSON body links posts together. Groups. Group membership. Post-to-group mapping. Service contracts. Group contracts. Blacklist tables. Sharing toggle. TTL for cleanup. Tombstones for deletes. JSON body for schema flexibility.
+ClickHouse + MinIO. Two services. One table for everything structured. One table for documents — reactions, comments, notes, mail, everything is a document. The `ref` type in the JSON body links documents together. Groups. Group membership. Doc-to-group mapping. Service contracts. Group contracts. Blacklist tables. Sharing toggle. TTL for cleanup. Tombstones for deletes. JSON body for schema flexibility.
 
 No mirrors. No sync. No double-write. No discovery index. No ledger. No FerretDB. No MongoDB. No Postgres. No dedicated reactions table. No dedicated comments table. No dedicated social media endpoints.
 
@@ -567,4 +567,4 @@ Groups are policy containers. They hold people, not data. One membership. Infini
 - `manifesto-additions.md` — internet permanence, sender deletion, groups on the internet
 - `skeptical-points-addressed.md` — concerns from the v2-to-v3 transition, resolved
 
-The dev calls `createPost({ text, tags, groups: ["alice.close-friends"] })`. A reaction is `createPost({ ref: "post-123", reaction_type: "like" })`. A comment is `createPost({ ref: "post-123", text: "great!" })`. Same endpoint. Same table. Same permissions. That's it.
+The dev calls `createDocument({ text, tags, groups: ["alice.close-friends"] })`. A reaction is `createDocument({ ref: "post-123", reaction_type: "like" })`. A comment is `createDocument({ ref: "post-123", text: "great!" })`. Same endpoint. Same table. Same permissions. That's it.

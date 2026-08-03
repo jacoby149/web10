@@ -58,9 +58,9 @@ If you're only in `alice.public`, you see posts attached to `alice.public`. If y
 
 **Post counts per group:**
 ```
-SELECT pg.group_id, count(DISTINCT p.post_id)
-FROM posts p
-JOIN post_groups pg ON p.post_id = pg.post_id
+SELECT pg.group_id, count(DISTINCT p.doc_id)
+FROM documents p
+JOIN doc_groups pg ON p.doc_id = pg.doc_id
 WHERE p.author_key = 'alice'
   AND p.deleted = 0
   AND pg.deleted = 0

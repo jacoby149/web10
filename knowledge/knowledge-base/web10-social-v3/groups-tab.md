@@ -115,24 +115,24 @@ Members (12):
   ...
 
 Your posts in this group: 24
-  [Opt out all posts]
+  [Opt out all documents]
 ```
 
-**Opt out all posts:** Bulk tombstone your post_groups entries for this group.
+**Opt out all documents:** Bulk tombstone your doc_groups entries for this group.
 ```sql
-INSERT INTO post_groups
-SELECT post_id, group_id, permission, created_at, now(), 1
-FROM post_groups
+INSERT INTO doc_groups
+SELECT doc_id, group_id, permission, created_at, now(), 1
+FROM doc_groups
 WHERE group_id = 'jacoby149.close-friends'
   AND deleted = 0
-  -- need author_key, which isn't in post_groups — join with posts
+  -- need author_key, which isn't in doc_groups — join with documents
 ```
 Actually, need to join with posts to filter by author:
 ```sql
-INSERT INTO post_groups (post_id, group_id, permission, created_at, updated_at, deleted)
-SELECT pg.post_id, pg.group_id, pg.permission, pg.created_at, now(), 1
-FROM post_groups pg
-JOIN posts p ON pg.post_id = p.post_id
+INSERT INTO doc_groups (doc_id, group_id, permission, created_at, updated_at, deleted)
+SELECT pg.doc_id, pg.group_id, pg.permission, pg.created_at, now(), 1
+FROM doc_groups pg
+JOIN documents p ON pg.doc_id = p.doc_id
 WHERE pg.group_id = 'jacoby149.close-friends'
   AND p.author_key = 'jacoby149'
   AND pg.deleted = 0;
@@ -142,7 +142,7 @@ WHERE pg.group_id = 'jacoby149.close-friends'
 
 - [ ] Group management screen — members list, add/remove, change join policy
 - [ ] Member search — find users to invite to a group
-- [ ] Opt out all posts — bulk tombstone with author filter
+- [ ] Opt out all documents — bulk tombstone with author filter
 - [ ] Create group flow — INSERT into group_contracts, auto-add admin as member
 - [ ] Join request notifications — notify admin on new request (see notifications.md)
 
