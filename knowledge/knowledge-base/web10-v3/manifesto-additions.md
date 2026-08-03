@@ -36,6 +36,19 @@ This means you can't rely on the internet to remember things. Your posts aren't 
 
 This is intentional. The internet should be a conversation, not a museum.
 
+## The Positive: App Certification
+
+This limitation creates a natural distinction. Someone could build an app that saves mail to your inbox — creating permanent copies. That app would fight the protocol. It wouldn't be web10 verified.
+
+**web10 verified apps** — respect sender deletion, no permanent copies, ephemeral by design
+**Unverified apps** — save everything, archive content, fight the protocol
+
+The certification isn't a feature you build. It's a consequence of the design. Apps that respect the protocol get verified. Apps that don't, don't.
+
+The user can choose: "do I trust this app with my data?" The verified badge says "this app respects sender deletion."
+
 ## Summary
 
 The internet is too permanent. web10 v3 makes it hard to save. Content lives in the author's collection. Groups define discovery. When the author deletes, it's gone. No mirrors. No copies. No archives. Sender deletion is the feature. The past doesn't own you.
+
+This limitation is a positive. It creates natural app certification — verified apps respect the protocol, unverified apps fight it. The user chooses.
