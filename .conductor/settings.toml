@@ -1,4 +1,8 @@
 "$schema" = "https://conductor.build/schemas/settings.repo.schema.json"
 
+[env]
+OPENAI_TIMEOUT = "180"
+
+
 [prompts]
 general = "Before starting any plan.txt or lane task, check the lane queues in 'parallel execution.txt' ([✓ x.y.z] = merged, [~] = in flight elsewhere), the [✓] ticks in plan.txt, and the top entries of CHANGELOG.md — the task may already be done; if so, pick the next unticked item in the lane instead. When you finish work, in the same branch: add a CHANGELOG.md line, tick the plan.txt item, and tick your lane item in 'parallel execution.txt'. After creating a PR, do not report it ready yet: first check for merge conflicts (gh pr view --json mergeable,mergeStateStatus) and resolve them, then watch ALL checks including optional ones (gh pr checks --watch — UNSTABLE means an optional check failed and counts as red) and fix failures until every check is green. Full procedure in AGENTS.md."
