@@ -59,7 +59,7 @@ The service contract is the outer wall. The groups are the inner permissions.
 When you create a post, you pick the groups it belongs to. Those groups already define who sees it.
 
 ```ts
-await createPost({
+await createDocument({
   text: "behind the scenes",
   groups: ["alice.close-friends"]
 });
@@ -69,7 +69,7 @@ Bob sees it because he's a member. Eve doesn't.
 
 A post can belong to multiple groups:
 ```ts
-await createPost({
+await createDocument({
   text: "team update",
   groups: ["alice.close-friends", "web10-dev"]
 });
@@ -99,7 +99,7 @@ The author decides the permission level, not the group. You set it when you atta
 
 ```ts
 await attachToGroup({
-  post_id: "post-1",
+  doc_id: "post-1",
   group_id: "jazz-collectors",
   permission: "read"   // or "write"
 });
@@ -190,7 +190,7 @@ jazz-collectors → [Block sharing]
   [Unblock]
 ```
 
-**Opt out all posts** — bulk remove every post you've attached to a group. Reversible.
+**Opt out all documents** — bulk remove every post you've attached to a group. Reversible.
 
 **Make everything private** — remove all groups from all your posts. One click. Everything goes dark.
 

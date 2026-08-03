@@ -32,7 +32,7 @@ Bob's outbox:
   post-1 → groups: ["alice.inbox"]
 
 Alice discovers:
-  SELECT * FROM posts
+  SELECT * FROM documents
   WHERE group_id = 'alice.inbox'
   → post-1 (bob's mail)
 ```
@@ -62,6 +62,27 @@ Bob owns his mail. Alice owns her inbox group. The group is the bridge.
 | Request | Anyone can request, admin approves or denies |
 | Invite only | Only people the admin explicitly adds can join |
 
+## The Saved Mail Pattern
+
+Sender deletion is the default. Bob deletes his mail, Alice's view vanishes. But Alice can save mail she wants to keep.
+
+**How it works:**
+1. Alice's mail app has a `saved_mail` service: `service:saved_mail → allowed: mailapp.com`
+2. Alice taps "save" on Bob's mail
+3. The mail app reads Bob's post from the inbox group (Alice has read permission)
+4. The mail app writes a copy to Alice's `saved_mail` collection (her own data, her app, no extra auth)
+5. Bob deletes the original → Alice's saved copy stays. She owns it.
+
+```
+Bob's outbox:
+  post-1 → groups: ["alice.inbox"]
+
+Alice's saved_mail:
+  saved-1 → body: { "from": "bob", "text": "hi", "original_doc_id": "post-1" }
+```
+
+The save is opt-in. The ephemeral default is the feature. The save is the app's choice. Slightly fights the manifesto — the protocol makes it hard to save — but the user chooses. The mail app bridges the gap.
+
 ## The Notes Pattern
 
 Personal. No sharing.
@@ -88,17 +109,18 @@ Each message lives in the sender's collection. The group is the bridge. Both can
 
 ## The Comments Pattern
 
-Open. Anyone can participate.
+Open. Anyone can participate. Comments are documents with a `ref` to the parent post.
 
 ```
 post-123-comments → admin: alice, open join
 ```
 
 Alice's post → no groups (private by default).
-Bob's comment → lives in bob.comments, attached to `post-123-comments` group.
-Charlie's comment → lives in charlie.comments, attached to `post-123-comments` group.
 
-Alice discovers all comments via the group. Anyone can join the group and comment. Alice can remove anyone.
+Bob's comment → a post in `bob.comments` with `ref: "post-123"`, attached to `post-123-comments` group.
+Charlie's reply → a post in `charlie.comments` with `ref: "post-123"` and `parent_ref: "bob-comment-xyz"`, attached to `post-123-comments` group.
+
+Alice discovers all comments via the group. The `ref` in the JSON body links back to the parent. The `parent_ref` enables threading. No dedicated comments table — just documents with refs.
 
 ## The Pattern
 
@@ -140,7 +162,7 @@ post-123-comments → admin: alice, request [Leave]
 
 **Block sharing** — pause sharing without leaving. You stay a member. You still see their posts. They can't see yours. Reversible.
 
-**Opt out all posts** — bulk remove your posts from a group. Reversible.
+**Opt out all documents** — bulk remove your posts from a group. Reversible.
 
 **Make everything private** — remove all groups from all your posts. One click.
 

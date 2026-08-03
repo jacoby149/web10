@@ -56,9 +56,9 @@ WHERE group_id = 'jazz-collectors'
 -- Returns: provider-a
 
 -- Federated query to provider-a
-SELECT * FROM remote('provider-a', 'posts', 'user', 'password')
-WHERE post_id IN (
-  SELECT post_id FROM remote('provider-a', 'post_groups', 'user', 'password')
+SELECT * FROM remote('provider-a', 'documents', 'user', 'password')
+WHERE doc_id IN (
+  SELECT doc_id FROM remote('provider-a', 'doc_groups', 'user', 'password')
   WHERE group_id = 'jazz-collectors'
 )
   AND deleted = 0
