@@ -1,10 +1,13 @@
 # Contract Schemas
 
-Service contracts and group contracts have no tables in the schema. This doc closes the gap.
+Two concerns. Two contracts.
+
+1.  **Service Contracts (App Trust):** "Do we want to spin up these data buckets for this app?" Binary infrastructure toggle.
+2.  **Group Contracts (People Access):** "Who do we want this data to reach?" Granular social policy.
 
 ## Service Contracts
 
-Which websites can access your service. CORS. App-level. Browser-enforced.
+App Trust (Infrastructure). Which websites can access your service. CORS. App-level. Browser-enforced.
 
 ```sql
 CREATE TABLE service_contracts (
@@ -40,7 +43,7 @@ Tombstone-append. Background job compacts. Same pattern everywhere.
 
 ## Provider Service Contracts
 
-Which apps can participate on this node. Server-enforced. Provider admin manages.
+Node Trust. Which apps can participate on this node. Server-enforced. Provider admin manages.
 
 ```sql
 CREATE TABLE provider_service_contracts (
@@ -66,15 +69,13 @@ Blocked apps simply have no row. No row = denied.
 
 ## Group Contracts
 
-Group metadata. Join policy. Settings.
+Group membership, roles, join policy. The contract is people + policy only. Roles are service-scoped.
 
 ```sql
 CREATE TABLE group_contracts (
-    group_id String,
-    name String,
-    admin_key String,
+    group_id String,           -- 'web10.app/groups/jacoby149/abacus-enthusiasts'
+    roles String,              -- JSON array of roles with services + permissions
     join_policy String,        -- 'open', 'request', 'invite_only'
-    settings String,           -- JSON: { "description": "...", "avatar_url": "..." }
     created_at DateTime64(3),
     updated_at DateTime64(3),
     deleted UInt8 DEFAULT 0
@@ -82,12 +83,16 @@ CREATE TABLE group_contracts (
 ORDER BY group_id;
 ```
 
-**Query:** what's the join policy for `alice.followers`?
+**Query:** what's the join policy and roles for `web10.app/groups/jacoby149/abacus-enthusiasts`?
 ```sql
-SELECT join_policy, admin_key, name
+SELECT join_policy, roles
 FROM group_contracts
-WHERE group_id = 'alice.followers' AND deleted = 0;
+WHERE group_id = 'web10.app/groups/jacoby149/abacus-enthusiasts' AND deleted = 0;
 ```
+
+**Profile data** (banner, description, website, avatar) lives in `group-identity-service` — not the contract. Roles with access to that service write it, members read. The contract stays pure: people + policy.
+
+**Service-scoped roles.** Each role lists the services it applies to. A `page-curator` only touches `group-identity-service`. A `moderator` only touches `posts` and `comments`. The model scales infinitely without creating more groups.
 
 ## Group Membership Requests
 
