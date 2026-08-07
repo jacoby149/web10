@@ -114,10 +114,10 @@ ORDER BY (group_id, requester_key);
 **Flow:**
 ```
 Bob requests to join alice.followers
-  → INSERT INTO group_join_requests ('alice.followers', 'bob', 'pending', ...)
+   → INSERT INTO group_join_requests ('web10.app/groups/alice/followers', 'bob', 'pending', ...)
 Alice approves
-  → UPDATE status to 'approved', resolved_at = now()
-  → INSERT INTO group_members ('alice.followers', 'bob', 'member', ...)
+   → UPDATE status to 'approved', resolved_at = now()
+   → INSERT INTO group_members ('web10.app/groups/alice/followers', 'bob', 'member', ...)
 Alice denies
   → UPDATE status to 'denied', resolved_at = now()
 ```
@@ -138,11 +138,11 @@ CREATE TABLE user_group_sharing (
 ORDER BY (user_key, group_id);
 ```
 
-**Query:** is Alice sharing with `jazz-collectors`?
+**Query:** is Alice sharing with `web10.app/groups/dave/jazz-collectors`?
 ```sql
 SELECT sharing_enabled FROM user_group_sharing
 WHERE user_key = 'alice'
-  AND group_id = 'jazz-collectors'
+  AND group_id = 'web10.app/groups/dave/jazz-collectors'
   AND deleted = 0;
 ```
 

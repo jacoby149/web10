@@ -11,32 +11,25 @@ Idea:     ClickHouse + MinIO + API
 
 ## What ClickHouse Would Need to Do
 
-Everything. Posts, reactions, comments, follows, permissions, engagement. All stored in ClickHouse tables. Deletes are tombstones. Updates are new rows with higher version numbers.
+Everything. Posts, reactions, comments, groups, permissions, engagement. All stored in one ClickHouse table. Deletes are tombstones. Updates are new rows with higher version numbers.
 
 ```sql
-CREATE TABLE posts (
-    post_id String,
+CREATE TABLE documents (
+    doc_id String,
     author_key String,
-    body String,          -- JSON: the full post content
-    visibility String,
+    collection_name String,     -- 'posts', 'reactions', 'comments', 'outbox'
+    body String,                -- JSON: full content
+    discoverable UInt8,         -- can this post appear in feeds?
+    tags Array(String),
     created_at DateTime64(3),
     updated_at DateTime64(3),
     deleted UInt8 DEFAULT 0
 ) ENGINE = ReplacingMergeTree(updated_at)
-ORDER BY (author_key, post_id);
-
-CREATE TABLE reactions (
-    reaction_id String,
-    actor_key String,
-    target_post_id String,
-    type String,
-    created_at DateTime64(3),
-    deleted UInt8 DEFAULT 0
-) ENGINE = MergeTree()
-ORDER BY (target_post_id, created_at);
+ORDER BY (author_key, doc_id)
+TTL created_at + INTERVAL 90 DAY;
 ```
 
-MinIO stores the media blobs. ClickHouse stores the metadata. That's it.
+MinIO stores the media blobs. ClickHouse stores everything structured. That's it.
 
 ## Where It Works
 
@@ -48,27 +41,29 @@ MinIO stores the media blobs. ClickHouse stores the metadata. That's it.
 
 **Discovery, trending, search.** ClickHouse is built for this. Local queries, vectorized execution, inverted index. No MongoDB needed.
 
-**Permissions.** `visibility` is a column. Filter at query time. No Postgres needed. No separate permissions layer needed.
+**Permissions.** Groups define who can see what. `doc_groups` maps documents to groups. `group_members` defines membership. Filter at query time. No Postgres needed. No separate permissions layer needed.
 
 **Media.** MinIO stores blobs. ClickHouse stores metadata (URL, size, type). ClickHouse can query MinIO directly for metadata if needed. Works.
 
+**Engagement.** Reactions and comments are documents with `ref` types. ClickHouse aggregates them. No ledger. No mirror. No double-write.
+
 ## Where It Hurts
 
-**Schema evolution.** ClickHouse has a schema. Adding a field means `ALTER TABLE posts ADD COLUMN new_field String`. At scale, ALTER TABLE is a heavy operation — it rewrites data parts. MongoDB is schemaless — every document can have different fields. For a social network where features change weekly, schema rigidity is real pain.
+**Schema evolution.** ClickHouse has a schema. Adding a field means `ALTER TABLE documents ADD COLUMN new_field String`. At scale, ALTER TABLE is a heavy operation — it rewrites data parts. MongoDB is schemaless — every document can have different fields. For a social network where features change weekly, schema rigidity is real pain.
 
-**Mitigation:** store the body as JSON. ClickHouse has `JSON` type and `extractJSONString()` functions. The schema is wide (post_id, author, body JSON, visibility, created_at). New fields go into the JSON blob. No ALTER TABLE needed.
+**Mitigation:** store the body as JSON. ClickHouse has `JSON` type and `extractJSONString()` functions. The schema is wide (doc_id, author, body JSON, tags, created_at). New fields go into the JSON blob. No ALTER TABLE needed.
 
-**Point lookups.** `GET /alice/posts/abc` — fetching a single post by ID. ClickHouse has no secondary index on `post_id`. It scans partitions. For a hot path (every page load fetches posts), this is slow.
+**Point lookups.** `GET /alice/posts/abc` — fetching a single post by ID. ClickHouse has no secondary index on `doc_id`. It scans partitions. For a hot path (every page load fetches posts), this is slow.
 
-**Mitigation:** API-level caching. Redis cache for hot posts. Or a small local ClickHouse table with a primary key on `post_id` that's kept in memory. Or accept that ClickHouse point lookups are ~10ms, not ~1ms, and that's fine for a feed.
+**Mitigation:** API-level caching. Redis cache for hot posts. Or a small local ClickHouse table with a primary key on `doc_id` that's kept in memory. Or accept that ClickHouse point lookups are ~10ms, not ~1ms, and that's fine for a feed.
 
-**Atomic operations.** MongoDB's `find_one_and_update` is atomic. "Increment reaction count if the user hasn't reacted yet." ClickHouse has no atomic counters. You insert a reaction row. The count is computed at query time (`COUNT(*) WHERE target_post_id = 'X'`).
+**Atomic operations.** MongoDB's `find_one_and_update` is atomic. "Increment reaction count if the user hasn't reacted yet." ClickHouse has no atomic counters. You insert a reaction row. The count is computed at query time (`COUNT(*) WHERE hasToken(body, 'post-123')`).
 
-**Mitigation:** this is actually fine. The count is a materialized view in ClickHouse. It updates on insert. No atomic counter needed. The reaction is an insert. The count is an aggregation. This is the OLAP model.
+**Mitigation:** this is actually fine. The count is a query in ClickHouse. It updates on insert. No atomic counter needed. The reaction is an insert. The count is an aggregation. This is the OLAP model.
 
-**Write latency for single rows.** ClickHouse is optimized for batch inserts. A single `INSERT INTO posts VALUES (...)` works but it's slower than MongoDB's in-memory write. At scale, you batch inserts anyway.
+**Write latency for single rows.** ClickHouse is optimized for batch inserts. A single `INSERT INTO documents VALUES (...)` works but it's slower than MongoDB's in-memory write. At scale, you batch inserts anyway.
 
-**Mitigation:** batch inserts in the API. Accumulate writes, flush every 100ms or 100 records. Accept eventual consistency for the index. The MongoDB write is synchronous (source of truth). The ClickHouse write is async (index). If ClickHouse is behind by 100ms, the feed is 100ms stale. Acceptable.
+**Mitigation:** batch inserts in the API. Accumulate writes, flush every 100ms or 100 records. Accept eventual consistency for the index. The ClickHouse write is the source of truth. If ClickHouse is behind by 100ms, the feed is 100ms stale. Acceptable.
 
 **Complex nested data.** A post can have rich media, nested comments, threaded replies, reactions with metadata. MongoDB stores this as nested BSON naturally. ClickHouse needs flat tables or JSON columns.
 
@@ -90,11 +85,9 @@ MinIO stores the media blobs. ClickHouse stores the metadata. That's it.
 
 ## The Verdict
 
-**For the public layer: ClickHouse only.** No MongoDB needed. Discovery, trending, engagement, search — ClickHouse does it all faster and cheaper.
+**ClickHouse + MinIO only.** No MongoDB needed. Discovery, trending, engagement, search — ClickHouse does it all faster and cheaper.
 
-**For personal data: it depends.**
-
-If personal data is mostly append-only (posts, reactions, comments) and point lookups can be cached, ClickHouse can handle it. The JSON column workaround solves schema flexibility. The materialized view workaround solves atomic counters. The cache workaround solves point lookup latency.
+**For personal data: ClickHouse handles it.** Personal data is mostly append-only (posts, reactions, comments). Point lookups can be cached. The JSON column workaround solves schema flexibility. The materialized view workaround solves atomic counters. The cache workaround solves point lookup latency.
 
 The cost: every workaround is application complexity. MongoDB does these things natively. ClickHouse requires you to design around its limitations.
 
@@ -110,12 +103,12 @@ The trade-offs (schema rigidity, point lookup latency, no atomic updates) are ac
 
 ```
 ClickHouse:
-  posts (with JSON body)
-  reactions
-  comments
-  follows
-  engagement (materialized view)
-  discovery_posts (materialized view)
+  documents (everything — posts, reactions, comments, notes, mail)
+  doc_groups (document-to-group mapping)
+  group_contracts (group policy, roles, join policy)
+  group_members (membership)
+  service_contracts (app access)
+  user_blacklist, group_blacklist (blocking)
 
 MinIO:
   media blobs
@@ -125,6 +118,7 @@ API:
   orchestrates ClickHouse + MinIO
   caches hot point lookups
   batches inserts
+  converts MinIO URLs to presigned
 ```
 
 Two services. That's the stack.

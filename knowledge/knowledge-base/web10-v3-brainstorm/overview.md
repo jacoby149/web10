@@ -5,7 +5,7 @@
 Two services. That's it.
 
 ```
-ClickHouse  — everything structured (posts, reactions, comments, groups, permissions)
+ClickHouse  — everything structured (documents, groups, permissions)
 MinIO       — every blob (images, video, audio)
 ```
 
@@ -36,7 +36,7 @@ graph TB
     subgraph ClickHouse
         Documents["documents (everything)"]
         DocGroups["doc_groups"]
-        GroupsTable["groups"]
+        GroupContracts["group_contracts"]
         GroupMembers["group_members"]
     end
 
@@ -49,7 +49,7 @@ graph TB
     App --> Media
     CRUD --> Documents
     CRUD --> DocGroups
-    Groups --> GroupsTable
+    Groups --> GroupContracts
     Groups --> GroupMembers
     Media --> Blobs
 
@@ -59,7 +59,7 @@ graph TB
     style Media fill:#e3f2fd,stroke:#1565c0,color:#000
     style Documents fill:#fff3e0,stroke:#e65100,color:#000
     style DocGroups fill:#fff3e0,stroke:#e65100,color:#000
-    style GroupsTable fill:#fff3e0,stroke:#e65100,color:#000
+    style GroupContracts fill:#fff3e0,stroke:#e65100,color:#000
     style GroupMembers fill:#fff3e0,stroke:#e65100,color:#000
     style Blobs fill:#fce4ec,stroke:#c62828,color:#000
 ```
@@ -67,13 +67,12 @@ graph TB
 ## The Tables
 
 ```sql
--- Posts: everything. JSON body for schema flexibility.
+-- Everything structured. One table. JSON body for schema flexibility.
 CREATE TABLE documents (
     doc_id String,
     author_key String,
-    collection_name String,     -- 'public_posts', 'private_posts', etc.
-    body String,                -- JSON: full post content
-    discoverable UInt8,         -- can this post appear in feeds?
+    collection_name String,     -- 'posts', 'reactions', 'comments', 'outbox'
+    body String,                -- JSON: full content
     tags Array(String),
     created_at DateTime64(3),
     updated_at DateTime64(3),
@@ -82,11 +81,10 @@ CREATE TABLE documents (
 ORDER BY (author_key, doc_id)
 TTL created_at + INTERVAL 90 DAY;
 
--- Post-to-group mapping. Groups define who can see the post.
+-- Document-to-group mapping. Groups define who can see the document.
 CREATE TABLE doc_groups (
     doc_id String,
     group_id String,
-    permission String,          -- 'read', 'write' — author decides at attachment time
     created_at DateTime64(3),
     updated_at DateTime64(3),
     deleted UInt8 DEFAULT 0
@@ -114,13 +112,11 @@ CREATE TABLE provider_service_contracts (
 ) ENGINE = ReplacingMergeTree(updated_at)
 ORDER BY (provider_key, allowed_origin);
 
--- Group contracts. Join policy, settings.
+-- Group contracts. Join policy, roles (JSON).
 CREATE TABLE group_contracts (
-    group_id String,
-    name String,
-    admin_key String,
-    join_policy String,         -- 'open', 'request', 'invite_only'
-    settings String,            -- JSON
+    group_id String,           -- 'web10.app/groups/jacoby149/abacus-enthusiasts'
+    roles String,              -- JSON array of roles with services + permissions
+    join_policy String,        -- 'open', 'request', 'invite_only'
     created_at DateTime64(3),
     updated_at DateTime64(3),
     deleted UInt8 DEFAULT 0
@@ -131,7 +127,7 @@ ORDER BY group_id;
 CREATE TABLE group_join_requests (
     group_id String,
     requester_key String,
-    status String,              -- 'pending', 'approved', 'denied'
+    status String,             -- 'pending', 'approved', 'denied'
     requested_at DateTime64(3),
     resolved_at DateTime64(3),
     updated_at DateTime64(3),
@@ -143,7 +139,7 @@ ORDER BY (group_id, requester_key);
 CREATE TABLE user_group_sharing (
     user_key String,
     group_id String,
-    sharing_enabled UInt8,      -- 1 = sharing, 0 = blocked
+    sharing_enabled UInt8,     -- 1 = sharing, 0 = blocked
     created_at DateTime64(3),
     updated_at DateTime64(3),
     deleted UInt8 DEFAULT 0
@@ -167,22 +163,11 @@ CREATE TABLE group_blacklist (
 ) ENGINE = MergeTree()
 ORDER BY (user_key, group_id, blocked_key);
 
--- Groups: policy containers. Hold people, not data.
--- (Metadata like join_policy lives in group_contracts table)
-CREATE TABLE groups (
-    group_id String,
-    admin_key String,
-    created_at DateTime64(3),
-    updated_at DateTime64(3),
-    deleted UInt8 DEFAULT 0
-) ENGINE = ReplacingMergeTree(updated_at)
-ORDER BY group_id;
-
 -- Group membership.
 CREATE TABLE group_members (
     group_id String,
     member_key String,
-    role String,                -- 'admin', 'member'
+    role String,               -- role name from the contract (e.g. 'owner', 'member')
     joined_at DateTime64(3),
     updated_at DateTime64(3),
     deleted UInt8 DEFAULT 0
@@ -190,11 +175,11 @@ CREATE TABLE group_members (
 ORDER BY (group_id, member_key);
 ```
 
-## Everything Is a Post
+## Everything Is a Document
 
 No dedicated reactions table. No dedicated comments table. No dedicated follows table. No dedicated social media endpoints. One table. One CRUD. One permission model.
 
-**A reaction is a post:**
+**A reaction is a document:**
 ```json
 {
   "doc_id": "react-abc",
@@ -207,7 +192,7 @@ No dedicated reactions table. No dedicated comments table. No dedicated follows 
 }
 ```
 
-**A comment is a post:**
+**A comment is a document:**
 ```json
 {
   "doc_id": "comment-xyz",
@@ -226,7 +211,7 @@ No dedicated reactions table. No dedicated comments table. No dedicated follows 
 alice.followers → members: bob, charlie
 ```
 
-The `ref` type (see `document-typing.md`) is the universal pointer. Any post can reference any other post. The API resolves refs on read. The app decides what a ref means — reaction, comment, reply, quote, remix. The platform doesn't care.
+The `ref` type (see `document-typing.md`) is the universal pointer. Any document can reference any other document. The API resolves refs on read. The app decides what a ref means — reaction, comment, reply, quote, remix. The platform doesn't care.
 
 **Engagement is a query, not a table:**
 ```sql
@@ -235,7 +220,7 @@ SELECT count(), any(body)
 FROM documents
 WHERE deleted = 0
   AND collection_name = 'reactions'
-  AND hasToken(body, 'post-123');  -- ref contains the target doc_id
+  AND hasToken(body, 'post-123');
 ```
 
 **Comments for a post:**
@@ -294,8 +279,8 @@ sequenceDiagram
     participant ClickHouse
 
     Client->>API: GET /alice/posts?discover=true
-    API->>ClickHouse: SELECT documents WHERE<br/>group membership check for alice<br/>+ discoverable = 1<br/>+ deleted = 0
-    ClickHouse-->>API: 50 post IDs + metadata
+    API->>ClickHouse: SELECT documents WHERE<br/>group membership check for alice<br/>+ deleted = 0
+    ClickHouse-->>API: 50 document IDs + metadata
     API-->>Client: feed response
 
     Note over Client,ClickHouse: No discovery index. No ledger mirror.<br/>One table. One query. Permissions filtered at query time.
@@ -309,7 +294,6 @@ FROM documents p
 JOIN doc_groups pg ON p.doc_id = pg.doc_id
 JOIN group_members gm ON pg.group_id = gm.group_id
 WHERE p.deleted = 0
-  AND p.discoverable = 1
   AND gm.member_key = 'alice'
   AND gm.deleted = 0
   AND NOT EXISTS (
@@ -326,9 +310,9 @@ ORDER BY p.created_at DESC
 LIMIT 50;
 ```
 
-Alice sees every post attached to a group she belongs to. No visibility column. No collection ceiling. Just group membership.
+Alice sees every document attached to a group she belongs to. No visibility column. No collection ceiling. Just group membership.
 
-The `discoverable` flag is per-record. The author controls it. `discoverable: false` means the post exists but doesn't appear in feeds — only visible by direct link or to the author.
+**The discover group.** Public documents are attached to `web10/discover` — an open group with auto-enrollment on signup, including the anon user. Anyone can read documents attached to it. The author controls it: attach to the group for public, don't for private.
 
 ## Permissions: Service Contracts + Groups
 
@@ -371,7 +355,7 @@ flowchart LR
         G["jazz-collectors\nmembers: alice, dave, eve"]
     end
 
-    subgraph Post["Post"]
+    subgraph Post["Document"]
         P["Attached to\njazz-collectors"]
     end
 
@@ -386,19 +370,19 @@ flowchart LR
     style Result fill:#e3f2fd,stroke:#1565c0,color:#000
 ```
 
-A post with no groups is private. Attaching it to a group makes it visible to group members. The author decides the permission level (read/write). The group admin manages membership and can moderate (remove from discover, not edit).
+A document with no groups is private. Attaching it to a group makes it visible to group members. The group's roles define what members can do. The group owner manages membership and can moderate (remove from discover, not edit).
 
-## Private Post Viewing
+## Private Document Viewing
 
-A post is private by default. Attaching it to a group makes it visible to group members.
+A document is private by default. Attaching it to a group makes it visible to group members.
 
 ```mermaid
 flowchart TD
-    A["User requests\nposts"] --> B{"discover flag?"}
-    B -->|"false"| C["Only user's own posts\n(groups don't matter)"]
+    A["User requests\ndocuments"] --> B{"discover flag?"}
+    B -->|"false"| C["Only user's own documents\n(groups don't matter)"]
     B -->|"true"| D["Group membership check"]
 
-    D --> E{"Is requester a member\nof any group the post\nis attached to?"}
+    D --> E{"Is requester a member\nof any group the document\nis attached to?"}
     E -->|"yes"| F["Show it"]
     E -->|"no"| G{"Is requester\nthe author?"}
     G -->|"yes"| F
@@ -412,13 +396,13 @@ flowchart TD
 
 ## Groups: Policy Containers
 
-Groups are not data containers. They hold people and permissions. Any document from any service can be attached to any group. The group's policy decides who sees it.
+Groups are not data containers. They hold people and roles. Any document from any service can be attached to any group. The group's roles define who sees it and what they can do.
 
 ```mermaid
 graph TB
     subgraph Platform
         GroupsAPI["Groups CRUD\n/groups"]
-        GroupsTable["groups"]
+        ContractsTable["group_contracts"]
         MembersTable["group_members"]
     end
 
@@ -435,15 +419,15 @@ graph TB
         WatchParty["Watch parties attached to groups"]
     end
 
-    GroupsAPI --> GroupsTable
+    GroupsAPI --> ContractsTable
     GroupsAPI --> MembersTable
-    SocialPosts --> GroupsTable
+    SocialPosts --> ContractsTable
     SocialFeed --> MembersTable
-    SharedPlaylist --> GroupsTable
-    WatchParty --> GroupsTable
+    SharedPlaylist --> ContractsTable
+    WatchParty --> ContractsTable
 
     style GroupsAPI fill:#e3f2fd,stroke:#1565c0,color:#000
-    style GroupsTable fill:#fff3e0,stroke:#e65100,color:#000
+    style ContractsTable fill:#fff3e0,stroke:#e65100,color:#000
     style MembersTable fill:#fff3e0,stroke:#e65100,color:#000
     style SocialPosts fill:#f5f5f5,stroke:#333,color:#000
     style SocialFeed fill:#f5f5f5,stroke:#333,color:#000
@@ -455,11 +439,11 @@ Alice creates a group. Bob and Charlie join. Now any app on web10 can attach con
 
 ### Follows Are Groups
 
-Follows are groups. `alice.followers` is a group where Alice is the admin. Bob requests to join → Alice approves → Bob is a member → Bob sees posts attached to that group.
+Follows are groups. `alice.followers` is a group where Alice is the owner. Bob requests to join → Alice approves → Bob is a member → Bob sees posts attached to that group.
 
 ```ts
-await followUser('alice');        // request to join alice.followers
-await approveFollower('bob');     // approve bob into alice.followers
+await followUser('alice');        // join alice.followers (open) or request (request)
+await approveFollower('bob');     // approve bob into alice.followers (request only)
 await unfollow('alice');          // leave alice.followers
 ```
 
@@ -469,20 +453,25 @@ No separate follows table. Groups handle it.
 
 Two views:
 
-**Groups you administer** — you control membership.
+**Groups you manage** — you control membership and roles.
 ```
-alice.close-friends → admin: you, invite only
-alice.public        → admin: you, open
-```
-
-**Groups you belong to** — you can view, leave, or opt out your posts.
-```
-jazz-collectors → admin: dave, request
-web10-dev       → admin: charlie, open
+alice.close-friends → owner: you, invite only
+  members: bob, charlie, dave
+  [Add member] [Remove member] [Edit roles] [View audience]
 ```
 
-**Opt out all documents** — bulk remove every post you've attached to a group. Reversible.
-**Make everything private** — remove all groups from all your posts. One click.
+**Groups you belong to** — you can view membership, leave, or control sharing.
+```
+jazz-collectors → owner: dave, request
+  members: alice (you), dave, eve
+  [View members] [Block sharing] [Leave]
+```
+
+**Block sharing** — pause sharing without leaving. You stay a member. You still see their content. They can't see yours. Reversible.
+
+**Opt out all documents** — bulk remove every document you've attached to a group. Reversible.
+**Make everything private** — remove all groups from all your documents. One click.
+**Turn off all service contracts** — no website touches your data. Ever. Kill switch.
 
 ## The Write Flow
 
@@ -544,7 +533,7 @@ sequenceDiagram
 
 - **The CRUD pattern.** `/{user}/{service}` is still the API surface. The dev writes to it. The API routes to ClickHouse.
 - **The sovereignty story.** Service contracts control which apps access your data. Groups control which people see your content. The authenticator manages both — block sharing, opt out, privatize all, kill switch. The user controls their data.
-- **Groups as platform primitive.** One membership, infinite apps. Cross-app identity.
+- **Groups as platform primitive.** One membership, infinite apps. Cross-app identity. Owned audience.
 
 ## Summary
 
@@ -554,7 +543,7 @@ No mirrors. No sync. No double-write. No discovery index. No ledger. No FerretDB
 
 One CRUD endpoint. `?discover=true` for cross-user visibility. Service contracts control app access. Groups control people access. Both must pass.
 
-Groups are policy containers. They hold people, not data. One membership. Infinite apps. Follows are groups. The authenticator manages everything — block sharing, opt out, privatize all, kill switch.
+Groups are policy containers. They hold people, not data. One membership. Infinite apps. Follows are groups. The authenticator manages everything — block sharing, opt out, privatize all, kill switch. The group owner holds the audience.
 
 **Additional docs in this directory:**
 - `groups.md` — policy containers, join policies, moderation, blocking, authenticator

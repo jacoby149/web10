@@ -139,6 +139,47 @@ A private group. The creator is the only owner. Approved friends are members. Me
 
 **Private sharing is just a group.** No separate "private posts" service. No visibility booleans. If it's in the group, members see it. If it's not, they don't.
 
+## Example 4: Follow a Public Profile
+
+Following a public profile is a group join. The user's followers group uses `join_policy: "open"`, so the follow is instant — no approval needed. The follower is added as a `member` and can see posts the author attaches to that group.
+
+```json
+{
+  "group_id": "web10.app/groups/coolguydavid/followers",
+  "join_policy": "open",
+  "roles": [
+    {
+      "name": "owner",
+      "services": ["*"],
+      "permissions": [
+        "readAll", "create", "updateOwn", "updateAll",
+        "deleteOwn", "deleteAll", "hideAll",
+        "manageRoles", "assignRoles", "revokeRoles", "deleteGroup"
+      ]
+    },
+    {
+      "name": "member",
+      "services": ["posts"],
+      "permissions": [
+        "readAll"
+      ]
+    }
+  ]
+}
+```
+
+**How it works:**
+- `join_policy: "open"` = **instant follow**. Click follow → you are added as a `member` of `coolguydavid/followers`. No request. No approval.
+- The follower's `member` role only grants `readAll` on `posts` — they can see what the author shares, not post or modify.
+- The author posts by attaching content to the `followers` group. Members discover it via group membership.
+- Unfollow is just leaving the group. No approval needed.
+
+**Public vs private profile is the join policy.** The same group shape works for both:
+- `join_policy: "open"` → public profile. Anyone can follow instantly.
+- `join_policy: "request"` → private profile. Follow requires the author's approval (same shape as Example 3).
+
+**Follows are groups.** No follows table. No follows endpoint. One group membership, one set of roles, one permission model. The author controls the join policy. The follower gets `readAll` on posts. That's the entire follow mechanic.
+
 ## Group Collections
 
 Each group holds collections:

@@ -14,9 +14,9 @@ App Access
   [Kill all app access]
 
 Groups
-  jacoby149.public          [Manage]
-  jacoby149.close-friends   [Manage]
-  jazz-collectors            [Block sharing] [Leave]
+  web10.app/groups/jacoby149/public          [Manage]
+  web10.app/groups/jacoby149/close-friends   [Manage]
+  web10.app/groups/dave/jazz-collectors            [Block sharing] [Leave]
 
 Blocked Users
   spam-bot-123   [Unblock]
@@ -76,13 +76,13 @@ WHERE user_key = 'jacoby149' AND blocked_key = 'spammer';
 
 **Block sharing with a group:**
 ```sql
-INSERT INTO user_group_sharing VALUES ('jacoby149', 'jazz-collectors', 0, now(), now(), 0);
+INSERT INTO user_group_sharing VALUES ('jacoby149', 'web10.app/groups/dave/jazz-collectors', 0, now(), now(), 0);
 ```
 
 **Make everything private:** Bulk tombstone all doc_groups entries.
 ```sql
-INSERT INTO doc_groups (doc_id, group_id, permission, created_at, updated_at, deleted)
-SELECT pg.doc_id, pg.group_id, pg.permission, pg.created_at, now(), 1
+INSERT INTO doc_groups (doc_id, group_id, created_at, updated_at, deleted)
+SELECT pg.doc_id, pg.group_id, pg.created_at, now(), 1
 FROM doc_groups pg
 JOIN documents p ON pg.doc_id = p.doc_id
 WHERE p.author_key = 'jacoby149'
@@ -100,7 +100,7 @@ SELECT gm.group_id FROM group_members gm WHERE gm.member_key = 'jacoby149' AND g
 **Delete account:** Tombstone everything.
 ```sql
 -- Tombstone all posts
-INSERT INTO documents SELECT doc_id, author_key, collection_name, body, discoverable, tags, created_at, now(), 1 FROM documents WHERE author_key = 'jacoby149' AND deleted = 0;
+INSERT INTO documents SELECT doc_id, author_key, collection_name, body, tags, created_at, now(), 1 FROM documents WHERE author_key = 'jacoby149' AND deleted = 0;
 
 -- Tombstone all service contracts
 INSERT INTO service_contracts SELECT user_key, service_name, allowed_origin, created_at, now(), 1 FROM service_contracts WHERE user_key = 'jacoby149' AND deleted = 0;
@@ -127,11 +127,11 @@ Three queries. No joins. Clean.
 The per-group blacklist is managed from the group management screen, not settings. But it's worth noting:
 
 ```
-jazz-collectors → per-group blacklist: dave
-  → INSERT INTO group_blacklist ('jacoby149', 'jazz-collectors', 'dave', now())
+web10.app/groups/dave/jazz-collectors → per-group blacklist: dave
+  → INSERT INTO group_blacklist ('jacoby149', 'web10.app/groups/dave/jazz-collectors', 'dave', now())
   → dave is still a member
-  → dave sees everyone's posts in jazz-collectors
-  → dave does NOT see jacoby149's posts in jazz-collectors
+  → dave sees everyone's posts in web10.app/groups/dave/jazz-collectors
+  → dave does NOT see jacoby149's posts in web10.app/groups/dave/jazz-collectors
 ```
 
 ## TODO

@@ -9,8 +9,8 @@ You visit someone else's profile. You see what's visible to you — groups you s
          bio text here
 
 Public groups:
-[alice.public]     [open] — 50 posts
-[alice.followers]  [request] — "Follow" button
+[web10.app/groups/alice/public]     [open] — 50 posts
+[web10.app/groups/alice/followers]  [request] — "Follow" button
 
 Posts you can see:
 post 1 | 2h ago | [like] [comment]
@@ -29,8 +29,7 @@ GET /alice/profile
 ```
 SELECT gc.group_id, gc.name, gc.join_policy
 FROM group_contracts gc
-WHERE gc.admin_key = 'alice'
-  AND gc.deleted = 0
+WHERE gc.deleted = 0
   AND (gc.join_policy = 'open'
        OR EXISTS (
          SELECT 1 FROM group_members gm
@@ -40,10 +39,10 @@ WHERE gc.admin_key = 'alice'
        ));
 ```
 
-**"Follow" button:** Check if you're in `alice.followers`.
+**"Follow" button:** Check if you're in `web10.app/groups/alice/followers`.
 ```
 SELECT 1 FROM group_members
-WHERE group_id = 'alice.followers'
+WHERE group_id = 'web10.app/groups/alice/followers'
   AND member_key = 'jacoby149'
   AND deleted = 0;
 ```
@@ -54,7 +53,7 @@ No row → show "Follow". Row exists → show "Following" + "Unfollow".
 GET /alice/posts?discover=true
 → ClickHouse: posts WHERE author=alice AND post in groups jacoby149 belongs to
 ```
-If you're only in `alice.public`, you see posts attached to `alice.public`. If you're also in `alice.close-friends`, you see those too. The groups control visibility.
+If you're only in `web10.app/groups/alice/public`, you see posts attached to `web10.app/groups/alice/public`. If you're also in `web10.app/groups/alice/close-friends`, you see those too. The groups control visibility.
 
 **Post counts per group:**
 ```
@@ -84,12 +83,12 @@ Same four-call pattern. The groups filter what's visible. No special permissions
 
 ```
 User taps "Follow" on alice's profile
-  → POST /groups/alice.followers/join-requests
-     { "requester": "jacoby149", "status": "pending" }
-  → INSERT INTO group_join_requests
-  → alice gets a notification
-  → alice approves → INSERT INTO group_members
-  → jacoby149 can now see posts in alice.followers
+   → POST /groups/web10.app/groups/alice/followers/join-requests
+      { "requester": "jacoby149", "status": "pending" }
+   → INSERT INTO group_join_requests
+   → alice gets a notification
+   → alice approves → INSERT INTO group_members
+   → jacoby149 can now see posts in web10.app/groups/alice/followers
 ```
 
 No follows table. Group join request + group membership. Done.

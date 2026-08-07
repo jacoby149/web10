@@ -1,14 +1,8 @@
-# Layered Permissions: Collection Ceiling, Post-Level Narrowing
+# Layered Permissions: Replaced by Groups
 
-## The Model
+## What v2 Had
 
-The collection is the ceiling. The post can only narrow, never widen. The strictest permission wins.
-
-This is the Unix file permission model: directory permission is the ceiling, file permission can only narrow. The user's privacy panel manages collections. Individual posts can only be more private.
-
-## How It Works
-
-Each collection has a default visibility set by the user's privacy panel. Each post inherits that default. The post can override to be stricter — never less strict.
+v2 used a collection ceiling model. Each collection had a default visibility set by the user's privacy panel. Individual posts could only narrow that visibility — never widen it. The strictest permission won.
 
 ```
 Collection: public_posts (whitelist: ".*") → anyone can read
@@ -18,141 +12,71 @@ Result: followers-only (stricter wins)
 Collection: private_posts (whitelist: []) → owner only
 Post-level: visibility = "public" → IGNORED
 Result: owner-only (collection ceiling)
-
-Collection: group-posts (whitelist: group members)
-Post-level: visibility = "followers" → only followers who are also members
-Result: intersection (stricter wins)
 ```
 
-## The ClickHouse Schema
+This was the Unix file permission model: directory permission is the ceiling, file permission can only narrow. It was conceptually clean but operationally complex — term records with whitelists, blacklists, regex matching, per-action permissions. It was the source of most bugs in v2.
 
-```sql
-CREATE TABLE posts (
-    post_id String,
-    author_key String,
-    collection_name String,  -- 'public_posts', 'private_posts', 'group-posts'
-    body String,             -- JSON: full post content
-    visibility String,       -- post-level: 'public', 'private', 'followers', 'group'
-    visibility_scope String, -- group_id, if group
-    tags Array(String),
-    created_at DateTime64(3),
-    updated_at DateTime64(3),
-    deleted UInt8 DEFAULT 0
-) ENGINE = ReplacingMergeTree(updated_at)
-ORDER BY (author_key, post_id);
+## What v3 Does
 
--- Collection-level permissions (the ceiling)
-CREATE TABLE collection_permissions (
-    author_key String,
-    collection_name String,
-    visibility String,       -- 'public', 'private', 'followers', 'group'
-    visibility_scope String, -- group_id, if group
-    whitelist String,        -- JSON: who can access this collection
-    blacklist String,        -- JSON: who is blocked
-    updated_at DateTime64(3),
-    deleted UInt8 DEFAULT 0
-) ENGINE = ReplacingMergeTree(updated_at)
-ORDER BY (author_key, collection_name);
-```
+Groups replace the collection ceiling entirely. There is no `visibility` column. No `collection_permissions` table. No post-level narrowing. No ceiling. Just groups.
 
-When a post is created, it inherits the collection's visibility. The dev can narrow it:
+**A post is visible to whoever is in the groups it's attached to.**
 
 ```ts
-// Inherits collection default (public_posts → public)
-await createPost({ text: "hello world", collection: "public_posts" });
+// Public — attached to the discover group (open, auto-enrolled, anon is a member)
+await createDocument({
+  text: "hello world",
+  groups: ["web10/discover"]
+});
 
-// Narrows to followers-only (collection allows it, post is stricter)
-await createPost({ text: "behind the scenes", collection: "public_posts", visibility: "followers" });
+// Private — no groups
+await createDocument({
+  text: "secret"
+});
 
-// Tries to widen (private_posts → public) — REJECTED
-await createPost({ text: "going viral", collection: "private_posts", visibility: "public" });
-// API rejects: post visibility "public" exceeds collection ceiling "private"
+// Followers-only — attached to the followers group
+await createDocument({
+  text: "behind the scenes",
+  groups: ["alice.followers"]
+});
+
+// Multiple groups — visible to members of either
+await createDocument({
+  text: "team update",
+   groups: ["alice.followers", "charlie/st-louis-chess-club"]
+});
 ```
 
-## The Privacy Panel
+The discover group is the public surface. Open join policy. Auto-enrolled on signup. Anon is a member. Posts attached to it are public. Posts not attached to it are private.
 
-The user's UI shows collections and their default permissions. This is the primary way to manage data privacy:
+The followers group controls the followers-only surface. Join policy determines if it's public (open) or private (request). Members see posts attached to it.
 
-```
-alice/
-  public_posts/    → visibility: public (whitelist: ".*")
-  private_posts/   → visibility: private (whitelist: [])
-  group-posts/     → visibility: group (group: "web10-dev")
-  followers-posts/ → visibility: followers
-```
+**The role model replaces the ceiling.** Each group defines roles with service-scoped permissions. A follower gets `readAll` on posts. A member gets `readAll`, `create`, `updateOwn`, `deleteOwn`. An owner gets everything. The role defines what you can do. The group defines who can see.
 
-The user manages these at the collection level. 99% of posts inherit the collection default. The per-record `visibility` column handles the 1% exception.
+## Why Groups Are Simpler
 
-Posts that deviate from the collection default are shown in the data viewer as exceptions. The user can see them, understand them, and restore them to the collection default.
+| v2 (Collection Ceiling) | v3 (Groups) |
+|---|---|
+| Term records with whitelists/blacklists | Group membership |
+| `visibility` column per post | Groups array per post |
+| Collection-level ceiling + post-level narrowing | One permission model: roles |
+| Regex matching on whitelists | Exact group membership check |
+| Two checks must pass (collection + post) | One check: group membership |
+| Privacy panel manages collections | Authenticator manages groups |
 
-## The Query: Both Checks Must Pass
-
-Every discover query enforces both layers:
-
-```sql
-SELECT p.post_id, p.author_key, p.body, p.tags, p.created_at
-FROM posts p
-JOIN collection_permissions cp
-  ON p.author_key = cp.author_key AND p.collection_name = cp.collection_name
-WHERE p.deleted = 0
-  AND cp.deleted = 0
-  -- Collection-level check (the ceiling)
-  AND collection_visible_to(cp, 'alice')
-  -- Post-level check (stricter, can only narrow)
-  AND post_visible_to(p, 'alice')
-ORDER BY p.created_at DESC
-LIMIT 50;
-```
-
-The `collection_visible_to()` function checks if the collection allows the user. The `post_visible_to()` function checks if the post allows the user. Both must return true. The strictest permission is always enforced.
-
-## The Validation: API Enforces the Ceiling
-
-When a post is created, the API checks that the post-level visibility doesn't exceed the collection ceiling:
-
-```python
-def create_post(author, collection, body, visibility=None):
-    # Get the collection's default visibility
-    collection_perm = get_collection_permission(author, collection)
-
-    # Use collection default if no post-level visibility specified
-    effective_visibility = visibility or collection_perm.visibility
-
-    # Enforce the ceiling: post can only be stricter
-    if is_wider(effective_visibility, collection_perm.visibility):
-        raise PermissionError(
-            f"Post visibility '{effective_visibility}' exceeds "
-            f"collection ceiling '{collection_perm.visibility}'"
-        )
-
-    # Insert the post with the effective visibility
-    clickhouse.execute("""
-        INSERT INTO posts VALUES (%s, %s, %s, %s, %s, %s, %s, now(), now(), 0)
-    """, (str(uuid4()), author, collection, json.dumps(body),
-          effective_visibility, '', body.get('tags', []), ))
-```
-
-The `is_wider()` function compares visibility levels:
-
-```
-public > followers > group > private
-```
-
-A post in a `followers` collection can be `followers` or `private`. It cannot be `public`.
+The ceiling model required two checks at query time: collection visible AND post visible. Groups require one: is the requester a member of a group the post is attached to?
 
 ## The Sovereignty Story
 
-The user's privacy panel is the source of truth for their data. Collections set the default. Posts can only narrow. The user manages the 99% at collection level. The per-record column handles the 1% exception.
+The user's authenticator is the source of truth for their data. Groups set the default. The author attaches to groups. The user manages groups at the authenticator level. Block sharing, opt out, privatize all, kill switch.
 
-This is the WordPress for YouTube vibe. The user manages privacy like file permissions. The directory is the ceiling. The file can only be more private. The strictest permission wins.
-
-The data viewer shows posts that deviate from the collection default. The user can understand them and restore them. The system is transparent. The user is in control.
+The data viewer shows which groups each post is attached to. The user can add or remove group attachments. The system is transparent. The user is in control.
 
 ## Summary
 
-- **Collection is the ceiling.** The user's privacy panel manages collections.
-- **Post can only narrow.** Individual posts can be more private, never less.
-- **Strictest wins.** Both collection and post checks must pass.
-- **API enforces it.** The API rejects posts that exceed the collection ceiling.
-- **99% collection, 1% post.** Most posts inherit the default. Exceptions are rare.
-- **Transparent.** The data viewer shows deviations. The user understands and controls.
+- **No collection ceiling.** Groups replace it.
+- **No visibility column.** Groups replace it.
+- **No term records.** Groups replace them.
+- **One permission model.** Roles define access. Groups define membership.
+- **One check at query time.** Group membership.
+- **Transparent.** The authenticator shows groups. The author controls attachments.

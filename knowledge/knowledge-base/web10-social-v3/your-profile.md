@@ -11,9 +11,9 @@ You visit your own profile. You see your avatar, bio, groups, and posts.
 Groups:    Posts:    Followers:
 3          42        1,203
 
-[jacoby149.public]     [open]
-[jacoby149.close-friends] [invite only]
-[jazz-collectors]        [request]
+[web10.app/groups/jacoby149/public]     [open]
+[web10.app/groups/jacoby149/close-friends] [invite only]
+[web10.app/groups/dave/jazz-collectors]        [request]
 
 --- posts ---
 post 1 | 2h ago | [like] [comment]
@@ -32,20 +32,25 @@ API converts minio to presigned URL. One CRUD call.
 **Groups you belong to:** Group membership query.
 ```
 GET /groups?member=jacoby149
-→ [jacoby1449.public, jacoby149.close-friends, jazz-collectors]
+→ [web10.app/groups/jacoby149/public, web10.app/groups/jacoby149/close-friends, web10.app/groups/dave/jazz-collectors]
 ```
 For each group, fetch metadata from `group_contracts`.
 
-**Groups you admin:** Filter by admin key.
+**Groups you admin:** Filter by owner role.
 ```
-SELECT group_id, name, join_policy FROM group_contracts
-WHERE admin_key = 'jacoby149' AND deleted = 0;
+SELECT gm.group_id, gc.name, gc.join_policy
+FROM group_members gm
+JOIN group_contracts gc ON gm.group_id = gc.group_id
+WHERE gm.member_key = 'jacoby149'
+  AND gm.role = 'owner'
+  AND gm.deleted = 0
+  AND gc.deleted = 0;
 ```
 
 **Follower count:** Group membership count.
 ```
 SELECT count() FROM group_members
-WHERE group_id = 'jacoby149.followers' AND deleted = 0;
+WHERE group_id = 'web10.app/groups/jacoby149/followers' AND deleted = 0;
 ```
 
 **Your posts:** CRUD discover.

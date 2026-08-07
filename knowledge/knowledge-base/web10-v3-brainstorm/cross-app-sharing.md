@@ -16,9 +16,7 @@ The browser enforces this. A site without a service contract can't touch your da
 **Group contract** — which people can see which content. Sharing. People-level.
 
 ```
-alice.inbox → admin: alice, open join
-alice.close-friends → admin: alice, invite only
-web10-dev → admin: charlie, open join
+web10.app/groups/jacoby149/jazz-collectors → members: alice, dave, eve
 ```
 
 Both must pass. The app needs a service contract to make the call. The groups decide what's visible.
@@ -29,11 +27,11 @@ The elegant flip: mail lives in the **sender's** collection, not the receiver's.
 
 ```
 Bob's outbox:
-  post-1 → groups: ["alice.inbox"]
+  post-1 → groups: ["web10.app/groups/alice/inbox"]
 
 Alice discovers:
   SELECT * FROM documents
-  WHERE group_id = 'alice.inbox'
+  WHERE group_id = 'web10.app/groups/alice/inbox'
   → post-1 (bob's mail)
 ```
 
@@ -41,9 +39,9 @@ Bob owns his mail. Alice owns her inbox group. The group is the bridge.
 
 **How it works:**
 
-1. Alice creates `alice.inbox` group (open join — anyone can send)
+1. Alice creates `web10.app/groups/alice/inbox` group (open join — anyone can send)
 2. Bob writes a mail in his `outbox` collection
-3. Bob attaches the mail to `alice.inbox` group
+3. Bob attaches the mail to `web10.app/groups/alice/inbox` group
 4. Alice discovers the mail via group membership check
 
 **Why it's better:**
@@ -75,7 +73,7 @@ Sender deletion is the default. Bob deletes his mail, Alice's view vanishes. But
 
 ```
 Bob's outbox:
-  post-1 → groups: ["alice.inbox"]
+  post-1 → groups: ["web10.app/groups/alice/inbox"]
 
 Alice's saved_mail:
   saved-1 → body: { "from": "bob", "text": "hi", "original_doc_id": "post-1" }
@@ -99,11 +97,11 @@ The service contract lets the notes app read/write. No groups means no one else 
 Two people. Private.
 
 ```
-alice-and-bob → admin: alice, members: alice, bob
+web10.app/groups/jacoby149/alice-and-bob → members: alice, bob
 ```
 
-Alice's message → attached to `alice-and-bob` → Bob sees it via group membership.
-Bob's message → attached to `alice-and-bob` → Alice sees it via group membership.
+Alice's message → attached to `web10.app/groups/jacoby149/alice-and-bob` → Bob sees it via group membership.
+Bob's message → attached to `web10.app/groups/jacoby149/alice-and-bob` → Alice sees it via group membership.
 
 Each message lives in the sender's collection. The group is the bridge. Both can discover via the group.
 
@@ -112,13 +110,13 @@ Each message lives in the sender's collection. The group is the bridge. Both can
 Open. Anyone can participate. Comments are documents with a `ref` to the parent post.
 
 ```
-post-123-comments → admin: alice, open join
+web10.app/groups/jacoby149/post-123-comments → owner: jacoby149, request [Leave]
 ```
 
 Alice's post → no groups (private by default).
 
-Bob's comment → a post in `bob.comments` with `ref: "post-123"`, attached to `post-123-comments` group.
-Charlie's reply → a post in `charlie.comments` with `ref: "post-123"` and `parent_ref: "bob-comment-xyz"`, attached to `post-123-comments` group.
+Bob's comment → a post in `bob.comments` with `ref: "post-123"`, attached to `web10.app/groups/jacoby149/post-123-comments` group.
+Charlie's reply → a post in `charlie.comments` with `ref: "post-123"` and `parent_ref: "bob-comment-xyz"`, attached to `web10.app/groups/jacoby149/post-123-comments` group.
 
 Alice discovers all comments via the group. The `ref` in the JSON body links back to the parent. The `parent_ref` enables threading. No dedicated comments table — just documents with refs.
 
@@ -150,14 +148,14 @@ service:mail → allowed: mailapp.com [Revoke]
 
 **Groups you administer** — who can send you content.
 ```
-alice.inbox → open join [Block sharing] [Leave]
-alice.close-friends → invite only [Add member] [Remove member]
+web10.app/groups/alice/inbox → open join [Block sharing] [Leave]
+web10.app/groups/alice/close-friends → invite only [Add member] [Remove member]
 ```
 
 **Groups you belong to** — what you can see.
 ```
-web10-dev → admin: charlie, open join [Block sharing] [Leave]
-post-123-comments → admin: alice, request [Leave]
+web10.app/groups/charlie/st-louis-chess-club → owner: charlie, open join [Block sharing] [Leave]
+web10.app/groups/jacoby149/post-123-comments → owner: jacoby149, request [Leave]
 ```
 
 **Block sharing** — pause sharing without leaving. You stay a member. You still see their posts. They can't see yours. Reversible.
@@ -172,7 +170,7 @@ No Gmail mailing list limits. A group can have 100k members. ClickHouse filters 
 
 ```
 alice.inbox → 50k senders
-web10-dev → 100k members
+charlie/st-louis-chess-club → 100k members
 jazz-collectors → 500k members
 ```
 

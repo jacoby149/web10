@@ -1,4 +1,4 @@
-# Personal Data vs Discoverable Data
+# Personal Data vs Discoverable Data: Resolved by Groups
 
 ## Two Kinds of Data, Two Kinds of Needs
 
@@ -8,97 +8,118 @@ web10 has to serve two fundamentally different needs:
 
 **Discoverable data** — the public surface. A trending feed, engagement counts, follower counts, search results, suggested accounts. This is the growth story. An influencer needs people to find them. A platform needs content to surface.
 
-In v2, these are built as separate systems that happen to overlap. The overlap is where everything breaks.
+In v2, these were built as separate systems that happened to overlap. The overlap is where everything broke.
 
-## Personal Data — The User Collection
+## v2: Two Surfaces, One Sync Problem
 
-Every user gets a collection. Everything they own lives there. Service terms control access. The CRUD endpoints are the gate.
+**Personal data** lived in the user's collection. Service terms controlled access. The CRUD endpoints were the gate.
 
 ```
 alice/
-  ├── star record (*)          — identity, verification, credits
-  ├── services                 — contracts for each service
   ├── public_posts             — public posts (anon-read whitelisted)
   ├── private_posts            — private posts (owner-only)
-  ├── staging_posts            — drafts (owner-only)
-  ├── inbox                    — delivered content (fan-out writes)
-  ├── follows                  — who alice follows
   ├── reactions                — alice's reactions
   ├── comments                 — alice's comments
-  ├── dms                      — direct messages
-  ├── media                    — private media metadata
-  └── public_media             — public media metadata
+  └── follows                  — who alice follows
 ```
 
-This works perfectly for ownership. Alice controls every record. She can change the terms. She can export and leave. The platform can't touch her data without a contract.
-
-**The problem:** nothing is discoverable by default. Every collection is a walled garden. To find Alice's content, you need to know her username, hit her CRUD endpoint, and hope her contract allows it. That's fine for DMs, terrible for a trending feed.
-
-## Discoverable Data — The System Collections
-
-To make content findable, v2 added system collections — cross-user surfaces that live outside any single user's control:
+**Discoverable data** lived in system collections — cross-user surfaces outside any single user's control:
 
 ```
 web10/
   ├── discovery_posts          — public post index (text, tags, media refs)
   ├── public                   — structured interactions (reactions, comments, follows)
-  ├── schemas                  — JSON schema registry
-  ├── apps                     — app store registrations
   └── metering_events          — per-request metering
 ```
 
-The discovery index is a **projection** — a subset of each user's public posts, stripped down to what's needed for display (text, tags, author, created_at). Engagement counts are derived at read time from the public ledger.
+The discovery index was a **projection** — a subset of each user's public posts. The public ledger was a **mirror** — every reaction, comment, and follow got copied here. The client was responsible for keeping them in sync. The sync broke.
 
-The public ledger is a **mirror** — every reaction, comment, and follow gets copied here so it can be read by anyone, including anon.
+**The tension:** the user must own their data, but the system must be able to project it. In v2, the compromise was "the system projects from the user's data via server-side hooks." That worked for posts. It didn't work for reactions, comments, and follows — those still needed the client to write the ledger mirror.
 
-**The problem:** these are separate data surfaces that the client is responsible for keeping in sync. The double-write problem exists because personal data and discoverable data live in different places and the client has to write to both.
+## v3: One Surface, Groups Marry the Two
 
-## The Tension
+v3 eliminates the tension. One table. Groups handle both personal ownership and cross-user discovery.
 
-| | Personal Data | Discoverable Data |
-|---|---|---|
-| **Owner** | The user | The system |
-| **Access** | Contract-gated | Public (anon-read) |
-| **Write** | CRUD endpoint | Projection hooks + ledger mirrors |
-| **Read** | `PATCH /{user}/{service}` | `PATCH /discover/*`, `PATCH /public/entries` |
-| **Sync** | Source of truth | Derived, must stay current |
-| **Delete** | User deletes, gone | Projection must be cleaned up |
+**Personal data** is a post with no groups. Only the author sees it. The author owns it.
 
-The tension is: **the user must own their data, but the system must be able to project it.**
-
-In v2, the compromise is "the system projects from the user's data via server-side hooks." That works for posts (discovery index). It doesn't work for reactions, comments, and follows — those still need the client to write the ledger mirror.
-
-## Why It's Like This
-
-The public ledger exists because of invariant I3: you can't read another user's collection directly for engagement counts. If Alice wants to know how many people reacted to her post, the system can't aggregate across every user's `reactions` collection — that would be a cross-collection read. So reactions must be written to a shared surface the system can query.
-
-The discovery index exists for the same reason: a trending feed can't scan every user's `public_posts` collection. It needs a single index to sort and paginate.
-
-Both are necessary. But both create a sync problem when the client is responsible for the mirror.
-
-## What v3 Should Do
-
-Marry the two together. Not merge them — keep personal data personal, keep discoverable data public — but make the projection automatic and server-side for everything, not just posts.
-
-**The principle:** every CRUD write that should be discoverable triggers a server-side projection. The client never writes to a system collection directly. The client writes to their own collection. The server handles the rest.
-
-```
-Client → POST /alice/reactions → Server
-                                  → CRUD write (source of truth)
-                                  → server-side hook: mirror to web10.public
-                                  → engagement count updated
+```ts
+await createDocument({ text: "private note" });  // no groups → private
 ```
 
-Same for comments. Same for follows. Same for everything that needs to be public.
+**Discoverable data** is a post attached to groups. Members see it. The discover group makes it public.
 
-**The result:** one client call. One source of truth. The projection is a server-side guarantee, not a client-side hope. The personal data stays personal. The discoverable data stays discoverable. They're married by the hook, not by the client.
+```ts
+await createDocument({
+  text: "hello world",
+  groups: ["web10/discover"]  // public
+});
+```
 
-## The Deeper Question
+The discover group is an open group with auto-enrollment on signup, including the anon user. Posts attached to it are discoverable by anyone. Posts not attached to it are private.
 
-There's a deeper architectural question underneath this: **should the system collections even exist?**
+**The projection is automatic.** ClickHouse queries the documents table. Group membership filters at query time. No mirror. No sync. No double-write.
 
-The discovery index and public ledger are projections because the database model (one collection per user) makes cross-user queries impossible. But what if the data model supported both personal ownership and cross-user discovery natively?
+```sql
+SELECT p.doc_id, p.author_key, p.body, p.tags, p.created_at
+FROM documents p
+JOIN doc_groups pg ON p.doc_id = pg.doc_id
+JOIN group_members gm ON pg.group_id = gm.group_id
+WHERE p.deleted = 0
+  AND gm.member_key = 'alice'
+  AND gm.deleted = 0
+ORDER BY p.created_at DESC
+LIMIT 50;
+```
 
-That's a v3 question. The v2 answer is "server-side hooks." The v3 answer might be "a data model that doesn't require two surfaces."
+Alice sees every post attached to a group she belongs to. No visibility column. No collection ceiling. No discovery index. No public ledger. Just group membership.
 
-Until then, the hooks are the bridge. Make them comprehensive, make them reliable, and make the client never think about sync again.
+## The Double-Write Problem: Gone
+
+v2's double-write problem existed because personal data and discoverable data lived in different places. The client had to write to both. The mirror was fire-and-forget. If it failed, the data was silently out of sync.
+
+v3 eliminates it. One insert. One table. The API writes the document and the doc_groups attachment. ClickHouse queries it. No mirror. No sync. No double-write.
+
+```
+Client → POST /alice/posts → API
+                               → INSERT INTO documents (alice's post)
+                               → INSERT INTO doc_groups (group attachment)
+                               → done
+```
+
+One client call. One source of truth. The projection is a query, not a mirror.
+
+## Engagement: Queries, Not Mirrors
+
+v2 needed the public ledger because MongoDB couldn't aggregate across users. Reactions, comments, and follows had to be mirrored to a shared surface.
+
+v3 uses ClickHouse. Cross-user queries are native. Engagement is a query, not a mirror.
+
+```sql
+-- Reaction count for post-123
+SELECT count() FROM documents
+WHERE deleted = 0
+  AND collection_name = 'reactions'
+  AND hasToken(body, 'post-123');
+
+-- Comments for post-123
+SELECT doc_id, author_key, body, created_at
+FROM documents
+WHERE deleted = 0
+  AND collection_name = 'comments'
+  AND hasToken(body, 'post-123')
+ORDER BY created_at ASC;
+```
+
+No ledger. No mirror. Just documents with `ref` types. ClickHouse aggregates them.
+
+## The Sovereignty Story
+
+The user owns their data. Posts are in their collection. Groups define who sees them. The user controls group attachments. The authenticator manages groups — block sharing, opt out, privatize all, kill switch.
+
+The user can export their data. They can delete their posts. They can take their data with them. The platform can't touch their data without a service contract.
+
+The discover group is opt-in. The author attaches to it. The author can remove it. The post becomes private. The user is in control.
+
+## Summary
+
+v2 had two surfaces: personal collections and system mirrors. The sync broke. v3 has one surface: the documents table. Groups marry personal ownership and cross-user discovery. No mirrors. No sync. No double-write. The user owns their data. Groups define who sees it. ClickHouse queries it. One insert. One table. One permission model.

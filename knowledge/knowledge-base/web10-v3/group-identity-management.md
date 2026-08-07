@@ -2,7 +2,7 @@
 
 ## The Model
 
-A group is a collection of web10 users operating on data services. Roles define access, scoped to exactly which services they apply to. One group. No parent-child chains.
+A group is a collection of web10 users operating on data services. Roles define access, scoped to exactly which services they apply to. One group. No parent-child chains. Multiple roles per user — a user can hold different roles for different services in the same group.
 
 ```
 Group contract (one record):
@@ -15,7 +15,7 @@ Roles are service-scoped:
   member → posts, comments
 ```
 
-**Service-scoped roles.** Each role lists the services it applies to. A `page-curator` can only touch the identity service. A `moderator` can only touch posts and comments. The model scales infinitely without creating more groups.
+**Service-scoped roles.** Each role lists the services it applies to and the explicit permissions it grants. A `page-curator` can only touch the identity service. A `moderator` can only touch posts and comments. A follower `member` only gets `readAll` on posts — no create, no update, no delete. The model scales infinitely without creating more groups.
 
 ## Group Permissions
 
@@ -30,11 +30,29 @@ Each role defines explicit permissions scoped to its services. Permissions are c
 - `assignRoles` / `revokeRoles` — manage user roles
 - `deleteGroup` — destroy the group
 
-`updateAll` and `deleteAll` are reserved for v2 collaboration. v1 is self-focused: you only touch your own stuff unless explicitly granted otherwise.
+`updateAll` and `deleteAll` are reserved for collaboration. Default is self-focused: you only touch your own stuff unless explicitly granted otherwise.
+
+**Role examples:**
+- **Owner** — `["*"]` services, all permissions including `manageRoles`, `assignRoles`, `revokeRoles`, `deleteGroup`
+- **Moderator** — `["posts", "comments"]`, `readAll`, `create`, `updateOwn`, `deleteOwn`, `hideAll`, `assignRoles`, `revokeRoles`
+- **Page Curator** — `["group-identity-service"]`, `readAll`, `create`, `updateOwn`, `deleteOwn`
+- **Member** — `["posts", "comments"]`, `readAll`, `create`, `updateOwn`, `deleteOwn`
+- **Follower** — `["posts"]`, `readAll` only (no create, no update, no delete)
 
 ## Group Profile
 
 The `group-identity-service` holds the group's profile — banner, name, website, avatar. Append-only. Curators add records, they don't overwrite. Members see the most recent. No accidental overwrites.
+
+## Group Collections
+
+Each group holds collections:
+- `group-settings-service` — config, permissions
+- `group-identity-service` — group banner, name, website, avatar (append-only)
+- `posts` — group posts
+- `comments` — group comments
+- Whatever else the group needs
+
+The group can hold any number of collections. Roles are scoped to exactly which ones they can touch.
 
 ## Group URLs
 
@@ -69,7 +87,7 @@ await createDocument({
   service: "posts",
   body: { text: "Check out this jazz record", groups: ["web10.app/groups/jacoby149/abacus-enthusiasts"] }
 });
-// Lives in Alice's collection. Visible to group members.
+// Lives in Alice's collection. Visible to group members with readAll on posts.
 
 // Bob discovers Alice's post
 const posts = await discover({ group: "web10.app/groups/jacoby149/abacus-enthusiasts" });
@@ -99,4 +117,4 @@ One insert. Zero fan-out. Groups are discovery, not containers.
 
 ## Summary
 
-Groups are collections of users operating on data services. The contract holds service-scoped roles and permissions. One group. Roles define access per service. Content lives with the author. Groups define discovery. One insert. Zero fan-out.
+Groups are collections of users operating on data services. The contract holds service-scoped roles and explicit permissions. One group. Multiple roles per user. Roles define access per service. Content lives with the author. Groups define discovery. One insert. Zero fan-out.

@@ -9,7 +9,7 @@ Every update or delete is an insert. A tombstone row with `deleted = 1` and a hi
 **Update a post:**
 ```sql
 INSERT INTO documents VALUES (
-    'post-1', 'alice', 'posts', '{"text": "updated"}', 1, [],
+    'post-1', 'alice', 'posts', '{"text": "updated"}', [],
     '2026-01-01 00:00:00.000', '2026-01-02 00:00:00.000', 0
 );
 ```
@@ -18,16 +18,16 @@ ReplacingMergeTree keeps the row with the highest `updated_at`. Old version is g
 **Delete a post:**
 ```sql
 INSERT INTO documents VALUES (
-    'post-1', 'alice', 'posts', '{"text": "original"}', 1, [],
+    'post-1', 'alice', 'posts', '{"text": "original"}', [],
     '2026-01-01 00:00:00.000', '2026-01-03 00:00:00.000', 1
 );
 ```
 Tombstone stays. Query filters `WHERE deleted = 0`. TTL physically removes it.
 
-**Revoke a post_group attachment:**
+**Revoke a doc_group attachment:**
 ```sql
 INSERT INTO doc_groups VALUES (
-    'post-1', 'alice.close-friends', 'read',
+    'post-1', 'web10.app/groups/alice/close-friends',
     '2026-01-01 00:00:00.000', '2026-01-03 00:00:00.000', 1
 );
 ```

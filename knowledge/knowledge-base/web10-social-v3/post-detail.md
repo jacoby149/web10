@@ -5,7 +5,7 @@ Single post view. Content, reactions, comments, share options.
 ## What the Screen Shows
 
 ```
-jacoby149 · 2h ago · [web10-dev]
+jacoby149 · 2h ago · [web10.app/groups/charlie/st-louis-chess-club]
 ─────────────────────
 "just shipped the new groups feature"
 
@@ -113,9 +113,9 @@ User taps ❤️
   → POST /jacoby149/reactions
      { "ref": {"type": "ref", "value": "{doc_id}"},
        "reaction_type": {"type": "text", "value": "like"},
-       "groups": ["web10-dev"] }
-  → API: INSERT INTO documents (jacoby149's collection)
-  → API: INSERT INTO doc_groups (web10-dev, so others can see your reaction)
+       "groups": ["web10.app/groups/charlie/st-louis-chess-club"] }
+   → API: INSERT INTO documents (jacoby149's collection)
+   → API: INSERT INTO doc_groups (web10.app/groups/charlie/st-louis-chess-club, so others can see your reaction)
 ```
 
 The reaction is a post. It lives in your collection. It's attached to the same group as the original post so group members can see it.
@@ -127,7 +127,7 @@ User types comment, taps send
   → POST /jacoby149/comments
      { "ref": {"type": "ref", "value": "{doc_id}"},
        "text": {"type": "text", "value": "this is fire"},
-       "groups": ["web10-dev"] }
+       "groups": ["web10.app/groups/charlie/st-louis-chess-club"] }
   → API: INSERT INTO documents
   → API: INSERT INTO doc_groups
 ```

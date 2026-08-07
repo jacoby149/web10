@@ -10,7 +10,7 @@ Notifications
 alice liked your post · 2m ago
 bob commented on your post · 15m ago
 charlie requested to follow · 1h ago
-dave joined jazz-collectors · 3h ago
+dave joined web10.app/groups/dave/jazz-collectors · 3h ago
 ```
 
 ## Protocol Mapping
@@ -56,9 +56,11 @@ WHERE c.deleted = 0
 ```sql
 SELECT gjr.requester_key, gjr.group_id, gjr.requested_at
 FROM group_join_requests gjr
-JOIN group_contracts gc ON gjr.group_id = gc.group_id
 WHERE gjr.status = 'pending'
-  AND gc.admin_key = 'jacoby149'
+  AND gjr.group_id IN (
+    SELECT group_id FROM group_members
+    WHERE member_key = 'jacoby149' AND role = 'owner' AND deleted = 0
+  )
   AND gjr.created_at > now() - INTERVAL 1 HOUR;
 ```
 
@@ -67,8 +69,8 @@ WHERE gjr.status = 'pending'
 SELECT gm.member_key, gm.group_id, gm.joined_at
 FROM group_members gm
 WHERE gm.group_id IN (
-  SELECT group_id FROM group_contracts
-  WHERE admin_key = 'jacoby149' AND deleted = 0
+  SELECT group_id FROM group_members
+  WHERE member_key = 'jacoby149' AND role = 'owner' AND deleted = 0
 )
 AND gm.joined_at > now() - INTERVAL 1 HOUR;
 ```
@@ -88,11 +90,11 @@ Bob reacts to jacoby149's post
 
 **On every join request:**
 ```
-Bob requests to join jacoby149.followers
-  → API writes to group_join_requests
-  → API: who is the admin? (read group_contracts)
-  → API: push notification to jacoby149 via WebSocket
-     { "type": "follow_request", "from": "bob", "group_id": "jacoby149.followers" }
+Bob requests to join web10.app/groups/jacoby149/followers
+   → API writes to group_join_requests
+   → API: who is the owner? (read group_members with role='owner')
+   → API: push notification to jacoby149 via WebSocket
+      { "type": "follow_request", "from": "bob", "group_id": "web10.app/groups/jacoby149/followers" }
 ```
 
 The API knows about the write. It pushes the notification. No polling. No background job.

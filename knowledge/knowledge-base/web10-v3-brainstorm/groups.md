@@ -77,7 +77,7 @@ A post can belong to multiple groups:
 ```ts
 await createDocument({
   text: "team update",
-  groups: ["alice.close-friends", "web10-dev"]
+   groups: ["alice.close-friends", "charlie/st-louis-chess-club"]
 });
 ```
 
@@ -227,7 +227,7 @@ No Gmail mailing list limits. A group can have 100k members. ClickHouse filters 
 
 ```
 alice.followers → 50k members
-web10-dev → 100k members
+charlie/st-louis-chess-club → 100k members
 jazz-collectors → 500k members
 ```
 

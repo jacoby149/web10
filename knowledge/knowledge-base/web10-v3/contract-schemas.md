@@ -3,7 +3,7 @@
 Two concerns. Two contracts.
 
 1.  **Service Contracts (App Trust):** "Do we want to spin up these data buckets for this app?" Binary infrastructure toggle.
-2.  **Group Contracts (People Access):** "Who do we want this data to reach?" Granular social policy.
+2.  **Group Contracts (People Access):** "Who do we want this data to reach?" Granular social policy with service-scoped roles.
 
 ## Service Contracts
 
@@ -69,7 +69,7 @@ Blocked apps simply have no row. No row = denied.
 
 ## Group Contracts
 
-Group membership, roles, join policy. The contract is people + policy only. Roles are service-scoped.
+Group membership, roles, join policy. The contract is people + policy only. Roles are service-scoped — each role lists the services it applies to and the explicit permissions it grants.
 
 ```sql
 CREATE TABLE group_contracts (
@@ -90,9 +90,45 @@ FROM group_contracts
 WHERE group_id = 'web10.app/groups/jacoby149/abacus-enthusiasts' AND deleted = 0;
 ```
 
+**Roles are JSON.** Each role defines the services it touches and the permissions it grants:
+```json
+{
+  "roles": [
+    {
+      "name": "owner",
+      "services": ["*"],
+      "permissions": ["readAll", "create", "updateOwn", "updateAll", "deleteOwn", "deleteAll", "hideAll", "manageRoles", "assignRoles", "revokeRoles", "deleteGroup"]
+    },
+    {
+      "name": "member",
+      "services": ["posts", "comments"],
+      "permissions": ["readAll", "create", "updateOwn", "deleteOwn"]
+    }
+  ]
+}
+```
+
+A `page-curator` only touches `group-identity-service`. A `moderator` only touches `posts` and `comments`. A follower `member` only gets `readAll` on `posts`. The model scales infinitely without creating more groups.
+
 **Profile data** (banner, description, website, avatar) lives in `group-identity-service` — not the contract. Roles with access to that service write it, members read. The contract stays pure: people + policy.
 
-**Service-scoped roles.** Each role lists the services it applies to. A `page-curator` only touches `group-identity-service`. A `moderator` only touches `posts` and `comments`. The model scales infinitely without creating more groups.
+## Group Membership
+
+Active members.
+
+```sql
+CREATE TABLE group_members (
+    group_id String,
+    member_key String,
+    role String,                -- 'owner', 'moderator', 'page-curator', 'member'
+    joined_at DateTime64(3),
+    updated_at DateTime64(3),
+    deleted UInt8 DEFAULT 0
+) ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY (group_id, member_key);
+```
+
+**Multiple roles per user.** A user can hold multiple roles in the same group. The DB maps `user → group → [roles]`. Roles span different services.
 
 ## Group Membership Requests
 
@@ -111,13 +147,21 @@ CREATE TABLE group_join_requests (
 ORDER BY (group_id, requester_key);
 ```
 
-**Flow:**
+**Open policy flow (instant follow):**
 ```
-Bob requests to join alice.followers
-  → INSERT INTO group_join_requests ('alice.followers', 'bob', 'pending', ...)
+Bob follows a public profile (open join policy)
+  → INSERT INTO group_members ('web10.app/groups/alice/followers', 'bob', 'member', now(), ...)
+  → Bob is immediately a member with the 'member' role
+  → No request queue. No approval. Instant.
+```
+
+**Request policy flow (private follow):**
+```
+Bob requests to follow a private profile (request join policy)
+  → INSERT INTO group_join_requests ('web10.app/groups/alice/followers', 'bob', 'pending', ...)
 Alice approves
   → UPDATE status to 'approved', resolved_at = now()
-  → INSERT INTO group_members ('alice.followers', 'bob', 'member', ...)
+  → INSERT INTO group_members ('web10.app/groups/alice/followers', 'bob', 'member', ...)
 Alice denies
   → UPDATE status to 'denied', resolved_at = now()
 ```
@@ -138,15 +182,40 @@ CREATE TABLE user_group_sharing (
 ORDER BY (user_key, group_id);
 ```
 
-**Query:** is Alice sharing with `jazz-collectors`?
+**Query:** is Alice sharing with `web10.app/groups/dave/jazz-collectors`?
 ```sql
 SELECT sharing_enabled FROM user_group_sharing
 WHERE user_key = 'alice'
-  AND group_id = 'jazz-collectors'
+  AND group_id = 'web10.app/groups/dave/jazz-collectors'
   AND deleted = 0;
 ```
 
 Default is `1` (sharing on). If the row is missing, sharing is on. Toggle to `0` → the discover query filters out Alice's posts for this group. Toggle back to `1` → posts reappear. Reversible.
+
+## Blacklists
+
+Two levels of blocking.
+
+**User-wide blacklist** — block someone entirely.
+```sql
+CREATE TABLE user_blacklist (
+    user_key String,
+    blocked_key String,
+    created_at DateTime64(3)
+) ENGINE = MergeTree()
+ORDER BY (user_key, blocked_key);
+```
+
+**Per-group blacklist** — block someone from your content in one group.
+```sql
+CREATE TABLE group_blacklist (
+    user_key String,
+    group_id String,
+    blocked_key String,
+    created_at DateTime64(3)
+) ENGINE = MergeTree()
+ORDER BY (user_key, group_id, blocked_key);
+```
 
 ## Summary
 
@@ -156,3 +225,7 @@ All contract tables follow the same patterns:
 - Background job compacts tombstones on schedule
 - No row = denied (service contracts, provider contracts)
 - Missing row = enabled (sharing toggle — default on)
+- Roles are JSON arrays with service-scoped permissions
+- Multiple roles per user in the same group
+- Open join policy = instant membership, no request queue
+- Request join policy = pending request, owner approves or denies
