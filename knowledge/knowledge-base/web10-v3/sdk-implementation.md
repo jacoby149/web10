@@ -382,9 +382,9 @@ ORDER BY reaction_count DESC, p.created_at DESC
 LIMIT 50;
 ```
 
-### `w.read(collection, { groups, $lens })`
+### `w.read(collection, { groups, $rank })`
 
-Lens ranking — server-side weighted power mean. The API resolves the lens (by ID or inline), extracts ranking rules, and computes the score in ClickHouse.
+Generic ranking — server-side weighted power mean. The API resolves the ranking config (by ID or inline), extracts signals and weights, and computes the score in ClickHouse. Works on any collection.
 
 **Post engagement counter table** (written by the API on reaction/comment insert):
 
@@ -399,7 +399,7 @@ CREATE TABLE post_engagement (
 ORDER BY doc_id;
 ```
 
-**Lens ranking query** (power mean in ClickHouse):
+**Ranking query** (power mean in ClickHouse):
 
 ```sql
 SELECT
