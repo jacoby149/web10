@@ -2,7 +2,7 @@
 
 Web10-social is an app that runs on the web10 platform. It uses groups the same way any app does — groups are generic policy containers. Web10-social just happens to define specific roles for social use cases.
 
-This doc explains how web10-social uses groups. The generic group model is in `groups.md`.
+This doc explains how web10-social uses groups. The generic group model is in `../groups/overview.md`.
 
 ## Web10-Social Roles
 
@@ -162,4 +162,4 @@ Following a public profile is a group join. The user's followers group uses `joi
 
 Web10-social uses groups for communities, discovery, private circles, and follows. The roles are choices the social app makes — not platform requirements. Any app can define its own roles for its own groups. The platform doesn't care what you call them or what they do.
 
-For the generic group model, see `groups.md`. For contract schemas, see `contract-schemas.md`.
+For the generic group model, see `../groups/overview.md`. For contract schemas, see `../schema/contracts.md`.

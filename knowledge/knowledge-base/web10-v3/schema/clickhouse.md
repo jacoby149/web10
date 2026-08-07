@@ -69,7 +69,7 @@ CREATE TABLE group_contracts (
 ORDER BY group_id;
 ```
 
-**`roles` is JSON.** Each role defines the services it touches and the permissions it grants. See `contract-schemas.md` for the full role model.
+**`roles` is JSON.** Each role defines the services it touches and the permissions it grants. See `../schema/contracts.md` for the full role model.
 
 ## Group Members
 
@@ -211,6 +211,6 @@ One table for data. One table for visibility. One table for people. Three tables
 
 ## See Also
 
-- `contract-schemas.md` — full contract tables (service, provider, group, sharing, blacklists)
-- `sdk-api.md` — SDK surface (CRUD, groups, sort, match)
-- `sdk-implementation.md` — SQL behind every SDK call
+- `../schema/contracts.md` — full contract tables (service, provider, group, sharing, blacklists)
+- `../sdk/api.md` — SDK surface (CRUD, groups, sort, match)
+- `../sdk/implementation.md` — SQL behind every SDK call
