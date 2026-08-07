@@ -133,42 +133,42 @@ const posts = await w.read('posts', {
 
 Union of all groups. One query.
 
-**Lens ranking** — tune your feed with a weighted power mean. The server scores and sorts, not the client:
+**Ranking** — tune any read with a weighted power mean. The server scores and sorts, not the client. Works on any collection:
 
 ```ts
-// Inline lens — quick tuning
+// Inline ranking — quick tuning
 const posts = await w.read('posts', {
   groups: feedGroups,
-  $lens: {
-    ranking_rules: [
-      { field: 'recency', weight: 0.6 },
-      { field: 'likes', weight: 0.6 },
+  $rank: {
+    type: 'powerMean',
+    signals: [
+      { field: 'recency', weight: 0.6, half_life_ms: 86_400_000 },
+      { field: 'reactions', weight: 0.6 },
       { field: 'comments', weight: 0.4 },
     ],
-    half_life_ms: 86_400_000,  // 1 day
-    character: -1,              // Flat
+    character: -1,  // Flat
   },
   $limit: 50,
 })
 
-// By lens ID — the user's saved config
+// By rank config ID — the user's saved preset
 const posts = await w.read('posts', {
   groups: feedGroups,
-  $lens: 'lens-abc',
+  $rank: 'rank-abc',
   $limit: 50,
 })
 
-// Preset lens
+// Preset
 const posts = await w.read('posts', {
   groups: ['web10.app/groups/web10/discover'],
-  $lens: 'trending',
+  $rank: 'trending',
   $limit: 50,
 })
 ```
 
-The API resolves the lens, computes the power mean score in ClickHouse, and returns pre-sorted results. No client-side scoring. No separate engagement fetch for ranking.
+The API resolves the ranking config, computes the power mean score in ClickHouse, and returns pre-sorted results. No client-side scoring. No separate engagement fetch.
 
-The lens is also a user-owned document — save, edit, share within groups. See `feed-lens-integration.md` in brainstorm for the full plan.
+The `$rank` primitive is generic — rank anything: posts, search results, products, documents. The "lens" is a separate user-owned document that can hold a ranking config plus other settings (muted topics, UI toggles). See `feed-lens-integration.md` in brainstorm for the full plan.
 
 ### Update
 
@@ -377,7 +377,7 @@ Each SDK call triggers specific ClickHouse operations:
 | `w.create('posts', ..., { groups })` | `INSERT INTO documents` + `INSERT INTO doc_groups` (N rows) |
 | `w.read('posts', { groups: ['me'] })` | `SELECT FROM documents WHERE author_key = :user` (reserved group, no join) |
 | `w.read('posts', { groups })` | `SELECT FROM documents JOIN doc_groups JOIN group_members WHERE member = :user AND group IN (...)` |
-| `w.read('posts', { groups, $lens })` | Same + `LEFT JOIN post_engagement`, power mean score in SELECT, `ORDER BY score DESC` |
+| `w.read('posts', { groups, $rank })` | Same + `LEFT JOIN post_engagement`, power mean score in SELECT, `ORDER BY score DESC` |
 | `w.update('posts', ..., { $groups })` | `INSERT INTO documents` (new version) + tombstone old `doc_groups` + new `doc_groups` |
 | `w.delete('posts', ...)` | `INSERT INTO documents` (tombstone) + tombstone `doc_groups` |
 | `w.createGroup(...)` | `INSERT INTO group_contracts` + `INSERT INTO group_members` (all members) |
