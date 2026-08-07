@@ -25,10 +25,14 @@ web10-v3/
 ├── social/                ← web10-social implementation
 │   ├── overview.md        ← how social uses groups: discover, follows, communities
 │   └── group-policy-example.json.md ← concrete role/permission examples
-└── faq/                   ← common questions, skeptical points, niche use cases
-    ├── skeptical-points-addressed.md ← real concerns from the v2→v3 transition
-    ├── oltp-to-olap-patterns.md ← how every OLTP operation works with OLAP
-    └── could-rock-for-finance.md ← why this model could work for finance
+├── faq/                   ← common questions, skeptical points, niche use cases
+│   ├── skeptical-points-addressed.md ← real concerns from the v2→v3 transition
+│   ├── oltp-to-olap-patterns.md ← how every OLTP operation works with OLAP
+│   ├── olap-only.md       ← why ClickHouse for everything, no Postgres
+│   └── could-rock-for-finance.md ← why this model could work for finance
+└── future/                ← v2+ features, not day one
+    ├── federated-groups.md ← groups spanning providers, ClickHouse remote()
+    └── real-time-feeds.md ← Redis + WebSocket for hot groups
 ```
 
 ## Quick Links
