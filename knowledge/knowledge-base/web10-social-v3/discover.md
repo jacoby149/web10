@@ -1,12 +1,17 @@
 # Public Discover
 
-The discover page. Posts from all groups you're a member of, sorted by time or engagement.
+The public board. Everything posted to the discover group, sorted by time or engagement. Same for every user.
 
 ## What the Screen Shows
 
 ```
 Discover
 ─────────────────────
+[bob] posted 5h ago
+   "behind the scenes"
+   [📷 attachment]
+   [❤️ 120] [💬 24]
+
 [jacoby149] posted 2h ago
    "just shipped the new groups feature"
    [📷 attachment]
@@ -16,33 +21,23 @@ Discover
    "this album is fire"
    [🎵 attachment]
    [❤️ 15] [💬 3]
-
-[bob] posted 5h ago
-   "behind the scenes"
-   [📷 attachment]
-   [❤️ 120] [💬 24]
 ```
 
 ## Protocol Mapping
 
-**Discover query:** Read across all groups the user belongs to.
+**Discover query:** One group. Same for everyone.
 
 ```ts
 const posts = await w.read('posts', {
-  groups: [
-    'web10.app/groups/web10/discover',
-    'web10.app/groups/jacoby149/followers',
-    'web10.app/groups/charlie/st-louis-chess-club',
-    'web10.app/groups/dave/jazz-collectors',
-  ],
+  groups: ['web10.app/groups/web10/discover'],
   $sort: { created_at: -1 },
   $limit: 50,
 })
 ```
 
-One SDK call. All groups. Filtered by membership. Blacklisted authors excluded automatically.
+One SDK call. One group. No personalization. `web10/discover` is an open group with auto-enrollment — every user (including anon) is a member. Anyone can read. The author chooses to attach to it for public visibility.
 
-**Sorted by engagement:** Use aggregate to count reactions per post.
+**Sorted by engagement (trending):**
 
 ```ts
 const trending = await w.aggregate('posts', [
@@ -53,26 +48,24 @@ const trending = await w.aggregate('posts', [
 ])
 ```
 
-Subquery on documents table. No dedicated reactions table. The `ref` type links reactions to their target.
-
-**Group label:** The API returns the group_id on each document. Resolve to group name by fetching group metadata.
-
-```ts
-const groups = await w.getGroups({ member: 'jacoby149' })
-// → [{ group_id, name, ... }, ...]
-```
-
 ## The Data Flow
 
 ```
 User opens /discover
-  → w.read('posts', { groups: [...], $sort: { created_at: -1 }, $limit: 50 })
+  → w.read('posts', { groups: ['web10.app/groups/web10/discover'], $sort: { created_at: -1 }, $limit: 50 })
   → parallel: resolve author avatars
-  → parallel: resolve group names
   → render
 ```
 
-One heavy SDK call. Parallel lookups for avatars and group names. Cache avatars in Redis.
+One SDK call. Parallel avatar lookups. Cache avatars in Redis.
+
+## Discover vs Feed
+
+| Discover | Feed |
+|---|---|
+| Only `web10.app/groups/web10/discover` | All groups you belong to, minus discover |
+| Same for every user | Personal — followers, communities, close-friends |
+| Public board | Personal feed |
 
 ## Engagement Count Optimization
 
@@ -88,10 +81,8 @@ Option 3 is simplest. The API already knows about the write. Increment a counter
 - [ ] Sort toggle — newest vs. trending
 - [ ] Pagination — keyset on created_at (cursor-based, not OFFSET)
 - [ ] Author avatar caching — Redis, TTL 5m
-- [ ] Group name caching — Redis, TTL 1h (groups don't change often)
 - [ ] Engagement counter table — `post_engagement(doc_id, reaction_count, comment_count)`
-- [ ] Filter by group — `?group=web10.app/groups/dave/jazz-collectors` to narrow discover
 
 ## Proof
 
-Discover is one SDK call. One table. Group membership is the filter. Engagement is a count of documents with refs. No dedicated reactions table. No discovery index. No mirrors. The protocol handles it.
+Discover is one SDK call to one group. Same for everyone. No personalization. No discovery index. No mirrors. The protocol handles it.
