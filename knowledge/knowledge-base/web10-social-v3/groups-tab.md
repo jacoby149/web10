@@ -1,15 +1,15 @@
 # Groups Tab
 
-Manage your groups. See groups you admin, groups you belong to, pending join requests.
+Manage your groups. See groups you manage, groups you belong to, pending join requests.
 
 ## What the Screen Shows
 
 ```
 Groups
 ─────────────────────
-You Admin (2)
+You Manage (2)
 ─────────────────────
-web10.app/groups/jacoby149/public          [open]    1,203 members  [Manage]
+web10.app/groups/jacoby149/followers       [open]    1,203 members  [Manage]
 web10.app/groups/jacoby149/close-friends   [invite]  12 members     [Manage]
 
 You Belong To (3)
@@ -25,89 +25,65 @@ bob wants to join web10.app/groups/jacoby149/close-friends  [Approve] [Deny]
 
 ## Protocol Mapping
 
-**Groups you admin:**
-```sql
-SELECT gm.group_id, gc.name, gc.join_policy
-FROM group_members gm
-JOIN group_contracts gc ON gm.group_id = gc.group_id
-WHERE gm.member_key = 'jacoby149'
-  AND gm.role = 'owner'
-  AND gm.deleted = 0
-  AND gc.deleted = 0;
+**Groups you manage:**
+
+```ts
+const managed = await w.getGroups({ manages: 'jacoby149' })
+// → [
+//    { group_id: 'web10.app/groups/jacoby149/followers', name: 'Followers', join_policy: 'open', member_count: 1203, my_role: 'owner' },
+//    { group_id: 'web10.app/groups/jacoby149/close-friends', name: 'Close Friends', join_policy: 'invite_only', member_count: 12, my_role: 'owner' },
+//  ]
 ```
 
-**Member counts:**
-```sql
-SELECT group_id, count() AS members
-FROM group_members
-WHERE deleted = 0
-GROUP BY group_id;
+**Groups you belong to (all, then filter out managed):**
+
+```ts
+const all = await w.getGroups({ member: 'jacoby149' })
+const notManaged = all.filter(g => g.my_role !== 'owner')
 ```
 
-**Groups you belong to (not admin):**
-```sql
-SELECT gm.group_id, gc.name, gc.join_policy
-FROM group_members gm
-JOIN group_contracts gc ON gm.group_id = gc.group_id
-WHERE gm.member_key = 'jacoby149'
-  AND gm.deleted = 0
-  AND gc.deleted = 0
-  AND gm.role != 'owner';
-```
+**Pending join requests:** Fetch members with pending status for groups you manage.
 
-**Pending join requests:**
-```sql
-SELECT gjr.group_id, gjr.requester_key, gjr.requested_at, gc.name
-FROM group_join_requests gjr
-JOIN group_contracts gc ON gjr.group_id = gc.group_id
-WHERE gjr.status = 'pending'
-  AND gjr.group_id IN (
-    SELECT group_id FROM group_members
-    WHERE member_key = 'jacoby149' AND role = 'owner' AND deleted = 0
-  )
-  AND gjr.deleted = 0;
+```ts
+const pending = await w.getPendingRequests('web10.app/groups/jacoby149/close-friends')
+// → [{ requester_key: 'bob', requested_at: '2026-01-15T10:30:00' }]
 ```
 
 **Approve a request:**
-```sql
--- Update request status
-INSERT INTO group_join_requests
-SELECT group_id, requester_key, 'approved', requested_at, now(), updated_at, deleted
-FROM group_join_requests
-WHERE group_id = 'web10.app/groups/jacoby149/close-friends' AND requester_key = 'bob';
 
--- Add to group members
-INSERT INTO group_members VALUES ('web10.app/groups/jacoby149/close-friends', 'bob', 'member', now(), now(), 0);
+```ts
+await w.acceptInvite('web10.app/groups/jacoby149/close-friends', 'bob')
+// → Bob is now a member with the offered role
 ```
 
 **Leave a group:**
-```sql
-INSERT INTO group_members
-SELECT group_id, member_key, role, joined_at, now(), 1
-FROM group_members
-WHERE group_id = 'web10.app/groups/dave/jazz-collectors' AND member_key = 'jacoby149';
+
+```ts
+await w.leaveGroup('web10.app/groups/dave/jazz-collectors')
+// → { group_id: 'web10.app/groups/dave/jazz-collectors', member_key: 'jacoby149', status: 'left' }
 ```
-Tombstone the membership. You're out.
 
 **Block sharing (without leaving):**
-```sql
-INSERT INTO user_group_sharing VALUES ('jacoby149', 'web10.app/groups/dave/jazz-collectors', 0, now(), now(), 0);
+
+```ts
+await w.blockSharing('web10.app/groups/dave/jazz-collectors')
+// → Your content: hidden from group
+// → Their content: still visible to you
+// → Reversible
 ```
-Your posts are hidden from the group. You still see their posts. Reversible.
 
 ## The Data Flow
 
 ```
 User opens /groups
-  → query: groups you admin          (group_contracts)
-  → query: member counts             (group_members, GROUP BY)
-  → query: groups you belong to      (group_members JOIN group_contracts)
-  → query: pending requests          (group_join_requests)
-  → parallel: all four queries
+  → w.getGroups({ manages: 'jacoby149' })    (groups you manage)
+  → w.getGroups({ member: 'jacoby149' })     (all groups)
+  → w.getPendingRequests(...)                (pending join requests)
+  → parallel: all three calls
   → render
 ```
 
-Four parallel queries. No joins between them. Clean.
+Three parallel SDK calls. No joins. Clean.
 
 ## Group Management Screen
 
@@ -125,34 +101,27 @@ Your posts in this group: 24
   [Opt out all documents]
 ```
 
-**Opt out all documents:** Bulk tombstone your doc_groups entries for this group.
-```sql
-INSERT INTO doc_groups
-SELECT doc_id, group_id, permission, created_at, now(), 1
-FROM doc_groups
-WHERE group_id = 'web10.app/groups/jacoby149/close-friends'
-  AND deleted = 0
-  -- need author_key, which isn't in doc_groups — join with documents
-```
-Actually, need to join with documents to filter by author:
-```sql
-INSERT INTO doc_groups (doc_id, group_id, created_at, updated_at, deleted)
-SELECT pg.doc_id, pg.group_id, pg.created_at, now(), 1
-FROM doc_groups pg
-JOIN documents p ON pg.doc_id = p.doc_id
-WHERE pg.group_id = 'web10.app/groups/jacoby149/close-friends'
-  AND p.author_key = 'jacoby149'
-  AND pg.deleted = 0;
+**Opt out all documents:** Read your documents in this group, then update each to remove the group attachment.
+
+```ts
+const myPosts = await w.read('posts', {
+  groups: ['me'],
+  $match: { groups: 'web10.app/groups/jacoby149/close-friends' },
+})
+for (const post of myPosts) {
+  const currentGroups = post.groups.filter(g => g !== 'web10.app/groups/jacoby149/close-friends')
+  await w.update('posts', { _id: post.doc_id }, {}, { $groups: currentGroups })
+}
 ```
 
 ## TODO
 
 - [ ] Group management screen — members list, add/remove, change join policy
 - [ ] Member search — find users to invite to a group
-- [ ] Opt out all documents — bulk tombstone with author filter
-- [ ] Create group flow — INSERT into group_contracts, auto-add admin as member
-- [ ] Join request notifications — notify admin on new request (see notifications.md)
+- [ ] Opt out all documents — bulk remove group attachment
+- [ ] Create group flow — `w.createGroup(...)`
+- [ ] Join request notifications — notify owner on new request (see notifications.md)
 
 ## Proof
 
-Groups are managed through contract and membership tables. No dedicated social groups endpoint. No special permissions. CRUD on group_contracts and group_members. The protocol handles it.
+Groups are managed through SDK calls. No dedicated social groups endpoint. No special permissions. CRUD on group_contracts and group_members through the SDK. The protocol handles it.

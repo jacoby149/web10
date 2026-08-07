@@ -15,64 +15,40 @@ dave joined web10.app/groups/dave/jazz-collectors · 3h ago
 
 ## Protocol Mapping
 
-Notifications are not a table. They're events derived from writes.
+Notifications are not a core protocol concept. They're events derived from writes.
 
-**Reaction notification:** Someone created a post in the `reactions` collection with a ref to your post.
-```sql
--- New reactions on your documents in the last hour
-SELECT p.doc_id, p.author_key, p.body, p.created_at
-FROM documents p
-WHERE p.deleted = 0
-  AND p.collection_name = 'reactions'
-  AND p.created_at > now() - INTERVAL 1 HOUR
-  AND hasToken(p.body, '{your post_ids}');
+**Reaction notification:** Someone created a document in the `reactions` collection with a ref to your post.
+
+```ts
+const reactions = await w.read('reactions', {
+  groups: ['me'],  // reactions attached to groups you belong to
+  $match: { target: 'post-123' },
+  $sort: { created_at: -1 },
+})
 ```
 
-But you need to know which posts are yours. Join:
-```sql
-SELECT r.doc_id AS reaction_id, r.author_key AS reactor,
-       extractJSONString(r.body, '$.reaction_type.value') AS rtype,
-       p.doc_id AS target_post
-FROM documents r
-JOIN documents p ON hasToken(r.body, p.doc_id)
-WHERE r.deleted = 0
-  AND r.collection_name = 'reactions'
-  AND p.author_key = 'jacoby149'
-  AND r.created_at > now() - INTERVAL 1 HOUR
-ORDER BY r.created_at DESC;
+**Comment notification:** Someone created a document in the `comments` collection with a ref to your post.
+
+```ts
+const comments = await w.read('comments', {
+  groups: ['me'],
+  $match: { target: 'post-123' },
+  $sort: { created_at: -1 },
+})
 ```
 
-**Comment notification:** Someone created a post in the `comments` collection with a ref to your post.
-```sql
-SELECT c.doc_id AS comment_id, c.author_key AS commenter, c.body, c.created_at
-FROM documents c
-WHERE c.deleted = 0
-  AND c.collection_name = 'comments'
-  AND c.created_at > now() - INTERVAL 1 HOUR
-  AND hasToken(c.body, '{your post_ids}');
+**Follow request notification:** New join requests for groups you manage.
+
+```ts
+const pending = await w.getPendingRequests('web10.app/groups/jacoby149/followers')
+// → [{ requester_key: 'charlie', requested_at: '2026-01-15T10:30:00' }]
 ```
 
-**Follow request notification:** New row in group_join_requests for your groups.
-```sql
-SELECT gjr.requester_key, gjr.group_id, gjr.requested_at
-FROM group_join_requests gjr
-WHERE gjr.status = 'pending'
-  AND gjr.group_id IN (
-    SELECT group_id FROM group_members
-    WHERE member_key = 'jacoby149' AND role = 'owner' AND deleted = 0
-  )
-  AND gjr.created_at > now() - INTERVAL 1 HOUR;
-```
+**Group activity:** New members in groups you manage.
 
-**Group activity:** New members in your groups.
-```sql
-SELECT gm.member_key, gm.group_id, gm.joined_at
-FROM group_members gm
-WHERE gm.group_id IN (
-  SELECT group_id FROM group_members
-  WHERE member_key = 'jacoby149' AND role = 'owner' AND deleted = 0
-)
-AND gm.joined_at > now() - INTERVAL 1 HOUR;
+```ts
+const members = await w.getMembers('web10.app/groups/jacoby149/followers')
+// App compares against cached list to detect new members
 ```
 
 ## The Push Model
@@ -80,21 +56,23 @@ AND gm.joined_at > now() - INTERVAL 1 HOUR;
 Polling is wasteful. The right model is push:
 
 **On every write, the API emits a notification event:**
+
 ```
 Bob reacts to jacoby149's post
-  → API writes reaction to documents table
-  → API: who is the post author? (read the target post)
+  → API writes reaction via w.create('reactions', ...)
+  → API: who is the post author? (read the target document)
   → API: push notification to jacoby149 via WebSocket
      { "type": "reaction", "from": "bob", "doc_id": "post-123", "reaction_type": "like" }
 ```
 
 **On every join request:**
+
 ```
 Bob requests to join web10.app/groups/jacoby149/followers
-   → API writes to group_join_requests
-   → API: who is the owner? (read group_members with role='owner')
-   → API: push notification to jacoby149 via WebSocket
-      { "type": "follow_request", "from": "bob", "group_id": "web10.app/groups/jacoby149/followers" }
+  → API writes join request via w.requestJoin(...)
+  → API: who is the owner? (read group_members with role='owner')
+  → API: push notification to jacoby149 via WebSocket
+     { "type": "follow_request", "from": "bob", "group_id": "web10.app/groups/jacoby149/followers" }
 ```
 
 The API knows about the write. It pushes the notification. No polling. No background job.
@@ -105,24 +83,28 @@ Notifications are ephemeral by default. But the user needs a history screen.
 
 **Option 1: Query on demand.** Run the notification queries above when the user opens the screen. Accurate, but slow for large datasets.
 
-**Option 2: Notification table.** The API writes to a lightweight notifications table on every event:
-```sql
-CREATE TABLE notifications (
-    notification_id String,
-    user_key String,          -- who gets the notification
-    type String,              -- 'reaction', 'comment', 'follow_request', 'group_join'
-    from_key String,          -- who triggered it
-    ref_doc_id String,       -- related post (if any)
-    ref_group_id String,      -- related group (if any)
-    read UInt8 DEFAULT 0,
-    created_at DateTime64(3),
-    updated_at DateTime64(3),
-    deleted UInt8 DEFAULT 0
-) ENGINE = ReplacingMergeTree(updated_at)
-ORDER BY (user_key, created_at);
+**Option 2: Notification table.** The API writes to a lightweight notifications table on every event. The social app owns it — not a core protocol table.
+
+```ts
+// API writes on each event
+await w.create('notifications', {
+  type: 'reaction',
+  from: 'bob',
+  ref_doc_id: 'post-123',
+}, {
+  groups: ['web10.app/groups/jacoby149/notifications'],
+})
 ```
 
-The API writes to this table on every relevant event. The notification screen queries it. TTL cleans up old notifications.
+The notification screen reads from this collection:
+
+```ts
+const history = await w.read('notifications', {
+  groups: ['web10.app/groups/jacoby149/notifications'],
+  $sort: { created_at: -1 },
+  $limit: 50,
+})
+```
 
 Option 2 is better for the app. It's a lightweight table, not a core protocol table. The social app owns it.
 
@@ -130,8 +112,7 @@ Option 2 is better for the app. It's a lightweight table, not a core protocol ta
 
 ```
 User opens /notifications
-  → GET /notifications
-  → ClickHouse: SELECT FROM notifications WHERE user_key = 'jacoby149' ORDER BY created_at DESC
+  → w.read('notifications', { groups: ['web10.app/groups/jacoby149/notifications'] })
   → parallel: resolve avatar for each "from_key"
   → mark as read
   → render
@@ -152,4 +133,4 @@ Real-time:
 
 ## Proof
 
-Notifications are derived events, not a core protocol concept. The social app owns the notification table. The API pushes on relevant writes. No polling. No background job. The protocol enables it without defining it.
+Notifications are derived events, not a core protocol concept. The social app owns the notification collection. The API pushes on relevant writes. No polling. No background job. The protocol enables it without defining it.

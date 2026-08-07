@@ -11,7 +11,7 @@ You visit your own profile. You see your avatar, bio, groups, and posts.
 Groups:    Posts:    Followers:
 3          42        1,203
 
-[web10.app/groups/jacoby149/public]     [open]
+[web10.app/groups/jacoby149/followers]     [open]
 [web10.app/groups/jacoby149/close-friends] [invite only]
 [web10.app/groups/dave/jazz-collectors]        [request]
 
@@ -22,66 +22,66 @@ post 2 | 1d ago | [like] [comment]
 
 ## Protocol Mapping
 
-**Avatar and bio:** A post in `jacoby149.profile`.
-```
-GET /jacoby149/profile
-→ { "avatar": {"type": "minio", "value": "jacoby149/avatar.png"}, "bio": {"type": "text", "value": "builder"} }
-```
-API converts minio to presigned URL. One CRUD call.
+**Avatar and bio:** A document in the profile collection.
 
-**Groups you belong to:** Group membership query.
-```
-GET /groups?member=jacoby149
-→ [web10.app/groups/jacoby149/public, web10.app/groups/jacoby149/close-friends, web10.app/groups/dave/jazz-collectors]
-```
-For each group, fetch metadata from `group_contracts`.
-
-**Groups you admin:** Filter by owner role.
-```
-SELECT gm.group_id, gc.name, gc.join_policy
-FROM group_members gm
-JOIN group_contracts gc ON gm.group_id = gc.group_id
-WHERE gm.member_key = 'jacoby149'
-  AND gm.role = 'owner'
-  AND gm.deleted = 0
-  AND gc.deleted = 0;
+```ts
+const profile = await w.read('profile', { groups: ['me'] })
+// → { avatar: { type: 'minio', value: 'jacoby149/avatar.png' }, bio: { type: 'text', value: 'builder' } }
 ```
 
-**Follower count:** Group membership count.
-```
-SELECT count() FROM group_members
-WHERE group_id = 'web10.app/groups/jacoby149/followers' AND deleted = 0;
+API converts minio to presigned URL. One SDK call.
+
+**Groups you belong to:**
+
+```ts
+const groups = await w.getGroups({ member: 'jacoby149' })
+// → [
+//    { group_id: 'web10.app/groups/jacoby149/followers', name: 'Followers', join_policy: 'open', member_count: 1203, my_role: 'owner' },
+//    { group_id: 'web10.app/groups/jacoby149/close-friends', name: 'Close Friends', join_policy: 'invite_only', member_count: 12, my_role: 'owner' },
+//    { group_id: 'web10.app/groups/dave/jazz-collectors', name: 'Jazz Collectors', join_policy: 'request', member_count: 450, my_role: 'member' },
+//  ]
 ```
 
-**Your posts:** CRUD discover.
+**Follower count:** Member count from the followers group.
+
+```ts
+const followers = groups.find(g => g.group_id === 'web10.app/groups/jacoby149/followers')
+const followerCount = followers.member_count
 ```
-GET /jacoby149/posts?discover=true&author=jacoby149
-→ posts in groups jacoby149 belongs to (all of them — you're the author)
+
+**Your posts:** Read your own documents.
+
+```ts
+const posts = await w.read('posts', {
+  groups: ['me'],
+  $sort: { created_at: -1 },
+  $limit: 50,
+})
 ```
-Or simpler: `GET /jacoby149/posts` (no discover flag — you see your own posts regardless of groups).
+
+`me` returns your own documents regardless of group attachment.
 
 ## The Data Flow
 
 ```
 User opens /jacoby149
-  → GET /jacoby149/profile          (avatar, bio)
-  → GET /groups?member=jacoby149   (groups list)
-  → GET /jacoby149/posts           (your posts)
-  → parallel: group metadata for each group
-  → parallel: follower count
+  → w.read('profile', { groups: ['me'] })     (avatar, bio)
+  → w.getGroups({ member: 'jacoby149' })      (groups list)
+  → w.read('posts', { groups: ['me'] })       (your posts)
+  → parallel: all three calls
   → render
 ```
 
-Four parallel calls. No joins. No mirrors.
+Three parallel calls. No joins. No mirrors.
 
 ## TODO
 
-- [ ] Avatar upload flow — presigned MinIO PUT, then write profile post with minio ref
-- [ ] Bio edit — update profile post (ReplacingMergeTree, higher updated_at)
-- [ ] Group join policy display — fetch from group_contracts
-- [ ] Post list pagination — LIMIT/OFFSET or keyset pagination on created_at
+- [ ] Avatar upload flow — `w.upload()` then update profile with minio ref
+- [ ] Bio edit — update profile document
+- [ ] Group join policy display — fetch from group metadata
+- [ ] Post list pagination — keyset pagination on created_at
 - [ ] Follower count caching — Redis counter, increment/decrement on group membership change
 
 ## Proof
 
-Your profile is one collection, one groups query, and some counts. No dedicated profile endpoint. No user table. No followers table. The protocol handles it.
+Your profile is one collection read, one groups call, and some counts. No dedicated profile endpoint. No user table. No followers table. The protocol handles it.

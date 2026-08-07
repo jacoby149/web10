@@ -28,51 +28,57 @@ Groups:
 **Compose:** Client-side. No protocol involvement until publish.
 
 **Media upload:**
-```
-User selects image
-  → GET /jacoby149/upload
-  → API: presigned MinIO PUT URL (valid 5 mins)
-  → Client: direct upload to MinIO
-  → Client: "I uploaded it, key is jacoby149/media/img-abc.jpg"
+
+```ts
+const record = await w.upload(file, {
+  filename: 'photo.jpg',
+  mimeType: 'image/jpeg',
+  altText: 'screenshot',
+})
+// → { object_key: 'jacoby149/media/img-abc.jpg', readUrl: '...' }
 ```
 
-**Group picker:** Groups the user belongs to (as member or owner).
+Three-step upload: request presigned URL, upload to MinIO, confirm. The convenience method does all three.
+
+**Group picker:** Groups the user belongs to.
+
+```ts
+const groups = await w.getGroups({ member: 'jacoby149' })
+// → [
+//    { group_id: 'web10.app/groups/web10/discover', name: 'Discover', ... },
+//    { group_id: 'web10.app/groups/jacoby149/followers', name: 'Followers', ... },
+//    { group_id: 'web10.app/groups/jacoby149/close-friends', name: 'Close Friends', ... },
+//    { group_id: 'web10.app/groups/charlie/st-louis-chess-club', name: 'Chess Club', ... },
+//  ]
 ```
-GET /groups?member=jacoby149
-→ [web10.app/groups/web10/discover,
-   web10.app/groups/jacoby149/followers,
-   web10.app/groups/jacoby149/close-friends,
-    web10.app/groups/charlie/st-louis-chess-club,
-   web10.app/groups/dave/jazz-collectors, ...]
-```
+
 The app filters to groups where posting makes sense. Shows group name and member count.
 
 **Publish:**
-```
-User taps POST
-   → POST /jacoby149/posts
-      { "text": {"type": "text", "value": "just shipped the new groups feature"},
-        "media": [{"type": "minio", "value": "jacoby149/media/img-abc.jpg"}],
-        "tags": ["web10", "groups"],
-        "groups": ["web10.app/groups/web10/discover",
-                    "web10.app/groups/jacoby149/followers",
-                    "web10.app/groups/charlie/st-louis-chess-club"] }
-   → API: INSERT INTO documents
-   → API: INSERT INTO doc_groups (one row per group)
-   → WebSocket: push to subscribers in both groups
+
+```ts
+const doc = await w.create('posts', {
+  text: { type: 'text', value: 'just shipped the new groups feature' },
+  media: [{ type: 'minio', value: 'jacoby149/media/img-abc.jpg' }],
+}, {
+  groups: [
+    'web10.app/groups/web10/discover',
+    'web10.app/groups/jacoby149/followers',
+    'web10.app/groups/charlie/st-louis-chess-club',
+  ],
+})
+// → { doc_id: 'doc-abc' }
 ```
 
-One insert into documents. N inserts into doc_groups. Done.
+One SDK call. The API handles document insert and group attachments. WebSocket push to subscribers in each group.
 
 ## The Write Flow
 
 ```
-Client → POST /jacoby149/posts { body, groups: [...] }
+Client → w.create('posts', body, { groups: [...] })
   API → INSERT INTO documents (doc_id, author_key, 'posts', body_json, tags, ...)
-  API → INSERT INTO doc_groups (doc_id, 'web10.app/groups/web10/discover', ...)
-  API → INSERT INTO doc_groups (doc_id, 'web10.app/groups/jacoby149/followers', ...)
-  API → INSERT INTO doc_groups (doc_id, 'web10.app/groups/charlie/st-louis-chess-club', ...)
-  API → Redis: update group:web10/discover:recent, group:jacoby149/followers:recent, ...
+  API → INSERT INTO doc_groups (one row per group)
+  API → Redis: update group caches
   API → WebSocket: PUBLISH to all group channels
   API → 201 Created { doc_id }
 ```
@@ -82,6 +88,7 @@ One table write. N group attachments. Cache update. Push notification. Done.
 ## Media in the Post
 
 The media lives in the JSON body:
+
 ```json
 {
   "text": {"type": "text", "value": "check this out"},
@@ -109,4 +116,4 @@ Client-side only. No protocol involvement. The app stores drafts locally (localS
 
 ## Proof
 
-Create post is one CRUD call. Groups are an attachment. Media is a minio ref in the JSON body. Tags are an array. No dedicated compose endpoint. No media table. No validation schema. The protocol handles it.
+Create post is one SDK call. Groups are an attachment. Media is a minio ref in the JSON body. Tags are an array. No dedicated compose endpoint. No media table. No validation schema. The protocol handles it.

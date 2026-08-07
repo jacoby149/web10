@@ -20,78 +20,76 @@ post 2 | 1d ago | [like] [comment]
 ## Protocol Mapping
 
 **Avatar and bio:** Same as your profile.
-```
-GET /alice/profile
-→ { "avatar": {"type": "minio", ...}, "bio": {"type": "text", ...} }
+
+```ts
+const profile = await w.read('profile', { groups: ['me'], username: 'alice' })
+// → { avatar: { type: 'minio', ... }, bio: { type: 'text', ... } }
 ```
 
 **Public groups:** Groups where join_policy is "open" or you're a member.
-```
-SELECT gc.group_id, gc.name, gc.join_policy
-FROM group_contracts gc
-WHERE gc.deleted = 0
-  AND (gc.join_policy = 'open'
-       OR EXISTS (
-         SELECT 1 FROM group_members gm
-         WHERE gm.group_id = gc.group_id
-           AND gm.member_key = 'jacoby149'
-           AND gm.deleted = 0
-       ));
+
+```ts
+const allGroups = await w.getGroups({ member: 'jacoby149' })
+const aliceGroups = allGroups.filter(g => g.group_id.startsWith('web10.app/groups/alice/'))
 ```
 
 **"Follow" button:** Check if you're in `web10.app/groups/alice/followers`.
-```
-SELECT 1 FROM group_members
-WHERE group_id = 'web10.app/groups/alice/followers'
-  AND member_key = 'jacoby149'
-  AND deleted = 0;
-```
-No row → show "Follow". Row exists → show "Following" + "Unfollow".
 
-**Posts you can see:** Discover query with group membership filter.
+```ts
+const groups = await w.getGroups({ member: 'jacoby149' })
+const following = groups.some(g => g.group_id === 'web10.app/groups/alice/followers')
+// following → show "Following" + "Unfollow"
+// !following → show "Follow"
 ```
-GET /alice/posts?discover=true
-→ ClickHouse: posts WHERE author=alice AND post in groups jacoby149 belongs to
-```
-If you're only in `web10.app/groups/alice/public`, you see posts attached to `web10.app/groups/alice/public`. If you're also in `web10.app/groups/alice/close-friends`, you see those too. The groups control visibility.
 
-**Post counts per group:**
+**Posts you can see:** Read documents filtered by groups you share with alice.
+
+```ts
+const posts = await w.read('posts', {
+  groups: ['web10.app/groups/alice/followers', 'web10.app/groups/alice/public'],
+  $sort: { created_at: -1 },
+  $limit: 50,
+})
 ```
-SELECT pg.group_id, count(DISTINCT p.doc_id)
-FROM documents p
-JOIN doc_groups pg ON p.doc_id = pg.doc_id
-WHERE p.author_key = 'alice'
-  AND p.deleted = 0
-  AND pg.deleted = 0
-GROUP BY pg.group_id;
+
+If you're only in `web10.app/groups/alice/public`, you see posts attached to that group. If you're also in `web10.app/groups/alice/close-friends`, you see those too. The groups control visibility.
+
+**Post counts per group:** Aggregate documents by group.
+
+```ts
+const counts = await w.aggregate('posts', [
+  { $match: { author: 'alice' } },
+  { $group: { _id: '$group_id', count: { $sum: 1 } } },
+])
 ```
 
 ## The Data Flow
 
 ```
 User opens /alice
-  → GET /alice/profile                  (avatar, bio)
-  → query: alice's public/member groups (group_contracts + group_members)
-  → query: follow status                (group_members)
-  → GET /alice/posts?discover=true      (posts in shared groups)
+  → w.read('profile', { groups: ['me'], username: 'alice' })  (avatar, bio)
+  → w.getGroups({ member: 'jacoby149' })                      (groups you belong to)
+  → w.read('posts', { groups: [...], $sort: { created_at: -1 } })  (posts in shared groups)
   → render
 ```
 
-Same four-call pattern. The groups filter what's visible. No special permissions. No "public" flag on posts — the group membership is the permission.
+Same three-call pattern. The groups filter what's visible. No special permissions. No "public" flag on posts — the group membership is the permission.
 
 ## The Follow Flow
 
-```
-User taps "Follow" on alice's profile
-   → POST /groups/web10.app/groups/alice/followers/join-requests
-      { "requester": "jacoby149", "status": "pending" }
-   → INSERT INTO group_join_requests
-   → alice gets a notification
-   → alice approves → INSERT INTO group_members
-   → jacoby149 can now see posts in web10.app/groups/alice/followers
+```ts
+// Open join policy — instant follow
+await w.joinGroup('web10.app/groups/alice/followers')
+// → { group_id: 'web10.app/groups/alice/followers', member_key: 'jacoby149', role: 'member' }
+
+// Request join policy — pending until owner approves
+await w.requestJoin('web10.app/groups/alice/followers')
+// → { group_id: 'web10.app/groups/alice/followers', status: 'pending' }
+// → alice gets a notification
+// → alice approves → jacoby149 is now a member
 ```
 
-No follows table. Group join request + group membership. Done.
+No follows table. Group join or join request. Done.
 
 ## TODO
 
@@ -99,8 +97,8 @@ No follows table. Group join request + group membership. Done.
 - [ ] Group visibility filter — only show groups the viewer has access to
 - [ ] Post count per group — aggregation query
 - [ ] "Private group" indicator — show "X posts, request to join" for non-member groups
-- [ ] Block button — INSERT INTO user_blacklist
+- [ ] Block button — `w.blockUser('alice')`
 
 ## Proof
 
-Another person's profile is the same protocol as your own — just filtered by group membership. The groups control what you see. No "public" endpoint. No "private" endpoint. One discover query with a group filter. The protocol handles it.
+Another person's profile is the same protocol as your own — just filtered by group membership. The groups control what you see. No "public" endpoint. No "private" endpoint. One SDK call with group filters. The protocol handles it.
