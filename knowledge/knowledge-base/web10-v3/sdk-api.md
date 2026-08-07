@@ -152,9 +152,9 @@ const posts = await w.read('posts', {
   $sort: {
     type: 'powerMean',
     fields: [
-      { field: 'created_at', weight: 0.6, half_life: 24, boost: 1 },
-      { field: 'ref_count', collection: 'reactions', weight: 0.6, boost: 2 },
-      { field: 'ref_count', collection: 'comments', weight: 0.4, boost: 0.5 },
+      { field: 'created_at', type: 'time', weight: 0.6, half_life: 24, boost: 1 },
+      { field: 'ref_count', type: 'ref_count', collection: 'reactions', weight: 0.6, boost: 2 },
+      { field: 'ref_count', type: 'ref_count', collection: 'comments', weight: 0.4, boost: 0.5 },
     ],
     balance: -1,
   },
@@ -163,10 +163,13 @@ const posts = await w.read('posts', {
 ```
 
 Each field has:
+- `type` — how the API normalizes the signal (`time` or `ref_count`)
 - `weight` — how much it contributes to the power mean (0 = ignored)
 - `boost` — multiplier applied after normalization, before combining (default 1). `boost: 2` doubles the signal, `boost: 0.5` halves it.
-- `half_life` — for `created_at`, decay in hours (0 = no decay)
+- `half_life` — for `time` fields, decay in hours (0 = no decay)
 - `collection` — for `ref_count`, which collection to count from
+
+`ref_count` works on any collection. The API counts documents where `ref_value` matches the current document. Indexed, fast, no counter table needed.
 ```
 
 `ref_count` is generic — it counts any document in the named collection whose `ref` points to the current document. Reactions, comments, bookmarks, upvotes — any collection using `ref` works. No special infrastructure.
