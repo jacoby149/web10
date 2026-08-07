@@ -10,6 +10,7 @@ CREATE TABLE documents (
     author_key String,
     collection_name String,
     body String,
+    ref_value String DEFAULT '',
     tags Array(String),
     created_at DateTime64(3),
     updated_at DateTime64(3),
@@ -18,6 +19,8 @@ CREATE TABLE documents (
 ORDER BY (author_key, doc_id)
 TTL created_at + INTERVAL 90 DAY;
 ```
+
+`ref_value` is the universal link. The API writes it on create (extracts the `ref` from the JSON body). Any document can point to any other. Comments, reactions, replies, quotes, bookmarks, votes — all just documents with a `ref`. Indexed, instant lookup.
 
 ## Doc Groups Table
 
@@ -403,57 +406,52 @@ Generic ranking — server-side weighted power mean. The API resolves the rankin
 | -1 | Low signals drag the score down. Generalists win. |
 | -5 | Score pulled toward the weakest signal. Strict. |
 
-**Post engagement counter table** (written by the API on reaction/comment insert):
-
-```sql
-CREATE TABLE post_engagement (
-    doc_id String,
-    reaction_count UInt32,
-    comment_count UInt32,
-    updated_at DateTime64(3),
-    deleted UInt8 DEFAULT 0
-) ENGINE = ReplacingMergeTree(updated_at)
-ORDER BY doc_id;
-```
-
 **Ranking query** (power mean in ClickHouse):
+
+The `ref_count` signal is a subquery on `ref_value` — instant, indexed:
 
 ```sql
 SELECT
     p.doc_id, p.author_key, p.body, p.tags, p.created_at,
-    -- Normalized signals (saturating curves)
+    -- Normalized signals
     CASE WHEN :half_life <= 0 THEN 1
          ELSE exp(-timestampDiff('hour', p.created_at, now()) / :half_life)
     END AS recency,
-    (:w_likes * log1p(eng.reaction_count)) / (1 + :w_likes * log1p(eng.reaction_count)) AS likes_norm,
-    (:w_comments * log1p(eng.comment_count)) / (1 + :w_comments * log1p(eng.comment_count)) AS comments_norm,
+    (:w_reactions * log1p(
+        SELECT count() FROM documents r
+        WHERE r.deleted = 0
+          AND r.collection_name = 'reactions'
+          AND r.ref_value = p.doc_id
+    )) / (1 + :w_reactions * log1p(...)) AS reactions_norm,
+    (:w_comments * log1p(
+        SELECT count() FROM documents c
+        WHERE c.deleted = 0
+          AND c.collection_name = 'comments'
+          AND c.ref_value = p.doc_id
+    )) / (1 + :w_comments * log1p(...)) AS comments_norm,
     -- Power mean score
     CASE
         WHEN :balance = 0 THEN
-            -- Geometric mean: exp(Σ wᵢ·ln(xᵢ) / Σ wᵢ)
             exp(
                 (:w_recency * ln(greatest(recency, 1e-12))
-                 + :w_likes * ln(greatest(likes_norm, 1e-12))
+                 + :w_reactions * ln(greatest(reactions_norm, 1e-12))
                  + :w_comments * ln(greatest(comments_norm, 1e-12)))
-                / (:w_recency + :w_likes + :w_comments)
+                / (:w_recency + :w_reactions + :w_comments)
             )
-        WHEN :w_recency > 0 AND :w_likes = 0 AND :w_comments = 0 THEN
-            -- Recency-only shortcut (pure reverse-chronological)
+        WHEN :w_recency > 0 AND :w_reactions = 0 AND :w_comments = 0 THEN
             -timestampDiff('millisecond', p.created_at, now())
         ELSE
-            -- General power mean: (Σ wᵢ·xᵢ^p / Σ wᵢ)^(1/p)
             power(
                 (:w_recency * power(greatest(recency, 1e-12), :balance)
-                 + :w_likes * power(greatest(likes_norm, 1e-12), :balance)
+                 + :w_reactions * power(greatest(reactions_norm, 1e-12), :balance)
                  + :w_comments * power(greatest(comments_norm, 1e-12), :balance))
-                / (:w_recency + :w_likes + :w_comments),
+                / (:w_recency + :w_reactions + :w_comments),
                 1.0 / :balance
             )
     END AS score
 FROM documents p
 JOIN doc_groups pg ON p.doc_id = pg.doc_id
 JOIN group_members gm ON pg.group_id = gm.group_id
-LEFT JOIN post_engagement eng ON p.doc_id = eng.doc_id AND eng.deleted = 0
 WHERE p.deleted = 0
   AND p.collection_name = :collection
   AND pg.deleted = 0
@@ -465,7 +463,7 @@ LIMIT 50;
 ```
 
 Parameters from the `$rank` config:
-- `:w_recency`, `:w_likes`, `:w_comments` — weights from signals
+- `:w_recency`, `:w_reactions`, `:w_comments` — weights from signals
 - `:half_life` — time decay half-life in hours (0 = all time, no decay)
 - `:balance` — power mean exponent (negative = harmonic-ish, 0 = geometric, positive = arithmetic-ish)
 
