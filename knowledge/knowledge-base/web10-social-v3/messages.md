@@ -29,7 +29,7 @@ SELECT p.doc_id, p.author_key, p.body, p.created_at
 FROM documents p
 JOIN doc_groups pg ON p.doc_id = pg.doc_id
 WHERE p.deleted = 0
-  AND pg.group_id = 'jacoby149.inbox'
+  AND pg.group_id = 'web10.app/groups/jacoby149/inbox'
   AND pg.deleted = 0
   AND p.author_key != 'jacoby149'     -- not your own sent mail
 ORDER BY p.created_at DESC;
@@ -54,13 +54,13 @@ SELECT p.doc_id, p.author_key, p.body, p.created_at
 FROM documents p
 JOIN doc_groups pg ON p.doc_id = pg.doc_id
 WHERE p.deleted = 0
-  AND pg.group_id = 'alice-and-bob'
+  AND pg.group_id = 'web10.app/groups/jacoby149/alice-and-bob'
   AND pg.deleted = 0
 ORDER BY p.created_at ASC;            -- chronological, oldest first
 ```
 
-Alice's messages: `alice.messages` collection, attached to `alice-and-bob` group.
-Bob's messages: `bob.messages` collection, attached to `alice-and-bob` group.
+Alice's messages: `alice.messages` collection, attached to `web10.app/groups/jacoby149/alice-and-bob` group.
+Bob's messages: `bob.messages` collection, attached to `web10.app/groups/jacoby149/alice-and-bob` group.
 Same group. Different collections. One query returns both.
 
 **Unread count:** The app tracks read state locally (or in a `message_read` table).
@@ -79,28 +79,28 @@ Unread = inbox documents minus read documents.
 
 ```
 User opens /messages
-  → GET /messages/inbox       (documents in jacoby149.inbox group)
-  → GET /messages/sent        (jacoby149's posts in outbox collection)
-  → parallel: resolve sender avatars
-  → parallel: check read status
-  → render
+   → GET /messages/inbox       (documents in web10.app/groups/jacoby149/inbox group)
+   → GET /messages/sent        (jacoby149's posts in outbox collection)
+   → parallel: resolve sender avatars
+   → parallel: check read status
+   → render
 
 User opens a DM thread
-  → GET /groups/alice-and-bob/posts  (all documents in the group, chronological)
-  → mark messages as read
-  → render
+   → GET /groups/web10.app/groups/jacoby149/alice-and-bob/posts  (all documents in the group, chronological)
+   → mark messages as read
+   → render
 ```
 
 ## Send a Message
 
 ```
 User types message, taps send to alice
-  → POST /jacoby149/outbox
-     { "text": {"type": "text", "value": "hey"},
-       "groups": ["alice.inbox"] }
-  → API: INSERT INTO documents (jacoby149's collection)
-  → API: INSERT INTO doc_groups (alice.inbox)
-  → alice discovers it next time she checks her inbox
+   → POST /jacoby149/outbox
+      { "text": {"type": "text", "value": "hey"},
+        "groups": ["web10.app/groups/alice/inbox"] }
+   → API: INSERT INTO documents (jacoby149's collection)
+   → API: INSERT INTO doc_groups (web10.app/groups/alice/inbox)
+   → alice discovers it next time she checks her inbox
 ```
 
 One insert. One group attachment. No fan-out. Alice sees it when she queries.

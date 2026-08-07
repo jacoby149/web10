@@ -7,18 +7,20 @@ The discover page. Posts from all groups you're a member of, sorted by time or e
 ```
 Discover
 ─────────────────────
-[jacoby149] posted 2h ago in [web10-dev]
-  "just shipped the new groups feature"
-  [❤️ 42] [💬 8]
+[jacoby149] posted 2h ago
+   "just shipped the new groups feature"
+   [📷 attachment]
+   [❤️ 42] [💬 8]
 
-[alice] posted 3h ago in [jazz-collectors]
-  "this album is fire"
-  [🎵 attachment]
-  [❤️ 15] [💬 3]
+[alice] posted 3h ago
+   "this album is fire"
+   [🎵 attachment]
+   [❤️ 15] [💬 3]
 
-[bob] posted 5h ago in [alice.followers]
-  "behind the scenes"
-  [❤️ 120] [💬 24]
+[bob] posted 5h ago
+   "behind the scenes"
+   [📷 attachment]
+   [❤️ 120] [💬 24]
 ```
 
 ## Protocol Mapping
@@ -31,10 +33,9 @@ FROM documents p
 JOIN doc_groups pg ON p.doc_id = pg.doc_id
 JOIN group_members gm ON pg.group_id = gm.group_id
 WHERE p.deleted = 0
-  AND p.discoverable = 1
-  AND gm.member_key = 'jacoby149'
-  AND gm.deleted = 0
-  AND NOT EXISTS (
+   AND gm.member_key = 'jacoby149'
+   AND gm.deleted = 0
+   AND NOT EXISTS (
     SELECT 1 FROM user_blacklist
     WHERE user_key = p.author_key AND blocked_key = 'jacoby149'
   )
@@ -56,9 +57,8 @@ FROM documents p
 JOIN doc_groups pg ON p.doc_id = pg.doc_id
 JOIN group_members gm ON pg.group_id = gm.group_id
 WHERE p.deleted = 0
-  AND p.discoverable = 1
-  AND gm.member_key = 'jacoby149'
-  AND gm.deleted = 0
+   AND gm.member_key = 'jacoby149'
+   AND gm.deleted = 0
 ORDER BY reaction_count DESC, p.created_at DESC
 LIMIT 50;
 ```
@@ -96,7 +96,7 @@ Option 3 is simplest. The API already knows about the write. Increment a counter
 - [ ] Author avatar caching — Redis, TTL 5m
 - [ ] Group name caching — Redis, TTL 1h (groups don't change often)
 - [ ] Engagement counter table — `post_engagement(doc_id, reaction_count, comment_count)`
-- [ ] Filter by group — `?group=jazz-collectors` to narrow discover
+- [ ] Filter by group — `?group=web10.app/groups/dave/jazz-collectors` to narrow discover
 
 ## Proof
 

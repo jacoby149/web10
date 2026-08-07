@@ -11,7 +11,7 @@ Each provider runs its own ClickHouse instance. A group can have members on diff
 The group tells you which providers to query.
 
 ```
-jazz-collectors:
+web10.app/groups/dave/jazz-collectors:
   members:
     alice @ provider-a
     bob @ provider-b
@@ -21,12 +21,12 @@ jazz-collectors:
 When Bob queries the group on provider-B, he sees: "there are members on provider-A too." He queries provider-A's instance.
 
 ```
-Bob → GET /groups/jazz-collectors/posts
-  provider-b: scans local posts in jazz-collectors
-  provider-b: sees alice, charlie are on provider-a
-  provider-b: federated query → provider-a: "posts in jazz-collectors?"
-  provider-a: returns alice's posts
-  provider-b: merges results
+Bob → GET /groups/web10.app/groups/dave/jazz-collectors/posts
+   provider-b: scans local posts in web10.app/groups/dave/jazz-collectors
+   provider-b: sees alice, charlie are on provider-a
+   provider-b: federated query → provider-a: "posts in web10.app/groups/dave/jazz-collectors?"
+   provider-a: returns alice's posts
+   provider-b: merges results
 ```
 
 ## The Group Membership Table
@@ -51,15 +51,15 @@ ORDER BY (group_id, member_key);
 ```sql
 -- Bob queries jazz-collectors on provider-b
 SELECT DISTINCT provider_key FROM group_members
-WHERE group_id = 'jazz-collectors'
-  AND provider_key != 'provider-b'
+WHERE group_id = 'web10.app/groups/dave/jazz-collectors'
+   AND provider_key != 'provider-b'
 -- Returns: provider-a
 
 -- Federated query to provider-a
 SELECT * FROM remote('provider-a', 'documents', 'user', 'password')
 WHERE doc_id IN (
   SELECT doc_id FROM remote('provider-a', 'doc_groups', 'user', 'password')
-  WHERE group_id = 'jazz-collectors'
+  WHERE group_id = 'web10.app/groups/dave/jazz-collectors'
 )
   AND deleted = 0
 ```
@@ -93,14 +93,14 @@ Alice → GET /alice/inbox
 A group can span providers. Members on different providers see each other's posts.
 
 ```
-web10-dev:
+web10.app/groups/charlie/st-louis-chess-club:
   members:
     alice @ provider-a
     bob @ provider-b
     charlie @ provider-c
 ```
 
-Alice posts on provider-A → attached to `web10-dev` → Bob discovers it on provider-B (federated query to provider-A) → Charlie discovers it on provider-C (federated query to provider-A).
+Alice posts on provider-A → attached to `web10.app/groups/charlie/st-louis-chess-club` → Bob discovers it on provider-B (federated query to provider-A) → Charlie discovers it on provider-C (federated query to provider-A).
 
 One group. Three providers. Federated discovery.
 
@@ -109,7 +109,7 @@ One group. Three providers. Federated discovery.
 Shows which providers your groups span:
 
 ```
-web10-dev → admin: you
+web10.app/groups/charlie/st-louis-chess-club → owner: you
   members:
     alice @ provider-a (you)
     bob @ provider-b

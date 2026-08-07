@@ -14,8 +14,8 @@ People:
   [avatar] alice — jazz enthusiast
 
 Groups:
-  web10-dev — 100k members, open
-  jazz-collectors — 500 members, request
+  web10.app/groups/charlie/st-louis-chess-club — 100k members, open
+  web10.app/groups/dave/jazz-collectors — 500 members, request
 
 Posts:
   jacoby149 · 2h ago — "just shipped the new groups feature"
@@ -109,7 +109,7 @@ Day one: ngram index. Eventually: tokenbf or Elasticsearch if needed.
 - [ ] Ngram index on documents.body — CREATE INDEX on the documents table
 - [ ] Group member count in results — JOIN with group_members count
 - [ ] Recent searches — client-side localStorage
-- [ ] Search within a group — `?group=web10-dev&q=query`
+- [ ] Search within a group — `?group=web10.app/groups/charlie/st-louis-chess-club&q=query`
 
 ## Proof
 

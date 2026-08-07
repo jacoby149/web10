@@ -57,7 +57,7 @@ web10 makes groups easy. One group. Infinite apps. The group is a platform primi
 ```
 alice.close-friends → social app sees posts, music app sees playlists, doc app sees files
 jazz-collectors → music app, social app, podcast app — same circle
-web10-dev → teams, communities, collaboration — same membership
+charlie/st-louis-chess-club → teams, communities, collaboration — same membership
 ```
 
 The group is managed once, at the platform level. Every app can scope content to it. No rebuilding. No silos. No "close friends" trapped in one app.

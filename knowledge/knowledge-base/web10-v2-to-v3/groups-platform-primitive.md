@@ -2,18 +2,17 @@
 
 ## The Idea
 
-Groups are not just a visibility type. They are a fundamental platform feature. Users create groups, add members, manage admins, and post to them. Groups are the building block for communities, teams, and circles.
+Groups are not just a visibility type. They are a fundamental platform feature. Users create groups, add members, manage roles, and post to them. Groups are the building block for communities, teams, and circles.
 
-Groups are a CRUD endpoint. The platform manages them. The user controls them.
+Groups are policy containers. They hold people, not data. Any document from any service can be attached to any group. The group's roles define who sees it and what they can do.
 
 ## The Schema
 
 ```sql
-CREATE TABLE groups (
-    group_id String,
-    name String,
-    description String,
-    admin_key String,          -- the creator/admin
+CREATE TABLE group_contracts (
+    group_id String,           -- 'web10.app/groups/jacoby149/abacus-enthusiasts'
+    roles String,              -- JSON array of roles with services + permissions
+    join_policy String,        -- 'open', 'request', 'invite_only'
     created_at DateTime64(3),
     updated_at DateTime64(3),
     deleted UInt8 DEFAULT 0
@@ -23,7 +22,7 @@ ORDER BY group_id;
 CREATE TABLE group_members (
     group_id String,
     member_key String,
-    role String,               -- 'admin', 'member'
+    role String,               -- role name from the contract (e.g. 'member', 'owner')
     joined_at DateTime64(3),
     updated_at DateTime64(3),
     deleted UInt8 DEFAULT 0
@@ -31,24 +30,27 @@ CREATE TABLE group_members (
 ORDER BY (group_id, member_key);
 ```
 
+No `admin_key` in the groups table. The owner is the member with the `owner` role. The contract defines what `owner` means.
+
 ## The API
 
 ```
 # Group CRUD
 POST   /groups                          → create a group
 GET    /groups/{id}                     → get a group
-PATCH  /groups/{id}                     → update a group (name, description)
+PATCH  /groups/{id}                     → update a group (roles, join policy)
 DELETE /groups/{id}                     → delete a group (tombstone)
 
 # Membership
 POST   /groups/{id}/members             → add a member
 GET    /groups/{id}/members             → list members
-PATCH  /groups/{id}/members/{user}      → update role (promote to admin)
+PATCH  /groups/{id}/members/{user}      → update role
 DELETE /groups/{id}/members/{user}      → remove a member
 
 # Posts to a group
-POST   /{user}/posts?group={group_id}   → create a post visible to group members
-GET    /{user}/posts?group={group_id}   → read posts in this group
+POST   /{user}/posts                    → create a post
+   { text: "hello", groups: ["grp-abc"] }
+GET    /{user}/posts?discover=true      → discover posts (group membership filter)
 ```
 
 ## Creating a Group
@@ -56,12 +58,24 @@ GET    /{user}/posts?group={group_id}   → read posts in this group
 ```ts
 const group = await createGroup({
   name: "Web10 Dev Team",
-  description: "Internal team discussions"
+  join_policy: "invite_only",
+  roles: [
+    {
+      name: "owner",
+      services: ["*"],
+      permissions: ["readAll", "create", "updateOwn", "updateAll", "deleteOwn", "deleteAll", "hideAll", "manageRoles", "assignRoles", "revokeRoles", "deleteGroup"]
+    },
+    {
+      name: "member",
+      services: ["posts", "comments"],
+      permissions: ["readAll", "create", "updateOwn", "deleteOwn"]
+    }
+  ]
 });
-// Returns: { group_id: "grp-abc", name: "Web10 Dev Team", admin_key: "alice" }
+// Returns: { group_id: "grp-abc", name: "Web10 Dev Team" }
 ```
 
-The creator is the admin. The admin can add members and promote other admins.
+The creator is the owner. The owner can add members and assign roles.
 
 ## Adding Members
 
@@ -71,80 +85,69 @@ await addMember({
   member_key: "bob",
   role: "member"
 });
-
-await addMember({
-  group_id: "grp-abc",
-  member_key: "charlie",
-  role: "admin"  // promote to admin
-});
 ```
 
-The member receives a notification. They can see posts in the group on discover. They can post to the group.
+The member receives a notification. They can see posts in the group on discover. They can post to the group if their role allows it.
 
 ## Posting to a Group
 
 ```ts
-await createPost({
+await createDocument({
   text: "team update: v3 architecture locked",
-  visibility: "group",
-  visibility_scope: "grp-abc",
-  discoverable: true  // discoverable within the group
+  groups: ["grp-abc"]
 });
 ```
 
-The post is visible to all group members on `discover=true`. It is not visible to non-members. The `discoverable` flag controls whether it appears in the group feed or only by direct link.
+The post is visible to all group members on `discover=true`. It is not visible to non-members. The author controls which groups the post is attached to.
 
 ## Group Discovery Query
 
 When Alice hits discover, group posts are included if she's a member:
 
 ```sql
-SELECT * FROM posts
-WHERE deleted = 0
-  AND (
-    visibility = 'public'
-    OR (visibility = 'followers' AND author_key IN (SELECT following_key FROM follows WHERE follower_key = 'alice'))
-    OR (visibility = 'group'
-        AND visibility_scope IN (
-          SELECT group_id FROM group_members
-          WHERE member_key = 'alice' AND deleted = 0
-        ))
-    OR author_key = 'alice'
-  );
+SELECT p.doc_id, p.author_key, p.body, p.tags, p.created_at
+FROM documents p
+JOIN doc_groups pg ON p.doc_id = pg.doc_id
+JOIN group_members gm ON pg.group_id = gm.group_id
+WHERE p.deleted = 0
+  AND gm.member_key = 'alice'
+  AND gm.deleted = 0
+ORDER BY p.created_at DESC
+LIMIT 50;
 ```
+
+No visibility column. No collection ceiling. Just group membership.
 
 ## Group Permissions
 
 | Action | Who Can Do It |
 |---|---|
 | Create group | Any user |
-| Add member | Admin or member (depending on group settings) |
-| Remove member | Admin only |
-| Promote to admin | Admin only |
-| Delete group | Admin only |
-| Post to group | Any member |
-| See group posts | Any member (if discoverable) |
+| Add member | Owner or member with `assignRoles` |
+| Remove member | Owner or member with `revokeRoles` |
+| Update role | Owner or member with `assignRoles` |
+| Delete group | Owner (member with `deleteGroup`) |
+| Post to group | Any member with `create` on the service |
+| See group posts | Any member with `readAll` on the service |
 
 ## Group Settings
 
-Groups can have settings that control membership:
+Groups control membership through join policies:
 
 ```json
 {
   "group_id": "grp-abc",
-  "name": "Web10 Dev Team",
-  "join_policy": "invite-only",  // "open", "invite-only", "approval"
-  "post_policy": "members-only", // "members-only", "admins-only"
-  "discoverable": true           // group posts appear in member feeds
+  "join_policy": "invite_only",
+  "roles": [
+    { "name": "owner", "services": ["*"], "permissions": ["readAll", "create", "updateOwn", "updateAll", "deleteOwn", "deleteAll", "hideAll", "manageRoles", "assignRoles", "revokeRoles", "deleteGroup"] },
+    { "name": "member", "services": ["posts", "comments"], "permissions": ["readAll", "create", "updateOwn", "deleteOwn"] }
+  ]
 }
 ```
 
-- `join_policy: "open"` — anyone can join
-- `join_policy: "invite-only"` — only admins can add members
-- `join_policy: "approval"` — members request to join, admins approve
-
-- `post_policy: "members-only"` — any member can post
-- `post_policy: "admins-only"` — only admins can post
+- `join_policy: "open"` — anyone can join instantly
+- `join_policy: "request"` — members request to join, owner approves
+- `join_policy: "invite_only"` — only the owner can add members
 
 ## Why Groups Are Fundamental
 
@@ -153,24 +156,27 @@ Groups are not a feature. They are the building block for:
 - **Teams** — internal collaboration, project discussions
 - **Communities** — interest-based groups, hobby circles
 - **Circles** — close friends, family, trusted contacts
-- **Audiences** — newsletter subscribers, beta testers
-- **Moderation** — admin-controlled spaces with rules
+- **Audiences** — followers, newsletter subscribers, beta testers
+- **Moderation** — owner-controlled spaces with roles
 
 Groups replace the need for separate collection types. Instead of `public_posts`, `private_posts`, `group-posts`, the user creates groups and posts to them. The visibility is per-group. The membership is managed by the platform.
 
-## The Privacy Panel Integration
+## The Authenticator Integration
 
-The privacy panel shows groups the user is a member of:
+The authenticator shows groups the user manages and belongs to:
 
 ```
-Groups:
-  Web10 Dev Team (admin) → 5 members, 120 posts
-  Personal Circle (member) → 3 members, 45 posts
-  Public Community (member) → 1200 members, 5000 posts
+Groups you manage:
+  Web10 Dev Team (owner) → 5 members, invite only
+  Personal Circle (owner) → 3 members, invite only
+
+Groups you belong to:
+  Public Community (member) → 1200 members, open
+  Jazz Collectors (member) → 500 members, request
 ```
 
 The user can leave groups, manage membership, and control which groups their posts appear in.
 
 ## Summary
 
-Groups are a platform primitive. CRUD endpoint. Membership management. Admin controls. Post visibility. The building block for communities, teams, and circles. No separate collections. No term records. One table for groups. One table for membership. The API handles the rest.
+Groups are a platform primitive. Policy containers. Service-scoped roles. Join policies. Membership management. The building block for communities, teams, and circles. No visibility column. No collection ceiling. No term records. Groups define who sees what. Roles define what they can do.
