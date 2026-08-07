@@ -193,7 +193,7 @@ const group = await w.createGroup({
 // → { group_id: 'web10.app/groups/jacoby149/st-louis-chess-club' }
 ```
 
-The `members` array is required. **The API enforces that the creator is assigned a role with group management permissions** (`manageRoles`, `assignRoles`, `revokeRoles`, `deleteGroup`, or `modifyJoinPolicy`). You cannot create a group you can't manage. If the assignment doesn't include at least one management permission for the creator, the request is rejected.
+The `members` array is required. **The creator automatically receives a role with all five group management permissions** (`manageRoles`, `assignRoles`, `revokeRoles`, `deleteGroup`, `modifyJoinPolicy`). You cannot create a group you can't fully manage — the API adds these permissions to the creator's role regardless of what the role definition lists.
 
 Group management permissions are separate from content permissions:
 
