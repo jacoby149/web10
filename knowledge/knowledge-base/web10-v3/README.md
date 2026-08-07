@@ -8,16 +8,33 @@ Everything here is decided. Everything else is brainstorming.
 
 Work-in-progress ideas, alternatives, and explorations live in `web10-v3-brainstorm/`. When a direction is picked and finalized, it moves here.
 
-## Files
-
-- `groups.md` — groups as a generic platform primitive. Policy containers, service-scoped roles, join policies, blocking, cross-app identity. No app-specific assumptions.
-- `web10-social-groups.md` — how web10-social uses groups. Community groups, discover, private circles, follows. Specific roles and join policies for social use cases.
-- `contract-schemas.md` — ClickHouse table schemas for service contracts, group contracts, membership, join requests, sharing toggle, blacklists.
-- `group-identity-management.md` — group profile, URLs, service-scoped roles, permissions, CRUD operations.
-- `sdk-api.md` — the JavaScript/TypeScript SDK. Typed `createClient()`. Groups baked into every CRUD verb. Auth, service contracts, media, aggregate, cross-node addressing.
-- `sdk-implementation.md` — ClickHouse SQL behind every SDK function. What tables each call touches, what queries it runs, what tombstones it creates.
-
 ## Structure
+
+```
+web10-v3/
+├── README.md              ← you are here
+├── sdk/                   ← the JavaScript/TypeScript SDK
+│   ├── api.md             ← surface: CRUD, groups, $sort, $match, $query
+│   ├── implementation.md  ← ClickHouse SQL behind every SDK call
+│   └── contracts.md       ← service contracts, group contracts, blacklists
+├── db/                    ← ClickHouse implementation & setup
+│   └── clickhouse.md      ← complete schema: tables, indexes, patterns
+├── groups/                ← groups as a platform primitive
+│   ├── overview.md        ← policy containers, roles, join policies
+│   └── identity.md        ← profiles, URLs, service-scoped roles
+└── social/                ← web10-social implementation
+    ├── overview.md        ← how social uses groups: discover, follows, communities
+    └── group-policy-example.json.md ← concrete role/permission examples
+```
+
+## Quick Links
+
+- **SDK** — `sdk/api.md` (surface), `sdk/implementation.md` (SQL), `sdk/contracts.md` (contracts)
+- **DB** — `db/clickhouse.md` (tables, indexes, patterns)
+- **Groups** — `groups/overview.md` (primitive), `groups/identity.md` (profiles)
+- **Social** — `social/overview.md` (implementation), `social/group-policy-example.json.md` (examples)
+
+## Decisions
 
 Decisions land here as they're made:
 - Architecture
