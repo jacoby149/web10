@@ -133,6 +133,83 @@ const posts = await w.read('posts', {
 
 Union of all groups. One query.
 
+**Sorting** — `$sort` is always an object. Two types:
+
+```ts
+// Simple sort — priority order (dictionary-style)
+const posts = await w.read('posts', {
+  groups: feedGroups,
+  $sort: {
+    type: 'simple',
+    fields: ['created_at:desc', 'author_key:asc'],
+  },
+  $limit: 50,
+})
+
+// Power mean sort — weighted ranking
+const posts = await w.read('posts', {
+  groups: feedGroups,
+  $sort: {
+    type: 'powerMean',
+    fields: [
+      { field: 'created_at', type: 'time', weight: 0.6, half_life: 24, boost: 1 },
+      { field: 'ref_count', type: 'ref_count', collection: 'reactions', weight: 0.6, boost: 2 },
+      { field: 'ref_count', type: 'ref_count', collection: 'comments', weight: 0.4, boost: 0.5 },
+    ],
+    balance: -1,
+  },
+  $limit: 50,
+})
+```
+
+Each field has:
+- `type` — how the API normalizes the signal (`time` or `ref_count`)
+- `weight` — how much it contributes to the power mean (0 = ignored)
+- `boost` — multiplier applied after normalization, before combining (default 1). `boost: 2` doubles the signal, `boost: 0.5` halves it.
+- `half_life` — for `time` fields, decay in hours (0 = no decay)
+- `collection` — for `ref_count`, which collection to count from
+
+`ref_count` works on any collection. The API counts documents where `ref_value` matches the current document. Indexed, fast, no counter table needed.
+```
+
+`ref_count` is generic — it counts any document in the named collection whose `ref` points to the current document. Reactions, comments, bookmarks, upvotes — any collection using `ref` works. No special infrastructure.
+
+`half_life` is in hours. `balance` controls how signals combine:
+
+| balance | Effect | Example |
+|---|---|---|
+| +5 (Extreme) | Best signal dominates | A post with 1000 reactions ranks high even if it's old and has no comments. Specialists win. |
+| +1 (Loose) | High signals pull up | A post great in one area beats one that's mediocre everywhere. |
+| 0 (Flat) | Geometric mean | All signals matter equally in log space. A post needs some of everything. |
+| -1 (Tight) | Low signals pull down | A post with zero comments can't rank high, even with tons of reactions. Generalists win. |
+| -5 (Strict) | Weakest signal dominates | A post must be good across all dimensions. One dead signal kills the score. |
+
+The API normalizes signals, computes the power mean score in ClickHouse, and returns pre-sorted results. No client-side scoring.
+
+**Filtering** — `$match` filters documents before sorting. Fast on indexed fields, works (but scans) on the JSON body:
+
+```ts
+const posts = await w.read('posts', {
+  groups: feedGroups,
+  $match: {
+    author_key: 'alice',
+    tags: ['jazz'],
+    'body.media.type': 'minio',
+  },
+  $limit: 50,
+})
+```
+
+| Field | Speed | How |
+|---|---|---|
+| `author_key`, `collection_name`, `created_at` | Fast | Indexed (primary key) |
+| `tags` | Fast | `has(tags, 'jazz')` |
+| `body.*` (JSON path) | Slow | `extractJSONString` scan |
+
+For page-sized results, JSON body filters are fine. For filtering millions of rows, use tags or dedicated columns.
+
+See `feed-lens-integration.md` in brainstorm for the full feed tuning plan (lens as user-owned config, 5-knob UI, mix codes).
+
 ### Update
 
 Same separation. Body changes in the first arg. Group changes in the options:
@@ -340,6 +417,7 @@ Each SDK call triggers specific ClickHouse operations:
 | `w.create('posts', ..., { groups })` | `INSERT INTO documents` + `INSERT INTO doc_groups` (N rows) |
 | `w.read('posts', { groups: ['me'] })` | `SELECT FROM documents WHERE author_key = :user` (reserved group, no join) |
 | `w.read('posts', { groups })` | `SELECT FROM documents JOIN doc_groups JOIN group_members WHERE member = :user AND group IN (...)` |
+| `w.read('posts', { groups, $sort: { type: 'powerMean' } })` | Same + ref_count subqueries on `ref_value`, power mean score in SELECT, `ORDER BY score DESC` |
 | `w.update('posts', ..., { $groups })` | `INSERT INTO documents` (new version) + tombstone old `doc_groups` + new `doc_groups` |
 | `w.delete('posts', ...)` | `INSERT INTO documents` (tombstone) + tombstone `doc_groups` |
 | `w.createGroup(...)` | `INSERT INTO group_contracts` + `INSERT INTO group_members` (all members) |

@@ -14,7 +14,8 @@ Work-in-progress ideas, alternatives, and explorations live in `web10-v3-brainst
 - `web10-social-groups.md` — how web10-social uses groups. Community groups, discover, private circles, follows. Specific roles and join policies for social use cases.
 - `contract-schemas.md` — ClickHouse table schemas for service contracts, group contracts, membership, join requests, sharing toggle, blacklists.
 - `group-identity-management.md` — group profile, URLs, service-scoped roles, permissions, CRUD operations.
-- `sdk-api.md` — the JavaScript/TypeScript SDK. Typed `createClient()`. Groups baked into every CRUD verb. Auth, service contracts, media, aggregate, cross-node addressing. What ClickHouse each call triggers.
+- `sdk-api.md` — the JavaScript/TypeScript SDK. Typed `createClient()`. Groups baked into every CRUD verb. Auth, service contracts, media, aggregate, cross-node addressing.
+- `sdk-implementation.md` — ClickHouse SQL behind every SDK function. What tables each call touches, what queries it runs, what tombstones it creates.
 
 ## Structure
 

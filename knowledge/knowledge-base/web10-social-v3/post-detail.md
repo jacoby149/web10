@@ -27,136 +27,147 @@ alice · 1h ago
 ## Protocol Mapping
 
 **The post:** Direct read by doc_id.
-```
-GET /jacoby149/posts/{doc_id}
-→ check group permissions → allowed
-→ return post with presigned media URLs
+
+```ts
+const post = await w.read('posts', {
+  _id: 'doc-123',
+  groups: ['web10.app/groups/charlie/st-louis-chess-club'],
+})
+// → returns post with presigned media URLs
 ```
 
-**Reactions:** Posts in the `reactions` collection with a ref to this post.
-```sql
-SELECT p.doc_id, p.author_key, p.body, p.created_at
-FROM documents p
-WHERE p.deleted = 0
-  AND p.collection_name = 'reactions'
-  AND hasToken(p.body, '{doc_id}')
-ORDER BY p.created_at DESC;
+**Reactions:** Documents in the `reactions` collection with a ref to this post.
+
+```ts
+const reactions = await w.read('reactions', {
+  $match: { ref: 'doc-123' },
+  groups: ['web10.app/groups/charlie/st-louis-chess-club'],
+  $sort: { created_at: -1 },
+})
 ```
 
-The body contains `{ "ref": {"type": "ref", "value": "{doc_id}"}, "reaction_type": {"type": "text", "value": "like"} }`.
+The body contains `{ "ref": { "type": "ref", "value": "doc-123" }, "reaction_type": { "type": "text", "value": "like" } }`.
 
 **Reaction count:**
-```sql
-SELECT count() FROM documents
-WHERE deleted = 0
-  AND collection_name = 'reactions'
-  AND hasToken(body, '{doc_id}');
+
+```ts
+const count = await w.aggregate('reactions', [
+  { $match: { ref: 'doc-123' } },
+  { $count: 'total' },
+])
+// → { total: 42 }
 ```
 
 **Reaction breakdown (by type):**
-```sql
-SELECT extractJSONString(body, '$.reaction_type.value') AS rtype, count()
-FROM documents
-WHERE deleted = 0
-  AND collection_name = 'reactions'
-  AND hasToken(body, '{doc_id}')
-GROUP BY rtype;
-```
 
-Returns: `like: 35, love: 5, laugh: 2`.
+```ts
+const breakdown = await w.aggregate('reactions', [
+  { $match: { ref: 'doc-123' } },
+  { $group: { _id: '$reaction_type', count: { $sum: 1 } } },
+])
+// → [{ _id: 'like', count: 35 }, { _id: 'love', count: 5 }, ...]
+```
 
 **Your reaction:** Check if you've reacted.
-```sql
-SELECT body FROM documents
-WHERE deleted = 0
-  AND collection_name = 'reactions'
-  AND author_key = 'jacoby149'
-  AND hasToken(body, '{doc_id}');
+
+```ts
+const myReaction = await w.read('reactions', {
+  groups: ['me'],
+  $match: { ref: 'doc-123' },
+})
+// → if exists, show active reaction type
+// → tap again: tombstone old, insert new
 ```
 
-If a row exists, show the active reaction type. Tap again → tombstone old reaction, insert new one.
+**Comments:** Documents in the `comments` collection with a ref to this post.
 
-**Comments:** Posts in the `comments` collection with a ref to this post.
-```sql
-SELECT p.doc_id, p.author_key, p.body, p.created_at
-FROM documents p
-WHERE p.deleted = 0
-  AND p.collection_name = 'comments'
-  AND hasToken(p.body, '{doc_id}')
-  AND extractJSONString(p.body, '$.parent_ref.value') IS NULL  -- top-level only
-ORDER BY p.created_at ASC;
+```ts
+const comments = await w.read('comments', {
+  $match: { ref: 'doc-123', parent_ref: null },  // top-level only
+  groups: ['web10.app/groups/charlie/st-louis-chess-club'],
+  $sort: { created_at: 1 },
+})
 ```
 
 **Replies to a comment:** Same query, filtered by parent_ref.
-```sql
-SELECT p.doc_id, p.author_key, p.body, p.created_at
-FROM documents p
-WHERE p.deleted = 0
-  AND p.collection_name = 'comments'
-  AND hasToken(p.body, '{doc_id}')
-  AND extractJSONString(p.body, '$.parent_ref.value') = '{comment_id}'
-ORDER BY p.created_at ASC;
+
+```ts
+const replies = await w.read('comments', {
+  $match: { ref: 'doc-123', parent_ref: 'comment-abc' },
+  groups: ['web10.app/groups/charlie/st-louis-chess-club'],
+  $sort: { created_at: 1 },
+})
 ```
 
 **Comment count:**
-```sql
-SELECT count() FROM documents
-WHERE deleted = 0
-  AND collection_name = 'comments'
-  AND hasToken(body, '{doc_id}');
+
+```ts
+const commentCount = await w.aggregate('comments', [
+  { $match: { ref: 'doc-123' } },
+  { $count: 'total' },
+])
 ```
 
 ## React to a Post
 
-```
-User taps ❤️
-  → POST /jacoby149/reactions
-     { "ref": {"type": "ref", "value": "{doc_id}"},
-       "reaction_type": {"type": "text", "value": "like"},
-       "groups": ["web10.app/groups/charlie/st-louis-chess-club"] }
-   → API: INSERT INTO documents (jacoby149's collection)
-   → API: INSERT INTO doc_groups (web10.app/groups/charlie/st-louis-chess-club, so others can see your reaction)
+```ts
+await w.create('reactions', {
+  ref: { type: 'ref', value: 'doc-123' },
+  reaction_type: { type: 'text', value: 'like' },
+}, {
+  groups: ['web10.app/groups/charlie/st-louis-chess-club'],
+})
 ```
 
-The reaction is a post. It lives in your collection. It's attached to the same group as the original post so group members can see it.
+The reaction is a document. It lives in your collection. It's attached to the same group as the original post so group members can see it.
 
 ## Comment on a Post
 
-```
-User types comment, taps send
-  → POST /jacoby149/comments
-     { "ref": {"type": "ref", "value": "{doc_id}"},
-       "text": {"type": "text", "value": "this is fire"},
-       "groups": ["web10.app/groups/charlie/st-louis-chess-club"] }
-  → API: INSERT INTO documents
-  → API: INSERT INTO doc_groups
+```ts
+await w.create('comments', {
+  ref: { type: 'ref', value: 'doc-123' },
+  text: { type: 'text', value: 'this is fire' },
+}, {
+  groups: ['web10.app/groups/charlie/st-louis-chess-club'],
+})
 ```
 
-Reply to a comment: add `parent_ref` to the body. Same endpoint. Same table.
+Reply to a comment: add `parent_ref` to the body. Same endpoint. Same collection.
+
+```ts
+await w.create('comments', {
+  ref: { type: 'ref', value: 'doc-123' },
+  parent_ref: { type: 'ref', value: 'comment-abc' },
+  text: { type: 'text', value: 'agree, the ref type is genius' },
+}, {
+  groups: ['web10.app/groups/charlie/st-louis-chess-club'],
+})
+```
 
 ## The Data Flow
 
 ```
 User opens post detail
-  → GET /jacoby149/posts/{doc_id}        (the post)
-  → query: reactions + count               (documents table, reactions collection)
-  → query: comments + count                (documents table, comments collection)
-  → query: your reaction                   (documents table, reactions collection)
+  → w.read('posts', { _id: 'doc-123', groups: [...] })     (the post)
+  → w.read('reactions', { $match: { ref: 'doc-123' } })    (reactions)
+  → w.aggregate('reactions', [{ $count }])                 (reaction count)
+  → w.read('comments', { $match: { ref: 'doc-123' } })     (comments)
+  → w.read('reactions', { groups: ['me'], $match: { ref } }) (your reaction)
   → parallel: resolve author avatars
   → render
 ```
 
-Five parallel queries. One table. Different collections and filters.
+Five parallel calls. One table. Different collections and filters.
 
 ## TODO
 
 - [ ] Reaction toggle — tap to react, tap again to change, tap again to remove
 - [ ] Comment threading — nested replies via parent_ref
 - [ ] Comment pagination — load more on scroll
-- [ ] Share flow — attach post to a different group (copy the doc_groups entry)
-- [ ] Report post — INSERT into a moderation table (future)
+- [ ] Share flow — attach post to a different group (add doc_groups entry)
+- [ ] Report post — create document in moderation collection (future)
 - [ ] Reaction animation — client-side, no protocol impact
 
 ## Proof
 
-Post detail is one post read, plus queries for reactions and comments — all posts in the same table. The `ref` type links everything. The `collection_name` distinguishes reactions from comments from posts. No dedicated tables. No dedicated endpoints. The protocol handles it.
+Post detail is one document read, plus queries for reactions and comments — all documents in the same table. The `ref` type links everything. The `collection_name` distinguishes reactions from comments from posts. No dedicated tables. No dedicated endpoints. The protocol handles it.

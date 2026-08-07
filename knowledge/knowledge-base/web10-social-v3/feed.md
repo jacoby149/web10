@@ -1,6 +1,6 @@
 # Your Feed
 
-Your personal feed. Posts from all groups you belong to, minus the public board.
+Your personal feed. Posts from all groups you belong to, except discover.
 
 ## What the Screen Shows
 
@@ -19,47 +19,68 @@ Feed
 
 ## Protocol Mapping
 
-**Your feed is all groups you belong to, minus the discover group.** The discover group (`web10.app/groups/web10/discover`) is the public board — it has its own screen. Your feed is personal: followers, communities, close-friends.
+**Your feed is all groups you belong to, except the discover group.** The discover group (`web10.app/groups/web10/discover`) is the public board — it has its own screen. Your feed is personal: followers, communities, close-friends.
 
 ```ts
-const groups = await getGroups({ member: 'jacoby149' });
-// → [web10.app/groups/web10/discover,
-//    web10.app/groups/jacoby149/followers,
-//    web10.app/groups/jacoby149/close-friends,
-//    web10.app/groups/charlie/st-louis-chess-club,
-//    web10.app/groups/dave/jazz-collectors, ...]
+const allGroups = await w.getGroups({ member: 'jacoby149' })
+// → [
+//    { group_id: 'web10.app/groups/web10/discover', ... },
+//    { group_id: 'web10.app/groups/jacoby149/followers', ... },
+//    { group_id: 'web10.app/groups/jacoby149/close-friends', ... },
+//    { group_id: 'web10.app/groups/charlie/st-louis-chess-club', ... },
+//    { group_id: 'web10.app/groups/dave/jazz-collectors', ... },
+//  ]
 
-const feedGroups = groups.filter(g => g !== 'web10.app/groups/web10/discover');
+const feedGroups = allGroups
+  .filter(g => g.group_id !== 'web10.app/groups/web10/discover')
+  .map(g => g.group_id)
 
-const posts = await getDocuments({ groups: feedGroups, sort: 'newest', limit: 50 });
+const posts = await w.read('posts', {
+  groups: feedGroups,
+  $sort: { created_at: -1 },
+  $limit: 50,
+})
 ```
 
-One SDK call. All your groups. Public board excluded.
+Two SDK calls. Get your groups, filter out discover, read across the rest.
 
-**Narrowing to followers only.** The app can filter to just followers groups:
+**Narrowing to followers only:**
+
 ```ts
-const followersGroups = groups.filter(g => g.endsWith('/followers'));
-const feed = await getDocuments({ groups: followersGroups, sort: 'newest', limit: 50 });
+const followersGroups = allGroups
+  .filter(g => g.group_id.endsWith('/followers'))
+  .map(g => g.group_id)
+
+const feed = await w.read('posts', {
+  groups: followersGroups,
+  $sort: { created_at: -1 },
+  $limit: 50,
+})
 ```
 
-**Narrowing to a specific group.** This is how profile pages and group pages work:
+**Narrowing to a specific group.** Profile pages and group pages:
+
 ```ts
 // Alice's profile — only her followers group
-const profilePosts = await getDocuments({ groups: ['web10.app/groups/alice/followers'], sort: 'newest' });
+const profilePosts = await w.read('posts', {
+  groups: ['web10.app/groups/alice/followers'],
+  $sort: { created_at: -1 },
+})
 
 // Chess club page — only that group
-const clubPosts = await getDocuments({ groups: ['web10.app/groups/charlie/st-louis-chess-club'], sort: 'newest' });
+const clubPosts = await w.read('posts', {
+  groups: ['web10.app/groups/charlie/st-louis-chess-club'],
+  $sort: { created_at: -1 },
+})
 ```
-
-Same SDK call. Different groups.
 
 ## The Data Flow
 
 ```
 User opens /feed
-  → getGroups({ member: 'jacoby149' })
+  → w.getGroups({ member: 'jacoby149' })
   → filter out web10/discover
-  → getDocuments({ groups: feedGroups, sort: 'newest', limit: 50 })
+  → w.read('posts', { groups: feedGroups, $sort: { created_at: -1 }, $limit: 50 })
   → parallel: resolve author avatars
   → render
 ```
@@ -68,12 +89,10 @@ User opens /feed
 
 | Your Feed | Discover |
 |---|---|
-| All groups you belong to, minus discover | Only `web10.app/groups/web10/discover` |
+| All groups you belong to, except discover | Only `web10.app/groups/web10/discover` |
 | Personal: followers, communities, close-friends | Public board: everything posted to discover |
 | Chronological | Chronological or trending |
-| Excludes discover group | Is the discover group |
-
-Same SDK call. Different groups. Your feed is personal. Discover is public.
+| Different for every user | Same for every user |
 
 ## TODO
 
@@ -85,4 +104,4 @@ Same SDK call. Different groups. Your feed is personal. Discover is public.
 
 ## Proof
 
-Your feed is one SDK call with a list of groups. No feed table. No fan-out on write. No "compute feed" job. The groups define what's in your feed. The protocol handles it.
+Your feed is two SDK calls. Get groups, filter out discover, read across the rest. No feed table. No fan-out on write. No "compute feed" job. The groups define what's in your feed. The protocol handles it.
