@@ -382,6 +382,88 @@ ORDER BY reaction_count DESC, p.created_at DESC
 LIMIT 50;
 ```
 
+### `w.read(collection, { groups, $lens })`
+
+Lens ranking — server-side weighted power mean. The API resolves the lens (by ID or inline), extracts ranking rules, and computes the score in ClickHouse.
+
+**Post engagement counter table** (written by the API on reaction/comment insert):
+
+```sql
+CREATE TABLE post_engagement (
+    doc_id String,
+    reaction_count UInt32,
+    comment_count UInt32,
+    updated_at DateTime64(3),
+    deleted UInt8 DEFAULT 0
+) ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY doc_id;
+```
+
+**Lens ranking query** (power mean in ClickHouse):
+
+```sql
+SELECT
+    p.doc_id, p.author_key, p.body, p.tags, p.created_at,
+    -- Normalized signals (saturating curves)
+    CASE WHEN :half_life_ms <= 0 THEN 1
+         ELSE exp(-timestampDiff('millisecond', p.created_at, now()) / :half_life_ms)
+    END AS recency,
+    (:w_likes * log1p(eng.reaction_count)) / (1 + :w_likes * log1p(eng.reaction_count)) AS likes_norm,
+    (:w_comments * log1p(eng.comment_count)) / (1 + :w_comments * log1p(eng.comment_count)) AS comments_norm,
+    -- Power mean score
+    CASE
+        WHEN :p = 0 THEN
+            -- Geometric mean: exp(Σ wᵢ·ln(xᵢ) / Σ wᵢ)
+            exp(
+                (:w_recency * ln(greatest(recency, 1e-12))
+                 + :w_likes * ln(greatest(likes_norm, 1e-12))
+                 + :w_comments * ln(greatest(comments_norm, 1e-12)))
+                / (:w_recency + :w_likes + :w_comments)
+            )
+        WHEN :w_recency > 0 AND :w_likes = 0 AND :w_comments = 0 THEN
+            -- Recency-only shortcut (pure reverse-chronological)
+            -timestampDiff('millisecond', p.created_at, now())
+        ELSE
+            -- General power mean: (Σ wᵢ·xᵢ^p / Σ wᵢ)^(1/p)
+            power(
+                (:w_recency * power(greatest(recency, 1e-12), :p)
+                 + :w_likes * power(greatest(likes_norm, 1e-12), :p)
+                 + :w_comments * power(greatest(comments_norm, 1e-12), :p))
+                / (:w_recency + :w_likes + :w_comments),
+                1.0 / :p
+            )
+    END AS score
+FROM documents p
+JOIN doc_groups pg ON p.doc_id = pg.doc_id
+JOIN group_members gm ON pg.group_id = gm.group_id
+LEFT JOIN post_engagement eng ON p.doc_id = eng.doc_id AND eng.deleted = 0
+WHERE p.deleted = 0
+  AND p.collection_name = :collection
+  AND pg.deleted = 0
+  AND gm.member_key = :user
+  AND gm.deleted = 0
+  AND pg.group_id IN (:groups)
+ORDER BY score DESC
+LIMIT 50;
+```
+
+Parameters from the lens:
+- `:w_recency`, `:w_likes`, `:w_comments` — weights from `ranking_rules`
+- `:half_life_ms` — time decay half-life (0 = all time, no decay)
+- `:p` — character (power mean exponent: negative = harmonic-ish, 0 = geometric, positive = arithmetic-ish)
+
+**Lens as a document:** When `$lens` is a string ID, the API resolves it first:
+
+```sql
+SELECT body FROM documents
+WHERE doc_id = :lens_id
+  AND author_key = :user
+  AND collection_name = 'lens'
+  AND deleted = 0;
+```
+
+The body contains the lens config (ranking_rules, half_life_ms, character). Same query shape whether inline or by ID.
+
 ## Media
 
 ### `w.upload(file, options)`
@@ -420,6 +502,7 @@ SELECT ... FROM documents ...
 | `w.create(collection, body, { groups })` | `INSERT INTO documents` + `INSERT INTO doc_groups` (N rows) |
 | `w.read(collection, { groups: ['me'] })` | `SELECT FROM documents WHERE author_key = :user` |
 | `w.read(collection, { groups })` | `SELECT FROM documents JOIN doc_groups JOIN group_members` |
+| `w.read(collection, { groups, $lens })` | Same + `LEFT JOIN post_engagement`, power mean CASE in SELECT, `ORDER BY score DESC` |
 | `w.read(collection, { _id, groups })` | `SELECT FROM documents WHERE doc_id = :id` + EXISTS subquery |
 | `w.update(collection, { _id }, { $set }, { $groups })` | `INSERT INTO documents` (new version) + tombstone old `doc_groups` + new `doc_groups` |
 | `w.delete(collection, { _id })` | `INSERT INTO documents` (tombstone) + tombstone `doc_groups` |
