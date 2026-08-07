@@ -133,6 +133,53 @@ const posts = await w.read('posts', {
 
 Union of all groups. One query.
 
+**Sorting** — `$sort` handles simple sorting and weighted ranking:
+
+```ts
+// Simple sort — chronological
+const posts = await w.read('posts', {
+  groups: feedGroups,
+  $sort: { created_at: -1 },
+  $limit: 50,
+})
+
+// Power mean sort — weighted ranking
+const posts = await w.read('posts', {
+  groups: feedGroups,
+  $sort: {
+    type: 'powerMean',
+    signals: [
+      { field: 'created_at', weight: 0.6, half_life: 24 },
+      { field: 'ref_count', collection: 'reactions', weight: 0.6 },
+      { field: 'ref_count', collection: 'comments', weight: 0.4 },
+    ],
+    balance: -1,
+  },
+  $limit: 50,
+})
+
+// By config ID — the user's saved preset
+const posts = await w.read('posts', {
+  groups: feedGroups,
+  $sort: 'trending',
+  $limit: 50,
+})
+```
+
+`ref_count` is generic — it counts any document in the named collection whose `ref` points to the current document. Reactions, comments, bookmarks, upvotes — any collection using `ref` works. No special infrastructure.
+
+`half_life` is in hours. `balance` controls how signals combine:
+
+| balance | Effect | Example |
+|---|---|---|
+| +5 (Extreme) | Best signal dominates | A post with 1000 reactions ranks high even if it's old and has no comments. Specialists win. |
+| +1 (Loose) | High signals pull up | A post great in one area beats one that's mediocre everywhere. |
+| 0 (Flat) | Geometric mean | All signals matter equally in log space. A post needs some of everything. |
+| -1 (Tight) | Low signals pull down | A post with zero comments can't rank high, even with tons of reactions. Generalists win. |
+| -5 (Strict) | Weakest signal dominates | A post must be good across all dimensions. One dead signal kills the score. |
+
+The API normalizes signals, computes the power mean score in ClickHouse, and returns pre-sorted results. No client-side scoring.
+
 **Filtering** — `$match` filters documents before sorting. Fast on indexed fields, works (but scans) on the JSON body:
 
 ```ts
@@ -155,54 +202,7 @@ const posts = await w.read('posts', {
 
 For page-sized results, JSON body filters are fine. For filtering millions of rows, use tags or dedicated columns.
 
-**Ranking** — tune any read with a weighted power mean. The server scores and sorts, not the client. Works on any collection:
-
-```ts
-const posts = await w.read('posts', {
-  groups: feedGroups,
-  $rank: {
-    signals: [
-      { field: 'created_at', type: 'time', weight: 0.6, half_life: 24 },
-      { field: 'ref_count', collection: 'reactions', weight: 0.6 },
-      { field: 'ref_count', collection: 'comments', weight: 0.4 },
-    ],
-    balance: -1,
-  },
-  $limit: 50,
-})
-```
-
-`ref_count` is generic — it counts any document in the named collection whose `ref` points to the current document. Reactions, comments, bookmarks, upvotes — any collection using `ref` works. No special infrastructure. The API just counts.
-
-`half_life` is in hours. `balance` controls how signals combine:
-
-| balance | Effect | Example |
-|---|---|---|
-| +5 (Extreme) | Best signal dominates | A post with 1000 reactions ranks high even if it's old and has no comments. Specialists win. |
-| +1 (Loose) | High signals pull up | A post great in one area beats one that's mediocre everywhere. |
-| 0 (Flat) | Geometric mean | All signals matter equally in log space. A post needs some of everything. |
-| -1 (Tight) | Low signals pull down | A post with zero comments can't rank high, even with tons of reactions. Generalists win. |
-| -5 (Strict) | Weakest signal dominates | A post must be good across all dimensions. One dead signal kills the score. |
-
-```ts
-// By rank config ID — the user's saved preset
-const posts = await w.read('posts', {
-  groups: feedGroups,
-  $rank: 'rank-abc',
-  $limit: 50,
-})
-
-// Preset
-const posts = await w.read('posts', {
-  groups: ['web10.app/groups/web10/discover'],
-  $rank: 'trending',
-  $limit: 50,
-})
-```
-
-The API normalizes signals, computes the power mean score in ClickHouse, and returns pre-sorted results. No client-side scoring.
-
-The `$rank` primitive is generic — rank anything: posts, search results, products, documents. The "lens" is a separate user-owned document that can hold a ranking config plus other settings (muted topics, UI toggles). See `feed-lens-integration.md` in brainstorm for the full plan.
+The "lens" is a separate user-owned document that can hold a sort config plus other settings (muted topics, UI toggles). See `feed-lens-integration.md` in brainstorm for the full plan.
 
 ### Update
 
@@ -411,7 +411,7 @@ Each SDK call triggers specific ClickHouse operations:
 | `w.create('posts', ..., { groups })` | `INSERT INTO documents` + `INSERT INTO doc_groups` (N rows) |
 | `w.read('posts', { groups: ['me'] })` | `SELECT FROM documents WHERE author_key = :user` (reserved group, no join) |
 | `w.read('posts', { groups })` | `SELECT FROM documents JOIN doc_groups JOIN group_members WHERE member = :user AND group IN (...)` |
-| `w.read('posts', { groups, $rank })` | Same + `LEFT JOIN post_engagement`, power mean score in SELECT, `ORDER BY score DESC` |
+| `w.read('posts', { groups, $sort: { type: 'powerMean' } })` | Same + ref_count subqueries on `ref_value`, power mean score in SELECT, `ORDER BY score DESC` |
 | `w.update('posts', ..., { $groups })` | `INSERT INTO documents` (new version) + tombstone old `doc_groups` + new `doc_groups` |
 | `w.delete('posts', ...)` | `INSERT INTO documents` (tombstone) + tombstone `doc_groups` |
 | `w.createGroup(...)` | `INSERT INTO group_contracts` + `INSERT INTO group_members` (all members) |

@@ -385,16 +385,16 @@ ORDER BY reaction_count DESC, p.created_at DESC
 LIMIT 50;
 ```
 
-### `w.read(collection, { groups, $rank })`
+### `w.read(collection, { groups, $sort: { type: 'powerMean' } })`
 
-Generic ranking — server-side weighted power mean. The API resolves the ranking config (by ID or inline), extracts signals and weights, and computes the score in ClickHouse. Works on any collection.
+Generic power mean sorting. Simple `$sort: { created_at: -1 }` is just `ORDER BY created_at DESC`. Power mean sort computes a score in ClickHouse:
 
 **Field types** tell the API how to normalize:
 
 | type | normalization | example |
 |---|---|---|
 | `time` | `exp(-age_hours / half_life)` — recency decay | `created_at` with `half_life: 24` (1 day) |
-| `count` | `log1p(value) / (1 + log1p(value))` — saturating | `reactions`, `comments`, any counter |
+| `ref_count` | `log1p(count) / (1 + log1p(count))` — saturating | `{ field: 'ref_count', collection: 'reactions' }` |
 
 `half_life` is in hours. `balance` (the power mean exponent `p`) controls how signals combine:
 
@@ -406,7 +406,7 @@ Generic ranking — server-side weighted power mean. The API resolves the rankin
 | -1 | Low signals drag the score down. Generalists win. |
 | -5 | Score pulled toward the weakest signal. Strict. |
 
-**Ranking query** (power mean in ClickHouse):
+**Power mean sort query** (ClickHouse):
 
 The `ref_count` signal is a subquery on `ref_value` — instant, indexed:
 
@@ -462,18 +462,18 @@ ORDER BY score DESC
 LIMIT 50;
 ```
 
-Parameters from the `$rank` config:
+Parameters from the `$sort` config:
 - `:w_recency`, `:w_reactions`, `:w_comments` — weights from signals
 - `:half_life` — time decay half-life in hours (0 = all time, no decay)
 - `:balance` — power mean exponent (negative = harmonic-ish, 0 = geometric, positive = arithmetic-ish)
 
-**Rank config as a document:** When `$rank` is a string ID, the API resolves it first:
+**Sort config as a document:** When `$sort` is a string ID, the API resolves it first:
 
 ```sql
 SELECT body FROM documents
-WHERE doc_id = :rank_id
+WHERE doc_id = :sort_id
   AND author_key = :user
-  AND collection_name = 'rank'
+  AND collection_name = 'sort'
   AND deleted = 0;
 ```
 
@@ -517,7 +517,7 @@ SELECT ... FROM documents ...
 | `w.create(collection, body, { groups })` | `INSERT INTO documents` + `INSERT INTO doc_groups` (N rows) |
 | `w.read(collection, { groups: ['me'] })` | `SELECT FROM documents WHERE author_key = :user` |
 | `w.read(collection, { groups })` | `SELECT FROM documents JOIN doc_groups JOIN group_members` |
-| `w.read(collection, { groups, $lens })` | Same + `LEFT JOIN post_engagement`, power mean CASE in SELECT, `ORDER BY score DESC` |
+| `w.read(collection, { groups, $sort: { type: 'powerMean' } })` | Same + ref_count subqueries on `ref_value`, power mean score in SELECT, `ORDER BY score DESC` |
 | `w.read(collection, { _id, groups })` | `SELECT FROM documents WHERE doc_id = :id` + EXISTS subquery |
 | `w.update(collection, { _id }, { $set }, { $groups })` | `INSERT INTO documents` (new version) + tombstone old `doc_groups` + new `doc_groups` |
 | `w.delete(collection, { _id })` | `INSERT INTO documents` (tombstone) + tombstone `doc_groups` |
