@@ -162,4 +162,4 @@ Following a public profile is a group join. The user's followers group uses `joi
 
 Web10-social uses groups for communities, discovery, private circles, and follows. The roles are choices the social app makes — not platform requirements. Any app can define its own roles for its own groups. The platform doesn't care what you call them or what they do.
 
-For the generic group model, see `../groups/overview.md`. For contract schemas, see `../schema/contracts.md`.
+For the generic group model, see `../groups/overview.md`. For contract schemas, see `../sdk/contracts.md`.

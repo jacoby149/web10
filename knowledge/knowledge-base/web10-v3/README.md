@@ -15,10 +15,10 @@ web10-v3/
 ├── README.md              ← you are here
 ├── sdk/                   ← the JavaScript/TypeScript SDK
 │   ├── api.md             ← surface: CRUD, groups, $sort, $match, $query
-│   └── implementation.md  ← ClickHouse SQL behind every SDK call
-├── schema/                ← the data model
-│   ├── clickhouse.md      ← complete schema: tables, indexes, patterns
+│   ├── implementation.md  ← ClickHouse SQL behind every SDK call
 │   └── contracts.md       ← service contracts, group contracts, blacklists
+├── db/                    ← ClickHouse implementation & setup
+│   └── clickhouse.md      ← complete schema: tables, indexes, patterns
 ├── groups/                ← groups as a platform primitive
 │   ├── overview.md        ← policy containers, roles, join policies
 │   └── identity.md        ← profiles, URLs, service-scoped roles
@@ -29,8 +29,8 @@ web10-v3/
 
 ## Quick Links
 
-- **SDK** — `sdk/api.md` (surface), `sdk/implementation.md` (SQL)
-- **Schema** — `schema/clickhouse.md` (tables), `schema/contracts.md` (contracts)
+- **SDK** — `sdk/api.md` (surface), `sdk/implementation.md` (SQL), `sdk/contracts.md` (contracts)
+- **DB** — `db/clickhouse.md` (tables, indexes, patterns)
 - **Groups** — `groups/overview.md` (primitive), `groups/identity.md` (profiles)
 - **Social** — `social/overview.md` (implementation), `social/group-policy-example.json.md` (examples)
 
