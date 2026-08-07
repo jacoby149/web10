@@ -133,6 +133,28 @@ const posts = await w.read('posts', {
 
 Union of all groups. One query.
 
+**Filtering** — `$match` filters documents before sorting. Fast on indexed fields, works (but scans) on the JSON body:
+
+```ts
+const posts = await w.read('posts', {
+  groups: feedGroups,
+  $match: {
+    author_key: 'alice',
+    tags: ['jazz'],
+    'body.media.type': 'minio',
+  },
+  $limit: 50,
+})
+```
+
+| Field | Speed | How |
+|---|---|---|
+| `author_key`, `collection_name`, `created_at` | Fast | Indexed (primary key) |
+| `tags` | Fast | `has(tags, 'jazz')` |
+| `body.*` (JSON path) | Slow | `extractJSONString` scan |
+
+For page-sized results, JSON body filters are fine. For filtering millions of rows, use tags or dedicated columns.
+
 **Ranking** — tune any read with a weighted power mean. The server scores and sorts, not the client. Works on any collection:
 
 ```ts
@@ -141,8 +163,8 @@ const posts = await w.read('posts', {
   $rank: {
     signals: [
       { field: 'created_at', type: 'time', weight: 0.6, half_life: 24 },
-      { field: 'reactions', type: 'count', weight: 0.6 },
-      { field: 'comments', type: 'count', weight: 0.4 },
+      { field: 'ref_count', collection: 'reactions', weight: 0.6 },
+      { field: 'ref_count', collection: 'comments', weight: 0.4 },
     ],
     balance: -1,
   },
@@ -150,14 +172,16 @@ const posts = await w.read('posts', {
 })
 ```
 
+`ref_count` is generic — it counts any document in the named collection whose `ref` points to the current document. Reactions, comments, bookmarks, upvotes — any collection using `ref` works. No special infrastructure. The API just counts.
+
 `half_life` is in hours. `balance` controls how signals combine:
 
 | balance | Effect | Example |
 |---|---|---|
-| +5 (Extreme) | Best signal dominates | A post with 1000 likes ranks high even if it's old and has no comments. Specialists win. |
+| +5 (Extreme) | Best signal dominates | A post with 1000 reactions ranks high even if it's old and has no comments. Specialists win. |
 | +1 (Loose) | High signals pull up | A post great in one area beats one that's mediocre everywhere. |
 | 0 (Flat) | Geometric mean | All signals matter equally in log space. A post needs some of everything. |
-| -1 (Tight) | Low signals pull down | A post with zero comments can't rank high, even with tons of likes. Generalists win. |
+| -1 (Tight) | Low signals pull down | A post with zero comments can't rank high, even with tons of reactions. Generalists win. |
 | -5 (Strict) | Weakest signal dominates | A post must be good across all dimensions. One dead signal kills the score. |
 
 ```ts
