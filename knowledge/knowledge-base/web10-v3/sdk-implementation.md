@@ -337,11 +337,11 @@ FROM service_contracts
 WHERE user_key = :user AND deleted = 0;
 ```
 
-## Query
+## Query (v2 — Coming Soon)
 
 ### `w.query(sql)`
 
-Full ClickHouse SQL. The API wraps it in a CTE to enforce permissions:
+Full ClickHouse SQL. The API wraps it in a CTE to enforce permissions. **Status:** CTE-wrapping approach is being audited for escape vectors (table aliases, UNION, subquery scope). Not available in v1.
 
 ```sql
 WITH user_docs AS (
