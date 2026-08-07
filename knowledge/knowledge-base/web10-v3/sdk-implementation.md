@@ -413,22 +413,22 @@ The `ref_count` signal is a subquery on `ref_value` — instant, indexed:
 ```sql
 SELECT
     p.doc_id, p.author_key, p.body, p.tags, p.created_at,
-    -- Normalized signals
-    CASE WHEN :half_life <= 0 THEN 1
+    -- Normalized signals with boost
+    (:boost_recency * CASE WHEN :half_life <= 0 THEN 1
          ELSE exp(-timestampDiff('hour', p.created_at, now()) / :half_life)
-    END AS recency,
-    (:w_reactions * log1p(
+    END) AS recency,
+    (:boost_reactions * (:w_reactions * log1p(
         SELECT count() FROM documents r
         WHERE r.deleted = 0
           AND r.collection_name = 'reactions'
           AND r.ref_value = p.doc_id
-    )) / (1 + :w_reactions * log1p(...)) AS reactions_norm,
-    (:w_comments * log1p(
+    )) / (1 + :w_reactions * log1p(...))) AS reactions_norm,
+    (:boost_comments * (:w_comments * log1p(
         SELECT count() FROM documents c
         WHERE c.deleted = 0
           AND c.collection_name = 'comments'
           AND c.ref_value = p.doc_id
-    )) / (1 + :w_comments * log1p(...)) AS comments_norm,
+    )) / (1 + :w_comments * log1p(...))) AS comments_norm,
     -- Power mean score
     CASE
         WHEN :balance = 0 THEN
@@ -464,6 +464,7 @@ LIMIT 50;
 
 Parameters from the `$sort` config:
 - `:w_recency`, `:w_reactions`, `:w_comments` — weights from fields
+- `:boost_recency`, `:boost_reactions`, `:boost_comments` — per-field boost (default 1)
 - `:half_life` — time decay half-life in hours (0 = all time, no decay)
 - `:balance` — power mean exponent (negative = harmonic-ish, 0 = geometric, positive = arithmetic-ish)
 
