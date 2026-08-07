@@ -337,50 +337,74 @@ FROM service_contracts
 WHERE user_key = :user AND deleted = 0;
 ```
 
-## Aggregate Operations
+## Query
 
-### `w.aggregate(collection, pipeline)`
+### `w.query(sql)`
 
-Server-side pipeline. The `$match`, `$group`, `$sort`, `$count` stages translate to ClickHouse clauses.
+Full ClickHouse SQL. The API wraps it in a CTE to enforce permissions:
+
+```sql
+WITH user_docs AS (
+  SELECT d.*
+  FROM documents d
+  JOIN doc_groups dg ON d.doc_id = dg.doc_id
+  JOIN group_members gm ON dg.group_id = gm.group_id
+  WHERE d.deleted = 0
+    AND dg.deleted = 0
+    AND gm.member_key = :user
+    AND gm.deleted = 0
+    AND NOT EXISTS (
+      SELECT 1 FROM user_blacklist
+      WHERE user_key = d.author_key AND blocked_key = :user
+    )
+)
+-- Developer's query runs here, scoped to user_docs
+SELECT doc_id, author_key, count() as reaction_count
+FROM documents
+WHERE collection_name = 'reactions'
+  AND ref_value IN (SELECT doc_id FROM user_docs)
+  AND deleted = 0
+GROUP BY doc_id, author_key
+ORDER BY reaction_count DESC
+LIMIT 50;
+```
+
+The CTE (`user_docs`) is the permission boundary. The developer's query can join against it, subquery from it, or aggregate over it — but it can never see documents outside the user's groups.
 
 **Example: count reactions for a post**
 
 ```sql
+WITH user_docs AS (...)
 SELECT count()
 FROM documents
 WHERE deleted = 0
   AND collection_name = 'reactions'
-  AND hasToken(body, :doc_id);
+  AND ref_value IN (SELECT doc_id FROM user_docs);
 ```
 
 **Example: reaction breakdown by type**
 
 ```sql
+WITH user_docs AS (...)
 SELECT extractJSONString(body, '$.reaction_type.value') AS rtype, count()
 FROM documents
 WHERE deleted = 0
   AND collection_name = 'reactions'
-  AND hasToken(body, :doc_id)
+  AND ref_value IN (SELECT doc_id FROM user_docs)
 GROUP BY rtype;
 ```
 
 **Example: trending posts**
 
 ```sql
+WITH user_docs AS (...)
 SELECT p.doc_id, p.author_key, p.body, p.created_at,
        (SELECT count() FROM documents r
         WHERE r.deleted = 0
           AND r.collection_name = 'reactions'
-          AND hasToken(r.body, p.doc_id)
+          AND r.ref_value = p.doc_id
        ) AS reaction_count
-FROM documents p
-JOIN doc_groups pg ON p.doc_id = pg.doc_id
-JOIN group_members gm ON pg.group_id = gm.group_id
-WHERE p.deleted = 0
-  AND p.collection_name = 'posts'
-  AND pg.deleted = 0
-  AND gm.member_key = :user
-  AND gm.deleted = 0
+FROM user_docs p
 ORDER BY reaction_count DESC, p.created_at DESC
 LIMIT 50;
 ```

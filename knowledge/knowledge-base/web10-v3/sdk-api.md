@@ -366,17 +366,30 @@ const updated = await w.updateGroup('web10.app/groups/jacoby149/close-friends', 
 })
 ```
 
-## Aggregate
+## Query
 
-Server-side pipelines. Read-only. Sandboxed. Same group filter:
+Full ClickHouse SQL. The API wraps it to enforce permissions: tombstones, group membership, blacklists.
 
 ```ts
-const stats = await w.aggregate('posts', [
-  { $match: { groups: 'web10.app/groups/web10/discover' } },
-  { $group: { _id: '$author', count: { $sum: 1 } } },
-  { $sort: { count: -1 } },
-])
+const results = await w.query(`
+  SELECT p.doc_id, p.author_key, count() as reaction_count
+  FROM documents p
+  WHERE p.collection_name = 'reactions'
+    AND p.ref_value IN (
+      SELECT doc_id FROM documents WHERE collection_name = 'posts'
+    )
+  GROUP BY p.doc_id, p.author_key
+  ORDER BY reaction_count DESC
+  LIMIT 50
+`)
 ```
+
+The API wraps your query in a CTE, then applies:
+- `WHERE deleted = 0` (tombstone filter)
+- Group membership check (you only see documents in groups you belong to)
+- Blacklist check (blocked authors excluded)
+
+Full ClickHouse power. Still permission-scoped. No MongoDB pipeline baggage.
 
 ## Media
 
@@ -418,6 +431,7 @@ Each SDK call triggers specific ClickHouse operations:
 | `w.read('posts', { groups: ['me'] })` | `SELECT FROM documents WHERE author_key = :user` (reserved group, no join) |
 | `w.read('posts', { groups })` | `SELECT FROM documents JOIN doc_groups JOIN group_members WHERE member = :user AND group IN (...)` |
 | `w.read('posts', { groups, $sort: { type: 'powerMean' } })` | Same + ref_count subqueries on `ref_value`, power mean score in SELECT, `ORDER BY score DESC` |
+| `w.query(sql)` | CTE-wrapped SQL: `WITH user_docs AS (SELECT ... FROM documents JOIN doc_groups JOIN group_members WHERE deleted = 0 AND member = :user) SELECT ...` |
 | `w.update('posts', ..., { $groups })` | `INSERT INTO documents` (new version) + tombstone old `doc_groups` + new `doc_groups` |
 | `w.delete('posts', ...)` | `INSERT INTO documents` (tombstone) + tombstone `doc_groups` |
 | `w.createGroup(...)` | `INSERT INTO group_contracts` + `INSERT INTO group_members` (all members) |
@@ -451,5 +465,6 @@ v3 SDK vs v2 SDK:
 | SMR contracts control data access | SMR is CORS only. Groups control data access. |
 | Separate follow/friend APIs | Follow = join group. Friends = group membership. |
 | `discoverable` boolean | No boolean. Groups handle it. `web10/discover` = public board. |
+| MongoDB aggregate pipelines | ClickHouse SQL via `w.query()` — permission-wrapped |
 
 Groups are not a separate API surface. They are baked into the verbs. Create carries groups. Read filters by groups. Update changes groups. The SDK doesn't have a "groups API" — it has CRUD that understands groups.
