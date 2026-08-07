@@ -386,6 +386,23 @@ LIMIT 50;
 
 Generic ranking — server-side weighted power mean. The API resolves the ranking config (by ID or inline), extracts signals and weights, and computes the score in ClickHouse. Works on any collection.
 
+**Field types** tell the API how to normalize:
+
+| type | normalization | example |
+|---|---|---|
+| `time` | `exp(-age_hours / half_life)` — recency decay | `created_at` with `half_life: 24` (1 day) |
+| `count` | `log1p(value) / (1 + log1p(value))` — saturating | `reactions`, `comments`, any counter |
+
+`half_life` is in hours. `balance` (the power mean exponent `p`) controls how signals combine:
+
+| balance | effect |
+|---|---|
+| +5 | Score pulled toward the best signal. Specialists win. |
+| +1 | High signals dominate. Loose. |
+| 0 | Geometric mean. All signals matter equally in log space. |
+| -1 | Low signals drag the score down. Generalists win. |
+| -5 | Score pulled toward the weakest signal. Strict. |
+
 **Post engagement counter table** (written by the API on reaction/comment insert):
 
 ```sql
@@ -405,14 +422,14 @@ ORDER BY doc_id;
 SELECT
     p.doc_id, p.author_key, p.body, p.tags, p.created_at,
     -- Normalized signals (saturating curves)
-    CASE WHEN :half_life_ms <= 0 THEN 1
-         ELSE exp(-timestampDiff('millisecond', p.created_at, now()) / :half_life_ms)
+    CASE WHEN :half_life <= 0 THEN 1
+         ELSE exp(-timestampDiff('hour', p.created_at, now()) / :half_life)
     END AS recency,
     (:w_likes * log1p(eng.reaction_count)) / (1 + :w_likes * log1p(eng.reaction_count)) AS likes_norm,
     (:w_comments * log1p(eng.comment_count)) / (1 + :w_comments * log1p(eng.comment_count)) AS comments_norm,
     -- Power mean score
     CASE
-        WHEN :p = 0 THEN
+        WHEN :balance = 0 THEN
             -- Geometric mean: exp(Σ wᵢ·ln(xᵢ) / Σ wᵢ)
             exp(
                 (:w_recency * ln(greatest(recency, 1e-12))
@@ -426,11 +443,11 @@ SELECT
         ELSE
             -- General power mean: (Σ wᵢ·xᵢ^p / Σ wᵢ)^(1/p)
             power(
-                (:w_recency * power(greatest(recency, 1e-12), :p)
-                 + :w_likes * power(greatest(likes_norm, 1e-12), :p)
-                 + :w_comments * power(greatest(comments_norm, 1e-12), :p))
+                (:w_recency * power(greatest(recency, 1e-12), :balance)
+                 + :w_likes * power(greatest(likes_norm, 1e-12), :balance)
+                 + :w_comments * power(greatest(comments_norm, 1e-12), :balance))
                 / (:w_recency + :w_likes + :w_comments),
-                1.0 / :p
+                1.0 / :balance
             )
     END AS score
 FROM documents p
@@ -447,22 +464,22 @@ ORDER BY score DESC
 LIMIT 50;
 ```
 
-Parameters from the lens:
-- `:w_recency`, `:w_likes`, `:w_comments` — weights from `ranking_rules`
-- `:half_life_ms` — time decay half-life (0 = all time, no decay)
-- `:p` — character (power mean exponent: negative = harmonic-ish, 0 = geometric, positive = arithmetic-ish)
+Parameters from the `$rank` config:
+- `:w_recency`, `:w_likes`, `:w_comments` — weights from signals
+- `:half_life` — time decay half-life in hours (0 = all time, no decay)
+- `:balance` — power mean exponent (negative = harmonic-ish, 0 = geometric, positive = arithmetic-ish)
 
-**Lens as a document:** When `$lens` is a string ID, the API resolves it first:
+**Rank config as a document:** When `$rank` is a string ID, the API resolves it first:
 
 ```sql
 SELECT body FROM documents
-WHERE doc_id = :lens_id
+WHERE doc_id = :rank_id
   AND author_key = :user
-  AND collection_name = 'lens'
+  AND collection_name = 'rank'
   AND deleted = 0;
 ```
 
-The body contains the lens config (ranking_rules, half_life_ms, character). Same query shape whether inline or by ID.
+The body contains the ranking config (signals, balance). Same query shape whether inline or by ID.
 
 ## Media
 

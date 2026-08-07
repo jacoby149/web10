@@ -136,21 +136,31 @@ Union of all groups. One query.
 **Ranking** — tune any read with a weighted power mean. The server scores and sorts, not the client. Works on any collection:
 
 ```ts
-// Inline ranking — quick tuning
 const posts = await w.read('posts', {
   groups: feedGroups,
   $rank: {
-    type: 'powerMean',
     signals: [
-      { field: 'recency', weight: 0.6, half_life_ms: 86_400_000 },
-      { field: 'reactions', weight: 0.6 },
-      { field: 'comments', weight: 0.4 },
+      { field: 'created_at', type: 'time', weight: 0.6, half_life: 24 },
+      { field: 'reactions', type: 'count', weight: 0.6 },
+      { field: 'comments', type: 'count', weight: 0.4 },
     ],
-    character: -1,  // Flat
+    balance: -1,
   },
   $limit: 50,
 })
+```
 
+`half_life` is in hours. `balance` controls how signals combine:
+
+| balance | Effect | Example |
+|---|---|---|
+| +5 (Extreme) | Best signal dominates | A post with 1000 likes ranks high even if it's old and has no comments. Specialists win. |
+| +1 (Loose) | High signals pull up | A post great in one area beats one that's mediocre everywhere. |
+| 0 (Flat) | Geometric mean | All signals matter equally in log space. A post needs some of everything. |
+| -1 (Tight) | Low signals pull down | A post with zero comments can't rank high, even with tons of likes. Generalists win. |
+| -5 (Strict) | Weakest signal dominates | A post must be good across all dimensions. One dead signal kills the score. |
+
+```ts
 // By rank config ID — the user's saved preset
 const posts = await w.read('posts', {
   groups: feedGroups,
@@ -166,7 +176,7 @@ const posts = await w.read('posts', {
 })
 ```
 
-The API resolves the ranking config, computes the power mean score in ClickHouse, and returns pre-sorted results. No client-side scoring. No separate engagement fetch.
+The API normalizes signals, computes the power mean score in ClickHouse, and returns pre-sorted results. No client-side scoring.
 
 The `$rank` primitive is generic — rank anything: posts, search results, products, documents. The "lens" is a separate user-owned document that can hold a ranking config plus other settings (muted topics, UI toggles). See `feed-lens-integration.md` in brainstorm for the full plan.
 
