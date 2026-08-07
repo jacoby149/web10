@@ -463,19 +463,11 @@ LIMIT 50;
 ```
 
 Parameters from the `$sort` config:
-- `:w_recency`, `:w_reactions`, `:w_comments` — weights from signals
+- `:w_recency`, `:w_reactions`, `:w_comments` — weights from fields
 - `:half_life` — time decay half-life in hours (0 = all time, no decay)
 - `:balance` — power mean exponent (negative = harmonic-ish, 0 = geometric, positive = arithmetic-ish)
 
-**Sort config as a document:** When `$sort` is a string ID, the API resolves it first:
-
-```sql
-SELECT body FROM documents
-WHERE doc_id = :sort_id
-  AND author_key = :user
-  AND collection_name = 'sort'
-  AND deleted = 0;
-```
+**Simple sort** (`$sort: { type: 'simple', fields: ['created_at:desc'] }`) just translates to `ORDER BY created_at DESC`. Multiple fields sort by priority (dictionary-style).
 
 The body contains the ranking config (signals, balance). Same query shape whether inline or by ID.
 

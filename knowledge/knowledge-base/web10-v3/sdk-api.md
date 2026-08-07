@@ -133,13 +133,16 @@ const posts = await w.read('posts', {
 
 Union of all groups. One query.
 
-**Sorting** — `$sort` handles simple sorting and weighted ranking:
+**Sorting** — `$sort` is always an object. Two types:
 
 ```ts
-// Simple sort — chronological
+// Simple sort — priority order (dictionary-style)
 const posts = await w.read('posts', {
   groups: feedGroups,
-  $sort: { created_at: -1 },
+  $sort: {
+    type: 'simple',
+    fields: ['created_at:desc', 'author_key:asc'],
+  },
   $limit: 50,
 })
 
@@ -148,20 +151,13 @@ const posts = await w.read('posts', {
   groups: feedGroups,
   $sort: {
     type: 'powerMean',
-    signals: [
+    fields: [
       { field: 'created_at', weight: 0.6, half_life: 24 },
       { field: 'ref_count', collection: 'reactions', weight: 0.6 },
       { field: 'ref_count', collection: 'comments', weight: 0.4 },
     ],
     balance: -1,
   },
-  $limit: 50,
-})
-
-// By config ID — the user's saved preset
-const posts = await w.read('posts', {
-  groups: feedGroups,
-  $sort: 'trending',
   $limit: 50,
 })
 ```
@@ -202,7 +198,7 @@ const posts = await w.read('posts', {
 
 For page-sized results, JSON body filters are fine. For filtering millions of rows, use tags or dedicated columns.
 
-The "lens" is a separate user-owned document that can hold a sort config plus other settings (muted topics, UI toggles). See `feed-lens-integration.md` in brainstorm for the full plan.
+See `feed-lens-integration.md` in brainstorm for the full feed tuning plan (lens as user-owned config, 5-knob UI, mix codes).
 
 ### Update
 
