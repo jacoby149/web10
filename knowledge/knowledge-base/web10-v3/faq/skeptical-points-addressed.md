@@ -37,7 +37,7 @@ Two anti-joins. ClickHouse handles them fine. The model was always correct — t
 
 **The concern:** The docs say the author decides permission level (read/write) at attachment time, but `doc_groups` only had `doc_id` and `group_id`. No column for the permission.
 
-**The resolution:** Per-document permission on the `doc_groups` row. Uses `ReplacingMergeTree(updated_at)` — same tombstone-append pattern as every other table. Full schema in `contract-schemas.md`. Cleanup strategy in `tombstone-cleanup.md`.
+**The resolution:** Per-document permission on the `doc_groups` row. Uses `ReplacingMergeTree(updated_at)` — same tombstone-append pattern as every other table. Full schema in `../sdk/contracts.md`. Cleanup strategy in `../db/clickhouse.md`.
 
 ```sql
 CREATE TABLE doc_groups (
@@ -66,7 +66,7 @@ The group manages who. The author manages how. Separated at the row level. The g
 
 **The concern:** Bob sends mail to Alice. Bob owns it. Bob deletes it. Alice's copy vanishes. For an inbox, losing unread mail is bad UX.
 
-**The resolution:** A mail app can create a `saved_mail` service. The user explicitly saves mail they want to keep. See `cross-app-sharing.md` for the full saved-mail pattern.
+**The resolution:** A mail app can create a `saved_mail` service. The user explicitly saves mail they want to keep. See `../social/cross-app-sharing.md` for the full saved-mail pattern.
 
 ```
 service:saved_mail → allowed: mailapp.com
@@ -93,13 +93,13 @@ Post in alice.close-friends, discoverable: false
 
 **The concern:** During the brainstorm, it seemed like groups could replace service contracts entirely. Why keep both?
 
-**The resolution:** They solve different problems. Service contracts control which websites can talk to your data (CORS, browser-enforced). Groups control which people can see content (server-enforced). Both must pass. The service contract is the outer wall. The groups are the inner permissions. Removing service contracts means any website can query your data — the browser won't stop them. Full schemas for both contract types in `contract-schemas.md`.
+**The resolution:** They solve different problems. Service contracts control which websites can talk to your data (CORS, browser-enforced). Groups control which people can see content (server-enforced). Both must pass. The service contract is the outer wall. The groups are the inner permissions. Removing service contracts means any website can query your data — the browser won't stop them. Full schemas for both contract types in `../sdk/contracts.md`.
 
 ## "Dedicated reactions and comments tables are v2 thinking"
 
 **The concern:** v2 had weird dedicated social media endpoints — `/reactions`, `/comments`, `/follows`. v3 is supposed to be a ubiquitous system, not a social media API. Why carry dedicated tables?
 
-**The resolution:** They're gone. Everything is a document. The `ref` type (see `document-typing.md`) is the universal pointer.
+**The resolution:** They're gone. Everything is a document. The `ref` type (see `../sdk/document-typing.md`) is the universal pointer.
 
 ```json
 // A reaction is a post
@@ -118,7 +118,7 @@ One table. One CRUD. One permission model. The app decides what a ref means — 
 
 **The concern:** A group with 100k members means 100k discover queries hitting ClickHouse. Even fast queries add up. The node takes a hit proportional to group size.
 
-**The resolution:** Two layers. Redis cache for hot group activity (recent posts, trending). WebSocket push for real-time updates. Full treatment in `real-time-feeds.md`.
+**The resolution:** Two layers. Redis cache for hot group activity (recent posts, trending). WebSocket push for real-time updates. Full treatment in `../db/real-time.md`.
 
 ```
 alice.followers → 100k members

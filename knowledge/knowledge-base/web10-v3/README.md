@@ -22,9 +22,13 @@ web10-v3/
 ├── groups/                ← groups as a platform primitive
 │   ├── overview.md        ← policy containers, roles, join policies
 │   └── identity.md        ← profiles, URLs, service-scoped roles
-└── social/                ← web10-social implementation
-    ├── overview.md        ← how social uses groups: discover, follows, communities
-    └── group-policy-example.json.md ← concrete role/permission examples
+├── social/                ← web10-social implementation
+│   ├── overview.md        ← how social uses groups: discover, follows, communities
+│   └── group-policy-example.json.md ← concrete role/permission examples
+└── faq/                   ← common questions, skeptical points, niche use cases
+    ├── skeptical-points-addressed.md ← real concerns from the v2→v3 transition
+    ├── oltp-to-olap-patterns.md ← how every OLTP operation works with OLAP
+    └── could-rock-for-finance.md ← why this model could work for finance
 ```
 
 ## Quick Links
