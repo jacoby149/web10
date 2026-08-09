@@ -370,19 +370,6 @@ await w.rateApp({ appId: 'https://myapp.com', rating: 5 })
 const ratings = await w.getAppRatings('https://myapp.com')
 ```
 
-## v2 Compatibility
-
-The legacy `wapi.js` SDK (v2) is still available for backward compatibility. The v3 `createClient` is the primary SDK. Key differences:
-
-| v2 (wapi.js) | v3 (createClient) |
-|---|---|
-| `create(service, body)` — no groups | `create(service, body, { groups })` — groups required for visibility |
-| `read(service, query)` — raw collection | `read(service, { groups })` — always group-filtered |
-| SMR/SIR per service (v2) | ACR — one app contract request, create or replace. GCR for group operations |
-| Separate follow/friend APIs | Follow = join group |
-| `discoverable` boolean | Groups handle visibility. `web10/discover` = public board |
-| Inbox fan-out | No inbox. Discovery is group membership query |
-
 ## Resources
 
 - [Protocol Spec](/docs/protocol-spec) — the data model, auth, permissions

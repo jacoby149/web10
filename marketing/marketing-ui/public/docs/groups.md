@@ -23,7 +23,7 @@ Three things happen when a group exists:
 
 ## The Owned Audience
 
-This is the killer differentiator for creators. On legacy platforms, your followers are the platform's asset — you can't export them, can't message them without permission, can't take them if you leave.
+This is the killer differentiator for creators. On other platforms, your followers are the platform's asset — you can't export them, can't message them without permission, can't take them if you leave.
 
 On web10, the group membership is your data. The owner can read the full membership list — usernames, emails (if set), phones (if set). They can message a follower, email a fan, text a supporter — directly. The influencer owns that relationship.
 

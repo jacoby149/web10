@@ -263,21 +263,10 @@ POST /v3/media/delete    — delete media
 - **I4.** Private content is unreadable by the node operator (e2e encryption, planned).
 - **I5.** Every actor acts under a scoped, expiring, revocable token.
 
-## 11. What Changed from v2
+## 11. App Contract Requests (ACR)
 
-| v2 | v3 |
-|---|---|
-| MongoDB, one collection per user | ClickHouse, one table for everything |
-| Terms records (whitelist/blacklist) | App contracts + group contracts |
-| `/discover` endpoint | Group membership query |
-| `/public` endpoint | Gone (groups handle it) |
-| Discovery index table | Gone (documents table is the index) |
-| Public ledger | Gone (refs in documents) |
-| Schema registry | Gone (document typing convention) |
-| Inbox fan-out | Gone (group reads) |
-| Follows service | Gone (follows are groups) |
-| Contacts service | Gone (groups) |
-| Per-service contracts | Per-app contracts |
-| HS256 tokens | RS256/EdDSA (planned) |
-| Metering credits | Planned (v4) |
-| Aggregate sandbox | ClickHouse SQL (v4) |
+Apps request access through **App Contract Requests (ACR)**. The user approves or denies in the authenticator. One request covers all services — create or replace, the operation is identical. The consent UI diffs against whatever contract exists already.
+
+## 12. Group Contract Requests (GCR)
+
+Apps cannot directly create or modify groups. They submit **Group Contract Requests (GCR)** — the user approves through the authenticator. One request per operation. Granular consent.
