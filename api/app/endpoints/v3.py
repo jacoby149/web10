@@ -291,10 +291,14 @@ async def invite_member(group_id: str, token: Token, invite: InviteMember):
 
 @router.post("/groups/{group_id}/accept-invite")
 async def accept_invite(group_id: str, token: Token):
-    """Accept a group invite."""
+    """Accept a group invite or join request."""
     user = _user(token)
-    request = ch.get_pending_requests(group_id)
-    if not any(r["requester_key"] == user for r in request):
+    result = ch.client.query(
+        "SELECT requester_key FROM group_join_requests "
+        "WHERE group_id = %(group_id)s AND requester_key = %(user_key)s AND status IN ('pending', 'invited') AND deleted = 0",
+        {"group_id": group_id, "user_key": user},
+    )
+    if not result.result_rows():
         raise exceptions.CRUD
     ch.resolve_join_request(group_id, user, "approved")
     ch.add_group_member(group_id, user, "member")

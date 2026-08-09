@@ -477,8 +477,8 @@ def block_user(user_key: str, blocked_key: str):
 def unblock_user(user_key: str, blocked_key: str):
     """Remove a user block (tombstone via INSERT SELECT deleted=1)."""
     client.command(
-        "INSERT INTO user_blacklist (user_key, blocked_key, created_at, deleted) "
-        "SELECT user_key, blocked_key, created_at, 1 "
+        "INSERT INTO user_blacklist (user_key, blocked_key, created_at, updated_at, deleted) "
+        "SELECT user_key, blocked_key, created_at, now(), 1 "
         "FROM user_blacklist WHERE user_key = %(user_key)s AND blocked_key = %(blocked_key)s AND deleted = 0",
         {"user_key": user_key, "blocked_key": blocked_key},
     )
@@ -502,7 +502,7 @@ def block_user_in_group(user_key: str, group_id: str, blocked_key: str):
 def unblock_user_in_group(user_key: str, group_id: str, blocked_key: str):
     """Remove a per-group block (tombstone via INSERT SELECT deleted=1)."""
     client.command(
-        "INSERT INTO group_blacklist (user_key, group_id, blocked_key, created_at, deleted) "
+        "INSERT INTO group_blacklist (user_key, group_id, blocked_key, created_at, updated_at, deleted) "
         "SELECT user_key, group_id, blocked_key, created_at, now(), 1 "
         "FROM group_blacklist WHERE user_key = %(user_key)s AND group_id = %(group_id)s AND blocked_key = %(blocked_key)s AND deleted = 0",
         {"user_key": user_key, "group_id": group_id, "blocked_key": blocked_key},
