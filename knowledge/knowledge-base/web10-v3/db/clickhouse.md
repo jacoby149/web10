@@ -110,9 +110,27 @@ erDiagram
         String origin
         String description
         String status
+        Float64 avg_rating
+        UInt64 review_count
         DateTime64 created_at
         DateTime64 updated_at
         UInt8 deleted
+    }
+    provider_app_reviews {
+        String app_id PK
+        String user_key PK
+        UInt8 rating
+        String comment
+        DateTime64 created_at
+        DateTime64 updated_at
+        UInt8 deleted
+    }
+    provider_app_moderation {
+        String app_id PK
+        String moderator_key PK
+        String action
+        String reason
+        DateTime64 created_at
     }
     provider_blocked_origins {
         String provider PK
@@ -120,6 +138,9 @@ erDiagram
         String reason
         DateTime64 blocked_at
     }
+
+    provider_apps ||--o{ provider_app_reviews : "has"
+    provider_apps ||--o{ provider_app_moderation : "moderated by"
 ```
 
 **User schema (11 tables):** one for content, one for visibility, three for groups, one for moderation, two for app trust, two for blocking, one for sharing control.
@@ -332,6 +353,8 @@ CREATE TABLE provider_apps (
     origin String,
     description String,
     status String,             -- 'active', 'delisted', 'pending_review'
+    avg_rating Float64,        -- cached average rating (0.0 if unrated)
+    review_count UInt64,       -- total reviews (for display)
     created_at DateTime64(3),
     updated_at DateTime64(3),
     deleted UInt8 DEFAULT 0
@@ -340,6 +363,44 @@ ORDER BY app_id;
 ```
 
 **`status` is the gate.** `active` — the app is listed and discoverable. `delisted` — removed from the store, existing users keep access (their service contracts are untouched). `pending_review` — submitted, awaiting approval.
+
+**Ratings are cached.** `avg_rating` and `review_count` are materialized at write time. When a review is added or updated, the API recomputes the average and tombstones + re-inserts the app row with the new values. Read is O(1).
+
+### Provider App Reviews
+
+User reviews and ratings for apps in the store.
+
+```sql
+CREATE TABLE provider_app_reviews (
+    app_id String,
+    user_key String,
+    rating UInt8,              -- 1 to 5
+    comment String,
+    created_at DateTime64(3),
+    updated_at DateTime64(3),
+    deleted UInt8 DEFAULT 0
+) ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY (app_id, user_key);
+```
+
+**Primary key:** `(app_id, user_key)` — one review per user per app. Updating a review is a new insert with a higher `updated_at`. Deleting is a tombstone. The API recomputes `avg_rating` and `review_count` on the `provider_apps` row after each write.
+
+### Provider App Moderation
+
+Audit trail for provider-level app moderation. Who did what, when, and why.
+
+```sql
+CREATE TABLE provider_app_moderation (
+    app_id String,
+    moderator_key String,
+    action String,             -- 'delist', 'restore', 'suspend', 'approve'
+    reason String,
+    created_at DateTime64(3)
+) ENGINE = MergeTree()
+ORDER BY (app_id, moderator_key);
+```
+
+**Primary key:** `(app_id, moderator_key)` — one action per moderator per app. Immutable — no tombstones, no updates. The provider operator is the only writer. Re-reading this table gives the full moderation history for any app.
 
 ### Provider Blocked Origins
 
