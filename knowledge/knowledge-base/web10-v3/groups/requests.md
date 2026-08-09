@@ -167,14 +167,14 @@ This is a security risk. If an app is compromised, it can create groups, add mem
 
 **Auto-approve settings live in the authenticator, not the app.** The app cannot set or change auto-approve. Only the user, through the authenticator UI, can grant it.
 
-## Bundling Group Permissions with Service Contracts (Convenience vs. Risk)
+## Bundling Group Permissions with App Contracts (Convenience vs. Risk)
 
-The most convenient place to grant group management permissions is during the service contract approval flow. When an app asks for access to your data, it could also request permission to manage groups on your behalf.
+The most convenient place to grant group management permissions is during the app contract approval flow. When an app asks for access to your data, it could also request permission to manage groups on your behalf.
 
 ```
 music.web10.com is requesting:
-  ✓ Access to "posts" service
-  ✓ Access to "comments" service
+  ✓ posts → read, create
+  ✓ playlists → read, create, update own, delete own
   ☐ Create and manage groups (followers, listeners)
   ☐ Add/remove group members
 ```
@@ -191,7 +191,7 @@ This means it can create groups, add/remove members, and change settings
 without asking you each time. Only grant this to apps you trust.
 ```
 
-**Revocation:** When you revoke a service contract, all bundled group permissions are revoked too. The app can no longer create or modify groups on your behalf. Existing groups are not affected — only future operations are blocked.
+**Revocation:** When you revoke an app contract, all bundled group permissions are revoked too. The app can no longer create or modify groups on your behalf. Existing groups are not affected — only future operations are blocked.
 
 ## Why This Matters
 

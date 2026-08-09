@@ -1,5 +1,5 @@
 import React from 'react';
-import { Users, UserPlus, UserX, Shield, Plus, Lock, LockOpen, MessageSquare, Inbox } from 'lucide-react';
+import { Users, UserPlus, Shield, Plus, Lock, LockOpen, MessageSquare } from 'lucide-react';
 import AppShell from '../shared/AppShell';
 import RecoveryNudgeBanner from '../shared/RecoveryNudgeBanner';
 import GroupCard from './GroupCard';

@@ -176,8 +176,8 @@ function GroupMembersDialog({ open, onOpenChange, group, members, loading, isMan
           ) : members.length === 0 ? (
             <div className="py-6 text-center text-muted-foreground">No members yet</div>
           ) : (
-            members.map((member, i) => (
-              <MemberRow key={i} member={member} isManaged={isManaged} I={I} group={group} />
+            members.map((member) => (
+              <MemberRow key={member.member_key} member={member} isManaged={isManaged} I={I} group={group} />
             ))
           )}
         </div>

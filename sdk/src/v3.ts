@@ -89,6 +89,12 @@ export interface V3InviteResponse {
   status: string
 }
 
+export interface V3JoinRequest {
+  requester_key: string
+  status: string
+  requested_at: string
+}
+
 export interface V3ServiceContract {
   user_key?: string
   service_name: string
@@ -358,8 +364,8 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
 
     // ── Join request management (owner/moderator) ──────────────────────────
 
-    async getJoinRequests(groupId: string): Promise<V3GroupMember[]> {
-      return v3Post<V3GroupMember[]>('groups/requests/join/list', { group_id: groupId })
+    async getJoinRequests(groupId: string): Promise<V3JoinRequest[]> {
+      return v3Post<V3JoinRequest[]>('groups/requests/join/list', { group_id: groupId })
     },
 
     async approveJoinRequest(
@@ -523,7 +529,7 @@ export interface V3Client {
   declineInvite(groupId: string): Promise<{ group_id: string; status: string }>
 
   // Join request management (owner/moderator)
-  getJoinRequests(groupId: string): Promise<V3GroupMember[]>
+  getJoinRequests(groupId: string): Promise<V3JoinRequest[]>
   approveJoinRequest(groupId: string, requesterKey: string): Promise<{ group_id: string; requester_key: string; status: string }>
   denyJoinRequest(groupId: string, requesterKey: string): Promise<{ group_id: string; requester_key: string; status: string }>
 

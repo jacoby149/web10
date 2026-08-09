@@ -57,10 +57,10 @@ erDiagram
         "DateTime64" updated_at
         "UInt8" deleted
     }
-    service_contracts {
+    app_contracts {
         String user_key PK
-        String service_name PK
         String allowed_origin PK
+        String permissions
         "DateTime64" created_at
         "DateTime64" updated_at
         "UInt8" deleted
@@ -245,20 +245,20 @@ AND (doc_id, group_id) NOT IN (
 )
 ```
 
-## Service Contracts
+## App Contracts
 
-App Trust. Binary infrastructure toggle. CORS. Browser-enforced.
+App Trust. One contract per app. Per-service permissions. CORS. Browser-enforced.
 
 ```sql
-CREATE TABLE service_contracts (
+CREATE TABLE app_contracts (
     user_key String,
-    service_name String,
     allowed_origin String,
+    permissions String,        -- JSON: { "posts": ["readAll", "create"], "playlists": ["readAll"] }
     created_at DateTime64(3),
     updated_at DateTime64(3),
     deleted UInt8 DEFAULT 0
 ) ENGINE = ReplacingMergeTree(updated_at)
-ORDER BY (user_key, service_name, allowed_origin);
+ORDER BY (user_key, allowed_origin);
 ```
 
 ## User Group Sharing
@@ -375,7 +375,7 @@ ORDER BY (user_key, group_id, blocked_key);
 |---|---|---|
 | **Updates** | `ReplacingMergeTree(updated_at)` — insert new row with higher `updated_at` | Append-only. No race conditions. Engine keeps latest. |
 | **Deletes** | Insert with `deleted = 1` and higher `updated_at` | Tombstones. Queries filter `WHERE deleted = 0`. TTL cleans up. |
-| **No row = denied** | Missing row in service_contracts = app blocked | Explicit allowlist. Default deny. |
+| **No row = denied** | Missing row in app_contracts = app blocked | Explicit allowlist. Default deny. |
 | **No row = enabled** | Missing row in user_group_sharing = sharing on | Opt-out model. Default on. |
 | **TTL** | `TTL created_at + INTERVAL 90 DAY` on documents | Physical cleanup. Old data disappears automatically. |
 | **Background compaction** | Tables without TTL get a background job | Tombstones take space. Compact on schedule. |
@@ -453,6 +453,6 @@ Monetization, ads, marketplace, and provider app store tables are in `../web10-v
 
 ## See Also
 
-- `../sdk/contracts.md` — full contract tables (service, provider, group, sharing, blacklists)
+- `../sdk/contracts.md` — full contract tables (app, provider, group, sharing, blacklists)
 - `../sdk/api.md` — SDK surface (CRUD, groups, sort, match)
 - `../sdk/implementation.md` — SQL behind every SDK call

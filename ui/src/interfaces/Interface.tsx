@@ -314,9 +314,10 @@ function useInterface() {
     }
 
     // Revoke a v3 service contract (all origins for a service, or a specific
-    // origin). The v3 equivalent of deleteService.
+    // origin + service pair). The v3 equivalent of deleteService.
     I.revokeV3Contract = function (serviceName: string, allowedOrigin?: string) {
         return v3Post('service-contracts/revoke', {
+            service_name: serviceName,
             ...(allowedOrigin && { allowed_origin: allowedOrigin }),
         }).then(() => {
             I.v3ContractsLoad();
@@ -349,19 +350,20 @@ function useInterface() {
     }
 
     // Load groups where the user has management permissions.
-    I.v3GroupsManagesLoad = function () {
+    I.v3GroupsManagesLoad = async function () {
         if (!I.auth) {
             I.setV3ManagedGroups([]);
-            return;
+            return [];
         }
-        v3Post('groups/manages', {})
-            .then((groups: any[]) => {
-                I.setV3ManagedGroups(groups || []);
-            })
-            .catch((e) => {
-                console.warn('v3 groups/manages failed:', e);
-                I.setV3ManagedGroups([]);
-            });
+        try {
+            const groups = await v3Post('groups/manages', {});
+            I.setV3ManagedGroups(groups || []);
+            return groups || [];
+        } catch (e) {
+            console.warn('v3 groups/manages failed:', e);
+            I.setV3ManagedGroups([]);
+            return [];
+        }
     }
 
     // Create a new group.

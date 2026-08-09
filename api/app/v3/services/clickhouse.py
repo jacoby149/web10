@@ -468,14 +468,22 @@ def is_origin_allowed(user_key: str, service_name: str, allowed_origin: str) -> 
     return result.result_rows()[0][0] > 0
 
 
-def revoke_service_contract(user_key: str, allowed_origin: str):
-    """Tombstone all service contracts for an origin."""
-    client.command(
-        "INSERT INTO service_contracts (user_key, service_name, allowed_origin, created_at, updated_at, deleted) "
-        "SELECT user_key, service_name, allowed_origin, created_at, now(), 1 "
-        "FROM service_contracts WHERE user_key = %(user_key)s AND allowed_origin = %(allowed_origin)s AND deleted = 0",
-        {"user_key": user_key, "allowed_origin": allowed_origin},
-    )
+def revoke_service_contract(user_key: str, allowed_origin: str, service_name: str = None):
+    """Tombstone service contracts for an origin (optionally scoped to a service)."""
+    if service_name:
+        client.command(
+            "INSERT INTO service_contracts (user_key, service_name, allowed_origin, created_at, updated_at, deleted) "
+            "SELECT user_key, service_name, allowed_origin, created_at, now(), 1 "
+            "FROM service_contracts WHERE user_key = %(user_key)s AND service_name = %(service_name)s AND allowed_origin = %(allowed_origin)s AND deleted = 0",
+            {"user_key": user_key, "service_name": service_name, "allowed_origin": allowed_origin},
+        )
+    else:
+        client.command(
+            "INSERT INTO service_contracts (user_key, service_name, allowed_origin, created_at, updated_at, deleted) "
+            "SELECT user_key, service_name, allowed_origin, created_at, now(), 1 "
+            "FROM service_contracts WHERE user_key = %(user_key)s AND allowed_origin = %(allowed_origin)s AND deleted = 0",
+            {"user_key": user_key, "allowed_origin": allowed_origin},
+        )
 
 
 def revoke_all_service_contracts(user_key: str):
