@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 import app.exceptions as exceptions
-from app.services.auth import decode_token
+from app.services.auth import decode_token, get_password_hash, verify_password
 from app.v3.models import Token
 from app.v3.services import clickhouse as ch
 
@@ -474,3 +474,188 @@ async def node_stats(data: Token):
     """Get node-level stats: users, documents, groups."""
     _user(data)
     return ch.get_node_stats()
+
+
+# ---------------------------------------------------------------------------
+# Auth (account management)
+# ---------------------------------------------------------------------------
+
+
+@router.post("/signup")
+async def signup(data: Token):
+    """Create a user account."""
+    if not data.username or not data.password:
+        raise exceptions.CRUD
+    password_hash = get_password_hash(data.password)
+    result = ch.create_user(
+        username=data.username,
+        password_hash=password_hash,
+        phone=data.phone or "",
+        email=data.email or "",
+    )
+    if not result:
+        raise exceptions.EXISTS
+    return result
+
+
+@router.post("/login")
+async def login(data: Token):
+    """Verify credentials, return JWT."""
+    if not data.username or not data.password:
+        raise exceptions.LOGIN
+    if not ch.authenticate_user(data.username, data.password):
+        raise exceptions.LOGIN
+    from datetime import datetime, timedelta
+
+    import jwt
+
+    import app.settings as settings
+
+    token_data = {
+        "username": data.username,
+        "provider": settings.PROVIDER,
+        "site": data.site or "web10",
+        "expires": (datetime.utcnow() + timedelta(minutes=settings.TOKEN_EXPIRE_MINUTES)).isoformat(),
+    }
+    return {"token": jwt.encode(token_data, settings.PRIVATE_KEY, algorithm=settings.ALGORITHM)}
+
+
+@router.post("/change-pass")
+async def change_pass(data: Token):
+    """Change password."""
+    user = _user(data)
+    if not data.password or not data.new_pass:
+        raise exceptions.CRUD
+    if not ch.authenticate_user(user, data.password):
+        raise exceptions.LOGIN
+    ch.change_password(user, get_password_hash(data.new_pass))
+    return {"status": "changed"}
+
+
+@router.post("/change-phone")
+async def change_phone(data: Token):
+    """Change phone number."""
+    user = _user(data)
+    if not data.phone:
+        raise exceptions.CRUD
+    ch.change_phone(user, data.phone)
+    return {"phone": data.phone}
+
+
+@router.post("/set-email")
+async def set_email(data: Token):
+    """Set recovery email."""
+    user = _user(data)
+    if not data.email:
+        raise exceptions.CRUD
+    ch.set_email(user, data.email)
+    return {"email": data.email}
+
+
+@router.post("/verify-phone")
+async def verify_phone(data: Token):
+    """Verify phone number with code."""
+    user = _user(data)
+    if not data.code:
+        raise exceptions.CRUD
+    ch.verify_phone(user)
+    return {"phone_verified": True}
+
+
+@router.post("/verify-email")
+async def verify_email(data: Token):
+    """Verify email with code."""
+    user = _user(data)
+    if not data.code:
+        raise exceptions.CRUD
+    ch.verify_email(user)
+    return {"email_verified": True}
+
+
+@router.post("/profile")
+async def get_profile(data: Token):
+    """Get user profile."""
+    user = _user(data)
+    profile = ch.get_user_profile(user)
+    if not profile:
+        raise exceptions.ENTRY_NOT_FOUND
+    return profile
+
+
+# ---------------------------------------------------------------------------
+# Media
+# ---------------------------------------------------------------------------
+
+
+@router.post("/media/confirm")
+async def confirm_media(data: Token):
+    """Confirm a media upload by storing metadata."""
+    user = _user(data)
+    if data.body is None:
+        raise exceptions.CRUD
+    return ch.confirm_media_upload(user, data.body)
+
+
+@router.post("/media/list")
+async def list_media(data: Token):
+    """List media for the user."""
+    user = _user(data)
+    return ch.list_media(user, limit=data.limit, offset=data.offset)
+
+
+@router.post("/media/delete")
+async def delete_media(data: Token):
+    """Delete a media record."""
+    user = _user(data)
+    if not data.doc_id:
+        raise exceptions.CRUD
+    ch.delete_media(user, data.doc_id)
+    return {"doc_id": data.doc_id, "status": "deleted"}
+
+
+# ---------------------------------------------------------------------------
+# App Store
+# ---------------------------------------------------------------------------
+
+
+@router.post("/apps/register")
+async def register_app(data: Token):
+    """Register an app in the provider app store."""
+    if not data.body or not data.body.get("url"):
+        raise exceptions.CRUD
+    return ch.register_app(data.body)
+
+
+@router.post("/apps/list")
+async def list_apps(data: Token):
+    """List approved apps."""
+    return ch.list_apps(approved_only=True)
+
+
+@router.post("/apps/rating")
+async def create_app_rating(data: Token):
+    """Submit a 1-5 star rating for an app."""
+    if not data.token:
+        raise exceptions.TOKEN
+    decoded = decode_token(data.token)
+    if not decoded.username or decoded.username == "anon":
+        raise exceptions.TOKEN
+    if not data.body or not data.body.get("target_app_id"):
+        raise exceptions.CRUD
+    rating = data.body.get("rating", 0)
+    if not 1 <= rating <= 5:
+        raise exceptions.CRUD
+    return ch.create_app_rating(
+        author=decoded.username,
+        target_app_id=data.body["target_app_id"],
+        rating=rating,
+        provider=decoded.provider,
+    )
+
+
+@router.post("/apps/ratings")
+async def get_app_ratings(data: Token):
+    """Get all ratings for an app."""
+    if not data.body or not data.body.get("target_app_id"):
+        raise exceptions.CRUD
+    return ch.get_app_ratings(data.body["target_app_id"])

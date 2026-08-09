@@ -669,3 +669,157 @@ class TestNodeStats:
             assert stats["users"] == 42
             assert stats["documents"] == 100
             assert stats["groups"] == 5
+
+
+# ---------------------------------------------------------------------------
+# Users
+# ---------------------------------------------------------------------------
+
+
+class TestCreateUser:
+    def test_create(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([(0,)])
+            result = ch.create_user("alice", "hash123", phone="+1234")
+            assert result["username"] == "alice"
+            mock_client.insert.assert_called_once()
+
+    def test_duplicate(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([(1,)])
+            assert ch.create_user("alice", "hash123") is None
+
+
+class TestGetUser:
+    def test_found(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows(
+                [("alice", "hash123", "+1234", 1, "a@b.com", 0, datetime(2026, 1, 1))]
+            )
+            user = ch.get_user("alice")
+            assert user["username"] == "alice"
+            assert user["phone_verified"] is True
+
+    def test_not_found(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([])
+            assert ch.get_user("alice") is None
+
+
+class TestAuthenticateUser:
+    def test_correct(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows(
+                [("alice", "$2b$12$hash123", "", 0, "", 0, datetime(2026, 1, 1))]
+            )
+            with patch("app.services.auth.verify_password", return_value=True):
+                assert ch.authenticate_user("alice", "secret") is True
+
+    def test_wrong(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows(
+                [("alice", "$2b$12$hash123", "", 0, "", 0, datetime(2026, 1, 1))]
+            )
+            with patch("app.services.auth.verify_password", return_value=False):
+                assert ch.authenticate_user("alice", "wrong") is False
+
+
+class TestChangePassword:
+    def test_change(self):
+        with _patch_client() as mock_client:
+            ch.change_password("alice", "new_hash")
+            mock_client.command.assert_called_once()
+
+
+class TestChangePhone:
+    def test_change(self):
+        with _patch_client() as mock_client:
+            ch.change_phone("alice", "+999")
+            mock_client.command.assert_called_once()
+
+
+class TestSetEmail:
+    def test_set(self):
+        with _patch_client() as mock_client:
+            ch.set_email("alice", "a@b.com")
+            mock_client.command.assert_called_once()
+
+
+class TestVerifyPhone:
+    def test_verify(self):
+        with _patch_client() as mock_client:
+            ch.verify_phone("alice")
+            mock_client.command.assert_called_once()
+
+
+class TestMedia:
+    def test_confirm_upload(self):
+        with _patch_client() as mock_client:
+            result = ch.confirm_media_upload("alice", {"url": "http://x", "filename": "a.png"})
+            assert result["filename"] == "a.png"
+            mock_client.insert.assert_called_once()
+
+    def test_list_media(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows(
+                [("doc-1", '{"filename":"a.png"}', datetime(2026, 1, 1))]
+            )
+            result = ch.list_media("alice")
+            assert len(result) == 1
+            assert result[0]["doc_id"] == "doc-1"
+
+    def test_delete_media(self):
+        with _patch_client() as mock_client:
+            ch.delete_media("alice", "doc-1")
+            mock_client.command.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# App Store
+# ---------------------------------------------------------------------------
+
+
+class TestRegisterApp:
+    def test_register(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([])
+            result = ch.register_app({"url": "https://myapp.com", "name": "My App"})
+            assert result["url"] == "https://myapp.com"
+            mock_client.insert.assert_called_once()
+
+    def test_register_duplicate(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows(
+                [("https://myapp.com", "My App", "", "", "[]", 1, "approved", 1)]
+            )
+            result = ch.register_app({"url": "https://myapp.com"})
+            assert result["review_state"] == "approved"
+            mock_client.insert.assert_not_called()
+
+
+class TestListApps:
+    def test_list(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows(
+                [("https://a.com", "App A", "", "", "[]", "approved", 1)]
+            )
+            result = ch.list_apps()
+            assert len(result) == 1
+            assert result[0]["url"] == "https://a.com"
+
+
+class TestCreateAppRating:
+    def test_rating(self):
+        with _patch_client() as mock_client:
+            result = ch.create_app_rating("alice", "https://a.com", 5, "api.web10.app")
+            assert result["rating"] == 5
+            mock_client.insert.assert_called_once()
+
+
+class TestGetAppRatings:
+    def test_ratings(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([("alice", 5, "api.web10.app", datetime(2026, 1, 1))])
+            result = ch.get_app_ratings("https://a.com")
+            assert len(result) == 1
+            assert result[0]["rating"] == 5

@@ -869,20 +869,291 @@ def resolve_media_urls_in_docs(docs: list[dict]) -> list[dict]:
 
 def get_node_stats() -> dict:
     """Get node-level stats: user count, doc count, storage estimate."""
-    # Count unique authors
     user_result = client.query("SELECT count(DISTINCT author_key) FROM documents WHERE deleted = 0")
     user_count = user_result.result_rows()[0][0] if user_result.result_rows() else 0
-
-    # Count documents
     doc_result = client.query("SELECT count() FROM documents WHERE deleted = 0")
     doc_count = doc_result.result_rows()[0][0] if doc_result.result_rows() else 0
-
-    # Count groups
     group_result = client.query("SELECT count() FROM group_contracts WHERE deleted = 0")
     group_count = group_result.result_rows()[0][0] if group_result.result_rows() else 0
-
     return {
         "users": user_count,
         "documents": doc_count,
         "groups": group_count,
     }
+
+
+# ---------------------------------------------------------------------------
+# Users (account management)
+# ---------------------------------------------------------------------------
+
+
+def create_user(username: str, password_hash: str, phone: str = "", email: str = "") -> dict:
+    """Create a user account."""
+    existing = client.query(
+        "SELECT count() FROM users WHERE username = %(username)s AND deleted = 0",
+        {"username": username},
+    )
+    if existing.result_rows()[0][0] > 0:
+        return None
+    now = _now()
+    client.insert(
+        "users",
+        [[username, password_hash, phone, 0, email, 0, now, now, 0]],
+    )
+    return {"username": username, "phone": phone, "email": email}
+
+
+def get_user(username: str) -> dict | None:
+    """Get a user record."""
+    result = client.query(
+        "SELECT username, password_hash, phone, phone_verified, email, email_verified, created_at "
+        "FROM users WHERE username = %(username)s AND deleted = 0",
+        {"username": username},
+    )
+    if not result.result_rows():
+        return None
+    row = result.result_rows()[0]
+    return {
+        "username": row[0],
+        "password_hash": row[1],
+        "phone": row[2],
+        "phone_verified": bool(row[3]),
+        "email": row[4],
+        "email_verified": bool(row[5]),
+        "created_at": str(row[6]),
+    }
+
+
+def authenticate_user(username: str, plain_password: str) -> bool:
+    """Check if the provided password matches the stored hash."""
+    from app.services.auth import verify_password
+
+    user = get_user(username)
+    if not user:
+        return False
+    return verify_password(plain_password, user["password_hash"])
+
+
+def change_password(username: str, new_password_hash: str):
+    """Change a user's password."""
+    client.command(
+        "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
+        "SELECT username, %(new_hash)s, phone, phone_verified, email, email_verified, created_at, now(), 0 "
+        "FROM users WHERE username = %(username)s AND deleted = 0",
+        {"username": username, "new_hash": new_password_hash},
+    )
+
+
+def change_phone(username: str, phone: str):
+    """Change a user's phone number (unverified)."""
+    client.command(
+        "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
+        "SELECT username, password_hash, %(phone)s, 0, email, email_verified, created_at, now(), 0 "
+        "FROM users WHERE username = %(username)s AND deleted = 0",
+        {"username": username, "phone": phone},
+    )
+
+
+def set_email(username: str, email: str):
+    """Set a user's email (unverified)."""
+    client.command(
+        "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
+        "SELECT username, password_hash, phone, phone_verified, %(email)s, 0, created_at, now(), 0 "
+        "FROM users WHERE username = %(username)s AND deleted = 0",
+        {"username": username, "email": email},
+    )
+
+
+def verify_phone(username: str):
+    """Mark phone as verified."""
+    client.command(
+        "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
+        "SELECT username, password_hash, phone, 1, email, email_verified, created_at, now(), 0 "
+        "FROM users WHERE username = %(username)s AND deleted = 0",
+        {"username": username},
+    )
+
+
+def verify_email(username: str):
+    """Mark email as verified."""
+    client.command(
+        "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
+        "SELECT username, password_hash, phone, phone_verified, email, 1, created_at, now(), 0 "
+        "FROM users WHERE username = %(username)s AND deleted = 0",
+        {"username": username},
+    )
+
+
+def get_user_profile(username: str) -> dict | None:
+    """Get public profile (no password hash)."""
+    user = get_user(username)
+    if not user:
+        return None
+    return {
+        "username": user["username"],
+        "phone": user["phone"],
+        "phone_verified": user["phone_verified"],
+        "email": user["email"],
+        "email_verified": user["email_verified"],
+    }
+
+
+# ---------------------------------------------------------------------------
+# Media (upload confirm, list)
+# ---------------------------------------------------------------------------
+
+
+def confirm_media_upload(user_key: str, metadata: dict) -> dict:
+    """Confirm a media upload by storing metadata in documents table."""
+    now = _now()
+    doc_id = _gen_doc_id()
+    client.insert(
+        "documents",
+        [[doc_id, user_key, "media_metadata", _json(metadata), "", [], now, now, 0]],
+    )
+    return {"doc_id": doc_id, **metadata}
+
+
+def list_media(user_key: str, limit: int = 50, offset: int = 0) -> list[dict]:
+    """List media metadata for a user."""
+    result = client.query(
+        "SELECT doc_id, body, created_at FROM documents "
+        "WHERE author_key = %(user_key)s "
+        "AND collection_name IN ('media_metadata', 'public_media') "
+        "AND deleted = 0 "
+        "ORDER BY created_at DESC "
+        "LIMIT %(limit)s OFFSET %(offset)s",
+        {"user_key": user_key, "limit": limit, "offset": offset},
+    )
+    return [
+        {
+            "doc_id": row[0],
+            "metadata": _parse_json(row[1]),
+            "created_at": str(row[2]),
+        }
+        for row in result.result_rows()
+    ]
+
+
+def delete_media(user_key: str, doc_id: str):
+    """Tombstone a media record."""
+    client.command(
+        "INSERT INTO documents (doc_id, author_key, collection_name, body, ref_value, tags, created_at, updated_at, deleted) "
+        "SELECT doc_id, author_key, collection_name, body, ref_value, tags, created_at, now(), 1 "
+        "FROM documents WHERE doc_id = %(doc_id)s AND author_key = %(user_key)s AND deleted = 0",
+        {"doc_id": doc_id, "user_key": user_key},
+    )
+
+
+# ---------------------------------------------------------------------------
+# App Store
+# ---------------------------------------------------------------------------
+
+
+def register_app(app_info: dict) -> dict:
+    """Register an app in the provider app store. Idempotent — returns existing if already registered."""
+    existing = get_app(app_info["url"])
+    if existing:
+        return {"url": app_info["url"], "review_state": existing["review_state"]}
+    now = _now()
+    client.insert(
+        "apps",
+        [
+            [
+                app_info["url"],
+                app_info.get("name", ""),
+                app_info.get("description", ""),
+                app_info.get("icon_url", ""),
+                _json(app_info.get("screenshots", [])),
+                0,
+                "pending",
+                1,
+                now,
+                now,
+                0,
+            ]
+        ],
+    )
+    return {"url": app_info["url"], "review_state": "pending"}
+
+
+def list_apps(approved_only: bool = True) -> list[dict]:
+    """List apps, optionally filtered by approval."""
+    where = "AND approved = 1" if approved_only else ""
+    result = client.query(
+        f"SELECT url, name, description, icon_url, screenshots, review_state, metadata_version "
+        f"FROM apps WHERE deleted = 0 {where} ORDER BY url",
+    )
+    return [
+        {
+            "url": row[0],
+            "name": row[1],
+            "description": row[2],
+            "icon_url": row[3],
+            "screenshots": _parse_json(row[4]),
+            "review_state": row[5],
+            "metadata_version": row[6],
+        }
+        for row in result.result_rows()
+    ]
+
+
+def get_app(url: str) -> dict | None:
+    """Get an app by URL."""
+    result = client.query(
+        "SELECT url, name, description, icon_url, screenshots, approved, review_state, metadata_version "
+        "FROM apps WHERE url = %(url)s AND deleted = 0",
+        {"url": url},
+    )
+    if not result.result_rows():
+        return None
+    row = result.result_rows()[0]
+    return {
+        "url": row[0],
+        "name": row[1],
+        "description": row[2],
+        "icon_url": row[3],
+        "screenshots": _parse_json(row[4]),
+        "approved": bool(row[5]),
+        "review_state": row[6],
+        "metadata_version": row[7],
+    }
+
+
+def approve_app(url: str, approved: bool, review_state: str):
+    """Approve or reject an app."""
+    client.command(
+        "INSERT INTO apps (url, name, description, icon_url, screenshots, approved, review_state, metadata_version, created_at, updated_at, deleted) "
+        "SELECT url, name, description, icon_url, screenshots, %(approved)s, %(review_state)s, metadata_version, created_at, now(), 0 "
+        "FROM apps WHERE url = %(url)s AND deleted = 0",
+        {"url": url, "approved": 1 if approved else 0, "review_state": review_state},
+    )
+
+
+def create_app_rating(author: str, target_app_id: str, rating: int, provider: str) -> dict:
+    """Submit a 1-5 star rating for an app."""
+    now = _now()
+    client.insert(
+        "app_ratings",
+        [[author, target_app_id, rating, provider, now, now, 0]],
+    )
+    return {"author": author, "target_app_id": target_app_id, "rating": rating}
+
+
+def get_app_ratings(target_app_id: str) -> list[dict]:
+    """Get all ratings for an app."""
+    result = client.query(
+        "SELECT author, rating, provider, created_at FROM app_ratings "
+        "WHERE target_app_id = %(target_app_id)s AND deleted = 0 "
+        "ORDER BY created_at DESC",
+        {"target_app_id": target_app_id},
+    )
+    return [
+        {
+            "author": row[0],
+            "rating": row[1],
+            "provider": row[2],
+            "created_at": str(row[3]),
+        }
+        for row in result.result_rows()
+    ]

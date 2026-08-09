@@ -84,6 +84,29 @@ erDiagram
         "DateTime64" updated_at
         "UInt8" deleted
     }
+    users {
+        String username PK
+        String password_hash
+        String phone
+        "UInt8" phone_verified
+        String email
+        "UInt8" email_verified
+    }
+    apps {
+        String url PK
+        String name
+        String description
+        String icon_url
+        String screenshots
+        "UInt8" approved
+        String review_state
+    }
+    app_ratings {
+        String target_app_id PK
+        String author PK
+        "UInt8" rating
+        String provider
+    }
 
     documents ||--o{ doc_groups : "attached to"
     doc_groups }o--|| group_contracts : "maps to"
@@ -93,9 +116,11 @@ erDiagram
     documents }o--|| user_blacklist : "author blocked by"
     documents }o--|| group_blacklist : "author blocked in group"
     documents }o--|| group_hidden_docs : "hidden from group"
+    app_ratings }o--|| apps : "rates"
+    users ||--o{ app_ratings : "authors"
 ```
 
-One table for content. One table for visibility. Five tables for groups. One table for app trust. Two tables for blocking. One table for sharing control. **10 tables.** Everything else is a query.
+One table for content. One table for visibility. Five tables for groups. One table for app trust. Two tables for blocking. One table for sharing control. One table for accounts. Two tables for the app store. **13 tables.** Everything else is a query.
 
 ## Documents
 
@@ -252,6 +277,77 @@ CREATE TABLE user_group_sharing (
 ORDER BY (user_key, group_id);
 ```
 
+## Users
+
+Account data. Every user on the node.
+
+```sql
+CREATE TABLE users (
+    username String,
+    password_hash String,
+    phone String DEFAULT '',
+    phone_verified UInt8 DEFAULT 0,
+    email String DEFAULT '',
+    email_verified UInt8 DEFAULT 0,
+    created_at DateTime64(3),
+    updated_at DateTime64(3),
+    deleted UInt8 DEFAULT 0
+) ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY username;
+```
+
+**Primary key:** `username` — unique, fast lookup.
+
+**Tombstones:** account deletion is `deleted = 1`. Queries filter `WHERE deleted = 0`.
+
+**Phone/Email:** stored unverified by default. Verification codes sent via Twilio/email. `phone_verified` / `email_verified` set to 1 on code confirmation.
+
+## Apps
+
+Registered apps in the provider app store.
+
+```sql
+CREATE TABLE apps (
+    url String,
+    name String DEFAULT '',
+    description String DEFAULT '',
+    icon_url String DEFAULT '',
+    screenshots String DEFAULT '',
+    approved UInt8 DEFAULT 0,
+    review_state String DEFAULT 'pending',
+    metadata_version UInt32 DEFAULT 1,
+    created_at DateTime64(3),
+    updated_at DateTime64(3),
+    deleted UInt8 DEFAULT 0
+) ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY url;
+```
+
+**Primary key:** `url` — the app's origin.
+
+**`review_state`:** `pending`, `approved`, `pending_on_change`, `rejected`.
+
+**`screenshots`:** JSON array of screenshot URLs.
+
+## App Ratings
+
+Star ratings for apps. One per (author, target_app).
+
+```sql
+CREATE TABLE app_ratings (
+    author String,
+    target_app_id String,
+    rating UInt8,
+    provider String,
+    created_at DateTime64(3),
+    updated_at DateTime64(3),
+    deleted UInt8 DEFAULT 0
+) ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY (target_app_id, author);
+```
+
+**Primary key:** `(target_app_id, author)` — one rating per user per app. Upsert on update.
+
 ## Blacklists
 
 Two levels of blocking.
@@ -291,7 +387,7 @@ ClickHouse uses primary keys for indexing. No secondary indexes needed for the c
 | Query | Indexed by |
 |---|---|
 | Read by author | `(author_key, doc_id)` — primary key |
-| Read by doc_id | `(author_key, doc_id)` — primary key (needs author_key) |
+| Read by doc_id | `(author_key, doc_id)` — primary key (or via `read-by-id` with group permission check) |
 | Read by collection | `collection_name` — low cardinality, cached |
 | Read by tags | `has(tags, 'x')` — array scan, fast |
 | Ref count | `ref_value` — subquery on the already-filtered result set |

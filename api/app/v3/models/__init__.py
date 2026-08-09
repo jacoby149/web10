@@ -26,3 +26,12 @@ class Token(BaseModel):
     allowed_origin: str | None = None
     blocked_key: str | None = None
     enabled: bool = True
+    username: str | None = None
+    password: str | None = None
+    new_pass: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    code: str | None = None
+    site: str | None = None
+    target_app_id: str | None = None
+    rating: int | None = None

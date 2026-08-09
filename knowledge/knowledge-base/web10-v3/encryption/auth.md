@@ -103,21 +103,22 @@ No `HttpOnly` — the SDK reads the token client-side to include in API requests
 ### Login
 
 ```
-POST /web10token
+POST /v3/login
 Body: {
   username: "alice",
   password: "secret",
-  token: null,           // null for login; existing JWT for tiered mint
   site: "app.example.com",
-  target: null           // null for self-token; provider hostname for tiered
+  target: null
 }
 → { token: "eyJhbG..." }
 ```
 
+API verifies `password_hash` from the `users` table. On match, mints JWT.
+
 ### Signup
 
 ```
-POST /signup
+POST /v3/signup
 Body: {
   username: "alice",
   password: "secret",
@@ -127,30 +128,20 @@ Body: {
 → { ok: true }
 ```
 
-### Tiered Token (Cross-App)
-
-```
-POST /web10token
-Body: {
-  username: "alice",
-  password: null,
-  token: "existing-jwt",  // the user's current session token
-  site: "other-app.com",  // the app requesting access
-  target: "api.web10.app" // the target provider
-}
-→ { token: "eyJhbG..." }  // new token scoped to other-app.com
-```
-
-Tiered tokens let one app request access to another provider on behalf of the user. The authenticator mints a scoped token with the `site` and `target` claims.
+Inserts into `users` table: `INSERT INTO users VALUES (username, password_hash, phone, 0, '', 0, now(), now(), 0)`.
 
 ### Account Management
 
 ```
-POST /change_pass    → { username, password, new_pass }
-POST /change_phone   → { username, password, phone }
-POST /send_code      → { token }
-POST /verify_code    → { token, query: { code } }
+POST /v3/change_pass   → { token, password, new_pass }
+POST /v3/change_phone  → { token, phone }
+POST /v3/set_email     → { token, email }
+POST /v3/verify_phone  → { token, query: { code } }
+POST /v3/verify_email  → { token, query: { code } }
+POST /v3/get_profile   → { token }
 ```
+
+All update the `users` table via `ReplacingMergeTree` — new insert with higher `updated_at`.
 
 ### Billing (Stripe)
 
