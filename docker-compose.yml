@@ -103,6 +103,19 @@ services:
     environment:
       VIRTUAL_HOST: sdk.localhost,docs.localhost
 
+  clickhouse: # v3 OLAP store — ClickHouse with v3 schema init
+    image: clickhouse/clickhouse-server:24.3
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      - ./clickhouse-init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "8123:8123"
+      - "9002:9000"
+    environment:
+      - CLICKHOUSE_DB=web10
+      - CLICKHOUSE_USER=web10
+      - CLICKHOUSE_PASSWORD=web10
+
   minio: # S3-compatible object storage for media blobs (Phase 5)
     image: minio/minio:latest
     networks:
@@ -126,3 +139,4 @@ volumes:
   rtc-node-modules:
   ui-node-modules:
   minio-data:
+  clickhouse-data:
