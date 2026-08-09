@@ -36,6 +36,7 @@ import type {
   ClientState,
   SIR,
   SCR,
+  ACR,
   CheckoutParams,
   SubscriptionParams,
   CreateResponse,
@@ -266,6 +267,7 @@ export function createClient(options: ClientOptions = {}): Web10Client {
     },
 
     // ── SMR (Service Modification Request) ────────────────────────────
+    // @deprecated Use acrOnReady / acrResponseListen instead.
 
     smrOnReady(sirs: SIR[], scrs?: SCR[]): void {
       if (typeof window === 'undefined') return
@@ -282,6 +284,28 @@ export function createClient(options: ClientOptions = {}): Web10Client {
       window.addEventListener('message', (e) => {
         if (e.origin !== authOrigin) return
         if (e.data?.type === 'status') {
+          setStatus(e.data.status)
+        }
+      })
+    },
+
+    // ── ACR (App Contract Request) ─────────────────────────────────────
+
+    acrOnReady(acrs: ACR[]): void {
+      if (typeof window === 'undefined') return
+      window.addEventListener('message', (e) => {
+        if (e.origin !== authOrigin) return
+        if (e.data?.type === 'ACRListen' && e.source instanceof Window) {
+          e.source.postMessage({ type: 'acr', acrs }, authOrigin)
+        }
+      })
+    },
+
+    acrResponseListen(setStatus: (status: string) => void): void {
+      if (typeof window === 'undefined') return
+      window.addEventListener('message', (e) => {
+        if (e.origin !== authOrigin) return
+        if (e.data?.type === 'acr-status') {
           setStatus(e.data.status)
         }
       })
@@ -553,8 +577,14 @@ export interface Web10Client {
   getTieredToken(site: string, target: string): Promise<TokenResponse>
 
   // SMR
+  /** @deprecated Use acrOnReady / acrResponseListen instead */
   smrOnReady(sirs: SIR[], scrs?: SCR[]): void
+  /** @deprecated Use acrResponseListen instead */
   smrResponseListen(setStatus: (status: string) => void): void
+
+  // ACR
+  acrOnReady(acrs: ACR[]): void
+  acrResponseListen(setStatus: (status: string) => void): void
 
   // Media
   requestUploadUrl(

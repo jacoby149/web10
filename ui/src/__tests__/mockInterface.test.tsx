@@ -168,24 +168,23 @@ describe('useMockInterface', () => {
     expect(result.current.verified).toBe(false)
   })
 
-  it('changeTerms replaces matching service', () => {
+  it('approveACR removes the ACR from pending list', () => {
     const { result } = renderHook(() => useMockInterface())
 
-    const originalLength = result.current.services.length
-    const updatedService = {
-      service: 'contacts',
-      cross_origins: ['newapp.com'],
-      whitelist: [{ username: 'newuser', provider: 'p', read: true }],
-      blacklist: [],
+    const acr = {
+      allowed_origin: 'app.example.com',
+      permissions: { notes: ['readAll', 'create'] },
     }
 
     act(() => {
-      result.current.changeTerms(updatedService)
+      result.current.setPendingACRs([acr])
     })
+    expect(result.current.pendingACRs).toHaveLength(1)
 
-    expect(result.current.services).toHaveLength(originalLength)
-    const found = result.current.services.find((s: any) => s.service === 'contacts')
-    expect(found).toEqual(updatedService)
+    act(() => {
+      result.current.approveACR(acr)
+    })
+    expect(result.current.pendingACRs).toHaveLength(0)
   })
 
   it('isVerified returns current verified state', () => {

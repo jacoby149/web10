@@ -17,7 +17,7 @@ This is unacceptable. Groups are not data buckets — they are audience relation
 
 ## The Solution: Group Requests
 
-Just as service contracts have SMR (Service Modification Request) and SIR (Service Initialization Request), groups have **Group Requests**. An app cannot directly create or modify a group. It must request the operation, and the authenticator UI presents the request to the user for approval.
+Just as app contracts have **ACR** (App Contract Request), groups have **GCR** (Group Contract Request). An app cannot directly create or modify a group. It must request the operation, and the authenticator UI presents the request to the user for approval.
 
 ```mermaid
 sequenceDiagram

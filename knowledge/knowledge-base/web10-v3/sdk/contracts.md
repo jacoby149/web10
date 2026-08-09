@@ -273,7 +273,7 @@ All contract tables follow the same patterns:
 
 ## Group Requests
 
-Apps cannot directly create or modify groups. They must request the operation through `group_requests`, and the user approves through the authenticator UI. This is the consent layer for group operations — the same pattern as SMR/SIR for app contracts.
+Apps cannot directly create or modify groups. They must request the operation through `group_requests`, and the user approves through the authenticator UI. This is the consent layer for group operations — the same pattern as ACR for app contracts.
 
 ```sql
 CREATE TABLE group_requests (

@@ -135,6 +135,7 @@ export function createAuthConnector(wapi: Web10Client): AuthConnector {
     },
 
     // ── SMR ───────────────────────────────────────────────────────────
+    /** @deprecated Use acrListen instead */
 
     smrListen(setState: (data: unknown) => void): void {
       if (typeof window === 'undefined' || !window.opener) return
@@ -147,6 +148,21 @@ export function createAuthConnector(wapi: Web10Client): AuthConnector {
         }
       })
       window.opener.postMessage({ type: 'SMRListen' }, target)
+    },
+
+    // ── ACR ───────────────────────────────────────────────────────────
+
+    acrListen(setState: (data: unknown) => void): void {
+      if (typeof window === 'undefined' || !window.opener) return
+      const target = openerOrigin()
+      if (!target) return
+      window.addEventListener('message', (e) => {
+        if (e.origin !== target) return
+        if (e.data?.type === 'acr') {
+          setState(e.data)
+        }
+      })
+      window.opener.postMessage({ type: 'ACRListen' }, target)
     },
 
     // ── Account management ────────────────────────────────────────────
@@ -256,7 +272,11 @@ export interface AuthConnector {
   signUp(params: SignupParams): Promise<void>
 
   /** Listen for SMR messages from the opener */
+  /** @deprecated Use acrListen instead */
   smrListen(setState: (data: unknown) => void): void
+
+  /** Listen for ACR messages from the opener */
+  acrListen(setState: (data: unknown) => void): void
 
   /** Change account password */
   changePassword(currentPassword: string, newPassword: string): Promise<void>

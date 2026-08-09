@@ -142,6 +142,8 @@ export interface TermsRecord extends Web10Record {
 
 /**
  * A Service-Info-Request (SIR) describes what access an app is requesting.
+ * @deprecated Use ACR (App Contract Request) instead. SIR/SCR were v2 service-per-service
+ * requests. v3 uses one contract per origin with per-service permissions.
  */
 export interface SIR {
   /** Service to access */
@@ -152,12 +154,38 @@ export interface SIR {
 
 /**
  * A Service-Change-Request (SCR) describes additive changes to an existing contract.
+ * @deprecated Use ACR instead. The v3 model has no distinction between "new" and
+ * "change" — both are an ACR that replaces the existing contract for that origin.
  */
 export interface SCR {
   /** Service to modify */
   service: string
   /** Actions to add */
   allowed?: string[]
+}
+
+/**
+ * An App Contract Request (ACR) describes what permissions an app (origin) is requesting.
+ * One ACR per origin. There is no distinction between a "first request" and a
+ * "permission change" — both replace the existing contract for that origin.
+ */
+export interface ACR {
+  /** The app origin requesting access */
+  allowed_origin: string
+  /** Per-service permissions */
+  permissions: Record<string, string[]>
+}
+
+/**
+ * A Group Contract Request (GCR) describes a group operation the app is requesting.
+ */
+export interface GCR {
+  /** The app origin requesting the operation */
+  app_origin: string
+  /** Operation: 'create_group', 'update_group', 'add_member', 'remove_member', 'invite_member', 'delete_group' */
+  action: string
+  /** Operation parameters */
+  params: Record<string, unknown>
 }
 
 // ── Aggregate Pipeline ─────────────────────────────────────────────────────
