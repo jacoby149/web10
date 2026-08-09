@@ -2,7 +2,9 @@
 
 The data model. Every table, every index, every pattern.
 
-## Schema Architecture
+## User Schema
+
+User-owned data, groups, access control, and moderation.
 
 ```mermaid
 erDiagram
@@ -40,31 +42,6 @@ erDiagram
         DateTime64 updated_at
         UInt8 deleted
     }
-    group_hidden_docs {
-        String group_id PK
-        String doc_id PK
-        moderator_key String
-        hidden_at DateTime64
-        updated_at DateTime64
-        UInt8 deleted
-    }
-    provider_apps {
-        String app_id PK
-        String name
-        String developer
-        String origin
-        String description
-        status String
-        created_at DateTime64
-        updated_at DateTime64
-        UInt8 deleted
-    }
-    provider_blocked_origins {
-        String provider PK
-        String origin PK
-        String reason
-        blocked_at DateTime64
-    }
     group_join_requests {
         String group_id PK
         String requester_key PK
@@ -72,6 +49,14 @@ erDiagram
         DateTime64 requested_at
         DateTime64 resolved_at
         DateTime64 updated_at
+        UInt8 deleted
+    }
+    group_hidden_docs {
+        String group_id PK
+        String doc_id PK
+        moderator_key String
+        hidden_at DateTime64
+        updated_at DateTime64
         UInt8 deleted
     }
     service_contracts {
@@ -112,9 +97,40 @@ erDiagram
     documents }o--|| group_hidden_docs : "hidden from group"
 ```
 
-One table for content. One table for visibility. Three tables for groups. One table for moderation. Two tables for app trust. Two tables for blocking. One table for sharing control. Two provider-level tables. Thirteen tables. Everything else is a query.
+## Provider Schema
 
-## Documents
+Platform-level: app store, origin blacklist, operator-controlled.
+
+```mermaid
+erDiagram
+    provider_apps {
+        String app_id PK
+        String name
+        String developer
+        String origin
+        String description
+        String status
+        DateTime64 created_at
+        DateTime64 updated_at
+        UInt8 deleted
+    }
+    provider_blocked_origins {
+        String provider PK
+        String origin PK
+        String reason
+        DateTime64 blocked_at
+    }
+```
+
+**User schema (11 tables):** one for content, one for visibility, three for groups, one for moderation, two for app trust, two for blocking, one for sharing control.
+
+**Provider schema (2 tables):** one for the app store, one for the origin blacklist.
+
+Thirteen tables. Everything else is a query.
+
+## User Schema Tables
+
+### Documents
 
 Everything structured. One table. JSON body for schema flexibility. `ref_value` is the universal link — any document can point to any other.
 
@@ -300,7 +316,11 @@ SELECT FROM documents
     )
 ```
 
-## Provider Apps
+---
+
+## Provider Schema Tables
+
+### Provider Apps
 
 The app store. Platform-level registry of apps approved to run on this provider.
 
@@ -321,7 +341,7 @@ ORDER BY app_id;
 
 **`status` is the gate.** `active` — the app is listed and discoverable. `delisted` — removed from the store, existing users keep access (their service contracts are untouched). `pending_review` — submitted, awaiting approval.
 
-## Provider Blocked Origins
+### Provider Blocked Origins
 
 Provider-level origin blacklist. Server-enforced. Overrides service contracts. If an origin is blocked at the provider level, no user can grant it access — not even the owner.
 
