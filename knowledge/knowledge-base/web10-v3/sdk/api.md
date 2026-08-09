@@ -2,6 +2,35 @@
 
 The JavaScript/TypeScript SDK. One client. Groups are baked into every verb.
 
+## Request Flow
+
+Every SDK call follows the same path: client → API → ClickHouse. Groups are not a separate surface — they are metadata on CRUD operations that the API validates before touching data.
+
+```mermaid
+graph LR
+    App["Client App<br/>w.create / w.read"] -->|"JWT + body + groups"| API["web10 API"]
+    API -->|"1. certify token"| Auth["Token Cert"]
+    Auth -->|"2. check membership"| GM["group_members"]
+    GM -->|"3. check role perms"| GC["group_contracts"]
+    GC -->|"4. allowed"| Doc["documents"]
+    GC -->|"4. allowed"| DG["doc_groups"]
+    GC -->|"denied"| X["403"]
+    Doc --> CH["ClickHouse"]
+    DG --> CH
+    
+    style App fill:#f5f5f5,stroke:#333,color:#000
+    style API fill:#f5f5f5,stroke:#333,color:#000
+    style Auth fill:#fff9c4,stroke:#f57f17,color:#000
+    style GM fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style GC fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style Doc fill:#e3f2fd,stroke:#1565c0,color:#000
+    style DG fill:#e3f2fd,stroke:#1565c0,color:#000
+    style CH fill:#e3f2fd,stroke:#1565c0,color:#000
+    style X fill:#ffebee,stroke:#c62828,color:#000
+```
+
+Create inserts one row into `documents`, then one row per group into `doc_groups`. Read joins `documents` → `doc_groups` → `group_members` and filters by your membership. Update tombstones old rows, inserts new. Delete tombstones. All append-only. `ReplacingMergeTree` keeps the latest.
+
 ## Installation
 
 ```bash
@@ -237,6 +266,48 @@ The API tombstones the `documents` row and all `doc_groups` rows. Background job
 ## Group Operations
 
 Groups are first-class. The SDK exposes them directly.
+
+### Group Lifecycle
+
+```mermaid
+sequenceDiagram
+    participant App as Client App
+    participant API as web10 API
+    participant GC as group_contracts
+    participant GM as group_members
+    participant GJR as group_join_requests
+
+    App->>API: w.createGroup(name, roles, members)
+    API->>GC: INSERT group contract
+    API->>GM: INSERT all members
+    API-->>App: { group_id }
+
+    App->>API: w.joinGroup(group_id)
+    alt open policy
+        API->>GM: INSERT member (role: member)
+    else request policy
+        API->>GJR: INSERT join request (pending)
+        Note over App,GJR: Owner approves later
+    end
+    API-->>App: { member_key, role }
+
+    App->>API: w.inviteMember(group_id, bob, member)
+    API->>GJR: INSERT invite (role: member)
+    API-->>App: { status: invited }
+
+    App->>API: w.acceptInvite(group_id)
+    API->>GM: INSERT member
+    API->>GJR: tombstone request
+    API-->>App: { role: member }
+
+    App->>API: w.leaveGroup(group_id)
+    API->>GM: tombstone member
+    API-->>App: { status: left }
+
+    App->>API: w.removeMember(group_id, bob)
+    API->>GM: tombstone bob
+    API-->>App: { status: removed }
+```
 
 ### Create a Group
 

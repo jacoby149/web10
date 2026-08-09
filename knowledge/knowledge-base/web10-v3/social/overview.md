@@ -2,6 +2,37 @@
 
 Web10-social is an app that runs on the web10 platform. It uses groups the same way any app does — groups are generic policy containers. Web10-social just happens to define specific roles for social use cases.
 
+## How Social Maps to Groups
+
+```mermaid
+graph LR
+    subgraph Groups["Group Types — all the same primitive"]
+        G1["Discover<br/>web10/discover<br/>open, auto-join"]
+        G2["Followers<br/>alice/followers<br/>open"]
+        G3["Close Friends<br/>alice/close-friends<br/>request"]
+        G4["Community<br/>charlie/chess-club<br/>invite_only"]
+    end
+
+    G1 --> R["Same role model<br/>owner, moderator, member, follower"]
+    G2 --> R
+    G3 --> R
+    G4 --> R
+
+    R --> C["Same CRUD<br/>w.create, w.read, w.update, w.delete"]
+    C --> D["Same tables<br/>documents, doc_groups,<br/>group_members, group_contracts"]
+
+    style Groups fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style G1 fill:#e3f2fd,stroke:#1565c0,color:#000
+    style G2 fill:#e3f2fd,stroke:#1565c0,color:#000
+    style G3 fill:#e3f2fd,stroke:#1565c0,color:#000
+    style G4 fill:#e3f2fd,stroke:#1565c0,color:#000
+    style R fill:#fff9c4,stroke:#f57f17,color:#000
+    style C fill:#fff3e0,stroke:#e65100,color:#000
+    style D fill:#f5f5f5,stroke:#333,color:#000
+```
+
+One primitive. Four social patterns. Same tables, same CRUD, same roles. The only difference is the join policy and who the members are. No follows table. No inbox table. No discover index. Just groups.
+
 This doc explains how web10-social uses groups. The generic group model is in `../groups/overview.md`.
 
 ## Web10-Social Roles

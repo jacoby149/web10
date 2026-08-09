@@ -10,6 +10,35 @@ A group is a collection of web10 users operating on data services. It doesn't ho
 2. **Policy** — roles define what each member can do. Service-scoped permissions control access.
 3. **Ownership** — the group owner holds the audience relationship. They can see every member's web10 identity, reach out directly, and that list is theirs.
 
+```mermaid
+graph LR
+    subgraph Group["Group: jacoby149/jazz-collectors"]
+        GC["group_contracts<br/>roles, join_policy"]
+        GM["group_members<br/>alice: curator<br/>dave: listener<br/>eve: contributor"]
+    end
+
+    GC --> GM
+
+    subgraph Content["Documents — lives in author"]
+        D1["doc: new playlist<br/>author: alice"]
+        DG1["doc_groups<br/>doc → jazz-collectors"]
+    end
+
+    D1 --> DG1
+    DG1 -->|member read| GM
+    GM -->|curator: readAll, create| D1
+    GM -->|listener: readAll| D1
+
+    style Group fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style GC fill:#fff9c4,stroke:#f57f17,color:#000
+    style GM fill:#e3f2fd,stroke:#1565c0,color:#000
+    style Content fill:#f5f5f5,stroke:#333,color:#000
+    style D1 fill:#f5f5f5,stroke:#333,color:#000
+    style DG1 fill:#fff3e0,stroke:#e65100,color:#000
+```
+
+The group doesn't hold the data. It holds people and rules. The data lives in the author's collection. `doc_groups` is the bridge — it maps documents to groups. A member sees a document because they're in a group it's attached to, and their role grants `readAll` on the relevant service.
+
 ```
 Group "jazz-collectors":
   roles: [curator, listener, contributor]
@@ -47,7 +76,27 @@ Alice attaches a post, a file, and a playlist to this group. Dave and eve can se
 
 ## Two Contract Types
 
-v3 has two contract types. They control completely different concerns.
+v3 has two contract types. They control completely different concerns. One is infrastructure. The other is social.
+
+```mermaid
+flowchart TD
+    A["App requests access<br/>twitter-clone.web10.com"] --> B{"Service contract<br/>CORS check"}
+    B -->|Denied| X1["403 — app can't talk to node"]
+    B -->|Allowed| C["GET /alice/posts"]
+    C --> D{"Group check<br/>which posts in groups<br/>bob belongs to?"}
+    D -->|Member with readAll| E["Return post-1, post-2"]
+    D -->|Not member| X2["Empty — no access"]
+
+    style A fill:#f5f5f5,stroke:#333,color:#000
+    style B fill:#fff9c4,stroke:#f57f17,color:#000
+    style C fill:#f5f5f5,stroke:#333,color:#000
+    style D fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style E fill:#e3f2fd,stroke:#1565c0,color:#000
+    style X1 fill:#ffebee,stroke:#c62828,color:#000
+    style X2 fill:#ffebee,stroke:#c62828,color:#000
+```
+
+**Service contract** — App Trust (Infrastructure). "Do we want to spin up these data buckets for this app?"
 
 **Service contract** — App Trust (Infrastructure). "Do we want to spin up these data buckets for this app?"
 Binary toggle. CORS. Browser-enforced. No data permissions involved. If you turn it off, the app can't even talk to your node.

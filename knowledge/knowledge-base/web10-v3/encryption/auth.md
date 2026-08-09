@@ -32,16 +32,35 @@ A web10 JWT carries these claims:
 
 ## Auth Flow
 
+```mermaid
+sequenceDiagram
+    participant App as Client App
+    participant Popup as Authenticator Popup
+    participant Auth as Auth Server
+    participant API as API Server
+    participant CH as ClickHouse
+
+    App->>App: w.login()
+    App->>Popup: open auth.web10.app
+    Popup->>Popup: user enters credentials
+    Popup->>Auth: POST /web10token<br/>{username, password, site, target}
+    Auth->>CH: verify user, check star record
+    CH-->>Auth: user valid
+    Auth->>Auth: mint JWT<br/>{username, site, target, provider, expires}
+    Auth-->>Popup: { token: JWT }
+    Popup->>Popup: close popup
+    Popup->>App: postMessage { type: auth, token }
+    App->>App: verify origin, store cookie
+    Note over App: User logged in
+
+    App->>API: w.create posts, groups
+    API->>API: certify token
+    API->>CH: write documents, doc_groups
+    CH-->>API: ok
+    API-->>App: { doc_id }
 ```
-App → w.login()
-  → opens auth.web10.app in popup
-  → user enters username + password
-  → authenticator POSTs to /web10token
-  → server returns JWT
-  → authenticator postMessages { type: 'auth', token: JWT } to opener
-  → app receives message, verifies origin, stores token in cookie
-  → popup closes
-```
+
+Popup opens. User authenticates. Server mints a scoped JWT. Popup posts the token back to the opener. The app verifies the origin, stores it in a cookie, and is done. Every subsequent API call carries the token. The API certifies it before touching data.
 
 ### SDK Methods
 

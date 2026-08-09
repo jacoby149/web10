@@ -2,6 +2,91 @@
 
 The data model. Every table, every index, every pattern.
 
+## Schema Architecture
+
+```mermaid
+erDiagram
+    documents {
+        String doc_id PK
+        String author_key PK
+        String collection_name
+        String body
+        String ref_value
+        "Array(String)" tags
+        DateTime64 created_at
+        DateTime64 updated_at
+        UInt8 deleted
+    }
+    doc_groups {
+        String doc_id PK
+        String group_id PK
+        DateTime64 created_at
+        DateTime64 updated_at
+        UInt8 deleted
+    }
+    group_contracts {
+        String group_id PK
+        String roles
+        String join_policy
+        DateTime64 created_at
+        DateTime64 updated_at
+        UInt8 deleted
+    }
+    group_members {
+        String group_id PK
+        String member_key PK
+        String role
+        DateTime64 joined_at
+        DateTime64 updated_at
+        UInt8 deleted
+    }
+    group_join_requests {
+        String group_id PK
+        String requester_key PK
+        String status
+        DateTime64 requested_at
+        DateTime64 resolved_at
+        DateTime64 updated_at
+        UInt8 deleted
+    }
+    service_contracts {
+        String user_key PK
+        String service_name PK
+        String allowed_origin PK
+        DateTime64 created_at
+        DateTime64 updated_at
+        UInt8 deleted
+    }
+    user_blacklist {
+        String user_key PK
+        String blocked_key PK
+        DateTime64 created_at
+    }
+    group_blacklist {
+        String user_key PK
+        String group_id PK
+        String blocked_key PK
+        DateTime64 created_at
+    }
+    user_group_sharing {
+        String user_key PK
+        String group_id PK
+        UInt8 sharing_enabled
+        DateTime64 created_at
+        DateTime64 updated_at
+        UInt8 deleted
+    }
+
+    documents ||--o{ doc_groups : "attached to"
+    doc_groups }o--|| group_contracts : "maps to"
+    group_contracts ||--o{ group_members : "has"
+    group_contracts ||--o{ group_join_requests : "receives"
+    documents }o--|| user_blacklist : "author blocked by"
+    documents }o--|| group_blacklist : "author blocked in group"
+```
+
+One table for content. One table for visibility. Three tables for groups. Two tables for app trust. Two tables for blocking. One table for sharing control. Nine tables. Everything else is a query.
+
 ## Documents
 
 Everything structured. One table. JSON body for schema flexibility. `ref_value` is the universal link — any document can point to any other.
@@ -190,24 +275,44 @@ For `ref_count` ranking: the result set is already filtered by group membership 
 
 ## Data Flow
 
-```
-Client → w.create('posts', body, { groups: [...] })
-  API → INSERT INTO documents (doc_id, author_key, collection_name, body, ref_value, tags, ...)
-  API → INSERT INTO doc_groups (doc_id, group_id, ...) — one per group
-  API → WebSocket: push to group channels
+```mermaid
+graph TB
+    subgraph Create["CREATE — w.create posts, groups"]
+        C1["INSERT documents<br/>doc_id, author, body, ref, tags"]
+        C2["INSERT doc_groups<br/>one row per group"]
+        C1 --> C2
+    end
 
-Client → w.read('posts', { groups, $sort, $match })
-  API → SELECT FROM documents
-        JOIN doc_groups
-        JOIN group_members
-        WHERE deleted = 0 AND group IN (...) AND member = :user
-        [filter by $match]
-        [compute $sort score]
-        ORDER BY [score | field]
-        LIMIT 50
+    subgraph Read["READ — w.read posts, groups"]
+        R1["SELECT documents"]
+        R2["JOIN doc_groups<br/>WHERE group IN ..."]
+        R3["JOIN group_members<br/>WHERE member = :user"]
+        R4["WHERE deleted = 0"]
+        R5["ORDER BY $sort<br/>LIMIT $limit"]
+        R1 --> R2 --> R3 --> R4 --> R5
+    end
+
+    subgraph Update["UPDATE — w.update posts, groups"]
+        U1["Tombstone old documents row"]
+        U2["INSERT new documents row<br/>higher updated_at"]
+        U3["Tombstone old doc_groups"]
+        U4["INSERT new doc_groups"]
+        U1 --> U2 --> U3 --> U4
+    end
+
+    subgraph Delete["DELETE — w.delete posts"]
+        D1["Tombstone documents row"]
+        D2["Tombstone doc_groups rows"]
+        D1 --> D2
+    end
+
+    style Create fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style Read fill:#e3f2fd,stroke:#1565c0,color:#000
+    style Update fill:#fff3e0,stroke:#e65100,color:#000
+    style Delete fill:#ffebee,stroke:#c62828,color:#000
 ```
 
-One table for data. One table for visibility. One table for people. Three tables. Everything else is a query.
+Create: one insert into documents, N inserts into doc_groups. Read: one SELECT with two JOINs, filtered by membership and tombstones. Update: tombstone old, insert new. Delete: tombstone both. All append-only. `ReplacingMergeTree` keeps the latest version. Background job compacts tombstones on schedule.
 
 ## See Also
 
