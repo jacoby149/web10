@@ -435,7 +435,7 @@ def unhide_doc_from_group(group_id: str, doc_id: str):
 
 
 def add_app_contract(user_key: str, allowed_origin: str, permissions: dict) -> dict:
-    """Add an app contract (one row per app, permissions is JSON)."""
+    """Add an app contract (one row per app, permissions is JSON). Upserts if exists."""
     now = _now()
     client.insert(
         "app_contracts",

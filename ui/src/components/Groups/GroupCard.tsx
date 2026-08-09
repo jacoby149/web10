@@ -2,6 +2,7 @@ import React from 'react';
 import { ChevronDown, ChevronRight, Users, Shield, Lock, LockOpen, MessageSquare, UserPlus, Settings, Eye, LogOut, ShieldOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { groupDisplayName } from '@/lib/group-utils';
 import GroupMembersDialog from './GroupMembersDialog';
 import GroupRolesDialog from './GroupRolesDialog';
 
@@ -16,15 +17,6 @@ function joinPolicyBadge(policy: string) {
     default:
       return <Badge variant="outline">{policy}</Badge>;
   }
-}
-
-function groupDisplayName(groupId: string): string {
-  // group_id format: web10.app/groups/username/slug
-  const parts = groupId.split('/');
-  if (parts.length >= 4) {
-    return `${parts[2]}/${parts[3]}`;
-  }
-  return groupId;
 }
 
 function GroupCard({ I, group, isManaged }: { I: Record<string, any>; group: any; isManaged: boolean }) {

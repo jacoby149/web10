@@ -4,12 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-
-function groupDisplayName(groupId: string): string {
-  const parts = groupId.split('/');
-  if (parts.length >= 4) return `${parts[2]}/${parts[3]}`;
-  return groupId;
-}
+import { groupDisplayName } from '@/lib/group-utils';
 
 function MemberRow({ member, isManaged, I, group }: { member: any; isManaged: boolean; I: Record<string, any>; group: any }) {
   const [showContact, setShowContact] = React.useState(false);

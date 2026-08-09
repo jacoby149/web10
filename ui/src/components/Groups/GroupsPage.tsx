@@ -35,6 +35,14 @@ function CreateGroupDialog({ open, onOpenChange, I }: { open: boolean; onOpenCha
   const [joinPolicy, setJoinPolicy] = React.useState<'open' | 'request' | 'invite_only'>('invite_only');
   const [saving, setSaving] = React.useState(false);
 
+  React.useEffect(() => {
+    if (open) {
+      setName('');
+      setJoinPolicy('invite_only');
+      setSaving(false);
+    }
+  }, [open]);
+
   const decoded = I.wapi?.readToken?.();
   const username = decoded?.username || decoded?.sub || '';
 

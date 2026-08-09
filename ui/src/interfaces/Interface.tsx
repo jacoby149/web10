@@ -280,7 +280,7 @@ function useInterface() {
 
     // ── v3 App contracts (per-app with per-service permissions) ──────────────
 
-// Load app contracts from the ClickHouse-backed API.
+    // Load app contracts from the ClickHouse-backed API.
     I.v3ContractsLoad = function () {
         if (!I.auth) {
             I.setV3Contracts([]);
