@@ -2,6 +2,101 @@
 
 The data model. Every table, every index, every pattern.
 
+## Schema Architecture
+
+```mermaid
+erDiagram
+    documents {
+        String doc_id PK
+        String author_key PK
+        String collection_name
+        String body
+        String ref_value
+        "Array(String)" tags
+        DateTime64 created_at
+        DateTime64 updated_at
+        UInt8 deleted
+    }
+    doc_groups {
+        String doc_id PK
+        String group_id PK
+        DateTime64 created_at
+        DateTime64 updated_at
+        UInt8 deleted
+    }
+    group_contracts {
+        String group_id PK
+        String roles
+        String join_policy
+        DateTime64 created_at
+        DateTime64 updated_at
+        UInt8 deleted
+    }
+    group_members {
+        String group_id PK
+        String member_key PK
+        String role
+        DateTime64 joined_at
+        DateTime64 updated_at
+        UInt8 deleted
+    }
+    group_join_requests {
+        String group_id PK
+        String requester_key PK
+        String status
+        DateTime64 requested_at
+        DateTime64 resolved_at
+        DateTime64 updated_at
+        UInt8 deleted
+    }
+    group_hidden_docs {
+        String group_id PK
+        String doc_id PK
+        String moderator_key
+        DateTime64 hidden_at
+        DateTime64 updated_at
+        UInt8 deleted
+    }
+    service_contracts {
+        String user_key PK
+        String service_name PK
+        String allowed_origin PK
+        DateTime64 created_at
+        DateTime64 updated_at
+        UInt8 deleted
+    }
+    user_blacklist {
+        String user_key PK
+        String blocked_key PK
+        DateTime64 created_at
+    }
+    group_blacklist {
+        String user_key PK
+        String group_id PK
+        String blocked_key PK
+        DateTime64 created_at
+    }
+    user_group_sharing {
+        String user_key PK
+        String group_id PK
+        UInt8 sharing_enabled
+        DateTime64 created_at
+        DateTime64 updated_at
+        UInt8 deleted
+    }
+
+    documents ||--o{ doc_groups : "attached to"
+    doc_groups }o--|| group_contracts : "maps to"
+    group_contracts ||--o{ group_members : "has"
+    group_contracts ||--o{ group_join_requests : "receives"
+    group_contracts ||--o{ group_hidden_docs : "moderates"
+    documents }o--|| user_blacklist : "author blocked by"
+    documents }o--|| group_blacklist : "author blocked in group"
+    documents }o--|| group_hidden_docs : "hidden from group"
+```
+
+One table for content. One table for visibility. Five tables for groups. One table for app trust. Two tables for blocking. One table for sharing control. **10 tables.** Everything else is a query.
+
 ## Documents
 
 Everything structured. One table. JSON body for schema flexibility. `ref_value` is the universal link — any document can point to any other.
@@ -24,13 +119,13 @@ TTL created_at + INTERVAL 90 DAY;
 
 **Primary key:** `(author_key, doc_id)` — fast lookups by author and by document ID.
 
-**ReplacingMergeTree:** updates are inserts with higher `updated_at`. The engine keeps the latest version. Old versions are garbage collected on merge.
+**ReplacingMergeTree:** updates are inserts with higher `updated_at`. The engine keeps the latest version.
 
-**Tombstones:** deletes are inserts with `deleted = 1` and higher `updated_at`. Queries filter `WHERE deleted = 0`. TTL physically removes old data after 90 days.
+**Tombstones:** deletes are inserts with `deleted = 1`. Queries filter `WHERE deleted = 0`. TTL physically removes old data after 90 days.
 
-**`ref_value`:** the universal link. The API writes it on create (extracts the `ref` from the JSON body). Indexed by the primary key scan — instant lookups for counting references. Comments, reactions, replies, quotes, bookmarks, votes — all just documents with a `ref`.
+**`ref_value`:** the universal link. Comments, reactions, replies, quotes, bookmarks, votes — all just documents with a `ref`.
 
-**`collection_name`:** low cardinality. The API uses it to distinguish posts, reactions, comments, outbox, profile — all in the same table.
+**`collection_name`:** low cardinality. Distinguishes posts, reactions, comments, outbox, profile — all in the same table.
 
 **`tags`:** freeform labels. Fast filtering with `has(tags, 'jazz')`.
 
@@ -49,9 +144,7 @@ CREATE TABLE doc_groups (
 ORDER BY (doc_id, group_id);
 ```
 
-**Primary key:** `(doc_id, group_id)` — fast lookups for "which groups is this document in?" and "which documents are in this group?" (via JOIN).
-
-**No `permission` column.** Roles define access, not per-attachment permissions. The group contract holds the roles. The doc_groups table just maps documents to groups.
+**Primary key:** `(doc_id, group_id)`. No `permission` column — roles define access, not per-attachment permissions.
 
 ## Group Contracts
 
@@ -59,8 +152,8 @@ People + policy. Service-scoped roles.
 
 ```sql
 CREATE TABLE group_contracts (
-    group_id String,           -- 'web10.app/groups/jacoby149/abacus-enthusiasts'
-    roles String,              -- JSON array of roles with services + permissions
+    group_id String,
+    roles String,              -- JSON: roles with services + permissions
     join_policy String,        -- 'open', 'request', 'invite_only'
     created_at DateTime64(3),
     updated_at DateTime64(3),
@@ -69,17 +162,15 @@ CREATE TABLE group_contracts (
 ORDER BY group_id;
 ```
 
-**`roles` is JSON.** Each role defines the services it touches and the permissions it grants. See `../sdk/contracts.md` for the full role model.
-
 ## Group Members
 
-Active members. Multiple roles per user.
+Active members. One role per member per group.
 
 ```sql
 CREATE TABLE group_members (
     group_id String,
     member_key String,
-    role String,               -- role name from the contract (e.g. 'owner', 'member')
+    role String,
     joined_at DateTime64(3),
     updated_at DateTime64(3),
     deleted UInt8 DEFAULT 0
@@ -87,7 +178,7 @@ CREATE TABLE group_members (
 ORDER BY (group_id, member_key);
 ```
 
-**Multiple roles per user:** a user can hold different roles for different services in the same group. Each role is a separate row.
+**Primary key:** `(group_id, member_key)`. Promoting a member is a new insert with higher `updated_at` and the new role name.
 
 ## Group Join Requests
 
@@ -104,6 +195,29 @@ CREATE TABLE group_join_requests (
     deleted UInt8 DEFAULT 0
 ) ENGINE = ReplacingMergeTree(updated_at)
 ORDER BY (group_id, requester_key);
+```
+
+## Group Hidden Docs
+
+Moderation. A moderator with `hideAll` hides a document from the group's discover. The document stays in the author's collection and other groups. Reversible.
+
+```sql
+CREATE TABLE group_hidden_docs (
+    group_id String,
+    doc_id String,
+    moderator_key String,
+    hidden_at DateTime64(3),
+    updated_at DateTime64(3),
+    deleted UInt8 DEFAULT 0
+) ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY (group_id, doc_id);
+```
+
+The read query excludes hidden documents:
+```sql
+AND (doc_id, group_id) NOT IN (
+  SELECT doc_id, group_id FROM group_hidden_docs WHERE deleted = 0
+)
 ```
 
 ## Service Contracts
@@ -161,11 +275,9 @@ ORDER BY (user_key, group_id, blocked_key);
 
 ## Patterns
 
-Every table follows the same conventions:
-
 | Pattern | How | Why |
 |---|---|---|
-| **Updates** | `ReplacingMergeTree(updated_at)` — insert new row with higher `updated_at` | Append-only. No race conditions. The engine keeps the latest. |
+| **Updates** | `ReplacingMergeTree(updated_at)` — insert new row with higher `updated_at` | Append-only. No race conditions. Engine keeps latest. |
 | **Deletes** | Insert with `deleted = 1` and higher `updated_at` | Tombstones. Queries filter `WHERE deleted = 0`. TTL cleans up. |
 | **No row = denied** | Missing row in service_contracts = app blocked | Explicit allowlist. Default deny. |
 | **No row = enabled** | Missing row in user_group_sharing = sharing on | Opt-out model. Default on. |
@@ -186,28 +298,62 @@ ClickHouse uses primary keys for indexing. No secondary indexes needed for the c
 | Group membership | `(group_id, member_key)` — primary key |
 | Doc-to-group | `(doc_id, group_id)` — primary key |
 
-For `ref_count` ranking: the result set is already filtered by group membership (typically 50 rows). A subquery on `ref_value = :doc_id` against the reactions/comments collection is fast because `ref_value` is a column, not buried in JSON.
-
 ## Data Flow
 
-```
-Client → w.create('posts', body, { groups: [...] })
-  API → INSERT INTO documents (doc_id, author_key, collection_name, body, ref_value, tags, ...)
-  API → INSERT INTO doc_groups (doc_id, group_id, ...) — one per group
-  API → WebSocket: push to group channels
+```mermaid
+graph TB
+    subgraph Create["CREATE — w.create posts, groups"]
+        C1["INSERT documents<br/>doc_id, author, body, ref, tags"]
+        C2["INSERT doc_groups<br/>one row per group"]
+        C1 --> C2
+    end
 
-Client → w.read('posts', { groups, $sort, $match })
-  API → SELECT FROM documents
-        JOIN doc_groups
-        JOIN group_members
-        WHERE deleted = 0 AND group IN (...) AND member = :user
-        [filter by $match]
-        [compute $sort score]
-        ORDER BY [score | field]
-        LIMIT 50
+    subgraph Read["READ — w.read posts, groups"]
+        R1["SELECT documents"]
+        R2["JOIN doc_groups<br/>WHERE group IN ..."]
+        R3["JOIN group_members<br/>WHERE member = :user"]
+        R4["WHERE deleted = 0"]
+        R5["EXCEPT group_hidden_docs"]
+        R6["ORDER BY $sort<br/>LIMIT $limit"]
+        R1 --> R2 --> R3 --> R4 --> R5 --> R6
+    end
+
+    subgraph Update["UPDATE — w.update posts, groups"]
+        U1["Tombstone old documents row"]
+        U2["INSERT new documents row<br/>higher updated_at"]
+        U3["Tombstone old doc_groups"]
+        U4["INSERT new doc_groups"]
+        U1 --> U2 --> U3 --> U4
+    end
+
+    subgraph Delete["DELETE — w.delete posts"]
+        D1["Tombstone documents row"]
+        D2["Tombstone doc_groups rows"]
+        D1 --> D2
+    end
+
+    subgraph Moderate["HIDE — moderator hides doc"]
+        M1["INSERT group_hidden_docs<br/>group_id, doc_id, moderator"]
+        M1 --> M2["Read query excludes<br/>hidden docs for this group"]
+    end
+
+    style Create fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style Read fill:#e3f2fd,stroke:#1565c0,color:#000
+    style Update fill:#fff3e0,stroke:#e65100,color:#000
+    style Delete fill:#ffebee,stroke:#c62828,color:#000
+    style Moderate fill:#f3e5f5,stroke:#6a1b9a,color:#000
 ```
 
-One table for data. One table for visibility. One table for people. Three tables. Everything else is a query.
+Create: one insert into documents, N inserts into doc_groups. Read: one SELECT with two JOINs, filtered by membership, tombstones, and moderator hides. Update: tombstone old, insert new. Delete: tombstone both. All append-only. `ReplacingMergeTree` keeps the latest version. Background job compacts tombstones on schedule.
+
+## v4 Tables (not in this doc)
+
+Monetization, ads, marketplace, and provider app store tables are in `../web10-v4/db/clickhouse-v4.md`:
+
+- **Monetization:** user_accounts (full), credits_ledger, subscriptions, tips, sponsor_deals, sponsored_products
+- **Provider app store:** provider_apps, provider_app_reviews, provider_app_moderation, provider_blocked_origins
+- **Ads:** ad_campaigns, ad_targeting, ad_creative, ad_inventory, ad_impressions, ad_clicks, ad_conversions, ad_partners, ad_revenue
+- **Marketplace:** marketplace_products, marketplace_orders, marketplace_reviews
 
 ## See Also
 

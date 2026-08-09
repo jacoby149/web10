@@ -118,7 +118,7 @@ One table. One CRUD. One permission model. The app decides what a ref means — 
 
 **The concern:** A group with 100k members means 100k discover queries hitting ClickHouse. Even fast queries add up. The node takes a hit proportional to group size.
 
-**The resolution:** Two layers. Redis cache for hot group activity (recent posts, trending). WebSocket push for real-time updates. Full treatment in `../future/real-time-feeds.md` (future — not v1).
+**The resolution:** Two layers. Redis cache for hot group activity (recent posts, trending). WebSocket push for real-time updates. Full treatment in `../../web10-v4/future/real-time-feeds.md` (v4 — not v3).
 
 ```
 alice.followers → 100k members
