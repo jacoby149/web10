@@ -155,6 +155,102 @@ erDiagram
         DateTime64 updated_at
         UInt8 deleted
     }
+    ad_campaigns {
+        String campaign_id PK
+        String advertiser_key
+        String name
+        String status
+        UInt64 daily_budget_cents
+        UInt64 total_budget_cents
+        String bid_model
+        UInt64 bid_amount_cents
+        DateTime64 start_date
+        DateTime64 end_date
+        DateTime64 created_at
+        DateTime64 updated_at
+        UInt8 deleted
+    }
+    ad_targeting {
+        String campaign_id PK
+        String targeting_type
+        String targeting_value
+        DateTime64 created_at
+    }
+    ad_creative {
+        String creative_id PK
+        String campaign_id
+        String format
+        String media_url
+        String headline
+        String body
+        String cta_text
+        String landing_url
+        DateTime64 created_at
+        DateTime64 updated_at
+        UInt8 deleted
+    }
+    ad_inventory {
+        String slot_id PK
+        String placement
+        String format
+        String audience_scope
+        DateTime64 created_at
+        DateTime64 updated_at
+        UInt8 deleted
+    }
+    ad_impressions {
+        String impression_id PK
+        String campaign_id
+        String creative_id
+        String slot_id
+        String user_key
+        String creator_key
+        Float64 revenue_cents
+        DateTime64 created_at
+    }
+    ad_clicks {
+        String click_id PK
+        String impression_id
+        String campaign_id
+        String user_key
+        DateTime64 created_at
+    }
+    ad_conversions {
+        String conversion_id PK
+        String click_id
+        String campaign_id
+        String conversion_type
+        UInt64 value_cents
+        DateTime64 created_at
+    }
+    ad_partners {
+        String partner_id PK
+        String name
+        String partner_type
+        String api_endpoint
+        String status
+        Float64 revenue_share_pct
+        DateTime64 created_at
+        DateTime64 updated_at
+        UInt8 deleted
+    }
+    ad_revenue {
+        String revenue_id PK
+        String campaign_id
+        String creative_id
+        String creator_key
+        String partner_id
+        UInt64 gross_cents
+        UInt64 platform_cents
+        UInt64 creator_cents
+        UInt64 partner_cents
+        String status
+        DateTime64 period_start
+        DateTime64 period_end
+        DateTime64 created_at
+        DateTime64 updated_at
+        UInt8 deleted
+    }
 
     user_accounts ||--o{ documents : "authors"
     user_accounts ||--o{ service_contracts : "owns"
@@ -163,6 +259,8 @@ erDiagram
     user_accounts ||--o{ subscriptions : "receives"
     user_accounts ||--o{ tips : "tips"
     user_accounts ||--o{ tips : "receives tips"
+    user_accounts ||--o{ ad_campaigns : "runs"
+    user_accounts ||--o{ ad_revenue : "earns"
     documents ||--o{ doc_groups : "attached to"
     doc_groups }o--|| group_contracts : "maps to"
     group_contracts ||--o{ group_members : "has"
@@ -172,6 +270,14 @@ erDiagram
     documents }o--|| group_blacklist : "author blocked in group"
     documents }o--|| group_hidden_docs : "hidden from group"
     documents ||--o{ sponsored_products : "tags"
+    ad_campaigns ||--o{ ad_targeting : "targets"
+    ad_campaigns ||--o{ ad_creative : "has"
+    ad_campaigns ||--o{ ad_impressions : "generates"
+    ad_campaigns ||--o{ ad_clicks : "generates"
+    ad_campaigns ||--o{ ad_conversions : "generates"
+    ad_campaigns ||--o{ ad_revenue : "earns"
+    ad_inventory ||--o{ ad_impressions : "serves"
+    ad_partners ||--o{ ad_revenue : "shares"
 ```
 
 ## Provider Schema
@@ -220,11 +326,11 @@ erDiagram
     provider_apps ||--o{ provider_app_moderation : "moderated by"
 ```
 
-**User schema (18 tables):** one for accounts, one for content, one for visibility, three for groups, one for moderation, two for app trust, two for blocking, one for sharing control, one for metering, one for subscriptions, one for tips, one for sponsor deals, one for sponsored products.
+**User schema (27 tables):** one for accounts, one for content, one for visibility, three for groups, one for moderation, two for app trust, two for blocking, one for sharing control, one for metering, one for subscriptions, one for tips, one for sponsor deals, one for sponsored products, one for ad campaigns, one for ad targeting, one for ad creative, one for ad inventory, one for ad impressions, one for ad clicks, one for ad conversions, one for ad partners, one for ad revenue.
 
 **Provider schema (4 tables):** one for the app store, one for app reviews, one for app moderation, one for the origin blacklist.
 
-Twenty-two tables. Everything else is a query.
+Thirty-one tables. Everything else is a query.
 
 ## User Schema Tables
 
@@ -533,6 +639,194 @@ ORDER BY doc_id;
 ```
 
 **Primary key:** `doc_id` — one product tag per post. The "poster's-tag-wins-else-house-tag" revenue routing: if the post author adds an affiliate link, they get the commission. If not, the platform's house affiliate link applies.
+
+### Ad Campaigns
+
+Programmatic advertising. Advertisers create campaigns with budgets, targeting, and creative. Bidding models: CPM (cost per mille), CPC (cost per click), CPA (cost per action).
+
+```sql
+CREATE TABLE ad_campaigns (
+    campaign_id String,
+    advertiser_key String,
+    name String,
+    status String,             -- 'active', 'paused', 'completed', 'rejected'
+    daily_budget_cents UInt64,
+    total_budget_cents UInt64,
+    bid_model String,          -- 'cpm', 'cpc', 'cpa'
+    bid_amount_cents UInt64,
+    start_date DateTime64(3),
+    end_date DateTime64(3),
+    created_at DateTime64(3),
+    updated_at DateTime64(3),
+    deleted UInt8 DEFAULT 0
+) ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY campaign_id;
+```
+
+**Primary key:** `campaign_id`. Status updates are new inserts with higher `updated_at`. Budgets are enforced at serve time — if daily or total budget is exhausted, the campaign stops serving.
+
+### Ad Targeting
+
+Targeting criteria for campaigns. Demographic, interest, behavioral, geographic, and audience-based targeting.
+
+```sql
+CREATE TABLE ad_targeting (
+    campaign_id String,
+    targeting_type String,     -- 'demographic', 'interest', 'behavioral', 'geographic', 'audience'
+    targeting_value String,    -- JSON: { age_range, gender } or { interests: [...] } or { group_id }
+    created_at DateTime64(3)
+) ENGINE = MergeTree()
+ORDER BY (campaign_id, targeting_type);
+```
+
+**Primary key:** `(campaign_id, targeting_type)`. Multiple targeting rows per campaign — all must match (AND logic) or any can match (OR logic, controlled by the campaign). `targeting_value` is JSON for flexibility: `{ "age_min": 18, "age_max": 35 }`, `{ "interests": ["jazz", "music"] }`, `{ "group_id": "web10.app/groups/alice/followers" }`.
+
+**Audience targeting is the killer feature.** An advertiser can target a creator's followers group directly. The creator owns that audience — they can allow or deny ad targeting of their followers. Revenue splits between creator and platform.
+
+### Ad Creative
+
+The ad content. Images, videos, text, links, landing pages.
+
+```sql
+CREATE TABLE ad_creative (
+    creative_id String,
+    campaign_id String,
+    format String,             -- 'image', 'video', 'carousel', 'text'
+    media_url String,
+    headline String,
+    body String,
+    cta_text String,          -- 'Shop Now', 'Learn More', 'Sign Up'
+    landing_url String,
+    created_at DateTime64(3),
+    updated_at DateTime64(3),
+    deleted UInt8 DEFAULT 0
+) ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY creative_id;
+```
+
+**Primary key:** `creative_id`. Multiple creatives per campaign (A/B testing). The API rotates between them and tracks performance.
+
+### Ad Inventory
+
+Where ads can appear. Feed slots, sidebar slots, between posts, story ads.
+
+```sql
+CREATE TABLE ad_inventory (
+    slot_id String,
+    placement String,          -- 'feed', 'sidebar', 'between_posts', 'story', 'search'
+    format String,             -- 'image', 'video', 'carousel', 'text'
+    audience_scope String,     -- 'public', 'group', 'personalized'
+    created_at DateTime64(3),
+    updated_at DateTime64(3),
+    deleted UInt8 DEFAULT 0
+) ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY slot_id;
+```
+
+**Primary key:** `slot_id`. Defines where and how ads can appear. `audience_scope` controls targeting depth: `public` (anyone), `group` (group members only), `personalized` (user-specific based on behavior).
+
+### Ad Impressions
+
+When an ad is shown to a user. Immutable audit trail.
+
+```sql
+CREATE TABLE ad_impressions (
+    impression_id String,
+    campaign_id String,
+    creative_id String,
+    slot_id String,
+    user_key String,
+    creator_key String,       -- the creator whose audience was served (for revenue split)
+    revenue_cents Float64,    -- revenue earned from this impression
+    created_at DateTime64(3)
+) ENGINE = MergeTree()
+ORDER BY (impression_id, created_at);
+```
+
+**Primary key:** `impression_id`. Immutable — no tombstones, no updates. High volume: millions per day. `creator_key` is the creator whose audience was served (e.g., the ad appeared in a follower's feed while they were viewing the creator's content). Revenue splits: creator gets a share of `revenue_cents`, platform keeps the rest.
+
+### Ad Clicks
+
+When a user clicks an ad. Immutable audit trail.
+
+```sql
+CREATE TABLE ad_clicks (
+    click_id String,
+    impression_id String,
+    campaign_id String,
+    user_key String,
+    created_at DateTime64(3)
+) ENGINE = MergeTree()
+ORDER BY (click_id, created_at);
+```
+
+**Primary key:** `click_id`. Immutable. Links back to the impression that generated the click. Used for CPC billing and CTR calculation.
+
+### Ad Conversions
+
+When a click leads to a desired action (purchase, sign-up, etc.). Immutable audit trail.
+
+```sql
+CREATE TABLE ad_conversions (
+    conversion_id String,
+    click_id String,
+    campaign_id String,
+    conversion_type String,    -- 'purchase', 'sign_up', 'lead', 'custom'
+    value_cents UInt64,
+    created_at DateTime64(3)
+) ENGINE = MergeTree()
+ORDER BY (conversion_id, created_at);
+```
+
+**Primary key:** `conversion_id`. Immutable. Links back to the click that led to the conversion. Used for CPA billing and ROAS calculation.
+
+### Ad Partners
+
+Third-party ad networks, DSPs, and ad exchanges.
+
+```sql
+CREATE TABLE ad_partners (
+    partner_id String,
+    name String,
+    partner_type String,       -- 'dsp', 'ssp', 'exchange', 'direct'
+    api_endpoint String,
+    status String,             -- 'active', 'suspended', 'pending'
+    revenue_share_pct Float64, -- what % of revenue this partner gets
+    created_at DateTime64(3),
+    updated_at DateTime64(3),
+    deleted UInt8 DEFAULT 0
+) ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY partner_id;
+```
+
+**Primary key:** `partner_id`. Revenue share is negotiated per partner. A DSP might get 70% of the revenue they bring in, keeping 30% for the platform.
+
+### Ad Revenue
+
+Revenue routing and splits. How money flows from ad partner → platform → creator.
+
+```sql
+CREATE TABLE ad_revenue (
+    revenue_id String,
+    campaign_id String,
+    creative_id String,
+    creator_key String,
+    partner_id String,
+    gross_cents UInt64,
+    platform_cents UInt64,
+    creator_cents UInt64,
+    partner_cents UInt64,
+    status String,             -- 'pending', 'settled', 'paid'
+    period_start DateTime64(3),
+    period_end DateTime64(3),
+    created_at DateTime64(3),
+    updated_at DateTime64(3),
+    deleted UInt8 DEFAULT 0
+) ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY revenue_id;
+```
+
+**Primary key:** `revenue_id`. Aggregated from impressions, clicks, and conversions. `gross_cents = platform_cents + creator_cents + partner_cents`. Settlement is periodic (daily/weekly/monthly). Status transitions: `pending` → `settled` → `paid`. The API reconciles this against Stripe payouts.
 
 ---
 
