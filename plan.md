@@ -37,15 +37,15 @@ request flow, sequence diagrams). v3 needs the same visual treatment
 so every doc is instantly graspable. Follow `knowledge/AGENTS.md` for
 visual styles and voice.
 
-- [ ] **SDK** (`sdk/api.md`) — request flow diagram: client → SDK → API → ClickHouse tables. Show how groups are baked into CRUD (create inserts doc_groups, read joins group_members, update tombstones + re-inserts, delete tombstones).
-- [ ] **SDK** (`sdk/api.md`) — group operations sequence: create group, join, invite, accept, leave, remove.
-- [ ] **DB** (`db/clickhouse.md`) — data model architecture: all tables, relationships, primary keys, ER-style diagram.
-- [ ] **DB** (`db/clickhouse.md`) — data flow: create and read paths, showing the INSERT + JOIN paths for group-filtered reads.
-- [ ] **Groups** (`groups/overview.md`) — two-contract-type diagram: service contract (app trust, outer wall) vs group contract (people access, inner permissions). Show the decision chain.
-- [ ] **Groups** (`groups/overview.md`) — group architecture: group_contracts → group_members → doc_groups → documents. Who sees what, how roles enforce access.
-- [ ] **Social** (`social/overview.md`) — social app architecture: how groups power discover, follows, communities, DMs.
-- [ ] **Encryption** (`encryption/auth.md`) — auth flow diagram: login, token minting, certification, SMR handshake.
-- [ ] **FAQ** (`faq/oltp-to-olap-patterns.md`) — OLTP-on-OLAP patterns: how CRUD operations map to ClickHouse (ReplacingMergeTree, tombstones, background compaction).
+- [✓] **SDK** (`sdk/api.md`) — request flow diagram: client → SDK → API → ClickHouse tables. Show how groups are baked into CRUD (create inserts doc_groups, read joins group_members, update tombstones + re-inserts, delete tombstones).
+- [✓] **SDK** (`sdk/api.md`) — group operations sequence: create group, join, invite, accept, leave, remove.
+- [✓] **DB** (`db/clickhouse.md`) — data model architecture: all tables, relationships, primary keys, ER-style diagram.
+- [✓] **DB** (`db/clickhouse.md`) — data flow: create and read paths, showing the INSERT + JOIN paths for group-filtered reads.
+- [✓] **Groups** (`groups/overview.md`) — two-contract-type diagram: service contract (app trust, outer wall) vs group contract (people access, inner permissions). Show the decision chain.
+- [✓] **Groups** (`groups/overview.md`) — group architecture: group_contracts → group_members → doc_groups → documents. Who sees what, how roles enforce access.
+- [✓] **Social** (`social/overview.md`) — social app architecture: how groups power discover, follows, communities, DMs.
+- [✓] **Encryption** (`encryption/auth.md`) — auth flow diagram: login, token minting, certification, SMR handshake.
+- [✓] **FAQ** (`faq/oltp-to-olap-patterns.md`) — OLTP-on-OLAP patterns: how CRUD operations map to ClickHouse (ReplacingMergeTree, tombstones, background compaction).
 
 ---
 

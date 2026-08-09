@@ -27,7 +27,17 @@ says what can happen **at the same time**.
 
 ## Lanes
 
-### Lane: Docs (Phase 0)
+### Lane: KB Diagrams (Phase 0)
+**Owns:** `knowledge/knowledge-base/web10-v3/`
+
+- [✓ 3.0.1] SDK api.md — request flow + group operations sequence
+- [✓ 3.0.1] DB clickhouse.md — ER diagram + data flow
+- [✓ 3.0.1] Groups overview.md — two-contract diagram + group architecture
+- [✓ 3.0.1] Social overview.md — social app architecture
+- [✓ 3.0.1] Encryption auth.md — auth flow sequence
+- [✓ 3.0.1] FAQ oltp-to-olap-patterns.md — OLTP vs OLAP architecture
+
+### Lane: Docs (Phase 1)
 **Owns:** `marketing/marketing-ui/public/docs/`
 
 - [ ] Docs audit
@@ -38,39 +48,39 @@ says what can happen **at the same time**.
 - [ ] Discovery & groups
 - [ ] Screenshot test pass
 
-### Lane: SDK (Phase 1)
+### Lane: SDK (Phase 2)
 **Owns:** `sdk/`
 
 - [ ] SDK API surface (CRUD, groups, `$sort`, `$match`, `$query`)
 - [ ] ClickHouse SQL implementation
 - [ ] Service contracts
 
-### Lane: DB (Phase 1)
+### Lane: DB (Phase 2)
 **Owns:** ClickHouse setup, migrations
 
 - [ ] ClickHouse schema & tables
 - [ ] Indexes & patterns
 
-### Lane: Groups (Phase 1)
+### Lane: Groups (Phase 2)
 **Owns:** Groups primitive
 
 - [ ] Groups overview (policy containers, roles, join policies)
 - [ ] Group identity (profiles, URLs, service-scoped roles)
 
-### Lane: Social (Phase 1)
+### Lane: Social (Phase 2)
 **Owns:** `marketing/web10-social/`
 
 - [ ] 11 screens per `web10-social-v3/` docs
 - [ ] CRUD + groups + refs only
 
-### Lane: Media (Phase 1)
+### Lane: Media (Phase 2)
 **Owns:** Media pipeline
 
 - [ ] MinIO integration
 - [ ] Transcoding
 - [ ] Streaming
 
-### Lane: Apps Rebuild (Phase 2)
+### Lane: Apps Rebuild (Phase 3)
 **Owns:** `ui/`, `marketing/web10-social/`, demo apps
 
 - [ ] Authenticator v3
