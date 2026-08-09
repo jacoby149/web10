@@ -1,3 +1,6 @@
+3.0.5 || 09.08.2026
+fix(api): review findings — (1) user_blacklist subquery in read_documents_in_groups now includes AND deleted = 0 so unblocked authors' content reappears in discover, (2) resolve_media_urls batches all media refs into a single IN (...) query instead of O(N) round trips, (3) insert_document generates doc_id internally (optional override) so endpoints no longer call private _gen_doc_id. 94 tests passing.
+
 3.0.4 || 09.08.2026
 fix(api): review findings — (1) N+1 query in get_groups_manages eliminated by selecting gc.roles directly in initial query, (2) group_blacklist schema changed from MergeTree() to ReplacingMergeTree(updated_at) with tombstone columns (updated_at, deleted), unblock_user_in_group uses INSERT INTO ... SELECT ... deleted=1 instead of DELETE, (3) /v3/groups/invite now checks assignRoles permission on requester role before allowing invites. 92 tests passing.
 

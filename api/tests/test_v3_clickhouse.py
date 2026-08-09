@@ -32,7 +32,7 @@ def _patch_client():
 
 
 class TestInsertDocument:
-    def test_insert_and_return(self):
+    def test_insert_with_explicit_id(self):
         with _patch_client() as mock_client:
             result = ch.insert_document(
                 doc_id="doc-1",
@@ -51,6 +51,17 @@ class TestInsertDocument:
             assert row[0] == "doc-1"
             assert row[1] == "alice"
             assert row[2] == "posts"
+
+    def test_insert_generates_id(self):
+        with _patch_client() as mock_client:
+            result = ch.insert_document(
+                author_key="alice",
+                collection_name="posts",
+                body={"text": "hello"},
+            )
+            assert result["doc_id"] is not None
+            assert len(result["doc_id"]) == 32  # uuid4 hex
+            mock_client.insert.assert_called_once()
 
 
 class TestGetDocument:
@@ -473,6 +484,10 @@ class TestReadDocumentsInGroups:
             sql = mock_client.query.call_args[0][0]
             assert "user_key = p.author_key" in sql
             assert "blocked_key = %(member_key)s" in sql
+            # Verify blacklist filter includes deleted = 0 (tombstone-respecting)
+            assert "SELECT 1 FROM user_blacklist" in sql
+            blacklist_part = sql[sql.index("SELECT 1 FROM user_blacklist") :]
+            assert "deleted = 0" in blacklist_part
             # Verify hidden docs exclusion
             assert "group_hidden_docs" in sql
 
@@ -604,13 +619,37 @@ class TestResolveMediaUrls:
             mock_client.query.return_value = _mock_result_rows(
                 [
                     (
+                        "img-1",
                         '{"url":"http://example.com/img.png","mime_type":"image/png","filename":"img.png","size_bytes":1024}',
+                        "media_metadata",
                     ),
                 ]
             )
             result = ch.resolve_media_urls(body, "alice")
             assert len(result["media_refs"]) == 1
             assert result["media_refs"][0]["read_url"] == "http://example.com/img.png"
+
+    def test_resolve_multiple_refs(self):
+        body = {"text": "hello", "media_refs": ["img-1", "img-2"]}
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows(
+                [
+                    (
+                        "img-1",
+                        '{"url":"http://a.png","mime_type":"image/png","filename":"a.png","size_bytes":100}',
+                        "media_metadata",
+                    ),
+                    (
+                        "img-2",
+                        '{"url":"http://b.jpg","mime_type":"image/jpeg","filename":"b.jpg","size_bytes":200}',
+                        "public_media",
+                    ),
+                ]
+            )
+            result = ch.resolve_media_urls(body, "alice")
+            assert len(result["media_refs"]) == 2
+            assert result["media_refs"][0]["read_url"] == "http://a.png"
+            assert result["media_refs"][1]["read_url"] == "http://b.jpg"
 
 
 # ---------------------------------------------------------------------------

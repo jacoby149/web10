@@ -29,14 +29,13 @@ async def create_document(data: Token):
     if data.body is None:
         raise exceptions.CRUD
 
-    doc_id = ch._gen_doc_id()
     result = ch.insert_document(
-        doc_id=doc_id,
         author_key=author,
         collection_name=data.collection or "",
         body=data.body,
         tags=data.body.get("tags", []),
     )
+    doc_id = result["doc_id"]
 
     if data.groups:
         ch.attach_doc_to_groups(doc_id, data.groups)

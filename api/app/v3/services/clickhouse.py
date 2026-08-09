@@ -43,10 +43,17 @@ def _gen_doc_id() -> str:
 
 
 def insert_document(
-    doc_id: str, author_key: str, collection_name: str, body: dict, ref_value: str = "", tags: list[str] | None = None
+    author_key: str,
+    collection_name: str,
+    body: dict,
+    ref_value: str = "",
+    tags: list[str] | None = None,
+    doc_id: str | None = None,
 ) -> dict:
-    """Insert a document into the documents table."""
+    """Insert a document into the documents table. Generates doc_id if not provided."""
     now = _now()
+    if not doc_id:
+        doc_id = _gen_doc_id()
     client.insert(
         "documents",
         [[doc_id, author_key, collection_name, _json(body), ref_value or "", tags or [], now, now, 0]],
@@ -586,7 +593,7 @@ def read_documents_in_groups(
         "AND pg.group_id IN (%(g0)s" + "".join(f", %(g{i})s" for i in range(1, len(group_ids))) + ") "
         "AND NOT EXISTS ("
         "SELECT 1 FROM user_blacklist "
-        "WHERE user_key = p.author_key AND blocked_key = %(member_key)s"
+        "WHERE user_key = p.author_key AND blocked_key = %(member_key)s AND deleted = 0"
         ") "
         "AND NOT EXISTS ("
         "SELECT 1 FROM group_hidden_docs h "
@@ -799,53 +806,43 @@ def revoke_provider_service_contract(provider_key: str, allowed_origin: str):
 def resolve_media_urls(doc_body: dict, user_key: str) -> dict:
     """Resolve media references in a document body to presigned URLs.
 
-    Looks for media_refs array in the body, queries the media_metadata
-    collection for each ref, and returns the body with read_urls injected.
+    Looks for media_refs array in the body, batches all refs into a single
+    query across media_metadata and public_media collections, and returns
+    the body with read_urls injected.
     """
     media_refs = doc_body.get("media_refs") or []
     if not media_refs:
         return doc_body
 
+    ref_strs = [str(m) for m in media_refs]
+    placeholders = ", ".join(f"%(r{i})s" for i in range(len(ref_strs)))
+    params = {"author_key": user_key, **{f"r{i}": rs for i, rs in enumerate(ref_strs)}}
+
+    result = client.query(
+        f"SELECT doc_id, body, collection_name FROM documents "
+        f"WHERE doc_id IN ({placeholders}) AND author_key = %(author_key)s "
+        f"AND collection_name IN ('media_metadata', 'public_media') AND deleted = 0",
+        params,
+    )
+
+    # Build lookup: object_key -> metadata
+    meta_map = {}
+    for row in result.result_rows():
+        meta_map[row[0]] = _parse_json(row[1])
+
     resolved = []
     for mref in media_refs:
         mref_str = str(mref)
-        # Query media metadata from documents table
-        result = client.query(
-            "SELECT body FROM documents "
-            "WHERE doc_id = %(doc_id)s AND author_key = %(author_key)s "
-            "AND collection_name = 'media_metadata' AND deleted = 0",
-            {"doc_id": mref_str, "author_key": user_key},
+        meta = meta_map.get(mref_str, {})
+        resolved.append(
+            {
+                "object_key": mref_str,
+                "mime_type": meta.get("mime_type"),
+                "filename": meta.get("filename"),
+                "size_bytes": meta.get("size_bytes"),
+                "read_url": meta.get("url"),
+            }
         )
-        if result.result_rows():
-            meta = _parse_json(result.result_rows()[0][0])
-            resolved.append(
-                {
-                    "object_key": mref_str,
-                    "mime_type": meta.get("mime_type"),
-                    "filename": meta.get("filename"),
-                    "size_bytes": meta.get("size_bytes"),
-                    "read_url": meta.get("url"),  # Presigned URL generated at confirm time
-                }
-            )
-        else:
-            # Try public_media
-            result = client.query(
-                "SELECT body FROM documents "
-                "WHERE doc_id = %(doc_id)s AND author_key = %(author_key)s "
-                "AND collection_name = 'public_media' AND deleted = 0",
-                {"doc_id": mref_str, "author_key": user_key},
-            )
-            if result.result_rows():
-                meta = _parse_json(result.result_rows()[0][0])
-                resolved.append(
-                    {
-                        "object_key": mref_str,
-                        "mime_type": meta.get("mime_type"),
-                        "filename": meta.get("filename"),
-                        "size_bytes": meta.get("size_bytes"),
-                        "read_url": meta.get("url"),
-                    }
-                )
 
     if resolved:
         resolved_body = dict(doc_body)
