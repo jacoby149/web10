@@ -13,6 +13,8 @@ Work-in-progress ideas, alternatives, and explorations live in `web10-v3-brainst
 ```
 web10-v3/
 ├── README.md              ← you are here
+├── encryption/            ← authentication, tokens, security
+│   └── auth.md            ← JWT auth flow, token structure, SMR
 ├── sdk/                   ← the JavaScript/TypeScript SDK
 │   ├── api.md             ← surface: CRUD, groups, $sort, $match, $query
 │   ├── implementation.md  ← ClickHouse SQL behind every SDK call

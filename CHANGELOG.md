@@ -1,4 +1,4 @@
-1.0.302 || 06.08.2026
+3.0.0 || 08.08.2026
 docs: social v3 examples use SDK calls, not ClickHouse SQL. All 10 social v3 docs (discover, create-post, groups-tab, settings, other-profile, your-profile, search, messages, notifications, post-detail) refactored to show `w.read`, `w.create`, `w.getGroups`, `w.createGroup`, etc. — no raw SQL. NEW: `sdk-implementation.md` maps every SDK function to its ClickHouse SQL — what tables each call touches, what queries it runs, what tombstones it creates. Separation: social docs show what the app does, implementation doc shows what the API does.
 
 1.0.301 || 03.08.2026

@@ -30,7 +30,7 @@ below, this is not optional.
 - `imma rant` → the operator is about to fire a stream of complaints
   (usually with screenshots). Do NOT implement ANY of them — rants are
   for capturing, the fleet is for building. File EACH complaint as a
-  lane item in `parallel execution.txt` + `plan.txt` (the complaint-
+   lane item in `parallel-execution.md` + `plan.md` (the complaint-
   to-lane-item pipeline: verbatim quote, screenshot referenced,
   root-cause diagnosis if it's cheap to find, acceptance bar, sub-lane
   + gates + bite sizing per rule 5), one docs branch + PR with a
@@ -84,10 +84,10 @@ login and redirect after (the D-url-routing pattern, 1.0.155).
 Task completion state lives in three places. Check all three before
 writing code — merged work must not be redone:
 
-1. `parallel execution.txt` — the lane queues carry live status:
+1. `parallel-execution.md` — the lane queues carry live status:
    `[✓ x.y.z]` = merged (the x.y.z points at the CHANGELOG entry),
    `[~]` = in flight in another workspace, `[ ]` = open.
-2. `plan.txt` — completed items are ticked `[✓]`.
+2. `plan.md` — completed items are ticked `[✓]`.
 3. `CHANGELOG.md` — newest entry at top. Work merged after the lane
    queues were last ticked shows up here first, so always scan the
    top few entries.
@@ -98,8 +98,8 @@ unticked item in the same lane instead of redoing it.
 ## When you finish a task
 
 In the SAME branch as the change: add a `CHANGELOG.md` line (newest at
-top, `version || DD.MM.YYYY`), tick the item in `plan.txt`, and tick
-your lane item in `parallel execution.txt`. If you changed the stack,
+top, `version || DD.MM.YYYY`), tick the item in `plan.md`, and tick
+your lane item in `parallel-execution.md`. If you changed the stack,
 data model, or auth flow, keep `CLAUDE.md`/`GLOSSARY.md` true and
 record big calls in `decisions.md`.
 
@@ -124,7 +124,7 @@ After ANY merge that touched `CHANGELOG.md`:
    highest anywhere in the file — the changelog CI check enforces
    this), restore the other entry's header and the blank line between
    entries, and update any `[✓ x.y.z]` / `[~]` refs you made in
-   `plan.txt` and `parallel execution.txt` to match.
+    `plan.md` and `parallel-execution.md` to match.
 3. Never rewrite, reorder, or renumber someone else's entry.
 
 ## After opening a PR: conflicts first, then EVERY check green
@@ -218,7 +218,7 @@ Every branch must use a type prefix so the history is scannable:
 | `refactor/` | Code restructuring with no behavioral change |
 | `chore/` | Deps, CI, tooling, docs, config |
 | `test/` | Test additions or test infrastructure |
-| `docs/` | Documentation only (CLAUDE.md, plan.txt, etc.) |
+| `docs/` | Documentation only (CLAUDE.md, plan.md, etc.) |
 
 **Format:** `type/short-description` — e.g. `fix/auth-token-expiry`, `feature/social-feed`.
 
@@ -231,5 +231,5 @@ Existing `lane-x/` and `username/` branches are fine historically. New branches 
 The base branch for every PR is `dev`. `main` is only updated by an
 explicit, deliberate merge from `dev`. Merging to `main` directly
 causes conflicts when `dev` later merges into `main` because both
-branches diverge on shared files (CHANGELOG.md, CLAUDE.md, plan.txt,
+branches diverge on shared files (CHANGELOG.md, CLAUDE.md, plan.md,
 CI workflows). If you're unsure, target `dev`.
