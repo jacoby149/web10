@@ -205,45 +205,45 @@ describe('v3 client', () => {
     })
   })
 
-  // ── Service contracts ─────────────────────────────────────────────────
+  // ── App contracts ─────────────────────────────────────────────────────
 
-  describe('service contracts', () => {
+  describe('app contracts', () => {
     beforeEach(() => client.setToken(mockToken))
 
-    it('addServiceContract', async () => {
-      const mockResponse = { service_name: 'notes', allowed_origin: 'https://app.example.com' }
+    it('addAppContract', async () => {
+      const mockResponse = { allowed_origin: 'https://app.example.com', permissions: { posts: ['readAll', 'create'] } }
       vi.spyOn(http, 'authPost').mockResolvedValueOnce(mockResponse as any)
 
-      const result = await client.addServiceContract('notes', 'https://app.example.com')
-      expect(result.service_name).toBe('notes')
+      const result = await client.addAppContract('https://app.example.com', { posts: ['readAll', 'create'] })
       expect(result.allowed_origin).toBe('https://app.example.com')
+      expect(result.permissions.posts).toContain('readAll')
     })
 
-    it('listServiceContracts', async () => {
+    it('listAppContracts', async () => {
       const mockResponse = [
-        { service_name: 'notes', allowed_origin: 'https://app.example.com' },
-        { service_name: 'posts', allowed_origin: 'https://social.example.com' },
+        { allowed_origin: 'https://app.example.com', permissions: { posts: ['readAll', 'create'] } },
+        { allowed_origin: 'https://social.example.com', permissions: { posts: ['readAll'] } },
       ]
       vi.spyOn(http, 'authPost').mockResolvedValueOnce(mockResponse as any)
 
-      const result = await client.listServiceContracts()
+      const result = await client.listAppContracts()
       expect(result).toHaveLength(2)
-      expect(result[0].service_name).toBe('notes')
+      expect(result[0].allowed_origin).toBe('https://app.example.com')
     })
 
-    it('revokeServiceContract with origin', async () => {
+    it('revokeAppContract with origin', async () => {
       const mockResponse = { status: 'revoked' }
       vi.spyOn(http, 'authPost').mockResolvedValueOnce(mockResponse as any)
 
-      await client.revokeServiceContract('https://app.example.com')
+      await client.revokeAppContract('https://app.example.com')
       const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
       expect(call.allowed_origin).toBe('https://app.example.com')
     })
 
-    it('revokeServiceContract without origin (all)', async () => {
+    it('revokeAppContract without origin (all)', async () => {
       vi.spyOn(http, 'authPost').mockResolvedValueOnce({ status: 'revoked' } as any)
 
-      await client.revokeServiceContract()
+      await client.revokeAppContract()
       const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
       expect(call.allowed_origin).toBeUndefined()
     })

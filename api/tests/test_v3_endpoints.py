@@ -469,30 +469,55 @@ class TestInviteMember:
 
 
 # ---------------------------------------------------------------------------
-# Service Contracts
+# App Contracts
 # ---------------------------------------------------------------------------
 
 
-class TestServiceContracts:
+class TestAppContracts:
     def test_add(self, client, token):
         resp = client.post(
-            "/v3/service-contracts/add",
+            "/v3/app-contracts/add",
             json={
                 "token": token,
-                "service_name": "posts",
                 "allowed_origin": "myapp.com",
+                "permissions": {"posts": ["readAll", "create"], "playlists": ["readAll"]},
             },
         )
         assert resp.status_code == 200
-        assert resp.json()["service_name"] == "posts"
+        assert resp.json()["allowed_origin"] == "myapp.com"
+        assert "posts" in resp.json()["permissions"]
+
+    def test_add_missing_permissions(self, client, token):
+        resp = client.post(
+            "/v3/app-contracts/add",
+            json={
+                "token": token,
+                "allowed_origin": "myapp.com",
+            },
+        )
+        assert resp.status_code == 401
 
     def test_list(self, client, token):
-        mock_rows = [("posts", "myapp.com")]
+        mock_rows = [("myapp.com", '{"posts": ["readAll"]}')]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = MagicMock(result_rows=lambda: mock_rows)
-            resp = client.post("/v3/service-contracts/list", json={"token": token})
+            resp = client.post("/v3/app-contracts/list", json={"token": token})
         assert resp.status_code == 200
         assert len(resp.json()) == 1
+        assert resp.json()[0]["allowed_origin"] == "myapp.com"
+
+    def test_revoke_by_origin(self, client, token):
+        resp = client.post(
+            "/v3/app-contracts/revoke",
+            json={"token": token, "allowed_origin": "myapp.com"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "revoked"
+
+    def test_revoke_all(self, client, token):
+        resp = client.post("/v3/app-contracts/revoke", json={"token": token})
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "revoked"
 
 
 # ---------------------------------------------------------------------------

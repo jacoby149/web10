@@ -278,56 +278,47 @@ function useInterface() {
         return !!(I.verified || (I.phone && I.phone.trim().length >= 7));
     }
 
-    // ── v3 Service contracts (ClickHouse) ──────────────────────────────
+    // ── v3 App contracts (per-app with per-service permissions) ──────────────
 
-    // Load v3 service contracts from the ClickHouse-backed API. Runs alongside
-    // servicesLoad (MongoDB) — the v3 contracts are the new model, but the v2
-    // terms records are still needed for backward compatibility during the
-    // transition. When the v2 path is retired, servicesLoad can be replaced.
+// Load app contracts from the ClickHouse-backed API.
     I.v3ContractsLoad = function () {
         if (!I.auth) {
             I.setV3Contracts([]);
             return;
         }
-        v3Post('service-contracts/list', {})
+        v3Post('app-contracts/list', {})
             .then((contracts: any[]) => {
                 I.setV3Contracts(contracts || []);
             })
             .catch((e) => {
-                // v3 contracts are new — a 404/500 just means the v3 API
-                // isn't available yet, not a user error. Silently degrade.
-                console.warn('v3 service-contracts/list failed:', e);
+                console.warn('v3 app-contracts/list failed:', e);
                 I.setV3Contracts([]);
             });
     }
 
-    // Add a v3 service contract (approve an app origin for a service).
-    // In v3, a SIR with cross_origins becomes N service contracts (one per
-    // origin). This is the v3 equivalent of submitSIR.
-    I.addV3Contract = function (serviceName: string, allowedOrigin: string) {
-        return v3Post('service-contracts/add', {
-            service_name: serviceName,
+    // Add an app contract (one per app, with per-service permissions).
+    I.addV3Contract = function (allowedOrigin: string, permissions: Record<string, string[]>) {
+        return v3Post('app-contracts/add', {
             allowed_origin: allowedOrigin,
+            permissions,
         }).then(() => {
             I.v3ContractsLoad();
         });
     }
 
-    // Revoke a v3 service contract (all origins for a service, or a specific
-    // origin + service pair). The v3 equivalent of deleteService.
-    I.revokeV3Contract = function (serviceName: string, allowedOrigin?: string) {
-        return v3Post('service-contracts/revoke', {
-            service_name: serviceName,
+    // Revoke an app contract (by origin) or all contracts.
+    I.revokeV3Contract = function (allowedOrigin?: string) {
+        return v3Post('app-contracts/revoke', {
             ...(allowedOrigin && { allowed_origin: allowedOrigin }),
         }).then(() => {
             I.v3ContractsLoad();
         });
     }
 
-    // Check if a v3 service contract exists for a given origin + service.
-    I.hasV3Contract = function (serviceName: string, allowedOrigin: string): boolean {
+    // Check if an app contract exists for a given origin.
+    I.hasV3Contract = function (allowedOrigin: string): boolean {
         return (I.v3Contracts || []).some(
-            (c: any) => c.service_name === serviceName && c.allowed_origin === allowedOrigin,
+            (c: any) => c.allowed_origin === allowedOrigin,
         );
     }
 
@@ -492,11 +483,14 @@ function useInterface() {
         I.wapi
             .create("services", service)
             .then(() => {
-                // Also add v3 service contracts (one per cross_origin).
-                // In v3, a SIR with cross_origins becomes N service contracts.
+                // Also add v3 app contracts (one per origin, with per-service permissions).
+                // In v3, a SIR with cross_origins becomes N app contracts (one per origin).
                 const origins = Array.isArray(service["cross_origins"]) ? service["cross_origins"] : [];
+                const permissions: Record<string, string[]> = {
+                    [service["service"]]: ["readAll", "create", "updateOwn", "deleteOwn"],
+                };
                 const v3Ops = origins.map((origin: string) =>
-                    I.addV3Contract(service["service"], origin),
+                    I.addV3Contract(origin, permissions),
                 );
                 Promise.allSettled(v3Ops).then(() => {
                     I.setStatus(null);
@@ -574,9 +568,9 @@ function useInterface() {
         I.wapi
             .delete("services", { service: serviceName })
             .then(() => {
-                // Also revoke v3 service contracts for this service.
-                // Revoke all origins (no specific origin = revoke all).
-                I.revokeV3Contract(serviceName).catch(() => {});
+                // TODO: in the per-app contract model, deleting a service should
+                // remove it from the app's permissions, not revoke the whole contract.
+                // For now, just delete the v2 terms record.
                 I.setStatus("Service deleted!");
                 setTimeout(() => I.servicesLoad(), 1000);
             })

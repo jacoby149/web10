@@ -393,33 +393,35 @@ async def deny_join_request(data: Token):
 # ---------------------------------------------------------------------------
 # Service contracts (simplified v3)
 # ---------------------------------------------------------------------------
+# App Contracts (per-app with per-service permissions)
+# ---------------------------------------------------------------------------
 
 
-@router.post("/service-contracts/add")
-async def add_service_contract(data: Token):
-    """Add a service contract (app trust)."""
+@router.post("/app-contracts/add")
+async def add_app_contract(data: Token):
+    """Add an app contract (one per app, permissions is JSON)."""
     user = _user(data)
-    if not data.service_name or not data.allowed_origin:
+    if not data.allowed_origin or not data.permissions:
         raise exceptions.CRUD
-    result = ch.add_service_contract(user, data.service_name, data.allowed_origin)
+    result = ch.add_app_contract(user, data.allowed_origin, data.permissions)
     return result
 
 
-@router.post("/service-contracts/list")
-async def get_service_contracts(data: Token):
-    """Get active service contracts."""
+@router.post("/app-contracts/list")
+async def get_app_contracts(data: Token):
+    """Get active app contracts."""
     user = _user(data)
-    return ch.get_service_contracts(user)
+    return ch.get_app_contracts(user)
 
 
-@router.post("/service-contracts/revoke")
-async def revoke_service_contract(data: Token):
-    """Revoke service contracts (all, by origin, or by service+origin)."""
+@router.post("/app-contracts/revoke")
+async def revoke_app_contract(data: Token):
+    """Revoke one app contract (by origin) or all."""
     user = _user(data)
     if data.allowed_origin:
-        ch.revoke_service_contract(user, data.allowed_origin, data.service_name)
+        ch.revoke_app_contract(user, data.allowed_origin)
     else:
-        ch.revoke_all_service_contracts(user)
+        ch.revoke_all_app_contracts(user)
     return {"status": "revoked"}
 
 

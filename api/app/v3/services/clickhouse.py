@@ -430,68 +430,88 @@ def unhide_doc_from_group(group_id: str, doc_id: str):
 
 
 # ---------------------------------------------------------------------------
-# Service Contracts (simplified v3)
+# App Contracts (per-app with per-service permissions)
 # ---------------------------------------------------------------------------
 
 
-def add_service_contract(user_key: str, service_name: str, allowed_origin: str) -> dict:
-    """Add a service contract (app trust)."""
+def add_app_contract(user_key: str, allowed_origin: str, permissions: dict) -> dict:
+    """Add an app contract (one row per app, permissions is JSON)."""
     now = _now()
     client.insert(
-        "service_contracts",
-        [[user_key, service_name, allowed_origin, now, now, 0]],
+        "app_contracts",
+        [[user_key, allowed_origin, json.dumps(permissions), now, now, 0]],
     )
     return {
         "user_key": user_key,
-        "service_name": service_name,
         "allowed_origin": allowed_origin,
+        "permissions": permissions,
         "created_at": now.isoformat(),
     }
 
 
-def get_service_contracts(user_key: str) -> list[dict]:
-    """Get active service contracts for a user."""
+def get_app_contracts(user_key: str) -> list[dict]:
+    """Get active app contracts for a user."""
     result = client.query(
-        "SELECT service_name, allowed_origin FROM service_contracts WHERE user_key = %(user_key)s AND deleted = 0",
+        "SELECT allowed_origin, permissions FROM app_contracts WHERE user_key = %(user_key)s AND deleted = 0",
         {"user_key": user_key},
     )
-    return [{"service_name": row[0], "allowed_origin": row[1]} for row in result.result_rows()]
+    return [
+        {
+            "allowed_origin": row[0],
+            "permissions": json.loads(row[1]) if row[1] else {},
+        }
+        for row in result.result_rows()
+    ]
 
 
-def is_origin_allowed(user_key: str, service_name: str, allowed_origin: str) -> bool:
-    """Check if an origin is allowed for a user+service."""
+def is_origin_allowed(user_key: str, allowed_origin: str) -> bool:
+    """Check if an origin has an active contract for a user."""
     result = client.query(
-        "SELECT count() FROM service_contracts "
-        "WHERE user_key = %(user_key)s AND service_name = %(service_name)s AND allowed_origin = %(allowed_origin)s AND deleted = 0",
-        {"user_key": user_key, "service_name": service_name, "allowed_origin": allowed_origin},
+        "SELECT count() FROM app_contracts "
+        "WHERE user_key = %(user_key)s AND allowed_origin = %(allowed_origin)s AND deleted = 0",
+        {"user_key": user_key, "allowed_origin": allowed_origin},
     )
     return result.result_rows()[0][0] > 0
 
 
-def revoke_service_contract(user_key: str, allowed_origin: str, service_name: str = None):
-    """Tombstone service contracts for an origin (optionally scoped to a service)."""
-    if service_name:
-        client.command(
-            "INSERT INTO service_contracts (user_key, service_name, allowed_origin, created_at, updated_at, deleted) "
-            "SELECT user_key, service_name, allowed_origin, created_at, now(), 1 "
-            "FROM service_contracts WHERE user_key = %(user_key)s AND service_name = %(service_name)s AND allowed_origin = %(allowed_origin)s AND deleted = 0",
-            {"user_key": user_key, "service_name": service_name, "allowed_origin": allowed_origin},
-        )
-    else:
-        client.command(
-            "INSERT INTO service_contracts (user_key, service_name, allowed_origin, created_at, updated_at, deleted) "
-            "SELECT user_key, service_name, allowed_origin, created_at, now(), 1 "
-            "FROM service_contracts WHERE user_key = %(user_key)s AND allowed_origin = %(allowed_origin)s AND deleted = 0",
-            {"user_key": user_key, "allowed_origin": allowed_origin},
-        )
+def get_app_permissions(user_key: str, allowed_origin: str) -> dict:
+    """Get the permissions dict for a user+origin contract. Returns {} if no contract."""
+    result = client.query(
+        "SELECT permissions FROM app_contracts "
+        "WHERE user_key = %(user_key)s AND allowed_origin = %(allowed_origin)s AND deleted = 0",
+        {"user_key": user_key, "allowed_origin": allowed_origin},
+    )
+    rows = result.result_rows()
+    if not rows:
+        return {}
+    return json.loads(rows[0][0]) if rows[0][0] else {}
 
 
-def revoke_all_service_contracts(user_key: str):
-    """Tombstone all service contracts for a user."""
+def has_permission(user_key: str, allowed_origin: str, service_name: str, operation: str) -> bool:
+    """Check if an origin has permission for a specific service+operation."""
+    perms = get_app_permissions(user_key, allowed_origin)
+    if not perms:
+        return False
+    service_perms = perms.get(service_name, [])
+    return operation in service_perms
+
+
+def revoke_app_contract(user_key: str, allowed_origin: str):
+    """Tombstone one app contract (one row = one app)."""
     client.command(
-        "INSERT INTO service_contracts (user_key, service_name, allowed_origin, created_at, updated_at, deleted) "
-        "SELECT user_key, service_name, allowed_origin, created_at, now(), 1 "
-        "FROM service_contracts WHERE user_key = %(user_key)s AND deleted = 0",
+        "INSERT INTO app_contracts (user_key, allowed_origin, permissions, created_at, updated_at, deleted) "
+        "SELECT user_key, allowed_origin, permissions, created_at, now(), 1 "
+        "FROM app_contracts WHERE user_key = %(user_key)s AND allowed_origin = %(allowed_origin)s AND deleted = 0",
+        {"user_key": user_key, "allowed_origin": allowed_origin},
+    )
+
+
+def revoke_all_app_contracts(user_key: str):
+    """Tombstone all app contracts for a user."""
+    client.command(
+        "INSERT INTO app_contracts (user_key, allowed_origin, permissions, created_at, updated_at, deleted) "
+        "SELECT user_key, allowed_origin, permissions, created_at, now(), 1 "
+        "FROM app_contracts WHERE user_key = %(user_key)s AND deleted = 0",
         {"user_key": user_key},
     )
 

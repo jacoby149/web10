@@ -24,6 +24,7 @@ class Token(BaseModel):
     group_id: str | None = None
     service_name: str | None = None
     allowed_origin: str | None = None
+    permissions: dict | None = None
     blocked_key: str | None = None
     enabled: bool = True
     username: str | None = None
