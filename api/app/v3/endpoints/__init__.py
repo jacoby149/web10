@@ -305,6 +305,21 @@ async def accept_invite(group_id: str, token: Token):
     return {"group_id": group_id, "role": "member"}
 
 
+@router.post("/groups/{group_id}/decline-invite")
+async def decline_invite(group_id: str, token: Token):
+    """Decline a group invite or join request."""
+    user = _user(token)
+    result = ch.client.query(
+        "SELECT requester_key FROM group_join_requests "
+        "WHERE group_id = %(group_id)s AND requester_key = %(user_key)s AND status IN ('pending', 'invited') AND deleted = 0",
+        {"group_id": group_id, "user_key": user},
+    )
+    if not result.result_rows():
+        raise exceptions.CRUD
+    ch.resolve_join_request(group_id, user, "declined")
+    return {"group_id": group_id, "status": "declined"}
+
+
 @router.post("/groups/{group_id}/leave")
 async def leave_group(group_id: str, token: Token):
     """Leave a group."""

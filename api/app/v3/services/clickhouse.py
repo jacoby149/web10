@@ -103,11 +103,15 @@ def read_documents(author_key: str | None, collection_name: str, doc_id: str | N
 
 
 def update_document(doc_id: str, author_key: str, collection_name: str, body: dict, ref_value: str = "", tags: list[str] | None = None) -> dict:
-    """Update a document (insert new version with higher updated_at)."""
+    """Update a document (insert new version with higher updated_at, preserve created_at)."""
+    existing = get_document(doc_id, author_key)
+    if not existing:
+        return None
     now = _now()
+    created_at = datetime.fromisoformat(existing["created_at"])
     client.insert(
         "documents",
-        [[doc_id, author_key, collection_name, _json(body), ref_value or "", tags or [], now, now, 0]],
+        [[doc_id, author_key, collection_name, _json(body), ref_value or "", tags or [], created_at, now, 0]],
     )
     return {
         "doc_id": doc_id,
@@ -116,7 +120,7 @@ def update_document(doc_id: str, author_key: str, collection_name: str, body: di
         "body": body,
         "ref_value": ref_value,
         "tags": tags or [],
-        "created_at": now.isoformat(),
+        "created_at": existing["created_at"],
         "updated_at": now.isoformat(),
     }
 
@@ -471,15 +475,13 @@ def revoke_all_service_contracts(user_key: str):
 def block_user(user_key: str, blocked_key: str):
     """Block a user (user-wide blacklist)."""
     now = _now()
-    client.insert("user_blacklist", [[user_key, blocked_key, now, now, 0]])
+    client.insert("user_blacklist", [[user_key, blocked_key, now]])
 
 
 def unblock_user(user_key: str, blocked_key: str):
-    """Remove a user block (tombstone via INSERT SELECT deleted=1)."""
+    """Remove a user block."""
     client.command(
-        "INSERT INTO user_blacklist (user_key, blocked_key, created_at, updated_at, deleted) "
-        "SELECT user_key, blocked_key, created_at, now(), 1 "
-        "FROM user_blacklist WHERE user_key = %(user_key)s AND blocked_key = %(blocked_key)s AND deleted = 0",
+        "DELETE FROM user_blacklist WHERE user_key = %(user_key)s AND blocked_key = %(blocked_key)s",
         {"user_key": user_key, "blocked_key": blocked_key},
     )
 
@@ -487,7 +489,7 @@ def unblock_user(user_key: str, blocked_key: str):
 def is_user_blocked(user_key: str, blocked_key: str) -> bool:
     """Check if a user has blocked another user."""
     result = client.query(
-        "SELECT count() FROM user_blacklist WHERE user_key = %(user_key)s AND blocked_key = %(blocked_key)s AND deleted = 0",
+        "SELECT count() FROM user_blacklist WHERE user_key = %(user_key)s AND blocked_key = %(blocked_key)s",
         {"user_key": user_key, "blocked_key": blocked_key},
     )
     return result.result_rows()[0][0] > 0
@@ -496,15 +498,13 @@ def is_user_blocked(user_key: str, blocked_key: str) -> bool:
 def block_user_in_group(user_key: str, group_id: str, blocked_key: str):
     """Block a user from seeing content in a specific group."""
     now = _now()
-    client.insert("group_blacklist", [[user_key, group_id, blocked_key, now, now, 0]])
+    client.insert("group_blacklist", [[user_key, group_id, blocked_key, now]])
 
 
 def unblock_user_in_group(user_key: str, group_id: str, blocked_key: str):
-    """Remove a per-group block (tombstone via INSERT SELECT deleted=1)."""
+    """Remove a per-group block."""
     client.command(
-        "INSERT INTO group_blacklist (user_key, group_id, blocked_key, created_at, updated_at, deleted) "
-        "SELECT user_key, group_id, blocked_key, created_at, now(), 1 "
-        "FROM group_blacklist WHERE user_key = %(user_key)s AND group_id = %(group_id)s AND blocked_key = %(blocked_key)s AND deleted = 0",
+        "DELETE FROM group_blacklist WHERE user_key = %(user_key)s AND group_id = %(group_id)s AND blocked_key = %(blocked_key)s",
         {"user_key": user_key, "group_id": group_id, "blocked_key": blocked_key},
     )
 
@@ -568,7 +568,11 @@ def read_documents_in_groups(
         "AND pg.group_id IN (%(g0)s" + "".join(f", %(g{i})s" for i in range(1, len(group_ids))) + ") "
         "AND NOT EXISTS ("
         "SELECT 1 FROM user_blacklist "
-        "WHERE user_key = %(member_key)s AND blocked_key = p.author_key AND deleted = 0"
+        "WHERE user_key = p.author_key AND blocked_key = %(member_key)s"
+        ") "
+        "AND NOT EXISTS ("
+        "SELECT 1 FROM group_hidden_docs h "
+        "WHERE h.doc_id = p.doc_id AND h.group_id = pg.group_id AND h.deleted = 0"
         ") "
         "ORDER BY p.created_at DESC "
         "LIMIT %(limit)s OFFSET %(offset)s",
