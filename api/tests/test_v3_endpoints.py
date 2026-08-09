@@ -25,7 +25,7 @@ def _make_token(username="testuser", **extra):
 
 @pytest.fixture
 def client():
-    with patch("app.v3.services.clickhouse.client") as mock_ch:
+    with patch("app.v3.services.clickhouse.client"):
         yield TestClient(fastapi_app)
 
 

@@ -6,10 +6,7 @@ Uses mocked clickhouse-connect client — no real ClickHouse needed.
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from app.v3.services import clickhouse as ch
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -300,7 +297,7 @@ class TestUnhideDocFromGroup:
 
 class TestServiceContracts:
     def test_add(self):
-        with _patch_client() as mock_client:
+        with _patch_client():
             result = ch.add_service_contract("alice", "posts", "myapp.com")
             assert result["service_name"] == "posts"
             assert result["allowed_origin"] == "myapp.com"
@@ -524,7 +521,7 @@ class TestGetGroupsManages:
 
 class TestProviderServiceContracts:
     def test_add(self):
-        with _patch_client() as mock_client:
+        with _patch_client():
             result = ch.add_provider_service_contract("provider1", "myapp.com")
             assert result["provider_key"] == "provider1"
             assert result["allowed_origin"] == "myapp.com"
