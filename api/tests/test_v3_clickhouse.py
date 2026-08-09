@@ -304,7 +304,7 @@ class TestGetPendingRequests:
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
                 [
-                    ("alice", "pending", datetime(2026, 1, 1)),
+                    ("alice", "pending", "", datetime(2026, 1, 1)),
                 ]
             )
             requests = ch.get_pending_requests("g1")
