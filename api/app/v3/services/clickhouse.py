@@ -698,39 +698,34 @@ def read_document_by_id(doc_id: str, member_key: str, collection_name: str) -> d
 
 
 def get_groups_manages(member_key: str) -> list[dict]:
-    """Get groups where the user has management permissions."""
+    """Get groups where the user has management permissions.
+
+    Uses ClickHouse JSON functions (extractJSONArray, has) to filter
+    in-database instead of application-side iteration.
+    """
     result = client.query(
-        "SELECT gc.group_id, gc.join_policy, gm.role AS my_role, gc.roles, "
+        "SELECT gc.group_id, gc.join_policy, gm.role AS my_role, "
         "(SELECT count() FROM group_members gm2 WHERE gm2.group_id = gc.group_id AND gm2.deleted = 0) AS member_count "
         "FROM group_members gm "
         "JOIN group_contracts gc ON gm.group_id = gc.group_id "
         "WHERE gm.member_key = %(member_key)s "
         "AND gm.deleted = 0 "
-        "AND gc.deleted = 0",
+        "AND gc.deleted = 0 "
+        "AND gm.role IN ("
+        "  SELECT name FROM extractJSONArray(gc.roles) "
+        "  WHERE has(extractJSONArrayString(permissions), 'manageRoles')"
+        ")",
         {"member_key": member_key},
     )
-    groups = []
-    for row in result.result_rows():
-        group_id = row[0]
-        my_role = row[2]
-        roles_json = _parse_json(row[3])
-        has_manage = False
-        roles_list = roles_json if isinstance(roles_json, list) else roles_json.get("roles", [])
-        for rd in roles_list:
-            if rd["name"] == my_role and "manageRoles" in rd.get("permissions", []):
-                has_manage = True
-                break
-
-        if has_manage:
-            groups.append(
-                {
-                    "group_id": group_id,
-                    "join_policy": row[1],
-                    "my_role": my_role,
-                    "member_count": row[4],
-                }
-            )
-    return groups
+    return [
+        {
+            "group_id": row[0],
+            "join_policy": row[1],
+            "my_role": row[2],
+            "member_count": row[3],
+        }
+        for row in result.result_rows()
+    ]
 
 
 # ---------------------------------------------------------------------------

@@ -426,7 +426,7 @@ class TestReadById:
 
 class TestGroupsManages:
     def test_manages(self, client, token):
-        mock_rows = [("g1", "open", "admin", '[{"name":"admin","permissions":["manageRoles"]}]', 5)]
+        mock_rows = [("g1", "open", "admin", 5)]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = MagicMock(result_rows=lambda: mock_rows)
             resp = client.post("/v3/groups/manages", json={"token": token})
