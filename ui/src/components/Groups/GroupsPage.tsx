@@ -138,6 +138,13 @@ function JoinGroupDialog({ open, onOpenChange, I }: { open: boolean; onOpenChang
   const [groupId, setGroupId] = React.useState('');
   const [saving, setSaving] = React.useState(false);
 
+  React.useEffect(() => {
+    if (open) {
+      setGroupId('');
+      setSaving(false);
+    }
+  }, [open]);
+
   const handleJoin = async () => {
     if (!groupId.trim()) return;
     setSaving(true);
