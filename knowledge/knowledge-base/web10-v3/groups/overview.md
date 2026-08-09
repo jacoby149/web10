@@ -96,12 +96,16 @@ flowchart TD
     style X2 fill:#ffebee,stroke:#c62828,color:#000
 ```
 
-**Service contract** — App Trust (Infrastructure). "Do we want to spin up these data buckets for this app?"
-Binary toggle. CORS. Browser-enforced. No data permissions involved. If you turn it off, the app can't even talk to your node.
+**App contract** — App Trust (Infrastructure). "What can this app do with my data?"
+One contract per app. Per-service permissions. CORS. Browser-enforced.
+
+Services are infinite — `posts`, `playlists`, `comments`, `notes`, anything an app invents. They're just data labels in the `collection_name` column. ClickHouse doesn't care. No schema migration. No limit. Apps are the constraint. You have three apps you use. Three contracts.
 
 ```
-service:posts → allowed: twitter-clone.web10.com
-service:playlists → allowed: music.web10.com
+music.web10.com → {
+  "posts": ["readAll", "create"],
+  "playlists": ["readAll", "create", "updateOwn", "deleteOwn"]
+}
 ```
 
 **Provider level** — Node Trust. Server-enforced. Which apps are allowed to participate on this node at all.
@@ -119,16 +123,16 @@ Granular, user-controlled social policy. Roles define access, scoped to services
 jazz-collectors → members: alice, dave, eve
 ```
 
-**The separation:** Service contracts decide if an app gets a bucket. Group contracts decide who gets to look inside it.
+**The separation:** App contracts decide if an app gets through the door. Group contracts decide who gets to look inside.
 
 ```
-service:posts → allowed: twitter-clone.web10.com → GET /alice/posts?discover=true
-  1. Service contract: origin allowed? → yes
+music.web10.com → { posts: ["readAll", "create"], playlists: ["readAll"] } → GET /alice/posts?discover=true
+  1. App contract: origin allowed for posts/readAll? → yes
   2. Groups: which posts are in groups bob belongs to? → post-1, post-2
   3. Return post-1, post-2
 ```
 
-The service contract is the outer wall. The groups are the inner permissions.
+The app contract is the outer wall. The groups are the inner permissions.
 
 ## Posting to Groups
 
@@ -274,7 +278,9 @@ jazz-collectors → [Block sharing]
 
 **Make everything private** — remove all groups from all your content. One click. Everything goes dark.
 
-**Turn off all service contracts** — no website touches your data. Ever. Kill switch.
+**Turn off all app contracts** — no website touches your data. Ever. Kill switch.
+
+**Group requests from apps** — apps cannot directly create or modify your groups. They must request it, and you approve through the authenticator. See `requests.md` for the full consent model.
 
 ## Scale
 
@@ -296,6 +302,6 @@ Groups are policy containers, discovery mechanisms, and owned audience relations
 
 For the group owner, the membership list is the audience. Web10 usernames, emails, phones — directly accessible. The influencer owns that relationship. They can reach out, export it, and take it with them. No platform gatekeeping.
 
-Service contracts control which websites can access your data. Group contracts control which people can see your content. Both must pass. Browser enforces the outer wall. Server enforces the inner permissions.
+App contracts control which websites can touch your data. Group contracts control which people can see your content. Both must pass. Browser enforces the outer wall. Server enforces the inner permissions.
 
 The authenticator is where you take charge: block sharing, opt out, privatize all, kill switch. One toggle. Everything goes dark.

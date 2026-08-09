@@ -98,6 +98,10 @@ function useInterface() {
     [I.v3Contracts, I.setV3Contracts] = React.useState<any[]>([]);
     // v3 groups the user belongs to
     [I.v3Groups, I.setV3Groups] = React.useState<any[]>([]);
+    // v3 groups the user manages (has management permissions)
+    [I.v3ManagedGroups, I.setV3ManagedGroups] = React.useState<any[]>([]);
+    // v3 pending invites (groups that invited this user)
+    [I.v3Invites, I.setV3Invites] = React.useState<any[]>([]);
 
     I.wapi = adapter.wapi;
     I.wapiAuth = adapter.wapiAuth;
@@ -117,6 +121,7 @@ function useInterface() {
         // the MongoDB services load and don't block it.
         I.v3ContractsLoad();
         I.v3GroupsLoad();
+        I.v3GroupsManagesLoad();
 
         I.wapi
             .read("services")
@@ -250,6 +255,8 @@ function useInterface() {
         I.setSMR({ scrs: [], sirs: [] });
         I.setV3Contracts([]);
         I.setV3Groups([]);
+        I.setV3ManagedGroups([]);
+        I.setV3Invites([]);
         I.setMode("login");
     }
 
@@ -271,55 +278,47 @@ function useInterface() {
         return !!(I.verified || (I.phone && I.phone.trim().length >= 7));
     }
 
-    // ── v3 Service contracts (ClickHouse) ──────────────────────────────
+    // ── v3 App contracts (per-app with per-service permissions) ──────────────
 
-    // Load v3 service contracts from the ClickHouse-backed API. Runs alongside
-    // servicesLoad (MongoDB) — the v3 contracts are the new model, but the v2
-    // terms records are still needed for backward compatibility during the
-    // transition. When the v2 path is retired, servicesLoad can be replaced.
+    // Load app contracts from the ClickHouse-backed API.
     I.v3ContractsLoad = function () {
         if (!I.auth) {
             I.setV3Contracts([]);
             return;
         }
-        v3Post('service-contracts/list', {})
+        v3Post('app-contracts/list', {})
             .then((contracts: any[]) => {
                 I.setV3Contracts(contracts || []);
             })
             .catch((e) => {
-                // v3 contracts are new — a 404/500 just means the v3 API
-                // isn't available yet, not a user error. Silently degrade.
-                console.warn('v3 service-contracts/list failed:', e);
+                console.warn('v3 app-contracts/list failed:', e);
                 I.setV3Contracts([]);
             });
     }
 
-    // Add a v3 service contract (approve an app origin for a service).
-    // In v3, a SIR with cross_origins becomes N service contracts (one per
-    // origin). This is the v3 equivalent of submitSIR.
-    I.addV3Contract = function (serviceName: string, allowedOrigin: string) {
-        return v3Post('service-contracts/add', {
-            service_name: serviceName,
+    // Add an app contract (one per app, with per-service permissions).
+    I.addV3Contract = function (allowedOrigin: string, permissions: Record<string, string[]>) {
+        return v3Post('app-contracts/add', {
             allowed_origin: allowedOrigin,
+            permissions,
         }).then(() => {
             I.v3ContractsLoad();
         });
     }
 
-    // Revoke a v3 service contract (all origins for a service, or a specific
-    // origin). The v3 equivalent of deleteService.
-    I.revokeV3Contract = function (serviceName: string, allowedOrigin?: string) {
-        return v3Post('service-contracts/revoke', {
+    // Revoke an app contract (by origin) or all contracts.
+    I.revokeV3Contract = function (allowedOrigin?: string) {
+        return v3Post('app-contracts/revoke', {
             ...(allowedOrigin && { allowed_origin: allowedOrigin }),
         }).then(() => {
             I.v3ContractsLoad();
         });
     }
 
-    // Check if a v3 service contract exists for a given origin + service.
-    I.hasV3Contract = function (serviceName: string, allowedOrigin: string): boolean {
+    // Check if an app contract exists for a given origin.
+    I.hasV3Contract = function (allowedOrigin: string): boolean {
         return (I.v3Contracts || []).some(
-            (c: any) => c.service_name === serviceName && c.allowed_origin === allowedOrigin,
+            (c: any) => c.allowed_origin === allowedOrigin,
         );
     }
 
@@ -342,9 +341,25 @@ function useInterface() {
     }
 
     // Load groups where the user has management permissions.
-    I.v3GroupsManagesLoad = function () {
-        if (!I.auth) return [];
-        return v3Post('groups/manages', {}).catch(() => []);
+    I.v3GroupsManagesLoad = async function () {
+        if (!I.auth) {
+            I.setV3ManagedGroups([]);
+            return [];
+        }
+        try {
+            const groups = await v3Post('groups/manages', {});
+            I.setV3ManagedGroups(groups || []);
+            return groups || [];
+        } catch (e) {
+            console.warn('v3 groups/manages failed:', e);
+            I.setV3ManagedGroups([]);
+            return [];
+        }
+    }
+
+    // Create a new group.
+    I.v3CreateGroup = function (name: string, joinPolicy: string, roles: Record<string, unknown>[], members: { member_key: string; role?: string }[]) {
+        return v3Post('groups/create', { name, join_policy: joinPolicy, roles, members });
     }
 
     // Join a v3 group (open or request policy).
@@ -365,6 +380,64 @@ function useInterface() {
     // Unblock a user in a v3 group.
     I.v3UnblockUserInGroup = function (blockedKey: string, groupId: string) {
         return v3Post('unblock-in-group', { blocked_key: blockedKey, group_id: groupId });
+    }
+
+    // Get detailed info for a single group.
+    I.v3GetGroup = function (groupId: string) {
+        return v3Post('groups/get', { group_id: groupId });
+    }
+
+    // Get all members of a group.
+    I.v3GetGroupMembers = function (groupId: string) {
+        return v3Post('groups/members/list', { group_id: groupId });
+    }
+
+    // Add a member to a group with a specific role.
+    I.v3AddGroupMember = function (groupId: string, memberKey: string, role: string) {
+        return v3Post('groups/members/add', { group_id: groupId, member_key: memberKey, role });
+    }
+
+    // Remove a member from a group.
+    I.v3RemoveGroupMember = function (groupId: string, memberKey: string) {
+        return v3Post('groups/members/remove', { group_id: groupId, member_key: memberKey });
+    }
+
+    // Invite a user to a group (they receive an invite with the offered role).
+    I.v3InviteMember = function (groupId: string, memberKey: string, role: string) {
+        return v3Post('groups/invite', { group_id: groupId, member_key: memberKey, role });
+    }
+
+    // Accept an invite to a group.
+    I.v3AcceptInvite = function (groupId: string) {
+        return v3Post('groups/accept-invite', { group_id: groupId });
+    }
+
+    // Decline an invite to a group.
+    I.v3DeclineInvite = function (groupId: string) {
+        return v3Post('groups/decline-invite', { group_id: groupId });
+    }
+
+    // Update group settings (join policy, roles).
+    I.v3UpdateGroup = function (groupId: string, opts?: { join_policy?: string; roles?: Record<string, unknown>[] }) {
+        const payload: Record<string, any> = { group_id: groupId };
+        if (opts?.join_policy) payload.join_policy = opts.join_policy;
+        if (opts?.roles) payload.roles = opts.roles;
+        return v3Post('groups/update', payload);
+    }
+
+    // Toggle sharing for a group (pause sharing without leaving).
+    I.v3SetSharing = function (groupId: string, enabled: boolean) {
+        return v3Post('sharing/set', { group_id: groupId, enabled });
+    }
+
+    // Block a user entirely (user-wide blacklist).
+    I.v3BlockUser = function (blockedKey: string) {
+        return v3Post('block', { blocked_key: blockedKey });
+    }
+
+    // Unblock a user (user-wide).
+    I.v3UnblockUser = function (blockedKey: string) {
+        return v3Post('unblock', { blocked_key: blockedKey });
     }
 
     I.changeTerms = function (service: any) {
@@ -410,11 +483,14 @@ function useInterface() {
         I.wapi
             .create("services", service)
             .then(() => {
-                // Also add v3 service contracts (one per cross_origin).
-                // In v3, a SIR with cross_origins becomes N service contracts.
+                // Also add v3 app contracts (one per origin, with per-service permissions).
+                // In v3, a SIR with cross_origins becomes N app contracts (one per origin).
                 const origins = Array.isArray(service["cross_origins"]) ? service["cross_origins"] : [];
+                const permissions: Record<string, string[]> = {
+                    [service["service"]]: ["readAll", "create", "updateOwn", "deleteOwn"],
+                };
                 const v3Ops = origins.map((origin: string) =>
-                    I.addV3Contract(service["service"], origin),
+                    I.addV3Contract(origin, permissions),
                 );
                 Promise.allSettled(v3Ops).then(() => {
                     I.setStatus(null);
@@ -492,9 +568,9 @@ function useInterface() {
         I.wapi
             .delete("services", { service: serviceName })
             .then(() => {
-                // Also revoke v3 service contracts for this service.
-                // Revoke all origins (no specific origin = revoke all).
-                I.revokeV3Contract(serviceName).catch(() => {});
+                // TODO: in the per-app contract model, deleting a service should
+                // remove it from the app's permissions, not revoke the whole contract.
+                // For now, just delete the v2 terms record.
                 I.setStatus("Service deleted!");
                 setTimeout(() => I.servicesLoad(), 1000);
             })

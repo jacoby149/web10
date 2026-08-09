@@ -89,11 +89,15 @@ export interface V3InviteResponse {
   status: string
 }
 
+export interface V3JoinRequest {
+  requester_key: string
+  status: string
+  requested_at: string
+}
+
 export interface V3ServiceContract {
-  user_key?: string
-  service_name: string
   allowed_origin: string
-  created_at?: string
+  permissions: Record<string, string[]>
 }
 
 export interface V3User {
@@ -238,23 +242,26 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       return v3Post<{ doc_id: string; status: string }>('delete', { doc_id: docId })
     },
 
-    // ── Service contracts ─────────────────────────────────────────────────
+    // ── App contracts (per-app with per-service permissions) ──────────────
 
-    async addServiceContract(serviceName: string, allowedOrigin: string): Promise<V3ServiceContract> {
-      return v3Post<V3ServiceContract>('service-contracts/add', {
-        service_name: serviceName,
+    async addAppContract(
+      allowedOrigin: string,
+      permissions: Record<string, string[]>,
+    ): Promise<V3ServiceContract> {
+      return v3Post<V3ServiceContract>('app-contracts/add', {
         allowed_origin: allowedOrigin,
+        permissions,
       })
     },
 
-    async listServiceContracts(): Promise<V3ServiceContract[]> {
-      return v3Post<V3ServiceContract[]>('service-contracts/list', {})
+    async listAppContracts(): Promise<V3ServiceContract[]> {
+      return v3Post<V3ServiceContract[]>('app-contracts/list', {})
     },
 
-    async revokeServiceContract(allowedOrigin?: string): Promise<{ status: string }> {
+    async revokeAppContract(allowedOrigin?: string): Promise<{ status: string }> {
       const payload: V3Body = {}
       if (allowedOrigin) payload.allowed_origin = allowedOrigin
-      return v3Post<{ status: string }>('service-contracts/revoke', payload)
+      return v3Post<{ status: string }>('app-contracts/revoke', payload)
     },
 
     // ── Groups ────────────────────────────────────────────────────────────
@@ -354,6 +361,32 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
 
     async declineInvite(groupId: string): Promise<{ group_id: string; status: string }> {
       return v3Post<{ group_id: string; status: string }>('groups/decline-invite', { group_id: groupId })
+    },
+
+    // ── Join request management (owner/moderator) ──────────────────────────
+
+    async getJoinRequests(groupId: string): Promise<V3JoinRequest[]> {
+      return v3Post<V3JoinRequest[]>('groups/requests/join/list', { group_id: groupId })
+    },
+
+    async approveJoinRequest(
+      groupId: string,
+      requesterKey: string,
+    ): Promise<{ group_id: string; requester_key: string; status: string }> {
+      return v3Post<{ group_id: string; requester_key: string; status: string }>('groups/requests/join/approve', {
+        group_id: groupId,
+        requester_key: requesterKey,
+      })
+    },
+
+    async denyJoinRequest(
+      groupId: string,
+      requesterKey: string,
+    ): Promise<{ group_id: string; requester_key: string; status: string }> {
+      return v3Post<{ group_id: string; requester_key: string; status: string }>('groups/requests/join/deny', {
+        group_id: groupId,
+        requester_key: requesterKey,
+      })
     },
 
     // ── Blocking ──────────────────────────────────────────────────────────
@@ -475,10 +508,10 @@ export interface V3Client {
   update(docId: string, body: Record<string, unknown>, opts?: { groups?: string[] }): Promise<V3Document>
   delete(docId: string): Promise<{ doc_id: string; status: string }>
 
-  // Service contracts
-  addServiceContract(serviceName: string, allowedOrigin: string): Promise<V3ServiceContract>
-  listServiceContracts(): Promise<V3ServiceContract[]>
-  revokeServiceContract(allowedOrigin?: string): Promise<{ status: string }>
+  // App contracts (per-app with per-service permissions)
+  addAppContract(allowedOrigin: string, permissions: Record<string, string[]>): Promise<V3ServiceContract>
+  listAppContracts(): Promise<V3ServiceContract[]>
+  revokeAppContract(allowedOrigin?: string): Promise<{ status: string }>
 
   // Groups
   createGroup(name: string, joinPolicy: string, roles: Record<string, unknown>[], members: { member_key: string; role?: string }[]): Promise<{ group_id: string }>
@@ -495,6 +528,11 @@ export interface V3Client {
   inviteMember(groupId: string, memberKey: string, role: string): Promise<V3InviteResponse>
   acceptInvite(groupId: string): Promise<V3GroupMember>
   declineInvite(groupId: string): Promise<{ group_id: string; status: string }>
+
+  // Join request management (owner/moderator)
+  getJoinRequests(groupId: string): Promise<V3JoinRequest[]>
+  approveJoinRequest(groupId: string, requesterKey: string): Promise<{ group_id: string; requester_key: string; status: string }>
+  denyJoinRequest(groupId: string, requesterKey: string): Promise<{ group_id: string; requester_key: string; status: string }>
 
   // Blocking
   blockUser(blockedKey: string): Promise<{ user_key: string; blocked_key: string }>

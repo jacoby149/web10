@@ -70,18 +70,29 @@ w.isSignedIn()
 w.signOut()
 ```
 
-## Service Contracts (App Trust)
+## App Contracts
 
-Thin layer. CORS. Browser-enforced. Declares which services your app needs. The user approves or denies in the authenticator.
+Services are infinite. `posts`, `playlists`, `comments`, `notes`, `reactions` — any app can invent new ones. They're just data labels in the `collection_name` column. No schema migration. No limit. ClickHouse handles any number of services with its sieve of joins.
+
+Apps are the constraint. One contract per app. Per-service permissions. The user approves or denies in the authenticator.
 
 ```ts
-w.smrOnReady([{
-  service: 'posts',
-  cross_origins: ['your-domain.com'],
-}])
+// App declares what it needs (one call, all services)
+await w.addAppContract('music.web10.com', {
+  posts: ['readAll', 'create'],
+  playlists: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+  comments: ['readAll'],
+})
+
+// List active contracts
+const contracts = await w.listAppContracts()
+// → [{ allowed_origin: 'music.web10.com', permissions: { posts: [...], playlists: [...] } }]
+
+// Revoke (one click per app)
+await w.revokeAppContract('music.web10.com')
 ```
 
-This is infrastructure trust — "do we want to spin up these data buckets for this app?" It does not control who sees data. Groups do that.
+This is infrastructure trust — "what can this app do with my data?" Per-service, per-operation. Groups control who sees data. The contract is with the app, not the service.
 
 ## CRUD With Groups
 
@@ -569,7 +580,7 @@ v3 SDK vs v2 SDK:
 | `create(service, body)` — no groups | `create(service, { body, groups: [...] })` — groups required for visibility |
 | `read(service, query)` — raw collection | `read(service, { groups: [...] })` — always group-filtered. `['me']` for your own data. |
 | `update(service, query, update)` — no groups | `update(service, query, { $set, $groups })` — group changes |
-| SMR contracts control data access | SMR is CORS only. Groups control data access. |
+| SMR contracts control data access | App contracts are per-app with per-service permissions. Groups control data access. |
 | Separate follow/friend APIs | Follow = join group. Friends = group membership. |
 | `discoverable` boolean | No boolean. Groups handle it. `web10/discover` = public board. |
 

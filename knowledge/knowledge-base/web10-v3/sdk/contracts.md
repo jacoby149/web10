@@ -1,52 +1,93 @@
 # Contract Schemas
 
-Two concerns. Two contracts.
+Two concerns. Two contracts. One model.
 
-1.  **Service Contracts (App Trust):** "Do we want to spin up these data buckets for this app?" Binary infrastructure toggle.
-2.  **Group Contracts (People Access):** "Who do we want this data to reach?" Granular social policy with service-scoped roles.
+1.  **App Contracts:** "What can this app do with my data?" Per-app, per-service permissions. Contract with the app.
+2.  **Group Contracts:** "Who can see my content?" Granular social policy with service-scoped roles. Contract with people.
 
-## Service Contracts
+## The Paradigm: Infinite Services, Finite Apps
 
-App Trust (Infrastructure). Which websites can access your service. CORS. App-level. Browser-enforced.
+Services are infinite. `posts`, `playlists`, `comments`, `notes`, `mail`, `reactions`, `bookmarks` — any app can invent new ones. They're just data labels. ClickHouse doesn't care. The `documents` table has a `collection_name` column. That's it. No schema migration. No approval process. No limit.
+
+Apps are the constraint. There are a handful of apps you actually use. `music.web10.com`, `social.web10.com`, `notes.web10.com`. Each one asks for access. You approve or deny.
+
+**Service schemas (v4).** In v3, services are schemaless — just `collection_name` + a JSON body blob. Any app can write anything. No validation. No versions. Pure freedom. A future v4 layer could add optional schema declarations per service, with read-time translation for apps at different schema versions. But that's v4. v3 is freestyle.
+
+The old model (v2) treated services as scarce — each service needed a contract, a whitelist, a blacklist. That doesn't scale to an interoperable internet. The new model treats apps as the unit of trust. One contract per app. The app declares every service it touches. You decide once.
+
+```
+v2: 12 services × 3 apps = 36 contracts to manage
+v3: 3 apps × 1 contract each = 3 contracts to manage
+v4: 3 apps + infinite services with schema versions = still 3 contracts
+```
+
+Services are free. Apps are the gate. Schemas are the shape.
+
+## App Contracts
+
+App Trust (Infrastructure). One contract per app (origin). The contract declares every service the app needs and what it can do on each. No user-level whitelist/blacklist — that's what groups are for.
+
+The contract is with the app, not the service. When music.web10.com asks for access, you're saying "I trust this app to read my posts and manage my playlists." Not "I trust posts." The app is the party.
 
 ```sql
-CREATE TABLE service_contracts (
-    user_key String,           -- owner of the service
-    service_name String,       -- 'posts', 'mail', 'notes'
-    allowed_origin String,     -- 'twitter-clone.web10.com'
+CREATE TABLE app_contracts (
+    user_key String,           -- owner of the data
+    allowed_origin String,     -- 'music.web10.com'
+    permissions String,        -- JSON: { "posts": ["readAll", "create"], "playlists": ["readAll", "create", "updateOwn", "deleteOwn"] }
     created_at DateTime64(3),
     updated_at DateTime64(3),
     deleted UInt8 DEFAULT 0
 ) ENGINE = ReplacingMergeTree(updated_at)
-ORDER BY (user_key, service_name, allowed_origin);
+ORDER BY (user_key, allowed_origin);
 ```
 
-**Query:** can `twitter-clone.web10.com` access `alice.posts`?
+**One row per app.** An app that needs posts, playlists, and comments declares all three in one contract. The user approves or denies once.
+
+```json
+{
+  "allowed_origin": "music.web10.com",
+  "permissions": {
+    "posts": ["readAll", "create"],
+    "playlists": ["readAll", "create", "updateOwn", "deleteOwn"],
+    "comments": ["readAll"]
+  }
+}
+```
+
+**Query:** can `music.web10.com` read `alice.posts`?
 ```sql
-SELECT 1 FROM service_contracts
+SELECT permissions FROM app_contracts
 WHERE user_key = 'alice'
-  AND service_name = 'posts'
-  AND allowed_origin = 'twitter-clone.web10.com'
+  AND allowed_origin = 'music.web10.com'
   AND deleted = 0
 LIMIT 1;
+-- Check: has 'posts' key? Does the permissions array contain 'readAll'?
 ```
 
-**Kill switch:** revoke all origins for a user.
+The API checks two things for every operation:
+1. **Origin check** — does this origin have an active contract for this user?
+2. **Permission check** — does the contract's permissions object cover this service with this operation?
+
+If either fails, the operation is denied. Groups run after — the app gets through the door, the person's role decides what they see inside.
+
+**Kill switch:** revoke one app = one row tombstoned.
 ```sql
-INSERT INTO service_contracts
-SELECT user_key, service_name, allowed_origin, created_at, now(), 1
-FROM service_contracts
-WHERE user_key = 'alice' AND deleted = 0;
+INSERT INTO app_contracts (user_key, allowed_origin, permissions, created_at, updated_at, deleted)
+SELECT user_key, allowed_origin, permissions, created_at, now(), 1
+FROM app_contracts
+WHERE user_key = 'alice' AND allowed_origin = 'music.web10.com' AND deleted = 0;
 ```
+
+Revoke all apps = tombstone every row for the user.
 
 Tombstone-append. Background job compacts. Same pattern everywhere.
 
-## Provider Service Contracts
+## Provider App Contracts
 
 Node Trust. Which apps can participate on this node. Server-enforced. Provider admin manages.
 
 ```sql
-CREATE TABLE provider_service_contracts (
+CREATE TABLE provider_app_contracts (
     provider_key String,       -- 'provider-a'
     allowed_origin String,     -- 'twitter-clone.web10.com'
     created_at DateTime64(3),
@@ -58,7 +99,7 @@ ORDER BY (provider_key, allowed_origin);
 
 **Query:** can `spamapp.com` participate on `provider-a`?
 ```sql
-SELECT 1 FROM provider_service_contracts
+SELECT 1 FROM provider_app_contracts
 WHERE provider_key = 'provider-a'
   AND allowed_origin = 'spamapp.com'
   AND deleted = 0
@@ -223,9 +264,31 @@ All contract tables follow the same patterns:
 - `ReplacingMergeTree(updated_at)` for updates
 - `deleted UInt8 DEFAULT 0` for tombstones
 - Background job compacts tombstones on schedule
-- No row = denied (service contracts, provider contracts)
+- No row = denied (app contracts, provider contracts)
 - Missing row = enabled (sharing toggle — default on)
 - Roles are JSON arrays with service-scoped permissions
 - Multiple roles per user in the same group
 - Open join policy = instant membership, no request queue
 - Request join policy = pending request, owner approves or denies
+
+## Group Requests
+
+Apps cannot directly create or modify groups. They must request the operation through `group_requests`, and the user approves through the authenticator UI. This is the consent layer for group operations — the same pattern as SMR/SIR for app contracts.
+
+```sql
+CREATE TABLE group_requests (
+    request_id String,          -- unique ID
+    user_key String,            -- whose groups are affected
+    app_origin String,          -- requesting app (CORS origin)
+    action String,              -- 'create_group', 'update_group', 'add_member', 'remove_member', 'invite_member', 'delete_group'
+    params String,              -- JSON: operation parameters
+    status String,              -- 'pending', 'approved', 'denied'
+    requested_at DateTime64(3),
+    resolved_at DateTime64(3),
+    updated_at DateTime64(3),
+    deleted UInt8 DEFAULT 0
+) ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY (user_key, request_id);
+```
+
+One request per operation. Granular consent. The user can approve some and deny others. See `../groups/requests.md` for the full model.

@@ -297,7 +297,7 @@ async def invite_member(data: Token):
     if requester_role_def and "assignRoles" not in requester_role_def.get("permissions", []):
         raise exceptions.CRUD
 
-    ch.create_join_request(data.group_id, data.member_key, "invited")
+    ch.create_join_request(data.group_id, data.member_key, "invited", data.role)
     return {"group_id": data.group_id, "invited_key": data.member_key, "status": "invited"}
 
 
@@ -309,9 +309,12 @@ async def accept_invite(data: Token):
         raise exceptions.CRUD
     if not ch.has_pending_or_invited_request(data.group_id, user):
         raise exceptions.CRUD
+    pending = ch.get_pending_requests(data.group_id)
+    invite = next((r for r in pending if r["requester_key"] == user), None)
+    role = invite.get("role", "member") if invite and invite.get("role") else "member"
     ch.resolve_join_request(data.group_id, user, "approved")
-    ch.add_group_member(data.group_id, user, "member")
-    return {"group_id": data.group_id, "role": "member"}
+    ch.add_group_member(data.group_id, user, role)
+    return {"group_id": data.group_id, "role": role}
 
 
 @router.post("/groups/decline-invite")
@@ -336,36 +339,95 @@ async def leave_group(data: Token):
     return {"group_id": data.group_id, "member_key": user, "status": "left"}
 
 
+def _require_group_permission(group_id: str, user: str, permission: str):
+    """Check that the user is a group member with the given permission. Raises CRUD if not."""
+    member = ch.get_group_member(group_id, user)
+    if not member:
+        raise exceptions.CRUD
+    existing = ch.get_group(group_id)
+    if not existing:
+        raise exceptions.ENTRY_NOT_FOUND
+    role_def = None
+    for rd in existing["roles"]:
+        if rd["name"] == member["role"]:
+            role_def = rd
+            break
+    if not role_def or permission not in role_def.get("permissions", []):
+        raise exceptions.CRUD
+
+
+@router.post("/groups/requests/join/list")
+async def list_join_requests(data: Token):
+    """List pending join/invite requests for a group (owner/moderator only)."""
+    user = _user(data)
+    if not data.group_id:
+        raise exceptions.CRUD
+    _require_group_permission(data.group_id, user, "assignRoles")
+    return ch.get_pending_requests(data.group_id)
+
+
+@router.post("/groups/requests/join/approve")
+async def approve_join_request(data: Token):
+    """Approve a pending join or invite request (owner/moderator only)."""
+    user = _user(data)
+    if not data.group_id or not data.requester_key:
+        raise exceptions.CRUD
+    _require_group_permission(data.group_id, user, "assignRoles")
+    if not ch.has_pending_or_invited_request(data.group_id, data.requester_key):
+        raise exceptions.CRUD
+    pending = ch.get_pending_requests(data.group_id)
+    invite = next((r for r in pending if r["requester_key"] == data.requester_key), None)
+    role = invite.get("role", "member") if invite and invite.get("role") else "member"
+    ch.resolve_join_request(data.group_id, data.requester_key, "approved")
+    ch.add_group_member(data.group_id, data.requester_key, role)
+    return {"group_id": data.group_id, "requester_key": data.requester_key, "status": "approved", "role": role}
+
+
+@router.post("/groups/requests/join/deny")
+async def deny_join_request(data: Token):
+    """Deny a pending join or invite request (owner/moderator only)."""
+    user = _user(data)
+    if not data.group_id or not data.requester_key:
+        raise exceptions.CRUD
+    _require_group_permission(data.group_id, user, "assignRoles")
+    if not ch.has_pending_or_invited_request(data.group_id, data.requester_key):
+        raise exceptions.CRUD
+    ch.resolve_join_request(data.group_id, data.requester_key, "denied")
+    return {"group_id": data.group_id, "requester_key": data.requester_key, "status": "denied"}
+
+
 # ---------------------------------------------------------------------------
 # Service contracts (simplified v3)
 # ---------------------------------------------------------------------------
+# App Contracts (per-app with per-service permissions)
+# ---------------------------------------------------------------------------
 
 
-@router.post("/service-contracts/add")
-async def add_service_contract(data: Token):
-    """Add a service contract (app trust)."""
+@router.post("/app-contracts/add")
+async def add_app_contract(data: Token):
+    """Add an app contract (one per app, permissions is JSON)."""
     user = _user(data)
-    if not data.service_name or not data.allowed_origin:
+    if not data.allowed_origin or not data.permissions:
         raise exceptions.CRUD
-    result = ch.add_service_contract(user, data.service_name, data.allowed_origin)
+    result = ch.add_app_contract(user, data.allowed_origin, data.permissions)
     return result
 
 
-@router.post("/service-contracts/list")
-async def get_service_contracts(data: Token):
-    """Get active service contracts."""
+@router.post("/app-contracts/list")
+async def get_app_contracts(data: Token):
+    """Get active app contracts."""
     user = _user(data)
-    return ch.get_service_contracts(user)
+    return ch.get_app_contracts(user)
 
 
-@router.post("/service-contracts/revoke")
-async def revoke_service_contract(data: Token):
-    """Revoke service contracts (all or by origin)."""
+@router.post("/app-contracts/revoke")
+async def revoke_app_contract(data: Token):
+    """Revoke one app contract (by origin) or all."""
     user = _user(data)
     if data.allowed_origin:
-        ch.revoke_service_contract(user, data.allowed_origin)
+        ch.revoke_app_contract(user, data.allowed_origin)
     else:
-        ch.revoke_all_service_contracts(user)
+        ch.revoke_all_app_contracts(user)
     return {"status": "revoked"}
 
 

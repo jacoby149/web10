@@ -304,7 +304,7 @@ class TestGetPendingRequests:
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
                 [
-                    ("alice", "pending", datetime(2026, 1, 1)),
+                    ("alice", "pending", "", datetime(2026, 1, 1)),
                 ]
             )
             requests = ch.get_pending_requests("g1")
@@ -334,46 +334,57 @@ class TestUnhideDocFromGroup:
 
 
 # ---------------------------------------------------------------------------
-# Service Contracts
+# App Contracts
 # ---------------------------------------------------------------------------
 
 
-class TestServiceContracts:
+class TestAppContracts:
     def test_add(self):
         with _patch_client():
-            result = ch.add_service_contract("alice", "posts", "myapp.com")
-            assert result["service_name"] == "posts"
+            result = ch.add_app_contract("alice", "myapp.com", {"posts": ["readAll", "create"]})
             assert result["allowed_origin"] == "myapp.com"
+            assert "posts" in result["permissions"]
 
     def test_get(self):
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
                 [
-                    ("posts", "myapp.com"),
+                    ("myapp.com", '{"posts": ["readAll"], "playlists": ["readAll", "create"]}'),
                 ]
             )
-            contracts = ch.get_service_contracts("alice")
+            contracts = ch.get_app_contracts("alice")
             assert len(contracts) == 1
-            assert contracts[0]["service_name"] == "posts"
+            assert contracts[0]["allowed_origin"] == "myapp.com"
+            assert "posts" in contracts[0]["permissions"]
 
     def test_is_origin_allowed_true(self):
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows([(1,)])
-            assert ch.is_origin_allowed("alice", "posts", "myapp.com") is True
+            assert ch.is_origin_allowed("alice", "myapp.com") is True
 
     def test_is_origin_allowed_false(self):
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows([(0,)])
-            assert ch.is_origin_allowed("alice", "posts", "evil.com") is False
+            assert ch.is_origin_allowed("alice", "evil.com") is False
+
+    def test_has_permission_true(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([('{"posts": ["readAll", "create"]}',)])
+            assert ch.has_permission("alice", "myapp.com", "posts", "readAll") is True
+
+    def test_has_permission_false(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([('{"posts": ["readAll"]}',)])
+            assert ch.has_permission("alice", "myapp.com", "posts", "create") is False
 
     def test_revoke(self):
         with _patch_client() as mock_client:
-            ch.revoke_service_contract("alice", "myapp.com")
+            ch.revoke_app_contract("alice", "myapp.com")
             mock_client.command.assert_called_once()
 
     def test_revoke_all(self):
         with _patch_client() as mock_client:
-            ch.revoke_all_service_contracts("alice")
+            ch.revoke_all_app_contracts("alice")
             mock_client.command.assert_called_once()
 
 
