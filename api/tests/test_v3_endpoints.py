@@ -245,7 +245,29 @@ class TestJoinGroup:
 
 class TestAcceptInvite:
     def test_accept(self, client, token):
-        with patch("app.v3.services.clickhouse.has_pending_or_invited_request", return_value=True):
+        with (
+            patch("app.v3.services.clickhouse.has_pending_or_invited_request", return_value=True),
+            patch(
+                "app.v3.services.clickhouse.get_pending_requests",
+                return_value=[
+                    {"requester_key": "testuser", "status": "invited", "role": "editor", "requested_at": "2026-01-01"}
+                ],
+            ),
+        ):
+            resp = client.post("/v3/groups/accept-invite", json={"token": token, "group_id": "g1"})
+        assert resp.status_code == 200
+        assert resp.json()["role"] == "editor"
+
+    def test_accept_no_role_uses_member(self, client, token):
+        with (
+            patch("app.v3.services.clickhouse.has_pending_or_invited_request", return_value=True),
+            patch(
+                "app.v3.services.clickhouse.get_pending_requests",
+                return_value=[
+                    {"requester_key": "testuser", "status": "invited", "role": "", "requested_at": "2026-01-01"}
+                ],
+            ),
+        ):
             resp = client.post("/v3/groups/accept-invite", json={"token": token, "group_id": "g1"})
         assert resp.status_code == 200
         assert resp.json()["role"] == "member"
@@ -290,7 +312,7 @@ class TestJoinRequests:
                 datetime(2026, 1, 1),
             )
         ]
-        mock_requests = [("bob", "pending", datetime(2026, 1, 1))]
+        mock_requests = [("bob", "pending", "", datetime(2026, 1, 1))]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.side_effect = [
                 MagicMock(result_rows=lambda: mock_member),
@@ -336,13 +358,22 @@ class TestJoinRequests:
                 MagicMock(result_rows=lambda: mock_member),
                 MagicMock(result_rows=lambda: mock_group),
             ]
-            with patch("app.v3.services.clickhouse.has_pending_or_invited_request", return_value=True):
+            with (
+                patch("app.v3.services.clickhouse.has_pending_or_invited_request", return_value=True),
+                patch(
+                    "app.v3.services.clickhouse.get_pending_requests",
+                    return_value=[
+                        {"requester_key": "bob", "status": "invited", "role": "editor", "requested_at": "2026-01-01"}
+                    ],
+                ),
+            ):
                 resp = client.post(
                     "/v3/groups/requests/join/approve",
                     json={"token": token, "group_id": "g1", "requester_key": "bob"},
                 )
         assert resp.status_code == 200
         assert resp.json()["status"] == "approved"
+        assert resp.json()["role"] == "editor"
 
     def test_approve_no_request(self, client, token):
         mock_member = [("testuser", "admin", datetime(2026, 1, 1))]

@@ -6,6 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { groupDisplayName } from '@/lib/group-utils';
 
+let _roleIdCounter = 0;
+
 const KNOWN_PERMISSIONS = [
   { key: 'readAll', label: 'Read all' },
   { key: 'create', label: 'Create' },
@@ -121,9 +123,9 @@ function GroupRolesDialog({ open, onOpenChange, group, I }: {
   // Parse roles from the group — they may be stored as JSON strings or objects
   const parseRoles = () => {
     if (!group.roles) return [];
-    if (Array.isArray(group.roles)) return group.roles;
+    if (Array.isArray(group.roles)) return group.roles.map((r: any) => ({ ...r, _id: r._id || ++_roleIdCounter }));
     try {
-      return JSON.parse(group.roles);
+      return JSON.parse(group.roles).map((r: any) => ({ ...r, _id: r._id || ++_roleIdCounter }));
     } catch {
       return [];
     }
@@ -138,7 +140,7 @@ function GroupRolesDialog({ open, onOpenChange, group, I }: {
   }, [open]);
 
   const addRole = () => {
-    setRoles([...roles, { name: '', services: ['posts', 'comments'], permissions: ['readAll'] }]);
+    setRoles([...roles, { _id: ++_roleIdCounter, name: '', services: ['posts', 'comments'], permissions: ['readAll'] }]);
   };
 
   const removeRole = (idx: number) => {
@@ -147,14 +149,20 @@ function GroupRolesDialog({ open, onOpenChange, group, I }: {
 
   const updateRole = (idx: number, updated: any) => {
     const newRoles = [...roles];
-    newRoles[idx] = updated;
+    newRoles[idx] = { ...updated, _id: roles[idx]._id };
     setRoles(newRoles);
   };
 
   const handleSave = async () => {
+    const hasEmptyName = roles.some((r) => !r.name || !r.name.trim());
+    if (hasEmptyName) {
+      I.setStatus?.('Role names cannot be empty');
+      return;
+    }
     setSaving(true);
     try {
-      await I.v3UpdateGroup(group.group_id, { roles });
+      const rolesToSave = roles.map(({ _id, ...rest }) => rest);
+      await I.v3UpdateGroup(group.group_id, { roles: rolesToSave });
       I.setStatus?.('Roles updated');
       I.v3GroupsManagesLoad?.();
       onOpenChange(false);
@@ -178,7 +186,7 @@ function GroupRolesDialog({ open, onOpenChange, group, I }: {
         <div className="max-h-[60vh] space-y-3 overflow-y-auto">
           {roles.map((role, idx) => (
             <RoleEditor
-              key={idx}
+              key={role._id ?? idx}
               role={role}
               onChange={(updated) => updateRole(idx, updated)}
               onRemove={() => removeRole(idx)}

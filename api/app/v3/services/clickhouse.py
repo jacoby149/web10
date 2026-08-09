@@ -360,17 +360,18 @@ def get_user_groups(member_key: str) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 
-def create_join_request(group_id: str, requester_key: str, status: str = "pending") -> dict:
+def create_join_request(group_id: str, requester_key: str, status: str = "pending", role: str = "") -> dict:
     """Create a join request."""
     now = _now()
     client.insert(
         "group_join_requests",
-        [[group_id, requester_key, status, now, None, now, 0]],
+        [[group_id, requester_key, status, role, now, None, now, 0]],
     )
     return {
         "group_id": group_id,
         "requester_key": requester_key,
         "status": status,
+        "role": role,
         "requested_at": now.isoformat(),
     }
 
@@ -378,8 +379,8 @@ def create_join_request(group_id: str, requester_key: str, status: str = "pendin
 def resolve_join_request(group_id: str, requester_key: str, status: str):
     """Update a join request status (approved/denied)."""
     client.command(
-        "INSERT INTO group_join_requests (group_id, requester_key, status, requested_at, resolved_at, updated_at, deleted) "
-        "SELECT group_id, requester_key, %(status)s, requested_at, now(), now(), 0 "
+        "INSERT INTO group_join_requests (group_id, requester_key, status, role, requested_at, resolved_at, updated_at, deleted) "
+        "SELECT group_id, requester_key, %(status)s, role, requested_at, now(), now(), 0 "
         "FROM group_join_requests WHERE group_id = %(group_id)s AND requester_key = %(requester_key)s AND deleted = 0",
         {"group_id": group_id, "requester_key": requester_key, "status": status},
     )
@@ -388,11 +389,14 @@ def resolve_join_request(group_id: str, requester_key: str, status: str):
 def get_pending_requests(group_id: str) -> list[dict]:
     """Get pending join requests for a group."""
     result = client.query(
-        "SELECT requester_key, status, requested_at FROM group_join_requests "
-        "WHERE group_id = %(group_id)s AND status = 'pending' AND deleted = 0",
+        "SELECT requester_key, status, role, requested_at FROM group_join_requests "
+        "WHERE group_id = %(group_id)s AND status IN ('pending', 'invited') AND deleted = 0",
         {"group_id": group_id},
     )
-    return [{"requester_key": row[0], "status": row[1], "requested_at": str(row[2])} for row in result.result_rows()]
+    return [
+        {"requester_key": row[0], "status": row[1], "role": row[2], "requested_at": str(row[3])}
+        for row in result.result_rows()
+    ]
 
 
 def has_pending_or_invited_request(group_id: str, requester_key: str) -> bool:

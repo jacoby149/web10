@@ -297,7 +297,7 @@ async def invite_member(data: Token):
     if requester_role_def and "assignRoles" not in requester_role_def.get("permissions", []):
         raise exceptions.CRUD
 
-    ch.create_join_request(data.group_id, data.member_key, "invited")
+    ch.create_join_request(data.group_id, data.member_key, "invited", data.role)
     return {"group_id": data.group_id, "invited_key": data.member_key, "status": "invited"}
 
 
@@ -309,9 +309,12 @@ async def accept_invite(data: Token):
         raise exceptions.CRUD
     if not ch.has_pending_or_invited_request(data.group_id, user):
         raise exceptions.CRUD
+    pending = ch.get_pending_requests(data.group_id)
+    invite = next((r for r in pending if r["requester_key"] == user), None)
+    role = invite.get("role", "member") if invite and invite.get("role") else "member"
     ch.resolve_join_request(data.group_id, user, "approved")
-    ch.add_group_member(data.group_id, user, "member")
-    return {"group_id": data.group_id, "role": "member"}
+    ch.add_group_member(data.group_id, user, role)
+    return {"group_id": data.group_id, "role": role}
 
 
 @router.post("/groups/decline-invite")
@@ -372,9 +375,12 @@ async def approve_join_request(data: Token):
     _require_group_permission(data.group_id, user, "assignRoles")
     if not ch.has_pending_or_invited_request(data.group_id, data.requester_key):
         raise exceptions.CRUD
+    pending = ch.get_pending_requests(data.group_id)
+    invite = next((r for r in pending if r["requester_key"] == data.requester_key), None)
+    role = invite.get("role", "member") if invite and invite.get("role") else "member"
     ch.resolve_join_request(data.group_id, data.requester_key, "approved")
-    ch.add_group_member(data.group_id, data.requester_key, "member")
-    return {"group_id": data.group_id, "requester_key": data.requester_key, "status": "approved"}
+    ch.add_group_member(data.group_id, data.requester_key, role)
+    return {"group_id": data.group_id, "requester_key": data.requester_key, "status": "approved", "role": role}
 
 
 @router.post("/groups/requests/join/deny")
