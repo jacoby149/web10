@@ -378,7 +378,7 @@ The legacy `wapi.js` SDK (v2) is still available for backward compatibility. The
 |---|---|
 | `create(service, body)` — no groups | `create(service, body, { groups })` — groups required for visibility |
 | `read(service, query)` — raw collection | `read(service, { groups })` — always group-filtered |
-| SMR contracts per service | App contracts per app with per-service permissions |
+| SMR/SIR per service (v2) | ACR — one app contract request, create or replace. GCR for group operations |
 | Separate follow/friend APIs | Follow = join group |
 | `discoverable` boolean | Groups handle visibility. `web10/discover` = public board |
 | Inbox fan-out | No inbox. Discovery is group membership query |
