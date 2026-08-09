@@ -88,8 +88,10 @@ CREATE TABLE IF NOT EXISTS group_blacklist (
     user_key String,
     group_id String,
     blocked_key String,
-    created_at DateTime64(3)
-) ENGINE = MergeTree()
+    created_at DateTime64(3),
+    updated_at DateTime64(3),
+    deleted UInt8 DEFAULT 0
+) ENGINE = ReplacingMergeTree(updated_at)
 ORDER BY (user_key, group_id, blocked_key);
 
 CREATE TABLE IF NOT EXISTS user_group_sharing (

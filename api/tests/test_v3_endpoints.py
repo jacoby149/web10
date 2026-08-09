@@ -257,9 +257,21 @@ class TestLeaveGroup:
 
 class TestInviteMember:
     def test_invite(self, client, token):
-        mock_rows = [("testuser", "admin", datetime(2026, 1, 1))]
+        mock_member = [("testuser", "admin", datetime(2026, 1, 1))]
+        mock_group = [
+            (
+                "g1",
+                '[{"name":"admin","permissions":["assignRoles"]}]',
+                "open",
+                datetime(2026, 1, 1),
+                datetime(2026, 1, 1),
+            )
+        ]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
-            mock_ch.query.return_value = MagicMock(result_rows=lambda: mock_rows)
+            mock_ch.query.side_effect = [
+                MagicMock(result_rows=lambda: mock_member),
+                MagicMock(result_rows=lambda: mock_group),
+            ]
             resp = client.post(
                 "/v3/groups/invite",
                 json={
@@ -273,6 +285,27 @@ class TestInviteMember:
         data = resp.json()
         assert data["invited_key"] == "bob"
         assert data["status"] == "invited"
+
+    def test_invite_no_permission(self, client, token):
+        mock_member = [("testuser", "member", datetime(2026, 1, 1))]
+        mock_group = [
+            ("g1", '[{"name":"member","permissions":[]}]', "open", datetime(2026, 1, 1), datetime(2026, 1, 1))
+        ]
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.side_effect = [
+                MagicMock(result_rows=lambda: mock_member),
+                MagicMock(result_rows=lambda: mock_group),
+            ]
+            resp = client.post(
+                "/v3/groups/invite",
+                json={
+                    "token": token,
+                    "group_id": "g1",
+                    "member_key": "bob",
+                    "role": "member",
+                },
+            )
+        assert resp.status_code == 401
 
 
 # ---------------------------------------------------------------------------
@@ -393,12 +426,9 @@ class TestReadById:
 
 class TestGroupsManages:
     def test_manages(self, client, token):
-        mock_rows = [("g1", "open", "admin", 5)]
+        mock_rows = [("g1", "open", "admin", '[{"name":"admin","permissions":["manageRoles"]}]', 5)]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
-            mock_ch.query.side_effect = [
-                MagicMock(result_rows=lambda: mock_rows),
-                MagicMock(result_rows=lambda: [('{"roles":[{"name":"admin","permissions":["manageRoles"]}]}',)]),
-            ]
+            mock_ch.query.return_value = MagicMock(result_rows=lambda: mock_rows)
             resp = client.post("/v3/groups/manages", json={"token": token})
         assert resp.status_code == 200
         assert len(resp.json()) == 1

@@ -406,14 +406,15 @@ class TestBlockUserInGroup:
             mock_client.insert.assert_called_once()
             call_args = mock_client.insert.call_args[0]
             assert call_args[0] == "group_blacklist"
-            assert len(call_args[1][0]) == 4  # user_key, group_id, blocked_key, created_at
+            assert len(call_args[1][0]) == 6  # user_key, group_id, blocked_key, created_at, updated_at, deleted
 
-    def test_unblock(self):
+    def test_unblock_tombstone(self):
         with _patch_client() as mock_client:
             ch.unblock_user_in_group("alice", "g1", "bob")
             mock_client.command.assert_called_once()
             sql = mock_client.command.call_args[0][0]
-            assert "DELETE FROM group_blacklist" in sql
+            assert "INSERT INTO group_blacklist" in sql
+            assert "deleted = 0" in sql
 
 
 # ---------------------------------------------------------------------------
@@ -536,20 +537,18 @@ class TestReadDocumentById:
 class TestGetGroupsManages:
     def test_has_manage(self):
         with _patch_client() as mock_client:
-            mock_client.query.side_effect = [
-                _mock_result_rows([("g1", "open", "admin", 5)]),
-                _mock_result_rows([('{"roles":[{"name":"admin","permissions":["manageRoles"]}]}',)]),
-            ]
+            mock_client.query.return_value = _mock_result_rows(
+                [("g1", "open", "admin", '[{"name":"admin","permissions":["manageRoles"]}]', 5)]
+            )
             groups = ch.get_groups_manages("alice")
             assert len(groups) == 1
             assert groups[0]["group_id"] == "g1"
 
     def test_no_manage(self):
         with _patch_client() as mock_client:
-            mock_client.query.side_effect = [
-                _mock_result_rows([("g1", "open", "member", 5)]),
-                _mock_result_rows([('{"roles":[{"name":"member","permissions":[]}]}',)]),
-            ]
+            mock_client.query.return_value = _mock_result_rows(
+                [("g1", "open", "member", '[{"name":"member","permissions":[]}]', 5)]
+            )
             groups = ch.get_groups_manages("alice")
             assert len(groups) == 0
 

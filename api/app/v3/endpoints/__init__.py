@@ -286,6 +286,19 @@ async def invite_member(data: Token):
     if not requester:
         raise exceptions.CRUD
 
+    existing = ch.get_group(data.group_id)
+    if not existing:
+        raise exceptions.ENTRY_NOT_FOUND
+
+    requester_role_def = None
+    for rd in existing["roles"]:
+        if rd["name"] == requester["role"]:
+            requester_role_def = rd
+            break
+
+    if requester_role_def and "assignRoles" not in requester_role_def.get("permissions", []):
+        raise exceptions.CRUD
+
     ch.create_join_request(data.group_id, data.member_key, "invited")
     return {"group_id": data.group_id, "invited_key": data.member_key, "status": "invited"}
 

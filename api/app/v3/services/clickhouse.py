@@ -514,13 +514,15 @@ def is_user_blocked(user_key: str, blocked_key: str) -> bool:
 def block_user_in_group(user_key: str, group_id: str, blocked_key: str):
     """Block a user from seeing content in a specific group."""
     now = _now()
-    client.insert("group_blacklist", [[user_key, group_id, blocked_key, now]])
+    client.insert("group_blacklist", [[user_key, group_id, blocked_key, now, now, 0]])
 
 
 def unblock_user_in_group(user_key: str, group_id: str, blocked_key: str):
-    """Remove a per-group block."""
+    """Remove a per-group block (tombstone via INSERT SELECT)."""
     client.command(
-        "DELETE FROM group_blacklist WHERE user_key = %(user_key)s AND group_id = %(group_id)s AND blocked_key = %(blocked_key)s",
+        "INSERT INTO group_blacklist (user_key, group_id, blocked_key, created_at, updated_at, deleted) "
+        "SELECT user_key, group_id, blocked_key, created_at, now(), 1 "
+        "FROM group_blacklist WHERE user_key = %(user_key)s AND group_id = %(group_id)s AND blocked_key = %(blocked_key)s AND deleted = 0",
         {"user_key": user_key, "group_id": group_id, "blocked_key": blocked_key},
     )
 
@@ -691,7 +693,7 @@ def read_document_by_id(doc_id: str, member_key: str, collection_name: str) -> d
 def get_groups_manages(member_key: str) -> list[dict]:
     """Get groups where the user has management permissions."""
     result = client.query(
-        "SELECT gc.group_id, gc.join_policy, gm.role AS my_role, "
+        "SELECT gc.group_id, gc.join_policy, gm.role AS my_role, gc.roles, "
         "(SELECT count() FROM group_members gm2 WHERE gm2.group_id = gc.group_id AND gm2.deleted = 0) AS member_count "
         "FROM group_members gm "
         "JOIN group_contracts gc ON gm.group_id = gc.group_id "
@@ -703,23 +705,14 @@ def get_groups_manages(member_key: str) -> list[dict]:
     groups = []
     for row in result.result_rows():
         group_id = row[0]
-        roles_json = None
-        # Fetch roles to check management perms
-        role_result = client.query(
-            "SELECT roles FROM group_contracts WHERE group_id = %(gid)s AND deleted = 0",
-            {"gid": group_id},
-        )
-        if role_result.result_rows():
-            roles_json = _parse_json(role_result.result_rows()[0][0])
-
         my_role = row[2]
+        roles_json = _parse_json(row[3])
         has_manage = False
-        if roles_json:
-            roles_list = roles_json if isinstance(roles_json, list) else roles_json.get("roles", [])
-            for rd in roles_list:
-                if rd["name"] == my_role and "manageRoles" in rd.get("permissions", []):
-                    has_manage = True
-                    break
+        roles_list = roles_json if isinstance(roles_json, list) else roles_json.get("roles", [])
+        for rd in roles_list:
+            if rd["name"] == my_role and "manageRoles" in rd.get("permissions", []):
+                has_manage = True
+                break
 
         if has_manage:
             groups.append(
@@ -727,7 +720,7 @@ def get_groups_manages(member_key: str) -> list[dict]:
                     "group_id": group_id,
                     "join_policy": row[1],
                     "my_role": my_role,
-                    "member_count": row[3],
+                    "member_count": row[4],
                 }
             )
     return groups

@@ -1,3 +1,6 @@
+3.0.4 || 09.08.2026
+fix(api): review findings — (1) N+1 query in get_groups_manages eliminated by selecting gc.roles directly in initial query, (2) group_blacklist schema changed from MergeTree() to ReplacingMergeTree(updated_at) with tombstone columns (updated_at, deleted), unblock_user_in_group uses INSERT INTO ... SELECT ... deleted=1 instead of DELETE, (3) /v3/groups/invite now checks assignRoles permission on requester role before allowing invites. 92 tests passing.
+
 3.0.3 || 09.08.2026
 feat(api): KB gap endpoints — read-by-id, groups/manages, groups/members/list, block-in-group, unblock-in-group, node stats. Service layer: read_document_by_id, get_groups_manages, resolve_media_urls, get_node_stats, provider_service_contracts CRUD. Schema: provider_service_contracts table added. Bug fix: get_groups_manages roles_json parsing (dict with "roles" key, not raw list). 91 tests passing (79 existing + 12 new service layer tests + endpoint tests for all new routes).
 
