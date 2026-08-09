@@ -244,46 +244,88 @@ The API tombstones the `documents` row and all `doc_groups` rows. Background job
 
 Groups are first-class. The SDK exposes them directly.
 
-### Group Lifecycle
+### Create Group
 
 ```mermaid
-sequenceDiagram
-    participant App as Client App
-    participant API as web10 API
-    participant GC as group_contracts
-    participant GM as group_members
-    participant GJR as group_join_requests
+flowchart LR
+    App["w.createGroup(name, roles, members)"] -->|"1. INSERT group_contracts"| GC["group_contracts"]
+    App -->|"2. INSERT group_members (all members)"| GM["group_members"]
+    GC -->|"3. return"| Res["{ group_id }"]
+    GM --> Res
 
-    App->>API: w.createGroup(name, roles, members)
-    API->>GC: INSERT group contract
-    API->>GM: INSERT all members
-    API-->>App: { group_id }
+    style App fill:#f5f5f5,stroke:#333,color:#000
+    style GC fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style GM fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style Res fill:#fff3e0,stroke:#e65100,color:#000
+```
 
-    App->>API: w.joinGroup(group_id)
-    alt open policy
-        API->>GM: INSERT member (role: member)
-    else request policy
-        API->>GJR: INSERT join request (pending)
-        Note over App,GJR: Owner approves later
-    end
-    API-->>App: { member_key, role }
+### Join Group
 
-    App->>API: w.inviteMember(group_id, bob, member)
-    API->>GJR: INSERT invite (role: member)
-    API-->>App: { status: invited }
+```mermaid
+flowchart LR
+    App["w.joinGroup(group_id)"] --> P{"join_policy"}
+    P -->|"open"| GM["INSERT group_members<br/>(role: member)"]
+    P -->|"request"| GJR["INSERT group_join_requests<br/>(pending)"]
+    GM --> Res["{ member_key, role }"]
+    GJR --> Pnd["{ status: pending }"]
 
-    App->>API: w.acceptInvite(group_id)
-    API->>GM: INSERT member
-    API->>GJR: tombstone request
-    API-->>App: { role: member }
+    style App fill:#f5f5f5,stroke:#333,color:#000
+    style P fill:#fff9c4,stroke:#f57f17,color:#000
+    style GM fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style GJR fill:#f3e5f5,stroke:#6a1b9a,color:#000
+    style Res fill:#fff3e0,stroke:#e65100,color:#000
+    style Pnd fill:#fff9c4,stroke:#f57f17,color:#000
+```
 
-    App->>API: w.leaveGroup(group_id)
-    API->>GM: tombstone member
-    API-->>App: { status: left }
+### Invite Member
 
-    App->>API: w.removeMember(group_id, bob)
-    API->>GM: tombstone bob
-    API-->>App: { status: removed }
+```mermaid
+flowchart LR
+    App["w.inviteMember(group_id, user, role)"] --> GJR["INSERT group_join_requests<br/>(role offered)"]
+    GJR --> Res["{ status: invited }"]
+
+    style App fill:#f5f5f5,stroke:#333,color:#000
+    style GJR fill:#f3e5f5,stroke:#6a1b9a,color:#000
+    style Res fill:#fff3e0,stroke:#e65100,color:#000
+```
+
+### Accept Invite
+
+```mermaid
+flowchart LR
+    App["w.acceptInvite(group_id)"] --> GM["INSERT group_members"]
+    App --> GJR["tombstone group_join_requests"]
+    GM --> Res["{ role: member }"]
+    GJR --> Res
+
+    style App fill:#f5f5f5,stroke:#333,color:#000
+    style GM fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style GJR fill:#ffebee,stroke:#c62828,color:#000
+    style Res fill:#fff3e0,stroke:#e65100,color:#000
+```
+
+### Leave Group
+
+```mermaid
+flowchart LR
+    App["w.leaveGroup(group_id)"] --> GM["tombstone group_members"]
+    GM --> Res["{ status: left }"]
+
+    style App fill:#f5f5f5,stroke:#333,color:#000
+    style GM fill:#ffebee,stroke:#c62828,color:#000
+    style Res fill:#fff3e0,stroke:#e65100,color:#000
+```
+
+### Remove Member
+
+```mermaid
+flowchart LR
+    App["w.removeMember(group_id, user)"] --> GM["tombstone group_members (user)"]
+    GM --> Res["{ status: removed }"]
+
+    style App fill:#f5f5f5,stroke:#333,color:#000
+    style GM fill:#ffebee,stroke:#c62828,color:#000
+    style Res fill:#fff3e0,stroke:#e65100,color:#000
 ```
 
 ### Create a Group
