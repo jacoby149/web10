@@ -84,5 +84,6 @@ says what can happen **at the same time**.
 **Owns:** `ui/`, `marketing/web10-social/`, demo apps
 
 - [✓ 3.0.7] Authenticator v3
+- [✓ 3.0.9] Auth UI v2→v3 contracts — contracts page shows v3 app contracts, consent v3-only, dead v2 components deleted
 - [ ] Social app v3
 - [✓ 3.0.7] Demo apps v3

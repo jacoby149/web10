@@ -190,17 +190,20 @@ function ConsentView({ I }: { I: Record<string, any> }) {
   }, [I._referrerHost]);
 
   const authed = I.isAuthenticated?.();
-  const services: any[] = I.services || [];
-  const grantedNames = new Set(services.map((s) => s.service));
+  const v3Contracts: any[] = I.v3Contracts || [];
+  const grantedOrigins = new Set(v3Contracts.map((c: any) => c.allowed_origin));
   const sirs: any[] = I.SMR?.sirs || [];
   const scrs: any[] = I.SMR?.scrs || [];
 
-  // Only ask for what's actually new. A SIR for a service you've already
-  // granted isn't re-asked (re-approving it just makes a duplicate); it's
-  // shown as "already shared". Changes (SCRs) are always something to review.
-  const alreadyShared: string[] = sirs.filter((s) => grantedNames.has(s.service)).map((s) => s.service);
+  // A SIR is "already shared" if ALL its origins already have v3 contracts.
+  const alreadyShared: string[] = sirs
+    .filter((s) => {
+      const origins = Array.isArray(s.cross_origins) ? s.cross_origins : [];
+      return origins.length > 0 && origins.every((o: string) => grantedOrigins.has(o));
+    })
+    .map((s) => s.service);
   const requests = [
-    ...sirs.filter((s) => !grantedNames.has(s.service)).map((s) => ({ req: s, kind: 'new' as const })),
+    ...sirs.filter((s) => !alreadyShared.includes(s.service)).map((s) => ({ req: s, kind: 'new' as const })),
     ...scrs.map((s) => ({ req: s, kind: 'change' as const })),
   ];
   const username = I.wapi?.readToken?.()?.username as string | undefined;
@@ -297,7 +300,7 @@ function ConsentView({ I }: { I: Record<string, any> }) {
                     req={req}
                     kind={kind}
                     idx={idx}
-                    current={services.find((s) => s.service === req.service)}
+                    current={undefined}
                     onApprove={() => (kind === 'new' ? I.submitSIR(req) : I.changeTerms(req))}
                     onDeny={() => I.purgeSMR(req)}
                   />

@@ -38,19 +38,6 @@ async function v3Post(action: string, body: Record<string, any>) {
     return res.json();
 }
 
-// Build a service-change update from a desired terms record: $set the changed
-// term fields, $unset cleared ones, never touching protected star fields.
-function buildSCR(service: any) {
-    const SCR: Record<string, any> = { PULL: true, $unset: {}, $set: {} };
-    const starFields = ["_id", "hashed_password", "customer_id", "business_id", "service", "credit_limit", "space_limit"];
-    for (const [key, value] of Object.entries(service)) {
-        if (key === "_id" || key === "service" || starFields.includes(key)) continue;
-        if (value === undefined || value === null) SCR["$unset"][key] = "";
-        else SCR["$set"][key] = value;
-    }
-    return SCR;
-}
-
 function useInterface() {
     const I = {} as Record<string, any>;
 
@@ -440,23 +427,76 @@ function useInterface() {
         return v3Post('unblock', { blocked_key: blockedKey });
     }
 
+    // Derive v3 permissions from a v2 SIR/SCR whitelist.
+    // Whitelist entries are { username, provider, <action>: true } — extract
+    // the action keys (read, create, update, delete, etc.) and map them to
+    // v3 permission names (readAll, create, updateOwn, deleteOwn, ...).
+    function whitelistToPermissions(entries: any[]): string[] {
+        const actionSet = new Set<string>();
+        (Array.isArray(entries) ? entries : []).forEach((e: any) => {
+            if (!e || typeof e !== 'object') return;
+            const meta = new Set(['username', 'provider', 'anchor', 'allowed', 'denied']);
+            Object.keys(e).forEach((k) => {
+                if (!meta.has(k) && e[k] === true) actionSet.add(k);
+            });
+        });
+        // Map v2 action names → v3 permission names
+        const map: Record<string, string> = {
+            read: 'readAll',
+            create: 'create',
+            update: 'updateOwn',
+            updateAll: 'updateAll',
+            delete: 'deleteOwn',
+            deleteAll: 'deleteAll',
+            hide: 'hideAll',
+            manageRoles: 'manageRoles',
+            assignRoles: 'assignRoles',
+            revokeRoles: 'revokeRoles',
+        };
+        const perms: string[] = [];
+        actionSet.forEach((a) => {
+            const mapped = map[a];
+            if (mapped && !perms.includes(mapped)) perms.push(mapped);
+        });
+        // If no recognized actions, default to broad read
+        if (perms.length === 0 && actionSet.size > 0) perms.push('readAll');
+        return perms;
+    }
+
+    // Create v3 app contracts from a v2 SIR. One contract per origin, with
+    // permissions derived from the whitelist.
+    function createV3ContractsFromSIR(sir: any) {
+        const origins = Array.isArray(sir.cross_origins) ? sir.cross_origins : [];
+        const service = sir.service;
+        const perms = whitelistToPermissions(sir.whitelist || []);
+        const permissions: Record<string, string[]> = { [service]: perms };
+        return origins.map((origin: string) => I.addV3Contract(origin, permissions));
+    }
+
     I.changeTerms = function (service: any) {
-        I.setStatus("Saving service terms...");
-        I.wapi
-            .update("services", { service: service.service }, buildSCR(service))
+        // v3: revoke the old contract(s) for the affected origins, then create
+        // updated ones. SCRs carry the modified cross_origins + whitelist.
+        const origins = Array.isArray(service.cross_origins) ? service.cross_origins : [];
+        const toRevoke = I.v3Contracts
+            ?.filter((c: any) => origins.includes(c.allowed_origin))
+            .map((c: any) => I.revokeV3Contract(c.allowed_origin))
+            .filter(Boolean) || [];
+
+        Promise.all([...toRevoke])
             .then(() => {
-                I.setStatus("Service terms saved!");
-                const newServices = I.services.map((s: any) => s.service === service.service ? service : s);
-                I.setServices(newServices);
-                // approving a modification clears it from the pending list too,
-                // and ships the token only once nothing is left to review
+                const v3Ops = createV3ContractsFromSIR(service);
+                return Promise.allSettled(v3Ops);
+            })
+            .then(() => {
+                I.setStatus("Contract updated!");
+                I.v3ContractsLoad?.();
                 I.resolveRequest({
                     scrs: (I.SMR["scrs"] || []).filter((s: any) => s["service"] !== service["service"]),
                     sirs: I.SMR["sirs"],
                 });
                 setTimeout(() => I.setStatus(null), 2000);
             })
-            .catch((e) => I.setStatus("Failed to save: " + (e.response?.data?.detail || String(e))));
+            .catch((e) => I.setStatus("Failed to update: " + (e.response?.data?.detail || String(e))));
     }
 
     // Approving/denying just updates the pending list now — the token is NOT
@@ -468,11 +508,14 @@ function useInterface() {
     }
 
     I.submitSIR = function (service: any) {
-        // Never create a second terms record for a service that already has one
-        // (that's how duplicate contracts appeared). If it exists, just clear
-        // the request — the grant is already in place.
-        const exists = (I.services || []).some((s: any) => s["service"] === service["service"]);
-        if (exists) {
+        // v3-only: create app contracts (one per origin), no v2 terms record.
+        // Check if the origin already has a contract — if so, just clear the
+        // request (the grant is already in place).
+        const origins = Array.isArray(service["cross_origins"]) ? service["cross_origins"] : [];
+        const alreadyGranted = origins.every((origin: string) =>
+            I.hasV3Contract?.(origin),
+        );
+        if (alreadyGranted && origins.length > 0) {
             I.resolveRequest({
                 scrs: I.SMR["scrs"],
                 sirs: (I.SMR["sirs"] || []).filter((sir: any) => sir["service"] !== service["service"]),
@@ -480,28 +523,17 @@ function useInterface() {
             return;
         }
         I.setStatus("Approving service...");
-        I.wapi
-            .create("services", service)
-            .then(() => {
-                // Also add v3 app contracts (one per origin, with per-service permissions).
-                // In v3, a SIR with cross_origins becomes N app contracts (one per origin).
-                const origins = Array.isArray(service["cross_origins"]) ? service["cross_origins"] : [];
-                const permissions: Record<string, string[]> = {
-                    [service["service"]]: ["readAll", "create", "updateOwn", "deleteOwn"],
-                };
-                const v3Ops = origins.map((origin: string) =>
-                    I.addV3Contract(origin, permissions),
-                );
-                Promise.allSettled(v3Ops).then(() => {
-                    I.setStatus(null);
-                    I.servicesLoad();
-                    I.resolveRequest({
-                        scrs: I.SMR["scrs"],
-                        sirs: (I.SMR["sirs"] || []).filter((sir: any) => sir["service"] !== service["service"]),
-                    });
-                });
-            })
-            .catch((e) => I.setStatus("Failed to approve: " + (e.response?.data?.detail || String(e))));
+        const v3Ops = createV3ContractsFromSIR(service);
+        Promise.allSettled(v3Ops).then(() => {
+            I.setStatus("Contract granted!");
+            I.v3ContractsLoad?.();
+            I.resolveRequest({
+                scrs: I.SMR["scrs"],
+                sirs: (I.SMR["sirs"] || []).filter((sir: any) => sir["service"] !== service["service"]),
+            });
+            setTimeout(() => I.setStatus(null), 2000);
+        })
+        .catch((e) => I.setStatus("Failed to approve: " + (e.response?.data?.detail || String(e))));
     }
 
     I.purgeSMR = function (service: any) {
@@ -514,21 +546,26 @@ function useInterface() {
     }
 
     // Approve every pending request in one shot, then return to the app.
-    // Skip SIRs for services already granted — re-creating them just makes
-    // duplicate contract records.
+    // v3-only: create app contracts, no v2 terms records.
     I.approveAll = function () {
-        const granted = new Set((I.services || []).map((s: any) => s.service));
-        const sirs = (I.SMR["sirs"] || []).filter((s: any) => !granted.has(s.service));
+        const sirs = I.SMR["sirs"] || [];
         const scrs = I.SMR["scrs"] || [];
         if (sirs.length + scrs.length === 0) { I.goToApp(); return; }
         I.setStatus("Approving all…");
-        const ops = [
-            ...sirs.map((s: any) => I.wapi.create("services", s)),
-            ...scrs.map((s: any) => I.wapi.update("services", { service: s.service }, buildSCR(s))),
-        ];
-        Promise.all(ops)
+        const ops: Promise<any>[] = [];
+        sirs.forEach((s: any) => {
+            const origins = Array.isArray(s.cross_origins) ? s.cross_origins : [];
+            const alreadyGranted = origins.every((origin: string) => I.hasV3Contract?.(origin));
+            if (!alreadyGranted || origins.length === 0) {
+                ops.push(...createV3ContractsFromSIR(s));
+            }
+        });
+        scrs.forEach((s: any) => {
+            ops.push(...createV3ContractsFromSIR(s));
+        });
+        Promise.allSettled(ops)
             .then(() => {
-                I.servicesLoad();
+                I.v3ContractsLoad?.();
                 I.setSMR({ scrs: [], sirs: [] });
                 I.setStatus(null);
                 I.goToApp();
