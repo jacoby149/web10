@@ -51,21 +51,20 @@ async def read_documents(data: Token):
     if not data.groups:
         raise exceptions.CRUD
 
+    # "me" is shorthand for all groups the user belongs to
     if "me" in data.groups:
-        docs = ch.read_documents(
-            author_key=reader,
-            collection_name=data.collection or "",
-            limit=data.limit,
-            offset=data.offset,
-        )
+        user_groups = ch.get_user_groups(reader)
+        group_ids = [g["group_id"] for g in user_groups]
     else:
-        docs = ch.read_documents_in_groups(
-            group_ids=data.groups,
-            member_key=reader,
-            collection_name=data.collection or "",
-            limit=data.limit,
-            offset=data.offset,
-        )
+        group_ids = data.groups
+
+    docs = ch.read_documents_in_groups(
+        group_ids=group_ids,
+        member_key=reader,
+        collection_name=data.collection or "",
+        limit=data.limit,
+        offset=data.offset,
+    )
 
     return docs
 
@@ -129,7 +128,7 @@ async def create_group(data: Token):
 
     decoded = decode_token(data.token)
     group_id = f"{data.name.lower().replace(' ', '-')}"
-    group_id = f"{decoded.provider}/groups/{creator}/{group_id}"
+    group_id = f"{decoded.provider}/groups/users/{creator}/{group_id}"
     join_policy = data.join_policy or "open"
 
     ch.create_group(group_id, data.roles, join_policy)

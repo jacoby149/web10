@@ -76,11 +76,13 @@ class TestCreate:
 
 class TestRead:
     def test_personal_read(self, client, token):
-        mock_rows = [
-            ("doc-1", "testuser", "posts", '{"text":"mine"}', "", [], datetime(2026, 1, 1), datetime(2026, 1, 1)),
-        ]
+        mock_groups = [("g1", "open", "member", 3)]
+        mock_docs = [("doc-1", "bob", '{"text":"mine"}', [], datetime(2026, 1, 1), "")]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
-            mock_ch.query.return_value = MagicMock(result_rows=lambda: mock_rows)
+            mock_ch.query.side_effect = [
+                MagicMock(result_rows=lambda: mock_groups),
+                MagicMock(result_rows=lambda: mock_docs),
+            ]
             resp = client.post(
                 "/v3/read",
                 json={
@@ -113,6 +115,25 @@ class TestRead:
     def test_no_token(self, client):
         resp = client.post("/v3/read", json={"token": None, "groups": ["me"]})
         assert resp.status_code == 401
+
+    def test_me_shorthand(self, client, token):
+        mock_groups = [("g1", "open", "member", 3)]
+        mock_docs = [("doc-1", "bob", '{"text":"hello"}', [], datetime(2026, 1, 1), "")]
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.side_effect = [
+                MagicMock(result_rows=lambda: mock_groups),
+                MagicMock(result_rows=lambda: mock_docs),
+            ]
+            resp = client.post(
+                "/v3/read",
+                json={
+                    "token": token,
+                    "collection": "posts",
+                    "groups": ["me"],
+                },
+            )
+        assert resp.status_code == 200
+        assert len(resp.json()) == 1
 
 
 class TestUpdate:
