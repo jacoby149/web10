@@ -13,76 +13,76 @@ erDiagram
         String body
         String ref_value
         "Array(String)" tags
-        DateTime64 created_at
-        DateTime64 updated_at
-        UInt8 deleted
+        "DateTime64" created_at
+        "DateTime64" updated_at
+        "UInt8" deleted
     }
     doc_groups {
         String doc_id PK
         String group_id PK
-        DateTime64 created_at
-        DateTime64 updated_at
-        UInt8 deleted
+        "DateTime64" created_at
+        "DateTime64" updated_at
+        "UInt8" deleted
     }
     group_contracts {
         String group_id PK
         String roles
         String join_policy
-        DateTime64 created_at
-        DateTime64 updated_at
-        UInt8 deleted
+        "DateTime64" created_at
+        "DateTime64" updated_at
+        "UInt8" deleted
     }
     group_members {
         String group_id PK
         String member_key PK
         String role
-        DateTime64 joined_at
-        DateTime64 updated_at
-        UInt8 deleted
+        "DateTime64" joined_at
+        "DateTime64" updated_at
+        "UInt8" deleted
     }
     group_join_requests {
         String group_id PK
         String requester_key PK
         String status
-        DateTime64 requested_at
-        DateTime64 resolved_at
-        DateTime64 updated_at
-        UInt8 deleted
+        "DateTime64" requested_at
+        "DateTime64" resolved_at
+        "DateTime64" updated_at
+        "UInt8" deleted
     }
     group_hidden_docs {
         String group_id PK
         String doc_id PK
         String moderator_key
-        DateTime64 hidden_at
-        DateTime64 updated_at
-        UInt8 deleted
+        "DateTime64" hidden_at
+        "DateTime64" updated_at
+        "UInt8" deleted
     }
     service_contracts {
         String user_key PK
         String service_name PK
         String allowed_origin PK
-        DateTime64 created_at
-        DateTime64 updated_at
-        UInt8 deleted
+        "DateTime64" created_at
+        "DateTime64" updated_at
+        "UInt8" deleted
     }
     user_blacklist {
         String user_key PK
         String blocked_key PK
-        DateTime64 created_at
+        "DateTime64" created_at
     }
     group_blacklist {
         String user_key PK
         String group_id PK
         String blocked_key PK
-        DateTime64 created_at
+        "DateTime64" created_at
     }
     user_group_sharing {
         String user_key PK
         String group_id PK
-        UInt8 sharing_enabled
-        DateTime64 created_at
-        DateTime64 updated_at
-        UInt8 deleted
+        "UInt8" sharing_enabled
+        "DateTime64" created_at
+        "DateTime64" updated_at
+        "UInt8" deleted
     }
 
     documents ||--o{ doc_groups : "attached to"
