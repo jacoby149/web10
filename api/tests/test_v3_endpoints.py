@@ -42,10 +42,15 @@ def token():
 class TestCreate:
     def test_create_with_groups(self, client, token):
         with patch("app.v3.services.clickhouse._gen_doc_id", return_value="doc-1"):
-            resp = client.post("/v3/create", json={
-                "token": token, "collection": "posts",
-                "body": {"text": "hello"}, "groups": ["g1"],
-            })
+            resp = client.post(
+                "/v3/create",
+                json={
+                    "token": token,
+                    "collection": "posts",
+                    "body": {"text": "hello"},
+                    "groups": ["g1"],
+                },
+            )
         assert resp.status_code == 200
         data = resp.json()
         assert data["doc_id"] == "doc-1"
@@ -53,10 +58,14 @@ class TestCreate:
 
     def test_create_no_groups(self, client, token):
         with patch("app.v3.services.clickhouse._gen_doc_id", return_value="doc-2"):
-            resp = client.post("/v3/create", json={
-                "token": token, "collection": "posts",
-                "body": {"text": "private"},
-            })
+            resp = client.post(
+                "/v3/create",
+                json={
+                    "token": token,
+                    "collection": "posts",
+                    "body": {"text": "private"},
+                },
+            )
         assert resp.status_code == 200
         assert "groups" not in resp.json()
 
@@ -72,9 +81,15 @@ class TestRead:
         ]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = MagicMock(result_rows=lambda: mock_rows)
-            resp = client.post("/v3/read", json={
-                "token": token, "collection": "posts", "groups": ["me"], "limit": 10,
-            })
+            resp = client.post(
+                "/v3/read",
+                json={
+                    "token": token,
+                    "collection": "posts",
+                    "groups": ["me"],
+                    "limit": 10,
+                },
+            )
         assert resp.status_code == 200
         assert len(resp.json()) == 1
 
@@ -84,9 +99,14 @@ class TestRead:
         ]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = MagicMock(result_rows=lambda: mock_rows)
-            resp = client.post("/v3/read", json={
-                "token": token, "collection": "posts", "groups": ["g1"],
-            })
+            resp = client.post(
+                "/v3/read",
+                json={
+                    "token": token,
+                    "collection": "posts",
+                    "groups": ["g1"],
+                },
+            )
         assert resp.status_code == 200
         assert len(resp.json()) == 1
 
@@ -103,9 +123,14 @@ class TestUpdate:
         ]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = MagicMock(result_rows=lambda: mock_rows)
-            resp = client.post("/v3/update", json={
-                "token": token, "doc_id": "doc-1", "body": {"text": "updated"},
-            })
+            resp = client.post(
+                "/v3/update",
+                json={
+                    "token": token,
+                    "doc_id": "doc-1",
+                    "body": {"text": "updated"},
+                },
+            )
         assert resp.status_code == 200
         data = resp.json()
         assert data["created_at"] == "2026-01-01 00:00:00"
@@ -114,9 +139,14 @@ class TestUpdate:
     def test_update_not_found(self, client, token):
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = MagicMock(result_rows=lambda: [])
-            resp = client.post("/v3/update", json={
-                "token": token, "doc_id": "doc-1", "body": {"text": "x"},
-            })
+            resp = client.post(
+                "/v3/update",
+                json={
+                    "token": token,
+                    "doc_id": "doc-1",
+                    "body": {"text": "x"},
+                },
+            )
         assert resp.status_code == 404
 
 
@@ -139,11 +169,16 @@ class TestDelete:
 
 class TestCreateGroup:
     def test_create(self, client, token):
-        resp = client.post("/v3/groups/create", json={
-            "token": token, "name": "Test Group", "join_policy": "open",
-            "roles": [{"name": "member", "services": ["posts"], "permissions": ["readAll"]}],
-            "members": [{"member_key": "testuser", "role": "member"}],
-        })
+        resp = client.post(
+            "/v3/groups/create",
+            json={
+                "token": token,
+                "name": "Test Group",
+                "join_policy": "open",
+                "roles": [{"name": "member", "services": ["posts"], "permissions": ["readAll"]}],
+                "members": [{"member_key": "testuser", "role": "member"}],
+            },
+        )
         assert resp.status_code == 200
         assert "group_id" in resp.json()
 
@@ -225,9 +260,15 @@ class TestInviteMember:
         mock_rows = [("testuser", "admin", datetime(2026, 1, 1))]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = MagicMock(result_rows=lambda: mock_rows)
-            resp = client.post("/v3/groups/invite", json={
-                "token": token, "group_id": "g1", "member_key": "bob", "role": "member",
-            })
+            resp = client.post(
+                "/v3/groups/invite",
+                json={
+                    "token": token,
+                    "group_id": "g1",
+                    "member_key": "bob",
+                    "role": "member",
+                },
+            )
         assert resp.status_code == 200
         data = resp.json()
         assert data["invited_key"] == "bob"
@@ -241,9 +282,14 @@ class TestInviteMember:
 
 class TestServiceContracts:
     def test_add(self, client, token):
-        resp = client.post("/v3/service-contracts/add", json={
-            "token": token, "service_name": "posts", "allowed_origin": "myapp.com",
-        })
+        resp = client.post(
+            "/v3/service-contracts/add",
+            json={
+                "token": token,
+                "service_name": "posts",
+                "allowed_origin": "myapp.com",
+            },
+        )
         assert resp.status_code == 200
         assert resp.json()["service_name"] == "posts"
 
@@ -279,16 +325,26 @@ class TestBlocking:
 
 class TestSharing:
     def test_disable_sharing(self, client, token):
-        resp = client.post("/v3/sharing/set", json={
-            "token": token, "group_id": "g1", "enabled": False,
-        })
+        resp = client.post(
+            "/v3/sharing/set",
+            json={
+                "token": token,
+                "group_id": "g1",
+                "enabled": False,
+            },
+        )
         assert resp.status_code == 200
         assert resp.json()["sharing_enabled"] is False
 
     def test_enable_sharing(self, client, token):
-        resp = client.post("/v3/sharing/set", json={
-            "token": token, "group_id": "g1", "enabled": True,
-        })
+        resp = client.post(
+            "/v3/sharing/set",
+            json={
+                "token": token,
+                "group_id": "g1",
+                "enabled": True,
+            },
+        )
         assert resp.status_code == 200
         assert resp.json()["sharing_enabled"] is True
 
@@ -305,18 +361,28 @@ class TestReadById:
         ]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = MagicMock(result_rows=lambda: mock_rows)
-            resp = client.post("/v3/read-by-id", json={
-                "token": token, "doc_id": "doc-1", "collection": "posts",
-            })
+            resp = client.post(
+                "/v3/read-by-id",
+                json={
+                    "token": token,
+                    "doc_id": "doc-1",
+                    "collection": "posts",
+                },
+            )
         assert resp.status_code == 200
         assert resp.json()["doc_id"] == "doc-1"
 
     def test_read_by_id_not_found(self, client, token):
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = MagicMock(result_rows=lambda: [])
-            resp = client.post("/v3/read-by-id", json={
-                "token": token, "doc_id": "doc-1", "collection": "posts",
-            })
+            resp = client.post(
+                "/v3/read-by-id",
+                json={
+                    "token": token,
+                    "doc_id": "doc-1",
+                    "collection": "posts",
+                },
+            )
         assert resp.status_code == 404
 
 
@@ -331,7 +397,7 @@ class TestGroupsManages:
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.side_effect = [
                 MagicMock(result_rows=lambda: mock_rows),
-                MagicMock(result_rows=lambda: [('{"roles":[{"name":"admin","permissions":["manageRoles"]}]}' ,)]),
+                MagicMock(result_rows=lambda: [('{"roles":[{"name":"admin","permissions":["manageRoles"]}]}',)]),
             ]
             resp = client.post("/v3/groups/manages", json={"token": token})
         assert resp.status_code == 200
@@ -364,17 +430,27 @@ class TestGroupMembersList:
 
 class TestBlockInGroup:
     def test_block_in_group(self, client, token):
-        resp = client.post("/v3/block-in-group", json={
-            "token": token, "group_id": "g1", "blocked_key": "bob",
-        })
+        resp = client.post(
+            "/v3/block-in-group",
+            json={
+                "token": token,
+                "group_id": "g1",
+                "blocked_key": "bob",
+            },
+        )
         assert resp.status_code == 200
         assert resp.json()["blocked_key"] == "bob"
         assert resp.json()["group_id"] == "g1"
 
     def test_unblock_in_group(self, client, token):
-        resp = client.post("/v3/unblock-in-group", json={
-            "token": token, "group_id": "g1", "blocked_key": "bob",
-        })
+        resp = client.post(
+            "/v3/unblock-in-group",
+            json={
+                "token": token,
+                "group_id": "g1",
+                "blocked_key": "bob",
+            },
+        )
         assert resp.status_code == 200
 
 

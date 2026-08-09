@@ -42,7 +42,9 @@ def _gen_doc_id() -> str:
 # ---------------------------------------------------------------------------
 
 
-def insert_document(doc_id: str, author_key: str, collection_name: str, body: dict, ref_value: str = "", tags: list[str] | None = None) -> dict:
+def insert_document(
+    doc_id: str, author_key: str, collection_name: str, body: dict, ref_value: str = "", tags: list[str] | None = None
+) -> dict:
     """Insert a document into the documents table."""
     now = _now()
     client.insert(
@@ -61,7 +63,14 @@ def insert_document(doc_id: str, author_key: str, collection_name: str, body: di
     }
 
 
-def read_documents(author_key: str | None, collection_name: str, doc_id: str | None = None, limit: int = 50, offset: int = 0, sort_desc: bool = True) -> list[dict]:
+def read_documents(
+    author_key: str | None,
+    collection_name: str,
+    doc_id: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+    sort_desc: bool = True,
+) -> list[dict]:
     """Read documents by author and collection. Optional doc_id filter."""
     conditions = ["deleted = 0", "collection_name = %(coll)s"]
     params = {"coll": collection_name}
@@ -77,30 +86,37 @@ def read_documents(author_key: str | None, collection_name: str, doc_id: str | N
     where = " AND ".join(conditions)
     order = "created_at DESC" if sort_desc else "created_at ASC"
 
-    result = client.query(f"""
+    result = client.query(
+        f"""
         SELECT doc_id, author_key, collection_name, body, ref_value, tags, created_at, updated_at
         FROM documents
         WHERE {where}
         ORDER BY {order}
         LIMIT %(limit)s OFFSET %(offset)s
-    """, {"limit": limit, "offset": offset, **params})
+    """,
+        {"limit": limit, "offset": offset, **params},
+    )
 
     rows = []
     for row in result.result_rows():
-        rows.append({
-            "doc_id": row[0],
-            "author_key": row[1],
-            "collection_name": row[2],
-            "body": _parse_json(row[3]),
-            "ref_value": row[4],
-            "tags": list(row[5]),
-            "created_at": str(row[6]),
-            "updated_at": str(row[7]),
-        })
+        rows.append(
+            {
+                "doc_id": row[0],
+                "author_key": row[1],
+                "collection_name": row[2],
+                "body": _parse_json(row[3]),
+                "ref_value": row[4],
+                "tags": list(row[5]),
+                "created_at": str(row[6]),
+                "updated_at": str(row[7]),
+            }
+        )
     return rows
 
 
-def update_document(doc_id: str, author_key: str, collection_name: str, body: dict, ref_value: str = "", tags: list[str] | None = None) -> dict:
+def update_document(
+    doc_id: str, author_key: str, collection_name: str, body: dict, ref_value: str = "", tags: list[str] | None = None
+) -> dict:
     """Update a document (insert new version with higher updated_at, preserve created_at)."""
     existing = get_document(doc_id, author_key)
     if not existing:
@@ -290,10 +306,7 @@ def get_group_members(group_id: str, limit: int = 100, offset: int = 0) -> list[
         "WHERE group_id = %(group_id)s AND deleted = 0 LIMIT %(limit)s OFFSET %(offset)s",
         {"group_id": group_id, "limit": limit, "offset": offset},
     )
-    return [
-        {"member_key": row[0], "role": row[1], "joined_at": str(row[2])}
-        for row in result.result_rows()
-    ]
+    return [{"member_key": row[0], "role": row[1], "joined_at": str(row[2])} for row in result.result_rows()]
 
 
 def get_group_member(group_id: str, member_key: str) -> dict | None:
@@ -372,10 +385,7 @@ def get_pending_requests(group_id: str) -> list[dict]:
         "WHERE group_id = %(group_id)s AND status = 'pending' AND deleted = 0",
         {"group_id": group_id},
     )
-    return [
-        {"requester_key": row[0], "status": row[1], "requested_at": str(row[2])}
-        for row in result.result_rows()
-    ]
+    return [{"requester_key": row[0], "status": row[1], "requested_at": str(row[2])} for row in result.result_rows()]
 
 
 def has_pending_or_invited_request(group_id: str, requester_key: str) -> bool:
@@ -435,14 +445,10 @@ def add_service_contract(user_key: str, service_name: str, allowed_origin: str) 
 def get_service_contracts(user_key: str) -> list[dict]:
     """Get active service contracts for a user."""
     result = client.query(
-        "SELECT service_name, allowed_origin FROM service_contracts "
-        "WHERE user_key = %(user_key)s AND deleted = 0",
+        "SELECT service_name, allowed_origin FROM service_contracts WHERE user_key = %(user_key)s AND deleted = 0",
         {"user_key": user_key},
     )
-    return [
-        {"service_name": row[0], "allowed_origin": row[1]}
-        for row in result.result_rows()
-    ]
+    return [{"service_name": row[0], "allowed_origin": row[1]} for row in result.result_rows()]
 
 
 def is_origin_allowed(user_key: str, service_name: str, allowed_origin: str) -> bool:
@@ -586,7 +592,13 @@ def read_documents_in_groups(
         ") "
         "ORDER BY p.created_at DESC "
         "LIMIT %(limit)s OFFSET %(offset)s",
-        {"member_key": member_key, "coll": collection_name, "limit": limit, "offset": offset, **{f"g{i}": gid for i, gid in enumerate(group_ids)}},
+        {
+            "member_key": member_key,
+            "coll": collection_name,
+            "limit": limit,
+            "offset": offset,
+            **{f"g{i}": gid for i, gid in enumerate(group_ids)},
+        },
     )
 
     return [
@@ -710,12 +722,14 @@ def get_groups_manages(member_key: str) -> list[dict]:
                     break
 
         if has_manage:
-            groups.append({
-                "group_id": group_id,
-                "join_policy": row[1],
-                "my_role": my_role,
-                "member_count": row[3],
-            })
+            groups.append(
+                {
+                    "group_id": group_id,
+                    "join_policy": row[1],
+                    "my_role": my_role,
+                    "member_count": row[3],
+                }
+            )
     return groups
 
 
@@ -757,8 +771,7 @@ def add_provider_service_contract(provider_key: str, allowed_origin: str) -> dic
 def get_provider_service_contracts(provider_key: str) -> list[dict]:
     """Get active provider service contracts."""
     result = client.query(
-        "SELECT allowed_origin FROM provider_service_contracts "
-        "WHERE provider_key = %(provider_key)s AND deleted = 0",
+        "SELECT allowed_origin FROM provider_service_contracts WHERE provider_key = %(provider_key)s AND deleted = 0",
         {"provider_key": provider_key},
     )
     return [{"allowed_origin": row[0]} for row in result.result_rows()]
@@ -812,13 +825,15 @@ def resolve_media_urls(doc_body: dict, user_key: str) -> dict:
         )
         if result.result_rows():
             meta = _parse_json(result.result_rows()[0][0])
-            resolved.append({
-                "object_key": mref_str,
-                "mime_type": meta.get("mime_type"),
-                "filename": meta.get("filename"),
-                "size_bytes": meta.get("size_bytes"),
-                "read_url": meta.get("url"),  # Presigned URL generated at confirm time
-            })
+            resolved.append(
+                {
+                    "object_key": mref_str,
+                    "mime_type": meta.get("mime_type"),
+                    "filename": meta.get("filename"),
+                    "size_bytes": meta.get("size_bytes"),
+                    "read_url": meta.get("url"),  # Presigned URL generated at confirm time
+                }
+            )
         else:
             # Try public_media
             result = client.query(
@@ -829,13 +844,15 @@ def resolve_media_urls(doc_body: dict, user_key: str) -> dict:
             )
             if result.result_rows():
                 meta = _parse_json(result.result_rows()[0][0])
-                resolved.append({
-                    "object_key": mref_str,
-                    "mime_type": meta.get("mime_type"),
-                    "filename": meta.get("filename"),
-                    "size_bytes": meta.get("size_bytes"),
-                    "read_url": meta.get("url"),
-                })
+                resolved.append(
+                    {
+                        "object_key": mref_str,
+                        "mime_type": meta.get("mime_type"),
+                        "filename": meta.get("filename"),
+                        "size_bytes": meta.get("size_bytes"),
+                        "read_url": meta.get("url"),
+                    }
+                )
 
     if resolved:
         resolved_body = dict(doc_body)

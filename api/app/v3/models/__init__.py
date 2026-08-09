@@ -3,6 +3,7 @@ from pydantic import BaseModel, ConfigDict
 
 class Token(BaseModel):
     """Single request body — token + all payload data."""
+
     model_config = ConfigDict(extra="allow")
     token: str | None = None
     user: str | None = None

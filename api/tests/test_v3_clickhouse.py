@@ -56,9 +56,20 @@ class TestInsertDocument:
 class TestGetDocument:
     def test_found(self):
         with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows([
-                ("doc-1", "alice", "posts", '{"text":"hello"}', "", ["test"], datetime(2026, 1, 1), datetime(2026, 1, 1)),
-            ])
+            mock_client.query.return_value = _mock_result_rows(
+                [
+                    (
+                        "doc-1",
+                        "alice",
+                        "posts",
+                        '{"text":"hello"}',
+                        "",
+                        ["test"],
+                        datetime(2026, 1, 1),
+                        datetime(2026, 1, 1),
+                    ),
+                ]
+            )
             result = ch.get_document("doc-1", "alice")
             assert result["doc_id"] == "doc-1"
             assert result["body"]["text"] == "hello"
@@ -74,9 +85,20 @@ class TestUpdateDocument:
     def test_preserves_created_at(self):
         with _patch_client() as mock_client:
             original_created = datetime(2026, 1, 1, 12, 0, 0)
-            mock_client.query.return_value = _mock_result_rows([
-                ("doc-1", "alice", "posts", '{"text":"old"}', "", [], original_created, datetime(2026, 1, 1, 12, 0, 0)),
-            ])
+            mock_client.query.return_value = _mock_result_rows(
+                [
+                    (
+                        "doc-1",
+                        "alice",
+                        "posts",
+                        '{"text":"old"}',
+                        "",
+                        [],
+                        original_created,
+                        datetime(2026, 1, 1, 12, 0, 0),
+                    ),
+                ]
+            )
             result = ch.update_document(
                 doc_id="doc-1",
                 author_key="alice",
@@ -110,9 +132,11 @@ class TestDeleteDocument:
 class TestReadDocuments:
     def test_read_by_author(self):
         with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows([
-                ("doc-1", "alice", "posts", '{"text":"hello"}', "", [], datetime(2026, 1, 1), datetime(2026, 1, 1)),
-            ])
+            mock_client.query.return_value = _mock_result_rows(
+                [
+                    ("doc-1", "alice", "posts", '{"text":"hello"}', "", [], datetime(2026, 1, 1), datetime(2026, 1, 1)),
+                ]
+            )
             results = ch.read_documents(author_key="alice", collection_name="posts")
             assert len(results) == 1
             assert results[0]["doc_id"] == "doc-1"
@@ -167,9 +191,11 @@ class TestCreateGroup:
 class TestGetGroup:
     def test_found(self):
         with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows([
-                ("g1", '{"roles":[]}', "open", datetime(2026, 1, 1), datetime(2026, 1, 1)),
-            ])
+            mock_client.query.return_value = _mock_result_rows(
+                [
+                    ("g1", '{"roles":[]}', "open", datetime(2026, 1, 1), datetime(2026, 1, 1)),
+                ]
+            )
             result = ch.get_group("g1")
             assert result["group_id"] == "g1"
             assert result["join_policy"] == "open"
@@ -204,10 +230,12 @@ class TestRemoveGroupMember:
 class TestGetGroupMembers:
     def test_get_members(self):
         with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows([
-                ("alice", "admin", datetime(2026, 1, 1)),
-                ("bob", "member", datetime(2026, 1, 2)),
-            ])
+            mock_client.query.return_value = _mock_result_rows(
+                [
+                    ("alice", "admin", datetime(2026, 1, 1)),
+                    ("bob", "member", datetime(2026, 1, 2)),
+                ]
+            )
             members = ch.get_group_members("g1")
             assert len(members) == 2
             assert members[0]["member_key"] == "alice"
@@ -229,9 +257,11 @@ class TestIsGroupMember:
 class TestGetUserGroups:
     def test_user_groups(self):
         with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows([
-                ("g1", "open", "admin", 5),
-            ])
+            mock_client.query.return_value = _mock_result_rows(
+                [
+                    ("g1", "open", "admin", 5),
+                ]
+            )
             groups = ch.get_user_groups("alice")
             assert len(groups) == 1
             assert groups[0]["group_id"] == "g1"
@@ -261,9 +291,11 @@ class TestResolveJoinRequest:
 class TestGetPendingRequests:
     def test_pending(self):
         with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows([
-                ("alice", "pending", datetime(2026, 1, 1)),
-            ])
+            mock_client.query.return_value = _mock_result_rows(
+                [
+                    ("alice", "pending", datetime(2026, 1, 1)),
+                ]
+            )
             requests = ch.get_pending_requests("g1")
             assert len(requests) == 1
             assert requests[0]["requester_key"] == "alice"
@@ -304,9 +336,11 @@ class TestServiceContracts:
 
     def test_get(self):
         with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows([
-                ("posts", "myapp.com"),
-            ])
+            mock_client.query.return_value = _mock_result_rows(
+                [
+                    ("posts", "myapp.com"),
+                ]
+            )
             contracts = ch.get_service_contracts("alice")
             assert len(contracts) == 1
             assert contracts[0]["service_name"] == "posts"
@@ -420,9 +454,11 @@ class TestReadDocumentsInGroups:
 
     def test_discover_query(self):
         with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows([
-                ("doc-1", "bob", '{"text":"hello"}', ["test"], datetime(2026, 1, 1), ""),
-            ])
+            mock_client.query.return_value = _mock_result_rows(
+                [
+                    ("doc-1", "bob", '{"text":"hello"}', ["test"], datetime(2026, 1, 1), ""),
+                ]
+            )
             results = ch.read_documents_in_groups(
                 group_ids=["g1"],
                 member_key="alice",
@@ -454,10 +490,12 @@ class TestRefCounts:
 
     def test_ref_counts_multiple(self):
         with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows([
-                ("doc-1", 3),
-                ("doc-2", 7),
-            ])
+            mock_client.query.return_value = _mock_result_rows(
+                [
+                    ("doc-1", 3),
+                    ("doc-2", 7),
+                ]
+            )
             counts = ch.get_ref_counts(["doc-1", "doc-2"])
             assert counts["doc-1"] == 3
             assert counts["doc-2"] == 7
@@ -474,9 +512,11 @@ class TestRefCounts:
 class TestReadDocumentById:
     def test_found(self):
         with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows([
-                ("doc-1", "bob", '{"text":"hello"}', ["tag1"], datetime(2026, 1, 1), ""),
-            ])
+            mock_client.query.return_value = _mock_result_rows(
+                [
+                    ("doc-1", "bob", '{"text":"hello"}', ["tag1"], datetime(2026, 1, 1), ""),
+                ]
+            )
             doc = ch.read_document_by_id("doc-1", "alice", "posts")
             assert doc["doc_id"] == "doc-1"
             assert doc["author_key"] == "bob"
@@ -498,7 +538,7 @@ class TestGetGroupsManages:
         with _patch_client() as mock_client:
             mock_client.query.side_effect = [
                 _mock_result_rows([("g1", "open", "admin", 5)]),
-                _mock_result_rows([('{"roles":[{"name":"admin","permissions":["manageRoles"]}]}' ,)]),
+                _mock_result_rows([('{"roles":[{"name":"admin","permissions":["manageRoles"]}]}',)]),
             ]
             groups = ch.get_groups_manages("alice")
             assert len(groups) == 1
@@ -508,7 +548,7 @@ class TestGetGroupsManages:
         with _patch_client() as mock_client:
             mock_client.query.side_effect = [
                 _mock_result_rows([("g1", "open", "member", 5)]),
-                _mock_result_rows([('{"roles":[{"name":"member","permissions":[]}]}' ,)]),
+                _mock_result_rows([('{"roles":[{"name":"member","permissions":[]}]}',)]),
             ]
             groups = ch.get_groups_manages("alice")
             assert len(groups) == 0
@@ -562,9 +602,13 @@ class TestResolveMediaUrls:
     def test_resolve_media(self):
         body = {"text": "hello", "media_refs": ["img-1"]}
         with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows([
-                ('{"url":"http://example.com/img.png","mime_type":"image/png","filename":"img.png","size_bytes":1024}' ,),
-            ])
+            mock_client.query.return_value = _mock_result_rows(
+                [
+                    (
+                        '{"url":"http://example.com/img.png","mime_type":"image/png","filename":"img.png","size_bytes":1024}',
+                    ),
+                ]
+            )
             result = ch.resolve_media_urls(body, "alice")
             assert len(result["media_refs"]) == 1
             assert result["media_refs"][0]["read_url"] == "http://example.com/img.png"
