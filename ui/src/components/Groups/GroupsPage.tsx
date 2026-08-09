@@ -224,8 +224,8 @@ function GroupsManage({ I }: { I: Record<string, any> }) {
           No groups match "{I.search}".
         </p>
       ) : (
-        filtered.map((group: any, i: number) => (
-          <GroupCard key={i} I={I} group={group} isManaged={true} />
+        filtered.map((group: any) => (
+          <GroupCard key={group.group_id} I={I} group={group} isManaged={true} />
         ))
       )}
 
@@ -261,8 +261,8 @@ function GroupsBelong({ I }: { I: Record<string, any> }) {
           No groups match "{I.search}".
         </p>
       ) : (
-        filtered.map((group: any, i: number) => (
-          <GroupCard key={i} I={I} group={group} isManaged={false} />
+        filtered.map((group: any) => (
+          <GroupCard key={group.group_id} I={I} group={group} isManaged={false} />
         ))
       )}
 
