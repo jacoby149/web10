@@ -782,9 +782,19 @@ class TestMedia:
 class TestRegisterApp:
     def test_register(self):
         with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([])
             result = ch.register_app({"url": "https://myapp.com", "name": "My App"})
             assert result["url"] == "https://myapp.com"
             mock_client.insert.assert_called_once()
+
+    def test_register_duplicate(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows(
+                [("https://myapp.com", "My App", "", "", "[]", 1, "approved", 1)]
+            )
+            result = ch.register_app({"url": "https://myapp.com"})
+            assert result["review_state"] == "approved"
+            mock_client.insert.assert_not_called()
 
 
 class TestListApps:

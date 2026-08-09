@@ -936,7 +936,6 @@ def authenticate_user(username: str, plain_password: str) -> bool:
 
 def change_password(username: str, new_password_hash: str):
     """Change a user's password."""
-    _now()
     client.command(
         "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
         "SELECT username, %(new_hash)s, phone, phone_verified, email, email_verified, created_at, now(), 0 "
@@ -947,7 +946,6 @@ def change_password(username: str, new_password_hash: str):
 
 def change_phone(username: str, phone: str):
     """Change a user's phone number (unverified)."""
-    _now()
     client.command(
         "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
         "SELECT username, password_hash, %(phone)s, 0, email, email_verified, created_at, now(), 0 "
@@ -958,7 +956,6 @@ def change_phone(username: str, phone: str):
 
 def set_email(username: str, email: str):
     """Set a user's email (unverified)."""
-    _now()
     client.command(
         "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
         "SELECT username, password_hash, phone, phone_verified, %(email)s, 0, created_at, now(), 0 "
@@ -969,7 +966,6 @@ def set_email(username: str, email: str):
 
 def verify_phone(username: str):
     """Mark phone as verified."""
-    _now()
     client.command(
         "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
         "SELECT username, password_hash, phone, 1, email, email_verified, created_at, now(), 0 "
@@ -1055,7 +1051,10 @@ def delete_media(user_key: str, doc_id: str):
 
 
 def register_app(app_info: dict) -> dict:
-    """Register an app in the provider app store."""
+    """Register an app in the provider app store. Idempotent — returns existing if already registered."""
+    existing = get_app(app_info["url"])
+    if existing:
+        return {"url": app_info["url"], "review_state": existing["review_state"]}
     now = _now()
     client.insert(
         "apps",

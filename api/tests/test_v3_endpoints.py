@@ -656,17 +656,19 @@ class TestMediaDelete:
 
 class TestAppsRegister:
     def test_register(self, client, token):
-        resp = client.post(
-            "/v3/apps/register",
-            json={
-                "token": token,
-                "body": {
-                    "url": "https://myapp.com",
-                    "name": "My App",
-                    "description": "A web10 app",
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.return_value = MagicMock(result_rows=lambda: [])
+            resp = client.post(
+                "/v3/apps/register",
+                json={
+                    "token": token,
+                    "body": {
+                        "url": "https://myapp.com",
+                        "name": "My App",
+                        "description": "A web10 app",
+                    },
                 },
-            },
-        )
+            )
         assert resp.status_code == 200
         assert resp.json()["url"] == "https://myapp.com"
 
