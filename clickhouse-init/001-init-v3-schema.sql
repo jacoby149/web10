@@ -112,3 +112,42 @@ CREATE TABLE IF NOT EXISTS provider_service_contracts (
     deleted UInt8 DEFAULT 0
 ) ENGINE = ReplacingMergeTree(updated_at)
 ORDER BY (provider_key, allowed_origin);
+
+CREATE TABLE IF NOT EXISTS users (
+    username String,
+    password_hash String,
+    phone String DEFAULT '',
+    phone_verified UInt8 DEFAULT 0,
+    email String DEFAULT '',
+    email_verified UInt8 DEFAULT 0,
+    created_at DateTime64(3),
+    updated_at DateTime64(3),
+    deleted UInt8 DEFAULT 0
+) ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY username;
+
+CREATE TABLE IF NOT EXISTS apps (
+    url String,
+    name String DEFAULT '',
+    description String DEFAULT '',
+    icon_url String DEFAULT '',
+    screenshots String DEFAULT '',
+    approved UInt8 DEFAULT 0,
+    review_state String DEFAULT 'pending',
+    metadata_version UInt32 DEFAULT 1,
+    created_at DateTime64(3),
+    updated_at DateTime64(3),
+    deleted UInt8 DEFAULT 0
+) ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY url;
+
+CREATE TABLE IF NOT EXISTS app_ratings (
+    author String,
+    target_app_id String,
+    rating UInt8,
+    provider String,
+    created_at DateTime64(3),
+    updated_at DateTime64(3),
+    deleted UInt8 DEFAULT 0
+) ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY (target_app_id, author);

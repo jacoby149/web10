@@ -524,3 +524,189 @@ class TestNodeStats:
         assert data["users"] == 42
         assert data["documents"] == 100
         assert data["groups"] == 5
+
+
+# ---------------------------------------------------------------------------
+# Auth
+# ---------------------------------------------------------------------------
+
+
+class TestSignup:
+    def test_signup(self, client):
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.return_value = MagicMock(result_rows=lambda: [(0,)])
+            with patch("app.v3.endpoints.get_password_hash", return_value="hash123"):
+                resp = client.post(
+                    "/v3/signup",
+                    json={
+                        "username": "alice",
+                        "password": "secret",
+                        "phone": "+1234567890",
+                    },
+                )
+        assert resp.status_code == 200
+        assert resp.json()["username"] == "alice"
+
+    def test_signup_no_password(self, client):
+        resp = client.post(
+            "/v3/signup",
+            json={"username": "alice"},
+        )
+        assert resp.status_code == 401
+
+
+class TestLogin:
+    def test_login(self, client):
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.return_value = MagicMock(
+                result_rows=lambda: [("alice", "hash123", "", 0, "", 0, datetime(2026, 1, 1))]
+            )
+            with patch("app.v3.endpoints.get_password_hash", return_value="hash123"):
+                with patch("app.v3.services.clickhouse.authenticate_user", return_value=True):
+                    resp = client.post(
+                        "/v3/login",
+                        json={"username": "alice", "password": "test123"},
+                    )
+        assert resp.status_code == 200
+        assert "token" in resp.json()
+
+
+class TestChangePass:
+    def test_change_pass(self, client, token):
+        with patch("app.v3.services.clickhouse.authenticate_user", return_value=True):
+            with patch("app.v3.endpoints.get_password_hash", return_value="new_hash"):
+                resp = client.post(
+                    "/v3/change-pass",
+                    json={"token": token, "password": "old", "new_pass": "new"},
+                )
+        assert resp.status_code == 200
+
+
+class TestChangePhone:
+    def test_change_phone(self, client, token):
+        resp = client.post(
+            "/v3/change-phone",
+            json={"token": token, "phone": "+1987654321"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["phone"] == "+1987654321"
+
+
+class TestSetEmail:
+    def test_set_email(self, client, token):
+        resp = client.post(
+            "/v3/set-email",
+            json={"token": token, "email": "a@b.com"},
+        )
+        assert resp.status_code == 200
+
+
+class TestVerifyPhone:
+    def test_verify_phone(self, client, token):
+        resp = client.post(
+            "/v3/verify-phone",
+            json={"token": token, "code": "123456"},
+        )
+        assert resp.status_code == 200
+
+
+class TestProfile:
+    def test_profile(self, client, token):
+        resp = client.post("/v3/profile", json={"token": token})
+        assert resp.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Media
+# ---------------------------------------------------------------------------
+
+
+class TestMediaConfirm:
+    def test_confirm(self, client, token):
+        resp = client.post(
+            "/v3/media/confirm",
+            json={
+                "token": token,
+                "body": {"filename": "a.png", "url": "http://x", "mime_type": "image/png"},
+            },
+        )
+        assert resp.status_code == 200
+        assert resp.json()["filename"] == "a.png"
+
+
+class TestMediaList:
+    def test_list(self, client, token):
+        resp = client.post("/v3/media/list", json={"token": token})
+        assert resp.status_code == 200
+
+
+class TestMediaDelete:
+    def test_delete(self, client, token):
+        resp = client.post(
+            "/v3/media/delete",
+            json={"token": token, "doc_id": "doc-1"},
+        )
+        assert resp.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# App Store
+# ---------------------------------------------------------------------------
+
+
+class TestAppsRegister:
+    def test_register(self, client, token):
+        resp = client.post(
+            "/v3/apps/register",
+            json={
+                "token": token,
+                "body": {
+                    "url": "https://myapp.com",
+                    "name": "My App",
+                    "description": "A web10 app",
+                },
+            },
+        )
+        assert resp.status_code == 200
+        assert resp.json()["url"] == "https://myapp.com"
+
+
+class TestAppsList:
+    def test_list(self, client, token):
+        resp = client.post("/v3/apps/list", json={"token": token})
+        assert resp.status_code == 200
+
+
+class TestAppsRating:
+    def test_rating(self, client, token):
+        resp = client.post(
+            "/v3/apps/rating",
+            json={
+                "token": token,
+                "body": {"target_app_id": "https://myapp.com", "rating": 5},
+            },
+        )
+        assert resp.status_code == 200
+        assert resp.json()["rating"] == 5
+
+    def test_invalid_rating(self, client, token):
+        resp = client.post(
+            "/v3/apps/rating",
+            json={
+                "token": token,
+                "body": {"target_app_id": "https://myapp.com", "rating": 6},
+            },
+        )
+        assert resp.status_code == 401
+
+
+class TestAppsRatings:
+    def test_ratings(self, client, token):
+        resp = client.post(
+            "/v3/apps/ratings",
+            json={
+                "token": token,
+                "body": {"target_app_id": "https://myapp.com"},
+            },
+        )
+        assert resp.status_code == 200

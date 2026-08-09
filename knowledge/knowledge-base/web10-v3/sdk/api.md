@@ -488,6 +488,54 @@ const record = await w.confirmUpload({
 const { readUrl } = await w.getReadUrl(record.object_key)
 ```
 
+## Account
+
+```ts
+// Signup
+await w.signup({
+  username: 'alice',
+  password: 'secret',
+  phone: '+1234567890',
+})
+
+// Login (via popup)
+await w.login()
+
+// Change password
+await w.changePass({ password: 'old', newPass: 'new' })
+
+// Change phone
+await w.changePhone({ phone: '+1987654321' })
+
+// Set recovery email
+await w.setEmail({ email: 'alice@example.com' })
+
+// Verify phone/email with code
+await w.verifyPhone({ code: '123456' })
+await w.verifyEmail({ code: '654321' })
+```
+
+## App Store
+
+```ts
+// Register an app
+await w.registerApp({
+  url: 'https://myapp.com',
+  name: 'My App',
+  description: 'A web10 app',
+  iconUrl: 'https://myapp.com/icon.png',
+})
+
+// List approved apps
+const apps = await w.getApps()
+
+// Rate an app (1-5 stars)
+await w.rateApp({ appId: 'https://myapp.com', rating: 5 })
+
+// Read ratings
+const ratings = await w.getAppRatings('https://myapp.com')
+```
+
 ## What ClickHouse Happens
 
 Each SDK call triggers specific ClickHouse operations:
@@ -495,7 +543,7 @@ Each SDK call triggers specific ClickHouse operations:
 | SDK call | ClickHouse |
 |---|---|
 | `w.create('posts', ..., { groups })` | `INSERT INTO documents` + `INSERT INTO doc_groups` (N rows) |
-| `w.read('posts', { groups: ['me'] })` | `SELECT FROM documents WHERE author_key = :user` (reserved group, no join) |
+| `w.read('posts', { groups: ['me'] })` | `SELECT group_ids FROM group_members WHERE member = :user`, then discover query |
 | `w.read('posts', { groups })` | `SELECT FROM documents JOIN doc_groups JOIN group_members WHERE member = :user AND group IN (...)` |
 | `w.update('posts', ..., { $groups })` | `INSERT INTO documents` (new version) + tombstone old `doc_groups` + new `doc_groups` |
 | `w.delete('posts', ...)` | `INSERT INTO documents` (tombstone) + tombstone `doc_groups` |
