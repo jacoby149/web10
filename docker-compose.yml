@@ -51,6 +51,7 @@ services:
     depends_on:
       - ferretdb
       - minio
+      - clickhouse
     volumes:
       - ./api/:/web10
     ports:
@@ -61,6 +62,11 @@ services:
       DB_URL: ${DB_URL:-mongodb://web10:web10@ferretdb:27017/}
       DB: ${DB:-web10}
       S3_ENDPOINT: http://minio.localhost:9000
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: 9000
+      CLICKHOUSE_DATABASE: web10
+      CLICKHOUSE_USER: web10
+      CLICKHOUSE_PASSWORD: web10
     command: ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80", "--reload"]
 
   ui: # The web10 Authenticator, the UI for managing the web10 API

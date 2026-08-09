@@ -1,3 +1,15 @@
+3.0.6 || 09.08.2026
+fix(api): get_groups_manages now uses ClickHouse JSON functions (extractJSONArray, has) for in-database filtering instead of application-side Python iteration, matching KB sdk/implementation.md specification. 94 tests passing.
+
+3.0.5 || 09.08.2026
+fix(api): review findings — (1) user_blacklist subquery in read_documents_in_groups now includes AND deleted = 0 so unblocked authors' content reappears in discover, (2) resolve_media_urls batches all media refs into a single IN (...) query instead of O(N) round trips, (3) insert_document generates doc_id internally (optional override) so endpoints no longer call private _gen_doc_id. 94 tests passing.
+
+3.0.4 || 09.08.2026
+fix(api): review findings — (1) N+1 query in get_groups_manages eliminated by selecting gc.roles directly in initial query, (2) group_blacklist schema changed from MergeTree() to ReplacingMergeTree(updated_at) with tombstone columns (updated_at, deleted), unblock_user_in_group uses INSERT INTO ... SELECT ... deleted=1 instead of DELETE, (3) /v3/groups/invite now checks assignRoles permission on requester role before allowing invites. 92 tests passing.
+
+3.0.3 || 09.08.2026
+feat(api): KB gap endpoints — read-by-id, groups/manages, groups/members/list, block-in-group, unblock-in-group, node stats. Service layer: read_document_by_id, get_groups_manages, resolve_media_urls, get_node_stats, provider_service_contracts CRUD. Schema: provider_service_contracts table added. Bug fix: get_groups_manages roles_json parsing (dict with "roles" key, not raw list). 91 tests passing (79 existing + 12 new service layer tests + endpoint tests for all new routes).
+
 3.0.2 || 09.08.2026
 chore(docker): ClickHouse service in docker-compose with named volume + v3 schema init. All 10 tables from knowledge/knowledge-base/web10-v3/db/clickhouse.md: documents, doc_groups, group_contracts, group_members, group_join_requests, group_hidden_docs, service_contracts, user_blacklist, group_blacklist, user_group_sharing. HTTP port 8123, native port 9002 (9000 reserved for MinIO). Init script at clickhouse-init/001-init-v3-schema.sql mounted read-only.
 

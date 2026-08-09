@@ -48,6 +48,14 @@ DEV_PAY_PCT = 98
 
 # S3-compatible object storage (media service)
 S3_ENDPOINT = os.getenv("S3_ENDPOINT", "http://minio:9000")
+
+# ClickHouse v3 OLAP store
+CLICKHOUSE_HOST = os.getenv("CLICKHOUSE_HOST", "clickhouse")
+CLICKHOUSE_PORT = int(os.getenv("CLICKHOUSE_PORT", "9000"))
+CLICKHOUSE_DATABASE = os.getenv("CLICKHOUSE_DATABASE", "web10")
+CLICKHOUSE_USER = os.getenv("CLICKHOUSE_USER", "web10")
+CLICKHOUSE_PASSWORD = os.getenv("CLICKHOUSE_PASSWORD", "web10")
+CLICKHOUSE_SECURE = os.getenv("CLICKHOUSE_SECURE", "false").lower() == "true"
 # Presigned URLs are handed to the BROWSER, so they must embed a host the
 # browser can reach over the page's scheme (HTTPS in prod). S3_ENDPOINT is the
 # INTERNAL address the API container uses to talk to MinIO (e.g.
