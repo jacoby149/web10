@@ -286,13 +286,16 @@ async def invite_member(group_id: str, token: Token, invite: InviteMember):
         raise exceptions.CRUD
 
     ch.create_join_request(group_id, invite.member_key, "invited")
-    return {"group_id": group_id, "requester_key": invite.member_key, "status": "invited"}
+    return {"group_id": group_id, "invited_key": invite.member_key, "status": "invited"}
 
 
 @router.post("/groups/{group_id}/accept-invite")
 async def accept_invite(group_id: str, token: Token):
     """Accept a group invite."""
     user = _user(token)
+    request = ch.get_pending_requests(group_id)
+    if not any(r["requester_key"] == user for r in request):
+        raise exceptions.CRUD
     ch.resolve_join_request(group_id, user, "approved")
     ch.add_group_member(group_id, user, "member")
     return {"group_id": group_id, "role": "member"}
