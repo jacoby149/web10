@@ -1,69 +1,69 @@
 # web10 Protocol Specification
 
-**Version:** 1.0.0-draft
+**Version:** 3.0.0-draft
 **Status:** Draft — under active development
 
 ## 1. Overview
 
-web10 is a protocol for **user-owned data** on the internet. Each user gets a
-dedicated database collection; records are `{service, body}` documents. Apps are
-stateless frontends that hold a **scoped, expiring token** and talk to a user's
-collection over a tiny CRUD API. The data outlives any app.
+web10 is a protocol for **user-owned data** on the internet. Each user's data lives in a single data lake — one table for everything structured. Apps are stateless frontends that hold a **scoped, expiring token** and talk to the user's data over a tiny CRUD API. The data outlives any app.
 
 ### 1.1 Design Principles
 
 - **Data ownership:** Users own their data. Apps are lenses, not platforms.
 - **Statelessness:** Apps hold nothing but a scoped, expiring token.
-- **Least privilege:** Every actor (app, agent, LLM) acts under a token with
-  minimal scope.
-- **Portability:** Data, algorithm, and identity move with the user across nodes.
-- **Open protocol:** Self-hostable nodes; the reference implementation is one
-  valid node, not the only one.
+- **User-level IAM:** For the first time, a user has AWS-grade control over their data — per-app, per-service, per-operation permissions.
+- **Groups as the primitive:** Follows, discovery, sharing, DMs — all the same group mechanism.
+- **Portability:** Data, identity, and audience move with the user across nodes.
+- **Open protocol:** Self-hostable nodes; the reference implementation is one valid node, not the only one.
 
 ## 2. Data Model
 
-### 2.1 User Collections
+### 2.1 The Documents Table
 
-Each user gets one MongoDB collection named by their username. Every document
-follows the envelope pattern:
+Everything structured lives in one table. Posts, reactions, comments, notes, mail — all documents. The `collection_name` column is the service label. The `body` column is a JSON blob — schemaless, app-defined.
 
-```json
-{
-  "_id": "<ObjectId>",
-  "service": "<service-name>",
-  "body": {
-    "<user-defined fields>": "..."
-  }
-}
+```
+documents:
+  doc_id          — unique identifier
+  author_key      — who created it (username)
+  collection_name — service label ('posts', 'reactions', 'comments', ...)
+  body            — JSON content (typed at the leaf level)
+  tags            — array of strings (fast filtering)
+  ref_value       — reference to another document
+  created_at      — timestamp
+  updated_at      — timestamp (used for versioning)
 ```
 
-- `service` identifies the logical service (e.g. `posts`, `inbox`, `services`).
-- `body` contains the user's data. The API transforms between the wire format
-  (body-only) and the storage format (envelope) via `to_gui`/`to_db`.
+### 2.2 Document-to-Group Mapping
 
-### 2.2 The Services Collection
+Documents are attached to groups through a separate mapping table:
 
-The `services` service holds ACL (terms) records and the account record:
+```
+doc_groups:
+  doc_id    — the document
+  group_id  — the group it's attached to
+```
 
-- **Star record** (`service: "*"`) — holds account data: username, password hash,
-  phone, Stripe IDs, credit/space limits. Protected from CRUD modification.
-- **Terms records** (`service: "<name>"`) — hold `whitelist` and `blacklist`
-  arrays controlling who can perform CRUD actions on a service.
-- **Services-terms record** (`service: "services"`) — controls who can modify
-  other services' terms.
+A document with no group attachments is private — only the author sees it. Attaching to a group makes it discoverable by group members.
 
-### 2.3 Field Prefixing (Security Boundary)
+### 2.3 The Ref Pattern
 
-Queries and updates prefix user-controlled field names with `body.` so that
-user input can never target the protected `service` field:
+Documents reference each other through the `ref` type in the JSON body. This is how reactions, comments, and replies work — no dedicated tables:
 
-- `q_t(query, service)` — transforms a user query: adds `service` filter,
-  prefixes field names with `body.`
-- `u_t(update)` — transforms a user update: prefixes field names with `body.`
-- `_id` is intentionally exempt: it passes through unprefixed so records can
-  be addressed by id (update/delete convert `query._id` to an ObjectId).
-- `$`-prefixed fields in queries are reserved for pagination (`$skip`, `$sort`,
-  `$limit`) and are stripped from field-name matching.
+```json
+// A reaction to a post
+{
+  "ref": { "type": "ref", "value": "post-123" },
+  "reaction_type": { "type": "text", "value": "like" }
+}
+
+// A comment on a post
+{
+  "ref": { "type": "ref", "value": "post-123" },
+  "parent_ref": { "type": "ref", "value": "comment-abc" },
+  "text": { "type": "text", "value": "great post!" }
+}
+```
 
 ## 3. Authentication
 
@@ -73,246 +73,211 @@ Tokens are JWTs with the following payload:
 
 ```json
 {
-  "username": "<username>",
-  "site": "<origin-domain>",
-  "target": "<target-provider>",
-  "provider": "<issuing-provider>",
-  "expires": "<ISO-8601-timestamp>"
+  "username": "alice",
+  "provider": "api.web10.app",
+  "site": "music.web10.com",
+  "target": "api.web10.app",
+  "expires": "2026-12-01T00:00:00.000Z",
+  "type": "tiered"
 }
 ```
 
-| Claim      | Description                                                        |
-|------------|--------------------------------------------------------------------|
-| `username` | The user this token represents                                     |
-| `site`     | The origin domain of the requesting app                            |
-| `target`   | The provider the token is addressed to                             |
-| `provider` | The provider that issued (signed) this token                       |
-| `expires`  | ISO-8601 timestamp after which the token is invalid                |
+| Claim | Meaning |
+|---|---|
+| `username` | The user's web10 username |
+| `provider` | The node that minted the token |
+| `site` | The app hostname the token is scoped to |
+| `target` | Target provider (for cross-node tokens) |
+| `expires` | ISO-8601 expiry |
+| `type` | Token type hint |
 
-**Default algorithm:** HS256 (symmetric). Migration to RS256/EdDSA with JWKS
-is planned for federation support (see §3.5).
+### 3.2 Auth Flow
 
-### 3.2 Token Minting
-
-`POST /web10token` — creates a new scoped token. Two flows:
-
-1. **Password flow:** Submit `username`, `password`, `site`, `target`. The
-   server authenticates the user and issues a token. The `site` must be in
-   `CORS_SERVICE_MANAGERS`.
-
-2. **Token-to-token flow:** Submit an existing certified token plus desired
-   `username`, `site`, `target`. The server verifies the submission token and
-   checks `can_mint` rules:
-   - `username` must match the submission token's username
-   - the submission token's `site` must be in `CORS_SERVICE_MANAGERS`, or the
-     requested `site` must equal the submission token's site
-   - `provider` must match (same-provider minting)
-
-The minted token inherits the provider, gets a new expiry
-(`TOKEN_EXPIRE_MINUTES`), and carries the requested scope.
+1. App opens the authenticator popup (`auth.web10.app`)
+2. User enters credentials
+3. Server verifies and mints a scoped JWT
+4. Popup posts the token back to the app via `postMessage`
+5. App stores the token in a cookie
+6. Every subsequent API call carries the token
 
 ### 3.3 Token Certification
 
-`POST /certify` — verifies a token is valid, non-expired, and issued by this
-provider. Checks:
+Every API request certifies the token before touching data:
+- Token is signed and valid
+- `provider` matches this node
+- `username` is present
+- `expires` is in the future
 
-1. Token is signed with the node's `PRIVATE_KEY`
-2. `provider` matches `settings.PROVIDER`
-3. `username` is present
-4. `expires` is in the future (unless `username` is `"anon"`)
+## 4. Permissions — Two Contracts
 
-A `null` token body creates an anonymous token:
-`{username: "anon", provider: PROVIDER, target: PROVIDER}`.
+Two contract types. They control completely different concerns.
 
-### 3.4 Authorization (is_permitted)
+### 4.1 App Contracts — Infrastructure Trust
 
-Before any CRUD operation, `is_permitted(token, username, service, action)` checks:
+"What can this app do with my data?" One contract per app. Per-service, per-operation permissions. CORS. Browser-enforced.
 
-1. **Certification:** Token certifies with its provider (local or remote).
-2. **Target:** Token's `target` matches this provider (or is `null` for
-   owner-to-self access).
-3. **Cross-origin:** Token's `username` is `"anon"`, or its `site` is in
-   `CORS_SERVICE_MANAGERS` or listed in the service's `cross_origins`.
-4. **Terms:** The service's terms record grants the requested action for the
-   token's `(username, provider)` via whitelist/blacklist matching.
-
-Whitelist/blacklist entries support regex matching on `username` and `provider`
-fields. Actions: `create`, `read`, `update`, `delete`, or `all`.
-
-### 3.5 Federation (Planned)
-
-**Current state:** Remote providers are verified by calling their `/certify`
-endpoint over HTTP. This is a known vulnerability (SSRF + spoofing).
-
-**Target state:** Asymmetric signing (RS256/EdDSA). Each provider publishes a
-public key at a well-known JWKS URL. Any provider verifies any token offline.
-Migration plan: dual-verify (HS256 + RS256), then drop HS256.
-
-## 4. CRUD API
-
-All CRUD endpoints take the target user and service as path parameters and the
-token as JSON body.
-
-### 4.1 Create
-
-```
-POST /{user}/{service}
-Body: { token, query: { <record-data> } }
+```json
+{
+  "allowed_origin": "music.web10.com",
+  "permissions": {
+    "posts": ["readAll", "create"],
+    "playlists": ["readAll", "create", "updateOwn", "deleteOwn"],
+    "comments": ["readAll"]
+  }
+}
 ```
 
-Creates a record in `user`'s collection. `query` becomes the record's `body`.
-Returns the created record with `_id`.
+**The paradigm:** services are infinite (`posts`, `playlists`, `notes` — any app can invent new ones). Apps are the constraint. One contract per app. The user approves or denies in the authenticator.
 
-**Protection:** Cannot create a record with `service: "*"` (star duplication).
+**Kill switch:** revoke all app contracts → no website touches your data. Ever.
 
-### 4.2 Read
+### 4.2 Group Contracts — People Access
 
-```
-PATCH /{user}/{service}
-Body: { token, query: { <filter>, $skip?, $sort?, $limit? } }
-```
+"Who can see my content?" Groups hold people and roles. Content is attached to groups. Members discover it based on their role.
 
-Returns matching records (body-only, `_id` as string). PATCH is used instead of
-GET because GET requests cannot carry a secure body.
-
-**Pagination:**
-- `$skip` — number of records to skip
-- `$sort` — sort specification (e.g. `{created_at: -1}`)
-- `$limit` — max records to return (0 = unlimited)
-
-### 4.3 Update
-
-```
-PUT /{user}/{service}
-Body: { token, query: { <filter> }, update: { $set: {...}, $inc: {...}, ... } }
+```json
+{
+  "group_id": "web10.app/groups/alice/followers",
+  "join_policy": "open",
+  "roles": [
+    { "name": "owner", "services": ["*"], "permissions": ["readAll", "create", "updateOwn", "deleteOwn", "manageRoles", "assignRoles", "revokeRoles", "deleteGroup"] },
+    { "name": "member", "services": ["posts"], "permissions": ["readAll"] }
+  ]
+}
 ```
 
-Updates matching records. Returns `{matchedCount, modifiedCount}`.
+### 4.3 The Decision Chain
 
-**Protection:** Cannot update the star record (`service: "*"`) via CRUD.
-
-**Supported operators:** `$set`, `$inc`, `$max`, `$currentDate`, `$unset`.
-
-**Array pull:** include a top-level `"PULL": true` key in the update object;
-`$unset` fields ending in a numeric array index are then re-applied as a
-`$pull`, removing the element instead of leaving it `null`.
-
-### 4.4 Delete
+For any operation, both contracts must pass:
 
 ```
-DELETE /{user}/{service}
-Body: { token, query: { <filter> } }
+1. App contract: origin allowed for this service + operation? → yes/no
+2. Group contract: requester a member with the right role? → yes/no
+Both must pass.
 ```
 
-Deletes matching records. Returns confirmation.
+The app contract is the outer wall. The group contract is the inner permission.
 
-**Protection:** Cannot delete the star record via CRUD.
+### 4.4 Permission Levels
 
-## 5. Star Record Protection
+| Permission | What it does |
+|---|---|
+| `readAll` | Read any content in the service |
+| `create` | Create new content |
+| `updateOwn` | Edit your own content |
+| `deleteOwn` | Delete your own content |
+| `hideAll` | Hide content from group discover (moderation) |
+| `manageRoles` | Manage role definitions |
+| `assignRoles` | Add or promote members |
+| `revokeRoles` | Remove or demote members |
+| `deleteGroup` | Delete the group |
 
-The star record (`service: "*"`) is the account record. It is protected from
-CRUD operations by two mechanisms:
+## 5. CRUD API
 
-1. **`star_found()`** — blocks creating records with `service: "*"`
-2. **`star_selected()`** — blocks updating/deleting records when the query
-   matches the star record
+All CRUD operations use a unified `POST /v3/<action>` pattern with a JSON body carrying the token and parameters.
 
-These checks are enforced in `mongo.py` and cannot be bypassed by terms records.
-
-## 6. Metering
-
-Each CRUD operation increments `credits_spent` on the star record:
-
-| Action    | Cost (credits)              |
-|-----------|-----------------------------|
-| create    | 0.000025                    |
-| update    | 0.000025                    |
-| read      | 0.000005                    |
-| delete    | 0.000002                    |
-| aggregate | 0.000005 per pipeline stage |
-
-**Exemption:** read and delete on the `services` service are not charged and
-skip the credit/space check. Create and update on `services` are metered
-normally.
-
-Credits are replenished monthly (`last_replenish` month check). Free tier gets
-`FREE_CREDITS` (0.10) and `FREE_SPACE` (8 MB).
-
-## 7. Error Responses
-
-All errors return HTTP 401 with a `detail` message (except aggregate
-pipeline validation, which returns HTTP 400). Error codes:
-
-| Detail                                      | Meaning                              |
-|---------------------------------------------|--------------------------------------|
-| `incorrect username or password`            | Login failure                        |
-| `incorrect token`                           | Token certification failed           |
-| `crud access denied`                        | Terms check failed                   |
-| `submitted token can't mint desired token`  | Mint rules violated                  |
-| `can't modify the star service`             | Star protection (update/delete)      |
-| `can't duplicate the star service`          | Star protection (create)             |
-| `the user doesn't exist`                    | No star record found                 |
-| `the user already exists`                   | Duplicate signup                     |
-| `ran out of credits`                        | Credit limit exceeded                |
-| `ran out of space`                          | Space limit exceeded                 |
-| `please verify your phone number to do that.`| Phone verification required         |
-
-## 8. Security Invariants
-
-These invariants must hold for every node implementation:
-
-- **I1.** A provider can cryptographically verify who issued any token,
-  including other providers' tokens, without trusting the token's own claims.
-- **I2.** Authorization decisions use only verified token data — never an
-  unsigned decode.
-- **I3.** A request can only touch the addressed user's collection. Cross-
-  collection access is impossible by construction.
-- **I4.** Private content is unreadable by the node operator (e2e encryption).
-- **I5.** Every actor (app, agent, LLM) acts under a scoped, expiring,
-  revocable token — least privilege, always.
-
-## 9. Aggregate — the 5th verb
-
-A read-only verb enabling server-side data aggregation with (nearly) the
-full MongoDB query language:
+### 5.1 Create
 
 ```
-POST /{user}/{service}/aggregate
-Body: { token, pipeline: [ { <stage> }, ... ] }
+POST /v3/create
+Body: { token, collection, body, groups? }
 ```
 
-(POST rather than GET for the same reason read uses PATCH: GET requests
-cannot carry a secure body.)
+Creates a document in the specified collection. Optionally attaches to groups. Returns the created document.
 
-**Permission:** terms treat aggregate as a `read` action.
+### 5.2 Read
 
-**Sandbox (by structure, not rewriting):** the server prepends
-`$match {service, body.service ≠ "*"}` → `$addFields body._id` (stringified)
-→ `$replaceRoot` to `body`. The dev's pipeline runs on scoped, body-only
-documents shaped exactly like read() results. The wrapper `service` field and
-the star record are unreachable — scoping cannot be escaped by any stage.
+```
+POST /v3/read
+Body: { token, collection, groups, limit?, offset? }
+```
 
-**Stage allowlist:** `$match`, `$project`, `$group`, `$sort`, `$skip`,
-`$limit`, `$unwind`, `$addFields`, `$set`, `$count`, `$facet`, `$bucket`,
-`$bucketAuto`, `$sample`, `$sortByCount`, plus the full comparison/logical/
-array operator language inside them. Any other stage is rejected.
+Returns documents attached to the specified groups where the user is a member. The `groups` parameter is required — `["me"]` returns the user's own documents.
 
-**Operator denylist (rejected at any nesting depth, including `$facet`
-sub-pipelines and `$group` accumulators):** `$where`, `$function`,
-`$accumulator` (JS execution), `$lookup`, `$graphLookup`, `$unionWith`
-(cross-collection read), `$out`, `$merge` (cross-collection write).
+### 5.3 Update
 
-**Resource caps:** `maxTimeMS` (2000 ms), pipeline length (20 stages,
-`$facet` sub-pipelines counted independently), `$limit`/result ceiling
-(1000 docs), `allowDiskUse: false`.
+```
+POST /v3/update
+Body: { token, doc_id, body, groups? }
+```
 
-**Metering:** charged per pipeline stage — `0.000005` credits × stage count
-(minimum 1) — into the same `credits_spent` ledger as CRUD, gated by the same
-credit/space check.
+Updates a document's body and/or group attachments.
 
-**Errors:** invalid pipelines return HTTP 400 —
-`aggregation pipeline uses a stage or operator that isn't allowed` or
-`aggregation pipeline exceeds a resource cap`. Validation happens before the
-database is touched.
+### 5.4 Delete
 
-**SDK:** `wapi.aggregate(service, pipeline, username?, provider?, protocol?)`.
+```
+POST /v3/delete
+Body: { token, doc_id }
+```
+
+Tombstones the document. It disappears from all groups.
+
+## 6. Group Operations
+
+```
+POST /v3/groups/create    — create a group with roles and members
+POST /v3/groups/get       — get group details
+POST /v3/groups/list      — get groups you belong to
+POST /v3/groups/manages   — get groups you manage
+POST /v3/groups/update    — update group settings
+POST /v3/groups/join      — join (open) or request join (request/invite)
+POST /v3/groups/leave     — leave a group
+POST /v3/groups/invite    — invite a member
+POST /v3/groups/accept-invite
+POST /v3/groups/decline-invite
+POST /v3/groups/members/list
+POST /v3/groups/members/add
+POST /v3/groups/members/remove
+```
+
+## 7. App Contract Operations
+
+```
+POST /v3/app-contracts/add     — add an app contract
+POST /v3/app-contracts/list    — list active contracts
+POST /v3/app-contracts/revoke  — revoke a contract
+```
+
+## 8. Blocking
+
+```
+POST /v3/block          — block a user entirely
+POST /v3/unblock        — unblock a user
+POST /v3/block-in-group — block a user from your content in one group
+POST /v3/unblock-in-group
+```
+
+## 9. Media
+
+```
+POST /v3/media/upload    — upload media (presigned URL flow)
+POST /v3/media/list      — list media
+POST /v3/media/delete    — delete media
+```
+
+## 10. Security Invariants
+
+- **I1.** A provider can cryptographically verify who issued any token.
+- **I2.** Authorization decisions use only verified token data.
+- **I3.** A request can only touch the addressed user's data.
+- **I4.** Private content is unreadable by the node operator (e2e encryption, planned).
+- **I5.** Every actor acts under a scoped, expiring, revocable token.
+
+## 11. What Changed from v2
+
+| v2 | v3 |
+|---|---|
+| MongoDB, one collection per user | ClickHouse, one table for everything |
+| Terms records (whitelist/blacklist) | App contracts + group contracts |
+| `/discover` endpoint | Group membership query |
+| `/public` endpoint | Gone (groups handle it) |
+| Discovery index table | Gone (documents table is the index) |
+| Public ledger | Gone (refs in documents) |
+| Schema registry | Gone (document typing convention) |
+| Inbox fan-out | Gone (group reads) |
+| Follows service | Gone (follows are groups) |
+| Contacts service | Gone (groups) |
+| Per-service contracts | Per-app contracts |
+| HS256 tokens | RS256/EdDSA (planned) |
+| Metering credits | Planned (v4) |
+| Aggregate sandbox | ClickHouse SQL (v4) |
