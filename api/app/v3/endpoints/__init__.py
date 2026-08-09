@@ -336,6 +336,85 @@ async def leave_group(data: Token):
     return {"group_id": data.group_id, "member_key": user, "status": "left"}
 
 
+@router.post("/groups/requests/join/list")
+async def list_join_requests(data: Token):
+    """List pending join/invite requests for a group (owner/moderator only)."""
+    user = _user(data)
+    if not data.group_id:
+        raise exceptions.CRUD
+    # Must be a member with assignRoles permission
+    member = ch.get_group_member(data.group_id, user)
+    if not member:
+        raise exceptions.CRUD
+    existing = ch.get_group(data.group_id)
+    if not existing:
+        raise exceptions.ENTRY_NOT_FOUND
+    role_def = None
+    for rd in existing["roles"]:
+        if rd["name"] == member["role"]:
+            role_def = rd
+            break
+    if not role_def or "assignRoles" not in role_def.get("permissions", []):
+        raise exceptions.CRUD
+    return ch.get_pending_requests(data.group_id)
+
+
+@router.post("/groups/requests/join/approve")
+async def approve_join_request(data: Token):
+    """Approve a pending join or invite request (owner/moderator only)."""
+    user = _user(data)
+    if not data.group_id or not data.requester_key:
+        raise exceptions.CRUD
+    # Must be a member with assignRoles permission
+    member = ch.get_group_member(data.group_id, user)
+    if not member:
+        raise exceptions.CRUD
+    existing = ch.get_group(data.group_id)
+    if not existing:
+        raise exceptions.ENTRY_NOT_FOUND
+    role_def = None
+    for rd in existing["roles"]:
+        if rd["name"] == member["role"]:
+            role_def = rd
+            break
+    if not role_def or "assignRoles" not in role_def.get("permissions", []):
+        raise exceptions.CRUD
+    # Check that the request exists
+    if not ch.has_pending_or_invited_request(data.group_id, data.requester_key):
+        raise exceptions.CRUD
+    # Approve: resolve the request and add as member
+    ch.resolve_join_request(data.group_id, data.requester_key, "approved")
+    ch.add_group_member(data.group_id, data.requester_key, "member")
+    return {"group_id": data.group_id, "requester_key": data.requester_key, "status": "approved"}
+
+
+@router.post("/groups/requests/join/deny")
+async def deny_join_request(data: Token):
+    """Deny a pending join or invite request (owner/moderator only)."""
+    user = _user(data)
+    if not data.group_id or not data.requester_key:
+        raise exceptions.CRUD
+    # Must be a member with assignRoles permission
+    member = ch.get_group_member(data.group_id, user)
+    if not member:
+        raise exceptions.CRUD
+    existing = ch.get_group(data.group_id)
+    if not existing:
+        raise exceptions.ENTRY_NOT_FOUND
+    role_def = None
+    for rd in existing["roles"]:
+        if rd["name"] == member["role"]:
+            role_def = rd
+            break
+    if not role_def or "assignRoles" not in role_def.get("permissions", []):
+        raise exceptions.CRUD
+    # Check that the request exists
+    if not ch.has_pending_or_invited_request(data.group_id, data.requester_key):
+        raise exceptions.CRUD
+    ch.resolve_join_request(data.group_id, data.requester_key, "denied")
+    return {"group_id": data.group_id, "requester_key": data.requester_key, "status": "denied"}
+
+
 # ---------------------------------------------------------------------------
 # Service contracts (simplified v3)
 # ---------------------------------------------------------------------------

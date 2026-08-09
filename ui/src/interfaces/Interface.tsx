@@ -98,6 +98,10 @@ function useInterface() {
     [I.v3Contracts, I.setV3Contracts] = React.useState<any[]>([]);
     // v3 groups the user belongs to
     [I.v3Groups, I.setV3Groups] = React.useState<any[]>([]);
+    // v3 groups the user manages (has management permissions)
+    [I.v3ManagedGroups, I.setV3ManagedGroups] = React.useState<any[]>([]);
+    // v3 pending invites (groups that invited this user)
+    [I.v3Invites, I.setV3Invites] = React.useState<any[]>([]);
 
     I.wapi = adapter.wapi;
     I.wapiAuth = adapter.wapiAuth;
@@ -117,6 +121,7 @@ function useInterface() {
         // the MongoDB services load and don't block it.
         I.v3ContractsLoad();
         I.v3GroupsLoad();
+        I.v3GroupsManagesLoad();
 
         I.wapi
             .read("services")
@@ -250,6 +255,8 @@ function useInterface() {
         I.setSMR({ scrs: [], sirs: [] });
         I.setV3Contracts([]);
         I.setV3Groups([]);
+        I.setV3ManagedGroups([]);
+        I.setV3Invites([]);
         I.setMode("login");
     }
 
@@ -343,8 +350,23 @@ function useInterface() {
 
     // Load groups where the user has management permissions.
     I.v3GroupsManagesLoad = function () {
-        if (!I.auth) return [];
-        return v3Post('groups/manages', {}).catch(() => []);
+        if (!I.auth) {
+            I.setV3ManagedGroups([]);
+            return;
+        }
+        v3Post('groups/manages', {})
+            .then((groups: any[]) => {
+                I.setV3ManagedGroups(groups || []);
+            })
+            .catch((e) => {
+                console.warn('v3 groups/manages failed:', e);
+                I.setV3ManagedGroups([]);
+            });
+    }
+
+    // Create a new group.
+    I.v3CreateGroup = function (name: string, joinPolicy: string, roles: Record<string, unknown>[], members: { member_key: string; role?: string }[]) {
+        return v3Post('groups/create', { name, join_policy: joinPolicy, roles, members });
     }
 
     // Join a v3 group (open or request policy).
@@ -365,6 +387,64 @@ function useInterface() {
     // Unblock a user in a v3 group.
     I.v3UnblockUserInGroup = function (blockedKey: string, groupId: string) {
         return v3Post('unblock-in-group', { blocked_key: blockedKey, group_id: groupId });
+    }
+
+    // Get detailed info for a single group.
+    I.v3GetGroup = function (groupId: string) {
+        return v3Post('groups/get', { group_id: groupId });
+    }
+
+    // Get all members of a group.
+    I.v3GetGroupMembers = function (groupId: string) {
+        return v3Post('groups/members/list', { group_id: groupId });
+    }
+
+    // Add a member to a group with a specific role.
+    I.v3AddGroupMember = function (groupId: string, memberKey: string, role: string) {
+        return v3Post('groups/members/add', { group_id: groupId, member_key: memberKey, role });
+    }
+
+    // Remove a member from a group.
+    I.v3RemoveGroupMember = function (groupId: string, memberKey: string) {
+        return v3Post('groups/members/remove', { group_id: groupId, member_key: memberKey });
+    }
+
+    // Invite a user to a group (they receive an invite with the offered role).
+    I.v3InviteMember = function (groupId: string, memberKey: string, role: string) {
+        return v3Post('groups/invite', { group_id: groupId, member_key: memberKey, role });
+    }
+
+    // Accept an invite to a group.
+    I.v3AcceptInvite = function (groupId: string) {
+        return v3Post('groups/accept-invite', { group_id: groupId });
+    }
+
+    // Decline an invite to a group.
+    I.v3DeclineInvite = function (groupId: string) {
+        return v3Post('groups/decline-invite', { group_id: groupId });
+    }
+
+    // Update group settings (join policy, roles).
+    I.v3UpdateGroup = function (groupId: string, opts?: { join_policy?: string; roles?: Record<string, unknown>[] }) {
+        const payload: Record<string, any> = { group_id: groupId };
+        if (opts?.join_policy) payload.join_policy = opts.join_policy;
+        if (opts?.roles) payload.roles = opts.roles;
+        return v3Post('groups/update', payload);
+    }
+
+    // Toggle sharing for a group (pause sharing without leaving).
+    I.v3SetSharing = function (groupId: string, enabled: boolean) {
+        return v3Post('sharing/set', { group_id: groupId, enabled });
+    }
+
+    // Block a user entirely (user-wide blacklist).
+    I.v3BlockUser = function (blockedKey: string) {
+        return v3Post('block', { blocked_key: blockedKey });
+    }
+
+    // Unblock a user (user-wide).
+    I.v3UnblockUser = function (blockedKey: string) {
+        return v3Post('unblock', { blocked_key: blockedKey });
     }
 
     I.changeTerms = function (service: any) {

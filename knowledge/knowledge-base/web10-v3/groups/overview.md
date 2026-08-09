@@ -276,6 +276,8 @@ jazz-collectors → [Block sharing]
 
 **Turn off all service contracts** — no website touches your data. Ever. Kill switch.
 
+**Group requests from apps** — apps cannot directly create or modify your groups. They must request it, and you approve through the authenticator. See `requests.md` for the full consent model.
+
 ## Scale
 
 No mailing list limits. A group can have 100k members. ClickHouse filters it in milliseconds. One insert serves everyone. No fan-out.

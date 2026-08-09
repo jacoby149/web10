@@ -276,6 +276,145 @@ class TestLeaveGroup:
         assert resp.json()["status"] == "left"
 
 
+class TestJoinRequests:
+    """Join request approval/denial endpoints (owner/moderator only)."""
+
+    def test_list_join_requests(self, client, token):
+        mock_member = [("testuser", "admin", datetime(2026, 1, 1))]
+        mock_group = [
+            (
+                "g1",
+                '[{"name":"admin","permissions":["assignRoles"]}]',
+                "open",
+                datetime(2026, 1, 1),
+                datetime(2026, 1, 1),
+            )
+        ]
+        mock_requests = [("bob", "pending", datetime(2026, 1, 1))]
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.side_effect = [
+                MagicMock(result_rows=lambda: mock_member),
+                MagicMock(result_rows=lambda: mock_group),
+                MagicMock(result_rows=lambda: mock_requests),
+            ]
+            resp = client.post("/v3/groups/requests/join/list", json={"token": token, "group_id": "g1"})
+        assert resp.status_code == 200
+        assert resp.json()[0]["requester_key"] == "bob"
+
+    def test_list_join_requests_no_permission(self, client, token):
+        mock_member = [("testuser", "member", datetime(2026, 1, 1))]
+        mock_group = [
+            (
+                "g1",
+                '[{"name":"member","permissions":["readAll"]}]',
+                "open",
+                datetime(2026, 1, 1),
+                datetime(2026, 1, 1),
+            )
+        ]
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.side_effect = [
+                MagicMock(result_rows=lambda: mock_member),
+                MagicMock(result_rows=lambda: mock_group),
+            ]
+            resp = client.post("/v3/groups/requests/join/list", json={"token": token, "group_id": "g1"})
+        assert resp.status_code == 401
+
+    def test_approve_join_request(self, client, token):
+        mock_member = [("testuser", "admin", datetime(2026, 1, 1))]
+        mock_group = [
+            (
+                "g1",
+                '[{"name":"admin","permissions":["assignRoles"]}]',
+                "open",
+                datetime(2026, 1, 1),
+                datetime(2026, 1, 1),
+            )
+        ]
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.side_effect = [
+                MagicMock(result_rows=lambda: mock_member),
+                MagicMock(result_rows=lambda: mock_group),
+            ]
+            with patch("app.v3.services.clickhouse.has_pending_or_invited_request", return_value=True):
+                resp = client.post(
+                    "/v3/groups/requests/join/approve",
+                    json={"token": token, "group_id": "g1", "requester_key": "bob"},
+                )
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "approved"
+
+    def test_approve_no_request(self, client, token):
+        mock_member = [("testuser", "admin", datetime(2026, 1, 1))]
+        mock_group = [
+            (
+                "g1",
+                '[{"name":"admin","permissions":["assignRoles"]}]',
+                "open",
+                datetime(2026, 1, 1),
+                datetime(2026, 1, 1),
+            )
+        ]
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.side_effect = [
+                MagicMock(result_rows=lambda: mock_member),
+                MagicMock(result_rows=lambda: mock_group),
+            ]
+            with patch("app.v3.services.clickhouse.has_pending_or_invited_request", return_value=False):
+                resp = client.post(
+                    "/v3/groups/requests/join/approve",
+                    json={"token": token, "group_id": "g1", "requester_key": "bob"},
+                )
+        assert resp.status_code == 401
+
+    def test_deny_join_request(self, client, token):
+        mock_member = [("testuser", "admin", datetime(2026, 1, 1))]
+        mock_group = [
+            (
+                "g1",
+                '[{"name":"admin","permissions":["assignRoles"]}]',
+                "open",
+                datetime(2026, 1, 1),
+                datetime(2026, 1, 1),
+            )
+        ]
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.side_effect = [
+                MagicMock(result_rows=lambda: mock_member),
+                MagicMock(result_rows=lambda: mock_group),
+            ]
+            with patch("app.v3.services.clickhouse.has_pending_or_invited_request", return_value=True):
+                resp = client.post(
+                    "/v3/groups/requests/join/deny",
+                    json={"token": token, "group_id": "g1", "requester_key": "bob"},
+                )
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "denied"
+
+    def test_deny_no_request(self, client, token):
+        mock_member = [("testuser", "admin", datetime(2026, 1, 1))]
+        mock_group = [
+            (
+                "g1",
+                '[{"name":"admin","permissions":["assignRoles"]}]',
+                "open",
+                datetime(2026, 1, 1),
+                datetime(2026, 1, 1),
+            )
+        ]
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.side_effect = [
+                MagicMock(result_rows=lambda: mock_member),
+                MagicMock(result_rows=lambda: mock_group),
+            ]
+            with patch("app.v3.services.clickhouse.has_pending_or_invited_request", return_value=False):
+                resp = client.post(
+                    "/v3/groups/requests/join/deny",
+                    json={"token": token, "group_id": "g1", "requester_key": "bob"},
+                )
+        assert resp.status_code == 401
+
+
 class TestInviteMember:
     def test_invite(self, client, token):
         mock_member = [("testuser", "admin", datetime(2026, 1, 1))]

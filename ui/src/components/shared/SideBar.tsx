@@ -10,6 +10,7 @@ import {
   Sparkles,
   KeyRound,
   ExternalLink,
+  Users,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -24,6 +25,7 @@ interface SideBarProps {
 // keep the two in sync (design.md §9: desktop sidebar, mobile bottom tabs).
 export const NAV_ITEMS: { mode: string; label: string; icon: LucideIcon; adminOnly?: boolean }[] = [
   { mode: 'contracts', label: 'Contracts', icon: FileText },
+  { mode: 'groups', label: 'Groups', icon: Users },
   { mode: 'requests', label: 'Requests', icon: Inbox },
   { mode: 'studio', label: 'Studio', icon: LineChart },
   { mode: 'config', label: 'Node Config', icon: SlidersHorizontal, adminOnly: true },

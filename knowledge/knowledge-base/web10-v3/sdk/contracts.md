@@ -1,9 +1,10 @@
 # Contract Schemas
 
-Two concerns. Two contracts.
+Three concerns. Three contracts.
 
 1.  **Service Contracts (App Trust):** "Do we want to spin up these data buckets for this app?" Binary infrastructure toggle.
 2.  **Group Contracts (People Access):** "Who do we want this data to reach?" Granular social policy with service-scoped roles.
+3.  **Group Requests (App Consent):** "Do we want this app to create or modify our groups?" User-mediated consent for group operations.
 
 ## Service Contracts
 
@@ -229,3 +230,25 @@ All contract tables follow the same patterns:
 - Multiple roles per user in the same group
 - Open join policy = instant membership, no request queue
 - Request join policy = pending request, owner approves or denies
+
+## Group Requests
+
+Apps cannot directly create or modify groups. They must request the operation through `group_requests`, and the user approves through the authenticator UI. This is the consent layer for group operations — the same pattern as SMR/SIR for service contracts.
+
+```sql
+CREATE TABLE group_requests (
+    request_id String,          -- unique ID
+    user_key String,            -- whose groups are affected
+    app_origin String,          -- requesting app (CORS origin)
+    action String,              -- 'create_group', 'update_group', 'add_member', 'remove_member', 'invite_member', 'delete_group'
+    params String,              -- JSON: operation parameters
+    status String,              -- 'pending', 'approved', 'denied'
+    requested_at DateTime64(3),
+    resolved_at DateTime64(3),
+    updated_at DateTime64(3),
+    deleted UInt8 DEFAULT 0
+) ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY (user_key, request_id);
+```
+
+One request per operation. Granular consent. The user can approve some and deny others. See `../groups/requests.md` for the full model.

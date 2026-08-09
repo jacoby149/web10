@@ -356,6 +356,32 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       return v3Post<{ group_id: string; status: string }>('groups/decline-invite', { group_id: groupId })
     },
 
+    // ── Join request management (owner/moderator) ──────────────────────────
+
+    async getJoinRequests(groupId: string): Promise<V3GroupMember[]> {
+      return v3Post<V3GroupMember[]>('groups/requests/join/list', { group_id: groupId })
+    },
+
+    async approveJoinRequest(
+      groupId: string,
+      requesterKey: string,
+    ): Promise<{ group_id: string; requester_key: string; status: string }> {
+      return v3Post<{ group_id: string; requester_key: string; status: string }>('groups/requests/join/approve', {
+        group_id: groupId,
+        requester_key: requesterKey,
+      })
+    },
+
+    async denyJoinRequest(
+      groupId: string,
+      requesterKey: string,
+    ): Promise<{ group_id: string; requester_key: string; status: string }> {
+      return v3Post<{ group_id: string; requester_key: string; status: string }>('groups/requests/join/deny', {
+        group_id: groupId,
+        requester_key: requesterKey,
+      })
+    },
+
     // ── Blocking ──────────────────────────────────────────────────────────
 
     async blockUser(blockedKey: string): Promise<{ user_key: string; blocked_key: string }> {
@@ -495,6 +521,11 @@ export interface V3Client {
   inviteMember(groupId: string, memberKey: string, role: string): Promise<V3InviteResponse>
   acceptInvite(groupId: string): Promise<V3GroupMember>
   declineInvite(groupId: string): Promise<{ group_id: string; status: string }>
+
+  // Join request management (owner/moderator)
+  getJoinRequests(groupId: string): Promise<V3GroupMember[]>
+  approveJoinRequest(groupId: string, requesterKey: string): Promise<{ group_id: string; requester_key: string; status: string }>
+  denyJoinRequest(groupId: string, requesterKey: string): Promise<{ group_id: string; requester_key: string; status: string }>
 
   // Blocking
   blockUser(blockedKey: string): Promise<{ user_key: string; blocked_key: string }>

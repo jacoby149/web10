@@ -9,6 +9,7 @@ import SetupWizard from './components/SetupWizard/SetupWizard';
 import ConfigPage from './components/Config/ConfigPage';
 import StudioPage from './components/Studio/StudioPage';
 import ConsentView from './components/Consent/ConsentView';
+import GroupsPage from './components/Groups/GroupsPage';
 import { config } from './config';
 
 function StatusBar({ I }: { I: Record<string, any> }) {
@@ -122,6 +123,7 @@ function App() {
       {(() => {
         switch (effectiveMode) {
           case "contracts": return <ContractPage I={I} />;
+          case "groups": return <GroupsPage I={I} />;
           case "requests": return <RequestPage I={I} />;
           case "settings": return <Settings I={I} />;
           case "config": return <ConfigPage I={I} />;
