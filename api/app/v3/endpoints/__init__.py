@@ -3,7 +3,7 @@ from datetime import datetime
 from fastapi import APIRouter
 
 import app.exceptions as exceptions
-from app.models.v3 import (
+from app.v3.models import (
     AddMember,
     CreateDoc,
     CreateGroup,
@@ -14,7 +14,7 @@ from app.models.v3 import (
     UpdateDoc,
     UpdateGroup,
 )
-from app.services import clickhouse as ch
+from app.v3.services import clickhouse as ch
 from app.services.auth import decode_token
 
 router = APIRouter(prefix="/v3")

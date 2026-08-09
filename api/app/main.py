@@ -9,7 +9,8 @@ from fastapi.responses import JSONResponse
 
 import app.docs as docs
 import app.exceptions as exceptions
-from app.endpoints import auth, crud, discover, media, payments, public, schemas, system, v3
+from app.endpoints import auth, crud, discover, media, payments, public, schemas, system
+from app.v3 import endpoints as v3
 
 app = FastAPI(
     title="web10",
