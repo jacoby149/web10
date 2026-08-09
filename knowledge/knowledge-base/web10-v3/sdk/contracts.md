@@ -5,6 +5,21 @@ Two concerns. Two contracts. One model.
 1.  **App Contracts:** "What can this app do with my data?" Per-app, per-service permissions. Contract with the app.
 2.  **Group Contracts:** "Who can see my content?" Granular social policy with service-scoped roles. Contract with people.
 
+## The Paradigm: Infinite Services, Finite Apps
+
+Services are infinite. `posts`, `playlists`, `comments`, `notes`, `mail`, `reactions`, `bookmarks` — any app can invent new ones. They're just data labels. ClickHouse doesn't care. The `documents` table has a `collection_name` column. That's it. No schema migration. No approval process. No limit.
+
+Apps are the constraint. There are a handful of apps you actually use. `music.web10.com`, `social.web10.com`, `notes.web10.com`. Each one asks for access. You approve or deny.
+
+The old model (v2) treated services as scarce — each service needed a contract, a whitelist, a blacklist. That doesn't scale to an interoperable internet. The new model treats apps as the unit of trust. One contract per app. The app declares every service it touches. You decide once.
+
+```
+v2: 12 services × 3 apps = 36 contracts to manage
+v3: 3 apps × 1 contract each = 3 contracts to manage
+```
+
+Services are free. Apps are the gate.
+
 ## App Contracts
 
 App Trust (Infrastructure). One contract per app (origin). The contract declares every service the app needs and what it can do on each. No user-level whitelist/blacklist — that's what groups are for.

@@ -97,7 +97,9 @@ flowchart TD
 ```
 
 **App contract** — App Trust (Infrastructure). "What can this app do with my data?"
-One contract per app. Per-service permissions. CORS. Browser-enforced. No data permissions involved — just "can this app read/create posts?" If you turn it off, the app can't even talk to your node.
+One contract per app. Per-service permissions. CORS. Browser-enforced.
+
+Services are infinite — `posts`, `playlists`, `comments`, `notes`, anything an app invents. They're just data labels in the `collection_name` column. ClickHouse doesn't care. No schema migration. No limit. Apps are the constraint. You have three apps you use. Three contracts.
 
 ```
 music.web10.com → {

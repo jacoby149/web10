@@ -72,7 +72,9 @@ w.signOut()
 
 ## App Contracts
 
-One contract per app. Per-service permissions. The user approves or denies in the authenticator.
+Services are infinite. `posts`, `playlists`, `comments`, `notes`, `reactions` — any app can invent new ones. They're just data labels in the `collection_name` column. No schema migration. No limit. ClickHouse handles any number of services with its sieve of joins.
+
+Apps are the constraint. One contract per app. Per-service permissions. The user approves or denies in the authenticator.
 
 ```ts
 // App declares what it needs (one call, all services)
@@ -90,7 +92,7 @@ const contracts = await w.listAppContracts()
 await w.revokeAppContract('music.web10.com')
 ```
 
-This is infrastructure trust — "what can this app do with my data?" Per-service, per-operation. Groups control who sees data.
+This is infrastructure trust — "what can this app do with my data?" Per-service, per-operation. Groups control who sees data. The contract is with the app, not the service.
 
 ## CRUD With Groups
 

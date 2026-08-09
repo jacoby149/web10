@@ -249,6 +249,8 @@ AND (doc_id, group_id) NOT IN (
 
 App Trust. One contract per app. Per-service permissions. CORS. Browser-enforced.
 
+Services are infinite — any string in `collection_name` is a valid service. `posts`, `playlists`, `comments`, `notes`, `reactions` — no schema migration, no approval. ClickHouse doesn't care. The `app_contracts` table stores a JSON permissions object mapping service names to operations. The API checks the JSON at query time. Infinite services, finite apps, one sieve of joins.
+
 ```sql
 CREATE TABLE app_contracts (
     user_key String,
