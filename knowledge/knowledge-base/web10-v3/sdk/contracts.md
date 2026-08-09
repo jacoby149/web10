@@ -11,7 +11,7 @@ Services are infinite. `posts`, `playlists`, `comments`, `notes`, `mail`, `react
 
 Apps are the constraint. There are a handful of apps you actually use. `music.web10.com`, `social.web10.com`, `notes.web10.com`. Each one asks for access. You approve or deny.
 
-**Service schemas (v4).** While services are infinite, they need shape. A `posts` schema defines what a post looks like — `text`, `media`, `tags`. Schemas evolve — version 1 had `content`, version 2 has `text`. ClickHouse handles this with **real-time data migrations on read**: old data stays as-is, new writes use the new schema, reads always return the latest shape. No downtime. No migration scripts. A future "Services" tab in the authenticator will show schema versions and let apps propose schema updates.
+**Service schemas (v4).** In v3, services are schemaless — just `collection_name` + a JSON body blob. Any app can write anything. No validation. No versions. Pure freedom. A future v4 layer could add optional schema declarations per service, with read-time translation for apps at different schema versions. But that's v4. v3 is freestyle.
 
 The old model (v2) treated services as scarce — each service needed a contract, a whitelist, a blacklist. That doesn't scale to an interoperable internet. The new model treats apps as the unit of trust. One contract per app. The app declares every service it touches. You decide once.
 
