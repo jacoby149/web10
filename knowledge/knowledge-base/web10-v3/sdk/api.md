@@ -580,7 +580,7 @@ v3 SDK vs v2 SDK:
 | `create(service, body)` — no groups | `create(service, { body, groups: [...] })` — groups required for visibility |
 | `read(service, query)` — raw collection | `read(service, { groups: [...] })` — always group-filtered. `['me']` for your own data. |
 | `update(service, query, update)` — no groups | `update(service, query, { $set, $groups })` — group changes |
-| SMR contracts control data access | App contracts are per-app with per-service permissions. Groups control data access. |
+| SMR contracts control data access | App contracts are per-app with per-service permissions. ACR is the consent protocol. Groups control data access. |
 | Separate follow/friend APIs | Follow = join group. Friends = group membership. |
 | `discoverable` boolean | No boolean. Groups handle it. `web10/discover` = public board. |
 

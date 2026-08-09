@@ -19,6 +19,8 @@ export type {
   TermsRecord,
   SIR,
   SCR,
+  ACR,
+  GCR,
   PipelineStage,
   Pipeline,
   CreateResponse,

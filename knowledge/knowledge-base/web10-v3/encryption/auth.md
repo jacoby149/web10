@@ -169,24 +169,29 @@ function isTokenExpired(token: string): boolean {
 
 Fail-open: if the token has no `expires` claim, it's treated as valid (matches server behavior for "anon" tokens).
 
-## SMR (Service Modification Request)
+## ACR (App Contract Request)
 
-SMR is the protocol for apps to request service access from the authenticator. The app declares what services it needs; the user approves or denies.
+ACR is the protocol for apps to request access from the authenticator. The app declares which origin it is and what permissions it needs; the user approves or denies. There is no distinction between a "first request" and a "permission change" — both are an ACR that replaces the existing contract for that origin. The `ReplacingMergeTree(updated_at)` engine handles it the same way.
 
 ```ts
-// App declares services it needs
-w.smrOnReady([{
-  service: 'posts',
-  cross_origins: ['your-domain.com'],
+// App declares what it needs (one ACR per origin)
+w.acrOnReady([{
+  allowed_origin: 'music.web10.com',
+  permissions: {
+    posts: ['readAll', 'create'],
+    playlists: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+  },
 }])
 
 // Listen for user's response
-w.smrResponseListen((status) => {
-  console.log('SMR status:', status)
+w.acrResponseListen((status) => {
+  console.log('ACR status:', status)
 })
 ```
 
-SMR is infrastructure trust — "do we want to spin up these data buckets for this app?" It does not control who sees data. Groups do that.
+The authenticator diffs each ACR against the existing contract for that origin (if any) and shows the user what's changing. If nothing exists, the diff is "everything is new." If a contract exists, added permissions are green and removed permissions are red. Same component, same flow.
+
+ACR is infrastructure trust — "do we want to give this app these permissions?" It does not control who sees data. Groups do that.
 
 ## Cross-Node Addressing
 

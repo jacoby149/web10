@@ -162,11 +162,11 @@ web10.app services are hosted at :
 
 ### User Consent
 
-> users start new web10 services by accepting SIRs [service initialization requests]
+> users grant app access by approving ACRs (app contract requests)
 >
-> users accept or deny changes to terms of service through SCRs [service change requests] 
+> an ACR specifies an allowed_origin and per-service permissions
 >
-> > users can change their terms of service in the web10 authentication portal at any time. 
+> > users can review and manage their app contracts in the web10 authentication portal at any time. 
 
 
 
@@ -174,7 +174,8 @@ web10.app services are hosted at :
 
 | function                                            | description                                                  |
 | --------------------------------------------------- | ------------------------------------------------------------ |
-| wapi.SMROnReady(sirs,scrs)                          | adds an event listener that waits for the authentication service to send a ready signal. when the authentication service is ready, wapi sends a service modification request [SMR]. an SMR consists of list of service initialization requests [SIRs] and a list of service change requests [SCRs] |
+| wapi.SMROnReady(sirs,scrs)                          | **Legacy (v2)** — adds an event listener that waits for the authentication service to send a ready signal. when the authentication service is ready, wapi sends a service modification request [SMR]. an SMR consists of list of service initialization requests [SIRs] and a list of service change requests [SCRs] |
+| w.acrOnReady(acrs)                                  | **v3** — adds an event listener for app contract requests. each ACR has an allowed_origin and per-service permissions. replaces SMR/SIR/SCR with a unified model — no distinction between "new" and "change" |
 | wapi.create(service,query,username,provider)        | Runs a MongoDB create on the web10 service at provider/{username}/{service}, and returns the result as an axios promise. |
 | wapi.read(service,query,username,provider)          | Runs a MongoDB read on the web10 service at provider/{username}/{service}, and returns the result as an axios promise. |
 | wapi.update(service,query,update,username,provider) | Runs a MongoDB update on the web10 service at provider/{username}/{service}, and returns the result as an axios promise. |

@@ -592,3 +592,35 @@ describe('SMR helpers', () => {
     expect(cb).not.toHaveBeenCalled()
   })
 })
+
+describe('ACR helpers', () => {
+  beforeEach(() => {
+    mockFetch.mockReset()
+    clearCookies()
+    Object.defineProperty(window, 'location', {
+      value: { href: 'http://localhost:3000/' },
+      writable: true,
+      configurable: true,
+    })
+  })
+
+  it('acrResponseListen calls callback on acr-status message', () => {
+    const w = createClient({ authUrl: 'https://auth.example.com', appStores: [] })
+    const cb = vi.fn()
+    w.acrResponseListen(cb)
+    window.dispatchEvent(
+      new MessageEvent('message', { origin: 'https://auth.example.com', data: { type: 'acr-status', status: 'approved' } }),
+    )
+    expect(cb).toHaveBeenCalledWith('approved')
+  })
+
+  it('acrResponseListen ignores acr-status messages from a foreign origin', () => {
+    const w = createClient({ authUrl: 'https://auth.example.com', appStores: [] })
+    const cb = vi.fn()
+    w.acrResponseListen(cb)
+    window.dispatchEvent(
+      new MessageEvent('message', { origin: 'https://evil.example.com', data: { type: 'acr-status', status: 'approved' } }),
+    )
+    expect(cb).not.toHaveBeenCalled()
+  })
+})

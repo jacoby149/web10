@@ -1,4 +1,4 @@
-import { FileText, Globe, Shield, ShieldX, Trash2 } from 'lucide-react';
+import { FileText, Globe, Shield, ShieldX } from 'lucide-react';
 import AppShell from '../shared/AppShell';
 import RecoveryNudgeBanner from '../shared/RecoveryNudgeBanner';
 import { Button } from '@/components/ui/button';

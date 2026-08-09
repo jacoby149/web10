@@ -79,7 +79,10 @@ function useInterface() {
     [I.isAdmin, I.setIsAdmin] = React.useState(false);
     [I.verified, I.setVerified] = React.useState(false);
     [I.status, I.setStatus] = React.useState<string | null>(null);
-    [I.SMR, I.setSMR] = React.useState({ scrs: [], sirs: [] });
+    // Pending app contract requests (ACRs). Unified list — no distinction
+    // between "new" and "change". Each ACR is { allowed_origin, permissions }.
+    // Legacy SMRListen still delivers { sirs, scrs } which we normalize here.
+    [I.pendingACRs, I.setPendingACRs] = React.useState<any[]>([]);
 
     // v3 service contracts (ClickHouse-backed — simpler model: origin + service)
     [I.v3Contracts, I.setV3Contracts] = React.useState<any[]>([]);
@@ -93,9 +96,38 @@ function useInterface() {
     I.wapi = adapter.wapi;
     I.wapiAuth = adapter.wapiAuth;
 
+    // Normalize legacy SMR { sirs, scrs } into a unified ACR list.
+    // Each SIR/SCR becomes one ACR per origin (origin + permissions from whitelist).
+    function normalizeSMRtoACRs(smr: any): any[] {
+        const acrs: any[] = [];
+        const allRequests = [
+            ...(Array.isArray(smr?.sirs) ? smr.sirs : []),
+            ...(Array.isArray(smr?.scrs) ? smr.scrs : []),
+        ];
+        for (const req of allRequests) {
+            const origins = Array.isArray(req.cross_origins) ? req.cross_origins : [];
+            if (origins.length === 0) {
+                console.warn('ACR: request with no cross_origins — skipped', req);
+                continue;
+            }
+            const perms = whitelistToPermissions(req.whitelist || []);
+            // Default to readAll if no permissions derived
+            if (perms.length === 0) perms.push('readAll');
+            const permissions: Record<string, string[]> = { [req.service]: perms };
+            for (const origin of origins) {
+                acrs.push({
+                    allowed_origin: origin,
+                    permissions,
+                    _source: req, // keep reference to the original SIR/SCR for removal
+                });
+            }
+        }
+        return acrs;
+    }
+
     I.initAuthenticator = function () {
         I.wapiAuth.SMRListen((inSMR) => {
-            I.setSMR(inSMR);
+            I.setPendingACRs(normalizeSMRtoACRs(inSMR));
         });
     }
 
@@ -119,30 +151,13 @@ function useInterface() {
                 // survives a hard refresh (B9 bite a-fix).
                 const star = response.data.find((s: any) => s["service"] === "*");
                 I.setPhone(star?.phone_number || "");
-                const currServices = response.data.map((service: any) => service["service"]);
-                const SIRS = I.SMR["sirs"]
-                    .filter((service: any) => !currServices.includes(service["service"]) && service["service"] !== "*")
-                    .map((service: any) => [service, "new"]);
 
-                const updatedServices = response.data.map((service: any) => {
-                    const curr = service["service"];
-                    let serviceType: string | null = null;
-                    const _SIRS = I.SMR["sirs"].map((s: any) => s["service"]);
-                    if (curr === "*") serviceType = null;
-                    else if (curr in I.SMR["scrs"]) serviceType = "change";
-                    else if (_SIRS.includes(curr)) {
-                        const currOrigins = service["cross_origins"];
-                        const SIROrigins = I.SMR["sirs"].filter((s: any) => s["service"] === curr)[0]["cross_origins"];
-                        if (SIROrigins.filter((s: string) => !new Set(currOrigins).has(s)).length > 0) serviceType = "change";
-                    }
-                    return [service, serviceType];
-                });
+                // Keep legacy services list for backward compat with v2 apps.
+                // No longer drives the UI — ACRs do.
+                I.setServices(response.data);
 
-                updatedServices.push.apply(updatedServices, SIRS);
-                I.setServices(updatedServices.map(([s]: [any, any]) => s));
-
-                const hasSMRs = SIRS.length > 0 || response.data.some((s: any) => s["service"] in I.SMR["scrs"]);
-                if (hasSMRs && I._hasReferrer) {
+                // If there are pending ACRs and we came from an app, show requests.
+                if (I.pendingACRs.length > 0 && I._hasReferrer) {
                     I.setMode("requests");
                 }
             })
@@ -239,7 +254,7 @@ function useInterface() {
         I.setVerified(false);
         I.setServices([]);
         I.setRequests([]);
-        I.setSMR({ scrs: [], sirs: [] });
+        I.setPendingACRs([]);
         I.setV3Contracts([]);
         I.setV3Groups([]);
         I.setV3ManagedGroups([]);
@@ -427,7 +442,7 @@ function useInterface() {
         return v3Post('unblock', { blocked_key: blockedKey });
     }
 
-    // Derive v3 permissions from a v2 SIR/SCR whitelist.
+    // Derive v3 permissions from a whitelist.
     // Whitelist entries are { username, provider, <action>: true } — extract
     // the action keys (read, create, update, delete, etc.) and map them to
     // v3 permission names (readAll, create, updateOwn, deleteOwn, ...).
@@ -440,7 +455,6 @@ function useInterface() {
                 if (!meta.has(k) && e[k] === true) actionSet.add(k);
             });
         });
-        // Map v2 action names → v3 permission names
         const map: Record<string, string> = {
             read: 'readAll',
             create: 'create',
@@ -458,115 +472,101 @@ function useInterface() {
             const mapped = map[a];
             if (mapped && !perms.includes(mapped)) perms.push(mapped);
         });
-        // If no recognized actions, default to broad read
         if (perms.length === 0 && actionSet.size > 0) perms.push('readAll');
         return perms;
     }
 
-    // Create v3 app contracts from a v2 SIR. One contract per origin, with
-    // permissions derived from the whitelist.
-    function createV3ContractsFromSIR(sir: any) {
-        const origins = Array.isArray(sir.cross_origins) ? sir.cross_origins : [];
-        const service = sir.service;
-        const perms = whitelistToPermissions(sir.whitelist || []);
-        const permissions: Record<string, string[]> = { [service]: perms };
-        return origins.map((origin: string) => I.addV3Contract(origin, permissions));
-    }
+    // Merge the permissions object from an ACR into an existing contract's
+    // permissions (if any), then create the updated v3 contract.
+    // Create FIRST, then revoke — if the revoke fails the new contract is
+    // already in place (no data loss). The old row lingers until the
+    // ReplacingMergeTree background merge compacts it.
+    function applyACR(acr: any) {
+        const origin = acr.allowed_origin;
+        const newPerms: Record<string, string[]> = acr.permissions || {};
 
-    I.changeTerms = function (service: any) {
-        // v3: revoke the old contract(s) for the affected origins, then create
-        // updated ones. SCRs carry the modified cross_origins + whitelist.
-        const origins = Array.isArray(service.cross_origins) ? service.cross_origins : [];
-        const toRevoke = I.v3Contracts
-            ?.filter((c: any) => origins.includes(c.allowed_origin))
-            .map((c: any) => I.revokeV3Contract(c.allowed_origin))
-            .filter(Boolean) || [];
-
-        Promise.all([...toRevoke])
-            .then(() => {
-                const v3Ops = createV3ContractsFromSIR(service);
-                return Promise.allSettled(v3Ops);
-            })
-            .then(() => {
-                I.setStatus("Contract updated!");
-                I.v3ContractsLoad?.();
-                I.resolveRequest({
-                    scrs: (I.SMR["scrs"] || []).filter((s: any) => s["service"] !== service["service"]),
-                    sirs: I.SMR["sirs"],
-                });
-                setTimeout(() => I.setStatus(null), 2000);
-            })
-            .catch((e) => I.setStatus("Failed to update: " + (e.response?.data?.detail || String(e))));
-    }
-
-    // Approving/denying just updates the pending list now — the token is NOT
-    // auto-sent. The user explicitly returns to the app via "go to the app"
-    // (goToApp) or "continue without approving". This lets them approve some,
-    // all (approveAll), or none (withhold data) and still reach the app.
-    I.resolveRequest = function (nextSMR: any) {
-        I.setSMR(nextSMR);
-    }
-
-    I.submitSIR = function (service: any) {
-        // v3-only: create app contracts (one per origin), no v2 terms record.
-        // Check if the origin already has a contract — if so, just clear the
-        // request (the grant is already in place).
-        const origins = Array.isArray(service["cross_origins"]) ? service["cross_origins"] : [];
-        const alreadyGranted = origins.every((origin: string) =>
-            I.hasV3Contract?.(origin),
+        const existing = (I.v3Contracts || []).find(
+            (c: any) => c.allowed_origin === origin,
         );
-        if (alreadyGranted && origins.length > 0) {
-            I.resolveRequest({
-                scrs: I.SMR["scrs"],
-                sirs: (I.SMR["sirs"] || []).filter((sir: any) => sir["service"] !== service["service"]),
+
+        // Merge permissions: new perms override existing for shared services
+        const mergedPerms: Record<string, string[]> = {};
+        if (existing) {
+            const existingPerms: Record<string, string[]> = existing.permissions || {};
+            for (const [svc, ops] of Object.entries(existingPerms)) {
+                if (!newPerms[svc]) mergedPerms[svc] = ops;
+            }
+        }
+        for (const [svc, ops] of Object.entries(newPerms)) {
+            mergedPerms[svc] = ops;
+        }
+
+        const perms = existing ? mergedPerms : newPerms;
+
+        // Create first — if this fails, the old contract is untouched.
+        return I.addV3Contract(origin, perms)
+            .then(() => {
+                // Revoke old contract only after the new one is confirmed.
+                // If this fails, the new contract is already in place.
+                if (existing) {
+                    return I.revokeV3Contract(origin).catch(() => {
+                        // Old row will be compacted by ReplacingMergeTree.
+                    });
+                }
             });
+    }
+
+    // Approve a single ACR (one origin). No distinction between "new" and
+    // "change" — both replace the existing contract for that origin.
+    I.approveACR = function (acr: any) {
+        const origin = acr.allowed_origin;
+        const label = (() => {
+            try { return new URL(`https://${origin}`).hostname; } catch { return origin; }
+        })();
+
+        const alreadyGranted = I.hasV3Contract?.(origin);
+        if (alreadyGranted) {
+            I.removePendingACR(acr);
             return;
         }
-        I.setStatus("Approving service...");
-        const v3Ops = createV3ContractsFromSIR(service);
-        Promise.allSettled(v3Ops).then(() => {
-            I.setStatus("Contract granted!");
-            I.v3ContractsLoad?.();
-            I.resolveRequest({
-                scrs: I.SMR["scrs"],
-                sirs: (I.SMR["sirs"] || []).filter((sir: any) => sir["service"] !== service["service"]),
-            });
-            setTimeout(() => I.setStatus(null), 2000);
-        })
-        .catch((e) => I.setStatus("Failed to approve: " + (e.response?.data?.detail || String(e))));
+
+        I.setStatus("Approving contract...");
+        applyACR(acr)
+            .then(() => {
+                I.setStatus("Contract granted!");
+                I.v3ContractsLoad?.();
+                I.removePendingACR(acr);
+                setTimeout(() => I.setStatus(null), 2000);
+            })
+            .catch((e) => I.setStatus("Failed to approve: " + (e.response?.data?.detail || String(e))));
     }
 
-    I.purgeSMR = function (service: any) {
-        // deny removes the request from whichever list it's in
-        I.resolveRequest({
-            scrs: (I.SMR["scrs"] || []).filter((s: any) => s["service"] !== service["service"]),
-            sirs: (I.SMR["sirs"] || []).filter((s: any) => s["service"] !== service["service"]),
+    // Remove a single ACR from the pending list (after approve or deny).
+    I.removePendingACR = function (acr: any) {
+        const source = acr._source;
+        I.setPendingACRs((prev: any[]) => {
+            if (source) {
+                return prev.filter((a: any) => a._source !== source);
+            }
+            return prev.filter((a: any) => a.allowed_origin !== acr.allowed_origin);
         });
+    }
+
+    // Deny an ACR — just remove it from the pending list.
+    I.denyACR = function (acr: any) {
+        I.removePendingACR(acr);
         I.setStatus("Request denied.");
     }
 
-    // Approve every pending request in one shot, then return to the app.
-    // v3-only: create app contracts, no v2 terms records.
+    // Approve every pending ACR in one shot, then return to the app.
     I.approveAll = function () {
-        const sirs = I.SMR["sirs"] || [];
-        const scrs = I.SMR["scrs"] || [];
-        if (sirs.length + scrs.length === 0) { I.goToApp(); return; }
+        if (I.pendingACRs.length === 0) { I.goToApp(); return; }
         I.setStatus("Approving all…");
-        const ops: Promise<any>[] = [];
-        sirs.forEach((s: any) => {
-            const origins = Array.isArray(s.cross_origins) ? s.cross_origins : [];
-            const alreadyGranted = origins.every((origin: string) => I.hasV3Contract?.(origin));
-            if (!alreadyGranted || origins.length === 0) {
-                ops.push(...createV3ContractsFromSIR(s));
-            }
-        });
-        scrs.forEach((s: any) => {
-            ops.push(...createV3ContractsFromSIR(s));
-        });
+        const ops: Promise<any>[] = I.pendingACRs.map((acr: any) => applyACR(acr));
         Promise.allSettled(ops)
             .then(() => {
                 I.v3ContractsLoad?.();
-                I.setSMR({ scrs: [], sirs: [] });
+                I.setPendingACRs([]);
                 I.setStatus(null);
                 I.goToApp();
             })
@@ -712,7 +712,7 @@ function useInterface() {
     }
 
     const [, authTick] = React.useState(0);
-    const [, smrTick] = React.useState(0);
+    const [, acrTick] = React.useState(0);
 
     React.useEffect(() => {
         if (I.auth) {
@@ -725,7 +725,7 @@ function useInterface() {
         if (I.auth) {
             I.servicesLoad();
         }
-    }, [smrTick])
+    }, [acrTick])
 
     React.useEffect(() => {
         const referrer = window.document.referrer;
@@ -744,10 +744,10 @@ function useInterface() {
         authTick(n => n + 1);
     }
 
-    const originalSetSMR = I.setSMR.bind(I);
-    I.setSMR = function (val: any) {
-        originalSetSMR(val);
-        smrTick(n => n + 1);
+    const originalSetPendingACRs = I.setPendingACRs.bind(I);
+    I.setPendingACRs = function (val: any) {
+        originalSetPendingACRs(val);
+        acrTick(n => n + 1);
     }
 
     return I;

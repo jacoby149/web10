@@ -334,6 +334,73 @@ describe('createAuthConnector', () => {
     })
   })
 
+  describe('acrListen', () => {
+    const OPENER = 'https://app.example.com'
+    beforeEach(() => {
+      Object.defineProperty(document, 'referrer', {
+        value: `${OPENER}/page`,
+        writable: true,
+        configurable: true,
+      })
+      Object.defineProperty(window, 'opener', {
+        value: { postMessage: vi.fn() },
+        writable: true,
+        configurable: true,
+      })
+    })
+
+    it('listens for ACR messages from the opener and calls setState', () => {
+      const jwt = makeJwt({ username: 'alice', provider: 'api.example.com' })
+      const wapi = createMockWapi(jwt)
+      const wa = createAuthConnector(wapi)
+      const cb = vi.fn()
+
+      wa.acrListen(cb)
+      expect((window.opener as { postMessage: ReturnType<typeof vi.fn> }).postMessage)
+        .toHaveBeenCalledWith({ type: 'ACRListen' }, OPENER)
+
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          origin: OPENER,
+          data: { type: 'acr', acrs: [{ allowed_origin: 'app.example.com', permissions: { posts: ['readAll'] } }] },
+        }),
+      )
+      expect(cb).toHaveBeenCalledWith({ type: 'acr', acrs: [{ allowed_origin: 'app.example.com', permissions: { posts: ['readAll'] } }] })
+    })
+
+    it('ignores non-acr messages', () => {
+      const jwt = makeJwt({ username: 'alice', provider: 'api.example.com' })
+      const wapi = createMockWapi(jwt)
+      const wa = createAuthConnector(wapi)
+      const cb = vi.fn()
+
+      wa.acrListen(cb)
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          origin: OPENER,
+          data: { type: 'other', data: 'x' },
+        }),
+      )
+      expect(cb).not.toHaveBeenCalled()
+    })
+
+    it('ignores acr messages from a foreign origin', () => {
+      const jwt = makeJwt({ username: 'alice', provider: 'api.example.com' })
+      const wapi = createMockWapi(jwt)
+      const wa = createAuthConnector(wapi)
+      const cb = vi.fn()
+
+      wa.acrListen(cb)
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          origin: 'https://evil.example.com',
+          data: { type: 'acr', acrs: [] },
+        }),
+      )
+      expect(cb).not.toHaveBeenCalled()
+    })
+  })
+
   describe('sendToken', () => {
     it('posts auth message to the opener origin and closes window', () => {
       const postMessage = vi.fn()
