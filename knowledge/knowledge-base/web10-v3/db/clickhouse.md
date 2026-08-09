@@ -344,9 +344,59 @@ erDiagram
 
 **9 tables.** Campaigns, targeting, creative, inventory, tracking, partners, revenue.
 
+## Marketplace Schema
+
+Creator-owned product sales. Digital goods, physical merch, services.
+
+```mermaid
+erDiagram
+    marketplace_products {
+        String product_id PK
+        String seller_key
+        String name
+        String description
+        String product_type
+        UInt64 price_cents
+        String media_url
+        String download_url
+        String status
+        DateTime64 created_at
+        DateTime64 updated_at
+        UInt8 deleted
+    }
+    marketplace_orders {
+        String order_id PK
+        String buyer_key
+        String seller_key
+        String product_id
+        UInt64 amount_cents
+        UInt64 platform_fee_cents
+        UInt64 seller_payout_cents
+        String status
+        String stripe_payment_id
+        DateTime64 created_at
+        DateTime64 updated_at
+        UInt8 deleted
+    }
+    marketplace_reviews {
+        String product_id PK
+        String reviewer_key PK
+        UInt8 rating
+        String comment
+        DateTime64 created_at
+        DateTime64 updated_at
+        UInt8 deleted
+    }
+
+    marketplace_products ||--o{ marketplace_orders : "sold in"
+    marketplace_products ||--o{ marketplace_reviews : "has"
+```
+
+**3 tables.** Products, orders, reviews.
+
 ---
 
-**Total: 31 tables.** User (18) + Provider (4) + Ad (9). Everything else is a query.
+**Total: 34 tables.** User (18) + Provider (4) + Ad (9) + Marketplace (3). Everything else is a query.
 
 ## User Schema Tables
 
@@ -957,6 +1007,77 @@ ORDER BY revenue_id;
 ```
 
 **Primary key:** `revenue_id`. Aggregated from impressions, clicks, and conversions. `gross_cents = platform_cents + creator_cents + partner_cents`. Settlement is periodic (daily/weekly/monthly). Status transitions: `pending` → `settled` → `paid`. The API reconciles this against Stripe payouts.
+
+---
+
+## Marketplace Schema Tables
+
+### Marketplace Products
+
+Creator-listed products. Digital goods, physical merch, services.
+
+```sql
+CREATE TABLE marketplace_products (
+    product_id String,
+    seller_key String,
+    name String,
+    description String,
+    product_type String,       -- 'digital', 'physical', 'service'
+    price_cents UInt64,
+    media_url String,          -- product image or video
+    download_url String,       -- for digital goods (presigned, expiring)
+    status String,             -- 'active', 'draft', 'sold_out', 'delisted'
+    created_at DateTime64(3),
+    updated_at DateTime64(3),
+    deleted UInt8 DEFAULT 0
+) ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY product_id;
+```
+
+**Primary key:** `product_id`. `download_url` is for digital goods — presigned, expiring URLs generated on purchase. Physical goods use `download_url` for fulfillment tracking. Services use it for booking links.
+
+### Marketplace Orders
+
+Purchases. Buyer, seller, product, amount, Stripe payment, status.
+
+```sql
+CREATE TABLE marketplace_orders (
+    order_id String,
+    buyer_key String,
+    seller_key String,
+    product_id String,
+    amount_cents UInt64,
+    platform_fee_cents UInt64,
+    seller_payout_cents UInt64,
+    status String,             -- 'pending', 'paid', 'fulfilled', 'refunded', 'canceled'
+    stripe_payment_id String,
+    created_at DateTime64(3),
+    updated_at DateTime64(3),
+    deleted UInt8 DEFAULT 0
+) ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY order_id;
+```
+
+**Primary key:** `order_id`. `amount_cents = platform_fee_cents + seller_payout_cents`. Platform fee is configurable (default ~3%). Status transitions: `pending` → `paid` (Stripe webhook) → `fulfilled` (digital: download delivered, physical: shipped) → `refunded` or stays `paid`. The API reconciles payouts against Stripe.
+
+### Marketplace Reviews
+
+Product ratings and reviews.
+
+```sql
+CREATE TABLE marketplace_reviews (
+    product_id String,
+    reviewer_key String,
+    rating UInt8,              -- 1 to 5
+    comment String,
+    created_at DateTime64(3),
+    updated_at DateTime64(3),
+    deleted UInt8 DEFAULT 0
+) ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY (product_id, reviewer_key);
+```
+
+**Primary key:** `(product_id, reviewer_key)` — one review per buyer per product. Only verified buyers can review (checked against `marketplace_orders`). Updating a review is a new insert with higher `updated_at`. Deleting is a tombstone.
 
 ## Patterns
 
