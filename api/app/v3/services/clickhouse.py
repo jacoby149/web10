@@ -630,3 +630,259 @@ def get_ref_counts(doc_ids: list[str], collection_name: str = "reactions") -> di
         params,
     )
     return {row[0]: row[1] for row in result.result_rows()}
+
+
+# ---------------------------------------------------------------------------
+# Read by doc_id with group permission check
+# ---------------------------------------------------------------------------
+
+
+def read_document_by_id(doc_id: str, member_key: str, collection_name: str) -> dict | None:
+    """Read a single document by doc_id with group permission check."""
+    result = client.query(
+        "SELECT p.doc_id, p.author_key, p.body, p.tags, p.created_at, p.ref_value "
+        "FROM documents p "
+        "WHERE p.doc_id = %(doc_id)s "
+        "AND p.deleted = 0 "
+        "AND p.collection_name = %(coll)s "
+        "AND EXISTS ( "
+        "SELECT 1 FROM doc_groups pg "
+        "JOIN group_members gm ON pg.group_id = gm.group_id "
+        "WHERE pg.doc_id = p.doc_id "
+        "AND gm.member_key = %(member_key)s "
+        "AND pg.deleted = 0 "
+        "AND gm.deleted = 0 "
+        ") "
+        "AND NOT EXISTS ( "
+        "SELECT 1 FROM user_blacklist "
+        "WHERE user_key = p.author_key AND blocked_key = %(member_key)s AND deleted = 0 "
+        ")",
+        {"doc_id": doc_id, "coll": collection_name, "member_key": member_key},
+    )
+    if not result.result_rows():
+        return None
+    row = result.result_rows()[0]
+    return {
+        "doc_id": row[0],
+        "author_key": row[1],
+        "body": _parse_json(row[2]),
+        "tags": list(row[3]),
+        "created_at": str(row[4]),
+        "ref_value": row[5],
+        "collection_name": collection_name,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Groups: manages
+# ---------------------------------------------------------------------------
+
+
+def get_groups_manages(member_key: str) -> list[dict]:
+    """Get groups where the user has management permissions."""
+    result = client.query(
+        "SELECT gc.group_id, gc.join_policy, gm.role AS my_role, "
+        "(SELECT count() FROM group_members gm2 WHERE gm2.group_id = gc.group_id AND gm2.deleted = 0) AS member_count "
+        "FROM group_members gm "
+        "JOIN group_contracts gc ON gm.group_id = gc.group_id "
+        "WHERE gm.member_key = %(member_key)s "
+        "AND gm.deleted = 0 "
+        "AND gc.deleted = 0",
+        {"member_key": member_key},
+    )
+    groups = []
+    for row in result.result_rows():
+        group_id = row[0]
+        roles_json = None
+        # Fetch roles to check management perms
+        role_result = client.query(
+            "SELECT roles FROM group_contracts WHERE group_id = %(gid)s AND deleted = 0",
+            {"gid": group_id},
+        )
+        if role_result.result_rows():
+            roles_json = _parse_json(role_result.result_rows()[0][0])
+
+        my_role = row[2]
+        has_manage = False
+        if roles_json:
+            roles_list = roles_json if isinstance(roles_json, list) else roles_json.get("roles", [])
+            for rd in roles_list:
+                if rd["name"] == my_role and "manageRoles" in rd.get("permissions", []):
+                    has_manage = True
+                    break
+
+        if has_manage:
+            groups.append({
+                "group_id": group_id,
+                "join_policy": row[1],
+                "my_role": my_role,
+                "member_count": row[3],
+            })
+    return groups
+
+
+# ---------------------------------------------------------------------------
+# Group members list (the getMembers call)
+# ---------------------------------------------------------------------------
+
+
+# (get_group_members already exists above — used by getMembers)
+
+
+# ---------------------------------------------------------------------------
+# Block in group
+# ---------------------------------------------------------------------------
+
+
+# (block_user_in_group and unblock_user_in_group already exist above)
+
+
+# ---------------------------------------------------------------------------
+# Provider service contracts
+# ---------------------------------------------------------------------------
+
+
+def add_provider_service_contract(provider_key: str, allowed_origin: str) -> dict:
+    """Add a provider-level service contract (node trust)."""
+    now = _now()
+    client.insert(
+        "provider_service_contracts",
+        [[provider_key, allowed_origin, now, now, 0]],
+    )
+    return {
+        "provider_key": provider_key,
+        "allowed_origin": allowed_origin,
+        "created_at": now.isoformat(),
+    }
+
+
+def get_provider_service_contracts(provider_key: str) -> list[dict]:
+    """Get active provider service contracts."""
+    result = client.query(
+        "SELECT allowed_origin FROM provider_service_contracts "
+        "WHERE provider_key = %(provider_key)s AND deleted = 0",
+        {"provider_key": provider_key},
+    )
+    return [{"allowed_origin": row[0]} for row in result.result_rows()]
+
+
+def is_provider_origin_allowed(provider_key: str, allowed_origin: str) -> bool:
+    """Check if an origin is allowed at the provider level."""
+    result = client.query(
+        "SELECT count() FROM provider_service_contracts "
+        "WHERE provider_key = %(provider_key)s AND allowed_origin = %(allowed_origin)s AND deleted = 0",
+        {"provider_key": provider_key, "allowed_origin": allowed_origin},
+    )
+    return result.result_rows()[0][0] > 0
+
+
+def revoke_provider_service_contract(provider_key: str, allowed_origin: str):
+    """Tombstone a provider service contract."""
+    client.command(
+        "INSERT INTO provider_service_contracts (provider_key, allowed_origin, created_at, updated_at, deleted) "
+        "SELECT provider_key, allowed_origin, created_at, now(), 1 "
+        "FROM provider_service_contracts "
+        "WHERE provider_key = %(provider_key)s AND allowed_origin = %(allowed_origin)s AND deleted = 0",
+        {"provider_key": provider_key, "allowed_origin": allowed_origin},
+    )
+
+
+# ---------------------------------------------------------------------------
+# Media (v3 — inline resolution, no separate list)
+# ---------------------------------------------------------------------------
+
+
+def resolve_media_urls(doc_body: dict, user_key: str) -> dict:
+    """Resolve media references in a document body to presigned URLs.
+
+    Looks for media_refs array in the body, queries the media_metadata
+    collection for each ref, and returns the body with read_urls injected.
+    """
+    media_refs = doc_body.get("media_refs") or []
+    if not media_refs:
+        return doc_body
+
+    resolved = []
+    for mref in media_refs:
+        mref_str = str(mref)
+        # Query media metadata from documents table
+        result = client.query(
+            "SELECT body FROM documents "
+            "WHERE doc_id = %(doc_id)s AND author_key = %(author_key)s "
+            "AND collection_name = 'media_metadata' AND deleted = 0",
+            {"doc_id": mref_str, "author_key": user_key},
+        )
+        if result.result_rows():
+            meta = _parse_json(result.result_rows()[0][0])
+            resolved.append({
+                "object_key": mref_str,
+                "mime_type": meta.get("mime_type"),
+                "filename": meta.get("filename"),
+                "size_bytes": meta.get("size_bytes"),
+                "read_url": meta.get("url"),  # Presigned URL generated at confirm time
+            })
+        else:
+            # Try public_media
+            result = client.query(
+                "SELECT body FROM documents "
+                "WHERE doc_id = %(doc_id)s AND author_key = %(author_key)s "
+                "AND collection_name = 'public_media' AND deleted = 0",
+                {"doc_id": mref_str, "author_key": user_key},
+            )
+            if result.result_rows():
+                meta = _parse_json(result.result_rows()[0][0])
+                resolved.append({
+                    "object_key": mref_str,
+                    "mime_type": meta.get("mime_type"),
+                    "filename": meta.get("filename"),
+                    "size_bytes": meta.get("size_bytes"),
+                    "read_url": meta.get("url"),
+                })
+
+    if resolved:
+        resolved_body = dict(doc_body)
+        resolved_body["media_refs"] = resolved
+        return resolved_body
+    return doc_body
+
+
+def resolve_media_urls_in_docs(docs: list[dict]) -> list[dict]:
+    """Resolve media URLs in a list of documents."""
+    resolved = []
+    for doc in docs:
+        body = doc.get("body", {})
+        if body.get("media_refs"):
+            author = doc.get("author_key", "")
+            resolved_body = resolve_media_urls(body, author)
+            doc_with_media = dict(doc)
+            doc_with_media["body"] = resolved_body
+            resolved.append(doc_with_media)
+        else:
+            resolved.append(doc)
+    return resolved
+
+
+# ---------------------------------------------------------------------------
+# User stats (v3 equivalent of /stats)
+# ---------------------------------------------------------------------------
+
+
+def get_node_stats() -> dict:
+    """Get node-level stats: user count, doc count, storage estimate."""
+    # Count unique authors
+    user_result = client.query("SELECT count(DISTINCT author_key) FROM documents WHERE deleted = 0")
+    user_count = user_result.result_rows()[0][0] if user_result.result_rows() else 0
+
+    # Count documents
+    doc_result = client.query("SELECT count() FROM documents WHERE deleted = 0")
+    doc_count = doc_result.result_rows()[0][0] if doc_result.result_rows() else 0
+
+    # Count groups
+    group_result = client.query("SELECT count() FROM group_contracts WHERE deleted = 0")
+    group_count = group_result.result_rows()[0][0] if group_result.result_rows() else 0
+
+    return {
+        "users": user_count,
+        "documents": doc_count,
+        "groups": group_count,
+    }

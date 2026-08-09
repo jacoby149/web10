@@ -101,3 +101,12 @@ CREATE TABLE IF NOT EXISTS user_group_sharing (
     deleted UInt8 DEFAULT 0
 ) ENGINE = ReplacingMergeTree(updated_at)
 ORDER BY (user_key, group_id);
+
+CREATE TABLE IF NOT EXISTS provider_service_contracts (
+    provider_key String,
+    allowed_origin String,
+    created_at DateTime64(3),
+    updated_at DateTime64(3),
+    deleted UInt8 DEFAULT 0
+) ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY (provider_key, allowed_origin);

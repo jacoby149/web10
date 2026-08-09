@@ -467,3 +467,126 @@ class TestRefCounts:
 
     def test_ref_counts_empty(self):
         assert ch.get_ref_counts([]) == {}
+
+
+# ---------------------------------------------------------------------------
+# Read by doc_id
+# ---------------------------------------------------------------------------
+
+
+class TestReadDocumentById:
+    def test_found(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([
+                ("doc-1", "bob", '{"text":"hello"}', ["tag1"], datetime(2026, 1, 1), ""),
+            ])
+            doc = ch.read_document_by_id("doc-1", "alice", "posts")
+            assert doc["doc_id"] == "doc-1"
+            assert doc["author_key"] == "bob"
+            assert doc["body"]["text"] == "hello"
+
+    def test_not_found(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([])
+            assert ch.read_document_by_id("doc-1", "alice", "posts") is None
+
+
+# ---------------------------------------------------------------------------
+# Groups: manages
+# ---------------------------------------------------------------------------
+
+
+class TestGetGroupsManages:
+    def test_has_manage(self):
+        with _patch_client() as mock_client:
+            mock_client.query.side_effect = [
+                _mock_result_rows([("g1", "open", "admin", 5)]),
+                _mock_result_rows([('{"roles":[{"name":"admin","permissions":["manageRoles"]}]}' ,)]),
+            ]
+            groups = ch.get_groups_manages("alice")
+            assert len(groups) == 1
+            assert groups[0]["group_id"] == "g1"
+
+    def test_no_manage(self):
+        with _patch_client() as mock_client:
+            mock_client.query.side_effect = [
+                _mock_result_rows([("g1", "open", "member", 5)]),
+                _mock_result_rows([('{"roles":[{"name":"member","permissions":[]}]}' ,)]),
+            ]
+            groups = ch.get_groups_manages("alice")
+            assert len(groups) == 0
+
+
+# ---------------------------------------------------------------------------
+# Provider service contracts
+# ---------------------------------------------------------------------------
+
+
+class TestProviderServiceContracts:
+    def test_add(self):
+        with _patch_client() as mock_client:
+            result = ch.add_provider_service_contract("provider1", "myapp.com")
+            assert result["provider_key"] == "provider1"
+            assert result["allowed_origin"] == "myapp.com"
+
+    def test_get(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([("myapp.com",)])
+            contracts = ch.get_provider_service_contracts("provider1")
+            assert len(contracts) == 1
+            assert contracts[0]["allowed_origin"] == "myapp.com"
+
+    def test_is_allowed_true(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([(1,)])
+            assert ch.is_provider_origin_allowed("provider1", "myapp.com") is True
+
+    def test_is_allowed_false(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([(0,)])
+            assert ch.is_provider_origin_allowed("provider1", "evil.com") is False
+
+    def test_revoke(self):
+        with _patch_client() as mock_client:
+            ch.revoke_provider_service_contract("provider1", "myapp.com")
+            mock_client.command.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# Media resolution
+# ---------------------------------------------------------------------------
+
+
+class TestResolveMediaUrls:
+    def test_no_media_refs(self):
+        body = {"text": "hello"}
+        assert ch.resolve_media_urls(body, "alice") == body
+
+    def test_resolve_media(self):
+        body = {"text": "hello", "media_refs": ["img-1"]}
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([
+                ('{"url":"http://example.com/img.png","mime_type":"image/png","filename":"img.png","size_bytes":1024}' ,),
+            ])
+            result = ch.resolve_media_urls(body, "alice")
+            assert len(result["media_refs"]) == 1
+            assert result["media_refs"][0]["read_url"] == "http://example.com/img.png"
+
+
+# ---------------------------------------------------------------------------
+# Node stats
+# ---------------------------------------------------------------------------
+
+
+class TestNodeStats:
+    def test_stats(self):
+        with _patch_client() as mock_client:
+            mock_client.query.side_effect = [
+                _mock_result_rows([(42,)]),
+                _mock_result_rows([(100,)]),
+                _mock_result_rows([(5,)]),
+            ]
+            stats = ch.get_node_stats()
+            assert stats["users"] == 42
+            assert stats["documents"] == 100
+            assert stats["groups"] == 5

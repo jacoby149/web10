@@ -396,3 +396,86 @@ async def set_sharing(data: Token):
         raise exceptions.CRUD
     ch.set_user_group_sharing(user, data.group_id, data.enabled)
     return {"user_key": user, "group_id": data.group_id, "sharing_enabled": data.enabled}
+
+
+# ---------------------------------------------------------------------------
+# Read by doc_id (direct read with group permission check)
+# ---------------------------------------------------------------------------
+
+
+@router.post("/read-by-id")
+async def read_document_by_id(data: Token):
+    """Read a single document by doc_id with group permission check."""
+    reader = _user(data)
+    if not data.doc_id or not data.collection:
+        raise exceptions.CRUD
+    doc = ch.read_document_by_id(data.doc_id, reader, data.collection)
+    if not doc:
+        raise exceptions.ENTRY_NOT_FOUND
+    # Resolve media URLs inline
+    return ch.resolve_media_urls_in_docs([doc])[0]
+
+
+# ---------------------------------------------------------------------------
+# Groups: manages
+# ---------------------------------------------------------------------------
+
+
+@router.post("/groups/manages")
+async def get_groups_manages(data: Token):
+    """Get groups where the user has management permissions."""
+    user = _user(data)
+    return ch.get_groups_manages(user)
+
+
+# ---------------------------------------------------------------------------
+# Groups: members list (getMembers)
+# ---------------------------------------------------------------------------
+
+
+@router.post("/groups/members/list")
+async def get_group_members(data: Token):
+    """Get group members (w.getMembers)."""
+    user = _user(data)
+    if not data.group_id:
+        raise exceptions.CRUD
+    if not ch.is_group_member(data.group_id, user):
+        raise exceptions.CRUD
+    return ch.get_group_members(data.group_id)
+
+
+# ---------------------------------------------------------------------------
+# Block in group
+# ---------------------------------------------------------------------------
+
+
+@router.post("/block-in-group")
+async def block_user_in_group(data: Token):
+    """Block a user from seeing your content in a specific group."""
+    user = _user(data)
+    if not data.blocked_key or not data.group_id:
+        raise exceptions.CRUD
+    ch.block_user_in_group(user, data.group_id, data.blocked_key)
+    return {"user_key": user, "group_id": data.group_id, "blocked_key": data.blocked_key}
+
+
+@router.post("/unblock-in-group")
+async def unblock_user_in_group(data: Token):
+    """Unblock a user in a group."""
+    user = _user(data)
+    if not data.blocked_key or not data.group_id:
+        raise exceptions.CRUD
+    ch.unblock_user_in_group(user, data.group_id, data.blocked_key)
+    return {"user_key": user, "group_id": data.group_id, "blocked_key": data.blocked_key}
+
+
+# ---------------------------------------------------------------------------
+# Node stats (v3 equivalent of /stats)
+# ---------------------------------------------------------------------------
+
+
+@router.post("/stats")
+async def node_stats(data: Token):
+    """Get node-level stats: users, documents, groups."""
+    _user(data)
+    return ch.get_node_stats()

@@ -1,3 +1,6 @@
+3.0.3 || 09.08.2026
+feat(api): KB gap endpoints — read-by-id, groups/manages, groups/members/list, block-in-group, unblock-in-group, node stats. Service layer: read_document_by_id, get_groups_manages, resolve_media_urls, get_node_stats, provider_service_contracts CRUD. Schema: provider_service_contracts table added. Bug fix: get_groups_manages roles_json parsing (dict with "roles" key, not raw list). 91 tests passing (79 existing + 12 new service layer tests + endpoint tests for all new routes).
+
 3.0.2 || 09.08.2026
 chore(docker): ClickHouse service in docker-compose with named volume + v3 schema init. All 10 tables from knowledge/knowledge-base/web10-v3/db/clickhouse.md: documents, doc_groups, group_contracts, group_members, group_join_requests, group_hidden_docs, service_contracts, user_blacklist, group_blacklist, user_group_sharing. HTTP port 8123, native port 9002 (9000 reserved for MinIO). Init script at clickhouse-init/001-init-v3-schema.sql mounted read-only.
 

@@ -291,3 +291,109 @@ class TestSharing:
         })
         assert resp.status_code == 200
         assert resp.json()["sharing_enabled"] is True
+
+
+# ---------------------------------------------------------------------------
+# Read by doc_id
+# ---------------------------------------------------------------------------
+
+
+class TestReadById:
+    def test_read_by_id(self, client, token):
+        mock_rows = [
+            ("doc-1", "bob", '{"text":"hello"}', [], datetime(2026, 1, 1), ""),
+        ]
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.return_value = MagicMock(result_rows=lambda: mock_rows)
+            resp = client.post("/v3/read-by-id", json={
+                "token": token, "doc_id": "doc-1", "collection": "posts",
+            })
+        assert resp.status_code == 200
+        assert resp.json()["doc_id"] == "doc-1"
+
+    def test_read_by_id_not_found(self, client, token):
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.return_value = MagicMock(result_rows=lambda: [])
+            resp = client.post("/v3/read-by-id", json={
+                "token": token, "doc_id": "doc-1", "collection": "posts",
+            })
+        assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Groups: manages
+# ---------------------------------------------------------------------------
+
+
+class TestGroupsManages:
+    def test_manages(self, client, token):
+        mock_rows = [("g1", "open", "admin", 5)]
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.side_effect = [
+                MagicMock(result_rows=lambda: mock_rows),
+                MagicMock(result_rows=lambda: [('{"roles":[{"name":"admin","permissions":["manageRoles"]}]}' ,)]),
+            ]
+            resp = client.post("/v3/groups/manages", json={"token": token})
+        assert resp.status_code == 200
+        assert len(resp.json()) == 1
+
+
+# ---------------------------------------------------------------------------
+# Groups: members list (getMembers)
+# ---------------------------------------------------------------------------
+
+
+class TestGroupMembersList:
+    def test_list_members(self, client, token):
+        mock_member = [("testuser", "admin", datetime(2026, 1, 1))]
+        mock_members = [("alice", "member", datetime(2026, 1, 1)), ("bob", "member", datetime(2026, 1, 2))]
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.side_effect = [
+                MagicMock(result_rows=lambda: mock_member),
+                MagicMock(result_rows=lambda: mock_members),
+            ]
+            resp = client.post("/v3/groups/members/list", json={"token": token, "group_id": "g1"})
+        assert resp.status_code == 200
+        assert len(resp.json()) == 2
+
+
+# ---------------------------------------------------------------------------
+# Block in group
+# ---------------------------------------------------------------------------
+
+
+class TestBlockInGroup:
+    def test_block_in_group(self, client, token):
+        resp = client.post("/v3/block-in-group", json={
+            "token": token, "group_id": "g1", "blocked_key": "bob",
+        })
+        assert resp.status_code == 200
+        assert resp.json()["blocked_key"] == "bob"
+        assert resp.json()["group_id"] == "g1"
+
+    def test_unblock_in_group(self, client, token):
+        resp = client.post("/v3/unblock-in-group", json={
+            "token": token, "group_id": "g1", "blocked_key": "bob",
+        })
+        assert resp.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Node stats
+# ---------------------------------------------------------------------------
+
+
+class TestNodeStats:
+    def test_stats(self, client, token):
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.side_effect = [
+                MagicMock(result_rows=lambda: [(42,)]),
+                MagicMock(result_rows=lambda: [(100,)]),
+                MagicMock(result_rows=lambda: [(5,)]),
+            ]
+            resp = client.post("/v3/stats", json={"token": token})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["users"] == 42
+        assert data["documents"] == 100
+        assert data["groups"] == 5
