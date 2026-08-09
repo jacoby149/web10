@@ -58,7 +58,7 @@ says what can happen **at the same time**.
 ### Lane: DB (Phase 2)
 **Owns:** ClickHouse setup, migrations
 
-- [ ] ClickHouse schema & tables
+- [✓ 3.0.2] ClickHouse schema & tables
 - [ ] Indexes & patterns
 
 ### Lane: Groups (Phase 2)
