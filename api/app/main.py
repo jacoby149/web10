@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 
 import app.docs as docs
 import app.exceptions as exceptions
-from app.endpoints import auth, crud, discover, media, payments, public, schemas, system
+from app.endpoints import auth, crud, discover, media, payments, public, schemas, system, v3
 
 app = FastAPI(
     title="web10",
@@ -44,6 +44,7 @@ app.include_router(discover.router)
 app.include_router(schemas.router)
 app.include_router(public.router)
 app.include_router(crud.router)
+app.include_router(v3.router)
 
 
 # Map bare Exception strings (raised by auth.py / services) to HTTPExceptions.
