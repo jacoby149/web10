@@ -78,8 +78,10 @@ ORDER BY (user_key, service_name, allowed_origin);
 CREATE TABLE IF NOT EXISTS user_blacklist (
     user_key String,
     blocked_key String,
-    created_at DateTime64(3)
-) ENGINE = MergeTree()
+    created_at DateTime64(3),
+    updated_at DateTime64(3),
+    deleted UInt8 DEFAULT 0
+) ENGINE = ReplacingMergeTree(updated_at)
 ORDER BY (user_key, blocked_key);
 
 CREATE TABLE IF NOT EXISTS group_blacklist (

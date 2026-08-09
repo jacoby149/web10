@@ -38,6 +38,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(payments.router)
 app.include_router(system.router)
+app.include_router(v3.router)
 app.include_router(media.router)
 # Specific routers must be registered before crud.router, which has
 # catch-all patterns (/{user}/{service}) that would shadow these routes.
@@ -45,7 +46,6 @@ app.include_router(discover.router)
 app.include_router(schemas.router)
 app.include_router(public.router)
 app.include_router(crud.router)
-app.include_router(v3.router)
 
 
 # Map bare Exception strings (raised by auth.py / services) to HTTPExceptions.

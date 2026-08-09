@@ -18,8 +18,6 @@ client = clickhouse_connect.get_client(
     secure=settings.CLICKHOUSE_SECURE,
 )
 
-NOW = "now()"
-
 
 def _now() -> datetime:
     return datetime.utcnow()
@@ -380,6 +378,16 @@ def get_pending_requests(group_id: str) -> list[dict]:
     ]
 
 
+def has_pending_or_invited_request(group_id: str, requester_key: str) -> bool:
+    """Check if a user has a pending or invited join request for a group."""
+    result = client.query(
+        "SELECT count() FROM group_join_requests "
+        "WHERE group_id = %(group_id)s AND requester_key = %(requester_key)s AND status IN ('pending', 'invited') AND deleted = 0",
+        {"group_id": group_id, "requester_key": requester_key},
+    )
+    return result.result_rows()[0][0] > 0
+
+
 # ---------------------------------------------------------------------------
 # Group Hidden Docs (moderation)
 # ---------------------------------------------------------------------------
@@ -475,13 +483,15 @@ def revoke_all_service_contracts(user_key: str):
 def block_user(user_key: str, blocked_key: str):
     """Block a user (user-wide blacklist)."""
     now = _now()
-    client.insert("user_blacklist", [[user_key, blocked_key, now]])
+    client.insert("user_blacklist", [[user_key, blocked_key, now, now, 0]])
 
 
 def unblock_user(user_key: str, blocked_key: str):
-    """Remove a user block."""
+    """Remove a user block (tombstone via INSERT SELECT)."""
     client.command(
-        "DELETE FROM user_blacklist WHERE user_key = %(user_key)s AND blocked_key = %(blocked_key)s",
+        "INSERT INTO user_blacklist (user_key, blocked_key, created_at, updated_at, deleted) "
+        "SELECT user_key, blocked_key, created_at, now(), 1 "
+        "FROM user_blacklist WHERE user_key = %(user_key)s AND blocked_key = %(blocked_key)s AND deleted = 0",
         {"user_key": user_key, "blocked_key": blocked_key},
     )
 
@@ -489,7 +499,7 @@ def unblock_user(user_key: str, blocked_key: str):
 def is_user_blocked(user_key: str, blocked_key: str) -> bool:
     """Check if a user has blocked another user."""
     result = client.query(
-        "SELECT count() FROM user_blacklist WHERE user_key = %(user_key)s AND blocked_key = %(blocked_key)s",
+        "SELECT count() FROM user_blacklist WHERE user_key = %(user_key)s AND blocked_key = %(blocked_key)s AND deleted = 0",
         {"user_key": user_key, "blocked_key": blocked_key},
     )
     return result.result_rows()[0][0] > 0

@@ -1,30 +1,17 @@
-from datetime import datetime
-
 from fastapi import APIRouter
 
 import app.exceptions as exceptions
-from app.v3.models import (
-    AddMember,
-    CreateDoc,
-    CreateGroup,
-    InviteMember,
-    ReadQuery,
-    ServiceContract,
-    Token,
-    UpdateDoc,
-    UpdateGroup,
-)
+from app.v3.models import Token
 from app.v3.services import clickhouse as ch
 from app.services.auth import decode_token
 
 router = APIRouter(prefix="/v3")
 
 
-def _user(token: Token) -> str:
-    """Extract the authenticated user from the token."""
-    if not token.token:
+def _user(data: Token) -> str:
+    if not data.token:
         raise exceptions.TOKEN
-    decoded = decode_token(token.token)
+    decoded = decode_token(data.token)
     if not decoded.username or decoded.username == "anon":
         raise exceptions.TOKEN
     return decoded.username
@@ -35,98 +22,98 @@ def _user(token: Token) -> str:
 # ---------------------------------------------------------------------------
 
 
-@router.post("/{user}/{collection}")
-async def create_document(user: str, collection: str, token: Token, doc: CreateDoc):
+@router.post("/create")
+async def create_document(data: Token):
     """Create a document with optional group attachments."""
-    author = _user(token)
-    if author != user:
+    author = _user(data)
+    if data.body is None:
         raise exceptions.CRUD
 
     doc_id = ch._gen_doc_id()
     result = ch.insert_document(
         doc_id=doc_id,
         author_key=author,
-        collection_name=collection,
-        body=doc.body,
-        tags=doc.body.get("tags", []),
+        collection_name=data.collection or "",
+        body=data.body,
+        tags=data.body.get("tags", []),
     )
 
-    if doc.groups:
-        ch.attach_doc_to_groups(doc_id, doc.groups)
-        result["groups"] = doc.groups
+    if data.groups:
+        ch.attach_doc_to_groups(doc_id, data.groups)
+        result["groups"] = data.groups
 
     return result
 
 
-@router.patch("/{user}/{collection}")
-async def read_documents(user: str, collection: str, token: Token, query: ReadQuery):
-    """Read documents filtered by group membership (v3 discover query)."""
-    reader = _user(token)
+@router.post("/read")
+async def read_documents(data: Token):
+    """Read documents filtered by group membership."""
+    reader = _user(data)
+    if not data.groups:
+        raise exceptions.CRUD
 
-    if "me" in query.groups:
-        # Personal read — documents where author = user
+    if "me" in data.groups:
         docs = ch.read_documents(
-            author_key=user,
-            collection_name=collection,
-            limit=query.limit,
-            offset=query.offset,
+            author_key=reader,
+            collection_name=data.collection or "",
+            limit=data.limit,
+            offset=data.offset,
         )
     else:
-        # Group-filtered read — the core v3 discover query
         docs = ch.read_documents_in_groups(
-            group_ids=query.groups,
+            group_ids=data.groups,
             member_key=reader,
-            collection_name=collection,
-            limit=query.limit,
-            offset=query.offset,
+            collection_name=data.collection or "",
+            limit=data.limit,
+            offset=data.offset,
         )
 
     return docs
 
 
-@router.put("/{user}/{collection}/{doc_id}")
-async def update_document(user: str, collection: str, doc_id: str, token: Token, doc: UpdateDoc):
+@router.post("/update")
+async def update_document(data: Token):
     """Update a document (new version + optional group changes)."""
-    author = _user(token)
-    if author != user:
+    author = _user(data)
+    if data.body is None or not data.doc_id:
         raise exceptions.CRUD
 
-    existing = ch.get_document(doc_id, author)
+    existing = ch.get_document(data.doc_id, author)
     if not existing:
         raise exceptions.ENTRY_NOT_FOUND
 
-    merged_body = {**existing["body"], **doc.body}
+    merged_body = {**existing["body"], **data.body}
     result = ch.update_document(
-        doc_id=doc_id,
+        doc_id=data.doc_id,
         author_key=author,
-        collection_name=collection,
+        collection_name=existing["collection_name"],
         body=merged_body,
         tags=merged_body.get("tags", []),
     )
 
-    if doc.groups is not None:
-        ch.replace_doc_groups(doc_id, doc.groups)
-        result["groups"] = doc.groups
+    if data.groups is not None:
+        ch.replace_doc_groups(data.doc_id, data.groups)
+        result["groups"] = data.groups
     else:
-        result["groups"] = ch.get_doc_groups(doc_id)
+        result["groups"] = ch.get_doc_groups(data.doc_id)
 
     return result
 
 
-@router.delete("/{user}/{collection}/{doc_id}")
-async def delete_document(user: str, collection: str, doc_id: str, token: Token):
+@router.post("/delete")
+async def delete_document(data: Token):
     """Tombstone a document and its group attachments."""
-    author = _user(token)
-    if author != user:
+    author = _user(data)
+    if not data.doc_id:
         raise exceptions.CRUD
 
-    existing = ch.get_document(doc_id, author)
+    existing = ch.get_document(data.doc_id, author)
     if not existing:
         raise exceptions.ENTRY_NOT_FOUND
 
-    ch.delete_document(doc_id, author, collection)
-    ch.detach_doc_from_groups(doc_id)
-    return {"doc_id": doc_id, "status": "deleted"}
+    ch.delete_document(data.doc_id, author, existing["collection_name"])
+    ch.detach_doc_from_groups(data.doc_id)
+    return {"doc_id": data.doc_id, "status": "deleted"}
 
 
 # ---------------------------------------------------------------------------
@@ -134,93 +121,101 @@ async def delete_document(user: str, collection: str, doc_id: str, token: Token)
 # ---------------------------------------------------------------------------
 
 
-@router.post("/groups")
-async def create_group(token: Token, group: CreateGroup):
+@router.post("/groups/create")
+async def create_group(data: Token):
     """Create a group with roles and initial members."""
-    creator = _user(token)
-    group_id = f"{group.name.lower().replace(' ', '-')}"
-    # Namespace by creator
-    group_id = f"{decode_token(token.token).provider}/groups/{creator}/{group_id}"
+    creator = _user(data)
+    if not data.name or not data.roles or not data.members:
+        raise exceptions.CRUD
 
-    ch.create_group(group_id, group.roles, group.join_policy)
+    decoded = decode_token(data.token)
+    group_id = f"{data.name.lower().replace(' ', '-')}"
+    group_id = f"{decoded.provider}/groups/{creator}/{group_id}"
+    join_policy = data.join_policy or "open"
 
-    # Add members (creator gets group management perms)
-    for m in group.members:
+    ch.create_group(group_id, data.roles, join_policy)
+
+    for m in data.members:
         ch.add_group_member(group_id, m["member_key"], m.get("role", "member"))
 
-    # Ensure creator has admin role with management perms
     creator_role = None
-    for role_def in group.roles:
-        if any(m["member_key"] == creator for m in group.members if m.get("role") == role_def["name"]):
+    for role_def in data.roles:
+        if any(m["member_key"] == creator for m in data.members if m.get("role") == role_def["name"]):
             creator_role = role_def
             break
 
     if not creator_role:
-        # Add creator as admin if not in members list
         ch.add_group_member(group_id, creator, "admin")
 
     return {"group_id": group_id}
 
 
-@router.get("/groups")
-async def get_my_groups(token: Token):
+@router.post("/groups/list")
+async def get_my_groups(data: Token):
     """Get all groups the user belongs to."""
-    user = _user(token)
+    user = _user(data)
     return ch.get_user_groups(user)
 
 
-@router.get("/groups/{group_id}")
-async def get_group(group_id: str, token: Token):
+@router.post("/groups/get")
+async def get_group(data: Token):
     """Get group details."""
-    _user(token)
-    group = ch.get_group(group_id)
+    _user(data)
+    if not data.group_id:
+        raise exceptions.CRUD
+    group = ch.get_group(data.group_id)
     if not group:
         raise exceptions.ENTRY_NOT_FOUND
     return group
 
 
-@router.put("/groups/{group_id}")
-async def update_group(group_id: str, token: Token, update: UpdateGroup):
+@router.post("/groups/update")
+async def update_group(data: Token):
     """Update group settings."""
-    user = _user(token)
-    member = ch.get_group_member(group_id, user)
+    user = _user(data)
+    if not data.group_id:
+        raise exceptions.CRUD
+    member = ch.get_group_member(data.group_id, user)
     if not member:
         raise exceptions.CRUD
 
-    existing = ch.get_group(group_id)
+    existing = ch.get_group(data.group_id)
     if not existing:
         raise exceptions.ENTRY_NOT_FOUND
 
     result = ch.update_group(
-        group_id,
-        roles=update.roles or existing["roles"],
-        join_policy=update.join_policy or existing["join_policy"],
+        data.group_id,
+        roles=data.roles or existing["roles"],
+        join_policy=data.join_policy or existing["join_policy"],
     )
     return result
 
 
-@router.get("/groups/{group_id}/members")
-async def get_group_members(group_id: str, token: Token):
+@router.post("/groups/members/list")
+async def get_group_members(data: Token):
     """Get group members."""
-    user = _user(token)
-    if not ch.is_group_member(group_id, user):
+    user = _user(data)
+    if not data.group_id:
         raise exceptions.CRUD
-    return ch.get_group_members(group_id)
+    if not ch.is_group_member(data.group_id, user):
+        raise exceptions.CRUD
+    return ch.get_group_members(data.group_id)
 
 
-@router.post("/groups/{group_id}/members")
-async def add_group_member(group_id: str, token: Token, member: AddMember):
+@router.post("/groups/members/add")
+async def add_group_member(data: Token):
     """Add a member to a group."""
-    user = _user(token)
-    requester = ch.get_group_member(group_id, user)
+    user = _user(data)
+    if not data.group_id or not data.member_key or not data.role:
+        raise exceptions.CRUD
+    requester = ch.get_group_member(data.group_id, user)
     if not requester:
         raise exceptions.CRUD
 
-    existing = ch.get_group(group_id)
+    existing = ch.get_group(data.group_id)
     if not existing:
         raise exceptions.ENTRY_NOT_FOUND
 
-    # Check if requester's role has assignRoles
     requester_role_def = None
     for rd in existing["roles"]:
         if rd["name"] == requester["role"]:
@@ -230,19 +225,21 @@ async def add_group_member(group_id: str, token: Token, member: AddMember):
     if requester_role_def and "assignRoles" not in requester_role_def.get("permissions", []):
         raise exceptions.CRUD
 
-    ch.add_group_member(group_id, member.member_key, member.role)
-    return {"group_id": group_id, "member_key": member.member_key, "role": member.role}
+    ch.add_group_member(data.group_id, data.member_key, data.role)
+    return {"group_id": data.group_id, "member_key": data.member_key, "role": data.role}
 
 
-@router.delete("/groups/{group_id}/members/{member_key}")
-async def remove_group_member(group_id: str, member_key: str, token: Token):
+@router.post("/groups/members/remove")
+async def remove_group_member(data: Token):
     """Remove a member from a group."""
-    user = _user(token)
-    requester = ch.get_group_member(group_id, user)
+    user = _user(data)
+    if not data.group_id or not data.member_key:
+        raise exceptions.CRUD
+    requester = ch.get_group_member(data.group_id, user)
     if not requester:
         raise exceptions.CRUD
 
-    existing = ch.get_group(group_id)
+    existing = ch.get_group(data.group_id)
     if not existing:
         raise exceptions.ENTRY_NOT_FOUND
 
@@ -255,77 +252,77 @@ async def remove_group_member(group_id: str, member_key: str, token: Token):
     if requester_role_def and "revokeRoles" not in requester_role_def.get("permissions", []):
         raise exceptions.CRUD
 
-    ch.remove_group_member(group_id, member_key)
-    return {"group_id": group_id, "member_key": member_key, "status": "removed"}
+    ch.remove_group_member(data.group_id, data.member_key)
+    return {"group_id": data.group_id, "member_key": data.member_key, "status": "removed"}
 
 
-@router.post("/groups/{group_id}/join")
-async def join_group(group_id: str, token: Token):
+@router.post("/groups/join")
+async def join_group(data: Token):
     """Join a group (open or request)."""
-    user = _user(token)
-    existing = ch.get_group(group_id)
+    user = _user(data)
+    if not data.group_id:
+        raise exceptions.CRUD
+    existing = ch.get_group(data.group_id)
     if not existing:
         raise exceptions.ENTRY_NOT_FOUND
 
     if existing["join_policy"] == "open":
-        ch.add_group_member(group_id, user, "member")
-        return {"group_id": group_id, "member_key": user, "role": "member"}
+        ch.add_group_member(data.group_id, user, "member")
+        return {"group_id": data.group_id, "member_key": user, "role": "member"}
     elif existing["join_policy"] == "request":
-        ch.create_join_request(group_id, user, "pending")
-        return {"group_id": group_id, "status": "pending"}
+        ch.create_join_request(data.group_id, user, "pending")
+        return {"group_id": data.group_id, "status": "pending"}
     else:
         raise exceptions.CRUD
 
 
-@router.post("/groups/{group_id}/invite")
-async def invite_member(group_id: str, token: Token, invite: InviteMember):
+@router.post("/groups/invite")
+async def invite_member(data: Token):
     """Invite a member to a group."""
-    user = _user(token)
-    requester = ch.get_group_member(group_id, user)
+    user = _user(data)
+    if not data.group_id or not data.member_key or not data.role:
+        raise exceptions.CRUD
+    requester = ch.get_group_member(data.group_id, user)
     if not requester:
         raise exceptions.CRUD
 
-    ch.create_join_request(group_id, invite.member_key, "invited")
-    return {"group_id": group_id, "invited_key": invite.member_key, "status": "invited"}
+    ch.create_join_request(data.group_id, data.member_key, "invited")
+    return {"group_id": data.group_id, "invited_key": data.member_key, "status": "invited"}
 
 
-@router.post("/groups/{group_id}/accept-invite")
-async def accept_invite(group_id: str, token: Token):
+@router.post("/groups/accept-invite")
+async def accept_invite(data: Token):
     """Accept a group invite or join request."""
-    user = _user(token)
-    result = ch.client.query(
-        "SELECT requester_key FROM group_join_requests "
-        "WHERE group_id = %(group_id)s AND requester_key = %(user_key)s AND status IN ('pending', 'invited') AND deleted = 0",
-        {"group_id": group_id, "user_key": user},
-    )
-    if not result.result_rows():
+    user = _user(data)
+    if not data.group_id:
         raise exceptions.CRUD
-    ch.resolve_join_request(group_id, user, "approved")
-    ch.add_group_member(group_id, user, "member")
-    return {"group_id": group_id, "role": "member"}
+    if not ch.has_pending_or_invited_request(data.group_id, user):
+        raise exceptions.CRUD
+    ch.resolve_join_request(data.group_id, user, "approved")
+    ch.add_group_member(data.group_id, user, "member")
+    return {"group_id": data.group_id, "role": "member"}
 
 
-@router.post("/groups/{group_id}/decline-invite")
-async def decline_invite(group_id: str, token: Token):
+@router.post("/groups/decline-invite")
+async def decline_invite(data: Token):
     """Decline a group invite or join request."""
-    user = _user(token)
-    result = ch.client.query(
-        "SELECT requester_key FROM group_join_requests "
-        "WHERE group_id = %(group_id)s AND requester_key = %(user_key)s AND status IN ('pending', 'invited') AND deleted = 0",
-        {"group_id": group_id, "user_key": user},
-    )
-    if not result.result_rows():
+    user = _user(data)
+    if not data.group_id:
         raise exceptions.CRUD
-    ch.resolve_join_request(group_id, user, "declined")
-    return {"group_id": group_id, "status": "declined"}
+    if not ch.has_pending_or_invited_request(data.group_id, user):
+        raise exceptions.CRUD
+    ch.resolve_join_request(data.group_id, user, "declined")
+    return {"group_id": data.group_id, "status": "declined"}
 
 
-@router.post("/groups/{group_id}/leave")
-async def leave_group(group_id: str, token: Token):
+@router.post("/groups/leave")
+async def leave_group(data: Token):
     """Leave a group."""
-    user = _user(token)
-    ch.remove_group_member(group_id, user)
-    return {"group_id": group_id, "member_key": user, "status": "left"}
+    user = _user(data)
+    if not data.group_id:
+        raise exceptions.CRUD
+    ch.remove_group_member(data.group_id, user)
+    return {"group_id": data.group_id, "member_key": user, "status": "left"}
 
 
 # ---------------------------------------------------------------------------
@@ -333,27 +330,29 @@ async def leave_group(group_id: str, token: Token):
 # ---------------------------------------------------------------------------
 
 
-@router.post("/service-contracts")
-async def add_service_contract(token: Token, contract: ServiceContract):
+@router.post("/service-contracts/add")
+async def add_service_contract(data: Token):
     """Add a service contract (app trust)."""
-    user = _user(token)
-    result = ch.add_service_contract(user, contract.service_name, contract.allowed_origin)
+    user = _user(data)
+    if not data.service_name or not data.allowed_origin:
+        raise exceptions.CRUD
+    result = ch.add_service_contract(user, data.service_name, data.allowed_origin)
     return result
 
 
-@router.get("/service-contracts")
-async def get_service_contracts(token: Token):
+@router.post("/service-contracts/list")
+async def get_service_contracts(data: Token):
     """Get active service contracts."""
-    user = _user(token)
+    user = _user(data)
     return ch.get_service_contracts(user)
 
 
-@router.delete("/service-contracts")
-async def revoke_service_contract(token: Token, allowed_origin: str | None = None):
+@router.post("/service-contracts/revoke")
+async def revoke_service_contract(data: Token):
     """Revoke service contracts (all or by origin)."""
-    user = _user(token)
-    if allowed_origin:
-        ch.revoke_service_contract(user, allowed_origin)
+    user = _user(data)
+    if data.allowed_origin:
+        ch.revoke_service_contract(user, data.allowed_origin)
     else:
         ch.revoke_all_service_contracts(user)
     return {"status": "revoked"}
@@ -364,20 +363,24 @@ async def revoke_service_contract(token: Token, allowed_origin: str | None = Non
 # ---------------------------------------------------------------------------
 
 
-@router.post("/block/{blocked_key}")
-async def block_user(blocked_key: str, token: Token):
+@router.post("/block")
+async def block_user(data: Token):
     """Block a user (user-wide)."""
-    user = _user(token)
-    ch.block_user(user, blocked_key)
-    return {"user_key": user, "blocked_key": blocked_key}
+    user = _user(data)
+    if not data.blocked_key:
+        raise exceptions.CRUD
+    ch.block_user(user, data.blocked_key)
+    return {"user_key": user, "blocked_key": data.blocked_key}
 
 
-@router.delete("/block/{blocked_key}")
-async def unblock_user(blocked_key: str, token: Token):
+@router.post("/unblock")
+async def unblock_user(data: Token):
     """Unblock a user."""
-    user = _user(token)
-    ch.unblock_user(user, blocked_key)
-    return {"user_key": user, "blocked_key": blocked_key}
+    user = _user(data)
+    if not data.blocked_key:
+        raise exceptions.CRUD
+    ch.unblock_user(user, data.blocked_key)
+    return {"user_key": user, "blocked_key": data.blocked_key}
 
 
 # ---------------------------------------------------------------------------
@@ -385,9 +388,11 @@ async def unblock_user(blocked_key: str, token: Token):
 # ---------------------------------------------------------------------------
 
 
-@router.put("/sharing/{group_id}")
-async def set_sharing(group_id: str, token: Token, enabled: bool = True):
+@router.post("/sharing/set")
+async def set_sharing(data: Token):
     """Set sharing toggle for a group."""
-    user = _user(token)
-    ch.set_user_group_sharing(user, group_id, enabled)
-    return {"user_key": user, "group_id": group_id, "sharing_enabled": enabled}
+    user = _user(data)
+    if not data.group_id:
+        raise exceptions.CRUD
+    ch.set_user_group_sharing(user, data.group_id, data.enabled)
+    return {"user_key": user, "group_id": data.group_id, "sharing_enabled": data.enabled}
