@@ -40,12 +40,12 @@ says what can happen **at the same time**.
 ### Lane: Docs (Phase 1)
 **Owns:** `marketing/marketing-ui/public/docs/`
 
-- [ ] Docs audit
-- [ ] Protocol overview
-- [ ] SDK docs
+- [✓ 3.0.9] Docs audit
+- [✓ 3.0.9] Protocol overview
+- [✓ 3.0.9] SDK docs
 - [ ] Developer quickstart
-- [ ] Conventions & schemas
-- [ ] Discovery & groups
+- [✓ 3.0.9] Conventions & schemas
+- [✓ 3.0.9] Discovery & groups
 - [ ] Screenshot test pass
 
 ### Lane: SDK (Phase 2)

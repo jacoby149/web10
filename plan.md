@@ -60,11 +60,11 @@ the core primitive, no inbox, no legacy follows). The knowledge base
 is the source of truth — derive every claim from it. Include Mermaid
 diagrams where they help the reader.
 
-- [ ] **Protocol spec** (`protocol-spec.md`) — rewrite: ClickHouse data model, groups-based access (no terms records), v3 token/auth, CRUD with groups, aggregate → ClickHouse SQL.
-- [ ] **SDK guide** (`sdk.md`) — rewrite: `createClient` API, groups baked into CRUD, group operations, media upload, cross-node addressing. Remove legacy wapi.js as primary (keep as compat note).
-- [ ] **Conventions** (`conventions.md`) — rewrite: v3 data model (`documents` table, `ref_value`, `doc_groups`), remove v2 services (inbox, follows, contacts). Groups replace follows/contacts.
-- [ ] **Discovery** (`discovery.md`) — rewrite: v3 discovery is group-based reads, not a separate index. No public ledger or schema registry (those are v2). Show how `web10/discover` group = public board.
-- [ ] **Overview** (`overview.md`) — update: ensure v3 concepts (groups, ClickHouse, no algorithm, 100% delivery via group reads) are reflected. The premise and principles are fine; the mechanics need updating.
+- [✓ 3.0.9] **Protocol spec** (`protocol-spec.md`) — rewrite: ClickHouse data model, groups-based access (no terms records), v3 token/auth, CRUD with groups, aggregate → ClickHouse SQL.
+- [✓ 3.0.9] **SDK guide** (`sdk.md`) — rewrite: `createClient` API, groups baked into CRUD, group operations, media upload, cross-node addressing. Remove legacy wapi.js as primary (keep as compat note).
+- [✓ 3.0.9] **Conventions** (`conventions.md`) — rewrite: v3 data model (`documents` table, `ref_value`, `doc_groups`), remove v2 services (inbox, follows, contacts). Groups replace follows/contacts.
+- [✓ 3.0.9] **Discovery** (`discovery.md`) — deleted: v3 discovery is group-based reads, not a separate index. No public ledger or schema registry (those are v2). Covered by groups.md + sdk.md.
+- [✓ 3.0.9] **Overview** (`overview.md`) — update: ensure v3 concepts (groups, ClickHouse, no algorithm, 100% delivery via group reads) are reflected. The premise and principles are fine; the mechanics need updating.
 - [ ] **Design.md-grade** — the docs themselves pass the screenshot test.
 
 ---
