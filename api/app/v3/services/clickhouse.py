@@ -621,12 +621,10 @@ def get_ref_counts(doc_ids: list[str], collection_name: str = "reactions") -> di
     """Count references for multiple documents."""
     if not doc_ids:
         return {}
-    in_placeholders = ", ".join(f"%(d{i})s" for i in range(len(doc_ids)))
+    placeholders = ", ".join(f"%(d{i})s" for i in range(len(doc_ids)))
     params = {"coll": collection_name, **{f"d{i}": did for i, did in enumerate(doc_ids)}}
     result = client.query(
-        f"SELECT ref_value, count() FROM documents "
-        "WHERE deleted = 0 AND collection_name = %(coll)s AND ref_value IN ({in_placeholders}) "
-        "GROUP BY ref_value",
+        f"SELECT ref_value, count() FROM documents WHERE deleted = 0 AND collection_name = %(coll)s AND ref_value IN ({placeholders}) GROUP BY ref_value",
         params,
     )
     return {row[0]: row[1] for row in result.result_rows()}

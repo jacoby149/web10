@@ -1,9 +1,9 @@
 from fastapi import APIRouter
 
 import app.exceptions as exceptions
+from app.services.auth import decode_token
 from app.v3.models import Token
 from app.v3.services import clickhouse as ch
-from app.services.auth import decode_token
 
 router = APIRouter(prefix="/v3")
 
@@ -426,22 +426,6 @@ async def get_groups_manages(data: Token):
     """Get groups where the user has management permissions."""
     user = _user(data)
     return ch.get_groups_manages(user)
-
-
-# ---------------------------------------------------------------------------
-# Groups: members list (getMembers)
-# ---------------------------------------------------------------------------
-
-
-@router.post("/groups/members/list")
-async def get_group_members(data: Token):
-    """Get group members (w.getMembers)."""
-    user = _user(data)
-    if not data.group_id:
-        raise exceptions.CRUD
-    if not ch.is_group_member(data.group_id, user):
-        raise exceptions.CRUD
-    return ch.get_group_members(data.group_id)
 
 
 # ---------------------------------------------------------------------------
