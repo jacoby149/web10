@@ -97,8 +97,6 @@ flowchart TD
 ```
 
 **Service contract** — App Trust (Infrastructure). "Do we want to spin up these data buckets for this app?"
-
-**Service contract** — App Trust (Infrastructure). "Do we want to spin up these data buckets for this app?"
 Binary toggle. CORS. Browser-enforced. No data permissions involved. If you turn it off, the app can't even talk to your node.
 
 ```

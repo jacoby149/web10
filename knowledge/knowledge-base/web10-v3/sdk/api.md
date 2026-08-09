@@ -355,8 +355,6 @@ Group management permissions are separate from content permissions:
 
 ### Get Groups
 
-### Get Groups
-
 ```ts
 // All groups the user belongs to (full details)
 const groups = await w.getGroups({ member: 'jacoby149' })
