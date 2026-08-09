@@ -96,13 +96,13 @@ merges. The doc is the spec. The code is the proof.
 Once the v3 backend is live, the existing apps still speak v2's
 legacy wapi and contract model. They all need to adapt:
 
-- [ ] **Authenticator** (`ui/`) — consent flow, service contracts, token
+- [✓] **Authenticator** (`ui/`) — consent flow, service contracts, token
   handoff, all rewritten against the v3 SDK and v3 contract model.
   The auth portal is the front door; it must work first.
 - [ ] **Social app** (`marketing/web10-social/`) — every screen maps to the
   `web10-social-v3/` docs (11 screens, CRUD + groups + refs).
   No legacy endpoints. No v2 double-writes. Pure v3.
-- [ ] **Demo apps** (`docs/hello/`, `docs/notes/`, `docs/messages/`) — the
+- [✓] **Demo apps** (`docs/hello/`, `docs/notes/`, `docs/messages/`) — the
   runnable demos in the marketing docs must work against v3.
   They are the developer's first impression. If they break, the docs lie.
 

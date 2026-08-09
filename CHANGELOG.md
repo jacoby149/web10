@@ -1,3 +1,9 @@
+3.0.8 || 09.08.2026
+fix(sdk): three-way SDK/API/KB alignment — (1) inviteMember return type fixed: API returns invited_key, SDK type now V3InviteResponse (not V3GroupMember which had member_key), (2) read() requires groups param (API rejects without it), (3) added missing methods: verifyPhone(code), verifyEmail(code), requestJoin(groupId), registerApp(), getApps(), rateApp(), getAppRatings(), (4) 43 SDK tests (was 35), 711 API tests, 107 UI tests, 206 marketing-ui tests green, tsc clean all three packages.
+
+3.0.7 || 09.08.2026
+feat(sdk+ui+demos): v3 client module, authenticator v3 contracts, demo apps with groups. SDK: new v3.ts client module — full v3 API surface (CRUD with groups, service contracts, group operations, auth, blocking, sharing, media, stats), 35 unit tests, full types, exported from index.ts. Authenticator (ui/): Interface.tsx gains v3 service contract methods (v3ContractsLoad, addV3Contract, revokeV3Contract, hasV3Contract) and v3 group methods (v3GroupsLoad, v3JoinGroup, v3LeaveGroup, block/unblock in group); servicesLoad loads v3 contracts + groups in parallel; submitSIR also adds v3 contracts (one per cross_origin); deleteService also revokes v3 contracts; logout clears v3 state. Demo apps: hello shows user groups on login; notes uses v3 CRUD with groups (public discover attachment); messages uses v3 with DM groups (ensureDmGroup creates invite-only groups per conversation); all three use v3 service contracts for origin allowlisting. 107 ui + 116 sdk + 206 marketing-ui tests green, tsc clean.
+
 3.0.6 || 09.08.2026
 fix(api): get_groups_manages now uses ClickHouse JSON functions (extractJSONArray, has) for in-database filtering instead of application-side Python iteration, matching KB sdk/implementation.md specification. 94 tests passing.
 
