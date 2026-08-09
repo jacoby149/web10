@@ -4,10 +4,30 @@ The data model. Every table, every index, every pattern.
 
 ## User Schema
 
-User-owned data, groups, access control, and moderation.
+User-owned data, accounts, groups, access control, monetization, and moderation.
 
 ```mermaid
 erDiagram
+    user_accounts {
+        String user_key PK
+        String password_hash
+        String phone
+        String phone_verified
+        String email
+        String display_name
+        String bio
+        String avatar_ref
+        String customer_id
+        String business_id
+        Float64 credits_spent
+        Float64 credit_limit
+        Float64 space_used
+        Float64 space_limit
+        DateTime64 last_replenish
+        DateTime64 created_at
+        DateTime64 updated_at
+        UInt8 deleted
+    }
     documents {
         String doc_id PK
         String author_key PK
@@ -86,7 +106,63 @@ erDiagram
         DateTime64 updated_at
         UInt8 deleted
     }
+    credits_ledger {
+        String user_key PK
+        Float64 amount
+        String action
+        DateTime64 created_at
+    }
+    subscriptions {
+        String subscriber_key PK
+        String creator_key PK
+        String title
+        UInt64 price_cents
+        String status
+        String stripe_subscription_id
+        DateTime64 created_at
+        DateTime64 updated_at
+        UInt8 deleted
+    }
+    tips {
+        String tip_id PK
+        String tipper_key
+        String receiver_key
+        UInt64 amount_cents
+        String message
+        String stripe_payment_id
+        DateTime64 created_at
+    }
+    sponsor_deals {
+        String deal_id PK
+        String sponsor_key
+        String creator_key
+        String deal_type
+        UInt64 amount_cents
+        String status
+        DateTime64 start_date
+        DateTime64 end_date
+        DateTime64 created_at
+        DateTime64 updated_at
+        UInt8 deleted
+    }
+    sponsored_products {
+        String doc_id PK
+        String product_name
+        String product_url
+        String affiliate_link
+        Float64 commission_pct
+        DateTime64 created_at
+        DateTime64 updated_at
+        UInt8 deleted
+    }
 
+    user_accounts ||--o{ documents : "authors"
+    user_accounts ||--o{ service_contracts : "owns"
+    user_accounts ||--o{ credits_ledger : "spends"
+    user_accounts ||--o{ subscriptions : "subscribes"
+    user_accounts ||--o{ subscriptions : "receives"
+    user_accounts ||--o{ tips : "tips"
+    user_accounts ||--o{ tips : "receives tips"
     documents ||--o{ doc_groups : "attached to"
     doc_groups }o--|| group_contracts : "maps to"
     group_contracts ||--o{ group_members : "has"
@@ -95,6 +171,7 @@ erDiagram
     documents }o--|| user_blacklist : "author blocked by"
     documents }o--|| group_blacklist : "author blocked in group"
     documents }o--|| group_hidden_docs : "hidden from group"
+    documents ||--o{ sponsored_products : "tags"
 ```
 
 ## Provider Schema
@@ -143,11 +220,11 @@ erDiagram
     provider_apps ||--o{ provider_app_moderation : "moderated by"
 ```
 
-**User schema (11 tables):** one for content, one for visibility, three for groups, one for moderation, two for app trust, two for blocking, one for sharing control.
+**User schema (18 tables):** one for accounts, one for content, one for visibility, three for groups, one for moderation, two for app trust, two for blocking, one for sharing control, one for metering, one for subscriptions, one for tips, one for sponsor deals, one for sponsored products.
 
-**Provider schema (2 tables):** one for the app store, one for the origin blacklist.
+**Provider schema (4 tables):** one for the app store, one for app reviews, one for app moderation, one for the origin blacklist.
 
-Thirteen tables. Everything else is a query.
+Twenty-two tables. Everything else is a query.
 
 ## User Schema Tables
 
@@ -324,18 +401,138 @@ CREATE TABLE group_hidden_docs (
 ORDER BY (group_id, doc_id);
 ```
 
-**Primary key:** `(group_id, doc_id)` — one hide per document per group. Un-hiding is a tombstone (`deleted = 1`). The read query excludes hidden documents:
+### User Accounts
+
+The star record replacement. One row per user. Holds identity, credentials, Stripe IDs, and metering state.
 
 ```sql
-SELECT FROM documents
-  JOIN doc_groups
-  JOIN group_members
-  WHERE deleted = 0
-    AND member = :user
-    AND (doc_id, group_id) NOT IN (
-      SELECT doc_id, group_id FROM group_hidden_docs WHERE deleted = 0
-    )
+CREATE TABLE user_accounts (
+    user_key String,
+    password_hash String,
+    phone String,
+    phone_verified UInt8,
+    email String,
+    display_name String,
+    bio String,
+    avatar_ref String,
+    customer_id String,       -- Stripe Customer ID
+    business_id String,       -- Stripe Connect Express Account ID
+    credits_spent Float64,
+    credit_limit Float64,
+    space_used Float64,
+    space_limit Float64,
+    last_replenish DateTime64(3),
+    created_at DateTime64(3),
+    updated_at DateTime64(3),
+    deleted UInt8 DEFAULT 0
+) ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY user_key;
 ```
+
+**Primary key:** `user_key`. The account record. Protected from CRUD modification — only the auth endpoints can write to it.
+
+**Stripe IDs are auto-created.** `customer_id` is created on first payment (buying a subscription, tipping, upgrading credits/space). `business_id` is created on first sale (receiving a subscription payment, being tipped). Both are stored here so the API can look them up without calling Stripe.
+
+**Metering is materialized.** `credits_spent` is incremented per CRUD operation. `credit_limit` and `space_limit` are set by the operator (or updated by Stripe webhook on upgrade). `last_replenish` tracks the monthly reset. The API checks `credits_spent < credit_limit` and `space_used < space_limit` before allowing CRUD.
+
+### Credits Ledger
+
+Append-only event log of credit spending. Every CRUD operation that costs credits appends an event.
+
+```sql
+CREATE TABLE credits_ledger (
+    user_key String,
+    amount Float64,
+    action String,             -- 'create', 'update', 'read', 'delete', 'aggregate'
+    created_at DateTime64(3)
+) ENGINE = MergeTree()
+ORDER BY (user_key, created_at);
+```
+
+**Primary key:** `(user_key, created_at)`. Immutable — no tombstones, no updates. The `credits_spent` on `user_accounts` is the materialized state; this table is the audit trail. `SELECT sum(amount) FROM credits_ledger WHERE user_key = :user AND created_at >= :month_start` gives the current month's spend.
+
+### Subscriptions
+
+Creator↔fan memberships. The dev_pay flow. Fans subscribe to creators; Stripe Connect routes ~97% to the creator.
+
+```sql
+CREATE TABLE subscriptions (
+    subscriber_key String,
+    creator_key String,
+    title String,              -- membership tier name
+    price_cents UInt64,
+    status String,             -- 'active', 'canceled', 'past_due', 'trialing'
+    stripe_subscription_id String,
+    created_at DateTime64(3),
+    updated_at DateTime64(3),
+    deleted UInt8 DEFAULT 0
+) ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY (subscriber_key, creator_key);
+```
+
+**Primary key:** `(subscriber_key, creator_key)` — one subscription per fan per creator. Status updates are new inserts with higher `updated_at`. Canceling is a status change to `'canceled'`, not a tombstone. The Stripe webhook drives status transitions.
+
+### Tips
+
+One-time payments. Fans tip creators directly. Stripe Connect handles payout.
+
+```sql
+CREATE TABLE tips (
+    tip_id String,
+    tipper_key String,
+    receiver_key String,
+    amount_cents UInt64,
+    message String,
+    stripe_payment_id String,
+    created_at DateTime64(3)
+) ENGINE = MergeTree()
+ORDER BY (tip_id, created_at);
+```
+
+**Primary key:** `tip_id`. Immutable — no tombstones, no updates. The audit trail for one-time payments.
+
+### Sponsor Deals
+
+Sponsor marketplace. Brands sponsor creators. The "profiling engine" matches sponsors with creators.
+
+```sql
+CREATE TABLE sponsor_deals (
+    deal_id String,
+    sponsor_key String,
+    creator_key String,
+    deal_type String,          -- 'sponsored_post', 'product_placement', 'affiliate'
+    amount_cents UInt64,
+    status String,             -- 'active', 'completed', 'canceled', 'pending'
+    start_date DateTime64(3),
+    end_date DateTime64(3),
+    created_at DateTime64(3),
+    updated_at DateTime64(3),
+    deleted UInt8 DEFAULT 0
+) ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY deal_id;
+```
+
+**Primary key:** `deal_id`. Status updates are new inserts with higher `updated_at`. The platform takes a ~3% cut of the deal amount.
+
+### Sponsored Products
+
+Affiliate tags on posts. The "auto-affiliate-everything" pattern. Posts can carry product tags with affiliate links.
+
+```sql
+CREATE TABLE sponsored_products (
+    doc_id String,
+    product_name String,
+    product_url String,
+    affiliate_link String,
+    commission_pct Float64,
+    created_at DateTime64(3),
+    updated_at DateTime64(3),
+    deleted UInt8 DEFAULT 0
+) ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY doc_id;
+```
+
+**Primary key:** `doc_id` — one product tag per post. The "poster's-tag-wins-else-house-tag" revenue routing: if the post author adds an affiliate link, they get the commission. If not, the platform's house affiliate link applies.
 
 ---
 
