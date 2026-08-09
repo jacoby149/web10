@@ -710,16 +710,18 @@ class TestAuthenticateUser:
     def test_correct(self):
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
-                [("alice", "hash123", "", 0, "", 0, datetime(2026, 1, 1))]
+                [("alice", "$2b$12$hash123", "", 0, "", 0, datetime(2026, 1, 1))]
             )
-            assert ch.authenticate_user("alice", "hash123") is True
+            with patch("app.services.auth.verify_password", return_value=True):
+                assert ch.authenticate_user("alice", "secret") is True
 
     def test_wrong(self):
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
-                [("alice", "hash123", "", 0, "", 0, datetime(2026, 1, 1))]
+                [("alice", "$2b$12$hash123", "", 0, "", 0, datetime(2026, 1, 1))]
             )
-            assert ch.authenticate_user("alice", "wrong") is False
+            with patch("app.services.auth.verify_password", return_value=False):
+                assert ch.authenticate_user("alice", "wrong") is False
 
 
 class TestChangePassword:

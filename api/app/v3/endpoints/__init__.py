@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 import app.exceptions as exceptions
-from app.services.auth import decode_token, get_password_hash
+from app.services.auth import decode_token, get_password_hash, verify_password
 from app.v3.models import Token
 from app.v3.services import clickhouse as ch
 
@@ -503,8 +503,7 @@ async def login(data: Token):
     """Verify credentials, return JWT."""
     if not data.username or not data.password:
         raise exceptions.LOGIN
-    password_hash = get_password_hash(data.password)
-    if not ch.authenticate_user(data.username, password_hash):
+    if not ch.authenticate_user(data.username, data.password):
         raise exceptions.LOGIN
     from datetime import datetime, timedelta
 
@@ -527,7 +526,7 @@ async def change_pass(data: Token):
     user = _user(data)
     if not data.password or not data.new_pass:
         raise exceptions.CRUD
-    if not ch.authenticate_user(user, get_password_hash(data.password)):
+    if not ch.authenticate_user(user, data.password):
         raise exceptions.LOGIN
     ch.change_password(user, get_password_hash(data.new_pass))
     return {"status": "changed"}
@@ -636,15 +635,18 @@ async def list_apps(data: Token):
 @router.post("/apps/rating")
 async def create_app_rating(data: Token):
     """Submit a 1-5 star rating for an app."""
-    user = _user(data)
+    if not data.token:
+        raise exceptions.TOKEN
+    decoded = decode_token(data.token)
+    if not decoded.username or decoded.username == "anon":
+        raise exceptions.TOKEN
     if not data.body or not data.body.get("target_app_id"):
         raise exceptions.CRUD
     rating = data.body.get("rating", 0)
     if not 1 <= rating <= 5:
         raise exceptions.CRUD
-    decoded = decode_token(data.token)
     return ch.create_app_rating(
-        author=user,
+        author=decoded.username,
         target_app_id=data.body["target_app_id"],
         rating=rating,
         provider=decoded.provider,

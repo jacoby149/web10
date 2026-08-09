@@ -924,12 +924,14 @@ def get_user(username: str) -> dict | None:
     }
 
 
-def authenticate_user(username: str, password_hash: str) -> bool:
-    """Check if the provided password hash matches the stored hash."""
+def authenticate_user(username: str, plain_password: str) -> bool:
+    """Check if the provided password matches the stored hash."""
+    from app.services.auth import verify_password
+
     user = get_user(username)
     if not user:
         return False
-    return user["password_hash"] == password_hash
+    return verify_password(plain_password, user["password_hash"])
 
 
 def change_password(username: str, new_password_hash: str):
@@ -978,10 +980,9 @@ def verify_phone(username: str):
 
 def verify_email(username: str):
     """Mark email as verified."""
-    _now()
     client.command(
-        "INSERT INTO users (username, password_hash, phone, phone_verified, email, 1, created_at, now(), 0 "
-        "SELECT username, password_hash, phone, phone_verified, email, email_verified, created_at, now(), 0 "
+        "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
+        "SELECT username, password_hash, phone, phone_verified, email, 1, created_at, now(), 0 "
         "FROM users WHERE username = %(username)s AND deleted = 0",
         {"username": username},
     )
