@@ -47,7 +47,7 @@ Group "jazz-collectors":
 
 The group owner can query the membership list. They see web10 usernames, emails (if set), phone numbers (if set). They can text a follower, email a fan, message a member — directly, through web10, no platform gatekeeping the relationship. On legacy platforms, your followers are the platform's asset. You can't export them. You can't message them without the platform's permission. Here, the group membership is yours.
 
-**Service-scoped roles.** Each group defines its own roles. Each role lists the services it applies to and the explicit permissions it grants. One group. No parent-child chains. Multiple roles per user — a user can hold different roles for different services in the same group.
+**Service-scoped roles.** Each group defines its own roles. Each role lists the services it applies to and the explicit permissions it grants. One group. No parent-child chains. One role per member — if you need different permissions across services, define a richer role name (e.g., `editor` instead of stacking `reader` + `writer`).
 
 **Roles are generic.** There are no predefined roles. A group defines whatever roles make sense for its purpose. A music group might have `curator`, `listener`, and `contributor`. A project group might have `admin`, `reviewer`, and `editor`. A followers group might have `owner` and `member`. The platform doesn't care what you call them or what they do.
 

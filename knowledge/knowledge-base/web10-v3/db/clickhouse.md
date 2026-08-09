@@ -40,6 +40,31 @@ erDiagram
         DateTime64 updated_at
         UInt8 deleted
     }
+    group_hidden_docs {
+        String group_id PK
+        String doc_id PK
+        moderator_key String
+        hidden_at DateTime64
+        updated_at DateTime64
+        UInt8 deleted
+    }
+    provider_apps {
+        String app_id PK
+        String name
+        String developer
+        String origin
+        String description
+        status String
+        created_at DateTime64
+        updated_at DateTime64
+        UInt8 deleted
+    }
+    provider_blocked_origins {
+        String provider PK
+        String origin PK
+        String reason
+        blocked_at DateTime64
+    }
     group_join_requests {
         String group_id PK
         String requester_key PK
@@ -81,11 +106,13 @@ erDiagram
     doc_groups }o--|| group_contracts : "maps to"
     group_contracts ||--o{ group_members : "has"
     group_contracts ||--o{ group_join_requests : "receives"
+    group_contracts ||--o{ group_hidden_docs : "moderates"
     documents }o--|| user_blacklist : "author blocked by"
     documents }o--|| group_blacklist : "author blocked in group"
+    documents }o--|| group_hidden_docs : "hidden from group"
 ```
 
-One table for content. One table for visibility. Three tables for groups. Two tables for app trust. Two tables for blocking. One table for sharing control. Nine tables. Everything else is a query.
+One table for content. One table for visibility. Three tables for groups. One table for moderation. Two tables for app trust. Two tables for blocking. One table for sharing control. Two provider-level tables. Thirteen tables. Everything else is a query.
 
 ## Documents
 
@@ -158,7 +185,7 @@ ORDER BY group_id;
 
 ## Group Members
 
-Active members. Multiple roles per user.
+Active members. One role per member per group. If you need different permissions across services, define a richer role — don't stack multiple roles on one person.
 
 ```sql
 CREATE TABLE group_members (
@@ -172,7 +199,7 @@ CREATE TABLE group_members (
 ORDER BY (group_id, member_key);
 ```
 
-**Multiple roles per user:** a user can hold different roles for different services in the same group. Each role is a separate row.
+**Primary key:** `(group_id, member_key)` — one row per member. Promoting a member is a new insert with a higher `updated_at` and the new role name.
 
 ## Group Join Requests
 
@@ -244,6 +271,72 @@ CREATE TABLE group_blacklist (
 ORDER BY (user_key, group_id, blocked_key);
 ```
 
+## Group Hidden Docs
+
+Moderation. A moderator with `hideAll` hides a document from the group's discover. The document stays in the author's collection and in other groups — it is only hidden from this group. Reversible.
+
+```sql
+CREATE TABLE group_hidden_docs (
+    group_id String,
+    doc_id String,
+    moderator_key String,
+    hidden_at DateTime64(3),
+    updated_at DateTime64(3),
+    deleted UInt8 DEFAULT 0
+) ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY (group_id, doc_id);
+```
+
+**Primary key:** `(group_id, doc_id)` — one hide per document per group. Un-hiding is a tombstone (`deleted = 1`). The read query excludes hidden documents:
+
+```sql
+SELECT FROM documents
+  JOIN doc_groups
+  JOIN group_members
+  WHERE deleted = 0
+    AND member = :user
+    AND (doc_id, group_id) NOT IN (
+      SELECT doc_id, group_id FROM group_hidden_docs WHERE deleted = 0
+    )
+```
+
+## Provider Apps
+
+The app store. Platform-level registry of apps approved to run on this provider.
+
+```sql
+CREATE TABLE provider_apps (
+    app_id String,
+    name String,
+    developer String,
+    origin String,
+    description String,
+    status String,             -- 'active', 'delisted', 'pending_review'
+    created_at DateTime64(3),
+    updated_at DateTime64(3),
+    deleted UInt8 DEFAULT 0
+) ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY app_id;
+```
+
+**`status` is the gate.** `active` — the app is listed and discoverable. `delisted` — removed from the store, existing users keep access (their service contracts are untouched). `pending_review` — submitted, awaiting approval.
+
+## Provider Blocked Origins
+
+Provider-level origin blacklist. Server-enforced. Overrides service contracts. If an origin is blocked at the provider level, no user can grant it access — not even the owner.
+
+```sql
+CREATE TABLE provider_blocked_origins (
+    provider String,
+    origin String,
+    reason String,
+    blocked_at DateTime64(3)
+) ENGINE = MergeTree()
+ORDER BY (provider, origin);
+```
+
+**Primary key:** `(provider, origin)`. Checked before service contracts. If present, the request is rejected regardless of the user's service contract. The provider operator is the only writer.
+
 ## Patterns
 
 Every table follows the same conventions:
@@ -288,8 +381,9 @@ graph TB
         R2["JOIN doc_groups<br/>WHERE group IN ..."]
         R3["JOIN group_members<br/>WHERE member = :user"]
         R4["WHERE deleted = 0"]
-        R5["ORDER BY $sort<br/>LIMIT $limit"]
-        R1 --> R2 --> R3 --> R4 --> R5
+        R5["EXCEPT group_hidden_docs<br/>moderator hid this doc"]
+        R6["ORDER BY $sort<br/>LIMIT $limit"]
+        R1 --> R2 --> R3 --> R4 --> R5 --> R6
     end
 
     subgraph Update["UPDATE — w.update posts, groups"]
@@ -306,13 +400,20 @@ graph TB
         D1 --> D2
     end
 
+    subgraph Moderate["HIDE — moderator hides doc"]
+        M1["INSERT group_hidden_docs<br/>group_id, doc_id, moderator"]
+        M2["Read query excludes<br/>hidden docs for this group"]
+        M1 --> M2
+    end
+
     style Create fill:#e8f5e9,stroke:#2e7d32,color:#000
     style Read fill:#e3f2fd,stroke:#1565c0,color:#000
     style Update fill:#fff3e0,stroke:#e65100,color:#000
     style Delete fill:#ffebee,stroke:#c62828,color:#000
+    style Moderate fill:#f3e5f5,stroke:#6a1b9a,color:#000
 ```
 
-Create: one insert into documents, N inserts into doc_groups. Read: one SELECT with two JOINs, filtered by membership and tombstones. Update: tombstone old, insert new. Delete: tombstone both. All append-only. `ReplacingMergeTree` keeps the latest version. Background job compacts tombstones on schedule.
+Create: one insert into documents, N inserts into doc_groups. Read: one SELECT with two JOINs, filtered by membership, tombstones, and moderator hides (`group_hidden_docs`). Update: tombstone old, insert new. Delete: tombstone both. Moderate: insert into `group_hidden_docs`, read query excludes it. All append-only. `ReplacingMergeTree` keeps the latest version. Background job compacts tombstones on schedule.
 
 ## See Also
 
