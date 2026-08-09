@@ -57,6 +57,19 @@ export {
 // HTTP
 export { Web10Error } from './http'
 
+// V3 client (ClickHouse-backed API)
+export { createV3Client, type V3Client } from './v3'
+export type {
+  V3ClientOptions,
+  V3Document,
+  V3Group,
+  V3GroupMember,
+  V3InviteResponse,
+  V3ServiceContract,
+  V3User,
+  V3LoginResponse,
+} from './v3'
+
 // Legacy compat shim — re-exports wapiInit / wapiAuthInit for apps still
 // using the old JS SDK API (ui/, web10-social/).
 export { wapiInit, wapiAuthInit } from './compat'

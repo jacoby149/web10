@@ -3,6 +3,41 @@ import web10AuthAdapterInit from './authAdapter'
 import axios from 'axios'
 import { config } from '../config';
 
+// ── v3 API helpers (ClickHouse-backed service contracts + groups) ──────────
+
+/**
+ * Resolve the API origin from the decoded token or fall back to the configured
+ * default. Mirrors authAdapter's *.localhost detection so local dev points at
+ * api.localhost and prod points at api.web10.app.
+ */
+function v3ApiOrigin(decoded: { provider?: string } | null): string {
+    const host = window.location.hostname;
+    const isLocal = host === 'localhost' || host === '127.0.0.1' || host.endsWith('.localhost');
+    const provider = decoded?.provider || (isLocal ? 'api.localhost' : config.REACT_APP_DEFAULT_API);
+    return `${window.location.protocol}//${provider}`;
+}
+
+/**
+ * Call a v3 API endpoint. All v3 endpoints are POST with a JSON body that
+ * carries the token + parameters. Mirrors api/app/v3/models/__init__.py Token.
+ */
+async function v3Post(action: string, body: Record<string, any>) {
+    const decoded = (window.I?.wapi?.readToken?.()) as { provider?: string } | null;
+    const origin = v3ApiOrigin(decoded);
+    const token = window.I?.wapi?.token;
+    if (!token) throw new Error('No token available for v3 API');
+    const res = await fetch(`${origin}/v3/${action}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...body, token }),
+    });
+    if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error(`v3 ${action} failed: ${res.status} ${text}`);
+    }
+    return res.json();
+}
+
 // Build a service-change update from a desired terms record: $set the changed
 // term fields, $unset cleared ones, never touching protected star fields.
 function buildSCR(service: any) {
@@ -59,6 +94,11 @@ function useInterface() {
     [I.status, I.setStatus] = React.useState<string | null>(null);
     [I.SMR, I.setSMR] = React.useState({ scrs: [], sirs: [] });
 
+    // v3 service contracts (ClickHouse-backed — simpler model: origin + service)
+    [I.v3Contracts, I.setV3Contracts] = React.useState<any[]>([]);
+    // v3 groups the user belongs to
+    [I.v3Groups, I.setV3Groups] = React.useState<any[]>([]);
+
     I.wapi = adapter.wapi;
     I.wapiAuth = adapter.wapiAuth;
 
@@ -73,6 +113,11 @@ function useInterface() {
             I.setServices([]);
             return;
         }
+        // Load v3 contracts and groups in parallel — they're independent of
+        // the MongoDB services load and don't block it.
+        I.v3ContractsLoad();
+        I.v3GroupsLoad();
+
         I.wapi
             .read("services")
             .then(function (response) {
@@ -203,6 +248,8 @@ function useInterface() {
         I.setServices([]);
         I.setRequests([]);
         I.setSMR({ scrs: [], sirs: [] });
+        I.setV3Contracts([]);
+        I.setV3Groups([]);
         I.setMode("login");
     }
 
@@ -222,6 +269,102 @@ function useInterface() {
     // + verified matters.
     I.hasRecoveryContact = function () {
         return !!(I.verified || (I.phone && I.phone.trim().length >= 7));
+    }
+
+    // ── v3 Service contracts (ClickHouse) ──────────────────────────────
+
+    // Load v3 service contracts from the ClickHouse-backed API. Runs alongside
+    // servicesLoad (MongoDB) — the v3 contracts are the new model, but the v2
+    // terms records are still needed for backward compatibility during the
+    // transition. When the v2 path is retired, servicesLoad can be replaced.
+    I.v3ContractsLoad = function () {
+        if (!I.auth) {
+            I.setV3Contracts([]);
+            return;
+        }
+        v3Post('service-contracts/list', {})
+            .then((contracts: any[]) => {
+                I.setV3Contracts(contracts || []);
+            })
+            .catch((e) => {
+                // v3 contracts are new — a 404/500 just means the v3 API
+                // isn't available yet, not a user error. Silently degrade.
+                console.warn('v3 service-contracts/list failed:', e);
+                I.setV3Contracts([]);
+            });
+    }
+
+    // Add a v3 service contract (approve an app origin for a service).
+    // In v3, a SIR with cross_origins becomes N service contracts (one per
+    // origin). This is the v3 equivalent of submitSIR.
+    I.addV3Contract = function (serviceName: string, allowedOrigin: string) {
+        return v3Post('service-contracts/add', {
+            service_name: serviceName,
+            allowed_origin: allowedOrigin,
+        }).then(() => {
+            I.v3ContractsLoad();
+        });
+    }
+
+    // Revoke a v3 service contract (all origins for a service, or a specific
+    // origin). The v3 equivalent of deleteService.
+    I.revokeV3Contract = function (serviceName: string, allowedOrigin?: string) {
+        return v3Post('service-contracts/revoke', {
+            ...(allowedOrigin && { allowed_origin: allowedOrigin }),
+        }).then(() => {
+            I.v3ContractsLoad();
+        });
+    }
+
+    // Check if a v3 service contract exists for a given origin + service.
+    I.hasV3Contract = function (serviceName: string, allowedOrigin: string): boolean {
+        return (I.v3Contracts || []).some(
+            (c: any) => c.service_name === serviceName && c.allowed_origin === allowedOrigin,
+        );
+    }
+
+    // ── v3 Groups ──────────────────────────────────────────────────────
+
+    // Load the groups the user belongs to (v3).
+    I.v3GroupsLoad = function () {
+        if (!I.auth) {
+            I.setV3Groups([]);
+            return;
+        }
+        v3Post('groups/list', {})
+            .then((groups: any[]) => {
+                I.setV3Groups(groups || []);
+            })
+            .catch((e) => {
+                console.warn('v3 groups/list failed:', e);
+                I.setV3Groups([]);
+            });
+    }
+
+    // Load groups where the user has management permissions.
+    I.v3GroupsManagesLoad = function () {
+        if (!I.auth) return [];
+        return v3Post('groups/manages', {}).catch(() => []);
+    }
+
+    // Join a v3 group (open or request policy).
+    I.v3JoinGroup = function (groupId: string) {
+        return v3Post('groups/join', { group_id: groupId });
+    }
+
+    // Leave a v3 group.
+    I.v3LeaveGroup = function (groupId: string) {
+        return v3Post('groups/leave', { group_id: groupId });
+    }
+
+    // Block a user from seeing content in a v3 group.
+    I.v3BlockUserInGroup = function (blockedKey: string, groupId: string) {
+        return v3Post('block-in-group', { blocked_key: blockedKey, group_id: groupId });
+    }
+
+    // Unblock a user in a v3 group.
+    I.v3UnblockUserInGroup = function (blockedKey: string, groupId: string) {
+        return v3Post('unblock-in-group', { blocked_key: blockedKey, group_id: groupId });
     }
 
     I.changeTerms = function (service: any) {
@@ -267,11 +410,19 @@ function useInterface() {
         I.wapi
             .create("services", service)
             .then(() => {
-                I.setStatus(null);
-                I.servicesLoad();
-                I.resolveRequest({
-                    scrs: I.SMR["scrs"],
-                    sirs: (I.SMR["sirs"] || []).filter((sir: any) => sir["service"] !== service["service"]),
+                // Also add v3 service contracts (one per cross_origin).
+                // In v3, a SIR with cross_origins becomes N service contracts.
+                const origins = Array.isArray(service["cross_origins"]) ? service["cross_origins"] : [];
+                const v3Ops = origins.map((origin: string) =>
+                    I.addV3Contract(service["service"], origin),
+                );
+                Promise.allSettled(v3Ops).then(() => {
+                    I.setStatus(null);
+                    I.servicesLoad();
+                    I.resolveRequest({
+                        scrs: I.SMR["scrs"],
+                        sirs: (I.SMR["sirs"] || []).filter((sir: any) => sir["service"] !== service["service"]),
+                    });
                 });
             })
             .catch((e) => I.setStatus("Failed to approve: " + (e.response?.data?.detail || String(e))));
@@ -341,6 +492,9 @@ function useInterface() {
         I.wapi
             .delete("services", { service: serviceName })
             .then(() => {
+                // Also revoke v3 service contracts for this service.
+                // Revoke all origins (no specific origin = revoke all).
+                I.revokeV3Contract(serviceName).catch(() => {});
                 I.setStatus("Service deleted!");
                 setTimeout(() => I.servicesLoad(), 1000);
             })

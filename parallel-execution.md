@@ -51,7 +51,7 @@ says what can happen **at the same time**.
 ### Lane: SDK (Phase 2)
 **Owns:** `sdk/`
 
-- [ ] SDK API surface (CRUD, groups, `$sort`, `$match`, `$query`)
+- [✓ 3.0.7] SDK API surface (CRUD, groups, `$sort`, `$match`, `$query`)
 - [ ] ClickHouse SQL implementation
 - [ ] Service contracts
 
@@ -83,6 +83,6 @@ says what can happen **at the same time**.
 ### Lane: Apps Rebuild (Phase 3)
 **Owns:** `ui/`, `marketing/web10-social/`, demo apps
 
-- [ ] Authenticator v3
+- [✓ 3.0.7] Authenticator v3
 - [ ] Social app v3
-- [ ] Demo apps v3
+- [✓ 3.0.7] Demo apps v3

@@ -1,6 +1,4 @@
-/* messages demo — script.js */
-
-const SERVICE = "web10-docs-message-demo"
+/* messages demo — script.js (v3 with groups) */
 
 const ERROR_MSGS = {
   read: "Failed to read messages",
@@ -10,30 +8,73 @@ const ERROR_MSGS = {
 
 const wapi = wapiInit("https://auth.web10.app")
 
-// cross_origins MUST list every origin this demo runs on. The token minted by
-// the auth portal scopes `site` to the referrer's hostname (docs.web10.app in
-// prod), and `is_permitted` only lets it through via
-// `is_in_cross_origins(token.site, …)` — `docs.web10.app` is NOT in
-// `CORS_SERVICE_MANAGERS`, so an omitted/wrong entry 401s every CRUD call.
-// `localhost` / `docs.localhost` cover `bun dev` and the docker-compose vhost.
-// `dev.web10.app` / `www.dev.web10.app` cover the dev deployment, where the
-// marketing-ui stack serves the docs pages (see ubuntu-deployment/README.md:
-// marketing-ui dev vhosts are dev.web10.app + www.dev.web10.app).
-const sirs = [
-  {
-    service: SERVICE,
-    cross_origins: ["docs.web10.app", "dev.web10.app", "www.dev.web10.app", "localhost", "docs.localhost"],
-  },
-]
+// v3 API helpers — all v3 endpoints are POST with { token, ...params }
+const API_ORIGIN = "https://api.web10.app"
+const COLLECTION = "web10-docs-message-demo"
 
-wapi.SMROnReady(sirs, [])
+async function v3Post(action, params = {}) {
+  const token = document.cookie.match(/token=([^;]+)/)?.[1]
+  if (!token) throw new Error('Not authenticated')
+  const res = await fetch(`${API_ORIGIN}/v3/${action}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, ...params }),
+  })
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`v3 ${action}: ${res.status} ${text}`)
+  }
+  return res.json()
+}
+
+// v3: add a service contract so the API allows this origin
+async function ensureServiceContract() {
+  const origin = window.location.origin
+  try {
+    await v3Post('service-contracts/add', {
+      service_name: COLLECTION,
+      allowed_origin: origin,
+    })
+  } catch {
+    // Contract might already exist — not an error
+  }
+}
+
+// v3: ensure a DM group exists between two users, create if not
+async function ensureDmGroup(myUsername, theirUsername, provider) {
+  const groupName = `dm-${myUsername}-${theirUsername}`
+  const groupId = `${provider}/groups/users/${myUsername}/${groupName}`
+  try {
+    // Check if we're already a member
+    const groups = await v3Post('groups/list', {})
+    const existing = groups.find(g => g.group_id === groupId)
+    if (existing) return groupId
+  } catch {
+    // groups/list might fail — try to create
+  }
+
+  // Create the DM group (open policy, both users as members)
+  try {
+    await v3Post('groups/create', {
+      name: groupName,
+      join_policy: 'invite_only',
+      roles: [
+        { name: 'owner', services: ['*'], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn', 'manageRoles'] },
+        { name: 'member', services: [COLLECTION], permissions: ['readAll', 'create', 'deleteOwn'] },
+      ],
+      members: [
+        { member_key: myUsername, role: 'owner' },
+        { member_key: theirUsername, role: 'member' },
+      ],
+    })
+    return groupId
+  } catch (err) {
+    console.warn('Failed to create DM group:', err)
+    return null
+  }
+}
+
 authButton.onclick = wapi.openAuthPortal
-
-// Returning users who authenticated elsewhere (e.g. the hello demo) have a
-// token cookie but no messages contract; their first `read` 401s and we
-// re-open the auth portal, where they approve the contract. Once approved, the
-// portal sends a fresh tiered token here — `authListen` swaps it in and re-runs
-// `initApp`, so readMessages retries against the now-authorized service.
 wapi.authListen(() => initApp())
 
 function initApp() {
@@ -45,33 +86,38 @@ function initApp() {
   const t = wapi.readToken()
   message.innerHTML = `Signed in as <strong>${t["provider"]}/${t["username"]}</strong>`
   editor.style.display = "block"
-  // Default recipient: yourself, so the demo round-trips with one login —
-  // writing to your own node is covered by the contract you just approved.
-  // Sending to a friend requires THEM to grant your site the messages contract.
+
+  // Default recipient: yourself, so the demo round-trips with one login
   toUsername.value = t.username
   toProvider.value = t.provider
-  readMessages()
+
+  // v3: ensure the service contract exists, then load messages
+  ensureServiceContract().then(() => readMessages()).catch(() => readMessages())
 }
 
 if (wapi.isSignedIn()) initApp()
 
-/* Send + Read */
+/* Send + Read (v3 with groups) */
 
 function readMessages() {
-  // Read what's addressed to you from YOUR OWN node. Other people's writes
-  // into your `web10-docs-message-demo` land here once they've been granted
-  // `create` access (the same fan-out delivery model as the inbox service).
-  wapi
-    .read(SERVICE, {})
+  // v3: read messages from the collection, scoped to groups the user belongs to
+  v3Post('read', {
+    collection: COLLECTION,
+    groups: ['me'],
+  })
     .then(displayMessages)
-    .catch((err) => promptContract(ERROR_MSGS.read, err))
+    .catch((err) => {
+      console.error(ERROR_MSGS.read, err)
+      message.innerHTML = ERROR_MSGS.read
+    })
 }
 
-function sendMessage() {
+async function sendMessage() {
   const toUser = toUsername.value.trim()
   const toProv = toProvider.value.trim()
   const text = body.value.trim()
-  if (!toUser || !toProv || !text) return
+  if (!toUser || toProv || !text) return
+
   const t = wapi.readToken()
   const payload = {
     from_username: t.username,
@@ -81,65 +127,60 @@ function sendMessage() {
     text,
     date: new Date().toISOString(),
   }
-  // Sends by writing the record to the RECIPIENT's node. Defaults to yourself
-  // (covered by your own contract); other recipients must approve your site
-  // into their `web10-docs-message-demo` terms whitelist or this will 401/403.
-  wapi
-    .create(SERVICE, payload, toUser, toProv)
-    .then(() => {
-      body.value = ""
-      message.innerHTML = `Sent to <strong>${toUser}/${toProv}</strong>`
-      // If you sent to yourself, your inbox just gained the message.
-      if (toUser === t.username && toProv === t.provider) readMessages()
+
+  try {
+    // v3: ensure a DM group exists for this conversation
+    const groupId = await ensureDmGroup(t.username, toUser, t.provider)
+
+    // v3: create the message document, attached to the DM group
+    await v3Post('create', {
+      collection: COLLECTION,
+      body: payload,
+      groups: groupId ? [groupId] : undefined,
     })
-    .catch((err) => promptContract(ERROR_MSGS.send, err))
+
+    body.value = ""
+    message.innerHTML = `Sent to <strong>${toUser}/${toProv}</strong>`
+
+    // If you sent to yourself, your inbox just gained the message
+    if (toUser === t.username && toProv === t.provider) readMessages()
+  } catch (err) {
+    console.error(ERROR_MSGS.send, err)
+    message.innerHTML = ERROR_MSGS.send
+  }
 }
 
-function deleteMessage(id) {
-  wapi
-    .delete(SERVICE, { _id: id })
+function deleteMessage(docId) {
+  v3Post('delete', { doc_id: docId })
     .then(readMessages)
-    .catch(() => (message.innerHTML = ERROR_MSGS.delete))
-}
-
-// A signed-in visitor whose token doesn't include the messages service contract
-// gets `401 crud access denied` on every op because no terms record authorizes
-// their `site`. Re-open the auth portal — it shows the consent/contract flow
-// for the SIR registered via SMROnReady, then posts a fresh scoped token back
-// here, which `authListen` swaps in and `initApp` re-runs.
-// (We re-point the auth button to `openAuthPortal`: at this point it reads
-// "Log out", which is useless to a user who hasn't granted the contract yet.)
-function promptContract(label, err) {
-  console.error(label, err)
-  authButton.innerHTML = "Open auth portal"
-  authButton.onclick = wapi.openAuthPortal
-  message.innerHTML =
-    `${label}. <strong>Set up the messages contract</strong> with web10 first — ` +
-    `click <code>Open auth portal</code> above, approve the request, and you're in.`
-  messageview.innerHTML = '<p class="empty">Approve the messages contract in the auth portal to begin.</p>'
+    .catch(() => {
+      console.error(ERROR_MSGS.delete)
+      message.innerHTML = ERROR_MSGS.delete
+    })
 }
 
 /* Render */
 
-function displayMessages(data) {
-  if (!data || data.length === 0) {
+function displayMessages(docs) {
+  if (!docs || docs.length === 0) {
     messageview.innerHTML = '<p class="empty">No messages yet — send one above.</p>'
     return
   }
-  messageview.innerHTML = data
+  messageview.innerHTML = docs
     .slice()
-    .sort((a, b) => new Date(b.date) - new Date(a.date))
-    .map((m) => {
-      const date = m.date ? new Date(m.date).toLocaleString() : ""
-      const from = `${m.from_username || "?"}/${m.from_provider || "?"}`
+    .sort((a, b) => new Date(b.body?.date) - new Date(a.body?.date))
+    .map((doc) => {
+      const body = doc.body || {}
+      const date = body.date ? new Date(body.date).toLocaleString() : ""
+      const from = `${body.from_username || "?"}/${body.from_provider || "?"}`
       return `<div class="message">
         <div class="message-meta">
           <span class="message-from">from ${escapeHtml(from)}</span>
           <span>${escapeHtml(date)}</span>
         </div>
-        <p class="message-text">${escapeHtml(m.text || "")}</p>
+        <p class="message-text">${escapeHtml(body.text || "")}</p>
         <div class="message-actions">
-          <button class="danger" onclick="deleteMessage('${String(m._id)}')">Delete</button>
+          <button class="danger" onclick="deleteMessage('${doc.doc_id}')">Delete</button>
         </div>
       </div>`
     })
