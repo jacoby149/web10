@@ -46,6 +46,7 @@ visual styles and voice.
 - [✓] **Social** (`social/overview.md`) — social app architecture: how groups power discover, follows, communities, DMs.
 - [✓] **Encryption** (`encryption/auth.md`) — auth flow diagram: login, token minting, certification, SMR handshake.
 - [✓] **FAQ** (`faq/oltp-to-olap-patterns.md`) — OLTP-on-OLAP patterns: how CRUD operations map to ClickHouse (ReplacingMergeTree, tombstones, background compaction).
+- [✓] **Media** (`media/transcoding-foundation.md`) — transcoding foundation: API schema fields for transcoded media, HLS manifest gap, v4 references.
 
 ---
 
