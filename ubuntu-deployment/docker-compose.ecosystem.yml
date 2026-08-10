@@ -63,6 +63,20 @@ services:
         aliases:
           - ${STACK}-ferretdb
 
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    environment:
+      CLICKHOUSE_DB: web10
+      CLICKHOUSE_USER: web10
+      CLICKHOUSE_PASSWORD: web10
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+    restart: unless-stopped
+    networks:
+      internal:
+        aliases:
+          - ${STACK}-clickhouse
+
   minio:
     image: minio/minio:latest
     volumes:
@@ -93,6 +107,7 @@ services:
     depends_on:
       - ferretdb
       - minio
+      - clickhouse
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
@@ -103,6 +118,7 @@ services:
       # real accounts live in the host mongo's "deploy" database — prod sets
       # DB=deploy + DB_URL=mongodb://host.docker.internal:27017/ (env.prod).
       DB: ${DB:-web10}
+      CLICKHOUSE_HOST: ${STACK}-clickhouse
       S3_ENDPOINT: http://${STACK}-minio:9000
       # Presigned upload/read URLs are signed with THIS host and handed to the
       # browser, so it must be the public HTTPS MinIO vhost (NPM → ${STACK}-minio:9000),
@@ -209,9 +225,10 @@ services:
 
 volumes:
   # Portainer prefixes volume names with the stack name, so each
-  # stack gets its own postgres-data / minio-data automatically.
+  # stack gets its own postgres-data / minio-data / clickhouse-data automatically.
   postgres-data:
   minio-data:
+  clickhouse-data:
 
 networks:
   # per-stack private network for the db tier — never on "proxy"
