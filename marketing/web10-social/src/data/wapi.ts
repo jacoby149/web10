@@ -1,9 +1,10 @@
-// ── wapi.ts shim (v3) ────────────────────────────────────────────────────────
-// The old wapi.ts is gone. Components that still import from '@/data/wapi'
-// should be updated to use the v3 data layer directly. This shim provides
-// backward compat during the migration.
+// ── wapi.ts shim (v3 backward compat) ────────────────────────────────────────
+// All v2 exports that components/tests still import. The v3 data layer is the
+// real implementation; these shims bridge the gap during migration.
 
 import { getV3Client } from './v3';
+import { followersGroupId, getGroupMembers } from './groups';
+import { extractUsername, type PostRecord, type ReactionRecord } from './types';
 
 /** @deprecated use getV3Client() */
 export function getWapi() {
@@ -21,18 +22,17 @@ export function deriveObjectKey(_url: string): string {
   return '';
 }
 
-// ── Reactions backward compat ────────────────────────────────────────────────
-
-/** @deprecated use ref_value directly */
-export function buildReactionTarget(
-  targetId: string,
-  _postAuthor?: string,
-  _postService?: string,
-): string {
-  return targetId;
+/** @deprecated use createV3Client from v3.ts */
+export function createWapiWrapper(): ReturnType<typeof getW3Client> {
+  return getW3Client();
 }
 
-// ── Feed backward compat ─────────────────────────────────────────────────────
+/** @deprecated v3 uses app contracts, not SMRs */
+export function buildSocialServiceSirs(_crossOrigins: string[]): unknown[] {
+  return [];
+}
+
+// ── Feed / discover backward compat ──────────────────────────────────────────
 
 /** @deprecated no-op, v3 doesn't use schema registry */
 export async function registerDefaultSchemas(): Promise<unknown[]> {
@@ -68,12 +68,144 @@ export async function countUnread(): Promise<number> {
   return 0;
 }
 
-/** @deprecated use readDiscoverFeed */
-export { readDiscoverFeed, fetchSuggestedUsers } from './feed';
-
 /** @deprecated no-op, v3 doesn't use repost ledger */
 export async function recordRepost(
   _targetId: string,
   _postAuthor: string,
   _postService: string,
 ): Promise<void> {}
+
+/** @deprecated no-op, v3 doesn't use inbox fan-out */
+export async function fanOutToFollowers(_post: PostRecord): Promise<void> {}
+
+/** @deprecated use readFeed from feed.ts */
+export { readFeed, readDiscoverFeed, fetchSuggestedUsers, postToDiscoveryPost } from './feed';
+
+// ── Reactions backward compat ────────────────────────────────────────────────
+
+/** @deprecated use ref_value directly */
+export function buildReactionTarget(
+  targetId: string,
+  _postAuthor?: string,
+  _postService?: string,
+): string {
+  return targetId;
+}
+
+// ── Comments backward compat ─────────────────────────────────────────────────
+
+/** @deprecated use ref_value directly */
+export function buildCommentTarget(
+  postId: string,
+  _postAuthor?: string,
+  _postService?: string,
+): string {
+  return postId;
+}
+
+// ── Follows backward compat ──────────────────────────────────────────────────
+
+/** @deprecated use isFollowing from follows.ts */
+export async function readFollow(username: string, _provider?: string): Promise<{ status: 'active' | 'rejected' } | null> {
+  const { isFollowing } = await import('./follows');
+  const following = await isFollowing(username);
+  return following ? { status: 'active' } : { status: 'rejected' };
+}
+
+/** @deprecated use getFollowingCount from follows.ts */
+export async function countFollows(): Promise<number> {
+  const { getFollowingCount } = await import('./follows');
+  return getFollowingCount();
+}
+
+/** @deprecated use getFollowersCount from follows.ts */
+export async function countFollowers(username: string, _provider?: string): Promise<number> {
+  const { getFollowersCount } = await import('./follows');
+  return getFollowersCount(username);
+}
+
+/** @deprecated use getFollowingCount from follows.ts */
+export async function countUserFollowing(username: string, _provider?: string): Promise<number> {
+  const members = await getGroupMembers(followersGroupId(username));
+  return members.filter((m) => m.role === 'member').length;
+}
+
+/** @deprecated use readFollows from follows.ts */
+export async function readFollows(): Promise<{ username: string; status: 'active' }[]> {
+  const { readFollows } = await import('./follows');
+  return readFollows();
+}
+
+/** @deprecated use readFollows filtered */
+export async function readFollowsByStatus(status: string): Promise<{ username: string; status: string }[]> {
+  const follows = await readFollows();
+  return follows.filter((f) => f.status === status);
+}
+
+/** @deprecated use blockUser from groups.ts */
+export async function blockUser(username: string, _provider?: string): Promise<void> {
+  const { blockUser: block } = await import('./groups');
+  await block(`web10.app/users/${username}`);
+}
+
+/** @deprecated no-op, v3 uses leaveGroup */
+export async function deleteFollow(username: string, _provider?: string): Promise<void> {
+  const { unfollowUser } = await import('./follows');
+  await unfollowUser(username);
+}
+
+/** @deprecated no-op, v3 doesn't use follow notifications */
+export async function updateFollowNotify(_username: string, _provider: string, _notify: boolean): Promise<unknown> {
+  return {};
+}
+
+// ── Posts backward compat ────────────────────────────────────────────────────
+
+/** @deprecated use readUserPosts from posts.ts */
+export async function readUserPublicPosts(username: string, _provider?: string): Promise<PostRecord[]> {
+  const { readUserPosts } = await import('./posts');
+  return readUserPosts(username);
+}
+
+/** @deprecated use readUserPosts from posts.ts */
+export async function readUserPostsFromDiscovery(username: string, _provider?: string): Promise<PostRecord[]> {
+  const { readUserPosts } = await import('./posts');
+  return readUserPosts(username);
+}
+
+/** @deprecated use resolveMediaRefs from posts.ts */
+export { resolveMediaRefs, refreshMediaUrls, refreshMediaUrl } from './posts';
+
+// ── DMs backward compat ──────────────────────────────────────────────────────
+
+/** @deprecated use sendDmMulti from dms.ts */
+export { sendDmMulti, replyAllTargets, classifyThread, type DmFolder } from './dms';
+
+// ── Contacts backward compat ─────────────────────────────────────────────────
+
+/** @deprecated use contacts.ts directly */
+export {
+  readContacts,
+  readContact,
+  addContact,
+  updateContact,
+  deleteContact,
+  searchContacts,
+  updateContactNote,
+  updateContactStatus,
+  toggleSpamFlag,
+  readSpamFlaggedContacts,
+  readContactsForCrm,
+  spamFlagUser,
+  unspamFlagUser,
+} from './contacts';
+
+// ── Discover backward compat ─────────────────────────────────────────────────
+
+/** @deprecated use readDiscoverFeed from feed.ts */
+export { readDiscoverFeed as fetchDiscoveryPost } from './feed';
+
+// ── Pull feed backward compat ────────────────────────────────────────────────
+
+/** @deprecated use readFeed from feed.ts */
+export { readFeed as readPullFeed } from './feed';
