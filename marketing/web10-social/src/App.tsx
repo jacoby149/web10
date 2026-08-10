@@ -13,12 +13,12 @@ import SettingsScreen from '@/components/Settings/SettingsScreen';
 import PostComposer from '@/components/Feed/PostComposer';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { ReportBug } from '@/components/shared/ReportBug';
-import { getWapi } from '@/data/wapi';
-import { registerDefaultSchemas } from '@/data/feed';
+import { getWapi, getV3Client } from '@/data';
+import { registerDefaultSchemas } from '@/data/wapi';
 import { resolveMediaRefs } from '@/data/posts';
 import { trackEvent } from '@/lib/analytics';
 import { PostLightbox } from '@/components/Bio/PostLightbox';
-import type { PostRecord, MediaRecord } from '@/data/types';
+import type { PostRecord, MediaRecord, Visibility } from '@/data/types';
 
 function LoginScreen({ onLogin }: { onLogin: () => void }) {
   return (
@@ -127,17 +127,13 @@ function UserProfilePostLinkRoute() {
         const token = getWapi().readToken();
         if (!token) return;
         // Try reading from public_posts first, then posts
-        const wapi = getWapi();
+        const w = getV3Client();
         let p: PostRecord | null = null;
-        let service = 'public_posts';
-        for (const s of ['public_posts', 'posts']) {
-          const results = await wapi.read<PostRecord>(s, { _id: postId });
-          if (results[0]) {
-            p = results[0];
-            service = s;
-            break;
-          }
-        }
+        let service = 'posts';
+        try {
+          const doc = await w.readById(postId, 'posts');
+          p = { _id: doc.doc_id, text: (doc.body.text as string) || undefined, media_refs: (doc.body.media_refs as string[]) || undefined, created_at: doc.created_at, updated_at: doc.updated_at, visibility: (doc.body.visibility as Visibility) || undefined, tags: doc.tags || (doc.body.tags as string[]) || undefined };
+        } catch { /* not found */ }
         if (!cancelled && p) {
           setPost(p);
           if (p.media_refs?.length) {
