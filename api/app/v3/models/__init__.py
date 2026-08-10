@@ -1,39 +1,79 @@
-from pydantic import BaseModel, ConfigDict
+from app.v3.models.appstore import CreateAppRating, GetAppRatings, RegisterApp
+from app.v3.models.auth import (
+    ChangePass,
+    ChangePhone,
+    Login,
+    SetEmail,
+    SetRecoveryPhone,
+    Signup,
+    VerifyCode,
+)
+from app.v3.models.blocking import BlockUser, BlockUserInGroup, SetSharing
+from app.v3.models.contracts import AddAppContract, RevokeAppContract
+from app.v3.models.documents import (
+    CreateDocument,
+    DeleteDocument,
+    ReadDocuments,
+    UpdateDocument,
+)
+from app.v3.models.groups import (
+    AcceptInvite,
+    AddGroupMember,
+    CreateGroup,
+    DeclineInvite,
+    GetGroup,
+    InviteMember,
+    JoinGroup,
+    JoinRequestOp,
+    LeaveGroup,
+    ListGroupMembers,
+    ListJoinRequests,
+    RemoveGroupMember,
+    UpdateGroup,
+)
+from app.v3.models.media import ConfirmMedia, DeleteMedia, ListMedia
 
-
-class Token(BaseModel):
-    """Single request body — token + all payload data."""
-
-    model_config = ConfigDict(extra="allow")
-    token: str | None = None
-    user: str | None = None
-    collection: str | None = None
-    doc_id: str | None = None
-    body: dict | None = None
-    groups: list[str] | None = None
-    limit: int = 50
-    offset: int = 0
-    sort: dict | None = None
-    match: dict | None = None
-    name: str | None = None
-    join_policy: str | None = None
-    roles: list[dict] | None = None
-    members: list[dict] | None = None
-    member_key: str | None = None
-    role: str | None = None
-    group_id: str | None = None
-    requester_key: str | None = None
-    service_name: str | None = None
-    allowed_origin: str | None = None
-    permissions: dict | None = None
-    blocked_key: str | None = None
-    enabled: bool = True
-    username: str | None = None
-    password: str | None = None
-    new_pass: str | None = None
-    phone: str | None = None
-    email: str | None = None
-    code: str | None = None
-    site: str | None = None
-    target_app_id: str | None = None
-    rating: int | None = None
+__all__ = [
+    # auth
+    "Signup",
+    "Login",
+    "ChangePass",
+    "ChangePhone",
+    "SetEmail",
+    "VerifyCode",
+    "SetRecoveryPhone",
+    # blocking
+    "BlockUser",
+    "BlockUserInGroup",
+    "SetSharing",
+    # contracts
+    "AddAppContract",
+    "RevokeAppContract",
+    # documents
+    "CreateDocument",
+    "ReadDocuments",
+    "UpdateDocument",
+    "DeleteDocument",
+    # groups
+    "CreateGroup",
+    "GetGroup",
+    "UpdateGroup",
+    "ListGroupMembers",
+    "AddGroupMember",
+    "RemoveGroupMember",
+    "JoinGroup",
+    "InviteMember",
+    "AcceptInvite",
+    "DeclineInvite",
+    "LeaveGroup",
+    "ListJoinRequests",
+    "JoinRequestOp",
+    # media
+    "ConfirmMedia",
+    "ListMedia",
+    "DeleteMedia",
+    # appstore
+    "RegisterApp",
+    "CreateAppRating",
+    "GetAppRatings",
+]

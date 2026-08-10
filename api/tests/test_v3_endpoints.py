@@ -46,7 +46,7 @@ class TestCreate:
                 "/v3/create",
                 json={
                     "token": token,
-                    "collection": "posts",
+                    "service": "posts",
                     "body": {"text": "hello"},
                     "groups": ["g1"],
                 },
@@ -62,7 +62,7 @@ class TestCreate:
                 "/v3/create",
                 json={
                     "token": token,
-                    "collection": "posts",
+                    "service": "posts",
                     "body": {"text": "private"},
                 },
             )
@@ -70,8 +70,8 @@ class TestCreate:
         assert "groups" not in resp.json()
 
     def test_no_body(self, client, token):
-        resp = client.post("/v3/create", json={"token": token, "collection": "posts"})
-        assert resp.status_code == 401
+        resp = client.post("/v3/create", json={"token": token, "service": "posts"})
+        assert resp.status_code == 422
 
 
 class TestRead:
@@ -87,7 +87,7 @@ class TestRead:
                 "/v3/read",
                 json={
                     "token": token,
-                    "collection": "posts",
+                    "service": "posts",
                     "groups": ["me"],
                     "limit": 10,
                 },
@@ -105,7 +105,7 @@ class TestRead:
                 "/v3/read",
                 json={
                     "token": token,
-                    "collection": "posts",
+                    "service": "posts",
                     "groups": ["g1"],
                 },
             )
@@ -114,7 +114,7 @@ class TestRead:
 
     def test_no_token(self, client):
         resp = client.post("/v3/read", json={"token": None, "groups": ["me"]})
-        assert resp.status_code == 401
+        assert resp.status_code == 422
 
     def test_me_shorthand(self, client, token):
         mock_groups = [("g1", "open", "member", 3)]
@@ -128,7 +128,7 @@ class TestRead:
                 "/v3/read",
                 json={
                     "token": token,
-                    "collection": "posts",
+                    "service": "posts",
                     "groups": ["me"],
                 },
             )
@@ -205,7 +205,7 @@ class TestCreateGroup:
 
     def test_missing_fields(self, client, token):
         resp = client.post("/v3/groups/create", json={"token": token, "name": "Test"})
-        assert resp.status_code == 401
+        assert resp.status_code == 422
 
 
 class TestListGroups:
@@ -526,7 +526,7 @@ class TestAppContracts:
                 "allowed_origin": "myapp.com",
             },
         )
-        assert resp.status_code == 401
+        assert resp.status_code == 422
 
     def test_list(self, client, token):
         mock_rows = [("myapp.com", '{"posts": ["readAll"]}')]
@@ -611,11 +611,11 @@ class TestReadById:
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = MagicMock(result_rows=lambda: mock_rows)
             resp = client.post(
-                "/v3/read-by-id",
+                "/v3/read",
                 json={
                     "token": token,
                     "doc_id": "doc-1",
-                    "collection": "posts",
+                    "service": "posts",
                 },
             )
         assert resp.status_code == 200
@@ -625,11 +625,11 @@ class TestReadById:
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = MagicMock(result_rows=lambda: [])
             resp = client.post(
-                "/v3/read-by-id",
+                "/v3/read",
                 json={
                     "token": token,
                     "doc_id": "doc-1",
-                    "collection": "posts",
+                    "service": "posts",
                 },
             )
         assert resp.status_code == 404
@@ -730,7 +730,7 @@ class TestSignup:
     def test_signup(self, client):
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = MagicMock(result_rows=lambda: [(0,)])
-            with patch("app.v3.endpoints.get_password_hash", return_value="hash123"):
+            with patch("app.v3.endpoints.auth.get_password_hash", return_value="hash123"):
                 resp = client.post(
                     "/v3/signup",
                     json={
@@ -747,7 +747,7 @@ class TestSignup:
             "/v3/signup",
             json={"username": "alice"},
         )
-        assert resp.status_code == 401
+        assert resp.status_code == 422
 
 
 class TestLogin:
@@ -756,7 +756,7 @@ class TestLogin:
             mock_ch.query.return_value = MagicMock(
                 result_rows=lambda: [("alice", "hash123", "", 0, "", 0, datetime(2026, 1, 1))]
             )
-            with patch("app.v3.endpoints.get_password_hash", return_value="hash123"):
+            with patch("app.v3.endpoints.auth.get_password_hash", return_value="hash123"):
                 with patch("app.v3.services.clickhouse.authenticate_user", return_value=True):
                     resp = client.post(
                         "/v3/login",
@@ -769,7 +769,7 @@ class TestLogin:
 class TestChangePass:
     def test_change_pass(self, client, token):
         with patch("app.v3.services.clickhouse.authenticate_user", return_value=True):
-            with patch("app.v3.endpoints.get_password_hash", return_value="new_hash"):
+            with patch("app.v3.endpoints.auth.get_password_hash", return_value="new_hash"):
                 resp = client.post(
                     "/v3/change-pass",
                     json={"token": token, "password": "old", "new_pass": "new"},
@@ -831,7 +831,7 @@ class TestSetRecoveryPhone:
     def test_set_recovery_phone_success(self, client, token):
         resp = client.post(
             "/v3/set_recovery_phone",
-            json={"token": token, "query": {"phone": "+15559876543"}},
+            json={"token": token, "phone": "+15559876543"},
         )
         assert resp.status_code == 200
         assert resp.json()["phone_number"] == "+15559876543"
@@ -839,16 +839,16 @@ class TestSetRecoveryPhone:
     def test_set_recovery_phone_bad_number(self, client, token):
         resp = client.post(
             "/v3/set_recovery_phone",
-            json={"token": token, "query": {"phone": "abc"}},
+            json={"token": token, "phone": "abc"},
         )
         assert resp.status_code == 401  # BAD_NUM is 401
 
     def test_set_recovery_phone_no_token(self, client):
         resp = client.post(
             "/v3/set_recovery_phone",
-            json={"token": None, "query": {"phone": "+15559876543"}},
+            json={"token": None, "phone": "+15559876543"},
         )
-        assert resp.status_code == 401
+        assert resp.status_code == 422
 
 
 # ---------------------------------------------------------------------------

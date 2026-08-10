@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime
 
 import clickhouse_connect
+from uuid6 import uuid7
 
 import app.settings as settings
 
@@ -50,7 +51,8 @@ def _parse_json(body: str) -> dict:
 
 
 def _gen_doc_id() -> str:
-    return uuid.uuid4().hex
+    """Generate a time-ordered UUID (UUIDv7) as hex. Better for ClickHouse merge trees than random UUIDv4."""
+    return str(uuid7())
 
 
 # ---------------------------------------------------------------------------
@@ -60,7 +62,7 @@ def _gen_doc_id() -> str:
 
 def insert_document(
     author_key: str,
-    collection_name: str,
+    service: str,
     body: dict,
     ref_value: str = "",
     tags: list[str] | None = None,
@@ -72,12 +74,12 @@ def insert_document(
         doc_id = _gen_doc_id()
     client.insert(
         "documents",
-        [[doc_id, author_key, collection_name, _json(body), ref_value or "", tags or [], now, now, 0]],
+        [[doc_id, author_key, service, _json(body), ref_value or "", tags or [], now, now, 0]],
     )
     return {
         "doc_id": doc_id,
         "author_key": author_key,
-        "collection_name": collection_name,
+        "service": service,
         "body": body,
         "ref_value": ref_value,
         "tags": tags or [],
@@ -88,15 +90,15 @@ def insert_document(
 
 def read_documents(
     author_key: str | None,
-    collection_name: str,
+    service: str,
     doc_id: str | None = None,
     limit: int = 50,
     offset: int = 0,
     sort_desc: bool = True,
 ) -> list[dict]:
-    """Read documents by author and collection. Optional doc_id filter."""
+    """Read documents by author and service. Optional doc_id filter."""
     conditions = ["deleted = 0", "collection_name = %(coll)s"]
-    params = {"coll": collection_name}
+    params = {"coll": service}
 
     if author_key:
         conditions.append("author_key = %(author)s")
@@ -126,7 +128,7 @@ def read_documents(
             {
                 "doc_id": row[0],
                 "author_key": row[1],
-                "collection_name": row[2],
+                "service": row[2],
                 "body": _parse_json(row[3]),
                 "ref_value": row[4],
                 "tags": list(row[5]),
@@ -138,7 +140,7 @@ def read_documents(
 
 
 def update_document(
-    doc_id: str, author_key: str, collection_name: str, body: dict, ref_value: str = "", tags: list[str] | None = None
+    doc_id: str, author_key: str, service: str, body: dict, ref_value: str = "", tags: list[str] | None = None
 ) -> dict:
     """Update a document (insert new version with higher updated_at, preserve created_at)."""
     existing = get_document(doc_id, author_key)
@@ -148,12 +150,12 @@ def update_document(
     created_at = datetime.fromisoformat(existing["created_at"])
     client.insert(
         "documents",
-        [[doc_id, author_key, collection_name, _json(body), ref_value or "", tags or [], created_at, now, 0]],
+        [[doc_id, author_key, service, _json(body), ref_value or "", tags or [], created_at, now, 0]],
     )
     return {
         "doc_id": doc_id,
         "author_key": author_key,
-        "collection_name": collection_name,
+        "service": service,
         "body": body,
         "ref_value": ref_value,
         "tags": tags or [],
@@ -162,13 +164,13 @@ def update_document(
     }
 
 
-def delete_document(doc_id: str, author_key: str, collection_name: str):
+def delete_document(doc_id: str, author_key: str, service: str):
     """Tombstone a document (insert deleted=1 version)."""
     client.command(
         "INSERT INTO documents (doc_id, author_key, collection_name, body, ref_value, tags, created_at, updated_at, deleted) "
         "SELECT doc_id, author_key, collection_name, body, ref_value, tags, created_at, now(), 1 "
-        "FROM documents WHERE doc_id = %(doc_id)s AND author_key = %(author_key)s AND deleted = 0",
-        {"doc_id": doc_id, "author_key": author_key},
+        "FROM documents WHERE doc_id = %(doc_id)s AND author_key = %(author_key)s AND collection_name = %(service)s AND deleted = 0",
+        {"doc_id": doc_id, "author_key": author_key, "service": service},
     )
 
 
@@ -185,7 +187,7 @@ def get_document(doc_id: str, author_key: str) -> dict | None:
     return {
         "doc_id": row[0],
         "author_key": row[1],
-        "collection_name": row[2],
+        "service": row[2],
         "body": _parse_json(row[3]),
         "ref_value": row[4],
         "tags": list(row[5]),
@@ -616,7 +618,7 @@ def is_sharing_enabled(user_key: str, group_id: str) -> bool:
 def read_documents_in_groups(
     group_ids: list[str],
     member_key: str,
-    collection_name: str,
+    service: str,
     limit: int = 50,
     offset: int = 0,
 ) -> list[dict]:
@@ -651,7 +653,7 @@ def read_documents_in_groups(
         "LIMIT %(limit)s OFFSET %(offset)s",
         {
             "member_key": member_key,
-            "coll": collection_name,
+            "coll": service,
             "limit": limit,
             "offset": offset,
             **{f"g{i}": gid for i, gid in enumerate(group_ids)},
@@ -666,7 +668,7 @@ def read_documents_in_groups(
             "tags": list(row[3]),
             "created_at": str(row[4]),
             "ref_value": row[5],
-            "collection_name": collection_name,
+            "service": service,
         }
         for row in result.result_rows()
     ]
@@ -677,21 +679,21 @@ def read_documents_in_groups(
 # ---------------------------------------------------------------------------
 
 
-def get_ref_count(doc_id: str, collection_name: str = "reactions") -> int:
+def get_ref_count(doc_id: str, service: str = "reactions") -> int:
     """Count documents referencing a given doc_id."""
     result = client.query(
         "SELECT count() FROM documents WHERE deleted = 0 AND collection_name = %(coll)s AND ref_value = %(doc_id)s",
-        {"coll": collection_name, "doc_id": doc_id},
+        {"coll": service, "doc_id": doc_id},
     )
     return result.result_rows()[0][0]
 
 
-def get_ref_counts(doc_ids: list[str], collection_name: str = "reactions") -> dict[str, int]:
+def get_ref_counts(doc_ids: list[str], service: str = "reactions") -> dict[str, int]:
     """Count references for multiple documents."""
     if not doc_ids:
         return {}
     placeholders = ", ".join(f"%(d{i})s" for i in range(len(doc_ids)))
-    params = {"coll": collection_name, **{f"d{i}": did for i, did in enumerate(doc_ids)}}
+    params = {"coll": service, **{f"d{i}": did for i, did in enumerate(doc_ids)}}
     result = client.query(
         f"SELECT ref_value, count() FROM documents WHERE deleted = 0 AND collection_name = %(coll)s AND ref_value IN ({placeholders}) GROUP BY ref_value",
         params,
@@ -704,7 +706,7 @@ def get_ref_counts(doc_ids: list[str], collection_name: str = "reactions") -> di
 # ---------------------------------------------------------------------------
 
 
-def read_document_by_id(doc_id: str, member_key: str, collection_name: str) -> dict | None:
+def read_document_by_id(doc_id: str, member_key: str, service: str) -> dict | None:
     """Read a single document by doc_id with group permission check."""
     result = client.query(
         "SELECT p.doc_id, p.author_key, p.body, p.tags, p.created_at, p.ref_value "
@@ -724,7 +726,7 @@ def read_document_by_id(doc_id: str, member_key: str, collection_name: str) -> d
         "SELECT 1 FROM user_blacklist "
         "WHERE user_key = p.author_key AND blocked_key = %(member_key)s AND deleted = 0 "
         ")",
-        {"doc_id": doc_id, "coll": collection_name, "member_key": member_key},
+        {"doc_id": doc_id, "coll": service, "member_key": member_key},
     )
     if not result.result_rows():
         return None
@@ -736,7 +738,7 @@ def read_document_by_id(doc_id: str, member_key: str, collection_name: str) -> d
         "tags": list(row[3]),
         "created_at": str(row[4]),
         "ref_value": row[5],
-        "collection_name": collection_name,
+        "service": service,
     }
 
 
