@@ -999,7 +999,12 @@ class TestSystem:
     def test_stats(self, client):
         with (
             patch("app.v3.services.clickhouse.get_node_stats", return_value={"users": 5, "documents": 10, "groups": 3}),
-            patch("app.v3.services.clickhouse.list_apps", return_value=[{"url": "https://a.com", "name": "A", "description": "", "icon_url": None, "screenshots": []}]),
+            patch(
+                "app.v3.services.clickhouse.list_apps",
+                return_value=[
+                    {"url": "https://a.com", "name": "A", "description": "", "icon_url": None, "screenshots": []}
+                ],
+            ),
         ):
             resp = client.post("/stats")
         assert resp.status_code == 200
@@ -1027,10 +1032,25 @@ class TestSystem:
         """Stats returns approved apps from ClickHouse."""
         with (
             patch("app.v3.services.clickhouse.get_node_stats", return_value={"users": 1, "documents": 0, "groups": 0}),
-            patch("app.v3.services.clickhouse.list_apps", return_value=[
-                {"url": "https://social.web10.app", "name": "web10 social", "description": "Social app", "icon_url": None, "screenshots": []},
-                {"url": "https://auth.web10.app", "name": "auth", "description": "Auth app", "icon_url": None, "screenshots": []},
-            ]),
+            patch(
+                "app.v3.services.clickhouse.list_apps",
+                return_value=[
+                    {
+                        "url": "https://social.web10.app",
+                        "name": "web10 social",
+                        "description": "Social app",
+                        "icon_url": None,
+                        "screenshots": [],
+                    },
+                    {
+                        "url": "https://auth.web10.app",
+                        "name": "auth",
+                        "description": "Auth app",
+                        "icon_url": None,
+                        "screenshots": [],
+                    },
+                ],
+            ),
         ):
             resp = client.post("/stats")
         data = resp.json()
