@@ -59,6 +59,7 @@ says what can happen **at the same time**.
 **Owns:** ClickHouse setup, migrations
 
 - [✓ 3.0.2] ClickHouse schema & tables
+- [✓ 3.0.12] Bug reports table and endpoints
 - [ ] Indexes & patterns
 
 ### Lane: Groups (Phase 2)
@@ -70,6 +71,7 @@ says what can happen **at the same time**.
 ### Lane: Social (Phase 2)
 **Owns:** `marketing/web10-social/`
 
+- [✓ 3.0.13] Bug report button hooked up — screenshots, paste-to-attach
 - [ ] 11 screens per `web10-social-v3/` docs
 - [ ] CRUD + groups + refs only
 

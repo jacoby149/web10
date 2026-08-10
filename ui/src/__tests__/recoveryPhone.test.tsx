@@ -46,7 +46,7 @@ const mockWapi = {
 
 vi.mock('web10-npm', () => ({
   wapiInit: () => mockWapi,
-  wapiAuthInit: () => ({ SMRListen: vi.fn() }),
+  wapiAuthInit: () => ({ contractListen: vi.fn() }),
   createV3Client: () => ({
     login: vi.fn(),
     signup: vi.fn(),

@@ -21,6 +21,7 @@ export type {
   SCR,
   ACR,
   GCR,
+  ContractRequest,
   PipelineStage,
   Pipeline,
   CreateResponse,

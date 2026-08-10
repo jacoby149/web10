@@ -33,7 +33,7 @@ def follows_term():
     """Canonical owner-only term for the `follows` service.
 
     Every new account gets this term provisioned at signup so the social
-    app can write follow records without requiring an interactive SMR
+    app can write follow records without requiring an interactive contract handshake
     from the client. No whitelist — owner-only (the app acts under the
     owner's own token; is_permitted allows it).
     """
@@ -150,8 +150,8 @@ def core_services_terms():
     """Return all core app service terms that must be provisioned at signup.
 
     This is the set of services the social app needs to operate on the
-    owner's own collection. Without these, the app's SMROnReady consent
-    is the only thing that creates terms — and SMR only fires while the
+    owner's own collection. Without these, the app's contractOnReady consent
+    is the only thing that creates terms — and the contract handshake only fires while the
     auth portal child window is open. A13 fixed public_posts; this
     fixes the rest (follows, inbox, reactions, comments, dms, profile,
     public_media, private_posts, staging_posts, media — the D40 pull
@@ -176,7 +176,7 @@ def public_posts_term():
     """Canonical anon-read term for public_posts — discovery-indexed by default.
 
     Every new account gets this term provisioned at signup so public posts
-    are discoverable without requiring an interactive SMR from the client.
+    are discoverable without requiring an interactive contract handshake from the client.
     The whitelist uses `.*` regex (matching `get_approved` and
     `service_allows_anon`) so any user — including anon — may read.
     """

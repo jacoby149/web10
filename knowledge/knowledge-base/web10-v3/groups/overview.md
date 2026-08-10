@@ -175,6 +175,29 @@ Groups have three join policies:
 
 **Invite only** — only people the owner explicitly adds can join. Used for close friends, private circles, invited communities.
 
+## Default Role
+
+Every group contract declares a `default_role` — the role assigned when:
+
+1. **Open join** — someone joins an `open` group automatically gets `default_role`
+2. **Invite with role omitted** — `inviteMember(groupId, memberKey)` without a role assigns `default_role`
+3. **Invite with explicit role** — `inviteMember(groupId, memberKey, "moderator")` overrides to that role
+
+```json
+{
+  "group_id": "web10.app/groups/charlie/st-louis-chess-club",
+  "join_policy": "open",
+  "default_role": "member",
+  "roles": [
+    { "name": "owner", ... },
+    { "name": "moderator", ... },
+    { "name": "member", ... }
+  ]
+}
+```
+
+The `default_role` must match one of the defined role names. Convention: list roles from most privileged to least, so the last entry is the baseline member role — the natural default.
+
 ## Moderation
 
 Group roles can include moderation permissions. A role with `hideAll` can hide content from the group's discover — hiding it from group members. Roles cannot edit content they don't own. Roles cannot escalate their own permissions.
