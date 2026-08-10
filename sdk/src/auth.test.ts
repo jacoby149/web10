@@ -56,8 +56,8 @@ function createMockWapi(token: string | null): Web10Client {
     login: vi.fn(),
     authListen: vi.fn(),
     getTieredToken: vi.fn().mockResolvedValue({ token: 'tiered' }),
-    smrOnReady: vi.fn(),
-    smrResponseListen: vi.fn(),
+    contractOnReady: vi.fn(),
+    contractResponseListen: vi.fn(),
     checkout: vi.fn(),
     verifySubscription: vi.fn(),
     cancelSubscription: vi.fn(),
@@ -90,7 +90,7 @@ describe('createAuthConnector', () => {
     expect(wa).toHaveProperty('manageSubscriptions')
     expect(wa).toHaveProperty('businessLogin')
     expect(wa).toHaveProperty('getPlan')
-    expect(wa).toHaveProperty('smrListen')
+    expect(wa).toHaveProperty('contractListen')
     expect(wa).toHaveProperty('sendToken')
     expect(wa).toHaveProperty('mintOAuthToken')
   })
@@ -265,7 +265,7 @@ describe('createAuthConnector', () => {
     })
   })
 
-  describe('SMRListen', () => {
+  describe('contractListen', () => {
     const OPENER = 'https://app.example.com'
 
     beforeEach(() => {
@@ -281,33 +281,33 @@ describe('createAuthConnector', () => {
       })
     })
 
-    it('listens for SMR messages from the opener and calls setState', () => {
+    it('listens for contract messages from the opener and calls setState', () => {
       const jwt = makeJwt({ username: 'alice', provider: 'api.example.com' })
       const wapi = createMockWapi(jwt)
       const wa = createAuthConnector(wapi)
       const cb = vi.fn()
 
-      wa.smrListen(cb)
+      wa.contractListen(cb)
       // The connector must announce itself to the opener's exact origin.
       expect((window.opener as { postMessage: ReturnType<typeof vi.fn> }).postMessage)
-        .toHaveBeenCalledWith({ type: 'SMRListen' }, OPENER)
+        .toHaveBeenCalledWith({ type: 'ContractListen' }, OPENER)
 
       window.dispatchEvent(
         new MessageEvent('message', {
           origin: OPENER,
-          data: { type: 'smr', sirs: [], scrs: [] },
+          data: { type: 'contract', contracts: [] },
         }),
       )
-      expect(cb).toHaveBeenCalledWith({ type: 'smr', sirs: [], scrs: [] })
+      expect(cb).toHaveBeenCalledWith({ type: 'contract', contracts: [] })
     })
 
-    it('ignores non-smr messages', () => {
+    it('ignores non-contract messages', () => {
       const jwt = makeJwt({ username: 'alice', provider: 'api.example.com' })
       const wapi = createMockWapi(jwt)
       const wa = createAuthConnector(wapi)
       const cb = vi.fn()
 
-      wa.smrListen(cb)
+      wa.contractListen(cb)
       window.dispatchEvent(
         new MessageEvent('message', {
           origin: OPENER,
@@ -317,17 +317,17 @@ describe('createAuthConnector', () => {
       expect(cb).not.toHaveBeenCalled()
     })
 
-    it('ignores smr messages from a foreign origin', () => {
+    it('ignores contract messages from a foreign origin', () => {
       const jwt = makeJwt({ username: 'alice', provider: 'api.example.com' })
       const wapi = createMockWapi(jwt)
       const wa = createAuthConnector(wapi)
       const cb = vi.fn()
 
-      wa.smrListen(cb)
+      wa.contractListen(cb)
       window.dispatchEvent(
         new MessageEvent('message', {
           origin: 'https://evil.example.com',
-          data: { type: 'smr', sirs: [], scrs: [] },
+          data: { type: 'contract', contracts: [] },
         }),
       )
       expect(cb).not.toHaveBeenCalled()

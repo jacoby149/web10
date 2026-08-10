@@ -561,7 +561,7 @@ describe('auth flow', () => {
   })
 })
 
-describe('SMR helpers', () => {
+describe('Contract helpers', () => {
   beforeEach(() => {
     mockFetch.mockReset()
     clearCookies()
@@ -572,20 +572,20 @@ describe('SMR helpers', () => {
     })
   })
 
-  it('smrResponseListen calls callback on status message', () => {
+  it('contractResponseListen calls callback on status message', () => {
     const w = createClient({ authUrl: 'https://auth.example.com', appStores: [] })
     const cb = vi.fn()
-    w.smrResponseListen(cb)
+    w.contractResponseListen(cb)
     window.dispatchEvent(
       new MessageEvent('message', { origin: 'https://auth.example.com', data: { type: 'status', status: 'approved' } }),
     )
     expect(cb).toHaveBeenCalledWith('approved')
   })
 
-  it('smrResponseListen ignores status messages from a foreign origin', () => {
+  it('contractResponseListen ignores status messages from a foreign origin', () => {
     const w = createClient({ authUrl: 'https://auth.example.com', appStores: [] })
     const cb = vi.fn()
-    w.smrResponseListen(cb)
+    w.contractResponseListen(cb)
     window.dispatchEvent(
       new MessageEvent('message', { origin: 'https://evil.example.com', data: { type: 'status', status: 'approved' } }),
     )

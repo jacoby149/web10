@@ -1,5 +1,5 @@
 // Service Information Records (sirs) the social app registers with the
-// node's Service Manager on signup/login (SMROnReady). Extracted to a pure
+// node's Service Manager on signup/login (contractOnReady). Extracted to a pure
 // builder so the owner-only-vs-anon-read invariants can be unit-tested
 // without booting the adapter (which needs a real wapiInit + window).
 //
@@ -32,7 +32,7 @@ export interface Sir {
 /**
  * Build the social app's canonical sirs list for the given cross-origin
  * set. The list is the single source of truth — `Web10SocialAdapter`
- * passes the result straight to `SMROnReady`.
+ * passes the result straight to `contractOnReady`.
  */
 export function buildSocialServiceSirs(crossOrigins: string[]): Sir[] {
   return [

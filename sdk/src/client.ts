@@ -2,7 +2,7 @@
  * The core web10 client.
  *
  * Provides typed CRUD operations, aggregate queries, token management,
- * auth flow helpers, SMR (Service Modification Request), and dev pay.
+ * auth flow helpers, contract management, and dev pay.
  *
  * @example
  * ```ts
@@ -37,6 +37,8 @@ import type {
   SIR,
   SCR,
   ACR,
+  GCR,
+  ContractRequest,
   CheckoutParams,
   SubscriptionParams,
   CreateResponse,
@@ -64,7 +66,7 @@ export function createClient(options: ClientOptions = {}): Web10Client {
   const authUrl = options.authUrl ?? 'https://auth.web10.app'
   const protocol = new URL(authUrl).protocol
   const apiOrigin = options.apiOrigin ?? `${protocol}//api.web10.app`
-  // The only origin trusted to deliver tokens / SMR messages over
+  // The only origin trusted to deliver tokens / contract messages over
   // postMessage. Cross-window messages from any other origin are ignored
   // so a malicious opener/embedder can't inject or fixate a token.
   const authOrigin = new URL(authUrl).origin
@@ -266,20 +268,20 @@ export function createClient(options: ClientOptions = {}): Web10Client {
       )
     },
 
-    // ── SMR (Service Modification Request) ────────────────────────────
-    // @deprecated Use acrOnReady / acrResponseListen instead.
+    // ── Contract Listen ──────────────────────────────────────────────────────
+    // App sends contract data back to the authenticator via postMessage.
 
-    smrOnReady(sirs: SIR[], scrs?: SCR[]): void {
+    contractOnReady(contracts: ContractRequest[]): void {
       if (typeof window === 'undefined') return
       window.addEventListener('message', (e) => {
         if (e.origin !== authOrigin) return
-        if (e.data?.type === 'SMRListen' && e.source instanceof Window) {
-          e.source.postMessage({ type: 'smr', sirs, scrs }, authOrigin)
+        if (e.data?.type === 'ContractListen' && e.source instanceof Window) {
+          e.source.postMessage({ type: 'contract', contracts }, authOrigin)
         }
       })
     },
 
-    smrResponseListen(setStatus: (status: string) => void): void {
+    contractResponseListen(setStatus: (status: string) => void): void {
       if (typeof window === 'undefined') return
       window.addEventListener('message', (e) => {
         if (e.origin !== authOrigin) return
@@ -576,11 +578,9 @@ export interface Web10Client {
   // Tiered tokens
   getTieredToken(site: string, target: string): Promise<TokenResponse>
 
-  // SMR
-  /** @deprecated Use acrOnReady / acrResponseListen instead */
-  smrOnReady(sirs: SIR[], scrs?: SCR[]): void
-  /** @deprecated Use acrResponseListen instead */
-  smrResponseListen(setStatus: (status: string) => void): void
+  // Contract Listen — unified listener for app + group contracts
+  contractOnReady(contracts: ContractRequest[]): void
+  contractResponseListen(setStatus: (status: string) => void): void
 
   // ACR
   acrOnReady(acrs: ACR[]): void

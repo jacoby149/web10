@@ -292,3 +292,24 @@ ORDER BY (user_key, request_id);
 ```
 
 One request per operation. Granular consent. The user can approve some and deny others. See `../groups/requests.md` for the full model.
+
+## Contract Listen
+
+The consent protocol. When an app requests access, it sends contract data to the authenticator via `contractOnReady`. The authenticator listens for these requests via `contractListen`. One unified listener for both app contracts and group contracts.
+
+```ts
+// App side — declare what you need
+w.contractOnReady([
+  { allowed_origin: 'music.web10.com', permissions: { posts: ['readAll', 'create'] } }, // ACR
+  { app_origin: 'music.web10.com', action: 'create_group', params: { name: 'My Group' } }, // GCR
+])
+
+// Authenticator side — listen for contract requests
+wapiAuth.contractListen((data) => {
+  // data.contracts is an array of ContractRequest (ACR | GCR)
+  const acrs = data.contracts.filter(c => c.allowed_origin) // app contracts
+  const gcrs = data.contracts.filter(c => c.action) // group contracts
+})
+```
+
+**One listener, two contract types.** contractListen replaces the old SMRListen (Service Modification Request). The name reflects that it handles both app contracts (what can this app do with my data?) and group contracts (who can see my content?). The data format is `{ type: 'contract', contracts }` where each contract is either an ACR (`{ allowed_origin, permissions }`) or a GCR (`{ app_origin, action, params }`).

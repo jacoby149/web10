@@ -73,19 +73,19 @@ export function wapiInit(
     getTieredToken: (site: string, target: string) =>
       client.getTieredToken(site, target),
 
-    // SMR
-    SMROnReady: (sirs: unknown[], scrs?: unknown[]) => {
+    // Contract Listen
+    ContractOnReady: (contracts: unknown[]) => {
       if (typeof window === 'undefined') return
       const authOrigin = new URL(authUrl).origin
       window.addEventListener('message', (e) => {
         if (e.origin !== authOrigin) return
-        if (e.data?.type === 'SMRListen' && childWindow) {
-          childWindow.postMessage({ type: 'smr', sirs, scrs }, authOrigin)
+        if (e.data?.type === 'ContractListen' && childWindow) {
+          childWindow.postMessage({ type: 'contract', contracts }, authOrigin)
         }
       })
     },
-    SMRResponseListen: (setStatus: (status: string) => void) => {
-      client.smrResponseListen(setStatus)
+    ContractResponseListen: (setStatus: (status: string) => void) => {
+      client.contractResponseListen(setStatus)
     },
 
     // P2P
@@ -200,8 +200,8 @@ export function wapiAuthInit(wapi: Record<string, unknown>): Record<string, unkn
       return connector.signUp({ provider, username, password, betacode: betacode ?? undefined, phone: phone ?? undefined })
     },
 
-    SMRListen: (setState: (data: unknown) => void) => {
-      connector.smrListen(setState)
+    contractListen: (setState: (data: unknown) => void) => {
+      connector.contractListen(setState)
     },
 
     changePass: (pass: string, newPass: string) =>
