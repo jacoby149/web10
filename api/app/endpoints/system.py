@@ -16,6 +16,7 @@ from app.models.config import (
 from app.services import config as config_svc
 from app.services import documentdb as db
 from app.services.auth import check_admin, decode_token, get_password_hash
+from app.v3.services import clickhouse as ch
 
 router = APIRouter()
 
@@ -312,3 +313,61 @@ async def admin_discovery_removed(req: Token):
     """List posts currently hidden from the discovery board. Admin only."""
     check_admin(req)
     return {"removed": db.list_removed_discovery_posts()}
+
+
+# --- Bug Reports ---
+
+
+@router.post("/bug_report", include_in_schema=False)
+async def submit_bug_report(req: dict):
+    """Submit a bug report. Public — no auth required.
+
+    Accepts: description (required), email, page_url, app_version,
+    device_info, browser_info, error_message, stack_trace, screenshots.
+    Screenshots are base64-encoded image strings (data:image/png;base64,...).
+    Optional: token — if provided, username is auto-populated.
+    """
+    description = (req.get("description") or "").strip()
+    if not description:
+        raise HTTPException(status_code=400, detail="description is required")
+
+    # Optional: extract username from token if provided
+    username = ""
+    if req.get("token"):
+        try:
+            decoded = decode_token(req["token"])
+            username = decoded.username if decoded.username and decoded.username != "anon" else ""
+        except Exception:
+            pass
+
+    result = ch.submit_bug_report(
+        description=description,
+        username=username,
+        email=(req.get("email") or "").strip(),
+        page_url=(req.get("page_url") or "").strip(),
+        app_version=(req.get("app_version") or "").strip(),
+        device_info=(req.get("device_info") or "").strip(),
+        browser_info=(req.get("browser_info") or "").strip(),
+        error_message=(req.get("error_message") or "").strip(),
+        stack_trace=(req.get("stack_trace") or "").strip(),
+        screenshots=req.get("screenshots") or [],
+    )
+    return result
+
+
+@router.post("/admin/bug_reports", include_in_schema=False)
+async def admin_bug_reports(req: Token, limit: int = 100, offset: int = 0):
+    """List bug reports (admin only). Screenshots excluded — too large."""
+    check_admin(req)
+    reports = ch.list_bug_reports(limit=limit, offset=offset)
+    return {"reports": reports, "count": len(reports)}
+
+
+@router.post("/admin/bug_reports/{report_id}", include_in_schema=False)
+async def admin_bug_report_detail(report_id: str, req: Token):
+    """Get a single bug report with screenshots (admin only)."""
+    check_admin(req)
+    report = ch.get_bug_report(report_id)
+    if not report:
+        raise HTTPException(status_code=404, detail="report not found")
+    return report

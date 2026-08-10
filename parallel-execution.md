@@ -59,6 +59,7 @@ says what can happen **at the same time**.
 **Owns:** ClickHouse setup, migrations
 
 - [✓ 3.0.2] ClickHouse schema & tables
+- [✓ 3.0.12] Bug reports table and endpoints
 - [ ] Indexes & patterns
 
 ### Lane: Groups (Phase 2)

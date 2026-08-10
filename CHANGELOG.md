@@ -1,3 +1,6 @@
+3.0.12 || 10.08.2026
+feat(api): bug reports — separate ClickHouse table `bug_reports` with base64-encoded screenshots. Public POST /bug_report endpoint (no auth required, optional token for username). Admin endpoints: POST /admin/bug_reports (list, screenshots excluded), POST /admin/bug_reports/{report_id} (detail with screenshots). Schema: report_id, username, email, description, page_url, app_version, device_info, browser_info, error_message, stack_trace, screenshots (JSON array of base64 strings). KB clickhouse.md updated with bug_reports table docs.
+
 3.0.11 || 10.08.2026
 docs(kb): v3 media folder — transcoding foundation. `media/transcoding-foundation.md`: source video document carries `transcoding_settings` on the `minio` type — array of variants (360p, 720p, 1080p) and thumbnails. Each variant `url` is itself a `minio` type, resolved to presigned URL recursively. v3: `enabled: false` (raw upload only). v4: `enabled: true` with full adaptive bitrate array. Post refs source video, player reads variants, starts low, adapts up. v3 README updated with media folder in structure + quick links.
 
