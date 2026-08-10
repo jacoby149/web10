@@ -10,6 +10,7 @@ const navItems = [
   { path: '/', label: 'Home' },
   { path: '/trending', label: 'Trending' },
   { path: '/join', label: 'Join' },
+  { path: '/freedom', label: 'Freedom' },
   { path: '/docs', label: 'Docs' },
   { path: '/app-store', label: 'App Store' },
   { path: '/import', label: 'Import Your Life' },

@@ -31,6 +31,8 @@ web10-v3/
 │   ├── overview.md        ← how social uses groups: discover, follows, communities
 │   ├── cross-app-sharing.md ← mailer pattern, DMs, comments
 │   └── group-policy-example.json.md ← concrete role/permission examples
+├── media/                 ← transcoding foundation (schema fields only)
+│   └── transcoding-foundation.md ← API fields for transcoded media, HLS gap
 └── faq/                   ← common questions, skeptical points
     ├── skeptical-points-addressed.md ← real concerns from the v2→v3 transition
     ├── oltp-to-olap-patterns.md ← how every OLTP operation works with OLAP
@@ -43,10 +45,12 @@ web10-v3/
 - **DB** — `db/clickhouse.md` (tables, indexes, patterns)
 - **Groups** — `groups/overview.md` (primitive), `groups/identity.md` (profiles)
 - **Social** — `social/overview.md` (implementation), `social/cross-app-sharing.md` (patterns)
+- **Media** — `media/transcoding-foundation.md` (schema fields, HLS gap)
 
 ## What's Not Here (v4)
 
 - **Media pipeline** — transcoding, streaming, P2P, mobile encoding → `../web10-v4/media/`
+- **Transcoding foundation** — schema fields for transcoded media → `media/transcoding-foundation.md` (in this folder)
 - **Federation** — cross-provider groups, ClickHouse `remote()` → `../web10-v4/future/`
 - **Real-time** — Redis + WebSocket push → `../web10-v4/future/`
 - **Advanced SDK** — `w.query()`, `powerMean` sorting, cross-node addressing, enforced schemas → `../web10-v4/sdk/advanced.md`
