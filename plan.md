@@ -46,6 +46,7 @@ visual styles and voice.
 - [✓] **Social** (`social/overview.md`) — social app architecture: how groups power discover, follows, communities, DMs.
 - [✓] **Encryption** (`encryption/auth.md`) — auth flow diagram: login, token minting, certification, SMR handshake.
 - [✓] **FAQ** (`faq/oltp-to-olap-patterns.md`) — OLTP-on-OLAP patterns: how CRUD operations map to ClickHouse (ReplacingMergeTree, tombstones, background compaction).
+- [✓] **Media** (`media/transcoding-foundation.md`) — transcoding foundation: API schema fields for transcoded media, HLS manifest gap, v4 references.
 
 ---
 
@@ -88,6 +89,8 @@ Lane structure follows the knowledge base:
 
 Each lane reads its doc, implements, ships. Small bites, frequent
 merges. The doc is the spec. The code is the proof.
+
+- [✓ 3.0.12] **Bug reports** (`db/clickhouse.md`) — separate ClickHouse table `bug_reports` with base64-encoded screenshots. Public endpoint for submission, admin endpoints for review.
 
 ---
 

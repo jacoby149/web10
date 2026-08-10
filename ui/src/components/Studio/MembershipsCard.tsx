@@ -24,8 +24,8 @@ export function MembershipsCard({ I, onStatus }: MembershipsCardProps) {
         setEnabled(true);
         onStatus('Memberships enabled — Stripe Connect rails active');
       } else {
-        const token = I.wapi.token;
-        const decoded = I.wapi.readToken();
+        const token = I.v3.state.token;
+        const decoded = I.v3.readToken();
         const provider = decoded.provider;
         const protocol = window.location.protocol;
 

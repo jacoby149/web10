@@ -59,6 +59,7 @@ says what can happen **at the same time**.
 **Owns:** ClickHouse setup, migrations
 
 - [✓ 3.0.2] ClickHouse schema & tables
+- [✓ 3.0.12] Bug reports table and endpoints
 - [ ] Indexes & patterns
 
 ### Lane: Groups (Phase 2)
@@ -76,8 +77,8 @@ says what can happen **at the same time**.
 ### Lane: Media (Phase 2)
 **Owns:** Media pipeline
 
+- [✓ 3.0.11] Transcoding foundation KB — `media/transcoding-foundation.md`: `transcoding_settings` on `minio` type — variants array, thumbnails, v3 `enabled: false`, v4 adaptive bitrate
 - [ ] MinIO integration
-- [ ] Transcoding
 - [ ] Streaming
 
 ### Lane: Apps Rebuild (Phase 3)

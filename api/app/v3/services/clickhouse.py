@@ -1223,3 +1223,106 @@ def get_app_ratings(target_app_id: str) -> list[dict]:
         }
         for row in result.result_rows()
     ]
+
+
+# ---------------------------------------------------------------------------
+# Bug Reports
+# ---------------------------------------------------------------------------
+
+
+def submit_bug_report(
+    description: str,
+    username: str = "",
+    email: str = "",
+    page_url: str = "",
+    app_version: str = "",
+    device_info: str = "",
+    browser_info: str = "",
+    error_message: str = "",
+    stack_trace: str = "",
+    screenshots: list[str] | None = None,
+) -> dict:
+    """Submit a bug report. Public — no auth required. Screenshots are base64-encoded strings."""
+    now = _now()
+    report_id = uuid.uuid4().hex
+    client.insert(
+        "bug_reports",
+        [
+            [
+                report_id,
+                username,
+                email,
+                description,
+                page_url,
+                app_version,
+                device_info,
+                browser_info,
+                error_message,
+                stack_trace,
+                _json(screenshots or []),
+                now,
+                now,
+                0,
+            ]
+        ],
+    )
+    return {
+        "report_id": report_id,
+        "status": "submitted",
+        "created_at": now.isoformat(),
+    }
+
+
+def list_bug_reports(limit: int = 100, offset: int = 0) -> list[dict]:
+    """List bug reports, newest first. Screenshots are NOT returned by default (too large)."""
+    result = client.query(
+        "SELECT report_id, username, email, description, page_url, app_version, device_info, "
+        "browser_info, error_message, stack_trace, created_at "
+        "FROM bug_reports WHERE deleted = 0 "
+        "ORDER BY created_at DESC "
+        "LIMIT %(limit)s OFFSET %(offset)s",
+        {"limit": limit, "offset": offset},
+    )
+    return [
+        {
+            "report_id": row[0],
+            "username": row[1],
+            "email": row[2],
+            "description": row[3],
+            "page_url": row[4],
+            "app_version": row[5],
+            "device_info": row[6],
+            "browser_info": row[7],
+            "error_message": row[8],
+            "stack_trace": row[9],
+            "created_at": str(row[10]),
+        }
+        for row in result.result_rows()
+    ]
+
+
+def get_bug_report(report_id: str) -> dict | None:
+    """Get a single bug report by ID, including screenshots."""
+    result = client.query(
+        "SELECT report_id, username, email, description, page_url, app_version, device_info, "
+        "browser_info, error_message, stack_trace, screenshots, created_at "
+        "FROM bug_reports WHERE report_id = %(report_id)s AND deleted = 0",
+        {"report_id": report_id},
+    )
+    if not result.result_rows():
+        return None
+    row = result.result_rows()[0]
+    return {
+        "report_id": row[0],
+        "username": row[1],
+        "email": row[2],
+        "description": row[3],
+        "page_url": row[4],
+        "app_version": row[5],
+        "device_info": row[6],
+        "browser_info": row[7],
+        "error_message": row[8],
+        "stack_trace": row[9],
+        "screenshots": _parse_json(row[10]),
+        "created_at": str(row[11]),
+    }

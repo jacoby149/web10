@@ -1,5 +1,4 @@
 import * as React from 'react';
-import axios from 'axios';
 import { ShieldCheck, Phone } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,7 +8,7 @@ function RecoveryContact({ I }: { I: Record<string, any> }) {
   const [phone, setPhone] = React.useState('');
   const [saving, setSaving] = React.useState(false);
 
-  const hasPhone = I.wapi?.readToken?.() && I.phone?.trim().length >= 7;
+  const hasPhone = I.v3?.readToken?.() && I.phone?.trim().length >= 7;
 
   const handleSave = () => {
     if (phone.trim().length < 7) {
@@ -18,16 +17,8 @@ function RecoveryContact({ I }: { I: Record<string, any> }) {
     }
     setSaving(true);
     I.setStatus('Saving recovery phone…');
-    // Persist via the dedicated authenticated endpoint (B9 bite a-fix) — the
-    // star record is server-write-only, so CRUD can't touch it. Then re-read
-    // the phone from the SERVER (servicesLoad pulls the star record into
-    // I.phone) — never trust the local echo.
-    const decoded = I.wapi.readToken?.();
-    axios
-      .post(`${window.location.protocol}//${decoded.provider}/set_recovery_phone`, {
-        token: I.wapi.token,
-        query: { phone: phone.trim() },
-      })
+    I.v3
+      .setRecoveryPhone(phone.trim())
       .then(() => I.servicesLoad())
       .then(() => {
         I.setStatus('Recovery phone saved!');
