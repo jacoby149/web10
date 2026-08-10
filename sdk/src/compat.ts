@@ -39,6 +39,8 @@ export function wapiInit(
 
   const wapi: Record<string, unknown> = {
     APIProtocol: protocol,
+    apiOrigin,
+    authUrl,
     childWindow: null,
     get token() { return client.state.token },
     setToken: (t: string) => { client.setToken(t) },
@@ -159,12 +161,11 @@ export function wapiInit(
  * Legacy wapiAuthInit — wraps the new auth connector to match the old API.
  */
 export function wapiAuthInit(wapi: Record<string, unknown>): Record<string, unknown> {
-  // Detect local vs production the same way wapiInit does, so the auth
-  // connector hits api.localhost in local dev, not api.web10.app.
-  const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost'
-  const isLocal = host === 'localhost' || host === '127.0.0.1' || host.endsWith('.localhost')
-  const authUrl = isLocal ? 'http://auth.localhost' : `${wapi.APIProtocol}//auth.web10.app`
-  const apiOrigin = isLocal ? 'http://api.localhost' : undefined
+  // Use the authUrl and apiOrigin from the wapi object passed in (which was
+  // already configured correctly by wapiInit for local/dev/prod), instead of
+  // hardcoding auth.web10.app / api.web10.app.
+  const authUrl = (wapi.authUrl as string) ?? `${wapi.APIProtocol}//auth.web10.app`
+  const apiOrigin = (wapi.apiOrigin as string) ?? undefined
   const client = createClient({ authUrl, apiOrigin })
   // Sync token from wapi
   if (typeof wapi.token === 'string' && wapi.token) {

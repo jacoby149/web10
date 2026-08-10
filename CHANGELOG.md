@@ -1,5 +1,5 @@
 3.0.11 || 09.08.2026
-fix(sdk): wapiAuthInit now detects local vs production instead of hardcoding api.web10.app — login/signup in local dev hits api.localhost, fixing "axios error" on every credential flow.
+fix(sdk): wapiAuthInit now reads authUrl and apiOrigin from the wapi object passed in by wapiInit instead of hardcoding auth.web10.app / api.web10.app — login/signup works for any deployment (localhost, dev, prod), fixing "axios error" on every credential flow.
 
 3.0.10 || 09.08.2026
 feat(sdk+ui): SMR/SIR/SCR → ACR/GCR model — unified app contract request with no "new" vs "change" distinction. One ACR per origin replaces whatever exists (ReplacingMergeTree handles upsert). KB: auth.md, requests.md, contracts.md, api.md, README.md rewritten for ACR/GCR. SDK: ACR/GCR types added (SIR/SCR deprecated), acrOnReady/acrResponseListen, acrListen; legacy SMR methods kept for v2 compat. Auth UI: I.SMR → I.pendingACRs, submitSIR/changeTerms/purgeSMR → approveACR/denyACR; normalizeSMRtoACRs converts legacy SMR messages; applyACR creates new contract first, then revokes old (no data loss gap); empty cross_origins skipped with warning. ConsentView: removed kind distinction, diffs permissions against existing contract, badge "access request". RequestPage: single ACR list, origin + permissions breakdown. Net: -42 lines. 96 UI + 129 SDK tests green, tsc clean both.
