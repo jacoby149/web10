@@ -27,6 +27,7 @@ router.include_router(blocking.router, prefix="")
 # App contracts
 router.include_router(contracts.router, prefix="/app-contracts")
 
+
 # Node stats
 @router.post("/stats", tags=["system"])
 async def node_stats(data: TokenOnly):
