@@ -194,7 +194,8 @@ function Freedom() {
           <div className="reveal mt-10 flex flex-col gap-4 [animation-delay:160ms]">
             {[
               'You own your data. Export it, move it, erase it. Delete means delete.',
-              'You control who touches it. Per-app, per-service, per-operation. Revoke in one click.',
+              'You control what apps touch it. Per-app, per-service, per-operation. Revoke in one click.',
+              'You control what people see it. Groups define who can discover your content. Remove someone, remove yourself, or remove the content — it\'s gone for everyone. Delete is universal, not personal.',
               'Your identity is portable. Username, content, followers — they move with you across nodes.',
               'Your audience is real. 100% delivery isn\'t a feature — it\'s what happens when nobody holds the throttle.',
               'The escape hatch is real. Self-hostable nodes. One command. Hardware you own.',
