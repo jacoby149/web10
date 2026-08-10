@@ -147,21 +147,12 @@ class TestErrorResponsesHaveCors:
         assert resp.headers.get("access-control-allow-origin") == "*"
 
     def test_unhandled_exception_self_reports(self):
-        """An unmapped exception's 500 body carries type + detail + error_id.
-
-        The profile-upload outage (CHANGELOG 1.0.128) was two unhandled
-        exceptions that both collapsed to an identical opaque
-        `{"message": "internal server error"}`, forcing an SSH into the box to
-        read the traceback. The handler now surfaces the exception class and
-        message (safe — the code is open source) plus a correlation id, so a
-        future 500 is diagnosable from the browser console. The full traceback
-        stays server-side only.
-        """
+        """An unmapped exception's 500 body carries type + detail + error_id."""
         client = TestClient(fastapi_app, raise_server_exceptions=False)
-        with patch("app.endpoints.crud.is_permitted", side_effect=RuntimeError("boom")):
+        with patch("app.v3.endpoints.auth_helper.decode_token", side_effect=RuntimeError("boom")):
             resp = client.post(
-                "/owner/myservice/update",
-                json={"token": None, "query": {}, "update": {"$set": {"x": 1}}},
+                "/v3/create",
+                json={"token": "garbage", "service": "posts", "body": {"text": "hello"}},
                 headers={"Origin": "https://social.web10.app"},
             )
         assert resp.status_code == 500

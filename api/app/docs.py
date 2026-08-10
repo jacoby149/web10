@@ -5,23 +5,7 @@ welcome to the new internet, where users aren't just clients.
 tags_metadata = [
     {
         "name": "group-contracts",
-        "description": "Group contracts — membership, permissions, access controls. Groups define who can read, create, update, or delete your data. Blocking restricts specific users.",
-    },
-    {
-        "name": "auth",
-        "description": "Authentication — signup, login, token minting, password recovery, phone/email verification.",
-    },
-    {
-        "name": "account",
-        "description": "Account management — change password, phone, email, recovery settings.",
-    },
-    {
-        "name": "documents",
-        "description": "Document CRUD — create, read, update, delete, aggregate. All POST. Token in body.",
-    },
-    {
-        "name": "groups",
-        "description": "Groups — create, list, join, leave, members, invites, moderation. v3 ClickHouse.",
+        "description": "Group contracts — create, list, join, leave, members, invites, moderation. v3 ClickHouse.",
     },
     {
         "name": "app-contracts",
