@@ -7,7 +7,6 @@ forged-token rejection, cross-collection access, scoped-token enforcement.
 All DB calls are patched — no real database needed.
 """
 
-import json as _json
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 
