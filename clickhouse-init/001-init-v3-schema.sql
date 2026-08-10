@@ -151,3 +151,21 @@ CREATE TABLE IF NOT EXISTS app_ratings (
     deleted UInt8 DEFAULT 0
 ) ENGINE = ReplacingMergeTree(updated_at)
 ORDER BY (target_app_id, author);
+
+CREATE TABLE IF NOT EXISTS bug_reports (
+    report_id String,
+    username String DEFAULT '',
+    email String DEFAULT '',
+    description String,
+    page_url String DEFAULT '',
+    app_version String DEFAULT '',
+    device_info String DEFAULT '',
+    browser_info String DEFAULT '',
+    error_message String DEFAULT '',
+    stack_trace String DEFAULT '',
+    screenshots String DEFAULT '',
+    created_at DateTime64(3),
+    updated_at DateTime64(3),
+    deleted UInt8 DEFAULT 0
+) ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY report_id;
