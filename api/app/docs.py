@@ -4,6 +4,10 @@ welcome to the new internet, where users aren't just clients.
 
 tags_metadata = [
     {
+        "name": "group-contracts",
+        "description": "Group contracts — membership, permissions, access controls. Groups define who can read, create, update, or delete your data. Blocking restricts specific users.",
+    },
+    {
         "name": "auth",
         "description": "Authentication — signup, login, token minting, password recovery, phone/email verification.",
     },

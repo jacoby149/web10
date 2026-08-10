@@ -1516,7 +1516,7 @@ class TestPublicMediaServiceAllowlist:
         ):
             m_create.return_value = {"_id": "1", "url": "https://s3/x.jpg"}
             resp = client.post(
-                "/alice/upload/confirm",
+                "/v3/media/alice/upload/confirm",
                 json={
                     "token": _owner_token("alice"),
                     "url": "https://s3/x.jpg",
@@ -1549,7 +1549,7 @@ class TestPublicMediaServiceAllowlist:
         ):
             m_create.return_value = {"_id": "2", "url": "https://s3/y.jpg"}
             resp = client.post(
-                "/alice/upload/confirm",
+                "/v3/media/alice/upload/confirm",
                 json={
                     "token": _owner_token("alice"),
                     "url": "https://s3/y.jpg",
@@ -1564,7 +1564,7 @@ class TestPublicMediaServiceAllowlist:
     def test_metadata_create_arbitrary_service_rejected(self, client):
         """service='posts' must be rejected at the model level (422)."""
         resp = client.post(
-            "/alice/upload/confirm",
+            "/v3/media/alice/upload/confirm",
             json={
                 "token": _owner_token("alice"),
                 "url": "https://s3/z.jpg",
@@ -1577,7 +1577,7 @@ class TestPublicMediaServiceAllowlist:
     def test_metadata_create_arbitrary_collection_rejected(self, client):
         """service='arbitrary_collection' must be rejected (422)."""
         resp = client.post(
-            "/alice/upload/confirm",
+            "/v3/media/alice/upload/confirm",
             json={
                 "token": _owner_token("alice"),
                 "url": "https://s3/z.jpg",
@@ -1590,7 +1590,7 @@ class TestPublicMediaServiceAllowlist:
     def test_read_request_arbitrary_service_rejected(self, client):
         """ReadRequest with service='anything' must be rejected (422)."""
         resp = client.post(
-            "/alice/read",
+            "/v3/media/alice/read",
             json={
                 "token": _owner_token("alice"),
                 "object_key": "alice/abc/photo.jpg",
@@ -1627,7 +1627,7 @@ class TestPublicMediaPresignPermission:
         ):
             m_sign.return_value.generate_presigned_url.return_value = "https://presigned"
             resp = client.post(
-                "/alice/read",
+                "/v3/media/alice/read",
                 json={
                     "token": _app_token("bob", "myapp.example.com"),
                     "object_key": "alice/abc/photo.jpg",
@@ -1658,7 +1658,7 @@ class TestPublicMediaPresignPermission:
         ):
             m_sign.return_value.generate_presigned_url.return_value = "https://presigned"
             resp = client.post(
-                "/alice/read",
+                "/v3/media/alice/read",
                 json={
                     "token": _app_token("bob", "myapp.example.com"),
                     "object_key": "alice/abc/photo.jpg",
@@ -1684,7 +1684,7 @@ class TestPublicMediaPresignPermission:
             patch("app.endpoints.media.get_s3_signing_client"),
         ):
             resp = client.post(
-                "/alice/read",
+                "/v3/media/alice/read",
                 json={
                     "token": _app_token("bob", "myapp.example.com"),
                     "object_key": "alice/abc/photo.jpg",
@@ -1710,7 +1710,7 @@ class TestPublicMediaPresignPermission:
         ):
             m_sign.return_value.generate_presigned_url.return_value = "https://presigned"
             resp = client.post(
-                "/alice/read",
+                "/v3/media/alice/read",
                 json={
                     "token": _owner_token("alice"),
                     "object_key": "alice/abc/photo.jpg",
@@ -1736,7 +1736,7 @@ class TestPublicMediaPresignPermission:
         ):
             m_sign.return_value.generate_presigned_url.return_value = "https://presigned"
             resp = client.post(
-                "/alice/read",
+                "/v3/media/alice/read",
                 json={
                     "token": _owner_token("alice"),
                     "object_key": "alice/abc/photo.jpg",
@@ -1770,7 +1770,7 @@ class TestPublicMediaListPermission:
         ):
             m_read.return_value = [{"_id": "1", "url": "https://s3/x.jpg"}]
             resp = client.post(
-                "/alice/list",
+                "/v3/media/alice/list",
                 json={"token": _owner_token("alice")},
             )
         assert resp.status_code == 200
@@ -1799,7 +1799,7 @@ class TestPublicMediaListPermission:
         ):
             m_read.return_value = [{"_id": "2", "url": "https://s3/y.jpg"}]
             resp = client.post(
-                "/alice/list",
+                "/v3/media/alice/list",
                 json={"token": _owner_token("alice"), "service": "public_media"},
             )
         assert resp.status_code == 200
@@ -1809,7 +1809,7 @@ class TestPublicMediaListPermission:
     def test_list_arbitrary_service_rejected(self, client):
         """List with service='posts' rejected at model level (422)."""
         resp = client.post(
-            "/alice/list",
+            "/v3/media/alice/list",
             json={"token": _owner_token("alice"), "service": "posts"},
         )
         assert resp.status_code == 422
@@ -1822,7 +1822,7 @@ class TestPublicMediaStarProtection:
     def test_service_star_rejected(self, client):
         """service='*' must be rejected at the model level."""
         resp = client.post(
-            "/alice/upload/confirm",
+            "/v3/media/alice/upload/confirm",
             json={
                 "token": _owner_token("alice"),
                 "url": "https://s3/x.jpg",
@@ -1835,7 +1835,7 @@ class TestPublicMediaStarProtection:
     def test_read_service_star_rejected(self, client):
         """ReadRequest with service='*' rejected."""
         resp = client.post(
-            "/alice/read",
+            "/v3/media/alice/read",
             json={
                 "token": _owner_token("alice"),
                 "object_key": "alice/abc/photo.jpg",
