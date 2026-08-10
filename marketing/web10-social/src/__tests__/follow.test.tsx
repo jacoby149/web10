@@ -160,8 +160,6 @@ describe('Follow button -> followUser call', () => {
     const { unfollowUser, readFollow } = await import('@/data');
     vi.mocked(readFollow).mockResolvedValueOnce({
       _id: 'follow-1',
-      username: 'noodle-empress',
-      provider: 'test.localhost',
       status: 'active',
     });
 
@@ -434,16 +432,11 @@ describe('FeedScreen author navigation', () => {
     const { readPullFeed, readProfile, readUserProfile, readMyPosts, resolveMediaRefs, countReactions, countComments } = await import('@/data');
 
     vi.mocked(readPullFeed).mockResolvedValueOnce([{
-      _id: 'inbox-1',
+      _id: 'post-1',
+      text: 'Hello world',
       author_username: 'noodle-empress',
       author_provider: 'test.localhost',
-      post_id: 'post-1',
-      delivered_at: new Date().toISOString(),
-      post_body: {
-        _id: 'post-1',
-        text: 'Hello world',
-        created_at: new Date().toISOString(),
-      },
+      created_at: new Date().toISOString(),
     }]);
     vi.mocked(readProfile).mockResolvedValueOnce({ display_name: 'Me' });
     vi.mocked(readUserProfile).mockResolvedValueOnce({ display_name: 'Noodle Empress' });
@@ -473,12 +466,11 @@ describe('FeedScreen author navigation', () => {
     const { readPullFeed, readProfile, readUserProfile, readMyPosts, resolveMediaRefs, countReactions, countComments } = await import('@/data');
 
     vi.mocked(readPullFeed).mockResolvedValueOnce([{
-      _id: 'inbox-1',
+      _id: 'post-1',
+      text: 'david post',
       author_username: 'coolguydavid',
       author_provider: 'api.web10.app',
-      post_id: 'post-1',
-      delivered_at: new Date().toISOString(),
-      post_body: { _id: 'post-1', text: 'david post', created_at: new Date().toISOString() },
+      created_at: new Date().toISOString(),
     }]);
     vi.mocked(readUserProfile).mockRejectedValueOnce(new Error('403'));
     vi.mocked(readMyPosts).mockResolvedValueOnce([]);

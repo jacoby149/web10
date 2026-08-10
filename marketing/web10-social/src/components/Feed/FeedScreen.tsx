@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  readPullFeed,
+  readFeed,
   readProfile,
   readUserProfile,
   readMyPosts,
@@ -16,7 +16,6 @@ import {
 } from '@/data';
 import { getWapi } from '@/data/wapi';
 import type {
-  InboxRecord,
   PostRecord,
   MediaRecord,
   FeedSort,
@@ -378,10 +377,9 @@ function FeedSkeleton() {
 }
 
 export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (username: string, provider: string) => void }) {
-  const [items, setItems] = useState<InboxRecord[]>([]);
+  const [posts, setPosts] = useState<PostRecord[]>([]);
   const [sort, setSort] = useState<FeedSort>('newest');
   const [loading, setLoading] = useState(true);
-  const [postsMap, setPostsMap] = useState<Record<string, PostRecord>>({});
   const [mediaMap, setMediaMap] = useState<Record<string, MediaRecord[]>>({});
   const [flatMediaMap, setFlatMediaMap] = useState<Record<string, MediaRecord>>({});
   const [reactionMap, setReactionMap] = useState<Record<string, number>>({});
@@ -389,19 +387,17 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
   const [likedMap, setLikedMap] = useState<Record<string, boolean>>({});
   const [profileMap, setProfileMap] = useState<Record<string, ProfileRecord>>({});
   const [avatarUrlMap, setAvatarUrlMap] = useState<Record<string, string>>({});
-  const [lightboxItem, setLightboxItem] = useState<InboxRecord | null>(null);
+  const [lightboxPost, setLightboxPost] = useState<PostRecord | null>(null);
   const token = getWapi().readToken();
-  const isOwnPost = (item: InboxRecord) =>
-    token && item.author_username === token.username && item.author_provider === token.provider;
+  const isOwnPost = (p: PostRecord) =>
+    token && p.author_username === token.username && p.author_provider === token.provider;
 
   const loadFeed = useCallback(async () => {
     setLoading(true);
     try {
-      // The feed PULLS: your own posts + one direct read per person you
-      // follow (their public_posts collection). No inbox fan-out, no
-      // discovery board — discovery is for the Discover page only.
-      const feed = await readPullFeed(sort);
-      setItems(feed);
+      // v3: readFeed returns PostRecord[] directly from group-based reads
+      const feed = await readFeed(sort, 50);
+      setPosts(feed);
 
       const token = getWapi().readToken();
       if (!token) {
@@ -409,168 +405,77 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
         return;
       }
 
-      const posts: Record<string, PostRecord> = {};
       const profiles: Record<string, ProfileRecord> = {};
-
-      for (const item of feed) {
-        if (item.post_body) {
-          posts[item.post_id] = item.post_body as unknown as PostRecord;
-        }
-        const authorKey = `${item.author_username}@${item.author_provider}`;
+      for (const post of feed) {
+        const authorKey = `${post.author_username}@${post.author_provider}`;
         if (!profiles[authorKey]) {
-          // One author's profile being unreadable (e.g. their account
-          // predates the profile term) must never blank the whole feed —
-          // fall back to their username and keep going.
           let profile: ProfileRecord | null = null;
           try {
             profile =
-              item.author_username === token.username
+              post.author_username === token.username
                 ? await readProfile()
-                : await readUserProfile(item.author_username, item.author_provider);
-          } catch { /* fall through to the username fallback */ }
-          profiles[authorKey] = profile || { display_name: item.author_username };
+                : await readUserProfile(post.author_username || '');
+          } catch { /* fall through */ }
+          profiles[authorKey] = profile || { display_name: post.author_username };
         }
       }
 
-      const myPosts = await readMyPosts();
-      for (const p of myPosts) {
-        if (p._id) posts[p._id] = p;
-      }
-
-      // Resolve media refs — group by post author so cross-user media
-      // reads from the correct collection with public_media service.
-      const allMediaRefs = [...new Set(Object.values(posts).flatMap((p) => p.media_refs || []))];
+      // Resolve media refs per post
       const mMedia: Record<string, MediaRecord[]> = {};
-      if (allMediaRefs.length) {
-        // Build a post-id -> author map for grouping
-        const postAuthors = new Map<string, { username: string; provider: string }>();
-        for (const item of feed) {
-          const post = posts[item.post_id];
-          if (post && post.media_refs?.length) {
-            postAuthors.set(item.post_id, {
-              username: item.author_username,
-              provider: item.author_provider,
-            });
-          }
-        }
-        // Group refs by author
-        const refsByAuthor = new Map<string, string[]>();
-        for (const [postId, author] of postAuthors) {
-          const post = posts[postId];
-          const key = `${author.username}@${author.provider}`;
-          const existing = refsByAuthor.get(key) || [];
-          refsByAuthor.set(key, [...new Set([...existing, ...(post.media_refs || [])])]);
-        }
-        // Also handle own posts (author = current user)
-        const ownRefs = Object.entries(posts)
-          .filter(([postId]) => !postAuthors.has(postId))
-          .flatMap(([, p]) => p.media_refs || []);
-        if (ownRefs.length) {
-          refsByAuthor.set(`${token.username}@${token.provider}`, [...new Set(ownRefs)]);
-        }
-        // Resolve each author's refs — one author's media being unreadable
-        // must never blank the feed; their posts render media-less.
-        for (const [key, refs] of refsByAuthor) {
-          const [authorUsername, authorProvider] = key.split('@');
-          const isOwn = authorUsername === token.username && authorProvider === token.provider;
-          let mediaRecords: MediaRecord[] = [];
+      const flat: Record<string, MediaRecord> = {};
+      for (const post of feed) {
+        if (post.media_refs?.length) {
           try {
-            mediaRecords = await resolveMediaRefs(
-              refs,
-              { username: authorUsername, provider: authorProvider },
-              isOwn ? 'media' : 'public_media',
-            );
-          } catch { /* this author's media is skipped, not fatal */ }
-          // Assign resolved media to each post that references it
-          for (const [postId, author] of postAuthors) {
-            if (author.username === authorUsername && author.provider === authorProvider) {
-              const post = posts[postId];
-              if (post.media_refs?.length && !mMedia[postId]) {
-                mMedia[postId] = mediaRecords.filter((m) =>
-                  post.media_refs?.includes(m._id || ''),
-                );
-              }
+            const media = await resolveMediaRefs(post.media_refs);
+            mMedia[post._id || ''] = media;
+            for (const m of media) {
+              if (m._id) flat[m._id] = m;
             }
-          }
+          } catch { /* skip media for this post */ }
         }
       }
 
+      // Resolve reaction/comment counts per post
       const reactions: Record<string, number> = {};
       const comments: Record<string, number> = {};
-      const liked: Record<string, boolean> = {};
       await Promise.all(
-        feed.map(async (item) => {
-          // Per-item isolation: one post's count failing never blanks the feed.
+        feed.map(async (post) => {
           try {
             const [rc, cc] = await Promise.all([
-              countReactions('posts', item.post_id),
-              countComments(item.post_id),
+              countReactions('posts', post._id || ''),
+              countComments(post._id || ''),
             ]);
-            reactions[item.post_id] = rc;
-            comments[item.post_id] = cc;
-          } catch { /* counts stay 0 for this post */ }
+            reactions[post._id || ''] = rc;
+            comments[post._id || ''] = cc;
+          } catch { /* counts stay 0 */ }
         }),
       );
 
-      // most_reacted sorts client-side with the counts fetched above
-      // (the pull feed returns newest ordering).
-      if (sort === 'most_reacted') {
-        setItems(
-          [...feed].sort((a, b) => (reactions[b.post_id] || 0) - (reactions[a.post_id] || 0)),
-        );
-      }
-
-      // Resolve author avatars — collect unique avatar_refs from profiles
-      // and resolve them via public_media for cross-user reads.
+      // Resolve author avatars
       const avatarByAuthor: Record<string, string> = {};
-      const avatarRefsByAuthor = new Map<string, string>();
       for (const [key, profile] of Object.entries(profiles)) {
         if (profile.avatar_ref) {
           const [u, p] = key.split('@');
-          avatarRefsByAuthor.set(profile.avatar_ref, `${u}@${p}`);
-        }
-      }
-      if (avatarRefsByAuthor.size) {
-        const avatarRefs = [...avatarRefsByAuthor.keys()];
-        // Group by author
-        const avatarsByAuth = new Map<string, string[]>();
-        for (const [ref, key] of avatarRefsByAuthor) {
-          const existing = avatarsByAuth.get(key) || [];
-          avatarsByAuth.set(key, [...new Set([...existing, ref])]);
-        }
-        for (const [key, refs] of avatarsByAuth) {
-          const [u, p] = key.split('@');
-          const isOwn = u === token.username && p === token.provider;
           try {
             const avatars = await resolveMediaRefs(
-              refs,
+              [profile.avatar_ref],
               { username: u, provider: p },
-              isOwn ? 'media' : 'public_media',
+              u === token.username ? 'media' : 'public_media',
             );
-            for (const m of avatars) {
-              if (m._id) avatarByAuthor[m._id] = m.url;
-            }
-          } catch { /* this author's avatar is skipped, not fatal */ }
+            if (avatars[0]?.url) avatarByAuthor[profile.avatar_ref] = avatars[0].url;
+          } catch { /* skip */ }
         }
       }
 
-      setPostsMap(posts);
       setMediaMap(mMedia);
-      // Build flat media map for PostLightbox (keyed by media ref ID)
-      const flat: Record<string, MediaRecord> = {};
-      for (const arr of Object.values(mMedia)) {
-        for (const m of arr) {
-          if (m._id) flat[m._id] = m;
-        }
-      }
       setFlatMediaMap(flat);
       setProfileMap(profiles);
       setAvatarUrlMap(avatarByAuthor);
       setReactionMap(reactions);
       setCommentMap(comments);
-      setLikedMap(liked);
     } catch (e) {
       console.error('Failed to load feed:', e);
+      setPosts([]);
     }
     setLoading(false);
   }, [sort]);
@@ -579,13 +484,13 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
     loadFeed();
   }, [loadFeed]);
 
-  async function handleToggleLike(postId: string, postAuthor?: string, postService?: string) {
+  async function handleToggleLike(postId: string) {
     const token = getWapi().readToken();
     if (!token) return;
     setLikedMap((prev) => ({ ...prev, [postId]: !prev[postId] }));
     setReactionMap((prev) => ({ ...prev, [postId]: (prev[postId] || 0) + (likedMap[postId] ? -1 : 1) }));
     try {
-      await toggleReaction('posts', postId, 'like', token.username, token.provider, postAuthor, postService);
+      await toggleReaction(postId, 'like', token.username, token.provider);
     } catch (e) {
       console.error('Failed to toggle reaction:', e);
       setLikedMap((prev) => ({ ...prev, [postId]: !prev[postId] }));
@@ -615,64 +520,50 @@ export default function FeedScreen({ onAuthorClick }: { onAuthorClick?: (usernam
         </div>
       </div>
       <div className="md:px-0">
-        {!items.length ? (
+        {!posts.length ? (
           <FeedEmptyState />
         ) : (
-          items.map((item) => {
-            const post = postsMap[item.post_id];
-            if (!post) return null;
-            const authorKey = `${item.author_username}@${item.author_provider}`;
+          posts.map((post) => {
+            const authorKey = `${post.author_username}@${post.author_provider}`;
             const profile = profileMap[authorKey];
-            const mediaItems = mediaMap[item.post_id] || [];
+            const mediaItems = mediaMap[post._id || ''] || [];
 
             return (
               <PostCard
-                key={item._id || item.post_id}
+                key={post._id || post.created_at}
                 post={post}
-                authorName={profile?.display_name || item.author_username}
-                authorUsername={item.author_username}
-                authorProvider={item.author_provider}
+                authorName={profile?.display_name || post.author_username || ''}
+                authorUsername={post.author_username}
+                authorProvider={post.author_provider}
                 authorAvatar={
                   profile?.avatar_ref ? avatarUrlMap[profile.avatar_ref] : undefined
                 }
                 mediaItems={mediaItems}
-                reactionCount={reactionMap[item.post_id] || 0}
-                commentCount={commentMap[item.post_id] || 0}
-                liked={!!likedMap[item.post_id]}
-                timestamp={post.created_at || item.delivered_at}
-                onToggleLike={() => handleToggleLike(item.post_id, item.author_username, 'public_posts')}
+                reactionCount={reactionMap[post._id || ''] || 0}
+                commentCount={commentMap[post._id || ''] || 0}
+                liked={!!likedMap[post._id || '']}
+                timestamp={post.created_at}
+                onToggleLike={() => handleToggleLike(post._id || '')}
                 onCommentCountChange={(n) =>
-                  setCommentMap((prev) => ({ ...prev, [item.post_id]: n }))
+                  setCommentMap((prev) => ({ ...prev, [post._id || '']: n }))
                 }
                 onAuthorClick={onAuthorClick}
-                postAuthor={item.author_username}
-                postService={'public_posts'}
-                onOpenLightbox={() => setLightboxItem(item)}
-                isOwnPost={isOwnPost(item)}
+                onOpenLightbox={() => setLightboxPost(post)}
+                isOwnPost={isOwnPost(post)}
               />
             );
           })
         )}
       </div>
 
-      {lightboxItem && (() => {
-        const post = postsMap[lightboxItem.post_id];
-        if (!post) return null;
-        const token = getWapi().readToken();
-        const isOwner = token
-          ? lightboxItem.author_username === token.username && lightboxItem.author_provider === token.provider
-          : false;
-        return (
-          <PostLightbox
-            post={post}
-            mediaMap={flatMediaMap}
-            onClose={() => setLightboxItem(null)}
-            postAuthor={lightboxItem.author_username}
-            postService={'public_posts'}
-            isOwner={isOwner}
-          />
-        );
-      })()}
+      {lightboxPost && (
+        <PostLightbox
+          post={lightboxPost}
+          mediaMap={flatMediaMap}
+          onClose={() => setLightboxPost(null)}
+          isOwner={isOwnPost(lightboxPost)}
+        />
+      )}
     </div>
   );
 }

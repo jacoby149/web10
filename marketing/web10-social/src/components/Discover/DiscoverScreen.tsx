@@ -16,7 +16,7 @@ import {
 } from '@/data';
 import { getWapi } from '@/data/wapi';
 import type {
-  DiscoveryPost,
+  PostRecord,
   MediaRecord,
   ProfileRecord,
   SuggestedUser,
@@ -297,7 +297,7 @@ function SuggestedUserSkeleton() {
 // ── DiscoverCard (trending post) ─────────────────────────────────────────────
 
 interface DiscoverCardProps {
-  post: DiscoveryPost;
+  post: PostRecord;
   rank: number;
   maxScore: number;
   authorName: string;
@@ -530,12 +530,12 @@ function DiscoverEmptyState() {
 
 // ── Signals helper for powerMean ranking ────────────────────────────────────
 
-function postToSignals(post: DiscoveryPost) {
+function postToSignals(post: PostRecord) {
   return {
     ageMs: Date.now() - new Date(post.created_at).getTime(),
-    likes: post.likes,
-    comments: post.comments,
-    reposts: post.reposts,
+    likes: post.likes || 0,
+    comments: post.comments || 0,
+    reposts: post.reposts || 0,
   };
 }
 
@@ -543,14 +543,14 @@ function postToSignals(post: DiscoveryPost) {
 
 type DiscoverView = 'grid' | 'youtube';
 
-function postHasMedia(post: DiscoveryPost): boolean {
+function postHasMedia(post: PostRecord): boolean {
   return !!(post.tags?.includes('video') || post.tags?.includes('image') || post.media_refs?.length);
 }
 
 // ── YouTubeCard (Discover parity with marketing-ui YouTubeCard) ─────────────
 
 interface DiscoverYouTubeCardProps {
-  post: DiscoveryPost;
+  post: PostRecord;
   rank: number;
   authorName: string;
   authorAvatar?: string;
@@ -706,7 +706,7 @@ function DiscoverYouTubeEmptyState({ onSwitchToGrid }: { onSwitchToGrid: () => v
 // ── Main screen ────────────────────────────────────────────────────────────
 
 export default function DiscoverScreen() {
-  const [posts, setPosts] = useState<DiscoveryPost[]>([]);
+  const [posts, setPosts] = useState<PostRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [profileMap, setProfileMap] = useState<Record<string, ProfileRecord>>({});
   const [mediaMap, setMediaMap] = useState<Record<string, MediaRecord[]>>({});
@@ -787,12 +787,12 @@ export default function DiscoverScreen() {
       // Resolve profiles for authors
       const profiles: Record<string, ProfileRecord> = {};
       for (const post of results) {
-        const key = `${post.author}@${post.provider}`;
+        const key = `${post.author_username}@${post.author_provider}`;
         if (profiles[key]) continue;
         try {
-          const profile = post.author === token.username
+          const profile = post.author_username === token.username
             ? await readProfile()
-            : await readUserProfile(post.author, post.provider);
+            : await readUserProfile(post.author_username || '');
           if (profile) profiles[key] = profile;
         } catch {
           // Profile not available — use author name
@@ -800,13 +800,13 @@ export default function DiscoverScreen() {
       }
       setProfileMap(profiles);
 
-      // Resolve media for posts that have image/video tags
-      const postsWithMedia = results.filter(p => p.media_refs?.length || p.tags?.some(t => ['image', 'video', 'music'].includes(t)));
+      // Resolve media for posts that have media
+      const postsWithMedia = results.filter(p => p.media_refs?.length);
       if (postsWithMedia.length) {
         try {
           const byAuthor = new Map<string, { posts: typeof postsWithMedia; refs: string[] }>();
           for (const p of postsWithMedia) {
-            const key = `${p.author}@${p.provider}`;
+            const key = `${p.author_username}@${p.author_provider}`;
             const entry = byAuthor.get(key);
             if (entry) {
               entry.posts.push(p);
@@ -833,7 +833,7 @@ export default function DiscoverScreen() {
             );
             for (const p of entry.posts) {
               if (p.media_refs?.length) {
-                mMap[p.post_id] = media.filter(m => p.media_refs?.includes(m._id || ''));
+                mMap[p._id || ''] = media.filter(m => p.media_refs?.includes(m._id || ''));
               }
             }
           }
@@ -1149,14 +1149,14 @@ export default function DiscoverScreen() {
           mediaPosts.length > 0 ? (
             <div className="grid grid-cols-1 gap-6" data-testid="discover-youtube-grid">
               {mediaPosts.map((post, i) => {
-                const authorKey = `${post.author}@${post.provider}`;
+                const authorKey = `${post.author_username}@${post.author_provider}`;
                 const profile = profileMap[authorKey];
-                const mediaItems = mediaMap[post.post_id] || [];
-                const authorName = profile?.display_name || post.author.replace(/[-_]/g, ' ');
+                const mediaItems = mediaMap[post._id || ''] || [];
+                const authorName = profile?.display_name || (post.author_username || '').replace(/[-_]/g, ' ');
 
                 return (
                   <DiscoverYouTubeCard
-                    key={post.post_id}
+                    key={post._id || post.created_at}
                     post={post}
                     rank={i + 1}
                     authorName={authorName}
@@ -1166,7 +1166,7 @@ export default function DiscoverScreen() {
                         : undefined
                     }
                     mediaItems={mediaItems}
-                    onAuthorClick={() => navigateToUserProfile(post.author, post.provider)}
+                    onAuthorClick={() => navigateToUserProfile(post.author_username || '', post.author_provider || '')}
                   />
                 );
               })}
@@ -1177,14 +1177,14 @@ export default function DiscoverScreen() {
         ) : visiblePosts.length > 0 ? (
           <div className="grid grid-cols-1 gap-4" data-testid="discover-grid">
             {visiblePosts.map((post, i) => {
-              const authorKey = `${post.author}@${post.provider}`;
+              const authorKey = `${post.author_username}@${post.author_provider}`;
               const profile = profileMap[authorKey];
-              const mediaItems = mediaMap[post.post_id] || [];
-              const authorName = profile?.display_name || post.author.replace(/[-_]/g, ' ');
+              const mediaItems = mediaMap[post._id || ''] || [];
+              const authorName = profile?.display_name || (post.author_username || '').replace(/[-_]/g, ' ');
 
               return (
                 <DiscoverCard
-                  key={post.post_id}
+                  key={post._id || post.created_at}
                   post={post}
                   rank={i + 1}
                   maxScore={maxScore}
@@ -1195,7 +1195,7 @@ export default function DiscoverScreen() {
                       : undefined
                   }
                   mediaItems={mediaItems}
-                  onAuthorClick={() => navigateToUserProfile(post.author, post.provider)}
+                  onAuthorClick={() => navigateToUserProfile(post.author_username || '', post.author_provider || '')}
                 />
               );
             })}

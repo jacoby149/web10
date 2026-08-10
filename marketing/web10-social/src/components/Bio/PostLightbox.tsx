@@ -140,7 +140,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
       setBurstKey(k => k + 1);
     }
     try {
-      await toggleReaction('posts', currentPost._id || '', 'like', token.username, token.provider, postAuthor, postService);
+      await toggleReaction(currentPost._id || '', 'like', token.username, token.provider);
     } catch (e) {
       console.error('Failed to toggle reaction:', e);
       setLiked(wasLiked);
@@ -164,7 +164,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
 
   async function handleDelete() {
     try {
-      await deletePost(currentPost._id || '', currentPost.visibility || 'private');
+      await deletePost(currentPost._id || '');
       onClose();
       onReload?.();
     } catch (e) {

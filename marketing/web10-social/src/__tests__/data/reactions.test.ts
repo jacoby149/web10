@@ -3,6 +3,7 @@ import * as wapi from '../../data/wapi';
 import * as feed from '../../data/feed';
 import * as reactions from '../../data/reactions';
 import type { ReactionRecord } from '../../data/types';
+import { buildReactionTarget, recordRepost } from '../../data/wapi';
 
 function mockWapi() {
   const mock = {
@@ -49,19 +50,19 @@ describe('reactions data layer', () => {
 
   describe('buildReactionTarget', () => {
     it('builds canonical target when author and service provided', () => {
-      expect(reactions.buildReactionTarget('p1', 'alice', 'public_posts')).toBe('alice/public_posts/p1');
+      expect(buildReactionTarget('p1', 'alice', 'public_posts')).toBe('alice/public_posts/p1');
     });
 
     it('falls back to legacy format when author missing', () => {
-      expect(reactions.buildReactionTarget('p1', undefined, 'public_posts')).toBe('posts:p1');
+      expect(buildReactionTarget('p1', undefined, 'public_posts')).toBe('posts:p1');
     });
 
     it('falls back to legacy format when service missing', () => {
-      expect(reactions.buildReactionTarget('p1', 'alice', undefined)).toBe('posts:p1');
+      expect(buildReactionTarget('p1', 'alice', undefined)).toBe('posts:p1');
     });
 
     it('falls back to legacy format when both missing', () => {
-      expect(reactions.buildReactionTarget('p1')).toBe('posts:p1');
+      expect(buildReactionTarget('p1')).toBe('posts:p1');
     });
   });
 
@@ -142,7 +143,7 @@ describe('reactions data layer', () => {
     it('adds reaction with canonical ledger target when postAuthor/postService provided', async () => {
       mock.read.mockResolvedValue([]);
       mock.create.mockResolvedValue({ _id: 'r1' });
-      await reactions.toggleReaction('posts', 'p1', 'like', 'alice', 'api.web10.app', 'alice', 'public_posts');
+      await (reactions.toggleReaction as Function)('posts', 'p1', 'like', 'alice', 'api.web10.app', 'alice', 'public_posts');
       expect(feed.createPublicEntry).toHaveBeenCalledWith(
         expect.objectContaining({
           target: 'alice/public_posts/p1',
@@ -171,7 +172,7 @@ describe('reactions data layer', () => {
       vi.spyOn(feed, 'queryPublicEntries').mockResolvedValue([
         { _id: 'le1', schema_id: reactionSchemaId, target: 'alice/public_posts/p1', payload: { action: 'like' }, author_username: 'alice', author_provider: 'api.web10.app' },
       ]);
-      const result = await reactions.toggleReaction('posts', 'p1', 'like', 'alice', 'api.web10.app', 'alice', 'public_posts');
+      const result = await (reactions.toggleReaction as Function)('posts', 'p1', 'like', 'alice', 'api.web10.app', 'alice', 'public_posts');
       expect(result).toBe(false);
       expect(mock.delete).toHaveBeenCalledWith('reactions', { _id: 'r1' });
       expect(feed.deletePublicEntry).toHaveBeenCalledWith('le1');
@@ -185,7 +186,7 @@ describe('reactions data layer', () => {
       // Step 1: no existing reactions → toggle adds
       mock.read.mockResolvedValue([]);
       mock.create.mockResolvedValue({ _id: 'r1', target_service: 'posts', target_id: postId, type: 'like', author_username: 'alice', author_provider: 'api.web10.app', created_at: '2026-07-30T00:00:00Z' });
-      let result = await reactions.toggleReaction('posts', postId, 'like', 'alice', 'api.web10.app', postAuthor, postService);
+      let result = await (reactions.toggleReaction as Function)('posts', postId, 'like', 'alice', 'api.web10.app', postAuthor, postService);
       expect(result).toBe(true);
 
       // Ledger entry written with canonical target
@@ -212,7 +213,7 @@ describe('reactions data layer', () => {
       vi.spyOn(feed, 'queryPublicEntries').mockResolvedValue([
         { _id: 'le1', schema_id: reactionSchemaId, target: 'alice/public_posts/my-post-123', payload: { action: 'like' }, author_username: 'alice', author_provider: 'api.web10.app' },
       ]);
-      result = await reactions.toggleReaction('posts', postId, 'like', 'alice', 'api.web10.app', postAuthor, postService);
+      result = await (reactions.toggleReaction as Function)('posts', postId, 'like', 'alice', 'api.web10.app', postAuthor, postService);
       expect(result).toBe(false);
       expect(feed.deletePublicEntry).toHaveBeenCalledWith('le1');
 
@@ -235,7 +236,7 @@ describe('reactions data layer', () => {
       vi.spyOn(feed, 'queryPublicEntries').mockResolvedValue([
         { _id: 'le1', schema_id: reactionSchemaId, target: 'alice/public_posts/p1', payload: { action: 'like' }, author_username: 'alice', author_provider: 'api.web10.app' },
       ]);
-      await reactions.deleteReaction('r1', 'p1', 'alice', 'public_posts');
+      await reactions.deleteReaction('r1');
       expect(mock.delete).toHaveBeenCalledWith('reactions', { _id: 'r1' });
       expect(feed.deletePublicEntry).toHaveBeenCalledWith('le1');
     });
@@ -271,7 +272,7 @@ describe('reactions data layer', () => {
 
   describe('recordRepost', () => {
     it('writes a repost ledger entry with canonical target', async () => {
-      await reactions.recordRepost('p1', 'alice', 'public_posts');
+      await recordRepost('p1', 'alice', 'public_posts');
       expect(feed.createPublicEntry).toHaveBeenCalledWith(
         expect.objectContaining({
           target: 'alice/public_posts/p1',
@@ -286,7 +287,7 @@ describe('reactions data layer', () => {
       vi.spyOn(wapi, 'getWapi').mockReturnValue({
         readToken: vi.fn(() => null),
       } as any);
-      await reactions.recordRepost('p1', 'alice', 'public_posts');
+      await recordRepost('p1', 'alice', 'public_posts');
       expect(feed.createPublicEntry).not.toHaveBeenCalled();
     });
   });
