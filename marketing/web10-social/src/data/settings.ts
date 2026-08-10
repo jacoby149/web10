@@ -1,5 +1,6 @@
 import { getV3Client } from './v3';
 import { type AppSettings } from './types';
+export type { AppSettings } from './types';
 
 // ── Settings data layer (v3) ─────────────────────────────────────────────────
 // Settings persist as a document in the `settings` collection.

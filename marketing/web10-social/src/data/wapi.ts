@@ -23,8 +23,8 @@ export function deriveObjectKey(_url: string): string {
 }
 
 /** @deprecated use createV3Client from v3.ts */
-export function createWapiWrapper(): ReturnType<typeof getW3Client> {
-  return getW3Client();
+export function createWapiWrapper(): ReturnType<typeof getV3Client> {
+  return getV3Client();
 }
 
 /** @deprecated v3 uses app contracts, not SMRs */

@@ -8,16 +8,21 @@ import { extractUsername } from './types';
 
 /**
  * Follow a user (join their followers group).
+ * @param username - the user to follow
+ * @param _provider - v2 compat, ignored
  */
-export async function followUser(username: string): Promise<void> {
+export async function followUser(username: string, _provider?: string): Promise<{ username: string; status: 'active' }> {
   const w = getV3Client();
   await w.joinGroup(followersGroupId(username));
+  return { username, status: 'active' };
 }
 
 /**
  * Unfollow a user (leave their followers group).
+ * @param username - the user to unfollow
+ * @param _provider - v2 compat, ignored
  */
-export async function unfollowUser(username: string): Promise<void> {
+export async function unfollowUser(username: string, _provider?: string): Promise<void> {
   const w = getV3Client();
   await w.leaveGroup(followersGroupId(username));
 }
@@ -66,7 +71,7 @@ export async function listFollowers(username: string): Promise<{ username: strin
 // ── Backward compat aliases ──────────────────────────────────────────────────
 
 /** @deprecated use isFollowing */
-export async function readFollow(username: string, _provider?: string): Promise<{ status: 'active' | 'rejected' } | null> {
+export async function readFollow(username: string, _provider?: string): Promise<{ _id?: string; status: 'active' | 'rejected' } | null> {
   const following = await isFollowing(username);
   return following ? { status: 'active' } : { status: 'rejected' };
 }
@@ -88,22 +93,34 @@ export async function countUserFollowing(username: string, _provider?: string): 
 }
 
 /** @deprecated use getMyGroups filtered for /followers */
-export async function readFollows(): Promise<{ username: string; status: 'active' }[]> {
+export async function readFollows(): Promise<{ username: string; provider: string; status: 'active' }[]> {
   const w = getV3Client();
   const groups = await w.getMyGroups();
   return groups
     .filter((g) => g.group_id.endsWith('/followers'))
-    .map((g) => ({
-      username: extractUsername(g.group_id),
-      status: 'active' as const,
-    }));
+    .map((g) => {
+      const parts = g.group_id.split('/');
+      const username = parts[parts.length - 2] || '';
+      const provider = parts[0] || 'web10';
+      return { username, provider, status: 'active' as const };
+    });
 }
 
 /** @deprecated use readFollows filtered */
-export async function readFollowsByStatus(status: string): Promise<{ username: string; status: string }[]> {
+export async function readFollowsByStatus(status: string): Promise<{ username: string; provider: string; status: string }[]> {
   const follows = await readFollows();
   return follows.filter((f) => f.status === status);
 }
 
 /** @deprecated use blockUser from groups.ts */
 export { blockUser, unblockUser } from './groups';
+
+/** @deprecated use unfollowUser */
+export async function deleteFollow(username: string, _provider?: string): Promise<void> {
+  await unfollowUser(username);
+}
+
+/** @deprecated no-op, v3 doesn't use follow notifications */
+export async function updateFollowNotify(_username: string, _provider: string, _notify: boolean): Promise<unknown> {
+  return {};
+}

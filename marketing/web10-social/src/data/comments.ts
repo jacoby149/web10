@@ -40,11 +40,16 @@ export async function readReplies(commentId: string, groups?: string[]): Promise
 
 /**
  * Create a new comment on a post.
+ * @param comment - the comment body
+ * @param groupsOrPostAuthor - groups array, or postAuthor string (v2 compat)
+ * @param postService - v2 compat, ignored
  */
 export async function createComment(
   comment: Omit<CommentRecord, '_id'>,
-  groups?: string[],
+  groupsOrPostAuthor?: string[] | string,
+  postService?: string,
 ): Promise<CommentRecord> {
+  const groups = Array.isArray(groupsOrPostAuthor) ? groupsOrPostAuthor : undefined;
   const w = getV3Client();
   const token = w.readToken();
   if (!token) throw new Error('not authenticated');
@@ -68,8 +73,17 @@ export async function createComment(
 
 /**
  * Update a comment by ID.
+ * @param id - comment doc_id
+ * @param updates - fields to update
+ * @param _postAuthor - v2 compat, ignored
+ * @param _postService - v2 compat, ignored
  */
-export async function updateComment(id: string, updates: Partial<CommentRecord>): Promise<CommentRecord> {
+export async function updateComment(
+  id: string,
+  updates: Partial<CommentRecord>,
+  _postAuthor?: string,
+  _postService?: string,
+): Promise<CommentRecord> {
   const w = getV3Client();
   const body: Record<string, unknown> = {};
   if (updates.text !== undefined) body.text = updates.text;
@@ -81,8 +95,15 @@ export async function updateComment(id: string, updates: Partial<CommentRecord>)
 
 /**
  * Delete a comment by ID.
+ * @param id - comment doc_id
+ * @param _postAuthor - v2 compat, ignored
+ * @param _postService - v2 compat, ignored
  */
-export async function deleteComment(id: string): Promise<void> {
+export async function deleteComment(
+  id: string,
+  _postAuthor?: string,
+  _postService?: string,
+): Promise<void> {
   const w = getV3Client();
   await w.delete(id);
 }

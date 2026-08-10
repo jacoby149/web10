@@ -90,8 +90,11 @@ export async function readMyPosts(opts?: { limit?: number }): Promise<PostRecord
 
 /**
  * Read posts for a specific user's followers group.
+ * @param username - the user's username
+ * @param optsOrProvider - optional limit opts, or a provider string (v2 compat, ignored in v3)
  */
-export async function readUserPosts(username: string, opts?: { limit?: number }): Promise<PostRecord[]> {
+export async function readUserPosts(username: string, optsOrProvider?: { limit?: number } | string): Promise<PostRecord[]> {
+  const opts = typeof optsOrProvider === 'string' ? undefined : optsOrProvider;
   return readPosts([followersGroupId(username)], opts);
 }
 

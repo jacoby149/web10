@@ -159,3 +159,61 @@ export function postToDiscoveryPost(post: PostRecord): DiscoveryPost {
     reposts: 0,
   };
 }
+
+// ── Backward compat exports (v2 → v3 migration) ─────────────────────────────
+
+/** @deprecated no-op, v3 doesn't use schema registry */
+export async function registerDefaultSchemas(): Promise<unknown[]> {
+  return [];
+}
+
+/** @deprecated no-op, v3 doesn't use schema cache */
+export function clearSchemaCache(): void {}
+
+/** @deprecated no-op, v3 doesn't use schema cache */
+export function getCachedSchema(_name: string): unknown {
+  return undefined;
+}
+
+/** @deprecated no-op, v3 doesn't use public ledger */
+export async function createPublicEntry(_entry: unknown): Promise<unknown> {
+  return {};
+}
+
+/** @deprecated no-op, v3 doesn't use public ledger */
+export async function queryPublicEntries(_params: unknown): Promise<unknown[]> {
+  return [];
+}
+
+/** @deprecated no-op, v3 doesn't use public ledger */
+export async function deletePublicEntry(_entryId: string): Promise<void> {}
+
+/** @deprecated no-op, v3 doesn't use inbox */
+export async function markInboxRead(_id: string): Promise<void> {}
+
+/** @deprecated no-op, v3 doesn't use inbox */
+export async function countUnread(): Promise<number> {
+  return 0;
+}
+
+/** @deprecated mapRawDiscoveryPost — v3 doesn't use raw discovery */
+export function mapRawDiscoveryPost(_raw: unknown): DiscoveryPost {
+  return {
+    author: '',
+    provider: 'web10',
+    post_id: '',
+    created_at: new Date().toISOString(),
+    likes: 0,
+    comments: 0,
+    reposts: 0,
+  };
+}
+
+/** @deprecated fetchDiscoveryPost — v3 uses readPostById */
+export async function fetchDiscoveryPost(
+  _username: string,
+  _service: string,
+  _postId: string,
+): Promise<DiscoveryPost | null> {
+  return null;
+}
