@@ -62,8 +62,7 @@ export function ReportBug({ trigger, onClose }: ReportBugProps) {
       canvas.height = video.videoHeight;
       canvas.getContext('2d')!.drawImage(video, 0, 0);
       const dataUrl = canvas.toDataURL('image/png');
-      track.stop();
-      stream.stop();
+      stream.getTracks().forEach(t => t.stop());
       if (screenshots.length < 5) {
         setScreenshots(prev => [...prev, dataUrl]);
       }
