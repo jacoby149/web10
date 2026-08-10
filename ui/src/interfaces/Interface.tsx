@@ -2,6 +2,7 @@ import React from 'react';
 import web10AuthAdapterInit from './authAdapter'
 import axios from 'axios'
 import { config } from '../config';
+import { createV3Client } from 'web10-npm';
 
 // ── v3 API helpers (ClickHouse-backed service contracts + groups) ──────────
 
@@ -50,16 +51,23 @@ function useInterface() {
     // before the useState calls keeps hook order stable.
     const adapter = web10AuthAdapterInit();
 
+    // Create v3 client — all auth now goes through ClickHouse (v3), not MongoDB (v2).
+    const host = window.location.hostname;
+    const local = host === "localhost" || host === "127.0.0.1" || host.endsWith(".localhost");
+    const v3 = createV3Client({
+        apiOrigin: local ? "http://api.localhost" : config.REACT_APP_API_ORIGIN,
+    });
+
     // Restore auth from the "token=" cookie on load. A dead (expired) token
     // must NOT present the authenticated view (B7: it used to land the user on
     // an empty "Your contracts" with no way to log in) — scrub it so routing
     // sends them to login. Runs once, in the lazy initializer, not every render.
     const restoreAuth = (): boolean => {
-        const t = adapter.wapi.readToken?.();
+        const t = v3.readToken?.();
         if (!t) return false;
         const expires = t.expires ? Date.parse(t.expires) : NaN;
         if (!Number.isNaN(expires) && expires < Date.now()) {
-            adapter.wapi.scrubToken?.();
+            v3.scrubToken?.();
             return false;
         }
         return true;
@@ -95,6 +103,7 @@ function useInterface() {
 
     I.wapi = adapter.wapi;
     I.wapiAuth = adapter.wapiAuth;
+    I.v3 = v3;
 
     // Normalize legacy SMR { sirs, scrs } into a unified ACR list.
     // Each SIR/SCR becomes one ACR per origin (origin + permissions from whitelist).
@@ -136,30 +145,14 @@ function useInterface() {
             I.setServices([]);
             return;
         }
-        // Load v3 contracts and groups in parallel — they're independent of
-        // the MongoDB services load and don't block it.
         I.v3ContractsLoad();
         I.v3GroupsLoad();
         I.v3GroupsManagesLoad();
 
-        I.wapi
-            .read("services")
-            .then(function (response) {
-                response.data.sort((a, b) => a["_id"].localeCompare(b["_id"]));
-                // The star record carries the account phone — read it back
-                // from the server (never a local echo) so the recovery phone
-                // survives a hard refresh (B9 bite a-fix).
-                const star = response.data.find((s: any) => s["service"] === "*");
-                I.setPhone(star?.phone_number || "");
-
-                // Keep legacy services list for backward compat with v2 apps.
-                // No longer drives the UI — ACRs do.
-                I.setServices(response.data);
-
-                // If there are pending ACRs and we came from an app, show requests.
-                if (I.pendingACRs.length > 0 && I._hasReferrer) {
-                    I.setMode("requests");
-                }
+        I.v3.getProfile()
+            .then((profile: any) => {
+                I.setPhone(profile?.phone || "");
+                if (profile?.phone_verified) I.setVerified(true);
             })
             .catch(console.error);
     }
@@ -170,8 +163,7 @@ function useInterface() {
 
     I.changePhoneNumber = function (password: string, newPhone: string) {
         I.setStatus("Changing phone number...");
-        I.wapiAuth
-            .changePhone(password, newPhone)
+        I.v3.changePhone(newPhone)
             .then(() => {
                 I.setStatus("Successfully changed phone number. Reloading...");
                 I.setVerified(false);
@@ -213,13 +205,13 @@ function useInterface() {
 
     // Ask the node whether THIS account is an admin, to show/hide Node Config.
     I.checkAdmin = function () {
-        const decoded = I.wapi.readToken?.();
+        const decoded = I.v3.readToken?.();
         if (!decoded) {
             I.setIsAdmin(false);
             return;
         }
         axios
-            .post(`${window.location.protocol}//${decoded.provider}/am_admin`, { token: I.wapi.token })
+            .post(`${window.location.protocol}//${decoded.provider}/am_admin`, { token: I.v3.state.token })
             .then((r: any) => I.setIsAdmin(!!r.data?.admin))
             .catch(() => I.setIsAdmin(false));
     }
@@ -235,21 +227,16 @@ function useInterface() {
 
     I.login = function (provider: string, username: string, password: string) {
         I.setStatus("Logging in...");
-        I.wapiAuth.logIn(provider, username, password)
+        I.v3.login(username, password, provider)
             .then(() => I.finishLogin())
             .catch((error: any) => {
-                // The published SDK's logIn mints a second-level token for the
-                // referring app inside its own .then; with no parent app (no
-                // document.referrer) that throws, rejecting logIn even though
-                // the auth token cookie was already set. If we're actually
-                // signed in, complete the login rather than show a false error.
-                if (I.wapi.isSignedIn?.()) I.finishLogin();
+                if (I.v3.isSignedIn()) I.finishLogin();
                 else I.setStatus("Failed to Log In : " + (error.response?.data?.detail || String(error)));
             });
     }
 
     I.logout = function () {
-        I.wapi.signOut();
+        I.v3.signOut();
         I.setAuth(false);
         I.setVerified(false);
         I.setServices([]);
@@ -263,7 +250,7 @@ function useInterface() {
     }
 
     I.recover = function (provider: string, phone: string) {
-        axios.post(`${window.location.protocol}//${provider}/recovery_prompt`, { phone_number: phone })
+        I.v3.setRecoveryPhone(phone)
             .then(() => I.setStatus("Recovery code sent!"))
             .catch(() => I.setStatus("Failed to send recovery code."));
     }
@@ -579,12 +566,12 @@ function useInterface() {
     // so the app never received a token). Approving nothing still logs the app
     // in — it just has no data grants (withheld).
     I.goToApp = function () {
-        const decoded = I.wapi.readToken?.();
+        const decoded = I.v3.readToken?.();
         let host: string | null = null;
         try { host = document.referrer ? new URL(document.referrer).hostname : null; } catch { host = null; }
-        if (decoded && host && I.wapi.getTieredToken) {
+        if (decoded && host && I.v3.getTieredToken) {
             I.setStatus("Connecting…");
-            I.wapi.getTieredToken(host, decoded.provider)
+            I.v3.getTieredToken(host, decoded.provider)
                 .then((r: any) => { I.wapiAuth.oAuthToken = r.data.token; I.sendToken(); })
                 .catch(() => I.sendToken());
         } else {
@@ -602,7 +589,7 @@ function useInterface() {
 
     I.deleteService = function (serviceName: string) {
         I.setStatus("Deleting service terms...");
-        I.wapi
+        I.v3
             .delete("services", { service: serviceName })
             .then(() => {
                 // TODO: in the per-app contract model, deleting a service should
@@ -616,7 +603,7 @@ function useInterface() {
 
     I.wipeServiceData = function (serviceName: string) {
         I.setStatus("Wiping all service data...");
-        I.wapi
+        I.v3
             .delete(serviceName, {})
             .then(() => {
                 I.setStatus("Data wiped!");
@@ -639,8 +626,8 @@ function useInterface() {
             return;
         }
         I.setStatus("Signing Up ...");
-        I.wapiAuth
-            .signUp(provider, username, password, betacode, phone)
+        I.v3
+            .signup(username, password, phone)
             .then(() =>
                 I.login(provider, username, password)
             )
@@ -651,7 +638,7 @@ function useInterface() {
 
     I.sendCode = function () {
         I.setStatus("Sending code...");
-        I.wapiAuth
+        I.v3
             .sendCode()
             .then(() => I.setStatus("Code sent!"))
             .catch(() => I.setStatus("Failed to send code."));
@@ -659,8 +646,8 @@ function useInterface() {
 
     I.verifyCode = function (code: string) {
         I.setStatus("Verifying code...");
-        I.wapiAuth
-            .verifyCode(code)
+        I.v3
+            .verifyPhone(code)
             .then(() => {
                 I.setVerified(true);
                 I.setStatus("Phone verified! Reloading...");
@@ -678,8 +665,8 @@ function useInterface() {
             return;
         }
         I.setStatus("Changing password...");
-        I.wapiAuth
-            .changePass(currentPass, newPass)
+        I.v3
+            .changePassword(currentPass, newPass)
             .then(() => {
                 I.setStatus("Password changed!");
                 setTimeout(() => I.setStatus(null), 2000);

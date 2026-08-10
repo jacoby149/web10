@@ -644,6 +644,36 @@ async def get_profile(data: Token):
     return profile
 
 
+@router.post("/send_code")
+async def send_code(data: Token):
+    """Send a verification code to the user's phone."""
+    user = _user(data)
+    phone = ch.get_phone_number(user)
+    if not phone:
+        raise exceptions.PHONE_NUMBER_MISSING
+    from app.services import twilio as mobile
+
+    return mobile.send_verification(phone, user)
+
+
+@router.post("/set_recovery_phone")
+async def set_recovery_phone(data: Token):
+    """Set the recovery phone on the authenticated user's profile."""
+    if not data.token:
+        raise exceptions.TOKEN
+    decoded = decode_token(data.token)
+    if not decoded.username or decoded.username == "anon":
+        raise exceptions.TOKEN
+    phone = (data.query.get("phone") or "").strip()
+    import re
+
+    _PHONE_RE = re.compile(r"^\+?[0-9][0-9 ()-]{5,18}[0-9]$")
+    if not _PHONE_RE.match(phone):
+        raise exceptions.BAD_NUM
+    ch.change_phone(decoded.username, phone)
+    return {"phone_number": phone}
+
+
 # ---------------------------------------------------------------------------
 # Media
 # ---------------------------------------------------------------------------

@@ -811,6 +811,46 @@ class TestProfile:
         assert resp.status_code == 200
 
 
+class TestSendCode:
+    def test_send_code_no_phone(self, client, token):
+        """User with no phone should get PHONE_NUMBER_MISSING (401)."""
+        with patch("app.v3.services.clickhouse.get_phone_number", return_value=None):
+            resp = client.post("/v3/send_code", json={"token": token})
+        assert resp.status_code == 401
+        assert resp.json()["detail"] == "phone number missing"
+
+    def test_send_code_with_phone(self, client, token):
+        """User with a phone should succeed (Twilio mocked)."""
+        with patch("app.v3.endpoints.ch.get_phone_number", return_value="+15551234567"):
+            with patch("app.services.twilio.send_verification", return_value={"sent": True}):
+                resp = client.post("/v3/send_code", json={"token": token})
+        assert resp.status_code == 200
+
+
+class TestSetRecoveryPhone:
+    def test_set_recovery_phone_success(self, client, token):
+        resp = client.post(
+            "/v3/set_recovery_phone",
+            json={"token": token, "query": {"phone": "+15559876543"}},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["phone_number"] == "+15559876543"
+
+    def test_set_recovery_phone_bad_number(self, client, token):
+        resp = client.post(
+            "/v3/set_recovery_phone",
+            json={"token": token, "query": {"phone": "abc"}},
+        )
+        assert resp.status_code == 401  # BAD_NUM is 401
+
+    def test_set_recovery_phone_no_token(self, client):
+        resp = client.post(
+            "/v3/set_recovery_phone",
+            json={"token": None, "query": {"phone": "+15559876543"}},
+        )
+        assert resp.status_code == 401
+
+
 # ---------------------------------------------------------------------------
 # Media
 # ---------------------------------------------------------------------------

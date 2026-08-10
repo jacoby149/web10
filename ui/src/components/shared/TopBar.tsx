@@ -82,7 +82,8 @@ function AccountMenu({ I, username }: { I: Record<string, any>; username: string
 }
 
 const TITLES: Record<string, string> = {
-  contracts: 'Contracts',
+  contracts: 'App Contracts',
+  groups: 'Group Contracts',
   requests: 'Requests',
   studio: 'Studio',
   config: 'Node Config',

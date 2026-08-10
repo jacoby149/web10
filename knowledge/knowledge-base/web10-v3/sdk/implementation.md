@@ -601,6 +601,30 @@ FROM users
 WHERE username = :username AND deleted = 0;
 ```
 
+### `POST /v3/send_code`
+
+Send a verification code to the user's phone. No SQL — Twilio operation. The API looks up the user's phone from `users` and sends a code via Twilio.
+
+```sql
+SELECT phone FROM users
+WHERE username = :username AND deleted = 0;
+```
+
+If no phone is set, returns `PHONE_NUMBER_MISSING`.
+
+### `POST /v3/set_recovery_phone`
+
+Set the recovery phone on the authenticated user's profile.
+
+```sql
+INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted)
+SELECT username, password_hash, :phone, 0, email, email_verified, created_at, now(), 0
+FROM users
+WHERE username = :username AND deleted = 0;
+```
+
+Phone must match `^\+?[0-9][0-9 ()-]{5,18}[0-9]$` or returns `BAD_NUM`.
+
 ### `POST /v3/get_profile`
 
 ```sql
@@ -706,6 +730,11 @@ SELECT ... FROM documents ...
 | `POST /v3/login` | `SELECT password_hash FROM users WHERE username` |
 | `POST /v3/change_pass` | `INSERT INTO users` (new password_hash, tombstone old) |
 | `POST /v3/change_phone` | `INSERT INTO users` (new phone) |
+| `POST /v3/set_email` | `INSERT INTO users` (new email) |
+| `POST /v3/verify_phone` | `INSERT INTO users` (phone_verified = 1) |
+| `POST /v3/verify_email` | `INSERT INTO users` (email_verified = 1) |
+| `POST /v3/send_code` | `SELECT phone FROM users` → Twilio send |
+| `POST /v3/set_recovery_phone` | `INSERT INTO users` (new phone, phone_verified = 0) |
 | `POST /v3/apps/register` | `INSERT INTO apps` |
 | `POST /v3/apps/list` | `SELECT FROM apps WHERE approved = 1` |
 | `POST /v3/apps/rating` | `INSERT INTO app_ratings` |
