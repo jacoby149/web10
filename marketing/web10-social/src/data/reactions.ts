@@ -1,72 +1,48 @@
-import { getWapi } from './wapi';
-import { getCachedSchema, createPublicEntry, queryPublicEntries, deletePublicEntry } from './feed';
-import type { ReactionRecord, ReactionTargetService } from './types';
+import { getV3Client } from './v3';
+import { fromV3DocToReaction, type ReactionRecord } from './types';
 
-// ── Reactions data layer ───────────────────────────────────────────────────
-// Phase 5.5: reactions are written both to the legacy `reactions` service
-// AND to the public ledger (/public/entries) so the marketing-ui FeedPreview
-// can read engagement counts.
-
-/**
- * Build the canonical ledger target: `{author}/{service}/{post_id}`.
- * Falls back to the legacy `{target_service}:{target_id}` if author/service unknown.
- */
-export function buildReactionTarget(
-  targetId: string,
-  postAuthor?: string,
-  postService?: string,
-): string {
-  if (postAuthor && postService) {
-    return `${postAuthor}/${postService}/${targetId}`;
-  }
-  return `posts:${targetId}`;
-}
+// ── Reactions data layer (v3) ────────────────────────────────────────────────
+// Reactions are documents in the `reactions` collection with `ref_value`
+// pointing to the target post or comment. No public ledger mirror needed.
 
 /**
  * Read all reactions for a target (post or comment).
  */
 export async function readReactions(
-  targetService: ReactionTargetService,
   targetId: string,
+  groups?: string[],
 ): Promise<ReactionRecord[]> {
-  const wapi = getWapi();
-  return wapi.read<ReactionRecord>('reactions', {
-    target_service: targetService,
-    target_id: targetId,
-  });
+  const w = getV3Client();
+  const targetGroups = groups || ['web10.app/groups/web10/discover'];
+  const docs = await w.read('reactions', { groups: targetGroups });
+  return docs
+    .filter((d) => d.ref_value === targetId)
+    .map(fromV3DocToReaction);
 }
 
 /**
  * Create a new reaction.
- * Phase 5.5: also writes to the public ledger if the Reaction schema is registered.
  */
 export async function createReaction(
   reaction: Omit<ReactionRecord, '_id'>,
-  postAuthor?: string,
-  postService?: string,
+  groups?: string[],
 ): Promise<ReactionRecord> {
-  const wapi = getWapi();
-  const record = await wapi.create<ReactionRecord>('reactions', reaction);
+  const w = getV3Client();
+  const token = w.readToken();
+  if (!token) throw new Error('not authenticated');
 
-  // Also write to the public ledger
-  const reactionSchema = getCachedSchema('Reaction');
-  if (reactionSchema?._id) {
-    createPublicEntry({
-      schema_id: reactionSchema._id,
-      target: buildReactionTarget(reaction.target_id, postAuthor, postService),
-      payload: {
-        action: reaction.type === 'like' ? 'like' : 'reaction',
-        type: reaction.type,
-        target: reaction.target_id,
-        author_username: reaction.author_username,
-        author_provider: reaction.author_provider,
-      },
-    }).catch((e) => {
-      console.error('ledger mirror failed (reaction create):', e);
-    });
-  }
+  const body: Record<string, unknown> = {
+    type: reaction.type,
+    target_service: reaction.target_service,
+    target_id: reaction.target_id,
+    author_username: token.username,
+    author_provider: token.provider,
+  };
 
-  return record;
+  const targetGroups = groups || ['web10.app/groups/web10/discover'];
+  const doc = await w.create('reactions', body, { groups: targetGroups });
+  doc.ref_value = reaction.target_id;
+  return fromV3DocToReaction(doc);
 }
 
 /**
@@ -74,15 +50,13 @@ export async function createReaction(
  * Returns true if added, false if removed.
  */
 export async function toggleReaction(
-  targetService: ReactionTargetService,
   targetId: string,
   type: string,
   authorUsername: string,
   authorProvider: string,
-  postAuthor?: string,
-  postService?: string,
+  groups?: string[],
 ): Promise<boolean> {
-  const existing = await readReactions(targetService, targetId);
+  const existing = await readReactions(targetId, groups);
   const mine = existing.find(
     (r) =>
       r.author_username === authorUsername &&
@@ -91,117 +65,45 @@ export async function toggleReaction(
   );
 
   if (mine?._id) {
-    await deleteReaction(mine._id, targetId, postAuthor, postService);
+    await deleteReaction(mine._id);
     return false;
   }
 
   await createReaction({
-    target_service: targetService,
+    target_service: 'posts',
     target_id: targetId,
     type,
     created_at: new Date().toISOString(),
     author_username: authorUsername,
     author_provider: authorProvider,
-  }, postAuthor, postService);
+  }, groups);
   return true;
 }
 
 /**
  * Delete a reaction by ID.
- * Also removes the corresponding public ledger entry so engagement counts stay accurate.
  */
-export async function deleteReaction(
-  id: string,
-  targetId?: string,
-  postAuthor?: string,
-  postService?: string,
-): Promise<void> {
-  const wapi = getWapi();
-  await wapi.delete('reactions', { _id: id });
-
-  // Remove the mirrored ledger entry so the engagement count decrements
-  const reactionSchema = getCachedSchema('Reaction');
-  if (reactionSchema?._id && targetId && postAuthor && postService) {
-    const target = buildReactionTarget(targetId, postAuthor, postService);
-    const entries = await queryPublicEntries({ schema_id: reactionSchema._id, target });
-    const token = wapi.readToken();
-    const mine = entries.find(
-      (e) =>
-        e.author_username === token?.username &&
-        e.author_provider === token?.provider,
-    );
-    if (mine?._id) {
-      await deletePublicEntry(mine._id).catch((e) => {
-        console.error('ledger mirror failed (reaction delete):', e);
-      });
-    }
-  }
+export async function deleteReaction(id: string): Promise<void> {
+  const w = getV3Client();
+  await w.delete(id);
 }
 
 /**
  * Count reactions on a target.
  */
-export async function countReactions(
-  targetService: ReactionTargetService,
-  targetId: string,
-): Promise<number> {
-  const wapi = getWapi();
-  const records = await wapi.read<ReactionRecord>('reactions', {
-    target_service: targetService,
-    target_id: targetId,
-  });
-  return records.length;
+export async function countReactions(targetId: string, groups?: string[]): Promise<number> {
+  const reactions = await readReactions(targetId, groups);
+  return reactions.length;
 }
 
 /**
  * Get reaction counts grouped by type for a target.
  */
-export async function getReactionCounts(
-  targetService: ReactionTargetService,
-  targetId: string,
-): Promise<Record<string, number>> {
-  const wapi = getWapi();
-  const results = await wapi.aggregate<{ _id: string; count: number }>(
-    'reactions',
-    [
-      { $match: { target_service: targetService, target_id: targetId } },
-      { $group: { _id: '$type', count: { $sum: 1 } } },
-    ],
-  );
+export async function getReactionCounts(targetId: string, groups?: string[]): Promise<Record<string, number>> {
+  const reactions = await readReactions(targetId, groups);
   const counts: Record<string, number> = {};
-  for (const r of results) {
-    counts[r._id] = r.count;
+  for (const r of reactions) {
+    counts[r.type] = (counts[r.type] || 0) + 1;
   }
   return counts;
-}
-
-/**
- * Record a share/repost in the public ledger so the engagement count increments.
- */
-export async function recordRepost(
-  targetId: string,
-  postAuthor: string,
-  postService: string,
-): Promise<void> {
-  const wapi = getWapi();
-  const token = wapi.readToken();
-  if (!token) return;
-
-  const reactionSchema = getCachedSchema('Reaction');
-  if (!reactionSchema?._id) return;
-
-  const target = buildReactionTarget(targetId, postAuthor, postService);
-  await createPublicEntry({
-    schema_id: reactionSchema._id,
-    target,
-    payload: {
-      action: 'repost',
-      type: 'repost',
-      target: targetId,
-      author_username: token.username,
-      author_provider: token.provider,
-    },
-  }).catch((e) => {
-    console.error('ledger mirror failed (repost):', e);
-  });
 }

@@ -1,15 +1,8 @@
-import { getWapi } from './wapi';
+import { getV3Client } from './v3';
+import { type AppSettings } from './types';
 
-// Settings persist as an ordinary `settings` service record (owner-only).
-// This is the data layer for the Settings tab — conventions addition, no API change.
-// Bite A (shell): static content only, no settings record yet.
-// Bite B (posting defaults): read/write the settings record.
-
-const SERVICE = 'settings';
-
-export interface AppSettings {
-  defaultVisibility?: 'public' | 'private';
-}
+// ── Settings data layer (v3) ─────────────────────────────────────────────────
+// Settings persist as a document in the `settings` collection.
 
 const defaultSettings: AppSettings = {
   defaultVisibility: 'public',
@@ -19,31 +12,59 @@ let cachedSettings: AppSettings | null = null;
 
 export async function readSettings(): Promise<AppSettings> {
   if (cachedSettings) return cachedSettings;
-  const wapi = getWapi();
-  const records = await wapi.read<Record<string, unknown>>(SERVICE);
-  const record = records[0];
-  if (!record) return defaultSettings;
-  const body = record.body as Record<string, unknown> | undefined;
-  cachedSettings = {
-    defaultVisibility: (body?.defaultVisibility as AppSettings['defaultVisibility']) || defaultSettings.defaultVisibility,
-  };
-  return cachedSettings;
+  const w = getV3Client();
+  const token = w.readToken();
+  if (!token) return defaultSettings;
+
+  try {
+    const docs = await w.read('settings', {
+      groups: [`web10.app/groups/${token.username}/followers`],
+    });
+    if (docs.length > 0) {
+      const body = docs[0].body as Record<string, unknown>;
+      cachedSettings = {
+        defaultVisibility: (body.defaultVisibility as AppSettings['defaultVisibility']) || defaultSettings.defaultVisibility,
+      };
+      return cachedSettings;
+    }
+  } catch {
+    // No settings record yet
+  }
+  return defaultSettings;
 }
 
 export async function saveSettings(settings: Partial<AppSettings>): Promise<AppSettings> {
-  const wapi = getWapi();
-  const records = await wapi.read<Record<string, unknown>>(SERVICE);
-  const body = records[0]?.body as Record<string, unknown> | undefined;
-  const current = body || {};
+  const w = getV3Client();
+  const token = w.readToken();
+  if (!token) throw new Error('not authenticated');
+
+  const current = await readSettings();
   const merged = { ...current, ...settings };
 
-  if (records.length > 0) {
-    await wapi.update(SERVICE, { _id: records[0]._id }, { $set: { body: merged } });
-  } else {
-    await wapi.create(SERVICE, { body: merged });
+  const body: Record<string, unknown> = {
+    defaultVisibility: merged.defaultVisibility,
+  };
+
+  try {
+    // Try to read existing settings doc
+    const docs = await w.read('settings', {
+      groups: [`web10.app/groups/${token.username}/followers`],
+    });
+    if (docs.length > 0 && docs[0].doc_id) {
+      await w.update(docs[0].doc_id, body);
+    } else {
+      await w.create('settings', body, {
+        groups: [`web10.app/groups/${token.username}/followers`],
+      });
+    }
+  } catch {
+    // Create if doesn't exist
+    await w.create('settings', body, {
+      groups: [`web10.app/groups/${token.username}/followers`],
+    });
   }
 
-  cachedSettings = { ...defaultSettings, ...merged };
+  cachedSettings = merged;
   return cachedSettings;
 }
 

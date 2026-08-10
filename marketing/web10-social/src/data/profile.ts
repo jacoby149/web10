@@ -1,95 +1,94 @@
-import { getWapi } from './wapi';
-import type { ProfileRecord } from './types';
+import { getV3Client } from './v3';
+import { fromV3DocToProfile, type ProfileRecord } from './types';
 
-// ── Profile data layer ─────────────────────────────────────────────────────
-// One record per user in the `profile` service.
-// Falls back to legacy `identity` service for users who haven't migrated yet.
+// ── Profile data layer (v3) ──────────────────────────────────────────────────
+// Profile is a document in the `profile` collection. One record per user.
 
 /**
  * Read the current user's profile record.
- * Returns null if no profile exists yet.
- * Adapts legacy identity records to the new profile format on first read.
  */
 export async function readProfile(): Promise<ProfileRecord | null> {
-  const wapi = getWapi();
-  // Sort by updated_at descending, take only the most recent record.
-  // Without this, duplicate profile records (legacy-identity adapt path,
-  // pre-1.0.145 seed dups) cause readProfile to return the oldest record
-  // (default _id asc sort) — so after saveProfile updates a different
-  // record, a fresh read on F5 picks the stale one with no media refs.
-  const records = await wapi.read<ProfileRecord>('profile', {
-    $sort: { updated_at: -1 },
-    $limit: 1,
-  });
-  if (records[0]) return records[0];
+  const w = getV3Client();
+  const token = w.readToken();
+  if (!token) return null;
 
-  // Fallback: check legacy identity service
+  // Try reading from profile collection
   try {
-    const legacy = await wapi.read<Record<string, unknown>>('identity');
-    if (legacy[0]) {
-      const old = legacy[0];
-      const adapted: ProfileRecord = {
-        display_name: (old.name as string) || undefined,
-        bio: (old.bio as string) || undefined,
-        updated_at: new Date().toISOString(),
-      };
-      if (old.pic && typeof old.pic === 'string') {
-        adapted.avatar_ref = old.pic;
-      }
-      // Write adapted record to new profile service so we don't re-adapt
-      await wapi.create<ProfileRecord>('profile', adapted as Record<string, unknown>);
-      return adapted;
+    const docs = await w.read('profile', {
+      groups: [`web10.app/groups/${token.username}/followers`],
+    });
+    if (docs.length > 0) {
+      return fromV3DocToProfile(docs[0]);
     }
   } catch {
-    // identity service may not exist, that's fine
+    // Fall through to getProfile
   }
 
-  return null;
+  // Fallback: use getProfile (returns V3User with basic info)
+  const user = await w.getProfile();
+  return {
+    display_name: user.username,
+    bio: undefined,
+    website: undefined,
+    location: undefined,
+  };
 }
 
 /**
  * Create or update the current user's profile.
- * Upsert semantics: if a record exists, update it; otherwise create.
  */
 export async function saveProfile(profile: Partial<ProfileRecord>): Promise<ProfileRecord> {
-  const wapi = getWapi();
-  const existing = await readProfile();
+  const w = getV3Client();
+  const token = w.readToken();
+  if (!token) throw new Error('not authenticated');
 
-  const { _id, ...payload } = profile;
-  payload.updated_at = new Date().toISOString();
+  const body: Record<string, unknown> = {
+    display_name: profile.display_name,
+    avatar_ref: profile.avatar_ref,
+    banner_ref: profile.banner_ref,
+    bio: profile.bio,
+    website: profile.website,
+    location: profile.location,
+  };
 
-  if (existing?._id) {
-    return wapi.update<ProfileRecord>('profile', { _id: existing._id }, { $set: payload });
+  // Try to update existing
+  if (profile._id) {
+    const doc = await w.update(profile._id, body);
+    return fromV3DocToProfile(doc);
   }
 
-  return wapi.create<ProfileRecord>('profile', payload);
+  // Create new
+  const groups = [`web10.app/groups/${token.username}/followers`];
+  const doc = await w.create('profile', body, { groups });
+  return fromV3DocToProfile(doc);
 }
 
 /**
  * Read another user's profile record.
  */
-export async function readUserProfile(username: string, provider: string): Promise<ProfileRecord | null> {
-  const wapi = getWapi();
-  // Sort by updated_at descending, take only the most recent record.
-  const records = await wapi.read<ProfileRecord>('profile', {
-    $sort: { updated_at: -1 },
-    $limit: 1,
-  }, username, provider);
-  if (records[0]) return records[0];
-
-  // Fallback: check legacy identity service for the target user
+export async function readUserProfile(username: string): Promise<ProfileRecord | null> {
+  const w = getV3Client();
   try {
-    const legacy = await wapi.read<Record<string, unknown>>('identity', {}, username, provider);
-    if (legacy[0]) {
-      const old = legacy[0];
-      return {
-        display_name: (old.name as string) || undefined,
-        bio: (old.bio as string) || undefined,
-      } as ProfileRecord;
+    const docs = await w.read('profile', {
+      groups: [followersGroupId(username)],
+    });
+    if (docs.length > 0) {
+      return fromV3DocToProfile(docs[0]);
     }
   } catch {
-    // identity service may not exist
+    // User has no profile
   }
-
   return null;
+}
+
+function followersGroupId(username: string): string {
+  return `web10.app/groups/${username}/followers`;
+}
+
+/**
+ * Get the current user's profile from the auth endpoint.
+ */
+export async function getAuthProfile() {
+  const w = getV3Client();
+  return w.getProfile();
 }
