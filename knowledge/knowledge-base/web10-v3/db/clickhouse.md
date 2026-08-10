@@ -2,6 +2,8 @@
 
 The data model. Every table, every index, every pattern.
 
+**v3 is ClickHouse-only.** FerretDB and Postgres have been removed from the stack. Every operation — auth, CRUD, groups, contracts, media, accounts — goes through ClickHouse. No MongoDB. No DocumentDB. One database, one query engine, one deployment.
+
 ## Schema Architecture
 
 ```mermaid

@@ -524,6 +524,12 @@ await w.setEmail({ email: 'alice@example.com' })
 // Verify phone/email with code
 await w.verifyPhone({ code: '123456' })
 await w.verifyEmail({ code: '654321' })
+
+// Send verification code to phone
+await w.sendCode()
+
+// Set recovery phone (authenticated)
+await w.setRecoveryPhone({ phone: '+1987654321' })
 ```
 
 ## App Store

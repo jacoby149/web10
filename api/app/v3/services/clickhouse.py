@@ -1046,6 +1046,24 @@ def get_user_profile(username: str) -> dict | None:
     }
 
 
+def get_phone_number(username: str) -> str | None:
+    """Get the phone number for a user."""
+    user = get_user(username)
+    return user["phone"] if user else None
+
+
+def get_phone_record(phone_number: str) -> dict | None:
+    """Find a user by phone number (for recovery)."""
+    result = client.query(
+        "SELECT username, phone FROM users WHERE phone = %(phone)s AND deleted = 0",
+        {"phone": phone_number},
+    )
+    if not result.result_rows():
+        return None
+    row = result.result_rows()[0]
+    return {"username": row[0], "phone": row[1]}
+
+
 # ---------------------------------------------------------------------------
 # Media (upload confirm, list)
 # ---------------------------------------------------------------------------

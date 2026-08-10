@@ -199,6 +199,14 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       return v3Post<{ email_verified: boolean }>('verify-email', { code })
     },
 
+    async sendCode(): Promise<{ sent: boolean }> {
+      return v3Post<{ sent: boolean }>('send_code', {})
+    },
+
+    async setRecoveryPhone(phone: string): Promise<{ phone_number: string }> {
+      return v3Post<{ phone_number: string }>('set_recovery_phone', { query: { phone } })
+    },
+
     // ── CRUD with groups ──────────────────────────────────────────────────
 
     async create(
@@ -498,8 +506,8 @@ export interface V3Client {
   setEmail(email: string): Promise<{ email: string }>
   verifyPhone(code: string): Promise<{ phone_verified: boolean }>
   verifyEmail(code: string): Promise<{ email_verified: boolean }>
-  verifyPhone(code: string): Promise<{ phone_verified: boolean }>
-  verifyEmail(code: string): Promise<{ email_verified: boolean }>
+  sendCode(): Promise<{ sent: boolean }>
+  setRecoveryPhone(phone: string): Promise<{ phone_number: string }>
 
   // CRUD with groups
   create(collection: string, body: Record<string, unknown>, opts?: { groups?: string[] }): Promise<V3Document>

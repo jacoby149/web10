@@ -37,32 +37,6 @@
 # Changing an origin means re-BUILDING the stack, not just restarting.
 
 services:
-  postgres:
-    image: ghcr.io/ferretdb/postgres-documentdb:17
-    environment:
-      POSTGRES_USER: web10
-      POSTGRES_PASSWORD: web10
-      POSTGRES_DB: postgres
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    restart: unless-stopped
-    networks:
-      internal:
-        aliases:
-          - ${STACK:?set STACK, e.g. web10-dev}-postgres
-
-  ferretdb:
-    image: ghcr.io/ferretdb/ferretdb:2
-    depends_on:
-      - postgres
-    environment:
-      FERRETDB_POSTGRESQL_URL: postgres://web10:web10@${STACK}-postgres:5432/postgres
-    restart: unless-stopped
-    networks:
-      internal:
-        aliases:
-          - ${STACK}-ferretdb
-
   clickhouse:
     image: clickhouse/clickhouse-server:latest
     environment:
@@ -105,7 +79,6 @@ services:
       context: ../api
       dockerfile: Dockerfile
     depends_on:
-      - ferretdb
       - minio
       - clickhouse
     extra_hosts:
@@ -225,8 +198,7 @@ services:
 
 volumes:
   # Portainer prefixes volume names with the stack name, so each
-  # stack gets its own postgres-data / minio-data / clickhouse-data automatically.
-  postgres-data:
+  # stack gets its own minio-data / clickhouse-data automatically.
   minio-data:
   clickhouse-data:
 
