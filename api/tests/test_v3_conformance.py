@@ -8,7 +8,7 @@ Implement these tests by filling in the bodies.
 """
 
 from datetime import datetime
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import jwt
 import pytest
