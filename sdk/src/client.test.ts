@@ -263,7 +263,7 @@ describe('CRUD HTTP calls', () => {
     })
   })
 
-  it('read calls fetch with PATCH', async () => {
+  it('read calls fetch with POST on /read route', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => [{ service: 'posts', body: { text: 'hi' } }],
@@ -272,9 +272,9 @@ describe('CRUD HTTP calls', () => {
     w.setToken(jwt)
     const result = await w.read('posts', { $sort: { created_at: -1 } })
     expect(mockFetch).toHaveBeenCalledWith(
-      'https://api.web10.app/alice/posts',
+      'https://api.web10.app/alice/posts/read',
       expect.objectContaining({
-        method: 'PATCH',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       }),
     )
@@ -292,8 +292,8 @@ describe('CRUD HTTP calls', () => {
     // caller's own apiOrigin.
     await w.read('posts', null, 'bob', 'api.othernode.com')
     expect(mockFetch).toHaveBeenCalledWith(
-      'https://api.othernode.com/bob/posts',
-      expect.objectContaining({ method: 'PATCH' }),
+      'https://api.othernode.com/bob/posts/read',
+      expect.objectContaining({ method: 'POST' }),
     )
   })
 
@@ -312,7 +312,7 @@ describe('CRUD HTTP calls', () => {
     expect(result).toEqual({ _id: 'abc123' })
   })
 
-  it('update calls fetch with PUT', async () => {
+  it('update calls fetch with POST on /update route', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ matchedCount: 1, modifiedCount: 1 }),
@@ -321,12 +321,12 @@ describe('CRUD HTTP calls', () => {
     w.setToken(jwt)
     await w.update('posts', { _id: '1' }, { $set: { text: 'new' } })
     expect(mockFetch).toHaveBeenCalledWith(
-      'https://api.web10.app/alice/posts',
-      expect.objectContaining({ method: 'PUT' }),
+      'https://api.web10.app/alice/posts/update',
+      expect.objectContaining({ method: 'POST' }),
     )
   })
 
-  it('deleteRecord calls fetch with DELETE', async () => {
+  it('deleteRecord calls fetch with POST on /delete route', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ deletedCount: 1 }),
@@ -335,8 +335,8 @@ describe('CRUD HTTP calls', () => {
     w.setToken(jwt)
     await w.deleteRecord('posts', { _id: '1' })
     expect(mockFetch).toHaveBeenCalledWith(
-      'https://api.web10.app/alice/posts',
-      expect.objectContaining({ method: 'DELETE' }),
+      'https://api.web10.app/alice/posts/delete',
+      expect.objectContaining({ method: 'POST' }),
     )
   })
 

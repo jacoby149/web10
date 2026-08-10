@@ -159,8 +159,8 @@ class TestErrorResponsesHaveCors:
         """
         client = TestClient(fastapi_app, raise_server_exceptions=False)
         with patch("app.endpoints.crud.is_permitted", side_effect=RuntimeError("boom")):
-            resp = client.put(
-                "/owner/myservice",
+            resp = client.post(
+                "/owner/myservice/update",
                 json={"token": None, "query": {}, "update": {"$set": {"x": 1}}},
                 headers={"Origin": "https://social.web10.app"},
             )

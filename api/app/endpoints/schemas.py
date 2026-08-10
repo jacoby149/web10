@@ -23,7 +23,7 @@ async def register_schema(token: Token):
     return db.register_schema(decoded.username, name, schema_def)
 
 
-@router.patch("/schemas/{schema_id}", tags=["schemas"])
+@router.post("/schemas/{schema_id}", tags=["schemas"])
 async def get_schema(schema_id: str, token: Token):
     """Fetch a schema by ID. Anon OK."""
     doc = db.get_schema(schema_id)
@@ -32,7 +32,7 @@ async def get_schema(schema_id: str, token: Token):
     return doc
 
 
-@router.put("/schemas/{schema_id}", tags=["schemas"])
+@router.post("/schemas/{schema_id}/update", tags=["schemas"])
 async def update_schema(schema_id: str, token: Token):
     """Update a schema. Author only."""
     if not token.token:
@@ -46,7 +46,7 @@ async def update_schema(schema_id: str, token: Token):
     return result
 
 
-@router.delete("/schemas/{schema_id}", tags=["schemas"])
+@router.post("/schemas/{schema_id}/delete", tags=["schemas"])
 async def delete_schema(schema_id: str, token: Token):
     """Delete a schema. Author only."""
     if not token.token:
