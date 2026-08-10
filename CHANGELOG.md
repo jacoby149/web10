@@ -1,3 +1,6 @@
+3.0.13 || 10.08.2026
+feat(ui): bug report buttons hooked up — web10-social and marketing-ui now POST /bug_report (main API, not marketing-api /feedback). Both apps get screenshot capture (getDisplayMedia, up to 5) and paste-to-attach (clipboard images → base64). Old MARKETING_API/console-errors code removed.
+
 3.0.12 || 10.08.2026
 feat(api): bug reports — separate ClickHouse table `bug_reports` with base64-encoded screenshots. Public POST /bug_report endpoint (no auth required, optional token for username). Admin endpoints: POST /admin/bug_reports (list, screenshots excluded), POST /admin/bug_reports/{report_id} (detail with screenshots). Schema: report_id, username, email, description, page_url, app_version, device_info, browser_info, error_message, stack_trace, screenshots (JSON array of base64 strings). KB clickhouse.md updated with bug_reports table docs.
 
