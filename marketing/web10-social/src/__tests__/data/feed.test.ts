@@ -157,7 +157,7 @@ describe('feed data layer', () => {
         payload: { action: 'follow', target_username: 'bob' },
       });
 
-      expect(result._id).toBe('le-42');
+      expect((result as any)._id).toBe('le-42');
     });
 
     it('returns a local stub when the endpoint is unavailable', async () => {
@@ -169,9 +169,9 @@ describe('feed data layer', () => {
         payload: { action: 'comment', text: 'hello' },
       });
 
-      expect(result._id).toMatch(/^local-/);
-      expect(result.schema_id).toBe('web10.comment');
-      expect(result.payload).toEqual({ action: 'comment', text: 'hello' });
+      expect((result as any)._id).toMatch(/^local-/);
+      expect((result as any).schema_id).toBe('web10.comment');
+      expect((result as any).payload).toEqual({ action: 'comment', text: 'hello' });
     });
 
     it('returns a local stub when the endpoint returns non-ok', async () => {
@@ -183,7 +183,7 @@ describe('feed data layer', () => {
         payload: { action: 'comment', text: 'hi' },
       });
 
-      expect(result._id).toMatch(/^local-/);
+      expect((result as any)._id).toMatch(/^local-/);
     });
   });
 
@@ -219,9 +219,9 @@ describe('feed data layer', () => {
 
       const schemas = await feed.registerDefaultSchemas();
       expect(schemas).toHaveLength(3);
-      expect(schemas[0]._id).toBe('web10.reaction');
-      expect(schemas[1]._id).toBe('web10.comment');
-      expect(schemas[2]._id).toBe('web10.follow');
+      expect((schemas[0] as any)._id).toBe('web10.reaction');
+      expect((schemas[1] as any)._id).toBe('web10.comment');
+      expect((schemas[2] as any)._id).toBe('web10.follow');
 
       // Cached — second call should not hit network again
       callIndex = 99; // will fail if called

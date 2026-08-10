@@ -126,8 +126,8 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
       } else {
         // Viewer path: read from discovery API + public ledger
         const [p, fr] = await Promise.all([
-          readUserProfile(username, provider),
-          readFollow(username, provider).catch(() => null),
+          readUserProfile(username).catch(() => null),
+          readFollow(username).catch(() => null),
         ]);
         profile = p;
         setFollowRecord(fr);
@@ -196,7 +196,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
         setFollowRecord(null);
       } else {
         const rec = await followUser(username, provider);
-        setFollowRecord(rec);
+        setFollowRecord({ ...rec, provider, username });
         setFollowing(true);
       }
     } catch (e) {

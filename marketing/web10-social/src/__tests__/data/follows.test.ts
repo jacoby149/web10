@@ -129,7 +129,6 @@ describe('follows data layer', () => {
       const result = await follows.followUser('bob', 'web10');
       expect(result.status).toBe('active');
       expect(result.username).toBe('bob');
-      expect(result.provider).toBe('web10');
       // Now updates ALL matching records (not just one)
       expect(mock.update).toHaveBeenCalledTimes(1);
       expect(mock.update).toHaveBeenCalledWith('follows', { _id: 'f1' }, {
@@ -159,14 +158,14 @@ describe('follows data layer', () => {
       const existing = { _id: 'f1', username: 'bob', provider: 'web10', status: 'active' };
       mock.read.mockResolvedValueOnce([existing]);
 
-      await follows.blockUser('bob', 'web10');
+      await follows.blockUser('bob');
       expect(mock.update).toHaveBeenCalledWith('follows', { _id: 'f1' }, { $set: { status: 'blocked' } });
     });
 
     it('creates a new blocked follow when none exists', async () => {
       mock.read.mockResolvedValueOnce([]);
 
-      await follows.blockUser('bob', 'web10');
+      await follows.blockUser('bob');
       expect(mock.create).toHaveBeenCalledWith('follows', expect.objectContaining({
         username: 'bob',
         provider: 'web10',

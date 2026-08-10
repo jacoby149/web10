@@ -23,7 +23,7 @@ export function deriveObjectKey(_url: string): string {
 }
 
 /** @deprecated use createV3Client from v3.ts */
-export function createWapiWrapper(): ReturnType<typeof getV3Client> {
+export function createWapiWrapper(_authUrl?: string, _rtcHost?: string): ReturnType<typeof getV3Client> {
   return getV3Client();
 }
 

@@ -161,7 +161,7 @@ function scorePost(signals: PostSignals, state: KnobState): number {
 
 // ── Rank Posts ──────────────────────────────────────────────────────────────
 
-export function rankPosts<T extends { post_id: string }>(
+export function rankPosts<T extends { _id?: string; created_at: string }>(
   posts: T[],
   signalsFn: (post: T) => PostSignals,
   state: KnobState,

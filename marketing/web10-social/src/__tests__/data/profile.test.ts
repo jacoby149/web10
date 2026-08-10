@@ -175,17 +175,17 @@ describe('profile data layer', () => {
     it('reads another user profile', async () => {
       const prof = { _id: 'prof2', display_name: 'Bob' };
       mock.read.mockResolvedValue([prof]);
-      const result = await profile.readUserProfile('bob', 'node.web10.app');
+      const result = await profile.readUserProfile('bob');
       expect(mock.read).toHaveBeenCalledWith('profile', {
         $sort: { updated_at: -1 },
         $limit: 1,
-      }, 'bob', 'node.web10.app');
+      }, 'bob');
       expect(result).toEqual(prof);
     });
 
     it('returns null for unknown user', async () => {
       mock.read.mockResolvedValue([]);
-      const result = await profile.readUserProfile('unknown', 'node.web10.app');
+      const result = await profile.readUserProfile('unknown');
       expect(result).toBeNull();
     });
   });

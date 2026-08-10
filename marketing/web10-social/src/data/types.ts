@@ -35,10 +35,24 @@ export interface PostRecord {
   tags?: string[];
   mentions?: PostMention[];
   encrypted?: boolean;
+  // Author info extracted from V3Document.author_key — needed by DiscoverScreen, FeedScreen, etc.
+  author_username?: string;
+  author_provider?: string;
+  // Engagement counts (populated by discover/feed queries)
+  likes?: number;
+  comments?: number;
+  reposts?: number;
+  score?: number;
+  // Aliases for backward compat with DiscoveryPost
+  author?: string;
+  provider?: string;
+  post_id?: string;
 }
 
 export function fromV3DocToPost(doc: V3Document): PostRecord {
   const body = doc.body as Record<string, unknown>;
+  const username = extractUsername(doc.author_key);
+  const provider = extractProvider(doc.author_key);
   return {
     _id: doc.doc_id,
     text: (body.text as string) || undefined,
@@ -52,6 +66,12 @@ export function fromV3DocToPost(doc: V3Document): PostRecord {
     tags: doc.tags || (body.tags as string[]) || undefined,
     mentions: (body.mentions as PostMention[]) || undefined,
     encrypted: body.encrypted as boolean,
+    author_username: username,
+    author_provider: provider,
+    // Backward compat aliases for DiscoveryPost consumers
+    author: username,
+    provider,
+    post_id: doc.doc_id,
   };
 }
 

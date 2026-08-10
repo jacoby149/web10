@@ -52,19 +52,19 @@ function mockWapi() {
 
   describe('buildCommentTarget', () => {
     it('builds canonical target when author and service provided', () => {
-      expect(comments.buildCommentTarget('p1', 'alice', 'public_posts')).toBe('alice/public_posts/p1');
+      expect(wapi.buildCommentTarget('p1', 'alice', 'public_posts')).toBe('alice/public_posts/p1');
     });
 
     it('falls back to legacy format when author missing', () => {
-      expect(comments.buildCommentTarget('p1', undefined, 'public_posts')).toBe('posts:p1');
+      expect(wapi.buildCommentTarget('p1', undefined, 'public_posts')).toBe('posts:p1');
     });
 
     it('falls back to legacy format when service missing', () => {
-      expect(comments.buildCommentTarget('p1', 'alice', undefined)).toBe('posts:p1');
+      expect(wapi.buildCommentTarget('p1', 'alice', undefined)).toBe('posts:p1');
     });
 
     it('falls back to legacy format when both missing', () => {
-      expect(comments.buildCommentTarget('p1')).toBe('posts:p1');
+      expect(wapi.buildCommentTarget('p1')).toBe('posts:p1');
     });
   });
 

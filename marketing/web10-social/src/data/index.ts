@@ -11,6 +11,9 @@ export * from './dms';
 export * from './settings';
 export * from './staging';
 export * from './feed';
+
+// contacts — re-export from contacts.ts (types ContactRecord/CrmStatus already
+// exported via types.ts, so we only re-export the functions)
 export {
   readContacts,
   readContact,
@@ -25,59 +28,21 @@ export {
   readContactsForCrm,
   spamFlagUser,
   unspamFlagUser,
-  type ContactRecord,
-  type CrmStatus,
 } from './contacts';
+
+// Wapi shim exports — only items NOT already covered by the export * above
 export {
   getWapi,
   resetWapi,
   clearReadUrlCache,
   deriveObjectKey,
   buildReactionTarget,
-  registerDefaultSchemas,
-  clearSchemaCache,
-  getCachedSchema,
-  createPublicEntry,
-  queryPublicEntries,
-  deletePublicEntry,
-  markInboxRead,
-  countUnread,
-  readDiscoverFeed,
-  fetchSuggestedUsers,
+  buildCommentTarget,
   recordRepost,
   createWapiWrapper,
   buildSocialServiceSirs,
   fanOutToFollowers,
   readPullFeed,
-  buildCommentTarget,
-  readFollow,
-  countFollows,
-  countFollowers,
-  countUserFollowing,
-  readFollows,
-  readFollowsByStatus,
-  blockUser,
-  deleteFollow,
-  updateFollowNotify,
-  readUserPublicPosts,
   readUserPostsFromDiscovery,
-  refreshMediaUrls,
-  refreshMediaUrl,
-  resolveMediaRefs,
-  sendDmMulti,
-  replyAllTargets,
-  classifyThread,
-  readContacts,
-  readContact,
-  addContact,
-  updateContact,
-  deleteContact,
-  searchContacts,
-  updateContactNote,
-  updateContactStatus,
-  toggleSpamFlag,
-  readSpamFlaggedContacts,
-  readContactsForCrm,
-  spamFlagUser,
-  unspamFlagUser,
+  updateFollowNotify,
 } from './wapi';
