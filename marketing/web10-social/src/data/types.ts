@@ -1,11 +1,15 @@
-// Types that mirror the conventions schemas in marketing-ui/public/docs/schemas/
-// These are the canonical shapes the data layer reads and writes.
+import type { V3Document } from './v3';
+
+// ── V3 document mapping ────────────────────────────────────────────────────
+// The v3 API returns V3Document (doc_id, author_key, collection_name, body,
+// ref_value, tags, created_at, updated_at, groups). The app-level types
+// (V3Post, V3Comment, etc.) are the shapes the UI components expect.
+// The `fromV3Doc` helpers extract the typed body from the V3Document envelope.
+
+// ── Post ────────────────────────────────────────────────────────────────────
 
 export type Origin = 'web10' | 'instagram' | 'facebook' | 'youtube' | 'twitter' | 'tiktok' | 'other';
-
 export type Visibility = 'public' | 'friends' | 'private';
-
-// ── posts ───────────────────────────────────────────────────────────────────
 
 export interface PostLocation {
   name?: string;
@@ -33,14 +37,29 @@ export interface PostRecord {
   encrypted?: boolean;
 }
 
-// ── media ───────────────────────────────────────────────────────────────────
+export function fromV3DocToPost(doc: V3Document): PostRecord {
+  const body = doc.body as Record<string, unknown>;
+  return {
+    _id: doc.doc_id,
+    text: (body.text as string) || undefined,
+    media_refs: (body.media_refs as string[]) || undefined,
+    created_at: doc.created_at,
+    updated_at: doc.updated_at,
+    origin: (body.origin as Origin) || undefined,
+    origin_id: (body.origin_id as string) || undefined,
+    visibility: (body.visibility as Visibility) || undefined,
+    location: (body.location as PostLocation) || undefined,
+    tags: doc.tags || (body.tags as string[]) || undefined,
+    mentions: (body.mentions as PostMention[]) || undefined,
+    encrypted: body.encrypted as boolean,
+  };
+}
+
+// ── Media ───────────────────────────────────────────────────────────────────
 
 export interface MediaRecord {
   _id?: string;
   url: string;
-  // The S3 object key (`<user>/<uuid>/<filename>`). Lane A's open
-  // confirm-upload touch persists this; until every record carries it,
-  // refreshMediaUrls derives the key from `url`. Optional + additive.
   object_key?: string;
   created_at: string;
   mime_type?: string;
@@ -57,30 +76,45 @@ export interface MediaRecord {
   encrypted?: boolean;
 }
 
+export function fromV3DocToMedia(doc: V3Document): MediaRecord {
+  const body = doc.body as Record<string, unknown>;
+  return {
+    _id: doc.doc_id,
+    url: (body.url as string) || '',
+    object_key: (body.object_key as string) || undefined,
+    created_at: doc.created_at,
+    mime_type: (body.mime_type as string) || undefined,
+    size_bytes: (body.size_bytes as number) || undefined,
+    width: (body.width as number) || undefined,
+    height: (body.height as number) || undefined,
+    duration_seconds: (body.duration_seconds as number) || undefined,
+    thumbnail_url: (body.thumbnail_url as string) || undefined,
+    hls_manifest_url: (body.hls_manifest_url as string) || undefined,
+    caption: (body.caption as string) || undefined,
+    alt_text: (body.alt_text as string) || undefined,
+    origin: (body.origin as Origin) || undefined,
+    origin_id: (body.origin_id as string) || undefined,
+    encrypted: body.encrypted as boolean,
+  };
+}
+
 export interface MediaUploadRequest {
   file: File;
   onProgress?: (progress: number) => void;
-  // D21: optional metadata populated by client-side processing
   width?: number;
   height?: number;
   durationSeconds?: number;
-  thumbnailFile?: File; // thumbnail/poster blob to upload alongside
+  thumbnailFile?: File;
   altText?: string;
-  // D35: target service for the media record. "public_media" for
-  // public-post attachments / avatar/banner so non-owners can
-  // presign reads. Defaults to "media" (owner-only, legacy fallback).
   service?: 'media' | 'public_media';
 }
 
-// ── profile ─────────────────────────────────────────────────────────────────
+// ── Profile ─────────────────────────────────────────────────────────────────
 
 export interface ProfileRecord {
   _id?: string;
   display_name?: string;
   avatar_ref?: string;
-  // Creator-page banner (design.md §10 level-up). Not yet in
-  // marketing-ui/public/docs/schemas/profile.json but that schema declares
-  // additionalProperties: true, so this is forward-compatible.
   banner_ref?: string;
   bio?: string;
   website?: string;
@@ -88,44 +122,21 @@ export interface ProfileRecord {
   updated_at?: string;
 }
 
-// ── contacts ────────────────────────────────────────────────────────────────
-
-export type CrmStatus = 'green' | 'yellow' | 'red';
-
-export interface ContactRecord {
-  _id?: string;
-  username: string;
-  provider: string;
-  display_name?: string;
-  labels?: string[];
-  added_at?: string;
-  note?: string;
-  spam_flagged?: boolean;
-  crm_status?: CrmStatus;
-  // Richer CRM fields (bite b)
-  email?: string;
-  phone?: string;
-  company?: string;
-  role?: string;
-  links?: string; // semicolon-separated URLs
-  // Flexible free-form key/value section
-  custom_fields?: Record<string, string>;
+export function fromV3DocToProfile(doc: V3Document): ProfileRecord {
+  const body = doc.body as Record<string, unknown>;
+  return {
+    _id: doc.doc_id,
+    display_name: (body.display_name as string) || undefined,
+    avatar_ref: (body.avatar_ref as string) || undefined,
+    banner_ref: (body.banner_ref as string) || undefined,
+    bio: (body.bio as string) || undefined,
+    website: (body.website as string) || undefined,
+    location: (body.location as string) || undefined,
+    updated_at: doc.updated_at,
+  };
 }
 
-// ── follows ─────────────────────────────────────────────────────────────────
-
-export type FollowStatus = 'pending' | 'active' | 'rejected' | 'blocked';
-
-export interface FollowRecord {
-  _id?: string;
-  username: string;
-  provider: string;
-  status: FollowStatus;
-  followed_at?: string;
-  notify?: boolean;
-}
-
-// ── comments ────────────────────────────────────────────────────────────────
+// ── Comments (refs) ─────────────────────────────────────────────────────────
 
 export interface CommentRecord {
   _id?: string;
@@ -140,13 +151,27 @@ export interface CommentRecord {
   origin_id?: string;
 }
 
-// ── reactions ───────────────────────────────────────────────────────────────
+export function fromV3DocToComment(doc: V3Document): CommentRecord {
+  const body = doc.body as Record<string, unknown>;
+  return {
+    _id: doc.doc_id,
+    post_id: doc.ref_value || (body.post_id as string) || '',
+    text: (body.text as string) || '',
+    created_at: doc.created_at,
+    updated_at: doc.updated_at,
+    parent_id: (body.parent_id as string) || undefined,
+    author_username: extractUsername(doc.author_key),
+    author_provider: extractProvider(doc.author_key),
+    origin: (body.origin as Origin) || undefined,
+    origin_id: (body.origin_id as string) || undefined,
+  };
+}
 
-export type ReactionTargetService = 'posts' | 'comments';
+// ── Reactions (refs) ────────────────────────────────────────────────────────
 
 export interface ReactionRecord {
   _id?: string;
-  target_service: ReactionTargetService;
+  target_service: 'posts' | 'comments';
   target_id: string;
   type: string;
   created_at: string;
@@ -154,21 +179,20 @@ export interface ReactionRecord {
   author_provider?: string;
 }
 
-// ── inbox (feed) ────────────────────────────────────────────────────────────
-
-export interface InboxRecord {
-  _id?: string;
-  author_username: string;
-  author_provider: string;
-  post_id: string;
-  delivered_at: string;
-  post_body?: Record<string, unknown>;
-  read?: boolean;
-  score?: number;
-  origin?: Origin;
+export function fromV3DocToReaction(doc: V3Document): ReactionRecord {
+  const body = doc.body as Record<string, unknown>;
+  return {
+    _id: doc.doc_id,
+    target_service: (body.target_service as 'posts' | 'comments') || 'posts',
+    target_id: doc.ref_value || (body.target_id as string) || '',
+    type: (body.type as string) || 'like',
+    created_at: doc.created_at,
+    author_username: extractUsername(doc.author_key),
+    author_provider: extractProvider(doc.author_key),
+  };
 }
 
-// ── dms (records-based, lives in a per-conversation service) ────────────────
+// ── DMs (group-based) ───────────────────────────────────────────────────────
 
 export interface DmRecipient {
   username: string;
@@ -187,68 +211,107 @@ export interface DmRecord {
   media_refs?: string[];
   encrypted?: boolean;
   subject?: string;
-  // Multi-recipient metadata (D-mail-experience bite c).
-  // `to`: all primary recipients (for Reply-all across To recipients).
-  // `cc`: CC recipients visible to this copy (empty for BCC recipients).
-  // `bcc`: always empty on recipient copies — BCC never leaks.
   to?: DmRecipient[];
   cc?: DmRecipient[];
   bcc?: DmRecipient[];
 }
 
-// ── Feed sort options ───────────────────────────────────────────────────────
+export function fromV3DocToDm(doc: V3Document): DmRecord {
+  const body = doc.body as Record<string, unknown>;
+  return {
+    _id: doc.doc_id,
+    message: (body.message as string) || '',
+    sent_at: doc.created_at,
+    updated_at: doc.updated_at,
+    sender_username: extractUsername(doc.author_key) || (body.sender_username as string) || '',
+    sender_provider: extractProvider(doc.author_key) || (body.sender_provider as string) || '',
+    recipient_username: (body.recipient_username as string) || '',
+    recipient_provider: (body.recipient_provider as string) || '',
+    media_refs: (body.media_refs as string[]) || undefined,
+    encrypted: body.encrypted as boolean,
+    subject: (body.subject as string) || undefined,
+    to: (body.to as DmRecipient[]) || undefined,
+    cc: (body.cc as DmRecipient[]) || undefined,
+    bcc: (body.bcc as DmRecipient[]) || undefined,
+  };
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+/**
+ * Extract username from author_key.
+ * V3 author_key format: "web10.app/users/username" or "provider/username"
+ */
+export function extractUsername(authorKey: string): string {
+  const parts = authorKey.split('/');
+  return parts[parts.length - 1] || authorKey;
+}
+
+/**
+ * Extract provider from author_key.
+ */
+export function extractProvider(authorKey: string): string {
+  const parts = authorKey.split('/');
+  if (parts.length >= 2) {
+    // "web10.app/users/username" → "web10.app"
+    // "provider/username" → "provider"
+    return parts[0];
+  }
+  return 'web10';
+}
+
+// ── Feed sort ───────────────────────────────────────────────────────────────
 
 export type FeedSort = 'newest' | 'oldest' | 'most_reacted';
-
-// ── Discovery API (Phase 5.5 public layer) ─────────────────────────────────
-
-export interface RawDiscoveryPost {
-  author: string;
-  service: string;
-  post_id: string;
-  body_text: string;
-  tags: string[];
-  media_refs?: string[];
-  created_at: string;
-  engagement: {
-    likes: number;
-    comments: number;
-    reposts: number;
-  };
-  engagement_score: number;
-}
-
-export interface DiscoveryPost {
-  author: string;
-  provider: string;
-  post_id: string;
-  text?: string;
-  tags?: string[];
-  media_refs?: string[];
-  created_at: string;
-  likes: number;
-  comments: number;
-  reposts: number;
-  score?: number;
-}
-
-export interface PublicEntry {
-  _id?: string;
-  schema_id: string;
-  target: string;
-  payload: Record<string, unknown>;
-  created_at?: string;
-  author_username?: string;
-  author_provider?: string;
-}
-
-export interface SchemaDefinition {
-  _id?: string;
-  name: string;
-  schema: Record<string, unknown>;
-  author_username?: string;
-  author_provider?: string;
-  created_at?: string;
-}
-
 export type DiscoverSort = 'recent' | 'trending';
+
+// ── Settings ────────────────────────────────────────────────────────────────
+
+export interface AppSettings {
+  defaultVisibility?: 'public' | 'private';
+}
+
+// ── Legacy types (backward compat) ──────────────────────────────────────────
+
+export type CrmStatus = 'green' | 'yellow' | 'red';
+
+export interface ContactRecord {
+  _id?: string;
+  username: string;
+  provider: string;
+  display_name?: string;
+  labels?: string[];
+  added_at?: string;
+  note?: string;
+  spam_flagged?: boolean;
+  crm_status?: CrmStatus;
+  email?: string;
+  phone?: string;
+  company?: string;
+  role?: string;
+  links?: string;
+  custom_fields?: Record<string, string>;
+}
+
+export type FollowStatus = 'pending' | 'active' | 'rejected' | 'blocked';
+
+export interface FollowRecord {
+  _id?: string;
+  username: string;
+  provider: string;
+  status: FollowStatus;
+  followed_at?: string;
+  notify?: boolean;
+}
+
+export interface InboxRecord {
+  _id?: string;
+  author_username: string;
+  author_provider: string;
+  post_id: string;
+  delivered_at: string;
+  post_body?: Record<string, unknown>;
+  read?: boolean;
+  score?: number;
+  origin?: string;
+}
