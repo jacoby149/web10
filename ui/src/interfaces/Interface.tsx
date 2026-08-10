@@ -87,9 +87,9 @@ function useInterface() {
     [I.isAdmin, I.setIsAdmin] = React.useState(false);
     [I.verified, I.setVerified] = React.useState(false);
     [I.status, I.setStatus] = React.useState<string | null>(null);
-    // Pending app contract requests (ACRs). Unified list — no distinction
+    // Pending contract requests (ACRs). Unified list — no distinction
     // between "new" and "change". Each ACR is { allowed_origin, permissions }.
-    // Legacy SMRListen still delivers { sirs, scrs } which we normalize here.
+    // contractListen delivers { contracts } which we normalize here.
     [I.pendingACRs, I.setPendingACRs] = React.useState<any[]>([]);
 
     // v3 service contracts (ClickHouse-backed — simpler model: origin + service)
@@ -105,13 +105,31 @@ function useInterface() {
     I.wapiAuth = adapter.wapiAuth;
     I.v3 = v3;
 
-    // Normalize legacy SMR { sirs, scrs } into a unified ACR list.
-    // Each SIR/SCR becomes one ACR per origin (origin + permissions from whitelist).
-    function normalizeSMRtoACRs(smr: any): any[] {
+    // Normalize contract requests into a unified ACR list.
+    // contractListen delivers { contracts } where each is { allowed_origin, permissions } (ACR)
+    // or { app_origin, action, params } (GCR). We keep ACRs as-is and skip GCRs
+    // (those go to the group requests flow).
+    function normalizeContractsToACRs(cData: any): any[] {
         const acrs: any[] = [];
+        // Handle new contractListen format: { contracts: [...] }
+        if (Array.isArray(cData?.contracts)) {
+            for (const cr of cData.contracts) {
+                if (cr.allowed_origin && cr.permissions) {
+                    // ACR — app contract
+                    acrs.push({
+                        allowed_origin: cr.allowed_origin,
+                        permissions: cr.permissions,
+                        _source: cr,
+                    });
+                }
+                // GCR — group contract, handled by group_requests flow
+            }
+            return acrs;
+        }
+        // Fallback: legacy SMR { sirs, scrs } format
         const allRequests = [
-            ...(Array.isArray(smr?.sirs) ? smr.sirs : []),
-            ...(Array.isArray(smr?.scrs) ? smr.scrs : []),
+            ...(Array.isArray(cData?.sirs) ? cData.sirs : []),
+            ...(Array.isArray(cData?.scrs) ? cData.scrs : []),
         ];
         for (const req of allRequests) {
             const origins = Array.isArray(req.cross_origins) ? req.cross_origins : [];
@@ -135,8 +153,8 @@ function useInterface() {
     }
 
     I.initAuthenticator = function () {
-        I.wapiAuth.SMRListen((inSMR) => {
-            I.setPendingACRs(normalizeSMRtoACRs(inSMR));
+        I.wapiAuth.contractListen((inC) => {
+            I.setPendingACRs(normalizeContractsToACRs(inC));
         });
     }
 

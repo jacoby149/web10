@@ -5,13 +5,15 @@ const Fs = ([cF, rF, uF, dF] = ["create", "read", "update", "delete"].map((op) =
 
 /* wapi setup */
 const wapi = wapiInit("https://auth.web10.app");
-const sirs = [
+const contracts = [
   {
-    service: "web10-docs-note-demo",
-    cross_origins: ["docs.web10.app", "localhost", "docs.localhost"],
+    allowed_origin: "docs.web10.app",
+    permissions: {
+      "web10-docs-note-demo": ["readAll", "create", "updateOwn", "deleteOwn"],
+    },
   },
 ];
-wapi.SMROnReady(sirs, []);
+wapi.ContractOnReady(contracts);
 authButton.onclick = wapi.openAuthPortal;
 
 /* the function that starts up the app functionality */

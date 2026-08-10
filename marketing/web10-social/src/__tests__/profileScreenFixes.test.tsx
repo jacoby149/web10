@@ -76,7 +76,7 @@ vi.mock('web10-npm', () => ({
       provider: 'test.localhost',
       username: 'testuser',
     }),
-    SMROnReady: vi.fn(),
+    contractOnReady: vi.fn(),
   }),
 }));
 

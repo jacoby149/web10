@@ -9,7 +9,7 @@ vi.mock('../interfaces/Web10SocialAdapter', () => ({
     authListen: vi.fn((cb) => cb()),
     initP2P: vi.fn(),
     readToken: vi.fn(() => ({ provider: 'test', username: 'user' })),
-    SMROnReady: vi.fn(),
+    contractOnReady: vi.fn(),
     login: vi.fn(),
     signOut: vi.fn(),
     loadContacts: vi.fn(() => Promise.resolve([])),

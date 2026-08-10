@@ -69,7 +69,7 @@ interface Web10SocialAdapter {
   authListen: (callback: () => void) => void;
   initP2P: (onMessage: (conn: unknown, data: unknown) => void, deviceName: string) => void;
   readToken: () => { provider: string; username: string };
-  SMROnReady: (sirs: unknown[], _args: unknown[]) => void;
+  contractOnReady: (contracts: unknown[]) => void;
   openAuthPortal: () => Promise<void>;
   create: (service: string, body: unknown, username?: string, provider?: string) => Promise<{ data: unknown }>;
   read: (service: string, query?: unknown, username?: string, provider?: string) => Promise<{ data: unknown[] }>;
@@ -220,7 +220,7 @@ const web10SocialAdapterInit = (): Web10SocialAdapter => {
   // are owner-only vs anon-read) are unit-testable without booting the
   // adapter. See D30 for the collection-as-security-boundary model.
   const sirs = buildSocialServiceSirs(crossOrigins);
-  adapter.SMROnReady(sirs, []);
+  adapter.contractOnReady(sirs);
 
   // ── Legacy adapter methods (unchanged, for backward compat) ────────
 

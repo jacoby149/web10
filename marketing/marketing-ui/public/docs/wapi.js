@@ -286,18 +286,18 @@
           target
         });
       },
-      smrOnReady(sirs, scrs) {
+      contractOnReady(contracts) {
         if (typeof window === "undefined")
           return;
         window.addEventListener("message", (e) => {
           if (e.origin !== authOrigin)
             return;
-          if (e.data?.type === "SMRListen" && e.source instanceof Window) {
-            e.source.postMessage({ type: "smr", sirs, scrs }, authOrigin);
+          if (e.data?.type === "ContractListen" && e.source instanceof Window) {
+            e.source.postMessage({ type: "contract", contracts }, authOrigin);
           }
         });
       },
-      smrResponseListen(setStatus) {
+      contractResponseListen(setStatus) {
         if (typeof window === "undefined")
           return;
         window.addEventListener("message", (e) => {
@@ -451,7 +451,7 @@
           phone: params.phone ?? null
         });
       },
-      smrListen(setState) {
+      contractListen(setState) {
         if (typeof window === "undefined" || !window.opener)
           return;
         const target = openerOrigin();
@@ -460,11 +460,11 @@
         window.addEventListener("message", (e) => {
           if (e.origin !== target)
             return;
-          if (e.data?.type === "smr") {
+          if (e.data?.type === "contract") {
             setState(e.data);
           }
         });
-        window.opener.postMessage({ type: "SMRListen" }, target);
+        window.opener.postMessage({ type: "ContractListen" }, target);
       },
       async changePassword(currentPassword, newPassword) {
         const token = wapi.readToken();
@@ -549,20 +549,20 @@
       delete: (service, query, username, provider) => client.deleteRecord(service, query, username, provider),
       aggregate: (service, pipeline = [], username, provider) => client.aggregate(service, pipeline, username, provider),
       getTieredToken: (site, target) => client.getTieredToken(site, target),
-      SMROnReady: (sirs, scrs) => {
+      ContractOnReady: (contracts) => {
         if (typeof window === "undefined")
           return;
         const authOrigin = new URL(authUrl).origin;
         window.addEventListener("message", (e) => {
           if (e.origin !== authOrigin)
             return;
-          if (e.data?.type === "SMRListen" && childWindow) {
-            childWindow.postMessage({ type: "smr", sirs, scrs }, authOrigin);
+          if (e.data?.type === "ContractListen" && childWindow) {
+            childWindow.postMessage({ type: "contract", contracts }, authOrigin);
           }
         });
       },
-      SMRResponseListen: (setStatus) => {
-        client.smrResponseListen(setStatus);
+      ContractResponseListen: (setStatus) => {
+        client.contractResponseListen(setStatus);
       },
       peer: null,
       outBound,
@@ -654,8 +654,8 @@
       signUp: (provider, username, password, betacode, phone) => {
         return connector.signUp({ provider, username, password, betacode: betacode ?? undefined, phone: phone ?? undefined });
       },
-      SMRListen: (setState) => {
-        connector.smrListen(setState);
+      contractListen: (setState) => {
+        connector.contractListen(setState);
       },
       changePass: (pass, newPass) => connector.changePassword(pass, newPass),
       changePhone: (pass, newPhone) => connector.changePhone(pass, newPhone),

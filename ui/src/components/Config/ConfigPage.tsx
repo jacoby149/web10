@@ -86,8 +86,8 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
   const [moderatingId, setModeratingId] = React.useState<string | null>(null);
 
   const nodePost = async (path: string, body: Record<string, any>) => {
-    const token = I.wapi.token;
-    const decoded = I.wapi.readToken();
+    const token = I.v3.state.token;
+    const decoded = I.v3.readToken();
     const provider = decoded.provider;
     const protocol = window.location.protocol;
     return axios.post(`${protocol}//${provider}${path}`, body, {
@@ -97,7 +97,7 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
 
   const loadConfig = async () => {
     try {
-      const resp = await nodePost("/config", { token: I.wapi.token });
+      const resp = await nodePost("/config", { token: I.v3.state.token });
       setConfig(resp.data);
       setLoadedConfig({ ...resp.data });
     } catch (e: any) {
@@ -111,7 +111,7 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
     setAppsLoading(true);
     setAppsError(null);
     try {
-      const resp = await nodePost("/apps/admin", { token: I.wapi.token });
+      const resp = await nodePost("/apps/admin", { token: I.v3.state.token });
       setApps(resp.data?.apps ?? []);
     } catch (e: any) {
       setAppsError(e.response?.data?.detail || "Failed to load registered apps.");
@@ -124,7 +124,7 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
     setBoardLoading(true);
     setBoardError(null);
     try {
-      const decoded = I.wapi.readToken();
+      const decoded = I.v3.readToken();
       const protocol = window.location.protocol;
       const resp = await axios.patch(
         `${protocol}//${decoded.provider}/discover/posts?sort=recent&limit=50`
@@ -139,7 +139,7 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
 
   const loadRemoved = async () => {
     try {
-      const resp = await nodePost("/admin/discovery/removed", { token: I.wapi.token });
+      const resp = await nodePost("/admin/discovery/removed", { token: I.v3.state.token });
       setRemovedPosts(resp.data?.removed ?? []);
     } catch {
       // the removed list is secondary — don't overwrite the board error
@@ -151,7 +151,7 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
     setBoardError(null);
     try {
       await nodePost("/admin/discovery/remove", {
-        token: I.wapi.token,
+        token: I.v3.state.token,
         author: post.author,
         service: post.service,
         post_id: post.post_id,
@@ -173,7 +173,7 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
     setBoardError(null);
     try {
       await nodePost("/admin/discovery/restore", {
-        token: I.wapi.token,
+        token: I.v3.state.token,
         author: post.author,
         service: post.service,
         post_id: post.post_id,
@@ -208,11 +208,11 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
     setSaving(true);
     setError(null);
     try {
-      const decoded = I.wapi.readToken();
+      const decoded = I.v3.readToken();
       const protocol = window.location.protocol;
       await axios.patch(
         `${protocol}//${decoded.provider}/config`,
-        { token: I.wapi.token, admins: next },
+        { token: I.v3.state.token, admins: next },
         { headers: { "Content-Type": "application/json" } }
       );
       setConfig(prev => ({ ...prev, admins: next }));
@@ -248,7 +248,7 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
     setSaving(true);
     setError(null);
     try {
-      const payload: Record<string, any> = { token: I.wapi.token };
+      const payload: Record<string, any> = { token: I.v3.state.token };
       for (const key of Object.keys(config || {})) {
         if (key === "admins") continue; // admins saved via /admins above
         const next = (config as any)[key];
@@ -256,7 +256,7 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
         if (JSON.stringify(next) === JSON.stringify(prev)) continue;
         payload[key] = next;
       }
-      const decoded = I.wapi.readToken();
+      const decoded = I.v3.readToken();
       const protocol = window.location.protocol;
       await axios.patch(
         `${protocol}//${decoded.provider}/config`,
@@ -276,7 +276,7 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
   const setApproval = async (url: string, approved: boolean) => {
     setApprovingUrl(url);
     try {
-      await nodePost("/apps/approve", { token: I.wapi.token, url, approved });
+      await nodePost("/apps/approve", { token: I.v3.state.token, url, approved });
       setApps(prev => prev.map(a => a.url === url ? { ...a, approved } : a));
     } catch (e: any) {
       setAppsError(e.response?.data?.detail || "Failed to update approval.");
