@@ -9,14 +9,30 @@ import app.settings as settings
 
 log = logging.getLogger(__name__)
 
-client = clickhouse_connect.get_client(
-    host=settings.CLICKHOUSE_HOST,
-    port=settings.CLICKHOUSE_PORT,
-    database=settings.CLICKHOUSE_DATABASE,
-    username=settings.CLICKHOUSE_USER,
-    password=settings.CLICKHOUSE_PASSWORD,
-    secure=settings.CLICKHOUSE_SECURE,
-)
+_client = None
+
+
+class _LazyClickHouse:
+    """Lazy proxy — the actual ClickHouse connection is only created on first
+    use, so the API can start even when ClickHouse isn't available yet
+    (e.g., dev stack without a ClickHouse container, or during startup
+    before ClickHouse is ready)."""
+
+    def __getattr__(self, name):
+        global _client
+        if _client is None:
+            _client = clickhouse_connect.get_client(
+                host=settings.CLICKHOUSE_HOST,
+                port=settings.CLICKHOUSE_PORT,
+                database=settings.CLICKHOUSE_DATABASE,
+                username=settings.CLICKHOUSE_USER,
+                password=settings.CLICKHOUSE_PASSWORD,
+                secure=settings.CLICKHOUSE_SECURE,
+            )
+        return getattr(_client, name)
+
+
+client = _LazyClickHouse()
 
 
 def _now() -> datetime:
