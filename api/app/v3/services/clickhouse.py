@@ -1,5 +1,6 @@
 import json
 import logging
+import uuid
 from datetime import datetime
 
 import clickhouse_connect

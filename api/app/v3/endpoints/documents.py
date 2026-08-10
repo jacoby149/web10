@@ -1,10 +1,9 @@
 from fastapi import APIRouter
 
 import app.exceptions as exceptions
+from app.v3.endpoints.auth_helper import user as _user
 from app.v3.models import CreateDocument, DeleteDocument, ReadDocuments, UpdateDocument
 from app.v3.services import clickhouse as ch
-
-from app.v3.endpoints.auth_helper import user as _user
 
 router = APIRouter(tags=["documents"])
 

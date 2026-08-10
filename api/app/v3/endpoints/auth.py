@@ -1,7 +1,8 @@
 from fastapi import APIRouter
 
 import app.exceptions as exceptions
-from app.services.auth import decode_token, get_password_hash, verify_password
+from app.services.auth import decode_token, get_password_hash
+from app.v3.endpoints.auth_helper import user as _user
 from app.v3.models import (
     ChangePass,
     ChangePhone,
@@ -13,8 +14,6 @@ from app.v3.models import (
 )
 from app.v3.models.common import TokenOnly
 from app.v3.services import clickhouse as ch
-
-from app.v3.endpoints.auth_helper import user as _user
 
 router = APIRouter(tags=["auth"])
 

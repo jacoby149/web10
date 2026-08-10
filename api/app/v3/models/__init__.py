@@ -1,3 +1,4 @@
+from app.v3.models.appstore import CreateAppRating, GetAppRatings, RegisterApp
 from app.v3.models.auth import (
     ChangePass,
     ChangePhone,
@@ -31,7 +32,6 @@ from app.v3.models.groups import (
     UpdateGroup,
 )
 from app.v3.models.media import ConfirmMedia, DeleteMedia, ListMedia
-from app.v3.models.appstore import CreateAppRating, GetAppRatings, RegisterApp
 
 __all__ = [
     # auth
