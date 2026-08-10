@@ -1,3 +1,5 @@
+3.0.11 || 09.08.2026
+ref(sdk+ui+social+kb): SMR → Contract rename — verbose names throughout. SMRListen → contractListen, SMROnReady → contractOnReady, smrResponseListen → contractResponseListen, postMessage types SMRListen/SMRResponseListen → ContractListen/ContractResponseListen, message type smr → contract. ContractRequest union type (ACR | GCR) added and exported. Auth normalizeSMRtoACRs → normalizeContractsToACRs with new contract format + legacy SMR fallback. All demos, wapi.js, web10-social adapter + tests updated. KB contracts.md gains Contract Listen section. 129 SDK + 96 UI tests green, SDK rebuilt.
 3.0.12 || 10.08.2026
 feat(api): bug reports — separate ClickHouse table `bug_reports` with base64-encoded screenshots. Public POST /bug_report endpoint (no auth required, optional token for username). Admin endpoints: POST /admin/bug_reports (list, screenshots excluded), POST /admin/bug_reports/{report_id} (detail with screenshots). Schema: report_id, username, email, description, page_url, app_version, device_info, browser_info, error_message, stack_trace, screenshots (JSON array of base64 strings). KB clickhouse.md updated with bug_reports table docs.
 

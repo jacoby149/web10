@@ -4,7 +4,7 @@ import { buildSocialServiceSirs } from '../../data/serviceTerms';
 // D19 Phase A regression: every post tier's anon-access boundary must
 // match the security model in decisions.md D30. The sirs list is what the
 // social app registers with the node's Service Manager on signup/login
-// (SMROnReady); a service WITH a Read whitelist opens anon-read access,
+// (contractOnReady); a service WITH a Read whitelist opens anon-read access,
 // WITHOUT keeps the node's default-deny (only the owner's own token
 // passes via is_permitted's owner-shortcut). These are the security
 // invariants the staging layer relies on.

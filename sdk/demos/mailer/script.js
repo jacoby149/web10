@@ -7,14 +7,15 @@ const Fs = ([cF, rF, uF, dF] = ["create", "read", "update", "delete"].map(
 
 /* wapi setup */
 const wapi = wapiInit("https://auth.web10.app");
-const sirs = [
+const contracts = [
   {
-    service: "web10-docs-mail-demo",
-    cross_origins: ["docs.web10.app", "localhost", "docs.localhost","mail.web10.app","mail.localhost"],
-    whitelist: [{ username: ".*", provider: ".*", create: true }], //allows all users to write to you
+    allowed_origin: "docs.web10.app",
+    permissions: {
+      "web10-docs-mail-demo": ["readAll", "create", "deleteOwn"],
+    },
   },
 ];
-wapi.SMROnReady(sirs, []);
+wapi.ContractOnReady(contracts);
 authButton.onclick = wapi.openAuthPortal;
 
 /* web10 devPay */

@@ -188,6 +188,12 @@ export interface GCR {
   params: Record<string, unknown>
 }
 
+/**
+ * Unified contract request — either an app contract (ACR) or group contract (GCR).
+ * Used by contractListen / contractOnReady for the consent protocol.
+ */
+export type ContractRequest = ACR | GCR
+
 // ── Aggregate Pipeline ─────────────────────────────────────────────────────
 
 /**

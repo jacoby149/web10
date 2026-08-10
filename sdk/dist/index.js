@@ -119,6 +119,8 @@ function createClient(options = {}) {
     rtcServer,
     appStores
   };
+  const readUrlCache = new Map;
+  const READ_URL_MARGIN_MS = 5000;
   const client = {
     get state() {
       return { ...state };
@@ -230,18 +232,18 @@ function createClient(options = {}) {
         target
       });
     },
-    smrOnReady(sirs, scrs) {
+    contractOnReady(contracts) {
       if (typeof window === "undefined")
         return;
       window.addEventListener("message", (e) => {
         if (e.origin !== authOrigin)
           return;
-        if (e.data?.type === "SMRListen" && e.source instanceof Window) {
-          e.source.postMessage({ type: "smr", sirs, scrs }, authOrigin);
+        if (e.data?.type === "ContractListen" && e.source instanceof Window) {
+          e.source.postMessage({ type: "contract", contracts }, authOrigin);
         }
       });
     },
-    smrResponseListen(setStatus) {
+    contractResponseListen(setStatus) {
       if (typeof window === "undefined")
         return;
       window.addEventListener("message", (e) => {
@@ -251,6 +253,113 @@ function createClient(options = {}) {
           setStatus(e.data.status);
         }
       });
+    },
+    acrOnReady(acrs) {
+      if (typeof window === "undefined")
+        return;
+      window.addEventListener("message", (e) => {
+        if (e.origin !== authOrigin)
+          return;
+        if (e.data?.type === "ACRListen" && e.source instanceof Window) {
+          e.source.postMessage({ type: "acr", acrs }, authOrigin);
+        }
+      });
+    },
+    acrResponseListen(setStatus) {
+      if (typeof window === "undefined")
+        return;
+      window.addEventListener("message", (e) => {
+        if (e.origin !== authOrigin)
+          return;
+        if (e.data?.type === "acr-status") {
+          setStatus(e.data.status);
+        }
+      });
+    },
+    requestUploadUrl(params, username, provider) {
+      guardAuth(state, username);
+      const u = resolveUsername(state, username);
+      const base = originFor(state, provider);
+      return authPost(`${base}/${u}/upload`, {
+        token: state.token,
+        filename: params.filename,
+        mime_type: params.mimeType ?? null,
+        size_bytes: params.sizeBytes ?? null
+      });
+    },
+    confirmUpload(params, username, provider) {
+      guardAuth(state, username);
+      const u = resolveUsername(state, username);
+      const base = originFor(state, provider);
+      return authPost(`${base}/${u}/upload/confirm`, {
+        token: state.token,
+        url: params.url,
+        filename: params.filename,
+        mime_type: params.mimeType ?? null,
+        size_bytes: params.sizeBytes ?? null,
+        width: params.width ?? null,
+        height: params.height ?? null,
+        duration_seconds: params.durationSeconds ?? null,
+        thumbnail_url: params.thumbnailUrl ?? null,
+        caption: params.caption ?? null,
+        alt_text: params.altText ?? null,
+        origin: params.origin ?? null,
+        origin_id: params.originId ?? null,
+        encrypted: params.encrypted ?? false
+      });
+    },
+    async upload(file, meta = {}, username, provider) {
+      guardAuth(state, username);
+      const filename = meta.filename ?? file.name ?? "upload";
+      const mimeType = meta.mimeType ?? file.type ?? "application/octet-stream";
+      const presigned = await this.requestUploadUrl({ filename, mimeType, sizeBytes: file.size }, username, provider);
+      const form = new FormData;
+      for (const [k, v] of Object.entries(presigned.fields)) {
+        form.append(k, v);
+      }
+      form.append("file", file, filename);
+      const s3Res = await fetch(presigned.upload_url, {
+        method: "POST",
+        body: form
+      });
+      if (!s3Res.ok) {
+        const text = await s3Res.text().catch(() => "");
+        throw new Web10Error(`media upload to object storage failed: ${s3Res.status} ${s3Res.statusText}`, s3Res.status, text);
+      }
+      return this.confirmUpload({
+        url: presigned.upload_url,
+        filename,
+        mimeType,
+        sizeBytes: file.size,
+        width: meta.width,
+        height: meta.height,
+        durationSeconds: meta.durationSeconds,
+        thumbnailUrl: meta.thumbnailUrl,
+        caption: meta.caption,
+        altText: meta.altText
+      }, username, provider);
+    },
+    async getReadUrl(objectKey, opts) {
+      const username = opts?.username ?? null;
+      const provider = opts?.provider ?? null;
+      guardAuth(state, username);
+      const u = resolveUsername(state, username);
+      const base = originFor(state, provider);
+      const cacheKey = `${base}/${u}/${objectKey}`;
+      const now = Date.now();
+      const cached = readUrlCache.get(cacheKey);
+      if (!opts?.force && cached && cached.staleAt > now + READ_URL_MARGIN_MS) {
+        return cached.url;
+      }
+      const res = await authPost(`${base}/${u}/read`, {
+        token: state.token,
+        object_key: objectKey
+      });
+      readUrlCache.set(cacheKey, {
+        url: res.read_url,
+        staleAt: now + res.expires_in * 1000
+      });
+      return res.read_url;
     },
     checkout(params) {
       const token = this.readToken();
@@ -395,7 +504,7 @@ function createAuthConnector(wapi) {
         phone: params.phone ?? null
       });
     },
-    smrListen(setState) {
+    contractListen(setState) {
       if (typeof window === "undefined" || !window.opener)
         return;
       const target = openerOrigin();
@@ -404,11 +513,26 @@ function createAuthConnector(wapi) {
       window.addEventListener("message", (e) => {
         if (e.origin !== target)
           return;
-        if (e.data?.type === "smr") {
+        if (e.data?.type === "contract") {
           setState(e.data);
         }
       });
-      window.opener.postMessage({ type: "SMRListen" }, target);
+      window.opener.postMessage({ type: "ContractListen" }, target);
+    },
+    acrListen(setState) {
+      if (typeof window === "undefined" || !window.opener)
+        return;
+      const target = openerOrigin();
+      if (!target)
+        return;
+      window.addEventListener("message", (e) => {
+        if (e.origin !== target)
+          return;
+        if (e.data?.type === "acr") {
+          setState(e.data);
+        }
+      });
+      window.opener.postMessage({ type: "ACRListen" }, target);
     },
     async changePassword(currentPassword, newPassword) {
       const token = wapi.readToken();
@@ -452,6 +576,250 @@ function createAuthConnector(wapi) {
   }
   return connector;
 }
+// src/v3.ts
+function createV3Client(options = {}) {
+  const apiOrigin = options.apiOrigin ?? "https://api.web10.app";
+  const state = {
+    apiOrigin,
+    token: options.token ?? readTokenCookie()
+  };
+  async function v3Post(action, body) {
+    if (!state.token) {
+      throw new Web10Error("No token available. Call login() or setToken() first.", 401);
+    }
+    return authPost(`${apiOrigin}/v3/${action}`, { ...body, token: state.token });
+  }
+  const client = {
+    get state() {
+      return { ...state };
+    },
+    setToken(token) {
+      state.token = token;
+      setTokenCookie(token);
+    },
+    scrubToken() {
+      state.token = null;
+      scrubTokenCookie();
+    },
+    readToken() {
+      return decodeJwt(state.token);
+    },
+    isSignedIn() {
+      return state.token != null && state.token !== "";
+    },
+    signOut() {
+      this.scrubToken();
+    },
+    async login(username, password, site) {
+      const res = await authPost(`${apiOrigin}/v3/login`, { username, password, site: site ?? window?.location?.hostname ?? "web10" });
+      this.setToken(res.token);
+      return res;
+    },
+    async signup(username, password, phone, email) {
+      return authPost(`${apiOrigin}/v3/signup`, { username, password, phone, email });
+    },
+    async getProfile() {
+      return v3Post("profile", {});
+    },
+    async changePassword(currentPassword, newPassword) {
+      return v3Post("change-pass", { password: currentPassword, new_pass: newPassword });
+    },
+    async changePhone(phone) {
+      return v3Post("change-phone", { phone });
+    },
+    async setEmail(email) {
+      return v3Post("set-email", { email });
+    },
+    async verifyPhone(code) {
+      return v3Post("verify-phone", { code });
+    },
+    async verifyEmail(code) {
+      return v3Post("verify-email", { code });
+    },
+    async sendCode() {
+      return v3Post("send_code", {});
+    },
+    async setRecoveryPhone(phone) {
+      return v3Post("set_recovery_phone", { query: { phone } });
+    },
+    async create(collection, body, opts) {
+      const payload = { collection, body };
+      if (opts?.groups)
+        payload.groups = opts.groups;
+      return v3Post("create", payload);
+    },
+    async read(collection, opts) {
+      const payload = { collection, groups: opts.groups };
+      if (opts.limit != null)
+        payload.limit = opts.limit;
+      if (opts.offset != null)
+        payload.offset = opts.offset;
+      return v3Post("read", payload);
+    },
+    async readById(docId, collection) {
+      return v3Post("read-by-id", { doc_id: docId, collection });
+    },
+    async update(docId, body, opts) {
+      const payload = { doc_id: docId, body };
+      if (opts?.groups)
+        payload.groups = opts.groups;
+      return v3Post("update", payload);
+    },
+    async delete(docId) {
+      return v3Post("delete", { doc_id: docId });
+    },
+    async addAppContract(allowedOrigin, permissions) {
+      return v3Post("app-contracts/add", {
+        allowed_origin: allowedOrigin,
+        permissions
+      });
+    },
+    async listAppContracts() {
+      return v3Post("app-contracts/list", {});
+    },
+    async revokeAppContract(allowedOrigin) {
+      const payload = {};
+      if (allowedOrigin)
+        payload.allowed_origin = allowedOrigin;
+      return v3Post("app-contracts/revoke", payload);
+    },
+    async createGroup(name, joinPolicy, roles, members) {
+      return v3Post("groups/create", {
+        name,
+        join_policy: joinPolicy,
+        roles,
+        members
+      });
+    },
+    async getGroup(groupId) {
+      return v3Post("groups/get", { group_id: groupId });
+    },
+    async getMyGroups() {
+      return v3Post("groups/list", {});
+    },
+    async getGroupsManages() {
+      return v3Post("groups/manages", {});
+    },
+    async updateGroup(groupId, opts) {
+      const payload = { group_id: groupId };
+      if (opts?.join_policy)
+        payload.join_policy = opts.join_policy;
+      if (opts?.roles)
+        payload.roles = opts.roles;
+      return v3Post("groups/update", payload);
+    },
+    async joinGroup(groupId) {
+      return v3Post("groups/join", { group_id: groupId });
+    },
+    async requestJoin(groupId) {
+      return v3Post("groups/join", { group_id: groupId });
+    },
+    async leaveGroup(groupId) {
+      return v3Post("groups/leave", { group_id: groupId });
+    },
+    async getGroupMembers(groupId) {
+      return v3Post("groups/members/list", { group_id: groupId });
+    },
+    async addGroupMember(groupId, memberKey, role) {
+      return v3Post("groups/members/add", {
+        group_id: groupId,
+        member_key: memberKey,
+        role
+      });
+    },
+    async removeGroupMember(groupId, memberKey) {
+      return v3Post("groups/members/remove", {
+        group_id: groupId,
+        member_key: memberKey
+      });
+    },
+    async inviteMember(groupId, memberKey, role) {
+      return v3Post("groups/invite", {
+        group_id: groupId,
+        member_key: memberKey,
+        role
+      });
+    },
+    async acceptInvite(groupId) {
+      return v3Post("groups/accept-invite", { group_id: groupId });
+    },
+    async declineInvite(groupId) {
+      return v3Post("groups/decline-invite", { group_id: groupId });
+    },
+    async getJoinRequests(groupId) {
+      return v3Post("groups/requests/join/list", { group_id: groupId });
+    },
+    async approveJoinRequest(groupId, requesterKey) {
+      return v3Post("groups/requests/join/approve", {
+        group_id: groupId,
+        requester_key: requesterKey
+      });
+    },
+    async denyJoinRequest(groupId, requesterKey) {
+      return v3Post("groups/requests/join/deny", {
+        group_id: groupId,
+        requester_key: requesterKey
+      });
+    },
+    async blockUser(blockedKey) {
+      return v3Post("block", { blocked_key: blockedKey });
+    },
+    async unblockUser(blockedKey) {
+      return v3Post("unblock", { blocked_key: blockedKey });
+    },
+    async blockUserInGroup(blockedKey, groupId) {
+      return v3Post("block-in-group", {
+        blocked_key: blockedKey,
+        group_id: groupId
+      });
+    },
+    async unblockUserInGroup(blockedKey, groupId) {
+      return v3Post("unblock-in-group", {
+        blocked_key: blockedKey,
+        group_id: groupId
+      });
+    },
+    async setSharing(groupId, enabled) {
+      return v3Post("sharing/set", {
+        group_id: groupId,
+        enabled
+      });
+    },
+    async confirmMediaUpload(metadata) {
+      return v3Post("media/confirm", { body: metadata });
+    },
+    async listMedia(opts) {
+      const payload = {};
+      if (opts?.limit != null)
+        payload.limit = opts.limit;
+      if (opts?.offset != null)
+        payload.offset = opts.offset;
+      return v3Post("media/list", payload);
+    },
+    async deleteMedia(docId) {
+      return v3Post("media/delete", { doc_id: docId });
+    },
+    async getNodeStats() {
+      return v3Post("stats", {});
+    },
+    async registerApp(app) {
+      return v3Post("apps/register", { body: app });
+    },
+    async getApps() {
+      return v3Post("apps/list", {});
+    },
+    async rateApp(appId, rating) {
+      if (!rating || rating < 1 || rating > 5) {
+        throw new Web10Error("Rating must be between 1 and 5", 400);
+      }
+      return v3Post("apps/rating", { body: { target_app_id: appId, rating } });
+    },
+    async getAppRatings(appId) {
+      return v3Post("apps/ratings", { body: { target_app_id: appId } });
+    }
+  };
+  return client;
+}
 // src/compat.ts
 var PeerCtor = null;
 if (typeof window !== "undefined" && typeof window.Peer !== "undefined") {
@@ -493,20 +861,20 @@ function wapiInit(authUrl = "https://auth.web10.app", appStores = ["https://api.
     delete: (service, query, username, provider) => client.deleteRecord(service, query, username, provider),
     aggregate: (service, pipeline = [], username, provider) => client.aggregate(service, pipeline, username, provider),
     getTieredToken: (site, target) => client.getTieredToken(site, target),
-    SMROnReady: (sirs, scrs) => {
+    ContractOnReady: (contracts) => {
       if (typeof window === "undefined")
         return;
       const authOrigin = new URL(authUrl).origin;
       window.addEventListener("message", (e) => {
         if (e.origin !== authOrigin)
           return;
-        if (e.data?.type === "SMRListen" && childWindow) {
-          childWindow.postMessage({ type: "smr", sirs, scrs }, authOrigin);
+        if (e.data?.type === "ContractListen" && childWindow) {
+          childWindow.postMessage({ type: "contract", contracts }, authOrigin);
         }
       });
     },
-    SMRResponseListen: (setStatus) => {
-      client.smrResponseListen(setStatus);
+    ContractResponseListen: (setStatus) => {
+      client.contractResponseListen(setStatus);
     },
     peer: null,
     outBound,
@@ -598,8 +966,8 @@ function wapiAuthInit(wapi) {
     signUp: (provider, username, password, betacode, phone) => {
       return connector.signUp({ provider, username, password, betacode: betacode ?? undefined, phone: phone ?? undefined });
     },
-    SMRListen: (setState) => {
-      connector.smrListen(setState);
+    contractListen: (setState) => {
+      connector.contractListen(setState);
     },
     changePass: (pass, newPass) => connector.changePassword(pass, newPass),
     changePhone: (pass, newPhone) => connector.changePhone(pass, newPhone),
@@ -629,6 +997,7 @@ export {
   readTokenCookie,
   isTokenExpired,
   decodeJwt,
+  createV3Client,
   createClient,
   createAuthConnector,
   cookieDict,
