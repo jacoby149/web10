@@ -183,7 +183,7 @@ function AppContracts({ I }: { I: Record<string, any> }) {
   return (
     <>
       <div className="mb-8 text-center">
-        <h1 className="font-display text-2xl font-bold text-foreground">App contracts</h1>
+        <h1 className="font-display text-2xl font-bold text-foreground">App Contracts</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Manage which apps can access your data — one contract per app, with per-service permissions.
         </p>
@@ -192,7 +192,7 @@ function AppContracts({ I }: { I: Record<string, any> }) {
         <EmptyContracts />
       ) : filtered.length === 0 ? (
         <p className="mt-8 text-center text-sm text-muted-foreground" data-testid="contracts-no-match">
-          No contracts match "{I.search}".
+          No app contracts match "{I.search}".
         </p>
       ) : (
         filtered.map((c: any, i: number) => (

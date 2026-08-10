@@ -9,8 +9,8 @@ interface MobileNavProps {
 // SideBar, mobile gets this. Same destinations as SideBar's authenticated
 // menu; keep them in sync if that list changes.
 const ITEMS = [
-  { mode: 'contracts', label: 'Contracts', icon: FileText },
-  { mode: 'groups', label: 'Groups', icon: Users },
+  { mode: 'contracts', label: 'App Contracts', icon: FileText },
+  { mode: 'groups', label: 'Group Contracts', icon: Users },
   { mode: 'requests', label: 'Requests', icon: Inbox },
   { mode: 'studio', label: 'Studio', icon: LineChart },
   { mode: 'config', label: 'Config', icon: SlidersHorizontal, adminOnly: true },

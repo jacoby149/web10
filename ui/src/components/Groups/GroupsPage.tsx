@@ -284,7 +284,7 @@ function GroupsPage({ I }: { I: Record<string, any> }) {
       )}
 
       <div className="mb-8 text-center">
-        <h1 className="font-display text-2xl font-bold text-foreground">Your groups</h1>
+        <h1 className="font-display text-2xl font-bold text-foreground">Group Contracts</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Groups are how you control who sees your content and discover content from others.
         </p>
