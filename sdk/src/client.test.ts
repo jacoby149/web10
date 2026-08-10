@@ -263,7 +263,7 @@ describe('CRUD HTTP calls', () => {
     })
   })
 
-  it('read calls fetch with PATCH', async () => {
+  it('read calls fetch with POST on /read route', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => [{ service: 'posts', body: { text: 'hi' } }],
@@ -272,9 +272,9 @@ describe('CRUD HTTP calls', () => {
     w.setToken(jwt)
     const result = await w.read('posts', { $sort: { created_at: -1 } })
     expect(mockFetch).toHaveBeenCalledWith(
-      'https://api.web10.app/alice/posts',
+      'https://api.web10.app/alice/posts/read',
       expect.objectContaining({
-        method: 'PATCH',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       }),
     )
@@ -292,8 +292,8 @@ describe('CRUD HTTP calls', () => {
     // caller's own apiOrigin.
     await w.read('posts', null, 'bob', 'api.othernode.com')
     expect(mockFetch).toHaveBeenCalledWith(
-      'https://api.othernode.com/bob/posts',
-      expect.objectContaining({ method: 'PATCH' }),
+      'https://api.othernode.com/bob/posts/read',
+      expect.objectContaining({ method: 'POST' }),
     )
   })
 
@@ -312,7 +312,7 @@ describe('CRUD HTTP calls', () => {
     expect(result).toEqual({ _id: 'abc123' })
   })
 
-  it('update calls fetch with PUT', async () => {
+  it('update calls fetch with POST on /update route', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ matchedCount: 1, modifiedCount: 1 }),
@@ -321,12 +321,12 @@ describe('CRUD HTTP calls', () => {
     w.setToken(jwt)
     await w.update('posts', { _id: '1' }, { $set: { text: 'new' } })
     expect(mockFetch).toHaveBeenCalledWith(
-      'https://api.web10.app/alice/posts',
-      expect.objectContaining({ method: 'PUT' }),
+      'https://api.web10.app/alice/posts/update',
+      expect.objectContaining({ method: 'POST' }),
     )
   })
 
-  it('deleteRecord calls fetch with DELETE', async () => {
+  it('deleteRecord calls fetch with POST on /delete route', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ deletedCount: 1 }),
@@ -335,8 +335,8 @@ describe('CRUD HTTP calls', () => {
     w.setToken(jwt)
     await w.deleteRecord('posts', { _id: '1' })
     expect(mockFetch).toHaveBeenCalledWith(
-      'https://api.web10.app/alice/posts',
-      expect.objectContaining({ method: 'DELETE' }),
+      'https://api.web10.app/alice/posts/delete',
+      expect.objectContaining({ method: 'POST' }),
     )
   })
 
@@ -561,7 +561,7 @@ describe('auth flow', () => {
   })
 })
 
-describe('SMR helpers', () => {
+describe('Contract helpers', () => {
   beforeEach(() => {
     mockFetch.mockReset()
     clearCookies()
@@ -572,22 +572,54 @@ describe('SMR helpers', () => {
     })
   })
 
-  it('smrResponseListen calls callback on status message', () => {
+  it('contractResponseListen calls callback on status message', () => {
     const w = createClient({ authUrl: 'https://auth.example.com', appStores: [] })
     const cb = vi.fn()
-    w.smrResponseListen(cb)
+    w.contractResponseListen(cb)
     window.dispatchEvent(
       new MessageEvent('message', { origin: 'https://auth.example.com', data: { type: 'status', status: 'approved' } }),
     )
     expect(cb).toHaveBeenCalledWith('approved')
   })
 
-  it('smrResponseListen ignores status messages from a foreign origin', () => {
+  it('contractResponseListen ignores status messages from a foreign origin', () => {
     const w = createClient({ authUrl: 'https://auth.example.com', appStores: [] })
     const cb = vi.fn()
-    w.smrResponseListen(cb)
+    w.contractResponseListen(cb)
     window.dispatchEvent(
       new MessageEvent('message', { origin: 'https://evil.example.com', data: { type: 'status', status: 'approved' } }),
+    )
+    expect(cb).not.toHaveBeenCalled()
+  })
+})
+
+describe('ACR helpers', () => {
+  beforeEach(() => {
+    mockFetch.mockReset()
+    clearCookies()
+    Object.defineProperty(window, 'location', {
+      value: { href: 'http://localhost:3000/' },
+      writable: true,
+      configurable: true,
+    })
+  })
+
+  it('acrResponseListen calls callback on acr-status message', () => {
+    const w = createClient({ authUrl: 'https://auth.example.com', appStores: [] })
+    const cb = vi.fn()
+    w.acrResponseListen(cb)
+    window.dispatchEvent(
+      new MessageEvent('message', { origin: 'https://auth.example.com', data: { type: 'acr-status', status: 'approved' } }),
+    )
+    expect(cb).toHaveBeenCalledWith('approved')
+  })
+
+  it('acrResponseListen ignores acr-status messages from a foreign origin', () => {
+    const w = createClient({ authUrl: 'https://auth.example.com', appStores: [] })
+    const cb = vi.fn()
+    w.acrResponseListen(cb)
+    window.dispatchEvent(
+      new MessageEvent('message', { origin: 'https://evil.example.com', data: { type: 'acr-status', status: 'approved' } }),
     )
     expect(cb).not.toHaveBeenCalled()
   })

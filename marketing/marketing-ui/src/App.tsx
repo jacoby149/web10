@@ -8,6 +8,7 @@ import Join from './pages/Join'
 import Docs from './pages/Docs'
 import AppStore from './pages/AppStore'
 import AppDetail from './pages/AppDetail'
+import Freedom from './pages/Freedom'
 import Exporter from './pages/Exporter'
 
 function App({ onReportBug }: { onReportBug: () => void }) {
@@ -18,6 +19,7 @@ function App({ onReportBug }: { onReportBug: () => void }) {
         <Route path="/" element={<Home />} />
         <Route path="/trending" element={<Trending />} />
         <Route path="/join" element={<Join />} />
+        <Route path="/freedom" element={<Freedom />} />
         <Route path="/docs" element={<Docs />} />
         <Route path="/docs/:page" element={<Docs />} />
         <Route path="/app-store" element={<AppStore />} />

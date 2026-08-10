@@ -20,7 +20,7 @@ const h = vi.hoisted(() => {
     w.readToken = () => (w.token ? { provider: 'p', username: 'u' } : null);
     const noop = () => undefined;
     for (const m of [
-      'signOut', 'scrubToken', 'openAuthPortal', 'SMROnReady', 'SMRResponseListen',
+      'signOut', 'scrubToken', 'openAuthPortal', 'contractOnReady', 'contractResponseListen',
       'getTieredToken', 'send', 'initP2P', 'read', 'create', 'update', 'delete',
       'aggregate', 'getUploadUrl',
     ]) w[m] = noop;

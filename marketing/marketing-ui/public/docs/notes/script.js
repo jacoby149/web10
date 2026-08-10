@@ -1,4 +1,4 @@
-/* notes demo — script.js */
+/* notes demo — script.js (v3 with groups) */
 
 const ERROR_MSGS = {
   create: "Failed to create note",
@@ -9,31 +9,40 @@ const ERROR_MSGS = {
 
 const wapi = wapiInit("https://auth.web10.app")
 
-// cross_origins MUST list every origin this demo runs on. The token minted by
-// the auth portal scopes `site` to the referrer's hostname (docs.web10.app in
-// prod), and `is_permitted` only lets it through via
-// `is_in_cross_origins(token.site, …)` — `docs.web10.app` is NOT in
-// `CORS_SERVICE_MANAGERS`, so an omitted/wrong entry 401s every CRUD call.
-// `localhost` / `docs.localhost` cover `bun dev` and the docker-compose vhost.
-// `dev.web10.app` / `www.dev.web10.app` cover the dev deployment, where the
-// marketing-ui stack serves the docs pages (see ubuntu-deployment/README.md:
-// marketing-ui dev vhosts are dev.web10.app + www.dev.web10.app).
-const sirs = [
-  {
-    service: "web10-docs-note-demo",
-    cross_origins: ["docs.web10.app", "dev.web10.app", "www.dev.web10.app", "localhost", "docs.localhost"],
-  },
-]
+// v3 API helpers — all v3 endpoints are POST with { token, ...params }
+const API_ORIGIN = "https://api.web10.app"
+const COLLECTION = "web10-docs-note-demo"
+const PUBLIC_GROUP = "web10.app/groups/web10/discover"
 
-wapi.SMROnReady(sirs, [])
+async function v3Post(action, params = {}) {
+  const token = document.cookie.match(/token=([^;]+)/)?.[1]
+  if (!token) throw new Error('Not authenticated')
+  const res = await fetch(`${API_ORIGIN}/v3/${action}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, ...params }),
+  })
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`v3 ${action}: ${res.status} ${text}`)
+  }
+  return res.json()
+}
+
+// v3: add a service contract so the API allows this origin
+async function ensureServiceContract() {
+  const origin = window.location.origin
+  try {
+    await v3Post('service-contracts/add', {
+      service_name: COLLECTION,
+      allowed_origin: origin,
+    })
+  } catch {
+    // Contract might already exist — not an error
+  }
+}
+
 authButton.onclick = wapi.openAuthPortal
-
-// Listen for the token the auth portal posts back, even when we're already
-// signed in. Returning users who authenticated elsewhere (e.g. the hello demo)
-// have a token cookie but no notes contract; their first `read` 401s and we
-// re-open the auth portal, where they approve the contract. Once approved, the
-// portal sends a fresh tiered token here — `authListen` swaps it in and re-runs
-// `initApp`, so readNotes retries against the now-authorized service.
 wapi.authListen(() => initApp())
 
 function initApp() {
@@ -45,83 +54,90 @@ function initApp() {
   const t = wapi.readToken()
   message.innerHTML = `Signed in as <strong>${t["provider"]}/${t["username"]}</strong>`
   editor.style.display = "block"
-  readNotes()
+
+  // v3: ensure the service contract exists, then load notes
+  ensureServiceContract().then(() => readNotes()).catch(() => readNotes())
 }
 
 if (wapi.isSignedIn()) initApp()
 
-/* CRUD */
+/* CRUD with groups (v3) */
 
 function readNotes() {
-  wapi
-    .read("web10-docs-note-demo", {})
+  // v3: read from the collection, scoped to groups the user belongs to
+  // "me" resolves to all groups the user is a member of
+  v3Post('read', {
+    collection: COLLECTION,
+    groups: ['me'],
+  })
     .then(displayNotes)
-    .catch((err) => promptContract(ERROR_MSGS.read, err))
+    .catch((err) => {
+      console.error(ERROR_MSGS.read, err)
+      message.innerHTML = ERROR_MSGS.read
+    })
 }
 
 function createNote() {
   const text = curr.value.trim()
   if (!text) return
-  wapi
-    .create("web10-docs-note-demo", { note: text, date: new Date().toISOString() })
+  v3Post('create', {
+    collection: COLLECTION,
+    body: { note: text, date: new Date().toISOString() },
+    // v3: attach to the public discover group so notes appear in discover
+    groups: [PUBLIC_GROUP],
+  })
     .then(() => {
       readNotes()
       curr.value = ""
     })
-    .catch((err) => promptContract(ERROR_MSGS.create, err))
+    .catch((err) => {
+      console.error(ERROR_MSGS.create, err)
+      message.innerHTML = ERROR_MSGS.create
+    })
 }
 
-function updateNote(id) {
-  const el = document.getElementById(`note-${id}`)
+function updateNote(docId) {
+  const el = document.getElementById(`note-${docId}`)
   const text = el ? el.value : ""
-  wapi
-    .update("web10-docs-note-demo", { _id: id }, { $set: { note: text } })
+  v3Post('update', {
+    doc_id: docId,
+    body: { note: text },
+  })
     .then(readNotes)
-    .catch(() => (message.innerHTML = ERROR_MSGS.update))
+    .catch(() => {
+      console.error(ERROR_MSGS.update)
+      message.innerHTML = ERROR_MSGS.update
+    })
 }
 
-function deleteNote(id) {
-  wapi
-    .delete("web10-docs-note-demo", { _id: id })
+function deleteNote(docId) {
+  v3Post('delete', { doc_id: docId })
     .then(readNotes)
-    .catch(() => (message.innerHTML = ERROR_MSGS.delete))
-}
-
-// A signed-in visitor whose token doesn't include the notes service contract
-// gets `401 crud access denied` on every CRUD op because no terms record
-// authorizes their `site`. Re-open the auth portal — it shows the consent/
-// contract flow for the SIR registered via SMROnReady, then posts a fresh
-// scoped token back here, which `authListen` swaps in and `initApp` re-runs.
-// (We re-point the auth button to `openAuthPortal`: at this point it reads
-// "Log out", which is useless to a user who hasn't granted the contract yet.)
-function promptContract(label, err) {
-  console.error(label, err)
-  authButton.innerHTML = "Open auth portal"
-  authButton.onclick = wapi.openAuthPortal
-  message.innerHTML =
-    `${label}. <strong>Set up the notes contract</strong> with web10 first — ` +
-    `click <code>Open auth portal</code> above, approve the request, and you're in.`
-  noteview.innerHTML = '<p class="empty">Approve the notes contract in the auth portal to begin.</p>'
+    .catch(() => {
+      console.error(ERROR_MSGS.delete)
+      message.innerHTML = ERROR_MSGS.delete
+    })
 }
 
 /* Render */
 
-function displayNotes(data) {
-  if (!data || data.length === 0) {
+function displayNotes(docs) {
+  if (!docs || docs.length === 0) {
     noteview.innerHTML = '<p class="empty">No notes yet — write one above.</p>'
     return
   }
-  noteview.innerHTML = data
+  noteview.innerHTML = docs
     .slice()
     .reverse()
-    .map((n) => {
-      const date = n.date ? new Date(n.date).toLocaleString() : ""
+    .map((doc) => {
+      const body = doc.body || {}
+      const date = body.date ? new Date(body.date).toLocaleString() : ""
       return `<div class="note">
         <p class="note-date">${date}</p>
-        <textarea id="note-${String(n._id)}">${escapeHtml(n.note || "")}</textarea>
+        <textarea id="note-${doc.doc_id}">${escapeHtml(body.note || "")}</textarea>
         <div class="note-actions">
-          <button class="secondary" onclick="updateNote('${String(n._id)}')">Update</button>
-          <button class="danger" onclick="deleteNote('${String(n._id)}')">Delete</button>
+          <button class="secondary" onclick="updateNote('${doc.doc_id}')">Update</button>
+          <button class="danger" onclick="deleteNote('${doc.doc_id}')">Delete</button>
         </div>
       </div>`
     })

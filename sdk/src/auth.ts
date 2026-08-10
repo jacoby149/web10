@@ -2,7 +2,7 @@
  * Authenticator connector — for the web10 auth app (e.g. auth.web10.app).
  *
  * Wraps the popup/OAuth dance into promise-based flows. Used by the
- * authenticator UI to manage login, signup, token minting, SMR, and
+ * authenticator UI to manage login, signup, token minting, contracts, and
  * account management endpoints.
  *
  * @example
@@ -134,19 +134,35 @@ export function createAuthConnector(wapi: Web10Client): AuthConnector {
       )
     },
 
-    // ── SMR ───────────────────────────────────────────────────────────
+    // ── Contract Listen ───────────────────────────────────────────────────────
+    /** Listen for contract messages (app + group) from the opener */
 
-    smrListen(setState: (data: unknown) => void): void {
+    contractListen(setState: (data: unknown) => void): void {
       if (typeof window === 'undefined' || !window.opener) return
       const target = openerOrigin()
       if (!target) return
       window.addEventListener('message', (e) => {
         if (e.origin !== target) return
-        if (e.data?.type === 'smr') {
+        if (e.data?.type === 'contract') {
           setState(e.data)
         }
       })
-      window.opener.postMessage({ type: 'SMRListen' }, target)
+      window.opener.postMessage({ type: 'ContractListen' }, target)
+    },
+
+    // ── ACR ───────────────────────────────────────────────────────────
+
+    acrListen(setState: (data: unknown) => void): void {
+      if (typeof window === 'undefined' || !window.opener) return
+      const target = openerOrigin()
+      if (!target) return
+      window.addEventListener('message', (e) => {
+        if (e.origin !== target) return
+        if (e.data?.type === 'acr') {
+          setState(e.data)
+        }
+      })
+      window.opener.postMessage({ type: 'ACRListen' }, target)
     },
 
     // ── Account management ────────────────────────────────────────────
@@ -255,8 +271,11 @@ export interface AuthConnector {
   /** Sign up a new account */
   signUp(params: SignupParams): Promise<void>
 
-  /** Listen for SMR messages from the opener */
-  smrListen(setState: (data: unknown) => void): void
+  /** Listen for contract messages (app + group) from the opener */
+  contractListen(setState: (data: unknown) => void): void
+
+  /** Listen for ACR messages from the opener */
+  acrListen(setState: (data: unknown) => void): void
 
   /** Change account password */
   changePassword(currentPassword: string, newPassword: string): Promise<void>

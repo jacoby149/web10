@@ -161,18 +161,6 @@ never silently call a red PR ready.
 
 ## UI verification: screenshots
 
-> **TEMPORARY OVERRIDE (30.07.2026, operator): do NOT read PNG files.**
-> In Conductor (conductor.build) workspaces running the opencode plugin,
-> reading a PNG immediately breaks the agent session. Until the
-> conductor.build fix lands and the operator gives the all-clear, SKIP all
-> screenshot-based UI verification: do not `read` any `.png`, do not open
-> screenshots to "look at the UI", and do not treat PR-screenshot
-> requirements (design.md §12) as binding. Verify UI work instead with the
-> harness/tests/tsc (a green `bun run screenshots` capture run is still a
-> useful smoke signal — just never READ the resulting images). When the
-> conductor.build fix hits, the operator will give guidance to resume
-> normal screenshot verification.
-
 **Never run a dev server in the foreground of your shell** (`npm run dev`,
 `bun run dev`, `vite`) — it blocks until the command timeout and bricks the
 workspace. This is the #1 repeated workspace brick. Use a self-booting

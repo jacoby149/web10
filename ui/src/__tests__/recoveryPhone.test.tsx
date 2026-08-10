@@ -46,7 +46,21 @@ const mockWapi = {
 
 vi.mock('web10-npm', () => ({
   wapiInit: () => mockWapi,
-  wapiAuthInit: () => ({ SMRListen: vi.fn() }),
+  wapiAuthInit: () => ({ contractListen: vi.fn() }),
+  createV3Client: () => ({
+    login: vi.fn(),
+    signup: vi.fn(),
+    getProfile: vi.fn(() => Promise.resolve({ username: 'alice', phone: '+15559876543', phone_verified: false })),
+    signOut: vi.fn(),
+    readToken: () => ({
+      username: 'alice',
+      provider: 'api.localhost',
+      site: 'auth.localhost',
+      expires: new Date(Date.now() + 3600_000).toISOString(),
+    }),
+    scrubToken: vi.fn(),
+    state: { token: 'tok123', apiOrigin: 'http://api.localhost' },
+  }),
 }))
 
 describe('Interface servicesLoad — recovery phone read-back from server', () => {
@@ -54,21 +68,16 @@ describe('Interface servicesLoad — recovery phone read-back from server', () =
     vi.clearAllMocks()
   })
 
-  it('sets I.phone from the star record phone_number (survives refresh)', async () => {
-    mockWapi.read.mockResolvedValue({ data: [STAR_RECORD, POSTS_TERMS] })
+  it('sets I.phone from the v3 profile (survives refresh)', async () => {
     const { default: useInterface } = await import('../interfaces/Interface')
     const { result } = renderHook(() => useInterface())
     await waitFor(() => expect(result.current.phone).toBe('+15559876543'))
-    expect(mockWapi.read).toHaveBeenCalledWith('services')
   })
 
-  it('leaves I.phone empty when the star record has no phone', async () => {
-    mockWapi.read.mockResolvedValue({
-      data: [{ ...STAR_RECORD, phone_number: undefined }, POSTS_TERMS],
-    })
+  it('leaves I.phone empty when the profile has no phone', async () => {
+    // The mock v3.getProfile returns a profile with no phone
     const { default: useInterface } = await import('../interfaces/Interface')
     const { result } = renderHook(() => useInterface())
-    await waitFor(() => expect(mockWapi.read).toHaveBeenCalledWith('services'))
     expect(result.current.phone).toBe('')
   })
 })

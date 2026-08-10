@@ -69,7 +69,7 @@ interface Web10SocialAdapter {
   authListen: (callback: () => void) => void;
   initP2P: (onMessage: (conn: unknown, data: unknown) => void, deviceName: string) => void;
   readToken: () => { provider: string; username: string };
-  SMROnReady: (sirs: unknown[], _args: unknown[]) => void;
+  contractOnReady: (contracts: unknown[]) => void;
   openAuthPortal: () => Promise<void>;
   create: (service: string, body: unknown, username?: string, provider?: string) => Promise<{ data: unknown }>;
   read: (service: string, query?: unknown, username?: string, provider?: string) => Promise<{ data: unknown[] }>;
@@ -111,8 +111,8 @@ interface Web10SocialAdapter {
   deleteMediaRecord: (id: string) => Promise<void>;
   resolveMediaRefs: (refs: string[]) => Promise<MediaRecord[]>;
 
-  // Feed (inbox service, chronological + sort)
-  readFeed: (sort?: FeedSort) => Promise<InboxRecord[]>;
+  // Feed (group-based reads, returns PostRecord — not inbox)
+  readFeed: (sort?: FeedSort, limit?: number) => Promise<PostRecord[]>;
   markInboxRead: (id: string) => Promise<void>;
   countUnreadInbox: () => Promise<number>;
 
@@ -150,20 +150,17 @@ interface Web10SocialAdapter {
   countCommentsForPost: (postId: string) => Promise<number>;
 
   // Reactions
-  readReactionsForTarget: (targetService: 'posts' | 'comments', targetId: string) => Promise<ReactionRecord[]>;
-  createReactionRecord: (reaction: Omit<ReactionRecord, '_id'>, postAuthor?: string, postService?: string) => Promise<ReactionRecord>;
+  readReactionsForTarget: (targetId: string) => Promise<ReactionRecord[]>;
+  createReactionRecord: (reaction: Omit<ReactionRecord, '_id'>) => Promise<ReactionRecord>;
   toggleReactionOnTarget: (
-    targetService: 'posts' | 'comments',
     targetId: string,
     type: string,
     authorUsername: string,
     authorProvider: string,
-    postAuthor?: string,
-    postService?: string,
   ) => Promise<boolean>;
   deleteReactionRecord: (id: string) => Promise<void>;
-  countReactionsForTarget: (targetService: 'posts' | 'comments', targetId: string) => Promise<number>;
-  getReactionCountsForTarget: (targetService: 'posts' | 'comments', targetId: string) => Promise<Record<string, number>>;
+  countReactionsForTarget: (targetId: string) => Promise<number>;
+  getReactionCountsForTarget: (targetId: string) => Promise<Record<string, number>>;
 }
 
 const web10SocialAdapterInit = (): Web10SocialAdapter => {
@@ -220,7 +217,7 @@ const web10SocialAdapterInit = (): Web10SocialAdapter => {
   // are owner-only vs anon-read) are unit-testable without booting the
   // adapter. See D30 for the collection-as-security-boundary model.
   const sirs = buildSocialServiceSirs(crossOrigins);
-  adapter.SMROnReady(sirs, []);
+  adapter.contractOnReady(sirs);
 
   // ── Legacy adapter methods (unchanged, for backward compat) ────────
 
@@ -346,7 +343,7 @@ const web10SocialAdapterInit = (): Web10SocialAdapter => {
   adapter.readMyPostRecords = dlReadMyPosts;
   adapter.readUserPostRecords = dlReadUserPosts;
   adapter.updatePostRecord = dlUpdatePost;
-  adapter.deletePostRecord = (id, visibility) => dlDeletePost(id, visibility);
+  adapter.deletePostRecord = (id) => dlDeletePost(id);
 
   // Media
   adapter.uploadMediaFile = dlUploadMedia;

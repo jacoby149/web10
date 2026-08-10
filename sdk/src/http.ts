@@ -66,32 +66,12 @@ export class Web10Error extends Error {
 }
 
 /**
- * Perform a PATCH request (used for read queries).
- * PATCH is used instead of GET so the body can carry the token and query.
- */
-export async function patch<T>(url: string, body: CrudBody): Promise<T> {
-  return request<T>('PATCH', url, body)
-}
-
-/**
- * Perform a POST request (used for create).
+ * Perform a POST request (used for all CRUD operations).
+ * All v2 CRUD endpoints are now POST with path suffixes:
+ * /{user}/{service}/read, /update, /delete.
  */
 export async function post<T>(url: string, body: CrudBody): Promise<T> {
   return request<T>('POST', url, body)
-}
-
-/**
- * Perform a PUT request (used for update).
- */
-export async function put<T>(url: string, body: CrudBody): Promise<T> {
-  return request<T>('PUT', url, body)
-}
-
-/**
- * Perform a DELETE request (used for delete).
- */
-export async function del<T>(url: string, body: CrudBody): Promise<T> {
-  return request<T>('DELETE', url, body)
 }
 
 /**

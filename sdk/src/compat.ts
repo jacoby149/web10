@@ -39,6 +39,8 @@ export function wapiInit(
 
   const wapi: Record<string, unknown> = {
     APIProtocol: protocol,
+    apiOrigin,
+    authUrl,
     childWindow: null,
     get token() { return client.state.token },
     setToken: (t: string) => { client.setToken(t) },
@@ -73,19 +75,19 @@ export function wapiInit(
     getTieredToken: (site: string, target: string) =>
       client.getTieredToken(site, target),
 
-    // SMR
-    SMROnReady: (sirs: unknown[], scrs?: unknown[]) => {
+    // Contract Listen
+    ContractOnReady: (contracts: unknown[]) => {
       if (typeof window === 'undefined') return
       const authOrigin = new URL(authUrl).origin
       window.addEventListener('message', (e) => {
         if (e.origin !== authOrigin) return
-        if (e.data?.type === 'SMRListen' && childWindow) {
-          childWindow.postMessage({ type: 'smr', sirs, scrs }, authOrigin)
+        if (e.data?.type === 'ContractListen' && childWindow) {
+          childWindow.postMessage({ type: 'contract', contracts }, authOrigin)
         }
       })
     },
-    SMRResponseListen: (setStatus: (status: string) => void) => {
-      client.smrResponseListen(setStatus)
+    ContractResponseListen: (setStatus: (status: string) => void) => {
+      client.contractResponseListen(setStatus)
     },
 
     // P2P
@@ -159,8 +161,12 @@ export function wapiInit(
  * Legacy wapiAuthInit — wraps the new auth connector to match the old API.
  */
 export function wapiAuthInit(wapi: Record<string, unknown>): Record<string, unknown> {
-  const authUrl = `${wapi.APIProtocol}//auth.web10.app`
-  const client = createClient({ authUrl })
+  // Use the authUrl and apiOrigin from the wapi object passed in (which was
+  // already configured correctly by wapiInit for local/dev/prod), instead of
+  // hardcoding auth.web10.app / api.web10.app.
+  const authUrl = (wapi.authUrl as string) ?? `${wapi.APIProtocol}//auth.web10.app`
+  const apiOrigin = (wapi.apiOrigin as string) ?? undefined
+  const client = createClient({ authUrl, apiOrigin })
   // Sync token from wapi
   if (typeof wapi.token === 'string' && wapi.token) {
     client.setToken(wapi.token)
@@ -200,8 +206,8 @@ export function wapiAuthInit(wapi: Record<string, unknown>): Record<string, unkn
       return connector.signUp({ provider, username, password, betacode: betacode ?? undefined, phone: phone ?? undefined })
     },
 
-    SMRListen: (setState: (data: unknown) => void) => {
-      connector.smrListen(setState)
+    contractListen: (setState: (data: unknown) => void) => {
+      connector.contractListen(setState)
     },
 
     changePass: (pass: string, newPass: string) =>

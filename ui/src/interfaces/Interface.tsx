@@ -2,18 +2,41 @@ import React from 'react';
 import web10AuthAdapterInit from './authAdapter'
 import axios from 'axios'
 import { config } from '../config';
+import { createV3Client } from 'web10-npm';
 
-// Build a service-change update from a desired terms record: $set the changed
-// term fields, $unset cleared ones, never touching protected star fields.
-function buildSCR(service: any) {
-    const SCR: Record<string, any> = { PULL: true, $unset: {}, $set: {} };
-    const starFields = ["_id", "hashed_password", "customer_id", "business_id", "service", "credit_limit", "space_limit"];
-    for (const [key, value] of Object.entries(service)) {
-        if (key === "_id" || key === "service" || starFields.includes(key)) continue;
-        if (value === undefined || value === null) SCR["$unset"][key] = "";
-        else SCR["$set"][key] = value;
+// ── v3 API helpers (ClickHouse-backed service contracts + groups) ──────────
+
+/**
+ * Resolve the API origin from the decoded token or fall back to the configured
+ * default. Mirrors authAdapter's *.localhost detection so local dev points at
+ * api.localhost and prod points at api.web10.app.
+ */
+function v3ApiOrigin(decoded: { provider?: string } | null): string {
+    const host = window.location.hostname;
+    const isLocal = host === 'localhost' || host === '127.0.0.1' || host.endsWith('.localhost');
+    const provider = decoded?.provider || (isLocal ? 'api.localhost' : config.REACT_APP_DEFAULT_API);
+    return `${window.location.protocol}//${provider}`;
+}
+
+/**
+ * Call a v3 API endpoint. All v3 endpoints are POST with a JSON body that
+ * carries the token + parameters. Mirrors api/app/v3/models/__init__.py Token.
+ */
+async function v3Post(action: string, body: Record<string, any>) {
+    const decoded = (window.I?.wapi?.readToken?.()) as { provider?: string } | null;
+    const origin = v3ApiOrigin(decoded);
+    const token = window.I?.wapi?.token;
+    if (!token) throw new Error('No token available for v3 API');
+    const res = await fetch(`${origin}/v3/${action}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...body, token }),
+    });
+    if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error(`v3 ${action} failed: ${res.status} ${text}`);
     }
-    return SCR;
+    return res.json();
 }
 
 function useInterface() {
@@ -28,16 +51,23 @@ function useInterface() {
     // before the useState calls keeps hook order stable.
     const adapter = web10AuthAdapterInit();
 
+    // Create v3 client — all auth now goes through ClickHouse (v3), not MongoDB (v2).
+    const host = window.location.hostname;
+    const local = host === "localhost" || host === "127.0.0.1" || host.endsWith(".localhost");
+    const v3 = createV3Client({
+        apiOrigin: local ? "http://api.localhost" : config.REACT_APP_API_ORIGIN,
+    });
+
     // Restore auth from the "token=" cookie on load. A dead (expired) token
     // must NOT present the authenticated view (B7: it used to land the user on
     // an empty "Your contracts" with no way to log in) — scrub it so routing
     // sends them to login. Runs once, in the lazy initializer, not every render.
     const restoreAuth = (): boolean => {
-        const t = adapter.wapi.readToken?.();
+        const t = v3.readToken?.();
         if (!t) return false;
         const expires = t.expires ? Date.parse(t.expires) : NaN;
         if (!Number.isNaN(expires) && expires < Date.now()) {
-            adapter.wapi.scrubToken?.();
+            v3.scrubToken?.();
             return false;
         }
         return true;
@@ -57,14 +87,74 @@ function useInterface() {
     [I.isAdmin, I.setIsAdmin] = React.useState(false);
     [I.verified, I.setVerified] = React.useState(false);
     [I.status, I.setStatus] = React.useState<string | null>(null);
-    [I.SMR, I.setSMR] = React.useState({ scrs: [], sirs: [] });
+    // Pending contract requests (ACRs). Unified list — no distinction
+    // between "new" and "change". Each ACR is { allowed_origin, permissions }.
+    // contractListen delivers { contracts } which we normalize here.
+    [I.pendingACRs, I.setPendingACRs] = React.useState<any[]>([]);
+
+    // v3 service contracts (ClickHouse-backed — simpler model: origin + service)
+    [I.v3Contracts, I.setV3Contracts] = React.useState<any[]>([]);
+    // v3 groups the user belongs to
+    [I.v3Groups, I.setV3Groups] = React.useState<any[]>([]);
+    // v3 groups the user manages (has management permissions)
+    [I.v3ManagedGroups, I.setV3ManagedGroups] = React.useState<any[]>([]);
+    // v3 pending invites (groups that invited this user)
+    [I.v3Invites, I.setV3Invites] = React.useState<any[]>([]);
 
     I.wapi = adapter.wapi;
     I.wapiAuth = adapter.wapiAuth;
+    I.v3 = v3;
+
+    // Normalize contract requests into a unified ACR list.
+    // contractListen delivers { contracts } where each is { allowed_origin, permissions } (ACR)
+    // or { app_origin, action, params } (GCR). We keep ACRs as-is and skip GCRs
+    // (those go to the group requests flow).
+    function normalizeContractsToACRs(cData: any): any[] {
+        const acrs: any[] = [];
+        // Handle new contractListen format: { contracts: [...] }
+        if (Array.isArray(cData?.contracts)) {
+            for (const cr of cData.contracts) {
+                if (cr.allowed_origin && cr.permissions) {
+                    // ACR — app contract
+                    acrs.push({
+                        allowed_origin: cr.allowed_origin,
+                        permissions: cr.permissions,
+                        _source: cr,
+                    });
+                }
+                // GCR — group contract, handled by group_requests flow
+            }
+            return acrs;
+        }
+        // Fallback: legacy SMR { sirs, scrs } format
+        const allRequests = [
+            ...(Array.isArray(cData?.sirs) ? cData.sirs : []),
+            ...(Array.isArray(cData?.scrs) ? cData.scrs : []),
+        ];
+        for (const req of allRequests) {
+            const origins = Array.isArray(req.cross_origins) ? req.cross_origins : [];
+            if (origins.length === 0) {
+                console.warn('ACR: request with no cross_origins — skipped', req);
+                continue;
+            }
+            const perms = whitelistToPermissions(req.whitelist || []);
+            // Default to readAll if no permissions derived
+            if (perms.length === 0) perms.push('readAll');
+            const permissions: Record<string, string[]> = { [req.service]: perms };
+            for (const origin of origins) {
+                acrs.push({
+                    allowed_origin: origin,
+                    permissions,
+                    _source: req, // keep reference to the original SIR/SCR for removal
+                });
+            }
+        }
+        return acrs;
+    }
 
     I.initAuthenticator = function () {
-        I.wapiAuth.SMRListen((inSMR) => {
-            I.setSMR(inSMR);
+        I.wapiAuth.contractListen((inC) => {
+            I.setPendingACRs(normalizeContractsToACRs(inC));
         });
     }
 
@@ -73,41 +163,14 @@ function useInterface() {
             I.setServices([]);
             return;
         }
-        I.wapi
-            .read("services")
-            .then(function (response) {
-                response.data.sort((a, b) => a["_id"].localeCompare(b["_id"]));
-                // The star record carries the account phone — read it back
-                // from the server (never a local echo) so the recovery phone
-                // survives a hard refresh (B9 bite a-fix).
-                const star = response.data.find((s: any) => s["service"] === "*");
-                I.setPhone(star?.phone_number || "");
-                const currServices = response.data.map((service: any) => service["service"]);
-                const SIRS = I.SMR["sirs"]
-                    .filter((service: any) => !currServices.includes(service["service"]) && service["service"] !== "*")
-                    .map((service: any) => [service, "new"]);
+        I.v3ContractsLoad();
+        I.v3GroupsLoad();
+        I.v3GroupsManagesLoad();
 
-                const updatedServices = response.data.map((service: any) => {
-                    const curr = service["service"];
-                    let serviceType: string | null = null;
-                    const _SIRS = I.SMR["sirs"].map((s: any) => s["service"]);
-                    if (curr === "*") serviceType = null;
-                    else if (curr in I.SMR["scrs"]) serviceType = "change";
-                    else if (_SIRS.includes(curr)) {
-                        const currOrigins = service["cross_origins"];
-                        const SIROrigins = I.SMR["sirs"].filter((s: any) => s["service"] === curr)[0]["cross_origins"];
-                        if (SIROrigins.filter((s: string) => !new Set(currOrigins).has(s)).length > 0) serviceType = "change";
-                    }
-                    return [service, serviceType];
-                });
-
-                updatedServices.push.apply(updatedServices, SIRS);
-                I.setServices(updatedServices.map(([s]: [any, any]) => s));
-
-                const hasSMRs = SIRS.length > 0 || response.data.some((s: any) => s["service"] in I.SMR["scrs"]);
-                if (hasSMRs && I._hasReferrer) {
-                    I.setMode("requests");
-                }
+        I.v3.getProfile()
+            .then((profile: any) => {
+                I.setPhone(profile?.phone || "");
+                if (profile?.phone_verified) I.setVerified(true);
             })
             .catch(console.error);
     }
@@ -118,8 +181,7 @@ function useInterface() {
 
     I.changePhoneNumber = function (password: string, newPhone: string) {
         I.setStatus("Changing phone number...");
-        I.wapiAuth
-            .changePhone(password, newPhone)
+        I.v3.changePhone(newPhone)
             .then(() => {
                 I.setStatus("Successfully changed phone number. Reloading...");
                 I.setVerified(false);
@@ -161,13 +223,13 @@ function useInterface() {
 
     // Ask the node whether THIS account is an admin, to show/hide Node Config.
     I.checkAdmin = function () {
-        const decoded = I.wapi.readToken?.();
+        const decoded = I.v3.readToken?.();
         if (!decoded) {
             I.setIsAdmin(false);
             return;
         }
         axios
-            .post(`${window.location.protocol}//${decoded.provider}/am_admin`, { token: I.wapi.token })
+            .post(`${window.location.protocol}//${decoded.provider}/am_admin`, { token: I.v3.state.token })
             .then((r: any) => I.setIsAdmin(!!r.data?.admin))
             .catch(() => I.setIsAdmin(false));
     }
@@ -183,31 +245,30 @@ function useInterface() {
 
     I.login = function (provider: string, username: string, password: string) {
         I.setStatus("Logging in...");
-        I.wapiAuth.logIn(provider, username, password)
+        I.v3.login(username, password, provider)
             .then(() => I.finishLogin())
             .catch((error: any) => {
-                // The published SDK's logIn mints a second-level token for the
-                // referring app inside its own .then; with no parent app (no
-                // document.referrer) that throws, rejecting logIn even though
-                // the auth token cookie was already set. If we're actually
-                // signed in, complete the login rather than show a false error.
-                if (I.wapi.isSignedIn?.()) I.finishLogin();
+                if (I.v3.isSignedIn()) I.finishLogin();
                 else I.setStatus("Failed to Log In : " + (error.response?.data?.detail || String(error)));
             });
     }
 
     I.logout = function () {
-        I.wapi.signOut();
+        I.v3.signOut();
         I.setAuth(false);
         I.setVerified(false);
         I.setServices([]);
         I.setRequests([]);
-        I.setSMR({ scrs: [], sirs: [] });
+        I.setPendingACRs([]);
+        I.setV3Contracts([]);
+        I.setV3Groups([]);
+        I.setV3ManagedGroups([]);
+        I.setV3Invites([]);
         I.setMode("login");
     }
 
     I.recover = function (provider: string, phone: string) {
-        axios.post(`${window.location.protocol}//${provider}/recovery_prompt`, { phone_number: phone })
+        I.v3.setRecoveryPhone(phone)
             .then(() => I.setStatus("Recovery code sent!"))
             .catch(() => I.setStatus("Failed to send recovery code."));
     }
@@ -224,85 +285,293 @@ function useInterface() {
         return !!(I.verified || (I.phone && I.phone.trim().length >= 7));
     }
 
-    I.changeTerms = function (service: any) {
-        I.setStatus("Saving service terms...");
-        I.wapi
-            .update("services", { service: service.service }, buildSCR(service))
-            .then(() => {
-                I.setStatus("Service terms saved!");
-                const newServices = I.services.map((s: any) => s.service === service.service ? service : s);
-                I.setServices(newServices);
-                // approving a modification clears it from the pending list too,
-                // and ships the token only once nothing is left to review
-                I.resolveRequest({
-                    scrs: (I.SMR["scrs"] || []).filter((s: any) => s["service"] !== service["service"]),
-                    sirs: I.SMR["sirs"],
-                });
-                setTimeout(() => I.setStatus(null), 2000);
-            })
-            .catch((e) => I.setStatus("Failed to save: " + (e.response?.data?.detail || String(e))));
-    }
+    // ── v3 App contracts (per-app with per-service permissions) ──────────────
 
-    // Approving/denying just updates the pending list now — the token is NOT
-    // auto-sent. The user explicitly returns to the app via "go to the app"
-    // (goToApp) or "continue without approving". This lets them approve some,
-    // all (approveAll), or none (withhold data) and still reach the app.
-    I.resolveRequest = function (nextSMR: any) {
-        I.setSMR(nextSMR);
-    }
-
-    I.submitSIR = function (service: any) {
-        // Never create a second terms record for a service that already has one
-        // (that's how duplicate contracts appeared). If it exists, just clear
-        // the request — the grant is already in place.
-        const exists = (I.services || []).some((s: any) => s["service"] === service["service"]);
-        if (exists) {
-            I.resolveRequest({
-                scrs: I.SMR["scrs"],
-                sirs: (I.SMR["sirs"] || []).filter((sir: any) => sir["service"] !== service["service"]),
-            });
+    // Load app contracts from the ClickHouse-backed API.
+    I.v3ContractsLoad = function () {
+        if (!I.auth) {
+            I.setV3Contracts([]);
             return;
         }
-        I.setStatus("Approving service...");
-        I.wapi
-            .create("services", service)
+        v3Post('app-contracts/list', {})
+            .then((contracts: any[]) => {
+                I.setV3Contracts(contracts || []);
+            })
+            .catch((e) => {
+                console.warn('v3 app-contracts/list failed:', e);
+                I.setV3Contracts([]);
+            });
+    }
+
+    // Add an app contract (one per app, with per-service permissions).
+    I.addV3Contract = function (allowedOrigin: string, permissions: Record<string, string[]>) {
+        return v3Post('app-contracts/add', {
+            allowed_origin: allowedOrigin,
+            permissions,
+        }).then(() => {
+            I.v3ContractsLoad();
+        });
+    }
+
+    // Revoke an app contract (by origin) or all contracts.
+    I.revokeV3Contract = function (allowedOrigin?: string) {
+        return v3Post('app-contracts/revoke', {
+            ...(allowedOrigin && { allowed_origin: allowedOrigin }),
+        }).then(() => {
+            I.v3ContractsLoad();
+        });
+    }
+
+    // Check if an app contract exists for a given origin.
+    I.hasV3Contract = function (allowedOrigin: string): boolean {
+        return (I.v3Contracts || []).some(
+            (c: any) => c.allowed_origin === allowedOrigin,
+        );
+    }
+
+    // ── v3 Groups ──────────────────────────────────────────────────────
+
+    // Load the groups the user belongs to (v3).
+    I.v3GroupsLoad = function () {
+        if (!I.auth) {
+            I.setV3Groups([]);
+            return;
+        }
+        v3Post('groups/list', {})
+            .then((groups: any[]) => {
+                I.setV3Groups(groups || []);
+            })
+            .catch((e) => {
+                console.warn('v3 groups/list failed:', e);
+                I.setV3Groups([]);
+            });
+    }
+
+    // Load groups where the user has management permissions.
+    I.v3GroupsManagesLoad = async function () {
+        if (!I.auth) {
+            I.setV3ManagedGroups([]);
+            return [];
+        }
+        try {
+            const groups = await v3Post('groups/manages', {});
+            I.setV3ManagedGroups(groups || []);
+            return groups || [];
+        } catch (e) {
+            console.warn('v3 groups/manages failed:', e);
+            I.setV3ManagedGroups([]);
+            return [];
+        }
+    }
+
+    // Create a new group.
+    I.v3CreateGroup = function (name: string, joinPolicy: string, roles: Record<string, unknown>[], members: { member_key: string; role?: string }[]) {
+        return v3Post('groups/create', { name, join_policy: joinPolicy, roles, members });
+    }
+
+    // Join a v3 group (open or request policy).
+    I.v3JoinGroup = function (groupId: string) {
+        return v3Post('groups/join', { group_id: groupId });
+    }
+
+    // Leave a v3 group.
+    I.v3LeaveGroup = function (groupId: string) {
+        return v3Post('groups/leave', { group_id: groupId });
+    }
+
+    // Block a user from seeing content in a v3 group.
+    I.v3BlockUserInGroup = function (blockedKey: string, groupId: string) {
+        return v3Post('block-in-group', { blocked_key: blockedKey, group_id: groupId });
+    }
+
+    // Unblock a user in a v3 group.
+    I.v3UnblockUserInGroup = function (blockedKey: string, groupId: string) {
+        return v3Post('unblock-in-group', { blocked_key: blockedKey, group_id: groupId });
+    }
+
+    // Get detailed info for a single group.
+    I.v3GetGroup = function (groupId: string) {
+        return v3Post('groups/get', { group_id: groupId });
+    }
+
+    // Get all members of a group.
+    I.v3GetGroupMembers = function (groupId: string) {
+        return v3Post('groups/members/list', { group_id: groupId });
+    }
+
+    // Add a member to a group with a specific role.
+    I.v3AddGroupMember = function (groupId: string, memberKey: string, role: string) {
+        return v3Post('groups/members/add', { group_id: groupId, member_key: memberKey, role });
+    }
+
+    // Remove a member from a group.
+    I.v3RemoveGroupMember = function (groupId: string, memberKey: string) {
+        return v3Post('groups/members/remove', { group_id: groupId, member_key: memberKey });
+    }
+
+    // Invite a user to a group (they receive an invite with the offered role).
+    I.v3InviteMember = function (groupId: string, memberKey: string, role: string) {
+        return v3Post('groups/invite', { group_id: groupId, member_key: memberKey, role });
+    }
+
+    // Accept an invite to a group.
+    I.v3AcceptInvite = function (groupId: string) {
+        return v3Post('groups/accept-invite', { group_id: groupId });
+    }
+
+    // Decline an invite to a group.
+    I.v3DeclineInvite = function (groupId: string) {
+        return v3Post('groups/decline-invite', { group_id: groupId });
+    }
+
+    // Update group settings (join policy, roles).
+    I.v3UpdateGroup = function (groupId: string, opts?: { join_policy?: string; roles?: Record<string, unknown>[] }) {
+        const payload: Record<string, any> = { group_id: groupId };
+        if (opts?.join_policy) payload.join_policy = opts.join_policy;
+        if (opts?.roles) payload.roles = opts.roles;
+        return v3Post('groups/update', payload);
+    }
+
+    // Toggle sharing for a group (pause sharing without leaving).
+    I.v3SetSharing = function (groupId: string, enabled: boolean) {
+        return v3Post('sharing/set', { group_id: groupId, enabled });
+    }
+
+    // Block a user entirely (user-wide blacklist).
+    I.v3BlockUser = function (blockedKey: string) {
+        return v3Post('block', { blocked_key: blockedKey });
+    }
+
+    // Unblock a user (user-wide).
+    I.v3UnblockUser = function (blockedKey: string) {
+        return v3Post('unblock', { blocked_key: blockedKey });
+    }
+
+    // Derive v3 permissions from a whitelist.
+    // Whitelist entries are { username, provider, <action>: true } — extract
+    // the action keys (read, create, update, delete, etc.) and map them to
+    // v3 permission names (readAll, create, updateOwn, deleteOwn, ...).
+    function whitelistToPermissions(entries: any[]): string[] {
+        const actionSet = new Set<string>();
+        (Array.isArray(entries) ? entries : []).forEach((e: any) => {
+            if (!e || typeof e !== 'object') return;
+            const meta = new Set(['username', 'provider', 'anchor', 'allowed', 'denied']);
+            Object.keys(e).forEach((k) => {
+                if (!meta.has(k) && e[k] === true) actionSet.add(k);
+            });
+        });
+        const map: Record<string, string> = {
+            read: 'readAll',
+            create: 'create',
+            update: 'updateOwn',
+            updateAll: 'updateAll',
+            delete: 'deleteOwn',
+            deleteAll: 'deleteAll',
+            hide: 'hideAll',
+            manageRoles: 'manageRoles',
+            assignRoles: 'assignRoles',
+            revokeRoles: 'revokeRoles',
+        };
+        const perms: string[] = [];
+        actionSet.forEach((a) => {
+            const mapped = map[a];
+            if (mapped && !perms.includes(mapped)) perms.push(mapped);
+        });
+        if (perms.length === 0 && actionSet.size > 0) perms.push('readAll');
+        return perms;
+    }
+
+    // Merge the permissions object from an ACR into an existing contract's
+    // permissions (if any), then create the updated v3 contract.
+    // Create FIRST, then revoke — if the revoke fails the new contract is
+    // already in place (no data loss). The old row lingers until the
+    // ReplacingMergeTree background merge compacts it.
+    function applyACR(acr: any) {
+        const origin = acr.allowed_origin;
+        const newPerms: Record<string, string[]> = acr.permissions || {};
+
+        const existing = (I.v3Contracts || []).find(
+            (c: any) => c.allowed_origin === origin,
+        );
+
+        // Merge permissions: new perms override existing for shared services
+        const mergedPerms: Record<string, string[]> = {};
+        if (existing) {
+            const existingPerms: Record<string, string[]> = existing.permissions || {};
+            for (const [svc, ops] of Object.entries(existingPerms)) {
+                if (!newPerms[svc]) mergedPerms[svc] = ops;
+            }
+        }
+        for (const [svc, ops] of Object.entries(newPerms)) {
+            mergedPerms[svc] = ops;
+        }
+
+        const perms = existing ? mergedPerms : newPerms;
+
+        // Create first — if this fails, the old contract is untouched.
+        return I.addV3Contract(origin, perms)
             .then(() => {
-                I.setStatus(null);
-                I.servicesLoad();
-                I.resolveRequest({
-                    scrs: I.SMR["scrs"],
-                    sirs: (I.SMR["sirs"] || []).filter((sir: any) => sir["service"] !== service["service"]),
-                });
+                // Revoke old contract only after the new one is confirmed.
+                // If this fails, the new contract is already in place.
+                if (existing) {
+                    return I.revokeV3Contract(origin).catch(() => {
+                        // Old row will be compacted by ReplacingMergeTree.
+                    });
+                }
+            });
+    }
+
+    // Approve a single ACR (one origin). No distinction between "new" and
+    // "change" — both replace the existing contract for that origin.
+    I.approveACR = function (acr: any) {
+        const origin = acr.allowed_origin;
+        const label = (() => {
+            try { return new URL(`https://${origin}`).hostname; } catch { return origin; }
+        })();
+
+        const alreadyGranted = I.hasV3Contract?.(origin);
+        if (alreadyGranted) {
+            I.removePendingACR(acr);
+            return;
+        }
+
+        I.setStatus("Approving contract...");
+        applyACR(acr)
+            .then(() => {
+                I.setStatus("Contract granted!");
+                I.v3ContractsLoad?.();
+                I.removePendingACR(acr);
+                setTimeout(() => I.setStatus(null), 2000);
             })
             .catch((e) => I.setStatus("Failed to approve: " + (e.response?.data?.detail || String(e))));
     }
 
-    I.purgeSMR = function (service: any) {
-        // deny removes the request from whichever list it's in
-        I.resolveRequest({
-            scrs: (I.SMR["scrs"] || []).filter((s: any) => s["service"] !== service["service"]),
-            sirs: (I.SMR["sirs"] || []).filter((s: any) => s["service"] !== service["service"]),
+    // Remove a single ACR from the pending list (after approve or deny).
+    I.removePendingACR = function (acr: any) {
+        const source = acr._source;
+        I.setPendingACRs((prev: any[]) => {
+            if (source) {
+                return prev.filter((a: any) => a._source !== source);
+            }
+            return prev.filter((a: any) => a.allowed_origin !== acr.allowed_origin);
         });
+    }
+
+    // Deny an ACR — just remove it from the pending list.
+    I.denyACR = function (acr: any) {
+        I.removePendingACR(acr);
         I.setStatus("Request denied.");
     }
 
-    // Approve every pending request in one shot, then return to the app.
-    // Skip SIRs for services already granted — re-creating them just makes
-    // duplicate contract records.
+    // Approve every pending ACR in one shot, then return to the app.
     I.approveAll = function () {
-        const granted = new Set((I.services || []).map((s: any) => s.service));
-        const sirs = (I.SMR["sirs"] || []).filter((s: any) => !granted.has(s.service));
-        const scrs = I.SMR["scrs"] || [];
-        if (sirs.length + scrs.length === 0) { I.goToApp(); return; }
+        if (I.pendingACRs.length === 0) { I.goToApp(); return; }
         I.setStatus("Approving all…");
-        const ops = [
-            ...sirs.map((s: any) => I.wapi.create("services", s)),
-            ...scrs.map((s: any) => I.wapi.update("services", { service: s.service }, buildSCR(s))),
-        ];
-        Promise.all(ops)
+        const ops: Promise<any>[] = I.pendingACRs.map((acr: any) => applyACR(acr));
+        Promise.allSettled(ops)
             .then(() => {
-                I.servicesLoad();
-                I.setSMR({ scrs: [], sirs: [] });
+                I.v3ContractsLoad?.();
+                I.setPendingACRs([]);
                 I.setStatus(null);
                 I.goToApp();
             })
@@ -315,12 +584,12 @@ function useInterface() {
     // so the app never received a token). Approving nothing still logs the app
     // in — it just has no data grants (withheld).
     I.goToApp = function () {
-        const decoded = I.wapi.readToken?.();
+        const decoded = I.v3.readToken?.();
         let host: string | null = null;
         try { host = document.referrer ? new URL(document.referrer).hostname : null; } catch { host = null; }
-        if (decoded && host && I.wapi.getTieredToken) {
+        if (decoded && host && I.v3.getTieredToken) {
             I.setStatus("Connecting…");
-            I.wapi.getTieredToken(host, decoded.provider)
+            I.v3.getTieredToken(host, decoded.provider)
                 .then((r: any) => { I.wapiAuth.oAuthToken = r.data.token; I.sendToken(); })
                 .catch(() => I.sendToken());
         } else {
@@ -338,9 +607,12 @@ function useInterface() {
 
     I.deleteService = function (serviceName: string) {
         I.setStatus("Deleting service terms...");
-        I.wapi
+        I.v3
             .delete("services", { service: serviceName })
             .then(() => {
+                // TODO: in the per-app contract model, deleting a service should
+                // remove it from the app's permissions, not revoke the whole contract.
+                // For now, just delete the v2 terms record.
                 I.setStatus("Service deleted!");
                 setTimeout(() => I.servicesLoad(), 1000);
             })
@@ -349,7 +621,7 @@ function useInterface() {
 
     I.wipeServiceData = function (serviceName: string) {
         I.setStatus("Wiping all service data...");
-        I.wapi
+        I.v3
             .delete(serviceName, {})
             .then(() => {
                 I.setStatus("Data wiped!");
@@ -372,8 +644,8 @@ function useInterface() {
             return;
         }
         I.setStatus("Signing Up ...");
-        I.wapiAuth
-            .signUp(provider, username, password, betacode, phone)
+        I.v3
+            .signup(username, password, phone)
             .then(() =>
                 I.login(provider, username, password)
             )
@@ -384,7 +656,7 @@ function useInterface() {
 
     I.sendCode = function () {
         I.setStatus("Sending code...");
-        I.wapiAuth
+        I.v3
             .sendCode()
             .then(() => I.setStatus("Code sent!"))
             .catch(() => I.setStatus("Failed to send code."));
@@ -392,8 +664,8 @@ function useInterface() {
 
     I.verifyCode = function (code: string) {
         I.setStatus("Verifying code...");
-        I.wapiAuth
-            .verifyCode(code)
+        I.v3
+            .verifyPhone(code)
             .then(() => {
                 I.setVerified(true);
                 I.setStatus("Phone verified! Reloading...");
@@ -411,8 +683,8 @@ function useInterface() {
             return;
         }
         I.setStatus("Changing password...");
-        I.wapiAuth
-            .changePass(currentPass, newPass)
+        I.v3
+            .changePassword(currentPass, newPass)
             .then(() => {
                 I.setStatus("Password changed!");
                 setTimeout(() => I.setStatus(null), 2000);
@@ -445,7 +717,7 @@ function useInterface() {
     }
 
     const [, authTick] = React.useState(0);
-    const [, smrTick] = React.useState(0);
+    const [, acrTick] = React.useState(0);
 
     React.useEffect(() => {
         if (I.auth) {
@@ -458,7 +730,7 @@ function useInterface() {
         if (I.auth) {
             I.servicesLoad();
         }
-    }, [smrTick])
+    }, [acrTick])
 
     React.useEffect(() => {
         const referrer = window.document.referrer;
@@ -477,10 +749,10 @@ function useInterface() {
         authTick(n => n + 1);
     }
 
-    const originalSetSMR = I.setSMR.bind(I);
-    I.setSMR = function (val: any) {
-        originalSetSMR(val);
-        smrTick(n => n + 1);
+    const originalSetPendingACRs = I.setPendingACRs.bind(I);
+    I.setPendingACRs = function (val: any) {
+        originalSetPendingACRs(val);
+        acrTick(n => n + 1);
     }
 
     return I;

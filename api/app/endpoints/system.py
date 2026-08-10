@@ -9,18 +9,18 @@ from app.models.config import (
     AppApprovalRequest,
     AppRatingRequest,
     ConfigUpdate,
-    DiscoveryModerationRequest,
     SetupRequest,
     SetupStatus,
 )
 from app.services import config as config_svc
 from app.services import documentdb as db
 from app.services.auth import check_admin, decode_token, get_password_hash
+from app.v3.services import clickhouse as ch
 
 router = APIRouter()
 
 
-@router.get("/", include_in_schema=False)
+@router.post("/", include_in_schema=False)
 async def root():
     """A bare API host should look intentional, not broken."""
     return RedirectResponse(url="/docs")
@@ -29,7 +29,7 @@ async def root():
 # --- Setup wizard ---
 
 
-@router.get("/setup", include_in_schema=False)
+@router.post("/setup", tags=["system"], include_in_schema=False)
 async def get_setup_status() -> SetupStatus:
     """Returns whether the node has been configured."""
     return SetupStatus(
@@ -38,7 +38,7 @@ async def get_setup_status() -> SetupStatus:
     )
 
 
-@router.post("/setup", include_in_schema=False)
+@router.post("/setup/configure", tags=["system"], include_in_schema=False)
 async def post_setup(req: SetupRequest):
     """First-run setup: generates JWT key, saves config, creates admin."""
     if config_svc.admin_exists():
@@ -114,7 +114,7 @@ async def am_admin(token: Token):
         return {"admin": False}
 
 
-@router.patch("/config", include_in_schema=False)
+@router.post("/config/update", include_in_schema=False)
 async def patch_config(token: Token, update: ConfigUpdate):
     """Partially update node config (admin only)."""
     check_admin(token)
@@ -128,7 +128,7 @@ async def patch_config(token: Token, update: ConfigUpdate):
 # --- Health ---
 
 
-@router.get("/ready", include_in_schema=False)
+@router.post("/ready", tags=["system"], include_in_schema=False)
 async def ready():
     """Health check — returns 200 if DB is reachable."""
     try:
@@ -138,16 +138,39 @@ async def ready():
         raise HTTPException(status_code=503, detail=f"DB unreachable: {e}")
 
 
-@router.post("/stats", include_in_schema=False)
+@router.post("/stats", tags=["system"], include_in_schema=False)
 async def stats(skip: int = 0, limit: int = 0):
-    apps = db.get_apps(skip, limit)
-    users = db.get_user_count()
-    mongo_size = db.total_size()
-    s3_size = db.total_s3_size()
-    return {"apps": apps, "users": users, "storage": mongo_size + s3_size}
+    """Node stats: users, apps, storage. Reads from ClickHouse (v3)."""
+    try:
+        node_stats = ch.get_node_stats()
+    except Exception:
+        node_stats = {"users": 0, "documents": 0, "groups": 0}
+
+    try:
+        apps = ch.list_apps(approved_only=True)
+        # Map to legacy shape for frontend compat
+        apps = [
+            {
+                "url": a["url"],
+                "visits": 0,
+                "name": a.get("name", ""),
+                "description": a.get("description", ""),
+                "icon_url": a.get("icon_url"),
+                "screenshots": a.get("screenshots", []),
+            }
+            for a in apps
+        ]
+    except Exception:
+        apps = []
+
+    return {
+        "apps": apps,
+        "users": node_stats.get("users", 0),
+        "storage": 0,
+    }
 
 
-@router.get("/pwa_listing", include_in_schema=False)
+@router.post("/pwa_listing", include_in_schema=False)
 async def pwa(url: str):
     try:
         resp = requests.get(url + "manifest.json", {"Accept": "application/json"}, timeout=1)
@@ -180,11 +203,6 @@ async def register_app(info: dict):
 
 
 # --- App Store curation (admin only) ---
-#
-# Anyone can POST /register_app, but an app stays hidden from the public
-# storefront (POST /stats → get_apps) until an admin approves it. These
-# endpoints let the node operator see pending apps and toggle approval
-# from the authenticator's Node Config panel.
 
 
 @router.post("/apps/admin", include_in_schema=False)
@@ -226,7 +244,7 @@ async def apps_rating(req: AppRatingRequest):
     )
 
 
-@router.patch("/apps/ratings/{target_app_id}", include_in_schema=False)
+@router.post("/apps/ratings/{target_app_id}", include_in_schema=False)
 async def apps_ratings(target_app_id: str):
     """Read all star ratings for an app (anon OK)."""
     return db.query_app_ratings(target_app_id)
@@ -235,7 +253,7 @@ async def apps_ratings(target_app_id: str):
 # --- Discovery migration (admin only) ---
 
 
-@router.post("/admin/discovery/migrate_terms", include_in_schema=False)
+@router.post("/admin/discovery/migrate_terms", tags=["admin"], include_in_schema=False)
 async def admin_discovery_migrate_terms(req: Token):
     """Provision the canonical public_posts anon-read term for every existing
     account that lacks it. Admin only. Idempotent — safe to call multiple times."""
@@ -243,7 +261,7 @@ async def admin_discovery_migrate_terms(req: Token):
     return db.migrate_public_posts_terms()
 
 
-@router.post("/admin/discovery/backfill", include_in_schema=False)
+@router.post("/admin/discovery/backfill", tags=["admin"], include_in_schema=False)
 async def admin_discovery_backfill(req: Token):
     """Backfill the discovery index with all existing public_posts from every
     user collection. Admin only. Idempotent — safe to call multiple times."""
@@ -251,7 +269,7 @@ async def admin_discovery_backfill(req: Token):
     return db.backfill_discovery()
 
 
-@router.post("/admin/apps/migrate_v2", include_in_schema=False)
+@router.post("/admin/apps/migrate_v2", tags=["admin"], include_in_schema=False)
 async def admin_apps_migrate_v2(req: Token):
     """Migrate legacy web10.apps records to v2 shape (D37).
     Backfills review_state, metadata_version, web10apps_post_id.
@@ -260,7 +278,7 @@ async def admin_apps_migrate_v2(req: Token):
     return db.migrate_apps_to_v2()
 
 
-@router.post("/admin/discovery/migrate_follows_terms", include_in_schema=False)
+@router.post("/admin/discovery/migrate_follows_terms", tags=["admin"], include_in_schema=False)
 async def admin_discovery_migrate_follows_terms(req: Token):
     """Provision core app service terms (follows, inbox, reactions, comments,
     dms) for every existing account that lacks them. Admin only. Idempotent."""
@@ -268,47 +286,59 @@ async def admin_discovery_migrate_follows_terms(req: Token):
     return db.migrate_follows_terms()
 
 
-# --- Discovery board moderation (admin only) ---
+# --- Bug Reports ---
 
 
-def _check_moderation_request(req: DiscoveryModerationRequest) -> str:
-    """Admin-gate + input guard. Returns the admin's username (the actor)."""
-    check_admin(Token(token=req.token))
-    if req.service in ("*", "services"):
-        raise HTTPException(status_code=400, detail="invalid service")
-    decoded = decode_token(req.token, private_key=True)
-    return decoded.username
+@router.post("/bug_report", include_in_schema=False)
+async def submit_bug_report(req: dict):
+    """Submit a bug report. Public — no auth required.
 
-
-@router.post("/admin/discovery/remove", include_in_schema=False)
-async def admin_discovery_remove(req: DiscoveryModerationRequest):
-    """Hide a post from the public discovery board. Admin only.
-
-    Sets a sticky ``removed`` flag on the discovery index document — the post
-    drops out of /discover/posts, /discover/search, /discover/topics,
-    /discover/users and single-post lookup, and an author editing their post
-    cannot un-hide it. The underlying record in the author's collection is
-    NOT touched (I3): this is board-level takedown, not record deletion.
+    Accepts: description (required), email, page_url, app_version,
+    device_info, browser_info, error_message, stack_trace, screenshots.
+    Screenshots are base64-encoded image strings (data:image/png;base64,...).
+    Optional: token — if provided, username is auto-populated.
     """
-    actor = _check_moderation_request(req)
-    result = db.moderate_discovery_post(req.author, req.service, req.post_id, True, actor=actor, reason=req.reason)
-    if not result["matched"]:
-        raise HTTPException(status_code=404, detail="post not found on the discovery board")
+    description = (req.get("description") or "").strip()
+    if not description:
+        raise HTTPException(status_code=400, detail="description is required")
+
+    # Optional: extract username from token if provided
+    username = ""
+    if req.get("token"):
+        try:
+            decoded = decode_token(req["token"])
+            username = decoded.username if decoded.username and decoded.username != "anon" else ""
+        except Exception:
+            pass
+
+    result = ch.submit_bug_report(
+        description=description,
+        username=username,
+        email=(req.get("email") or "").strip(),
+        page_url=(req.get("page_url") or "").strip(),
+        app_version=(req.get("app_version") or "").strip(),
+        device_info=(req.get("device_info") or "").strip(),
+        browser_info=(req.get("browser_info") or "").strip(),
+        error_message=(req.get("error_message") or "").strip(),
+        stack_trace=(req.get("stack_trace") or "").strip(),
+        screenshots=req.get("screenshots") or [],
+    )
     return result
 
 
-@router.post("/admin/discovery/restore", include_in_schema=False)
-async def admin_discovery_restore(req: DiscoveryModerationRequest):
-    """Restore a previously hidden post to the public discovery board. Admin only."""
-    actor = _check_moderation_request(req)
-    result = db.moderate_discovery_post(req.author, req.service, req.post_id, False, actor=actor, reason=req.reason)
-    if not result["matched"]:
-        raise HTTPException(status_code=404, detail="post not found on the discovery board")
-    return result
-
-
-@router.post("/admin/discovery/removed", include_in_schema=False)
-async def admin_discovery_removed(req: Token):
-    """List posts currently hidden from the discovery board. Admin only."""
+@router.post("/admin/bug_reports", include_in_schema=False)
+async def admin_bug_reports(req: Token, limit: int = 100, offset: int = 0):
+    """List bug reports (admin only). Screenshots excluded — too large."""
     check_admin(req)
-    return {"removed": db.list_removed_discovery_posts()}
+    reports = ch.list_bug_reports(limit=limit, offset=offset)
+    return {"reports": reports, "count": len(reports)}
+
+
+@router.post("/admin/bug_reports/{report_id}", include_in_schema=False)
+async def admin_bug_report_detail(report_id: str, req: Token):
+    """Get a single bug report with screenshots (admin only)."""
+    check_admin(req)
+    report = ch.get_bug_report(report_id)
+    if not report:
+        raise HTTPException(status_code=404, detail="report not found")
+    return report

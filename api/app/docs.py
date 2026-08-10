@@ -1,30 +1,54 @@
 description = """
-welcome to to the new internet, where users aren't just clients.
+welcome to the new internet, where users aren't just clients.
 """
 
 tags_metadata = [
     {
         "name": "group-contracts",
-        "description": "manage group memberships, permissions, and access controls. **Groups** define who can read, create, update, or delete your data. **Blocking** lets you restrict specific users from accessing your content.",
+        "description": "Group contracts — membership, permissions, access controls. Groups define who can read, create, update, or delete your data. Blocking restricts specific users.",
     },
     {
-        "name": "default",
-        "description": "identity and platform services. signup, login, token management, password recovery, email/phone verification, payments, and media storage.",
+        "name": "auth",
+        "description": "Authentication — signup, login, token minting, password recovery, phone/email verification.",
     },
     {
-        "name": "web10",
-        "description": "user data services. create, read, update, delete records in your services. the default service is `{user}/services` for managing other services.",
+        "name": "account",
+        "description": "Account management — change password, phone, email, recovery settings.",
     },
     {
-        "name": "discovery",
-        "description": "public discovery endpoints. search, trending, suggested users, and the for-you feed across all services.",
+        "name": "documents",
+        "description": "Document CRUD — create, read, update, delete, aggregate. All POST. Token in body.",
+    },
+    {
+        "name": "groups",
+        "description": "Groups — create, list, join, leave, members, invites, moderation. v3 ClickHouse.",
+    },
+    {
+        "name": "app-contracts",
+        "description": "App contracts — per-app service permissions. Add, list, revoke.",
+    },
+    {
+        "name": "media",
+        "description": "Media — presigned upload, confirm, read URL, list, delete.",
+    },
+    {
+        "name": "app-store",
+        "description": "App store — register, list approved, ratings.",
     },
     {
         "name": "schemas",
-        "description": "JSON schema registry. define, update, and validate data schemas for your services.",
+        "description": "JSON schemas — register, read, update, delete.",
     },
     {
-        "name": "public",
-        "description": "public ledger. create and query public entries that anyone can read.",
+        "name": "payments",
+        "description": "Payments — subscription checkout, verify, cancel.",
+    },
+    {
+        "name": "system",
+        "description": "Node system — stats, setup wizard, config, health check.",
+    },
+    {
+        "name": "admin",
+        "description": "Admin only — data migrations, app approvals.",
     },
 ]

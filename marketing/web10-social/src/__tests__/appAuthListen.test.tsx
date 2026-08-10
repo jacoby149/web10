@@ -58,7 +58,7 @@ const adapter = {
   login: vi.fn(),
   openAuthPortal: vi.fn(),
   readToken: vi.fn().mockReturnValue({ provider: 'test.localhost', username: 'testuser' }),
-  SMROnReady: vi.fn(),
+  contractOnReady: vi.fn(),
 };
 
 vi.mock('web10-npm', () => ({

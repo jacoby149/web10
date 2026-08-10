@@ -108,7 +108,7 @@ async def list_media(user: str, request: ListRequest = ListRequest()):
     return db.read_media_records(user, service=target_service)
 
 
-@router.delete("/{user}/delete")
+@router.post("/{user}/delete", tags=["media"])
 async def delete_media(user: str, request: MediaToken):
     auth_token = Token(token=request.token)
     if not is_permitted(auth_token, user, "media", "delete"):

@@ -294,12 +294,12 @@ def create_user(form_data, hash):
 
     # (public_posts) canonical anon-read term — discovery-indexed by default.
     # Provisioned here so every new account is discoverable without an
-    # interactive SMR from the client.
+    # interactive contract handshake from the client.
     public_posts_terms = to_db(records.public_posts_term(), "services")
 
     # Core app services terms — provisioned at signup so the social app
     # can operate (follows, inbox, reactions, comments, dms) without
-    # requiring an interactive SMR. SMR only fires while the auth portal
+    # requiring an interactive contract handshake. The contract handshake only fires while the auth portal
     # child window is open; already-signed-in users never get re-prompted.
     core_terms = [to_db(t, "services") for t in records.core_services_terms()]
 
@@ -1887,7 +1887,7 @@ def migrate_follows_terms() -> dict:
 
     Without these terms, the social app's wapi.create('follows', ...) 403s
     because there is no service-terms record authorizing the app to write
-    to the owner's collection. SMROnReady only fires while the auth portal
+    to the owner's collection. contractOnReady only fires while the auth portal
     is open, so accounts created before this fix have no terms.
 
     Returns a summary dict with counts of migrated and skipped accounts.

@@ -34,7 +34,7 @@ async def recovery_bot(From: str = Form(...), Body: str = Form(...)):
     return Response(content=str(response), media_type="application/xml")
 
 
-@router.post("/recovery_prompt")
+@router.post("/recovery_prompt", tags=["auth"])
 async def send_recovery_prompt(phone_form: PhoneForm):
     phone_rec = db.get_phone_record(phone_form.phone_number)
     user = phone_rec["username"]
@@ -97,12 +97,12 @@ async def send_mobile_code(token: Token):
     return mobile.send_verification(phone_number, decoded.username)
 
 
-@router.post("/certify")
+@router.post("/certify", tags=["auth"])
 async def certify_token(token: Token):
     return certify(token)
 
 
-@router.post("/web10token")
+@router.post("/web10token", tags=["auth"])
 async def create_web10_token(form_data: TokenForm):
     token_data = TokenData()
     token_data.populate_from_token_form(form_data)
@@ -133,7 +133,7 @@ def kosher(s):
     return bool(_USERNAME_RE.match(s))
 
 
-@router.post("/signup", include_in_schema=False)
+@router.post("/signup", tags=["auth"], include_in_schema=False)
 async def signup(form_data: SignUpForm):
     form_data = dotdict(form_data)
     if settings.BETA_REQUIRED and form_data.betacode != settings.BETA_CODE:
@@ -168,7 +168,7 @@ def _rate_limit_recovery_phone(username: str):
     _recovery_phone_attempts[username] = attempts
 
 
-@router.post("/set_recovery_phone", include_in_schema=False)
+@router.post("/set_recovery_phone", tags=["account"], include_in_schema=False)
 async def set_recovery_phone(token: Token):
     """Set the recovery phone on the authenticated user's own star record.
 
@@ -196,7 +196,7 @@ async def set_recovery_phone(token: Token):
 # ---- Email verification (A20 bite a) ----
 
 
-@router.post("/set_email", include_in_schema=False)
+@router.post("/set_email", tags=["account"], include_in_schema=False)
 async def set_email(token: Token):
     """Set the user's recovery email. Must be verified before it counts."""
     check_admin(token)
@@ -214,7 +214,7 @@ async def set_email(token: Token):
     return {"code": code}
 
 
-@router.post("/get_email", include_in_schema=False)
+@router.post("/get_email", tags=["account"], include_in_schema=False)
 async def get_email(token: Token):
     """Return the user's own email (if set)."""
     check_admin(token)
@@ -225,7 +225,7 @@ async def get_email(token: Token):
     return {"email": email, "email_verified": db.is_email_verified(decoded.username)}
 
 
-@router.post("/verify_email", include_in_schema=False)
+@router.post("/verify_email", tags=["account"], include_in_schema=False)
 async def verify_email(token: Token):
     """Verify an email with the code sent to it."""
     check_admin(token)

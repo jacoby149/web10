@@ -7,7 +7,6 @@ forged-token rejection, cross-collection access, scoped-token enforcement.
 All DB calls are patched — no real database needed.
 """
 
-import json as _json
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 
@@ -436,8 +435,8 @@ class TestCreate:
 
 class TestRead:
     def test_read_authorized(self, client, db_patched):
-        resp = client.patch(
-            "/alice/posts",
+        resp = client.post(
+            "/alice/posts/read",
             json={"token": _owner_token("alice"), "query": {}},
         )
         assert resp.status_code == 200
@@ -445,8 +444,8 @@ class TestRead:
 
     def test_read_cross_origin(self, client, db_patched):
         """Bob has read permission via whitelist + cross_origins."""
-        resp = client.patch(
-            "/alice/posts",
+        resp = client.post(
+            "/alice/posts/read",
             json={"token": _app_token("bob", "myapp.example.com"), "query": {}},
         )
         assert resp.status_code == 200
@@ -459,8 +458,8 @@ class TestRead:
                 "blacklist": [{"username": "banned", "provider": settings.PROVIDER, "read": True}],
                 "cross_origins": ["myapp.example.com"],
             }
-            resp = client.patch(
-                "/alice/posts",
+            resp = client.post(
+                "/alice/posts/read",
                 json={"token": _app_token("banned", "myapp.example.com"), "query": {}},
             )
         assert resp.status_code == 401
@@ -468,8 +467,8 @@ class TestRead:
 
 class TestUpdate:
     def test_update_authorized(self, client, db_patched):
-        resp = client.put(
-            "/alice/posts",
+        resp = client.post(
+            "/alice/posts/update",
             json={"token": _owner_token("alice"), "query": {"_id": "1"}, "update": {"$set": {"title": "new"}}},
         )
         assert resp.status_code == 200
@@ -483,8 +482,8 @@ class TestUpdate:
             patch("app.services.documentdb.charge"),
             patch("app.services.documentdb.star_selected", return_value=True),
         ):
-            resp = client.put(
-                "/alice/services",
+            resp = client.post(
+                "/alice/services/update",
                 json={"token": _owner_token("alice"), "query": {}, "update": {"$set": {"x": 1}}},
             )
         assert resp.status_code == 401
@@ -492,11 +491,9 @@ class TestUpdate:
 
 class TestDelete:
     def test_delete_authorized(self, client, db_patched):
-        resp = client.request(
-            "DELETE",
-            "/alice/posts",
-            content=_json.dumps({"token": _owner_token("alice"), "query": {"_id": "1"}}),
-            headers={"content-type": "application/json"},
+        resp = client.post(
+            "/alice/posts/delete",
+            json={"token": _owner_token("alice"), "query": {"_id": "1"}},
         )
         assert resp.status_code == 200
 
@@ -508,11 +505,9 @@ class TestDelete:
             patch("app.services.documentdb.charge"),
             patch("app.services.documentdb.star_selected", return_value=True),
         ):
-            resp = client.request(
-                "DELETE",
-                "/alice/services",
-                content=_json.dumps({"token": _owner_token("alice"), "query": {"service": "*"}}),
-                headers={"content-type": "application/json"},
+            resp = client.post(
+                "/alice/services/delete",
+                json={"token": _owner_token("alice"), "query": {"service": "*"}},
             )
         assert resp.status_code == 401
 
@@ -573,8 +568,8 @@ class TestStarProtection:
             patch("app.services.documentdb.charge"),
             patch("app.services.documentdb.star_selected", return_value=True),
         ):
-            resp = client.put(
-                "/alice/services",
+            resp = client.post(
+                "/alice/services/update",
                 json={"token": _owner_token("alice"), "query": {"service": "*"}, "update": {"$set": {"x": 1}}},
             )
         assert resp.status_code == 401
@@ -587,11 +582,9 @@ class TestStarProtection:
             patch("app.services.documentdb.charge"),
             patch("app.services.documentdb.star_selected", return_value=True),
         ):
-            resp = client.request(
-                "DELETE",
-                "/alice/services",
-                content=_json.dumps({"token": _owner_token("alice"), "query": {"service": "*"}}),
-                headers={"content-type": "application/json"},
+            resp = client.post(
+                "/alice/services/delete",
+                json={"token": _owner_token("alice"), "query": {"service": "*"}},
             )
         assert resp.status_code == 401
 
@@ -618,8 +611,8 @@ class TestStarProtection:
                 "blacklist": [],
                 "cross_origins": [],
             }
-            resp = client.patch(
-                "/alice/posts",
+            resp = client.post(
+                "/alice/posts/read",
                 json={"token": _app_token("bob", "myapp.example.com"), "query": {}},
             )
         assert resp.status_code == 401
@@ -636,8 +629,8 @@ class TestForgedTokens:
         # is_permitted calls decode_token (unsigned) then certify (signed).
         # For a forged token with provider==PROVIDER, certify(private_key=True)
         # raises InvalidSignatureError → caught by jwt_error_handler → 401.
-        resp = client.patch(
-            "/alice/posts",
+        resp = client.post(
+            "/alice/posts/read",
             json={"token": _forged_token("alice"), "query": {}},
         )
         assert resp.status_code == 401
@@ -650,18 +643,16 @@ class TestForgedTokens:
         assert resp.status_code == 401
 
     def test_forged_token_rejected_update(self, client, db_patched):
-        resp = client.put(
-            "/alice/posts",
+        resp = client.post(
+            "/alice/posts/update",
             json={"token": _forged_token("alice"), "query": {"_id": "1"}, "update": {"$set": {"x": 1}}},
         )
         assert resp.status_code == 401
 
     def test_forged_token_rejected_delete(self, client, db_patched):
-        resp = client.request(
-            "DELETE",
-            "/alice/posts",
-            content=_json.dumps({"token": _forged_token("alice"), "query": {"_id": "1"}}),
-            headers={"content-type": "application/json"},
+        resp = client.post(
+            "/alice/posts/delete",
+            json={"token": _forged_token("alice"), "query": {"_id": "1"}},
         )
         assert resp.status_code == 401
 
@@ -702,8 +693,8 @@ class TestScopedTokens:
                 "blacklist": [],
                 "cross_origins": ["myapp.example.com"],
             }
-            resp = client.patch(
-                "/alice/posts",
+            resp = client.post(
+                "/alice/posts/read",
                 json={"token": _app_token("limited", "myapp.example.com"), "query": {}},
             )
         assert resp.status_code == 200
@@ -719,8 +710,8 @@ class TestScopedTokens:
                 "expires": _future(),
             }
         )
-        resp = client.patch(
-            "/alice/posts",
+        resp = client.post(
+            "/alice/posts/read",
             json={"token": token, "query": {}},
         )
         assert resp.status_code == 200
@@ -736,8 +727,8 @@ class TestScopedTokens:
                 "expires": _future(),
             }
         )
-        resp = client.patch(
-            "/alice/posts",
+        resp = client.post(
+            "/alice/posts/read",
             json={"token": token, "query": {}},
         )
         assert resp.status_code == 401
@@ -776,8 +767,8 @@ class TestMetering:
             patch("app.services.documentdb.charge") as m_charge,
             patch("app.services.documentdb.emit_event"),
         ):
-            resp = client.patch(
-                "/alice/posts",
+            resp = client.post(
+                "/alice/posts/read",
                 json={"token": _owner_token("alice"), "query": {}},
             )
         assert resp.status_code == 200
@@ -793,8 +784,8 @@ class TestMetering:
             patch("app.services.documentdb.charge") as m_charge,
             patch("app.services.documentdb.emit_event") as m_emit,
         ):
-            resp = client.patch(
-                "/alice/services",
+            resp = client.post(
+                "/alice/services/read",
                 json={"token": _owner_token("alice"), "query": {}},
             )
         assert resp.status_code == 200
@@ -814,8 +805,8 @@ class TestMetering:
         ):
             m_settings.VERIFY_REQUIRED = False
             m_star.return_value = {**MOCK_STAR, "credit_limit": 0, "credits_spent": 1}
-            resp = client.patch(
-                "/alice/posts",
+            resp = client.post(
+                "/alice/posts/read",
                 json={"token": _owner_token("alice"), "query": {}},
             )
         assert resp.status_code == 401
@@ -833,8 +824,8 @@ class TestMetering:
         ):
             m_settings.VERIFY_REQUIRED = False
             m_star.return_value = {**MOCK_STAR, "space_limit": 1}
-            resp = client.patch(
-                "/alice/posts",
+            resp = client.post(
+                "/alice/posts/read",
                 json={"token": _owner_token("alice"), "query": {}},
             )
         assert resp.status_code == 401
@@ -878,8 +869,8 @@ class TestMeteringEvents:
             patch("app.services.documentdb.charge"),
             patch("app.services.documentdb.emit_event") as m_emit,
         ):
-            resp = client.patch(
-                "/alice/posts",
+            resp = client.post(
+                "/alice/posts/read",
                 json={"token": _app_token("bob", "myapp.example.com"), "query": {}},
             )
         assert resp.status_code == 200
@@ -918,8 +909,8 @@ class TestMeteringEvents:
             patch("app.services.documentdb.charge"),
             patch("app.services.documentdb.emit_event") as m_emit,
         ):
-            resp = client.put(
-                "/alice/posts",
+            resp = client.post(
+                "/alice/posts/update",
                 json={"token": _owner_token("alice"), "query": {"_id": "1"}, "update": {"$set": {"x": 1}}},
             )
         assert resp.status_code == 200
@@ -936,11 +927,9 @@ class TestMeteringEvents:
             patch("app.services.documentdb.charge"),
             patch("app.services.documentdb.emit_event") as m_emit,
         ):
-            resp = client.request(
-                "DELETE",
-                "/alice/posts",
-                content=_json.dumps({"token": _owner_token("alice"), "query": {"_id": "1"}}),
-                headers={"content-type": "application/json"},
+            resp = client.post(
+                "/alice/posts/delete",
+                json={"token": _owner_token("alice"), "query": {"_id": "1"}},
             )
         assert resp.status_code == 200
         assert m_emit.called
@@ -1002,10 +991,13 @@ class TestCertify:
 class TestSystem:
     def test_stats(self, client):
         with (
-            patch("app.services.documentdb.get_apps", return_value=[]),
-            patch("app.services.documentdb.get_user_count", return_value=5),
-            patch("app.services.documentdb.total_size", return_value=1024),
-            patch("app.services.documentdb.total_s3_size", return_value=2048),
+            patch("app.v3.services.clickhouse.get_node_stats", return_value={"users": 5, "documents": 10, "groups": 3}),
+            patch(
+                "app.v3.services.clickhouse.list_apps",
+                return_value=[
+                    {"url": "https://a.com", "name": "A", "description": "", "icon_url": None, "screenshots": []}
+                ],
+            ),
         ):
             resp = client.post("/stats")
         assert resp.status_code == 200
@@ -1013,31 +1005,50 @@ class TestSystem:
         assert "apps" in data
         assert "users" in data
         assert "storage" in data
-        assert data["storage"] == 3072  # mongo 1024 + s3 2048
+        assert data["users"] == 5
+        assert len(data["apps"]) == 1
 
-    def test_stats_s3_bytes_included(self, client):
-        """storage must include both MongoDB dbstats and S3 media blob bytes."""
+    def test_stats_clickhouse_error_returns_zeros(self, client):
+        """When ClickHouse is unreachable, stats returns zeros gracefully."""
         with (
-            patch("app.services.documentdb.get_apps", return_value=[]),
-            patch("app.services.documentdb.get_user_count", return_value=1),
-            patch("app.services.documentdb.total_size", return_value=0),
-            patch("app.services.documentdb.total_s3_size", return_value=5000),
+            patch("app.v3.services.clickhouse.get_node_stats", side_effect=Exception("connection refused")),
+            patch("app.v3.services.clickhouse.list_apps", side_effect=Exception("connection refused")),
+        ):
+            resp = client.post("/stats")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["users"] == 0
+        assert data["apps"] == []
+        assert data["storage"] == 0
+
+    def test_stats_apps_returned(self, client):
+        """Stats returns approved apps from ClickHouse."""
+        with (
+            patch("app.v3.services.clickhouse.get_node_stats", return_value={"users": 1, "documents": 0, "groups": 0}),
+            patch(
+                "app.v3.services.clickhouse.list_apps",
+                return_value=[
+                    {
+                        "url": "https://social.web10.app",
+                        "name": "web10 social",
+                        "description": "Social app",
+                        "icon_url": None,
+                        "screenshots": [],
+                    },
+                    {
+                        "url": "https://auth.web10.app",
+                        "name": "auth",
+                        "description": "Auth app",
+                        "icon_url": None,
+                        "screenshots": [],
+                    },
+                ],
+            ),
         ):
             resp = client.post("/stats")
         data = resp.json()
-        assert data["storage"] == 5000
-
-    def test_stats_s3_zero_when_no_media(self, client):
-        """When no media exists, S3 contribution is 0 and storage == mongo only."""
-        with (
-            patch("app.services.documentdb.get_apps", return_value=[]),
-            patch("app.services.documentdb.get_user_count", return_value=1),
-            patch("app.services.documentdb.total_size", return_value=4096),
-            patch("app.services.documentdb.total_s3_size", return_value=0),
-        ):
-            resp = client.post("/stats")
-        data = resp.json()
-        assert data["storage"] == 4096
+        assert len(data["apps"]) == 2
+        assert data["apps"][0]["name"] == "web10 social"
 
 
 class TestNodeConfig:
@@ -1100,16 +1111,22 @@ class TestAppStoreCuration:
     _CFG = {"provider": "api.localhost", "admins": ["alice"]}
 
     def test_stats_only_returns_approved_apps(self, client):
-        # public storefront filters approved=True in documentdb.get_apps,
+        # public storefront filters approved=True in clickhouse.list_apps,
         # but the endpoint is thin — the contract is "apps is a list".
         with (
-            patch("app.services.documentdb.get_apps", return_value=[{"url": "https://a", "visits": 1}]),
-            patch("app.services.documentdb.get_user_count", return_value=3),
-            patch("app.services.documentdb.total_size", return_value=0),
+            patch("app.v3.services.clickhouse.get_node_stats", return_value={"users": 3, "documents": 0, "groups": 0}),
+            patch(
+                "app.v3.services.clickhouse.list_apps",
+                return_value=[
+                    {"url": "https://a", "name": "A", "description": "", "icon_url": None, "screenshots": []}
+                ],
+            ),
         ):
             resp = client.post("/stats")
         assert resp.status_code == 200
-        assert resp.json()["apps"] == [{"url": "https://a", "visits": 1}]
+        data = resp.json()
+        assert len(data["apps"]) == 1
+        assert data["apps"][0]["url"] == "https://a"
 
     def test_apps_admin_lists_for_admin(self, client):
         apps = [
@@ -1199,7 +1216,7 @@ class TestAppStoreCuration:
                 {"_id": "e1", "author": "alice", "payload": {"rating": 5}},
                 {"_id": "e2", "author": "bob", "payload": {"rating": 3}},
             ]
-            resp = client.patch("/apps/ratings/app_abc123")
+            resp = client.post("/apps/ratings/app_abc123")
         assert resp.status_code == 200
         assert len(resp.json()) == 2
         mock_query.assert_called_once_with("app_abc123")
@@ -1325,8 +1342,8 @@ class TestI6MetadataInjection:
                 "service": "posts",
                 "body": {"title": "new", "_author": "alice", "_source_node": settings.PROVIDER},
             }
-            resp = client.put(
-                "/alice/posts",
+            resp = client.post(
+                "/alice/posts/update",
                 json={
                     "token": _owner_token("alice"),
                     "query": {"_id": "1"},
@@ -1355,8 +1372,8 @@ class TestI6MetadataInjection:
                 "service": "posts",
                 "body": {"title": "new", "_source_node": settings.PROVIDER},
             }
-            resp = client.put(
-                "/alice/posts",
+            resp = client.post(
+                "/alice/posts/update",
                 json={
                     "token": _owner_token("alice"),
                     "query": {"_id": "1"},
@@ -1383,8 +1400,8 @@ class TestI6MetadataInjection:
                 "service": "posts",
                 "body": {"title": "new"},
             }
-            resp = client.put(
-                "/alice/posts",
+            resp = client.post(
+                "/alice/posts/update",
                 json={
                     "token": _owner_token("alice"),
                     "query": {"_id": "1"},
@@ -1414,8 +1431,8 @@ class TestI6MetadataInjection:
                 ],
             ),
         ):
-            resp = client.patch(
-                "/alice/posts",
+            resp = client.post(
+                "/alice/posts/read",
                 json={"token": _owner_token("alice"), "query": {}},
             )
         assert resp.status_code == 200

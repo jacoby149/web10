@@ -137,7 +137,7 @@ describe('ReportBug', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('submits feedback to marketing-api', async () => {
+  it('submits bug report to main API', async () => {
     const { ReportBug } = await import('@/components/shared/ReportBug');
     (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
@@ -149,7 +149,7 @@ describe('ReportBug', () => {
     fireEvent.click(screen.getByRole('button', { name: /send report/i }));
     await waitFor(() => {
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('/feedback'),
+        expect.stringContaining('/bug_report'),
         expect.objectContaining({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

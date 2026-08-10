@@ -2,7 +2,7 @@
  * The core web10 client.
  *
  * Provides typed CRUD operations, aggregate queries, token management,
- * auth flow helpers, SMR (Service Modification Request), and dev pay.
+ * auth flow helpers, contract management, and dev pay.
  *
  * @example
  * ```ts
@@ -36,6 +36,9 @@ import type {
   ClientState,
   SIR,
   SCR,
+  ACR,
+  GCR,
+  ContractRequest,
   CheckoutParams,
   SubscriptionParams,
   CreateResponse,
@@ -51,7 +54,7 @@ import type {
   MediaReadUrlResponse,
 } from './types'
 import { decodeJwt, readTokenCookie, setTokenCookie, scrubTokenCookie } from './token'
-import { patch, post, put, del, aggregate as aggregateReq, authPost, Web10Error } from './http'
+import { post, aggregate as aggregateReq, authPost, Web10Error } from './http'
 
 /**
  * Create a web10 client instance.
@@ -63,7 +66,7 @@ export function createClient(options: ClientOptions = {}): Web10Client {
   const authUrl = options.authUrl ?? 'https://auth.web10.app'
   const protocol = new URL(authUrl).protocol
   const apiOrigin = options.apiOrigin ?? `${protocol}//api.web10.app`
-  // The only origin trusted to deliver tokens / SMR messages over
+  // The only origin trusted to deliver tokens / contract messages over
   // postMessage. Cross-window messages from any other origin are ignored
   // so a malicious opener/embedder can't inject or fixate a token.
   const authOrigin = new URL(authUrl).origin
@@ -178,8 +181,8 @@ export function createClient(options: ClientOptions = {}): Web10Client {
       guardAuth(state, username)
       const u = resolveUsername(state, username)
       const base = originFor(state, provider)
-      return patch<Web10Record<T>[]>(
-        `${base}/${u}/${service}`,
+      return post<Web10Record<T>[]>(
+        `${base}/${u}/${service}/read`,
         { token: state.token, query: query ?? null, update: null },
       )
     },
@@ -209,8 +212,8 @@ export function createClient(options: ClientOptions = {}): Web10Client {
       guardAuth(state, username)
       const u = resolveUsername(state, username)
       const base = originFor(state, provider)
-      return put<UpdateResponse>(
-        `${base}/${u}/${service}`,
+      return post<UpdateResponse>(
+        `${base}/${u}/${service}/update`,
         { token: state.token, query: query ?? null, update: (update ?? null) as Record<string, unknown> | null },
       )
     },
@@ -224,8 +227,8 @@ export function createClient(options: ClientOptions = {}): Web10Client {
       guardAuth(state, username)
       const u = resolveUsername(state, username)
       const base = originFor(state, provider)
-      return del<DeleteResponse>(
-        `${base}/${u}/${service}`,
+      return post<DeleteResponse>(
+        `${base}/${u}/${service}/delete`,
         { token: state.token, query: query ?? null, update: null },
       )
     },
@@ -265,23 +268,46 @@ export function createClient(options: ClientOptions = {}): Web10Client {
       )
     },
 
-    // ── SMR (Service Modification Request) ────────────────────────────
+    // ── Contract Listen ──────────────────────────────────────────────────────
+    // App sends contract data back to the authenticator via postMessage.
 
-    smrOnReady(sirs: SIR[], scrs?: SCR[]): void {
+    contractOnReady(contracts: ContractRequest[]): void {
       if (typeof window === 'undefined') return
       window.addEventListener('message', (e) => {
         if (e.origin !== authOrigin) return
-        if (e.data?.type === 'SMRListen' && e.source instanceof Window) {
-          e.source.postMessage({ type: 'smr', sirs, scrs }, authOrigin)
+        if (e.data?.type === 'ContractListen' && e.source instanceof Window) {
+          e.source.postMessage({ type: 'contract', contracts }, authOrigin)
         }
       })
     },
 
-    smrResponseListen(setStatus: (status: string) => void): void {
+    contractResponseListen(setStatus: (status: string) => void): void {
       if (typeof window === 'undefined') return
       window.addEventListener('message', (e) => {
         if (e.origin !== authOrigin) return
         if (e.data?.type === 'status') {
+          setStatus(e.data.status)
+        }
+      })
+    },
+
+    // ── ACR (App Contract Request) ─────────────────────────────────────
+
+    acrOnReady(acrs: ACR[]): void {
+      if (typeof window === 'undefined') return
+      window.addEventListener('message', (e) => {
+        if (e.origin !== authOrigin) return
+        if (e.data?.type === 'ACRListen' && e.source instanceof Window) {
+          e.source.postMessage({ type: 'acr', acrs }, authOrigin)
+        }
+      })
+    },
+
+    acrResponseListen(setStatus: (status: string) => void): void {
+      if (typeof window === 'undefined') return
+      window.addEventListener('message', (e) => {
+        if (e.origin !== authOrigin) return
+        if (e.data?.type === 'acr-status') {
           setStatus(e.data.status)
         }
       })
@@ -552,9 +578,13 @@ export interface Web10Client {
   // Tiered tokens
   getTieredToken(site: string, target: string): Promise<TokenResponse>
 
-  // SMR
-  smrOnReady(sirs: SIR[], scrs?: SCR[]): void
-  smrResponseListen(setStatus: (status: string) => void): void
+  // Contract Listen — unified listener for app + group contracts
+  contractOnReady(contracts: ContractRequest[]): void
+  contractResponseListen(setStatus: (status: string) => void): void
+
+  // ACR
+  acrOnReady(acrs: ACR[]): void
+  acrResponseListen(setStatus: (status: string) => void): void
 
   // Media
   requestUploadUrl(

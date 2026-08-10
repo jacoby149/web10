@@ -10,6 +10,35 @@ A group is a collection of web10 users operating on data services. It doesn't ho
 2. **Policy** — roles define what each member can do. Service-scoped permissions control access.
 3. **Ownership** — the group owner holds the audience relationship. They can see every member's web10 identity, reach out directly, and that list is theirs.
 
+```mermaid
+graph LR
+    subgraph Group["Group: jacoby149/jazz-collectors"]
+        GC["group_contracts<br/>roles, join_policy"]
+        GM["group_members<br/>alice: curator<br/>dave: listener<br/>eve: contributor"]
+    end
+
+    GC --> GM
+
+    subgraph Content["Documents — lives in author"]
+        D1["doc: new playlist<br/>author: alice"]
+        DG1["doc_groups<br/>doc → jazz-collectors"]
+    end
+
+    D1 --> DG1
+    DG1 -->|member read| GM
+    GM -->|curator: readAll, create| D1
+    GM -->|listener: readAll| D1
+
+    style Group fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style GC fill:#fff9c4,stroke:#f57f17,color:#000
+    style GM fill:#e3f2fd,stroke:#1565c0,color:#000
+    style Content fill:#f5f5f5,stroke:#333,color:#000
+    style D1 fill:#f5f5f5,stroke:#333,color:#000
+    style DG1 fill:#fff3e0,stroke:#e65100,color:#000
+```
+
+The group doesn't hold the data. It holds people and rules. The data lives in the author's collection. `doc_groups` is the bridge — it maps documents to groups. A member sees a document because they're in a group it's attached to, and their role grants `readAll` on the relevant service.
+
 ```
 Group "jazz-collectors":
   roles: [curator, listener, contributor]
@@ -18,7 +47,7 @@ Group "jazz-collectors":
 
 The group owner can query the membership list. They see web10 usernames, emails (if set), phone numbers (if set). They can text a follower, email a fan, message a member — directly, through web10, no platform gatekeeping the relationship. On legacy platforms, your followers are the platform's asset. You can't export them. You can't message them without the platform's permission. Here, the group membership is yours.
 
-**Service-scoped roles.** Each group defines its own roles. Each role lists the services it applies to and the explicit permissions it grants. One group. No parent-child chains. Multiple roles per user — a user can hold different roles for different services in the same group.
+**Service-scoped roles.** Each group defines its own roles. Each role lists the services it applies to and the explicit permissions it grants. One group. No parent-child chains. One role per member — if you need different permissions across services, define a richer role name (e.g., `editor` instead of stacking `reader` + `writer`).
 
 **Roles are generic.** There are no predefined roles. A group defines whatever roles make sense for its purpose. A music group might have `curator`, `listener`, and `contributor`. A project group might have `admin`, `reviewer`, and `editor`. A followers group might have `owner` and `member`. The platform doesn't care what you call them or what they do.
 
@@ -47,14 +76,36 @@ Alice attaches a post, a file, and a playlist to this group. Dave and eve can se
 
 ## Two Contract Types
 
-v3 has two contract types. They control completely different concerns.
+v3 has two contract types. They control completely different concerns. One is infrastructure. The other is social.
 
-**Service contract** — App Trust (Infrastructure). "Do we want to spin up these data buckets for this app?"
-Binary toggle. CORS. Browser-enforced. No data permissions involved. If you turn it off, the app can't even talk to your node.
+```mermaid
+flowchart TD
+    A["App requests access<br/>twitter-clone.web10.com"] --> B{"Service contract<br/>CORS check"}
+    B -->|Denied| X1["403 — app can't talk to node"]
+    B -->|Allowed| C["GET /alice/posts"]
+    C --> D{"Group check<br/>which posts in groups<br/>bob belongs to?"}
+    D -->|Member with readAll| E["Return post-1, post-2"]
+    D -->|Not member| X2["Empty — no access"]
+
+    style A fill:#f5f5f5,stroke:#333,color:#000
+    style B fill:#fff9c4,stroke:#f57f17,color:#000
+    style C fill:#f5f5f5,stroke:#333,color:#000
+    style D fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style E fill:#e3f2fd,stroke:#1565c0,color:#000
+    style X1 fill:#ffebee,stroke:#c62828,color:#000
+    style X2 fill:#ffebee,stroke:#c62828,color:#000
+```
+
+**App contract** — App Trust (Infrastructure). "What can this app do with my data?"
+One contract per app. Per-service permissions. CORS. Browser-enforced.
+
+Services are infinite — `posts`, `playlists`, `comments`, `notes`, anything an app invents. They're just data labels in the `collection_name` column. ClickHouse doesn't care. No schema migration. No limit. Apps are the constraint. You have three apps you use. Three contracts.
 
 ```
-service:posts → allowed: twitter-clone.web10.com
-service:playlists → allowed: music.web10.com
+music.web10.com → {
+  "posts": ["readAll", "create"],
+  "playlists": ["readAll", "create", "updateOwn", "deleteOwn"]
+}
 ```
 
 **Provider level** — Node Trust. Server-enforced. Which apps are allowed to participate on this node at all.
@@ -72,16 +123,16 @@ Granular, user-controlled social policy. Roles define access, scoped to services
 jazz-collectors → members: alice, dave, eve
 ```
 
-**The separation:** Service contracts decide if an app gets a bucket. Group contracts decide who gets to look inside it.
+**The separation:** App contracts decide if an app gets through the door. Group contracts decide who gets to look inside.
 
 ```
-service:posts → allowed: twitter-clone.web10.com → GET /alice/posts?discover=true
-  1. Service contract: origin allowed? → yes
+music.web10.com → { posts: ["readAll", "create"], playlists: ["readAll"] } → GET /alice/posts?discover=true
+  1. App contract: origin allowed for posts/readAll? → yes
   2. Groups: which posts are in groups bob belongs to? → post-1, post-2
   3. Return post-1, post-2
 ```
 
-The service contract is the outer wall. The groups are the inner permissions.
+The app contract is the outer wall. The groups are the inner permissions.
 
 ## Posting to Groups
 
@@ -123,6 +174,29 @@ Groups have three join policies:
 **Request** — someone requests to join, the group owner approves or denies. Used for private follower groups, curated communities.
 
 **Invite only** — only people the owner explicitly adds can join. Used for close friends, private circles, invited communities.
+
+## Default Role
+
+Every group contract declares a `default_role` — the role assigned when:
+
+1. **Open join** — someone joins an `open` group automatically gets `default_role`
+2. **Invite with role omitted** — `inviteMember(groupId, memberKey)` without a role assigns `default_role`
+3. **Invite with explicit role** — `inviteMember(groupId, memberKey, "moderator")` overrides to that role
+
+```json
+{
+  "group_id": "web10.app/groups/charlie/st-louis-chess-club",
+  "join_policy": "open",
+  "default_role": "member",
+  "roles": [
+    { "name": "owner", ... },
+    { "name": "moderator", ... },
+    { "name": "member", ... }
+  ]
+}
+```
+
+The `default_role` must match one of the defined role names. Convention: list roles from most privileged to least, so the last entry is the baseline member role — the natural default.
 
 ## Moderation
 
@@ -227,7 +301,9 @@ jazz-collectors → [Block sharing]
 
 **Make everything private** — remove all groups from all your content. One click. Everything goes dark.
 
-**Turn off all service contracts** — no website touches your data. Ever. Kill switch.
+**Turn off all app contracts** — no website touches your data. Ever. Kill switch.
+
+**Group requests from apps** — apps cannot directly create or modify your groups. They must request it, and you approve through the authenticator. See `requests.md` for the full consent model.
 
 ## Scale
 
@@ -249,6 +325,6 @@ Groups are policy containers, discovery mechanisms, and owned audience relations
 
 For the group owner, the membership list is the audience. Web10 usernames, emails, phones — directly accessible. The influencer owns that relationship. They can reach out, export it, and take it with them. No platform gatekeeping.
 
-Service contracts control which websites can access your data. Group contracts control which people can see your content. Both must pass. Browser enforces the outer wall. Server enforces the inner permissions.
+App contracts control which websites can touch your data. Group contracts control which people can see your content. Both must pass. Browser enforces the outer wall. Server enforces the inner permissions.
 
 The authenticator is where you take charge: block sharing, opt out, privatize all, kill switch. One toggle. Everything goes dark.

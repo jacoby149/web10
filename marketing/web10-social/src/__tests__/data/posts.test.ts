@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as wapi from '../../data/wapi';
 import * as posts from '../../data/posts';
+import { readUserPostsFromDiscovery } from '../../data/wapi';
 
 // Mock wapi
 function mockWapi() {
@@ -268,13 +269,13 @@ describe('posts data layer', () => {
   describe('deletePost', () => {
     it('deletes a public post from public_posts', async () => {
       mock.delete.mockResolvedValue(undefined);
-      await posts.deletePost('p1', 'public');
+      await posts.deletePost('p1');
       expect(mock.delete).toHaveBeenCalledWith('public_posts', { _id: 'p1' });
     });
 
     it('deletes a private post from private_posts', async () => {
       mock.delete.mockResolvedValue(undefined);
-      await posts.deletePost('p2', 'private');
+      await posts.deletePost('p2');
       expect(mock.delete).toHaveBeenCalledWith('private_posts', { _id: 'p2' });
     });
 
@@ -282,7 +283,7 @@ describe('posts data layer', () => {
       // D30 split: posts live in public_posts/private_posts. The old
       // deletePost hardcoded 'posts' which matched nothing.
       mock.delete.mockResolvedValue(undefined);
-      await posts.deletePost('p3', 'public');
+      await posts.deletePost('p3');
       expect(mock.delete).not.toHaveBeenCalledWith('posts', expect.anything());
     });
   });
@@ -530,7 +531,7 @@ describe('posts data layer', () => {
         .mockResolvedValueOnce({ ok: true, json: async () => page1 })
         .mockResolvedValueOnce({ ok: true, json: async () => page2 });
 
-      const result = await posts.readUserPostsFromDiscovery('bob', 'web10');
+      const result = await readUserPostsFromDiscovery('bob', 'web10');
 
       expect(result).toHaveLength(2);
       expect(result[0]._id).toBe('p150');
@@ -564,7 +565,7 @@ describe('posts data layer', () => {
 
       fetchMock.mockResolvedValueOnce({ ok: true, json: async () => page1 });
 
-      const result = await posts.readUserPostsFromDiscovery('bob', 'web10');
+      const result = await readUserPostsFromDiscovery('bob', 'web10');
 
       expect(result).toHaveLength(1);
       expect(result[0]._id).toBe('p5');
@@ -587,7 +588,7 @@ describe('posts data layer', () => {
 
       fetchMock.mockResolvedValueOnce({ ok: true, json: async () => page1 });
 
-      const result = await posts.readUserPostsFromDiscovery('nobody', 'web10');
+      const result = await readUserPostsFromDiscovery('nobody', 'web10');
 
       expect(result).toHaveLength(0);
       expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -601,7 +602,7 @@ describe('posts data layer', () => {
 
       fetchMock.mockResolvedValueOnce({ ok: false, status: 500 });
 
-      const result = await posts.readUserPostsFromDiscovery('bob', 'web10');
+      const result = await readUserPostsFromDiscovery('bob', 'web10');
 
       expect(result).toHaveLength(0);
       expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -625,7 +626,7 @@ describe('posts data layer', () => {
 
       fetchMock.mockResolvedValueOnce({ ok: true, json: async () => page1 });
 
-      const result = await posts.readUserPostsFromDiscovery('bob', 'web10');
+      const result = await readUserPostsFromDiscovery('bob', 'web10');
 
       expect(result).toHaveLength(1);
       expect(result[0].media_refs).toEqual(['m1', 'm2']);

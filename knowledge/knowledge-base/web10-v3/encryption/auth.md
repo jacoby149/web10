@@ -32,16 +32,35 @@ A web10 JWT carries these claims:
 
 ## Auth Flow
 
+```mermaid
+sequenceDiagram
+    participant App as Client App
+    participant Popup as Authenticator Popup
+    participant Auth as Auth Server
+    participant API as API Server
+    participant CH as ClickHouse
+
+    App->>App: w.login()
+    App->>Popup: open auth.web10.app
+    Popup->>Popup: user enters credentials
+    Popup->>Auth: POST /web10token<br/>{username, password, site, target}
+    Auth->>CH: verify user, check star record
+    CH-->>Auth: user valid
+    Auth->>Auth: mint JWT<br/>{username, site, target, provider, expires}
+    Auth-->>Popup: { token: JWT }
+    Popup->>Popup: close popup
+    Popup->>App: postMessage { type: auth, token }
+    App->>App: verify origin, store cookie
+    Note over App: User logged in
+
+    App->>API: w.create posts, groups
+    API->>API: certify token
+    API->>CH: write documents, doc_groups
+    CH-->>API: ok
+    API-->>App: { doc_id }
 ```
-App → w.login()
-  → opens auth.web10.app in popup
-  → user enters username + password
-  → authenticator POSTs to /web10token
-  → server returns JWT
-  → authenticator postMessages { type: 'auth', token: JWT } to opener
-  → app receives message, verifies origin, stores token in cookie
-  → popup closes
-```
+
+Popup opens. User authenticates. Server mints a scoped JWT. Popup posts the token back to the opener. The app verifies the origin, stores it in a cookie, and is done. Every subsequent API call carries the token. The API certifies it before touching data.
 
 ### SDK Methods
 
@@ -84,21 +103,22 @@ No `HttpOnly` — the SDK reads the token client-side to include in API requests
 ### Login
 
 ```
-POST /web10token
+POST /v3/login
 Body: {
   username: "alice",
   password: "secret",
-  token: null,           // null for login; existing JWT for tiered mint
   site: "app.example.com",
-  target: null           // null for self-token; provider hostname for tiered
+  target: null
 }
 → { token: "eyJhbG..." }
 ```
 
+API verifies `password_hash` from the `users` table. On match, mints JWT.
+
 ### Signup
 
 ```
-POST /signup
+POST /v3/signup
 Body: {
   username: "alice",
   password: "secret",
@@ -108,30 +128,20 @@ Body: {
 → { ok: true }
 ```
 
-### Tiered Token (Cross-App)
-
-```
-POST /web10token
-Body: {
-  username: "alice",
-  password: null,
-  token: "existing-jwt",  // the user's current session token
-  site: "other-app.com",  // the app requesting access
-  target: "api.web10.app" // the target provider
-}
-→ { token: "eyJhbG..." }  // new token scoped to other-app.com
-```
-
-Tiered tokens let one app request access to another provider on behalf of the user. The authenticator mints a scoped token with the `site` and `target` claims.
+Inserts into `users` table: `INSERT INTO users VALUES (username, password_hash, phone, 0, '', 0, now(), now(), 0)`.
 
 ### Account Management
 
 ```
-POST /change_pass    → { username, password, new_pass }
-POST /change_phone   → { username, password, phone }
-POST /send_code      → { token }
-POST /verify_code    → { token, query: { code } }
+POST /v3/change_pass   → { token, password, new_pass }
+POST /v3/change_phone  → { token, phone }
+POST /v3/set_email     → { token, email }
+POST /v3/verify_phone  → { token, query: { code } }
+POST /v3/verify_email  → { token, query: { code } }
+POST /v3/get_profile   → { token }
 ```
+
+All update the `users` table via `ReplacingMergeTree` — new insert with higher `updated_at`.
 
 ### Billing (Stripe)
 
@@ -159,24 +169,29 @@ function isTokenExpired(token: string): boolean {
 
 Fail-open: if the token has no `expires` claim, it's treated as valid (matches server behavior for "anon" tokens).
 
-## SMR (Service Modification Request)
+## ACR (App Contract Request)
 
-SMR is the protocol for apps to request service access from the authenticator. The app declares what services it needs; the user approves or denies.
+ACR is the protocol for apps to request access from the authenticator. The app declares which origin it is and what permissions it needs; the user approves or denies. There is no distinction between a "first request" and a "permission change" — both are an ACR that replaces the existing contract for that origin. The `ReplacingMergeTree(updated_at)` engine handles it the same way.
 
 ```ts
-// App declares services it needs
-w.smrOnReady([{
-  service: 'posts',
-  cross_origins: ['your-domain.com'],
+// App declares what it needs (one ACR per origin)
+w.acrOnReady([{
+  allowed_origin: 'music.web10.com',
+  permissions: {
+    posts: ['readAll', 'create'],
+    playlists: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+  },
 }])
 
 // Listen for user's response
-w.smrResponseListen((status) => {
-  console.log('SMR status:', status)
+w.acrResponseListen((status) => {
+  console.log('ACR status:', status)
 })
 ```
 
-SMR is infrastructure trust — "do we want to spin up these data buckets for this app?" It does not control who sees data. Groups do that.
+The authenticator diffs each ACR against the existing contract for that origin (if any) and shows the user what's changing. If nothing exists, the diff is "everything is new." If a contract exists, added permissions are green and removed permissions are red. Same component, same flow.
+
+ACR is infrastructure trust — "do we want to give this app these permissions?" It does not control who sees data. Groups do that.
 
 ## Cross-Node Addressing
 

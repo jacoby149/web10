@@ -2,6 +2,35 @@
 
 The JavaScript/TypeScript SDK. One client. Groups are baked into every verb.
 
+## Request Flow
+
+Every SDK call follows the same path: client → API → ClickHouse. Groups are not a separate surface — they are metadata on CRUD operations that the API validates before touching data.
+
+```mermaid
+graph LR
+    App["Client App<br/>w.create / w.read"] -->|"JWT + body + groups"| API["web10 API"]
+    API -->|"1. certify token"| Auth["Token Cert"]
+    Auth -->|"2. check membership"| GM["group_members"]
+    GM -->|"3. check role perms"| GC["group_contracts"]
+    GC -->|"4. allowed"| Doc["documents"]
+    GC -->|"4. allowed"| DG["doc_groups"]
+    GC -->|"denied"| X["403"]
+    Doc --> CH["ClickHouse"]
+    DG --> CH
+    
+    style App fill:#f5f5f5,stroke:#333,color:#000
+    style API fill:#f5f5f5,stroke:#333,color:#000
+    style Auth fill:#fff9c4,stroke:#f57f17,color:#000
+    style GM fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style GC fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style Doc fill:#e3f2fd,stroke:#1565c0,color:#000
+    style DG fill:#e3f2fd,stroke:#1565c0,color:#000
+    style CH fill:#e3f2fd,stroke:#1565c0,color:#000
+    style X fill:#ffebee,stroke:#c62828,color:#000
+```
+
+Create inserts one row into `documents`, then one row per group into `doc_groups`. Read joins `documents` → `doc_groups` → `group_members` and filters by your membership. Update tombstones old rows, inserts new. Delete tombstones. All append-only. `ReplacingMergeTree` keeps the latest.
+
 ## Installation
 
 ```bash
@@ -41,18 +70,29 @@ w.isSignedIn()
 w.signOut()
 ```
 
-## Service Contracts (App Trust)
+## App Contracts
 
-Thin layer. CORS. Browser-enforced. Declares which services your app needs. The user approves or denies in the authenticator.
+Services are infinite. `posts`, `playlists`, `comments`, `notes`, `reactions` — any app can invent new ones. They're just data labels in the `collection_name` column. No schema migration. No limit. ClickHouse handles any number of services with its sieve of joins.
+
+Apps are the constraint. One contract per app. Per-service permissions. The user approves or denies in the authenticator.
 
 ```ts
-w.smrOnReady([{
-  service: 'posts',
-  cross_origins: ['your-domain.com'],
-}])
+// App declares what it needs (one call, all services)
+await w.addAppContract('music.web10.com', {
+  posts: ['readAll', 'create'],
+  playlists: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+  comments: ['readAll'],
+})
+
+// List active contracts
+const contracts = await w.listAppContracts()
+// → [{ allowed_origin: 'music.web10.com', permissions: { posts: [...], playlists: [...] } }]
+
+// Revoke (one click per app)
+await w.revokeAppContract('music.web10.com')
 ```
 
-This is infrastructure trust — "do we want to spin up these data buckets for this app?" It does not control who sees data. Groups do that.
+This is infrastructure trust — "what can this app do with my data?" Per-service, per-operation. Groups control who sees data. The contract is with the app, not the service.
 
 ## CRUD With Groups
 
@@ -146,7 +186,7 @@ const posts = await w.read('posts', {
   $limit: 50,
 })
 
-// Power mean sort — weighted ranking
+// Power mean sort — weighted ranking (v4 feature, see `../../web10-v4/sdk/advanced.md`)
 const posts = await w.read('posts', {
   groups: feedGroups,
   $sort: {
@@ -154,7 +194,6 @@ const posts = await w.read('posts', {
     fields: [
       { field: 'created_at', type: 'time', weight: 0.6, half_life: 24, boost: 1 },
       { field: 'ref_count', type: 'ref_count', collection: 'reactions', weight: 0.6, boost: 2 },
-      { field: 'ref_count', type: 'ref_count', collection: 'comments', weight: 0.4, boost: 0.5 },
     ],
     balance: -1,
   },
@@ -162,29 +201,7 @@ const posts = await w.read('posts', {
 })
 ```
 
-Each field has:
-- `type` — how the API normalizes the signal (`time` or `ref_count`)
-- `weight` — how much it contributes to the power mean (0 = ignored)
-- `boost` — multiplier applied after normalization, before combining (default 1). `boost: 2` doubles the signal, `boost: 0.5` halves it.
-- `half_life` — for `time` fields, decay in hours (0 = no decay)
-- `collection` — for `ref_count`, which collection to count from
-
-`ref_count` works on any collection. The API counts documents where `ref_value` matches the current document. Indexed, fast, no counter table needed.
-```
-
-`ref_count` is generic — it counts any document in the named collection whose `ref` points to the current document. Reactions, comments, bookmarks, upvotes — any collection using `ref` works. No special infrastructure.
-
-`half_life` is in hours. `balance` controls how signals combine:
-
-| balance | Effect | Example |
-|---|---|---|
-| +5 (Extreme) | Best signal dominates | A post with 1000 reactions ranks high even if it's old and has no comments. Specialists win. |
-| +1 (Loose) | High signals pull up | A post great in one area beats one that's mediocre everywhere. |
-| 0 (Flat) | Geometric mean | All signals matter equally in log space. A post needs some of everything. |
-| -1 (Tight) | Low signals pull down | A post with zero comments can't rank high, even with tons of reactions. Generalists win. |
-| -5 (Strict) | Weakest signal dominates | A post must be good across all dimensions. One dead signal kills the score. |
-
-The API normalizes signals, computes the power mean score in ClickHouse, and returns pre-sorted results. No client-side scoring.
+`powerMean` sorting is a v4 feature — weighted ranking with configurable signals, `half_life` decay, `boost` multipliers, and `balance` to control how signals combine. See `../../web10-v4/sdk/advanced.md` for the full spec.
 
 **Filtering** — `$match` filters documents before sorting. Fast on indexed fields, works (but scans) on the JSON body:
 
@@ -238,6 +255,90 @@ The API tombstones the `documents` row and all `doc_groups` rows. Background job
 
 Groups are first-class. The SDK exposes them directly.
 
+### Create Group
+
+```mermaid
+flowchart LR
+    App["w.createGroup(name, roles, members)"] -->|"1. INSERT group_contracts"| GC["group_contracts"]
+    App -->|"2. INSERT group_members (all members)"| GM["group_members"]
+    GC -->|"3. return"| Res["{ group_id }"]
+    GM --> Res
+
+    style App fill:#f5f5f5,stroke:#333,color:#000
+    style GC fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style GM fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style Res fill:#fff3e0,stroke:#e65100,color:#000
+```
+
+### Join Group
+
+```mermaid
+flowchart LR
+    App["w.joinGroup(group_id)"] --> P{"join_policy"}
+    P -->|"open"| GM["INSERT group_members<br/>(role: member)"]
+    P -->|"request"| GJR["INSERT group_join_requests<br/>(pending)"]
+    GM --> Res["{ member_key, role }"]
+    GJR --> Pnd["{ status: pending }"]
+
+    style App fill:#f5f5f5,stroke:#333,color:#000
+    style P fill:#fff9c4,stroke:#f57f17,color:#000
+    style GM fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style GJR fill:#f3e5f5,stroke:#6a1b9a,color:#000
+    style Res fill:#fff3e0,stroke:#e65100,color:#000
+    style Pnd fill:#fff9c4,stroke:#f57f17,color:#000
+```
+
+### Invite Member
+
+```mermaid
+flowchart LR
+    App["w.inviteMember(group_id, user, role)"] --> GJR["INSERT group_join_requests<br/>(role offered)"]
+    GJR --> Res["{ status: invited }"]
+
+    style App fill:#f5f5f5,stroke:#333,color:#000
+    style GJR fill:#f3e5f5,stroke:#6a1b9a,color:#000
+    style Res fill:#fff3e0,stroke:#e65100,color:#000
+```
+
+### Accept Invite
+
+```mermaid
+flowchart LR
+    App["w.acceptInvite(group_id)"] --> GM["INSERT group_members"]
+    App --> GJR["tombstone group_join_requests"]
+    GM --> Res["{ role: member }"]
+    GJR --> Res
+
+    style App fill:#f5f5f5,stroke:#333,color:#000
+    style GM fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style GJR fill:#ffebee,stroke:#c62828,color:#000
+    style Res fill:#fff3e0,stroke:#e65100,color:#000
+```
+
+### Leave Group
+
+```mermaid
+flowchart LR
+    App["w.leaveGroup(group_id)"] --> GM["tombstone group_members"]
+    GM --> Res["{ status: left }"]
+
+    style App fill:#f5f5f5,stroke:#333,color:#000
+    style GM fill:#ffebee,stroke:#c62828,color:#000
+    style Res fill:#fff3e0,stroke:#e65100,color:#000
+```
+
+### Remove Member
+
+```mermaid
+flowchart LR
+    App["w.removeMember(group_id, user)"] --> GM["tombstone group_members (user)"]
+    GM --> Res["{ status: removed }"]
+
+    style App fill:#f5f5f5,stroke:#333,color:#000
+    style GM fill:#ffebee,stroke:#c62828,color:#000
+    style Res fill:#fff3e0,stroke:#e65100,color:#000
+```
+
 ### Create a Group
 
 Explicit roles. Explicit members. The API doesn't assume anything — you assign every role, including yourself.
@@ -281,8 +382,6 @@ Group management permissions are separate from content permissions:
 | `revokeRoles` | Remove members or demote roles |
 | `deleteGroup` | Delete the group (tombstone) |
 | `modifyJoinPolicy` | Change open/request/invite_only |
-
-### Get Groups
 
 ### Get Groups
 
@@ -366,32 +465,9 @@ const updated = await w.updateGroup('web10.app/groups/jacoby149/close-friends', 
 })
 ```
 
-## Query (Coming Soon)
+## Query (v4)
 
-Full ClickHouse SQL. The API wraps it in a CTE to enforce permissions: tombstones, group membership, blacklists.
-
-```ts
-const results = await w.query(`
-  SELECT p.doc_id, p.author_key, count() as reaction_count
-  FROM documents p
-  WHERE p.collection_name = 'reactions'
-    AND p.ref_value IN (
-      SELECT doc_id FROM documents WHERE collection_name = 'posts'
-    )
-  GROUP BY p.doc_id, p.author_key
-  ORDER BY reaction_count DESC
-  LIMIT 50
-`)
-```
-
-The API wraps your query in a CTE, then applies:
-- `WHERE deleted = 0` (tombstone filter)
-- Group membership check (you only see documents in groups you belong to)
-- Blacklist check (blocked authors excluded)
-
-**⚠️ Design note:** the CTE-wrapping approach needs careful auditing to prevent CTE escape. Edge cases around table aliases, UNION, and subquery scope are being worked through. This is a v2 feature — not available in v1.
-
-Full ClickHouse power. Still permission-scoped. No MongoDB pipeline baggage.
+Full ClickHouse SQL with CTE-wrapped permissions is a v4 feature. See `../../web10-v4/sdk/advanced.md`.
 
 ## Media
 
@@ -423,6 +499,60 @@ const record = await w.confirmUpload({
 const { readUrl } = await w.getReadUrl(record.object_key)
 ```
 
+## Account
+
+```ts
+// Signup
+await w.signup({
+  username: 'alice',
+  password: 'secret',
+  phone: '+1234567890',
+})
+
+// Login (via popup)
+await w.login()
+
+// Change password
+await w.changePass({ password: 'old', newPass: 'new' })
+
+// Change phone
+await w.changePhone({ phone: '+1987654321' })
+
+// Set recovery email
+await w.setEmail({ email: 'alice@example.com' })
+
+// Verify phone/email with code
+await w.verifyPhone({ code: '123456' })
+await w.verifyEmail({ code: '654321' })
+
+// Send verification code to phone
+await w.sendCode()
+
+// Set recovery phone (authenticated)
+await w.setRecoveryPhone({ phone: '+1987654321' })
+```
+
+## App Store
+
+```ts
+// Register an app
+await w.registerApp({
+  url: 'https://myapp.com',
+  name: 'My App',
+  description: 'A web10 app',
+  iconUrl: 'https://myapp.com/icon.png',
+})
+
+// List approved apps
+const apps = await w.getApps()
+
+// Rate an app (1-5 stars)
+await w.rateApp({ appId: 'https://myapp.com', rating: 5 })
+
+// Read ratings
+const ratings = await w.getAppRatings('https://myapp.com')
+```
+
 ## What ClickHouse Happens
 
 Each SDK call triggers specific ClickHouse operations:
@@ -430,10 +560,8 @@ Each SDK call triggers specific ClickHouse operations:
 | SDK call | ClickHouse |
 |---|---|
 | `w.create('posts', ..., { groups })` | `INSERT INTO documents` + `INSERT INTO doc_groups` (N rows) |
-| `w.read('posts', { groups: ['me'] })` | `SELECT FROM documents WHERE author_key = :user` (reserved group, no join) |
+| `w.read('posts', { groups: ['me'] })` | `SELECT group_ids FROM group_members WHERE member = :user`, then discover query |
 | `w.read('posts', { groups })` | `SELECT FROM documents JOIN doc_groups JOIN group_members WHERE member = :user AND group IN (...)` |
-| `w.read('posts', { groups, $sort: { type: 'powerMean' } })` | Same + ref_count subqueries on `ref_value`, power mean score in SELECT, `ORDER BY score DESC` |
-| `w.query(sql)` | (v2) CTE-wrapped SQL — permission boundary being worked through |
 | `w.update('posts', ..., { $groups })` | `INSERT INTO documents` (new version) + tombstone old `doc_groups` + new `doc_groups` |
 | `w.delete('posts', ...)` | `INSERT INTO documents` (tombstone) + tombstone `doc_groups` |
 | `w.createGroup(...)` | `INSERT INTO group_contracts` + `INSERT INTO group_members` (all members) |
@@ -445,15 +573,9 @@ Each SDK call triggers specific ClickHouse operations:
 
 Everything is append-only. Updates are new inserts. Deletes are tombstones. `ReplacingMergeTree` keeps the latest version. Background job compacts on schedule.
 
-## Cross-Node Addressing
+## Cross-Node Addressing (v4)
 
-Optional `username` and `provider` on every CRUD call:
-
-```ts
-const posts = await w.read('posts', {}, 'alice', 'api.web10.app')
-```
-
-No provider = hits your own node. Provider = routes to that node's origin.
+Optional `username` and `provider` on CRUD calls is a v4 feature. See `../../web10-v4/sdk/advanced.md`.
 
 ## Summary
 
@@ -464,9 +586,8 @@ v3 SDK vs v2 SDK:
 | `create(service, body)` — no groups | `create(service, { body, groups: [...] })` — groups required for visibility |
 | `read(service, query)` — raw collection | `read(service, { groups: [...] })` — always group-filtered. `['me']` for your own data. |
 | `update(service, query, update)` — no groups | `update(service, query, { $set, $groups })` — group changes |
-| SMR contracts control data access | SMR is CORS only. Groups control data access. |
+| SMR contracts control data access | App contracts are per-app with per-service permissions. contractListen is the consent protocol. Groups control data access. |
 | Separate follow/friend APIs | Follow = join group. Friends = group membership. |
 | `discoverable` boolean | No boolean. Groups handle it. `web10/discover` = public board. |
-| MongoDB aggregate pipelines | ClickHouse SQL via `w.query()` (v2 — CTE-wrapped, permission boundary being audited) |
 
 Groups are not a separate API surface. They are baked into the verbs. Create carries groups. Read filters by groups. Update changes groups. The SDK doesn't have a "groups API" — it has CRUD that understands groups.
