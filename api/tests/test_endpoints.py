@@ -436,8 +436,8 @@ class TestCreate:
 
 class TestRead:
     def test_read_authorized(self, client, db_patched):
-        resp = client.patch(
-            "/alice/posts",
+        resp = client.post(
+            "/alice/posts/read",
             json={"token": _owner_token("alice"), "query": {}},
         )
         assert resp.status_code == 200
@@ -445,8 +445,8 @@ class TestRead:
 
     def test_read_cross_origin(self, client, db_patched):
         """Bob has read permission via whitelist + cross_origins."""
-        resp = client.patch(
-            "/alice/posts",
+        resp = client.post(
+            "/alice/posts/read",
             json={"token": _app_token("bob", "myapp.example.com"), "query": {}},
         )
         assert resp.status_code == 200
@@ -459,8 +459,8 @@ class TestRead:
                 "blacklist": [{"username": "banned", "provider": settings.PROVIDER, "read": True}],
                 "cross_origins": ["myapp.example.com"],
             }
-            resp = client.patch(
-                "/alice/posts",
+            resp = client.post(
+                "/alice/posts/read",
                 json={"token": _app_token("banned", "myapp.example.com"), "query": {}},
             )
         assert resp.status_code == 401
@@ -468,8 +468,8 @@ class TestRead:
 
 class TestUpdate:
     def test_update_authorized(self, client, db_patched):
-        resp = client.put(
-            "/alice/posts",
+        resp = client.post(
+            "/alice/posts/update",
             json={"token": _owner_token("alice"), "query": {"_id": "1"}, "update": {"$set": {"title": "new"}}},
         )
         assert resp.status_code == 200
@@ -483,8 +483,8 @@ class TestUpdate:
             patch("app.services.documentdb.charge"),
             patch("app.services.documentdb.star_selected", return_value=True),
         ):
-            resp = client.put(
-                "/alice/services",
+            resp = client.post(
+                "/alice/services/update",
                 json={"token": _owner_token("alice"), "query": {}, "update": {"$set": {"x": 1}}},
             )
         assert resp.status_code == 401
@@ -492,11 +492,9 @@ class TestUpdate:
 
 class TestDelete:
     def test_delete_authorized(self, client, db_patched):
-        resp = client.request(
-            "DELETE",
-            "/alice/posts",
-            content=_json.dumps({"token": _owner_token("alice"), "query": {"_id": "1"}}),
-            headers={"content-type": "application/json"},
+        resp = client.post(
+            "/alice/posts/delete",
+            json={"token": _owner_token("alice"), "query": {"_id": "1"}},
         )
         assert resp.status_code == 200
 
@@ -508,11 +506,9 @@ class TestDelete:
             patch("app.services.documentdb.charge"),
             patch("app.services.documentdb.star_selected", return_value=True),
         ):
-            resp = client.request(
-                "DELETE",
-                "/alice/services",
-                content=_json.dumps({"token": _owner_token("alice"), "query": {"service": "*"}}),
-                headers={"content-type": "application/json"},
+            resp = client.post(
+                "/alice/services/delete",
+                json={"token": _owner_token("alice"), "query": {"service": "*"}},
             )
         assert resp.status_code == 401
 
@@ -1002,10 +998,8 @@ class TestCertify:
 class TestSystem:
     def test_stats(self, client):
         with (
-            patch("app.services.documentdb.get_apps", return_value=[]),
-            patch("app.services.documentdb.get_user_count", return_value=5),
-            patch("app.services.documentdb.total_size", return_value=1024),
-            patch("app.services.documentdb.total_s3_size", return_value=2048),
+            patch("app.v3.services.clickhouse.get_node_stats", return_value={"users": 5, "documents": 10, "groups": 3}),
+            patch("app.v3.services.clickhouse.list_apps", return_value=[{"url": "https://a.com", "name": "A", "description": "", "icon_url": None, "screenshots": []}]),
         ):
             resp = client.post("/stats")
         assert resp.status_code == 200
@@ -1013,31 +1007,35 @@ class TestSystem:
         assert "apps" in data
         assert "users" in data
         assert "storage" in data
-        assert data["storage"] == 3072  # mongo 1024 + s3 2048
+        assert data["users"] == 5
+        assert len(data["apps"]) == 1
 
-    def test_stats_s3_bytes_included(self, client):
-        """storage must include both MongoDB dbstats and S3 media blob bytes."""
+    def test_stats_clickhouse_error_returns_zeros(self, client):
+        """When ClickHouse is unreachable, stats returns zeros gracefully."""
         with (
-            patch("app.services.documentdb.get_apps", return_value=[]),
-            patch("app.services.documentdb.get_user_count", return_value=1),
-            patch("app.services.documentdb.total_size", return_value=0),
-            patch("app.services.documentdb.total_s3_size", return_value=5000),
+            patch("app.v3.services.clickhouse.get_node_stats", side_effect=Exception("connection refused")),
+            patch("app.v3.services.clickhouse.list_apps", side_effect=Exception("connection refused")),
+        ):
+            resp = client.post("/stats")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["users"] == 0
+        assert data["apps"] == []
+        assert data["storage"] == 0
+
+    def test_stats_apps_returned(self, client):
+        """Stats returns approved apps from ClickHouse."""
+        with (
+            patch("app.v3.services.clickhouse.get_node_stats", return_value={"users": 1, "documents": 0, "groups": 0}),
+            patch("app.v3.services.clickhouse.list_apps", return_value=[
+                {"url": "https://social.web10.app", "name": "web10 social", "description": "Social app", "icon_url": None, "screenshots": []},
+                {"url": "https://auth.web10.app", "name": "auth", "description": "Auth app", "icon_url": None, "screenshots": []},
+            ]),
         ):
             resp = client.post("/stats")
         data = resp.json()
-        assert data["storage"] == 5000
-
-    def test_stats_s3_zero_when_no_media(self, client):
-        """When no media exists, S3 contribution is 0 and storage == mongo only."""
-        with (
-            patch("app.services.documentdb.get_apps", return_value=[]),
-            patch("app.services.documentdb.get_user_count", return_value=1),
-            patch("app.services.documentdb.total_size", return_value=4096),
-            patch("app.services.documentdb.total_s3_size", return_value=0),
-        ):
-            resp = client.post("/stats")
-        data = resp.json()
-        assert data["storage"] == 4096
+        assert len(data["apps"]) == 2
+        assert data["apps"][0]["name"] == "web10 social"
 
 
 class TestNodeConfig:

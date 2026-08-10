@@ -45,7 +45,7 @@ async def business_login(token: Token):
     return pay.business_login_session(bus_id)
 
 
-@router.post("/dev_pay")
+@router.post("/dev_pay", tags=["payments"])
 async def subscription_checkout_session(pay_data: PayData):
     certify(Token(token=pay_data.token))
     decoded = decode_token(pay_data.token)
@@ -55,7 +55,7 @@ async def subscription_checkout_session(pay_data: PayData):
     return pay.create_dev_pay_session(customer_id, bus_id, pay_data)
 
 
-@router.patch("/dev_pay")
+@router.post("/dev_pay/verify", tags=["payments"])
 async def verify_subscription(pay_data: PayData):
     certify(Token(token=pay_data.token))
     decoded = decode_token(pay_data.token)
@@ -64,7 +64,7 @@ async def verify_subscription(pay_data: PayData):
     return pay.get_dev_pay_metadata(customer_id, pay_data)
 
 
-@router.delete("/dev_pay")
+@router.post("/dev_pay/cancel", tags=["payments"])
 async def cancel_subscription(pay_data: PayData):
     certify(Token(token=pay_data.token))
     decoded = decode_token(pay_data.token)

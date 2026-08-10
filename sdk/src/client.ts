@@ -52,7 +52,7 @@ import type {
   MediaReadUrlResponse,
 } from './types'
 import { decodeJwt, readTokenCookie, setTokenCookie, scrubTokenCookie } from './token'
-import { patch, post, put, del, aggregate as aggregateReq, authPost, Web10Error } from './http'
+import { post, aggregate as aggregateReq, authPost, Web10Error } from './http'
 
 /**
  * Create a web10 client instance.
@@ -179,8 +179,8 @@ export function createClient(options: ClientOptions = {}): Web10Client {
       guardAuth(state, username)
       const u = resolveUsername(state, username)
       const base = originFor(state, provider)
-      return patch<Web10Record<T>[]>(
-        `${base}/${u}/${service}`,
+      return post<Web10Record<T>[]>(
+        `${base}/${u}/${service}/read`,
         { token: state.token, query: query ?? null, update: null },
       )
     },
@@ -210,8 +210,8 @@ export function createClient(options: ClientOptions = {}): Web10Client {
       guardAuth(state, username)
       const u = resolveUsername(state, username)
       const base = originFor(state, provider)
-      return put<UpdateResponse>(
-        `${base}/${u}/${service}`,
+      return post<UpdateResponse>(
+        `${base}/${u}/${service}/update`,
         { token: state.token, query: query ?? null, update: (update ?? null) as Record<string, unknown> | null },
       )
     },
@@ -225,8 +225,8 @@ export function createClient(options: ClientOptions = {}): Web10Client {
       guardAuth(state, username)
       const u = resolveUsername(state, username)
       const base = originFor(state, provider)
-      return del<DeleteResponse>(
-        `${base}/${u}/${service}`,
+      return post<DeleteResponse>(
+        `${base}/${u}/${service}/delete`,
         { token: state.token, query: query ?? null, update: null },
       )
     },

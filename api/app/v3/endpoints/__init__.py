@@ -22,7 +22,7 @@ def _user(data: Token) -> str:
 # ---------------------------------------------------------------------------
 
 
-@router.post("/create")
+@router.post("/create", tags=["documents"])
 async def create_document(data: Token):
     """Create a document with optional group attachments."""
     author = _user(data)
@@ -44,7 +44,7 @@ async def create_document(data: Token):
     return result
 
 
-@router.post("/read")
+@router.post("/read", tags=["documents"])
 async def read_documents(data: Token):
     """Read documents filtered by group membership."""
     reader = _user(data)
@@ -69,7 +69,7 @@ async def read_documents(data: Token):
     return docs
 
 
-@router.post("/update")
+@router.post("/update", tags=["documents"])
 async def update_document(data: Token):
     """Update a document (new version + optional group changes)."""
     author = _user(data)
@@ -98,7 +98,7 @@ async def update_document(data: Token):
     return result
 
 
-@router.post("/delete")
+@router.post("/delete", tags=["documents"])
 async def delete_document(data: Token):
     """Tombstone a document and its group attachments."""
     author = _user(data)
@@ -114,12 +114,24 @@ async def delete_document(data: Token):
     return {"doc_id": data.doc_id, "status": "deleted"}
 
 
+@router.post("/read-by-id", tags=["documents"])
+async def read_document_by_id(data: Token):
+    """Read a single document by doc_id with group permission check."""
+    reader = _user(data)
+    if not data.doc_id or not data.collection:
+        raise exceptions.CRUD
+    doc = ch.read_document_by_id(data.doc_id, reader, data.collection)
+    if not doc:
+        raise exceptions.ENTRY_NOT_FOUND
+    return ch.resolve_media_urls_in_docs([doc])[0]
+
+
 # ---------------------------------------------------------------------------
 # Group operations
 # ---------------------------------------------------------------------------
 
 
-@router.post("/groups/create")
+@router.post("/groups/create", tags=["groups"])
 async def create_group(data: Token):
     """Create a group with roles and initial members."""
     creator = _user(data)
@@ -148,14 +160,14 @@ async def create_group(data: Token):
     return {"group_id": group_id}
 
 
-@router.post("/groups/list")
+@router.post("/groups/list", tags=["groups"])
 async def get_my_groups(data: Token):
     """Get all groups the user belongs to."""
     user = _user(data)
     return ch.get_user_groups(user)
 
 
-@router.post("/groups/get")
+@router.post("/groups/get", tags=["groups"])
 async def get_group(data: Token):
     """Get group details."""
     _user(data)
@@ -167,7 +179,7 @@ async def get_group(data: Token):
     return group
 
 
-@router.post("/groups/update")
+@router.post("/groups/update", tags=["groups"])
 async def update_group(data: Token):
     """Update group settings."""
     user = _user(data)
@@ -189,7 +201,7 @@ async def update_group(data: Token):
     return result
 
 
-@router.post("/groups/members/list")
+@router.post("/groups/members/list", tags=["groups"])
 async def get_group_members(data: Token):
     """Get group members."""
     user = _user(data)
@@ -200,7 +212,7 @@ async def get_group_members(data: Token):
     return ch.get_group_members(data.group_id)
 
 
-@router.post("/groups/members/add")
+@router.post("/groups/members/add", tags=["groups"])
 async def add_group_member(data: Token):
     """Add a member to a group."""
     user = _user(data)
@@ -227,7 +239,7 @@ async def add_group_member(data: Token):
     return {"group_id": data.group_id, "member_key": data.member_key, "role": data.role}
 
 
-@router.post("/groups/members/remove")
+@router.post("/groups/members/remove", tags=["groups"])
 async def remove_group_member(data: Token):
     """Remove a member from a group."""
     user = _user(data)
@@ -254,7 +266,7 @@ async def remove_group_member(data: Token):
     return {"group_id": data.group_id, "member_key": data.member_key, "status": "removed"}
 
 
-@router.post("/groups/join")
+@router.post("/groups/join", tags=["groups"])
 async def join_group(data: Token):
     """Join a group (open or request)."""
     user = _user(data)
@@ -274,7 +286,7 @@ async def join_group(data: Token):
         raise exceptions.CRUD
 
 
-@router.post("/groups/invite")
+@router.post("/groups/invite", tags=["groups"])
 async def invite_member(data: Token):
     """Invite a member to a group."""
     user = _user(data)
@@ -301,7 +313,7 @@ async def invite_member(data: Token):
     return {"group_id": data.group_id, "invited_key": data.member_key, "status": "invited"}
 
 
-@router.post("/groups/accept-invite")
+@router.post("/groups/accept-invite", tags=["groups"])
 async def accept_invite(data: Token):
     """Accept a group invite or join request."""
     user = _user(data)
@@ -317,7 +329,7 @@ async def accept_invite(data: Token):
     return {"group_id": data.group_id, "role": role}
 
 
-@router.post("/groups/decline-invite")
+@router.post("/groups/decline-invite", tags=["groups"])
 async def decline_invite(data: Token):
     """Decline a group invite or join request."""
     user = _user(data)
@@ -329,7 +341,7 @@ async def decline_invite(data: Token):
     return {"group_id": data.group_id, "status": "declined"}
 
 
-@router.post("/groups/leave")
+@router.post("/groups/leave", tags=["groups"])
 async def leave_group(data: Token):
     """Leave a group."""
     user = _user(data)
@@ -356,7 +368,7 @@ def _require_group_permission(group_id: str, user: str, permission: str):
         raise exceptions.CRUD
 
 
-@router.post("/groups/requests/join/list")
+@router.post("/groups/requests/join/list", tags=["groups"])
 async def list_join_requests(data: Token):
     """List pending join/invite requests for a group (owner/moderator only)."""
     user = _user(data)
@@ -366,7 +378,7 @@ async def list_join_requests(data: Token):
     return ch.get_pending_requests(data.group_id)
 
 
-@router.post("/groups/requests/join/approve")
+@router.post("/groups/requests/join/approve", tags=["groups"])
 async def approve_join_request(data: Token):
     """Approve a pending join or invite request (owner/moderator only)."""
     user = _user(data)
@@ -383,7 +395,7 @@ async def approve_join_request(data: Token):
     return {"group_id": data.group_id, "requester_key": data.requester_key, "status": "approved", "role": role}
 
 
-@router.post("/groups/requests/join/deny")
+@router.post("/groups/requests/join/deny", tags=["groups"])
 async def deny_join_request(data: Token):
     """Deny a pending join or invite request (owner/moderator only)."""
     user = _user(data)
@@ -396,14 +408,69 @@ async def deny_join_request(data: Token):
     return {"group_id": data.group_id, "requester_key": data.requester_key, "status": "denied"}
 
 
-# ---------------------------------------------------------------------------
-# Service contracts (simplified v3)
+@router.post("/groups/manages", tags=["groups"])
+async def get_groups_manages(data: Token):
+    """Get groups where the user has management permissions."""
+    user = _user(data)
+    return ch.get_groups_manages(user)
+
+
+@router.post("/block", tags=["groups"])
+async def block_user(data: Token):
+    """Block a user (user-wide)."""
+    user = _user(data)
+    if not data.blocked_key:
+        raise exceptions.CRUD
+    ch.block_user(user, data.blocked_key)
+    return {"user_key": user, "blocked_key": data.blocked_key}
+
+
+@router.post("/unblock", tags=["groups"])
+async def unblock_user(data: Token):
+    """Unblock a user."""
+    user = _user(data)
+    if not data.blocked_key:
+        raise exceptions.CRUD
+    ch.unblock_user(user, data.blocked_key)
+    return {"user_key": user, "blocked_key": data.blocked_key}
+
+
+@router.post("/block-in-group", tags=["groups"])
+async def block_user_in_group(data: Token):
+    """Block a user from seeing your content in a specific group."""
+    user = _user(data)
+    if not data.blocked_key or not data.group_id:
+        raise exceptions.CRUD
+    ch.block_user_in_group(user, data.group_id, data.blocked_key)
+    return {"user_key": user, "group_id": data.group_id, "blocked_key": data.blocked_key}
+
+
+@router.post("/unblock-in-group", tags=["groups"])
+async def unblock_user_in_group(data: Token):
+    """Unblock a user in a group."""
+    user = _user(data)
+    if not data.blocked_key or not data.group_id:
+        raise exceptions.CRUD
+    ch.unblock_user_in_group(user, data.group_id, data.blocked_key)
+    return {"user_key": user, "group_id": data.group_id, "blocked_key": data.blocked_key}
+
+
+@router.post("/sharing/set", tags=["groups"])
+async def set_sharing(data: Token):
+    """Set sharing toggle for a group."""
+    user = _user(data)
+    if not data.group_id:
+        raise exceptions.CRUD
+    ch.set_user_group_sharing(user, data.group_id, data.enabled)
+    return {"user_key": user, "group_id": data.group_id, "sharing_enabled": data.enabled}
+
+
 # ---------------------------------------------------------------------------
 # App Contracts (per-app with per-service permissions)
 # ---------------------------------------------------------------------------
 
 
-@router.post("/app-contracts/add")
+@router.post("/app-contracts/add", tags=["app-contracts"])
 async def add_app_contract(data: Token):
     """Add an app contract (one per app, permissions is JSON)."""
     user = _user(data)
@@ -413,14 +480,14 @@ async def add_app_contract(data: Token):
     return result
 
 
-@router.post("/app-contracts/list")
+@router.post("/app-contracts/list", tags=["app-contracts"])
 async def get_app_contracts(data: Token):
     """Get active app contracts."""
     user = _user(data)
     return ch.get_app_contracts(user)
 
 
-@router.post("/app-contracts/revoke")
+@router.post("/app-contracts/revoke", tags=["app-contracts"])
 async def revoke_app_contract(data: Token):
     """Revoke one app contract (by origin) or all."""
     user = _user(data)
@@ -432,109 +499,13 @@ async def revoke_app_contract(data: Token):
 
 
 # ---------------------------------------------------------------------------
-# Blocking
+# Node stats
 # ---------------------------------------------------------------------------
 
 
-@router.post("/block")
-async def block_user(data: Token):
-    """Block a user (user-wide)."""
-    user = _user(data)
-    if not data.blocked_key:
-        raise exceptions.CRUD
-    ch.block_user(user, data.blocked_key)
-    return {"user_key": user, "blocked_key": data.blocked_key}
-
-
-@router.post("/unblock")
-async def unblock_user(data: Token):
-    """Unblock a user."""
-    user = _user(data)
-    if not data.blocked_key:
-        raise exceptions.CRUD
-    ch.unblock_user(user, data.blocked_key)
-    return {"user_key": user, "blocked_key": data.blocked_key}
-
-
-# ---------------------------------------------------------------------------
-# Sharing toggle
-# ---------------------------------------------------------------------------
-
-
-@router.post("/sharing/set")
-async def set_sharing(data: Token):
-    """Set sharing toggle for a group."""
-    user = _user(data)
-    if not data.group_id:
-        raise exceptions.CRUD
-    ch.set_user_group_sharing(user, data.group_id, data.enabled)
-    return {"user_key": user, "group_id": data.group_id, "sharing_enabled": data.enabled}
-
-
-# ---------------------------------------------------------------------------
-# Read by doc_id (direct read with group permission check)
-# ---------------------------------------------------------------------------
-
-
-@router.post("/read-by-id")
-async def read_document_by_id(data: Token):
-    """Read a single document by doc_id with group permission check."""
-    reader = _user(data)
-    if not data.doc_id or not data.collection:
-        raise exceptions.CRUD
-    doc = ch.read_document_by_id(data.doc_id, reader, data.collection)
-    if not doc:
-        raise exceptions.ENTRY_NOT_FOUND
-    # Resolve media URLs inline
-    return ch.resolve_media_urls_in_docs([doc])[0]
-
-
-# ---------------------------------------------------------------------------
-# Groups: manages
-# ---------------------------------------------------------------------------
-
-
-@router.post("/groups/manages")
-async def get_groups_manages(data: Token):
-    """Get groups where the user has management permissions."""
-    user = _user(data)
-    return ch.get_groups_manages(user)
-
-
-# ---------------------------------------------------------------------------
-# Block in group
-# ---------------------------------------------------------------------------
-
-
-@router.post("/block-in-group")
-async def block_user_in_group(data: Token):
-    """Block a user from seeing your content in a specific group."""
-    user = _user(data)
-    if not data.blocked_key or not data.group_id:
-        raise exceptions.CRUD
-    ch.block_user_in_group(user, data.group_id, data.blocked_key)
-    return {"user_key": user, "group_id": data.group_id, "blocked_key": data.blocked_key}
-
-
-@router.post("/unblock-in-group")
-async def unblock_user_in_group(data: Token):
-    """Unblock a user in a group."""
-    user = _user(data)
-    if not data.blocked_key or not data.group_id:
-        raise exceptions.CRUD
-    ch.unblock_user_in_group(user, data.group_id, data.blocked_key)
-    return {"user_key": user, "group_id": data.group_id, "blocked_key": data.blocked_key}
-
-
-# ---------------------------------------------------------------------------
-# Node stats (v3 equivalent of /stats)
-# ---------------------------------------------------------------------------
-
-
-@router.post("/stats")
+@router.post("/stats", tags=["system"])
 async def node_stats(data: Token):
-    """Get node-level stats: users, documents, groups."""
-    _user(data)
+    """Get node-level stats: users, documents, groups. Anon OK."""
     return ch.get_node_stats()
 
 
@@ -543,7 +514,7 @@ async def node_stats(data: Token):
 # ---------------------------------------------------------------------------
 
 
-@router.post("/signup")
+@router.post("/signup", tags=["auth"])
 async def signup(data: Token):
     """Create a user account."""
     if not data.username or not data.password:
@@ -560,7 +531,7 @@ async def signup(data: Token):
     return result
 
 
-@router.post("/login")
+@router.post("/login", tags=["auth"])
 async def login(data: Token):
     """Verify credentials, return JWT."""
     if not data.username or not data.password:
@@ -582,7 +553,7 @@ async def login(data: Token):
     return {"token": jwt.encode(token_data, settings.PRIVATE_KEY, algorithm=settings.ALGORITHM)}
 
 
-@router.post("/change-pass")
+@router.post("/change-pass", tags=["account"])
 async def change_pass(data: Token):
     """Change password."""
     user = _user(data)
@@ -594,7 +565,7 @@ async def change_pass(data: Token):
     return {"status": "changed"}
 
 
-@router.post("/change-phone")
+@router.post("/change-phone", tags=["account"])
 async def change_phone(data: Token):
     """Change phone number."""
     user = _user(data)
@@ -604,7 +575,7 @@ async def change_phone(data: Token):
     return {"phone": data.phone}
 
 
-@router.post("/set-email")
+@router.post("/set-email", tags=["account"])
 async def set_email(data: Token):
     """Set recovery email."""
     user = _user(data)
@@ -614,7 +585,7 @@ async def set_email(data: Token):
     return {"email": data.email}
 
 
-@router.post("/verify-phone")
+@router.post("/verify-phone", tags=["account"])
 async def verify_phone(data: Token):
     """Verify phone number with code."""
     user = _user(data)
@@ -624,7 +595,7 @@ async def verify_phone(data: Token):
     return {"phone_verified": True}
 
 
-@router.post("/verify-email")
+@router.post("/verify-email", tags=["account"])
 async def verify_email(data: Token):
     """Verify email with code."""
     user = _user(data)
@@ -634,7 +605,7 @@ async def verify_email(data: Token):
     return {"email_verified": True}
 
 
-@router.post("/profile")
+@router.post("/profile", tags=["account"])
 async def get_profile(data: Token):
     """Get user profile."""
     user = _user(data)
@@ -644,7 +615,7 @@ async def get_profile(data: Token):
     return profile
 
 
-@router.post("/send_code")
+@router.post("/send_code", tags=["auth"])
 async def send_code(data: Token):
     """Send a verification code to the user's phone."""
     user = _user(data)
@@ -656,7 +627,7 @@ async def send_code(data: Token):
     return mobile.send_verification(phone, user)
 
 
-@router.post("/set_recovery_phone")
+@router.post("/set_recovery_phone", tags=["account"])
 async def set_recovery_phone(data: Token):
     """Set the recovery phone on the authenticated user's profile."""
     if not data.token:
@@ -679,7 +650,7 @@ async def set_recovery_phone(data: Token):
 # ---------------------------------------------------------------------------
 
 
-@router.post("/media/confirm")
+@router.post("/media/confirm", tags=["media"])
 async def confirm_media(data: Token):
     """Confirm a media upload by storing metadata."""
     user = _user(data)
@@ -688,14 +659,14 @@ async def confirm_media(data: Token):
     return ch.confirm_media_upload(user, data.body)
 
 
-@router.post("/media/list")
+@router.post("/media/list", tags=["media"])
 async def list_media(data: Token):
     """List media for the user."""
     user = _user(data)
     return ch.list_media(user, limit=data.limit, offset=data.offset)
 
 
-@router.post("/media/delete")
+@router.post("/media/delete", tags=["media"])
 async def delete_media(data: Token):
     """Delete a media record."""
     user = _user(data)
@@ -710,7 +681,7 @@ async def delete_media(data: Token):
 # ---------------------------------------------------------------------------
 
 
-@router.post("/apps/register")
+@router.post("/apps/register", tags=["app-store"])
 async def register_app(data: Token):
     """Register an app in the provider app store."""
     if not data.body or not data.body.get("url"):
@@ -718,13 +689,13 @@ async def register_app(data: Token):
     return ch.register_app(data.body)
 
 
-@router.post("/apps/list")
+@router.post("/apps/list", tags=["app-store"])
 async def list_apps(data: Token):
     """List approved apps."""
     return ch.list_apps(approved_only=True)
 
 
-@router.post("/apps/rating")
+@router.post("/apps/rating", tags=["app-store"])
 async def create_app_rating(data: Token):
     """Submit a 1-5 star rating for an app."""
     if not data.token:
@@ -745,7 +716,7 @@ async def create_app_rating(data: Token):
     )
 
 
-@router.post("/apps/ratings")
+@router.post("/apps/ratings", tags=["app-store"])
 async def get_app_ratings(data: Token):
     """Get all ratings for an app."""
     if not data.body or not data.body.get("target_app_id"):

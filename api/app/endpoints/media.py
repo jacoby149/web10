@@ -20,7 +20,7 @@ from app.services.media import ensure_bucket, get_s3_client, get_s3_signing_clie
 router = APIRouter()
 
 
-@router.post("/{user}/upload")
+@router.post("/{user}/upload", tags=["media"])
 async def request_upload_url(user: str, request: UploadRequest):
     token = Token(token=request.token)
     if not is_permitted(token, user, "media", "create"):
@@ -50,7 +50,7 @@ async def request_upload_url(user: str, request: UploadRequest):
     )
 
 
-@router.post("/{user}/upload/confirm")
+@router.post("/{user}/upload/confirm", tags=["media"])
 async def confirm_upload(user: str, request: MetadataCreate):
     target_service = request.service
     token = Token(token=request.token)
@@ -78,7 +78,7 @@ async def confirm_upload(user: str, request: MetadataCreate):
     return db.create_media_record(user, record, service=target_service)
 
 
-@router.post("/{user}/read")
+@router.post("/{user}/read", tags=["media"])
 async def request_read_url(user: str, request: ReadRequest):
     target_service = request.service
     token = Token(token=request.token)
@@ -97,7 +97,7 @@ async def request_read_url(user: str, request: ReadRequest):
     return ReadResponse(read_url=presigned_url, expires_in=settings.READ_URL_EXPIRY)
 
 
-@router.post("/{user}/list")
+@router.post("/{user}/list", tags=["media"])
 async def list_media(user: str, request: ListRequest = ListRequest()):
     target_service = request.service
     auth_token = Token(token=request.token)
@@ -108,7 +108,7 @@ async def list_media(user: str, request: ListRequest = ListRequest()):
     return db.read_media_records(user, service=target_service)
 
 
-@router.delete("/{user}/delete")
+@router.post("/{user}/delete", tags=["media"])
 async def delete_media(user: str, request: MediaToken):
     auth_token = Token(token=request.token)
     if not is_permitted(auth_token, user, "media", "delete"):
