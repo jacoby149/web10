@@ -11,6 +11,7 @@ dependencies = [
     "PyJWT>=2.9",
     "pymongo>=4.8",
     "clickhouse-connect>=0.8",
+    "uuid6>=2024.1.12",
     "boto3>=1.35",
     "passlib[bcrypt]>=1.7",
     # passlib 1.7.4 (unmaintained) reads bcrypt.__about__, removed in

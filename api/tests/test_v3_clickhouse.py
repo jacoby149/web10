@@ -37,7 +37,7 @@ class TestInsertDocument:
             result = ch.insert_document(
                 doc_id="doc-1",
                 author_key="alice",
-                collection_name="posts",
+                service="posts",
                 body={"text": "hello"},
                 tags=["test"],
             )
@@ -56,11 +56,11 @@ class TestInsertDocument:
         with _patch_client() as mock_client:
             result = ch.insert_document(
                 author_key="alice",
-                collection_name="posts",
+                service="posts",
                 body={"text": "hello"},
             )
             assert result["doc_id"] is not None
-            assert len(result["doc_id"]) == 32  # uuid4 hex
+            assert len(result["doc_id"]) == 36  # uuid7 string
             mock_client.insert.assert_called_once()
 
 
@@ -113,7 +113,7 @@ class TestUpdateDocument:
             result = ch.update_document(
                 doc_id="doc-1",
                 author_key="alice",
-                collection_name="posts",
+                service="posts",
                 body={"text": "updated"},
             )
             assert result["created_at"] == "2026-01-01 12:00:00"
@@ -148,7 +148,7 @@ class TestReadDocuments:
                     ("doc-1", "alice", "posts", '{"text":"hello"}', "", [], datetime(2026, 1, 1), datetime(2026, 1, 1)),
                 ]
             )
-            results = ch.read_documents(author_key="alice", collection_name="posts")
+            results = ch.read_documents(author_key="alice", service="posts")
             assert len(results) == 1
             assert results[0]["doc_id"] == "doc-1"
 
@@ -485,7 +485,7 @@ class TestReadDocumentsInGroups:
             results = ch.read_documents_in_groups(
                 group_ids=["g1"],
                 member_key="alice",
-                collection_name="posts",
+                service="posts",
             )
             assert len(results) == 1
             assert results[0]["doc_id"] == "doc-1"
