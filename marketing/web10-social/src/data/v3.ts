@@ -153,7 +153,7 @@ export interface V3Client {
   listAppContracts(): Promise<unknown[]>
   revokeAppContract(allowedOrigin?: string): Promise<{ status: string }>
 
-  createGroup(name: string, joinPolicy: string, roles: Record<string, unknown>[], members: { member_key: string; role?: string }[]): Promise<{ group_id: string }>
+  createGroup(name: string, joinPolicy: string, roles: Record<string, unknown>[], members: { member_key: string; role?: string }[], defaultRole?: string): Promise<{ group_id: string }>
   getGroup(groupId: string): Promise<V3Group>
   getMyGroups(): Promise<V3Group[]>
   getGroupsManages(): Promise<V3Group[]>
@@ -277,8 +277,8 @@ function createV3ClientFactory(apiOrigin: string): V3Client {
       return v3Post<{ status: string }>('app-contracts/revoke', payload);
     },
 
-    async createGroup(name: string, joinPolicy: string, roles: Record<string, unknown>[], members: { member_key: string; role?: string }[]): Promise<{ group_id: string }> {
-      return v3Post<{ group_id: string }>('groups/create', { name, join_policy: joinPolicy, roles, members });
+    async createGroup(name: string, joinPolicy: string, roles: Record<string, unknown>[], members: { member_key: string; role?: string }[], defaultRole?: string): Promise<{ group_id: string }> {
+      return v3Post<{ group_id: string }>('groups/create', { name, join_policy: joinPolicy, roles, members, default_role: defaultRole });
     },
     async getGroup(groupId: string): Promise<V3Group> {
       return v3Post<V3Group>('groups/get', { group_id: groupId });
