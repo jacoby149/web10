@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 
 import app.docs as docs
 import app.exceptions as exceptions
-from app.endpoints import auth, crud, media, payments, schemas, system
+from app.endpoints import auth, media, payments, schemas, system
 from app.v3 import endpoints as v3
 
 app = FastAPI(
@@ -40,10 +40,7 @@ app.include_router(payments.router)
 app.include_router(system.router)
 app.include_router(v3.router)
 app.include_router(media.router, prefix="/v3/media")
-# Specific routers must be registered before crud.router, which has
-# catch-all patterns (/{user}/{service}) that would shadow these routes.
 app.include_router(schemas.router)
-app.include_router(crud.router)
 
 
 # Map bare Exception strings (raised by auth.py / services) to HTTPExceptions.

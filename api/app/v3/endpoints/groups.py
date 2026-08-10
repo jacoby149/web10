@@ -21,7 +21,7 @@ from app.v3.models import (
 from app.v3.models.common import TokenOnly
 from app.v3.services import clickhouse as ch
 
-router = APIRouter(tags=["groups"])
+router = APIRouter(tags=["group-contracts"])
 
 
 def _require_group_permission(group_id: str, user: str, permission: str):
