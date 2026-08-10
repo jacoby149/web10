@@ -352,6 +352,36 @@ ORDER BY (target_app_id, author);
 
 **Primary key:** `(target_app_id, author)` — one rating per user per app. Upsert on update.
 
+## Bug Reports
+
+User-submitted bug reports with optional base64-encoded screenshots. Separate from user data — append-only, no tombstones needed.
+
+```sql
+CREATE TABLE bug_reports (
+    report_id String,
+    username String DEFAULT '',
+    email String DEFAULT '',
+    description String,
+    page_url String DEFAULT '',
+    app_version String DEFAULT '',
+    device_info String DEFAULT '',
+    browser_info String DEFAULT '',
+    error_message String DEFAULT '',
+    stack_trace String DEFAULT '',
+    screenshots String DEFAULT '',
+    created_at DateTime64(3),
+    updated_at DateTime64(3),
+    deleted UInt8 DEFAULT 0
+) ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY report_id;
+```
+
+**Primary key:** `report_id` — unique per report.
+
+**`screenshots`:** JSON array of base64-encoded image strings, each with `data:image/png;base64,...` or `data:image/jpeg;base64,...` prefix. Stored inline — no separate blob store needed.
+
+**`username`:** optional — reports can be submitted anonymously. When authenticated, the username is auto-populated.
+
 ## Blacklists
 
 Two levels of blocking.

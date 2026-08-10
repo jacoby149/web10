@@ -90,6 +90,8 @@ Lane structure follows the knowledge base:
 Each lane reads its doc, implements, ships. Small bites, frequent
 merges. The doc is the spec. The code is the proof.
 
+- [✓ 3.0.12] **Bug reports** (`db/clickhouse.md`) — separate ClickHouse table `bug_reports` with base64-encoded screenshots. Public endpoint for submission, admin endpoints for review.
+
 ---
 
 ## Phase 3 — Apps Rebuild (v2 Apps → v3 Contracts + SDK)
