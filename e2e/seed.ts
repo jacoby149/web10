@@ -39,28 +39,28 @@ export async function seedPersonas(
   // 1. Sign up all users
   for (const u of users) {
     const username = `${u.name}${suffix}`;
-    await requestCtx.post(`${API_BASE}/signup`, {
-      data: {
-        provider: 'api.localhost',
-        username,
-        password,
-        new_pass: password,
-        retypepass: password,
-        phone: u.phone,
-        betacode: 'web10betacode',
+    await requestCtx.post(`${API_BASE}/v3/signup`, {
+      json: {
+        token: '',
+        body: {
+          username,
+          password,
+          phone: u.phone,
+        },
       },
     });
     personas[u.name] = { username, password, token: '' };
   }
 
-  // 2. Get social tokens for each persona
+  // 2. Get tokens for each persona via v3 login
   for (const [key, persona] of Object.entries(personas)) {
-    const res = await requestCtx.post(`${API_BASE}/web10token`, {
-      data: {
-        username: persona.username,
-        password: persona.password,
-        site: 'social.localhost',
-        target: persona.username,
+    const res = await requestCtx.post(`${API_BASE}/v3/login`, {
+      json: {
+        token: '',
+        body: {
+          username: persona.username,
+          password: persona.password,
+        },
       },
     });
     if (res.ok()) {

@@ -26,14 +26,14 @@ test.describe('terms grant and revoke', () => {
     });
 
     // Owner token: no site/target → self-access
-    const ownerTokenRes = await request.post(`${API_BASE}/web10token`, {
+    const ownerTokenRes = await request.post(`${API_BASE}/v3/login`, {
       data: { username: owner, password },
     });
     expect(ownerTokenRes.ok()).toBeTruthy();
     const { token: ownerToken } = await ownerTokenRes.json();
 
     // Reader token: no site/target → self-access
-    const readerTokenRes = await request.post(`${API_BASE}/web10token`, {
+    const readerTokenRes = await request.post(`${API_BASE}/v3/login`, {
       data: { username: reader, password },
     });
     expect(readerTokenRes.ok()).toBeTruthy();
@@ -109,12 +109,12 @@ test.describe('terms grant and revoke', () => {
       data: { provider: 'api.localhost', username: reader, password, new_pass: password, retypepass: password, phone: '+15557770004', betacode: 'web10betacode' },
     });
 
-    const ownerTokenRes = await request.post(`${API_BASE}/web10token`, {
+    const ownerTokenRes = await request.post(`${API_BASE}/v3/login`, {
       data: { username: owner, password },
     });
     const { token: ownerToken } = await ownerTokenRes.json();
 
-    const readerTokenRes = await request.post(`${API_BASE}/web10token`, {
+    const readerTokenRes = await request.post(`${API_BASE}/v3/login`, {
       data: { username: reader, password },
     });
     const { token: readerToken } = await readerTokenRes.json();
@@ -157,12 +157,12 @@ test.describe('terms grant and revoke', () => {
       data: { provider: 'api.localhost', username: reader, password, new_pass: password, retypepass: password, phone: '+15557770006', betacode: 'web10betacode' },
     });
 
-    const ownerTokenRes = await request.post(`${API_BASE}/web10token`, {
+    const ownerTokenRes = await request.post(`${API_BASE}/v3/login`, {
       data: { username: owner, password },
     });
     const { token: ownerToken } = await ownerTokenRes.json();
 
-    const readerTokenRes = await request.post(`${API_BASE}/web10token`, {
+    const readerTokenRes = await request.post(`${API_BASE}/v3/login`, {
       data: { username: reader, password },
     });
     const { token: readerToken } = await readerTokenRes.json();

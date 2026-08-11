@@ -107,15 +107,14 @@ export function createAuthConnector(wapi: Web10Client): AuthConnector {
     // ── Login / Signup ────────────────────────────────────────────────
 
     async logIn(params: LoginParams): Promise<void> {
-      const hostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost'
       const res = await authPost<{ token: string }>(
-        `${api()}/web10token`,
+        `${api()}/v3/login`,
         {
-          username: params.username,
-          password: params.password,
-          token: null,
-          site: hostname,
-          target: null,
+          token: '',
+          body: {
+            username: params.username,
+            password: params.password,
+          },
         },
       )
       wapi.setToken(res.token)
@@ -124,12 +123,14 @@ export function createAuthConnector(wapi: Web10Client): AuthConnector {
 
     async signUp(params: SignupParams): Promise<void> {
       await authPost<{ ok: boolean }>(
-        `${api()}/signup`,
+        `${api()}/v3/signup`,
         {
-          username: params.username,
-          password: params.password,
-          betacode: params.betacode ?? null,
-          phone: params.phone ?? null,
+          token: '',
+          body: {
+            username: params.username,
+            password: params.password,
+            phone: params.phone ?? '',
+          },
         },
       )
     },
@@ -167,21 +168,27 @@ export function createAuthConnector(wapi: Web10Client): AuthConnector {
 
     // ── Account management ────────────────────────────────────────────
 
-    async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    async changePassword(_currentPassword: string, newPassword: string): Promise<void> {
       const token = wapi.readToken()
       if (!token) throw new Error('Not authenticated')
       await authPost<{ ok: boolean }>(
-        `${api()}/change_pass`,
-        { username: token.username, password: currentPassword, new_pass: newPassword },
+        `${api()}/v3/change-pass`,
+        {
+          token: wapi.state.token,
+          body: { password: newPassword },
+        },
       )
     },
 
-    async changePhone(password: string, phone: string): Promise<void> {
+    async changePhone(_password: string, phone: string): Promise<void> {
       const token = wapi.readToken()
       if (!token) throw new Error('Not authenticated')
       await authPost<{ ok: boolean }>(
-        `${api()}/change_phone`,
-        { username: token.username, password, phone },
+        `${api()}/v3/change-phone`,
+        {
+          token: wapi.state.token,
+          body: { phone },
+        },
       )
     },
 
@@ -189,60 +196,47 @@ export function createAuthConnector(wapi: Web10Client): AuthConnector {
 
     async sendCode(): Promise<void> {
       await authPost<{ sent: boolean }>(
-        `${api()}/send_code`,
+        `${api()}/v3/send_code`,
         { token: wapi.state.token },
       )
     },
 
     async verifyCode(code: string): Promise<void> {
+      const token = wapi.readToken()
+      if (!token) throw new Error('Not authenticated')
       await authPost<{ verified: boolean }>(
-        `${api()}/verify_code`,
-        { token: wapi.state.token, query: { code } },
+        `${api()}/v3/verify-phone`,
+        {
+          token: wapi.state.token,
+          body: { code },
+        },
       )
     },
 
-    // ── Stripe management ─────────────────────────────────────────────
+    // ── Stripe management (v4 aspirational — not implemented in v3) ───
 
     async manageSpace(): Promise<{ url: string }> {
-      return authPost<{ url: string }>(
-        `${api()}/manage_space`,
-        { token: wapi.state.token },
-      )
+      throw new Error('Stripe management not available — payments are a v4 feature')
     },
 
     async manageCredits(): Promise<{ url: string }> {
-      return authPost<{ url: string }>(
-        `${api()}/manage_credits`,
-        { token: wapi.state.token },
-      )
+      throw new Error('Stripe management not available — payments are a v4 feature')
     },
 
     async manageBusiness(): Promise<{ url: string }> {
-      return authPost<{ url: string }>(
-        `${api()}/manage_business`,
-        { token: wapi.state.token },
-      )
+      throw new Error('Stripe management not available — payments are a v4 feature')
     },
 
     async manageSubscriptions(): Promise<{ url: string }> {
-      return authPost<{ url: string }>(
-        `${api()}/manage_subscriptions`,
-        { token: wapi.state.token },
-      )
+      throw new Error('Stripe management not available — payments are a v4 feature')
     },
 
     async businessLogin(): Promise<{ url: string }> {
-      return authPost<{ url: string }>(
-        `${api()}/business_login`,
-        { token: wapi.state.token },
-      )
+      throw new Error('Stripe management not available — payments are a v4 feature')
     },
 
     async getPlan(): Promise<PlanInfo> {
-      return authPost<PlanInfo>(
-        `${api()}/get_plan`,
-        { token: wapi.state.token },
-      )
+      throw new Error('Plan management not available — payments are a v4 feature')
     },
   }
 

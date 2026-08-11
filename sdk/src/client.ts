@@ -456,53 +456,18 @@ export function createClient(options: ClientOptions = {}): Web10Client {
       return res.read_url
     },
 
-    // ── Dev Pay ───────────────────────────────────────────────────────
+    // ── Dev Pay (v4 aspirational — not implemented in v3) ──────────────
 
-    checkout(params: CheckoutParams): Promise<void> {
-      const token = this.readToken()
-      if (!token) throw new Error('Must be signed in for checkout')
-      return authPost<{ url: string }>(
-        `${apiOrigin}/dev_pay`,
-        {
-          token: state.token!,
-          seller: params.seller,
-          title: params.title,
-          price: params.price,
-          success_url: params.success_url,
-          cancel_url: params.cancel_url,
-        },
-      ).then((res) => {
-        if (typeof window !== 'undefined') {
-          window.location.href = res.url
-        }
-      })
+    checkout(_params: CheckoutParams): Promise<void> {
+      throw new Web10Error('Dev Pay not available — payments are a v4 feature', 501)
     },
 
-    verifySubscription(params: SubscriptionParams): Promise<{ active: boolean }> {
-      const token = this.readToken()
-      if (!token) throw new Error('Must be signed in')
-      return authPost<{ active: boolean }>(
-        `${apiOrigin}/dev_pay`,
-        {
-          token: state.token!,
-          seller: params.seller,
-          title: params.title,
-          price: null,
-        },
-      )
+    verifySubscription(_params: SubscriptionParams): Promise<{ active: boolean }> {
+      throw new Web10Error('Subscription management not available — payments are a v4 feature', 501)
     },
 
-    cancelSubscription(params: SubscriptionParams): Promise<{ cancelled: boolean }> {
-      const token = this.readToken()
-      if (!token) throw new Error('Must be signed in')
-      return authPost<{ cancelled: boolean }>(
-        `${apiOrigin}/dev_pay`,
-        {
-          token: state.token!,
-          seller: params.seller,
-          title: params.title,
-        },
-      )
+    cancelSubscription(_params: SubscriptionParams): Promise<{ cancelled: boolean }> {
+      throw new Web10Error('Subscription management not available — payments are a v4 feature', 501)
     },
   }
 
@@ -510,10 +475,13 @@ export function createClient(options: ClientOptions = {}): Web10Client {
   if (typeof window !== 'undefined' && typeof window.location !== 'undefined' && typeof window.location.href === 'string') {
     for (const appStore of appStores) {
       try {
-        fetch(`${appStore}/register_app`, {
+        fetch(`${appStore}/v3/apps/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: window.location.href.split('?')[0] }),
+          body: JSON.stringify({
+            token: '',
+            body: { url: window.location.href.split('?')[0] },
+          }),
         }).catch(() => {})
       } catch {
         // fetch not available (SSR, test env)

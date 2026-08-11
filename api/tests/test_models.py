@@ -1,31 +1,39 @@
 """Tests for Pydantic models."""
 
-from app.models.auth import PhoneForm, SignUpForm, Token, TokenData, TokenForm
-from app.models.core import dotdict
-from app.models.payment import PayData
+from app.models.auth import Token, TokenData
 
 
 class TestDotdict:
     def test_dot_get(self):
+        from app.models.core import dotdict
+
         d = dotdict({"a": 1, "b": 2})
         assert d.a == 1
         assert d.b == 2
 
     def test_dot_set(self):
+        from app.models.core import dotdict
+
         d = dotdict()
         d.key = "value"
         assert d["key"] == "value"
 
     def test_dot_delete(self):
+        from app.models.core import dotdict
+
         d = dotdict({"x": 1})
         del d.x
         assert "x" not in d
 
     def test_missing_key_returns_none(self):
+        from app.models.core import dotdict
+
         d = dotdict({"a": 1})
         assert d.missing is None
 
     def test_dict_operations(self):
+        from app.models.core import dotdict
+
         d = dotdict({"a": 1})
         assert "a" in d
         assert len(d) == 1
@@ -72,78 +80,3 @@ class TestTokenData:
         td = TokenData()
         td.populate_from_payload({})
         assert td.username is None
-
-    def test_populate_from_token_form(self):
-        td = TokenData()
-        form = TokenForm(username="bob", site="x.com", target="t")
-        td.populate_from_token_form(form)
-        assert td.username == "bob"
-        assert td.site == "x.com"
-        assert td.target == "t"
-        assert td.provider is None
-
-
-class TestSignUpForm:
-    def test_valid(self):
-        form = SignUpForm(username="alice", password="pass123", phone="+1234567890")
-        assert form.username == "alice"
-
-    def test_optional_fields(self):
-        form = SignUpForm(username="alice", password="pass123")
-        assert form.phone is None
-        assert form.betacode is None
-
-    def test_with_betacode(self):
-        form = SignUpForm(username="alice", password="pass123", betacode="abc")
-        assert form.betacode == "abc"
-
-    def test_missing_username_raises(self):
-        import pytest
-
-        with pytest.raises(Exception):
-            SignUpForm(password="x")
-
-
-class TestTokenForm:
-    def test_password_auth(self):
-        form = TokenForm(username="u", password="p")
-        assert form.password == "p"
-        assert form.token is None
-
-    def test_token_auth(self):
-        form = TokenForm(username="u", token="jwtabc")
-        assert form.token == "jwtabc"
-        assert form.password is None
-
-    def test_with_site_target(self):
-        form = TokenForm(username="u", password="p", site="s.com", target="t")
-        assert form.site == "s.com"
-        assert form.target == "t"
-
-
-class TestPhoneForm:
-    def test_valid(self):
-        form = PhoneForm(phone_number="+1234567890")
-        assert form.phone_number == "+1234567890"
-
-    def test_missing_raises(self):
-        import pytest
-
-        with pytest.raises(Exception):
-            PhoneForm()
-
-
-class TestPayData:
-    def test_valid(self):
-        pd = PayData(token="t", seller="s", title="Sub", price=100, success_url="https://ok", cancel_url="https://no")
-        assert pd.price == 100
-
-    def test_optional_price(self):
-        pd = PayData(token="t", seller="s", title="Free")
-        assert pd.price is None
-
-    def test_missing_token_raises(self):
-        import pytest
-
-        with pytest.raises(Exception):
-            PayData(seller="s", title="t")

@@ -1,4 +1,10 @@
-from app.v3.models.appstore import CreateAppRating, GetAppRatings, RegisterApp
+from app.v3.models.appstore import (
+    ApproveApp,
+    AppsAdmin,
+    CreateAppRating,
+    GetAppRatings,
+    RegisterApp,
+)
 from app.v3.models.auth import (
     ChangePass,
     ChangePhone,
@@ -76,4 +82,6 @@ __all__ = [
     "RegisterApp",
     "CreateAppRating",
     "GetAppRatings",
+    "AppsAdmin",
+    "ApproveApp",
 ]

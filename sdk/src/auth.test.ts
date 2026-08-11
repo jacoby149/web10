@@ -96,7 +96,7 @@ describe('createAuthConnector', () => {
   })
 
   describe('logIn', () => {
-    it('calls fetch to /web10token with correct payload', async () => {
+    it('calls fetch to /v3/login with correct payload', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ token: 'new-jwt' }),
@@ -116,11 +116,11 @@ describe('createAuthConnector', () => {
       await wa.logIn({ provider: 'api.example.com', username: 'alice', password: 'secret' })
       const body = JSON.parse(mockFetch.mock.calls[0][1].body as string)
       expect(body).toEqual({
-        username: 'alice',
-        password: 'secret',
-        token: null,
-        site: 'auth.example.com',
-        target: null,
+        token: '',
+        body: {
+          username: 'alice',
+          password: 'secret',
+        },
       })
     })
 
@@ -147,7 +147,7 @@ describe('createAuthConnector', () => {
   })
 
   describe('signUp', () => {
-    it('calls fetch to /signup with correct payload', async () => {
+    it('calls fetch to /v3/signup with correct payload', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ ok: true }),
@@ -158,21 +158,22 @@ describe('createAuthConnector', () => {
         provider: 'api.example.com',
         username: 'bob',
         password: 'pass123',
-        betacode: 'beta',
         phone: '+1234567890',
       })
       const body = JSON.parse(mockFetch.mock.calls[0][1].body as string)
       expect(body).toEqual({
-        username: 'bob',
-        password: 'pass123',
-        betacode: 'beta',
-        phone: '+1234567890',
+        token: '',
+        body: {
+          username: 'bob',
+          password: 'pass123',
+          phone: '+1234567890',
+        },
       })
     })
   })
 
   describe('changePassword', () => {
-    it('calls fetch to /change_pass', async () => {
+    it('calls fetch to /v3/change-pass', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ ok: true }),
@@ -183,15 +184,14 @@ describe('createAuthConnector', () => {
       await wa.changePassword('old', 'new')
       const body = JSON.parse(mockFetch.mock.calls[0][1].body as string)
       expect(body).toEqual({
-        username: 'alice',
-        password: 'old',
-        new_pass: 'new',
+        token: jwt,
+        body: { password: 'new' },
       })
     })
   })
 
   describe('changePhone', () => {
-    it('calls fetch to /change_phone', async () => {
+    it('calls fetch to /v3/change-phone', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ ok: true }),
@@ -202,15 +202,14 @@ describe('createAuthConnector', () => {
       await wa.changePhone('oldpass', '+9876543210')
       const body = JSON.parse(mockFetch.mock.calls[0][1].body as string)
       expect(body).toEqual({
-        username: 'alice',
-        password: 'oldpass',
-        phone: '+9876543210',
+        token: jwt,
+        body: { phone: '+9876543210' },
       })
     })
   })
 
   describe('sendCode / verifyCode', () => {
-    it('sendCode calls fetch to /send_code', async () => {
+    it('sendCode calls fetch to /v3/send_code', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ sent: true }),
@@ -223,7 +222,7 @@ describe('createAuthConnector', () => {
       expect(body).toEqual({ token: jwt })
     })
 
-    it('verifyCode calls fetch to /verify_code', async () => {
+    it('verifyCode calls fetch to /v3/verify-phone', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ verified: true }),
@@ -233,35 +232,30 @@ describe('createAuthConnector', () => {
       const wa = createAuthConnector(wapi)
       await wa.verifyCode('123456')
       const body = JSON.parse(mockFetch.mock.calls[0][1].body as string)
-      expect(body).toEqual({ token: jwt, query: { code: '123456' } })
+      expect(body).toEqual({ token: jwt, body: { code: '123456' } })
     })
   })
 
   describe('Stripe management endpoints', () => {
-    it('manageSpace calls fetch to /manage_space', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ url: 'stripe-url' }),
-      })
+    it('manageSpace throws error (v4 feature)', async () => {
       const jwt = makeJwt({ username: 'alice', provider: 'api.example.com' })
       const wapi = createMockWapi(jwt)
       const wa = createAuthConnector(wapi)
-      await wa.manageSpace()
-      const body = JSON.parse(mockFetch.mock.calls[0][1].body as string)
-      expect(body).toEqual({ token: jwt })
+      await expect(wa.manageSpace()).rejects.toThrow('payments are a v4 feature')
     })
 
-    it('getPlan calls fetch to /get_plan', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ space: 100, credits: 50 }),
-      })
+    it('manageBusiness throws error (v4 feature)', async () => {
       const jwt = makeJwt({ username: 'alice', provider: 'api.example.com' })
       const wapi = createMockWapi(jwt)
       const wa = createAuthConnector(wapi)
-      await wa.getPlan()
-      const body = JSON.parse(mockFetch.mock.calls[0][1].body as string)
-      expect(body).toEqual({ token: jwt })
+      await expect(wa.manageBusiness()).rejects.toThrow('payments are a v4 feature')
+    })
+
+    it('getPlan throws error (v4 feature)', async () => {
+      const jwt = makeJwt({ username: 'alice', provider: 'api.example.com' })
+      const wapi = createMockWapi(jwt)
+      const wa = createAuthConnector(wapi)
+      await expect(wa.getPlan()).rejects.toThrow('payments are a v4 feature')
     })
   })
 

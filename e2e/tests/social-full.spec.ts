@@ -29,7 +29,7 @@ test.describe('social post with media -> feed -> comment -> DM', () => {
     expect(signupRes.ok()).toBeTruthy();
 
     // Owner token: no site/target → self-access
-    const tokenRes = await request.post(`${API_BASE}/web10token`, {
+    const tokenRes = await request.post(`${API_BASE}/v3/login`, {
       data: { username, password },
     });
     expect(tokenRes.ok()).toBeTruthy();
@@ -160,7 +160,7 @@ test.describe('social post with media -> feed -> comment -> DM', () => {
     // (a) is_permitted to auto-approve self-access for any service, or
     // (b) create_user to seed a media terms record.
     // Media endpoints need target=PROVIDER for is_permitted to work
-    const mediaTokenRes = await request.post(`${API_BASE}/web10token`, {
+    const mediaTokenRes = await request.post(`${API_BASE}/v3/login`, {
       data: { username, password, target: 'api.localhost' },
     });
     expect(mediaTokenRes.ok()).toBeTruthy();
@@ -182,7 +182,7 @@ test.describe('social post with media -> feed -> comment -> DM', () => {
 
   test.fixme('media upload flow: full cycle (presign -> upload -> confirm)', async ({ request }) => {
     // FIXME (Lane A): same is_permitted bug as above — media service not whitelisted for self
-    const mediaTokenRes = await request.post(`${API_BASE}/web10token`, {
+    const mediaTokenRes = await request.post(`${API_BASE}/v3/login`, {
       data: { username, password, target: 'api.localhost' },
     });
     expect(mediaTokenRes.ok()).toBeTruthy();
@@ -226,7 +226,7 @@ test.describe('social post with media -> feed -> comment -> DM', () => {
 
   test.fixme('list media records after upload', async ({ request }) => {
     // FIXME (Lane A): same is_permitted bug — media service not whitelisted for self
-    const mediaTokenRes = await request.post(`${API_BASE}/web10token`, {
+    const mediaTokenRes = await request.post(`${API_BASE}/v3/login`, {
       data: { username, password, target: 'api.localhost' },
     });
     expect(mediaTokenRes.ok()).toBeTruthy();

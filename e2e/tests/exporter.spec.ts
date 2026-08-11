@@ -39,7 +39,7 @@ test.describe('exporter upload -> marketing-api job -> records', () => {
     });
 
     // Owner token (no site/target) for the import pipeline
-    const tokenRes = await request.post(`${API_BASE}/web10token`, {
+    const tokenRes = await request.post(`${API_BASE}/v3/login`, {
       data: { username, password },
     });
     expect(tokenRes.ok()).toBeTruthy();
