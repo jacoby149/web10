@@ -92,6 +92,7 @@ merges. The doc is the spec. The code is the proof.
 
 - [✓ 3.0.12] **Bug reports** (`db/clickhouse.md`) — separate ClickHouse table `bug_reports` with base64-encoded screenshots. Public endpoint for submission, admin endpoints for review.
 - [✓ 3.0.13] **Bug reports UI** — web10-social and marketing-ui hooked up to `POST /bug_report` with screenshot capture (getDisplayMedia) and paste-to-attach.
+- [✓ 3.0.15] **Marketing API v3** — all endpoints under /v3, section routers (analytics, feedback, import, infra, pay). Pay section: Stripe developer payouts. Affiliate section: links, clicks, conversions, stats. Everything page: web10 as open-source everything app.
 
 ---
 

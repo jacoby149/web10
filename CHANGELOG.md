@@ -1,3 +1,6 @@
+3.0.15 || 11.08.2026
+refactor(marketing-api): v3 prefix + section routers + pay + affiliate — all endpoints under /v3 (analytics, feedback, import, infra, pay). main.py reduced from 710 to 18 lines. New pay section: Stripe marketplace endpoints for developer payouts (create, list, cancel). New affiliate section: link generation, click/conversion tracking, stats. New Everything page: web10 as the open-source everything app (social, payments, commerce, app store, livestream, games, flares, global). Links button in navbar.
+
 3.0.14 || 11.08.2026
 refactor(api+sdk): strip v2 endpoints — removed 34 v2 routes (schemas, payments, v2 media, v2 auth, migration endpoints, /stats, /pwa_listing, /register_app, /apps/rating). Added v3 app store admin: /v3/apps/admin, /v3/apps/approve. Added missing media pipeline: /v3/media/upload-url (presigned POST), /v3/media/read-url (presigned GET). SDK: login/signup/account methods use v3 endpoints; dev pay throws errors (v4 feature). ConfigPage calls /v3/apps/admin and /v3/apps/approve. E2E: v3 login helper, v2-only tests marked fixme. Added /links page (web10 linktree). Marketing docs wapi.js rebuilt. Net: -710 lines.
 
