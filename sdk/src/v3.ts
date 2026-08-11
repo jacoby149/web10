@@ -154,11 +154,13 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
     },
 
     readToken(): TokenPayload | null {
-      return decodeJwt(state.token)
+      const current = readTokenCookie() ?? state.token
+      return current ? decodeJwt(current) : null
     },
 
     isSignedIn(): boolean {
-      return state.token != null && state.token !== ''
+      const current = readTokenCookie() ?? state.token
+      return current != null && current !== ''
     },
 
     signOut(): void {
