@@ -37,7 +37,13 @@ from app.v3.models.groups import (
     RemoveGroupMember,
     UpdateGroup,
 )
-from app.v3.models.media import ConfirmMedia, DeleteMedia, ListMedia
+from app.v3.models.media import (
+    ConfirmMedia,
+    DeleteMedia,
+    ListMedia,
+    ReadUrlRequest,
+    UploadUrlRequest,
+)
 
 __all__ = [
     # auth
@@ -78,6 +84,8 @@ __all__ = [
     "ConfirmMedia",
     "ListMedia",
     "DeleteMedia",
+    "UploadUrlRequest",
+    "ReadUrlRequest",
     # appstore
     "RegisterApp",
     "CreateAppRating",

@@ -819,6 +819,18 @@
           enabled
         });
       },
+      async requestMediaUploadUrl(params) {
+        return v3Post("media/upload-url", {
+          body: {
+            filename: params.filename,
+            mime_type: params.mimeType ?? "application/octet-stream",
+            size_bytes: params.sizeBytes ?? null
+          }
+        });
+      },
+      async getMediaReadUrl(objectKey) {
+        return v3Post("media/read-url", { body: { object_key: objectKey } });
+      },
       async confirmMediaUpload(metadata) {
         return v3Post("media/confirm", { body: metadata });
       },

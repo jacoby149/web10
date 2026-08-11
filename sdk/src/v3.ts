@@ -438,6 +438,24 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
 
     // ── Media ─────────────────────────────────────────────────────────────
 
+    async requestMediaUploadUrl(
+      params: { filename: string; mimeType?: string; sizeBytes?: number },
+    ): Promise<{ upload_url: string; fields: Record<string, string>; object_key: string; content_type: string }> {
+      return v3Post('media/upload-url', {
+        body: {
+          filename: params.filename,
+          mime_type: params.mimeType ?? 'application/octet-stream',
+          size_bytes: params.sizeBytes ?? null,
+        },
+      })
+    },
+
+    async getMediaReadUrl(
+      objectKey: string,
+    ): Promise<{ read_url: string; expires_in: number }> {
+      return v3Post('media/read-url', { body: { object_key: objectKey } })
+    },
+
     async confirmMediaUpload(metadata: Record<string, unknown>): Promise<V3Document> {
       return v3Post<V3Document>('media/confirm', { body: metadata })
     },
@@ -552,6 +570,10 @@ export interface V3Client {
   setSharing(groupId: string, enabled: boolean): Promise<{ user_key: string; group_id: string; sharing_enabled: boolean }>
 
   // Media
+  requestMediaUploadUrl(
+    params: { filename: string; mimeType?: string; sizeBytes?: number },
+  ): Promise<{ upload_url: string; fields: Record<string, string>; object_key: string; content_type: string }>
+  getMediaReadUrl(objectKey: string): Promise<{ read_url: string; expires_in: number }>
   confirmMediaUpload(metadata: Record<string, unknown>): Promise<V3Document>
   listMedia(opts?: { limit?: number; offset?: number }): Promise<V3Document[]>
   deleteMedia(docId: string): Promise<{ doc_id: string; status: string }>
