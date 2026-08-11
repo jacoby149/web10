@@ -40,12 +40,10 @@ function mockLoad({ board = [POST], removed = [] }: { board?: any[]; removed?: a
     if (url.includes('/admin/discovery/removed')) return Promise.resolve({ data: { removed } })
     if (url.includes('/admin/discovery/remove')) return Promise.resolve({ data: { matched: 1 } })
     if (url.includes('/admin/discovery/restore')) return Promise.resolve({ data: { matched: 1 } })
+    if (url.includes('/v3/read')) return Promise.resolve({ data: board })
     return Promise.resolve({ data: {} })
   })
-  ;(axios.patch as any).mockImplementation((url: string) => {
-    if (url.includes('/discover/posts')) return Promise.resolve({ data: board })
-    return Promise.resolve({ data: {} })
-  })
+  ;(axios.patch as any).mockImplementation(() => Promise.resolve({ data: {} }))
 }
 
 describe('ConfigPage board moderation', () => {
