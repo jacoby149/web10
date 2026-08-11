@@ -115,7 +115,7 @@ class TestPermissiveCors:
 
 class TestErrorResponsesHaveCors:
     def test_bare_exception_token_error_has_cors(self):
-        """`/certify` with a bad token raises a bare Exception('TOKEN') → 401.
+        """`/v3/create` with a bad token raises a bare Exception('TOKEN') → 401.
 
         This is the path that masked expired tokens as CORS errors: the response
         the browser receives must carry access-control-allow-origin so the 401 is
@@ -127,8 +127,8 @@ class TestErrorResponsesHaveCors:
         """
         client = TestClient(fastapi_app, raise_server_exceptions=False)
         resp = client.post(
-            "/certify",
-            json={"token": "garbage.not.a.jwt"},
+            "/v3/create",
+            json={"token": "garbage.not.a.jwt", "service": "posts", "body": {"text": "hello"}},
             headers={"Origin": "https://social.web10.app"},
         )
         assert resp.status_code == 401
@@ -137,9 +137,9 @@ class TestErrorResponsesHaveCors:
     def test_validation_error_has_cors(self):
         """A 422 validation error must also carry the CORS header."""
         client = TestClient(fastapi_app, raise_server_exceptions=False)
-        # A non-object body fails Token model validation → RequestValidationError.
+        # A non-object body fails Login model validation → RequestValidationError.
         resp = client.post(
-            "/certify",
+            "/v3/login",
             json=[1, 2, 3],
             headers={"Origin": "https://social.web10.app"},
         )
