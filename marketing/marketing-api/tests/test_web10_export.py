@@ -13,7 +13,8 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from app.main import app, jobs
+from app.main import app
+from app.v3.endpoints.imports import jobs
 from app.utils import is_web10_zip, detect_platform
 from app.web10 import parse_web10, _remap_service
 

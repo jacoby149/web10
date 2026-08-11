@@ -12,11 +12,9 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from app.main import (
-    app,
-    jobs,
-    Phase,
-)
+from app.main import app
+from app.v3.endpoints.imports import jobs
+from app.models import Phase
 
 client = TestClient(app)
 
