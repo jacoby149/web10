@@ -18,6 +18,10 @@ tags_metadata = [
         "description": "Document CRUD — create, read, update, delete. User from JWT. Server generates doc_id (UUID7).",
     },
     {
+        "name": "schemas",
+        "description": "Schemas — register, create, update, delete document schemas.",
+    },
+    {
         "name": "media",
         "description": "Media — upload confirm, list, delete.",
     },
@@ -34,11 +38,19 @@ tags_metadata = [
         "description": "App store — register, list approved, ratings.",
     },
     {
+        "name": "payments",
+        "description": "Payments — business management, dev pay, verify, cancel.",
+    },
+    {
         "name": "system",
         "description": "Node system — stats, setup wizard, config, health check.",
     },
     {
         "name": "admin",
         "description": "Admin only — data migrations, app approvals, bug reports.",
+    },
+    {
+        "name": "default",
+        "description": "Untagged endpoints — legacy routes, health check, app registry.",
     },
 ]
