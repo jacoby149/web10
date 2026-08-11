@@ -130,10 +130,20 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
     try {
       const decoded = I.v3.readToken();
       const protocol = window.location.protocol;
-      const resp = await axios.patch(
-        `${protocol}//${decoded.provider}/discover/posts?sort=recent&limit=50`
-      );
-      setBoard(resp.data ?? []);
+      const resp = await nodePost("/v3/read", {
+        token: I.v3.state.token,
+        service: "public_posts",
+        groups: ["web10.app/groups/web10/discover"],
+        limit: 50,
+      });
+      setBoard((resp.data ?? []).map((d: any) => ({
+        author: d.author,
+        service: d.service,
+        post_id: d.doc_id,
+        body_text: d.body?.text || "",
+        tags: d.body?.tags || [],
+        created_at: d.created_at,
+      })));
     } catch (e: any) {
       setBoardError(e.response?.data?.detail || "Failed to load the public board.");
     } finally {
@@ -214,11 +224,7 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
     try {
       const decoded = I.v3.readToken();
       const protocol = window.location.protocol;
-      await axios.patch(
-        `${protocol}//${decoded.provider}/config`,
-        { token: I.v3.state.token, admins: next },
-        { headers: { "Content-Type": "application/json" } }
-      );
+      await nodePost("/config/update", { token: I.v3.state.token, admins: next });
       setConfig(prev => ({ ...prev, admins: next }));
       setLoadedConfig(prev => ({ ...prev, admins: next }));
     } catch (e: any) {
