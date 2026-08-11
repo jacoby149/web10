@@ -4,8 +4,9 @@ import { config } from '../config';
 function web10AuthAdapterInit() {
     const host = window.location.hostname;
     const local = host === "localhost" || host === "127.0.0.1" || host.endsWith(".localhost");
+    const isDev = host.endsWith(".dev.web10.app");
     const v3 = createV3Client({
-        apiOrigin: local ? "http://api.localhost" : config.REACT_APP_API_ORIGIN,
+        apiOrigin: local ? "http://api.localhost" : isDev ? "https://api.dev.web10.app" : config.REACT_APP_API_ORIGIN,
     });
     return { v3 };
 }

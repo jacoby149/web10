@@ -7,13 +7,13 @@ import { config } from '../config';
 
 /**
  * Resolve the API origin from the decoded token or fall back to the configured
- * default. Mirrors authAdapter's *.localhost detection so local dev points at
- * api.localhost and prod points at api.web10.app.
+ * default. Mirrors authAdapter's *.localhost / *.dev.web10.app detection.
  */
 function v3ApiOrigin(decoded: { provider?: string } | null): string {
     const host = window.location.hostname;
     const isLocal = host === 'localhost' || host === '127.0.0.1' || host.endsWith('.localhost');
-    const provider = decoded?.provider || (isLocal ? 'api.localhost' : config.REACT_APP_DEFAULT_API);
+    const isDev = host.endsWith('.dev.web10.app');
+    const provider = decoded?.provider || (isLocal ? 'api.localhost' : isDev ? 'api.dev.web10.app' : config.REACT_APP_DEFAULT_API);
     return `${window.location.protocol}//${provider}`;
 }
 
@@ -50,12 +50,24 @@ function useInterface() {
     // Restore auth from the "token=" cookie on load. A dead (expired) token
     // must NOT present the authenticated view (B7: it used to land the user on
     // an empty "Your contracts" with no way to log in) — scrub it so routing
-    // sends them to login. Runs once, in the lazy initializer, not every render.
+    // sends them to login. Same for a token from the wrong provider (prod token
+    // on dev or vice versa) — the JWT provider must match this node. Runs once,
+    // in the lazy initializer, not every render.
     const restoreAuth = (): boolean => {
         const t = v3.readToken?.();
         if (!t) return false;
         const expires = t.expires ? Date.parse(t.expires) : NaN;
         if (!Number.isNaN(expires) && expires < Date.now()) {
+            v3.scrubToken?.();
+            return false;
+        }
+        // Provider mismatch: a prod token on dev (or vice versa) is useless —
+        // the API won't recognize it. Scrub so the user gets a login prompt.
+        const host = window.location.hostname;
+        const isDev = host.endsWith('.dev.web10.app');
+        const isLocal = host === 'localhost' || host === '127.0.0.1' || host.endsWith('.localhost');
+        const expectedProvider = isLocal ? 'api.localhost' : isDev ? 'api.dev.web10.app' : config.REACT_APP_DEFAULT_API;
+        if (t.provider !== expectedProvider && !isLocal) {
             v3.scrubToken?.();
             return false;
         }

@@ -7,11 +7,14 @@ const ERROR_MSGS = {
   delete: "Failed to delete note",
 }
 
-const AUTH_ORIGIN = "https://auth.web10.app"
-const w = window.web10.createV3Client({ apiOrigin: 'https://api.web10.app' })
+const host = window.location.hostname
+const isDev = host.endsWith('.dev.web10.app')
+const isLocal = host === 'localhost' || host === '127.0.0.1' || host.endsWith('.localhost')
+const AUTH_ORIGIN = isLocal ? 'http://auth.localhost' : isDev ? 'https://auth.dev.web10.app' : 'https://auth.web10.app'
+const w = window.web10.createV3Client({ apiOrigin: isLocal ? 'http://api.localhost' : isDev ? 'https://api.dev.web10.app' : 'https://api.web10.app' })
 
 // v3 API helpers — all v3 endpoints are POST with { token, ...params }
-const API_ORIGIN = "https://api.web10.app"
+const API_ORIGIN = isLocal ? 'http://api.localhost' : isDev ? 'https://api.dev.web10.app' : 'https://api.web10.app'
 const SERVICE = "web10-docs-note-demo"
 const PUBLIC_GROUP = "web10.app/groups/web10/discover"
 
