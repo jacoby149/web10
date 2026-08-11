@@ -67,7 +67,7 @@ async def post_setup(req: SetupRequest):
 # --- Config management ---
 
 
-@router.post("/config")
+@router.post("/config", tags=["admin"])
 async def get_config(token: Token):
     """Returns the current node config (admin only).
 
@@ -95,7 +95,7 @@ async def get_config(token: Token):
     return safe
 
 
-@router.post("/am_admin")
+@router.post("/am_admin", tags=["admin"])
 async def am_admin(token: Token):
     """Any authenticated user can ask whether THEY are an admin of this node.
 
@@ -109,7 +109,7 @@ async def am_admin(token: Token):
         return {"admin": False}
 
 
-@router.post("/config/update")
+@router.post("/config/update", tags=["admin"])
 async def patch_config(token: Token, update: ConfigUpdate):
     """Partially update node config (admin only)."""
     check_admin(token)
@@ -133,10 +133,10 @@ async def ready():
         raise HTTPException(status_code=503, detail=f"DB unreachable: {e}")
 
 
-# --- Bug Reports ---
+# --- Issue Tracking (bug reports) ---
 
 
-@router.post("/bug_report")
+@router.post("/bug_report", tags=["issue-tracking"])
 async def submit_bug_report(req: dict):
     """Submit a bug report. Public — no auth required.
 
@@ -173,7 +173,7 @@ async def submit_bug_report(req: dict):
     return result
 
 
-@router.post("/admin/bug_reports", tags=["admin"])
+@router.post("/admin/bug_reports", tags=["issue-tracking"])
 async def admin_bug_reports(req: Token, limit: int = 100, offset: int = 0):
     """List bug reports (admin only). Screenshots excluded — too large."""
     check_admin(req)
@@ -181,7 +181,7 @@ async def admin_bug_reports(req: Token, limit: int = 100, offset: int = 0):
     return {"reports": reports, "count": len(reports)}
 
 
-@router.post("/admin/bug_reports/{report_id}", tags=["admin"])
+@router.post("/admin/bug_reports/{report_id}", tags=["issue-tracking"])
 async def admin_bug_report_detail(report_id: str, req: Token):
     """Get a single bug report with screenshots (admin only)."""
     check_admin(req)

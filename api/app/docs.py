@@ -43,7 +43,11 @@ tags_metadata = [
     },
     {
         "name": "admin",
-        "description": "Admin only — data migrations, app approvals, bug reports.",
+        "description": "Admin only — data migrations, app approvals.",
+    },
+    {
+        "name": "issue-tracking",
+        "description": "Bug reports — submit, list, detail. Public submission, admin review.",
     },
     {
         "name": "default",
