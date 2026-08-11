@@ -3,12 +3,9 @@ FROM oven/bun:1-alpine AS dev
 WORKDIR /ui
 
 COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile
-# Patch the npm-published web10-npm SDK: defaultAPIProtocol (undefined) ->
-# APIProtocol. The fix lives in sdk/src/wapiAuth.js but the npm package
-# has not been republished yet. Once web10-npm@>=1.0.9 lands on npm, this
-# sed can be removed.
-RUN sed -i 's/wapi\.defaultAPIProtocol/wapi.APIProtocol/g' node_modules/web10-npm/dist/node/wapi.js node_modules/web10-npm/dist/node/wapi.modern.js 2>/dev/null || true
+COPY ../sdk/package.json /sdk/package.json
+COPY ../sdk/dist/ /sdk/dist/
+RUN ln -sf /sdk ../sdk && bun install --frozen-lockfile
 
 COPY index.html tsconfig.json vite.config.js ./
 COPY public/ public/
