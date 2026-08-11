@@ -11,6 +11,7 @@ import AppDetail from './pages/AppDetail'
 import Freedom from './pages/Freedom'
 import Exporter from './pages/Exporter'
 import Links from './pages/Links'
+import Everything from './pages/Everything'
 
 function App({ onReportBug }: { onReportBug: () => void }) {
   return (
@@ -19,6 +20,7 @@ function App({ onReportBug }: { onReportBug: () => void }) {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/links" element={<Links />} />
+        <Route path="/everything" element={<Everything />} />
         <Route path="/trending" element={<Trending />} />
         <Route path="/join" element={<Join />} />
         <Route path="/freedom" element={<Freedom />} />

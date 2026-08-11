@@ -14,6 +14,7 @@ const navItems = [
   { path: '/docs', label: 'Docs' },
   { path: '/app-store', label: 'App Store' },
   { path: '/import', label: 'Import Your Life' },
+  { path: '/everything', label: 'Everything' },
 ]
 
 function Navbar({ onReportBug }: { onReportBug: () => void }) {
