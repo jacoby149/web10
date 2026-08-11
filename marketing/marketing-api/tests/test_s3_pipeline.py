@@ -49,7 +49,7 @@ def _make_ig_zip(path: Path):
 
 class TestPresignEndpoint:
     def test_presign_returns_job_id_and_upload_url(self):
-        with patch("app.main._s3") as mock_s3:
+        with patch("app.v3.endpoints.imports._s3") as mock_s3:
             mock_s3.return_value.generate_presigned_post.return_value = {
                 "url": "https://s3.example.com/upload",
                 "fields": {"key": "imports/test.zip", "AWSAccessKeyId": "AKIA..."},
@@ -73,7 +73,7 @@ class TestPresignEndpoint:
         assert data["object_key"].startswith("imports/")
 
     def test_presign_creates_job_in_pending_state(self):
-        with patch("app.main._s3") as mock_s3:
+        with patch("app.v3.endpoints.imports._s3") as mock_s3:
             mock_s3.return_value.generate_presigned_post.return_value = {
                 "url": "https://s3.example.com/upload",
                 "fields": {"key": "imports/test.zip"},
@@ -95,7 +95,7 @@ class TestPresignEndpoint:
 
     def test_presign_uses_public_s3_client(self):
         """The presign must use internal=False so the browser can reach the URL."""
-        with patch("app.main._s3") as mock_s3:
+        with patch("app.v3.endpoints.imports._s3") as mock_s3:
             mock_s3.return_value.generate_presigned_post.return_value = {
                 "url": "https://s3.example.com/upload",
                 "fields": {},
@@ -135,7 +135,7 @@ class TestPresignEndpoint:
 
 class TestStartEndpoint:
     def test_start_triggers_processing(self):
-        with patch("app.main._s3") as mock_s3:
+        with patch("app.v3.endpoints.imports._s3") as mock_s3:
             mock_s3.return_value.generate_presigned_post.return_value = {
                 "url": "https://s3.example.com/upload",
                 "fields": {},
@@ -160,7 +160,7 @@ class TestStartEndpoint:
         assert r.status_code == 404
 
     def test_start_rejects_already_processing(self):
-        with patch("app.main._s3") as mock_s3:
+        with patch("app.v3.endpoints.imports._s3") as mock_s3:
             mock_s3.return_value.generate_presigned_post.return_value = {
                 "url": "https://s3.example.com/upload",
                 "fields": {},
@@ -202,7 +202,7 @@ class TestStartEndpoint:
 
 class TestJobStatus:
     def test_get_job_status(self):
-        with patch("app.main._s3") as mock_s3:
+        with patch("app.v3.endpoints.imports._s3") as mock_s3:
             mock_s3.return_value.generate_presigned_post.return_value = {
                 "url": "https://s3.example.com/upload",
                 "fields": {},

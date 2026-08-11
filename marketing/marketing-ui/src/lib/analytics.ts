@@ -37,6 +37,7 @@ export function trackFunnel(
     | 'exporter_view'
     | 'trending_view'
     | 'freedom_view'
+    | 'everything_view'
     | 'export_started'
     | 'export_complete'
     | 'trending_load_more'

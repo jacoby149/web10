@@ -61,17 +61,23 @@ def _save_stores():
     _payouts_file.parent.mkdir(parents=True, exist_ok=True)
     _affiliate_file.parent.mkdir(parents=True, exist_ok=True)
     _payouts_file.write_text(json.dumps(list(payouts.values()), indent=2))
-    _affiliate_file.write_text(json.dumps({
-        "links": affiliate_links,
-        "clicks": affiliate_clicks[-1000:],
-        "conversions": affiliate_conversions[-1000:],
-    }, indent=2))
+    _affiliate_file.write_text(
+        json.dumps(
+            {
+                "links": affiliate_links,
+                "clicks": affiliate_clicks[-1000:],
+                "conversions": affiliate_conversions[-1000:],
+            },
+            indent=2,
+        )
+    )
 
 
 _load_stores()
 
 
 # ─── Pay: Developer Payouts ──────────────────────────────────────────────
+
 
 @router.post("/payout")
 async def create_payout(req: PayoutCreate):
@@ -159,6 +165,7 @@ async def cancel_payout(payout_id: str):
 
 # ─── Pay: Affiliate Links ────────────────────────────────────────────────
 
+
 @router.post("/affiliate/link")
 async def create_affiliate_link(req: AffiliateCreate):
     """Generate an affiliate link for a web10 product.
@@ -204,7 +211,7 @@ async def list_affiliate_links(affiliate_key: str | None = None, limit: int = 50
     with store_lock:
         all_links = list(affiliate_links.values())
     if affiliate_key:
-        all_links = [l for l in all_links if l["affiliate_key"] == affiliate_key]
+        all_links = [link for link in all_links if link["affiliate_key"] == affiliate_key]
     return {
         "items": list(reversed(all_links))[:limit],
         "total": len(all_links),
@@ -219,13 +226,15 @@ async def track_affiliate_click(click: AffiliateClick):
         if not link_data:
             raise HTTPException(404, "Affiliate link not found")
         link_data["clicks"] = link_data.get("clicks", 0) + 1
-        affiliate_clicks.append({
-            "affiliate_id": click.affiliate_id,
-            "visitor_ip": click.visitor_ip,
-            "user_agent": click.user_agent,
-            "referrer": click.referrer,
-            "timestamp": datetime.utcnow().isoformat(),
-        })
+        affiliate_clicks.append(
+            {
+                "affiliate_id": click.affiliate_id,
+                "visitor_ip": click.visitor_ip,
+                "user_agent": click.user_agent,
+                "referrer": click.referrer,
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+        )
     _save_stores()
     return {"status": "ok"}
 
@@ -246,15 +255,17 @@ async def track_affiliate_conversion(conv: AffiliateConversion):
         commission_cents = int(conv.revenue_cents * link_data["commission_pct"] / 100)
         platform_fee_cents = conv.revenue_cents - commission_cents
 
-        affiliate_conversions.append({
-            "affiliate_id": conv.affiliate_id,
-            "affiliate_key": link_data["affiliate_key"],
-            "revenue_cents": conv.revenue_cents,
-            "commission_cents": commission_cents,
-            "platform_fee_cents": platform_fee_cents,
-            "customer_key": conv.customer_key,
-            "timestamp": datetime.utcnow().isoformat(),
-        })
+        affiliate_conversions.append(
+            {
+                "affiliate_id": conv.affiliate_id,
+                "affiliate_key": link_data["affiliate_key"],
+                "revenue_cents": conv.revenue_cents,
+                "commission_cents": commission_cents,
+                "platform_fee_cents": platform_fee_cents,
+                "customer_key": conv.customer_key,
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+        )
     _save_stores()
 
     return {
@@ -268,10 +279,10 @@ async def track_affiliate_conversion(conv: AffiliateConversion):
 async def get_affiliate_stats(affiliate_key: str):
     """Get aggregate stats for an affiliate."""
     with store_lock:
-        links = [l for l in affiliate_links.values() if l["affiliate_key"] == affiliate_key]
+        links = [link for link in affiliate_links.values() if link["affiliate_key"] == affiliate_key]
         conversions = [c for c in affiliate_conversions if c["affiliate_key"] == affiliate_key]
 
-    total_clicks = sum(l.get("clicks", 0) for l in links)
+    total_clicks = sum(link.get("clicks", 0) for link in links)
     total_conversions = len(conversions)
     total_commission = sum(c.get("commission_cents", 0) for c in conversions)
     total_revenue = sum(c.get("revenue_cents", 0) for c in conversions)
@@ -288,6 +299,7 @@ async def get_affiliate_stats(affiliate_key: str):
 
 
 # ─── Stripe Webhook ──────────────────────────────────────────────────────
+
 
 @router.post("/stripe/webhook")
 async def stripe_webhook(request: Request):

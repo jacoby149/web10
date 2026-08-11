@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Bug, Menu, X, Search } from 'lucide-react'
+import { Bug, Menu, X, Search, Link as LinkIcon } from 'lucide-react'
 import { Button } from './ui/button'
 import GitHubStarButton from './GitHubStarButton'
 import { trackFunnel } from '../lib/analytics'
@@ -14,6 +14,7 @@ const navItems = [
   { path: '/docs', label: 'Docs' },
   { path: '/app-store', label: 'App Store' },
   { path: '/import', label: 'Import Your Life' },
+  { path: '/everything', label: 'Everything' },
 ]
 
 function Navbar({ onReportBug }: { onReportBug: () => void }) {
@@ -65,6 +66,11 @@ function Navbar({ onReportBug }: { onReportBug: () => void }) {
           <Button variant="brand" size="sm" onClick={() => { trackFunnel('sign_in_click'); window.location.href = SOCIAL_ORIGIN }}>
             Sign In
           </Button>
+          <Link to="/links">
+            <Button variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground hover:text-foreground">
+              <LinkIcon className="h-4 w-4" strokeWidth={1.75} />
+            </Button>
+          </Link>
           <GitHubStarButton />
         </div>
 
@@ -107,6 +113,12 @@ function Navbar({ onReportBug }: { onReportBug: () => void }) {
             <Button variant="brand" size="sm" className="w-full justify-center" onClick={() => { setMobileOpen(false); trackFunnel('sign_in_click'); window.location.href = SOCIAL_ORIGIN }}>
               Sign In
             </Button>
+            <Link to="/links" onClick={() => setMobileOpen(false)}>
+              <Button variant="ghost" size="sm" className="w-full justify-center">
+                <LinkIcon className="h-4 w-4" strokeWidth={1.75} />
+                Links
+              </Button>
+            </Link>
             <GitHubStarButton className="w-full justify-center" onClose={() => setMobileOpen(false)} />
           </div>
         </div>
