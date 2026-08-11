@@ -6,7 +6,8 @@ const ERROR_MSGS = {
   delete: "Failed to delete message",
 }
 
-const wapi = wapiInit("https://auth.web10.app")
+const AUTH_ORIGIN = "https://auth.web10.app"
+const w = window.web10.createV3Client({ apiOrigin: 'https://api.web10.app' })
 
 // v3 API helpers — all v3 endpoints are POST with { token, ...params }
 const API_ORIGIN = "https://api.web10.app"
@@ -74,16 +75,16 @@ async function ensureDmGroup(myUsername, theirUsername, provider) {
   }
 }
 
-authButton.onclick = wapi.openAuthPortal
-wapi.authListen(() => initApp())
+authButton.onclick = () => window.web10.openAuthPortal(AUTH_ORIGIN)
+window.web10.authListen(() => initApp())
 
 function initApp() {
   authButton.innerHTML = "Log out"
   authButton.onclick = () => {
-    wapi.signOut()
+    w.signOut()
     window.location.reload()
   }
-  const t = wapi.readToken()
+  const t = w.readToken()
   message.innerHTML = `Signed in as <strong>${t["provider"]}/${t["username"]}</strong>`
   editor.style.display = "block"
 
@@ -95,7 +96,7 @@ function initApp() {
   ensureServiceContract().then(() => readMessages()).catch(() => readMessages())
 }
 
-if (wapi.isSignedIn()) initApp()
+if (w.isSignedIn()) initApp()
 
 /* Send + Read (v3 with groups) */
 
@@ -118,7 +119,7 @@ async function sendMessage() {
   const text = body.value.trim()
   if (!toUser || toProv || !text) return
 
-  const t = wapi.readToken()
+  const t = w.readToken()
   const payload = {
     from_username: t.username,
     from_provider: t.provider,
