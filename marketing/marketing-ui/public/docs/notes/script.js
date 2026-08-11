@@ -12,7 +12,7 @@ const w = window.web10.createV3Client({ apiOrigin: 'https://api.web10.app' })
 
 // v3 API helpers — all v3 endpoints are POST with { token, ...params }
 const API_ORIGIN = "https://api.web10.app"
-const COLLECTION = "web10-docs-note-demo"
+const SERVICE = "web10-docs-note-demo"
 const PUBLIC_GROUP = "web10.app/groups/web10/discover"
 
 async function v3Post(action, params = {}) {
@@ -30,13 +30,20 @@ async function v3Post(action, params = {}) {
   return res.json()
 }
 
-// v3: add a service contract so the API allows this origin
-async function ensureServiceContract() {
+// v3: add an app contract so this origin can read/write the service
+async function ensureAppContract() {
   const origin = window.location.origin
   try {
-    await v3Post('service-contracts/add', {
-      service_name: COLLECTION,
-      allowed_origin: origin,
+    const token = document.cookie.match(/token=([^;]+)/)?.[1]
+    if (!token) return
+    await fetch(`${API_ORIGIN}/v3/app-contracts/add`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token,
+        allowed_origin: origin,
+        permissions: { [SERVICE]: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
+      }),
     })
   } catch {
     // Contract might already exist — not an error
@@ -56,8 +63,8 @@ function initApp() {
   message.innerHTML = `Signed in as <strong>${t["provider"]}/${t["username"]}</strong>`
   editor.style.display = "block"
 
-  // v3: ensure the service contract exists, then load notes
-  ensureServiceContract().then(() => readNotes()).catch(() => readNotes())
+  // v3: ensure the app contract exists, then load notes
+  ensureAppContract().then(() => readNotes()).catch(() => readNotes())
 }
 
 // Self-register in the app store (no auth required)
@@ -81,7 +88,7 @@ function readNotes() {
   // v3: read from the collection, scoped to groups the user belongs to
   // "me" resolves to all groups the user is a member of
   v3Post('read', {
-    collection: COLLECTION,
+    service: SERVICE,
     groups: ['me'],
   })
     .then(displayNotes)
@@ -95,7 +102,7 @@ function createNote() {
   const text = curr.value.trim()
   if (!text) return
   v3Post('create', {
-    collection: COLLECTION,
+    service: SERVICE,
     body: { note: text, date: new Date().toISOString() },
     // v3: attach to the public discover group so notes appear in discover
     groups: [PUBLIC_GROUP],

@@ -11,7 +11,7 @@ const w = window.web10.createV3Client({ apiOrigin: 'https://api.web10.app' })
 
 // v3 API helpers — all v3 endpoints are POST with { token, ...params }
 const API_ORIGIN = "https://api.web10.app"
-const COLLECTION = "web10-docs-message-demo"
+const SERVICE = "web10-docs-message-demo"
 
 async function v3Post(action, params = {}) {
   const token = document.cookie.match(/token=([^;]+)/)?.[1]
@@ -28,13 +28,20 @@ async function v3Post(action, params = {}) {
   return res.json()
 }
 
-// v3: add a service contract so the API allows this origin
-async function ensureServiceContract() {
+// v3: add an app contract so this origin can read/write the service
+async function ensureAppContract() {
   const origin = window.location.origin
   try {
-    await v3Post('service-contracts/add', {
-      service_name: COLLECTION,
-      allowed_origin: origin,
+    const token = document.cookie.match(/token=([^;]+)/)?.[1]
+    if (!token) return
+    await fetch(`${API_ORIGIN}/v3/app-contracts/add`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token,
+        allowed_origin: origin,
+        permissions: { [SERVICE]: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
+      }),
     })
   } catch {
     // Contract might already exist — not an error
@@ -61,7 +68,7 @@ async function ensureDmGroup(myUsername, theirUsername, provider) {
       join_policy: 'invite_only',
       roles: [
         { name: 'owner', services: ['*'], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn', 'manageRoles'] },
-        { name: 'member', services: [COLLECTION], permissions: ['readAll', 'create', 'deleteOwn'] },
+        { name: 'member', services: [SERVICE], permissions: ['readAll', 'create', 'deleteOwn'] },
       ],
       members: [
         { member_key: myUsername, role: 'owner' },
@@ -92,8 +99,8 @@ function initApp() {
   toUsername.value = t.username
   toProvider.value = t.provider
 
-  // v3: ensure the service contract exists, then load messages
-  ensureServiceContract().then(() => readMessages()).catch(() => readMessages())
+  // v3: ensure the app contract exists, then load messages
+  ensureAppContract().then(() => readMessages()).catch(() => readMessages())
 }
 
 // Self-register in the app store (no auth required)
@@ -116,7 +123,7 @@ if (w.isSignedIn()) initApp()
 function readMessages() {
   // v3: read messages from the collection, scoped to groups the user belongs to
   v3Post('read', {
-    collection: COLLECTION,
+    service: SERVICE,
     groups: ['me'],
   })
     .then(displayMessages)
@@ -148,8 +155,8 @@ async function sendMessage() {
 
     // v3: create the message document, attached to the DM group
     await v3Post('create', {
-      collection: COLLECTION,
-      body: payload,
+    service: SERVICE,
+    body: payload,
       groups: groupId ? [groupId] : undefined,
     })
 
