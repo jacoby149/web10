@@ -20,7 +20,7 @@ from app.v3.services import clickhouse as ch
 router = APIRouter()
 
 
-@router.post("/", include_in_schema=False)
+@router.post("/")
 async def root():
     """A bare API host should look intentional, not broken."""
     return RedirectResponse(url="/docs")
@@ -29,7 +29,7 @@ async def root():
 # --- Setup wizard ---
 
 
-@router.post("/setup", tags=["system"], include_in_schema=False)
+@router.post("/setup", tags=["system"])
 async def get_setup_status() -> SetupStatus:
     """Returns whether the node has been configured."""
     return SetupStatus(
@@ -38,7 +38,7 @@ async def get_setup_status() -> SetupStatus:
     )
 
 
-@router.post("/setup/configure", tags=["system"], include_in_schema=False)
+@router.post("/setup/configure", tags=["system"])
 async def post_setup(req: SetupRequest):
     """First-run setup: generates JWT key, saves config, creates admin."""
     if config_svc.admin_exists():
@@ -72,7 +72,7 @@ async def post_setup(req: SetupRequest):
 # --- Config management ---
 
 
-@router.post("/config", include_in_schema=False)
+@router.post("/config")
 async def get_config(token: Token):
     """Returns the current node config (admin only).
 
@@ -100,7 +100,7 @@ async def get_config(token: Token):
     return safe
 
 
-@router.post("/am_admin", include_in_schema=False)
+@router.post("/am_admin")
 async def am_admin(token: Token):
     """Any authenticated user can ask whether THEY are an admin of this node.
 
@@ -114,7 +114,7 @@ async def am_admin(token: Token):
         return {"admin": False}
 
 
-@router.post("/config/update", include_in_schema=False)
+@router.post("/config/update")
 async def patch_config(token: Token, update: ConfigUpdate):
     """Partially update node config (admin only)."""
     check_admin(token)
@@ -128,7 +128,7 @@ async def patch_config(token: Token, update: ConfigUpdate):
 # --- Health ---
 
 
-@router.post("/ready", tags=["system"], include_in_schema=False)
+@router.post("/ready", tags=["system"])
 async def ready():
     """Health check — returns 200 if DB is reachable."""
     try:
@@ -138,7 +138,7 @@ async def ready():
         raise HTTPException(status_code=503, detail=f"DB unreachable: {e}")
 
 
-@router.post("/stats", tags=["system"], include_in_schema=False)
+@router.post("/stats", tags=["system"])
 async def stats(skip: int = 0, limit: int = 0):
     """Node stats: users, apps, storage. Reads from ClickHouse (v3)."""
     try:
@@ -170,7 +170,7 @@ async def stats(skip: int = 0, limit: int = 0):
     }
 
 
-@router.post("/pwa_listing", include_in_schema=False)
+@router.post("/pwa_listing")
 async def pwa(url: str):
     try:
         resp = requests.get(url + "manifest.json", {"Accept": "application/json"}, timeout=1)
@@ -179,7 +179,7 @@ async def pwa(url: str):
     return resp.json()
 
 
-@router.post("/register_app", include_in_schema=False)
+@router.post("/register_app")
 async def register_app(info: dict):
     """Register an app (v2). Accepts url + optional name, description,
     icon_url, screenshots. New apps start as pending. Repeat visits
@@ -205,7 +205,7 @@ async def register_app(info: dict):
 # --- App Store curation (admin only) ---
 
 
-@router.post("/apps/admin", include_in_schema=False)
+@router.post("/apps/admin")
 async def apps_admin(query: AppAdminQuery):
     """List every registered app with its approval state (admin only)."""
     token = Token(token=query.token)
@@ -215,7 +215,7 @@ async def apps_admin(query: AppAdminQuery):
     return {"apps": apps, "pending": pending}
 
 
-@router.post("/apps/approve", include_in_schema=False)
+@router.post("/apps/approve")
 async def apps_approve(req: AppApprovalRequest):
     """Approve or reject a registered app (admin only).
     On approve of pending_on_change: promotes pending metadata to live fields.
@@ -229,7 +229,7 @@ async def apps_approve(req: AppApprovalRequest):
 # --- App ratings (D37) ---
 
 
-@router.post("/apps/rating", include_in_schema=False)
+@router.post("/apps/rating")
 async def apps_rating(req: AppRatingRequest):
     """Submit a 1-5 star rating for an app. Upserts by (target_app_id, author)."""
     if not 1 <= req.rating <= 5:
@@ -244,7 +244,7 @@ async def apps_rating(req: AppRatingRequest):
     )
 
 
-@router.post("/apps/ratings/{target_app_id}", include_in_schema=False)
+@router.post("/apps/ratings/{target_app_id}")
 async def apps_ratings(target_app_id: str):
     """Read all star ratings for an app (anon OK)."""
     return db.query_app_ratings(target_app_id)
@@ -253,7 +253,7 @@ async def apps_ratings(target_app_id: str):
 # --- Discovery migration (admin only) ---
 
 
-@router.post("/admin/discovery/migrate_terms", tags=["admin"], include_in_schema=False)
+@router.post("/admin/discovery/migrate_terms", tags=["admin"])
 async def admin_discovery_migrate_terms(req: Token):
     """Provision the canonical public_posts anon-read term for every existing
     account that lacks it. Admin only. Idempotent — safe to call multiple times."""
@@ -261,7 +261,7 @@ async def admin_discovery_migrate_terms(req: Token):
     return db.migrate_public_posts_terms()
 
 
-@router.post("/admin/discovery/backfill", tags=["admin"], include_in_schema=False)
+@router.post("/admin/discovery/backfill", tags=["admin"])
 async def admin_discovery_backfill(req: Token):
     """Backfill the discovery index with all existing public_posts from every
     user collection. Admin only. Idempotent — safe to call multiple times."""
@@ -269,7 +269,7 @@ async def admin_discovery_backfill(req: Token):
     return db.backfill_discovery()
 
 
-@router.post("/admin/apps/migrate_v2", tags=["admin"], include_in_schema=False)
+@router.post("/admin/apps/migrate_v2", tags=["admin"])
 async def admin_apps_migrate_v2(req: Token):
     """Migrate legacy web10.apps records to v2 shape (D37).
     Backfills review_state, metadata_version, web10apps_post_id.
@@ -278,7 +278,7 @@ async def admin_apps_migrate_v2(req: Token):
     return db.migrate_apps_to_v2()
 
 
-@router.post("/admin/discovery/migrate_follows_terms", tags=["admin"], include_in_schema=False)
+@router.post("/admin/discovery/migrate_follows_terms", tags=["admin"])
 async def admin_discovery_migrate_follows_terms(req: Token):
     """Provision core app service terms (follows, inbox, reactions, comments,
     dms) for every existing account that lacks them. Admin only. Idempotent."""
@@ -289,7 +289,7 @@ async def admin_discovery_migrate_follows_terms(req: Token):
 # --- Bug Reports ---
 
 
-@router.post("/bug_report", include_in_schema=False)
+@router.post("/bug_report")
 async def submit_bug_report(req: dict):
     """Submit a bug report. Public — no auth required.
 
@@ -326,7 +326,7 @@ async def submit_bug_report(req: dict):
     return result
 
 
-@router.post("/admin/bug_reports", include_in_schema=False)
+@router.post("/admin/bug_reports")
 async def admin_bug_reports(req: Token, limit: int = 100, offset: int = 0):
     """List bug reports (admin only). Screenshots excluded — too large."""
     check_admin(req)
@@ -334,7 +334,7 @@ async def admin_bug_reports(req: Token, limit: int = 100, offset: int = 0):
     return {"reports": reports, "count": len(reports)}
 
 
-@router.post("/admin/bug_reports/{report_id}", include_in_schema=False)
+@router.post("/admin/bug_reports/{report_id}")
 async def admin_bug_report_detail(report_id: str, req: Token):
     """Get a single bug report with screenshots (admin only)."""
     check_admin(req)

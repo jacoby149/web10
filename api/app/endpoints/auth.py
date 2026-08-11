@@ -28,7 +28,7 @@ def recover(From: str):
     return mobile.recovery_response(password)
 
 
-@router.post("/recovery_bot", include_in_schema=False)
+@router.post("/recovery_bot")
 async def recovery_bot(From: str = Form(...), Body: str = Form(...)):
     response = recover(From.replace("+", "")) if Body == "RESET" else mobile.actionless_response()
     return Response(content=str(response), media_type="application/xml")
@@ -41,14 +41,14 @@ async def send_recovery_prompt(phone_form: PhoneForm):
     return mobile.recovery_prompt(phone_form.phone_number, user)
 
 
-@router.post("/change_pass", include_in_schema=False)
+@router.post("/change_pass")
 async def change_pass(form_data: SignUpForm):
     if authenticate_user(form_data.username, form_data.password):
         return db.change_pass(form_data.username, form_data.new_pass, get_password_hash)
     raise exceptions.LOGIN
 
 
-@router.post("/change_phone", include_in_schema=False)
+@router.post("/change_phone")
 async def change_phone(form_data: SignUpForm):
     if authenticate_user(form_data.username, form_data.password):
         if db.get_phone_record(form_data.phone):
@@ -60,7 +60,7 @@ async def change_phone(form_data: SignUpForm):
     raise exceptions.LOGIN
 
 
-@router.post("/verify_code", include_in_schema=False)
+@router.post("/verify_code")
 async def verify_mobile_code(token: Token):
     check_admin(token)
     decoded = decode_token(token.token)
@@ -72,7 +72,7 @@ async def verify_mobile_code(token: Token):
     return res
 
 
-@router.post("/mobile_login", include_in_schema=False)
+@router.post("/mobile_login")
 async def mobile_login(token: Token):
     code = token.query["code"]
     phone_number = token.query["phone"]
@@ -89,7 +89,7 @@ async def mobile_login(token: Token):
     return {"token": jwt.encode(token_data.model_dump(), settings.PRIVATE_KEY, algorithm=settings.ALGORITHM)}
 
 
-@router.post("/send_code", include_in_schema=False)
+@router.post("/send_code")
 async def send_mobile_code(token: Token):
     check_admin(token)
     decoded = decode_token(token.token)
@@ -133,7 +133,7 @@ def kosher(s):
     return bool(_USERNAME_RE.match(s))
 
 
-@router.post("/signup", tags=["auth"], include_in_schema=False)
+@router.post("/signup", tags=["auth"])
 async def signup(form_data: SignUpForm):
     form_data = dotdict(form_data)
     if settings.BETA_REQUIRED and form_data.betacode != settings.BETA_CODE:
@@ -168,7 +168,7 @@ def _rate_limit_recovery_phone(username: str):
     _recovery_phone_attempts[username] = attempts
 
 
-@router.post("/set_recovery_phone", tags=["account"], include_in_schema=False)
+@router.post("/set_recovery_phone", tags=["account"])
 async def set_recovery_phone(token: Token):
     """Set the recovery phone on the authenticated user's own star record.
 
@@ -196,7 +196,7 @@ async def set_recovery_phone(token: Token):
 # ---- Email verification (A20 bite a) ----
 
 
-@router.post("/set_email", tags=["account"], include_in_schema=False)
+@router.post("/set_email", tags=["account"])
 async def set_email(token: Token):
     """Set the user's recovery email. Must be verified before it counts."""
     check_admin(token)
@@ -214,7 +214,7 @@ async def set_email(token: Token):
     return {"code": code}
 
 
-@router.post("/get_email", tags=["account"], include_in_schema=False)
+@router.post("/get_email", tags=["account"])
 async def get_email(token: Token):
     """Return the user's own email (if set)."""
     check_admin(token)
@@ -225,7 +225,7 @@ async def get_email(token: Token):
     return {"email": email, "email_verified": db.is_email_verified(decoded.username)}
 
 
-@router.post("/verify_email", tags=["account"], include_in_schema=False)
+@router.post("/verify_email", tags=["account"])
 async def verify_email(token: Token):
     """Verify an email with the code sent to it."""
     check_admin(token)
