@@ -64,7 +64,7 @@ function useInterface() {
         // Provider mismatch: a prod token on dev (or vice versa) is useless —
         // the API won't recognize it. Scrub so the user gets a login prompt.
         const host = window.location.hostname;
-        const isDev = host.endsWith('.dev.web10.app');
+    const isDev = host === 'dev.web10.app' || host.endsWith('.dev.web10.app');
         const isLocal = host === 'localhost' || host === '127.0.0.1' || host.endsWith('.localhost');
         const expectedProvider = isLocal ? 'api.localhost' : isDev ? 'api.dev.web10.app' : config.REACT_APP_DEFAULT_API;
         if (t.provider !== expectedProvider && !isLocal) {
