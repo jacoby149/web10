@@ -2,7 +2,6 @@ import React from 'react';
 import web10AuthAdapterInit from './authAdapter'
 import axios from 'axios'
 import { config } from '../config';
-import { createV3Client } from 'web10-npm';
 
 // ── v3 API helpers (ClickHouse-backed service contracts + groups) ──────────
 
@@ -23,9 +22,9 @@ function v3ApiOrigin(decoded: { provider?: string } | null): string {
  * carries the token + parameters. Mirrors api/app/v3/models/__init__.py Token.
  */
 async function v3Post(action: string, body: Record<string, any>) {
-    const decoded = (window.I?.wapi?.readToken?.()) as { provider?: string } | null;
+    const decoded = (window.I?.v3?.readToken?.()) as { provider?: string } | null;
     const origin = v3ApiOrigin(decoded);
-    const token = window.I?.wapi?.token;
+    const token = window.I?.v3?.state?.token;
     if (!token) throw new Error('No token available for v3 API');
     const res = await fetch(`${origin}/v3/${action}`, {
         method: 'POST',
@@ -44,19 +43,9 @@ function useInterface() {
 
     I.config = config;
 
-    // Build the SDK adapter first so auth state can be SEEDED from the token
-    // cookie via a lazy useState initializer. Setting auth mid-render (the
-    // previous approach) is a render-phase update that infinite-looped once a
-    // valid token existed. web10AuthAdapterInit calls no hooks, so running it
-    // before the useState calls keeps hook order stable.
+    // Build the v3 client — all auth goes through ClickHouse (v3).
     const adapter = web10AuthAdapterInit();
-
-    // Create v3 client — all auth now goes through ClickHouse (v3), not MongoDB (v2).
-    const host = window.location.hostname;
-    const local = host === "localhost" || host === "127.0.0.1" || host.endsWith(".localhost");
-    const v3 = createV3Client({
-        apiOrigin: local ? "http://api.localhost" : config.REACT_APP_API_ORIGIN,
-    });
+    const v3 = adapter.v3;
 
     // Restore auth from the "token=" cookie on load. A dead (expired) token
     // must NOT present the authenticated view (B7: it used to land the user on
@@ -101,8 +90,6 @@ function useInterface() {
     // v3 pending invites (groups that invited this user)
     [I.v3Invites, I.setV3Invites] = React.useState<any[]>([]);
 
-    I.wapi = adapter.wapi;
-    I.wapiAuth = adapter.wapiAuth;
     I.v3 = v3;
 
     // Normalize contract requests into a unified ACR list.
@@ -152,10 +139,20 @@ function useInterface() {
         return acrs;
     }
 
+    // v3 contract listening — direct postMessage, no wapiAuth wrapper
     I.initAuthenticator = function () {
-        I.wapiAuth.contractListen((inC) => {
-            I.setPendingACRs(normalizeContractsToACRs(inC));
+        if (typeof window === 'undefined') return;
+        const authOrigin = window.location.origin;
+        window.addEventListener('message', (e) => {
+            if (e.origin !== authOrigin) return;
+            if (e.data?.type === 'acr') {
+                I.setPendingACRs(normalizeContractsToACRs(e.data));
+            }
         });
+        // Request ACRs from opener
+        if (window.opener) {
+            window.opener.postMessage({ type: 'ACRListen' }, authOrigin);
+        }
     }
 
     I.servicesLoad = function () {
@@ -188,7 +185,7 @@ function useInterface() {
                 setTimeout(() => I.servicesLoad(), 1000);
             })
             .catch((e) => {
-                I.setStatus(e.response ? String(e.response.data.detail) : String(e));
+                I.setStatus(e.message || String(e));
             });
     }
 
@@ -249,7 +246,7 @@ function useInterface() {
             .then(() => I.finishLogin())
             .catch((error: any) => {
                 if (I.v3.isSignedIn()) I.finishLogin();
-                else I.setStatus("Failed to Log In : " + (error.response?.data?.detail || String(error)));
+                else I.setStatus("Failed to Log In : " + (error.message || String(error)));
             });
     }
 
@@ -381,12 +378,12 @@ function useInterface() {
 
     // Block a user from seeing content in a v3 group.
     I.v3BlockUserInGroup = function (blockedKey: string, groupId: string) {
-        return v3Post('block-in-group', { blocked_key: blockedKey, group_id: groupId });
+        return v3Post('groups/block', { blocked_key: blockedKey, group_id: groupId });
     }
 
     // Unblock a user in a v3 group.
     I.v3UnblockUserInGroup = function (blockedKey: string, groupId: string) {
-        return v3Post('unblock-in-group', { blocked_key: blockedKey, group_id: groupId });
+        return v3Post('groups/unblock', { blocked_key: blockedKey, group_id: groupId });
     }
 
     // Get detailed info for a single group.
@@ -434,7 +431,7 @@ function useInterface() {
 
     // Toggle sharing for a group (pause sharing without leaving).
     I.v3SetSharing = function (groupId: string, enabled: boolean) {
-        return v3Post('sharing/set', { group_id: groupId, enabled });
+        return v3Post('groups/sharing/set', { group_id: groupId, enabled });
     }
 
     // Block a user entirely (user-wide blacklist).
@@ -543,7 +540,7 @@ function useInterface() {
                 I.removePendingACR(acr);
                 setTimeout(() => I.setStatus(null), 2000);
             })
-            .catch((e) => I.setStatus("Failed to approve: " + (e.response?.data?.detail || String(e))));
+            .catch((e) => I.setStatus("Failed to approve: " + (e.message || String(e))));
     }
 
     // Remove a single ACR from the pending list (after approve or deny).
@@ -575,59 +572,39 @@ function useInterface() {
                 I.setStatus(null);
                 I.goToApp();
             })
-            .catch((e: any) => I.setStatus("Failed to approve all: " + (e.response?.data?.detail || String(e))));
+            .catch((e: any) => I.setStatus("Failed to approve all: " + (e.message || String(e))));
     }
 
-    // Return to the requesting app, logging it in. Mint a FRESH scoped token
-    // for the referrer right here rather than trusting wapiAuth.oAuthToken to
-    // already be set (it's minted async at load/login and often wasn't ready,
-    // so the app never received a token). Approving nothing still logs the app
-    // in — it just has no data grants (withheld).
+    // Return to the requesting app, logging it in. Send the current v3 token
+    // directly to the opener — no tiered token needed for v3.
     I.goToApp = function () {
-        const decoded = I.v3.readToken?.();
-        let host: string | null = null;
-        try { host = document.referrer ? new URL(document.referrer).hostname : null; } catch { host = null; }
-        if (decoded && host && I.v3.getTieredToken) {
-            I.setStatus("Connecting…");
-            I.v3.getTieredToken(host, decoded.provider)
-                .then((r: any) => { I.wapiAuth.oAuthToken = r.data.token; I.sendToken(); })
-                .catch(() => I.sendToken());
-        } else {
-            I.sendToken();
-        }
-    }
-
-    I.sendToken = function () {
-        if (I.wapiAuth.oAuthToken && I.wapiAuth.sendToken) {
-            I.wapiAuth.sendToken();
+        const token = I.v3.state?.token;
+        if (token && window.opener) {
+            try {
+                const referrer = document.referrer;
+                const target = referrer ? new URL(referrer).origin : '*';
+                I.setStatus("Connecting…");
+                window.opener.postMessage({ type: 'auth', token }, target);
+                window.close();
+            } catch {
+                I.setStatus("Failed to connect to app.");
+            }
         } else if (window.opener) {
             window.close();
         }
     }
 
-    I.deleteService = function (serviceName: string) {
-        I.setStatus("Deleting service terms...");
-        I.v3
-            .delete("services", { service: serviceName })
-            .then(() => {
-                // TODO: in the per-app contract model, deleting a service should
-                // remove it from the app's permissions, not revoke the whole contract.
-                // For now, just delete the v2 terms record.
-                I.setStatus("Service deleted!");
-                setTimeout(() => I.servicesLoad(), 1000);
-            })
-            .catch((e) => I.setStatus("Failed to delete: " + (e.response?.data?.detail || String(e))));
+    I.sendToken = function () {
+        I.goToApp();
     }
 
-    I.wipeServiceData = function (serviceName: string) {
-        I.setStatus("Wiping all service data...");
-        I.v3
-            .delete(serviceName, {})
-            .then(() => {
-                I.setStatus("Data wiped!");
-                setTimeout(() => I.servicesLoad(), 1000);
-            })
-            .catch((e) => I.setStatus("Failed to wipe: " + (e.response?.data?.detail || String(e))));
+    // v4 features — not available in v3
+    I.deleteService = function (_serviceName: string) {
+        I.setStatus("Service deletion is a v4 feature.");
+    }
+
+    I.wipeServiceData = function (_serviceName: string) {
+        I.setStatus("Data wiping is a v4 feature.");
     }
 
     I.signup = function (provider: string, username: string, password: string, retype: string, betacode: string, phone: string) {
@@ -650,7 +627,7 @@ function useInterface() {
                 I.login(provider, username, password)
             )
             .catch((error) =>
-                I.setStatus("Failed to Sign Up : " + (error.response?.data?.detail || String(error)))
+                I.setStatus("Failed to Sign Up : " + (error.message || String(error)))
             );
     }
 
@@ -689,31 +666,32 @@ function useInterface() {
                 I.setStatus("Password changed!");
                 setTimeout(() => I.setStatus(null), 2000);
             })
-            .catch((e) => I.setStatus("Failed: " + (e.response?.data?.detail || String(e))));
+            .catch((e) => I.setStatus("Failed: " + (e.message || String(e))));
     }
 
+    // v4 features — not available in v3
     I.getPlan = function () {
-        return I.wapiAuth.getPlan();
+        I.setStatus("Plan management is a v4 feature.");
     }
 
     I.manageSpace = function () {
-        I.wapiAuth.manageSpace().then((response: any) => { window.location.href = response.data; });
+        I.setStatus("Space management is a v4 feature.");
     }
 
     I.manageCredits = function () {
-        I.wapiAuth.manageCredits().then((response: any) => { window.location.href = response.data; });
+        I.setStatus("Credits management is a v4 feature.");
     }
 
     I.manageSubscriptions = function () {
-        I.wapiAuth.manageSubscriptions().then((response: any) => { window.location.href = response.data; });
+        I.setStatus("Subscription management is a v4 feature.");
     }
 
     I.manageBusiness = function () {
-        I.wapiAuth.manageBusiness().then((response: any) => { window.location.href = response.data; });
+        I.setStatus("Business management is a v4 feature.");
     }
 
     I.businessLogin = function () {
-        I.wapiAuth.businessLogin().then((response: any) => { window.location.href = response.data; });
+        I.setStatus("Business login is a v4 feature.");
     }
 
     const [, authTick] = React.useState(0);

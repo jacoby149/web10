@@ -19,7 +19,7 @@
  * rtc.send('api.web10.app', 'bob', 'myapp.com', '', { text: 'hello' })
  * ```
  */
-import type { Web10Client } from '../client';
+import type { V3Client } from '../v3';
 /**
  * Set the PeerJS constructor. Call this before initP2P if bundling manually.
  */
@@ -32,7 +32,7 @@ export declare function setPeer(Peer: {
  * @param wapi - A web10 client instance
  * @returns An RTC connector for P2P communication
  */
-export declare function createRTC(wapi: Web10Client): RTCConnector;
+export declare function createRTC(wapi: V3Client): RTCConnector;
 /**
  * RTC/P2P connector interface.
  */
