@@ -37,4 +37,8 @@ tags_metadata = [
         "name": "system",
         "description": "Node system — stats, setup wizard, config, health check.",
     },
+    {
+        "name": "admin",
+        "description": "Admin only — data migrations, app approvals, bug reports.",
+    },
 ]

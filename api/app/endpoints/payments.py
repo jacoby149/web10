@@ -25,7 +25,7 @@ def mget_business_id(username):
     return business_id
 
 
-@router.post("/manage_business", include_in_schema=False)
+@router.post("/manage_business")
 async def manage_business(token: Token):
     from app.services.auth import check_admin
 
@@ -35,7 +35,7 @@ async def manage_business(token: Token):
     return pay.create_business_session(bus_id)
 
 
-@router.post("/business_login", include_in_schema=False)
+@router.post("/business_login")
 async def business_login(token: Token):
     from app.services.auth import check_admin
 
