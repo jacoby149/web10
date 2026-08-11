@@ -575,7 +575,7 @@ class TestBlocking:
 class TestSharing:
     def test_disable_sharing(self, client, token):
         resp = client.post(
-            "/v3/sharing/set",
+            "/v3/groups/sharing/set",
             json={
                 "token": token,
                 "group_id": "g1",
@@ -587,7 +587,7 @@ class TestSharing:
 
     def test_enable_sharing(self, client, token):
         resp = client.post(
-            "/v3/sharing/set",
+            "/v3/groups/sharing/set",
             json={
                 "token": token,
                 "group_id": "g1",
@@ -677,7 +677,7 @@ class TestGroupMembersList:
 class TestBlockInGroup:
     def test_block_in_group(self, client, token):
         resp = client.post(
-            "/v3/block-in-group",
+            "/v3/groups/block",
             json={
                 "token": token,
                 "group_id": "g1",
@@ -690,7 +690,7 @@ class TestBlockInGroup:
 
     def test_unblock_in_group(self, client, token):
         resp = client.post(
-            "/v3/unblock-in-group",
+            "/v3/groups/unblock",
             json={
                 "token": token,
                 "group_id": "g1",

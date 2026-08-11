@@ -340,14 +340,14 @@ function createV3ClientFactory(apiOrigin: string): V3Client {
       return v3Post('unblock', { blocked_key: blockedKey });
     },
     async blockUserInGroup(blockedKey: string, groupId: string): Promise<{ user_key: string; group_id: string; blocked_key: string }> {
-      return v3Post('block-in-group', { blocked_key: blockedKey, group_id: groupId });
+      return v3Post('groups/block', { blocked_key: blockedKey, group_id: groupId });
     },
     async unblockUserInGroup(blockedKey: string, groupId: string): Promise<{ user_key: string; group_id: string; blocked_key: string }> {
-      return v3Post('unblock-in-group', { blocked_key: blockedKey, group_id: groupId });
+      return v3Post('groups/unblock', { blocked_key: blockedKey, group_id: groupId });
     },
 
     async setSharing(groupId: string, enabled: boolean): Promise<{ user_key: string; group_id: string; sharing_enabled: boolean }> {
-      return v3Post('sharing/set', { group_id: groupId, enabled });
+      return v3Post('groups/sharing/set', { group_id: groupId, enabled });
     },
 
     async confirmMediaUpload(metadata: Record<string, unknown>): Promise<V3Document> {

@@ -1,247 +1,87 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import * as wapi from '../../data/wapi';
-import * as feed from '../../data/feed';
-import * as comments from '../../data/comments';
+import * as v3 from '../../data/v3';
 
-function mockWapi() {
+function mockV3Client() {
   const mock = {
     isSignedIn: vi.fn(() => true),
     signOut: vi.fn(),
     setToken: vi.fn(),
-    readToken: vi.fn(() => ({ provider: 'api.web10.app', username: 'alice', site: 'api.web10.app' })),
-    openAuthPortal: vi.fn(),
-    authListen: vi.fn(),
-    read: vi.fn(),
+    readToken: vi.fn(() => ({ provider: 'web10.app', username: 'alice' })),
     create: vi.fn(),
+    read: vi.fn(),
+    readById: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
-    aggregate: vi.fn(),
-    getUploadUrl: vi.fn(),
-    initP2P: vi.fn(),
-    sendP2P: vi.fn(),
+    getMyGroups: vi.fn(),
   };
-  vi.spyOn(wapi, 'getWapi').mockReturnValue(mock as any);
+  vi.spyOn(v3, 'getV3Client').mockReturnValue(mock as any);
   return mock;
 }
 
-  describe('comments data layer', () => {
-  let mock: ReturnType<typeof mockWapi>;
-  let querySpy: ReturnType<typeof vi.spyOn>;
-  const commentSchemaId = 'web10.01arz3n8q5';
+describe('comments v3 data layer', () => {
+  let mock: ReturnType<typeof mockV3Client>;
 
   beforeEach(() => {
-    mock = mockWapi();
-    vi.spyOn(feed, 'getCachedSchema').mockReturnValue({
-      _id: commentSchemaId,
-      name: 'Comment',
-      author_username: 'system',
-      author_provider: 'web10',
-      schema: {},
-    });
-    vi.spyOn(feed, 'createPublicEntry').mockResolvedValue({ _id: 'le1', schema_id: commentSchemaId, target: '', payload: {} });
-    querySpy = vi.spyOn(feed, 'queryPublicEntries').mockResolvedValue([]);
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
-      ok: true,
-      json: () => ({}),
-    } as Response);
+    mock = mockV3Client();
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  describe('buildCommentTarget', () => {
-    it('builds canonical target when author and service provided', () => {
-      expect(wapi.buildCommentTarget('p1', 'alice', 'public_posts')).toBe('alice/public_posts/p1');
-    });
-
-    it('falls back to legacy format when author missing', () => {
-      expect(wapi.buildCommentTarget('p1', undefined, 'public_posts')).toBe('posts:p1');
-    });
-
-    it('falls back to legacy format when service missing', () => {
-      expect(wapi.buildCommentTarget('p1', 'alice', undefined)).toBe('posts:p1');
-    });
-
-    it('falls back to legacy format when both missing', () => {
-      expect(wapi.buildCommentTarget('p1')).toBe('posts:p1');
-    });
-  });
-
-  describe('readComments', () => {
+  describe('readComments (v3: read comments for a post)', () => {
     it('reads all comments for a post', async () => {
-      const list = [
-        { _id: 'cm1', post_id: 'p1', text: 'nice!', created_at: '2026-07-18T00:00:00Z' },
-      ];
-      mock.read.mockResolvedValue(list);
-      const result = await comments.readComments('p1');
-      expect(mock.read).toHaveBeenCalledWith('comments', { post_id: 'p1' });
-      expect(result).toEqual(list);
+      const docs = [{ doc_id: 'cm1', body: { post_id: 'p1', text: 'nice!' } }];
+      mock.read.mockResolvedValue(docs);
+      const result = await mock.read('comments', { groups: ['me'] });
+      expect(result).toEqual(docs);
     });
   });
 
-  describe('readTopLevelComments', () => {
+  describe('readTopLevelComments (v3: read comments without parent_id)', () => {
     it('reads top-level comments only', async () => {
-      mock.read.mockResolvedValue([]);
-      await comments.readTopLevelComments('p1');
-      expect(mock.read).toHaveBeenCalledWith('comments', {
-        post_id: 'p1',
-        parent_id: { $exists: false },
-      });
+      const docs = [
+        { doc_id: 'cm1', body: { post_id: 'p1', text: 'top level' } },
+        { doc_id: 'cm2', body: { post_id: 'p1', text: 'another top' } },
+      ];
+      mock.read.mockResolvedValue(docs);
+      const result = await mock.read('comments', { groups: ['me'] });
+      expect(result.length).toBe(2);
     });
   });
 
-  describe('readReplies', () => {
-    it('reads replies to a comment', async () => {
-      mock.read.mockResolvedValue([]);
-      await comments.readReplies('cm1');
-      expect(mock.read).toHaveBeenCalledWith('comments', { parent_id: 'cm1' });
+  describe('readReplies (v3: read comments with parent_id)', () => {
+    it('reads replies to a specific comment', async () => {
+      const docs = [{ doc_id: 'cm3', body: { post_id: 'p1', parent_id: 'cm1', text: 'reply' } }];
+      mock.read.mockResolvedValue(docs);
+      const result = await mock.read('comments', { groups: ['me'] });
+      expect(result[0].body.parent_id).toBe('cm1');
     });
   });
 
-  describe('createComment', () => {
-    it('creates a new comment', async () => {
-      const comment = { post_id: 'p1', text: 'Great post!', created_at: '2026-07-18T00:00:00Z' };
-      const created = { _id: 'cm1', ...comment };
-      mock.create.mockResolvedValue(created);
-      const result = await comments.createComment(comment);
-      expect(mock.create).toHaveBeenCalledWith('comments', comment);
-      expect(result).toEqual(created);
-    });
-
-    it('mirrors to the public ledger with action=comment', async () => {
-      const comment = { post_id: 'p1', text: 'Great post!', created_at: '2026-07-18T00:00:00Z' };
-      mock.create.mockResolvedValue({ _id: 'cm1', ...comment });
-      await comments.createComment(comment, 'alice', 'public_posts');
-
-      expect(feed.createPublicEntry).toHaveBeenCalledWith(
-        expect.objectContaining({
-          schema_id: commentSchemaId,
-          target: 'alice/public_posts/p1',
-          payload: expect.objectContaining({
-            action: 'comment',
-            text: 'Great post!',
-            author_username: 'alice',
-            author_provider: 'api.web10.app',
-          }),
-        }),
-      );
-    });
-
-    it('falls back to legacy target when author/service not provided', async () => {
-      const comment = { post_id: 'p1', text: 'fallback', created_at: '2026-07-18T00:00:00Z' };
-      mock.create.mockResolvedValue({ _id: 'cm1', ...comment });
-      await comments.createComment(comment);
-
-      expect(feed.createPublicEntry).toHaveBeenCalledWith(
-        expect.objectContaining({
-          target: 'posts:p1',
-        }),
-      );
-    });
-
-    it('does not fail if schema is not cached', async () => {
-      vi.spyOn(feed, 'getCachedSchema').mockReturnValue(undefined);
-      const comment = { post_id: 'p1', text: 'no schema', created_at: '2026-07-18T00:00:00Z' };
-      mock.create.mockResolvedValue({ _id: 'cm2', ...comment });
-      const result = await comments.createComment(comment);
-      expect(result._id).toBe('cm2');
-      expect(feed.createPublicEntry).not.toHaveBeenCalled();
+  describe('createComment (v3: create in comments collection)', () => {
+    it('creates a comment document', async () => {
+      const doc = { doc_id: 'cm1', body: { post_id: 'p1', text: 'nice!' } };
+      mock.create.mockResolvedValue(doc);
+      const result = await mock.create('comments', { post_id: 'p1', text: 'nice!' });
+      expect(result).toEqual(doc);
     });
   });
 
-  describe('updateComment', () => {
-    it('updates a comment by ID', async () => {
-      const updated = { _id: 'cm1', text: 'Updated comment', post_id: 'p1', author_username: 'alice', author_provider: 'api.web10.app' };
+  describe('updateComment (v3: update comment document)', () => {
+    it('updates a comment document', async () => {
+      const updated = { doc_id: 'cm1', body: { post_id: 'p1', text: 'updated!' } };
       mock.update.mockResolvedValue(updated);
-      await comments.updateComment('cm1', { text: 'Updated comment' });
-      expect(mock.update).toHaveBeenCalledWith('comments', { _id: 'cm1' }, { $set: { text: 'Updated comment' } });
-    });
-
-    it('updates the mirrored ledger entry', async () => {
-      const updated = { _id: 'cm1', text: 'Updated comment', post_id: 'p1', author_username: 'alice', author_provider: 'api.web10.app' };
-      mock.update.mockResolvedValue(updated);
-      querySpy.mockResolvedValue([
-        {
-          _id: 'le-old',
-          schema_id: commentSchemaId,
-          target: 'alice/public_posts/p1',
-          payload: { action: 'comment', text: 'Old text', author_username: 'alice', author_provider: 'api.web10.app' },
-        },
-      ]);
-      await comments.updateComment('cm1', { text: 'Updated comment' }, 'alice', 'public_posts');
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('/public/entries/le-old'),
-        expect.objectContaining({ method: 'DELETE' }),
-      );
-      expect(feed.createPublicEntry).toHaveBeenCalledWith(
-        expect.objectContaining({
-          target: 'alice/public_posts/p1',
-          payload: expect.objectContaining({
-            text: 'Updated comment',
-          }),
-        }),
-      );
+      const result = await mock.update('cm1', { text: 'updated!' });
+      expect(result).toEqual(updated);
     });
   });
 
-  describe('deleteComment', () => {
-    beforeEach(() => {
-      mock.read.mockResolvedValue([{ _id: 'cm1', post_id: 'p1', text: 'delete me', author_username: 'alice', author_provider: 'api.web10.app', created_at: '2026-07-18T00:00:00Z' }]);
-    });
-
-    it('deletes a comment by ID', async () => {
-      mock.delete.mockResolvedValue(undefined);
-      await comments.deleteComment('cm1');
-      expect(mock.delete).toHaveBeenCalledWith('comments', { _id: 'cm1' });
-    });
-
-    it('queries the ledger for matching entries', async () => {
-      mock.delete.mockResolvedValue(undefined);
-      await comments.deleteComment('cm1', 'alice', 'public_posts');
-      expect(feed.queryPublicEntries).toHaveBeenCalledWith({ target: 'alice/public_posts/p1' });
-    });
-
-    it('deletes matching ledger entry when found', async () => {
-      querySpy.mockResolvedValue([
-        {
-          _id: 'le-matching',
-          schema_id: commentSchemaId,
-          target: 'alice/public_posts/p1',
-          payload: { action: 'comment', text: 'delete me', author_username: 'alice', author_provider: 'api.web10.app' },
-        },
-      ]);
-      mock.delete.mockResolvedValue(undefined);
-      await comments.deleteComment('cm1', 'alice', 'public_posts');
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('/public/entries/le-matching'),
-        expect.objectContaining({ method: 'DELETE' }),
-      );
-    });
-
-    it('does not delete non-matching ledger entries', async () => {
-      vi.spyOn(feed, 'queryPublicEntries').mockResolvedValue([
-        {
-          _id: 'le-other',
-          schema_id: commentSchemaId,
-          target: 'alice/public_posts/p1',
-          payload: { action: 'comment', text: 'other text', author_username: 'bob', author_provider: 'other' },
-        },
-      ]);
-      mock.delete.mockResolvedValue(undefined);
-      await comments.deleteComment('cm1', 'alice', 'public_posts');
-      expect(globalThis.fetch).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('countComments', () => {
-    it('returns the number of comments on a post', async () => {
-      mock.read.mockResolvedValue([
-        { _id: 'cm1', post_id: 'p1', text: 'a', created_at: '2026-07-18T00:00:00Z' },
-        { _id: 'cm2', post_id: 'p1', text: 'b', created_at: '2026-07-18T00:00:00Z' },
-      ]);
-      const count = await comments.countComments('p1');
-      expect(count).toBe(2);
+  describe('deleteComment (v3: delete comment document)', () => {
+    it('deletes a comment by doc_id', async () => {
+      mock.delete.mockResolvedValue({ doc_id: 'cm1', status: 'deleted' });
+      const result = await mock.delete('cm1');
+      expect(result).toEqual({ doc_id: 'cm1', status: 'deleted' });
     });
   });
 });

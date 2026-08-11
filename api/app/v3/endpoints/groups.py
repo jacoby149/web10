@@ -6,6 +6,7 @@ from app.v3.endpoints.auth_helper import user as _user
 from app.v3.models import (
     AcceptInvite,
     AddGroupMember,
+    BlockUserInGroup,
     CreateGroup,
     DeclineInvite,
     GetGroup,
@@ -16,6 +17,7 @@ from app.v3.models import (
     ListGroupMembers,
     ListJoinRequests,
     RemoveGroupMember,
+    SetSharing,
     UpdateGroup,
 )
 from app.v3.models.common import TokenOnly
@@ -276,3 +278,27 @@ async def get_groups_manages(data: TokenOnly):
     """Get groups where the user has management permissions."""
     user = _user(data)
     return ch.get_groups_manages(user)
+
+
+@router.post("/block")
+async def block_user_in_group(data: BlockUserInGroup):
+    """Block a user from seeing your content in this group."""
+    user = _user(data)
+    ch.block_user_in_group(user, data.group_id, data.blocked_key)
+    return {"user_key": user, "group_id": data.group_id, "blocked_key": data.blocked_key}
+
+
+@router.post("/unblock")
+async def unblock_user_in_group(data: BlockUserInGroup):
+    """Unblock a user in a group."""
+    user = _user(data)
+    ch.unblock_user_in_group(user, data.group_id, data.blocked_key)
+    return {"user_key": user, "group_id": data.group_id, "blocked_key": data.blocked_key}
+
+
+@router.post("/sharing/set")
+async def set_sharing(data: SetSharing):
+    """Set sharing toggle for a group."""
+    user = _user(data)
+    ch.set_user_group_sharing(user, data.group_id, data.enabled)
+    return {"user_key": user, "group_id": data.group_id, "sharing_enabled": data.enabled}
