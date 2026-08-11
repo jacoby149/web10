@@ -4,6 +4,7 @@ from app.v3.models.common import TokenOnly
 from app.v3.services import clickhouse as ch
 
 from . import (
+    account,
     appstore,
     auth,
     blocking,
@@ -15,31 +16,31 @@ from . import (
 
 router = APIRouter(prefix="/v3")
 
-# CRUD
+# Auth first — signup, login
+router.include_router(auth.router, prefix="")
+
+# Account management — profile, password, phone, email
+router.include_router(account.router, prefix="")
+
+# Document CRUD
 router.include_router(documents.router, prefix="")
 
-# Groups
+# Group contracts — groups, blocking, sharing
 router.include_router(groups.router, prefix="/groups")
-
-# Blocking + sharing
 router.include_router(blocking.router, prefix="")
+
+# Media
+router.include_router(media.router, prefix="/media")
 
 # App contracts
 router.include_router(contracts.router, prefix="/app-contracts")
+
+# App store
+router.include_router(appstore.router, prefix="/apps")
 
 
 # Node stats
 @router.post("/stats", tags=["system"])
 async def node_stats(data: TokenOnly):
-    """Get node-level stats: users, documents, groups. Anon OK."""
+    """Get node-level stats: users, documents, groups."""
     return ch.get_node_stats()
-
-
-# Auth + account
-router.include_router(auth.router, prefix="")
-
-# Media
-router.include_router(media.router, prefix="/media")
-
-# App store
-router.include_router(appstore.router, prefix="/apps")
