@@ -14,7 +14,7 @@ import {
   Radio,
   Store,
   Layers,
-  Github,
+  Terminal,
 } from 'lucide-react'
 import { trackFunnel } from '../lib/analytics'
 import { Button } from '../components/ui/button'
@@ -59,7 +59,7 @@ function Everything() {
             </Button>
             <a href="https://github.com/jacoby149/web10" target="_blank" rel="noopener noreferrer">
               <Button variant="outline" size="lg" className="inline-flex items-center gap-2">
-                <Github className="h-4 w-4" /> Open source
+                <Terminal className="h-4 w-4" /> Open source
               </Button>
             </a>
           </div>

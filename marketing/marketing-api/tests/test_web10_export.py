@@ -387,7 +387,7 @@ class TestWeb10PipelineIntegration:
         self._make_web10_zip(tmp)
 
         # Create presign job
-        with patch("app.main._s3") as mock_s3:
+        with patch("app.v3.endpoints.imports._s3") as mock_s3:
             mock_s3.return_value.generate_presigned_post.return_value = {
                 "url": "https://s3.example.com/upload",
                 "fields": {"key": "imports/test.zip"},
@@ -410,7 +410,7 @@ class TestWeb10PipelineIntegration:
 
             shutil.copy2(tmp, dest)
 
-        with patch("app.main._s3") as mock_s3:
+        with patch("app.v3.endpoints.imports._s3") as mock_s3:
             mock_client = mock_s3.return_value
             mock_client.download_file.side_effect = mock_download
 
@@ -455,7 +455,7 @@ class TestWeb10PipelineIntegration:
             written_services.append(service)
             return True, None
 
-        monkeypatch.setattr("app.main._write_record", capture_write)
+        monkeypatch.setattr("app.v3.endpoints.imports._write_record", capture_write)
 
         tmp = Path(__file__).parent / "tmp_test_web10_remap.zip"
         self._make_web10_zip(tmp)
