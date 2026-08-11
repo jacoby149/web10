@@ -39,11 +39,14 @@ export interface V3ClientOptions {
   apiOrigin?: string
   /** Pre-set token (optional, for server-side or pre-auth scenarios) */
   token?: string | null
+  /** RTC server hostname (for P2P via web10-npm/rtc) */
+  rtcServer?: string
 }
 
 interface V3State {
   apiOrigin: string
   token: string | null
+  rtcServer: string
 }
 
 // ── Request body shape (mirrors api/app/v3/models/__init__.py Token) ────────
@@ -119,9 +122,11 @@ export interface V3LoginResponse {
  */
 export function createV3Client(options: V3ClientOptions = {}): V3Client {
   const apiOrigin = options.apiOrigin ?? 'https://api.web10.app'
+  const rtcServer = options.rtcServer ?? 'rtc.web10.app'
   const state: V3State = {
     apiOrigin,
     token: options.token ?? readTokenCookie(),
+    rtcServer,
   }
 
   async function v3Post<T>(action: string, body: V3Body): Promise<T> {
@@ -506,7 +511,7 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
  * The v3 client interface.
  */
 export interface V3Client {
-  state: { apiOrigin: string; token: string | null }
+  state: { apiOrigin: string; token: string | null; rtcServer: string }
 
   // Token management
   setToken(token: string): void

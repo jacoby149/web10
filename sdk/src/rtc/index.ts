@@ -20,7 +20,7 @@
  * ```
  */
 
-import type { Web10Client } from '../client'
+import type { V3Client } from '../v3'
 
 // Lazy import — peerjs is a peer dependency, optional
 let PeerClass: { new (id: string, opts: PeerJSOptions): PeerInstance } | null = null
@@ -51,7 +51,7 @@ function getPeer(): { new (id: string, opts: PeerJSOptions): PeerInstance } {
  * @param wapi - A web10 client instance
  * @returns An RTC connector for P2P communication
  */
-export function createRTC(wapi: Web10Client): RTCConnector {
+export function createRTC(wapi: V3Client): RTCConnector {
   let peer: PeerInstance | null = null
   const outbound = new Map<string, PeerConnection>()
   const inbound = new Map<string, PeerConnection>()
