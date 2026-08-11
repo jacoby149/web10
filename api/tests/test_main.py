@@ -10,7 +10,6 @@ import jwt
 import pytest
 
 import app.settings as settings
-from app.v3.endpoints.auth import kosher
 from app.models.auth import Token, TokenData
 from app.services.auth import (
     anon_token,
@@ -22,6 +21,7 @@ from app.services.auth import (
     pwd_context,
     verify_password,
 )
+from app.v3.endpoints.auth import kosher
 
 # ---------------------------------------------------------------------------
 # Password helpers
