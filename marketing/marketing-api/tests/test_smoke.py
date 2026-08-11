@@ -126,7 +126,7 @@ def test_list_feedback_limit():
         _feedback_file.unlink(missing_ok=True)
     for i in range(5):
         client.post(
-        "/v3/feedback",
+            "/v3/feedback",
             json={"message": f"msg-{i}", "app": "web10-social", "route": "/feed"},
         )
     r = client.get("/feedback?limit=3")
