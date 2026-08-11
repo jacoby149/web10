@@ -1,3 +1,6 @@
+3.0.14 || 11.08.2026
+refactor(api+sdk): strip v2 endpoints — removed 34 v2 routes (schemas, payments, v2 media, v2 auth, migration endpoints, /stats, /pwa_listing, /register_app, /apps/rating). Added v3 app store admin: /v3/apps/admin, /v3/apps/approve. Added missing media pipeline: /v3/media/upload-url (presigned POST), /v3/media/read-url (presigned GET). SDK: login/signup/account methods use v3 endpoints; dev pay throws errors (v4 feature). ConfigPage calls /v3/apps/admin and /v3/apps/approve. E2E: v3 login helper, v2-only tests marked fixme. Added /links page (web10 linktree). Marketing docs wapi.js rebuilt. Net: -710 lines.
+
 3.0.13 || 10.08.2026
 feat(ui): bug report buttons hooked up — web10-social and marketing-ui now POST /bug_report (main API, not marketing-api /feedback). Both apps get screenshot capture (getDisplayMedia, up to 5) and paste-to-attach (clipboard images → base64). Old MARKETING_API/console-errors code removed.
 

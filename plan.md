@@ -106,6 +106,7 @@ legacy wapi and contract model. They all need to adapt:
 - [ ] **Social app** (`marketing/web10-social/`) — every screen maps to the
   `web10-social-v3/` docs (11 screens, CRUD + groups + refs).
   No legacy endpoints. No v2 double-writes. Pure v3.
+- [✓ 3.0.14] **API v2 cleanup** — 34 v2 endpoints removed (schemas, payments, v2 media, v2 auth, migrations). v3 app store admin endpoints added. Media pipeline complete (upload-url, read-url).
 - [✓] **Demo apps** (`docs/hello/`, `docs/notes/`, `docs/messages/`) — the
   runnable demos in the marketing docs must work against v3.
   They are the developer's first impression. If they break, the docs lie.

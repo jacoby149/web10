@@ -85,6 +85,7 @@ says what can happen **at the same time**.
 ### Lane: Apps Rebuild (Phase 3)
 **Owns:** `ui/`, `marketing/web10-social/`, demo apps
 
+- [✓ 3.0.14] API v2 cleanup — strip 34 v2 endpoints, add v3 app store admin + media pipeline
 - [✓ 3.0.7] Authenticator v3
 - [✓ 3.0.9] Auth UI v2→v3 contracts — contracts page shows v3 app contracts, consent v3-only, dead v2 components deleted
 - [✓ 3.0.10] SMR/SIR/SCR → ACR/GCR — unified contract request model, no new/change distinction, SDK + KB + UI + tests
