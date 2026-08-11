@@ -1,4 +1,5 @@
 import re
+
 from fastapi import APIRouter
 
 import app.exceptions as exceptions

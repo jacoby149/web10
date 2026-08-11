@@ -1,8 +1,13 @@
-from datetime import datetime
 
 from fastapi import APIRouter, HTTPException
 
 import app.settings as settings
+from app.services.media import (
+    ensure_bucket,
+    get_s3_client,
+    get_s3_signing_client,
+    make_object_key,
+)
 from app.v3.endpoints.auth_helper import user as _user
 from app.v3.models import (
     ConfirmMedia,
@@ -12,12 +17,6 @@ from app.v3.models import (
     UploadUrlRequest,
 )
 from app.v3.services import clickhouse as ch
-from app.services.media import (
-    ensure_bucket,
-    get_s3_client,
-    get_s3_signing_client,
-    make_object_key,
-)
 
 router = APIRouter(tags=["media"])
 
@@ -54,7 +53,7 @@ async def upload_url(data: UploadUrlRequest):
 @router.post("/read-url")
 async def read_url(data: ReadUrlRequest):
     """Request a presigned GET URL for reading a file from S3."""
-    user = _user(data)
+    _user(data)  # validate token
     object_key = data.body.get("object_key")
     if not object_key:
         raise HTTPException(status_code=400, detail="object_key is required")

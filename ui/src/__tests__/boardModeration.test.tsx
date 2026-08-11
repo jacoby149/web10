@@ -18,6 +18,10 @@ const mockI = {
     token: 'admin-token',
     readToken: () => ({ provider: 'api.localhost', username: 'admin' }),
   },
+  v3: {
+    state: { token: 'admin-token' },
+    readToken: () => ({ provider: 'api.localhost', username: 'admin' }),
+  },
 }
 
 const POST = {

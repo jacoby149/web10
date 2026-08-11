@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Form, Response
 
-import app.settings as settings
 from app.services import documentdb as db
 from app.services import twilio as mobile
 from app.services.auth import get_password_hash

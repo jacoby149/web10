@@ -94,29 +94,27 @@ describe('RecoveryContact save — real fetch shape', () => {
       token: 'tok123',
       readToken: () => ({ username: 'alice', provider: 'api.localhost' }),
     },
+    v3: {
+      setRecoveryPhone: vi.fn(() => Promise.resolve({ phone_number: '15559876543' })),
+    },
   })
 
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  it('POSTs to /set_recovery_phone with {token, query:{phone}}', async () => {
-    ;(axios.post as any).mockResolvedValue({ data: { phone_number: '15559876543' } })
+  it('calls v3.setRecoveryPhone(phone)', async () => {
     const { default: RecoveryContact } = await import('../components/Settings/RecoveryContact')
     const I = mockI()
     render(<RecoveryContact I={I} />)
     fireEvent.change(screen.getByTestId('phone-input'), { target: { value: '15559876543' } })
     fireEvent.click(screen.getByTestId('recovery-phone-save'))
     await waitFor(() =>
-      expect(axios.post).toHaveBeenCalledWith('http://api.localhost/set_recovery_phone', {
-        token: 'tok123',
-        query: { phone: '15559876543' },
-      }),
+      expect(I.v3.setRecoveryPhone).toHaveBeenCalledWith('15559876543'),
     )
   })
 
   it('re-reads from the server after save (servicesLoad), never sets phone locally', async () => {
-    ;(axios.post as any).mockResolvedValue({ data: { phone_number: '15559876543' } })
     const { default: RecoveryContact } = await import('../components/Settings/RecoveryContact')
     const I = mockI()
     render(<RecoveryContact I={I} />)
@@ -128,9 +126,9 @@ describe('RecoveryContact save — real fetch shape', () => {
   })
 
   it('shows the server error detail on failure', async () => {
-    ;(axios.post as any).mockRejectedValue({ response: { data: { detail: 'too many requests — try again later' } } })
     const { default: RecoveryContact } = await import('../components/Settings/RecoveryContact')
     const I = mockI()
+    I.v3.setRecoveryPhone.mockRejectedValue({ response: { data: { detail: 'too many requests — try again later' } } })
     render(<RecoveryContact I={I} />)
     fireEvent.change(screen.getByTestId('phone-input'), { target: { value: '15559876543' } })
     fireEvent.click(screen.getByTestId('recovery-phone-save'))
