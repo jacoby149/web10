@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Bug, Menu, X, Search, Link as LinkIcon } from 'lucide-react'
+import { Bug, Menu, X, Search, Link as LinkIcon, ChevronDown } from 'lucide-react'
 import { Button } from './ui/button'
 import GitHubStarButton from './GitHubStarButton'
 import { trackFunnel } from '../lib/analytics'
@@ -9,20 +9,36 @@ import { SOCIAL_ORIGIN } from '../lib/origins'
 const navItems = [
   { path: '/', label: 'Home' },
   { path: '/trending', label: 'Trending' },
-  { path: '/join', label: 'Join' },
-  { path: '/freedom', label: 'Freedom' },
-  { path: '/docs', label: 'Docs' },
   { path: '/app-store', label: 'App Store' },
   { path: '/import', label: 'Import Your Life' },
+  { path: '/join', label: 'Join' },
+]
+
+const learnItems = [
+  { path: '/freedom', label: 'Freedom' },
   { path: '/everything', label: 'Everything' },
+  { path: '/docs', label: 'Docs' },
 ]
 
 function Navbar({ onReportBug }: { onReportBug: () => void }) {
   const location = useLocation()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [learnOpen, setLearnOpen] = useState(false)
+  const learnRef = useRef<HTMLDivElement>(null)
 
   const isActive = (path: string) =>
     location.pathname === path || (path !== '/' && location.pathname.startsWith(path))
+
+  const isLearnActive = learnItems.some(item => isActive(item.path))
+
+  useEffect(() => {
+    if (!learnOpen) return
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLearnOpen(false)
+    }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [learnOpen])
 
   return (
     <nav
@@ -49,6 +65,46 @@ function Navbar({ onReportBug }: { onReportBug: () => void }) {
               {item.label}
             </Link>
           ))}
+
+          {/* Learn dropdown */}
+          <div
+            ref={learnRef}
+            className="relative"
+            onMouseEnter={() => setLearnOpen(true)}
+            onMouseLeave={() => setLearnOpen(false)}
+          >
+            <button
+              onClick={() => setLearnOpen(v => !v)}
+              className={`flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium transition-colors duration-150 ease-out ${
+                isLearnActive
+                  ? 'bg-brand-muted text-brand-300'
+                  : 'text-muted-foreground hover:bg-elevated hover:text-foreground'
+              }`}
+              aria-expanded={learnOpen}
+              aria-haspopup="true"
+            >
+              Learn
+              <ChevronDown className={`h-3 w-3 transition-transform duration-150 ${learnOpen ? 'rotate-180' : ''}`} strokeWidth={2} />
+            </button>
+            {learnOpen && (
+              <div className="absolute left-0 top-full mt-1 w-44 overflow-hidden rounded-lg border border-border bg-background/95 backdrop-blur-sm shadow-lg">
+                {learnItems.map(item => (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={() => setLearnOpen(false)}
+                    className={`block px-3 py-2.5 text-sm transition-colors duration-150 ${
+                      isActive(item.path)
+                        ? 'bg-brand-muted text-brand-300'
+                        : 'text-muted-foreground hover:bg-elevated hover:text-foreground'
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="hidden items-center gap-2 md:flex">
@@ -100,6 +156,25 @@ function Navbar({ onReportBug }: { onReportBug: () => void }) {
               {item.label}
             </Link>
           ))}
+          <div className="rounded-md border border-border p-1">
+            <p className="px-3 py-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground/60">
+              Learn
+            </p>
+            {learnItems.map(item => (
+              <Link
+                key={item.path}
+                to={item.path}
+                onClick={() => setMobileOpen(false)}
+                className={`block rounded-sm px-3 py-2.5 text-sm font-medium ${
+                  isActive(item.path)
+                    ? 'bg-brand-muted text-brand-300'
+                    : 'text-muted-foreground hover:bg-elevated hover:text-foreground'
+                }`}
+              >
+                {item.label}
+              </Link>
+            ))}
+          </div>
           <div className="mt-2 flex flex-col gap-2">
             <Button
               variant="outline"
