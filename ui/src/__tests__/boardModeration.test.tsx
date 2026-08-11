@@ -27,9 +27,8 @@ const mockI = {
 const POST = {
   author: 'alice',
   service: 'public_posts',
-  post_id: 'p1',
-  body_text: 'something inappropriate',
-  tags: [],
+  doc_id: 'p1',
+  body: { text: 'something inappropriate', tags: [] },
   created_at: '2026-07-27T00:00:00',
 }
 
@@ -40,12 +39,10 @@ function mockLoad({ board = [POST], removed = [] }: { board?: any[]; removed?: a
     if (url.includes('/admin/discovery/removed')) return Promise.resolve({ data: { removed } })
     if (url.includes('/admin/discovery/remove')) return Promise.resolve({ data: { matched: 1 } })
     if (url.includes('/admin/discovery/restore')) return Promise.resolve({ data: { matched: 1 } })
+    if (url.includes('/v3/read')) return Promise.resolve({ data: board })
     return Promise.resolve({ data: {} })
   })
-  ;(axios.patch as any).mockImplementation((url: string) => {
-    if (url.includes('/discover/posts')) return Promise.resolve({ data: board })
-    return Promise.resolve({ data: {} })
-  })
+  ;(axios.patch as any).mockImplementation(() => Promise.resolve({ data: {} }))
 }
 
 describe('ConfigPage board moderation', () => {
@@ -86,7 +83,7 @@ describe('ConfigPage board moderation', () => {
   it('removed posts list restores via /admin/discovery/restore', async () => {
     mockLoad({
       board: [],
-      removed: [{ ...POST, removed_by: 'admin', removal_reason: 'spam' }],
+      removed: [{ author: 'alice', service: 'public_posts', post_id: 'p1', body_text: 'something inappropriate', removed_by: 'admin', removal_reason: 'spam' }],
     })
     render(<ConfigPage I={mockI} />)
     const row = await screen.findByTestId('config-mod-removed-row-p1')
