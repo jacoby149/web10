@@ -1,4 +1,3 @@
-/* web10 SDK (legacy wapiInit global) — GENERATED from sdk/ via: bun build src/index.ts --target browser --format iife. Do not edit; rebuild from sdk/. */
 (() => {
   var __defProp = Object.defineProperty;
   var __getOwnPropNames = Object.getOwnPropertyNames;
@@ -48,6 +47,7 @@
     readTokenCookie: () => readTokenCookie,
     isTokenExpired: () => isTokenExpired,
     decodeJwt: () => decodeJwt,
+    createV3Client: () => createV3Client,
     createClient: () => createClient,
     createAuthConnector: () => createAuthConnector,
     cookieDict: () => cookieDict,
@@ -141,17 +141,8 @@
       this.details = details;
     }
   }
-  async function patch(url, body) {
-    return request("PATCH", url, body);
-  }
   async function post(url, body) {
     return request("POST", url, body);
-  }
-  async function put(url, body) {
-    return request("PUT", url, body);
-  }
-  async function del(url, body) {
-    return request("DELETE", url, body);
   }
   async function aggregate(url, body) {
     return request("POST", url, body);
@@ -175,6 +166,8 @@
       rtcServer,
       appStores
     };
+    const readUrlCache = new Map;
+    const READ_URL_MARGIN_MS = 5000;
     const client = {
       get state() {
         return { ...state };
@@ -248,7 +241,7 @@
         guardAuth(state, username);
         const u = resolveUsername(state, username);
         const base = originFor(state, provider);
-        return patch(`${base}/${u}/${service}`, { token: state.token, query: query ?? null, update: null });
+        return post(`${base}/${u}/${service}/read`, { token: state.token, query: query ?? null, update: null });
       },
       create(service, body, username, provider) {
         guardAuth(state, username);
@@ -260,13 +253,13 @@
         guardAuth(state, username);
         const u = resolveUsername(state, username);
         const base = originFor(state, provider);
-        return put(`${base}/${u}/${service}`, { token: state.token, query: query ?? null, update: update ?? null });
+        return post(`${base}/${u}/${service}/update`, { token: state.token, query: query ?? null, update: update ?? null });
       },
       deleteRecord(service, query, username, provider) {
         guardAuth(state, username);
         const u = resolveUsername(state, username);
         const base = originFor(state, provider);
-        return del(`${base}/${u}/${service}`, { token: state.token, query: query ?? null, update: null });
+        return post(`${base}/${u}/${service}/delete`, { token: state.token, query: query ?? null, update: null });
       },
       aggregate(service, pipeline = [], username, provider) {
         guardAuth(state, username);
@@ -308,52 +301,133 @@
           }
         });
       },
-      checkout(params) {
-        const token = this.readToken();
-        if (!token)
-          throw new Error("Must be signed in for checkout");
-        return authPost(`${apiOrigin}/dev_pay`, {
-          token: state.token,
-          seller: params.seller,
-          title: params.title,
-          price: params.price,
-          success_url: params.success_url,
-          cancel_url: params.cancel_url
-        }).then((res) => {
-          if (typeof window !== "undefined") {
-            window.location.href = res.url;
+      acrOnReady(acrs) {
+        if (typeof window === "undefined")
+          return;
+        window.addEventListener("message", (e) => {
+          if (e.origin !== authOrigin)
+            return;
+          if (e.data?.type === "ACRListen" && e.source instanceof Window) {
+            e.source.postMessage({ type: "acr", acrs }, authOrigin);
           }
         });
       },
-      verifySubscription(params) {
-        const token = this.readToken();
-        if (!token)
-          throw new Error("Must be signed in");
-        return authPost(`${apiOrigin}/dev_pay`, {
-          token: state.token,
-          seller: params.seller,
-          title: params.title,
-          price: null
+      acrResponseListen(setStatus) {
+        if (typeof window === "undefined")
+          return;
+        window.addEventListener("message", (e) => {
+          if (e.origin !== authOrigin)
+            return;
+          if (e.data?.type === "acr-status") {
+            setStatus(e.data.status);
+          }
         });
       },
-      cancelSubscription(params) {
-        const token = this.readToken();
-        if (!token)
-          throw new Error("Must be signed in");
-        return authPost(`${apiOrigin}/dev_pay`, {
+      requestUploadUrl(params, username, provider) {
+        guardAuth(state, username);
+        const u = resolveUsername(state, username);
+        const base = originFor(state, provider);
+        return authPost(`${base}/${u}/upload`, {
           token: state.token,
-          seller: params.seller,
-          title: params.title
+          filename: params.filename,
+          mime_type: params.mimeType ?? null,
+          size_bytes: params.sizeBytes ?? null
         });
+      },
+      confirmUpload(params, username, provider) {
+        guardAuth(state, username);
+        const u = resolveUsername(state, username);
+        const base = originFor(state, provider);
+        return authPost(`${base}/${u}/upload/confirm`, {
+          token: state.token,
+          url: params.url,
+          filename: params.filename,
+          mime_type: params.mimeType ?? null,
+          size_bytes: params.sizeBytes ?? null,
+          width: params.width ?? null,
+          height: params.height ?? null,
+          duration_seconds: params.durationSeconds ?? null,
+          thumbnail_url: params.thumbnailUrl ?? null,
+          caption: params.caption ?? null,
+          alt_text: params.altText ?? null,
+          origin: params.origin ?? null,
+          origin_id: params.originId ?? null,
+          encrypted: params.encrypted ?? false
+        });
+      },
+      async upload(file, meta = {}, username, provider) {
+        guardAuth(state, username);
+        const filename = meta.filename ?? file.name ?? "upload";
+        const mimeType = meta.mimeType ?? file.type ?? "application/octet-stream";
+        const presigned = await this.requestUploadUrl({ filename, mimeType, sizeBytes: file.size }, username, provider);
+        const form = new FormData;
+        for (const [k, v] of Object.entries(presigned.fields)) {
+          form.append(k, v);
+        }
+        form.append("file", file, filename);
+        const s3Res = await fetch(presigned.upload_url, {
+          method: "POST",
+          body: form
+        });
+        if (!s3Res.ok) {
+          const text = await s3Res.text().catch(() => "");
+          throw new Web10Error(`media upload to object storage failed: ${s3Res.status} ${s3Res.statusText}`, s3Res.status, text);
+        }
+        return this.confirmUpload({
+          url: presigned.upload_url,
+          filename,
+          mimeType,
+          sizeBytes: file.size,
+          width: meta.width,
+          height: meta.height,
+          durationSeconds: meta.durationSeconds,
+          thumbnailUrl: meta.thumbnailUrl,
+          caption: meta.caption,
+          altText: meta.altText
+        }, username, provider);
+      },
+      async getReadUrl(objectKey, opts) {
+        const username = opts?.username ?? null;
+        const provider = opts?.provider ?? null;
+        guardAuth(state, username);
+        const u = resolveUsername(state, username);
+        const base = originFor(state, provider);
+        const cacheKey = `${base}/${u}/${objectKey}`;
+        const now = Date.now();
+        const cached = readUrlCache.get(cacheKey);
+        if (!opts?.force && cached && cached.staleAt > now + READ_URL_MARGIN_MS) {
+          return cached.url;
+        }
+        const res = await authPost(`${base}/${u}/read`, {
+          token: state.token,
+          object_key: objectKey
+        });
+        readUrlCache.set(cacheKey, {
+          url: res.read_url,
+          staleAt: now + res.expires_in * 1000
+        });
+        return res.read_url;
+      },
+      checkout(_params) {
+        throw new Web10Error("Dev Pay not available — payments are a v4 feature", 501);
+      },
+      verifySubscription(_params) {
+        throw new Web10Error("Subscription management not available — payments are a v4 feature", 501);
+      },
+      cancelSubscription(_params) {
+        throw new Web10Error("Subscription management not available — payments are a v4 feature", 501);
       }
     };
     if (typeof window !== "undefined" && typeof window.location !== "undefined" && typeof window.location.href === "string") {
       for (const appStore of appStores) {
         try {
-          fetch(`${appStore}/register_app`, {
+          fetch(`${appStore}/v3/apps/register`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ url: window.location.href.split("?")[0] })
+            body: JSON.stringify({
+              token: "",
+              body: { url: window.location.href.split("?")[0] }
+            })
           }).catch(() => {});
         } catch {}
       }
@@ -432,23 +506,24 @@
         window.close();
       },
       async logIn(params) {
-        const hostname = typeof window !== "undefined" ? window.location.hostname : "localhost";
-        const res = await authPost(`${api()}/web10token`, {
-          username: params.username,
-          password: params.password,
-          token: null,
-          site: hostname,
-          target: null
+        const res = await authPost(`${api()}/v3/login`, {
+          token: "",
+          body: {
+            username: params.username,
+            password: params.password
+          }
         });
         wapi.setToken(res.token);
         await this.mintOAuthToken();
       },
       async signUp(params) {
-        await authPost(`${api()}/signup`, {
-          username: params.username,
-          password: params.password,
-          betacode: params.betacode ?? null,
-          phone: params.phone ?? null
+        await authPost(`${api()}/v3/signup`, {
+          token: "",
+          body: {
+            username: params.username,
+            password: params.password,
+            phone: params.phone ?? ""
+          }
         });
       },
       contractListen(setState) {
@@ -466,47 +541,330 @@
         });
         window.opener.postMessage({ type: "ContractListen" }, target);
       },
-      async changePassword(currentPassword, newPassword) {
-        const token = wapi.readToken();
-        if (!token)
-          throw new Error("Not authenticated");
-        await authPost(`${api()}/change_pass`, { username: token.username, password: currentPassword, new_pass: newPassword });
+      acrListen(setState) {
+        if (typeof window === "undefined" || !window.opener)
+          return;
+        const target = openerOrigin();
+        if (!target)
+          return;
+        window.addEventListener("message", (e) => {
+          if (e.origin !== target)
+            return;
+          if (e.data?.type === "acr") {
+            setState(e.data);
+          }
+        });
+        window.opener.postMessage({ type: "ACRListen" }, target);
       },
-      async changePhone(password, phone) {
+      async changePassword(_currentPassword, newPassword) {
         const token = wapi.readToken();
         if (!token)
           throw new Error("Not authenticated");
-        await authPost(`${api()}/change_phone`, { username: token.username, password, phone });
+        await authPost(`${api()}/v3/change-pass`, {
+          token: wapi.state.token,
+          body: { password: newPassword }
+        });
+      },
+      async changePhone(_password, phone) {
+        const token = wapi.readToken();
+        if (!token)
+          throw new Error("Not authenticated");
+        await authPost(`${api()}/v3/change-phone`, {
+          token: wapi.state.token,
+          body: { phone }
+        });
       },
       async sendCode() {
-        await authPost(`${api()}/send_code`, { token: wapi.state.token });
+        await authPost(`${api()}/v3/send_code`, { token: wapi.state.token });
       },
       async verifyCode(code) {
-        await authPost(`${api()}/verify_code`, { token: wapi.state.token, query: { code } });
+        const token = wapi.readToken();
+        if (!token)
+          throw new Error("Not authenticated");
+        await authPost(`${api()}/v3/verify-phone`, {
+          token: wapi.state.token,
+          body: { code }
+        });
       },
       async manageSpace() {
-        return authPost(`${api()}/manage_space`, { token: wapi.state.token });
+        throw new Error("Stripe management not available — payments are a v4 feature");
       },
       async manageCredits() {
-        return authPost(`${api()}/manage_credits`, { token: wapi.state.token });
+        throw new Error("Stripe management not available — payments are a v4 feature");
       },
       async manageBusiness() {
-        return authPost(`${api()}/manage_business`, { token: wapi.state.token });
+        throw new Error("Stripe management not available — payments are a v4 feature");
       },
       async manageSubscriptions() {
-        return authPost(`${api()}/manage_subscriptions`, { token: wapi.state.token });
+        throw new Error("Stripe management not available — payments are a v4 feature");
       },
       async businessLogin() {
-        return authPost(`${api()}/business_login`, { token: wapi.state.token });
+        throw new Error("Stripe management not available — payments are a v4 feature");
       },
       async getPlan() {
-        return authPost(`${api()}/get_plan`, { token: wapi.state.token });
+        throw new Error("Plan management not available — payments are a v4 feature");
       }
     };
     if (wapi.isSignedIn() && typeof document !== "undefined" && document.referrer) {
       connector.mintOAuthToken().catch(() => {});
     }
     return connector;
+  }
+  // src/v3.ts
+  function createV3Client(options = {}) {
+    const apiOrigin = options.apiOrigin ?? "https://api.web10.app";
+    const state = {
+      apiOrigin,
+      token: options.token ?? readTokenCookie()
+    };
+    async function v3Post(action, body) {
+      if (!state.token) {
+        throw new Web10Error("No token available. Call login() or setToken() first.", 401);
+      }
+      return authPost(`${apiOrigin}/v3/${action}`, { ...body, token: state.token });
+    }
+    const client = {
+      get state() {
+        return { ...state };
+      },
+      setToken(token) {
+        state.token = token;
+        setTokenCookie(token);
+      },
+      scrubToken() {
+        state.token = null;
+        scrubTokenCookie();
+      },
+      readToken() {
+        return decodeJwt(state.token);
+      },
+      isSignedIn() {
+        return state.token != null && state.token !== "";
+      },
+      signOut() {
+        this.scrubToken();
+      },
+      async login(username, password, site) {
+        const res = await authPost(`${apiOrigin}/v3/login`, { username, password, site: site ?? window?.location?.hostname ?? "web10" });
+        this.setToken(res.token);
+        return res;
+      },
+      async signup(username, password, phone, email) {
+        return authPost(`${apiOrigin}/v3/signup`, { username, password, phone, email });
+      },
+      async getProfile() {
+        return v3Post("profile", {});
+      },
+      async changePassword(currentPassword, newPassword) {
+        return v3Post("change-pass", { password: currentPassword, new_pass: newPassword });
+      },
+      async changePhone(phone) {
+        return v3Post("change-phone", { phone });
+      },
+      async setEmail(email) {
+        return v3Post("set-email", { email });
+      },
+      async verifyPhone(code) {
+        return v3Post("verify-phone", { code });
+      },
+      async verifyEmail(code) {
+        return v3Post("verify-email", { code });
+      },
+      async sendCode() {
+        return v3Post("send_code", {});
+      },
+      async setRecoveryPhone(phone) {
+        return v3Post("set_recovery_phone", { query: { phone } });
+      },
+      async create(collection, body, opts) {
+        const payload = { collection, body };
+        if (opts?.groups)
+          payload.groups = opts.groups;
+        return v3Post("create", payload);
+      },
+      async read(collection, opts) {
+        const payload = { collection, groups: opts.groups };
+        if (opts.limit != null)
+          payload.limit = opts.limit;
+        if (opts.offset != null)
+          payload.offset = opts.offset;
+        return v3Post("read", payload);
+      },
+      async readById(docId, collection) {
+        return v3Post("read-by-id", { doc_id: docId, collection });
+      },
+      async update(docId, body, opts) {
+        const payload = { doc_id: docId, body };
+        if (opts?.groups)
+          payload.groups = opts.groups;
+        return v3Post("update", payload);
+      },
+      async delete(docId) {
+        return v3Post("delete", { doc_id: docId });
+      },
+      async addAppContract(allowedOrigin, permissions) {
+        return v3Post("app-contracts/add", {
+          allowed_origin: allowedOrigin,
+          permissions
+        });
+      },
+      async listAppContracts() {
+        return v3Post("app-contracts/list", {});
+      },
+      async revokeAppContract(allowedOrigin) {
+        const payload = {};
+        if (allowedOrigin)
+          payload.allowed_origin = allowedOrigin;
+        return v3Post("app-contracts/revoke", payload);
+      },
+      async createGroup(name, joinPolicy, roles, members) {
+        return v3Post("groups/create", {
+          name,
+          join_policy: joinPolicy,
+          roles,
+          members
+        });
+      },
+      async getGroup(groupId) {
+        return v3Post("groups/get", { group_id: groupId });
+      },
+      async getMyGroups() {
+        return v3Post("groups/list", {});
+      },
+      async getGroupsManages() {
+        return v3Post("groups/manages", {});
+      },
+      async updateGroup(groupId, opts) {
+        const payload = { group_id: groupId };
+        if (opts?.join_policy)
+          payload.join_policy = opts.join_policy;
+        if (opts?.roles)
+          payload.roles = opts.roles;
+        return v3Post("groups/update", payload);
+      },
+      async joinGroup(groupId) {
+        return v3Post("groups/join", { group_id: groupId });
+      },
+      async requestJoin(groupId) {
+        return v3Post("groups/join", { group_id: groupId });
+      },
+      async leaveGroup(groupId) {
+        return v3Post("groups/leave", { group_id: groupId });
+      },
+      async getGroupMembers(groupId) {
+        return v3Post("groups/members/list", { group_id: groupId });
+      },
+      async addGroupMember(groupId, memberKey, role) {
+        return v3Post("groups/members/add", {
+          group_id: groupId,
+          member_key: memberKey,
+          role
+        });
+      },
+      async removeGroupMember(groupId, memberKey) {
+        return v3Post("groups/members/remove", {
+          group_id: groupId,
+          member_key: memberKey
+        });
+      },
+      async inviteMember(groupId, memberKey, role) {
+        return v3Post("groups/invite", {
+          group_id: groupId,
+          member_key: memberKey,
+          role
+        });
+      },
+      async acceptInvite(groupId) {
+        return v3Post("groups/accept-invite", { group_id: groupId });
+      },
+      async declineInvite(groupId) {
+        return v3Post("groups/decline-invite", { group_id: groupId });
+      },
+      async getJoinRequests(groupId) {
+        return v3Post("groups/requests/join/list", { group_id: groupId });
+      },
+      async approveJoinRequest(groupId, requesterKey) {
+        return v3Post("groups/requests/join/approve", {
+          group_id: groupId,
+          requester_key: requesterKey
+        });
+      },
+      async denyJoinRequest(groupId, requesterKey) {
+        return v3Post("groups/requests/join/deny", {
+          group_id: groupId,
+          requester_key: requesterKey
+        });
+      },
+      async blockUser(blockedKey) {
+        return v3Post("block", { blocked_key: blockedKey });
+      },
+      async unblockUser(blockedKey) {
+        return v3Post("unblock", { blocked_key: blockedKey });
+      },
+      async blockUserInGroup(blockedKey, groupId) {
+        return v3Post("block-in-group", {
+          blocked_key: blockedKey,
+          group_id: groupId
+        });
+      },
+      async unblockUserInGroup(blockedKey, groupId) {
+        return v3Post("unblock-in-group", {
+          blocked_key: blockedKey,
+          group_id: groupId
+        });
+      },
+      async setSharing(groupId, enabled) {
+        return v3Post("sharing/set", {
+          group_id: groupId,
+          enabled
+        });
+      },
+      async requestMediaUploadUrl(params) {
+        return v3Post("media/upload-url", {
+          body: {
+            filename: params.filename,
+            mime_type: params.mimeType ?? "application/octet-stream",
+            size_bytes: params.sizeBytes ?? null
+          }
+        });
+      },
+      async getMediaReadUrl(objectKey) {
+        return v3Post("media/read-url", { body: { object_key: objectKey } });
+      },
+      async confirmMediaUpload(metadata) {
+        return v3Post("media/confirm", { body: metadata });
+      },
+      async listMedia(opts) {
+        const payload = {};
+        if (opts?.limit != null)
+          payload.limit = opts.limit;
+        if (opts?.offset != null)
+          payload.offset = opts.offset;
+        return v3Post("media/list", payload);
+      },
+      async deleteMedia(docId) {
+        return v3Post("media/delete", { doc_id: docId });
+      },
+      async getNodeStats() {
+        return v3Post("stats", {});
+      },
+      async registerApp(app) {
+        return v3Post("apps/register", { body: app });
+      },
+      async getApps() {
+        return v3Post("apps/list", {});
+      },
+      async rateApp(appId, rating) {
+        if (!rating || rating < 1 || rating > 5) {
+          throw new Web10Error("Rating must be between 1 and 5", 400);
+        }
+        return v3Post("apps/rating", { body: { target_app_id: appId, rating } });
+      },
+      async getAppRatings(appId) {
+        return v3Post("apps/ratings", { body: { target_app_id: appId } });
+      }
+    };
+    return client;
   }
   // src/compat.ts
   var PeerCtor = null;
@@ -522,6 +880,8 @@
     const inBound = {};
     const wapi = {
       APIProtocol: protocol,
+      apiOrigin,
+      authUrl,
       childWindow: null,
       get token() {
         return client.state.token;
@@ -620,8 +980,9 @@
     return wapi;
   }
   function wapiAuthInit(wapi) {
-    const authUrl = `${wapi.APIProtocol}//auth.web10.app`;
-    const client = createClient({ authUrl });
+    const authUrl = wapi.authUrl ?? `${wapi.APIProtocol}//auth.web10.app`;
+    const apiOrigin = wapi.apiOrigin ?? undefined;
+    const client = createClient({ authUrl, apiOrigin });
     if (typeof wapi.token === "string" && wapi.token) {
       client.setToken(wapi.token);
     }

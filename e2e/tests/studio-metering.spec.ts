@@ -24,7 +24,7 @@ test.describe('studio with real metering', () => {
       },
     });
 
-    const tokenRes = await request.post(`${API_BASE}/web10token`, {
+    const tokenRes = await request.post(`${API_BASE}/v3/login`, {
       data: { username, password },
     });
     expect(tokenRes.ok()).toBeTruthy();
@@ -74,7 +74,7 @@ test.describe('studio with real metering', () => {
       },
     });
 
-    const tokenRes = await request.post(`${API_BASE}/web10token`, {
+    const tokenRes = await request.post(`${API_BASE}/v3/login`, {
       data: { username, password },
     });
     expect(tokenRes.ok()).toBeTruthy();
@@ -119,7 +119,7 @@ test.describe('studio with real metering', () => {
       },
     });
 
-    const tokenRes = await request.post(`${API_BASE}/web10token`, {
+    const tokenRes = await request.post(`${API_BASE}/v3/login`, {
       data: { username, password },
     });
     expect(tokenRes.ok()).toBeTruthy();
@@ -164,7 +164,7 @@ test.describe('studio with real metering', () => {
       },
     });
 
-    const tokenRes = await request.post(`${API_BASE}/web10token`, {
+    const tokenRes = await request.post(`${API_BASE}/v3/login`, {
       data: { username, password },
     });
     expect(tokenRes.ok()).toBeTruthy();

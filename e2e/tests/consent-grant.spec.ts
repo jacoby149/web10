@@ -26,7 +26,7 @@ test.describe('signup -> consent -> grant full flow', () => {
     expect(signupRes.ok()).toBeTruthy();
 
     // Owner token: no site/target → self-access via decoded.username == user
-    const tokenRes = await request.post(`${API_BASE}/web10token`, {
+    const tokenRes = await request.post(`${API_BASE}/v3/login`, {
       data: { username, password },
     });
     expect(tokenRes.ok()).toBeTruthy();
@@ -74,7 +74,7 @@ test.describe('signup -> consent -> grant full flow', () => {
     });
 
     // Get auth token (site must be in CORS_SERVICE_MANAGERS)
-    const authTokenRes = await request.post(`${API_BASE}/web10token`, {
+    const authTokenRes = await request.post(`${API_BASE}/v3/login`, {
       data: { username, password, site: 'auth.localhost', target: 'api.localhost' },
     });
     expect(authTokenRes.ok()).toBeTruthy();
@@ -97,7 +97,7 @@ test.describe('signup -> consent -> grant full flow', () => {
 
     // Mint the tiered token for the app site (regression: this was always
     // 401 MINT because the minted TokenData never had provider set)
-    const mintRes = await request.post(`${API_BASE}/web10token`, {
+    const mintRes = await request.post(`${API_BASE}/v3/login`, {
       data: { username, token: authToken, site: 'social.localhost', target: 'api.localhost' },
     });
     expect(mintRes.ok()).toBeTruthy();
@@ -132,7 +132,7 @@ test.describe('signup -> consent -> grant full flow', () => {
       data: { provider: 'api.localhost', username: userB, password, new_pass: password, retypepass: password, phone: '+15559990004', betacode: 'web10betacode' },
     });
 
-    const tokenRes = await request.post(`${API_BASE}/web10token`, {
+    const tokenRes = await request.post(`${API_BASE}/v3/login`, {
       data: { username: userA, password },
     });
     expect(tokenRes.ok()).toBeTruthy();

@@ -44,7 +44,7 @@ test.describe('ui auth flows', () => {
     });
 
     // Login
-    const res = await request.post(`${API_BASE}/web10token`, {
+    const res = await request.post(`${API_BASE}/v3/login`, {
       data: {
         username,
         password,
@@ -73,7 +73,7 @@ test.describe('ui auth flows', () => {
       },
     });
 
-    const res = await request.post(`${API_BASE}/web10token`, {
+    const res = await request.post(`${API_BASE}/v3/login`, {
       data: {
         username,
         password: 'WrongPassword',

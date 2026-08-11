@@ -12,3 +12,14 @@ class CreateAppRating(BaseModel):
 
 class GetAppRatings(BaseModel):
     body: dict
+
+
+class AppsAdmin(BaseModel):
+    token: str
+
+
+class ApproveApp(BaseModel):
+    token: str
+    url: str
+    approved: bool = True
+    reviewer_note: str = ""

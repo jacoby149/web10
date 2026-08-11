@@ -1166,6 +1166,49 @@ def list_apps(approved_only: bool = True) -> list[dict]:
     ]
 
 
+def list_apps_admin() -> list[dict]:
+    """Admin-facing list of every registered app with full state."""
+    result = client.query(
+        "SELECT url, name, description, icon_url, screenshots, approved, review_state, "
+        "metadata_version, created_at, updated_at "
+        "FROM apps WHERE deleted = 0 ORDER BY created_at DESC",
+    )
+    apps = []
+    for row in result.result_rows():
+        url = row[0]
+        # Fetch ratings for this app
+        ratings_result = client.query(
+            "SELECT rating, count() as cnt FROM app_ratings "
+            "WHERE target_app_id = %(url)s AND deleted = 0 "
+            "GROUP BY rating WITH ROLLUP ORDER BY rating",
+            {"url": url},
+        )
+        total_count = 0
+        weighted_sum = 0
+        for r in ratings_result.result_rows():
+            if r[0] is not None:
+                total_count += r[1]
+                weighted_sum += r[0] * r[1]
+
+        apps.append(
+            {
+                "url": url,
+                "approved": bool(row[5]),
+                "name": row[1],
+                "description": row[2],
+                "icon_url": row[3],
+                "screenshots": _parse_json(row[4]),
+                "registered_at": str(row[8]),
+                "review_state": row[6],
+                "metadata_version": row[7],
+                "last_reviewed_at": str(row[9]),
+                "rating_average": round(weighted_sum / total_count, 1) if total_count else None,
+                "rating_count": total_count,
+            }
+        )
+    return apps
+
+
 def get_app(url: str) -> dict | None:
     """Get an app by URL."""
     result = client.query(

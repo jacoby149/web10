@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 
 import app.docs as docs
 import app.exceptions as exceptions
-from app.endpoints import auth, media, payments, schemas, system
+from app.endpoints import auth, system
 from app.v3 import endpoints as v3
 
 app = FastAPI(
@@ -36,11 +36,8 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
-app.include_router(payments.router)
 app.include_router(system.router)
 app.include_router(v3.router)
-app.include_router(media.router, prefix="/v3/media")
-app.include_router(schemas.router)
 
 
 # Map bare Exception strings (raised by auth.py / services) to HTTPExceptions.
@@ -49,31 +46,17 @@ _EXCEPTION_MAP = {
     "AUTH": exceptions.AUTH,
     "TOKEN": exceptions.TOKEN,
     "CRUD": exceptions.CRUD,
-    "MINT": exceptions.MINT,
-    "STAR": exceptions.STAR,
-    "DSTAR": exceptions.DSTAR,
-    "RESERVED": exceptions.RESERVED,
     "NO_USER": exceptions.NO_USER,
-    "NO_SELLER": exceptions.NO_SELLER,
     "EXISTS": exceptions.EXISTS,
     "PHONE_NUMBER_TAKEN": exceptions.PHONE_NUMBER_TAKEN,
     "PHONE_NUMBER_MISSING": exceptions.PHONE_NUMBER_MISSING,
     "NOT_ADMIN": exceptions.NOT_ADMIN,
     "VERIFY": exceptions.VERIFY,
     "WRONG_CODE": exceptions.WRONG_CODE,
-    "PIPELINE": exceptions.PIPELINE,
-    "PIPELINE_CAP": exceptions.PIPELINE_CAP,
-    "TIME": exceptions.TIME,
-    "SPACE": exceptions.SPACE,
     "BAD_NUM": exceptions.BAD_NUM,
     "BAD_USERNAME": exceptions.BAD_USERNAME,
     "BETA": exceptions.BETA,
-    "BUSINESS_NOT_READY": exceptions.BUSINESS_NOT_READY,
     "PHONE_NUMBER_NOT_REGISTERED": exceptions.PHONE_NUMBER_NOT_REGISTERED,
-    "SCHEMA_NOT_FOUND": exceptions.SCHEMA_NOT_FOUND,
-    "NOT_AUTHOR": exceptions.NOT_AUTHOR,
-    "ENTRY_NOT_FOUND": exceptions.ENTRY_NOT_FOUND,
-    "SCHEMA_INVALID": exceptions.SCHEMA_INVALID,
 }
 
 

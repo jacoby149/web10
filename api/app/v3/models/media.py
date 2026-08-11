@@ -15,3 +15,13 @@ class ListMedia(BaseModel):
 class DeleteMedia(BaseModel):
     token: str
     doc_id: str
+
+
+class UploadUrlRequest(BaseModel):
+    token: str
+    body: dict
+
+
+class ReadUrlRequest(BaseModel):
+    token: str
+    body: dict

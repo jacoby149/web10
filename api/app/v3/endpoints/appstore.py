@@ -1,8 +1,15 @@
 from fastapi import APIRouter
 
 import app.exceptions as exceptions
-from app.services.auth import decode_token
-from app.v3.models import CreateAppRating, GetAppRatings, RegisterApp
+from app.models.auth import Token
+from app.services.auth import check_admin, decode_token
+from app.v3.models import (
+    ApproveApp,
+    AppsAdmin,
+    CreateAppRating,
+    GetAppRatings,
+    RegisterApp,
+)
 from app.v3.models.common import TokenOnly
 from app.v3.services import clickhouse as ch
 
@@ -48,3 +55,21 @@ async def get_app_ratings(data: GetAppRatings):
     if not data.body.get("target_app_id"):
         raise exceptions.CRUD
     return ch.get_app_ratings(data.body["target_app_id"])
+
+
+@router.post("/admin")
+async def apps_admin(data: AppsAdmin):
+    """List every registered app with its approval state (admin only)."""
+    check_admin(Token(token=data.token))
+    apps = ch.list_apps_admin()
+    pending = sum(1 for a in apps if not a["approved"])
+    return {"apps": apps, "pending": pending}
+
+
+@router.post("/approve")
+async def approve_app(data: ApproveApp):
+    """Approve or reject a registered app (admin only)."""
+    check_admin(Token(token=data.token))
+    review_state = "approved" if data.approved else "rejected"
+    ch.approve_app(data.url, data.approved, review_state)
+    return {"status": "updated", "url": data.url, "approved": data.approved}

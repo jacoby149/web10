@@ -78,7 +78,7 @@ class TestS3ClientConfig:
 class TestPresignedPostPolicy:
     """Regression for the prod upload 403 (CHANGELOG 1.0.134).
 
-    Bug 3: `request_upload_url` passed Content-Type in `Fields` but not in
+    Bug 3: `upload_url` passed Content-Type in `Fields` but not in
     `Conditions`. boto3 does NOT mirror Fields into the signed policy, and
     S3/minio reject any form field the policy doesn't cover — so every
     upload came back `403 AccessDenied ("Content-Type" not specified in
@@ -87,13 +87,13 @@ class TestPresignedPostPolicy:
     """
 
     def test_source_mirrors_fields_in_conditions(self):
-        src = (_APP / "endpoints" / "media.py").read_text()
+        src = (_APP / "v3" / "endpoints" / "media.py").read_text()
         call = re.search(r"generate_presigned_post\((.*?)\n    \)", src, re.DOTALL)
-        assert call is not None, "request_upload_url must presign via generate_presigned_post"
+        assert call is not None, "upload_url must presign via generate_presigned_post"
         block = call.group(1)
-        assert 'Fields={"Content-Type": content_type}' in block
+        assert 'Fields={"Content-Type": mime_type}' in block
         assert "Conditions" in block
-        assert '{"Content-Type": content_type}' in block.split("Conditions")[1], (
+        assert '{"Content-Type": mime_type}' in block.split("Conditions")[1], (
             "every Fields entry must also appear in Conditions — S3/minio 403 "
             "any form field the signed policy doesn't cover"
         )

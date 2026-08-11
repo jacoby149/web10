@@ -41,8 +41,8 @@ test.describe('app store -> launch -> token handoff', () => {
     });
 
     // Token handoff: no site/target → self-access
-    const tokenRes = await request.post(`${API_BASE}/web10token`, {
-      data: { username, password },
+    const tokenRes = await request.post(`${API_BASE}/v3/login`, {
+      json: { token: '', body: { username, password } },
     });
     expect(tokenRes.ok()).toBeTruthy();
     const { token } = await tokenRes.json();

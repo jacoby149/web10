@@ -27,7 +27,7 @@ test.describe('web10-social post to feed', () => {
     expect(signupRes.ok()).toBeTruthy();
 
     // 2. Get token for social.localhost
-    const tokenRes = await request.post(`${API_BASE}/web10token`, {
+    const tokenRes = await request.post(`${API_BASE}/v3/login`, {
       data: {
         username,
         password,

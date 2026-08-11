@@ -92,6 +92,9 @@ describe('RecoveryContact', () => {
       token: 'tok123',
       readToken: () => ({ username: 'test', provider: 'api.localhost' }),
     },
+    v3: {
+      readToken: () => ({ username: 'test', provider: 'api.localhost' }),
+    },
   }
 
   beforeEach(() => {

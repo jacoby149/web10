@@ -1,4 +1,10 @@
-from app.v3.models.appstore import CreateAppRating, GetAppRatings, RegisterApp
+from app.v3.models.appstore import (
+    ApproveApp,
+    AppsAdmin,
+    CreateAppRating,
+    GetAppRatings,
+    RegisterApp,
+)
 from app.v3.models.auth import (
     ChangePass,
     ChangePhone,
@@ -31,7 +37,13 @@ from app.v3.models.groups import (
     RemoveGroupMember,
     UpdateGroup,
 )
-from app.v3.models.media import ConfirmMedia, DeleteMedia, ListMedia
+from app.v3.models.media import (
+    ConfirmMedia,
+    DeleteMedia,
+    ListMedia,
+    ReadUrlRequest,
+    UploadUrlRequest,
+)
 
 __all__ = [
     # auth
@@ -72,8 +84,12 @@ __all__ = [
     "ConfirmMedia",
     "ListMedia",
     "DeleteMedia",
+    "UploadUrlRequest",
+    "ReadUrlRequest",
     # appstore
     "RegisterApp",
     "CreateAppRating",
     "GetAppRatings",
+    "AppsAdmin",
+    "ApproveApp",
 ]

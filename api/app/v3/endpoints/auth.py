@@ -1,3 +1,5 @@
+import re
+
 from fastapi import APIRouter
 
 import app.exceptions as exceptions
@@ -7,10 +9,19 @@ from app.v3.services import clickhouse as ch
 
 router = APIRouter(tags=["auth"])
 
+_USERNAME_RE = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,28}[a-z0-9])?$")
+
+
+def kosher(s: str) -> bool:
+    """Validate username format."""
+    return bool(_USERNAME_RE.match(s))
+
 
 @router.post("/signup")
 async def signup(data: Signup):
     """Create a user account."""
+    if not kosher(data.username):
+        raise exceptions.BAD_USERNAME
     password_hash = get_password_hash(data.password)
     result = ch.create_user(
         username=data.username,

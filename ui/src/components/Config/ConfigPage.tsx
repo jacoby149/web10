@@ -46,10 +46,14 @@ function ConfigShell({ I, children }: { I: Record<string, any>; children: React.
 
 interface AdminApp {
   url: string;
-  visits: number;
   approved: boolean;
   name?: string;
+  description?: string;
+  icon_url?: string;
   registered_at?: string | null;
+  review_state?: string;
+  rating_average?: number | null;
+  rating_count?: number;
 }
 
 interface BoardPost {
@@ -111,7 +115,7 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
     setAppsLoading(true);
     setAppsError(null);
     try {
-      const resp = await nodePost("/apps/admin", { token: I.v3.state.token });
+      const resp = await nodePost("/v3/apps/admin", { token: I.v3.state.token });
       setApps(resp.data?.apps ?? []);
     } catch (e: any) {
       setAppsError(e.response?.data?.detail || "Failed to load registered apps.");
@@ -276,7 +280,7 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
   const setApproval = async (url: string, approved: boolean) => {
     setApprovingUrl(url);
     try {
-      await nodePost("/apps/approve", { token: I.v3.state.token, url, approved });
+      await nodePost("/v3/apps/approve", { token: I.v3.state.token, url, approved });
       setApps(prev => prev.map(a => a.url === url ? { ...a, approved } : a));
     } catch (e: any) {
       setAppsError(e.response?.data?.detail || "Failed to update approval.");
@@ -446,7 +450,8 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
                           {app.name || app.url}
                         </div>
                         <div className="truncate text-xs text-muted-foreground">
-                          {app.url} · {app.visits.toLocaleString()} {app.visits === 1 ? "visit" : "visits"}
+                          {app.url}
+                          {app.rating_count ? ` · ${app.rating_average}★ (${app.rating_count})` : ''}
                         </div>
                       </div>
                       <div className="flex shrink-0 items-center gap-2">

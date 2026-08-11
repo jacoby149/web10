@@ -10,6 +10,7 @@ import AppStore from './pages/AppStore'
 import AppDetail from './pages/AppDetail'
 import Freedom from './pages/Freedom'
 import Exporter from './pages/Exporter'
+import Links from './pages/Links'
 
 function App({ onReportBug }: { onReportBug: () => void }) {
   return (
@@ -17,6 +18,7 @@ function App({ onReportBug }: { onReportBug: () => void }) {
       <Navbar onReportBug={onReportBug} />
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/links" element={<Links />} />
         <Route path="/trending" element={<Trending />} />
         <Route path="/join" element={<Join />} />
         <Route path="/freedom" element={<Freedom />} />

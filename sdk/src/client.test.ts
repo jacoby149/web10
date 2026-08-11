@@ -422,65 +422,33 @@ describe('dev pay', () => {
     })
   })
 
-  it('checkout calls POST /dev_pay', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ url: 'https://checkout.stripe.com/test' }),
-    })
+  it('checkout throws error (v4 feature)', async () => {
     setCookie('token', jwt)
     const w = createClient({ authUrl: 'https://auth.example.com', appStores: [] })
     w.setToken(jwt)
-    await w.checkout({
+    expect(() => w.checkout({
       seller: 'seller1',
       title: 'Pro',
       price: 100,
       success_url: 'https://ok',
       cancel_url: 'https://no',
-    })
-    const body = JSON.parse(mockFetch.mock.calls[0][1].body as string)
-    expect(body).toEqual({
-      token: jwt,
-      seller: 'seller1',
-      title: 'Pro',
-      price: 100,
-      success_url: 'https://ok',
-      cancel_url: 'https://no',
-    })
+    })).toThrow('payments are a v4 feature')
   })
 
-  it('verifySubscription calls POST /dev_pay', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ active: true }),
-    })
+  it('verifySubscription throws error (v4 feature)', async () => {
     setCookie('token', jwt)
     const w = createClient({ authUrl: 'https://auth.example.com', appStores: [] })
     w.setToken(jwt)
-    await w.verifySubscription({ seller: 'seller1', title: 'Pro' })
-    const body = JSON.parse(mockFetch.mock.calls[0][1].body as string)
-    expect(body).toEqual({
-      token: jwt,
-      seller: 'seller1',
-      title: 'Pro',
-      price: null,
-    })
+    expect(() => w.verifySubscription({ seller: 'seller1', title: 'Pro' }))
+      .toThrow('payments are a v4 feature')
   })
 
-  it('cancelSubscription calls POST /dev_pay', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ cancelled: true }),
-    })
+  it('cancelSubscription throws error (v4 feature)', async () => {
     setCookie('token', jwt)
     const w = createClient({ authUrl: 'https://auth.example.com', appStores: [] })
     w.setToken(jwt)
-    await w.cancelSubscription({ seller: 'seller1', title: 'Pro' })
-    const body = JSON.parse(mockFetch.mock.calls[0][1].body as string)
-    expect(body).toEqual({
-      token: jwt,
-      seller: 'seller1',
-      title: 'Pro',
-    })
+    expect(() => w.cancelSubscription({ seller: 'seller1', title: 'Pro' }))
+      .toThrow('payments are a v4 feature')
   })
 })
 
