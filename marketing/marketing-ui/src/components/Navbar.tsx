@@ -16,7 +16,7 @@ const navItems = [
 
 const learnItems = [
   { path: '/freedom', label: 'Freedom' },
-  { path: '/everything', label: 'Everything' },
+  { path: '/everything', label: 'The Everything App' },
   { path: '/docs', label: 'Docs' },
 ]
 
