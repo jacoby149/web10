@@ -91,6 +91,7 @@ def _ensure_bucket():
 
 def _write_record(node_api_url: str, token: str, service: str, body: dict) -> tuple[bool, str | None]:
     import requests as http_requests
+
     try:
         resp = http_requests.post(
             f"{node_api_url}/create/{service}",
