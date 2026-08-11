@@ -4,7 +4,7 @@ from app.services import documentdb as db
 from app.services import twilio as mobile
 from app.services.auth import get_password_hash
 
-router = APIRouter()
+router = APIRouter(tags=["auth"])
 
 
 def recover(From: str):

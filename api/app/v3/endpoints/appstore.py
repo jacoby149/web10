@@ -57,7 +57,7 @@ async def get_app_ratings(data: GetAppRatings):
     return ch.get_app_ratings(data.body["target_app_id"])
 
 
-@router.post("/admin")
+@router.post("/admin", tags=["admin"])
 async def apps_admin(data: AppsAdmin):
     """List every registered app with its approval state (admin only)."""
     check_admin(Token(token=data.token))
@@ -66,7 +66,7 @@ async def apps_admin(data: AppsAdmin):
     return {"apps": apps, "pending": pending}
 
 
-@router.post("/approve")
+@router.post("/approve", tags=["admin"])
 async def approve_app(data: ApproveApp):
     """Approve or reject a registered app (admin only)."""
     check_admin(Token(token=data.token))
