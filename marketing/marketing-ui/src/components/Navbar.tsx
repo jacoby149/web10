@@ -25,7 +25,7 @@ function Navbar({ onReportBug }: { onReportBug: () => void }) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [learnOpen, setLearnOpen] = useState(false)
   const learnRef = useRef<HTMLDivElement>(null)
-  const learnTimer = useRef<ReturnType<typeof setTimeout>>()
+  const learnTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   const openLearn = useCallback(() => {
     clearTimeout(learnTimer.current)
