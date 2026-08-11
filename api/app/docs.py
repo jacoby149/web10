@@ -2,30 +2,36 @@ description = """
 welcome to the new internet, where users aren't just clients.
 """
 
+# Order matters — Swagger displays tags in this sequence.
+# Follow the user journey: auth → CRUD → groups → media → contracts → system.
 tags_metadata = [
     {
+        "name": "auth",
+        "description": "Authentication — signup, login, token minting, phone/email verification.",
+    },
+    {
+        "name": "account",
+        "description": "Account management — profile, password, phone, email, recovery.",
+    },
+    {
+        "name": "documents",
+        "description": "Document CRUD — create, read, update, delete. User from JWT. Server generates doc_id (UUID7).",
+    },
+    {
         "name": "group-contracts",
-        "description": "Group contracts — create, list, join, leave, members, invites, moderation. v3 ClickHouse.",
+        "description": "Group contracts — create, list, join, leave, members, invites, requests, blocking, sharing.",
+    },
+    {
+        "name": "media",
+        "description": "Media — upload confirm, list, delete. Presigned URLs from v2 endpoints.",
     },
     {
         "name": "app-contracts",
         "description": "App contracts — per-app service permissions. Add, list, revoke.",
     },
     {
-        "name": "media",
-        "description": "Media — presigned upload, confirm, read URL, list, delete.",
-    },
-    {
         "name": "app-store",
         "description": "App store — register, list approved, ratings.",
-    },
-    {
-        "name": "schemas",
-        "description": "JSON schemas — register, read, update, delete.",
-    },
-    {
-        "name": "payments",
-        "description": "Payments — subscription checkout, verify, cancel.",
     },
     {
         "name": "system",

@@ -4,7 +4,7 @@ from app.v3.endpoints.auth_helper import user as _user
 from app.v3.models import BlockUser, BlockUserInGroup, SetSharing
 from app.v3.services import clickhouse as ch
 
-router = APIRouter()
+router = APIRouter(tags=["group-contracts"])
 
 
 @router.post("/block")
