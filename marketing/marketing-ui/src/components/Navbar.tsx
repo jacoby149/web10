@@ -25,6 +25,16 @@ function Navbar({ onReportBug }: { onReportBug: () => void }) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [learnOpen, setLearnOpen] = useState(false)
   const learnRef = useRef<HTMLDivElement>(null)
+  const learnTimer = useRef<ReturnType<typeof setTimeout>>()
+
+  const openLearn = useCallback(() => {
+    clearTimeout(learnTimer.current)
+    setLearnOpen(true)
+  }, [])
+
+  const closeLearn = useCallback(() => {
+    learnTimer.current = setTimeout(() => setLearnOpen(false), 100)
+  }, [])
 
   const isActive = (path: string) =>
     location.pathname === path || (path !== '/' && location.pathname.startsWith(path))
@@ -37,8 +47,13 @@ function Navbar({ onReportBug }: { onReportBug: () => void }) {
       if (e.key === 'Escape') setLearnOpen(false)
     }
     document.addEventListener('keydown', handler)
-    return () => document.removeEventListener('keydown', handler)
+    return () => {
+      document.removeEventListener('keydown', handler)
+      clearTimeout(learnTimer.current)
+    }
   }, [learnOpen])
+
+  useEffect(() => () => clearTimeout(learnTimer.current), [])
 
   return (
     <nav
@@ -70,8 +85,8 @@ function Navbar({ onReportBug }: { onReportBug: () => void }) {
           <div
             ref={learnRef}
             className="relative"
-            onMouseEnter={() => setLearnOpen(true)}
-            onMouseLeave={() => setLearnOpen(false)}
+            onMouseEnter={openLearn}
+            onMouseLeave={closeLearn}
           >
             <button
               onClick={() => setLearnOpen(v => !v)}
@@ -87,7 +102,7 @@ function Navbar({ onReportBug }: { onReportBug: () => void }) {
               <ChevronDown className={`h-3 w-3 transition-transform duration-150 ${learnOpen ? 'rotate-180' : ''}`} strokeWidth={2} />
             </button>
             {learnOpen && (
-              <div className="absolute left-0 top-full mt-1 w-44 overflow-hidden rounded-lg border border-border bg-background/95 backdrop-blur-sm shadow-lg">
+              <div className="absolute left-0 top-full w-44 overflow-hidden rounded-lg border border-border bg-background/95 backdrop-blur-sm shadow-lg">
                 {learnItems.map(item => (
                   <Link
                     key={item.path}
