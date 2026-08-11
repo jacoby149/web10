@@ -1,3 +1,6 @@
+3.0.19 || 11.08.2026
+refactor(api+marketing-api): bug reports → issue-tracking tag, marketing API proxy endpoints. Move bug report endpoints from "admin" to new "issue-tracking" swagger tag. Add /v3/issue-tracking (submit, list, detail) to marketing API — proxies to node API's ClickHouse bug_reports table via NODE_API_URL. Also tag /config, /am_admin, /config/update as "admin" (were untagged), /recovery_bot as "auth" (was untagged), appstore /admin and /approve as "admin" (were "app-store"). Only POST / remains in "default".
+
 3.0.18 || 11.08.2026
 fix(api): swagger admin endpoints tagged — /admin/bug_reports and /admin/bug_reports/{report_id} now under "admin" tag (were untagged, falling to "default"). Removed "schemas" tag from docs (no endpoints implement schema registry API yet).
 
