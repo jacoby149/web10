@@ -96,6 +96,19 @@ function initApp() {
   ensureServiceContract().then(() => readMessages()).catch(() => readMessages())
 }
 
+// Self-register in the app store (no auth required)
+fetch(`${API_ORIGIN}/v3/apps/register`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    body: {
+      url: `${window.location.origin}${window.location.pathname}`,
+      name: 'Messages',
+      description: 'A DM-style demo: send messages between web10 nodes. Each conversation is a group.',
+    },
+  }),
+}).catch(() => {})
+
 if (w.isSignedIn()) initApp()
 
 /* Send + Read (v3 with groups) */

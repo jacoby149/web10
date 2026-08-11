@@ -48,5 +48,18 @@ function initApp() {
   })
 }
 
+// Self-register in the app store (no auth required)
+fetch(`${API_ORIGIN}/v3/apps/register`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    body: {
+      url: `${window.location.origin}${window.location.pathname}`,
+      name: 'Hello',
+      description: 'The smallest web10 app: log in with your node, read your token, and see your groups.',
+    },
+  }),
+}).catch(() => {})
+
 if (w.isSignedIn()) initApp()
 else window.web10.authListen(() => initApp())

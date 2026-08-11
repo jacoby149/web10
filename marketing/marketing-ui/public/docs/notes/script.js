@@ -60,6 +60,19 @@ function initApp() {
   ensureServiceContract().then(() => readNotes()).catch(() => readNotes())
 }
 
+// Self-register in the app store (no auth required)
+fetch(`${API_ORIGIN}/v3/apps/register`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    body: {
+      url: `${window.location.origin}${window.location.pathname}`,
+      name: 'Notes',
+      description: 'A CRUD demo: create, read, update, and delete notes stored in your own web10 collection.',
+    },
+  }),
+}).catch(() => {})
+
 if (w.isSignedIn()) initApp()
 
 /* CRUD with groups (v3) */
