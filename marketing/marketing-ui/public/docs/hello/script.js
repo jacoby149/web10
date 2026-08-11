@@ -1,6 +1,7 @@
 /* hello demo — script.js (v3) */
 
-const wapi = wapiInit("https://auth.web10.app")
+const AUTH_ORIGIN = "https://auth.web10.app"
+const w = window.web10.createV3Client({ apiOrigin: 'https://api.web10.app' })
 
 // v3 API helpers — all v3 endpoints are POST with { token, ...params }
 const API_ORIGIN = "https://api.web10.app"
@@ -20,15 +21,15 @@ async function v3Post(action, params = {}) {
   return res.json()
 }
 
-authButton.onclick = wapi.openAuthPortal
+authButton.onclick = () => window.web10.openAuthPortal(AUTH_ORIGIN)
 
 function initApp() {
   authButton.innerHTML = "Log out"
   authButton.onclick = () => {
-    wapi.signOut()
+    w.signOut()
     window.location.reload()
   }
-  const t = wapi.readToken()
+  const t = w.readToken()
   message.innerHTML = `Hello <strong>${t["provider"]}/${t["username"]}</strong> — you just authenticated with a web10 node.`
 
   // v3: load user groups to show group membership
@@ -47,5 +48,5 @@ function initApp() {
   })
 }
 
-if (wapi.isSignedIn()) initApp()
-else wapi.authListen(initApp)
+if (w.isSignedIn()) initApp()
+else window.web10.authListen(() => initApp())
