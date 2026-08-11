@@ -380,7 +380,7 @@ describe('v3 client', () => {
       vi.spyOn(http, 'authPost').mockResolvedValueOnce({} as any)
       await client.blockUserInGroup('spammer', 'g1')
       expect(http.authPost).toHaveBeenCalledWith(
-        'http://api.localhost/v3/block-in-group',
+        'http://api.localhost/v3/groups/block',
         expect.objectContaining({ blocked_key: 'spammer', group_id: 'g1', token: mockToken }),
       )
     })

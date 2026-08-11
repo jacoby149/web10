@@ -25,8 +25,10 @@ router.include_router(account.router, prefix="")
 # Document CRUD
 router.include_router(documents.router, prefix="")
 
-# Group contracts — groups, blocking, sharing
+# Group contracts — groups (including group-scoped blocking/sharing)
 router.include_router(groups.router, prefix="/groups")
+
+# User-wide blocking
 router.include_router(blocking.router, prefix="")
 
 # Media

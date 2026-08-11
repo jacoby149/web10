@@ -1,3 +1,6 @@
+3.0.16 || 11.08.2026
+refactor(api+sdk): group-scoped block/unblock/sharing under /v3/groups — moved /v3/block-in-group → /v3/groups/block, /v3/unblock-in-group → /v3/groups/unblock, /v3/sharing/set → /v3/groups/sharing/set. General /v3/block and /v3/unblock separated into their own router with "blocking" tag (was incorrectly tagged "group-contracts"). SDK, web10-social client, protocol spec, and all tests updated.
+
 3.0.15 || 11.08.2026
 refactor(marketing-api): v3 prefix + section routers + pay + affiliate — all endpoints under /v3 (analytics, feedback, import, infra, pay). main.py reduced from 710 to 18 lines. New pay section: Stripe marketplace endpoints for developer payouts (create, list, cancel). New affiliate section: link generation, click/conversion tracking, stats. New Everything page: web10 as the open-source everything app (social, payments, commerce, app store, livestream, games, flares, global). Links button in navbar.
 

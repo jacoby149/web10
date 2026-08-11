@@ -243,8 +243,9 @@ POST /v3/app-contracts/revoke  — revoke a contract
 ```
 POST /v3/block          — block a user entirely
 POST /v3/unblock        — unblock a user
-POST /v3/block-in-group — block a user from your content in one group
-POST /v3/unblock-in-group
+POST /v3/groups/block   — block a user from your content in one group
+POST /v3/groups/unblock — unblock a user in a group
+POST /v3/groups/sharing/set — toggle sharing for a group
 ```
 
 ## 9. Media

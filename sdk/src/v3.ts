@@ -411,7 +411,7 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       blockedKey: string,
       groupId: string,
     ): Promise<{ user_key: string; group_id: string; blocked_key: string }> {
-      return v3Post<{ user_key: string; group_id: string; blocked_key: string }>('block-in-group', {
+      return v3Post<{ user_key: string; group_id: string; blocked_key: string }>('groups/block', {
         blocked_key: blockedKey,
         group_id: groupId,
       })
@@ -421,7 +421,7 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       blockedKey: string,
       groupId: string,
     ): Promise<{ user_key: string; group_id: string; blocked_key: string }> {
-      return v3Post<{ user_key: string; group_id: string; blocked_key: string }>('unblock-in-group', {
+      return v3Post<{ user_key: string; group_id: string; blocked_key: string }>('groups/unblock', {
         blocked_key: blockedKey,
         group_id: groupId,
       })
@@ -430,7 +430,7 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
     // ── Sharing toggle ────────────────────────────────────────────────────
 
     async setSharing(groupId: string, enabled: boolean): Promise<{ user_key: string; group_id: string; sharing_enabled: boolean }> {
-      return v3Post<{ user_key: string; group_id: string; sharing_enabled: boolean }>('sharing/set', {
+      return v3Post<{ user_key: string; group_id: string; sharing_enabled: boolean }>('groups/sharing/set', {
         group_id: groupId,
         enabled,
       })
