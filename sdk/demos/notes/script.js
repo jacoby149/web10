@@ -1,87 +1,85 @@
 /* script.js */
 
-//conventient failure messages
-const Fs = ([cF, rF, uF, dF] = ["create", "read", "update", "delete"].map((op) => `failed to ${op} note[s]`));
+import { createV3Client } from 'web10-npm'
 
-/* wapi setup */
-const wapi = wapiInit("https://auth.web10.app");
-const contracts = [
-  {
-    allowed_origin: "docs.web10.app",
-    permissions: {
-      "web10-docs-note-demo": ["readAll", "create", "updateOwn", "deleteOwn"],
-    },
-  },
-];
-wapi.ContractOnReady(contracts);
-authButton.onclick = wapi.openAuthPortal;
+const w = createV3Client({ apiOrigin: 'https://api.web10.app' })
+const COLLECTION = 'notes'
 
-/* the function that starts up the app functionality */
 function initApp() {
-  authButton.innerHTML = "log out";
+  authButton.innerHTML = 'log out'
   authButton.onclick = () => {
-    wapi.signOut();
-    window.location.reload();
-  };
-  const t = wapi.readToken();
-  message.innerHTML = `hello ${t["provider"]}/${t["username"]},<br>`;
-  readNotes();
-}
-
-if (wapi.isSignedIn()) initApp();
-else wapi.authListen(initApp);
-
-/* CRUD Calls */
-function readNotes() {
-  wapi
-    .read("web10-docs-note-demo", {})
-    .then((response) => displayNotes(response.data))
-    .catch(error => {
-      console.error(error);
-      message.innerHTML = `${rF} : ${error}`;
-    });
-}
-function createNote(note) {
-  wapi
-    .create("web10-docs-note-demo", { note: note, date: String(new Date()) })
-    .then(() => {
-      readNotes();
-      curr.value = "";
-    })
-    .catch(error => {
-      console.error(error);
-      message.innerHTML = `${cF} : ${error}`;
-    });
-}
-function updateNote(id) {
-  const entry = String(document.getElementById(id).value);
-  wapi
-    .update("web10-docs-note-demo", { _id: id }, { $set: { note: entry } })
-    .then(readNotes)
-    .catch(error => {
-      console.error(error);
-      message.innerHTML = `${uF} : ${error}`;
-    });
-}
-function deleteNote(id) {
-  wapi
-    .delete("web10-docs-note-demo", { _id: id })
-    .then(readNotes)
-    .catch(error => {
-      console.error(error);
-      message.innerHTML = `${dF} : ${error}`;
-    });
-}
-
-/* display */
-function displayNotes(data) {
-  function contain(note) {
-    return `<div>
-      <p style="font-family:monospace;">${note.date}</p>
-      <textarea id="${note._id}">${note.note}</textarea>
-      <button onclick="updateNote('${note._id}')">Update</button>
-      <button onclick="deleteNote('${note._id}')">Delete</button>
-    </div>`;
+    w.signOut()
+    window.location.reload()
   }
-  noteview.innerHTML = data.map(contain).reverse().join(`<br>`);
+  const t = w.readToken()
+  message.innerHTML = `hello ${t.provider}/${t.username},<br>`
+  readNotes()
+}
+
+if (w.isSignedIn()) initApp()
+else {
+  authButton.onclick = async () => {
+    try {
+      await w.login(usernameInput.value, passwordInput.value)
+      window.location.reload()
+    } catch (e) {
+      message.innerHTML = `login failed: ${e.message}`
+    }
+  }
+}
+
+async function readNotes() {
+  try {
+    const docs = await w.read(COLLECTION, { groups: ['me'] })
+    displayNotes(docs)
+  } catch (e) {
+    message.innerHTML = `failed to read notes: ${e.message}`
+  }
+}
+
+async function createNote(text) {
+  try {
+    await w.create(COLLECTION, { note: text, date: new Date().toISOString() })
+    readNotes()
+    curr.value = ''
+  } catch (e) {
+    message.innerHTML = `failed to create note: ${e.message}`
+  }
+}
+
+async function updateNote(docId, text) {
+  try {
+    await w.update(docId, { note: text })
+    readNotes()
+  } catch (e) {
+    message.innerHTML = `failed to update note: ${e.message}`
+  }
+}
+
+async function deleteNote(docId) {
+  try {
+    await w.delete(docId)
+    readNotes()
+  } catch (e) {
+    message.innerHTML = `failed to delete note: ${e.message}`
+  }
+}
+
+function displayNotes(docs) {
+  if (!docs.length) {
+    noteview.innerHTML = '<p>no notes yet</p>'
+    return
+  }
+  noteview.innerHTML = docs
+    .sort((a, b) => new Date(b.body.date) - new Date(a.body.date))
+    .map((doc) => {
+      const id = doc.doc_id
+      return `<div>
+        <p style="font-family:monospace;">${doc.body.date}</p>
+        <textarea id="${id}">${doc.body.note}</textarea>
+        <button onclick="updateNote('${id}', document.getElementById('${id}').value)">Update</button>
+        <button onclick="deleteNote('${id}')">Delete</button>
+      </div>`
+    })
+    .join('<br>')
 }

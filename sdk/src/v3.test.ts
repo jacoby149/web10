@@ -2,6 +2,91 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createV3Client, type V3Client } from './v3'
 import * as http from './http'
 import * as token from './token'
+import { decodeJwt, isTokenExpired, readTokenCookie, setTokenCookie, scrubTokenCookie } from './token'
+import { Web10Error } from './http'
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+function makeJwt(payload: Record<string, unknown>): string {
+  const h = btoa(JSON.stringify(payload))
+  return `header.${h}.sig`
+}
+
+// ── Token utilities (no fetch needed) ──────────────────────────────────────
+
+describe('token utilities', () => {
+  describe('decodeJwt', () => {
+    it('decodes a valid JWT payload', () => {
+      const payload = { username: 'alice', provider: 'api.example.com' }
+      expect(decodeJwt(makeJwt(payload))).toEqual(payload)
+    })
+
+    it('returns null for null token', () => {
+      expect(decodeJwt(null)).toBeNull()
+    })
+
+    it('returns null for malformed token', () => {
+      expect(decodeJwt('not-a-jwt')).toBeNull()
+    })
+
+    it('returns null for token with missing parts', () => {
+      expect(decodeJwt('only-one-part')).toBeNull()
+    })
+  })
+
+  describe('isTokenExpired', () => {
+    it('is true for a token whose ISO expires is in the past', () => {
+      const jwt = makeJwt({ username: 'alice', expires: '2000-01-01T00:00:00' })
+      expect(isTokenExpired(jwt)).toBe(true)
+    })
+
+    it('is false for a token whose ISO expires is in the future', () => {
+      const jwt = makeJwt({ username: 'alice', expires: '2999-01-01T00:00:00' })
+      expect(isTokenExpired(jwt)).toBe(false)
+    })
+
+    it('is false when there is no expiry or no token', () => {
+      expect(isTokenExpired(makeJwt({ username: 'alice' }))).toBe(false)
+      expect(isTokenExpired(null)).toBe(false)
+    })
+  })
+
+  describe('cookie helpers', () => {
+    beforeEach(() => {
+      vi.restoreAllMocks()
+    })
+
+    it('setTokenCookie writes to document.cookie', () => {
+      vi.spyOn(document, 'cookie', 'set')
+      setTokenCookie('test-token')
+      expect(document.cookie).toContain('token=test-token')
+    })
+
+    it('scrubTokenCookie sets max-age=-1', () => {
+      vi.spyOn(document, 'cookie', 'set')
+      expect(() => scrubTokenCookie()).not.toThrow()
+    })
+
+    it('readTokenCookie returns null when no token cookie', () => {
+      document.cookie = 'other=value;path=/'
+      expect(readTokenCookie()).toBeNull()
+    })
+  })
+})
+
+// ── HTTP ───────────────────────────────────────────────────────────────────
+
+describe('HTTP', () => {
+  it('Web10Error has status and details', () => {
+    const err = new Web10Error('bad', 500, 'internal')
+    expect(err.name).toBe('Web10Error')
+    expect(err.status).toBe(500)
+    expect(err.details).toBe('internal')
+    expect(err.message).toBe('bad')
+  })
+})
+
+// ── v3 client ──────────────────────────────────────────────────────────────
 
 describe('v3 client', () => {
   let client: V3Client
@@ -17,6 +102,97 @@ describe('v3 client', () => {
     vi.spyOn(http, 'authPost').mockResolvedValue({})
 
     client = createV3Client({ apiOrigin: 'http://api.localhost' })
+  })
+
+  // ── Client creation ────────────────────────────────────────────────────
+
+  describe('client creation', () => {
+    it('returns a client with expected methods', () => {
+      expect(client).toHaveProperty('setToken')
+      expect(client).toHaveProperty('scrubToken')
+      expect(client).toHaveProperty('readToken')
+      expect(client).toHaveProperty('isSignedIn')
+      expect(client).toHaveProperty('signOut')
+      expect(client).toHaveProperty('login')
+      expect(client).toHaveProperty('signup')
+      expect(client).toHaveProperty('getProfile')
+      expect(client).toHaveProperty('changePassword')
+      expect(client).toHaveProperty('changePhone')
+      expect(client).toHaveProperty('setEmail')
+      expect(client).toHaveProperty('verifyPhone')
+      expect(client).toHaveProperty('verifyEmail')
+      expect(client).toHaveProperty('sendCode')
+      expect(client).toHaveProperty('setRecoveryPhone')
+      expect(client).toHaveProperty('create')
+      expect(client).toHaveProperty('read')
+      expect(client).toHaveProperty('readById')
+      expect(client).toHaveProperty('update')
+      expect(client).toHaveProperty('delete')
+      expect(client).toHaveProperty('addAppContract')
+      expect(client).toHaveProperty('listAppContracts')
+      expect(client).toHaveProperty('revokeAppContract')
+      expect(client).toHaveProperty('createGroup')
+      expect(client).toHaveProperty('getGroup')
+      expect(client).toHaveProperty('getMyGroups')
+      expect(client).toHaveProperty('getGroupsManages')
+      expect(client).toHaveProperty('updateGroup')
+      expect(client).toHaveProperty('joinGroup')
+      expect(client).toHaveProperty('requestJoin')
+      expect(client).toHaveProperty('leaveGroup')
+      expect(client).toHaveProperty('getGroupMembers')
+      expect(client).toHaveProperty('addGroupMember')
+      expect(client).toHaveProperty('removeGroupMember')
+      expect(client).toHaveProperty('inviteMember')
+      expect(client).toHaveProperty('acceptInvite')
+      expect(client).toHaveProperty('declineInvite')
+      expect(client).toHaveProperty('getJoinRequests')
+      expect(client).toHaveProperty('approveJoinRequest')
+      expect(client).toHaveProperty('denyJoinRequest')
+      expect(client).toHaveProperty('blockUser')
+      expect(client).toHaveProperty('unblockUser')
+      expect(client).toHaveProperty('blockUserInGroup')
+      expect(client).toHaveProperty('unblockUserInGroup')
+      expect(client).toHaveProperty('setSharing')
+      expect(client).toHaveProperty('requestMediaUploadUrl')
+      expect(client).toHaveProperty('getMediaReadUrl')
+      expect(client).toHaveProperty('confirmMediaUpload')
+      expect(client).toHaveProperty('listMedia')
+      expect(client).toHaveProperty('deleteMedia')
+      expect(client).toHaveProperty('getNodeStats')
+      expect(client).toHaveProperty('registerApp')
+      expect(client).toHaveProperty('getApps')
+      expect(client).toHaveProperty('rateApp')
+      expect(client).toHaveProperty('getAppRatings')
+    })
+
+    it('sets apiOrigin from options', () => {
+      expect(client.state.apiOrigin).toBe('http://api.localhost')
+    })
+
+    it('defaults apiOrigin to https://api.web10.app', () => {
+      const w = createV3Client()
+      expect(w.state.apiOrigin).toBe('https://api.web10.app')
+    })
+
+    it('sets rtcServer from options', () => {
+      const w = createV3Client({ rtcServer: 'rtc.custom.com' })
+      expect(w.state.rtcServer).toBe('rtc.custom.com')
+    })
+
+    it('defaults rtcServer to rtc.web10.app', () => {
+      const w = createV3Client()
+      expect(w.state.rtcServer).toBe('rtc.web10.app')
+    })
+
+    it('reads token from cookie on init', () => {
+      vi.spyOn(token, 'readTokenCookie').mockReturnValue('cookie-jwt')
+      const w = createV3Client()
+      expect(w.state.token).toBe('cookie-jwt')
+    })
+
+    it('has null token when no cookie', () => {
+      expect(client.state.token).toBeNull()
+    })
   })
 
   // ── Token management ──────────────────────────────────────────────────
@@ -105,6 +281,29 @@ describe('v3 client', () => {
       await expect(client.getProfile()).rejects.toThrow('No token available')
     })
 
+    it('changePassword', async () => {
+      client.setToken(mockToken)
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ status: 'ok' } as any)
+      await client.changePassword('old', 'new')
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.password).toBe('old')
+      expect(call.new_pass).toBe('new')
+    })
+
+    it('changePhone', async () => {
+      client.setToken(mockToken)
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ phone: '+1234' } as any)
+      const result = await client.changePhone('+1234')
+      expect(result.phone).toBe('+1234')
+    })
+
+    it('setEmail', async () => {
+      client.setToken(mockToken)
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ email: 'a@b.com' } as any)
+      const result = await client.setEmail('a@b.com')
+      expect(result.email).toBe('a@b.com')
+    })
+
     it('verifyPhone', async () => {
       client.setToken(mockToken)
       vi.spyOn(http, 'authPost').mockResolvedValueOnce({ phone_verified: true } as any)
@@ -125,6 +324,20 @@ describe('v3 client', () => {
         'http://api.localhost/v3/verify-email',
         expect.objectContaining({ code: '654321', token: mockToken }),
       )
+    })
+
+    it('sendCode', async () => {
+      client.setToken(mockToken)
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ sent: true } as any)
+      const result = await client.sendCode()
+      expect(result.sent).toBe(true)
+    })
+
+    it('setRecoveryPhone', async () => {
+      client.setToken(mockToken)
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ phone_number: '+999' } as any)
+      const result = await client.setRecoveryPhone('+999')
+      expect(result.phone_number).toBe('+999')
     })
   })
 
@@ -205,7 +418,7 @@ describe('v3 client', () => {
     })
   })
 
-  // ── App contracts ─────────────────────────────────────────────────────
+  // ── App contracts (per-app with per-service permissions) ──────────────
 
   describe('app contracts', () => {
     beforeEach(() => client.setToken(mockToken))
@@ -270,6 +483,17 @@ describe('v3 client', () => {
       expect(call.join_policy).toBe('open')
     })
 
+    it('getGroup', async () => {
+      const mockResponse = { group_id: 'g1', join_policy: 'open', my_role: 'member', member_count: 5 }
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce(mockResponse as any)
+      const result = await client.getGroup('g1')
+      expect(result.group_id).toBe('g1')
+      expect(http.authPost).toHaveBeenCalledWith(
+        'http://api.localhost/v3/groups/get',
+        expect.objectContaining({ group_id: 'g1', token: mockToken }),
+      )
+    })
+
     it('getMyGroups', async () => {
       const mockResponse = [
         { group_id: 'g1', my_role: 'owner', member_count: 5 },
@@ -280,6 +504,36 @@ describe('v3 client', () => {
       const result = await client.getMyGroups()
       expect(result).toHaveLength(2)
       expect(result[0].my_role).toBe('owner')
+    })
+
+    it('getGroupsManages', async () => {
+      const mockResponse = [
+        { group_id: 'g1', my_role: 'owner', member_count: 5 },
+      ]
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce(mockResponse as any)
+      const result = await client.getGroupsManages()
+      expect(result).toHaveLength(1)
+      expect(http.authPost).toHaveBeenCalledWith(
+        'http://api.localhost/v3/groups/manages',
+        expect.objectContaining({ token: mockToken }),
+      )
+    })
+
+    it('updateGroup with join_policy and roles', async () => {
+      const mockResponse = { group_id: 'g1', join_policy: 'request', my_role: 'owner', member_count: 5 }
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce(mockResponse as any)
+      await client.updateGroup('g1', { join_policy: 'request', roles: [{ name: 'member', permissions: ['readAll'] }] })
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.group_id).toBe('g1')
+      expect(call.join_policy).toBe('request')
+      expect(call.roles).toEqual([{ name: 'member', permissions: ['readAll'] }])
+    })
+
+    it('updateGroup with only join_policy', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ group_id: 'g1', join_policy: 'open', my_role: 'owner', member_count: 5 } as any)
+      await client.updateGroup('g1', { join_policy: 'open' })
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.roles).toBeUndefined()
     })
 
     it('joinGroup', async () => {
@@ -331,6 +585,15 @@ describe('v3 client', () => {
       expect(call.role).toBe('moderator')
     })
 
+    it('removeGroupMember', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({} as any)
+      await client.removeGroupMember('g1', 'bob')
+      expect(http.authPost).toHaveBeenCalledWith(
+        'http://api.localhost/v3/groups/members/remove',
+        expect.objectContaining({ group_id: 'g1', member_key: 'bob', token: mockToken }),
+      )
+    })
+
     it('inviteMember returns invited_key (not member_key)', async () => {
       const mockResponse = { group_id: 'g1', invited_key: 'charlie', status: 'invited' }
       vi.spyOn(http, 'authPost').mockResolvedValueOnce(mockResponse as any)
@@ -349,6 +612,52 @@ describe('v3 client', () => {
       expect(http.authPost).toHaveBeenCalledWith(
         'http://api.localhost/v3/groups/accept-invite',
         expect.objectContaining({ group_id: 'g1', token: mockToken }),
+      )
+    })
+
+    it('declineInvite', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ group_id: 'g1', status: 'declined' } as any)
+      const result = await client.declineInvite('g1')
+      expect(result.status).toBe('declined')
+      expect(http.authPost).toHaveBeenCalledWith(
+        'http://api.localhost/v3/groups/decline-invite',
+        expect.objectContaining({ group_id: 'g1', token: mockToken }),
+      )
+    })
+  })
+
+  // ── Join request management ───────────────────────────────────────────
+
+  describe('join requests', () => {
+    beforeEach(() => client.setToken(mockToken))
+
+    it('getJoinRequests', async () => {
+      const mockResponse = [
+        { requester_key: 'bob', status: 'pending', requested_at: '2026-01-01' },
+      ]
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce(mockResponse as any)
+      const result = await client.getJoinRequests('g1')
+      expect(result).toHaveLength(1)
+      expect(result[0].requester_key).toBe('bob')
+    })
+
+    it('approveJoinRequest', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ group_id: 'g1', requester_key: 'bob', status: 'approved' } as any)
+      const result = await client.approveJoinRequest('g1', 'bob')
+      expect(result.status).toBe('approved')
+      expect(http.authPost).toHaveBeenCalledWith(
+        'http://api.localhost/v3/groups/requests/join/approve',
+        expect.objectContaining({ group_id: 'g1', requester_key: 'bob', token: mockToken }),
+      )
+    })
+
+    it('denyJoinRequest', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ group_id: 'g1', requester_key: 'bob', status: 'denied' } as any)
+      const result = await client.denyJoinRequest('g1', 'bob')
+      expect(result.status).toBe('denied')
+      expect(http.authPost).toHaveBeenCalledWith(
+        'http://api.localhost/v3/groups/requests/join/deny',
+        expect.objectContaining({ group_id: 'g1', requester_key: 'bob', token: mockToken }),
       )
     })
   })
@@ -384,6 +693,15 @@ describe('v3 client', () => {
         expect.objectContaining({ blocked_key: 'spammer', group_id: 'g1', token: mockToken }),
       )
     })
+
+    it('unblockUserInGroup', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({} as any)
+      await client.unblockUserInGroup('spammer', 'g1')
+      expect(http.authPost).toHaveBeenCalledWith(
+        'http://api.localhost/v3/groups/unblock',
+        expect.objectContaining({ blocked_key: 'spammer', group_id: 'g1', token: mockToken }),
+      )
+    })
   })
 
   // ── Sharing toggle ────────────────────────────────────────────────────
@@ -391,11 +709,18 @@ describe('v3 client', () => {
   describe('sharing', () => {
     beforeEach(() => client.setToken(mockToken))
 
-    it('setSharing', async () => {
+    it('setSharing enabled', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({} as any)
+      await client.setSharing('g1', true)
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.group_id).toBe('g1')
+      expect(call.enabled).toBe(true)
+    })
+
+    it('setSharing disabled', async () => {
       vi.spyOn(http, 'authPost').mockResolvedValueOnce({} as any)
       await client.setSharing('g1', false)
       const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
-      expect(call.group_id).toBe('g1')
       expect(call.enabled).toBe(false)
     })
   })
@@ -404,6 +729,32 @@ describe('v3 client', () => {
 
   describe('media', () => {
     beforeEach(() => client.setToken(mockToken))
+
+    it('requestMediaUploadUrl', async () => {
+      const mockResponse = { upload_url: 'https://s3.example.com', fields: {}, object_key: 'k', content_type: 'image/png' }
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce(mockResponse as any)
+      const result = await client.requestMediaUploadUrl({ filename: 'photo.png', mimeType: 'image/png', sizeBytes: 123 })
+      expect(result.upload_url).toBe('https://s3.example.com')
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.body).toEqual({ filename: 'photo.png', mime_type: 'image/png', size_bytes: 123 })
+    })
+
+    it('requestMediaUploadUrl defaults mime_type', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ upload_url: 'u', fields: {}, object_key: 'k', content_type: 'application/octet-stream' } as any)
+      await client.requestMediaUploadUrl({ filename: 'data.bin' })
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.body.mime_type).toBe('application/octet-stream')
+      expect(call.body.size_bytes).toBeNull()
+    })
+
+    it('getMediaReadUrl', async () => {
+      const mockResponse = { read_url: 'https://s3.example.com/signed', expires_in: 60 }
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce(mockResponse as any)
+      const result = await client.getMediaReadUrl('alice/abc/x.png')
+      expect(result.read_url).toBe('https://s3.example.com/signed')
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.body).toEqual({ object_key: 'alice/abc/x.png' })
+    })
 
     it('confirmMediaUpload', async () => {
       vi.spyOn(http, 'authPost').mockResolvedValueOnce({} as any)
@@ -418,6 +769,24 @@ describe('v3 client', () => {
       const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
       expect(call.limit).toBe(10)
       expect(call.offset).toBe(20)
+    })
+
+    it('listMedia without pagination', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce([] as any)
+      await client.listMedia()
+      const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
+      expect(call.limit).toBeUndefined()
+      expect(call.offset).toBeUndefined()
+    })
+
+    it('deleteMedia', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ doc_id: 'abc', status: 'deleted' } as any)
+      const result = await client.deleteMedia('abc')
+      expect(result.status).toBe('deleted')
+      expect(http.authPost).toHaveBeenCalledWith(
+        'http://api.localhost/v3/media/delete',
+        expect.objectContaining({ doc_id: 'abc', token: mockToken }),
+      )
     })
   })
 
