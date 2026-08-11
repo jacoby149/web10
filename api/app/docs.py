@@ -3,7 +3,7 @@ welcome to the new internet, where users aren't just clients.
 """
 
 # Order matters — Swagger displays tags in this sequence.
-# Follow the user journey: auth → CRUD → groups → media → contracts → system.
+# Follow the user journey: auth → CRUD → contracts → groups → media → system.
 tags_metadata = [
     {
         "name": "auth",
@@ -18,16 +18,16 @@ tags_metadata = [
         "description": "Document CRUD — create, read, update, delete. User from JWT. Server generates doc_id (UUID7).",
     },
     {
+        "name": "app-contracts",
+        "description": "App contracts — per-app service permissions. Add, list, revoke.",
+    },
+    {
         "name": "group-contracts",
         "description": "Group contracts — create, list, join, leave, members, invites, requests, blocking, sharing.",
     },
     {
         "name": "media",
-        "description": "Media — upload confirm, list, delete. Presigned URLs from v2 endpoints.",
-    },
-    {
-        "name": "app-contracts",
-        "description": "App contracts — per-app service permissions. Add, list, revoke.",
+        "description": "Media — upload confirm, list, delete.",
     },
     {
         "name": "app-store",
@@ -36,9 +36,5 @@ tags_metadata = [
     {
         "name": "system",
         "description": "Node system — stats, setup wizard, config, health check.",
-    },
-    {
-        "name": "admin",
-        "description": "Admin only — data migrations, app approvals.",
     },
 ]
