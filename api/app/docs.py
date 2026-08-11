@@ -18,10 +18,6 @@ tags_metadata = [
         "description": "Document CRUD — create, read, update, delete. User from JWT. Server generates doc_id (UUID7).",
     },
     {
-        "name": "schemas",
-        "description": "Schemas — register, create, update, delete document schemas.",
-    },
-    {
         "name": "media",
         "description": "Media — upload confirm, list, delete.",
     },

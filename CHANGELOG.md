@@ -1,3 +1,6 @@
+3.0.18 || 11.08.2026
+fix(api): swagger admin endpoints tagged — /admin/bug_reports and /admin/bug_reports/{report_id} now under "admin" tag (were untagged, falling to "default"). Removed "schemas" tag from docs (no endpoints implement schema registry API yet).
+
 3.0.17 || 11.08.2026
 test(social): replace v2 test stubs with v3 — all 16 failing test files rewritten to use v3 group-based data layer (mock getV3Client instead of getWapi). Component tests updated with full wapi shim exports (buildSocialServiceSirs, etc.). socialTokenHandoff test replaced with v3 token handling stubs. 308 tests passing.
 
