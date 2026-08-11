@@ -33,6 +33,8 @@ export interface V3ClientOptions {
     apiOrigin?: string;
     /** Pre-set token (optional, for server-side or pre-auth scenarios) */
     token?: string | null;
+    /** RTC server hostname (for P2P via web10-npm/rtc) */
+    rtcServer?: string;
 }
 export interface V3Document {
     doc_id: string;
@@ -94,6 +96,7 @@ export interface V3Client {
     state: {
         apiOrigin: string;
         token: string | null;
+        rtcServer: string;
     };
     setToken(token: string): void;
     scrubToken(): void;
@@ -209,6 +212,20 @@ export interface V3Client {
         user_key: string;
         group_id: string;
         sharing_enabled: boolean;
+    }>;
+    requestMediaUploadUrl(params: {
+        filename: string;
+        mimeType?: string;
+        sizeBytes?: number;
+    }): Promise<{
+        upload_url: string;
+        fields: Record<string, string>;
+        object_key: string;
+        content_type: string;
+    }>;
+    getMediaReadUrl(objectKey: string): Promise<{
+        read_url: string;
+        expires_in: number;
     }>;
     confirmMediaUpload(metadata: Record<string, unknown>): Promise<V3Document>;
     listMedia(opts?: {
