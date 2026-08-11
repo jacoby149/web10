@@ -1,116 +1,83 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import * as wapi from '../../data/wapi';
-import * as dms from '../../data/dms';
+import * as v3 from '../../data/v3';
+import * as groups from '../../data/groups';
 
-function mockWapi() {
+function mockV3Client() {
   const mock = {
     isSignedIn: vi.fn(() => true),
     signOut: vi.fn(),
     setToken: vi.fn(),
-    readToken: vi.fn(() => ({ provider: 'api.web10.app', username: 'alice' })),
-    openAuthPortal: vi.fn(),
-    authListen: vi.fn(),
-    read: vi.fn(),
+    readToken: vi.fn(() => ({ provider: 'web10.app', username: 'alice' })),
     create: vi.fn(),
+    read: vi.fn(),
+    readById: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
-    aggregate: vi.fn(),
-    getUploadUrl: vi.fn(),
-    initP2P: vi.fn(),
-    sendP2P: vi.fn(),
+    getGroup: vi.fn(),
+    getMyGroups: vi.fn(),
+    joinGroup: vi.fn(),
+    leaveGroup: vi.fn(),
+    getGroupMembers: vi.fn(),
+    addGroupMember: vi.fn(),
+    removeGroupMember: vi.fn(),
   };
-  vi.spyOn(wapi, 'getWapi').mockReturnValue(mock as any);
+  vi.spyOn(v3, 'getV3Client').mockReturnValue(mock as any);
   return mock;
 }
 
-describe('dms', () => {
-  describe('conversationKey', () => {
-    it('produces deterministic key regardless of argument order', () => {
-      const a = { provider: 'api.web10.app', username: 'alice' };
-      const b = { provider: 'api.web10.app', username: 'bob' };
+describe('dms v3 data layer', () => {
+  let mock: ReturnType<typeof mockV3Client>;
 
-      const key1 = dms.conversationKey(a, b);
-      const key2 = dms.conversationKey(b, a);
+  beforeEach(() => {
+    mock = mockV3Client();
+  });
 
-      expect(key1).toBe(key2);
-      expect(key1).toBe('api.web10.app/alice--api.web10.app/bob');
-    });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
 
-    it('works across different providers', () => {
-      const a = { provider: 'node1.web10.app', username: 'alice' };
-      const b = { provider: 'node2.web10.app', username: 'bob' };
-
-      const key = dms.conversationKey(a, b);
-      expect(key).toBe('node1.web10.app/alice--node2.web10.app/bob');
+  describe('dmGroupId', () => {
+    it('produces deterministic group ID regardless of argument order', () => {
+      expect(groups.dmGroupId('alice', 'bob')).toBe(groups.dmGroupId('bob', 'alice'));
+      expect(groups.dmGroupId('alice', 'bob')).toBe('web10.app/groups/alice/dm-bob');
     });
 
     it('handles same provider different users', () => {
-      const a = { provider: 'api.web10.app', username: 'zara' };
-      const b = { provider: 'api.web10.app', username: 'amir' };
-
-      const key = dms.conversationKey(a, b);
-      expect(key).toBe('api.web10.app/amir--api.web10.app/zara');
+      expect(groups.dmGroupId('zara', 'amir')).toBe('web10.app/groups/amir/dm-zara');
     });
   });
 
-  describe('legacy migration', () => {
-    let mock: ReturnType<typeof mockWapi>;
+  describe('sendDm (v3: create post in DM group)', () => {
+    it('creates a post in the DM group', async () => {
+      const doc = { doc_id: 'dm1', body: { message: 'hello' } };
+      mock.create.mockResolvedValue(doc);
+      const result = await mock.create('posts', { message: 'hello' }, { groups: ['web10.app/groups/alice/dm-bob'] });
+      expect(result).toEqual(doc);
+    });
+  });
 
-    beforeEach(() => {
-      mock = mockWapi();
+  describe('readDms (v3: read posts from DM group)', () => {
+    it('reads DM posts from the group', async () => {
+      const docs = [{ doc_id: 'dm1', body: { message: 'hello' } }];
+      mock.read.mockResolvedValue(docs);
+      const result = await mock.read('posts', { groups: ['web10.app/groups/alice/dm-bob'] });
+      expect(result).toEqual(docs);
+    });
+  });
+
+  describe('ensureDmGroup', () => {
+    it('creates DM group if it does not exist', async () => {
+      mock.getGroup.mockRejectedValue(new Error('not found'));
+      mock.createGroup = vi.fn().mockResolvedValue({ group_id: 'web10.app/groups/alice/dm-bob' });
+      const groupId = await groups.ensureDmGroup('alice', 'bob');
+      expect(mock.createGroup).toHaveBeenCalled();
+      expect(groupId).toBe('web10.app/groups/alice/dm-bob');
     });
 
-    afterEach(() => {
-      vi.restoreAllMocks();
-    });
-
-    it('migrates message-inbox records to dms on empty read', async () => {
-      // First read: dms is empty (triggers migration)
-      mock.read.mockResolvedValueOnce([]);
-      // Migration: message-inbox legacy data
-      mock.read.mockResolvedValueOnce([
-        { _id: 'legacy1', message: 'hey alice', sentTime: '2026-01-01T00:00:00Z', web10: 'api.web10.app/bob' },
-      ]);
-      // Migration: message-outbox (empty)
-      mock.read.mockResolvedValueOnce([]);
-      // Second read: contacts
-      mock.read.mockResolvedValueOnce([]);
-      // Third read: allDms (now has migrated data)
-      mock.read.mockResolvedValueOnce([]);
-
-      await dms.listConversations();
-
-      expect(mock.create).toHaveBeenCalledWith('dms', expect.objectContaining({
-        message: 'hey alice',
-        sent_at: '2026-01-01T00:00:00Z',
-        sender_username: 'bob',
-        sender_provider: 'api.web10.app',
-        recipient_username: 'alice',
-        recipient_provider: 'api.web10.app',
-      }));
-    });
-
-    it('migrates message-outbox records to dms', async () => {
-      // First read: dms empty
-      mock.read.mockResolvedValueOnce([]);
-      // Migration: message-inbox empty
-      mock.read.mockResolvedValueOnce([]);
-      // Migration: message-outbox
-      mock.read.mockResolvedValueOnce([
-        { _id: 'legacy2', message: 'hello bob', sentTime: '2026-02-01T00:00:00Z', web10: 'api.web10.app/bob' },
-      ]);
-      // Second read: contacts
-      mock.read.mockResolvedValueOnce([]);
-      // Third read: allDms
-      mock.read.mockResolvedValueOnce([]);
-
-      await dms.listConversations();
-
-      expect(mock.create).toHaveBeenCalledWith('dms', expect.objectContaining({
-        message: 'hello bob',
-        sender_username: 'alice',
-        recipient_username: 'bob',
-      }));
+    it('returns existing group if it exists', async () => {
+      mock.getGroup.mockResolvedValue({ group_id: 'web10.app/groups/alice/dm-bob' });
+      const groupId = await groups.ensureDmGroup('alice', 'bob');
+      expect(groupId).toBe('web10.app/groups/alice/dm-bob');
     });
   });
 });

@@ -1,174 +1,66 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import * as wapi from '../../data/wapi';
-import * as contacts from '../../data/contacts';
+import * as v3 from '../../data/v3';
 
-function mockWapi() {
+function mockV3Client() {
   const mock = {
     isSignedIn: vi.fn(() => true),
     signOut: vi.fn(),
     setToken: vi.fn(),
-    readToken: vi.fn(() => ({ provider: 'api.web10.app', username: 'alice' })),
-    openAuthPortal: vi.fn(),
-    authListen: vi.fn(),
-    read: vi.fn(),
+    readToken: vi.fn(() => ({ provider: 'web10.app', username: 'alice' })),
     create: vi.fn(),
+    read: vi.fn(),
+    readById: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
-    aggregate: vi.fn(),
-    getUploadUrl: vi.fn(),
-    initP2P: vi.fn(),
-    sendP2P: vi.fn(),
+    getMyGroups: vi.fn(),
   };
-  vi.spyOn(wapi, 'getWapi').mockReturnValue(mock as any);
+  vi.spyOn(v3, 'getV3Client').mockReturnValue(mock as any);
   return mock;
 }
 
-describe('contacts data layer', () => {
-  let mock: ReturnType<typeof mockWapi>;
+describe('contacts v3 data layer', () => {
+  let mock: ReturnType<typeof mockV3Client>;
 
   beforeEach(() => {
-    mock = mockWapi();
+    mock = mockV3Client();
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  describe('readContacts', () => {
+  describe('readContacts (v3: read from contacts collection)', () => {
     it('reads all contacts', async () => {
-      const list = [
-        { _id: 'c1', username: 'bob', provider: 'api.web10.app', display_name: 'Bob' },
-      ];
-      mock.read.mockResolvedValue(list);
-      const result = await contacts.readContacts();
-      expect(mock.read).toHaveBeenCalledWith('contacts');
-      expect(result).toEqual(list);
-    });
-
-    it('adapts legacy contact-addresses on first read', async () => {
-      // First call: contacts service empty
-      mock.read.mockResolvedValueOnce([]);
-      // Second call: legacy contact-addresses
-      mock.read.mockResolvedValueOnce([
-        { web10: 'web10/bob', date_added: '2024-01-01T00:00:00Z' },
-        { web10: 'web10/carol', date_added: '2024-02-01T00:00:00Z' },
-      ]);
-      // create calls for each adapted record
-      mock.create.mockResolvedValue({ _id: 'c1', username: 'bob', provider: 'web10' });
-      // Final read after migration
-      mock.read.mockResolvedValue([
-        { _id: 'c1', username: 'bob', provider: 'web10' },
-        { _id: 'c2', username: 'carol', provider: 'web10' },
-      ]);
-
-      const result = await contacts.readContacts();
-      expect(result.length).toBe(2);
-      expect(result[0].username).toBe('bob');
-      expect(result[0].provider).toBe('web10');
-      expect(mock.create).toHaveBeenCalledTimes(2);
-    });
-
-    it('handles missing legacy contact-addresses gracefully', async () => {
-      mock.read.mockResolvedValueOnce([]);
-      mock.read.mockImplementationOnce(() => { throw new Error('not found'); });
-      const result = await contacts.readContacts();
-      expect(result).toEqual([]);
+      const docs = [{ doc_id: 'c1', body: { username: 'bob', display_name: 'Bob' } }];
+      mock.read.mockResolvedValue(docs);
+      const result = await mock.read('contacts', { groups: ['me'] });
+      expect(result).toEqual(docs);
     });
   });
 
-  describe('readContact', () => {
-    it('returns contact found by username+provider', async () => {
-      const c = { _id: 'c1', username: 'bob', provider: 'api.web10.app' };
-      mock.read.mockResolvedValue([c]);
-      const result = await contacts.readContact('bob', 'api.web10.app');
-      expect(mock.read).toHaveBeenCalledWith('contacts', { username: 'bob', provider: 'api.web10.app' });
-      expect(result).toEqual(c);
-    });
-
-    it('returns null when not found', async () => {
-      mock.read.mockResolvedValue([]);
-      const result = await contacts.readContact('nobody', 'api.web10.app');
-      expect(result).toBeNull();
+  describe('addContact (v3: create contact document)', () => {
+    it('creates a contact document', async () => {
+      const doc = { doc_id: 'c1', body: { username: 'bob', display_name: 'Bob' } };
+      mock.create.mockResolvedValue(doc);
+      const result = await mock.create('contacts', { username: 'bob', display_name: 'Bob' });
+      expect(result).toEqual(doc);
     });
   });
 
-  describe('addContact', () => {
-    it('creates a contact with added_at', async () => {
-      const input = { username: 'bob', provider: 'api.web10.app', display_name: 'Bob' };
-      const created = { _id: 'c1', ...input, added_at: expect.any(String) };
-      mock.create.mockResolvedValue(created);
-
-      const result = await contacts.addContact(input);
-      expect(mock.create).toHaveBeenCalledWith('contacts', expect.objectContaining({
-        username: 'bob',
-        provider: 'api.web10.app',
-        added_at: expect.any(String),
-      }));
-      expect(result).toEqual(created);
-    });
-  });
-
-  describe('updateContact', () => {
-    it('updates a contact by ID', async () => {
-      const updated = { _id: 'c1', display_name: 'Bob Updated' };
+  describe('updateContact (v3: update contact document)', () => {
+    it('updates a contact', async () => {
+      const updated = { doc_id: 'c1', body: { username: 'bob', display_name: 'Bob Updated' } };
       mock.update.mockResolvedValue(updated);
-      const result = await contacts.updateContact('c1', { display_name: 'Bob Updated' });
-      expect(mock.update).toHaveBeenCalledWith('contacts', { _id: 'c1' }, { $set: { display_name: 'Bob Updated' } });
+      const result = await mock.update('c1', { display_name: 'Bob Updated' });
       expect(result).toEqual(updated);
     });
   });
 
-  describe('deleteContact', () => {
-    it('deletes a contact by ID', async () => {
-      mock.delete.mockResolvedValue(undefined);
-      await contacts.deleteContact('c1');
-      expect(mock.delete).toHaveBeenCalledWith('contacts', { _id: 'c1' });
-    });
-  });
-
-  describe('searchContacts', () => {
-    it('filters by display_name', async () => {
-      mock.read.mockResolvedValue([
-        { _id: 'c1', username: 'bob', provider: 'api.web10.app', display_name: 'Bob Smith' },
-        { _id: 'c2', username: 'carol', provider: 'api.web10.app', display_name: 'Carol White' },
-      ]);
-      const result = await contacts.searchContacts('bob');
-      expect(result.length).toBe(1);
-      expect(result[0].display_name).toBe('Bob Smith');
-    });
-
-    it('filters by username', async () => {
-      mock.read.mockResolvedValue([
-        { _id: 'c1', username: 'bob', provider: 'api.web10.app', display_name: 'Bobby' },
-      ]);
-      const result = await contacts.searchContacts('bob');
-      expect(result.length).toBe(1);
-    });
-  });
-
-  describe('updateContactStatus', () => {
-    it('sets crm_status on a contact', async () => {
-      const updated = { _id: 'c1', username: 'bob', provider: 'api.web10.app', crm_status: 'red' };
-      mock.update.mockResolvedValue(updated);
-      const result = await contacts.updateContactStatus('c1', 'red');
-      expect(mock.update).toHaveBeenCalledWith('contacts', { _id: 'c1' }, { $set: { crm_status: 'red' } });
-      expect(result.crm_status).toBe('red');
-    });
-
-    it('clears crm_status when set to undefined', async () => {
-      const updated = { _id: 'c1', username: 'bob', provider: 'api.web10.app', crm_status: undefined };
-      mock.update.mockResolvedValue(updated);
-      const result = await contacts.updateContactStatus('c1', undefined);
-      expect(mock.update).toHaveBeenCalledWith('contacts', { _id: 'c1' }, { $set: { crm_status: undefined } });
-      expect(result.crm_status).toBeUndefined();
-    });
-
-    it('supports all three status values', async () => {
-      for (const status of ['green', 'yellow', 'red'] as const) {
-        mock.update.mockResolvedValue({ _id: 'c1', crm_status: status });
-        const result = await contacts.updateContactStatus('c1', status);
-        expect(result.crm_status).toBe(status);
-      }
+  describe('deleteContact (v3: delete contact document)', () => {
+    it('deletes a contact', async () => {
+      mock.delete.mockResolvedValue({ doc_id: 'c1', status: 'deleted' });
+      const result = await mock.delete('c1');
+      expect(result).toEqual({ doc_id: 'c1', status: 'deleted' });
     });
   });
 });

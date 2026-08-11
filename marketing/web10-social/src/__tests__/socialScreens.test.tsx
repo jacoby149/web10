@@ -56,6 +56,16 @@ vi.mock('@/data/wapi', () => ({
     authListen: vi.fn(),
   }),
   resetWapi: vi.fn(),
+  buildSocialServiceSirs: vi.fn().mockReturnValue([]),
+  clearReadUrlCache: vi.fn(),
+  deriveObjectKey: vi.fn().mockReturnValue(''),
+  buildReactionTarget: vi.fn(),
+  buildCommentTarget: vi.fn(),
+  recordRepost: vi.fn(),
+  fanOutToFollowers: vi.fn(),
+  readPullFeed: vi.fn().mockResolvedValue([]),
+  readUserPostsFromDiscovery: vi.fn().mockResolvedValue([]),
+  updateFollowNotify: vi.fn(),
 }));
 
 // Mock web10-npm

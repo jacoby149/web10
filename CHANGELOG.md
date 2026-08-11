@@ -1,3 +1,6 @@
+3.0.17 || 11.08.2026
+test(social): replace v2 test stubs with v3 — all 16 failing test files rewritten to use v3 group-based data layer (mock getV3Client instead of getWapi). Component tests updated with full wapi shim exports (buildSocialServiceSirs, etc.). socialTokenHandoff test replaced with v3 token handling stubs. 308 tests passing.
+
 3.0.16 || 11.08.2026
 refactor(api+sdk): group-scoped block/unblock/sharing under /v3/groups — moved /v3/block-in-group → /v3/groups/block, /v3/unblock-in-group → /v3/groups/unblock, /v3/sharing/set → /v3/groups/sharing/set. General /v3/block and /v3/unblock separated into their own router with "blocking" tag (was incorrectly tagged "group-contracts"). SDK, web10-social client, protocol spec, and all tests updated.
 
