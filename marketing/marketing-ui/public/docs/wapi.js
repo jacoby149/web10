@@ -158,10 +158,12 @@
         scrubTokenCookie();
       },
       readToken() {
-        return decodeJwt(state.token);
+        const current = readTokenCookie() ?? state.token;
+        return current ? decodeJwt(current) : null;
       },
       isSignedIn() {
-        return state.token != null && state.token !== "";
+        const current = readTokenCookie() ?? state.token;
+        return current != null && current !== "";
       },
       signOut() {
         this.scrubToken();
