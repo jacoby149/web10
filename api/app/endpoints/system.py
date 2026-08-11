@@ -173,7 +173,7 @@ async def submit_bug_report(req: dict):
     return result
 
 
-@router.post("/admin/bug_reports")
+@router.post("/admin/bug_reports", tags=["admin"])
 async def admin_bug_reports(req: Token, limit: int = 100, offset: int = 0):
     """List bug reports (admin only). Screenshots excluded — too large."""
     check_admin(req)
@@ -181,7 +181,7 @@ async def admin_bug_reports(req: Token, limit: int = 100, offset: int = 0):
     return {"reports": reports, "count": len(reports)}
 
 
-@router.post("/admin/bug_reports/{report_id}")
+@router.post("/admin/bug_reports/{report_id}", tags=["admin"])
 async def admin_bug_report_detail(report_id: str, req: Token):
     """Get a single bug report with screenshots (admin only)."""
     check_admin(req)
