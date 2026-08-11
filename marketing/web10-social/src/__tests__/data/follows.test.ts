@@ -22,6 +22,7 @@ function mockV3Client() {
     getGroupMembers: vi.fn(),
     addGroupMember: vi.fn(),
     removeGroupMember: vi.fn(),
+    createGroup: vi.fn(),
     blockUser: vi.fn(),
     unblockUser: vi.fn(),
     blockUserInGroup: vi.fn(),

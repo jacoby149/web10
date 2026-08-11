@@ -20,6 +20,7 @@ function mockV3Client() {
     getGroupMembers: vi.fn(),
     addGroupMember: vi.fn(),
     removeGroupMember: vi.fn(),
+    createGroup: vi.fn(),
   };
   vi.spyOn(v3, 'getV3Client').mockReturnValue(mock as any);
   return mock;

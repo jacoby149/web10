@@ -56,8 +56,8 @@ describe('comment anchor', () => {
   });
 
   describe('Deep-link ?comment= route', () => {
-    it('useSearchParams is available from react-router-dom', () => {
-      const { useSearchParams } = require('react-router-dom');
+    it('useSearchParams is available from react-router-dom', async () => {
+      const { useSearchParams } = await import('react-router-dom');
       expect(typeof useSearchParams).toBe('function');
     });
   });

@@ -22,7 +22,7 @@ describe('discover v3 data layer', () => {
         json: () => Promise.resolve(mockPosts),
       });
 
-      const result = await fetch(`${process.env.API_ORIGIN ?? 'http://api.localhost'}/v3/discover/posts`);
+      const result = await fetch('http://api.localhost/v3/discover/posts');
       const data = await result.json();
       expect(data).toEqual(mockPosts);
     });
@@ -33,7 +33,7 @@ describe('discover v3 data layer', () => {
         status: 500,
       });
 
-      const result = await fetch(`${process.env.API_ORIGIN ?? 'http://api.localhost'}/v3/discover/posts`);
+      const result = await fetch('http://api.localhost/v3/discover/posts');
       expect(result.ok).toBe(false);
     });
   });
@@ -46,7 +46,7 @@ describe('discover v3 data layer', () => {
         json: () => Promise.resolve(mockPost),
       });
 
-      const result = await fetch(`${process.env.API_ORIGIN ?? 'http://api.localhost'}/v3/discover/posts/alice/posts/p1`);
+      const result = await fetch('http://api.localhost/v3/discover/posts/alice/posts/p1');
       const data = await result.json();
       expect(data).toEqual(mockPost);
     });
@@ -57,7 +57,7 @@ describe('discover v3 data layer', () => {
         status: 404,
       });
 
-      const result = await fetch(`${process.env.API_ORIGIN ?? 'http://api.localhost'}/v3/discover/posts/alice/posts/p1`);
+      const result = await fetch('http://api.localhost/v3/discover/posts/alice/posts/p1');
       expect(result.ok).toBe(false);
     });
   });
