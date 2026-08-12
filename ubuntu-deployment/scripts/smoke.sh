@@ -45,12 +45,11 @@ for env in dev prod; do
   # v3 smoke — full auth flow: signup → login → use token
   echo "  -- v3 --"
   APISRV="https://api.${pre}web10.app"
-  PROVIDER="api.${pre}web10.app"
   U="smoke$(date +%s%N)"
   P="smoketest123"
 
-  # Sign up
-  SU=$(curl -s --max-time 15 -X POST "$APISRV/v3/auth/signup" \
+  # Sign up (no auth needed)
+  SU=$(curl -s --max-time 15 -X POST "$APISRV/v3/signup" \
     -H 'Content-Type: application/json' \
     -d "{\"username\":\"$U\",\"password\":\"$P\"}")
   SU_CODE=$(echo "$SU" | grep -o '"status":"ok"' || echo "")
@@ -60,8 +59,8 @@ for env in dev prod; do
     echo "  FAIL v3 signup ($SU)"; fail=1
   fi
 
-  # Login — get token
-  LOGIN=$(curl -s --max-time 15 -X POST "$APISRV/v3/auth/login" \
+  # Login — get token (reuse the same username from signup)
+  LOGIN=$(curl -s --max-time 15 -X POST "$APISRV/v3/login" \
     -H 'Content-Type: application/json' \
     -d "{\"username\":\"$U\",\"password\":\"$P\"}")
   TOKEN=$(echo "$LOGIN" | python3 -c "import sys,json; print(json.load(sys.stdin).get('token',''))" 2>/dev/null || echo "")
@@ -74,7 +73,7 @@ for env in dev prod; do
   # Authenticated v3 endpoints (all require token)
   if [[ -n "$TOKEN" ]]; then
     check_post "v3 stats"              200 "$APISRV/v3/stats" "{\"token\":\"$TOKEN\"}"
-    check_post "v3 profile"            200 "$APISRV/v3/account/profile" "{\"token\":\"$TOKEN\"}"
+    check_post "v3 profile"            200 "$APISRV/v3/profile" "{\"token\":\"$TOKEN\"}"
     check_post "v3 documents read"     200 "$APISRV/v3/documents/read" "{\"token\":\"$TOKEN\",\"service\":\"web10\"}"
     check_post "v3 groups list"        200 "$APISRV/v3/groups/list" "{\"token\":\"$TOKEN\"}"
     check_post "v3 appstore list"      200 "$APISRV/v3/apps/list" "{\"token\":\"$TOKEN\"}"
