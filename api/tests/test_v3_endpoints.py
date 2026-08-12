@@ -709,9 +709,11 @@ class TestNodeStats:
     def test_stats(self, client, token):
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.side_effect = [
-                MagicMock(result_rows=lambda: [(42,)]),
-                MagicMock(result_rows=lambda: [(100,)]),
-                MagicMock(result_rows=lambda: [(5,)]),
+                MagicMock(result_rows=lambda: [(42,)]),  # users
+                MagicMock(result_rows=lambda: [(100,)]),  # documents
+                MagicMock(result_rows=lambda: [(5,)]),  # groups
+                MagicMock(result_rows=lambda: []),  # list_apps — empty
+                MagicMock(result_rows=lambda: [(1024,)]),  # storage
             ]
             resp = client.post("/v3/stats", json={"token": token})
         assert resp.status_code == 200
@@ -719,6 +721,8 @@ class TestNodeStats:
         assert data["users"] == 42
         assert data["documents"] == 100
         assert data["groups"] == 5
+        assert data["apps"] == []
+        assert data["storage"] == 1024
 
 
 # ---------------------------------------------------------------------------

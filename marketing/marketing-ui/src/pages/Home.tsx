@@ -75,7 +75,7 @@ function HomeStatsBar() {
 
   useEffect(() => {
     let alive = true
-    fetch(`${nodeApi()}/stats`, {
+    fetch(`${nodeApi()}/v3/stats`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: '{}',
