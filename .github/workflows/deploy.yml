@@ -51,17 +51,18 @@ jobs:
             if [[ ! -f ubuntu-deployment/env.dev ]]; then
               if [[ -f ~/web10-ops/env.dev ]]; then
                 cp ~/web10-ops/env.dev ubuntu-deployment/env.dev
-              elif [[ -f ubuntu-deployment/env.dev.example ]]; then
-                echo "WARN: env.dev missing, copying from .example (secrets will need manual update)"
+              else
                 cp ubuntu-deployment/env.dev.example ubuntu-deployment/env.dev
+                # Auto-generate MINIO_PASSWORD (the only real secret needed)
+                sed -i "s/^MINIO_PASSWORD=.*/MINIO_PASSWORD=$(openssl rand -base64 32)/" ubuntu-deployment/env.dev
               fi
             fi
             if [[ ! -f ubuntu-deployment/env.prod ]]; then
               if [[ -f ~/web10-ops/env.prod ]]; then
                 cp ~/web10-ops/env.prod ubuntu-deployment/env.prod
-              elif [[ -f ubuntu-deployment/env.prod.example ]]; then
-                echo "WARN: env.prod missing, copying from .example (secrets will need manual update)"
+              else
                 cp ubuntu-deployment/env.prod.example ubuntu-deployment/env.prod
+                sed -i "s/^MINIO_PASSWORD=.*/MINIO_PASSWORD=$(openssl rand -base64 32)/" ubuntu-deployment/env.prod
               fi
             fi
 
@@ -149,17 +150,17 @@ jobs:
             if [[ ! -f ubuntu-deployment/env.dev ]]; then
               if [[ -f ~/web10-ops/env.dev ]]; then
                 cp ~/web10-ops/env.dev ubuntu-deployment/env.dev
-              elif [[ -f ubuntu-deployment/env.dev.example ]]; then
-                echo "WARN: env.dev missing, copying from .example (secrets will need manual update)"
+              else
                 cp ubuntu-deployment/env.dev.example ubuntu-deployment/env.dev
+                sed -i "s/^MINIO_PASSWORD=.*/MINIO_PASSWORD=$(openssl rand -base64 32)/" ubuntu-deployment/env.dev
               fi
             fi
             if [[ ! -f ubuntu-deployment/env.prod ]]; then
               if [[ -f ~/web10-ops/env.prod ]]; then
                 cp ~/web10-ops/env.prod ubuntu-deployment/env.prod
-              elif [[ -f ubuntu-deployment/env.prod.example ]]; then
-                echo "WARN: env.prod missing, copying from .example (secrets will need manual update)"
+              else
                 cp ubuntu-deployment/env.prod.example ubuntu-deployment/env.prod
+                sed -i "s/^MINIO_PASSWORD=.*/MINIO_PASSWORD=$(openssl rand -base64 32)/" ubuntu-deployment/env.prod
               fi
             fi
 
