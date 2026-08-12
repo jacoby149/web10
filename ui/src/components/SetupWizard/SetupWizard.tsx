@@ -87,10 +87,10 @@ function NodeIdentityStep({ data, onChange, onNext, onBack }: {
           <Input
             value={data.db_url}
             onChange={e => onChange("db_url", e.target.value)}
-            placeholder="mongodb://ferretdb:27017"
+            placeholder="http://clickhouse:8123"
             data-testid="wizard-db-url"
           />
-          <p className="mt-1 text-xs text-muted-foreground">MongoDB or FerretDB connection string</p>
+          <p className="mt-1 text-xs text-muted-foreground">ClickHouse connection URL</p>
         </div>
       </div>
       <div className="mt-8 flex justify-center gap-2">
@@ -393,7 +393,7 @@ function SetupWizard({ I }: { I: Record<string, any> }) {
   const [formData, setFormData] = React.useState({
     provider: "api.localhost",
     brand_text: "web10",
-    db_url: "mongodb://ferretdb:27017",
+    db_url: "http://clickhouse:8123",
     db_name: "web10",
     admin_username: "",
     admin_password: "",

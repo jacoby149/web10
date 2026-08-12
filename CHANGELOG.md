@@ -1,3 +1,6 @@
+3.0.21 || 11.08.2026
+fix(ui): DB config fields updated from MongoDB to ClickHouse — SetupWizard placeholder and default, ConfigPage label, mediaPresign comment.
+
 3.0.20 || 11.08.2026
 test(marketing-ui): headless Playwright suite for demo apps — 18 tests across hello (3), notes (7), messages (8). Static server + mock SDK with fetch override, all v3 API calls intercepted. Fixed messages demo: body global collision (document.getElementById fix), guard rejected valid provider. marketing/marketing-ui/package.json gains test:demos scripts.
 
