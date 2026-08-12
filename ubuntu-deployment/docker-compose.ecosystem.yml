@@ -114,8 +114,10 @@ services:
 
   ui:
     build:
-      context: ../ui
-      dockerfile: Dockerfile
+      # Repo-root context so the Dockerfile can COPY sdk/dist/ (the v3 SDK
+      # the auth app depends on). Mirrors .github/workflows/docker.yml.
+      context: ..
+      dockerfile: ui/Dockerfile
       args:
         # names must match ui/Dockerfile's declared ARGs (B5, 1.0.65)
         REACT_APP_API_ORIGIN: ${API_ORIGIN:?e.g. https://api.dev.web10.app}

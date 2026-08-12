@@ -53,8 +53,10 @@ services:
 
   ui:
     build:
-      context: ../ui
-      dockerfile: Dockerfile
+      # Repo-root context so the Dockerfile can COPY sdk/dist/ (the v3 SDK
+      # the auth app depends on). Mirrors .github/workflows/docker.yml.
+      context: ..
+      dockerfile: ui/Dockerfile
       target: dev
     volumes:
       - ../ui:/ui
