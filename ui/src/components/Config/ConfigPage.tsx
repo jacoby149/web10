@@ -669,7 +669,7 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
               <CardTitle>Database</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Field label="MongoDB URL" description="Connection string the node uses at startup. A change here is persisted for reference, but a running node will not reconnect until restarted.">
+              <Field label="ClickHouse URL" description="Connection string the node uses at startup. A change here is persisted for reference, but a running node will not reconnect until restarted.">
                 <Input type="password" value={config?.db_url || ""} onChange={e => updateField("db_url", e.target.value)} data-testid="config-db-url" />
               </Field>
               <Field label="Database Name">
