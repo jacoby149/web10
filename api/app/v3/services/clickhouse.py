@@ -274,6 +274,32 @@ def get_group(group_id: str) -> dict | None:
     }
 
 
+def delete_group(group_id: str):
+    """Tombstone a group contract and all its members."""
+    now = _now()
+    # Tombstone the group contract
+    client.command(
+        "INSERT INTO group_contracts (group_id, roles, join_policy, created_at, updated_at, deleted) "
+        "SELECT group_id, roles, join_policy, created_at, now(), 1 "
+        "FROM group_contracts WHERE group_id = %(group_id)s AND deleted = 0",
+        {"group_id": group_id},
+    )
+    # Tombstone all members
+    client.command(
+        "INSERT INTO group_members (group_id, member_key, role, joined_at, updated_at, deleted) "
+        "SELECT group_id, member_key, role, joined_at, now(), 1 "
+        "FROM group_members WHERE group_id = %(group_id)s AND deleted = 0",
+        {"group_id": group_id},
+    )
+    # Tombstone all join requests
+    client.command(
+        "INSERT INTO group_join_requests (group_id, requester_key, status, role, requested_at, resolved_at, updated_at, deleted) "
+        "SELECT group_id, requester_key, status, role, requested_at, resolved_at, now(), 1 "
+        "FROM group_join_requests WHERE group_id = %(group_id)s AND deleted = 0",
+        {"group_id": group_id},
+    )
+
+
 def update_group(group_id: str, **kwargs):
     """Update a group contract (insert new version)."""
     existing = get_group(group_id)

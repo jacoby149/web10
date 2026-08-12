@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronDown, ChevronRight, Users, Shield, Lock, LockOpen, MessageSquare, UserPlus, Settings, Eye, LogOut, ShieldOff } from 'lucide-react';
+import { ChevronDown, ChevronRight, Users, Shield, Lock, LockOpen, MessageSquare, UserPlus, Settings, Eye, LogOut, ShieldOff, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { groupDisplayName } from '@/lib/group-utils';
@@ -54,7 +54,22 @@ function GroupCard({ I, group, isManaged }: { I: Record<string, any>; group: any
     }
   };
 
-  const handleLeave = async () => {
+  const handleDelete = async () => {
+    if (!confirm(`Delete this group? This will remove all members and cannot be undone.`)) return;
+    try {
+      await I.v3DeleteGroup(group.group_id);
+      I.v3GroupsLoad?.();
+      I.v3GroupsManagesLoad?.();
+    } catch (e: any) {
+      I.setStatus?.('Failed to delete group');
+    }
+  };
+
+  const hasDeletePermission = (() => {
+    const roles = group.roles || [];
+    const roleDef = roles.find((r: any) => r.name === myRole);
+    return roleDef?.permissions?.includes('deleteGroup') ?? false;
+  })();
     try {
       await I.v3LeaveGroup(group.group_id);
       I.v3GroupsLoad?.();
@@ -169,6 +184,17 @@ function GroupCard({ I, group, isManaged }: { I: Record<string, any>; group: any
                       <Settings className="mr-1.5 h-4 w-4" strokeWidth={1.5} />
                       Settings
                     </Button>
+                    {hasDeletePermission && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-danger hover:text-danger ml-auto"
+                        onClick={handleDelete}
+                      >
+                        <Trash2 className="mr-1.5 h-4 w-4" strokeWidth={1.5} />
+                        Delete group
+                      </Button>
+                    )}
                   </>
                 ) : (
                   <>
