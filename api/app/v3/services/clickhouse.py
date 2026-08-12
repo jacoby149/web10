@@ -123,7 +123,7 @@ def read_documents(
     )
 
     rows = []
-    for row in result.result_rows():
+    for row in result.result_rows:
         rows.append(
             {
                 "doc_id": row[0],
@@ -181,9 +181,9 @@ def get_document(doc_id: str, author_key: str) -> dict | None:
         "FROM documents WHERE doc_id = %(doc_id)s AND author_key = %(author_key)s AND deleted = 0",
         {"doc_id": doc_id, "author_key": author_key},
     )
-    if not result.result_rows():
+    if not result.result_rows:
         return None
-    row = result.result_rows()[0]
+    row = result.result_rows[0]
     return {
         "doc_id": row[0],
         "author_key": row[1],
@@ -232,7 +232,7 @@ def get_doc_groups(doc_id: str) -> list[str]:
         "SELECT group_id FROM doc_groups WHERE doc_id = %(doc_id)s AND deleted = 0",
         {"doc_id": doc_id},
     )
-    return [row[0] for row in result.result_rows()]
+    return [row[0] for row in result.result_rows]
 
 
 # ---------------------------------------------------------------------------
@@ -262,9 +262,9 @@ def get_group(group_id: str) -> dict | None:
         "FROM group_contracts WHERE group_id = %(group_id)s AND deleted = 0",
         {"group_id": group_id},
     )
-    if not result.result_rows():
+    if not result.result_rows:
         return None
-    row = result.result_rows()[0]
+    row = result.result_rows[0]
     return {
         "group_id": row[0],
         "roles": _parse_json(row[1]),
@@ -331,7 +331,7 @@ def get_group_members(group_id: str, limit: int = 100, offset: int = 0) -> list[
         "WHERE group_id = %(group_id)s AND deleted = 0 LIMIT %(limit)s OFFSET %(offset)s",
         {"group_id": group_id, "limit": limit, "offset": offset},
     )
-    return [{"member_key": row[0], "role": row[1], "joined_at": str(row[2])} for row in result.result_rows()]
+    return [{"member_key": row[0], "role": row[1], "joined_at": str(row[2])} for row in result.result_rows]
 
 
 def get_group_member(group_id: str, member_key: str) -> dict | None:
@@ -341,9 +341,9 @@ def get_group_member(group_id: str, member_key: str) -> dict | None:
         "WHERE group_id = %(group_id)s AND member_key = %(member_key)s AND deleted = 0",
         {"group_id": group_id, "member_key": member_key},
     )
-    if not result.result_rows():
+    if not result.result_rows:
         return None
-    row = result.result_rows()[0]
+    row = result.result_rows[0]
     return {"member_key": row[0], "role": row[1], "joined_at": str(row[2])}
 
 
@@ -369,7 +369,7 @@ def get_user_groups(member_key: str) -> list[dict]:
             "my_role": row[2],
             "member_count": row[3],
         }
-        for row in result.result_rows()
+        for row in result.result_rows
     ]
 
 
@@ -413,7 +413,7 @@ def get_pending_requests(group_id: str) -> list[dict]:
     )
     return [
         {"requester_key": row[0], "status": row[1], "role": row[2], "requested_at": str(row[3])}
-        for row in result.result_rows()
+        for row in result.result_rows
     ]
 
 
@@ -424,7 +424,7 @@ def has_pending_or_invited_request(group_id: str, requester_key: str) -> bool:
         "WHERE group_id = %(group_id)s AND requester_key = %(requester_key)s AND status IN ('pending', 'invited') AND deleted = 0",
         {"group_id": group_id, "requester_key": requester_key},
     )
-    return result.result_rows()[0][0] > 0
+    return result.result_rows[0][0] > 0
 
 
 # ---------------------------------------------------------------------------
@@ -482,7 +482,7 @@ def get_app_contracts(user_key: str) -> list[dict]:
             "allowed_origin": row[0],
             "permissions": json.loads(row[1]) if row[1] else {},
         }
-        for row in result.result_rows()
+        for row in result.result_rows
     ]
 
 
@@ -493,7 +493,7 @@ def is_origin_allowed(user_key: str, allowed_origin: str) -> bool:
         "WHERE user_key = %(user_key)s AND allowed_origin = %(allowed_origin)s AND deleted = 0",
         {"user_key": user_key, "allowed_origin": allowed_origin},
     )
-    return result.result_rows()[0][0] > 0
+    return result.result_rows[0][0] > 0
 
 
 def get_app_permissions(user_key: str, allowed_origin: str) -> dict:
@@ -503,7 +503,7 @@ def get_app_permissions(user_key: str, allowed_origin: str) -> dict:
         "WHERE user_key = %(user_key)s AND allowed_origin = %(allowed_origin)s AND deleted = 0",
         {"user_key": user_key, "allowed_origin": allowed_origin},
     )
-    rows = result.result_rows()
+    rows = result.result_rows
     if not rows:
         return {}
     return json.loads(rows[0][0]) if rows[0][0] else {}
@@ -565,7 +565,7 @@ def is_user_blocked(user_key: str, blocked_key: str) -> bool:
         "SELECT count() FROM user_blacklist WHERE user_key = %(user_key)s AND blocked_key = %(blocked_key)s AND deleted = 0",
         {"user_key": user_key, "blocked_key": blocked_key},
     )
-    return result.result_rows()[0][0] > 0
+    return result.result_rows[0][0] > 0
 
 
 def block_user_in_group(user_key: str, group_id: str, blocked_key: str):
@@ -605,9 +605,9 @@ def is_sharing_enabled(user_key: str, group_id: str) -> bool:
         "WHERE user_key = %(user_key)s AND group_id = %(group_id)s AND deleted = 0",
         {"user_key": user_key, "group_id": group_id},
     )
-    if not result.result_rows():
+    if not result.result_rows:
         return True  # Default on (opt-out model)
-    return result.result_rows()[0][0] == 1
+    return result.result_rows[0][0] == 1
 
 
 # ---------------------------------------------------------------------------
@@ -670,7 +670,7 @@ def read_documents_in_groups(
             "ref_value": row[5],
             "service": service,
         }
-        for row in result.result_rows()
+        for row in result.result_rows
     ]
 
 
@@ -685,7 +685,7 @@ def get_ref_count(doc_id: str, service: str = "reactions") -> int:
         "SELECT count() FROM documents WHERE deleted = 0 AND collection_name = %(coll)s AND ref_value = %(doc_id)s",
         {"coll": service, "doc_id": doc_id},
     )
-    return result.result_rows()[0][0]
+    return result.result_rows[0][0]
 
 
 def get_ref_counts(doc_ids: list[str], service: str = "reactions") -> dict[str, int]:
@@ -698,7 +698,7 @@ def get_ref_counts(doc_ids: list[str], service: str = "reactions") -> dict[str, 
         f"SELECT ref_value, count() FROM documents WHERE deleted = 0 AND collection_name = %(coll)s AND ref_value IN ({placeholders}) GROUP BY ref_value",
         params,
     )
-    return {row[0]: row[1] for row in result.result_rows()}
+    return {row[0]: row[1] for row in result.result_rows}
 
 
 # ---------------------------------------------------------------------------
@@ -728,9 +728,9 @@ def read_document_by_id(doc_id: str, member_key: str, service: str) -> dict | No
         ")",
         {"doc_id": doc_id, "coll": service, "member_key": member_key},
     )
-    if not result.result_rows():
+    if not result.result_rows:
         return None
-    row = result.result_rows()[0]
+    row = result.result_rows[0]
     return {
         "doc_id": row[0],
         "author_key": row[1],
@@ -750,32 +750,35 @@ def read_document_by_id(doc_id: str, member_key: str, service: str) -> dict | No
 def get_groups_manages(member_key: str) -> list[dict]:
     """Get groups where the user has management permissions.
 
-    Uses ClickHouse JSON functions (extractJSONArray, has) to filter
-    in-database instead of application-side iteration.
+    Fetches all groups the user belongs to, then filters in Python by
+    checking if the group's roles JSON grants manageRoles to the user's role.
     """
     result = client.query(
-        "SELECT gc.group_id, gc.join_policy, gm.role AS my_role, "
+        "SELECT gc.group_id, gc.join_policy, gc.roles, gm.role AS my_role, "
         "(SELECT count() FROM group_members gm2 WHERE gm2.group_id = gc.group_id AND gm2.deleted = 0) AS member_count "
         "FROM group_members gm "
         "JOIN group_contracts gc ON gm.group_id = gc.group_id "
         "WHERE gm.member_key = %(member_key)s "
         "AND gm.deleted = 0 "
-        "AND gc.deleted = 0 "
-        "AND gm.role IN ("
-        "  SELECT name FROM extractJSONArray(gc.roles) "
-        "  WHERE has(extractJSONArrayString(permissions), 'manageRoles')"
-        ")",
+        "AND gc.deleted = 0",
         {"member_key": member_key},
     )
-    return [
-        {
-            "group_id": row[0],
-            "join_policy": row[1],
-            "my_role": row[2],
-            "member_count": row[3],
-        }
-        for row in result.result_rows()
-    ]
+    out = []
+    for row in result.result_rows:
+        group_id, join_policy, roles_json, my_role, member_count = row
+        # Check if the user's role has manageRoles permission
+        roles = _parse_json(roles_json) if roles_json else {}
+        role_def = roles.get(my_role, {})
+        if isinstance(role_def, dict) and "manageRoles" in role_def.get("permissions", []):
+            out.append(
+                {
+                    "group_id": group_id,
+                    "join_policy": join_policy,
+                    "my_role": my_role,
+                    "member_count": member_count,
+                }
+            )
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -819,7 +822,7 @@ def get_provider_service_contracts(provider_key: str) -> list[dict]:
         "SELECT allowed_origin FROM provider_service_contracts WHERE provider_key = %(provider_key)s AND deleted = 0",
         {"provider_key": provider_key},
     )
-    return [{"allowed_origin": row[0]} for row in result.result_rows()]
+    return [{"allowed_origin": row[0]} for row in result.result_rows]
 
 
 def is_provider_origin_allowed(provider_key: str, allowed_origin: str) -> bool:
@@ -829,7 +832,7 @@ def is_provider_origin_allowed(provider_key: str, allowed_origin: str) -> bool:
         "WHERE provider_key = %(provider_key)s AND allowed_origin = %(allowed_origin)s AND deleted = 0",
         {"provider_key": provider_key, "allowed_origin": allowed_origin},
     )
-    return result.result_rows()[0][0] > 0
+    return result.result_rows[0][0] > 0
 
 
 def revoke_provider_service_contract(provider_key: str, allowed_origin: str):
@@ -872,7 +875,7 @@ def resolve_media_urls(doc_body: dict, user_key: str) -> dict:
 
     # Build lookup: object_key -> metadata
     meta_map = {}
-    for row in result.result_rows():
+    for row in result.result_rows:
         meta_map[row[0]] = _parse_json(row[1])
 
     resolved = []
@@ -920,11 +923,11 @@ def resolve_media_urls_in_docs(docs: list[dict]) -> list[dict]:
 def get_node_stats() -> dict:
     """Get node-level stats: user count, doc count, group count, apps, storage."""
     user_result = client.query("SELECT count(DISTINCT author_key) FROM documents WHERE deleted = 0")
-    user_count = user_result.result_rows()[0][0] if user_result.result_rows() else 0
+    user_count = user_result.result_rows[0][0] if user_result.result_rows else 0
     doc_result = client.query("SELECT count() FROM documents WHERE deleted = 0")
-    doc_count = doc_result.result_rows()[0][0] if doc_result.result_rows() else 0
+    doc_count = doc_result.result_rows[0][0] if doc_result.result_rows else 0
     group_result = client.query("SELECT count() FROM group_contracts WHERE deleted = 0")
-    group_count = group_result.result_rows()[0][0] if group_result.result_rows() else 0
+    group_count = group_result.result_rows[0][0] if group_result.result_rows else 0
 
     # Apps — approved only (marketing-ui expects an array of {url, visits, name, ...})
     apps = list_apps(approved_only=True)
@@ -934,8 +937,8 @@ def get_node_stats() -> dict:
     try:
         storage_result = client.query("SELECT sum(bytes_on_disk) FROM system.parts WHERE active = 1")
         storage = (
-            int(storage_result.result_rows()[0][0])
-            if storage_result.result_rows() and storage_result.result_rows()[0][0] is not None
+            int(storage_result.result_rows[0][0])
+            if storage_result.result_rows and storage_result.result_rows[0][0] is not None
             else 0
         )
     except Exception:
@@ -961,7 +964,7 @@ def create_user(username: str, password_hash: str, phone: str = "", email: str =
         "SELECT count() FROM users WHERE username = %(username)s AND deleted = 0",
         {"username": username},
     )
-    if existing.result_rows()[0][0] > 0:
+    if existing.result_rows[0][0] > 0:
         return None
     now = _now()
     client.insert(
@@ -978,9 +981,9 @@ def get_user(username: str) -> dict | None:
         "FROM users WHERE username = %(username)s AND deleted = 0",
         {"username": username},
     )
-    if not result.result_rows():
+    if not result.result_rows:
         return None
-    row = result.result_rows()[0]
+    row = result.result_rows[0]
     return {
         "username": row[0],
         "password_hash": row[1],
@@ -1078,9 +1081,9 @@ def get_phone_record(phone_number: str) -> dict | None:
         "SELECT username, phone FROM users WHERE phone = %(phone)s AND deleted = 0",
         {"phone": phone_number},
     )
-    if not result.result_rows():
+    if not result.result_rows:
         return None
-    row = result.result_rows()[0]
+    row = result.result_rows[0]
     return {"username": row[0], "phone": row[1]}
 
 
@@ -1117,7 +1120,7 @@ def list_media(user_key: str, limit: int = 50, offset: int = 0) -> list[dict]:
             "metadata": _parse_json(row[1]),
             "created_at": str(row[2]),
         }
-        for row in result.result_rows()
+        for row in result.result_rows
     ]
 
 
@@ -1180,7 +1183,7 @@ def list_apps(approved_only: bool = True) -> list[dict]:
             "review_state": row[5],
             "metadata_version": row[6],
         }
-        for row in result.result_rows()
+        for row in result.result_rows
     ]
 
 
@@ -1192,7 +1195,7 @@ def list_apps_admin() -> list[dict]:
         "FROM apps WHERE deleted = 0 ORDER BY created_at DESC",
     )
     apps = []
-    for row in result.result_rows():
+    for row in result.result_rows:
         url = row[0]
         # Fetch ratings for this app
         ratings_result = client.query(
@@ -1203,7 +1206,7 @@ def list_apps_admin() -> list[dict]:
         )
         total_count = 0
         weighted_sum = 0
-        for r in ratings_result.result_rows():
+        for r in ratings_result.result_rows:
             if r[0] is not None:
                 total_count += r[1]
                 weighted_sum += r[0] * r[1]
@@ -1234,9 +1237,9 @@ def get_app(url: str) -> dict | None:
         "FROM apps WHERE url = %(url)s AND deleted = 0",
         {"url": url},
     )
-    if not result.result_rows():
+    if not result.result_rows:
         return None
-    row = result.result_rows()[0]
+    row = result.result_rows[0]
     return {
         "url": row[0],
         "name": row[1],
@@ -1284,7 +1287,7 @@ def get_app_ratings(target_app_id: str) -> list[dict]:
             "provider": row[2],
             "created_at": str(row[3]),
         }
-        for row in result.result_rows()
+        for row in result.result_rows
     ]
 
 
@@ -1360,7 +1363,7 @@ def list_bug_reports(limit: int = 100, offset: int = 0) -> list[dict]:
             "stack_trace": row[9],
             "created_at": str(row[10]),
         }
-        for row in result.result_rows()
+        for row in result.result_rows
     ]
 
 
@@ -1372,9 +1375,9 @@ def get_bug_report(report_id: str) -> dict | None:
         "FROM bug_reports WHERE report_id = %(report_id)s AND deleted = 0",
         {"report_id": report_id},
     )
-    if not result.result_rows():
+    if not result.result_rows:
         return None
-    row = result.result_rows()[0]
+    row = result.result_rows[0]
     return {
         "report_id": row[0],
         "username": row[1],

@@ -123,7 +123,7 @@ async def patch_config(token: Token, update: ConfigUpdate):
 # --- Health ---
 
 
-@router.post("/ready", tags=["system"])
+@router.get("/ready", tags=["system"])
 async def ready():
     """Health check — returns 200 if DB is reachable."""
     try:
