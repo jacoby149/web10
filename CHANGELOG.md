@@ -1,3 +1,6 @@
+3.0.30 || 12.08.2026
+fix(marketing-api): add missing funnel event types to resolve 422 errors — FunnelEvent enum was missing 11 event types the marketing-ui client sends (freedom_view, everything_view, trending_load_more, trending_comment/like/repost_attempt, trending_preset, trending_search, trending_view_toggle, join_view, join_click). FastAPI returned 422 validation errors for unrecognized events.
+
 3.0.29 || 12.08.2026
 fix(api): /v3/groups/manages parses list-format roles + cleanup stale app contracts + gate contract endpoints — `get_groups_manages` expected roles as a dict but all groups store roles as a list. Now parses both formats. Added `/v3/app-contracts/cleanup` to tombstone stale contracts where `allowed_origin` is a service name. Gated `/v3/app-contracts/add` and `/revoke` to authenticator origins only (CORS_SERVICE_MANAGERS) — apps cannot directly create or revoke contracts, they must go through the popup consent flow.
 
