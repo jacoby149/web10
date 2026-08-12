@@ -276,7 +276,6 @@ def get_group(group_id: str) -> dict | None:
 
 def delete_group(group_id: str):
     """Tombstone a group contract and all its members."""
-    now = _now()
     # Tombstone the group contract
     client.command(
         "INSERT INTO group_contracts (group_id, roles, join_policy, created_at, updated_at, deleted) "

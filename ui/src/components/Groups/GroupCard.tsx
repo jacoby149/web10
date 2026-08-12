@@ -70,6 +70,8 @@ function GroupCard({ I, group, isManaged }: { I: Record<string, any>; group: any
     const roleDef = roles.find((r: any) => r.name === myRole);
     return roleDef?.permissions?.includes('deleteGroup') ?? false;
   })();
+
+  const handleLeave = async () => {
     try {
       await I.v3LeaveGroup(group.group_id);
       I.v3GroupsLoad?.();
