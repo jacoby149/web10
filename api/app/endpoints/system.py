@@ -8,7 +8,6 @@ from app.models.config import (
     SetupStatus,
 )
 from app.services import config as config_svc
-from app.services import documentdb as db
 from app.services.auth import check_admin, decode_token, get_password_hash
 from app.v3.services import clickhouse as ch
 
@@ -125,9 +124,9 @@ async def patch_config(token: Token, update: ConfigUpdate):
 
 @router.get("/ready", tags=["system"])
 async def ready():
-    """Health check — returns 200 if DB is reachable."""
+    """Health check — returns 200 if ClickHouse is reachable."""
     try:
-        db.client.admin.command("ping")
+        ch.client.command("SELECT 1")
         return {"status": "ok", "configured": config_svc.node_is_configured()}
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"DB unreachable: {e}")
