@@ -1,3 +1,6 @@
+3.0.22 || 11.08.2026
+fix(ui): hide broken logo in SetupWizard — added onError handler to gracefully suppress broken image icon when logo asset is missing.
+
 3.0.21 || 11.08.2026
 fix(ui): DB config fields updated from MongoDB to ClickHouse — SetupWizard placeholder and default, ConfigPage label, mediaPresign comment.
 

@@ -384,11 +384,12 @@ function CompleteStep({ message, error, onLogin }: { message: string; error: str
   );
 }
 
-function SetupWizard({ I }: { I: Record<string, any> }) {
+const SetupWizard = ({ I }: { I: Record<string, any> }) => {
   const [step, setStep] = React.useState(0);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [done, setDone] = React.useState(false);
+  const [logoOk, setLogoOk] = React.useState(true);
 
   const [formData, setFormData] = React.useState({
     provider: "api.localhost",
@@ -486,11 +487,14 @@ function SetupWizard({ I }: { I: Record<string, any> }) {
     <div className="flex min-h-screen flex-col bg-background text-foreground" data-testid="setup-wizard">
       <div className="mx-auto flex w-full max-w-[600px] flex-1 flex-col justify-center px-5 py-16">
         <div className="mb-2 flex justify-center">
-          <img
-            src={I.logo}
-            alt="web10"
-            className="mb-5 h-10"
-          />
+          {logoOk && (
+            <img
+              src={I.logo}
+              alt="web10"
+              className="mb-5 h-10"
+              onError={() => setLogoOk(false)}
+            />
+          )}
         </div>
         {!done && step > 0 && step < 6 && (
           <StepIndicator current={step} total={6} />
