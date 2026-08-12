@@ -52,9 +52,13 @@ async function ensureAppContract() {
 }
 
 // v3: ensure a DM group exists between two users, create if not
+// Both users are admins (owner role) of the group
 async function ensureDmGroup(myUsername, theirUsername, provider) {
-  const groupName = `dm-${myUsername}-${theirUsername}`
+  // Sort usernames to ensure consistent group ID regardless of who initiates
+  const sorted = [myUsername, theirUsername].sort()
+  const groupName = `dm-${sorted[0]}-${sorted[1]}`
   const groupId = `${provider}/groups/users/${myUsername}/${groupName}`
+
   try {
     // Check if we're already a member
     const groups = await v3Post('groups/list', {})
@@ -64,7 +68,7 @@ async function ensureDmGroup(myUsername, theirUsername, provider) {
     // groups/list might fail — try to create
   }
 
-  // Create the DM group (open policy, both users as members)
+  // Create the DM group (invite_only, both users as owners)
   try {
     await v3Post('groups/create', {
       name: groupName,
@@ -75,7 +79,7 @@ async function ensureDmGroup(myUsername, theirUsername, provider) {
       ],
       members: [
         { member_key: myUsername, role: 'owner' },
-        { member_key: theirUsername, role: 'member' },
+        { member_key: theirUsername, role: 'owner' },
       ],
     })
     return groupId
@@ -158,8 +162,8 @@ async function sendMessage() {
 
     // v3: create the message document, attached to the DM group
     await v3Post('create', {
-    service: SERVICE,
-    body: payload,
+      service: SERVICE,
+      body: payload,
       groups: groupId ? [groupId] : undefined,
     })
 

@@ -16,7 +16,8 @@ const w = window.web10.createV3Client({ apiOrigin: isLocal ? 'http://api.localho
 // v3 API helpers — all v3 endpoints are POST with { token, ...params }
 const API_ORIGIN = isLocal ? 'http://api.localhost' : isDev ? 'https://api.dev.web10.app' : 'https://api.web10.app'
 const SERVICE = "web10-docs-note-demo"
-const PUBLIC_GROUP = "web10.app/groups/web10/discover"
+
+let NOTES_GROUP = null // personal group for notes, set after auth
 
 async function v3Post(action, params = {}) {
   const token = document.cookie.match(/token=([^;]+)/)?.[1]
@@ -53,6 +54,44 @@ async function ensureAppContract() {
   }
 }
 
+// v3: ensure a personal notes group exists, create if not
+async function ensureNotesGroup(username, provider) {
+  const groupName = `notes-${username}`
+  const groupId = `${provider}/groups/users/${username}/${groupName}`
+
+  try {
+    // Check if we're already a member
+    const groups = await v3Post('groups/list', {})
+    const existing = groups.find(g => g.group_id === groupId)
+    if (existing) {
+      NOTES_GROUP = groupId
+      return groupId
+    }
+  } catch {
+    // groups/list might fail — try to create
+  }
+
+  // Create the personal notes group (invite_only, user as owner)
+  try {
+    await v3Post('groups/create', {
+      name: groupName,
+      join_policy: 'invite_only',
+      roles: [
+        { name: 'owner', services: ['*'], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn', 'manageRoles'] },
+        { name: 'member', services: [SERVICE], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
+      ],
+      members: [
+        { member_key: username, role: 'owner' },
+      ],
+    })
+    NOTES_GROUP = groupId
+    return groupId
+  } catch (err) {
+    console.warn('Failed to create notes group:', err)
+    return null
+  }
+}
+
 authButton.onclick = () => window.web10.openAuthPortal(AUTH_ORIGIN)
 window.web10.authListen(() => initApp())
 
@@ -66,8 +105,11 @@ function initApp() {
   message.innerHTML = `Signed in as <strong>${t["provider"]}/${t["username"]}</strong>`
   editor.style.display = "block"
 
-  // v3: ensure the app contract exists, then load notes
-  ensureAppContract().then(() => readNotes()).catch(() => readNotes())
+  // v3: ensure the app contract and personal notes group exist, then load notes
+  ensureAppContract()
+    .then(() => ensureNotesGroup(t.username, t.provider))
+    .then(() => readNotes())
+    .catch(() => readNotes())
 }
 
 // Self-register in the app store (no auth required)
@@ -88,11 +130,14 @@ if (w.isSignedIn()) initApp()
 /* CRUD with groups (v3) */
 
 function readNotes() {
-  // v3: read from the collection, scoped to groups the user belongs to
-  // "me" resolves to all groups the user is a member of
+  if (!NOTES_GROUP) {
+    message.innerHTML = 'Setting up your notes group...'
+    return
+  }
+  // v3: read from the personal notes group
   v3Post('read', {
     service: SERVICE,
-    groups: ['me'],
+    groups: [NOTES_GROUP],
   })
     .then(displayNotes)
     .catch((err) => {
@@ -103,12 +148,12 @@ function readNotes() {
 
 function createNote() {
   const text = curr.value.trim()
-  if (!text) return
+  if (!text || !NOTES_GROUP) return
   v3Post('create', {
     service: SERVICE,
     body: { note: text, date: new Date().toISOString() },
-    // v3: attach to the public discover group so notes appear in discover
-    groups: [PUBLIC_GROUP],
+    // v3: attach to the personal notes group
+    groups: [NOTES_GROUP],
   })
     .then(() => {
       readNotes()

@@ -5,6 +5,40 @@ import { createV3Client } from 'web10-npm'
 const w = createV3Client({ apiOrigin: 'https://api.web10.app' })
 const COLLECTION = 'notes'
 
+let NOTES_GROUP = null // personal group for notes, set after auth
+
+async function ensureNotesGroup(username, provider) {
+  const groupName = `notes-${username}`
+  const groupId = `${provider}/groups/users/${username}/${groupName}`
+
+  try {
+    // Check if we're already a member
+    const groups = await w.getMyGroups()
+    const existing = groups.find(g => g.group_id === groupId)
+    if (existing) {
+      NOTES_GROUP = groupId
+      return groupId
+    }
+  } catch {
+    // groups/list might fail — try to create
+  }
+
+  // Create the personal notes group (invite_only, user as owner)
+  try {
+    await w.createGroup(groupName, 'invite_only', [
+      { name: 'owner', services: ['*'], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn', 'manageRoles'] },
+      { name: 'member', services: [COLLECTION], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
+    ], [
+      { member_key: username, role: 'owner' },
+    ])
+    NOTES_GROUP = groupId
+    return groupId
+  } catch (err) {
+    console.warn('Failed to create notes group:', err)
+    return null
+  }
+}
+
 function initApp() {
   authButton.innerHTML = 'log out'
   authButton.onclick = () => {
@@ -13,7 +47,9 @@ function initApp() {
   }
   const t = w.readToken()
   message.innerHTML = `hello ${t.provider}/${t.username},<br>`
-  readNotes()
+
+  // v3: ensure the personal notes group exists, then load notes
+  ensureNotesGroup(t.username, t.provider).then(() => readNotes())
 }
 
 if (w.isSignedIn()) initApp()
@@ -29,8 +65,12 @@ else {
 }
 
 async function readNotes() {
+  if (!NOTES_GROUP) {
+    message.innerHTML = 'setting up your notes group...'
+    return
+  }
   try {
-    const docs = await w.read(COLLECTION, { groups: ['me'] })
+    const docs = await w.read(COLLECTION, { groups: [NOTES_GROUP] })
     displayNotes(docs)
   } catch (e) {
     message.innerHTML = `failed to read notes: ${e.message}`
@@ -38,8 +78,9 @@ async function readNotes() {
 }
 
 async function createNote(text) {
+  if (!NOTES_GROUP) return
   try {
-    await w.create(COLLECTION, { note: text, date: new Date().toISOString() })
+    await w.create(COLLECTION, { note: text, date: new Date().toISOString() }, { groups: [NOTES_GROUP] })
     readNotes()
     curr.value = ''
   } catch (e) {
