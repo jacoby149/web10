@@ -65,6 +65,15 @@ function summarizeACR(acr: any): string {
 function summarizeGCR(gcr: any): string {
   const action = gcr.action || 'group operation';
   const params = gcr.params || {};
+  if (action === 'create_group') {
+    const name = params.name || '';
+    return `create group "${name}"`;
+  }
+  if (action === 'update_group') {
+    const groupId = params.group_id || '';
+    const changes = Object.keys(params).filter(k => k !== 'group_id').join(', ');
+    return `update group "${groupId}" — ${changes || 'settings'}`;
+  }
   const name = params.name || '';
   return `${action}${name ? ` "${name}"` : ''}`;
 }

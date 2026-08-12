@@ -1,4 +1,5 @@
 3.0.32 || 12.08.2026
+feat(ui+demos): groups demo uses GCR consent flow — apps no longer create/edit groups directly via API. Groups demo opens auth UI popup, sends GCR via postMessage, user approves, auth UI creates the group (trusted party). Auth UI now tracks message source window and sends `contract_response` back to requesting app after approve/deny. `applyGCR` handles both `create_group` and `update_group` actions. ConsentView summarizes GCRs with action-specific descriptions. 96 UI tests green, tsc clean.
 fix(api): /v3/stats includes S3 media blob bytes — `get_node_stats` in clickhouse.py only summed ClickHouse `bytes_on_disk`, missing all user media (photos, videos, imports) stored in S3/MinIO. Now adds `total_s3_size()` (cached 60s TTL, sums `size_bytes` across media metadata records) to the storage total. Gracefully degrades: if S3 scan fails, ClickHouse bytes still report. Closes the A19-stats-s3-bytes fix that was only wired into the old v2 path.
 
 3.0.31 || 12.08.2026

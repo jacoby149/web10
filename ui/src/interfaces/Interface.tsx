@@ -109,7 +109,7 @@ function useInterface() {
     // contractListen delivers { contracts } where each is either:
     //   ACR: { allowed_origin, permissions }
     //   GCR: { app_origin, action, params }
-    function normalizeContracts(cData: any): any[] {
+    function normalizeContracts(cData: any, windowSource?: MessageEventSource | null) {
         const contracts: any[] = [];
         // Handle new contractListen format: { contracts: [...] }
         if (Array.isArray(cData?.contracts)) {
@@ -121,6 +121,7 @@ function useInterface() {
                         allowed_origin: cr.allowed_origin,
                         permissions: cr.permissions,
                         _source: cr,
+                        _windowSource: windowSource,
                     });
                 } else if (cr.app_origin && cr.action) {
                     // GCR — group contract
@@ -130,6 +131,7 @@ function useInterface() {
                         action: cr.action,
                         params: cr.params,
                         _source: cr,
+                        _windowSource: windowSource,
                     });
                 }
             }
@@ -168,7 +170,7 @@ function useInterface() {
         window.addEventListener('message', (e) => {
             if (e.origin !== authOrigin) return;
             if (e.data?.type === 'acr' || e.data?.type === 'contract') {
-                I.setPendingContracts(normalizeContracts(e.data));
+                I.setPendingContracts(normalizeContracts(e.data, e.source));
             }
         });
         // Request contracts from opener
@@ -552,14 +554,28 @@ function useInterface() {
             });
     }
 
-    // Approve a GCR — create the group from the authenticator (the trusted party).
+    // Approve a GCR — execute the group operation from the authenticator (the trusted party).
     function applyGCR(gcr: any) {
         const params = gcr.params || {};
+        const action = gcr.action || 'create_group';
         const decoded = I.wapi?.readToken?.();
         const username = decoded?.username || decoded?.sub || '';
         const provider = decoded?.provider || '';
 
-        // Build group ID from params
+        if (action === 'update_group') {
+            // Update existing group settings
+            const groupId = params.group_id;
+            if (!groupId) throw new Error('GCR update_group: missing group_id');
+            return I.v3UpdateGroup(groupId, {
+                join_policy: params.join_policy,
+                roles: params.roles,
+            }).then(() => {
+                I.v3GroupsLoad?.();
+                I.v3GroupsManagesLoad?.();
+            });
+        }
+
+        // Default: create_group
         const name = params.name || `group-${Date.now()}`;
         const groupId = `${provider}/groups/users/${username}/${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
 
@@ -581,17 +597,35 @@ function useInterface() {
         });
     }
 
+    // Send contract response back to the requesting app window
+    function sendContractResponse(windowSource: MessageEventSource | null, status: string, errors?: string[]) {
+        if (!windowSource) return;
+        try {
+            const target = '*';
+            if (windowSource instanceof Window) {
+                windowSource.postMessage({ type: 'contract_response', status, errors }, target);
+            }
+        } catch {
+            // Window may have been closed
+        }
+    }
+
     // Approve a single contract (ACR or GCR).
     I.approveContract = function (contract: any) {
         if (contract.kind === 'gcr') {
+            const windowSource = contract._windowSource;
             I.setStatus("Creating group...");
             applyGCR(contract)
                 .then(() => {
                     I.setStatus("Group created!");
                     I.removePendingContract(contract);
+                    sendContractResponse(windowSource, 'approved');
                     setTimeout(() => I.setStatus(null), 2000);
                 })
-                .catch((e) => I.setStatus("Failed to create group: " + (e.message || String(e))));
+                .catch((e) => {
+                    I.setStatus("Failed to create group: " + (e.message || String(e)));
+                    sendContractResponse(windowSource, 'error', [e.message || String(e)]);
+                });
             return;
         }
 
@@ -630,7 +664,9 @@ function useInterface() {
 
     // Deny a contract — just remove it from the pending list.
     I.denyContract = function (contract: any) {
+        const windowSource = contract._windowSource;
         I.removePendingContract(contract);
+        sendContractResponse(windowSource, 'denied');
         I.setStatus("Request denied.");
     }
 
@@ -639,7 +675,12 @@ function useInterface() {
         if (!I.pendingContracts || I.pendingContracts.length === 0) { I.goToApp(); return; }
         I.setStatus("Approving all…");
         const ops: Promise<any>[] = I.pendingContracts.map((c: any) => {
-            if (c.kind === 'gcr') return applyGCR(c);
+            const winSource = c._windowSource;
+            if (c.kind === 'gcr') {
+                return applyGCR(c)
+                    .then(() => sendContractResponse(winSource, 'approved'))
+                    .catch((e: any) => sendContractResponse(winSource, 'error', [e.message || String(e)]));
+            }
             return applyACR(c);
         });
         Promise.allSettled(ops)
