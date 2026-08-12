@@ -1,5 +1,5 @@
 import React from 'react';
-import { Globe, ShieldCheck, Check, X, ChevronDown, ChevronRight, ArrowRight, Plus, Minus } from 'lucide-react';
+import { Globe, ShieldCheck, Check, X, ChevronDown, ChevronRight, ArrowRight, Plus, Minus, Users } from 'lucide-react';
 import Branding from '../shared/Branding';
 import LoginForm from '../CredentialPage/LoginForm';
 import SignupForm from '../CredentialPage/SignupForm';
@@ -46,7 +46,7 @@ function Chip({ tone = 'default', children }: { tone?: 'default' | 'add' | 'remo
   );
 }
 
-// Derive a readable origin label from the ACR's allowed_origin.
+// Derive a readable origin label
 function originLabel(origin: string): string {
   try { return new URL(`https://${origin}`).hostname; } catch { return origin; }
 }
@@ -61,27 +61,39 @@ function summarizeACR(acr: any): string {
   return `${verbs} on ${services.join(', ')}`;
 }
 
+// Build a one-line summary of what a GCR requests.
+function summarizeGCR(gcr: any): string {
+  const action = gcr.action || 'group operation';
+  const params = gcr.params || {};
+  const name = params.name || '';
+  return `${action}${name ? ` "${name}"` : ''}`;
+}
+
 function RequestRow({
-  acr,
+  contract,
   current,
   onApprove,
   onDeny,
   idx,
 }: {
-  acr: any;
+  contract: any;
   current: any | undefined;
   onApprove: () => void;
   onDeny: () => void;
   idx: number;
 }) {
   const [open, setOpen] = React.useState(false);
-  const origin = acr.allowed_origin;
-  const perms = acr.permissions || {};
+  const isACR = contract.kind === 'acr';
+  const isGCR = contract.kind === 'gcr';
+  const origin = isACR ? contract.allowed_origin : contract.app_origin;
+  const perms = isACR ? (contract.permissions || {}) : {};
   const services = Object.keys(perms);
+  const action = isGCR ? (contract.action || '') : '';
+  const params = isGCR ? (contract.params || {}) : {};
 
-  // Diff permissions against existing contract for each service
+  // Diff permissions against existing contract for each service (ACR only)
   const permDiffs: Record<string, { added: string[]; removed: string[]; same: string[] }> = {};
-  if (current) {
+  if (isACR && current) {
     const currentPerms = current.permissions || {};
     for (const svc of services) {
       const currentOps = currentPerms[svc] || [];
@@ -107,10 +119,12 @@ function RequestRow({
             <span className="flex items-center gap-2">
               <span className="truncate font-medium text-foreground">{originLabel(origin)}</span>
               <span className="shrink-0 rounded-full bg-brand-muted px-2 py-0.5 text-[11px] font-medium text-brand-300">
-                access request
+                {isACR ? 'access request' : 'group request'}
               </span>
             </span>
-            <span className="mt-0.5 block truncate text-xs text-muted-foreground">{summarizeACR(acr)}</span>
+            <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+              {isACR ? summarizeACR(contract) : summarizeGCR(contract)}
+            </span>
           </span>
         </button>
         <div className="flex shrink-0 items-center gap-1.5">
@@ -137,7 +151,7 @@ function RequestRow({
             <Chip><Globe className="h-3 w-3 text-muted-foreground" strokeWidth={1.5} />{origin}</Chip>
           </DetailRow>
 
-          {services.map((svc) => (
+          {isACR && services.map((svc) => (
             <DetailRow key={svc} label={`Permissions (${svc})`}>
               {current && permDiffs[svc] ? (
                 <>
@@ -161,6 +175,24 @@ function RequestRow({
               )}
             </DetailRow>
           ))}
+
+          {isGCR && (
+            <>
+              <DetailRow label="Action">
+                <Chip><Users className="h-3 w-3 text-muted-foreground" strokeWidth={1.5} />{action}</Chip>
+              </DetailRow>
+              {params.name && (
+                <DetailRow label="Group name">
+                  <Chip>{params.name}</Chip>
+                </DetailRow>
+              )}
+              {params.join_policy && (
+                <DetailRow label="Join policy">
+                  <Chip>{params.join_policy}</Chip>
+                </DetailRow>
+              )}
+            </>
+          )}
         </div>
       )}
     </div>
@@ -179,11 +211,15 @@ function ConsentView({ I }: { I: Record<string, any> }) {
   const authed = I.isAuthenticated?.();
   const v3Contracts: any[] = I.v3Contracts || [];
   const grantedOrigins = new Set(v3Contracts.map((c: any) => c.allowed_origin));
-  const pendingACRs: any[] = I.pendingACRs || [];
+  // Unified pending list — ACRs and GCRs together
+  const pendingContracts: any[] = I.pendingContracts || [];
 
-  // Filter out ACRs whose origin already has a contract.
-  const alreadyGrantedACRs = pendingACRs.filter((acr: any) => grantedOrigins.has(acr.allowed_origin));
-  const displayACRs = pendingACRs.filter((acr: any) => !grantedOrigins.has(acr.allowed_origin));
+  // Filter out ACRs whose origin already has a contract (GCRs always show)
+  const alreadyGrantedACRs = pendingContracts.filter((c: any) => c.kind === 'acr' && grantedOrigins.has(c.allowed_origin));
+  const displayContracts = pendingContracts.filter((c: any) => {
+    if (c.kind === 'acr') return !grantedOrigins.has(c.allowed_origin);
+    return true; // GCRs always display
+  });
   const username = I.wapi?.readToken?.()?.username as string | undefined;
 
   return (
@@ -228,7 +264,7 @@ function ConsentView({ I }: { I: Record<string, any> }) {
                 <LoginForm I={I} embedded />
               )}
             </div>
-          ) : displayACRs.length === 0 ? (
+          ) : displayContracts.length === 0 ? (
             <div className="flex flex-col items-center p-8 text-center" data-testid="consent-allset">
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-brand-muted">
                 <ShieldCheck className="h-6 w-6 text-brand-300" strokeWidth={1.5} />
@@ -256,20 +292,20 @@ function ConsentView({ I }: { I: Record<string, any> }) {
                   Connect <span className="text-brand-300">{host}</span>
                 </h1>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Requesting {displayACRs.length} access {displayACRs.length === 1 ? 'request' : 'requests'}. Tap any to see details.
+                  Requesting {displayContracts.length} access {displayContracts.length === 1 ? 'request' : 'requests'}. Tap any to see details.
                 </p>
               </div>
 
               {/* request list — scrolls internally so the actions stay visible */}
               <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto p-4">
-                {displayACRs.map((acr: any, idx: number) => (
+                {displayContracts.map((contract: any, idx: number) => (
                   <RequestRow
-                    key={acr.allowed_origin + '-' + idx}
-                    acr={acr}
+                    key={contract.allowed_origin + contract.app_origin + '-' + idx}
+                    contract={contract}
                     idx={idx}
-                    current={v3Contracts.find((c: any) => c.allowed_origin === acr.allowed_origin)}
-                    onApprove={() => I.approveACR(acr)}
-                    onDeny={() => I.denyACR(acr)}
+                    current={contract.kind === 'acr' ? v3Contracts.find((c: any) => c.allowed_origin === contract.allowed_origin) : undefined}
+                    onApprove={() => I.approveContract(contract)}
+                    onDeny={() => I.denyContract(contract)}
                   />
                 ))}
               </div>

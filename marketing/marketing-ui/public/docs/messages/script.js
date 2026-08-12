@@ -31,26 +31,6 @@ async function v3Post(action, params = {}) {
   return res.json()
 }
 
-// v3: add an app contract so this origin can read/write the service
-async function ensureAppContract() {
-  const origin = window.location.origin
-  try {
-    const token = document.cookie.match(/token=([^;]+)/)?.[1]
-    if (!token) return
-    await fetch(`${API_ORIGIN}/v3/app-contracts/add`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        token,
-        allowed_origin: origin,
-        permissions: { [SERVICE]: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
-      }),
-    })
-  } catch {
-    // Contract might already exist — not an error
-  }
-}
-
 // v3: ensure a DM group exists between two users, create if not
 // Both users are admins (owner role) of the group
 async function ensureDmGroup(myUsername, theirUsername, provider) {
@@ -106,8 +86,8 @@ function initApp() {
   toUsername.value = t.username
   toProvider.value = t.provider
 
-  // v3: ensure the app contract exists, then load messages
-  ensureAppContract().then(() => readMessages()).catch(() => readMessages())
+  // v3: load messages
+  readMessages()
 }
 
 // Self-register in the app store (no auth required)

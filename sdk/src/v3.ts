@@ -103,6 +103,25 @@ export interface V3ServiceContract {
   permissions: Record<string, string[]>
 }
 
+// Contract request types — sent together in one postMessage to the authenticator
+export interface V3ACR {
+  /** Website origin requesting access */
+  allowed_origin: string
+  /** Per-service permissions */
+  permissions: Record<string, string[]>
+}
+
+export interface V3GCR {
+  /** Website origin requesting the group operation */
+  app_origin: string
+  /** Group operation: create_group, join_group, invite_member, etc. */
+  action: string
+  /** Parameters for the operation */
+  params: Record<string, unknown>
+}
+
+export type V3ContractRequest = V3ACR | V3GCR
+
 export interface V3User {
   username: string
   phone?: string
@@ -504,6 +523,33 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
     async getAppRatings(appId: string): Promise<{ author: string; rating: number; provider: string; created_at: string }[]> {
       return v3Post<{ author: string; rating: number; provider: string; created_at: string }[]>('apps/ratings', { body: { target_app_id: appId } })
     },
+
+    // ── Contract requests (ACR + GCR together) ─────────────────────────────
+
+    contractOnReady(
+      contracts: V3ContractRequest[],
+      callback?: (response: { status: string; errors?: string[] }) => void,
+    ): void {
+      if (typeof window === 'undefined' || !window.opener) {
+        if (callback) callback({ status: 'error', errors: ['No opener window — not in a popup'] })
+        return
+      }
+      // Listen for the response from the authenticator
+      if (callback) {
+        const handler = (e: MessageEvent) => {
+          if (e.data?.type === 'contract_response') {
+            window.removeEventListener('message', handler)
+            callback(e.data)
+          }
+        }
+        window.addEventListener('message', handler)
+      }
+      // Send contracts to the opener (authenticator)
+      window.opener.postMessage(
+        { type: 'contract', contracts },
+        '*',
+      )
+    },
   }
 
   return client
@@ -545,6 +591,9 @@ export interface V3Client {
   addAppContract(allowedOrigin: string, permissions: Record<string, string[]>): Promise<V3ServiceContract>
   listAppContracts(): Promise<V3ServiceContract[]>
   revokeAppContract(allowedOrigin?: string): Promise<{ status: string }>
+
+  // Contract requests — sends ACR + GCR together to the authenticator via postMessage
+  contractOnReady(contracts: V3ContractRequest[], callback?: (response: { status: string; errors?: string[] }) => void): void
 
   // Groups
   createGroup(name: string, joinPolicy: string, roles: Record<string, unknown>[], members: { member_key: string; role?: string }[]): Promise<{ group_id: string }>
@@ -593,4 +642,7 @@ export interface V3Client {
   getApps(): Promise<{ url: string; name: string; description: string; icon_url: string; screenshots: unknown[]; review_state: string; metadata_version: number }[]>
   rateApp(appId: string, rating: number): Promise<{ author: string; target_app_id: string; rating: number }>
   getAppRatings(appId: string): Promise<{ author: string; rating: number; provider: string; created_at: string }[]>
+
+  // Contract requests — sends ACR + GCR together to the authenticator via postMessage
+  contractOnReady(contracts: V3ContractRequest[], callback?: (response: { status: string; errors?: string[] }) => void): void
 }
