@@ -1,3 +1,6 @@
+3.0.28 || 12.08.2026
+fix(api): deduplicate group_contracts in get_user_groups and get_groups_manages — ReplacingMergeTree background merges may not have run, causing duplicate groups and duplicate memberships in the authenticator UI. Both queries now use window functions to deduplicate group_members AND group_contracts by latest updated_at, with a Python set safety net. Also fixed member_count subqueries to deduplicate.
+
 3.0.27 || 12.08.2026
 fix(api): verify JWT signatures on all v3 endpoints — `decode_token` was called with `private_key=False` (default), skipping signature verification. Any client could forge tokens with arbitrary usernames. Fixed in auth_helper.py (shared helper), account.py, groups.py, and appstore.py. Also changed /v3/profile to return 401 NO_USER instead of 404 ENTRY_NOT_FOUND when an authenticated user has no DB record (404 leaks user existence).
 
