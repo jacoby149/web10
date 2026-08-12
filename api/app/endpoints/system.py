@@ -126,8 +126,13 @@ async def patch_config(token: Token, update: ConfigUpdate):
 @router.get("/ready", tags=["system"])
 async def ready():
     """Health check — returns 200 if DB is reachable."""
+    import asyncio
+
     try:
-        db.client.admin.command("ping")
+        await asyncio.wait_for(
+            asyncio.to_thread(db.client.admin.command, "ping"),
+            timeout=3.0,
+        )
         return {"status": "ok", "configured": config_svc.node_is_configured()}
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"DB unreachable: {e}")
