@@ -22,6 +22,9 @@ export const MOCK_WAPI_JS = `
   var mockStore = {
     notes: [],
     messages: [],
+    tasks: [],
+    groups: [],
+    groupMembers: [],
     fetchCalls: 0,
   };
 
@@ -75,6 +78,7 @@ export const MOCK_WAPI_JS = `
       var service = body.service || body.collection || '';
       if (service === 'web10-docs-note-demo') return Promise.resolve(mockStore.notes.slice());
       if (service === 'web10-docs-message-demo') return Promise.resolve(mockStore.messages.slice());
+      if (service === 'web10-docs-task-demo') return Promise.resolve(mockStore.tasks.slice());
       return Promise.resolve([]);
     }
     if (path === 'create') {
@@ -83,12 +87,13 @@ export const MOCK_WAPI_JS = `
       var created = { doc_id: docId, body: body.body || {}, service: service };
       if (service === 'web10-docs-note-demo') mockStore.notes.push(created);
       else if (service === 'web10-docs-message-demo') mockStore.messages.push(created);
+      else if (service === 'web10-docs-task-demo') mockStore.tasks.push(created);
       return Promise.resolve(created);
     }
     if (path === 'update') {
       var docId = body.doc_id;
       var newBody = body.body;
-      [mockStore.notes, mockStore.messages].forEach(function(arr) {
+      [mockStore.notes, mockStore.messages, mockStore.tasks].forEach(function(arr) {
         var doc = arr.find(function(d) { return d.doc_id === docId; });
         if (doc && newBody) {
           doc.body = Object.assign({}, doc.body, newBody);
@@ -100,12 +105,43 @@ export const MOCK_WAPI_JS = `
       var docId = body.doc_id;
       mockStore.notes = mockStore.notes.filter(function(d) { return d.doc_id !== docId; });
       mockStore.messages = mockStore.messages.filter(function(d) { return d.doc_id !== docId; });
+      mockStore.tasks = mockStore.tasks.filter(function(d) { return d.doc_id !== docId; });
       return Promise.resolve({ ok: true });
     }
     if (path === 'app-contracts/add') return Promise.resolve({ ok: true });
     if (path === 'apps/register') return Promise.resolve({ ok: true });
     if (path === 'groups/create') {
-      return Promise.resolve({ group_id: 'test/groups/users/testuser/' + (body.name || 'group') });
+      var newGroup = { group_id: 'test/groups/users/testuser/' + (body.name || 'group') };
+      mockStore.groups.push(newGroup);
+      if (body.members) {
+        body.members.forEach(function(m) {
+          mockStore.groupMembers.push({
+            group_id: newGroup.group_id,
+            member_key: m.member_key,
+            role: m.role || 'member',
+          });
+        });
+      }
+      return Promise.resolve(newGroup);
+    }
+    if (path === 'groups/members/list') {
+      var groupId = body.group_id;
+      var members = mockStore.groupMembers.filter(function(m) { return m.group_id === groupId; });
+      return Promise.resolve(members);
+    }
+    if (path === 'groups/invite') {
+      var invited = {
+        group_id: body.group_id,
+        invited_key: body.member_key,
+        role: body.role || 'member',
+        status: 'invited',
+      };
+      mockStore.groupMembers.push({
+        group_id: body.group_id,
+        member_key: body.member_key,
+        role: body.role || 'member',
+      });
+      return Promise.resolve(invited);
     }
     return Promise.resolve({ ok: true });
   }
