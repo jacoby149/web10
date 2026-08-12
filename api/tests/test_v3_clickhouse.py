@@ -563,18 +563,18 @@ class TestReadDocumentById:
 class TestGetGroupsManages:
     def test_has_manage(self):
         with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows([
-                ("g1", "open", '{"admin": {"permissions": ["manageRoles"]}}', "admin", 5)
-            ])
+            mock_client.query.return_value = _mock_result_rows(
+                [("g1", "open", '{"admin": {"permissions": ["manageRoles"]}}', "admin", 5)]
+            )
             groups = ch.get_groups_manages("alice")
             assert len(groups) == 1
             assert groups[0]["group_id"] == "g1"
 
     def test_no_manage(self):
         with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows([
-                ("g1", "open", '{"admin": {"permissions": ["readAll"]}}', "admin", 5)
-            ])
+            mock_client.query.return_value = _mock_result_rows(
+                [("g1", "open", '{"admin": {"permissions": ["readAll"]}}', "admin", 5)]
+            )
             groups = ch.get_groups_manages("alice")
             assert len(groups) == 0
 
