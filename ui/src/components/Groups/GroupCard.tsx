@@ -110,11 +110,20 @@ function GroupCard({ I, group, isManaged }: { I: Record<string, any>; group: any
                 {group.roles && group.roles.length > 0 && (
                   <div>
                     <span className="text-sm font-medium text-muted-foreground">Roles:</span>
-                    <div className="mt-1 flex flex-wrap gap-1.5">
+                    <div className="mt-1.5 space-y-1.5">
                       {group.roles.map((role: any, i: number) => (
-                        <Badge key={i} variant="outline">
-                          {role.name || role}
-                        </Badge>
+                        <div key={i} className="flex items-center gap-2">
+                          <Badge variant="brand" className="shrink-0">
+                            {role.name || role}
+                          </Badge>
+                          <div className="flex flex-wrap gap-1">
+                            {(role.permissions || []).map((perm: string, j: number) => (
+                              <span key={j} className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground bg-elevated">
+                                {perm}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
                       ))}
                     </div>
                   </div>
