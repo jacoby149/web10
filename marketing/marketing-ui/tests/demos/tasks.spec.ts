@@ -16,11 +16,6 @@ test.describe('Tasks demo', () => {
     await page.goto('/docs/tasks/');
     await demoPage.simulateAuth();
 
-    // Debug: check if initApp was called
-    const initAppCalled = await page.evaluate(() => document.getElementById('authButton')?.textContent === 'Log out');
-    console.log('initApp called:', initAppCalled);
-    console.log('Console logs:', consoleLogs);
-
     await expect(page.locator('#authButton')).toHaveText('Log out');
     await expect(page.locator('#message')).toContainText('test/testuser');
     await expect(page.locator('#app')).toBeVisible();
