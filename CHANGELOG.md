@@ -1,3 +1,6 @@
+3.0.32 || 12.08.2026
+fix(api): /v3/stats includes S3 media blob bytes — `get_node_stats` in clickhouse.py only summed ClickHouse `bytes_on_disk`, missing all user media (photos, videos, imports) stored in S3/MinIO. Now adds `total_s3_size()` (cached 60s TTL, sums `size_bytes` across media metadata records) to the storage total. Gracefully degrades: if S3 scan fails, ClickHouse bytes still report. Closes the A19-stats-s3-bytes fix that was only wired into the old v2 path.
+
 3.0.31 || 12.08.2026
 fix(api): remove token requirement from /v3/stats — node_stats required TokenOnly but never used the token, just returned public ClickHouse counts. Marketing-ui sends empty body (pre-signup, no auth) causing 422.
 
