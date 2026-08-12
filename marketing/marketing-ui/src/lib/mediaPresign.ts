@@ -88,7 +88,7 @@ export async function fetchMediaList(author: string): Promise<MediaRecord[]> {
 }
 
 /**
- * Resolve a media ref (MongoDB _id) to its media record.
+ * Resolve a media ref to its media record.
  * Fetches the author's media list if not cached, then finds the matching record.
  */
 export async function resolveMediaRef(
