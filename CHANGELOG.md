@@ -1,3 +1,6 @@
+3.0.25 || 12.08.2026
+fix(clickhouse): resilient init script — retries until server ready before applying schema. The .sql file ran before ClickHouse accepted connections, silently creating 0 tables. Replaced with a .sh wrapper that polls clickhouse-client up to 60s, then pipes the SQL. Original .sql renamed to .sql.template so entrypoint ignores it. Verified all 16 tables created on web10-dev.
+
 3.0.24 || 11.08.2026
 fix(api): ClickHouse HTTP port — `clickhouse_connect` uses HTTP (port 8123), not native TCP (port 9000). The default `CLICKHOUSE_PORT` was 9000, causing every v3 endpoint to 500 with "Port 9000 is for clickhouse-client program". Default changed to 8123 in settings.py, docker-compose.yml, and ubuntu-deployment ecosystem compose.
 
