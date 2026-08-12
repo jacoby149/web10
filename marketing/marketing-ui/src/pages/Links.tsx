@@ -33,7 +33,7 @@ function getLinks(): LinkItem[] {
     {
       name: 'App Store',
       description: 'Browse and discover web10 apps',
-      href: '/store',
+      href: '/app-store',
       icon: Store,
     },
     {
