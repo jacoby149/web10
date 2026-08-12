@@ -45,6 +45,7 @@ services:
       CLICKHOUSE_PASSWORD: web10
     volumes:
       - clickhouse-data:/var/lib/clickhouse
+      - ../clickhouse-init:/docker-entrypoint-initdb.d:ro
     restart: unless-stopped
     networks:
       internal:
