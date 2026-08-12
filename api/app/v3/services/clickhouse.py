@@ -953,6 +953,12 @@ def get_node_stats() -> dict:
     }
 
 
+def node_has_users() -> bool:
+    """True if the ClickHouse users table has any non-deleted records."""
+    result = client.query("SELECT count() FROM users WHERE deleted = 0")
+    return bool(result.result_rows[0][0] > 0)
+
+
 # ---------------------------------------------------------------------------
 # Users (account management)
 # ---------------------------------------------------------------------------

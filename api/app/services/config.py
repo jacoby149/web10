@@ -16,10 +16,10 @@ def _get_key_col():
 
 
 def node_is_configured() -> bool:
-    """True if the node has been set up (admin account exists)."""
-    from app.services.documentdb import db
+    """True if the node has been set up (has users in ClickHouse)."""
+    from app.v3.services import clickhouse as ch
 
-    return len([c for c in db.list_collection_names() if c not in ("web10", "admin")]) > 0
+    return ch.node_has_users()
 
 
 def get_config() -> dict:
