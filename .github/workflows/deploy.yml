@@ -40,7 +40,12 @@ jobs:
             # fetch the branch explicitly, then force the local branch to it)
             cd /opt/web10
             git fetch origin dev
+            # Save untracked env files that docker compose needs (git clean removes them)
+            mkdir -p /tmp/web10-env-backup
+            cp -a ubuntu-deployment/env.* /tmp/web10-env-backup/ 2>/dev/null || true
             git clean -fd
+            cp -a /tmp/web10-env-backup/env.* ubuntu-deployment/ 2>/dev/null || true
+            rm -rf /tmp/web10-env-backup
             git checkout -B dev FETCH_HEAD
 
             # Restore .env symlink if broken (GitOps re-clone can wipe it)
@@ -121,7 +126,12 @@ jobs:
             # fetch the branch explicitly, then force the local branch to it)
             cd /opt/web10
             git fetch origin main
+            # Save untracked env files that docker compose needs (git clean removes them)
+            mkdir -p /tmp/web10-env-backup
+            cp -a ubuntu-deployment/env.* /tmp/web10-env-backup/ 2>/dev/null || true
             git clean -fd
+            cp -a /tmp/web10-env-backup/env.* ubuntu-deployment/ 2>/dev/null || true
+            rm -rf /tmp/web10-env-backup
             git checkout -B main FETCH_HEAD
 
             # Restore .env symlink if broken
