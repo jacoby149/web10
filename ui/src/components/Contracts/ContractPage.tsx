@@ -1,4 +1,4 @@
-import { FileText, Globe, Shield, ShieldX } from 'lucide-react';
+import { FileText, Globe, Shield, ShieldX, Trash2 } from 'lucide-react';
 import AppShell from '../shared/AppShell';
 import RecoveryNudgeBanner from '../shared/RecoveryNudgeBanner';
 import { Button } from '@/components/ui/button';
@@ -173,6 +173,7 @@ function EmptyContracts() {
 
 function AppContracts({ I }: { I: Record<string, any> }) {
   const contracts = I.v3Contracts || [];
+  const [cleaning, setCleaning] = React.useState(false);
   const query = (I.search ?? '').trim().toLowerCase();
   const filtered = query
     ? contracts.filter((c: any) =>
@@ -180,6 +181,22 @@ function AppContracts({ I }: { I: Record<string, any> }) {
         Object.keys(c?.permissions ?? {}).some((s) => s.toLowerCase().includes(query)),
       )
     : contracts;
+
+  // Detect stale contracts (allowed_origin is not a URL)
+  const staleCount = contracts.filter((c: any) => {
+    const o = c.allowed_origin || '';
+    return !o.startsWith('http://') && !o.startsWith('https://');
+  }).length;
+
+  const handleCleanup = () => {
+    if (!confirm(`Remove ${staleCount} stale contract(s) with invalid origins?`)) return;
+    setCleaning(true);
+    I.cleanupV3Contracts?.().then(() => {
+      I.setStatus?.(`Cleaned ${staleCount} stale contract(s)`);
+    }).catch(() => {
+      I.setStatus?.('Cleanup failed');
+    }).finally(() => setCleaning(false));
+  };
 
   return (
     <>
@@ -196,9 +213,30 @@ function AppContracts({ I }: { I: Record<string, any> }) {
           No app contracts match "{I.search}".
         </p>
       ) : (
-        filtered.map((c: any, i: number) => (
-          <AppContractCard key={i} I={I} contract={c} />
-        ))
+        <>
+          {staleCount > 0 && (
+            <div className="mb-4 rounded border border-danger/30 bg-danger/5 px-4 py-3">
+              <p className="text-sm text-danger">
+                <Trash2 className="mr-1.5 inline h-4 w-4" strokeWidth={1.5} />
+                {staleCount} stale contract{staleCount > 1 ? 's' : ''} detected with invalid origins.
+              </p>
+              <div className="mt-2">
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleCleanup}
+                  disabled={cleaning}
+                  data-testid="contract-cleanup"
+                >
+                  {cleaning ? 'Cleaning...' : `Remove ${staleCount} stale contract${staleCount > 1 ? 's' : ''}`}
+                </Button>
+              </div>
+            </div>
+          )}
+          {filtered.map((c: any, i: number) => (
+            <AppContractCard key={i} I={I} contract={c} />
+          ))}
+        </>
       )}
     </>
   );

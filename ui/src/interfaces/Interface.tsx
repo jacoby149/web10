@@ -341,6 +341,13 @@ function useInterface() {
         });
     }
 
+    // Cleanup stale contracts where allowed_origin is not a URL.
+    I.cleanupV3Contracts = function () {
+        return v3Post('app-contracts/cleanup', {}).then(() => {
+            I.v3ContractsLoad();
+        });
+    }
+
     // Check if an app contract exists for a given origin.
     I.hasV3Contract = function (allowedOrigin: string): boolean {
         return (I.v3Contracts || []).some(
