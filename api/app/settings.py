@@ -51,7 +51,7 @@ S3_ENDPOINT = os.getenv("S3_ENDPOINT", "http://minio:9000")
 
 # ClickHouse v3 OLAP store
 CLICKHOUSE_HOST = os.getenv("CLICKHOUSE_HOST", "clickhouse")
-CLICKHOUSE_PORT = int(os.getenv("CLICKHOUSE_PORT", "9000"))
+CLICKHOUSE_PORT = int(os.getenv("CLICKHOUSE_PORT", "8123"))
 CLICKHOUSE_DATABASE = os.getenv("CLICKHOUSE_DATABASE", "web10")
 CLICKHOUSE_USER = os.getenv("CLICKHOUSE_USER", "web10")
 CLICKHOUSE_PASSWORD = os.getenv("CLICKHOUSE_PASSWORD", "web10")

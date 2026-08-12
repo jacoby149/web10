@@ -1,3 +1,6 @@
+3.0.24 || 11.08.2026
+fix(api): ClickHouse HTTP port — `clickhouse_connect` uses HTTP (port 8123), not native TCP (port 9000). The default `CLICKHOUSE_PORT` was 9000, causing every v3 endpoint to 500 with "Port 9000 is for clickhouse-client program". Default changed to 8123 in settings.py, docker-compose.yml, and ubuntu-deployment ecosystem compose.
+
 3.0.23 || 11.08.2026
 fix(ui): derive SetupWizard defaults from current auth hostname — `auth.dev.web10.app` → provider `api.dev.web10.app`, CORS `auth.dev.web10.app`. No more hardcoded `api.localhost`.
 
