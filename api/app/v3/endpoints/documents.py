@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, Request
 
 import app.exceptions as exceptions
 from app.v3.endpoints.auth_helper import user as _user
@@ -8,10 +8,23 @@ from app.v3.services import clickhouse as ch
 router = APIRouter(tags=["documents"])
 
 
+def _check_app_permission(request: Request, user_key: str, service: str, operation: str) -> None:
+    """Enforce app contract permissions. Raises 403 if no valid contract."""
+    origin = request.headers.get("origin", "")
+    if not origin:
+        return  # same-origin or direct API call — skip contract check
+    if not ch.has_permission(user_key, origin, service, operation):
+        raise HTTPException(
+            status_code=403,
+            detail=f"No app contract for {origin} to {operation} on {service}",
+        )
+
+
 @router.post("/create")
-async def create_document(data: CreateDocument):
+async def create_document(request: Request, data: CreateDocument):
     """Create a document in a service. User from JWT. Server generates doc_id."""
     author = _user(data)
+    _check_app_permission(request, author, data.service, "create")
     result = ch.insert_document(
         author_key=author,
         service=data.service,
@@ -28,9 +41,10 @@ async def create_document(data: CreateDocument):
 
 
 @router.post("/read")
-async def read_documents(data: ReadDocuments):
+async def read_documents(request: Request, data: ReadDocuments):
     """Read documents. doc_id for single read, groups for discover, 'me' for own docs."""
     reader = _user(data)
+    _check_app_permission(request, reader, data.service, "readAll")
 
     if data.doc_id:
         doc = ch.read_document_by_id(data.doc_id, reader, data.service)
@@ -58,12 +72,13 @@ async def read_documents(data: ReadDocuments):
 
 
 @router.post("/update")
-async def update_document(data: UpdateDocument):
+async def update_document(request: Request, data: UpdateDocument):
     """Update a document (new version + optional group changes)."""
     author = _user(data)
     existing = ch.get_document(data.doc_id, author)
     if not existing:
         raise exceptions.ENTRY_NOT_FOUND
+    _check_app_permission(request, author, existing["service"], "updateOwn")
 
     merged_body = {**existing["body"], **data.body}
     result = ch.update_document(
@@ -84,12 +99,13 @@ async def update_document(data: UpdateDocument):
 
 
 @router.post("/delete")
-async def delete_document(data: DeleteDocument):
+async def delete_document(request: Request, data: DeleteDocument):
     """Tombstone a document and its group attachments."""
     author = _user(data)
     existing = ch.get_document(data.doc_id, author)
     if not existing:
         raise exceptions.ENTRY_NOT_FOUND
+    _check_app_permission(request, author, existing["service"], "deleteOwn")
 
     ch.delete_document(data.doc_id, author, existing["service"])
     ch.detach_doc_from_groups(data.doc_id)
