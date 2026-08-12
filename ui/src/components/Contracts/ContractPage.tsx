@@ -18,11 +18,12 @@ function AppContractCard({ I, contract }: { I: Record<string, any>; contract: { 
 
   // Derive a readable label from the origin (strip protocol, keep hostname)
   const label = (() => {
+    if (!origin) return '(no origin)';
     try {
-      return new URL(`https://${origin}`).hostname;
-    } catch {
-      return origin;
-    }
+      const hostname = new URL(`https://${origin}`).hostname;
+      if (hostname && hostname !== '') return hostname;
+    } catch { /* fall through to raw origin */ }
+    return origin;
   })();
 
   const handleRevoke = () => {
