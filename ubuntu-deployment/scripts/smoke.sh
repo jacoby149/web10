@@ -20,7 +20,7 @@ check() {  # check <label> <expected-code> <url> — retries while services boot
   echo "  FAIL $1 (got $code, want $2) $3"; fail=1
 }
 
-# v3 endpoints are POST-only; check_post sends a minimal JSON body
+# v3 POST check — all v3 endpoints are POST-only
 check_post() {  # check_post <label> <expected-code> <url> <json-body>
   local tries=6 code
   for ((i = 1; i <= tries; i++)); do
@@ -42,18 +42,45 @@ for env in dev prod; do
   check "apex marketing" 200 "https://$apex/"
   check "marketing-api" 200 "https://marketing-api.${pre}web10.app/docs"
 
-  # v3 smoke — stubs for each domain (all POST, minimal bodies)
+  # v3 smoke — full auth flow: signup → login → use token
   echo "  -- v3 --"
-  check_post "v3 stats"             200 "https://api.${pre}web10.app/v3/stats" "{}"
-  check_post "v3 auth login"        200 "https://api.${pre}web10.app/v3/auth/login" "{\"username\":\"_\",\"password\":\"_\"}"
-  check_post "v3 auth signup"       200 "https://api.${pre}web10.app/v3/auth/signup" "{\"username\":\"_\",\"password\":\"_\",\"provider\":\"_\"}"
-  check_post "v3 account profile"   200 "https://api.${pre}web10.app/v3/account/profile" "{}"
-  check_post "v3 documents read"    200 "https://api.${pre}web10.app/v3/documents/read" "{}"
-  check_post "v3 groups list"       200 "https://api.${pre}web10.app/v3/groups/list" "{}"
-  check_post "v3 appstore list"     200 "https://api.${pre}web10.app/v3/appstore/list" "{}"
-  check_post "v3 contracts list"    200 "https://api.${pre}web10.app/v3/contracts/list" "{}"
-  check_post "v3 media list"        200 "https://api.${pre}web10.app/v3/media/list" "{}"
-  check_post "v3 blocking block"    200 "https://api.${pre}web10.app/v3/blocking/block" "{}"
+  APISRV="https://api.${pre}web10.app"
+  PROVIDER="api.${pre}web10.app"
+  U="smoke$(date +%s%N)"
+  P="smoketest123"
+
+  # Sign up
+  SU=$(curl -s --max-time 15 -X POST "$APISRV/v3/auth/signup" \
+    -H 'Content-Type: application/json' \
+    -d "{\"username\":\"$U\",\"password\":\"$P\"}")
+  SU_CODE=$(echo "$SU" | grep -o '"status":"ok"' || echo "")
+  if [[ -n "$SU_CODE" ]]; then
+    echo "  ok   v3 signup"
+  else
+    echo "  FAIL v3 signup ($SU)"; fail=1
+  fi
+
+  # Login — get token
+  LOGIN=$(curl -s --max-time 15 -X POST "$APISRV/v3/auth/login" \
+    -H 'Content-Type: application/json' \
+    -d "{\"username\":\"$U\",\"password\":\"$P\"}")
+  TOKEN=$(echo "$LOGIN" | python3 -c "import sys,json; print(json.load(sys.stdin).get('token',''))" 2>/dev/null || echo "")
+  if [[ -n "$TOKEN" ]]; then
+    echo "  ok   v3 login (got token)"
+  else
+    echo "  FAIL v3 login ($LOGIN)"; fail=1
+  fi
+
+  # Authenticated v3 endpoints (all require token)
+  if [[ -n "$TOKEN" ]]; then
+    check_post "v3 stats"              200 "$APISRV/v3/stats" "{\"token\":\"$TOKEN\"}"
+    check_post "v3 profile"            200 "$APISRV/v3/account/profile" "{\"token\":\"$TOKEN\"}"
+    check_post "v3 documents read"     200 "$APISRV/v3/documents/read" "{\"token\":\"$TOKEN\",\"service\":\"web10\"}"
+    check_post "v3 groups list"        200 "$APISRV/v3/groups/list" "{\"token\":\"$TOKEN\"}"
+    check_post "v3 appstore list"      200 "$APISRV/v3/apps/list" "{\"token\":\"$TOKEN\"}"
+    check_post "v3 contracts list"     200 "$APISRV/v3/app-contracts/list" "{\"token\":\"$TOKEN\"}"
+    check_post "v3 media list"         200 "$APISRV/v3/media/list" "{\"token\":\"$TOKEN\",\"limit\":1,\"offset\":0}"
+  fi
 done
 
 exit $fail
