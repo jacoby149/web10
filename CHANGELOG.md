@@ -1,3 +1,6 @@
+3.0.30 || 12.08.2026
+fix(api): ClickHouse decorrelate error on /v3/groups/list — correlated scalar subquery with QUALIFY + row_number() OVER() is not supported by ClickHouse. Extracted member_count into a separate batched query (_get_group_member_counts) so the window function operates at top level. Fixes both get_user_groups and get_groups_manages.
+
 3.0.29 || 12.08.2026
 fix(api): /v3/groups/manages parses list-format roles + cleanup stale app contracts + gate contract endpoints — `get_groups_manages` expected roles as a dict but all groups store roles as a list. Now parses both formats. Added `/v3/app-contracts/cleanup` to tombstone stale contracts where `allowed_origin` is a service name. Gated `/v3/app-contracts/add` and `/revoke` to authenticator origins only (CORS_SERVICE_MANAGERS) — apps cannot directly create or revoke contracts, they must go through the popup consent flow.
 

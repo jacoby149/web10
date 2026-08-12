@@ -667,11 +667,13 @@ class TestGroupsManages:
                 "open",
                 '[{"name": "admin", "services": ["*"], "permissions": ["readAll", "manageRoles"]}]',
                 "admin",
-                5,
             )
         ]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
-            mock_ch.query.return_value = MagicMock(result_rows=mock_rows)
+            mock_ch.query.side_effect = [
+                MagicMock(result_rows=mock_rows),
+                MagicMock(result_rows=[("g1", 5)]),
+            ]
             resp = client.post("/v3/groups/manages", json={"token": token})
         assert resp.status_code == 200
         assert len(resp.json()) == 1
