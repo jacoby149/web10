@@ -748,14 +748,15 @@ class TestNodeStats:
                 MagicMock(result_rows=[]),  # list_apps — empty
                 MagicMock(result_rows=[(1024,)]),  # storage
             ]
-            resp = client.post("/v3/stats", json={"token": token})
+            with patch("app.v3.services.clickhouse.total_s3_size", return_value=512):
+                resp = client.post("/v3/stats", json={"token": token})
         assert resp.status_code == 200
         data = resp.json()
         assert data["users"] == 42
         assert data["documents"] == 100
         assert data["groups"] == 5
         assert data["apps"] == []
-        assert data["storage"] == 1024
+        assert data["storage"] == 1536  # 1024 clickhouse + 512 s3
 
 
 # ---------------------------------------------------------------------------
