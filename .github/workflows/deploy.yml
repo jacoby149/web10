@@ -47,11 +47,22 @@ jobs:
               ln -sfn ~/web10-ops/.env ubuntu-deployment/.env
             fi
             # Restore env files if missing (git clean or manual ops can wipe them)
-            if [[ ! -f ubuntu-deployment/env.dev ]] && [[ -f ~/web10-ops/env.dev ]]; then
-              cp ~/web10-ops/env.dev ubuntu-deployment/env.dev
+            # Try ~/web10-ops/ first (has real secrets), fall back to .example files
+            if [[ ! -f ubuntu-deployment/env.dev ]]; then
+              if [[ -f ~/web10-ops/env.dev ]]; then
+                cp ~/web10-ops/env.dev ubuntu-deployment/env.dev
+              elif [[ -f ubuntu-deployment/env.dev.example ]]; then
+                echo "WARN: env.dev missing, copying from .example (secrets will need manual update)"
+                cp ubuntu-deployment/env.dev.example ubuntu-deployment/env.dev
+              fi
             fi
-            if [[ ! -f ubuntu-deployment/env.prod ]] && [[ -f ~/web10-ops/env.prod ]]; then
-              cp ~/web10-ops/env.prod ubuntu-deployment/env.prod
+            if [[ ! -f ubuntu-deployment/env.prod ]]; then
+              if [[ -f ~/web10-ops/env.prod ]]; then
+                cp ~/web10-ops/env.prod ubuntu-deployment/env.prod
+              elif [[ -f ubuntu-deployment/env.prod.example ]]; then
+                echo "WARN: env.prod missing, copying from .example (secrets will need manual update)"
+                cp ubuntu-deployment/env.prod.example ubuntu-deployment/env.prod
+              fi
             fi
 
             # Source env for per-stack vars
@@ -134,11 +145,22 @@ jobs:
               ln -sfn ~/web10-ops/.env ubuntu-deployment/.env
             fi
             # Restore env files if missing
-            if [[ ! -f ubuntu-deployment/env.dev ]] && [[ -f ~/web10-ops/env.dev ]]; then
-              cp ~/web10-ops/env.dev ubuntu-deployment/env.dev
+            # Try ~/web10-ops/ first (has real secrets), fall back to .example files
+            if [[ ! -f ubuntu-deployment/env.dev ]]; then
+              if [[ -f ~/web10-ops/env.dev ]]; then
+                cp ~/web10-ops/env.dev ubuntu-deployment/env.dev
+              elif [[ -f ubuntu-deployment/env.dev.example ]]; then
+                echo "WARN: env.dev missing, copying from .example (secrets will need manual update)"
+                cp ubuntu-deployment/env.dev.example ubuntu-deployment/env.dev
+              fi
             fi
-            if [[ ! -f ubuntu-deployment/env.prod ]] && [[ -f ~/web10-ops/env.prod ]]; then
-              cp ~/web10-ops/env.prod ubuntu-deployment/env.prod
+            if [[ ! -f ubuntu-deployment/env.prod ]]; then
+              if [[ -f ~/web10-ops/env.prod ]]; then
+                cp ~/web10-ops/env.prod ubuntu-deployment/env.prod
+              elif [[ -f ubuntu-deployment/env.prod.example ]]; then
+                echo "WARN: env.prod missing, copying from .example (secrets will need manual update)"
+                cp ubuntu-deployment/env.prod.example ubuntu-deployment/env.prod
+              fi
             fi
 
             # Source env for per-stack vars
