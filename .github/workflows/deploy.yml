@@ -54,7 +54,7 @@ jobs:
               else
                 cp ubuntu-deployment/env.dev.example ubuntu-deployment/env.dev
                 # Auto-generate MINIO_PASSWORD (the only real secret needed)
-                sed -i "s/^MINIO_PASSWORD=.*/MINIO_PASSWORD=$(openssl rand -base64 32)/" ubuntu-deployment/env.dev
+                sed -i "s|^MINIO_PASSWORD=.*|MINIO_PASSWORD=$(openssl rand -base64 32)|" ubuntu-deployment/env.dev
               fi
             fi
             if [[ ! -f ubuntu-deployment/env.prod ]]; then
@@ -62,7 +62,7 @@ jobs:
                 cp ~/web10-ops/env.prod ubuntu-deployment/env.prod
               else
                 cp ubuntu-deployment/env.prod.example ubuntu-deployment/env.prod
-                sed -i "s/^MINIO_PASSWORD=.*/MINIO_PASSWORD=$(openssl rand -base64 32)/" ubuntu-deployment/env.prod
+                sed -i "s|^MINIO_PASSWORD=.*|MINIO_PASSWORD=$(openssl rand -base64 32)|" ubuntu-deployment/env.prod
               fi
             fi
 
@@ -152,7 +152,7 @@ jobs:
                 cp ~/web10-ops/env.dev ubuntu-deployment/env.dev
               else
                 cp ubuntu-deployment/env.dev.example ubuntu-deployment/env.dev
-                sed -i "s/^MINIO_PASSWORD=.*/MINIO_PASSWORD=$(openssl rand -base64 32)/" ubuntu-deployment/env.dev
+                sed -i "s|^MINIO_PASSWORD=.*|MINIO_PASSWORD=$(openssl rand -base64 32)|" ubuntu-deployment/env.dev
               fi
             fi
             if [[ ! -f ubuntu-deployment/env.prod ]]; then
@@ -160,7 +160,7 @@ jobs:
                 cp ~/web10-ops/env.prod ubuntu-deployment/env.prod
               else
                 cp ubuntu-deployment/env.prod.example ubuntu-deployment/env.prod
-                sed -i "s/^MINIO_PASSWORD=.*/MINIO_PASSWORD=$(openssl rand -base64 32)/" ubuntu-deployment/env.prod
+                sed -i "s|^MINIO_PASSWORD=.*|MINIO_PASSWORD=$(openssl rand -base64 32)|" ubuntu-deployment/env.prod
               fi
             fi
 
