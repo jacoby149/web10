@@ -119,6 +119,10 @@ function GroupCard({ I, group, isManaged }: { I: Record<string, any>; group: any
                     </div>
                   </div>
                 )}
+                <div>
+                  <span className="text-sm font-medium text-muted-foreground">Join policy:</span>
+                  <div className="mt-1">{joinPolicyBadge(policy)}</div>
+                </div>
               </div>
               <div className="flex flex-wrap gap-2 border-t border-border px-4 py-2.5 mt-4">
                 {isManaged ? (

@@ -325,10 +325,15 @@ def remove_group_member(group_id: str, member_key: str):
 
 
 def get_group_members(group_id: str, limit: int = 100, offset: int = 0) -> list[dict]:
-    """Get active members of a group."""
+    """Get active members of a group (deduplicated by latest version)."""
     result = client.query(
-        "SELECT member_key, role, joined_at FROM group_members "
-        "WHERE group_id = %(group_id)s AND deleted = 0 LIMIT %(limit)s OFFSET %(offset)s",
+        "SELECT member_key, role, joined_at "
+        "FROM (SELECT member_key, role, joined_at, "
+              "row_number() OVER (PARTITION BY member_key ORDER BY updated_at DESC) as rn "
+              "FROM group_members "
+              "WHERE group_id = %(group_id)s AND deleted = 0) "
+        "WHERE rn = 1 "
+        "LIMIT %(limit)s OFFSET %(offset)s",
         {"group_id": group_id, "limit": limit, "offset": offset},
     )
     return [{"member_key": row[0], "role": row[1], "joined_at": str(row[2])} for row in result.result_rows]
