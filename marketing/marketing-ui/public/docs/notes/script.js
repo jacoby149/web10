@@ -34,26 +34,6 @@ async function v3Post(action, params = {}) {
   return res.json()
 }
 
-// v3: add an app contract so this origin can read/write the service
-async function ensureAppContract() {
-  const origin = window.location.origin
-  try {
-    const token = document.cookie.match(/token=([^;]+)/)?.[1]
-    if (!token) return
-    await fetch(`${API_ORIGIN}/v3/app-contracts/add`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        token,
-        allowed_origin: origin,
-        permissions: { [SERVICE]: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
-      }),
-    })
-  } catch {
-    // Contract might already exist — not an error
-  }
-}
-
 // v3: ensure a personal notes group exists, create if not
 async function ensureNotesGroup(username, provider) {
   const groupName = `notes-${username}`
@@ -105,9 +85,8 @@ function initApp() {
   message.innerHTML = `Signed in as <strong>${t["provider"]}/${t["username"]}</strong>`
   editor.style.display = "block"
 
-  // v3: ensure the app contract and personal notes group exist, then load notes
-  ensureAppContract()
-    .then(() => ensureNotesGroup(t.username, t.provider))
+  // v3: ensure the personal notes group exists, then load notes
+  ensureNotesGroup(t.username, t.provider)
     .then(() => readNotes())
     .catch(() => readNotes())
 }

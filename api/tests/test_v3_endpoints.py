@@ -513,6 +513,7 @@ class TestAppContracts:
                 "allowed_origin": "myapp.com",
                 "permissions": {"posts": ["readAll", "create"], "playlists": ["readAll"]},
             },
+            headers={"Origin": "https://auth.localhost"},
         )
         assert resp.status_code == 200
         assert resp.json()["allowed_origin"] == "myapp.com"
@@ -525,8 +526,21 @@ class TestAppContracts:
                 "token": token,
                 "allowed_origin": "myapp.com",
             },
+            headers={"Origin": "https://auth.localhost"},
         )
         assert resp.status_code == 422
+
+    def test_add_rejected_non_authenticator(self, client, token):
+        resp = client.post(
+            "/v3/app-contracts/add",
+            json={
+                "token": token,
+                "allowed_origin": "myapp.com",
+                "permissions": {"posts": ["readAll"]},
+            },
+            headers={"Origin": "https://malicious.example.com"},
+        )
+        assert resp.status_code == 403
 
     def test_list(self, client, token):
         mock_rows = [("myapp.com", '{"posts": ["readAll"]}')]
@@ -541,12 +555,17 @@ class TestAppContracts:
         resp = client.post(
             "/v3/app-contracts/revoke",
             json={"token": token, "allowed_origin": "myapp.com"},
+            headers={"Origin": "https://auth.localhost"},
         )
         assert resp.status_code == 200
         assert resp.json()["status"] == "revoked"
 
     def test_revoke_all(self, client, token):
-        resp = client.post("/v3/app-contracts/revoke", json={"token": token})
+        resp = client.post(
+            "/v3/app-contracts/revoke",
+            json={"token": token},
+            headers={"Origin": "https://auth.localhost"},
+        )
         assert resp.status_code == 200
         assert resp.json()["status"] == "revoked"
 
@@ -642,7 +661,15 @@ class TestReadById:
 
 class TestGroupsManages:
     def test_manages(self, client, token):
-        mock_rows = [("g1", "open", '{"admin": {"permissions": ["manageRoles"]}}', "admin", 5)]
+        mock_rows = [
+            (
+                "g1",
+                "open",
+                '[{"name": "admin", "services": ["*"], "permissions": ["readAll", "manageRoles"]}]',
+                "admin",
+                5,
+            )
+        ]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = MagicMock(result_rows=mock_rows)
             resp = client.post("/v3/groups/manages", json={"token": token})

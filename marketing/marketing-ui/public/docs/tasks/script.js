@@ -34,25 +34,6 @@ async function v3Post(action, params = {}) {
   return res.json()
 }
 
-async function ensureAppContract() {
-  const origin = window.location.origin
-  try {
-    const token = document.cookie.match(/token=([^;]+)/)?.[1]
-    if (!token) return
-    await fetch(`${API_ORIGIN}/v3/app-contracts/add`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        token,
-        allowed_origin: origin,
-        permissions: { [SERVICE]: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
-      }),
-    })
-  } catch {
-    // Contract might already exist
-  }
-}
-
 let currentGroupId = null
 
 authButton.onclick = () => window.web10.openAuthPortal(AUTH_ORIGIN)
@@ -68,7 +49,7 @@ function initApp() {
   message.innerHTML = `Signed in as <strong>${t["provider"]}/${t["username"]}</strong>`
   app.style.display = "block"
 
-  ensureAppContract().then(() => readTasks()).catch(() => readTasks())
+  readTasks()
 }
 
 // Self-register in the app store

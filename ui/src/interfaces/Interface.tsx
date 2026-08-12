@@ -88,10 +88,11 @@ function useInterface() {
     [I.isAdmin, I.setIsAdmin] = React.useState(false);
     [I.verified, I.setVerified] = React.useState(false);
     [I.status, I.setStatus] = React.useState<string | null>(null);
-    // Pending contract requests (ACRs). Unified list — no distinction
-    // between "new" and "change". Each ACR is { allowed_origin, permissions }.
-    // contractListen delivers { contracts } which we normalize here.
-    [I.pendingACRs, I.setPendingACRs] = React.useState<any[]>([]);
+    // Pending contract requests — unified list of ACRs and GCRs.
+    // One popup, one consent screen, both types together.
+    // ACR: { allowed_origin, permissions } — app contract (what can this app do)
+    // GCR: { app_origin, action, params } — group contract (who can see my content)
+    [I.pendingContracts, I.setPendingContracts] = React.useState<any[]>([]);
 
     // v3 service contracts (ClickHouse-backed — simpler model: origin + service)
     [I.v3Contracts, I.setV3Contracts] = React.useState<any[]>([]);
@@ -104,28 +105,37 @@ function useInterface() {
 
     I.v3 = v3;
 
-    // Normalize contract requests into a unified ACR list.
-    // contractListen delivers { contracts } where each is { allowed_origin, permissions } (ACR)
-    // or { app_origin, action, params } (GCR). We keep ACRs as-is and skip GCRs
-    // (those go to the group requests flow).
-    function normalizeContractsToACRs(cData: any): any[] {
-        const acrs: any[] = [];
+    // Normalize contract requests into a unified list (ACR + GCR).
+    // contractListen delivers { contracts } where each is either:
+    //   ACR: { allowed_origin, permissions }
+    //   GCR: { app_origin, action, params }
+    function normalizeContracts(cData: any): any[] {
+        const contracts: any[] = [];
         // Handle new contractListen format: { contracts: [...] }
         if (Array.isArray(cData?.contracts)) {
             for (const cr of cData.contracts) {
                 if (cr.allowed_origin && cr.permissions) {
                     // ACR — app contract
-                    acrs.push({
+                    contracts.push({
+                        kind: 'acr',
                         allowed_origin: cr.allowed_origin,
                         permissions: cr.permissions,
                         _source: cr,
                     });
+                } else if (cr.app_origin && cr.action) {
+                    // GCR — group contract
+                    contracts.push({
+                        kind: 'gcr',
+                        app_origin: cr.app_origin,
+                        action: cr.action,
+                        params: cr.params,
+                        _source: cr,
+                    });
                 }
-                // GCR — group contract, handled by group_requests flow
             }
-            return acrs;
+            return contracts;
         }
-        // Fallback: legacy SMR { sirs, scrs } format
+        // Fallback: legacy SMR { sirs, scrs } format (ACR only)
         const allRequests = [
             ...(Array.isArray(cData?.sirs) ? cData.sirs : []),
             ...(Array.isArray(cData?.scrs) ? cData.scrs : []),
@@ -137,18 +147,18 @@ function useInterface() {
                 continue;
             }
             const perms = whitelistToPermissions(req.whitelist || []);
-            // Default to readAll if no permissions derived
             if (perms.length === 0) perms.push('readAll');
             const permissions: Record<string, string[]> = { [req.service]: perms };
             for (const origin of origins) {
-                acrs.push({
+                contracts.push({
+                    kind: 'acr',
                     allowed_origin: origin,
                     permissions,
-                    _source: req, // keep reference to the original SIR/SCR for removal
+                    _source: req,
                 });
             }
         }
-        return acrs;
+        return contracts;
     }
 
     // v3 contract listening — direct postMessage, no wapiAuth wrapper
@@ -157,11 +167,11 @@ function useInterface() {
         const authOrigin = window.location.origin;
         window.addEventListener('message', (e) => {
             if (e.origin !== authOrigin) return;
-            if (e.data?.type === 'acr') {
-                I.setPendingACRs(normalizeContractsToACRs(e.data));
+            if (e.data?.type === 'acr' || e.data?.type === 'contract') {
+                I.setPendingContracts(normalizeContracts(e.data));
             }
         });
-        // Request ACRs from opener
+        // Request contracts from opener
         if (window.opener) {
             window.opener.postMessage({ type: 'ACRListen' }, authOrigin);
         }
@@ -530,62 +540,114 @@ function useInterface() {
             });
     }
 
-    // Approve a single ACR (one origin). No distinction between "new" and
-    // "change" — both replace the existing contract for that origin.
-    I.approveACR = function (acr: any) {
-        const origin = acr.allowed_origin;
-        const label = (() => {
-            try { return new URL(`https://${origin}`).hostname; } catch { return origin; }
-        })();
+    // Approve a GCR — create the group from the authenticator (the trusted party).
+    function applyGCR(gcr: any) {
+        const params = gcr.params || {};
+        const decoded = I.wapi?.readToken?.();
+        const username = decoded?.username || decoded?.sub || '';
+        const provider = decoded?.provider || '';
 
+        // Build group ID from params
+        const name = params.name || `group-${Date.now()}`;
+        const groupId = `${provider}/groups/users/${username}/${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+
+        const roles = params.roles || [
+            { name: 'owner', services: ['*'], permissions: ['readAll', 'create', 'updateOwn', 'updateAll', 'deleteOwn', 'deleteAll', 'hideAll', 'manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup'] },
+            { name: 'member', services: ['posts', 'comments'], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
+        ];
+
+        const members = params.members || [{ member_key: username, role: 'owner' }];
+
+        return I.v3CreateGroup(
+            name,
+            params.join_policy || 'invite_only',
+            roles,
+            members
+        ).then(() => {
+            I.v3GroupsLoad?.();
+            I.v3GroupsManagesLoad?.();
+        });
+    }
+
+    // Approve a single contract (ACR or GCR).
+    I.approveContract = function (contract: any) {
+        if (contract.kind === 'gcr') {
+            I.setStatus("Creating group...");
+            applyGCR(contract)
+                .then(() => {
+                    I.setStatus("Group created!");
+                    I.removePendingContract(contract);
+                    setTimeout(() => I.setStatus(null), 2000);
+                })
+                .catch((e) => I.setStatus("Failed to create group: " + (e.message || String(e))));
+            return;
+        }
+
+        // ACR
+        const origin = contract.allowed_origin;
         const alreadyGranted = I.hasV3Contract?.(origin);
         if (alreadyGranted) {
-            I.removePendingACR(acr);
+            I.removePendingContract(contract);
             return;
         }
 
         I.setStatus("Approving contract...");
-        applyACR(acr)
+        applyACR(contract)
             .then(() => {
                 I.setStatus("Contract granted!");
                 I.v3ContractsLoad?.();
-                I.removePendingACR(acr);
+                I.removePendingContract(contract);
                 setTimeout(() => I.setStatus(null), 2000);
             })
             .catch((e) => I.setStatus("Failed to approve: " + (e.message || String(e))));
     }
 
-    // Remove a single ACR from the pending list (after approve or deny).
-    I.removePendingACR = function (acr: any) {
-        const source = acr._source;
-        I.setPendingACRs((prev: any[]) => {
+    // Remove a single contract from the pending list (after approve or deny).
+    I.removePendingContract = function (contract: any) {
+        const source = contract._source;
+        I.setPendingContracts((prev: any[]) => {
             if (source) {
-                return prev.filter((a: any) => a._source !== source);
+                return prev.filter((c: any) => c._source !== source);
             }
-            return prev.filter((a: any) => a.allowed_origin !== acr.allowed_origin);
+            if (contract.kind === 'acr') {
+                return prev.filter((c: any) => c.allowed_origin !== contract.allowed_origin);
+            }
+            return prev.filter((c: any) => c.action !== contract.action || c.app_origin !== contract.app_origin);
         });
     }
 
-    // Deny an ACR — just remove it from the pending list.
-    I.denyACR = function (acr: any) {
-        I.removePendingACR(acr);
+    // Deny a contract — just remove it from the pending list.
+    I.denyContract = function (contract: any) {
+        I.removePendingContract(contract);
         I.setStatus("Request denied.");
     }
 
-    // Approve every pending ACR in one shot, then return to the app.
+    // Approve every pending contract in one shot, then return to the app.
     I.approveAll = function () {
-        if (I.pendingACRs.length === 0) { I.goToApp(); return; }
+        if (!I.pendingContracts || I.pendingContracts.length === 0) { I.goToApp(); return; }
         I.setStatus("Approving all…");
-        const ops: Promise<any>[] = I.pendingACRs.map((acr: any) => applyACR(acr));
+        const ops: Promise<any>[] = I.pendingContracts.map((c: any) => {
+            if (c.kind === 'gcr') return applyGCR(c);
+            return applyACR(c);
+        });
         Promise.allSettled(ops)
             .then(() => {
                 I.v3ContractsLoad?.();
-                I.setPendingACRs([]);
+                I.v3GroupsLoad?.();
+                I.v3GroupsManagesLoad?.();
+                I.setPendingContracts([]);
                 I.setStatus(null);
                 I.goToApp();
             })
             .catch((e: any) => I.setStatus("Failed to approve all: " + (e.message || String(e))));
     }
+
+    // Legacy aliases — keep old names working for tests + existing callers
+    I.pendingACRs = I.pendingContracts;
+    I.setPendingACRs = I.setPendingContracts;
+    I.approveACR = (c: any) => I.approveContract({ ...c, kind: c.kind || 'acr' });
+    I.denyACR = (c: any) => I.denyContract({ ...c, kind: c.kind || 'acr' });
+    I.removePendingACR = (c: any) => I.removePendingContract({ ...c, kind: c.kind || 'acr' });
 
     // Return to the requesting app, logging it in. Send the current v3 token
     // directly to the opener — no tiered token needed for v3.
