@@ -76,11 +76,13 @@ class TestCreate:
 
 class TestRead:
     def test_personal_read(self, client, token):
-        mock_groups = [("g1", "open", "member", 3)]
+        mock_groups = [("g1", "open", "member")]
+        mock_counts = [("g1", 3)]
         mock_docs = [("doc-1", "bob", '{"text":"mine"}', [], datetime(2026, 1, 1), "")]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.side_effect = [
                 MagicMock(result_rows=mock_groups),
+                MagicMock(result_rows=mock_counts),
                 MagicMock(result_rows=mock_docs),
             ]
             resp = client.post(
@@ -117,11 +119,13 @@ class TestRead:
         assert resp.status_code == 422
 
     def test_me_shorthand(self, client, token):
-        mock_groups = [("g1", "open", "member", 3)]
+        mock_groups = [("g1", "open", "member")]
+        mock_counts = [("g1", 3)]
         mock_docs = [("doc-1", "bob", '{"text":"hello"}', [], datetime(2026, 1, 1), "")]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.side_effect = [
                 MagicMock(result_rows=mock_groups),
+                MagicMock(result_rows=mock_counts),
                 MagicMock(result_rows=mock_docs),
             ]
             resp = client.post(
