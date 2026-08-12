@@ -8,7 +8,6 @@ from app.models.config import (
     SetupStatus,
 )
 from app.services import config as config_svc
-from app.services import documentdb as db
 from app.services.auth import check_admin, decode_token, get_password_hash
 from app.v3.services import clickhouse as ch
 
