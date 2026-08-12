@@ -1,3 +1,6 @@
+3.0.26 || 12.08.2026
+feat(demos): Groups demo app — the 4th demo in the docs sidebar. Create communities with custom roles (Community/Followers/Close Friends presets), join policies (open/request/invite-only), manage members (view, invite, leave), approve/deny join requests, toggle join policy, post to groups, discover posts across all your groups, filter by group. Files: marketing/marketing-ui/public/docs/groups/ (self-hosted demo), sdk/demos/groups/ (CDN source), Docs.tsx sidebar entry, groups.spec.ts (4 Playwright tests, all green). Shows the full groups lifecycle: create → invite → join requests → post → discover.
+
 3.0.25 || 12.08.2026
 fix(clickhouse): resilient init script — retries until server ready before applying schema. The .sql file ran before ClickHouse accepted connections, silently creating 0 tables. Replaced with a .sh wrapper that polls clickhouse-client up to 60s, then pipes the SQL. Original .sql renamed to .sql.template so entrypoint ignores it. Verified all 16 tables created on web10-dev.
 
