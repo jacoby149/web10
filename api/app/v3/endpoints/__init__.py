@@ -1,6 +1,5 @@
 from fastapi import APIRouter
 
-from app.v3.models.common import TokenOnly
 from app.v3.services import clickhouse as ch
 
 from . import (
@@ -43,6 +42,6 @@ router.include_router(appstore.router, prefix="/apps")
 
 # Node stats
 @router.post("/stats", tags=["system"])
-async def node_stats(data: TokenOnly):
+async def node_stats():
     """Get node-level stats: users, documents, groups."""
     return ch.get_node_stats()
