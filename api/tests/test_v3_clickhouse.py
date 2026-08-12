@@ -614,9 +614,7 @@ class TestGetGroupsManages:
         """Backward compat: old dict-style roles still work."""
         with _patch_client() as mock_client:
             mock_client.query.side_effect = [
-                _mock_result_rows(
-                    [("g1", "open", '{"admin": {"permissions": ["manageRoles"]}}', "admin")]
-                ),
+                _mock_result_rows([("g1", "open", '{"admin": {"permissions": ["manageRoles"]}}', "admin")]),
                 _mock_result_rows(
                     [("g1", 3)],
                 ),
