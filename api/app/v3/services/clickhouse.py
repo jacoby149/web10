@@ -325,10 +325,15 @@ def remove_group_member(group_id: str, member_key: str):
 
 
 def get_group_members(group_id: str, limit: int = 100, offset: int = 0) -> list[dict]:
-    """Get active members of a group."""
+    """Get active members of a group (deduplicated by latest version)."""
     result = client.query(
-        "SELECT member_key, role, joined_at FROM group_members "
-        "WHERE group_id = %(group_id)s AND deleted = 0 LIMIT %(limit)s OFFSET %(offset)s",
+        "SELECT member_key, role, joined_at "
+        "FROM (SELECT member_key, role, joined_at, "
+        "row_number() OVER (PARTITION BY member_key ORDER BY updated_at DESC) as rn "
+        "FROM group_members "
+        "WHERE group_id = %(group_id)s AND deleted = 0) "
+        "WHERE rn = 1 "
+        "LIMIT %(limit)s OFFSET %(offset)s",
         {"group_id": group_id, "limit": limit, "offset": offset},
     )
     return [{"member_key": row[0], "role": row[1], "joined_at": str(row[2])} for row in result.result_rows]
@@ -353,24 +358,37 @@ def is_group_member(group_id: str, member_key: str) -> bool:
 
 
 def get_user_groups(member_key: str) -> list[dict]:
-    """Get all groups a user belongs to."""
+    """Get all groups a user belongs to (deduplicated by latest version)."""
     result = client.query(
         "SELECT gc.group_id, gc.join_policy, gm.role AS my_role, "
-        "(SELECT count() FROM group_members gm2 WHERE gm2.group_id = gc.group_id AND gm2.deleted = 0) AS member_count "
-        "FROM group_members gm "
-        "JOIN group_contracts gc ON gm.group_id = gc.group_id "
-        "WHERE gm.member_key = %(member_key)s AND gm.deleted = 0 AND gc.deleted = 0",
+        "(SELECT count() FROM (SELECT member_key FROM group_members gm2 "
+        "WHERE gm2.group_id = gc.group_id AND gm2.deleted = 0 "
+        "QUALIFY row_number() OVER (PARTITION BY gm2.member_key ORDER BY gm2.updated_at DESC) = 1) "
+        ") AS member_count "
+        "FROM (SELECT group_id, member_key, role, "
+        "row_number() OVER (PARTITION BY group_id, member_key ORDER BY updated_at DESC) as rn "
+        "FROM group_members WHERE deleted = 0) gm "
+        "JOIN (SELECT group_id, join_policy, "
+        "row_number() OVER (PARTITION BY group_id ORDER BY updated_at DESC) as rn "
+        "FROM group_contracts WHERE deleted = 0) gc "
+        "ON gm.group_id = gc.group_id "
+        "WHERE gm.rn = 1 AND gc.rn = 1 AND gm.member_key = %(member_key)s",
         {"member_key": member_key},
     )
-    return [
-        {
-            "group_id": row[0],
-            "join_policy": row[1],
-            "my_role": row[2],
-            "member_count": row[3],
-        }
-        for row in result.result_rows
-    ]
+    seen = set()
+    out = []
+    for row in result.result_rows:
+        if row[0] not in seen:
+            seen.add(row[0])
+            out.append(
+                {
+                    "group_id": row[0],
+                    "join_policy": row[1],
+                    "my_role": row[2],
+                    "member_count": row[3],
+                }
+            )
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -752,20 +770,31 @@ def get_groups_manages(member_key: str) -> list[dict]:
 
     Fetches all groups the user belongs to, then filters in Python by
     checking if the group's roles JSON grants manageRoles to the user's role.
+    Deduplicates group_members and group_contracts by latest version.
     """
     result = client.query(
         "SELECT gc.group_id, gc.join_policy, gc.roles, gm.role AS my_role, "
-        "(SELECT count() FROM group_members gm2 WHERE gm2.group_id = gc.group_id AND gm2.deleted = 0) AS member_count "
-        "FROM group_members gm "
-        "JOIN group_contracts gc ON gm.group_id = gc.group_id "
-        "WHERE gm.member_key = %(member_key)s "
-        "AND gm.deleted = 0 "
-        "AND gc.deleted = 0",
+        "(SELECT count() FROM (SELECT member_key FROM group_members gm2 "
+        "WHERE gm2.group_id = gc.group_id AND gm2.deleted = 0 "
+        "QUALIFY row_number() OVER (PARTITION BY gm2.member_key ORDER BY gm2.updated_at DESC) = 1) "
+        ") AS member_count "
+        "FROM (SELECT group_id, member_key, role, "
+        "row_number() OVER (PARTITION BY group_id, member_key ORDER BY updated_at DESC) as rn "
+        "FROM group_members WHERE deleted = 0) gm "
+        "JOIN (SELECT group_id, join_policy, roles, "
+        "row_number() OVER (PARTITION BY group_id ORDER BY updated_at DESC) as rn "
+        "FROM group_contracts WHERE deleted = 0) gc "
+        "ON gm.group_id = gc.group_id "
+        "WHERE gm.rn = 1 AND gc.rn = 1 AND gm.member_key = %(member_key)s",
         {"member_key": member_key},
     )
     out = []
+    seen = set()
     for row in result.result_rows:
         group_id, join_policy, roles_json, my_role, member_count = row
+        if group_id in seen:
+            continue
+        seen.add(group_id)
         # Check if the user's role has manageRoles permission
         roles = _parse_json(roles_json) if roles_json else {}
         role_def = roles.get(my_role, {})
