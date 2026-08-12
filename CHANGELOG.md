@@ -1,3 +1,6 @@
+3.0.29 || 12.08.2026
+fix(api): /v3/groups/manages returns groups for list-format roles — `get_groups_manages` expected roles as a dict (`{"admin": {"permissions": [...]}}`) but all groups store roles as a list (`[{"name": "owner", "permissions": [...]}]`). Now parses both formats. Also tombstones stale app_contracts where `allowed_origin` is a service name instead of a website origin.
+
 3.0.28 || 12.08.2026
 fix(api): deduplicate group_contracts in get_user_groups and get_groups_manages — ReplacingMergeTree background merges may not have run, causing duplicate groups and duplicate memberships in the authenticator UI. Both queries now use window functions to deduplicate group_members AND group_contracts by latest updated_at, with a Python set safety net. Also fixed member_count subqueries to deduplicate.
 

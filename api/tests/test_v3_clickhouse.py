@@ -564,7 +564,15 @@ class TestGetGroupsManages:
     def test_has_manage(self):
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
-                [("g1", "open", '{"admin": {"permissions": ["manageRoles"]}}', "admin", 5)]
+                [
+                    (
+                        "g1",
+                        "open",
+                        '[{"name": "admin", "services": ["*"], "permissions": ["readAll", "manageRoles"]}]',
+                        "admin",
+                        5,
+                    )
+                ]
             )
             groups = ch.get_groups_manages("alice")
             assert len(groups) == 1
@@ -573,7 +581,7 @@ class TestGetGroupsManages:
     def test_no_manage(self):
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
-                [("g1", "open", '{"admin": {"permissions": ["readAll"]}}', "admin", 5)]
+                [("g1", "open", '[{"name": "admin", "services": ["*"], "permissions": ["readAll"]}]', "admin", 5)]
             )
             groups = ch.get_groups_manages("alice")
             assert len(groups) == 0
@@ -583,6 +591,16 @@ class TestGetGroupsManages:
             mock_client.query.return_value = _mock_result_rows([])
             groups = ch.get_groups_manages("alice")
             assert len(groups) == 0
+
+    def test_legacy_dict_format(self):
+        """Backward compat: old dict-style roles still work."""
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows(
+                [("g1", "open", '{"admin": {"permissions": ["manageRoles"]}}', "admin", 5)]
+            )
+            groups = ch.get_groups_manages("alice")
+            assert len(groups) == 1
+            assert groups[0]["group_id"] == "g1"
 
 
 # ---------------------------------------------------------------------------

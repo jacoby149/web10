@@ -556,6 +556,23 @@ def revoke_all_app_contracts(user_key: str):
     )
 
 
+def cleanup_stale_app_contracts(user_key: str) -> int:
+    """Tombstone app contracts where allowed_origin is not a URL (stale service-name entries).
+
+    Legitimate contracts always have allowed_origin starting with http:// or https://.
+    Returns the number of contracts tombstoned.
+    """
+    result = client.command(
+        "INSERT INTO app_contracts (user_key, allowed_origin, permissions, created_at, updated_at, deleted) "
+        "SELECT user_key, allowed_origin, permissions, created_at, now(), 1 "
+        "FROM app_contracts "
+        "WHERE user_key = %(user_key)s AND deleted = 0 "
+        "AND allowed_origin NOT LIKE 'http://%%' AND allowed_origin NOT LIKE 'https://%%'",
+        {"user_key": user_key},
+    )
+    return result.written_rows if hasattr(result, "written_rows") else 0
+
+
 # ---------------------------------------------------------------------------
 # Blacklists
 # ---------------------------------------------------------------------------
@@ -796,8 +813,12 @@ def get_groups_manages(member_key: str) -> list[dict]:
             continue
         seen.add(group_id)
         # Check if the user's role has manageRoles permission
-        roles = _parse_json(roles_json) if roles_json else {}
-        role_def = roles.get(my_role, {})
+        # roles_json is a list of {name, services, permissions} — find matching role
+        roles_list = _parse_json(roles_json) if roles_json else []
+        if isinstance(roles_list, list):
+            role_def = next((r for r in roles_list if r.get("name") == my_role), {})
+        else:
+            role_def = roles_list.get(my_role, {})
         if isinstance(role_def, dict) and "manageRoles" in role_def.get("permissions", []):
             out.append(
                 {

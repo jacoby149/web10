@@ -32,3 +32,15 @@ async def revoke_app_contract(data: RevokeAppContract):
     else:
         ch.revoke_all_app_contracts(user)
     return {"status": "revoked"}
+
+
+@router.post("/cleanup")
+async def cleanup_stale_contracts(data: TokenOnly):
+    """Tombstone stale app contracts where allowed_origin is not a URL.
+
+    This is a one-time cleanup for contracts created with service names
+    instead of website origins. Call this to clean up your contracts list.
+    """
+    user = _user(data)
+    count = ch.cleanup_stale_app_contracts(user)
+    return {"status": "cleaned", "revoked": count}
