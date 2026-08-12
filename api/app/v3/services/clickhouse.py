@@ -357,14 +357,30 @@ def is_group_member(group_id: str, member_key: str) -> bool:
     return get_group_member(group_id, member_key) is not None
 
 
+def _get_group_member_counts(group_ids: list[str]) -> dict[str, int]:
+    """Get deduplicated active member counts for a batch of groups.
+
+    Returns {group_id: member_count}.  Uses a single query so the
+    window function lives at the top level (ClickHouse cannot decorrelate
+    window functions inside correlated scalar sub-queries).
+    """
+    if not group_ids:
+        return {}
+    result = client.query(
+        "SELECT group_id, count() AS cnt "
+        "FROM (SELECT group_id, member_key "
+        "FROM group_members WHERE deleted = 0 AND group_id IN %(group_ids)s "
+        "QUALIFY row_number() OVER (PARTITION BY group_id, member_key ORDER BY updated_at DESC) = 1) "
+        "GROUP BY group_id",
+        {"group_ids": group_ids},
+    )
+    return {row[0]: row[1] for row in result.result_rows}
+
+
 def get_user_groups(member_key: str) -> list[dict]:
     """Get all groups a user belongs to (deduplicated by latest version)."""
     result = client.query(
-        "SELECT gc.group_id, gc.join_policy, gm.role AS my_role, "
-        "(SELECT count() FROM (SELECT member_key FROM group_members gm2 "
-        "WHERE gm2.group_id = gc.group_id AND gm2.deleted = 0 "
-        "QUALIFY row_number() OVER (PARTITION BY gm2.member_key ORDER BY gm2.updated_at DESC) = 1) "
-        ") AS member_count "
+        "SELECT gc.group_id, gc.join_policy, gm.role AS my_role "
         "FROM (SELECT group_id, member_key, role, "
         "row_number() OVER (PARTITION BY group_id, member_key ORDER BY updated_at DESC) as rn "
         "FROM group_members WHERE deleted = 0) gm "
@@ -375,6 +391,10 @@ def get_user_groups(member_key: str) -> list[dict]:
         "WHERE gm.rn = 1 AND gc.rn = 1 AND gm.member_key = %(member_key)s",
         {"member_key": member_key},
     )
+    # Collect group ids for member-count lookup
+    group_ids = [row[0] for row in result.result_rows]
+    counts = _get_group_member_counts(group_ids)
+
     seen = set()
     out = []
     for row in result.result_rows:
@@ -385,7 +405,7 @@ def get_user_groups(member_key: str) -> list[dict]:
                     "group_id": row[0],
                     "join_policy": row[1],
                     "my_role": row[2],
-                    "member_count": row[3],
+                    "member_count": counts.get(row[0], 0),
                 }
             )
     return out
@@ -790,11 +810,7 @@ def get_groups_manages(member_key: str) -> list[dict]:
     Deduplicates group_members and group_contracts by latest version.
     """
     result = client.query(
-        "SELECT gc.group_id, gc.join_policy, gc.roles, gm.role AS my_role, "
-        "(SELECT count() FROM (SELECT member_key FROM group_members gm2 "
-        "WHERE gm2.group_id = gc.group_id AND gm2.deleted = 0 "
-        "QUALIFY row_number() OVER (PARTITION BY gm2.member_key ORDER BY gm2.updated_at DESC) = 1) "
-        ") AS member_count "
+        "SELECT gc.group_id, gc.join_policy, gc.roles, gm.role AS my_role "
         "FROM (SELECT group_id, member_key, role, "
         "row_number() OVER (PARTITION BY group_id, member_key ORDER BY updated_at DESC) as rn "
         "FROM group_members WHERE deleted = 0) gm "
@@ -805,10 +821,14 @@ def get_groups_manages(member_key: str) -> list[dict]:
         "WHERE gm.rn = 1 AND gc.rn = 1 AND gm.member_key = %(member_key)s",
         {"member_key": member_key},
     )
+    # Collect group ids for member-count lookup
+    group_ids = [row[0] for row in result.result_rows]
+    counts = _get_group_member_counts(group_ids)
+
     out = []
     seen = set()
     for row in result.result_rows:
-        group_id, join_policy, roles_json, my_role, member_count = row
+        group_id, join_policy, roles_json, my_role = row
         if group_id in seen:
             continue
         seen.add(group_id)
@@ -825,7 +845,7 @@ def get_groups_manages(member_key: str) -> list[dict]:
                     "group_id": group_id,
                     "join_policy": join_policy,
                     "my_role": my_role,
-                    "member_count": member_count,
+                    "member_count": counts.get(group_id, 0),
                 }
             )
     return out

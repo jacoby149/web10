@@ -2,6 +2,7 @@
 fix(api): remove token requirement from /v3/stats — node_stats required TokenOnly but never used the token, just returned public ClickHouse counts. Marketing-ui sends empty body (pre-signup, no auth) causing 422.
 
 3.0.30 || 12.08.2026
+fix(api): ClickHouse decorrelate error on /v3/groups/list — correlated scalar subquery with QUALIFY + row_number() OVER() is not supported by ClickHouse. Extracted member_count into a separate batched query (_get_group_member_counts) so the window function operates at top level. Fixes both get_user_groups and get_groups_manages.
 fix(marketing-api): add missing funnel event types to resolve 422 errors — FunnelEvent enum was missing 11 event types the marketing-ui client sends (freedom_view, everything_view, trending_load_more, trending_comment/like/repost_attempt, trending_preset, trending_search, trending_view_toggle, join_view, join_click). FastAPI returned 422 validation errors for unrecognized events.
 
 3.0.29 || 12.08.2026
