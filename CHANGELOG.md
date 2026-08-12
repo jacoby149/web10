@@ -1,3 +1,6 @@
+3.0.32 || 12.08.2026
+feat(ui+demos): groups demo uses GCR consent flow — apps no longer create/edit groups directly via API. Groups demo opens auth UI popup, sends GCR via postMessage, user approves, auth UI creates the group (trusted party). Auth UI now tracks message source window and sends `contract_response` back to requesting app after approve/deny. `applyGCR` handles both `create_group` and `update_group` actions. ConsentView summarizes GCRs with action-specific descriptions. 96 UI tests green, tsc clean.
+
 3.0.31 || 12.08.2026
 fix(api): remove token requirement from /v3/stats — node_stats required TokenOnly but never used the token, just returned public ClickHouse counts. Marketing-ui sends empty body (pre-signup, no auth) causing 422.
 
