@@ -358,13 +358,18 @@ def is_group_member(group_id: str, member_key: str) -> bool:
 
 
 def get_user_groups(member_key: str) -> list[dict]:
-    """Get all groups a user belongs to."""
+    """Get all groups a user belongs to (deduplicated by latest member version)."""
     result = client.query(
         "SELECT gc.group_id, gc.join_policy, gm.role AS my_role, "
-        "(SELECT count() FROM group_members gm2 WHERE gm2.group_id = gc.group_id AND gm2.deleted = 0) AS member_count "
-        "FROM group_members gm "
+        "(SELECT count() FROM (SELECT member_key FROM group_members gm2 "
+        "WHERE gm2.group_id = gc.group_id AND gm2.deleted = 0 "
+        "QUALIFY row_number() OVER (PARTITION BY gm2.member_key ORDER BY gm2.updated_at DESC) = 1) "
+        ") AS member_count "
+        "FROM (SELECT group_id, member_key, role, "
+              "row_number() OVER (PARTITION BY group_id, member_key ORDER BY updated_at DESC) as rn "
+              "FROM group_members WHERE deleted = 0) gm "
         "JOIN group_contracts gc ON gm.group_id = gc.group_id "
-        "WHERE gm.member_key = %(member_key)s AND gm.deleted = 0 AND gc.deleted = 0",
+        "WHERE gm.rn = 1 AND gm.member_key = %(member_key)s AND gc.deleted = 0",
         {"member_key": member_key},
     )
     return [
