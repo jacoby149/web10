@@ -918,17 +918,36 @@ def resolve_media_urls_in_docs(docs: list[dict]) -> list[dict]:
 
 
 def get_node_stats() -> dict:
-    """Get node-level stats: user count, doc count, storage estimate."""
+    """Get node-level stats: user count, doc count, group count, apps, storage."""
     user_result = client.query("SELECT count(DISTINCT author_key) FROM documents WHERE deleted = 0")
     user_count = user_result.result_rows()[0][0] if user_result.result_rows() else 0
     doc_result = client.query("SELECT count() FROM documents WHERE deleted = 0")
     doc_count = doc_result.result_rows()[0][0] if doc_result.result_rows() else 0
     group_result = client.query("SELECT count() FROM group_contracts WHERE deleted = 0")
     group_count = group_result.result_rows()[0][0] if group_result.result_rows() else 0
+
+    # Apps — approved only (marketing-ui expects an array of {url, visits, name, ...})
+    apps = list_apps(approved_only=True)
+    apps_for_stats = [
+        {**app, "visits": 0, "web10apps_post_id": ""}
+        for app in apps
+    ]
+
+    # Storage — sum of data sizes across all tables in ClickHouse
+    try:
+        storage_result = client.query(
+            "SELECT sum(bytes_on_disk) FROM system.parts WHERE active = 1"
+        )
+        storage = int(storage_result.result_rows()[0][0]) if storage_result.result_rows() and storage_result.result_rows()[0][0] is not None else 0
+    except Exception:
+        storage = 0
+
     return {
         "users": user_count,
         "documents": doc_count,
         "groups": group_count,
+        "apps": apps_for_stats,
+        "storage": storage,
     }
 
 

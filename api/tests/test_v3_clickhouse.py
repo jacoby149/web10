@@ -672,14 +672,49 @@ class TestNodeStats:
     def test_stats(self):
         with _patch_client() as mock_client:
             mock_client.query.side_effect = [
-                _mock_result_rows([(42,)]),
-                _mock_result_rows([(100,)]),
-                _mock_result_rows([(5,)]),
+                _mock_result_rows([(42,)]),  # users
+                _mock_result_rows([(100,)]),  # documents
+                _mock_result_rows([(5,)]),  # groups
+                _mock_result_rows([("https://a.com", "App A", "", "", "[]", "approved", 1)]),  # list_apps
+                _mock_result_rows([(1024,)]),  # storage (system.parts)
             ]
             stats = ch.get_node_stats()
             assert stats["users"] == 42
             assert stats["documents"] == 100
             assert stats["groups"] == 5
+            assert len(stats["apps"]) == 1
+            assert stats["apps"][0]["url"] == "https://a.com"
+            assert stats["apps"][0]["visits"] == 0
+            assert stats["storage"] == 1024
+
+    def test_stats_no_apps_no_storage(self):
+        with _patch_client() as mock_client:
+            mock_client.query.side_effect = [
+                _mock_result_rows([(10,)]),  # users
+                _mock_result_rows([(50,)]),  # documents
+                _mock_result_rows([(2,)]),  # groups
+                _mock_result_rows([]),  # list_apps — empty
+                _mock_result_rows([(None,)]),  # storage — null
+            ]
+            stats = ch.get_node_stats()
+            assert stats["users"] == 10
+            assert stats["documents"] == 50
+            assert stats["groups"] == 2
+            assert stats["apps"] == []
+            assert stats["storage"] == 0
+
+    def test_stats_storage_exception(self):
+        with _patch_client() as mock_client:
+            mock_client.query.side_effect = [
+                _mock_result_rows([(1,)]),  # users
+                _mock_result_rows([(1,)]),  # documents
+                _mock_result_rows([(1,)]),  # groups
+                _mock_result_rows([]),  # list_apps — empty
+                Exception("ClickHouse unavailable"),  # storage — error
+            ]
+            stats = ch.get_node_stats()
+            assert stats["users"] == 1
+            assert stats["storage"] == 0
 
 
 # ---------------------------------------------------------------------------

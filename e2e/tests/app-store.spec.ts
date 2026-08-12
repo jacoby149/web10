@@ -70,7 +70,7 @@ test.describe('app store -> launch -> token handoff', () => {
     const ready = await readyRes.json();
     expect(ready.status).toBe('ok');
 
-    const statsRes = await request.post(`${API_BASE}/stats`);
+    const statsRes = await request.post(`${API_BASE}/v3/stats`, { json: {} });
     // stats is include_in_schema=False — still callable
   });
 });
