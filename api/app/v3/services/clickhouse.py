@@ -7,6 +7,7 @@ import clickhouse_connect
 from uuid6 import uuid7
 
 import app.settings as settings
+from app.services.documentdb import total_s3_size
 
 log = logging.getLogger(__name__)
 
@@ -1028,7 +1029,7 @@ def get_node_stats() -> dict:
     apps = list_apps(approved_only=True)
     apps_for_stats = [{**app, "visits": 0, "web10apps_post_id": ""} for app in apps]
 
-    # Storage — sum of data sizes across all tables in ClickHouse
+    # Storage — ClickHouse on-disk bytes + S3 media blob bytes
     try:
         storage_result = client.query("SELECT sum(bytes_on_disk) FROM system.parts WHERE active = 1")
         storage = (
@@ -1038,6 +1039,12 @@ def get_node_stats() -> dict:
         )
     except Exception:
         storage = 0
+
+    # Add S3 object-store bytes (media blobs — photos, videos, imports)
+    try:
+        storage += total_s3_size()
+    except Exception:
+        pass  # S3 unavailable — keep ClickHouse bytes
 
     return {
         "users": user_count,
