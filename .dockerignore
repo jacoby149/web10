@@ -7,6 +7,7 @@
 # Universal dev/build crud — never needed in any image build.
 **/node_modules
 **/dist
+!sdk/dist
 **/build
 **/.cache
 **/.turbo
