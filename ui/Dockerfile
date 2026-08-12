@@ -2,14 +2,14 @@ FROM oven/bun:1-alpine AS dev
 
 WORKDIR /ui
 
-COPY package.json bun.lock ./
-COPY ../sdk/package.json /sdk/package.json
-COPY ../sdk/dist/ /sdk/dist/
-RUN ln -sf /sdk ../sdk && bun install --frozen-lockfile
+COPY ui/package.json ui/bun.lock ./
+COPY sdk/package.json /sdk/package.json
+COPY sdk/dist/ /sdk/dist/
+RUN bun install --frozen-lockfile
 
-COPY index.html tsconfig.json vite.config.js ./
-COPY public/ public/
-COPY src/ src/
+COPY ui/index.html ui/tsconfig.json ui/vite.config.js ./
+COPY ui/public/ public/
+COPY ui/src/ src/
 
 EXPOSE 80
 

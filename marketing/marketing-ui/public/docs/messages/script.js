@@ -139,8 +139,8 @@ function readMessages() {
 async function sendMessage() {
   const toUser = toUsername.value.trim()
   const toProv = toProvider.value.trim()
-  const text = body.value.trim()
-  if (!toUser || toProv || !text) return
+  const text = document.getElementById('body').value.trim()
+  if (!toUser || !text) return
 
   const t = w.readToken()
   const payload = {
@@ -163,7 +163,7 @@ async function sendMessage() {
       groups: groupId ? [groupId] : undefined,
     })
 
-    body.value = ""
+    document.getElementById('body').value = ""
     message.innerHTML = `Sent to <strong>${toUser}/${toProv}</strong>`
 
     // If you sent to yourself, your inbox just gained the message
