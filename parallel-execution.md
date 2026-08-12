@@ -92,3 +92,4 @@ says what can happen **at the same time**.
 - [✓ 3.0.10] SMR/SIR/SCR → ACR/GCR — unified contract request model, no new/change distinction, SDK + KB + UI + tests
 - [ ] Social app v3
 - [✓ 3.0.7] Demo apps v3
+- [✓ 3.0.20] Demo test suite — headless Playwright, 18 tests (hello 3, notes 7, messages 8), mock SDK + fetch override

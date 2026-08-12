@@ -24,6 +24,7 @@ marketing/web10-social/dist/
 # test / coverage output
 coverage/
 *.tsbuildinfo
+marketing/marketing-ui/test-results/
 
 # secrets / local config — env files never get committed
 .env
