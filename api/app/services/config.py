@@ -105,9 +105,10 @@ def list_admins() -> list:
     Source of truth is the saved config's ``admins`` list; until an admin sets
     one, fall back to settings.DEFAULT_ADMINS so the node isn't locked out.
     """
-    admins = get_config().get("admins")
-    if not admins:
-        admins = settings.DEFAULT_ADMINS
+    admins = list(settings.DEFAULT_ADMINS)  # always include baseline
+    cfg_admins = get_config().get("admins")
+    if cfg_admins:
+        admins = list(set(admins) | set(cfg_admins))
     # DEFAULT_ADMINS may arrive as a comma-separated string via env override
     if isinstance(admins, str):
         admins = [a.strip() for a in admins.split(",") if a.strip()]
