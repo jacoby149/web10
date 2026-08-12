@@ -63,7 +63,7 @@ services:
       DB: ${DB:-web10}
       S3_ENDPOINT: http://minio.localhost:9000
       CLICKHOUSE_HOST: clickhouse
-      CLICKHOUSE_PORT: 9000
+      CLICKHOUSE_PORT: 8123
       CLICKHOUSE_DATABASE: web10
       CLICKHOUSE_USER: web10
       CLICKHOUSE_PASSWORD: web10

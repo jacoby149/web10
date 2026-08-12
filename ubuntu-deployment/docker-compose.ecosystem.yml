@@ -92,6 +92,7 @@ services:
       # DB=deploy + DB_URL=mongodb://host.docker.internal:27017/ (env.prod).
       DB: ${DB:-web10}
       CLICKHOUSE_HOST: ${STACK}-clickhouse
+      CLICKHOUSE_PORT: 8123
       S3_ENDPOINT: http://${STACK}-minio:9000
       # Presigned upload/read URLs are signed with THIS host and handed to the
       # browser, so it must be the public HTTPS MinIO vhost (NPM → ${STACK}-minio:9000),
