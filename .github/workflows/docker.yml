@@ -26,8 +26,12 @@ jobs:
           - name: api
             context: api
           - name: ui
-            context: ui
+            # Repo-root context so the Dockerfile can COPY ../sdk/ (the v3 SDK
+            # the auth app depends on). Cache key stays scoped to ui/.
+            context: .
+            dockerfile: ui/Dockerfile
             target: build
+            hashPath: ui
           - name: sdk
             context: sdk
           - name: rtc
