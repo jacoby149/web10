@@ -33,7 +33,7 @@ async def list_apps(data: TokenOnly):
 @router.post("/rating")
 async def create_app_rating(data: CreateAppRating):
     """Submit a 1-5 star rating for an app."""
-    decoded = decode_token(data.token)
+    decoded = decode_token(data.token, private_key=True)
     if not decoded.username or decoded.username == "anon":
         raise exceptions.TOKEN
     if not data.body.get("target_app_id"):

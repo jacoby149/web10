@@ -64,7 +64,7 @@ async def get_profile(data: TokenOnly):
     user = _user(data)
     profile = ch.get_user_profile(user)
     if not profile:
-        raise exceptions.ENTRY_NOT_FOUND
+        raise exceptions.NO_USER
     return profile
 
 
@@ -83,7 +83,7 @@ async def send_code(data: TokenOnly):
 @router.post("/set_recovery_phone")
 async def set_recovery_phone(data: SetRecoveryPhone):
     """Set the recovery phone on the authenticated user's profile."""
-    decoded = decode_token(data.token)
+    decoded = decode_token(data.token, private_key=True)
     if not decoded.username or decoded.username == "anon":
         raise exceptions.TOKEN
     import re

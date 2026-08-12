@@ -47,7 +47,7 @@ def _require_group_permission(group_id: str, user: str, permission: str):
 async def create_group(data: CreateGroup):
     """Create a group with roles and initial members."""
     creator = _user(data)
-    decoded = decode_token(data.token)
+    decoded = decode_token(data.token, private_key=True)
     group_id = f"{data.name.lower().replace(' ', '-')}"
     group_id = f"{decoded.provider}/groups/users/{creator}/{group_id}"
 
