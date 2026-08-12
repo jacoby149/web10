@@ -152,6 +152,16 @@ CREATE TABLE IF NOT EXISTS app_ratings (
 ) ENGINE = ReplacingMergeTree(updated_at)
 ORDER BY (target_app_id, author);
 
+CREATE TABLE IF NOT EXISTS app_contracts (
+    user_key String,
+    allowed_origin String,
+    permissions String,
+    created_at DateTime64(3),
+    updated_at DateTime64(3),
+    deleted UInt8 DEFAULT 0
+) ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY (user_key, allowed_origin);
+
 CREATE TABLE IF NOT EXISTS bug_reports (
     report_id String,
     username String DEFAULT '',
