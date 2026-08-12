@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Groups — web10 Demo</title>
+  <style>
+    :root {
+      --bg: #09090b;
+      --fg: #fafafa;
+      --muted: #a1a1aa;
+      --surface: #111113;
+      --elevated: #18181b;
+      --border: #27272a;
+      --brand: #8b5cf6;
+      --brand-300: #c4b5fd;
+      --brand-muted: #2e1065;
+      --danger: #ef4444;
+      --ok: #22c55e;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+    .container { max-width: 640px; margin: 0 auto; }
+    h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem; }
+    .subtitle { color: var(--muted); font-size: 0.875rem; line-height: 1.5; margin-bottom: 1.5rem; }
+    .auth-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem; }
+    button {
+      background: var(--brand);
+      color: var(--fg);
+      border: none;
+      border-radius: 0.5rem;
+      padding: 0.5rem 1rem;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 150ms ease-out;
+      white-space: nowrap;
+    }
+    button:hover { background: #7c3aed; }
+    button.secondary { background: var(--elevated); border: 1px solid var(--border); }
+    button.secondary:hover { background: var(--border); }
+    button.danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+    button.danger:hover { background: #450a0a; }
+    button.ok { background: var(--ok); }
+    input, select, textarea {
+      width: 100%;
+      background: var(--surface);
+      color: var(--fg);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+      font-size: 0.875rem;
+      font-family: inherit;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--brand);
+      box-shadow: 0 0 0 2px var(--brand-muted);
+    }
+    .field-label {
+      display: block;
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin: 0 0 0.375rem 0.125rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .row { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; }
+    .row > .col { flex: 1; }
+    textarea { resize: vertical; min-height: 48px; }
+    .tabs { display: flex; gap: 4px; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0; }
+    .tabs button {
+      flex: 1;
+      background: none;
+      color: var(--muted);
+      border: none;
+      border-bottom: 2px solid transparent;
+      border-radius: 0;
+      padding: 0.5rem;
+      font-size: 0.8125rem;
+      margin-bottom: -1px;
+    }
+    .tabs button:hover { color: var(--fg); background: none; }
+    .tabs button.active { color: var(--brand-300); border-bottom-color: var(--brand); background: none; }
+    .group-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+    }
+    .group-card h3 { font-size: 0.95rem; margin-bottom: 0.25rem; }
+    .group-card .meta { font-size: 0.75rem; color: var(--muted); margin-bottom: 0.5rem; }
+    .group-card .actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .group-card .actions button { padding: 0.375rem 0.75rem; font-size: 0.75rem; }
+    .member {
+      display: inline-block;
+      background: var(--elevated);
+      border: 1px solid var(--border);
+      padding: 2px 8px;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      margin: 2px;
+    }
+    .member .role { color: var(--brand-300); font-size: 0.65rem; }
+    .post {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+    }
+    .post-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .post-author { color: var(--brand-300); font-size: 0.85rem; font-weight: 500; }
+    .post-date { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.75rem; color: var(--muted); }
+    .post-text { font-size: 0.875rem; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+    .post-groups { font-size: 0.7rem; color: var(--muted); margin-top: 0.5rem; }
+    .detail { margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border); }
+    .toast {
+      position: fixed;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--fg);
+      padding: 0.75rem 1.5rem;
+      border-radius: 0.75rem;
+      font-size: 0.875rem;
+      z-index: 100;
+      opacity: 0;
+      transition: opacity 150ms ease-out;
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; }
+    .toast.ok { border-color: var(--ok); color: var(--ok); }
+    .toast.err { border-color: var(--danger); color: var(--danger); }
+    .empty { color: var(--muted); font-size: 0.875rem; text-align: center; padding: 2rem 0; }
+    code {
+      font-family: 'JetBrains Mono', ui-monospace, monospace;
+      background: var(--brand-muted);
+      padding: 0.125rem 0.375rem;
+      border-radius: 0.25rem;
+      font-size: 0.8125rem;
+    }
+    .join-req {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+      font-size: 0.85rem;
+    }
+    .join-req .user { color: var(--brand-300); }
+    .join-req .time { color: var(--muted); font-size: 0.75rem; }
+    .join-req button { margin-left: auto; padding: 0.25rem 0.5rem; font-size: 0.7rem; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Groups</h1>
+    <p class="subtitle">Create communities, manage members, post to groups, and discover content. Groups are policy containers — they define who sees what, not where data lives.</p>
+
+    <div class="auth-row">
+      <button id="authButton">Log in</button>
+      <span id="message" style="font-size:0.8125rem; color:var(--muted);">Not started — log in to begin.</span>
+    </div>
+
+    <div id="app" class="hidden">
+      <div class="tabs">
+        <button class="active" onclick="showTab('my')">My Groups</button>
+        <button onclick="showTab('manage')">I Manage</button>
+        <button onclick="showTab('create')">Create</button>
+        <button onclick="showTab('board')">Board</button>
+      </div>
+
+      <!-- MY GROUPS -->
+      <div id="tab-my">
+        <button class="secondary" onclick="loadMyGroups()" style="margin-bottom:1rem;">Refresh</button>
+        <div id="myGroups"></div>
+      </div>
+
+      <!-- I MANAGE -->
+      <div id="tab-manage" class="hidden">
+        <button class="secondary" onclick="loadManageGroups()" style="margin-bottom:1rem;">Refresh</button>
+        <div id="manageGroups"></div>
+      </div>
+
+      <!-- CREATE -->
+      <div id="tab-create" class="hidden">
+        <label class="field-label">Community Name</label>
+        <input id="groupName" placeholder="my-community" style="margin-bottom:0.75rem;" />
+        <div class="row">
+          <div class="col">
+            <label class="field-label">Join Policy</label>
+            <select id="joinPolicy">
+              <option value="open">Open</option>
+              <option value="request">Request</option>
+              <option value="invite_only">Invite Only</option>
+            </select>
+          </div>
+          <div class="col">
+            <label class="field-label">Role Preset</label>
+            <select id="rolePreset">
+              <option value="community">Community</option>
+              <option value="followers">Followers</option>
+              <option value="close">Close Friends</option>
+            </select>
+          </div>
+        </div>
+        <button onclick="createGroup()" style="margin-top:0.5rem;">Create Group</button>
+      </div>
+
+      <!-- BOARD -->
+      <div id="tab-board" class="hidden">
+        <label class="field-label">Post To Group</label>
+        <div class="row">
+          <div class="col">
+            <select id="postGroup"><option value="">— pick a group —</option></select>
+          </div>
+        </div>
+        <textarea id="postText" placeholder="Write a post for the community…"></textarea>
+        <div style="display:flex; gap:0.5rem; justify-content:flex-end; margin-bottom:1.5rem;">
+          <button onclick="createPost()">Post</button>
+        </div>
+
+        <label class="field-label">Community Board</label>
+        <div class="row" style="margin-bottom:1rem;">
+          <div class="col">
+            <select id="filterGroup" onchange="loadPosts()"><option value="">All groups</option></select>
+          </div>
+          <button class="secondary" onclick="loadPosts()">Refresh</button>
+        </div>
+        <div id="posts"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="../wapi.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
