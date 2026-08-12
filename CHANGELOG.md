@@ -1,3 +1,6 @@
+3.0.27 || 12.08.2026
+fix(api): verify JWT signatures on all v3 endpoints — `decode_token` was called with `private_key=False` (default), skipping signature verification. Any client could forge tokens with arbitrary usernames. Fixed in auth_helper.py (shared helper), account.py, groups.py, and appstore.py. Also changed /v3/profile to return 401 NO_USER instead of 404 ENTRY_NOT_FOUND when an authenticated user has no DB record (404 leaks user existence).
+
 3.0.26 || 12.08.2026
 feat(demos): Groups demo app — the 4th demo in the docs sidebar. Create communities with custom roles (Community/Followers/Close Friends presets), join policies (open/request/invite-only), manage members (view, invite, leave), approve/deny join requests, toggle join policy, post to groups, discover posts across all your groups, filter by group. Files: marketing/marketing-ui/public/docs/groups/ (self-hosted demo), sdk/demos/groups/ (CDN source), Docs.tsx sidebar entry, groups.spec.ts (4 Playwright tests, all green). Shows the full groups lifecycle: create → invite → join requests → post → discover.
 
