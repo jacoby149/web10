@@ -14,9 +14,9 @@ from app.v3.services import clickhouse as ch
 
 
 def _mock_result_rows(rows):
-    """Build a mock query result with result_rows()."""
+    """Build a mock query result with result_rows property (clickhouse_connect 1.6+)."""
     mock = MagicMock()
-    mock.result_rows.return_value = rows
+    mock.result_rows = rows
     return mock
 
 
@@ -563,16 +563,22 @@ class TestReadDocumentById:
 class TestGetGroupsManages:
     def test_has_manage(self):
         with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows([("g1", "open", "admin", 5)])
+            mock_client.query.return_value = _mock_result_rows(
+                [("g1", "open", '{"admin": {"permissions": ["manageRoles"]}}', "admin", 5)]
+            )
             groups = ch.get_groups_manages("alice")
             assert len(groups) == 1
             assert groups[0]["group_id"] == "g1"
-            # Verify ClickHouse JSON functions are used
-            sql = mock_client.query.call_args[0][0]
-            assert "extractJSONArray" in sql
-            assert "manageRoles" in sql
 
     def test_no_manage(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows(
+                [("g1", "open", '{"admin": {"permissions": ["readAll"]}}', "admin", 5)]
+            )
+            groups = ch.get_groups_manages("alice")
+            assert len(groups) == 0
+
+    def test_empty(self):
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows([])
             groups = ch.get_groups_manages("alice")

@@ -80,8 +80,8 @@ class TestRead:
         mock_docs = [("doc-1", "bob", '{"text":"mine"}', [], datetime(2026, 1, 1), "")]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.side_effect = [
-                MagicMock(result_rows=lambda: mock_groups),
-                MagicMock(result_rows=lambda: mock_docs),
+                MagicMock(result_rows=mock_groups),
+                MagicMock(result_rows=mock_docs),
             ]
             resp = client.post(
                 "/v3/read",
@@ -100,7 +100,7 @@ class TestRead:
             ("doc-1", "bob", '{"text":"shared"}', [], datetime(2026, 1, 1), ""),
         ]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
-            mock_ch.query.return_value = MagicMock(result_rows=lambda: mock_rows)
+            mock_ch.query.return_value = MagicMock(result_rows=mock_rows)
             resp = client.post(
                 "/v3/read",
                 json={
@@ -121,8 +121,8 @@ class TestRead:
         mock_docs = [("doc-1", "bob", '{"text":"hello"}', [], datetime(2026, 1, 1), "")]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.side_effect = [
-                MagicMock(result_rows=lambda: mock_groups),
-                MagicMock(result_rows=lambda: mock_docs),
+                MagicMock(result_rows=mock_groups),
+                MagicMock(result_rows=mock_docs),
             ]
             resp = client.post(
                 "/v3/read",
@@ -143,7 +143,7 @@ class TestUpdate:
             ("doc-1", "testuser", "posts", '{"text":"old"}', "", [], original_created, original_created),
         ]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
-            mock_ch.query.return_value = MagicMock(result_rows=lambda: mock_rows)
+            mock_ch.query.return_value = MagicMock(result_rows=mock_rows)
             resp = client.post(
                 "/v3/update",
                 json={
@@ -159,7 +159,7 @@ class TestUpdate:
 
     def test_update_not_found(self, client, token):
         with patch("app.v3.services.clickhouse.client") as mock_ch:
-            mock_ch.query.return_value = MagicMock(result_rows=lambda: [])
+            mock_ch.query.return_value = MagicMock(result_rows=[])
             resp = client.post(
                 "/v3/update",
                 json={
@@ -177,7 +177,7 @@ class TestDelete:
             ("doc-1", "testuser", "posts", '{"text":"x"}', "", [], datetime(2026, 1, 1), datetime(2026, 1, 1)),
         ]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
-            mock_ch.query.return_value = MagicMock(result_rows=lambda: mock_rows)
+            mock_ch.query.return_value = MagicMock(result_rows=mock_rows)
             resp = client.post("/v3/delete", json={"token": token, "doc_id": "doc-1"})
         assert resp.status_code == 200
         assert resp.json()["status"] == "deleted"
@@ -212,7 +212,7 @@ class TestListGroups:
     def test_get(self, client, token):
         mock_rows = [("g1", "open", "admin", 5)]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
-            mock_ch.query.return_value = MagicMock(result_rows=lambda: mock_rows)
+            mock_ch.query.return_value = MagicMock(result_rows=mock_rows)
             resp = client.post("/v3/groups/list", json={"token": token})
         assert resp.status_code == 200
         assert len(resp.json()) == 1
@@ -222,7 +222,7 @@ class TestJoinGroup:
     def test_open_join(self, client, token):
         mock_rows = [("g1", '{"roles":[]}', "open", datetime(2026, 1, 1), datetime(2026, 1, 1))]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
-            mock_ch.query.return_value = MagicMock(result_rows=lambda: mock_rows)
+            mock_ch.query.return_value = MagicMock(result_rows=mock_rows)
             resp = client.post("/v3/groups/join", json={"token": token, "group_id": "g1"})
         assert resp.status_code == 200
         assert resp.json()["role"] == "member"
@@ -230,7 +230,7 @@ class TestJoinGroup:
     def test_request_join(self, client, token):
         mock_rows = [("g1", '{"roles":[]}', "request", datetime(2026, 1, 1), datetime(2026, 1, 1))]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
-            mock_ch.query.return_value = MagicMock(result_rows=lambda: mock_rows)
+            mock_ch.query.return_value = MagicMock(result_rows=mock_rows)
             resp = client.post("/v3/groups/join", json={"token": token, "group_id": "g1"})
         assert resp.status_code == 200
         assert resp.json()["status"] == "pending"
@@ -238,7 +238,7 @@ class TestJoinGroup:
     def test_invite_only_join(self, client, token):
         mock_rows = [("g1", '{"roles":[]}', "invite_only", datetime(2026, 1, 1), datetime(2026, 1, 1))]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
-            mock_ch.query.return_value = MagicMock(result_rows=lambda: mock_rows)
+            mock_ch.query.return_value = MagicMock(result_rows=mock_rows)
             resp = client.post("/v3/groups/join", json={"token": token, "group_id": "g1"})
         assert resp.status_code == 401
 
@@ -315,9 +315,9 @@ class TestJoinRequests:
         mock_requests = [("bob", "pending", "", datetime(2026, 1, 1))]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.side_effect = [
-                MagicMock(result_rows=lambda: mock_member),
-                MagicMock(result_rows=lambda: mock_group),
-                MagicMock(result_rows=lambda: mock_requests),
+                MagicMock(result_rows=mock_member),
+                MagicMock(result_rows=mock_group),
+                MagicMock(result_rows=mock_requests),
             ]
             resp = client.post("/v3/groups/requests/join/list", json={"token": token, "group_id": "g1"})
         assert resp.status_code == 200
@@ -336,8 +336,8 @@ class TestJoinRequests:
         ]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.side_effect = [
-                MagicMock(result_rows=lambda: mock_member),
-                MagicMock(result_rows=lambda: mock_group),
+                MagicMock(result_rows=mock_member),
+                MagicMock(result_rows=mock_group),
             ]
             resp = client.post("/v3/groups/requests/join/list", json={"token": token, "group_id": "g1"})
         assert resp.status_code == 401
@@ -355,8 +355,8 @@ class TestJoinRequests:
         ]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.side_effect = [
-                MagicMock(result_rows=lambda: mock_member),
-                MagicMock(result_rows=lambda: mock_group),
+                MagicMock(result_rows=mock_member),
+                MagicMock(result_rows=mock_group),
             ]
             with (
                 patch("app.v3.services.clickhouse.has_pending_or_invited_request", return_value=True),
@@ -388,8 +388,8 @@ class TestJoinRequests:
         ]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.side_effect = [
-                MagicMock(result_rows=lambda: mock_member),
-                MagicMock(result_rows=lambda: mock_group),
+                MagicMock(result_rows=mock_member),
+                MagicMock(result_rows=mock_group),
             ]
             with patch("app.v3.services.clickhouse.has_pending_or_invited_request", return_value=False):
                 resp = client.post(
@@ -411,8 +411,8 @@ class TestJoinRequests:
         ]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.side_effect = [
-                MagicMock(result_rows=lambda: mock_member),
-                MagicMock(result_rows=lambda: mock_group),
+                MagicMock(result_rows=mock_member),
+                MagicMock(result_rows=mock_group),
             ]
             with patch("app.v3.services.clickhouse.has_pending_or_invited_request", return_value=True):
                 resp = client.post(
@@ -435,8 +435,8 @@ class TestJoinRequests:
         ]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.side_effect = [
-                MagicMock(result_rows=lambda: mock_member),
-                MagicMock(result_rows=lambda: mock_group),
+                MagicMock(result_rows=mock_member),
+                MagicMock(result_rows=mock_group),
             ]
             with patch("app.v3.services.clickhouse.has_pending_or_invited_request", return_value=False):
                 resp = client.post(
@@ -460,8 +460,8 @@ class TestInviteMember:
         ]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.side_effect = [
-                MagicMock(result_rows=lambda: mock_member),
-                MagicMock(result_rows=lambda: mock_group),
+                MagicMock(result_rows=mock_member),
+                MagicMock(result_rows=mock_group),
             ]
             resp = client.post(
                 "/v3/groups/invite",
@@ -484,8 +484,8 @@ class TestInviteMember:
         ]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.side_effect = [
-                MagicMock(result_rows=lambda: mock_member),
-                MagicMock(result_rows=lambda: mock_group),
+                MagicMock(result_rows=mock_member),
+                MagicMock(result_rows=mock_group),
             ]
             resp = client.post(
                 "/v3/groups/invite",
@@ -531,7 +531,7 @@ class TestAppContracts:
     def test_list(self, client, token):
         mock_rows = [("myapp.com", '{"posts": ["readAll"]}')]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
-            mock_ch.query.return_value = MagicMock(result_rows=lambda: mock_rows)
+            mock_ch.query.return_value = MagicMock(result_rows=mock_rows)
             resp = client.post("/v3/app-contracts/list", json={"token": token})
         assert resp.status_code == 200
         assert len(resp.json()) == 1
@@ -609,7 +609,7 @@ class TestReadById:
             ("doc-1", "bob", '{"text":"hello"}', [], datetime(2026, 1, 1), ""),
         ]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
-            mock_ch.query.return_value = MagicMock(result_rows=lambda: mock_rows)
+            mock_ch.query.return_value = MagicMock(result_rows=mock_rows)
             resp = client.post(
                 "/v3/read",
                 json={
@@ -623,7 +623,7 @@ class TestReadById:
 
     def test_read_by_id_not_found(self, client, token):
         with patch("app.v3.services.clickhouse.client") as mock_ch:
-            mock_ch.query.return_value = MagicMock(result_rows=lambda: [])
+            mock_ch.query.return_value = MagicMock(result_rows=[])
             resp = client.post(
                 "/v3/read",
                 json={
@@ -642,9 +642,9 @@ class TestReadById:
 
 class TestGroupsManages:
     def test_manages(self, client, token):
-        mock_rows = [("g1", "open", "admin", 5)]
+        mock_rows = [("g1", "open", '{"admin": {"permissions": ["manageRoles"]}}', "admin", 5)]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
-            mock_ch.query.return_value = MagicMock(result_rows=lambda: mock_rows)
+            mock_ch.query.return_value = MagicMock(result_rows=mock_rows)
             resp = client.post("/v3/groups/manages", json={"token": token})
         assert resp.status_code == 200
         assert len(resp.json()) == 1
@@ -661,8 +661,8 @@ class TestGroupMembersList:
         mock_members = [("alice", "member", datetime(2026, 1, 1)), ("bob", "member", datetime(2026, 1, 2))]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.side_effect = [
-                MagicMock(result_rows=lambda: mock_member),
-                MagicMock(result_rows=lambda: mock_members),
+                MagicMock(result_rows=mock_member),
+                MagicMock(result_rows=mock_members),
             ]
             resp = client.post("/v3/groups/members/list", json={"token": token, "group_id": "g1"})
         assert resp.status_code == 200
@@ -709,11 +709,11 @@ class TestNodeStats:
     def test_stats(self, client, token):
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.side_effect = [
-                MagicMock(result_rows=lambda: [(42,)]),  # users
-                MagicMock(result_rows=lambda: [(100,)]),  # documents
-                MagicMock(result_rows=lambda: [(5,)]),  # groups
-                MagicMock(result_rows=lambda: []),  # list_apps — empty
-                MagicMock(result_rows=lambda: [(1024,)]),  # storage
+                MagicMock(result_rows=[(42,)]),  # users
+                MagicMock(result_rows=[(100,)]),  # documents
+                MagicMock(result_rows=[(5,)]),  # groups
+                MagicMock(result_rows=[]),  # list_apps — empty
+                MagicMock(result_rows=[(1024,)]),  # storage
             ]
             resp = client.post("/v3/stats", json={"token": token})
         assert resp.status_code == 200
@@ -733,7 +733,7 @@ class TestNodeStats:
 class TestSignup:
     def test_signup(self, client):
         with patch("app.v3.services.clickhouse.client") as mock_ch:
-            mock_ch.query.return_value = MagicMock(result_rows=lambda: [(0,)])
+            mock_ch.query.return_value = MagicMock(result_rows=[(0,)])
             with patch("app.v3.endpoints.auth.get_password_hash", return_value="hash123"):
                 resp = client.post(
                     "/v3/signup",
@@ -758,7 +758,7 @@ class TestLogin:
     def test_login(self, client):
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = MagicMock(
-                result_rows=lambda: [("alice", "hash123", "", 0, "", 0, datetime(2026, 1, 1))]
+                result_rows=[("alice", "hash123", "", 0, "", 0, datetime(2026, 1, 1))]
             )
             with patch("app.v3.endpoints.auth.get_password_hash", return_value="hash123"):
                 with patch("app.v3.services.clickhouse.authenticate_user", return_value=True):
@@ -896,7 +896,7 @@ class TestMediaDelete:
 class TestAppsRegister:
     def test_register(self, client, token):
         with patch("app.v3.services.clickhouse.client") as mock_ch:
-            mock_ch.query.return_value = MagicMock(result_rows=lambda: [])
+            mock_ch.query.return_value = MagicMock(result_rows=[])
             resp = client.post(
                 "/v3/apps/register",
                 json={
