@@ -53,17 +53,21 @@ jobs:
                 cp ~/web10-ops/env.dev ubuntu-deployment/env.dev
               else
                 cp ubuntu-deployment/env.dev.example ubuntu-deployment/env.dev
-                # Auto-generate MINIO_PASSWORD (the only real secret needed)
-                sed -i "s|^MINIO_PASSWORD=.*|MINIO_PASSWORD=$(openssl rand -base64 32)|" ubuntu-deployment/env.dev
               fi
+            fi
+            # Ensure MINIO_PASSWORD is set (the only real secret needed)
+            if ! grep -q '^MINIO_PASSWORD=.+' ubuntu-deployment/env.dev 2>/dev/null; then
+              sed -i "s|^MINIO_PASSWORD=.*|MINIO_PASSWORD=$(openssl rand -base64 32)|" ubuntu-deployment/env.dev
             fi
             if [[ ! -f ubuntu-deployment/env.prod ]]; then
               if [[ -f ~/web10-ops/env.prod ]]; then
                 cp ~/web10-ops/env.prod ubuntu-deployment/env.prod
               else
                 cp ubuntu-deployment/env.prod.example ubuntu-deployment/env.prod
-                sed -i "s|^MINIO_PASSWORD=.*|MINIO_PASSWORD=$(openssl rand -base64 32)|" ubuntu-deployment/env.prod
               fi
+            fi
+            if ! grep -q '^MINIO_PASSWORD=.+' ubuntu-deployment/env.prod 2>/dev/null; then
+              sed -i "s|^MINIO_PASSWORD=.*|MINIO_PASSWORD=$(openssl rand -base64 32)|" ubuntu-deployment/env.prod
             fi
 
             # Source env for per-stack vars
@@ -146,22 +150,26 @@ jobs:
               ln -sfn ~/web10-ops/.env ubuntu-deployment/.env
             fi
             # Restore env files if missing
-            # Try ~/web10-ops/ first (has real secrets), fall back to .example files
             if [[ ! -f ubuntu-deployment/env.dev ]]; then
               if [[ -f ~/web10-ops/env.dev ]]; then
                 cp ~/web10-ops/env.dev ubuntu-deployment/env.dev
               else
                 cp ubuntu-deployment/env.dev.example ubuntu-deployment/env.dev
-                sed -i "s|^MINIO_PASSWORD=.*|MINIO_PASSWORD=$(openssl rand -base64 32)|" ubuntu-deployment/env.dev
               fi
+            fi
+            # Ensure MINIO_PASSWORD is set
+            if ! grep -q '^MINIO_PASSWORD=.+' ubuntu-deployment/env.dev 2>/dev/null; then
+              sed -i "s|^MINIO_PASSWORD=.*|MINIO_PASSWORD=$(openssl rand -base64 32)|" ubuntu-deployment/env.dev
             fi
             if [[ ! -f ubuntu-deployment/env.prod ]]; then
               if [[ -f ~/web10-ops/env.prod ]]; then
                 cp ~/web10-ops/env.prod ubuntu-deployment/env.prod
               else
                 cp ubuntu-deployment/env.prod.example ubuntu-deployment/env.prod
-                sed -i "s|^MINIO_PASSWORD=.*|MINIO_PASSWORD=$(openssl rand -base64 32)|" ubuntu-deployment/env.prod
               fi
+            fi
+            if ! grep -q '^MINIO_PASSWORD=.+' ubuntu-deployment/env.prod 2>/dev/null; then
+              sed -i "s|^MINIO_PASSWORD=.*|MINIO_PASSWORD=$(openssl rand -base64 32)|" ubuntu-deployment/env.prod
             fi
 
             # Source env for per-stack vars
