@@ -1,3 +1,6 @@
+3.0.20 || 11.08.2026
+test(marketing-ui): headless Playwright suite for demo apps — 18 tests across hello (3), notes (7), messages (8). Static server + mock SDK with fetch override, all v3 API calls intercepted. Fixed messages demo: body global collision (document.getElementById fix), guard rejected valid provider. marketing/marketing-ui/package.json gains test:demos scripts.
+
 3.0.19 || 11.08.2026
 refactor(api+marketing-api): bug reports → issue-tracking tag, marketing API proxy endpoints. Move bug report endpoints from "admin" to new "issue-tracking" swagger tag. Add /v3/issue-tracking (submit, list, detail) to marketing API — proxies to node API's ClickHouse bug_reports table via NODE_API_URL. Also tag /config, /am_admin, /config/update as "admin" (were untagged), /recovery_bot as "auth" (was untagged), appstore /admin and /approve as "admin" (were "app-store"). Only POST / remains in "default".
 
