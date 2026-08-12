@@ -1,5 +1,6 @@
 3.0.21 || 11.08.2026
 fix(api+marketing-ui): /v3/stats returns apps and storage — the v3 refactor changed the response shape from {users, apps, storage} to {users, documents, groups}, breaking the marketing homepage stats bar and AppStore member counts. get_node_stats() now includes approved apps (from list_apps) with visits=0 placeholder and storage from ClickHouse system.parts. Marketing-ui Home.tsx and AppStore.tsx updated to call /v3/stats instead of /stats. E2E app-store test updated.
+fix(marketing-ui): linktree App Store link — /store → /app-store (route was 404). External service URLs (Social, Auth, API, Marketing API) already resolve correctly per environment via VITE_* build args baked at deploy time.
 fix(ui): DB config fields updated from MongoDB to ClickHouse — SetupWizard placeholder and default, ConfigPage label, mediaPresign comment.
 
 3.0.20 || 11.08.2026
