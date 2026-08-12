@@ -3,6 +3,25 @@
 Newest at top. Format per AGENT-OPS.md §8. Read the top entries
 BEFORE doing ops work — someone may already be mid-fix.
 
+## 12.08.2026 02:26 — opencode (amsterdam) — ClickHouse init script made resilient + web10-dev schema reset
+did:
+  - Diagnosed: clickhouse-init/001-init-v3-schema.sql ran before server
+    accepted connections, silently creating 0 tables. Renamed to
+    .sql.template (entrypoint ignores non-.sql/.sh). Added
+    001-init-v3-schema.sh wrapper that retries clickhouse-client up to
+    60s before piping SQL.
+  - web10-dev-clickhouse-1: stopped, removed, volume
+    web10-dev_clickhouse-data wiped, redeployed with docker compose.
+    All 16 tables verified created on fresh start.
+  - Pushed fix to dev (PR #567, merged).
+state: web10-dev ClickHouse has all 16 tables (documents, doc_groups,
+  group_contracts, group_members, group_join_requests, group_hidden_docs,
+  service_contracts, user_blacklist, group_blacklist, user_group_sharing,
+  provider_service_contracts, users, apps, app_ratings, app_contracts,
+  bug_reports). Init script now resilient to startup race.
+next: none — init is idempotent (IF NOT EXISTS), so future volume wipes
+  will auto-recreate schema without manual intervention.
+
 ## 29.07.2026 01:35 — opencode (prague) — host reboot test: onboot + watchdog VERIFIED end-to-end
 did:
   - Operator rebooted the Proxmox HOST as a live test. Result: VM 100
