@@ -1,3 +1,6 @@
+3.0.23 || 11.08.2026
+fix(ui): derive SetupWizard defaults from current auth hostname — `auth.dev.web10.app` → provider `api.dev.web10.app`, CORS `auth.dev.web10.app`. No more hardcoded `api.localhost`.
+
 3.0.22 || 11.08.2026
 fix(ui): hide broken logo in SetupWizard — added onError handler to gracefully suppress broken image icon when logo asset is missing.
 

@@ -391,8 +391,12 @@ const SetupWizard = ({ I }: { I: Record<string, any> }) => {
   const [done, setDone] = React.useState(false);
   const [logoOk, setLogoOk] = React.useState(true);
 
+  // Derive defaults from the current auth hostname: auth.example.com → api.example.com
+  const authHost = typeof window !== "undefined" ? window.location.hostname : "auth.localhost";
+  const defaultProvider = authHost.startsWith("auth.") ? "api." + authHost.slice(5) : "api.localhost";
+
   const [formData, setFormData] = React.useState({
-    provider: "api.localhost",
+    provider: defaultProvider,
     brand_text: "web10",
     db_url: "http://clickhouse:8123",
     db_name: "web10",
@@ -405,7 +409,7 @@ const SetupWizard = ({ I }: { I: Record<string, any> }) => {
     beta_code: "web10betacode",
     free_credits: 0.10,
     free_space: 8,
-    cors_service_managers: "auth.localhost",
+    cors_service_managers: authHost,
     s3_endpoint: "http://minio:9000",
     s3_bucket: "web10-media",
     s3_access_key: "minioadmin",
