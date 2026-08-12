@@ -3,7 +3,7 @@
 #
 # ClickHouse init scripts only run on first startup (empty data dir).
 # For existing stacks, this creates any missing tables.
-# Safe to run multiple times — uses CREATE TABLE IF NOT EXISTS.
+# Safe to run multiple times — all statements use CREATE TABLE IF NOT EXISTS.
 #
 # Usage:
 #   scripts/clickhouse-migrate.sh web10-dev-clickhouse-1
@@ -22,17 +22,19 @@ fi
 
 CONTAINER="$1"
 
-echo "Running ClickHouse migration against ${CONTAINER}..."
-
 if ! docker inspect -f '{{.State.Running}}' "$CONTAINER" 2>/dev/null | grep -q true; then
   echo "ERROR: Container ${CONTAINER} is not running."
   exit 1
 fi
 
-echo "Applying schema (CREATE TABLE IF NOT EXISTS — idempotent)..."
+echo "=== ClickHouse migration for ${CONTAINER} ==="
+echo "Applying schema (idempotent)..."
 docker exec -i "$CONTAINER" clickhouse-client --database web10 < "$INIT_SQL"
+echo "Schema applied."
 
-echo "Verifying tables..."
+echo ""
+echo "=== Verifying tables ==="
+MISSING=0
 for table in documents doc_groups group_contracts group_members group_join_requests \
              group_hidden_docs service_contracts user_blacklist group_blacklist \
              user_group_sharing provider_service_contracts app_contracts users \
@@ -42,7 +44,15 @@ for table in documents doc_groups group_contracts group_members group_join_reque
     echo "  ✓ ${table}"
   else
     echo "  ✗ ${table} MISSING"
+    MISSING=$((MISSING + 1))
   fi
 done
 
-echo "Done."
+if [ "$MISSING" -gt 0 ]; then
+  echo ""
+  echo "WARNING: ${MISSING} table(s) still missing. Check init SQL for errors."
+  exit 1
+else
+  echo ""
+  echo "All 17 tables present."
+fi
