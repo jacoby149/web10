@@ -27,6 +27,7 @@ from app.v3.models.groups import (
     AddGroupMember,
     CreateGroup,
     DeclineInvite,
+    DeleteGroup,
     GetGroup,
     InviteMember,
     JoinGroup,
@@ -80,6 +81,7 @@ __all__ = [
     "LeaveGroup",
     "ListJoinRequests",
     "JoinRequestOp",
+    "DeleteGroup",
     # media
     "ConfirmMedia",
     "ListMedia",

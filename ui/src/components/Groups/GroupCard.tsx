@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronDown, ChevronRight, Users, Shield, Lock, LockOpen, MessageSquare, UserPlus, Settings, Eye, LogOut, ShieldOff } from 'lucide-react';
+import { ChevronDown, ChevronRight, Users, Shield, Lock, LockOpen, MessageSquare, UserPlus, Settings, Eye, LogOut, ShieldOff, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { groupDisplayName } from '@/lib/group-utils';
@@ -53,6 +53,23 @@ function GroupCard({ I, group, isManaged }: { I: Record<string, any>; group: any
       I.setStatus?.('Failed to join group');
     }
   };
+
+  const handleDelete = async () => {
+    if (!confirm(`Delete this group? This will remove all members and cannot be undone.`)) return;
+    try {
+      await I.v3DeleteGroup(group.group_id);
+      I.v3GroupsLoad?.();
+      I.v3GroupsManagesLoad?.();
+    } catch (e: any) {
+      I.setStatus?.('Failed to delete group');
+    }
+  };
+
+  const hasDeletePermission = (() => {
+    const roles = group.roles || [];
+    const roleDef = roles.find((r: any) => r.name === myRole);
+    return roleDef?.permissions?.includes('deleteGroup') ?? false;
+  })();
 
   const handleLeave = async () => {
     try {
@@ -110,11 +127,20 @@ function GroupCard({ I, group, isManaged }: { I: Record<string, any>; group: any
                 {group.roles && group.roles.length > 0 && (
                   <div>
                     <span className="text-sm font-medium text-muted-foreground">Roles:</span>
-                    <div className="mt-1 flex flex-wrap gap-1.5">
+                    <div className="mt-1.5 space-y-1.5">
                       {group.roles.map((role: any, i: number) => (
-                        <Badge key={i} variant="outline">
-                          {role.name || role}
-                        </Badge>
+                        <div key={i} className="flex items-center gap-2">
+                          <Badge variant="brand" className="shrink-0">
+                            {role.name || role}
+                          </Badge>
+                          <div className="flex flex-wrap gap-1">
+                            {(role.permissions || []).map((perm: string, j: number) => (
+                              <span key={j} className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground bg-elevated">
+                                {perm}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
                       ))}
                     </div>
                   </div>
@@ -160,6 +186,17 @@ function GroupCard({ I, group, isManaged }: { I: Record<string, any>; group: any
                       <Settings className="mr-1.5 h-4 w-4" strokeWidth={1.5} />
                       Settings
                     </Button>
+                    {hasDeletePermission && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-danger hover:text-danger ml-auto"
+                        onClick={handleDelete}
+                      >
+                        <Trash2 className="mr-1.5 h-4 w-4" strokeWidth={1.5} />
+                        Delete group
+                      </Button>
+                    )}
                   </>
                 ) : (
                   <>

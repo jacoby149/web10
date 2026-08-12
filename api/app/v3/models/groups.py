@@ -75,3 +75,8 @@ class JoinRequestOp(BaseModel):
     token: str
     group_id: str
     requester_key: str
+
+
+class DeleteGroup(BaseModel):
+    token: str
+    group_id: str

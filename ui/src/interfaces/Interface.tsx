@@ -405,6 +405,11 @@ function useInterface() {
         return v3Post('groups/leave', { group_id: groupId });
     }
 
+    // Delete a v3 group (requires deleteGroup permission).
+    I.v3DeleteGroup = function (groupId: string) {
+        return v3Post('groups/delete', { group_id: groupId });
+    }
+
     // Block a user from seeing content in a v3 group.
     I.v3BlockUserInGroup = function (blockedKey: string, groupId: string) {
         return v3Post('groups/block', { blocked_key: blockedKey, group_id: groupId });

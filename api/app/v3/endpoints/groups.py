@@ -9,6 +9,7 @@ from app.v3.models import (
     BlockUserInGroup,
     CreateGroup,
     DeclineInvite,
+    DeleteGroup,
     GetGroup,
     InviteMember,
     JoinGroup,
@@ -302,3 +303,12 @@ async def set_sharing(data: SetSharing):
     user = _user(data)
     ch.set_user_group_sharing(user, data.group_id, data.enabled)
     return {"user_key": user, "group_id": data.group_id, "sharing_enabled": data.enabled}
+
+
+@router.post("/delete")
+async def delete_group(data: DeleteGroup):
+    """Delete a group (requires deleteGroup permission)."""
+    user = _user(data)
+    _require_group_permission(data.group_id, user, "deleteGroup")
+    ch.delete_group(data.group_id)
+    return {"group_id": data.group_id, "status": "deleted"}
