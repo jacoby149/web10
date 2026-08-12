@@ -928,17 +928,16 @@ def get_node_stats() -> dict:
 
     # Apps — approved only (marketing-ui expects an array of {url, visits, name, ...})
     apps = list_apps(approved_only=True)
-    apps_for_stats = [
-        {**app, "visits": 0, "web10apps_post_id": ""}
-        for app in apps
-    ]
+    apps_for_stats = [{**app, "visits": 0, "web10apps_post_id": ""} for app in apps]
 
     # Storage — sum of data sizes across all tables in ClickHouse
     try:
-        storage_result = client.query(
-            "SELECT sum(bytes_on_disk) FROM system.parts WHERE active = 1"
+        storage_result = client.query("SELECT sum(bytes_on_disk) FROM system.parts WHERE active = 1")
+        storage = (
+            int(storage_result.result_rows()[0][0])
+            if storage_result.result_rows() and storage_result.result_rows()[0][0] is not None
+            else 0
         )
-        storage = int(storage_result.result_rows()[0][0]) if storage_result.result_rows() and storage_result.result_rows()[0][0] is not None else 0
     except Exception:
         storage = 0
 
