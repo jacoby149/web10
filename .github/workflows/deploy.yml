@@ -40,6 +40,7 @@ jobs:
             # fetch the branch explicitly, then force the local branch to it)
             cd /opt/web10
             git fetch origin dev
+            git clean -fd
             git checkout -B dev FETCH_HEAD
 
             # Restore .env symlink if broken (GitOps re-clone can wipe it)
@@ -120,6 +121,7 @@ jobs:
             # fetch the branch explicitly, then force the local branch to it)
             cd /opt/web10
             git fetch origin main
+            git clean -fd
             git checkout -B main FETCH_HEAD
 
             # Restore .env symlink if broken
