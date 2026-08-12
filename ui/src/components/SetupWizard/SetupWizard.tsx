@@ -384,14 +384,19 @@ function CompleteStep({ message, error, onLogin }: { message: string; error: str
   );
 }
 
-function SetupWizard({ I }: { I: Record<string, any> }) {
+const SetupWizard = ({ I }: { I: Record<string, any> }) => {
   const [step, setStep] = React.useState(0);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [done, setDone] = React.useState(false);
+  const [logoOk, setLogoOk] = React.useState(true);
+
+  // Derive defaults from the current auth hostname: auth.example.com → api.example.com
+  const authHost = typeof window !== "undefined" ? window.location.hostname : "auth.localhost";
+  const defaultProvider = authHost.startsWith("auth.") ? "api." + authHost.slice(5) : "api.localhost";
 
   const [formData, setFormData] = React.useState({
-    provider: "api.localhost",
+    provider: defaultProvider,
     brand_text: "web10",
     db_url: "http://clickhouse:8123",
     db_name: "web10",
@@ -404,7 +409,7 @@ function SetupWizard({ I }: { I: Record<string, any> }) {
     beta_code: "web10betacode",
     free_credits: 0.10,
     free_space: 8,
-    cors_service_managers: "auth.localhost",
+    cors_service_managers: authHost,
     s3_endpoint: "http://minio:9000",
     s3_bucket: "web10-media",
     s3_access_key: "minioadmin",
@@ -486,11 +491,14 @@ function SetupWizard({ I }: { I: Record<string, any> }) {
     <div className="flex min-h-screen flex-col bg-background text-foreground" data-testid="setup-wizard">
       <div className="mx-auto flex w-full max-w-[600px] flex-1 flex-col justify-center px-5 py-16">
         <div className="mb-2 flex justify-center">
-          <img
-            src={I.logo}
-            alt="web10"
-            className="mb-5 h-10"
-          />
+          {logoOk && (
+            <img
+              src={I.logo}
+              alt="web10"
+              className="mb-5 h-10"
+              onError={() => setLogoOk(false)}
+            />
+          )}
         </div>
         {!done && step > 0 && step < 6 && (
           <StepIndicator current={step} total={6} />

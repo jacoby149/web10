@@ -1,3 +1,9 @@
+3.0.23 || 11.08.2026
+fix(ui): derive SetupWizard defaults from current auth hostname — `auth.dev.web10.app` → provider `api.dev.web10.app`, CORS `auth.dev.web10.app`. No more hardcoded `api.localhost`.
+
+3.0.22 || 11.08.2026
+fix(ui): hide broken logo in SetupWizard — added onError handler to gracefully suppress broken image icon when logo asset is missing.
+
 3.0.21 || 11.08.2026
 fix(marketing-ui): linktree App Store link — /store → /app-store (route was 404). External service URLs (Social, Auth, API, Marketing API) already resolve correctly per environment via VITE_* build args baked at deploy time.
 fix(ui): DB config fields updated from MongoDB to ClickHouse — SetupWizard placeholder and default, ConfigPage label, mediaPresign comment.
