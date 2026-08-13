@@ -193,6 +193,12 @@ function useInterface() {
             if (e.data?.type === 'acr' || e.data?.type === 'contract') {
                 I.setPendingContracts(normalizeContracts(e.data, e.source));
             }
+            // Handshake — respond so the SDK knows we're listening
+            if (e.data?.type === 'handshake' && e.source instanceof Window) {
+                try {
+                    e.source.postMessage({ type: 'handshake_ack' }, '*');
+                } catch { /* cross-origin */ }
+            }
         });
         // Signal readiness to opener, then request contracts
         if (window.opener) {
@@ -203,19 +209,6 @@ function useInterface() {
                 window.opener.postMessage({ type: 'ACRListen' }, '*');
             } catch { /* cross-origin */ }
         }
-        // Continuously broadcast auth_ready so the SDK can sync even when
-        // reusing an already-open popup — contractRequest may fire at any time
-        // and needs to know the popup's message listener is attached.
-        const readyInterval = setInterval(() => {
-            if (window.opener) {
-                try {
-                    window.opener.postMessage({ type: 'auth_ready' }, '*');
-                } catch { /* cross-origin */ }
-            }
-        }, 500);
-        // Clean up when the popup is closed or navigated away
-        const stopReady = () => clearInterval(readyInterval);
-        window.addEventListener('unload', stopReady);
     }
 
     I.servicesLoad = function () {
