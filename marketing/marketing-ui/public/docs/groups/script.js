@@ -82,7 +82,10 @@ authButton.onclick = () => {
     loadManageGroups()
   })
 }
-window.web10.authListen(() => initApp())
+window.web10.authListen(() => {
+  initApp()
+  window.web10.closeAuthPopup()
+})
 
 function initApp() {
   authButton.innerHTML = "Log out"

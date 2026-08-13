@@ -1,5 +1,6 @@
 3.0.39 || 13.08.2026
 fix(docker): marketing-ui Dockerfile uses `build:browser` to produce browser.js — `bun run build` only produces ESM modules, not the IIFE browser bundle needed by demo apps.
+fix(ui): merge app contract permissions instead of filtering by origin — consent UI now checks if specific permissions are already granted, not just if the origin exists. approveContract always calls applyACR to merge new permissions into existing contracts. Also sends contract_response back to opener on ACR success/failure.
 
 3.0.38 || 13.08.2026
 chore(sdk+demos): remove sdk/demos/ duplicates — demos live in marketing/marketing-ui/public/docs/ only. Marketing-ui Dockerfile now copies sdk/dist/browser.js → public/docs/wapi.js at build. Fix _popupReady check in SDK contractRequest: second contract (group) sends immediately if popup already sent auth_ready, fixing notes demo where group contract was never delivered.
