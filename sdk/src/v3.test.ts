@@ -346,7 +346,7 @@ describe('v3 client', () => {
   describe('CRUD', () => {
     beforeEach(() => client.setToken(mockToken))
 
-    it('create sends collection, body, and groups', async () => {
+    it('create sends service, body, and groups', async () => {
       const mockResponse = { doc_id: 'abc123', collection_name: 'notes', body: { text: 'hello' } }
       vi.spyOn(http, 'authPost').mockResolvedValueOnce(mockResponse as any)
 
@@ -356,7 +356,7 @@ describe('v3 client', () => {
         'http://api.localhost/v3/create',
         expect.objectContaining({
           token: mockToken,
-          collection: 'notes',
+          service: 'notes',
           body: { text: 'hello' },
           groups: ['g1', 'g2'],
         }),
@@ -390,7 +390,7 @@ describe('v3 client', () => {
       await client.readById('abc', 'notes')
       expect(http.authPost).toHaveBeenCalledWith(
         'http://api.localhost/v3/read-by-id',
-        expect.objectContaining({ doc_id: 'abc', collection: 'notes', token: mockToken }),
+        expect.objectContaining({ doc_id: 'abc', service: 'notes', token: mockToken }),
       )
     })
 

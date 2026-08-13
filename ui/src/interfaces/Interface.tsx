@@ -206,7 +206,7 @@ function useInterface() {
             if (e.data?.type === 'acr' || e.data?.type === 'contract') {
                 console.log('[auth-ui] contract message received — raw data:', JSON.stringify(e.data))
                 const normalized = normalizeContracts(e.data, e.source);
-                console.log('[auth-ui] normalized contracts:', JSON.stringify(normalized))
+                console.log('[auth-ui] normalized contracts:', JSON.stringify(normalized, (_, v) => v && typeof v.postMessage === 'function' ? '[Window]' : v))
                 I.setPendingContracts(normalized);
                 console.log('[auth-ui] pendingContracts state set, count:', I.pendingContracts?.length)
             }
@@ -658,7 +658,7 @@ function useInterface() {
 
     // Send contract response back to the requesting app window
     function sendContractResponse(windowSource: MessageEventSource | null, status: string, errors?: string[]) {
-        console.log('[auth-ui] sendContractResponse — status:', status, 'errors:', errors, 'windowSource:', windowSource)
+        console.log('[auth-ui] sendContractResponse — status:', status, 'errors:', errors)
         if (!windowSource) {
             console.warn('[auth-ui] sendContractResponse — no windowSource, cannot send response')
             return
@@ -679,7 +679,7 @@ function useInterface() {
 
     // Approve a single contract (app or group).
     I.approveContract = function (contract: any) {
-        console.log('[auth-ui] approveContract — kind:', contract.kind, 'origin:', contract.app_origin, 'windowSource:', contract._windowSource)
+        console.log('[auth-ui] approveContract — kind:', contract.kind, 'origin:', contract.app_origin)
         const windowSource = contract._windowSource;
 
         if (contract.kind === 'group') {

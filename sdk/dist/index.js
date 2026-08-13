@@ -157,13 +157,13 @@ function createV3Client(options = {}) {
       return v3Post("set_recovery_phone", { query: { phone } });
     },
     async create(collection, body, opts) {
-      const payload = { collection, body };
+      const payload = { service: collection, body };
       if (opts?.groups)
         payload.groups = opts.groups;
       return v3Post("create", payload);
     },
     async read(collection, opts) {
-      const payload = { collection, groups: opts.groups };
+      const payload = { service: collection, groups: opts.groups };
       if (opts.limit != null)
         payload.limit = opts.limit;
       if (opts.offset != null)
@@ -171,7 +171,7 @@ function createV3Client(options = {}) {
       return v3Post("read", payload);
     },
     async readById(docId, collection) {
-      return v3Post("read-by-id", { doc_id: docId, collection });
+      return v3Post("read-by-id", { doc_id: docId, service: collection });
     },
     async update(docId, body, opts) {
       const payload = { doc_id: docId, body };
