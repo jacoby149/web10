@@ -1,9 +1,9 @@
-FROM node:22-alpine AS builder
+FROM oven/bun:1-alpine AS builder
 WORKDIR /sdk
 COPY package.json bun.lock* tsconfig.json vitest.config.ts ./
-RUN npm install
+RUN bun install
 COPY . .
-RUN npm run build:all && npm run build:browser
+RUN bun run build:all && bun run build:browser
 
 FROM joseluisq/static-web-server:latest
 WORKDIR /docs
