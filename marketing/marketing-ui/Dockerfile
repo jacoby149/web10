@@ -50,9 +50,9 @@ WORKDIR /app/sdk
 RUN bun install --frozen-lockfile || bun install
 COPY sdk/src/ /app/sdk/src/
 COPY sdk/*.json sdk/*.ts ./
-RUN bun run build
+RUN bun run build:browser
 WORKDIR /app/marketing/marketing-ui
-RUN cp /app/sdk/dist/browser.js ./public/docs/wapi.js
+RUN mkdir -p ./public/docs && cp /app/sdk/dist/browser.js ./public/docs/wapi.js
 
 RUN bun run build
 
