@@ -1,6 +1,5 @@
 import React from 'react';
 import web10AuthAdapterInit from './authAdapter'
-import axios from 'axios'
 import { config } from '../config';
 
 // ── v3 API helpers (ClickHouse-backed service contracts + groups) ──────────
@@ -293,15 +292,28 @@ function useInterface() {
     }
 
     // Ask the node whether THIS account is an admin, to show/hide Node Config.
+    // Uses v3 endpoint — no more legacy /am_admin axios call (CORS issues).
     I.checkAdmin = function () {
         const decoded = I.v3.readToken?.();
         if (!decoded) {
             I.setIsAdmin(false);
             return;
         }
-        axios
-            .post(`${window.location.protocol}//${decoded.provider}/am_admin`, { token: I.v3.state.token })
-            .then((r: any) => I.setIsAdmin(!!r.data?.admin))
+        const origin = v3ApiOrigin(decoded);
+        const token = I.v3.state?.token;
+        if (!token) {
+            I.setIsAdmin(false);
+            return;
+        }
+        fetch(`${origin}/v3/appstore/admin`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token }),
+        })
+            .then((r) => {
+                if (r.ok) return r.json().then((d) => I.setIsAdmin(!!d));
+                I.setIsAdmin(false);
+            })
             .catch(() => I.setIsAdmin(false));
     }
 
