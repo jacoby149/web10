@@ -1,67 +1,71 @@
 /* script.js */
 
-import { createV3Client } from 'web10-npm'
+const host = window.location.hostname
+const isDev = host === 'dev.web10.app' || host.endsWith('.dev.web10.app')
+const isLocal = host === 'localhost' || host === '127.0.0.1' || host.endsWith('.localhost')
+const AUTH_ORIGIN = isLocal ? 'http://auth.localhost' : isDev ? 'https://auth.dev.web10.app' : 'https://auth.web10.app'
+const w = window.web10.createV3Client({ apiOrigin: isLocal ? 'http://api.localhost' : isDev ? 'https://api.dev.web10.app' : 'https://api.web10.app' })
 
-const w = createV3Client({ apiOrigin: 'https://api.web10.app' })
 const COLLECTION = 'notes'
+let NOTES_GROUP = null
 
-let NOTES_GROUP = null // personal group for notes, set after auth
-
-async function ensureNotesGroup(username, provider) {
-  const groupName = `notes-${username}`
-  const groupId = `${provider}/groups/users/${username}/${groupName}`
-
-  try {
-    // Check if we're already a member
-    const groups = await w.getMyGroups()
-    const existing = groups.find(g => g.group_id === groupId)
-    if (existing) {
-      NOTES_GROUP = groupId
-      return groupId
-    }
-  } catch {
-    // groups/list might fail — try to create
-  }
-
-  // Create the personal notes group (invite_only, user as owner)
-  try {
-    await w.createGroup(groupName, 'invite_only', [
-      { name: 'owner', services: ['*'], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn', 'manageRoles'] },
-      { name: 'member', services: [COLLECTION], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
-    ], [
-      { member_key: username, role: 'owner' },
-    ])
-    NOTES_GROUP = groupId
-    return groupId
-  } catch (err) {
-    console.warn('Failed to create notes group:', err)
-    return null
-  }
-}
+authButton.onclick = () => window.web10.openAuthPortal(AUTH_ORIGIN)
+window.web10.authListen(() => initApp())
 
 function initApp() {
   authButton.innerHTML = 'log out'
-  authButton.onclick = () => {
-    w.signOut()
-    window.location.reload()
-  }
+  authButton.onclick = () => { w.signOut(); window.location.reload() }
   const t = w.readToken()
   message.innerHTML = `hello ${t.provider}/${t.username},<br>`
 
-  // v3: ensure the personal notes group exists, then load notes
-  ensureNotesGroup(t.username, t.provider).then(() => readNotes())
+  // Request app contract for notes collection
+  w.contractRequest([{
+    kind: 'app',
+    app_origin: window.location.origin,
+    permissions: {
+      [COLLECTION]: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+    },
+  }], AUTH_ORIGIN, (resp) => {
+    if (resp.status === 'approved') {
+      message.innerHTML += `<br><span style="color:#22c55e;">app contract approved</span>`
+      ensureNotesGroup(t.username, t.provider)
+    } else if (resp.status === 'denied') {
+      message.innerHTML += `<br><span style="color:#ef4444;">app contract denied</span>`
+    } else {
+      message.innerHTML += `<br><span style="color:#ef4444;">contract request failed: ${resp.errors?.[0] || 'unknown'}</span>`
+    }
+  })
 }
 
-if (w.isSignedIn()) initApp()
-else {
-  authButton.onclick = async () => {
-    try {
-      await w.login(usernameInput.value, passwordInput.value)
-      window.location.reload()
-    } catch (e) {
-      message.innerHTML = `login failed: ${e.message}`
+function ensureNotesGroup(username, provider) {
+  const groupName = `notes-${username}`
+  const groupId = `${provider}/groups/users/${username}/${groupName}`
+
+  // Request group creation via contract request
+  w.contractRequest([{
+    kind: 'group',
+    app_origin: window.location.origin,
+    action: 'create_group',
+    name: groupName,
+    join_policy: 'invite_only',
+    roles: [
+      { name: 'owner', services: ['*'], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn', 'manageRoles'] },
+      { name: 'member', services: [COLLECTION], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
+    ],
+    members: [{ member_key: username, role: 'owner' }],
+  }], AUTH_ORIGIN, (resp) => {
+    if (resp.status === 'approved') {
+      NOTES_GROUP = groupId
+      message.innerHTML += `<br><span style="color:#22c55e;">notes group created</span>`
+      readNotes()
+    } else if (resp.status === 'denied') {
+      message.innerHTML += `<br><span style="color:#ef4444;">group creation denied</span>`
+    } else {
+      // Group might already exist — try to load notes
+      NOTES_GROUP = groupId
+      readNotes()
     }
-  }
+  })
 }
 
 async function readNotes() {
@@ -124,3 +128,5 @@ function displayNotes(docs) {
     })
     .join('<br>')
 }
+
+if (w.isSignedIn()) initApp()

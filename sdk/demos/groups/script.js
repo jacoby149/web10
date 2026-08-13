@@ -57,26 +57,6 @@ async function v3Post(action, params = {}) {
   return res.json()
 }
 
-async function ensureAppContract() {
-  const origin = window.location.origin
-  try {
-    const token = document.cookie.match(/token=([^;]+)/)?.[1]
-    if (!token) return
-    await fetch(`${API_ORIGIN}/v3/app-contracts/add`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        token,
-        allowed_origin: origin,
-        permissions: {
-          [SERVICE]: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
-          posts: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
-        },
-      }),
-    })
-  } catch { /* already exists */ }
-}
-
 authButton.onclick = () => window.web10.openAuthPortal(AUTH_ORIGIN)
 window.web10.authListen(() => initApp())
 
@@ -86,7 +66,26 @@ function initApp() {
   const t = w.readToken()
   message.innerHTML = `Signed in as <strong>${t["provider"]}/${t["username"]}</strong>`
   app.classList.remove('hidden')
-  ensureAppContract().then(() => { loadMyGroups(); loadManageGroups() }).catch(() => { loadMyGroups(); loadManageGroups() })
+
+  // Request app contract via auth UI (not direct API)
+  w.contractRequest([{
+    kind: 'app',
+    app_origin: window.location.origin,
+    permissions: {
+      [SERVICE]: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+      posts: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+    },
+  }], AUTH_ORIGIN, (resp) => {
+    if (resp.status === 'approved') {
+      message.innerHTML += ` · <span style="color:var(--ok);">app contract approved</span>`
+    } else if (resp.status === 'denied') {
+      message.innerHTML += ` · <span style="color:var(--danger);">app contract denied</span>`
+    } else {
+      message.innerHTML += ` · <span style="color:var(--danger);">contract error: ${resp.errors?.[0] || 'unknown'}</span>`
+    }
+    loadMyGroups()
+    loadManageGroups()
+  })
 }
 
 // Self-register

@@ -341,6 +341,63 @@ function createV3Client(options = {}) {
     },
     async getAppRatings(appId) {
       return v3Post("apps/ratings", { body: { target_app_id: appId } });
+    },
+    contractRequest(contracts, authOrigin, callback) {
+      if (typeof window === "undefined") {
+        if (callback)
+          callback({ status: "error", errors: ["Not in a browser"] });
+        return;
+      }
+      const popup = window.open(`${authOrigin}`, "web10-consent", "width=480,height=720,scrollbars=yes");
+      if (!popup) {
+        if (callback)
+          callback({ status: "error", errors: ["Popup blocked — allow popups and try again"] });
+        return;
+      }
+      const responseHandler = (e) => {
+        if (e.data?.type === "contract_response") {
+          window.removeEventListener("message", responseHandler);
+          window.removeEventListener("message", readyHandler);
+          clearTimeout(timeoutId);
+          callback?.(e.data);
+        }
+      };
+      window.addEventListener("message", responseHandler);
+      const readyHandler = (e) => {
+        if (e.data?.type === "auth_ready") {
+          window.removeEventListener("message", readyHandler);
+          try {
+            popup.postMessage({ type: "contract", contracts }, authOrigin);
+          } catch {
+            window.removeEventListener("message", responseHandler);
+            clearTimeout(timeoutId);
+            callback?.({ status: "error", errors: ["Failed to send contract request to auth UI"] });
+          }
+        }
+      };
+      window.addEventListener("message", readyHandler);
+      const timeoutId = setTimeout(() => {
+        window.removeEventListener("message", responseHandler);
+        window.removeEventListener("message", readyHandler);
+        callback?.({ status: "error", errors: ["Auth popup closed — request cancelled"] });
+      }, 30000);
+    },
+    contractOnReady(contracts, callback) {
+      if (typeof window === "undefined" || !window.opener) {
+        if (callback)
+          callback({ status: "error", errors: ["No opener window — not in a popup"] });
+        return;
+      }
+      if (callback) {
+        const handler = (e) => {
+          if (e.data?.type === "contract_response") {
+            window.removeEventListener("message", handler);
+            callback(e.data);
+          }
+        };
+        window.addEventListener("message", handler);
+      }
+      window.opener.postMessage({ type: "contract", contracts }, "*");
     }
   };
   return client;
