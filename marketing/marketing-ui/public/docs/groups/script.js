@@ -193,9 +193,10 @@ async function createGroup() {
   }
 
   // Listen for response from auth UI
-  const handler = (e) => {
+  const responseHandler = (e) => {
     if (e.data?.type === 'contract_response') {
-      window.removeEventListener('message', handler)
+      window.removeEventListener('message', responseHandler)
+      window.removeEventListener('message', readyHandler)
       clearTimeout(timeoutId)
       if (e.data.status === 'approved') {
         toast('Group created!', 'ok')
@@ -209,25 +210,29 @@ async function createGroup() {
       }
     }
   }
-  window.addEventListener('message', handler)
+  window.addEventListener('message', responseHandler)
+
+  // Wait for auth UI to signal readiness before sending GCR
+  const readyHandler = (e) => {
+    if (e.data?.type === 'auth_ready') {
+      window.removeEventListener('message', readyHandler)
+      try {
+        authPopup.postMessage({ type: 'contract', contracts: [gcr] }, AUTH_ORIGIN)
+      } catch {
+        window.removeEventListener('message', responseHandler)
+        clearTimeout(timeoutId)
+        toast('Failed to send request to auth UI', 'err')
+      }
+    }
+  }
+  window.addEventListener('message', readyHandler)
 
   // Timeout if auth popup closes without response (30s)
   const timeoutId = setTimeout(() => {
-    window.removeEventListener('message', handler)
+    window.removeEventListener('message', responseHandler)
+    window.removeEventListener('message', readyHandler)
     toast('Auth popup closed — request cancelled', 'err')
   }, 30000)
-
-  // Send GCR to auth UI — wait briefly for popup to initialize
-  // (auth UI sets up its message listener on init)
-  setTimeout(() => {
-    try {
-      authPopup.postMessage({ type: 'contract', contracts: [gcr] }, AUTH_ORIGIN)
-    } catch {
-      window.removeEventListener('message', handler)
-      clearTimeout(timeoutId)
-      toast('Failed to send request to auth UI', 'err')
-    }
-  }, 500)
 }
 
 // ── Members ───────────────────────────────────────────────────────────
