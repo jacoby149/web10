@@ -12,8 +12,7 @@ CREATE TABLE IF NOT EXISTS documents (
     updated_at DateTime64(3),
     deleted UInt8 DEFAULT 0
 ) ENGINE = ReplacingMergeTree(updated_at)
-ORDER BY (author_key, doc_id)
-TTL created_at + INTERVAL 90 DAY;
+ORDER BY (author_key, doc_id);
 
 CREATE TABLE IF NOT EXISTS doc_groups (
     doc_id String,

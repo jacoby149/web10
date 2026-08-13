@@ -23,6 +23,6 @@ for attempt in $(seq 1 60); do
 done
 
 echo "[init] applying schema from $SQL_FILE ..."
-clickhouse-client --user "$USER" --password "$PASS" -d "$DB" -q "$(cat "$SQL_FILE")"
+clickhouse-client --user "$USER" --password "$PASS" -d "$DB" -n < "$SQL_FILE"
 echo "[init] schema applied. Tables created:"
 clickhouse-client --user "$USER" --password "$PASS" -d "$DB" -q "SHOW TABLES"
