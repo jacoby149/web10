@@ -1,4 +1,4 @@
-/* hello demo — script.js (v3) */
+/* script.js */
 
 const host = window.location.hostname
 const isDev = host === 'dev.web10.app' || host.endsWith('.dev.web10.app')
@@ -6,83 +6,35 @@ const isLocal = host === 'localhost' || host === '127.0.0.1' || host.endsWith('.
 const AUTH_ORIGIN = isLocal ? 'http://auth.localhost' : isDev ? 'https://auth.dev.web10.app' : 'https://auth.web10.app'
 const w = window.web10.createV3Client({ apiOrigin: isLocal ? 'http://api.localhost' : isDev ? 'https://api.dev.web10.app' : 'https://api.web10.app' })
 
-// v3 API helpers — all v3 endpoints are POST with { token, ...params }
-const API_ORIGIN = isLocal ? 'http://api.localhost' : isDev ? 'https://api.dev.web10.app' : 'https://api.web10.app'
-
-async function v3Post(action, params = {}) {
-  const token = document.cookie.match(/token=([^;]+)/)?.[1]
-  if (!token) throw new Error('Not authenticated')
-  const res = await fetch(`${API_ORIGIN}/v3/${action}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token, ...params }),
-  })
-  if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`v3 ${action}: ${res.status} ${text}`)
-  }
-  return res.json()
-}
-
-authButton.onclick = () => window.web10.openAuthPortal(AUTH_ORIGIN)
-
-function initApp() {
-  authButton.innerHTML = "Log out"
-  authButton.onclick = () => {
-    w.signOut()
-    window.location.reload()
-  }
-  const t = w.readToken()
-  message.innerHTML = `Hello <strong>${t["provider"]}/${t["username"]}</strong> — you just authenticated with a web10 node.`
-
-  // Request app contract for profile access (App CR)
-  w.contractRequest([{
+authButton.onclick = () => {
+  console.log('[demo] authButton clicked — opening popup + sending contract')
+  window.web10.openAuthPortal(AUTH_ORIGIN)
+  const contract = [{
     kind: 'app',
     app_origin: window.location.origin,
     permissions: {
-      profile: ['readAll'],
+      'profile': ['readAll'],
     },
-  }], AUTH_ORIGIN, (resp) => {
+  }]
+  console.log('[demo] calling contractRequest with:', JSON.stringify(contract))
+  w.contractRequest(contract, AUTH_ORIGIN, (resp) => {
+    console.log('[demo] contractRequest callback — status:', resp.status, 'errors:', resp.errors)
     if (resp.status === 'approved') {
-      message.innerHTML += `<br><span style="color:var(--ok);">app contract approved</span>`
+      message.innerHTML += `<br><span style="color:#22c55e;">app contract approved</span>`
     } else if (resp.status === 'denied') {
-      message.innerHTML += `<br><span style="color:var(--danger);">app contract denied</span>`
+      message.innerHTML += `<br><span style="color:#ef4444;">app contract denied</span>`
     } else {
-      message.innerHTML += `<br><span style="color:var(--danger);">contract error: ${resp.errors?.[0] || 'unknown'}</span>`
+      message.innerHTML += `<br><span style="color:#ef4444;">contract request failed: ${resp.errors?.[0] || 'unknown'}</span>`
     }
-    loadGroups()
   })
 }
+window.web10.authListen(() => initApp())
 
-function loadGroups() {
-  // v3: load user groups to show group membership
-  v3Post('groups/list').then(groups => {
-    if (groups && groups.length > 0) {
-      const groupList = groups.map(g =>
-        `<code>${g.group_id}</code> <span style="color:var(--muted)">(${g.my_role}, ${g.member_count} members)</span>`
-      ).join('<br/>')
-      message.innerHTML += `
-        <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);text-align:left">
-          <strong>Groups (${groups.length}):</strong><br/>${groupList}
-        </div>`
-    }
-  }).catch(() => {
-    // v3 groups might not be available yet — degrade gracefully
-  })
+function initApp() {
+  authButton.innerHTML = 'log out'
+  authButton.onclick = () => { w.signOut(); window.location.reload() }
+  const t = w.readToken()
+  message.innerHTML = `hello ${t.provider}/${t.username},<br>`
 }
-
-// Self-register in the app store (no auth required)
-fetch(`${API_ORIGIN}/v3/apps/register`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    body: {
-      url: `${window.location.origin}${window.location.pathname}`,
-      name: 'Hello',
-      description: 'The smallest web10 app: log in with your node, read your token, and see your groups.',
-    },
-  }),
-}).catch(() => {})
 
 if (w.isSignedIn()) initApp()
-else window.web10.authListen(() => initApp())

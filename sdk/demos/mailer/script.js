@@ -9,14 +9,18 @@ const w = window.web10.createV3Client({ apiOrigin: isLocal ? 'http://api.localho
 const COLLECTION = 'mail'
 
 authButton.onclick = () => {
+  console.log('[demo] authButton clicked — opening popup + sending contract')
   window.web10.openAuthPortal(AUTH_ORIGIN)
-  w.contractRequest([{
+  const contract = [{
     kind: 'app',
     app_origin: window.location.origin,
     permissions: {
       [COLLECTION]: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
     },
-  }], AUTH_ORIGIN, (resp) => {
+  }]
+  console.log('[demo] calling contractRequest with:', JSON.stringify(contract))
+  w.contractRequest(contract, AUTH_ORIGIN, (resp) => {
+    console.log('[demo] contractRequest callback — status:', resp.status, 'errors:', resp.errors)
     if (resp.status === 'approved') {
       message.innerHTML += `<br><span style="color:#22c55e;">app contract approved</span>`
       readMail()

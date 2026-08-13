@@ -1,4 +1,5 @@
 3.0.37 || 13.08.2026
+fix(ui+sdk): popup auth_ready signal — removed continuous broadcast (interval every 500ms). Popup now sends `auth_ready` once on mount. `initAuthenticator` is idempotent (guard flag) — no more stacked listeners/intervals from multiple calls. Resolved merge conflict markers in Interface.tsx. Added comprehensive logging to wapi popup flow: openAuthPortal, contractRequest, initAuthenticator, contract receive, approve/deny, sendContractResponse, goToApp, login/finishLogin. Migrated `checkAdmin` from legacy `/am_admin` axios call to v3 `/v3/appstore/admin` fetch — eliminates CORS errors from legacy endpoints.
 fix(ui+sdk): popup auth_ready signal — removed continuous broadcast (interval every 500ms). Popup now sends `auth_ready` once on mount. `initAuthenticator` is idempotent (guard flag) — no more stacked listeners/intervals from multiple calls. Resolved merge conflict markers in Interface.tsx. Added comprehensive logging to wapi popup flow: openAuthPortal, contractRequest, initAuthenticator, contract receive, approve/deny, sendContractResponse, goToApp, login/finishLogin.
 
 3.0.36 || 13.08.2026

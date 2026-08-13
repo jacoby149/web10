@@ -57,25 +57,20 @@ async function v3Post(action, params = {}) {
   return res.json()
 }
 
-authButton.onclick = () => window.web10.openAuthPortal(AUTH_ORIGIN)
-window.web10.authListen(() => initApp())
-
-function initApp() {
-  authButton.innerHTML = "Log out"
-  authButton.onclick = () => { w.signOut(); window.location.reload() }
-  const t = w.readToken()
-  message.innerHTML = `Signed in as <strong>${t["provider"]}/${t["username"]}</strong>`
-  app.classList.remove('hidden')
-
-  // Request app contract via auth UI (not direct API)
-  w.contractRequest([{
+authButton.onclick = () => {
+  console.log('[demo] authButton clicked — opening popup + sending contract')
+  window.web10.openAuthPortal(AUTH_ORIGIN)
+  const contract = [{
     kind: 'app',
     app_origin: window.location.origin,
     permissions: {
       [SERVICE]: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
       posts: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
     },
-  }], AUTH_ORIGIN, (resp) => {
+  }]
+  console.log('[demo] calling contractRequest with:', JSON.stringify(contract))
+  w.contractRequest(contract, AUTH_ORIGIN, (resp) => {
+    console.log('[demo] contractRequest callback — status:', resp.status, 'errors:', resp.errors)
     if (resp.status === 'approved') {
       message.innerHTML += ` · <span style="color:var(--ok);">app contract approved</span>`
     } else if (resp.status === 'denied') {
@@ -86,6 +81,15 @@ function initApp() {
     loadMyGroups()
     loadManageGroups()
   })
+}
+window.web10.authListen(() => initApp())
+
+function initApp() {
+  authButton.innerHTML = "Log out"
+  authButton.onclick = () => { w.signOut(); window.location.reload() }
+  const t = w.readToken()
+  message.innerHTML = `Signed in as <strong>${t["provider"]}/${t["username"]}</strong>`
+  app.classList.remove('hidden')
 }
 
 // Self-register
@@ -165,7 +169,7 @@ function renderGroups(containerId, groups, canManage) {
   }).join('')
 }
 
-// ── Create Group (via GCR — user must approve in auth UI) ────────────────
+// ── Create Group (via CR — user must approve in auth UI) ────────────────
 
 async function createGroup() {
   const name = groupName.value.trim()
@@ -173,65 +177,32 @@ async function createGroup() {
   const policy = joinPolicy.value
   const roles = ROLE_PRESETS[rolePreset.value]
 
-  // Open auth UI popup for consent (must be from user gesture to avoid popup blocker)
-  const authPopup = window.open(AUTH_ORIGIN, '_blank', 'width=480,height=720,scrollbars=yes')
-  if (!authPopup) {
-    return toast('Popup blocked — please allow popups and try again', 'err')
-  }
-
   const t = w.readToken()
-  const gcr = {
+  const cr = {
+    kind: 'group',
     app_origin: window.location.origin,
     action: 'create_group',
-    params: {
-      name,
-      join_policy: policy,
-      roles,
-      members: [{ member_key: t.username, role: 'owner' }],
-    },
+    name,
+    join_policy: policy,
+    roles,
+    members: [{ member_key: t.username, role: 'owner' }],
   }
 
-  // Listen for response from auth UI
-  const responseHandler = (e) => {
-    if (e.data?.type === 'contract_response') {
-      window.removeEventListener('message', responseHandler)
-      window.removeEventListener('message', readyHandler)
-      clearTimeout(timeoutId)
-      if (e.data.status === 'approved') {
-        toast('Group created!', 'ok')
-        groupName.value = ''
-        loadMyGroups()
-        loadManageGroups()
-      } else if (e.data.status === 'denied') {
-        toast('Group creation denied', 'err')
-      } else {
-        toast('Group creation failed: ' + (e.data.errors?.[0] || 'unknown error'), 'err')
-      }
+  // Use the SDK's unified contractRequest (handles popup, handshake, timeout)
+  console.log('[demo] createGroup — calling contractRequest with:', JSON.stringify(cr))
+  w.contractRequest([cr], AUTH_ORIGIN, (resp) => {
+    console.log('[demo] createGroup contractRequest callback — status:', resp.status, 'errors:', resp.errors)
+    if (resp.status === 'approved') {
+      toast('Group created!', 'ok')
+      groupName.value = ''
+      loadMyGroups()
+      loadManageGroups()
+    } else if (resp.status === 'denied') {
+      toast('Group creation denied', 'err')
+    } else {
+      toast('Group creation failed: ' + (resp.errors?.[0] || 'unknown error'), 'err')
     }
-  }
-  window.addEventListener('message', responseHandler)
-
-  // Wait for auth UI to signal readiness before sending GCR
-  const readyHandler = (e) => {
-    if (e.data?.type === 'auth_ready') {
-      window.removeEventListener('message', readyHandler)
-      try {
-        authPopup.postMessage({ type: 'contract', contracts: [gcr] }, AUTH_ORIGIN)
-      } catch {
-        window.removeEventListener('message', responseHandler)
-        clearTimeout(timeoutId)
-        toast('Failed to send request to auth UI', 'err')
-      }
-    }
-  }
-  window.addEventListener('message', readyHandler)
-
-  // Timeout if auth popup closes without response (30s)
-  const timeoutId = setTimeout(() => {
-    window.removeEventListener('message', responseHandler)
-    window.removeEventListener('message', readyHandler)
-    toast('Auth popup closed — request cancelled', 'err')
-  }, 30000)
+  })
 }
 
 // ── Members ───────────────────────────────────────────────────────────
@@ -277,48 +248,28 @@ async function togglePolicy(groupId) {
   const idx = (policies.indexOf(g.join_policy) + 1) % policies.length
   const newPolicy = policies[idx]
 
-  // Open auth UI popup for consent
-  const authPopup = window.open(AUTH_ORIGIN, '_blank', 'width=480,height=720,scrollbars=yes')
-  if (!authPopup) {
-    return toast('Popup blocked — please allow popups and try again', 'err')
-  }
-
-  const gcr = {
+  // Use the SDK's unified contractRequest
+  const cr = {
+    kind: 'group',
     app_origin: window.location.origin,
     action: 'update_group',
-    params: { group_id: groupId, join_policy: newPolicy },
+    group_id: groupId,
+    join_policy: newPolicy,
   }
 
-  const handler = (e) => {
-    if (e.data?.type === 'contract_response') {
-      window.removeEventListener('message', handler)
-      clearTimeout(timeoutId)
-      if (e.data.status === 'approved') {
-        toast(`Policy → ${newPolicy}`, 'ok')
-        loadMyGroups()
-        loadManageGroups()
-      } else if (e.data.status === 'denied') {
-        toast('Policy change denied', 'err')
-      } else {
-        toast('Policy change failed: ' + (e.data.errors?.[0] || 'unknown error'), 'err')
-      }
+  console.log('[demo] togglePolicy — calling contractRequest with:', JSON.stringify(cr))
+  w.contractRequest([cr], AUTH_ORIGIN, (resp) => {
+    console.log('[demo] togglePolicy contractRequest callback — status:', resp.status, 'errors:', resp.errors)
+    if (resp.status === 'approved') {
+      toast(`Policy → ${newPolicy}`, 'ok')
+      loadMyGroups()
+      loadManageGroups()
+    } else if (resp.status === 'denied') {
+      toast('Policy change denied', 'err')
+    } else {
+      toast('Policy change failed: ' + (resp.errors?.[0] || 'unknown error'), 'err')
     }
-  }
-  window.addEventListener('message', handler)
-  const timeoutId = setTimeout(() => {
-    window.removeEventListener('message', handler)
-    toast('Auth popup closed — request cancelled', 'err')
-  }, 30000)
-
-  setTimeout(() => {
-    try {
-      authPopup.postMessage({ type: 'contract', contracts: [gcr] }, AUTH_ORIGIN)
-    } catch {
-      window.removeEventListener('message', handler)
-      clearTimeout(timeoutId)
-      toast('Failed to send request to auth UI', 'err')
-    }
-  }, 500)
+  })
 }
 
 // ── Join Requests ─────────────────────────────────────────────────────
