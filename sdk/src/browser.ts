@@ -68,27 +68,40 @@ function createV3Client(options?: Parameters<typeof _createV3Client>[0]): V3Clie
   ): void {
     const popup = _authPopup
     if (popup && !popup.closed) {
-      // Reuse existing auth popup — it's already showing the consent screen
+      // Reuse existing auth popup — wait for auth_ready before sending
+      // (popup broadcasts auth_ready every 500ms so we always sync)
+      let sent = false
       const responseHandler = (e: MessageEvent) => {
         if (e.data?.type === 'contract_response') {
           window.removeEventListener('message', responseHandler)
+          window.removeEventListener('message', readyHandler)
           clearTimeout(timeoutId)
           callback?.(e.data)
         }
       }
       window.addEventListener('message', responseHandler)
 
-      try {
-        popup.postMessage({ type: 'contract', contracts }, '*')
-      } catch {
-        window.removeEventListener('message', responseHandler)
-        callback?.({ status: 'error', errors: ['Failed to send contract to auth UI'] })
-        return
+      const readyHandler = (e: MessageEvent) => {
+        if (e.data?.type === 'auth_ready' && !sent) {
+          sent = true
+          window.removeEventListener('message', readyHandler)
+          try {
+            popup.postMessage({ type: 'contract', contracts }, '*')
+          } catch {
+            window.removeEventListener('message', responseHandler)
+            clearTimeout(timeoutId)
+            callback?.({ status: 'error', errors: ['Failed to send contract to auth UI'] })
+          }
+        }
       }
+      window.addEventListener('message', readyHandler)
 
       const timeoutId = setTimeout(() => {
         window.removeEventListener('message', responseHandler)
-        callback?.({ status: 'error', errors: ['Auth popup closed — request cancelled'] })
+        window.removeEventListener('message', readyHandler)
+        if (!sent) {
+          callback?.({ status: 'error', errors: ['Auth popup closed — request cancelled'] })
+        }
       }, 30000)
       return
     }

@@ -203,6 +203,19 @@ function useInterface() {
                 window.opener.postMessage({ type: 'ACRListen' }, '*');
             } catch { /* cross-origin */ }
         }
+        // Continuously broadcast auth_ready so the SDK can sync even when
+        // reusing an already-open popup — contractRequest may fire at any time
+        // and needs to know the popup's message listener is attached.
+        const readyInterval = setInterval(() => {
+            if (window.opener) {
+                try {
+                    window.opener.postMessage({ type: 'auth_ready' }, '*');
+                } catch { /* cross-origin */ }
+            }
+        }, 500);
+        // Clean up when the popup is closed or navigated away
+        const stopReady = () => clearInterval(readyInterval);
+        window.addEventListener('unload', stopReady);
     }
 
     I.servicesLoad = function () {
@@ -649,6 +662,7 @@ function useInterface() {
         const alreadyGranted = I.hasV3Contract?.(origin);
         if (alreadyGranted) {
             I.removePendingContract(contract);
+            sendContractResponse(windowSource, 'approved');
             return;
         }
 
