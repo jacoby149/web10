@@ -86,6 +86,7 @@ function createV3Client(options?: Parameters<typeof _createV3Client>[0]): V3Clie
         if (e.data?.type === 'auth_ready' && !contractSent) {
           contractSent = true
           window.removeEventListener('message', readyHandler)
+          console.log('[sdk] auth_ready received, sending contract')
           try {
             popup.postMessage({ type: 'contract', contracts }, '*')
           } catch {

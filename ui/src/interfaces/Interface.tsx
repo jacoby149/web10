@@ -191,7 +191,9 @@ function useInterface() {
             // Only reject obviously malicious sources (null origin from sandboxed iframe).
             if (!e.origin) return;
             if (e.data?.type === 'acr' || e.data?.type === 'contract') {
+                console.log('[auth-ui] contract received:', e.data);
                 I.setPendingContracts(normalizeContracts(e.data, e.source));
+                console.log('[auth-ui] pendingContracts set:', I.pendingContracts);
             }
         });
         // Signal readiness to opener — broadcast periodically so the SDK can

@@ -222,6 +222,7 @@ function ConsentView({ I }: { I: Record<string, any> }) {
   const grantedOrigins = new Set(v3Contracts.map((c: any) => c.allowed_origin));
   // Unified pending list — ACRs and GCRs together
   const pendingContracts: any[] = I.pendingContracts || [];
+  console.log('[consent] pendingContracts:', pendingContracts, 'grantedOrigins:', grantedOrigins);
 
   // Filter out ACRs whose origin already has a contract (GCRs always show)
   const alreadyGrantedACRs = pendingContracts.filter((c: any) => c.kind === 'app' && grantedOrigins.has(c.app_origin || c.allowed_origin));
