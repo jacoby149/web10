@@ -20,8 +20,8 @@ function AppContractCard({ I, contract }: { I: Record<string, any>; contract: { 
   const label = (() => {
     if (!origin) return '(no origin)';
     try {
-      const hostname = new URL(`https://${origin}`).hostname;
-      if (hostname && hostname !== '') return hostname;
+      const url = origin.startsWith('http') ? new URL(origin) : new URL(`https://${origin}`)
+      if (url.hostname && url.hostname !== '') return url.hostname;
     } catch { /* fall through to raw origin */ }
     return origin;
   })();

@@ -6,7 +6,10 @@ import { Button } from '@/components/ui/button';
 
 // Derive a readable origin label from the ACR's allowed_origin.
 function originLabel(origin: string): string {
-  try { return new URL(`https://${origin}`).hostname; } catch { return origin; }
+  try {
+    const url = origin.startsWith('http') ? new URL(origin) : new URL(`https://${origin}`)
+    return url.hostname
+  } catch { return origin }
 }
 
 function Requests({ I }: { I: Record<string, any> }) {
@@ -50,9 +53,9 @@ function Requests({ I }: { I: Record<string, any> }) {
                 </div>
                 <div className="p-4">
                   <div className="mb-2">
-                    <span className="text-sm font-medium text-muted-foreground">Origin:</span>
+                    <span className="text-sm font-medium text-muted-foreground">Site:</span>
                     <div className="mt-1 flex flex-wrap gap-1.5">
-                      <Badge variant="default">{origin}</Badge>
+                      <Badge variant="default">{originLabel(origin)}</Badge>
                     </div>
                   </div>
                   {services.map((svc: string) => (

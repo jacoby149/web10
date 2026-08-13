@@ -157,11 +157,11 @@ function RequestRow({
         </div>
       </div>
 
-      {open && (
-        <div className="border-t border-border px-3.5 py-3 text-sm">
-          <DetailRow label="Origin">
-            <Chip><Globe className="h-3 w-3 text-muted-foreground" strokeWidth={1.5} />{origin}</Chip>
-          </DetailRow>
+          {open && (
+            <div className="border-t border-border px-3.5 py-3 text-sm">
+              <DetailRow label="Site">
+                <Chip><Globe className="h-3 w-3 text-muted-foreground" strokeWidth={1.5} />{originLabel(origin)}</Chip>
+              </DetailRow>
 
           {isACR && services.map((svc) => (
             <DetailRow key={svc} label={`Permissions (${svc})`}>
