@@ -44,8 +44,15 @@ ENV VITE_API_URL=$VITE_API_URL \
 # whole repo — does not leak e2e/api/knowledge/... into /app.
 COPY marketing/marketing-ui/ ./
 
-# Copy SDK dist into docs so demos reference the current build (wapi.js).
-COPY sdk/dist/browser.js marketing/marketing-ui/public/docs/wapi.js
+# Build SDK from source so wapi.js is always fresh (never stale from repo).
+COPY sdk/package.json sdk/bun.lock sdk/tsconfig.json sdk/vitest.config.ts /app/sdk/
+WORKDIR /app/sdk
+RUN bun install --frozen-lockfile || bun install
+COPY sdk/src/ /app/sdk/src/
+COPY sdk/*.json sdk/*.ts ./
+RUN bun run build
+WORKDIR /app/marketing/marketing-ui
+RUN cp /app/sdk/dist/browser.js ./public/docs/wapi.js
 
 RUN bun run build
 
