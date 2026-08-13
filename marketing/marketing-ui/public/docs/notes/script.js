@@ -24,6 +24,7 @@ authButton.onclick = () => {
     console.log('[demo] contractRequest callback — status:', resp.status, 'errors:', resp.errors)
     if (resp.status === 'approved') {
       message.innerHTML += `<br><span style="color:#22c55e;">app contract approved</span>`
+      const t = w.readToken()
       ensureNotesGroup(t.username, t.provider)
     } else if (resp.status === 'denied') {
       message.innerHTML += `<br><span style="color:#ef4444;">app contract denied</span>`
@@ -39,6 +40,11 @@ function initApp() {
   authButton.onclick = () => { w.signOut(); window.location.reload() }
   const t = w.readToken()
   message.innerHTML = `hello ${t.provider}/${t.username},<br>`
+  editor.style.display = 'block'
+  const groupName = `notes-${t.username}`
+  const groupId = `${t.provider}/groups/users/${t.username}/${groupName}`
+  NOTES_GROUP = groupId
+  readNotes()
 }
 
 function ensureNotesGroup(username, provider) {
@@ -60,6 +66,7 @@ function ensureNotesGroup(username, provider) {
   }], AUTH_ORIGIN, (resp) => {
     if (resp.status === 'approved') {
       NOTES_GROUP = groupId
+      editor.style.display = 'block'
       message.innerHTML += `<br><span style="color:#22c55e;">notes group created</span>`
       readNotes()
     } else if (resp.status === 'denied') {
@@ -67,6 +74,7 @@ function ensureNotesGroup(username, provider) {
     } else {
       // Group might already exist — try to load notes
       NOTES_GROUP = groupId
+      editor.style.display = 'block'
       readNotes()
     }
   })

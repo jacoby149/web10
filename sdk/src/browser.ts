@@ -95,44 +95,64 @@ function createV3Client(options?: Parameters<typeof _createV3Client>[0]): V3Clie
     const popup = _authPopup
     if (popup && !popup.closed) {
       console.log('[wapi] contractRequest — reusing existing popup (not closed)')
-      // Reuse existing auth popup — wait for auth_ready (sent once on popup mount)
-      // before sending the contract.
       let contractSent = false
+      let readyHandler: ((e: MessageEvent) => void) | null = null
+      let timeoutId: ReturnType<typeof setTimeout> | null = null
+
       const responseHandler = (e: MessageEvent) => {
         if (e.data?.type === 'contract_response') {
           console.log('[wapi] contract_response received:', e.data)
           window.removeEventListener('message', responseHandler)
-          window.removeEventListener('message', readyHandler)
-          clearTimeout(timeoutId)
+          if (readyHandler) window.removeEventListener('message', readyHandler)
+          if (timeoutId) clearTimeout(timeoutId)
           callback?.(e.data)
         }
       }
       window.addEventListener('message', responseHandler)
       console.log('[wapi] contractRequest — contract_response listener attached')
 
-      const readyHandler = (e: MessageEvent) => {
+      const sendContract = () => {
+        contractSent = true
+        if (readyHandler) {
+          const eh = readyHandler
+          window.removeEventListener('message', eh)
+        }
+        if (timeoutId) clearTimeout(timeoutId)
+        console.log('[wapi] contractRequest — sending contract to popup')
+        try {
+          popup.postMessage({ type: 'contract', contracts }, '*')
+          console.log('[wapi] contractRequest — contract sent via postMessage')
+        } catch (err) {
+          console.error('[wapi] postMessage to popup failed:', err)
+          window.removeEventListener('message', responseHandler)
+          callback?.({ status: 'error', errors: ['Failed to send contract to auth UI'] })
+        }
+      }
+
+      // If we already got auth_ready from a previous contractRequest, send immediately
+      if (_popupReady) {
+        console.log('[wapi] contractRequest — popup already ready, sending immediately')
+        sendContract()
+        return
+      }
+
+      // Otherwise wait for auth_ready
+      readyHandler = (e: MessageEvent) => {
         if (e.data?.type === 'auth_ready' && !contractSent) {
-          contractSent = true
-          window.removeEventListener('message', readyHandler)
           console.log('[wapi] auth_ready received, sending contract to popup')
-          try {
-            popup.postMessage({ type: 'contract', contracts }, '*')
-            console.log('[wapi] contract sent to popup via postMessage')
-          } catch (err) {
-            console.error('[wapi] postMessage to popup failed:', err)
-            window.removeEventListener('message', responseHandler)
-            clearTimeout(timeoutId)
-            callback?.({ status: 'error', errors: ['Failed to send contract to auth UI'] })
-          }
+          sendContract()
         }
       }
       window.addEventListener('message', readyHandler)
       console.log('[wapi] contractRequest — auth_ready listener attached, waiting for popup signal')
 
-      const timeoutId = setTimeout(() => {
+      timeoutId = setTimeout(() => {
         console.warn('[wapi] contractRequest — 30s timeout reached, contractSent:', contractSent)
         window.removeEventListener('message', responseHandler)
-        window.removeEventListener('message', readyHandler)
+        if (readyHandler) {
+          const eh = readyHandler
+          window.removeEventListener('message', eh)
+        }
         if (!contractSent) {
           callback?.({ status: 'error', errors: ['Auth popup closed — request cancelled'] })
         }
