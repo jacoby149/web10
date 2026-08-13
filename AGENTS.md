@@ -51,6 +51,32 @@ Now read `CLAUDE.md`. Despite the name it is the orientation file for
 ALL agents working on this repo — architecture, security invariants,
 and working conventions. Everything there applies to you.
 
+## Debugging: log everything, keep it in
+
+This is an open-source project — copious logging is a feature, not noise. When debugging, add `console.log` at every decision point, state transition, and message boundary. Prefix logs so they're filterable: `[wapi]` for SDK, `[auth-ui]` for the authenticator UI, `[demo]` for demo apps, etc.
+
+**Example** (from the popup auth flow):
+```
+[wapi] openAuthPortal — opening popup: https://auth.dev.web10.app?...
+[wapi] openAuthPortal — popup returned: open
+[wapi] message event received — type: auth_ready, origin: https://auth.dev.web10.app
+[wapi] contractRequest — called with 1 contract(s): [{"kind":"app",...}]
+[wapi] auth_ready received, sending contract to popup
+[auth-ui] initAuthenticator — initializing, window.opener: present
+[auth-ui] auth_ready sent to opener via postMessage
+[auth-ui] contract message received — raw data: {"type":"contract",...}
+```
+
+**Rules:**
+- Log **before** and **after** every async operation (fetch, postMessage, setState)
+- Log the **payload** (JSON.stringify it) so the operator can see what actually moved
+- Log **which path** was taken in conditionals (`if (popup && !popup.closed) → reusing existing popup`)
+- Log **errors** with `console.error` and the full error object
+- **Do not strip logging after the fix.** Keep it. The next person debugging will thank you.
+- If you touch a flow that has no logging, add it. If it has sparse logging, make it dense.
+
+This is how the operator diagnoses problems remotely — the logs are the only signal.
+
 ## Before starting ANY UI task: read design.md
 
 If your task touches anything a user sees — `ui/`,
