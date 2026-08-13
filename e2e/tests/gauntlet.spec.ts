@@ -1,5 +1,5 @@
 import { test, expect, type APIRequestContext } from '@playwright/test';
-import { v3Login, v3Signup, API_BASE } from '../v3-helpers';
+import { v3Login, v3Signup, v3Post, API_BASE } from '../v3-helpers';
 
 const SOCIAL_BASE = `http://social.localhost${process.env.E2E_HTTP_PORT === '80' ? '' : `:${process.env.E2E_HTTP_PORT}`}`;
 const AUTH_BASE = `http://auth.localhost${process.env.E2E_HTTP_PORT === '80' ? '' : `:${process.env.E2E_HTTP_PORT}`}`;
@@ -46,8 +46,8 @@ async function createDoc(
   body: Record<string, unknown>,
   groups?: string[],
 ) {
-  const res = await request.post(`${API_BASE}/v3/create`, {
-    json: { token, service, body, groups },
+  const res = await v3Post(request, `${API_BASE}/v3/create`, {
+    token, service, body, groups,
   });
   if (!res.ok()) {
     const txt = await res.text().catch(() => '');
@@ -63,8 +63,8 @@ async function readDocs(
   service: string,
   groups: string[],
 ) {
-  const res = await request.post(`${API_BASE}/v3/read`, {
-    json: { token, service, groups },
+  const res = await v3Post(request, `${API_BASE}/v3/read`, {
+    token, service, groups,
   });
   if (!res.ok()) {
     const txt = await res.text().catch(() => '');
@@ -80,8 +80,8 @@ async function readDocById(
   service: string,
   docId: string,
 ) {
-  const res = await request.post(`${API_BASE}/v3/read`, {
-    json: { token, service, doc_id: docId },
+  const res = await v3Post(request, `${API_BASE}/v3/read`, {
+    token, service, doc_id: docId,
   });
   if (!res.ok()) {
     const txt = await res.text().catch(() => '');
@@ -97,17 +97,15 @@ async function createGroup(
   name: string,
   members: { member_key: string; role?: string }[],
 ) {
-  const res = await request.post(`${API_BASE}/v3/groups/create`, {
-    json: {
-      token,
-      name,
-      roles: [
-        { name: 'admin', permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn', 'assignRoles', 'revokeRoles', 'deleteGroup'] },
-        { name: 'member', permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
-      ],
-      join_policy: 'open',
-      members,
-    },
+  const res = await v3Post(request, `${API_BASE}/v3/groups/create`, {
+    token,
+    name,
+    roles: [
+      { name: 'admin', permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn', 'assignRoles', 'revokeRoles', 'deleteGroup'] },
+      { name: 'member', permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
+    ],
+    join_policy: 'open',
+    members,
   });
   if (!res.ok()) {
     const txt = await res.text().catch(() => '');
@@ -123,11 +121,9 @@ async function uploadTinyPng(
   filename: string,
 ) {
   // 1. Request presigned POST form
-  const uploadRes = await request.post(`${API_BASE}/v3/media/upload-url`, {
-    json: {
-      token,
-      body: { filename, mime_type: 'image/png' },
-    },
+  const uploadRes = await v3Post(request, `${API_BASE}/v3/media/upload-url`, {
+    token,
+    body: { filename, mime_type: 'image/png' },
   });
   expect(uploadRes.ok()).toBeTruthy();
   const { upload_url, fields, object_key } = await uploadRes.json();
@@ -149,15 +145,13 @@ async function uploadTinyPng(
   expect(uploadResp.ok || uploadResp.status === 204).toBeTruthy();
 
   // 3. Confirm the upload
-  const confirmRes = await request.post(`${API_BASE}/v3/media/confirm`, {
-    json: {
-      token,
-      body: {
-        object_key,
-        filename,
-        mime_type: 'image/png',
-        size_bytes: 68,
-      },
+  const confirmRes = await v3Post(request, `${API_BASE}/v3/media/confirm`, {
+    token,
+    body: {
+      object_key,
+      filename,
+      mime_type: 'image/png',
+      size_bytes: 68,
     },
   });
   expect(confirmRes.ok()).toBeTruthy();
@@ -183,9 +177,7 @@ test.describe('Gauntlet Step 1: Sign up + log in', () => {
   test('login with wrong password is rejected', async ({ request }) => {
     const username = uniqueUser('g1wrong');
     await signUpUser(request, username, '+15551000003');
-    const res = await request.post(`${API_BASE}/v3/login`, {
-      json: { token: '', body: { username, password: 'WrongPassword' } },
-    });
+    const res = await v3Post(request, `${API_BASE}/v3/login`, { username, password: 'WrongPassword' });
     expect(res.ok()).toBeFalsy();
   });
 
@@ -267,9 +259,7 @@ test.describe('Gauntlet Step 2: Post -> feed', () => {
 
     await uploadTinyPng(request, token, 'list-photo.png');
 
-    const listRes = await request.post(`${API_BASE}/v3/media/list`, {
-      json: { token },
-    });
+    const listRes = await v3Post(request, `${API_BASE}/v3/media/list`, { token });
     expect(listRes.ok()).toBeTruthy();
     const media = await listRes.json();
     expect(Array.isArray(media)).toBeTruthy();
@@ -283,11 +273,9 @@ test.describe('Gauntlet Step 2: Post -> feed', () => {
 
     const media = await uploadTinyPng(request, token, 'read-test.png');
 
-    const readRes = await request.post(`${API_BASE}/v3/media/read-url`, {
-      json: {
-        token,
-        body: { object_key: media.object_key },
-      },
+    const readRes = await v3Post(request, `${API_BASE}/v3/media/read-url`, {
+      token,
+      body: { object_key: media.object_key },
     });
     expect(readRes.ok()).toBeTruthy();
     const data = await readRes.json();
@@ -344,16 +332,16 @@ test.describe('Gauntlet Step 3: Follow -> feed (groups)', () => {
     ]);
 
     // Joiner joins the open group
-    const joinRes = await request.post(`${API_BASE}/v3/groups/join`, {
-      json: { token: joinerToken, group_id: grp.group_id },
+    const joinRes = await v3Post(request, `${API_BASE}/v3/groups/join`, {
+      token: joinerToken, group_id: grp.group_id,
     });
     expect(joinRes.ok()).toBeTruthy();
     const joinData = await joinRes.json();
     expect(joinData.role).toBe('member');
 
     // Verify joiner is listed as a member
-    const membersRes = await request.post(`${API_BASE}/v3/groups/members/list`, {
-      json: { token: ownerToken, group_id: grp.group_id },
+    const membersRes = await v3Post(request, `${API_BASE}/v3/groups/members/list`, {
+      token: ownerToken, group_id: grp.group_id,
     });
     expect(membersRes.ok()).toBeTruthy();
     const members = await membersRes.json();
@@ -375,29 +363,25 @@ test.describe('Gauntlet Step 3: Follow -> feed (groups)', () => {
     ]);
 
     // Override join_policy to 'request'
-    const updateRes = await request.post(`${API_BASE}/v3/groups/update`, {
-      json: {
-        token: ownerToken,
-        group_id: grp.group_id,
-        join_policy: 'request',
-      },
+    const updateRes = await v3Post(request, `${API_BASE}/v3/groups/update`, {
+      token: ownerToken,
+      group_id: grp.group_id,
+      join_policy: 'request',
     });
     expect(updateRes.ok()).toBeTruthy();
 
     // Requester sends join request
-    const joinRes = await request.post(`${API_BASE}/v3/groups/join`, {
-      json: { token: reqToken, group_id: grp.group_id },
+    const joinRes = await v3Post(request, `${API_BASE}/v3/groups/join`, {
+      token: reqToken, group_id: grp.group_id,
     });
     expect(joinRes.ok()).toBeTruthy();
     expect((await joinRes.json()).status).toBe('pending');
 
     // Owner approves
-    const approveRes = await request.post(`${API_BASE}/v3/groups/requests/join/approve`, {
-      json: {
-        token: ownerToken,
-        group_id: grp.group_id,
-        requester_key: requester,
-      },
+    const approveRes = await v3Post(request, `${API_BASE}/v3/groups/requests/join/approve`, {
+      token: ownerToken,
+      group_id: grp.group_id,
+      requester_key: requester,
     });
     expect(approveRes.ok()).toBeTruthy();
     expect((await approveRes.json()).status).toBe('approved');
@@ -418,8 +402,8 @@ test.describe('Gauntlet Step 3: Follow -> feed (groups)', () => {
     ]);
 
     // Leaver leaves
-    const leaveRes = await request.post(`${API_BASE}/v3/groups/leave`, {
-      json: { token: leaverToken, group_id: grp.group_id },
+    const leaveRes = await v3Post(request, `${API_BASE}/v3/groups/leave`, {
+      token: leaverToken, group_id: grp.group_id,
     });
     expect(leaveRes.ok()).toBeTruthy();
     expect((await leaveRes.json()).status).toBe('left');
@@ -536,9 +520,7 @@ test.describe('Gauntlet Step 6: Profile', () => {
     const token = await getToken(request, username);
 
     // Read profile
-    const readRes = await request.post(`${API_BASE}/v3/profile`, {
-      json: { token },
-    });
+    const readRes = await v3Post(request, `${API_BASE}/v3/profile`, { token });
     expect(readRes.ok()).toBeTruthy();
     const profile = await readRes.json();
     expect(profile.username).toBe(username);
@@ -675,8 +657,8 @@ test.describe('Gauntlet system health', () => {
     }, [grp.group_id]);
 
     // B cannot read A's group documents (not a member)
-    const readRes = await request.post(`${API_BASE}/v3/read`, {
-      json: { token: tokenB, service: 'posts', groups: [grp.group_id] },
+    const readRes = await v3Post(request, `${API_BASE}/v3/read`, {
+      token: tokenB, service: 'posts', groups: [grp.group_id],
     });
     expect(readRes.ok()).toBeFalsy();
   });
@@ -697,12 +679,10 @@ test.describe('Gauntlet system health', () => {
     ]);
 
     // Blocker blocks the other user in the group
-    const blockRes = await request.post(`${API_BASE}/v3/groups/block`, {
-      json: {
-        token: blockerToken,
-        group_id: grp.group_id,
-        blocked_key: blocked,
-      },
+    const blockRes = await v3Post(request, `${API_BASE}/v3/groups/block`, {
+      token: blockerToken,
+      group_id: grp.group_id,
+      blocked_key: blocked,
     });
     expect(blockRes.ok()).toBeTruthy();
   });
@@ -723,20 +703,18 @@ test.describe('Gauntlet system health', () => {
     }, [grp.group_id]);
 
     // Update
-    const updateRes = await request.post(`${API_BASE}/v3/update`, {
-      json: {
-        token,
-        doc_id: doc.doc_id,
-        body: { text: 'Updated text' },
-      },
+    const updateRes = await v3Post(request, `${API_BASE}/v3/update`, {
+      token,
+      doc_id: doc.doc_id,
+      body: { text: 'Updated text' },
     });
     expect(updateRes.ok()).toBeTruthy();
     const updated = await updateRes.json();
     expect(updated.body.text).toBe('Updated text');
 
     // Delete
-    const deleteRes = await request.post(`${API_BASE}/v3/delete`, {
-      json: { token, doc_id: doc.doc_id },
+    const deleteRes = await v3Post(request, `${API_BASE}/v3/delete`, {
+      token, doc_id: doc.doc_id,
     });
     expect(deleteRes.ok()).toBeTruthy();
     expect((await deleteRes.json()).status).toBe('deleted');
@@ -747,21 +725,18 @@ test.describe('Gauntlet system health', () => {
     await signUpUser(request, username, '+15559000006');
     const token = await getToken(request, username);
 
-    const listRes = await request.post(`${API_BASE}/v3/app-contracts/list`, {
-      json: { token },
-    });
+    const listRes = await v3Post(request, `${API_BASE}/v3/app-contracts/list`, { token });
     expect(listRes.ok()).toBeTruthy();
     const contracts = await listRes.json();
     expect(Array.isArray(contracts)).toBeTruthy();
   });
 
   test('node stats endpoint works', async ({ request }) => {
-    const res = await request.post(`${API_BASE}/v3/stats`, {
-      json: { token: '', body: {} },
-    });
+    const res = await v3Post(request, `${API_BASE}/v3/stats`, {});
     expect(res.ok()).toBeTruthy();
     const stats = await res.json();
-    expect(stats.user_count).toBeDefined();
-    expect(stats.doc_count).toBeDefined();
+    expect(stats.users).toBeDefined();
+    expect(stats.documents).toBeDefined();
+    expect(stats.groups).toBeDefined();
   });
 });
