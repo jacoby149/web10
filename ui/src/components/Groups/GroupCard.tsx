@@ -66,8 +66,6 @@ function GroupCard({ I, group, isManaged }: { I: Record<string, any>; group: any
   };
 
   const hasDeletePermission = (() => {
-    // Owner role can always delete, even if legacy groups don't have deleteGroup in permissions
-    if (myRole === 'owner') return true;
     const roles = group.roles || [];
     const roleDef = roles.find((r: any) => r.name === myRole);
     return roleDef?.permissions?.includes('deleteGroup') ?? false;

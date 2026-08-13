@@ -117,6 +117,7 @@ def read_documents(
         SELECT doc_id, author_key, collection_name, body, ref_value, tags, created_at, updated_at
         FROM documents
         WHERE {where}
+        QUALIFY row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) = 1
         ORDER BY {order}
         LIMIT %(limit)s OFFSET %(offset)s
     """,
@@ -179,7 +180,8 @@ def get_document(doc_id: str, author_key: str) -> dict | None:
     """Get a single document by doc_id and author_key."""
     result = client.query(
         "SELECT doc_id, author_key, collection_name, body, ref_value, tags, created_at, updated_at "
-        "FROM documents WHERE doc_id = %(doc_id)s AND author_key = %(author_key)s AND deleted = 0",
+        "FROM documents WHERE doc_id = %(doc_id)s AND author_key = %(author_key)s AND deleted = 0 "
+        "ORDER BY updated_at DESC LIMIT 1",
         {"doc_id": doc_id, "author_key": author_key},
     )
     if not result.result_rows:
@@ -260,7 +262,8 @@ def get_group(group_id: str) -> dict | None:
     """Get a group contract."""
     result = client.query(
         "SELECT group_id, roles, join_policy, created_at, updated_at "
-        "FROM group_contracts WHERE group_id = %(group_id)s AND deleted = 0",
+        "FROM group_contracts WHERE group_id = %(group_id)s AND deleted = 0 "
+        "ORDER BY updated_at DESC LIMIT 1",
         {"group_id": group_id},
     )
     if not result.result_rows:
@@ -369,7 +372,8 @@ def get_group_member(group_id: str, member_key: str) -> dict | None:
     """Get a specific member of a group."""
     result = client.query(
         "SELECT member_key, role, joined_at FROM group_members "
-        "WHERE group_id = %(group_id)s AND member_key = %(member_key)s AND deleted = 0",
+        "WHERE group_id = %(group_id)s AND member_key = %(member_key)s AND deleted = 0 "
+        "ORDER BY updated_at DESC LIMIT 1",
         {"group_id": group_id, "member_key": member_key},
     )
     if not result.result_rows:
@@ -472,7 +476,8 @@ def get_pending_requests(group_id: str) -> list[dict]:
     """Get pending join requests for a group."""
     result = client.query(
         "SELECT requester_key, status, role, requested_at FROM group_join_requests "
-        "WHERE group_id = %(group_id)s AND status IN ('pending', 'invited') AND deleted = 0",
+        "WHERE group_id = %(group_id)s AND status IN ('pending', 'invited') AND deleted = 0 "
+        "QUALIFY row_number() OVER (PARTITION BY requester_key ORDER BY updated_at DESC) = 1",
         {"group_id": group_id},
     )
     return [
@@ -484,8 +489,9 @@ def get_pending_requests(group_id: str) -> list[dict]:
 def has_pending_or_invited_request(group_id: str, requester_key: str) -> bool:
     """Check if a user has a pending or invited join request for a group."""
     result = client.query(
-        "SELECT count() FROM group_join_requests "
-        "WHERE group_id = %(group_id)s AND requester_key = %(requester_key)s AND status IN ('pending', 'invited') AND deleted = 0",
+        "SELECT count() FROM (SELECT 1 FROM group_join_requests "
+        "WHERE group_id = %(group_id)s AND requester_key = %(requester_key)s AND status IN ('pending', 'invited') AND deleted = 0 "
+        "ORDER BY updated_at DESC LIMIT 1)",
         {"group_id": group_id, "requester_key": requester_key},
     )
     return result.result_rows[0][0] > 0
@@ -538,7 +544,8 @@ def add_app_contract(user_key: str, allowed_origin: str, permissions: dict) -> d
 def get_app_contracts(user_key: str) -> list[dict]:
     """Get active app contracts for a user."""
     result = client.query(
-        "SELECT allowed_origin, permissions FROM app_contracts WHERE user_key = %(user_key)s AND deleted = 0",
+        "SELECT allowed_origin, permissions FROM app_contracts WHERE user_key = %(user_key)s AND deleted = 0 "
+        "QUALIFY row_number() OVER (PARTITION BY allowed_origin ORDER BY updated_at DESC) = 1",
         {"user_key": user_key},
     )
     return [
@@ -553,8 +560,9 @@ def get_app_contracts(user_key: str) -> list[dict]:
 def is_origin_allowed(user_key: str, allowed_origin: str) -> bool:
     """Check if an origin has an active contract for a user."""
     result = client.query(
-        "SELECT count() FROM app_contracts "
-        "WHERE user_key = %(user_key)s AND allowed_origin = %(allowed_origin)s AND deleted = 0",
+        "SELECT count() FROM (SELECT 1 FROM app_contracts "
+        "WHERE user_key = %(user_key)s AND allowed_origin = %(allowed_origin)s AND deleted = 0 "
+        "ORDER BY updated_at DESC LIMIT 1)",
         {"user_key": user_key, "allowed_origin": allowed_origin},
     )
     return result.result_rows[0][0] > 0
@@ -564,7 +572,8 @@ def get_app_permissions(user_key: str, allowed_origin: str) -> dict:
     """Get the permissions dict for a user+origin contract. Returns {} if no contract."""
     result = client.query(
         "SELECT permissions FROM app_contracts "
-        "WHERE user_key = %(user_key)s AND allowed_origin = %(allowed_origin)s AND deleted = 0",
+        "WHERE user_key = %(user_key)s AND allowed_origin = %(allowed_origin)s AND deleted = 0 "
+        "ORDER BY updated_at DESC LIMIT 1",
         {"user_key": user_key, "allowed_origin": allowed_origin},
     )
     rows = result.result_rows
@@ -643,7 +652,8 @@ def unblock_user(user_key: str, blocked_key: str):
 def is_user_blocked(user_key: str, blocked_key: str) -> bool:
     """Check if a user has blocked another user."""
     result = client.query(
-        "SELECT count() FROM user_blacklist WHERE user_key = %(user_key)s AND blocked_key = %(blocked_key)s AND deleted = 0",
+        "SELECT count() FROM (SELECT 1 FROM user_blacklist WHERE user_key = %(user_key)s AND blocked_key = %(blocked_key)s AND deleted = 0 "
+        "ORDER BY updated_at DESC LIMIT 1)",
         {"user_key": user_key, "blocked_key": blocked_key},
     )
     return result.result_rows[0][0] > 0
@@ -683,7 +693,8 @@ def is_sharing_enabled(user_key: str, group_id: str) -> bool:
     """Check if sharing is enabled for a user in a group. Default: True (opt-out model)."""
     result = client.query(
         "SELECT sharing_enabled FROM user_group_sharing "
-        "WHERE user_key = %(user_key)s AND group_id = %(group_id)s AND deleted = 0",
+        "WHERE user_key = %(user_key)s AND group_id = %(group_id)s AND deleted = 0 "
+        "ORDER BY updated_at DESC LIMIT 1",
         {"user_key": user_key, "group_id": group_id},
     )
     if not result.result_rows:
@@ -713,13 +724,14 @@ def read_documents_in_groups(
 
     result = client.query(
         "SELECT p.doc_id, p.author_key, p.body, p.tags, p.created_at, p.ref_value "
-        "FROM documents p "
-        "JOIN doc_groups pg ON p.doc_id = pg.doc_id "
+        "FROM (SELECT doc_id, author_key, body, tags, created_at, ref_value "
+        "FROM documents WHERE deleted = 0 AND collection_name = %(coll)s "
+        "QUALIFY row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) = 1) p "
+        "JOIN (SELECT doc_id, group_id FROM doc_groups WHERE deleted = 0 "
+        "QUALIFY row_number() OVER (PARTITION BY doc_id, group_id ORDER BY updated_at DESC) = 1) pg "
+        "ON p.doc_id = pg.doc_id "
         "JOIN group_members gm ON pg.group_id = gm.group_id "
-        "WHERE p.deleted = 0 "
-        "AND p.collection_name = %(coll)s "
-        "AND pg.deleted = 0 "
-        "AND gm.member_key = %(member_key)s "
+        "WHERE gm.member_key = %(member_key)s "
         "AND gm.deleted = 0 "
         "AND pg.group_id IN (%(g0)s" + "".join(f", %(g{i})s" for i in range(1, len(group_ids))) + ") "
         "AND NOT EXISTS ("
@@ -763,7 +775,8 @@ def read_documents_in_groups(
 def get_ref_count(doc_id: str, service: str = "reactions") -> int:
     """Count documents referencing a given doc_id."""
     result = client.query(
-        "SELECT count() FROM documents WHERE deleted = 0 AND collection_name = %(coll)s AND ref_value = %(doc_id)s",
+        "SELECT count() FROM (SELECT 1 FROM documents WHERE deleted = 0 AND collection_name = %(coll)s AND ref_value = %(doc_id)s "
+        "ORDER BY updated_at DESC LIMIT 1)",
         {"coll": service, "doc_id": doc_id},
     )
     return result.result_rows[0][0]
@@ -776,7 +789,8 @@ def get_ref_counts(doc_ids: list[str], service: str = "reactions") -> dict[str, 
     placeholders = ", ".join(f"%(d{i})s" for i in range(len(doc_ids)))
     params = {"coll": service, **{f"d{i}": did for i, did in enumerate(doc_ids)}}
     result = client.query(
-        f"SELECT ref_value, count() FROM documents WHERE deleted = 0 AND collection_name = %(coll)s AND ref_value IN ({placeholders}) GROUP BY ref_value",
+        f"SELECT ref_value, count() FROM (SELECT ref_value FROM documents WHERE deleted = 0 AND collection_name = %(coll)s AND ref_value IN ({placeholders}) "
+        "QUALIFY row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) = 1) GROUP BY ref_value",
         params,
     )
     return {row[0]: row[1] for row in result.result_rows}
@@ -806,7 +820,8 @@ def read_document_by_id(doc_id: str, member_key: str, service: str) -> dict | No
         "AND NOT EXISTS ( "
         "SELECT 1 FROM user_blacklist "
         "WHERE user_key = p.author_key AND blocked_key = %(member_key)s AND deleted = 0 "
-        ")",
+        ") "
+        "ORDER BY p.updated_at DESC LIMIT 1",
         {"doc_id": doc_id, "coll": service, "member_key": member_key},
     )
     if not result.result_rows:
@@ -916,7 +931,8 @@ def add_provider_service_contract(provider_key: str, allowed_origin: str) -> dic
 def get_provider_service_contracts(provider_key: str) -> list[dict]:
     """Get active provider service contracts."""
     result = client.query(
-        "SELECT allowed_origin FROM provider_service_contracts WHERE provider_key = %(provider_key)s AND deleted = 0",
+        "SELECT allowed_origin FROM provider_service_contracts WHERE provider_key = %(provider_key)s AND deleted = 0 "
+        "QUALIFY row_number() OVER (PARTITION BY allowed_origin ORDER BY updated_at DESC) = 1",
         {"provider_key": provider_key},
     )
     return [{"allowed_origin": row[0]} for row in result.result_rows]
@@ -925,8 +941,9 @@ def get_provider_service_contracts(provider_key: str) -> list[dict]:
 def is_provider_origin_allowed(provider_key: str, allowed_origin: str) -> bool:
     """Check if an origin is allowed at the provider level."""
     result = client.query(
-        "SELECT count() FROM provider_service_contracts "
-        "WHERE provider_key = %(provider_key)s AND allowed_origin = %(allowed_origin)s AND deleted = 0",
+        "SELECT count() FROM (SELECT 1 FROM provider_service_contracts "
+        "WHERE provider_key = %(provider_key)s AND allowed_origin = %(allowed_origin)s AND deleted = 0 "
+        "ORDER BY updated_at DESC LIMIT 1)",
         {"provider_key": provider_key, "allowed_origin": allowed_origin},
     )
     return result.result_rows[0][0] > 0
@@ -1070,7 +1087,8 @@ def node_has_users() -> bool:
 def create_user(username: str, password_hash: str, phone: str = "", email: str = "") -> dict:
     """Create a user account."""
     existing = client.query(
-        "SELECT count() FROM users WHERE username = %(username)s AND deleted = 0",
+        "SELECT count() FROM (SELECT 1 FROM users WHERE username = %(username)s AND deleted = 0 "
+        "ORDER BY updated_at DESC LIMIT 1)",
         {"username": username},
     )
     if existing.result_rows[0][0] > 0:
@@ -1087,7 +1105,8 @@ def get_user(username: str) -> dict | None:
     """Get a user record."""
     result = client.query(
         "SELECT username, password_hash, phone, phone_verified, email, email_verified, created_at "
-        "FROM users WHERE username = %(username)s AND deleted = 0",
+        "FROM users WHERE username = %(username)s AND deleted = 0 "
+        "ORDER BY updated_at DESC LIMIT 1",
         {"username": username},
     )
     if not result.result_rows:
@@ -1187,7 +1206,7 @@ def get_phone_number(username: str) -> str | None:
 def get_phone_record(phone_number: str) -> dict | None:
     """Find a user by phone number (for recovery)."""
     result = client.query(
-        "SELECT username, phone FROM users WHERE phone = %(phone)s AND deleted = 0",
+        "SELECT username, phone FROM users WHERE phone = %(phone)s AND deleted = 0 ORDER BY updated_at DESC LIMIT 1",
         {"phone": phone_number},
     )
     if not result.result_rows:
@@ -1343,7 +1362,8 @@ def get_app(url: str) -> dict | None:
     """Get an app by URL."""
     result = client.query(
         "SELECT url, name, description, icon_url, screenshots, approved, review_state, metadata_version "
-        "FROM apps WHERE url = %(url)s AND deleted = 0",
+        "FROM apps WHERE url = %(url)s AND deleted = 0 "
+        "ORDER BY updated_at DESC LIMIT 1",
         {"url": url},
     )
     if not result.result_rows:
@@ -1481,7 +1501,8 @@ def get_bug_report(report_id: str) -> dict | None:
     result = client.query(
         "SELECT report_id, username, email, description, page_url, app_version, device_info, "
         "browser_info, error_message, stack_trace, screenshots, created_at "
-        "FROM bug_reports WHERE report_id = %(report_id)s AND deleted = 0",
+        "FROM bug_reports WHERE report_id = %(report_id)s AND deleted = 0 "
+        "ORDER BY updated_at DESC LIMIT 1",
         {"report_id": report_id},
     )
     if not result.result_rows:
