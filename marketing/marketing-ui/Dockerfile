@@ -45,10 +45,10 @@ ENV VITE_API_URL=$VITE_API_URL \
 COPY marketing/marketing-ui/ ./
 
 # Build SDK from source so wapi.js is always fresh (never stale from repo).
-COPY sdk/package.json sdk/bun.lock* sdk/tsconfig.json sdk/vitest.config.ts sdk/
+COPY sdk/package.json sdk/bun.lock sdk/tsconfig.json sdk/vitest.config.ts /app/sdk/
 WORKDIR /app/sdk
 RUN bun install --frozen-lockfile || bun install
-COPY sdk/src/ sdk/src/
+COPY sdk/src/ /app/sdk/src/
 COPY sdk/*.json sdk/*.ts ./
 RUN bun run build
 WORKDIR /app/marketing/marketing-ui
