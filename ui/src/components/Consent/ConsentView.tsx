@@ -289,9 +289,14 @@ function ConsentView({ I }: { I: Record<string, any> }) {
                     <span className="text-foreground">{host}</span> already has access. Nothing new to review.
                   </>
                 ) : (
-                  <>Nothing left to review. You can close this window.</>
+                  <>Nothing left to review.</>
                 )}
               </p>
+              <div className="mt-6 w-full">
+                <Button variant="brand" className="w-full" onClick={() => I.goToApp()} data-testid="consent-close-window">
+                  Close window
+                </Button>
+              </div>
             </div>
           ) : (
             <>
