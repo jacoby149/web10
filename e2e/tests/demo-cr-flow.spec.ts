@@ -10,9 +10,9 @@ const uniqueUser = (prefix: string) => `${prefix}${Date.now()}`;
 const password = 'TestPass123!';
 
 /**
- * E2E tests for the GCR/ACR consent flow against the live stack.
+ * E2E tests for the CR (contract request) consent flow against the live stack.
  *
- * Tests the full chain: demo app → auth UI popup → postMessage GCR/ACR →
+ * Tests the full chain: demo app → auth UI popup → postMessage CR →
  * user approval → API execution → contract_response back to app.
  *
  * Uses the real docker-compose stack (docker compose up --build).
@@ -35,14 +35,14 @@ async function signupAndLogin(request: APIRequestContext, username: string) {
 }
 
 // ---------------------------------------------------------------------------
-// API-level: GCR execution (auth UI → API, no browser)
+// API-level: group CR execution (auth UI → API, no browser)
 // ---------------------------------------------------------------------------
-test.describe('GCR flow — API level (auth UI creates group directly)', () => {
+test.describe('Group CR flow — API level (auth UI creates group directly)', () => {
   test('auth UI can create a group via /v3/groups/create', async ({ request }) => {
     const username = uniqueUser('gcrapi');
     const token = await signupAndLogin(request, username);
 
-    // Simulate what the auth UI does when approving a GCR:
+    // Simulate what the auth UI does when approving a group CR:
     // POST /v3/groups/create with the user's token (auth UI origin)
     const res = await request.post(`${API_BASE}/v3/groups/create`, {
       data: {
@@ -140,9 +140,9 @@ test.describe('GCR flow — API level (auth UI creates group directly)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// API-level: ACR execution (auth UI creates app contract)
+// API-level: app CR execution (auth UI creates app contract)
 // ---------------------------------------------------------------------------
-test.describe('ACR flow — API level (auth UI creates app contract)', () => {
+test.describe('App CR flow — API level (auth UI creates app contract)', () => {
   test('auth UI can create an app contract via /v3/app-contracts/add', async ({ request }) => {
     const username = uniqueUser('acrap');
     const token = await signupAndLogin(request, username);
@@ -226,11 +226,11 @@ test.describe('ACR flow — API level (auth UI creates app contract)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Browser-level: full GCR flow (demo → auth popup → approve → response)
+// Browser-level: full group CR flow (demo → auth popup → approve → response)
 // ---------------------------------------------------------------------------
-test.describe('GCR flow — browser (demo → auth UI popup → approve)', () => {
-  test('full GCR flow: create group via auth popup', async ({ page, context, browser }) => {
-    const username = uniqueUser('gcrgui');
+test.describe('Group CR flow — browser (demo → auth UI popup → approve)', () => {
+  test('full group CR flow: create group via auth popup', async ({ page, context, browser, request }) => {
+    const username = uniqueUser('crgui');
     const token = await signupAndLogin(request, username);
 
     // Set token in the demo page context
@@ -259,16 +259,16 @@ test.describe('GCR flow — browser (demo → auth UI popup → approve)', () =>
     await popup.waitForLoadState('domcontentloaded', { timeout: 10000 });
     expect(popup.url()).toContain('auth.localhost');
 
-    // The popup should show the consent screen with the pending GCR
-    // If the user is already logged in, it should show the GCR card
+    // The popup should show the consent screen with the pending group CR
+    // If the user is already logged in, it should show the CR card
     // Wait for the popup to be authenticated (token cookie shared)
     await popup.waitForTimeout(2000); // give React time to render
 
-    // Check if the GCR is visible in the consent view
-    const hasGCR = await popup.locator('text=create group').isVisible({ timeout: 5000 }).catch(() => false);
+    // Check if the group CR is visible in the consent view
+    const hasCR = await popup.locator('text=create group').isVisible({ timeout: 5000 }).catch(() => false);
 
-    if (hasGCR) {
-      // Approve the GCR
+    if (hasCR) {
+      // Approve the CR
       await popup.locator('[data-testid="consent-approve-all"]').click();
       await popup.waitForTimeout(2000);
     }
@@ -285,11 +285,11 @@ test.describe('GCR flow — browser (demo → auth UI popup → approve)', () =>
 });
 
 // ---------------------------------------------------------------------------
-// Browser-level: full ACR flow (demo → auth popup → approve → response)
+// Browser-level: full app CR flow (demo → auth popup → approve → response)
 // ---------------------------------------------------------------------------
-test.describe('ACR flow — browser (app → auth UI popup → approve)', () => {
-  test('auth UI consent screen renders and shows pending ACR', async ({ page, context, request }) => {
-    const username = uniqueUser('acrgui');
+test.describe('App CR flow — browser (app → auth UI popup → approve)', () => {
+  test('auth UI consent screen renders and shows pending app CR', async ({ page, context, request }) => {
+    const username = uniqueUser('crgui');
     const token = await signupAndLogin(request, username);
 
     // Set token in the auth UI context
@@ -304,14 +304,15 @@ test.describe('ACR flow — browser (app → auth UI popup → approve)', () => 
     // The consent screen should render
     await expect(page.locator('body')).not.toBeEmpty({ timeout: 10000 });
 
-    // Simulate an app sending an ACR via postMessage
+    // Simulate an app sending a CR via postMessage (new unified format)
     await page.evaluate(() => {
       window.dispatchEvent(new MessageEvent('message', {
         data: {
           type: 'contract',
           contracts: [
             {
-              allowed_origin: 'http://test-app.localhost',
+              kind: 'app',
+              app_origin: 'http://test-app.localhost',
               permissions: {
                 posts: ['readAll', 'create'],
               },
@@ -322,7 +323,7 @@ test.describe('ACR flow — browser (app → auth UI popup → approve)', () => 
       }));
     });
 
-    // The consent screen should show the pending ACR
+    // The consent screen should show the pending CR
     await expect(page.locator('text=access on posts')).toBeVisible({ timeout: 5000 }).catch(() => {
       // If the user is already logged in, the contract should appear
       // Otherwise the login form shows first
@@ -334,7 +335,7 @@ test.describe('ACR flow — browser (app → auth UI popup → approve)', () => 
 // ---------------------------------------------------------------------------
 // Regression: demo app contract creation
 // ---------------------------------------------------------------------------
-test.describe('Demo app contract — ensureAppContract', () => {
+test.describe('Demo app CR — ensureAppContract', () => {
   test('demo cannot create app contract directly (CORS_SERVICE_MANAGERS gate)', async ({ request }) => {
     const username = uniqueUser('democr');
     const token = await signupAndLogin(request, username);
