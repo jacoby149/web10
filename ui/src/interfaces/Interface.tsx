@@ -724,6 +724,7 @@ function useInterface() {
 
     // Return to the requesting app, logging it in. Send the current v3 token
     // directly to the opener — no tiered token needed for v3.
+    // Do NOT close the popup — keep it alive so contractRequest can reuse it.
     I.goToApp = function () {
         const token = I.v3.state?.token;
         if (token && window.opener) {
@@ -732,12 +733,10 @@ function useInterface() {
                 const target = referrer ? new URL(referrer).origin : '*';
                 I.setStatus("Connecting…");
                 window.opener.postMessage({ type: 'auth', token }, target);
-                window.close();
+                // Don't close — SDK needs this popup for contractRequest
             } catch {
                 I.setStatus("Failed to connect to app.");
             }
-        } else if (window.opener) {
-            window.close();
         }
     }
 
