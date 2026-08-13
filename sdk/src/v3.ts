@@ -268,7 +268,7 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       body: Record<string, unknown>,
       opts?: { groups?: string[] },
     ): Promise<V3Document> {
-      const payload: V3Body = { collection, body }
+      const payload: V3Body = { service: collection, body }
       if (opts?.groups) payload.groups = opts.groups
       return v3Post<V3Document>('create', payload)
     },
@@ -277,7 +277,7 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       collection: string,
       opts: { groups: string[]; limit?: number; offset?: number },
     ): Promise<V3Document[]> {
-      const payload: V3Body = { collection, groups: opts.groups }
+      const payload: V3Body = { service: collection, groups: opts.groups }
       if (opts.limit != null) payload.limit = opts.limit
       if (opts.offset != null) payload.offset = opts.offset
       return v3Post<V3Document[]>('read', payload)
@@ -287,7 +287,7 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       docId: string,
       collection: string,
     ): Promise<V3Document> {
-      return v3Post<V3Document>('read-by-id', { doc_id: docId, collection })
+      return v3Post<V3Document>('read-by-id', { doc_id: docId, service: collection })
     },
 
     async update(
