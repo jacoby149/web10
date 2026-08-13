@@ -24,8 +24,6 @@ authButton.onclick = () => {
     console.log('[demo] contractRequest callback — status:', resp.status, 'errors:', resp.errors)
     if (resp.status === 'approved') {
       message.innerHTML += `<br><span style="color:#22c55e;">app contract approved</span>`
-      const t = w.readToken()
-      ensureNotesGroup(t.username, t.provider)
     } else if (resp.status === 'denied') {
       message.innerHTML += `<br><span style="color:#ef4444;">app contract denied</span>`
     } else {
@@ -33,25 +31,11 @@ authButton.onclick = () => {
     }
   })
 }
-window.web10.authListen(() => initApp())
-
-function initApp() {
-  authButton.innerHTML = 'log out'
-  authButton.onclick = () => { w.signOut(); window.location.reload() }
+window.web10.authListen(() => {
   const t = w.readToken()
-  message.innerHTML = `hello ${t.provider}/${t.username},<br>`
-  editor.style.display = 'block'
   const groupName = `notes-${t.username}`
   const groupId = `${t.provider}/groups/users/${t.username}/${groupName}`
   NOTES_GROUP = groupId
-  readNotes()
-}
-
-function ensureNotesGroup(username, provider) {
-  const groupName = `notes-${username}`
-  const groupId = `${provider}/groups/users/${username}/${groupName}`
-
-  // Request group creation via contract request
   w.contractRequest([{
     kind: 'group',
     app_origin: window.location.origin,
@@ -62,22 +46,26 @@ function ensureNotesGroup(username, provider) {
       { name: 'owner', services: ['*'], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn', 'manageRoles'] },
       { name: 'member', services: [COLLECTION], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
     ],
-    members: [{ member_key: username, role: 'owner' }],
+    members: [{ member_key: t.username, role: 'owner' }],
   }], AUTH_ORIGIN, (resp) => {
     if (resp.status === 'approved') {
-      NOTES_GROUP = groupId
-      editor.style.display = 'block'
       message.innerHTML += `<br><span style="color:#22c55e;">notes group created</span>`
-      readNotes()
     } else if (resp.status === 'denied') {
       message.innerHTML += `<br><span style="color:#ef4444;">group creation denied</span>`
-    } else {
-      // Group might already exist — try to load notes
-      NOTES_GROUP = groupId
-      editor.style.display = 'block'
-      readNotes()
     }
+    // Group might already exist — proceed either way
+    editor.style.display = 'block'
+    initApp()
   })
+})
+
+function initApp() {
+  authButton.innerHTML = 'log out'
+  authButton.onclick = () => { w.signOut(); window.location.reload() }
+  const t = w.readToken()
+  message.innerHTML = `hello ${t.provider}/${t.username},<br>`
+  editor.style.display = 'block'
+  readNotes()
 }
 
 async function readNotes() {
@@ -141,4 +129,10 @@ function displayNotes(docs) {
     .join('<br>')
 }
 
-if (w.isSignedIn()) initApp()
+if (w.isSignedIn()) {
+  const t = w.readToken()
+  const groupName = `notes-${t.username}`
+  const groupId = `${t.provider}/groups/users/${t.username}/${groupName}`
+  NOTES_GROUP = groupId
+  initApp()
+}
