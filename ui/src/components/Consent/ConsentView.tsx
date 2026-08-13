@@ -46,9 +46,12 @@ function Chip({ tone = 'default', children }: { tone?: 'default' | 'add' | 'remo
   );
 }
 
-// Derive a readable origin label
+// Derive a readable origin label — handle both "dev.web10.app" and "https://dev.web10.app"
 function originLabel(origin: string): string {
-  try { return new URL(`https://${origin}`).hostname; } catch { return origin; }
+  try {
+    const url = origin.startsWith('http') ? new URL(origin) : new URL(`https://${origin}`)
+    return url.hostname
+  } catch { return origin }
 }
 
 // Build a one-line summary of what an ACR grants.
