@@ -35,6 +35,26 @@ function initApp() {
   authButton.onclick = () => { w.signOut(); window.location.reload() }
   const t = w.readToken()
   message.innerHTML = `hello ${t.provider}/${t.username},<br>`
+  loadGroups()
+}
+
+async function loadGroups() {
+  try {
+    const groups = await w.getMyGroups()
+    console.log('[demo] groups loaded:', groups.length, groups)
+    if (!groups.length) {
+      message.innerHTML += '<br><span style="color:var(--muted);">no groups yet — try the groups demo to create one</span>'
+      return
+    }
+    const list = groups.map(g => {
+      const short = g.group_id.split('/').slice(-2).join('/')
+      return `<span class="group-chip">${short}</span>`
+    }).join('')
+    message.innerHTML += `<br><span style="color:#a1a1aa;font-size:0.75rem;">your groups:</span><br><div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">${list}</div>`
+  } catch (e) {
+    console.error('[demo] loadGroups failed:', e)
+    message.innerHTML += `<br><span style="color:#ef4444;">failed to load groups: ${e.message}</span>`
+  }
 }
 
 if (w.isSignedIn()) initApp()
