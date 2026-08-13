@@ -449,9 +449,11 @@
   }
 
   // src/browser.ts
+  var _authPopup = null;
   function openAuthPortal(authOrigin) {
     const url = `${authOrigin}?redirect=${encodeURIComponent(window.location.href)}`;
-    return window.open(url, "web10-auth", "width=480,height=720,scrollbars=yes");
+    _authPopup = window.open(url, "web10-auth", "width=480,height=720,scrollbars=yes");
+    return _authPopup;
   }
   function authListen(onSignedIn) {
     const handler = (e) => {
@@ -463,8 +465,39 @@
     window.addEventListener("message", handler);
     return () => window.removeEventListener("message", handler);
   }
+  function createV3Client2(options) {
+    const client = createV3Client(options);
+    const originalContractRequest = client.contractRequest;
+    client.contractRequest = function(contracts, authOrigin, callback) {
+      const popup = _authPopup;
+      if (popup && !popup.closed) {
+        const responseHandler = (e) => {
+          if (e.data?.type === "contract_response") {
+            window.removeEventListener("message", responseHandler);
+            clearTimeout(timeoutId);
+            callback?.(e.data);
+          }
+        };
+        window.addEventListener("message", responseHandler);
+        try {
+          popup.postMessage({ type: "contract", contracts }, "*");
+        } catch {
+          window.removeEventListener("message", responseHandler);
+          callback?.({ status: "error", errors: ["Failed to send contract to auth UI"] });
+          return;
+        }
+        const timeoutId = setTimeout(() => {
+          window.removeEventListener("message", responseHandler);
+          callback?.({ status: "error", errors: ["Auth popup closed — request cancelled"] });
+        }, 30000);
+        return;
+      }
+      originalContractRequest.call(this, contracts, authOrigin, callback);
+    };
+    return client;
+  }
   var web10 = {
-    createV3Client,
+    createV3Client: createV3Client2,
     openAuthPortal,
     authListen,
     cookieDict,

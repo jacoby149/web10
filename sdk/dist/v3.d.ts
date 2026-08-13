@@ -75,6 +75,40 @@ export interface V3ServiceContract {
     allowed_origin: string;
     permissions: Record<string, string[]>;
 }
+export interface V3GroupRole {
+    name: string;
+    services: string[];
+    permissions: string[];
+}
+export interface V3GroupMemberCR {
+    member_key: string;
+    role: string;
+}
+export interface V3AppCR {
+    kind: 'app';
+    /** Website origin requesting access */
+    app_origin: string;
+    /** Per-service permissions */
+    permissions: Record<string, string[]>;
+}
+export interface V3GroupCR {
+    kind: 'group';
+    /** Website origin making the request */
+    app_origin: string;
+    /** Operation: create_group, update_group, join_group, etc. */
+    action: string;
+    /** Group name (create_group) */
+    name?: string;
+    /** Join policy: open, request, invite_only */
+    join_policy?: string;
+    /** Roles with service-specific permissions */
+    roles?: V3GroupRole[];
+    /** Initial members */
+    members?: V3GroupMemberCR[];
+    /** Existing group ID (update_group) */
+    group_id?: string;
+}
+export type V3CR = V3AppCR | V3GroupCR;
 export interface V3User {
     username: string;
     phone?: string;
@@ -148,6 +182,14 @@ export interface V3Client {
     revokeAppContract(allowedOrigin?: string): Promise<{
         status: string;
     }>;
+    contractRequest(contracts: V3CR[], authOrigin: string, callback?: (response: {
+        status: string;
+        errors?: string[];
+    }) => void): void;
+    contractOnReady(contracts: V3CR[], callback?: (response: {
+        status: string;
+        errors?: string[];
+    }) => void): void;
     createGroup(name: string, joinPolicy: string, roles: Record<string, unknown>[], members: {
         member_key: string;
         role?: string;
@@ -271,5 +313,9 @@ export interface V3Client {
         provider: string;
         created_at: string;
     }[]>;
+    contractOnReady(contracts: V3CR[], callback?: (response: {
+        status: string;
+        errors?: string[];
+    }) => void): void;
 }
 //# sourceMappingURL=v3.d.ts.map

@@ -7,7 +7,7 @@
  *   window.web10.authListen
  *   window.web10.readTokenCookie, etc.
  */
-import { createV3Client } from './v3';
+import { createV3Client as _createV3Client, type V3Client } from './v3';
 import { cookieDict, readTokenCookie, setTokenCookie, scrubTokenCookie, decodeJwt, isTokenExpired } from './token';
 import { Web10Error } from './http';
 /**
@@ -18,6 +18,11 @@ declare function openAuthPortal(authOrigin: string): Window | null;
  * Listen for auth events from the popup.
  */
 declare function authListen(onSignedIn: (signedIn: boolean) => void): () => void;
+/**
+ * Create a v3 client with contractRequest patched to reuse the auth popup
+ * when it's still open (avoiding a second popup that gets blocked).
+ */
+declare function createV3Client(options?: Parameters<typeof _createV3Client>[0]): V3Client;
 declare const web10: {
     createV3Client: typeof createV3Client;
     openAuthPortal: typeof openAuthPortal;

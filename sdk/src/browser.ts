@@ -8,7 +8,7 @@
  *   window.web10.readTokenCookie, etc.
  */
 
-import { createV3Client } from './v3'
+import { createV3Client as _createV3Client, type V3Client, type V3CR } from './v3'
 import {
   cookieDict,
   readTokenCookie,
@@ -21,16 +21,20 @@ import { Web10Error } from './http'
 
 // ── Popup auth helpers (browser-only) ───────────────────────────────────────
 
+// Track the last opened auth popup so contractRequest can reuse it
+let _authPopup: Window | null = null
+
 /**
  * Open the web10 auth portal in a popup window.
  */
 function openAuthPortal(authOrigin: string): Window | null {
   const url = `${authOrigin}?redirect=${encodeURIComponent(window.location.href)}`
-  return window.open(
+  _authPopup = window.open(
     url,
     'web10-auth',
     'width=480,height=720,scrollbars=yes',
   )
+  return _authPopup
 }
 
 /**
@@ -47,6 +51,53 @@ function authListen(
   }
   window.addEventListener('message', handler)
   return () => window.removeEventListener('message', handler)
+}
+
+/**
+ * Create a v3 client with contractRequest patched to reuse the auth popup
+ * when it's still open (avoiding a second popup that gets blocked).
+ */
+function createV3Client(options?: Parameters<typeof _createV3Client>[0]): V3Client {
+  const client = _createV3Client(options)
+  const originalContractRequest = client.contractRequest
+
+  client.contractRequest = function (
+    contracts: V3CR[],
+    authOrigin: string,
+    callback?: (response: { status: string; errors?: string[] }) => void,
+  ): void {
+    const popup = _authPopup
+    if (popup && !popup.closed) {
+      // Reuse existing auth popup — it's already showing the consent screen
+      const responseHandler = (e: MessageEvent) => {
+        if (e.data?.type === 'contract_response') {
+          window.removeEventListener('message', responseHandler)
+          clearTimeout(timeoutId)
+          callback?.(e.data)
+        }
+      }
+      window.addEventListener('message', responseHandler)
+
+      try {
+        popup.postMessage({ type: 'contract', contracts }, '*')
+      } catch {
+        window.removeEventListener('message', responseHandler)
+        callback?.({ status: 'error', errors: ['Failed to send contract to auth UI'] })
+        return
+      }
+
+      const timeoutId = setTimeout(() => {
+        window.removeEventListener('message', responseHandler)
+        callback?.({ status: 'error', errors: ['Auth popup closed — request cancelled'] })
+      }, 30000)
+      return
+    }
+
+    // No existing popup — fall back to opening a new one
+    originalContractRequest.call(this, contracts, authOrigin, callback)
+  }
+
+  return client
 }
 
 // ── Attach to window ────────────────────────────────────────────────────────
