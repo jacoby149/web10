@@ -30,11 +30,23 @@ services:
     networks:
       - e2e-net
 
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.3
+    volumes:
+      - ../clickhouse-init:/docker-entrypoint-initdb.d:ro
+    environment:
+      - CLICKHOUSE_DB=web10
+      - CLICKHOUSE_USER=web10
+      - CLICKHOUSE_PASSWORD=web10
+    networks:
+      - e2e-net
+
   api:
     build: ../api
     depends_on:
       - ferretdb
       - minio
+      - clickhouse
     volumes:
       - ../api:/web10
     environment:
@@ -47,6 +59,11 @@ services:
       CORS_SERVICE_MANAGERS: auth.localhost,social.localhost,marketing.localhost
       STRIPE_STATUS: test
       STRIPE_TEST_KEY: ${STRIPE_TEST_KEY:-sk_test_placeholder}
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: "8123"
+      CLICKHOUSE_DATABASE: web10
+      CLICKHOUSE_USER: web10
+      CLICKHOUSE_PASSWORD: web10
     command: ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80", "--reload"]
     networks:
       - e2e-net
