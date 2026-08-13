@@ -49,7 +49,22 @@ function initApp() {
   message.innerHTML = `Signed in as <strong>${t["provider"]}/${t["username"]}</strong>`
   app.style.display = "block"
 
-  readTasks()
+  // Request app contract for the tasks service (App CR)
+  w.contractRequest([{
+    kind: 'app',
+    app_origin: window.location.origin,
+    permissions: {
+      [SERVICE]: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+    },
+  }], AUTH_ORIGIN, (resp) => {
+    if (resp.status === 'approved') {
+      message.innerHTML += ` · <span style="color:var(--ok);">app contract approved</span>`
+    } else if (resp.status === 'denied') {
+      message.innerHTML += ` · <span style="color:var(--danger);">app contract denied</span>`
+    } else {
+      message.innerHTML += ` · <span style="color:var(--danger);">contract error: ${resp.errors?.[0] || 'unknown'}</span>`
+    }
+  })
 }
 
 // Self-register in the app store
@@ -67,37 +82,45 @@ fetch(`${API_ORIGIN}/v3/apps/register`, {
 
 if (w.isSignedIn()) initApp()
 
-/* Group operations */
+/* Group operations (via Group CR) */
 
-async function createGroup() {
+function createGroup() {
   const name = groupName.value.trim()
   const joinPolicy = joinPolicy.value
   if (!name) return
 
   const t = w.readToken()
-  try {
-    const result = await v3Post('groups/create', {
-      name,
-      join_policy: joinPolicy,
-      roles: [
-        { name: 'owner', services: [SERVICE], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn', 'manageRoles'] },
-        { name: 'contributor', services: [SERVICE], permissions: ['readAll', 'create', 'updateOwn'] },
-        { name: 'viewer', services: [SERVICE], permissions: ['readAll'] },
-      ],
-      members: [
-        { member_key: t.username, role: 'owner' },
-      ],
-    })
-    currentGroupId = result.group_id
-    activeGroup.style.display = 'block'
-    groupSection.style.display = 'none'
-    groupId.textContent = currentGroupId
-    readTasks()
-    readMembers()
-  } catch (err) {
-    console.error(ERROR_MSGS.createGroup, err)
-    message.innerHTML = ERROR_MSGS.createGroup
-  }
+
+  // Request group creation via contract request (Group CR)
+  w.contractRequest([{
+    kind: 'group',
+    app_origin: window.location.origin,
+    action: 'create_group',
+    name,
+    join_policy: joinPolicy,
+    roles: [
+      { name: 'owner', services: [SERVICE], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn', 'manageRoles'] },
+      { name: 'contributor', services: [SERVICE], permissions: ['readAll', 'create', 'updateOwn'] },
+      { name: 'viewer', services: [SERVICE], permissions: ['readAll'] },
+    ],
+    members: [
+      { member_key: t.username, role: 'owner' },
+    ],
+  }], AUTH_ORIGIN, (resp) => {
+    if (resp.status === 'approved') {
+      const groupId = `${t.provider}/groups/users/${t.username}/${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
+      currentGroupId = groupId
+      activeGroup.style.display = 'block'
+      groupSection.style.display = 'none'
+      groupId.textContent = currentGroupId
+      readTasks()
+      readMembers()
+    } else if (resp.status === 'denied') {
+      message.innerHTML = 'Group creation denied'
+    } else {
+      message.innerHTML = ERROR_MSGS.createGroup + ': ' + (resp.errors?.[0] || 'unknown')
+    }
+  })
 }
 
 /* Task CRUD (attached to group) */

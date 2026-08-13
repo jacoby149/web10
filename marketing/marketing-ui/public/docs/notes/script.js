@@ -34,44 +34,6 @@ async function v3Post(action, params = {}) {
   return res.json()
 }
 
-// v3: ensure a personal notes group exists, create if not
-async function ensureNotesGroup(username, provider) {
-  const groupName = `notes-${username}`
-  const groupId = `${provider}/groups/users/${username}/${groupName}`
-
-  try {
-    // Check if we're already a member
-    const groups = await v3Post('groups/list', {})
-    const existing = groups.find(g => g.group_id === groupId)
-    if (existing) {
-      NOTES_GROUP = groupId
-      return groupId
-    }
-  } catch {
-    // groups/list might fail — try to create
-  }
-
-  // Create the personal notes group (invite_only, user as owner)
-  try {
-    await v3Post('groups/create', {
-      name: groupName,
-      join_policy: 'invite_only',
-      roles: [
-        { name: 'owner', services: ['*'], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn', 'manageRoles'] },
-        { name: 'member', services: [SERVICE], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
-      ],
-      members: [
-        { member_key: username, role: 'owner' },
-      ],
-    })
-    NOTES_GROUP = groupId
-    return groupId
-  } catch (err) {
-    console.warn('Failed to create notes group:', err)
-    return null
-  }
-}
-
 authButton.onclick = () => window.web10.openAuthPortal(AUTH_ORIGIN)
 window.web10.authListen(() => initApp())
 
@@ -85,10 +47,23 @@ function initApp() {
   message.innerHTML = `Signed in as <strong>${t["provider"]}/${t["username"]}</strong>`
   editor.style.display = "block"
 
-  // v3: ensure the personal notes group exists, then load notes
-  ensureNotesGroup(t.username, t.provider)
-    .then(() => readNotes())
-    .catch(() => readNotes())
+  // Request app contract for the notes service (App CR)
+  w.contractRequest([{
+    kind: 'app',
+    app_origin: window.location.origin,
+    permissions: {
+      [SERVICE]: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+    },
+  }], AUTH_ORIGIN, (resp) => {
+    if (resp.status === 'approved') {
+      message.innerHTML += ` · <span style="color:var(--ok);">app contract approved</span>`
+      ensureNotesGroup(t.username, t.provider)
+    } else if (resp.status === 'denied') {
+      message.innerHTML += ` · <span style="color:var(--danger);">app contract denied</span>`
+    } else {
+      message.innerHTML += ` · <span style="color:var(--danger);">contract error: ${resp.errors?.[0] || 'unknown'}</span>`
+    }
+  })
 }
 
 // Self-register in the app store (no auth required)
@@ -105,6 +80,40 @@ fetch(`${API_ORIGIN}/v3/apps/register`, {
 }).catch(() => {})
 
 if (w.isSignedIn()) initApp()
+
+// v3: ensure a personal notes group exists via Group CR
+function ensureNotesGroup(username, provider) {
+  const groupName = `notes-${username}`
+
+  // Request group creation via contract request (Group CR)
+  w.contractRequest([{
+    kind: 'group',
+    app_origin: window.location.origin,
+    action: 'create_group',
+    name: groupName,
+    join_policy: 'invite_only',
+    roles: [
+      { name: 'owner', services: ['*'], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn', 'manageRoles'] },
+      { name: 'member', services: [SERVICE], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
+    ],
+    members: [{ member_key: username, role: 'owner' }],
+  }], AUTH_ORIGIN, (resp) => {
+    const groupId = `${provider}/groups/users/${username}/${groupName}`
+    if (resp.status === 'approved') {
+      NOTES_GROUP = groupId
+      message.innerHTML += ` · <span style="color:var(--ok);">notes group created</span>`
+      readNotes()
+    } else if (resp.status === 'denied') {
+      NOTES_GROUP = groupId
+      message.innerHTML += ` · <span style="color:var(--danger);">group creation denied</span>`
+      readNotes()
+    } else {
+      // Group might already exist — try to read notes anyway
+      NOTES_GROUP = groupId
+      readNotes()
+    }
+  })
+}
 
 /* CRUD with groups (v3) */
 

@@ -1,3 +1,6 @@
+3.0.35 || 12.08.2026
+fix(docs-demos+wapi): marketing-ui docs demos use v3 contract request flow — the demos deployed on dev.web10.app (marketing-ui/public/docs/) are separate copies from sdk/demos/. Updated notes, hello, groups, messages, and tasks docs demos to use `contractRequest` for App CR + Group CR instead of direct API calls. Updated docs wapi.js (was stale, missing `contractRequest` entirely — the root cause of "You're all set / nothing to review" on consent popups).
+
 3.0.34 || 12.08.2026
 fix(sdk+demos): all 4 demos use v3 contract request flow — hello, notes, mailer, and groups demos now use `openAuthPortal` for login and `contractRequest` for app/group contracts instead of direct API calls. Notes demo sends both an App CR (notes collection permissions) and a Group CR (personal notes group). Groups demo replaced `ensureAppContract` direct API call with proper App CR via auth UI popup. SDK browser build rebuilt to include `contractRequest` method.
 
