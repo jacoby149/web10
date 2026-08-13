@@ -168,14 +168,21 @@ function useInterface() {
         if (typeof window === 'undefined') return;
         const authOrigin = window.location.origin;
         window.addEventListener('message', (e) => {
-            if (e.origin !== authOrigin) return;
+            // Contract requests are inherently cross-origin (app → auth UI).
+            // Only reject obviously malicious sources (null origin from sandboxed iframe).
+            if (!e.origin) return;
             if (e.data?.type === 'acr' || e.data?.type === 'contract') {
                 I.setPendingContracts(normalizeContracts(e.data, e.source));
             }
         });
-        // Request contracts from opener
+        // Signal readiness to opener, then request contracts
         if (window.opener) {
-            window.opener.postMessage({ type: 'ACRListen' }, authOrigin);
+            try {
+                window.opener.postMessage({ type: 'auth_ready' }, '*');
+            } catch { /* opener may be cross-origin restricted */ }
+            try {
+                window.opener.postMessage({ type: 'ACRListen' }, authOrigin);
+            } catch { /* cross-origin */ }
         }
     }
 
