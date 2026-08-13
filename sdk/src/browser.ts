@@ -68,23 +68,22 @@ function createV3Client(options?: Parameters<typeof _createV3Client>[0]): V3Clie
   ): void {
     const popup = _authPopup
     if (popup && !popup.closed) {
-      // Reuse existing auth popup — wait for auth_ready before sending
-      // (popup broadcasts auth_ready every 500ms so we always sync)
-      let sent = false
+      // Reuse existing auth popup — handshake first to confirm listener is attached
+      let contractSent = false
       const responseHandler = (e: MessageEvent) => {
         if (e.data?.type === 'contract_response') {
           window.removeEventListener('message', responseHandler)
-          window.removeEventListener('message', readyHandler)
+          window.removeEventListener('message', ackHandler)
           clearTimeout(timeoutId)
           callback?.(e.data)
         }
       }
       window.addEventListener('message', responseHandler)
 
-      const readyHandler = (e: MessageEvent) => {
-        if (e.data?.type === 'auth_ready' && !sent) {
-          sent = true
-          window.removeEventListener('message', readyHandler)
+      const ackHandler = (e: MessageEvent) => {
+        if (e.data?.type === 'handshake_ack' && !contractSent) {
+          contractSent = true
+          window.removeEventListener('message', ackHandler)
           try {
             popup.postMessage({ type: 'contract', contracts }, '*')
           } catch {
@@ -94,12 +93,21 @@ function createV3Client(options?: Parameters<typeof _createV3Client>[0]): V3Clie
           }
         }
       }
-      window.addEventListener('message', readyHandler)
+      window.addEventListener('message', ackHandler)
+
+      try {
+        popup.postMessage({ type: 'handshake' }, '*')
+      } catch {
+        window.removeEventListener('message', responseHandler)
+        window.removeEventListener('message', ackHandler)
+        callback?.({ status: 'error', errors: ['Failed to send handshake to auth UI'] })
+        return
+      }
 
       const timeoutId = setTimeout(() => {
         window.removeEventListener('message', responseHandler)
-        window.removeEventListener('message', readyHandler)
-        if (!sent) {
+        window.removeEventListener('message', ackHandler)
+        if (!contractSent) {
           callback?.({ status: 'error', errors: ['Auth popup closed — request cancelled'] })
         }
       }, 30000)
