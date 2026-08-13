@@ -144,6 +144,14 @@ function useInterface() {
                         entry.members = entry.members || cr.params.members;
                         entry.group_id = entry.group_id || cr.params.group_id;
                     }
+                    // Also keep a params bag for backward compat with ConsentView.summarizeGCR
+                    entry.params = {
+                        name: entry.name,
+                        join_policy: entry.join_policy,
+                        roles: entry.roles,
+                        members: entry.members,
+                        group_id: entry.group_id,
+                    };
                 }
                 contracts.push(entry);
             }
