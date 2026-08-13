@@ -1,3 +1,6 @@
+3.0.34 || 12.08.2026
+fix(sdk+demos): all 4 demos use v3 contract request flow — hello, notes, mailer, and groups demos now use `openAuthPortal` for login and `contractRequest` for app/group contracts instead of direct API calls. Notes demo sends both an App CR (notes collection permissions) and a Group CR (personal notes group). Groups demo replaced `ensureAppContract` direct API call with proper App CR via auth UI popup. SDK browser build rebuilt to include `contractRequest` method.
+
 3.0.33 || 12.08.2026
 fix(ui): initAuthenticator runs before login in popup — postMessage listener was gated on `I.isAuthenticated()`, but popups opened via `window.open()` show the login screen first and have no referrer. The demo sends the GCR before the user logs in, so the listener must be ready. Also added E2E test suite for full GCR/ACR flow: group create/list/manages/update via API, app contract creation with CORS_SERVICE_MANAGERS gate, document CRUD contract enforcement, browser GCR popup flow, ACR consent rendering.
 
