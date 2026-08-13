@@ -43,6 +43,10 @@ ENV VITE_API_URL=$VITE_API_URL \
 # Copy the marketing-ui source (only) so the build context — now the
 # whole repo — does not leak e2e/api/knowledge/... into /app.
 COPY marketing/marketing-ui/ ./
+
+# Copy SDK dist into docs so demos reference the current build (wapi.js).
+COPY sdk/dist/browser.js marketing/marketing-ui/public/docs/wapi.js
+
 RUN bun run build
 
 # Baked deployment status page — generated from git info + CHANGELOG at
