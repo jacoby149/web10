@@ -58,15 +58,19 @@ async function v3Post(action, params = {}) {
 }
 
 authButton.onclick = () => {
+  console.log('[demo] authButton clicked — opening popup + sending contract')
   window.web10.openAuthPortal(AUTH_ORIGIN)
-  w.contractRequest([{
+  const contract = [{
     kind: 'app',
     app_origin: window.location.origin,
     permissions: {
       [SERVICE]: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
       posts: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
     },
-  }], AUTH_ORIGIN, (resp) => {
+  }]
+  console.log('[demo] calling contractRequest with:', JSON.stringify(contract))
+  w.contractRequest(contract, AUTH_ORIGIN, (resp) => {
+    console.log('[demo] contractRequest callback — status:', resp.status, 'errors:', resp.errors)
     if (resp.status === 'approved') {
       message.innerHTML += ` · <span style="color:var(--ok);">app contract approved</span>`
     } else if (resp.status === 'denied') {
@@ -185,7 +189,9 @@ async function createGroup() {
   }
 
   // Use the SDK's unified contractRequest (handles popup, handshake, timeout)
+  console.log('[demo] createGroup — calling contractRequest with:', JSON.stringify(cr))
   w.contractRequest([cr], AUTH_ORIGIN, (resp) => {
+    console.log('[demo] createGroup contractRequest callback — status:', resp.status, 'errors:', resp.errors)
     if (resp.status === 'approved') {
       toast('Group created!', 'ok')
       groupName.value = ''
@@ -251,7 +257,9 @@ async function togglePolicy(groupId) {
     join_policy: newPolicy,
   }
 
+  console.log('[demo] togglePolicy — calling contractRequest with:', JSON.stringify(cr))
   w.contractRequest([cr], AUTH_ORIGIN, (resp) => {
+    console.log('[demo] togglePolicy contractRequest callback — status:', resp.status, 'errors:', resp.errors)
     if (resp.status === 'approved') {
       toast(`Policy → ${newPolicy}`, 'ok')
       loadMyGroups()
