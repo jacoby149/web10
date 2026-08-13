@@ -28,10 +28,14 @@ router = APIRouter(tags=["group-contracts"])
 
 
 def _require_group_permission(group_id: str, user: str, permission: str):
-    """Check that the user is a group member with the given permission. Raises CRUD if not."""
+    """Check that the user is a group member with the given permission. Raises CRUD if not.
+    Owner role always passes — legacy groups may not have the permission in their JSON."""
     member = ch.get_group_member(group_id, user)
     if not member:
         raise exceptions.CRUD
+    # Owner is always trusted, regardless of permissions list
+    if member["role"] == "owner":
+        return
     existing = ch.get_group(group_id)
     if not existing:
         raise exceptions.ENTRY_NOT_FOUND
