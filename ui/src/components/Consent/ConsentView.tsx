@@ -285,13 +285,9 @@ function ConsentView({ I }: { I: Record<string, any> }) {
                     <span className="text-foreground">{host}</span> already has access. Nothing new to review.
                   </>
                 ) : (
-                  <>Nothing left to review. Head back to <span className="text-foreground">{host}</span>.</>
+                  <>Nothing left to review. You can close this window.</>
                 )}
               </p>
-              <Button variant="brand" className="mt-6 w-full" onClick={() => I.goToApp()} data-testid="consent-goto-app">
-                Go to {host}
-                <ArrowRight className="ml-1.5 h-4 w-4" strokeWidth={2} />
-              </Button>
             </div>
           ) : (
             <>
