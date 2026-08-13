@@ -189,21 +189,30 @@ function useInterface() {
     // because the app may send a contract before the user logs in.
     let _authenticatorInitialized = false;
     I.initAuthenticator = function () {
-        if (_authenticatorInitialized) return;
+        if (_authenticatorInitialized) {
+            console.log('[auth-ui] initAuthenticator — already initialized, skipping')
+            return
+        }
         _authenticatorInitialized = true;
         if (typeof window === 'undefined') return;
+
+        console.log('[auth-ui] initAuthenticator — initializing, window.opener:', window.opener ? 'present' : 'none')
 
         // Set up the contract listener — always, regardless of auth state.
         // The app sends the contract as soon as it gets auth_ready, which may
         // be before the user logs in (if they have a session cookie).
         window.addEventListener('message', (e) => {
             if (!e.origin) return;
+            console.log('[auth-ui] message event — type:', e.data?.type, 'origin:', e.origin, 'source:', e.source)
             if (e.data?.type === 'acr' || e.data?.type === 'contract') {
-                console.log('[auth-ui] contract received:', e.data);
-                I.setPendingContracts(normalizeContracts(e.data, e.source));
-                console.log('[auth-ui] pendingContracts set:', I.pendingContracts);
+                console.log('[auth-ui] contract message received — raw data:', JSON.stringify(e.data))
+                const normalized = normalizeContracts(e.data, e.source);
+                console.log('[auth-ui] normalized contracts:', JSON.stringify(normalized))
+                I.setPendingContracts(normalized);
+                console.log('[auth-ui] pendingContracts state set, count:', I.pendingContracts?.length)
             }
         });
+        console.log('[auth-ui] initAuthenticator — contract listener attached')
 
         // Signal readiness to the opener — once, not continuously.
         // The app is already listening; it just needs to know the popup is
@@ -211,8 +220,12 @@ function useInterface() {
         if (window.opener) {
             try {
                 window.opener.postMessage({ type: 'auth_ready' }, '*');
-                console.log('[auth-ui] auth_ready sent to opener');
-            } catch { /* cross-origin — opener will retry */ }
+                console.log('[auth-ui] auth_ready sent to opener via postMessage')
+            } catch (err) {
+                console.error('[auth-ui] auth_ready postMessage failed:', err)
+            }
+        } else {
+            console.log('[auth-ui] no opener — not sending auth_ready (not opened as popup)')
         }
     }
 
@@ -293,6 +306,7 @@ function useInterface() {
     }
 
     I.finishLogin = function () {
+        console.log('[auth-ui] finishLogin — setting auth=true, mode=contracts')
         I.setAuth(true);
         I.checkAdmin();
         I.servicesLoad();
@@ -301,12 +315,21 @@ function useInterface() {
     }
 
     I.login = function (provider: string, username: string, password: string) {
+        console.log('[auth-ui] login — provider:', provider, 'username:', username)
         I.setStatus("Logging in...");
         I.v3.login(username, password, provider)
-            .then(() => I.finishLogin())
+            .then(() => {
+                console.log('[auth-ui] login — v3.login succeeded')
+                I.finishLogin()
+            })
             .catch((error: any) => {
-                if (I.v3.isSignedIn()) I.finishLogin();
-                else I.setStatus("Failed to Log In : " + (error.message || String(error)));
+                console.error('[auth-ui] login — v3.login failed:', error)
+                if (I.v3.isSignedIn()) {
+                    console.log('[auth-ui] login — already signed in from cookie, finishing login')
+                    I.finishLogin();
+                } else {
+                    I.setStatus("Failed to Log In : " + (error.message || String(error)));
+                }
             });
     }
 
@@ -623,31 +646,43 @@ function useInterface() {
 
     // Send contract response back to the requesting app window
     function sendContractResponse(windowSource: MessageEventSource | null, status: string, errors?: string[]) {
-        if (!windowSource) return;
+        console.log('[auth-ui] sendContractResponse — status:', status, 'errors:', errors, 'windowSource:', windowSource)
+        if (!windowSource) {
+            console.warn('[auth-ui] sendContractResponse — no windowSource, cannot send response')
+            return
+        }
         try {
             const target = '*';
             if (windowSource instanceof Window) {
-                windowSource.postMessage({ type: 'contract_response', status, errors }, target);
+                const payload = { type: 'contract_response', status, errors }
+                console.log('[auth-ui] sendContractResponse — posting:', JSON.stringify(payload))
+                windowSource.postMessage(payload, target);
+            } else {
+                console.warn('[auth-ui] sendContractResponse — source is not a Window:', windowSource)
             }
-        } catch {
-            // Window may have been closed
+        } catch (err) {
+            console.error('[auth-ui] sendContractResponse — postMessage failed (window closed?):', err)
         }
     }
 
     // Approve a single contract (app or group).
     I.approveContract = function (contract: any) {
+        console.log('[auth-ui] approveContract — kind:', contract.kind, 'origin:', contract.app_origin, 'windowSource:', contract._windowSource)
         const windowSource = contract._windowSource;
 
         if (contract.kind === 'group') {
+            console.log('[auth-ui] approveContract — applying GCR:', JSON.stringify(contract))
             I.setStatus("Creating group...");
             applyGCR(contract)
                 .then(() => {
+                    console.log('[auth-ui] approveContract — GCR applied successfully')
                     I.setStatus("Group created!");
                     I.removePendingContract(contract);
                     sendContractResponse(windowSource, 'approved');
                     setTimeout(() => I.setStatus(null), 2000);
                 })
                 .catch((e) => {
+                    console.error('[auth-ui] approveContract — GCR failed:', e)
                     I.setStatus("Failed to create group: " + (e.message || String(e)));
                     sendContractResponse(windowSource, 'error', [e.message || String(e)]);
                 });
@@ -658,20 +693,26 @@ function useInterface() {
         const origin = contract.app_origin;
         const alreadyGranted = I.hasV3Contract?.(origin);
         if (alreadyGranted) {
+            console.log('[auth-ui] approveContract — already granted for origin:', origin)
             I.removePendingContract(contract);
             sendContractResponse(windowSource, 'approved');
             return;
         }
 
+        console.log('[auth-ui] approveContract — applying ACR for:', origin)
         I.setStatus("Approving contract...");
         applyACR(contract)
             .then(() => {
+                console.log('[auth-ui] approveContract — ACR applied successfully')
                 I.setStatus("Contract granted!");
                 I.v3ContractsLoad?.();
                 I.removePendingContract(contract);
                 setTimeout(() => I.setStatus(null), 2000);
             })
-            .catch((e) => I.setStatus("Failed to approve: " + (e.message || String(e))));
+            .catch((e) => {
+                console.error('[auth-ui] approveContract — ACR failed:', e)
+                I.setStatus("Failed to approve: " + (e.message || String(e)));
+            });
     }
 
     // Remove a single contract from the pending list (after approve or deny).
@@ -690,6 +731,7 @@ function useInterface() {
 
     // Deny a contract — just remove it from the pending list.
     I.denyContract = function (contract: any) {
+        console.log('[auth-ui] denyContract — kind:', contract.kind, 'origin:', contract.app_origin)
         const windowSource = contract._windowSource;
         I.removePendingContract(contract);
         sendContractResponse(windowSource, 'denied');
@@ -730,18 +772,25 @@ function useInterface() {
 
     I.goToApp = function () {
         const token = I.v3.state?.token;
+        console.log('[auth-ui] goToApp — token:', token ? 'present' : 'none', 'window.opener:', window.opener ? 'present' : 'none')
         if (token && window.opener) {
             try {
                 const referrer = document.referrer;
                 const target = referrer ? new URL(referrer).origin : '*';
+                console.log('[auth-ui] goToApp — sending auth token to opener, target:', target, 'referrer:', referrer)
                 I.setStatus("Connecting…");
                 window.opener.postMessage({ type: 'auth', token }, target);
+                console.log('[auth-ui] goToApp — auth token sent, closing popup')
                 window.close();
-            } catch {
+            } catch (err) {
+                console.error('[auth-ui] goToApp — postMessage failed:', err)
                 I.setStatus("Failed to connect to app.");
             }
         } else if (window.opener) {
+            console.log('[auth-ui] goToApp — no token, closing popup without sending auth')
             window.close();
+        } else {
+            console.log('[auth-ui] goToApp — no opener, not closing')
         }
     }
 
