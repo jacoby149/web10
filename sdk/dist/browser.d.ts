@@ -12,6 +12,8 @@ import { cookieDict, readTokenCookie, setTokenCookie, scrubTokenCookie, decodeJw
 import { Web10Error } from './http';
 /**
  * Open the web10 auth portal in a popup window.
+ * Sets up the auth_ready listener immediately — the popup sends auth_ready
+ * once on mount, then the app sends its contract.
  */
 declare function openAuthPortal(authOrigin: string): Window | null;
 /**

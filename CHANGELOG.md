@@ -1,3 +1,6 @@
+3.0.37 || 13.08.2026
+fix(ui+sdk): popup auth_ready signal — removed continuous broadcast (interval every 500ms). Popup now sends `auth_ready` once on mount. `initAuthenticator` is idempotent (guard flag) — no more stacked listeners/intervals from multiple calls. Resolved merge conflict markers in Interface.tsx.
+
 3.0.36 || 13.08.2026
 fix(ui+sdk): popup-blocked error — SDK `contractRequest` reuses an open auth popup instead of opening a second one (which browsers block). UI `initAuthenticator` sends `ACRListen` to `'*'` instead of `window.location.origin` — the popup is cross-origin so origin-specific target was silently failing. Updated SDK dist and marketing-ui docs wapi.js. (#592)
 

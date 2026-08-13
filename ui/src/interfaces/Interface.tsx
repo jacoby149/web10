@@ -184,28 +184,34 @@ function useInterface() {
     }
 
     // v3 contract listening — direct postMessage, no wapiAuth wrapper
+    // Guard flag — this function must only run once per page load.
+    // The contract listener needs to be active immediately (popup or not),
+    // because the app may send a contract before the user logs in.
+    let _authenticatorInitialized = false;
     I.initAuthenticator = function () {
+        if (_authenticatorInitialized) return;
+        _authenticatorInitialized = true;
         if (typeof window === 'undefined') return;
-        let contractReceived = false;
+
+        // Set up the contract listener — always, regardless of auth state.
+        // The app sends the contract as soon as it gets auth_ready, which may
+        // be before the user logs in (if they have a session cookie).
         window.addEventListener('message', (e) => {
             if (!e.origin) return;
             if (e.data?.type === 'acr' || e.data?.type === 'contract') {
+                console.log('[auth-ui] contract received:', e.data);
                 I.setPendingContracts(normalizeContracts(e.data, e.source));
-                contractReceived = true;
             }
         });
+
+        // Signal readiness to the opener — once, not continuously.
+        // The app is already listening; it just needs to know the popup is
+        // mounted and ready to receive a contract.
         if (window.opener) {
-            // Broadcast auth_ready until contract arrives — the app may call
-            // contractRequest after login, so we keep signaling readiness.
-            const broadcastReady = () => {
-                if (contractReceived) return;
-                try {
-                    window.opener.postMessage({ type: 'auth_ready' }, '*');
-                } catch { /* cross-origin */ }
-            };
-            broadcastReady();
-            const interval = setInterval(broadcastReady, 500);
-            window.addEventListener('beforeunload', () => clearInterval(interval));
+            try {
+                window.opener.postMessage({ type: 'auth_ready' }, '*');
+                console.log('[auth-ui] auth_ready sent to opener');
+            } catch { /* cross-origin — opener will retry */ }
         }
     }
 
@@ -288,7 +294,6 @@ function useInterface() {
     I.finishLogin = function () {
         I.setAuth(true);
         I.checkAdmin();
-        I.initAuthenticator();
         I.servicesLoad();
         I.setStatus(null);
         I.setMode("contracts");
@@ -844,7 +849,6 @@ function useInterface() {
 
     React.useEffect(() => {
         if (I.auth) {
-            I.initAuthenticator();
             I.servicesLoad();
         }
     }, [authTick])

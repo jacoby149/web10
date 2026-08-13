@@ -450,9 +450,21 @@
 
   // src/browser.ts
   var _authPopup = null;
+  var _popupReady = false;
+  var _readyListener = null;
   function openAuthPortal(authOrigin) {
     const url = `${authOrigin}?redirect=${encodeURIComponent(window.location.href)}`;
     _authPopup = window.open(url, "web10-auth", "width=480,height=720,scrollbars=yes");
+    _popupReady = false;
+    if (_readyListener) {
+      window.removeEventListener("message", _readyListener);
+    }
+    _readyListener = (e) => {
+      if (e.data?.type === "auth_ready") {
+        _popupReady = true;
+      }
+    };
+    window.addEventListener("message", _readyListener);
     return _authPopup;
   }
   function authListen(onSignedIn) {
@@ -471,24 +483,37 @@
     client.contractRequest = function(contracts, authOrigin, callback) {
       const popup = _authPopup;
       if (popup && !popup.closed) {
+        let contractSent = false;
         const responseHandler = (e) => {
           if (e.data?.type === "contract_response") {
             window.removeEventListener("message", responseHandler);
+            window.removeEventListener("message", readyHandler);
             clearTimeout(timeoutId);
             callback?.(e.data);
           }
         };
         window.addEventListener("message", responseHandler);
-        try {
-          popup.postMessage({ type: "contract", contracts }, "*");
-        } catch {
-          window.removeEventListener("message", responseHandler);
-          callback?.({ status: "error", errors: ["Failed to send contract to auth UI"] });
-          return;
-        }
+        const readyHandler = (e) => {
+          if (e.data?.type === "auth_ready" && !contractSent) {
+            contractSent = true;
+            window.removeEventListener("message", readyHandler);
+            console.log("[sdk] auth_ready received, sending contract");
+            try {
+              popup.postMessage({ type: "contract", contracts }, "*");
+            } catch {
+              window.removeEventListener("message", responseHandler);
+              clearTimeout(timeoutId);
+              callback?.({ status: "error", errors: ["Failed to send contract to auth UI"] });
+            }
+          }
+        };
+        window.addEventListener("message", readyHandler);
         const timeoutId = setTimeout(() => {
           window.removeEventListener("message", responseHandler);
-          callback?.({ status: "error", errors: ["Auth popup closed — request cancelled"] });
+          window.removeEventListener("message", readyHandler);
+          if (!contractSent) {
+            callback?.({ status: "error", errors: ["Auth popup closed — request cancelled"] });
+          }
         }, 30000);
         return;
       }

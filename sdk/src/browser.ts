@@ -23,9 +23,15 @@ import { Web10Error } from './http'
 
 // Track the last opened auth popup so contractRequest can reuse it
 let _authPopup: Window | null = null
+// Track if we received auth_ready from the popup
+let _popupReady = false
+// Track the ready listener so we can clean it up
+let _readyListener: ((e: MessageEvent) => void) | null = null
 
 /**
  * Open the web10 auth portal in a popup window.
+ * Sets up the auth_ready listener immediately — the popup sends auth_ready
+ * once on mount, then the app sends its contract.
  */
 function openAuthPortal(authOrigin: string): Window | null {
   const url = `${authOrigin}?redirect=${encodeURIComponent(window.location.href)}`
@@ -34,6 +40,18 @@ function openAuthPortal(authOrigin: string): Window | null {
     'web10-auth',
     'width=480,height=720,scrollbars=yes',
   )
+  _popupReady = false
+  // Clean up old listener
+  if (_readyListener) {
+    window.removeEventListener('message', _readyListener)
+  }
+  // Listen for auth_ready — popup sends it once on mount
+  _readyListener = (e: MessageEvent) => {
+    if (e.data?.type === 'auth_ready') {
+      _popupReady = true
+    }
+  }
+  window.addEventListener('message', _readyListener)
   return _authPopup
 }
 
@@ -68,9 +86,8 @@ function createV3Client(options?: Parameters<typeof _createV3Client>[0]): V3Clie
   ): void {
     const popup = _authPopup
     if (popup && !popup.closed) {
-      // Reuse existing auth popup — wait for auth_ready (sent on React mount)
-      // before sending the contract. Popup broadcasts auth_ready every 500ms
-      // so we always sync even if we missed the initial one.
+      // Reuse existing auth popup — wait for auth_ready (sent once on popup mount)
+      // before sending the contract.
       let contractSent = false
       const responseHandler = (e: MessageEvent) => {
         if (e.data?.type === 'contract_response') {
@@ -86,6 +103,7 @@ function createV3Client(options?: Parameters<typeof _createV3Client>[0]): V3Clie
         if (e.data?.type === 'auth_ready' && !contractSent) {
           contractSent = true
           window.removeEventListener('message', readyHandler)
+          console.log('[sdk] auth_ready received, sending contract')
           try {
             popup.postMessage({ type: 'contract', contracts }, '*')
           } catch {
