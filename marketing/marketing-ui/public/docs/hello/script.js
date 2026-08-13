@@ -35,6 +35,26 @@ function initApp() {
   const t = w.readToken()
   message.innerHTML = `Hello <strong>${t["provider"]}/${t["username"]}</strong> — you just authenticated with a web10 node.`
 
+  // Request app contract for profile access (App CR)
+  w.contractRequest([{
+    kind: 'app',
+    app_origin: window.location.origin,
+    permissions: {
+      profile: ['readAll'],
+    },
+  }], AUTH_ORIGIN, (resp) => {
+    if (resp.status === 'approved') {
+      message.innerHTML += `<br><span style="color:var(--ok);">app contract approved</span>`
+    } else if (resp.status === 'denied') {
+      message.innerHTML += `<br><span style="color:var(--danger);">app contract denied</span>`
+    } else {
+      message.innerHTML += `<br><span style="color:var(--danger);">contract error: ${resp.errors?.[0] || 'unknown'}</span>`
+    }
+    loadGroups()
+  })
+}
+
+function loadGroups() {
   // v3: load user groups to show group membership
   v3Post('groups/list').then(groups => {
     if (groups && groups.length > 0) {
