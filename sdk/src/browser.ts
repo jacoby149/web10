@@ -69,6 +69,7 @@ function authListen(
 ): () => void {
   const handler = (e: MessageEvent) => {
     if (e.data?.type === 'auth' && e.data?.token) {
+      console.log('[wapi] auth event received from popup, setting token cookie')
       setTokenCookie(e.data.token)
       onSignedIn(true)
     }

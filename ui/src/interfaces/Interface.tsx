@@ -202,7 +202,7 @@ function useInterface() {
         // be before the user logs in (if they have a session cookie).
         window.addEventListener('message', (e) => {
             if (!e.origin) return;
-            console.log('[auth-ui] message event — type:', e.data?.type, 'origin:', e.origin, 'source:', e.source)
+            console.log('[auth-ui] message event — type:', e.data?.type, 'origin:', e.origin)
             if (e.data?.type === 'acr' || e.data?.type === 'contract') {
                 console.log('[auth-ui] contract message received — raw data:', JSON.stringify(e.data))
                 const normalized = normalizeContracts(e.data, e.source);
@@ -300,12 +300,12 @@ function useInterface() {
             return;
         }
         const origin = v3ApiOrigin(decoded);
-        const token = I.v3.state?.token;
+        const token = I.v3.state?.token ?? I.v3.readToken?.();
         if (!token) {
             I.setIsAdmin(false);
             return;
         }
-        fetch(`${origin}/v3/appstore/admin`, {
+        fetch(`${origin}/v3/apps/admin`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token }),

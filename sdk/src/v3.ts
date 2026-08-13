@@ -174,10 +174,13 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
   }
 
   async function v3Post<T>(action: string, body: V3Body): Promise<T> {
-    if (!state.token) {
+    // Read token from state, falling back to the cookie. authListen sets the
+    // cookie but doesn't sync state.token, so cookie fallback is essential.
+    const token = state.token ?? readTokenCookie()
+    if (!token) {
       throw new Web10Error('No token available. Call login() or setToken() first.', 401)
     }
-    return authPost<T>(`${apiOrigin}/v3/${action}`, { ...body, token: state.token })
+    return authPost<T>(`${apiOrigin}/v3/${action}`, { ...body, token })
   }
 
   const client: V3Client = {

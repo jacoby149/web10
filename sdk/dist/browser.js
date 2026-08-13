@@ -140,10 +140,11 @@
       rtcServer
     };
     async function v3Post(action, body) {
-      if (!state.token) {
+      const token = state.token ?? readTokenCookie();
+      if (!token) {
         throw new Web10Error("No token available. Call login() or setToken() first.", 401);
       }
-      return authPost(`${apiOrigin}/v3/${action}`, { ...body, token: state.token });
+      return authPost(`${apiOrigin}/v3/${action}`, { ...body, token });
     }
     const client = {
       get state() {
@@ -476,6 +477,7 @@
   function authListen(onSignedIn) {
     const handler = (e) => {
       if (e.data?.type === "auth" && e.data?.token) {
+        console.log("[wapi] auth event received from popup, setting token cookie");
         setTokenCookie(e.data.token);
         onSignedIn(true);
       }
