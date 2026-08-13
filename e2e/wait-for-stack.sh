@@ -33,6 +33,11 @@ while [ $ELAPSED -lt $TIMEOUT ]; do
     ALL_UP=false
   fi
 
+  # Check SDK (serves demo apps)
+  if ! curl -sf http://sdk.localhost > /dev/null 2>&1; then
+    ALL_UP=false
+  fi
+
   # Check marketing-api
   if ! curl -sf http://marketing-api.localhost/health > /dev/null 2>&1; then
     ALL_UP=false

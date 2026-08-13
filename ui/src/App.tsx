@@ -73,8 +73,19 @@ function App() {
     if (forgot) I.setMode("forgot");
   }, []);
 
+  // Set up the contract postMessage listener immediately if opened as a popup
+  // (window.open) — before auth. The demo sends the GCR before the user logs in,
+  // so the listener must be ready to receive it. Contracts accumulate in
+  // I.pendingContracts and display after login.
   React.useEffect(() => {
-    if (I.isAuthenticated() && I._hasReferrer) {
+    if (window.opener && !I.isMock) {
+      I.initAuthenticator();
+    }
+  }, []);
+
+  React.useEffect(() => {
+    // For referrer-based flows (not popups), init after auth.
+    if (I.isAuthenticated() && I._hasReferrer && !window.opener && !I.isMock) {
       I.initAuthenticator();
     }
     // Restored session (reload with a valid token): hydrate admin status +

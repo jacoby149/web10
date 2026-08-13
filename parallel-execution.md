@@ -94,3 +94,4 @@ says what can happen **at the same time**.
 - [✓ 3.0.7] Demo apps v3
 - [✓ 3.0.20] Demo test suite — headless Playwright, 18 tests (hello 3, notes 7, messages 8), mock SDK + fetch override
 - [✓ 3.0.32] Groups demo GCR flow — groups demo no longer creates/edits groups directly via API; opens auth UI popup, sends GCR, user approves, auth UI creates group. Auth UI sends contract_response back to app, handles create_group and update_group actions.
+- [✓ 3.0.33] GCR/ACR E2E tests + popup init fix — initAuthenticator now runs before login in popup (postMessage listener ready before user authenticates). 10 E2E tests: group CRUD, app contracts, CORS_SERVICE_MANAGERS gate, document CRUD enforcement, browser GCR/ACR flows.

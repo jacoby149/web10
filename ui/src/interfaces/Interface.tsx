@@ -105,39 +105,59 @@ function useInterface() {
 
     I.v3 = v3;
 
-    // Normalize contract requests into a unified list (ACR + GCR).
-    // contractListen delivers { contracts } where each is either:
-    //   ACR: { allowed_origin, permissions }
-    //   GCR: { app_origin, action, params }
+    // Normalize contract requests into a unified list (app + group contracts).
+    // contractListen delivers { contracts } where each CR is either:
+    //   V3AppCR: { kind: 'app', app_origin, permissions }
+    //   V3GroupCR: { kind: 'group', app_origin, action, name?, join_policy?, roles?, members?, group_id? }
     function normalizeContracts(cData: any, windowSource?: MessageEventSource | null) {
         const contracts: any[] = [];
-        // Handle new contractListen format: { contracts: [...] }
+        // Handle unified CR format: { contracts: [...] }
         if (Array.isArray(cData?.contracts)) {
             for (const cr of cData.contracts) {
-                if (cr.allowed_origin && cr.permissions) {
-                    // ACR — app contract
-                    contracts.push({
-                        kind: 'acr',
-                        allowed_origin: cr.allowed_origin,
-                        permissions: cr.permissions,
-                        _source: cr,
-                        _windowSource: windowSource,
-                    });
-                } else if (cr.app_origin && cr.action) {
-                    // GCR — group contract
-                    contracts.push({
-                        kind: 'gcr',
-                        app_origin: cr.app_origin,
-                        action: cr.action,
-                        params: cr.params,
-                        _source: cr,
-                        _windowSource: windowSource,
-                    });
+                // Normalize old kind values ('acr'/'gcr') to new ('app'/'group')
+                let kind = cr.kind;
+                if (kind === 'acr') kind = 'app';
+                if (kind === 'gcr') kind = 'group';
+                if (!kind) kind = cr.permissions ? 'app' : 'group';
+
+                const entry: any = {
+                    kind,
+                    app_origin: cr.app_origin || cr.allowed_origin || '',
+                    _source: cr,
+                    _windowSource: windowSource,
+                };
+                if (kind === 'app') {
+                    entry.permissions = cr.permissions || {};
+                } else {
+                    // Group contract — typed fields, not a params bag
+                    entry.action = cr.action || 'create_group';
+                    entry.name = cr.name;
+                    entry.join_policy = cr.join_policy;
+                    entry.roles = cr.roles;
+                    entry.members = cr.members;
+                    entry.group_id = cr.group_id;
+                    // Backward compat: if sender used old params bag, flatten it
+                    if (cr.params) {
+                        entry.name = entry.name || cr.params.name;
+                        entry.join_policy = entry.join_policy || cr.params.join_policy;
+                        entry.roles = entry.roles || cr.params.roles;
+                        entry.members = entry.members || cr.params.members;
+                        entry.group_id = entry.group_id || cr.params.group_id;
+                    }
+                    // Also keep a params bag for backward compat with ConsentView.summarizeGCR
+                    entry.params = {
+                        name: entry.name,
+                        join_policy: entry.join_policy,
+                        roles: entry.roles,
+                        members: entry.members,
+                        group_id: entry.group_id,
+                    };
                 }
+                contracts.push(entry);
             }
             return contracts;
         }
-        // Fallback: legacy SMR { sirs, scrs } format (ACR only)
+        // Fallback: legacy SMR { sirs, scrs } format (app contract only)
         const allRequests = [
             ...(Array.isArray(cData?.sirs) ? cData.sirs : []),
             ...(Array.isArray(cData?.scrs) ? cData.scrs : []),
@@ -145,7 +165,7 @@ function useInterface() {
         for (const req of allRequests) {
             const origins = Array.isArray(req.cross_origins) ? req.cross_origins : [];
             if (origins.length === 0) {
-                console.warn('ACR: request with no cross_origins — skipped', req);
+                console.warn('CR: request with no cross_origins — skipped', req);
                 continue;
             }
             const perms = whitelistToPermissions(req.whitelist || []);
@@ -153,8 +173,8 @@ function useInterface() {
             const permissions: Record<string, string[]> = { [req.service]: perms };
             for (const origin of origins) {
                 contracts.push({
-                    kind: 'acr',
-                    allowed_origin: origin,
+                    kind: 'app',
+                    app_origin: origin,
                     permissions,
                     _source: req,
                 });
@@ -521,20 +541,16 @@ function useInterface() {
         return perms;
     }
 
-    // Merge the permissions object from an ACR into an existing contract's
+    // Merge the permissions object from an app contract into an existing contract's
     // permissions (if any), then create the updated v3 contract.
-    // Create FIRST, then revoke — if the revoke fails the new contract is
-    // already in place (no data loss). The old row lingers until the
-    // ReplacingMergeTree background merge compacts it.
-    function applyACR(acr: any) {
-        const origin = acr.allowed_origin;
-        const newPerms: Record<string, string[]> = acr.permissions || {};
+    function applyACR(cr: any) {
+        const origin = cr.app_origin;
+        const newPerms: Record<string, string[]> = cr.permissions || {};
 
         const existing = (I.v3Contracts || []).find(
             (c: any) => c.allowed_origin === origin,
         );
 
-        // Merge permissions: new perms override existing for shared services
         const mergedPerms: Record<string, string[]> = {};
         if (existing) {
             const existingPerms: Record<string, string[]> = existing.permissions || {};
@@ -548,54 +564,46 @@ function useInterface() {
 
         const perms = existing ? mergedPerms : newPerms;
 
-        // Create first — if this fails, the old contract is untouched.
         return I.addV3Contract(origin, perms)
             .then(() => {
-                // Revoke old contract only after the new one is confirmed.
-                // If this fails, the new contract is already in place.
                 if (existing) {
-                    return I.revokeV3Contract(origin).catch(() => {
-                        // Old row will be compacted by ReplacingMergeTree.
-                    });
+                    return I.revokeV3Contract(origin).catch(() => {});
                 }
             });
     }
 
-    // Approve a GCR — execute the group operation from the authenticator (the trusted party).
-    function applyGCR(gcr: any) {
-        const params = gcr.params || {};
-        const action = gcr.action || 'create_group';
+    // Execute a group contract — the authenticator is the trusted party.
+    function applyGCR(cr: any) {
+        const action = cr.action || 'create_group';
         const decoded = I.wapi?.readToken?.();
         const username = decoded?.username || decoded?.sub || '';
         const provider = decoded?.provider || '';
 
         if (action === 'update_group') {
-            // Update existing group settings
-            const groupId = params.group_id;
-            if (!groupId) throw new Error('GCR update_group: missing group_id');
+            const groupId = cr.group_id;
+            if (!groupId) throw new Error('CR update_group: missing group_id');
             return I.v3UpdateGroup(groupId, {
-                join_policy: params.join_policy,
-                roles: params.roles,
+                join_policy: cr.join_policy,
+                roles: cr.roles,
             }).then(() => {
                 I.v3GroupsLoad?.();
                 I.v3GroupsManagesLoad?.();
             });
         }
 
-        // Default: create_group
-        const name = params.name || `group-${Date.now()}`;
+        const name = cr.name || `group-${Date.now()}`;
         const groupId = `${provider}/groups/users/${username}/${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
 
-        const roles = params.roles || [
+        const roles = cr.roles || [
             { name: 'owner', services: ['*'], permissions: ['readAll', 'create', 'updateOwn', 'updateAll', 'deleteOwn', 'deleteAll', 'hideAll', 'manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup'] },
             { name: 'member', services: ['posts', 'comments'], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
         ];
 
-        const members = params.members || [{ member_key: username, role: 'owner' }];
+        const members = cr.members || [{ member_key: username, role: 'owner' }];
 
         return I.v3CreateGroup(
             name,
-            params.join_policy || 'invite_only',
+            cr.join_policy || 'invite_only',
             roles,
             members
         ).then(() => {
@@ -617,10 +625,11 @@ function useInterface() {
         }
     }
 
-    // Approve a single contract (ACR or GCR).
+    // Approve a single contract (app or group).
     I.approveContract = function (contract: any) {
-        if (contract.kind === 'gcr') {
-            const windowSource = contract._windowSource;
+        const windowSource = contract._windowSource;
+
+        if (contract.kind === 'group') {
             I.setStatus("Creating group...");
             applyGCR(contract)
                 .then(() => {
@@ -636,8 +645,8 @@ function useInterface() {
             return;
         }
 
-        // ACR
-        const origin = contract.allowed_origin;
+        // App contract
+        const origin = contract.app_origin;
         const alreadyGranted = I.hasV3Contract?.(origin);
         if (alreadyGranted) {
             I.removePendingContract(contract);
@@ -662,8 +671,8 @@ function useInterface() {
             if (source) {
                 return prev.filter((c: any) => c._source !== source);
             }
-            if (contract.kind === 'acr') {
-                return prev.filter((c: any) => c.allowed_origin !== contract.allowed_origin);
+            if (contract.kind === 'app') {
+                return prev.filter((c: any) => c.app_origin !== contract.app_origin);
             }
             return prev.filter((c: any) => c.action !== contract.action || c.app_origin !== contract.app_origin);
         });
@@ -683,7 +692,7 @@ function useInterface() {
         I.setStatus("Approving all…");
         const ops: Promise<any>[] = I.pendingContracts.map((c: any) => {
             const winSource = c._windowSource;
-            if (c.kind === 'gcr') {
+            if (c.kind === 'group') {
                 return applyGCR(c)
                     .then(() => sendContractResponse(winSource, 'approved'))
                     .catch((e: any) => sendContractResponse(winSource, 'error', [e.message || String(e)]));
@@ -705,9 +714,9 @@ function useInterface() {
     // Legacy aliases — keep old names working for tests + existing callers
     I.pendingACRs = I.pendingContracts;
     I.setPendingACRs = I.setPendingContracts;
-    I.approveACR = (c: any) => I.approveContract({ ...c, kind: c.kind || 'acr' });
-    I.denyACR = (c: any) => I.denyContract({ ...c, kind: c.kind || 'acr' });
-    I.removePendingACR = (c: any) => I.removePendingContract({ ...c, kind: c.kind || 'acr' });
+    I.approveACR = (c: any) => I.approveContract({ ...c, kind: c.kind || 'app' });
+    I.denyACR = (c: any) => I.denyContract({ ...c, kind: c.kind || 'app' });
+    I.removePendingACR = (c: any) => I.removePendingContract({ ...c, kind: c.kind || 'app' });
 
     // Return to the requesting app, logging it in. Send the current v3 token
     // directly to the opener — no tiered token needed for v3.

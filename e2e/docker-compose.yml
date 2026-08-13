@@ -97,6 +97,13 @@ services:
     networks:
       - e2e-net
 
+  sdk:
+    build: ../sdk
+    environment:
+      VIRTUAL_HOST: sdk.localhost
+    networks:
+      - e2e-net
+
   marketing-ui:
     build:
       # Repo-root context — the Dockerfile COPYs marketing/marketing-ui/*

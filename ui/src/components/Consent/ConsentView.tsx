@@ -61,20 +61,20 @@ function summarizeACR(acr: any): string {
   return `${verbs} on ${services.join(', ')}`;
 }
 
-// Build a one-line summary of what a GCR requests.
+// Build a one-line summary of what a group CR requests.
 function summarizeGCR(gcr: any): string {
   const action = gcr.action || 'group operation';
+  // Support both new typed fields and old params bag
   const params = gcr.params || {};
+  const name = gcr.name || params.name || '';
+  const groupId = gcr.group_id || params.group_id || '';
   if (action === 'create_group') {
-    const name = params.name || '';
     return `create group "${name}"`;
   }
   if (action === 'update_group') {
-    const groupId = params.group_id || '';
     const changes = Object.keys(params).filter(k => k !== 'group_id').join(', ');
     return `update group "${groupId}" — ${changes || 'settings'}`;
   }
-  const name = params.name || '';
   return `${action}${name ? ` "${name}"` : ''}`;
 }
 
@@ -92,9 +92,9 @@ function RequestRow({
   idx: number;
 }) {
   const [open, setOpen] = React.useState(false);
-  const isACR = contract.kind === 'acr';
-  const isGCR = contract.kind === 'gcr';
-  const origin = isACR ? contract.allowed_origin : contract.app_origin;
+  const isACR = contract.kind === 'app';
+  const isGCR = contract.kind === 'group';
+  const origin = contract.app_origin || contract.allowed_origin;
   const perms = isACR ? (contract.permissions || {}) : {};
   const services = Object.keys(perms);
   const action = isGCR ? (contract.action || '') : '';
@@ -224,10 +224,10 @@ function ConsentView({ I }: { I: Record<string, any> }) {
   const pendingContracts: any[] = I.pendingContracts || [];
 
   // Filter out ACRs whose origin already has a contract (GCRs always show)
-  const alreadyGrantedACRs = pendingContracts.filter((c: any) => c.kind === 'acr' && grantedOrigins.has(c.allowed_origin));
+  const alreadyGrantedACRs = pendingContracts.filter((c: any) => c.kind === 'app' && grantedOrigins.has(c.app_origin || c.allowed_origin));
   const displayContracts = pendingContracts.filter((c: any) => {
-    if (c.kind === 'acr') return !grantedOrigins.has(c.allowed_origin);
-    return true; // GCRs always display
+    if (c.kind === 'app') return !grantedOrigins.has(c.app_origin || c.allowed_origin);
+    return true; // group CRs always display
   });
   const username = I.wapi?.readToken?.()?.username as string | undefined;
 
@@ -309,10 +309,10 @@ function ConsentView({ I }: { I: Record<string, any> }) {
               <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto p-4">
                 {displayContracts.map((contract: any, idx: number) => (
                   <RequestRow
-                    key={contract.allowed_origin + contract.app_origin + '-' + idx}
+                    key={(contract.app_origin || contract.allowed_origin) + '-' + idx}
                     contract={contract}
                     idx={idx}
-                    current={contract.kind === 'acr' ? v3Contracts.find((c: any) => c.allowed_origin === contract.allowed_origin) : undefined}
+                    current={contract.kind === 'app' ? v3Contracts.find((c: any) => c.allowed_origin === (contract.app_origin || contract.allowed_origin)) : undefined}
                     onApprove={() => I.approveContract(contract)}
                     onDeny={() => I.denyContract(contract)}
                   />
