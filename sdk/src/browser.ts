@@ -68,22 +68,24 @@ function createV3Client(options?: Parameters<typeof _createV3Client>[0]): V3Clie
   ): void {
     const popup = _authPopup
     if (popup && !popup.closed) {
-      // Reuse existing auth popup — handshake first to confirm listener is attached
+      // Reuse existing auth popup — wait for auth_ready (sent on React mount)
+      // before sending the contract. Popup broadcasts auth_ready every 500ms
+      // so we always sync even if we missed the initial one.
       let contractSent = false
       const responseHandler = (e: MessageEvent) => {
         if (e.data?.type === 'contract_response') {
           window.removeEventListener('message', responseHandler)
-          window.removeEventListener('message', ackHandler)
+          window.removeEventListener('message', readyHandler)
           clearTimeout(timeoutId)
           callback?.(e.data)
         }
       }
       window.addEventListener('message', responseHandler)
 
-      const ackHandler = (e: MessageEvent) => {
-        if (e.data?.type === 'handshake_ack' && !contractSent) {
+      const readyHandler = (e: MessageEvent) => {
+        if (e.data?.type === 'auth_ready' && !contractSent) {
           contractSent = true
-          window.removeEventListener('message', ackHandler)
+          window.removeEventListener('message', readyHandler)
           try {
             popup.postMessage({ type: 'contract', contracts }, '*')
           } catch {
@@ -93,20 +95,11 @@ function createV3Client(options?: Parameters<typeof _createV3Client>[0]): V3Clie
           }
         }
       }
-      window.addEventListener('message', ackHandler)
-
-      try {
-        popup.postMessage({ type: 'handshake' }, '*')
-      } catch {
-        window.removeEventListener('message', responseHandler)
-        window.removeEventListener('message', ackHandler)
-        callback?.({ status: 'error', errors: ['Failed to send handshake to auth UI'] })
-        return
-      }
+      window.addEventListener('message', readyHandler)
 
       const timeoutId = setTimeout(() => {
         window.removeEventListener('message', responseHandler)
-        window.removeEventListener('message', ackHandler)
+        window.removeEventListener('message', readyHandler)
         if (!contractSent) {
           callback?.({ status: 'error', errors: ['Auth popup closed — request cancelled'] })
         }
