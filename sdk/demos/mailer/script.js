@@ -8,16 +8,8 @@ const w = window.web10.createV3Client({ apiOrigin: isLocal ? 'http://api.localho
 
 const COLLECTION = 'mail'
 
-authButton.onclick = () => window.web10.openAuthPortal(AUTH_ORIGIN)
-window.web10.authListen(() => initApp())
-
-function initApp() {
-  authButton.innerHTML = 'log out'
-  authButton.onclick = () => { w.signOut(); window.location.reload() }
-  const t = w.readToken()
-  message.innerHTML = `hello ${t.provider}/${t.username},<br>`
-
-  // Request app contract for mail collection
+authButton.onclick = () => {
+  window.web10.openAuthPortal(AUTH_ORIGIN)
   w.contractRequest([{
     kind: 'app',
     app_origin: window.location.origin,
@@ -34,6 +26,14 @@ function initApp() {
       message.innerHTML += `<br><span style="color:#ef4444;">contract request failed: ${resp.errors?.[0] || 'unknown'}</span>`
     }
   })
+}
+window.web10.authListen(() => initApp())
+
+function initApp() {
+  authButton.innerHTML = 'log out'
+  authButton.onclick = () => { w.signOut(); window.location.reload() }
+  const t = w.readToken()
+  message.innerHTML = `hello ${t.provider}/${t.username},<br>`
 }
 
 async function readMail() {

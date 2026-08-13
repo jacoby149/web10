@@ -186,25 +186,25 @@ function useInterface() {
     // v3 contract listening — direct postMessage, no wapiAuth wrapper
     I.initAuthenticator = function () {
         if (typeof window === 'undefined') return;
+        let contractReceived = false;
         window.addEventListener('message', (e) => {
-            // Contract requests are inherently cross-origin (app → auth UI).
-            // Only reject obviously malicious sources (null origin from sandboxed iframe).
             if (!e.origin) return;
             if (e.data?.type === 'acr' || e.data?.type === 'contract') {
                 I.setPendingContracts(normalizeContracts(e.data, e.source));
+                contractReceived = true;
             }
         });
-        // Signal readiness to opener — broadcast periodically so the SDK can
-        // always sync before sending a contract, even when reusing an open popup
-        // that was opened seconds ago (user logged in, then clicked "Create Group").
         if (window.opener) {
+            // Broadcast auth_ready until contract arrives — the app may call
+            // contractRequest after login, so we keep signaling readiness.
             const broadcastReady = () => {
+                if (contractReceived) return;
                 try {
                     window.opener.postMessage({ type: 'auth_ready' }, '*');
                 } catch { /* cross-origin */ }
             };
             broadcastReady();
-            const interval = setInterval(broadcastReady, 1000);
+            const interval = setInterval(broadcastReady, 500);
             window.addEventListener('beforeunload', () => clearInterval(interval));
         }
     }
@@ -722,9 +722,6 @@ function useInterface() {
     I.denyACR = (c: any) => I.denyContract({ ...c, kind: c.kind || 'app' });
     I.removePendingACR = (c: any) => I.removePendingContract({ ...c, kind: c.kind || 'app' });
 
-    // Return to the requesting app, logging it in. Send the current v3 token
-    // directly to the opener — no tiered token needed for v3.
-    // Do NOT close the popup — keep it alive so contractRequest can reuse it.
     I.goToApp = function () {
         const token = I.v3.state?.token;
         if (token && window.opener) {
@@ -733,10 +730,12 @@ function useInterface() {
                 const target = referrer ? new URL(referrer).origin : '*';
                 I.setStatus("Connecting…");
                 window.opener.postMessage({ type: 'auth', token }, target);
-                // Don't close — SDK needs this popup for contractRequest
+                window.close();
             } catch {
                 I.setStatus("Failed to connect to app.");
             }
+        } else if (window.opener) {
+            window.close();
         }
     }
 

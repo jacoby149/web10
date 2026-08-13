@@ -57,17 +57,8 @@ async function v3Post(action, params = {}) {
   return res.json()
 }
 
-authButton.onclick = () => window.web10.openAuthPortal(AUTH_ORIGIN)
-window.web10.authListen(() => initApp())
-
-function initApp() {
-  authButton.innerHTML = "Log out"
-  authButton.onclick = () => { w.signOut(); window.location.reload() }
-  const t = w.readToken()
-  message.innerHTML = `Signed in as <strong>${t["provider"]}/${t["username"]}</strong>`
-  app.classList.remove('hidden')
-
-  // Request app contract via auth UI (not direct API)
+authButton.onclick = () => {
+  window.web10.openAuthPortal(AUTH_ORIGIN)
   w.contractRequest([{
     kind: 'app',
     app_origin: window.location.origin,
@@ -86,6 +77,15 @@ function initApp() {
     loadMyGroups()
     loadManageGroups()
   })
+}
+window.web10.authListen(() => initApp())
+
+function initApp() {
+  authButton.innerHTML = "Log out"
+  authButton.onclick = () => { w.signOut(); window.location.reload() }
+  const t = w.readToken()
+  message.innerHTML = `Signed in as <strong>${t["provider"]}/${t["username"]}</strong>`
+  app.classList.remove('hidden')
 }
 
 // Self-register
