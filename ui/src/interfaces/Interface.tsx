@@ -106,8 +106,9 @@ function useInterface() {
     I.v3 = v3;
 
     // Normalize contract requests into a unified list (app + group contracts).
-    // contractListen delivers { contracts } where each CR has:
-    //   { kind: 'app' | 'group', app_origin, permissions?, action?, params? }
+    // contractListen delivers { contracts } where each CR is either:
+    //   V3AppCR: { kind: 'app', app_origin, permissions }
+    //   V3GroupCR: { kind: 'group', app_origin, action, name?, join_policy?, roles?, members?, group_id? }
     function normalizeContracts(cData: any, windowSource?: MessageEventSource | null) {
         const contracts: any[] = [];
         // Handle unified CR format: { contracts: [...] }
@@ -128,8 +129,21 @@ function useInterface() {
                 if (kind === 'app') {
                     entry.permissions = cr.permissions || {};
                 } else {
+                    // Group contract — typed fields, not a params bag
                     entry.action = cr.action || 'create_group';
-                    entry.params = cr.params || {};
+                    entry.name = cr.name;
+                    entry.join_policy = cr.join_policy;
+                    entry.roles = cr.roles;
+                    entry.members = cr.members;
+                    entry.group_id = cr.group_id;
+                    // Backward compat: if sender used old params bag, flatten it
+                    if (cr.params) {
+                        entry.name = entry.name || cr.params.name;
+                        entry.join_policy = entry.join_policy || cr.params.join_policy;
+                        entry.roles = entry.roles || cr.params.roles;
+                        entry.members = entry.members || cr.params.members;
+                        entry.group_id = entry.group_id || cr.params.group_id;
+                    }
                 }
                 contracts.push(entry);
             }
@@ -552,37 +566,36 @@ function useInterface() {
 
     // Execute a group contract — the authenticator is the trusted party.
     function applyGCR(cr: any) {
-        const params = cr.params || {};
         const action = cr.action || 'create_group';
         const decoded = I.wapi?.readToken?.();
         const username = decoded?.username || decoded?.sub || '';
         const provider = decoded?.provider || '';
 
         if (action === 'update_group') {
-            const groupId = params.group_id;
+            const groupId = cr.group_id;
             if (!groupId) throw new Error('CR update_group: missing group_id');
             return I.v3UpdateGroup(groupId, {
-                join_policy: params.join_policy,
-                roles: params.roles,
+                join_policy: cr.join_policy,
+                roles: cr.roles,
             }).then(() => {
                 I.v3GroupsLoad?.();
                 I.v3GroupsManagesLoad?.();
             });
         }
 
-        const name = params.name || `group-${Date.now()}`;
+        const name = cr.name || `group-${Date.now()}`;
         const groupId = `${provider}/groups/users/${username}/${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
 
-        const roles = params.roles || [
+        const roles = cr.roles || [
             { name: 'owner', services: ['*'], permissions: ['readAll', 'create', 'updateOwn', 'updateAll', 'deleteOwn', 'deleteAll', 'hideAll', 'manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup'] },
             { name: 'member', services: ['posts', 'comments'], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
         ];
 
-        const members = params.members || [{ member_key: username, role: 'owner' }];
+        const members = cr.members || [{ member_key: username, role: 'owner' }];
 
         return I.v3CreateGroup(
             name,
-            params.join_policy || 'invite_only',
+            cr.join_policy || 'invite_only',
             roles,
             members
         ).then(() => {

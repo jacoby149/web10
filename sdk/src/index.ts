@@ -18,6 +18,10 @@ export type {
   V3JoinRequest,
   V3ServiceContract,
   V3CR,
+  V3AppCR,
+  V3GroupCR,
+  V3GroupRole,
+  V3GroupMemberCR,
   V3User,
   V3LoginResponse,
 } from './v3'

@@ -179,12 +179,10 @@ async function createGroup() {
     kind: 'group',
     app_origin: window.location.origin,
     action: 'create_group',
-    params: {
-      name,
-      join_policy: policy,
-      roles,
-      members: [{ member_key: t.username, role: 'owner' }],
-    },
+    name,
+    join_policy: policy,
+    roles,
+    members: [{ member_key: t.username, role: 'owner' }],
   }
 
   // Use the SDK's unified contractRequest (handles popup, handshake, timeout)
@@ -199,8 +197,6 @@ async function createGroup() {
     } else {
       toast('Group creation failed: ' + (resp.errors?.[0] || 'unknown error'), 'err')
     }
-  })
-}
   })
 }
 
@@ -252,7 +248,8 @@ async function togglePolicy(groupId) {
     kind: 'group',
     app_origin: window.location.origin,
     action: 'update_group',
-    params: { group_id: groupId, join_policy: newPolicy },
+    group_id: groupId,
+    join_policy: newPolicy,
   }
 
   w.contractRequest([cr], AUTH_ORIGIN, (resp) => {

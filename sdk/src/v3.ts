@@ -103,20 +103,49 @@ export interface V3ServiceContract {
   permissions: Record<string, string[]>
 }
 
-// Unified contract request — one type for app access and group operations.
-// The user approves all pending CRs together in the authenticator.
-export interface V3CR {
-  /** Discriminator: 'app' for app access, 'group' for group operations */
-  kind: 'app' | 'group'
+// Group role definition — each role has a name, scope (services), and permissions.
+export interface V3GroupRole {
+  name: string
+  services: string[]
+  permissions: string[]
+}
+
+// Group member definition
+export interface V3GroupMemberCR {
+  member_key: string
+  role: string
+}
+
+// App contract request — grants an app access to specific services/permissions.
+export interface V3AppCR {
+  kind: 'app'
+  /** Website origin requesting access */
+  app_origin: string
+  /** Per-service permissions */
+  permissions: Record<string, string[]>
+}
+
+// Group contract request — creates or modifies a group with roles, members, policy.
+export interface V3GroupCR {
+  kind: 'group'
   /** Website origin making the request */
   app_origin: string
-  /** Per-service permissions (app kind only) */
-  permissions?: Record<string, string[]>
-  /** Group operation: create_group, join_group, invite_member, etc. (group kind only) */
-  action?: string
-  /** Parameters for the operation (group kind only) */
-  params?: Record<string, unknown>
+  /** Operation: create_group, update_group, join_group, etc. */
+  action: string
+  /** Group name (create_group) */
+  name?: string
+  /** Join policy: open, request, invite_only */
+  join_policy?: string
+  /** Roles with service-specific permissions */
+  roles?: V3GroupRole[]
+  /** Initial members */
+  members?: V3GroupMemberCR[]
+  /** Existing group ID (update_group) */
+  group_id?: string
 }
+
+// Unified contract request — app or group.
+export type V3CR = V3AppCR | V3GroupCR
 
 export interface V3User {
   username: string
