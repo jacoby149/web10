@@ -17,9 +17,7 @@ export type {
   V3InviteResponse,
   V3JoinRequest,
   V3ServiceContract,
-  V3ACR,
-  V3GCR,
-  V3ContractRequest,
+  V3CR,
   V3User,
   V3LoginResponse,
 } from './v3'
