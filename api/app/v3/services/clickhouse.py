@@ -870,6 +870,7 @@ def get_groups_manages(member_key: str) -> list[dict]:
                 {
                     "group_id": group_id,
                     "join_policy": join_policy,
+                    "roles": roles_list,
                     "my_role": my_role,
                     "member_count": counts.get(group_id, 0),
                 }
