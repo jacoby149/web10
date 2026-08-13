@@ -201,6 +201,7 @@ function useInterface() {
             if (e.data?.type === 'acr' || e.data?.type === 'contract') {
                 console.log('[auth-ui] contract received:', e.data);
                 I.setPendingContracts(normalizeContracts(e.data, e.source));
+                console.log('[auth-ui] pendingContracts set:', I.pendingContracts);
             }
         });
 
