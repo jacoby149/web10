@@ -186,7 +186,6 @@ function useInterface() {
     // v3 contract listening — direct postMessage, no wapiAuth wrapper
     I.initAuthenticator = function () {
         if (typeof window === 'undefined') return;
-        const authOrigin = window.location.origin;
         window.addEventListener('message', (e) => {
             // Contract requests are inherently cross-origin (app → auth UI).
             // Only reject obviously malicious sources (null origin from sandboxed iframe).
@@ -201,7 +200,7 @@ function useInterface() {
                 window.opener.postMessage({ type: 'auth_ready' }, '*');
             } catch { /* opener may be cross-origin restricted */ }
             try {
-                window.opener.postMessage({ type: 'ACRListen' }, authOrigin);
+                window.opener.postMessage({ type: 'ACRListen' }, '*');
             } catch { /* cross-origin */ }
         }
     }

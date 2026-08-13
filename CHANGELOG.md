@@ -1,3 +1,6 @@
+3.0.36 || 13.08.2026
+fix(ui+sdk): popup-blocked error — SDK `contractRequest` reuses an open auth popup instead of opening a second one (which browsers block). UI `initAuthenticator` sends `ACRListen` to `'*'` instead of `window.location.origin` — the popup is cross-origin so origin-specific target was silently failing. Updated SDK dist and marketing-ui docs wapi.js. (#592)
+
 3.0.35 || 12.08.2026
 fix(docs-demos+wapi): marketing-ui docs demos use v3 contract request flow — the demos deployed on dev.web10.app (marketing-ui/public/docs/) are separate copies from sdk/demos/. Updated notes, hello, groups, messages, and tasks docs demos to use `contractRequest` for App CR + Group CR instead of direct API calls. Updated docs wapi.js (was stale, missing `contractRequest` entirely — the root cause of "You're all set / nothing to review" on consent popups).
 
