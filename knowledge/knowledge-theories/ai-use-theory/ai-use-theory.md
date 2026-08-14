@@ -65,29 +65,26 @@ flowchart TD
     INSTRUCT --> LOAD["Load KB + Code + Changelog\ninto context window"]
     LOAD --> CHECK{"Do KB, Code,\nand Changelog align?"}
 
-    CHECK -->|"Yes"| ORIENTED["Oriented. Proceed to generate."]
+    CHECK -->|"Yes"| ORIENTED["Foundation solid.\nProceed to Phase 2."]
 
-    CHECK -->|"KB drift"| MISMATCH["Mismatch found.\n→ Phase 4: repair"]
-    CHECK -->|"Code drift"| MISMATCH
-    CHECK -->|"Changelog obtuse"| MISMATCH
+    CHECK -->|"Mismatch"| REPAIR["Repair KB, Code, or\nChangelog (human for KB)"]
+    REPAIR --> LOAD
 
     classDef prompt fill:#333,color:#fff,stroke:#fff,stroke-width:2px
     classDef instruct fill:#6a1b9a,color:#fff,stroke:#fff,stroke-width:2px
     classDef orient fill:#1565c0,color:#fff,stroke:#fff,stroke-width:2px
-    classDef flag fill:#f57c00,color:#fff,stroke:#fff,stroke-width:2px
+    classDef action fill:#f57c00,color:#fff,stroke:#fff,stroke-width:2px
     classDef ok fill:#2e7d32,color:#fff,stroke:#fff,stroke-width:2px
 
     class START prompt
     class INSTRUCT instruct
     class LOAD orient
     class CHECK orient
-    class MISMATCH flag
+    class REPAIR action
     class ORIENTED ok
 ```
 
-The AI loads three reference resources into its context window and checks them against each other. It doesn't fix anything here — it only detects. The code will almost certainly match the changelog — LLMs are nearly perfect at literal translation, so the code it wrote matches the intent it recorded. The real check is: does the knowledge base match what was built? If your words say "rectangle" but the knowledge base says "square," the AI flags the mismatch and routes to Phase 4 for repair. This is why the knowledge base makes sloppy chat safe — your spontaneous, inaccurate instructions are caught before the AI acts on them.
-
-**Strategic context management:** this phase loads all the reference material before spending any tokens on test runs. If the KB is wrong, there's no point running tests yet — flag it and repair in Phase 4 first.
+The AI loads three reference resources into its context window and checks them against each other. If they don't align, it repairs them *before* spending tokens on test runs — fix KB (human), fix code drift, fix changelog. Then re-check. This is a flavor of Phase 4 repair, but scoped to the three signals available. Only when the foundation is solid does it proceed to Phase 2.
 
 ### Phase 2: Generate — run tests, produce logs
 
@@ -140,7 +137,8 @@ flowchart TD
     LOAD --> GATE{"All four\naligned?"}
 
     GATE -->|"Yes"| PR["PR to review"]
-    GATE -->|"No"| P4["→ Phase 4: repair"]
+    GATE -->|"No"| REPAIR["Repair KB, Code,\nLogs, write changelog\n(human for KB)"]
+    REPAIR --> GEN_DONE
 
     classDef orient fill:#1565c0,color:#fff,stroke:#fff,stroke-width:2px
     classDef ok fill:#2e7d32,color:#fff,stroke:#fff,stroke-width:2px
@@ -149,20 +147,19 @@ flowchart TD
     class GEN_DONE orient
     class LOAD orient
     class GATE orient
+    class REPAIR action
     class PR ok
-    class P4 action
 ```
 
-Detection only. One gate: all four aligned? Yes → PR. No → Phase 4 repairs, then loops back to Phase 2, then Phase 3 runs the gate again. Iterate until green.
+Detection only. One gate: all four aligned? Yes → PR. No → repair in hierarchy (see below), then loop back to Phase 2, then Phase 3 runs the gate again. Iterate until green.
 
-### Phase 4: Repair — fix in order, then changelog
+### Repair — fix in hierarchy
 
-Once the compare phase identifies what's broken, repair in hierarchy. Foundation before implementation.
+Both Phase 1 and Phase 3 use this same repair order. Foundation before implementation. Each step is conditional — if nothing is broken at a layer, skip it.
 
 ```mermaid
 flowchart TD
-    REPAIR["Start repair"] --> KB{"KB needs\nrepair?"}
-    KB -->|"Yes"| FIX_KB["Human: repair KB"]
+    KB{"KB needs\nrepair?"} -->|"Yes"| FIX_KB["Human: repair KB"]
     KB -->|"No"| CODE{"Code needs\nrepair?"}
     FIX_KB --> CODE
     CODE -->|"Yes"| FIX_CODE["Repair code"]
@@ -171,14 +168,11 @@ flowchart TD
     LOGS -->|"Yes"| FIX_LOGS["Add or fix logging"]
     LOGS -->|"No"| CHANGELOG["Write changelog entry"]
     FIX_LOGS --> CHANGELOG
-    CHANGELOG --> BACK["← Back to Phase 2:\nrun tests, produce logs"]
 
     classDef repair fill:#1565c0,color:#fff,stroke:#fff,stroke-width:2px
     classDef human fill:#d32f2f,color:#fff,stroke:#fff,stroke-width:2px
     classDef action fill:#f57c00,color:#fff,stroke:#fff,stroke-width:2px
-    classDef loop fill:#6a1b9a,color:#fff,stroke:#fff,stroke-width:2px
 
-    class REPAIR repair
     class KB repair
     class CODE repair
     class LOGS repair
@@ -186,17 +180,12 @@ flowchart TD
     class FIX_CODE action
     class FIX_LOGS action
     class CHANGELOG action
-    class BACK loop
 ```
-
-Repair in order, only if needed:
 
 1. **KB first** — if the knowledge base is wrong or incomplete, the human repairs it. The AI can't authoritatively write knowledge it doesn't understand.
 2. **Code next** — with the KB right, the code fix is targeted. One change, not speculative.
 3. **Logs next** — if the logs were too thin to diagnose, add the missing logging so the next debug is cheaper.
 4. **Changelog last** — write the entry. It captures the intention of this fix, so the next AI that debugs this code has the signal.
-
-Every step is conditional. If nothing needs repairing at a layer, skip it. The changelog is always written — it's the signal for the next debugging session. After repair, loop back to Phase 2 (run tests, produce logs), then Phase 3 (compare). Phase 3 has only two outcomes: aligned → PR, or misaligned → Phase 4 again. Iterate until green.
 
 That process — forcing the AI to check signals before patching — is what saves the money. Because a code fix on a broken foundation is always temporary. Fixing the foundation makes the code fix permanent. And fixing the KB requires a human in the loop — the AI can flag the mismatch, but the human writes the knowledge.
 
