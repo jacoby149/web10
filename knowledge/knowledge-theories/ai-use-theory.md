@@ -69,49 +69,55 @@ flowchart LR
 
 You said "fix the bug." It said "no." This is the moment where the AI stops being a dumb code monkey and starts being an actual engineer. It refuses to patch symptoms because it knows a code fix on a broken foundation is temporary. The real bug is almost never in the code — it's in the layers below.
 
-So it climbs the six signals from the bottom, checking each one against the one before it:
+So it works the signals in chronological debugging order — orient first, then generate signal, then compare:
 
 ```mermaid
 flowchart LR
-    S1["1. Your words"] --> S2["2. Knowledge base"]
-    S2 --> S3["3. Code"]
-    S3 --> S4["4. Logs"]
-    S4 --> S5["5. Changelog"]
-    S5 --> S6["6. Tests"]
+    S1["1. Your words"] --> S2["2. KB + Code + Changelog\nalignment check"]
+    S2 --> S3["3. Run tests\nproduce verbose logs"]
+    S3 --> S4["4. Logs vs expectation\nKB/Code/Changelog aligned?"]
+    S4 --> S5["5. Fix"]
 
-    classDef signal fill:#333,color:#fff,stroke:#fff,stroke-width:2px
-    class S1,S2,S3,S4,S5,S6 signal
+    classDef prompt fill:#333,color:#fff,stroke:#fff,stroke-width:2px
+    classDef orient fill:#1565c0,color:#fff,stroke:#fff,stroke-width:2px
+    classDef generate fill:#e65100,color:#fff,stroke:#fff,stroke-width:2px
+    classDef compare fill:#6a1b9a,color:#fff,stroke:#fff,stroke-width:2px
+    classDef fix fill:#2e7d32,color:#fff,stroke:#fff,stroke-width:2px
+
+    class S1 prompt
+    class S2 orient
+    class S3 generate
+    class S4 compare
+    class S5 fix
 ```
 
-**Signal 1 — Your words.** The bug report. What you told the AI is broken. Chat is inherently messy — you'll misspeak, be vague, contradict yourself. That's fine. The next signal catches it.
+**Step 1 — Your words.** The bug report. What you told the AI is broken. Chat is inherently messy — you'll misspeak, be vague, contradict yourself. That's fine. The next step catches it.
 
-**Signal 2 — The knowledge base.** The documented intent of what this feature is supposed to do. If your words say "rectangle" but the knowledge base says "square," the AI flags the mismatch and asks you which is right. It does not blindly follow your inaccurate words. This is why the knowledge base makes sloppy chat safe — you can fire off a rushed bug report and the AI will catch your own inaccuracies before acting on them.
+**Step 2 — KB ↔ Code ↔ Changelog alignment.** This is the orientation phase. The AI loads three reference resources into its context window and checks them against each other. The code will almost certainly match the changelog — LLMs are nearly perfect at literal translation, so the code it wrote matches the intent it recorded. The real check is: does the knowledge base match what was built and what was recorded? If your words say "rectangle" but the knowledge base says "square," the AI flags it and asks. This is why the knowledge base makes sloppy chat safe. And strategically, this step brings the most important reference material into context before spending any tokens on test runs.
 
-**Signal 3 — The code.** What was actually built. Does the code match the knowledge base? If not, the code drifted from intent — that's the bug, not whatever symptom you reported.
+**Step 3 — Run tests, produce logs.** Now that the AI is oriented, it runs the tests. The tests produce comically detailed logs — because every piece of code is logged to a ridiculous level. This is the signal generation step. You can't analyze logs you don't have, so tests come before log analysis.
 
-**Signal 4 — The logs.** What happened at runtime. Does the actual behavior match the code? If the code says "call endpoint A" but the logs show "endpoint B was called," the runtime path diverged. The logs pinpoint the branch.
+**Step 4 — Logs vs expectation.** Do the logs match what you expect based on the now-aligned KB, code, and changelog? If the KB says "call endpoint A," the code says "call endpoint A," the changelog says "added endpoint A," but the logs show "endpoint B was called" — the runtime path diverged. The bug is in the branch, not the code. If the logs match expectations but the test still fails — the expectation itself is wrong, go back to the KB. This is the creative, freestyle part where the AI has everything it needs to reason.
 
-**Signal 5 — The changelog.** The retrospective record of what changed and why. This is the signal of AI understanding. When an AI writes clear, specific changelogs, it understood what it built. When the changelog is obtuse, the AI that wrote this code wasn't thinking clearly — it probably missed an edge case it didn't consider. An obtuse changelog is a red flag: the code needs rethinking, not patching.
-
-**Signal 6 — The tests.** What is expected and verified. Is there a test for this case? If not, add one before fixing — so the fix is verifiable. If there is a test and it passes, the foundation is clean and the AI can make the actual fix:
+**Step 5 — Fix.** The foundation is aligned, the logs are clear, the expectation is known. One targeted change.
 
 ```mermaid
 flowchart LR
-    S6["6. Tests"] --> F["Fix the broken layer"]
+    S4["4. Logs aligned"] --> F["Fix the broken layer"]
     F --> V["All signals aligned"]
 
-    classDef signal fill:#333,color:#fff,stroke:#fff,stroke-width:2px
+    classDef compare fill:#6a1b9a,color:#fff,stroke:#fff,stroke-width:2px
     classDef fix fill:#2e7d32,color:#fff,stroke:#fff,stroke-width:2px
     classDef done fill:#1b5e20,color:#fff,stroke:#fff,stroke-width:2px
 
-    class S6 signal
+    class S4 compare
     class F fix
     class V done
 ```
 
-Each signal is cheap to check. Each one narrows the search space. The AI does not guess — it reads, compares, and flags misalignments. When one fails, it tells you exactly what kind of bug it is: user misspoke, knowledge base stale, code drifted, runtime diverged, changelog obtuse, or no test exists.
+Each step narrows the search space. The AI does not guess — it orients, generates signal, compares, and fixes. When one step fails, it tells you exactly what kind of bug it is: user misspoke, knowledge base stale, runtime diverged, or expectation wrong.
 
-This is why the pyramid is also a **waterfall**. You build it bottom-up like a pyramid, and when debugging, the AI works through it like a waterfall — each layer must be clean before it flows to the next. It refuses to skip. It refuses to patch. It fixes the foundation first, then the code, and makes sure everything is in alignment.
+This is why the pyramid is also a **waterfall**. You build it bottom-up like a pyramid, and when debugging, the AI works through it like a waterfall — orient first, generate signal, compare, fix. It refuses to skip. It refuses to patch. It fixes the foundation first, then the code, and makes sure everything is in alignment.
 
 That refusal — that disobedience — is what saves the $100. Because the code fix on a broken foundation is always a temporary fix that breaks again. Fixing the foundation makes the code fix permanent.
 
