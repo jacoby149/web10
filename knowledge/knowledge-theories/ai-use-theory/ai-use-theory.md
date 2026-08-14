@@ -142,22 +142,17 @@ flowchart TD
     CHECK -- Yes --> PR["All aligned!\nPR to review"]
 
     CHECK -- KB drift --> REPAIR["→ Phase 4:\nrepair KB, code, logs,\nwrite changelog"]
-    REPAIR --> LOOP["← Back to Phase 2"]
-    LOOP -.-> GEN_DONE
-
     CHECK -- Code drift --> REPAIR
     CHECK -- Logs diverge --> REPAIR
 
     classDef orient fill:#1565c0,color:#fff,stroke:#fff,stroke-width:2px
     classDef action fill:#f57c00,color:#fff,stroke:#fff,stroke-width:2px
     classDef ok fill:#2e7d32,color:#fff,stroke:#fff,stroke-width:2px
-    classDef loop fill:#6a1b9a,color:#fff,stroke:#fff,stroke-width:2px
 
     class GEN_DONE orient
     class LOAD orient
     class CHECK orient
     class REPAIR action
-    class LOOP loop
     class PR ok
 ```
 
@@ -204,7 +199,7 @@ Repair in order, only if needed:
 3. **Logs next** — if the logs were too thin to diagnose, add the missing logging so the next debug is cheaper.
 4. **Changelog last** — write the entry. It captures the intention of this fix, so the next AI that debugs this code has the signal.
 
-Every step is conditional. If nothing needs repairing at a layer, skip it. The changelog is always written — it's the signal for the next debugging session.
+Every step is conditional. If nothing needs repairing at a layer, skip it. The changelog is always written — it's the signal for the next debugging session. After repair, loop back to Phase 2 (run tests, produce logs), then Phase 3 (compare). Phase 3 has only two outcomes: aligned → PR, or misaligned → Phase 4 again. Iterate until green.
 
 That process — forcing the AI to check signals before patching — is what saves the money. Because a code fix on a broken foundation is always temporary. Fixing the foundation makes the code fix permanent. And fixing the KB requires a human in the loop — the AI can flag the mismatch, but the human writes the knowledge.
 
