@@ -132,22 +132,28 @@ If the concern isn't covered by existing tests, the AI writes a test gauntlet, u
 
 ### Phase 3: Compare — the gate
 
-Same alignment check as Phase 1, but now with a fourth input: the actual log output. Two outcomes only.
+Same alignment check as Phase 1, but now with a fourth input: the actual log output.
 
 ```mermaid
-flowchart LR
-    LOAD["Load KB + Code +\nChangelog + Logs"] --> GATE{"All four\naligned?"}
-    GATE -- Yes --> PR["PR to review"]
-    GATE -- No --> P4["→ Phase 4:\nrepair"]
+flowchart TD
+    GEN_DONE["Logs generated\nfrom Phase 2"] --> LOAD["Load KB + Code + Changelog\n+ Logs into context window"]
+    LOAD --> CHECK{"Do KB, Code,\nChangelog, and Logs align?"}
+
+    CHECK -- Yes --> PR["All aligned!\nPR to review"]
+
+    CHECK -- KB drift --> MISMATCH["Mismatch found.\n→ Phase 4: repair"]
+    CHECK -- Code drift --> MISMATCH
+    CHECK -- Logs diverge --> MISMATCH
 
     classDef orient fill:#1565c0,color:#fff,stroke:#fff,stroke-width:2px
+    classDef flag fill:#f57c00,color:#fff,stroke:#fff,stroke-width:2px
     classDef ok fill:#2e7d32,color:#fff,stroke:#fff,stroke-width:2px
-    classDef action fill:#f57c00,color:#fff,stroke:#fff,stroke-width:2px
 
+    class GEN_DONE orient
     class LOAD orient
-    class GATE orient
+    class CHECK orient
+    class MISMATCH flag
     class PR ok
-    class P4 action
 ```
 
 Detection only. If all four signals align, PR. If anything is misaligned — KB drift, code drift, logs diverge — route to Phase 4 for repair. Phase 4 loops back to Phase 2, then Phase 3 runs the gate again. Iterate until green.
