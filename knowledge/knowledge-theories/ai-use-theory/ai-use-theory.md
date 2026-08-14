@@ -136,35 +136,42 @@ Now oriented, the AI needs signal. The logs come from test runs — you can't an
 
 If the concern isn't covered by existing tests, the AI writes a test gauntlet, unit test, or E2E test to exercise the specific code path — then runs it to produce the logs. This is the generate step: produce the signal before analyzing it.
 
-### Phase 3: Compare — logs vs expectation, then iterate
+### Phase 3: Compare — KB ↔ Code ↔ Changelog ↔ Logs alignment
+
+Same alignment check as Phase 1, but now with a fourth input: the actual log output.
 
 ```mermaid
-flowchart LR
-    COMPARE["Compare logs\nvs expectation"] --> FIND{"What's wrong?"}
-    FIND -- KB wrong or incomplete --> FIX_KB["Fix KB"]
-    FIND -- Logs too thin --> FIX_LOGS["Add logs"]
-    FIND -- Code bug --> FIX_CODE["Fix code"]
-    FIND -- Done --> DONE["Bug fixed"]
+flowchart TD
+    GEN_DONE["Logs generated\nfrom Phase 2"] --> LOAD["Load KB + Code + Changelog\n+ Logs into context window"]
+    LOAD --> CHECK{"Do KB, Code,\nChangelog, and Logs align?"}
 
-    FIX_KB -.-> COMPARE
-    FIX_LOGS -.-> COMPARE
-    FIX_CODE -.-> COMPARE
+    CHECK -- Yes --> ORIENTED["All aligned.\nFix code or done."]
 
-    classDef compare fill:#6a1b9a,color:#fff,stroke:#fff,stroke-width:2px
+    CHECK -- KB drift --> FIX_KB["Fix KB flaw:\nupdate knowledge base\nto match reality"]
+    FIX_KB --> LOAD
+
+    CHECK -- Code drift --> FIX_CODE["Fix code drift:\ncode doesn't match\nwhat KB says it should do"]
+    FIX_CODE --> LOAD
+
+    CHECK -- Logs diverge --> FIX_LOGS["Logs don't match\nexpectation — add more logs\nor fix logging"]
+    FIX_LOGS --> LOAD
+
+    classDef orient fill:#1565c0,color:#fff,stroke:#fff,stroke-width:2px
     classDef action fill:#f57c00,color:#fff,stroke:#fff,stroke-width:2px
     classDef ok fill:#2e7d32,color:#fff,stroke:#fff,stroke-width:2px
 
-    class COMPARE compare
-    class FIND compare
+    class GEN_DONE orient
+    class LOAD orient
+    class CHECK orient
     class FIX_KB action
-    class FIX_LOGS action
     class FIX_CODE action
-    class DONE ok
+    class FIX_LOGS action
+    class ORIENTED ok
 ```
 
-This is the creative part. The AI has everything: the aligned KB, code, changelog, and now the logs. It compares what actually happened against what should have happened. If something's wrong — KB incomplete, logs too thin, expectation wrong, or a code bug — it fixes the right thing and loops back. Iterate until done. No guessing. No speculative fixes. No doom loops.
+Same structure as Phase 1, just with logs as the fourth signal. If the logs show a path the KB doesn't cover, the KB needs fixing. If the code matches the changelog but the logs show a different runtime path, there's a code drift the KB didn't catch. If the logs are too thin to compare, loop back to Phase 2. When all four align, the code fix is targeted — or the bug is already resolved.
 
-That process — forcing the AI to check signals before patching — is what saves the money. Because a code fix on a broken foundation is always temporary. Fixing the foundation makes the code fix permanent.
+That process — forcing the AI to check signals before patching — is what saves the money. Because a code fix on a broken foundation is always temporary. Fixing the foundation makes the code fix permanent. And fixing the KB requires a human in the loop — the AI can flag the mismatch, but the human writes the knowledge.
 
 ## The Pyramid
 
