@@ -136,56 +136,36 @@ Now oriented, the AI needs signal. The logs come from test runs — you can't an
 
 If the concern isn't covered by existing tests, the AI writes a test gauntlet, unit test, or E2E test to exercise the specific code path — then runs it to produce the logs. This is the generate step: produce the signal before analyzing it.
 
-### Phase 3: Compare — logs vs expectation, then fix
+### Phase 3: Compare — logs vs expectation, then iterate
 
 ```mermaid
-flowchart TD
-    COMP_START["Logs generated. Compare."] --> COMPARE{"Do logs match expectation\nfrom the aligned KB/Code/Changelog?"}
+flowchart LR
+    COMPARE["Compare logs\nvs expectation"] --> FIND{"What's wrong?"}
+    FIND -- KB incomplete --> FIX_KB["Fix KB"]
+    FIND -- Logs too thin --> FIX_LOGS["Add logs"]
+    FIND -- Expectation wrong --> FIX_EXP["Fix expectation"]
+    FIND -- Code bug --> FIX_CODE["Fix code"]
+    FIND -- Done --> DONE["Bug fixed"]
 
-    COMPARE -- Yes --> TEST_CHECK{"Does the test pass?"}
-    TEST_CHECK -- Yes --> DONE["Done. Bug fixed."]
-    TEST_CHECK -- No --> WRONG_EXP["Expectation is wrong.\nGo back to Orient — fix KB."]
-    WRONG_EXP --> ORIENT_AGAIN["Re-orient with corrected KB"]
+    FIX_KB -.-> COMPARE
+    FIX_LOGS -.-> COMPARE
+    FIX_EXP -.-> COMPARE
+    FIX_CODE -.-> COMPARE
 
-    COMPARE -- No --> DIVERGE["Runtime path diverged from expectation"]
-    DIVERGE --> DIAGNOSE{"What's missing?"}
-
-    DIAGNOSE -- KB incomplete --> MORE_KB["KB doesn't cover this path.\nAdd to knowledge base."]
-    MORE_KB --> ORIENT_AGAIN
-
-    DIAGNOSE -- Logs too thin --> MORE_LOGS["Logs don't show enough detail.\nGo back to Generate — add logs."]
-    MORE_LOGS --> GEN_AGAIN["Re-generate with denser logs"]
-
-    DIAGNOSE -- Code bug --> FIX_BUG["Found the bug.\nOne targeted code change."]
-    FIX_BUG --> VERIFY["Run tests to verify"]
-    VERIFY --> DONE
-
-    classDef orient fill:#1565c0,color:#fff,stroke:#fff,stroke-width:2px
+    classDef compare fill:#6a1b9a,color:#fff,stroke:#fff,stroke-width:2px
     classDef action fill:#f57c00,color:#fff,stroke:#fff,stroke-width:2px
     classDef ok fill:#2e7d32,color:#fff,stroke:#fff,stroke-width:2px
 
-    class COMP_START orient
-    class COMPARE orient
-    class DIVERGE orient
-    class DIAGNOSE orient
-    class MORE_KB action
-    class MORE_LOGS action
-    class FIX_BUG action
-    class WRONG_EXP action
-    class ORIENT_AGAIN action
-    class GEN_AGAIN action
-    class VERIFY action
+    class COMPARE compare
+    class FIND compare
+    class FIX_KB action
+    class FIX_LOGS action
+    class FIX_EXP action
+    class FIX_CODE action
     class DONE ok
 ```
 
-This is the creative part. The AI has everything: the aligned KB, code, changelog, and now the logs. It compares what actually happened (logs) against what should have happened (KB + changelog expectation). Several things can go wrong, and each has a specific response:
-
-- **Logs match expectation but test fails** — the expectation itself is wrong. The KB needs correction. Loop back to orient.
-- **Logs show a path the KB doesn't cover** — the knowledge base is incomplete. Add the missing knowledge, re-orient.
-- **Logs are too thin to diagnose** — not enough logging. Loop back to generate: add logs, make a PR, watch the build, re-run.
-- **Logs show the bug clearly** — one targeted code change. Run tests to verify. Done.
-
-Every branch is deterministic. No guessing. No speculative fixes. No doom loops.
+This is the creative part. The AI has everything: the aligned KB, code, changelog, and now the logs. It compares what actually happened against what should have happened. If something's wrong — KB incomplete, logs too thin, expectation wrong, or a code bug — it fixes the right thing and loops back. Iterate until done. No guessing. No speculative fixes. No doom loops.
 
 That process — forcing the AI to check signals before patching — is what saves the money. Because a code fix on a broken foundation is always temporary. Fixing the foundation makes the code fix permanent.
 
