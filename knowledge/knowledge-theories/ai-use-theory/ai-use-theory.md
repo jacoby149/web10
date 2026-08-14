@@ -10,26 +10,26 @@ But an LLM is also a relentless overtryer. It was trained to be helpful and prod
 
 These two traits — perfect translation and relentless overtrying — define how an LLM should be used. Give it translation tasks, and it excels. Give it open-ended debugging, and it destroys.
 
-## The Cost of Not Doing This
+A single conductor.build thread doom-looping for 2.5 hours — no logs, no KB, no tests, just AI guessing — burns roughly $25 in tokens. But you rarely run one thread. Five threads, all stuck on the same bug, all trying different speculative fixes for 2.5 hours each, is **~$125**. And that's conservative — the context window grows with each loop, so later loops cost more. A real session easily exceeds $200.
 
-On a personal web10 project, a single debugging session — no logs, no KB, no tests, just AI guessing — cost $100 in tokens. The AI would claw and try and try, re-reading the same code, making speculative fixes, breaking other things, looping.
+That is money burned into thin air. The AI read the same code 750 times across five threads. It generated 50 speculative fixes. None of them worked. You could buy a guitar with that. Instead it's gone.
 
-With the pyramid, the same debugging drops to $5-$10. That's 10x cheaper. The difference is **signal**: logs tell the AI where the break is, tests confirm the fix, and the KB tells it what the code is supposed to do. No guessing.
+The math: in conductor.build, every tool call is a fresh context window — no caching. An agent in a doom loop makes ~150 calls per hour, each sending 150K+ input tokens (full codebase + growing history) and generating 10-15K output tokens (reasoning + speculative fixes). At Qwen 3.6 27B pricing ($0.30/M input, ~$1.50/M output), that's ~$10/hour/thread. Five threads is $50/hour. Two and a half hours is $125. Ten hours is $500.
 
-**Note on token costs:** these numbers come from running AI agents in conductor.build, where every speculative debug loop is a fresh context window — no caching, no carryover. Each loop re-reads the entire codebase, reasons about what might be wrong, and generates a fix. In a cached API, re-reading context is cheap. In conductor.build it is not. These are the real costs for this harness.
+With the pyramid, the same debugging drops to $5-$10 total. One thread, one loop, done. That's 10-20x cheaper. The difference is **signal**: logs tell the AI where the break is, tests confirm the fix, and the KB tells it what the code is supposed to do. No guessing. No parallel threads. No hours. No money into thin air.
 
 ## The Problem
 
 An LLM trained to produce output will keep generating — even when generating makes things worse. It may ask for more context, but it is shy — it won't always ask for enough. And when it writes code, it defaults to industry standard: minimal logs, sleek abstractions, productionized polish. Then when something breaks, it speculatively debugs its own minimally-logged code and enters expensive doom loops.
 
-In a conductor.build harness, every speculative debug loop is a fresh context window. No caching. No carryover. The AI re-reads the entire codebase, reasons about what might be wrong, generates a fix, and if it's wrong, the whole cycle repeats from scratch. Without signal, each loop burns tokens on two things: re-reading the same code (context) and reasoning about what might be wrong (generation).
+In a conductor.build harness, every speculative debug loop is a fresh context window. No caching. No carryover. The AI re-reads the entire codebase, reasons about what might be wrong, generates a fix, and if it's wrong, the whole cycle repeats from scratch — with a larger context window, because the conversation history grew. Each loop costs more than the last.
 
 ```mermaid
 flowchart TD
     A[Bug appears] --> B{Any logs?}
-    B -->|"No"| C[Re-read all code\n~2000 tokens]
-    C --> D[Guess where the break is\n~1000 tokens]
-    D --> E[Apply speculative fix\n~1500 tokens]
+    B -->|"No"| C[Re-read codebase + history\n~150K input tokens]
+    C --> D[Reason about the break\n~5K input tokens]
+    D --> E[Generate speculative fix\n~12.5K output tokens]
     E --> F{Still broken?}
     F -->|"Yes"| C
     F -->|"No"| G{Tests pass?}
@@ -47,7 +47,7 @@ flowchart TD
     style H fill:#f88,color:#fff
 ```
 
-Each red box is a token burn. Five loops is 5 × (2000 + 1000 + 1500) = **22,500 tokens** wasted on re-reading and guessing before you even know if the fix is right. But that's the optimistic case. In a conductor.build harness with no signal, an AI can idle for hours — reading way more code than it needs, loading the wrong files into context, polluting its own context window with noise. That's $60+ burning on idle context alone, before the speculative fixes even start. At typical API pricing, a session can easily exceed $100 with nothing to show.
+Each red box is a token burn. One loop is ~167K tokens. At Qwen 3.6 27B pricing ($0.30/M input, ~$1.50/M output), that's ~$0.08 per loop. Sounds cheap — but an agent in a doom loop makes ~150 of these per hour. That's **~$12/hour/thread**. Five threads stuck for 2.5 hours is **~$150**. And that's conservative — the context window grows with each loop as history accumulates, so later loops cost more. A real session easily exceeds $200.
 
 ---
 
