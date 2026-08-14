@@ -141,15 +141,13 @@ If the concern isn't covered by existing tests, the AI writes a test gauntlet, u
 ```mermaid
 flowchart LR
     COMPARE["Compare logs\nvs expectation"] --> FIND{"What's wrong?"}
-    FIND -- KB incomplete --> FIX_KB["Fix KB"]
+    FIND -- KB wrong or incomplete --> FIX_KB["Fix KB"]
     FIND -- Logs too thin --> FIX_LOGS["Add logs"]
-    FIND -- Expectation wrong --> FIX_EXP["Fix expectation"]
     FIND -- Code bug --> FIX_CODE["Fix code"]
     FIND -- Done --> DONE["Bug fixed"]
 
     FIX_KB -.-> COMPARE
     FIX_LOGS -.-> COMPARE
-    FIX_EXP -.-> COMPARE
     FIX_CODE -.-> COMPARE
 
     classDef compare fill:#6a1b9a,color:#fff,stroke:#fff,stroke-width:2px
@@ -160,7 +158,6 @@ flowchart LR
     class FIND compare
     class FIX_KB action
     class FIX_LOGS action
-    class FIX_EXP action
     class FIX_CODE action
     class DONE ok
 ```
