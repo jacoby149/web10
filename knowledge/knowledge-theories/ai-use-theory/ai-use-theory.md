@@ -66,34 +66,28 @@ flowchart TD
     LOAD --> CHECK{"Do KB, Code,\nand Changelog align?"}
 
     CHECK -- Yes --> ORIENTED["Oriented. Proceed to generate."]
-    CHECK -- KB drift --> FIX_KB["Fix KB flaw:\nupdate knowledge base\nto match reality"]
-    FIX_KB --> LOAD
 
-    CHECK -- Code drift --> FIX_CODE["Fix code drift:\ncode doesn't match\nwhat KB says it should do"]
-    FIX_CODE --> LOAD
-
-    CHECK -- Changelog obtuse --> FIX_LOG["Fix changelog:\nobscure entry means the AI that\nwrote this code didn't understand it"]
-    FIX_LOG --> LOAD
+    CHECK -- KB drift --> MISMATCH["Mismatch found.\n→ Phase 4: repair"]
+    CHECK -- Code drift --> MISMATCH
+    CHECK -- Changelog obtuse --> MISMATCH
 
     classDef prompt fill:#333,color:#fff,stroke:#fff,stroke-width:2px
     classDef instruct fill:#6a1b9a,color:#fff,stroke:#fff,stroke-width:2px
     classDef orient fill:#1565c0,color:#fff,stroke:#fff,stroke-width:2px
-    classDef action fill:#f57c00,color:#fff,stroke:#fff,stroke-width:2px
+    classDef flag fill:#f57c00,color:#fff,stroke:#fff,stroke-width:2px
     classDef ok fill:#2e7d32,color:#fff,stroke:#fff,stroke-width:2px
 
     class START prompt
     class INSTRUCT instruct
     class LOAD orient
     class CHECK orient
-    class FIX_KB action
-    class FIX_CODE action
-    class FIX_LOG action
+    class MISMATCH flag
     class ORIENTED ok
 ```
 
-The AI loads three reference resources into its context window and checks them against each other. The code will almost certainly match the changelog — LLMs are nearly perfect at literal translation, so the code it wrote matches the intent it recorded. The real check is: does the knowledge base match what was built? If your words say "rectangle" but the knowledge base says "square," the AI flags the mismatch and asks. This is why the knowledge base makes sloppy chat safe — your spontaneous, inaccurate instructions are caught before the AI acts on them.
+The AI loads three reference resources into its context window and checks them against each other. It doesn't fix anything here — it only detects. The code will almost certainly match the changelog — LLMs are nearly perfect at literal translation, so the code it wrote matches the intent it recorded. The real check is: does the knowledge base match what was built? If your words say "rectangle" but the knowledge base says "square," the AI flags the mismatch and routes to Phase 4 for repair. This is why the knowledge base makes sloppy chat safe — your spontaneous, inaccurate instructions are caught before the AI acts on them.
 
-**Strategic context management:** this phase loads all the reference material before spending any tokens on test runs. If the KB is wrong, there's no point running tests yet — fix the foundation first.
+**Strategic context management:** this phase loads all the reference material before spending any tokens on test runs. If the KB is wrong, there's no point running tests yet — flag it and repair in Phase 4 first.
 
 ### Phase 2: Generate — run tests, produce logs
 
@@ -167,7 +161,7 @@ flowchart TD
     class PR ok
 ```
 
-Same structure as Phase 1, just with logs as the fourth signal. If the logs show a path the KB doesn't cover, the KB needs fixing. If the code matches the changelog but the logs show a different runtime path, there's a code drift the KB didn't catch. If the logs are too thin to compare, loop back to Phase 2. When all four align, proceed to Phase 4: repair.
+Same structure as Phase 1, just with logs as the fourth signal. Detection only — if anything is misaligned, route to Phase 4 for repair. If all four align, PR.
 
 ### Phase 4: Repair — fix in order, then changelog
 
