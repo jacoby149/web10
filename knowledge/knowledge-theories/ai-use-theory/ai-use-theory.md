@@ -130,33 +130,27 @@ Now oriented, the AI needs signal. The logs come from test runs — you can't an
 
 If the concern isn't covered by existing tests, the AI writes a test gauntlet, unit test, or E2E test to exercise the specific code path — then runs it to produce the logs. This is the generate step: produce the signal before analyzing it.
 
-### Phase 3: Compare — KB ↔ Code ↔ Changelog ↔ Logs alignment
+### Phase 3: Compare — the gate
 
-Same alignment check as Phase 1, but now with a fourth input: the actual log output.
+Same alignment check as Phase 1, but now with a fourth input: the actual log output. Two outcomes only.
 
 ```mermaid
-flowchart TD
-    GEN_DONE["Logs generated\nfrom Phase 2"] --> LOAD["Load KB + Code + Changelog\n+ Logs into context window"]
-    LOAD --> CHECK{"Do KB, Code,\nChangelog, and Logs align?"}
-
-    CHECK -- Yes --> PR["All aligned!\nPR to review"]
-
-    CHECK -- KB drift --> REPAIR["→ Phase 4:\nrepair KB, code, logs,\nwrite changelog"]
-    CHECK -- Code drift --> REPAIR
-    CHECK -- Logs diverge --> REPAIR
+flowchart LR
+    LOAD["Load KB + Code +\nChangelog + Logs"] --> GATE{"All four\naligned?"}
+    GATE -- Yes --> PR["PR to review"]
+    GATE -- No --> P4["→ Phase 4:\nrepair"]
 
     classDef orient fill:#1565c0,color:#fff,stroke:#fff,stroke-width:2px
-    classDef action fill:#f57c00,color:#fff,stroke:#fff,stroke-width:2px
     classDef ok fill:#2e7d32,color:#fff,stroke:#fff,stroke-width:2px
+    classDef action fill:#f57c00,color:#fff,stroke:#fff,stroke-width:2px
 
-    class GEN_DONE orient
     class LOAD orient
-    class CHECK orient
-    class REPAIR action
+    class GATE orient
     class PR ok
+    class P4 action
 ```
 
-Same structure as Phase 1, just with logs as the fourth signal. Detection only — if anything is misaligned, route to Phase 4 for repair. If all four align, PR.
+Detection only. If all four signals align, PR. If anything is misaligned — KB drift, code drift, logs diverge — route to Phase 4 for repair. Phase 4 loops back to Phase 2, then Phase 3 runs the gate again. Iterate until green.
 
 ### Phase 4: Repair — fix in order, then changelog
 
