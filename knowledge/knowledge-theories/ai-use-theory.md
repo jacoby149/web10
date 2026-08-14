@@ -45,81 +45,147 @@ flowchart TD
     style H fill:#f88,color:#fff
 ```
 
-Each red box is a token burn. Five loops is 5 × (2000 + 1000 + 1500) = **22,500 tokens** wasted on re-reading and guessing before you even know if the fix is right. At typical API pricing, that's $100+ in a single session.
+Each red box is a token burn. Five loops is 5 × (2000 + 1000 + 1500) = **22,500 tokens** wasted on re-reading and guessing before you even know if the fix is right. But that's the optimistic case. In a conductor.build harness with no signal, an AI can idle for hours — reading way more code than it needs, loading the wrong files into context, polluting its own context window with noise. That's $60+ burning on idle context alone, before the speculative fixes even start. At typical API pricing, a session can easily exceed $100 with nothing to show.
 
 ---
 
 ## The Eureka Moment
 
-With the pyramid, something unexpected happens. You ask the AI to debug a bug, and it **disobeys you**.
+With the pyramid, something unexpected happens. You ask the AI to debug a bug, and it **disobeys you**. You said "fix the bug." It said "no." This is where the AI stops being a dumb code monkey and starts being an engineer — it refuses to patch symptoms because it knows a code fix on a broken foundation is temporary.
+
+It works in three phases: **orient, generate, fix.** Each phase has branching paths — the AI can take different actions depending on what it finds.
+
+### Phase 1: Orient — KB ↔ Code ↔ Changelog alignment
 
 ```mermaid
-flowchart LR
-    A["You: debug this bug"] --> B["AI: no"]
-    B --> C["Check the foundation first"]
+flowchart TD
+    START["You: debug this bug"] --> REFUSE["AI: no. Let me orient first."]
+    REFUSE --> LOAD["Load KB + Code + Changelog\ninto context window"]
+    LOAD --> CHECK{"Do KB, Code,\nand Changelog align?"}
+
+    CHECK -- Yes --> ORIENTED["Oriented. Proceed to generate."]
+    CHECK -- KB drift --> FIX_KB["Fix KB flaw:\nupdate knowledge base\nto match reality"]
+    FIX_KB --> LOAD
+
+    CHECK -- Code drift --> FIX_CODE["Fix code drift:\ncode doesn't match\nwhat KB says it should do"]
+    FIX_CODE --> LOAD
+
+    CHECK -- Changelog obtuse --> FIX_LOG["Fix changelog:\nobscure entry means the AI that\nwrote this code didn't understand it"]
+    FIX_LOG --> LOAD
 
     classDef prompt fill:#333,color:#fff,stroke:#fff,stroke-width:2px
     classDef refuse fill:#d32f2f,color:#fff,stroke:#fff,stroke-width:2px
-    classDef next fill:#1565c0,color:#fff,stroke:#fff,stroke-width:2px
-
-    class A prompt
-    class B refuse
-    class C next
-```
-
-You said "fix the bug." It said "no." This is the moment where the AI stops being a dumb code monkey and starts being an actual engineer. It refuses to patch symptoms because it knows a code fix on a broken foundation is temporary. The real bug is almost never in the code — it's in the layers below.
-
-So it works the signals in chronological debugging order — orient first, then generate signal, then compare:
-
-```mermaid
-flowchart LR
-    S1["1. Your words"] --> S2["2. KB + Code + Changelog\nalignment check"]
-    S2 --> S3["3. Run tests\nproduce verbose logs"]
-    S3 --> S4["4. Logs vs expectation\nKB/Code/Changelog aligned?"]
-    S4 --> S5["5. Fix"]
-
-    classDef prompt fill:#333,color:#fff,stroke:#fff,stroke-width:2px
     classDef orient fill:#1565c0,color:#fff,stroke:#fff,stroke-width:2px
-    classDef generate fill:#e65100,color:#fff,stroke:#fff,stroke-width:2px
-    classDef compare fill:#6a1b9a,color:#fff,stroke:#fff,stroke-width:2px
-    classDef fix fill:#2e7d32,color:#fff,stroke:#fff,stroke-width:2px
+    classDef action fill:#f57c00,color:#fff,stroke:#fff,stroke-width:2px
+    classDef ok fill:#2e7d32,color:#fff,stroke:#fff,stroke-width:2px
 
-    class S1 prompt
-    class S2 orient
-    class S3 generate
-    class S4 compare
-    class S5 fix
+    class START prompt
+    class REFUSE refuse
+    class LOAD orient
+    class CHECK orient
+    class FIX_KB action
+    class FIX_CODE action
+    class FIX_LOG action
+    class ORIENTED ok
 ```
 
-**Step 1 — Your words.** The bug report. What you told the AI is broken. Chat is inherently messy — you'll misspeak, be vague, contradict yourself. That's fine. The next step catches it.
+The AI loads three reference resources into its context window and checks them against each other. The code will almost certainly match the changelog — LLMs are nearly perfect at literal translation, so the code it wrote matches the intent it recorded. The real check is: does the knowledge base match what was built? If your words say "rectangle" but the knowledge base says "square," the AI flags the mismatch and asks. This is why the knowledge base makes sloppy chat safe — your spontaneous, inaccurate instructions are caught before the AI acts on them.
 
-**Step 2 — KB ↔ Code ↔ Changelog alignment.** This is the orientation phase. The AI loads three reference resources into its context window and checks them against each other. The code will almost certainly match the changelog — LLMs are nearly perfect at literal translation, so the code it wrote matches the intent it recorded. The real check is: does the knowledge base match what was built and what was recorded? If your words say "rectangle" but the knowledge base says "square," the AI flags it and asks. This is why the knowledge base makes sloppy chat safe. And strategically, this step brings the most important reference material into context before spending any tokens on test runs.
+**Strategic context management:** this phase loads all the reference material before spending any tokens on test runs. If the KB is wrong, there's no point running tests yet — fix the foundation first.
 
-**Step 3 — Run tests, produce logs.** Now that the AI is oriented, it runs the tests. The tests produce comically detailed logs — because every piece of code is logged to a ridiculous level. This is the signal generation step. You can't analyze logs you don't have, so tests come before log analysis.
-
-**Step 4 — Logs vs expectation.** Do the logs match what you expect based on the now-aligned KB, code, and changelog? If the KB says "call endpoint A," the code says "call endpoint A," the changelog says "added endpoint A," but the logs show "endpoint B was called" — the runtime path diverged. The bug is in the branch, not the code. If the logs match expectations but the test still fails — the expectation itself is wrong, go back to the KB. This is the creative, freestyle part where the AI has everything it needs to reason.
-
-**Step 5 — Fix.** The foundation is aligned, the logs are clear, the expectation is known. One targeted change.
+### Phase 2: Generate — run tests, produce logs
 
 ```mermaid
-flowchart LR
-    S4["4. Logs aligned"] --> F["Fix the broken layer"]
-    F --> V["All signals aligned"]
+flowchart TD
+    GEN_START["Oriented. Generate signal."] --> SOURCE{"Where are the logs?"}
 
-    classDef compare fill:#6a1b9a,color:#fff,stroke:#fff,stroke-width:2px
-    classDef fix fill:#2e7d32,color:#fff,stroke:#fff,stroke-width:2px
-    classDef done fill:#1b5e20,color:#fff,stroke:#fff,stroke-width:2px
+    SOURCE -- CI/CD has them --> PULL["Pull verbose logs from CI/CD\nbuild artifacts"]
+    SOURCE -- No logs yet --> RUN["Run tests locally\nor trigger CI build"]
 
-    class S4 compare
-    class F fix
-    class V done
+    PULL --> ENOUGH{"Are logs verbose\nenough to diagnose?"}
+    RUN --> ENOUGH
+
+    ENOUGH -- Yes --> GENERATED["Logs ready. Proceed to compare."]
+    ENOUGH -- No --> ADD_LOGS["Add more logging to the code"]
+    ADD_LOGS --> PR["Make a PR with denser logs"]
+    PR --> WATCH["Watch the build"]
+    WATCH --> RUN
+
+    ENOUGH -- Missing test coverage --> ADD_TESTS["Add test gauntlet, unit test,\nor E2E test for the concern"]
+    ADD_TESTS --> RUN
+
+    classDef orient fill:#1565c0,color:#fff,stroke:#fff,stroke-width:2px
+    classDef action fill:#f57c00,color:#fff,stroke:#fff,stroke-width:2px
+    classDef ok fill:#2e7d32,color:#fff,stroke:#fff,stroke-width:2px
+
+    class GEN_START orient
+    class SOURCE orient
+    class PULL action
+    class RUN action
+    class ENOUGH orient
+    class ADD_LOGS action
+    class PR action
+    class WATCH action
+    class ADD_TESTS action
+    class GENERATED ok
 ```
 
-Each step narrows the search space. The AI does not guess — it orients, generates signal, compares, and fixes. When one step fails, it tells you exactly what kind of bug it is: user misspoke, knowledge base stale, runtime diverged, or expectation wrong.
+Now oriented, the AI needs signal. The logs come from test runs — you can't analyze logs you don't have. It first checks CI/CD: if a recent build ran tests with verbose logging, it pulls those logs directly. No booting a local stack, no waiting. If CI/CD logs aren't available or aren't verbose enough, it either runs tests locally or makes a PR to add denser logging, then watches the build.
 
-This is why the pyramid is also a **waterfall**. You build it bottom-up like a pyramid, and when debugging, the AI works through it like a waterfall — orient first, generate signal, compare, fix. It refuses to skip. It refuses to patch. It fixes the foundation first, then the code, and makes sure everything is in alignment.
+If the concern isn't covered by existing tests, the AI writes a test gauntlet, unit test, or E2E test to exercise the specific code path — then runs it to produce the logs. This is the generate step: produce the signal before analyzing it.
 
-That refusal — that disobedience — is what saves the $100. Because the code fix on a broken foundation is always a temporary fix that breaks again. Fixing the foundation makes the code fix permanent.
+### Phase 3: Compare — logs vs expectation, then fix
+
+```mermaid
+flowchart TD
+    COMP_START["Logs generated. Compare."] --> COMPARE{"Do logs match expectation\nfrom the aligned KB/Code/Changelog?"}
+
+    COMPARE -- Yes --> TEST_CHECK{"Does the test pass?"}
+    TEST_CHECK -- Yes --> DONE["Done. Bug fixed."]
+    TEST_CHECK -- No --> WRONG_EXP["Expectation is wrong.\nGo back to Orient — fix KB."]
+    WRONG_EXP --> ORIENT_AGAIN["Re-orient with corrected KB"]
+
+    COMPARE -- No --> DIVERGE["Runtime path diverged from expectation"]
+    DIVERGE --> DIAGNOSE{"What's missing?"}
+
+    DIAGNOSE -- KB incomplete --> MORE_KB["KB doesn't cover this path.\nAdd to knowledge base."]
+    MORE_KB --> ORIENT_AGAIN
+
+    DIAGNOSE -- Logs too thin --> MORE_LOGS["Logs don't show enough detail.\nGo back to Generate — add logs."]
+    MORE_LOGS --> GEN_AGAIN["Re-generate with denser logs"]
+
+    DIAGNOSE -- Code bug --> FIX_BUG["Found the bug.\nOne targeted code change."]
+    FIX_BUG --> VERIFY["Run tests to verify"]
+    VERIFY --> DONE
+
+    classDef orient fill:#1565c0,color:#fff,stroke:#fff,stroke-width:2px
+    classDef action fill:#f57c00,color:#fff,stroke:#fff,stroke-width:2px
+    classDef ok fill:#2e7d32,color:#fff,stroke:#fff,stroke-width:2px
+
+    class COMP_START orient
+    class COMPARE orient
+    class DIVERGE orient
+    class DIAGNOSE orient
+    class MORE_KB action
+    class MORE_LOGS action
+    class FIX_BUG action
+    class WRONG_EXP action
+    class ORIENT_AGAIN action
+    class GEN_AGAIN action
+    class VERIFY action
+    class DONE ok
+```
+
+This is the creative part. The AI has everything: the aligned KB, code, changelog, and now the logs. It compares what actually happened (logs) against what should have happened (KB + changelog expectation). Several things can go wrong, and each has a specific response:
+
+- **Logs match expectation but test fails** — the expectation itself is wrong. The KB needs correction. Loop back to orient.
+- **Logs show a path the KB doesn't cover** — the knowledge base is incomplete. Add the missing knowledge, re-orient.
+- **Logs are too thin to diagnose** — not enough logging. Loop back to generate: add logs, make a PR, watch the build, re-run.
+- **Logs show the bug clearly** — one targeted code change. Run tests to verify. Done.
+
+Every branch is deterministic. No guessing. No speculative fixes. No doom loops.
+
+That refusal — that disobedience at the start — is what saves the money. Because a code fix on a broken foundation is always temporary. Fixing the foundation makes the code fix permanent.
 
 ## The Pyramid
 
