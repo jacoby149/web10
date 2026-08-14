@@ -27,14 +27,14 @@ In a conductor.build harness, every speculative debug loop is a fresh context wi
 ```mermaid
 flowchart TD
     A[Bug appears] --> B{Any logs?}
-    B -- No --> C[Re-read all code\n~2000 tokens]
+    B -->|"No"| C[Re-read all code\n~2000 tokens]
     C --> D[Guess where the break is\n~1000 tokens]
     D --> E[Apply speculative fix\n~1500 tokens]
     E --> F{Still broken?}
-    F -- Yes --> C
-    F -- No --> G{Tests pass?}
-    G -- No tests to run --> H[Guess it works\nhope for the best]
-    G -- Yes --> I[Done]
+    F -->|"Yes"| C
+    F -->|"No"| G{Tests pass?}
+    G -->|"No tests to run"| H[Guess it works\nhope for the best]
+    G -->|"Yes"| I[Done]
 
     C -.->|loop 2| C
     C -.->|loop 3| C
@@ -65,11 +65,11 @@ flowchart TD
     INSTRUCT --> LOAD["Load KB + Code + Changelog\ninto context window"]
     LOAD --> CHECK{"Do KB, Code,\nand Changelog align?"}
 
-    CHECK -- Yes --> ORIENTED["Oriented. Proceed to generate."]
+    CHECK -->|"Yes"| ORIENTED["Oriented. Proceed to generate."]
 
-    CHECK -- KB drift --> MISMATCH["Mismatch found.\n→ Phase 4: repair"]
-    CHECK -- Code drift --> MISMATCH
-    CHECK -- Changelog obtuse --> MISMATCH
+    CHECK -->|"KB drift"| MISMATCH["Mismatch found.\n→ Phase 4: repair"]
+    CHECK -->|"Code drift"| MISMATCH
+    CHECK -->|"Changelog obtuse"| MISMATCH
 
     classDef prompt fill:#333,color:#fff,stroke:#fff,stroke-width:2px
     classDef instruct fill:#6a1b9a,color:#fff,stroke:#fff,stroke-width:2px
@@ -95,19 +95,19 @@ The AI loads three reference resources into its context window and checks them a
 flowchart TD
     GEN_START["Oriented. Generate signal."] --> SOURCE{"Where are the logs?"}
 
-    SOURCE -- CI/CD has them --> PULL["Pull verbose logs from CI/CD\nbuild artifacts"]
-    SOURCE -- No logs yet --> RUN["Run tests locally\nor trigger CI build"]
+    SOURCE -->|"CI/CD has them"| PULL["Pull verbose logs from CI/CD\nbuild artifacts"]
+    SOURCE -->|"No logs yet"| RUN["Run tests locally\nor trigger CI build"]
 
     PULL --> ENOUGH{"Are logs verbose\nenough to diagnose?"}
     RUN --> ENOUGH
 
-    ENOUGH -- Yes --> GENERATED["Logs ready. Proceed to compare."]
-    ENOUGH -- No --> ADD_LOGS["Add more logging to the code"]
+    ENOUGH -->|"Yes"| GENERATED["Logs ready. Proceed to compare."]
+    ENOUGH -->|"No"| ADD_LOGS["Add more logging to the code"]
     ADD_LOGS --> PR["Make a PR with denser logs"]
     PR --> WATCH["Watch the build"]
     WATCH --> RUN
 
-    ENOUGH -- Missing test coverage --> ADD_TESTS["Add test gauntlet, unit test,\nor E2E test for the concern"]
+    ENOUGH -->|"Missing test coverage"| ADD_TESTS["Add test gauntlet, unit test,\nor E2E test for the concern"]
     ADD_TESTS --> RUN
 
     classDef orient fill:#1565c0,color:#fff,stroke:#fff,stroke-width:2px
@@ -162,14 +162,14 @@ Once the compare phase identifies what's broken, repair in hierarchy. Foundation
 ```mermaid
 flowchart TD
     REPAIR["Start repair"] --> KB{"KB needs\nrepair?"}
-    KB -- Yes --> FIX_KB["Human: repair KB"]
-    KB -- No --> CODE{"Code needs\nrepair?"}
+    KB -->|"Yes"| FIX_KB["Human: repair KB"]
+    KB -->|"No"| CODE{"Code needs\nrepair?"}
     FIX_KB --> CODE
-    CODE -- Yes --> FIX_CODE["Repair code"]
-    CODE -- No --> LOGS{"Logs need\nrepair?"}
+    CODE -->|"Yes"| FIX_CODE["Repair code"]
+    CODE -->|"No"| LOGS{"Logs need\nrepair?"}
     FIX_CODE --> LOGS
-    LOGS -- Yes --> FIX_LOGS["Add or fix logging"]
-    LOGS -- No --> CHANGELOG["Write changelog entry"]
+    LOGS -->|"Yes"| FIX_LOGS["Add or fix logging"]
+    LOGS -->|"No"| CHANGELOG["Write changelog entry"]
     FIX_LOGS --> CHANGELOG
     CHANGELOG --> BACK["← Back to Phase 2:\nrun tests, produce logs"]
 
