@@ -33,7 +33,9 @@ Where we are today versus the ideal AI Use Theory pyramid.
 
 ## The Verdict
 
-We're at about **60% of the ideal**. The foundation exists — changelog, CI/CD, modern stack, decent KB, real tests. But the two signals that matter most for cheap debugging (logs and test coverage) are incomplete. We can debug cheaply in well-covered areas (auth flow, groups, consent) but still burn tokens in the gaps (media, API internals, social app internals).
+We're at about **60% of the ideal** — a rough estimate, not a precise measurement. The method: each of the six signals (KB, logs, code, changelog, tests, CI/CD) is roughly equally weighted. Green = full credit, yellow = half credit, red = zero. Three greens (code, changelog, CI/CD) = 3/6. Two yellows (KB, tests) = 1/6. One red (logs) = 0/6. That's 4/6, or ~67%, rounded down because the yellow areas have significant gaps and the red area (logs) is the single most important signal for cheap debugging.
+
+The foundation exists — changelog, CI/CD, modern stack, decent KB, real tests. But the two signals that matter most for cheap debugging (logs and test coverage) are incomplete. We can debug cheaply in well-covered areas (auth flow, groups, consent) but still burn tokens in the gaps (media, API internals, social app internals).
 
 ## To Get to 100%
 

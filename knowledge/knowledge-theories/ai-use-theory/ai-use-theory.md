@@ -6,21 +6,23 @@ How to use AI to build software without burning money on debugging loops.
 
 An LLM is a language translator. That is its core capability — mapping one well-defined space to another with near-perfect accuracy. Fortran to Python. COBOL to TypeScript. 2021 React to 2026 TypeScript. Code to documentation. Conversations to structured knowledge. Literal to literal, it is almost too good at it. This is not a side effect — it is the model's primary strength, baked into how it was trained.
 
-But an LLM is also benchmaxed. It was optimized for benchmarks like SWE-bench, where trying and failing scores higher than doing nothing. So when it hits a wall, it does not stop — it claws and tries and tries. It will riddle a codebase with speculative fixes, each one introducing new bugs, because getting a 75% on a benchmark is better than getting 0%. This is the terminator instinct: keep trying until the target is hit, even if the path is destruction.
+But an LLM is also a relentless overtryer. It was trained to be helpful and produce output — not to say "I don't know" or ask for clarification. When it hits a wall, it does not stop. It claws and tries and tries, riddling a codebase with speculative fixes because producing something plausible scores higher than admitting uncertainty. Mun Logadan put it plainly: "Benchmark training selects for models that make bold assumptions in the face of ambiguity rather than asking for clarification. Real life just isn't a benchmark." This is the terminator instinct: keep trying until the target is hit, even if the path is destruction.
 
 These two traits — perfect translation and relentless overtrying — define how an LLM should be used. Give it translation tasks, and it excels. Give it open-ended debugging, and it destroys.
 
 ## The Cost of Not Doing This
 
-On a personal web10 project, a single debugging session — no logs, no KB, no tests, just AI guessing — cost $100 in tokens. The AI would claw and try and try, re-reading the same code, making speculative fixes, breaking other things, looping. Each loop is context window + reasoning tokens. Five or ten loops and you're bleeding money with nothing to show.
+On a personal web10 project, a single debugging session — no logs, no KB, no tests, just AI guessing — cost $100 in tokens. The AI would claw and try and try, re-reading the same code, making speculative fixes, breaking other things, looping.
 
-With this five-step process, the same debugging drops to $5-$10. That's 10x cheaper. The difference is **signal**: logs tell the AI where the break is, tests confirm the fix, and the KB tells it what the code is supposed to do. No guessing.
+With the pyramid, the same debugging drops to $5-$10. That's 10x cheaper. The difference is **signal**: logs tell the AI where the break is, tests confirm the fix, and the KB tells it what the code is supposed to do. No guessing.
+
+**Note on token costs:** these numbers come from running AI agents in conductor.build, where every speculative debug loop is a fresh context window — no caching, no carryover. Each loop re-reads the entire codebase, reasons about what might be wrong, and generates a fix. In a cached API, re-reading context is cheap. In conductor.build it is not. These are the real costs for this harness.
 
 ## The Problem
 
-AI is optimized for benchmarks, not for debugging. It will claw and try and try to hit a target score. It may ask for more context, but it is shy — it won't always ask for enough. And when it writes code, it defaults to industry standard: minimal logs, sleek abstractions, productionized polish. Then when something breaks, it speculatively debugs its own minimally-logged code and enters expensive doom loops.
+An LLM trained to produce output will keep generating — even when generating makes things worse. It may ask for more context, but it is shy — it won't always ask for enough. And when it writes code, it defaults to industry standard: minimal logs, sleek abstractions, productionized polish. Then when something breaks, it speculatively debugs its own minimally-logged code and enters expensive doom loops.
 
-Every speculative debug loop burns tokens on two things: re-reading the same code (context) and reasoning about what might be wrong (generation). Without signal, both are wasted.
+In a conductor.build harness, every speculative debug loop is a fresh context window. No caching. No carryover. The AI re-reads the entire codebase, reasons about what might be wrong, generates a fix, and if it's wrong, the whole cycle repeats from scratch. Without signal, each loop burns tokens on two things: re-reading the same code (context) and reasoning about what might be wrong (generation).
 
 ```mermaid
 flowchart TD
@@ -49,18 +51,18 @@ Each red box is a token burn. Five loops is 5 × (2000 + 1000 + 1500) = **22,500
 
 ---
 
-## The Eureka Moment
+## The Debugging Flow
 
-With the pyramid, something unexpected happens. You ask the AI to debug a bug, and it **disobeys you**. You said "fix the bug." It said "no." This is where the AI stops being a dumb code monkey and starts being an engineer — it refuses to patch symptoms because it knows a code fix on a broken foundation is temporary.
+Once the pyramid is built, debugging follows a different process. The pyramid is the setup. This flow is what you run when something breaks. The AI won't naturally follow this — it's enforced via AGENTS.md, system instructions, or explicit prompts. Without the instruction to check signals before patching, the AI will default to speculative fixes. The "disobedience" — refusing to patch symptoms and fixing the foundation first — is a process you impose, not natural LLM behavior.
 
-It works in three phases: **orient, generate, fix.** Each phase has branching paths — the AI can take different actions depending on what it finds.
+The flow works in three phases: **orient, generate, fix.** Each phase has branching paths — the AI can take different actions depending on what it finds.
 
 ### Phase 1: Orient — KB ↔ Code ↔ Changelog alignment
 
 ```mermaid
 flowchart TD
-    START["You: debug this bug"] --> REFUSE["AI: no. Let me orient first."]
-    REFUSE --> LOAD["Load KB + Code + Changelog\ninto context window"]
+    START["You: debug this bug"] --> INSTRUCT["AI instructed to check signals\nfirst (via AGENTS.md / prompt)"]
+    INSTRUCT --> LOAD["Load KB + Code + Changelog\ninto context window"]
     LOAD --> CHECK{"Do KB, Code,\nand Changelog align?"}
 
     CHECK -- Yes --> ORIENTED["Oriented. Proceed to generate."]
@@ -74,13 +76,13 @@ flowchart TD
     FIX_LOG --> LOAD
 
     classDef prompt fill:#333,color:#fff,stroke:#fff,stroke-width:2px
-    classDef refuse fill:#d32f2f,color:#fff,stroke:#fff,stroke-width:2px
+    classDef instruct fill:#6a1b9a,color:#fff,stroke:#fff,stroke-width:2px
     classDef orient fill:#1565c0,color:#fff,stroke:#fff,stroke-width:2px
     classDef action fill:#f57c00,color:#fff,stroke:#fff,stroke-width:2px
     classDef ok fill:#2e7d32,color:#fff,stroke:#fff,stroke-width:2px
 
     class START prompt
-    class REFUSE refuse
+    class INSTRUCT instruct
     class LOAD orient
     class CHECK orient
     class FIX_KB action
@@ -130,7 +132,7 @@ flowchart TD
     class GENERATED ok
 ```
 
-Now oriented, the AI needs signal. The logs come from test runs — you can't analyze logs you don't have. It first checks CI/CD: if a recent build ran tests with verbose logging, it pulls those logs directly. No booting a local stack, no waiting. If CI/CD logs aren't available or aren't verbose enough, it either runs tests locally or makes a PR to add denser logging, then watches the build.
+Now oriented, the AI needs signal. The logs come from test runs — you can't analyze logs you don't have. If CI/CD preserves test logs as build artifacts, it pulls those directly. No booting a local stack, no waiting. (Most CI setups don't do this yet — it's aspirational infrastructure worth building.) Otherwise, it runs tests locally or triggers a CI build. If the logs aren't verbose enough, it makes a PR to add denser logging, then watches the build.
 
 If the concern isn't covered by existing tests, the AI writes a test gauntlet, unit test, or E2E test to exercise the specific code path — then runs it to produce the logs. This is the generate step: produce the signal before analyzing it.
 
@@ -185,11 +187,11 @@ This is the creative part. The AI has everything: the aligned KB, code, changelo
 
 Every branch is deterministic. No guessing. No speculative fixes. No doom loops.
 
-That refusal — that disobedience at the start — is what saves the money. Because a code fix on a broken foundation is always temporary. Fixing the foundation makes the code fix permanent.
+That process — forcing the AI to check signals before patching — is what saves the money. Because a code fix on a broken foundation is always temporary. Fixing the foundation makes the code fix permanent.
 
 ## The Pyramid
 
-The pyramid is built from the LLM's two traits. Steps 1 and 3 are **translation tasks** — the LLM's strength. Steps 2, 4, and 5 create the **signal** that prevents the LLM's weakness (speculative overtrying) from burning money. Build from the bottom up:
+The pyramid is a **setup order** for building a codebase that's debuggable by AI. It is separate from the debugging flow above — the pyramid is what you build first, the debugging flow is what you run after. The ordering (KB before logs before tests) is a theory based on the LLM's two traits and the evidence that each layer eliminates a category of token waste. Nothing proves this is the only valid order, but it is the order that matches the LLM's strengths (translation tasks first) and creates the signal that prevents its weakness (speculative overtrying) from burning money. Build from the bottom up:
 
 ```
            ┌───────┐
@@ -252,11 +254,11 @@ On an ambiguous, rapidly developing product — where requirements change, the A
 
 This approach suits the strengths of an LLM:
 
-- **Translation over invention.** AI is great at mapping between known spaces. Steps 1 and 3 are translation tasks.
+- **Translation over invention.** AI is great at mapping between known spaces. KB building (Step 1) and stack modernization (Step 3) are translation tasks.
 - **Signal over speculation.** Dense logging (Step 2) gives AI the context it needs to debug deterministically instead of guessing.
 - **Verification over faith.** Tests (Step 4) give AI a binary signal: pass or fail. No ambiguity, no doom loops.
 - **Knowledge over assumptions.** A perfect KB (Step 1) means the AI understands intent before touching code.
-- **Disobedience over compliance.** The AI refuses to patch symptoms. It works the six signals — user input, KB, code, logs, changelog, tests — and fixes the broken layer, not just the code. That refusal is what makes debugging cheap.
+- **Process over compliance.** The debugging flow forces the AI to check signals before patching. It works the signals the pyramid creates — KB, code, changelog, logs, tests — and fixes the broken layer, not just the code. That process is what makes debugging cheap.
 
 ## The Alternative
 
