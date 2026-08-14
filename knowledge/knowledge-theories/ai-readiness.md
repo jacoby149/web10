@@ -40,3 +40,42 @@ We're at about **60% of the ideal**. The foundation exists — changelog, CI/CD,
 1. **Max the logs** — every API endpoint, every background job, every message boundary. This is the single highest-ROI change for AI debugging cost.
 2. **Fill test gaps** — API layer, media pipeline, social app components. Prioritize areas that break often.
 3. **Update KB to v4** — document what changed, what's new, what's different. AKB that's partially wrong is dangerous.
+
+---
+
+## Detailed Logging Gaps
+
+### What's Already Good (the gold standard)
+
+Two files already follow the ideal — dense, prefixed, at every decision point:
+
+- **`sdk/src/browser.ts`** — 20 `[wapi]` prefixed logs covering the entire popup auth flow: open, contract, message, response, error. This is the model.
+- **`ui/src/interfaces/Interface.tsx`** — 40 `[auth-ui]` prefixed logs covering consent, contract receive, approve/deny, send response. This is the model.
+
+When something breaks in these flows, debugging is cheap because the signal exists.
+
+### The Gaps
+
+| Area | Functions/Handlers | Logging | Gap | Hypothetical Bug | Why Logs Would Help |
+|------|--------------------|---------|-----|-------------------|---------------------|
+| **API route handlers** | ~50 Python handlers | 0 request/response logs | **100%** | "Groups endpoint returning 500" — AI has no idea if it's auth, DB, validation, or a missing field. | Logs at entry (method, path, user ID), auth check, DB call, response — AI reads logs, pins it to one layer. |
+| **API services** | ~100 Python functions | 2 `log.warning` calls | **~98%** | "Documents not updating" — `documentdb.py` has a logger but only logs 2 edge cases. Silent everywhere else. | Logs at every decision point — which path was taken, what was written, what was rejected. |
+| **API media service** | ~10 functions | Logger declared but **never called** | **100%** | "Media upload fails" — `media.py` has `logging.getLogger("web10-media")` but zero calls. Dead code. | Log S3 client creation, presigned URL generation, upload confirm, failures. |
+| **API clickhouse service** | ~30 functions | Logger declared but **never called** | **100%** | "Stats endpoint wrong" — `clickhouse.py` has a logger that never fires. | Log query, row count, aggregation result, error. |
+| **Social app data layer** | ~100 async functions | 0 logs | **100%** | "Feed not loading posts" — `data/posts.ts`, `data/feed.ts`, `data/dms.ts` all silent. AI has to guess which fetch failed, which returned wrong shape, which threw. | Log at every fetch: URL, params, response shape, error. `[social]` prefix for filtering. |
+| **SDK v3.ts** | ~45 methods | 0 logs | **100%** | "Contract request fails silently" — the core client has no logging. Every API call is invisible. | Log method, params, response, error. `[sdk]` prefix. |
+| **SDK http.ts** | 1 function | 0 logs | **100%** | "Network request fails" — the transport layer is silent. No signal on fetch failures. | Log URL, status, body, timeout. |
+| **SDK token.ts** | ~8 functions | 0 logs | **100%** | "Auth token expired" — cookie/JWT handling is invisible. | Log token present, parsed, expired, missing. |
+| **UI credential pages** | ~20 form handlers | 0 logs | **100%** | "Signup form not submitting" — no signal on form state, validation, API call. | Log form submit, validation result, API response. |
+| **UI settings pages** | ~30 handlers | 0 logs | **100%** | "Password change fails" — settings UI is completely silent. | Log action, validation, API call, response. |
+| **Media pipeline (client)** | 7 async functions | 0 logs | **100%** | "Image thumbnail broken" — `mediaProcessing.ts` has 7 functions (processImage, generateThumbnail, captureVideoPoster…) all silent. | Log input dimensions, output size, processing time, error. |
+| **Media pipeline (server)** | 5 route handlers | 0 logs | **100%** | "Media confirm fails" — server media endpoints are silent. | Log upload confirm, S3 write, metadata update. |
+
+### Priority Order (highest ROI first)
+
+1. **Social app data layer** — 100 async functions, zero logs. Every network call, every data shape mismatch, every auth failure is invisible. This is the most broken area for AI debugging.
+2. **API route handlers** — 50 handlers, zero request/response logs. Every 500 error is a guessing game.
+3. **SDK v3.ts + http.ts** — 46 methods, zero logs. The core client is the most critical path and the most silent.
+4. **API media service** — logger exists but is dead code. One line to wire it up, then log the operations.
+5. **UI credential + settings pages** — 50 handlers, zero logs. Auth flows are high-stakes and completely silent.
+6. **Media pipeline (client)** — 7 functions, zero logs. Image/video processing is error-prone and invisible.

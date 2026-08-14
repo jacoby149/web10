@@ -2,6 +2,14 @@
 
 How to use AI to build software without burning money on debugging loops.
 
+## What an LLM Actually Is
+
+An LLM is a language translator. That is its core capability — mapping one well-defined space to another with near-perfect accuracy. Fortran to Python. COBOL to TypeScript. 2021 React to 2026 TypeScript. Code to documentation. Conversations to structured knowledge. Literal to literal, it is almost too good at it. This is not a side effect — it is the model's primary strength, baked into how it was trained.
+
+But an LLM is also benchmaxed. It was optimized for benchmarks like SWE-bench, where trying and failing scores higher than doing nothing. So when it hits a wall, it does not stop — it claws and tries and tries. It will riddle a codebase with speculative fixes, each one introducing new bugs, because getting a 75% on a benchmark is better than getting 0%. This is the terminator instinct: keep trying until the target is hit, even if the path is destruction.
+
+These two traits — perfect translation and relentless overtrying — define how an LLM should be used. Give it translation tasks, and it excels. Give it open-ended debugging, and it destroys.
+
 ## The Cost of Not Doing This
 
 On a personal web10 project, a single debugging session — no logs, no KB, no tests, just AI guessing — cost $100 in tokens. The AI would claw and try and try, re-reading the same code, making speculative fixes, breaking other things, looping. Each loop is context window + reasoning tokens. Five or ten loops and you're bleeding money with nothing to show.
@@ -39,9 +47,11 @@ flowchart TD
 
 Each red box is a token burn. Five loops is 5 × (2000 + 1000 + 1500) = **22,500 tokens** wasted on re-reading and guessing before you even know if the fix is right. At typical API pricing, that's $100+ in a single session.
 
-With the pyramid, something unexpected happens. You ask the AI to debug a bug, and it **disobeys you** — it says, *no, we're not fixing code yet*. It starts from the base of the pyramid and works upward, fixing every layer before it touches the code.
+---
 
-**Chart 1 — The refusal:**
+## The Eureka Moment
+
+With the pyramid, something unexpected happens. You ask the AI to debug a bug, and it **disobeys you**.
 
 ```mermaid
 flowchart LR
@@ -57,11 +67,13 @@ flowchart LR
     class C next
 ```
 
-**Chart 2 — The six signals (checked in order):**
+You said "fix the bug." It said "no." This is the moment where the AI stops being a dumb code monkey and starts being an actual engineer. It refuses to patch symptoms because it knows a code fix on a broken foundation is temporary. The real bug is almost never in the code — it's in the layers below.
+
+So it climbs the six signals from the bottom, checking each one against the one before it:
 
 ```mermaid
 flowchart LR
-    S1["1. User input"] --> S2["2. KB"]
+    S1["1. Your words"] --> S2["2. Knowledge base"]
     S2 --> S3["3. Code"]
     S3 --> S4["4. Logs"]
     S4 --> S5["5. Changelog"]
@@ -71,7 +83,17 @@ flowchart LR
     class S1,S2,S3,S4,S5,S6 signal
 ```
 
-**Chart 3 — Fix and verify:**
+**Signal 1 — Your words.** The bug report. What you told the AI is broken. Chat is inherently messy — you'll misspeak, be vague, contradict yourself. That's fine. The next signal catches it.
+
+**Signal 2 — The knowledge base.** The documented intent of what this feature is supposed to do. If your words say "rectangle" but the knowledge base says "square," the AI flags the mismatch and asks you which is right. It does not blindly follow your inaccurate words. This is why the knowledge base makes sloppy chat safe — you can fire off a rushed bug report and the AI will catch your own inaccuracies before acting on them.
+
+**Signal 3 — The code.** What was actually built. Does the code match the knowledge base? If not, the code drifted from intent — that's the bug, not whatever symptom you reported.
+
+**Signal 4 — The logs.** What happened at runtime. Does the actual behavior match the code? If the code says "call endpoint A" but the logs show "endpoint B was called," the runtime path diverged. The logs pinpoint the branch.
+
+**Signal 5 — The changelog.** The retrospective record of what changed and why. This is the signal of AI understanding. When an AI writes clear, specific changelogs, it understood what it built. When the changelog is obtuse, the AI that wrote this code wasn't thinking clearly — it probably missed an edge case it didn't consider. An obtuse changelog is a red flag: the code needs rethinking, not patching.
+
+**Signal 6 — The tests.** What is expected and verified. Is there a test for this case? If not, add one before fixing — so the fix is verifiable. If there is a test and it passes, the foundation is clean and the AI can make the actual fix:
 
 ```mermaid
 flowchart LR
@@ -87,51 +109,15 @@ flowchart LR
     class V done
 ```
 
-The red box is the key insight: **the AI disobeys your instruction**. You said "fix the bug," and it said "no, the KB is wrong, let's fix that first." This is what makes it truly intelligent — it understands that a code fix on a broken foundation is just temporary. The real bug is almost never in the code. The real bug is that the KB is stale, the code drifted from the KB, there are no tests, or the changelog doesn't reflect what changed.
+Each signal is cheap to check. Each one narrows the search space. The AI does not guess — it reads, compares, and flags misalignments. When one fails, it tells you exactly what kind of bug it is: user misspoke, knowledge base stale, code drifted, runtime diverged, changelog obtuse, or no test exists.
 
-So it works the pyramid from the bottom, checking **six signals** against each other in order:
-
-| Order | Signal | The Question |
-|-------|--------|-------------|
-| 1 | **User input** | "What is broken?" |
-| 2 | **KB** | "What is this supposed to do?" — does the bug report match the documented intent? **Also: did the user say something slightly wrong?** LLMs follow instructions to a fault — if you say "rectangle" but mean "square," it will make a rectangle even if every other signal points to square. The KB catches your own inaccuracies. |
-| 3 | **Code** | "What was actually built?" — does the code match the KB? |
-| 4 | **Logs** | "What happened at runtime?" — does the behavior match the code? |
-| 5 | **Changelog** | "What was the intention of the code under scrutiny?" — does the changelog capture the intent, or is it obtuse? An obtuse changelog means the AI that wrote this code didn't understand it. |
-| 6 | **Tests** | "What is expected?" — is there a test? Does it pass? |
-
-Each signal is checked against the one before it. Misalignment at any layer is the real bug. The fix depends on which layer is wrong:
-
-- User input vs KB mismatch → could mean the KB is stale, **or the user misspoke.** LLMs attach to inaccuracies in your words and follow them literally — "rectangle" when you meant "square." The KB is the guardrail against your own imprecision. The AI should flag this and ask before proceeding.
-
-This is why the pyramid lets your chat be messy and spontaneous. Chat is inherently brittle — you'll misspeak, be vague, contradict yourself. That's fine. The KB is the stable reference that catches your inaccuracies as the AI works upward. You can fire off a sloppy bug report and the AI will ask, "the KB says X but you said Y — which is right?" instead of blindly following your inaccurate words. The KB makes sloppy chat safe.
-- KB vs code mismatch → code drift, fix the code
-- Code vs logs mismatch → runtime path diverged, find the branch
-- **Logs vs changelog mismatch → the changelog is the retrospective signal of AI understanding.** The changelog captures the intention of the implemented code. If the changelog is obtuse, the AI that wrote this code wasn't thinking clearly about it — it probably wasn't considering the issue being debugged unless it says so. AI is incredible at writing changelogs when it understands what it built. An obtuse changelog is a red flag: the code was written without clear intent, and the fix needs to address the root misunderstanding, not just patch the symptom.
-- No tests → add them before fixing, so the fix is verifiable
-
-This is why the pyramid is also a **waterfall**. You build it bottom-up like a pyramid, and when debugging, the AI works through it like a waterfall — each layer must be clean before it flows to the next. It refuses to skip. It refuses to patch. It fixes the foundation first, then the code, and makes sure KB, code, logs, tests, and changelog are all in alignment.
+This is why the pyramid is also a **waterfall**. You build it bottom-up like a pyramid, and when debugging, the AI works through it like a waterfall — each layer must be clean before it flows to the next. It refuses to skip. It refuses to patch. It fixes the foundation first, then the code, and makes sure everything is in alignment.
 
 That refusal — that disobedience — is what saves the $100. Because the code fix on a broken foundation is always a temporary fix that breaks again. Fixing the foundation makes the code fix permanent.
 
-## What AI Is Good At
-
-AI excels at translation — mapping one well-defined space to another:
-
-- Language to language (Fortran → Python, COBOL → TypeScript)
-- Framework to framework (pipenv → ux, 2021 React → 2026 TypeScript)
-- Code → Knowledge base (extracting intent, structure, and rationale from existing code)
-- Conversations → Knowledge base (distilling operator intent into structured docs)
-
-These are translation tasks. The input and output shapes are known. The AI can do them reliably.
-
-## What AI Is Bad At
-
-Speculative debugging in a vacuum. When code breaks and there are no logs, no trace, no signal — AI guesses. And guessing costs money in agent minutes. The more context you give it, the better, but even then it won't always ask for enough on its own.
-
 ## The Pyramid
 
-This is a five-step pyramid. You build from the bottom up. Each layer makes debugging cheaper for the layers above it.
+The pyramid is built from the LLM's two traits. Steps 1 and 3 are **translation tasks** — the LLM's strength. Steps 2, 4, and 5 create the **signal** that prevents the LLM's weakness (speculative overtrying) from burning money. Build from the bottom up:
 
 ```
            ┌───────┐
