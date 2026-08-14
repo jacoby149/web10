@@ -558,10 +558,17 @@
     };
     return client;
   }
+  function closeAuthPopup() {
+    if (_authPopup && !_authPopup.closed) {
+      console.log("[wapi] closeAuthPopup — sending close_popup to popup");
+      _authPopup.postMessage({ type: "close_popup" }, "*");
+    }
+  }
   var web10 = {
     createV3Client: createV3Client2,
     openAuthPortal,
     authListen,
+    closeAuthPopup,
     cookieDict,
     readTokenCookie,
     setTokenCookie,
