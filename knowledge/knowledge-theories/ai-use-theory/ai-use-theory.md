@@ -55,7 +55,7 @@ Each red box is a token burn. Five loops is 5 × (2000 + 1000 + 1500) = **22,500
 
 Once the pyramid is built, debugging follows a different process. The pyramid is the setup. This flow is what you run when something breaks. The AI won't naturally follow this — it's enforced via AGENTS.md, system instructions, or explicit prompts. Without the instruction to check signals before patching, the AI will default to speculative fixes. The "disobedience" — refusing to patch symptoms and fixing the foundation first — is a process you impose, not natural LLM behavior.
 
-The flow works in three phases: **orient, generate, fix.** Each phase has branching paths — the AI can take different actions depending on what it finds.
+The flow works in four phases: **orient, generate, compare, repair.** Each phase has branching paths — the AI can take different actions depending on what it finds.
 
 ### Phase 1: Orient — KB ↔ Code ↔ Changelog alignment
 
@@ -169,7 +169,52 @@ flowchart TD
     class ORIENTED ok
 ```
 
-Same structure as Phase 1, just with logs as the fourth signal. If the logs show a path the KB doesn't cover, the KB needs fixing. If the code matches the changelog but the logs show a different runtime path, there's a code drift the KB didn't catch. If the logs are too thin to compare, loop back to Phase 2. When all four align, the code fix is targeted — or the bug is already resolved.
+Same structure as Phase 1, just with logs as the fourth signal. If the logs show a path the KB doesn't cover, the KB needs fixing. If the code matches the changelog but the logs show a different runtime path, there's a code drift the KB didn't catch. If the logs are too thin to compare, loop back to Phase 2. When all four align, proceed to Phase 4: repair.
+
+### Phase 4: Repair — fix in order, then changelog
+
+Once the compare phase identifies what's broken, repair in hierarchy. Foundation before implementation.
+
+```mermaid
+flowchart TD
+    REPAIR["Start repair"] --> KB{"KB needs\nrepair?"}
+    KB -- Yes --> FIX_KB["Human: repair KB"]
+    KB -- No --> CODE{"Code needs\nrepair?"}
+    FIX_KB --> CODE
+    CODE -- Yes --> FIX_CODE["Repair code"]
+    CODE -- No --> LOGS{"Logs need\nrepair?"}
+    FIX_CODE --> LOGS
+    LOGS -- Yes --> FIX_LOGS["Add or fix logging"]
+    LOGS -- No --> CHANGELOG["Write changelog entry"]
+    FIX_LOGS --> CHANGELOG
+    CHANGELOG --> VERIFY["Run tests to verify"]
+    VERIFY --> DONE["Done"]
+
+    classDef repair fill:#1565c0,color:#fff,stroke:#fff,stroke-width:2px
+    classDef human fill:#d32f2f,color:#fff,stroke:#fff,stroke-width:2px
+    classDef action fill:#f57c00,color:#fff,stroke:#fff,stroke-width:2px
+    classDef ok fill:#2e7d32,color:#fff,stroke:#fff,stroke-width:2px
+
+    class REPAIR repair
+    class KB repair
+    class CODE repair
+    class LOGS repair
+    class FIX_KB human
+    class FIX_CODE action
+    class FIX_LOGS action
+    class CHANGELOG action
+    class VERIFY action
+    class DONE ok
+```
+
+Repair in order, only if needed:
+
+1. **KB first** — if the knowledge base is wrong or incomplete, the human repairs it. The AI can't authoritatively write knowledge it doesn't understand.
+2. **Code next** — with the KB right, the code fix is targeted. One change, not speculative.
+3. **Logs next** — if the logs were too thin to diagnose, add the missing logging so the next debug is cheaper.
+4. **Changelog last** — write the entry. It captures the intention of this fix, so the next AI that debugs this code has the signal.
+
+Every step is conditional. If nothing needs repairing at a layer, skip it. The changelog is always written — it's the signal for the next debugging session.
 
 That process — forcing the AI to check signals before patching — is what saves the money. Because a code fix on a broken foundation is always temporary. Fixing the foundation makes the code fix permanent. And fixing the KB requires a human in the loop — the AI can flag the mismatch, but the human writes the knowledge.
 
