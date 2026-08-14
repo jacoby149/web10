@@ -137,26 +137,23 @@ Same alignment check as Phase 1, but now with a fourth input: the actual log out
 ```mermaid
 flowchart TD
     GEN_DONE["Logs generated\nfrom Phase 2"] --> LOAD["Load KB + Code + Changelog\n+ Logs into context window"]
-    LOAD --> CHECK{"Do KB, Code,\nChangelog, and Logs align?"}
+    LOAD --> GATE{"All four\naligned?"}
 
-    CHECK -- Yes --> PR["All aligned!\nPR to review"]
-
-    CHECK -- KB drift --> MISMATCH["Mismatch found.\n→ Phase 4: repair"]
-    CHECK -- Code drift --> MISMATCH
-    CHECK -- Logs diverge --> MISMATCH
+    GATE -- Yes --> PR["PR to review"]
+    GATE -- No --> P4["→ Phase 4: repair"]
 
     classDef orient fill:#1565c0,color:#fff,stroke:#fff,stroke-width:2px
-    classDef flag fill:#f57c00,color:#fff,stroke:#fff,stroke-width:2px
     classDef ok fill:#2e7d32,color:#fff,stroke:#fff,stroke-width:2px
+    classDef action fill:#f57c00,color:#fff,stroke:#fff,stroke-width:2px
 
     class GEN_DONE orient
     class LOAD orient
-    class CHECK orient
-    class MISMATCH flag
+    class GATE orient
     class PR ok
+    class P4 action
 ```
 
-Detection only. If all four signals align, PR. If anything is misaligned — KB drift, code drift, logs diverge — route to Phase 4 for repair. Phase 4 loops back to Phase 2, then Phase 3 runs the gate again. Iterate until green.
+Detection only. One gate: all four aligned? Yes → PR. No → Phase 4 repairs, then loops back to Phase 2, then Phase 3 runs the gate again. Iterate until green.
 
 ### Phase 4: Repair — fix in order, then changelog
 
