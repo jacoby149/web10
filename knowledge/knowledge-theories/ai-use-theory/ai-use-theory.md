@@ -145,28 +145,26 @@ flowchart TD
     GEN_DONE["Logs generated\nfrom Phase 2"] --> LOAD["Load KB + Code + Changelog\n+ Logs into context window"]
     LOAD --> CHECK{"Do KB, Code,\nChangelog, and Logs align?"}
 
-    CHECK -- Yes --> ORIENTED["All aligned.\nFix code or done."]
+    CHECK -- Yes --> PR["All aligned!\nPR to review"]
 
-    CHECK -- KB drift --> FIX_KB["Fix KB flaw:\nupdate knowledge base\nto match reality"]
-    FIX_KB --> LOAD
+    CHECK -- KB drift --> REPAIR["→ Phase 4:\nrepair KB, code, logs,\nwrite changelog"]
+    REPAIR --> LOOP["← Back to Phase 2"]
+    LOOP -.-> GEN_DONE
 
-    CHECK -- Code drift --> FIX_CODE["Fix code drift:\ncode doesn't match\nwhat KB says it should do"]
-    FIX_CODE --> LOAD
-
-    CHECK -- Logs diverge --> FIX_LOGS["Logs don't match\nexpectation — add more logs\nor fix logging"]
-    FIX_LOGS --> LOAD
+    CHECK -- Code drift --> REPAIR
+    CHECK -- Logs diverge --> REPAIR
 
     classDef orient fill:#1565c0,color:#fff,stroke:#fff,stroke-width:2px
     classDef action fill:#f57c00,color:#fff,stroke:#fff,stroke-width:2px
     classDef ok fill:#2e7d32,color:#fff,stroke:#fff,stroke-width:2px
+    classDef loop fill:#6a1b9a,color:#fff,stroke:#fff,stroke-width:2px
 
     class GEN_DONE orient
     class LOAD orient
     class CHECK orient
-    class FIX_KB action
-    class FIX_CODE action
-    class FIX_LOGS action
-    class ORIENTED ok
+    class REPAIR action
+    class LOOP loop
+    class PR ok
 ```
 
 Same structure as Phase 1, just with logs as the fourth signal. If the logs show a path the KB doesn't cover, the KB needs fixing. If the code matches the changelog but the logs show a different runtime path, there's a code drift the KB didn't catch. If the logs are too thin to compare, loop back to Phase 2. When all four align, proceed to Phase 4: repair.
@@ -187,13 +185,12 @@ flowchart TD
     LOGS -- Yes --> FIX_LOGS["Add or fix logging"]
     LOGS -- No --> CHANGELOG["Write changelog entry"]
     FIX_LOGS --> CHANGELOG
-    CHANGELOG --> VERIFY["Run tests to verify"]
-    VERIFY --> DONE["Done"]
+    CHANGELOG --> BACK["← Back to Phase 2:\nrun tests, produce logs"]
 
     classDef repair fill:#1565c0,color:#fff,stroke:#fff,stroke-width:2px
     classDef human fill:#d32f2f,color:#fff,stroke:#fff,stroke-width:2px
     classDef action fill:#f57c00,color:#fff,stroke:#fff,stroke-width:2px
-    classDef ok fill:#2e7d32,color:#fff,stroke:#fff,stroke-width:2px
+    classDef loop fill:#6a1b9a,color:#fff,stroke:#fff,stroke-width:2px
 
     class REPAIR repair
     class KB repair
@@ -203,8 +200,7 @@ flowchart TD
     class FIX_CODE action
     class FIX_LOGS action
     class CHANGELOG action
-    class VERIFY action
-    class DONE ok
+    class BACK loop
 ```
 
 Repair in order, only if needed:
