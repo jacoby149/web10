@@ -139,8 +139,8 @@ flowchart TD
     GEN_DONE["Logs generated\nfrom Phase 2"] --> LOAD["Load KB + Code + Changelog\n+ Logs into context window"]
     LOAD --> GATE{"All four\naligned?"}
 
-    GATE -- Yes --> PR["PR to review"]
-    GATE -- No --> P4["→ Phase 4: repair"]
+    GATE -->|"Yes"| PR["PR to review"]
+    GATE -->|"No"| P4["→ Phase 4: repair"]
 
     classDef orient fill:#1565c0,color:#fff,stroke:#fff,stroke-width:2px
     classDef ok fill:#2e7d32,color:#fff,stroke:#fff,stroke-width:2px
