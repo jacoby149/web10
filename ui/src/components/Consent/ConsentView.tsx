@@ -227,11 +227,36 @@ function ConsentView({ I }: { I: Record<string, any> }) {
   const pendingContracts: any[] = I.pendingContracts || [];
   console.log('[consent] pendingContracts:', pendingContracts, 'grantedOrigins:', grantedOrigins);
 
-  // Filter out ACRs whose origin already has a contract (GCRs always show)
-  const alreadyGrantedACRs = pendingContracts.filter((c: any) => c.kind === 'app' && grantedOrigins.has(c.app_origin || c.allowed_origin));
+  // Filter out ACRs whose origin already has ALL requested permissions
+  const alreadyGrantedACRs = pendingContracts.filter((c: any) => {
+    if (c.kind !== 'app') return false;
+    const origin = c.app_origin || c.allowed_origin;
+    const existing = v3Contracts.find((vc: any) => vc.allowed_origin === origin);
+    if (!existing) return false;
+    // Check if all requested permissions are already granted
+    const reqPerms = c.permissions || {};
+    for (const service of Object.keys(reqPerms)) {
+      const existingPerms = existing.permissions?.[service] || [];
+      for (const perm of reqPerms[service]) {
+        if (!existingPerms.includes(perm)) return false;
+      }
+    }
+    return true;
+  });
   const displayContracts = pendingContracts.filter((c: any) => {
-    if (c.kind === 'app') return !grantedOrigins.has(c.app_origin || c.allowed_origin);
-    return true; // group CRs always display
+    if (c.kind !== 'app') return true;
+    const origin = c.app_origin || c.allowed_origin;
+    const existing = v3Contracts.find((vc: any) => vc.allowed_origin === origin);
+    if (!existing) return true;
+    // Check if there are new permissions to grant
+    const reqPerms = c.permissions || {};
+    for (const service of Object.keys(reqPerms)) {
+      const existingPerms = existing.permissions?.[service] || [];
+      for (const perm of reqPerms[service]) {
+        if (!existingPerms.includes(perm)) return true;
+      }
+    }
+    return false;
   });
   const username = I.wapi?.readToken?.()?.username as string | undefined;
 

@@ -168,12 +168,23 @@ function createV3Client(options?: Parameters<typeof _createV3Client>[0]): V3Clie
   return client
 }
 
+/**
+ * Close the auth popup (called by the app after all contracts are done).
+ */
+function closeAuthPopup(): void {
+  if (_authPopup && !_authPopup.closed) {
+    console.log('[wapi] closeAuthPopup — sending close_popup to popup')
+    _authPopup.postMessage({ type: 'close_popup' }, '*')
+  }
+}
+
 // ── Attach to window ────────────────────────────────────────────────────────
 
 const web10 = {
   createV3Client,
   openAuthPortal,
   authListen,
+  closeAuthPopup,
   cookieDict,
   readTokenCookie,
   setTokenCookie,

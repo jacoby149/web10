@@ -56,6 +56,7 @@ window.web10.authListen(() => {
     // Group might already exist — proceed either way
     editor.style.display = 'block'
     initApp()
+    window.web10.closeAuthPopup()
   })
 })
 

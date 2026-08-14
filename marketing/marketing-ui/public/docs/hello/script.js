@@ -28,7 +28,10 @@ authButton.onclick = () => {
     }
   })
 }
-window.web10.authListen(() => initApp())
+window.web10.authListen(() => {
+  initApp()
+  window.web10.closeAuthPopup()
+})
 
 function initApp() {
   authButton.innerHTML = 'log out'

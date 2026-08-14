@@ -210,6 +210,10 @@ function useInterface() {
                 I.setPendingContracts(normalized);
                 console.log('[auth-ui] pendingContracts state set, count:', I.pendingContracts?.length)
             }
+            if (e.data?.type === 'close_popup') {
+                console.log('[auth-ui] close_popup received, closing')
+                window.close();
+            }
         });
         console.log('[auth-ui] initAuthenticator — contract listener attached')
 
@@ -701,16 +705,8 @@ function useInterface() {
             return;
         }
 
-        // App contract
+        // App contract — always apply (may merge new permissions into existing)
         const origin = contract.app_origin;
-        const alreadyGranted = I.hasV3Contract?.(origin);
-        if (alreadyGranted) {
-            console.log('[auth-ui] approveContract — already granted for origin:', origin)
-            I.removePendingContract(contract);
-            sendContractResponse(windowSource, 'approved');
-            return;
-        }
-
         console.log('[auth-ui] approveContract — applying ACR for:', origin)
         I.setStatus("Approving contract...");
         applyACR(contract)
@@ -719,11 +715,13 @@ function useInterface() {
                 I.setStatus("Contract granted!");
                 I.v3ContractsLoad?.();
                 I.removePendingContract(contract);
+                sendContractResponse(windowSource, 'approved');
                 setTimeout(() => I.setStatus(null), 2000);
             })
             .catch((e) => {
                 console.error('[auth-ui] approveContract — ACR failed:', e)
                 I.setStatus("Failed to approve: " + (e.message || String(e)));
+                sendContractResponse(windowSource, 'error', [e.message || String(e)]);
             });
     }
 
@@ -792,8 +790,9 @@ function useInterface() {
                 console.log('[auth-ui] goToApp — sending auth token to opener, target:', target, 'referrer:', referrer)
                 I.setStatus("Connecting…");
                 window.opener.postMessage({ type: 'auth', token }, target);
-                console.log('[auth-ui] goToApp — auth token sent, closing popup')
-                window.close();
+                console.log('[auth-ui] goToApp — auth token sent, NOT closing — waiting for contracts')
+                // Don't close — opener may send more contracts (e.g. group contracts)
+                // Opener can close us with postMessage({ type: 'close_popup' })
             } catch (err) {
                 console.error('[auth-ui] goToApp — postMessage failed:', err)
                 I.setStatus("Failed to connect to app.");
