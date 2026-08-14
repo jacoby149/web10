@@ -10,7 +10,7 @@ But an LLM is also a relentless overtryer. It was trained to be helpful and prod
 
 These two traits — perfect translation and relentless overtrying — define how an LLM should be used. Give it translation tasks, and it excels. Give it open-ended debugging, and it destroys.
 
-A single conductor.build thread doom-looping for 2.5 hours — no logs, no KB, no tests, just AI guessing — burns roughly $25 in tokens. But you rarely run one thread. Five threads, all stuck on the same bug, all trying different speculative fixes for 2.5 hours each, is **~$125**. And that's conservative — the context window grows with each loop, so later loops cost more. A real session easily exceeds $200.
+A single conductor.build thread doom-looping for 2.5 hours — no logs, no KB, no tests, just AI guessing — burns roughly $25 in tokens. But you rarely run one thread. Five threads, all stuck on the same bug, all trying different speculative fixes for 2.5 hours each, is **about $125**. And that's conservative — the context window grows with each loop, so later loops cost more. A real session easily exceeds $200.
 
 That is money burned into thin air. The AI read the same code 750 times across five threads. It generated 50 speculative fixes. None of them worked. You could buy a guitar with that. Instead it's gone.
 
@@ -47,7 +47,7 @@ flowchart TD
     style H fill:#f88,color:#fff
 ```
 
-Each red box is a token burn. One loop is ~167K tokens. At Qwen 3.6 27B pricing ($0.30/M input, ~$1.50/M output), that's ~$0.08 per loop. Sounds cheap — but an agent in a doom loop makes ~150 of these per hour. That's **~$12/hour/thread**. Five threads stuck for 2.5 hours is **~$150**. And that's conservative — the context window grows with each loop as history accumulates, so later loops cost more. A real session easily exceeds $200.
+Each red box is a token burn. One loop is ~167K tokens. At Qwen 3.6 27B pricing ($0.30/M input, ~$1.50/M output), that's ~$0.08 per loop. Sounds cheap — but an agent in a doom loop makes ~150 of these per hour. That's **about $12/hour/thread**. Five threads stuck for 2.5 hours is **about $150**. And that's conservative — the context window grows with each loop as history accumulates, so later loops cost more. A real session easily exceeds $200.
 
 ---
 
