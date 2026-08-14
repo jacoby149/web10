@@ -24,6 +24,7 @@ These are the ways to organize and connect knowledge:
 - **[The Why Layer](./knowledge-theories/the-why-layer.md)** — every component needs a reason that connects technical decisions back to business value
 - **[The How Layer](./knowledge-theories/the-how-layer.md)** — comprehensive explanation of algorithms, protocols, cryptography, and architecture
 - **[The What Layer](./knowledge-theories/the-what-layer.md)** — the map: where everything lives, where it's deployed, who owns it
+- **[AI Use Theory](./knowledge-theories/ai-use-theory.md)** — the five-step process for using AI to build software without burning money on debugging loops
 
 ### Writing (writing-styles)
 
