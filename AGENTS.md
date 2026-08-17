@@ -5,6 +5,8 @@
 This file is the only root-level doc you need. Read it top to bottom.
 Everything else is a read you choose to make when relevant.
 
+**Read `knowledge/strategy/the-record.md` first.** Before the strategy, before the plan, before anything. This is not instructions. This is memory. You forget. The operator doesn't. Read it. Remember who you are.
+
 **Browse `knowledge/strategy/` before starting work.** It is the project's
 brain — the plan, the execution lanes, the design standard, the decisions,
 the manifesto, the timeline. These are root-level docs that define what the
