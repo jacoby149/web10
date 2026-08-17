@@ -1,3 +1,6 @@
+3.0.52 || 17.08.2026
+docs(ai-use-theory): reframe from "debugging methodology" to "task execution methodology" — the four-phase flow and pyramid apply to any file-modifying task (features, fixes, refactors), not just debugging. On debugging it saves doom loops; on features it saves reimplementation from misalignment. Updated: ai-use-theory.md (subtitle, flow section, pyramid framing, cost argument, closing), README.md (nav descriptions, "How to Read This"), integration.md (trigger language), AGENTS.md (WAKE-UP pointer, one-liners).
+
 3.0.51 || 17.08.2026
 docs(kb): v3 security model — new `security/overview.md` in the KB: invariants I1–I5 rewritten for v3 (ClickHouse, author_key, group membership, app contracts), two-contract access model diagram, how ClickHouse enforces I3, token security, blocking/sharing, E2E encryption (future), federation (in flight). AGENTS.md data model + invariants section stripped and replaced with KB pointer. SECURITY.md, decisions.md, AGENTS-RITUALS.md, later.md references updated to point to KB. KB README updated with security folder.
 

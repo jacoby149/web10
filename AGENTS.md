@@ -20,10 +20,11 @@ intention behind every change.
 
 **Load `knowledge/ai-use-theory/ai-use-theory.md` before modifying any code.**
 This is your operating procedure when adding features, fixing bugs, or
-refactoring — the four-phase debugging flow (**orient → generate → compare
+refactoring — the four-phase task flow (**orient → generate → compare
 → repair**) and the pyramid (**KB → logs → tests → features**). When
 something breaks, do not speculate: run the flow. When building new
-features, build the pyramid bottom-up. The KB is the root of trust — keep
+features, build the pyramid bottom-up — the KB alignment is what saves
+you from reimplementation due to misalignment. The KB is the root of trust — keep
 it aligned with the code before you trust any of it. For read-only tasks
 (answering questions, explaining code, searching), this protocol does not
 apply.
@@ -261,7 +262,7 @@ Logging is one layer of the pyramid. The load-bearing one-liners to keep in mind
 
 - **The KB is the root of trust.** Intent has no higher oracle than the
   KB — keep it aligned with the code before you trust any of it.
-- **Debugging is signal-grounded convergence** — KB = target, tests =
+- **Tasks are signal-grounded convergence** — KB = target, tests =
   altitude, logs = gradient; you close the gap between them.
 - **Parallelize breadth, not depth** — N threads on N independent
   problems, not N threads on one bug.

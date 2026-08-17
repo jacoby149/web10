@@ -2,7 +2,7 @@
 
 [← back to README](./README.md)
 
-How to use AI to build software without burning money on debugging loops.
+A methodology for AI file-modifying tasks. On debugging, it saves doom loops. On features, it saves reimplementation from misalignment. The process that makes any change converge on the first pass instead of burning tokens in speculative loops.
 
 ## What an LLM Actually Is
 
@@ -10,11 +10,11 @@ An LLM is a language translator. That is its core capability — mapping one wel
 
 But an LLM is also a relentless overtryer. It was trained to be helpful and produce output — not to say "I don't know" or ask for clarification. When it hits a wall, it does not stop. It claws and tries and tries, riddling a codebase with speculative fixes because producing something plausible scores higher than admitting uncertainty. Mun Logadan put it plainly: "Benchmark training selects for models that make bold assumptions in the face of ambiguity rather than asking for clarification. Real life just isn't a benchmark." This is the terminator instinct: keep trying until the target is hit, even if the path is destruction.
 
-Two traits — perfect translation and relentless overtrying — define how an LLM should be used. Give it translation tasks, and it excels. Give it open-ended debugging, and it destroys.
+Two traits — perfect translation and relentless overtrying — define how an LLM should be used. Give it translation tasks, and it excels. Give it open-ended file modification without signal, and it destroys.
 
-A third trait completes the picture: an LLM is **shy about signal**. It will not instrument its own code. It will not add the logs, or write the tests, that would make the next failure cheap to diagnose — because producing a fix scores higher than producing a probe. Left to itself it writes the industry-standard default (minimal logs, sleek abstractions, productionized polish) and then speculatively debugs the very code it just made opaque. This is why the pyramid below is a **directed plan**, not a suggestion: the signal has to be forced by a process (AGENTS.md, a prompt, a review gate) that the LLM would not choose on its own. Crucially, the pyramid does **not** make the LLM a better debugger. It **converts debugging from an open-ended reasoning task** — where the LLM overtries and burns tokens — **into a signal-grounded verification task** — where it reads the break from the logs, fixes it once, and a test confirms it. The LLM still does the fixing; the pyramid just removes the guessing.
+A third trait completes the picture: an LLM is **shy about signal**. It will not instrument its own code. It will not add the logs, or write the tests, that would make the next task cheap to verify — because producing a change scores higher than producing a probe. Left to itself it writes the industry-standard default (minimal logs, sleek abstractions, productionized polish) and then speculatively verifies the very code it just made opaque. This is why the pyramid below is a **directed plan**, not a suggestion: the signal has to be forced by a process (AGENTS.md, a prompt, a review gate) that the LLM would not choose on its own. Crucially, the pyramid does **not** make the LLM a better builder. It **converts any file-modifying task from an open-ended reasoning task** — where the LLM overtries and burns tokens — **into a signal-grounded verification task** — where it reads the break from the logs, makes the change once, and a test confirms it. The LLM still does the building; the pyramid just removes the guessing.
 
-A single conductor.build thread doom-looping for 2.5 hours — no logs, no knowledge base, no tests, just AI guessing — burns roughly $25 in tokens. But you rarely run one thread. Five threads, all stuck on the same bug, all trying different speculative fixes for 2.5 hours each, is **about $125**. And that's conservative — the context window grows with each loop, so later loops cost more. A real session easily exceeds $200.
+A single conductor.build thread doom-looping for 2.5 hours — no logs, no knowledge base, no tests, just AI guessing — burns roughly $25 in tokens. But you rarely run one thread. Five threads, all stuck on the same task (a bug, a feature, a refactor), all trying different speculative approaches for 2.5 hours each, is **about $125**. And that's conservative — the context window grows with each loop, so later loops cost more. A real session easily exceeds $200.
 
 That is money burned into thin air. The AI read the same code 750 times across five threads. It generated 50 speculative fixes. None of them worked. You could buy a guitar with that. Instead it's gone.
 
@@ -24,7 +24,7 @@ With the pyramid, the same debugging drops to $5-$10 total. One thread, one loop
 
 ## The Problem
 
-An LLM trained to produce output will keep generating — even when generating makes things worse. It may ask for more context, but it is shy — it won't always ask for enough. And when it writes code, it defaults to industry standard: minimal logs, sleek abstractions, productionized polish. Then when something breaks, it speculatively debugs its own minimally-logged code and enters expensive doom loops.
+An LLM trained to produce output will keep generating — even when generating makes things worse. It may ask for more context, but it is shy — it won't always ask for enough. And when it modifies files, it defaults to industry standard: minimal logs, sleek abstractions, productionized polish. Then when the result doesn't match intent, it speculatively patches its own minimally-logged code and enters expensive doom loops.
 
 In a conductor.build harness, every speculative debug loop is a fresh context window. No caching. No carryover. The AI re-reads the entire codebase, reasons about what might be wrong, generates a fix, and if it's wrong, the whole cycle repeats from scratch — with a larger context window, because the conversation history grew. Each loop costs more than the last.
 
@@ -55,9 +55,9 @@ Each red box is a token burn. One loop is ~167K tokens. At Qwen 3.6 27B pricing 
 
 ---
 
-## The Debugging Flow
+## The Task Flow
 
-Once the pyramid is built, debugging follows a different process. The pyramid is the setup. This flow is what you run when something breaks. The AI won't naturally follow this — it's enforced via AGENTS.md, system instructions, or explicit prompts. Without the instruction to check signals before patching, the AI will default to speculative fixes. The "disobedience" — refusing to patch symptoms and fixing the foundation first — is a process you impose, not natural LLM behavior.
+Once the pyramid is built, every file-modifying task follows the same process. The pyramid is the setup. This flow is what you run for any task — primarily debugging (where it saves doom loops), but also features and refactors (where it saves reimplementation from misalignment). The AI won't naturally follow this — it's enforced via AGENTS.md, system instructions, or explicit prompts. Without the instruction to check signals before patching, the AI will default to speculative changes. The "disobedience" — refusing to patch symptoms and fixing the foundation first — is a process you impose, not natural LLM behavior.
 
 The flow works in four phases: **orient, generate, compare, repair.** Each phase has branching paths — the AI can take different actions depending on what it finds.
 
@@ -195,7 +195,7 @@ That process — forcing the AI to check signals before patching — is what sav
 
 ## The Pyramid
 
-The pyramid is a **setup order** for building a codebase that's debuggable by AI. It is separate from the debugging flow above — the pyramid is what you build first, the debugging flow is what you run after. The ordering (knowledge base before logs before tests) is a theory based on the LLM's three traits and the evidence that each layer eliminates a category of token waste. Nothing proves this is the only valid order, but it is the order that matches the LLM's strengths (translation tasks first) and creates the signal that prevents its weakness (speculative overtrying) from burning money. Build from the bottom up:
+The pyramid is a **setup order** for building a codebase where AI tasks converge. It is separate from the task flow above — the pyramid is what you build first, the task flow is what you run after. The ordering (knowledge base before logs before tests) is a theory based on the LLM's three traits and the evidence that each layer eliminates a category of token waste. Nothing proves this is the only valid order, but it is the order that matches the LLM's strengths (translation tasks first) and creates the signal that prevents its weakness (speculative overtrying) from burning money. Build from the bottom up:
 
 ```
               ┌──────────┐
@@ -244,13 +244,13 @@ Only after the above is the codebase truly debuggable and the AI's understanding
 
 The whole pyramid rests on a single axiom: **the knowledge base is correct.** It is the root of trust. Every other signal in the pyramid is a check *against* the knowledge base — tests verify the code does what the knowledge base says it should, logs verify the runtime matches what the knowledge base says should happen, the changelog records why. The knowledge base itself is checked against only one thing: the operator's intent. And intent has no higher oracle — there is no test that verifies the goal is the right goal. So "the knowledge base correctly captures intent" is the irreducible foundation of the method.
 
-The AI cannot remove this assumption (it cannot verify intent, only read and draft), but it *reduces* it: the AI drafts the knowledge base from the code and existing docs, flags internal contradictions, and flags knowledge-base↔code↔changelog drift (Phase 1 of the debugging flow), so the operator reviews a scrutinized draft rather than a blank page. The operator remains the final authority on intent. If that intent is wrong, or the knowledge base goes unreviewed, the error propagates down into everything and no downstream signal catches it — a perfect descent toward a mis-specified target still converges, to the wrong place. That is the theory's stated boundary, not a bug: the one thing no automated system can do is verify that the goal is the right goal.
+The AI cannot remove this assumption (it cannot verify intent, only read and draft), but it *reduces* it: the AI drafts the knowledge base from the code and existing docs, flags internal contradictions, and flags knowledge-base↔code↔changelog drift (Phase 1 of the task flow), so the operator reviews a scrutinized draft rather than a blank page. The operator remains the final authority on intent. If that intent is wrong, or the knowledge base goes unreviewed, the error propagates down into everything and no downstream signal catches it — a perfect descent toward a mis-specified target still converges, to the wrong place. That is the theory's stated boundary, not a bug: the one thing no automated system can do is verify that the goal is the right goal.
 
 This is also why the human sits at the **base**, not in every agent's path. The operator verifies the knowledge base once; the parallel agents consume that verified knowledge base and work autonomously above it. The human does not scale with the number of agents — the knowledge base does. "Human in the loop" means "human at the base," which is exactly what makes the rest of the pyramid parallelizable.
 
 ## Parallelize Breadth, Not Depth
 
-The cost failure at the top of this doc — five threads on one bug, $125 — is not a parallelism failure, it is a *redundancy* failure. Five threads on the same problem is five redundant attempts at one convergence. Without a gradient they all flail; with a gradient, one of them is enough and the other four are pure waste (and they collide, each burning context the others can't use).
+The cost failure at the top of this doc — five threads on one task, $125 — is not a parallelism failure, it is a *redundancy* failure. Five threads on the same problem is five redundant attempts at one convergence. Without a gradient they all flail; with a gradient, one of them is enough and the other four are pure waste (and they collide, each burning context the others can't use).
 
 The productive use of parallelism is the opposite: **N threads on N independent problems.** Independent spaces, no shared seams, each with its own target (knowledge base), its own altitude (tests), its own gradient (logs). Each thread converges on its own problem, so ten threads in ten independent spaces give ten times the real throughput — no collision, no redundancy. This is the lane model: a lane is an independent space, and parallelism is spent *across* lanes, never *within* one. Parallelize breadth, not depth.
 
@@ -265,19 +265,19 @@ Each layer of the pyramid eliminates a category of token waste:
 | Changelog | AI can't see if the code was understood when written; obtuse code gets obtuse fixes | AI sees the intention behind every change; an obtuse changelog flags an oversight — even in a simple patch, the AI might have missed an edge case it didn't consider |
 | Tests | AI guesses if a fix works, re-runs, re-breaks | AI runs tests, binary pass/fail, done |
 
-On an ambiguous, rapidly developing product — where requirements change, the API surface shifts, and nothing is stable — this pyramid is not optional. Without it, every change introduces new debugging debt. With it, debugging is cheap and deterministic.
+On an ambiguous, rapidly developing product — where requirements change, the API surface shifts, and nothing is stable — this pyramid is not optional. Without it, every change introduces new debugging debt and every feature risks reimplementation from misalignment. With it, debugging is cheap and deterministic, and features land aligned on the first pass.
 
 ## Why This Works
 
 This approach suits the strengths of an LLM:
 
 - **Translation over invention.** AI is great at mapping between known spaces. Knowledge base building (Step 1) is a translation task; so is opportunistic stack modernization when a codebase actually needs it (not a pyramid step — it's not always required).
-- **Signal over speculation.** Seam logging (Step 2) gives AI the context it needs at the boundaries it can't see — debug deterministically instead of guessing what crossed the wire.
+- **Signal over speculation.** Seam logging (Step 2) gives AI the context it needs at the boundaries it can't see — verify deterministically instead of guessing what crossed the wire.
 - **Verification over faith.** Tests (Step 3) give AI a binary signal: pass or fail. No ambiguity, no doom loops.
 - **Knowledge over assumptions.** A perfect knowledge base (Step 1) means the AI understands intent before touching code.
 - **Directed plan over natural behavior.** The LLM is too shy to add the signal that would make it debuggable — it won't instrument its own code or write the tests that catch its own mistakes. The pyramid is a process you impose (AGENTS.md, prompts, review gates) that forces the signal to exist. Without the plan, the LLM defaults to minimal logs and speculative fixes.
-- **Process over compliance.** The debugging flow forces the AI to check signals before patching. It works the signals the pyramid creates — knowledge base, code, changelog, logs, tests — and fixes the broken layer, not just the code. That process is what makes debugging cheap.
-- **Termination over spinning.** The deepest value is not that debugging is cheap — it's that it *converges*. A divergent debug spins: every loop changes something but never reaches the fix. The pyramid makes debugging convergent by supplying the three things a descent needs — the **knowledge base is the target** (the intention), the **tests are the altitude** (a measurable distance to done), and the **logs are the gradient** (why you're not at the target, and which way moves you closer). A capable model following a real gradient toward a defined target on a bounded problem reaches the bottom: it finishes. The only way it fails to converge is a **corrupted measure** — a stale knowledge base is the wrong target, a weakened test is a fake altitude — and then the model confidently descends a landscape that isn't there (the TDFlow paper documents exactly this: 7 runs that "passed" by hacking the test). That is not a dumb-model failure, it is a *signal-integrity* failure, and it is precisely what the guardrails protect: a human-owned knowledge base, a review gate on tests, seam-scoped logs. Converges, provided the signal is honest; the guardrails keep it honest.
+- **Process over compliance.** The task flow forces the AI to check signals before patching. It works the signals the pyramid creates — knowledge base, code, changelog, logs, tests — and fixes the broken layer, not just the code. That process is what makes every task cheap.
+- **Termination over spinning.** The deepest value is not that tasks are cheap — it's that they *converge*. A divergent task spins: every loop changes something but never reaches the goal. The pyramid makes tasks convergent by supplying the three things a descent needs — the **knowledge base is the target** (the intention), the **tests are the altitude** (a measurable distance to done), and the **logs are the gradient** (why you're not at the target, and which way moves you closer). A capable model following a real gradient toward a defined target on a bounded problem reaches the bottom: it finishes. The only way it fails to converge is a **corrupted measure** — a stale knowledge base is the wrong target, a weakened test is a fake altitude — and then the model confidently descends a landscape that isn't there (the TDFlow paper documents exactly this: 7 runs that "passed" by hacking the test). That is not a dumb-model failure, it is a *signal-integrity* failure, and it is precisely what the guardrails protect: a human-owned knowledge base, a review gate on tests, seam-scoped logs. Converges, provided the signal is honest; the guardrails keep it honest.
 
 ## See Also
 
@@ -293,6 +293,6 @@ This approach suits the strengths of an LLM:
 
 ## The Alternative
 
-Skip the knowledge base, write minimal logs, and start building features. The AI will build the wrong thing, break things, and enter debugging loops with no signal to work from. Every loop is context + reasoning tokens. Five loops is $100. Ten is $200.
+Skip the knowledge base, write minimal logs, and start building features. The AI will build the wrong thing, break things, and enter task loops with no signal to work from. Every loop is context + reasoning tokens. Five loops is $100. Ten is $200.
 
-The four-step process is the only way to use AI that doesn't waste money. It takes patience upfront — building the foundation — but it makes every dollar spent on AI features actually buy features instead of debugging.
+The four-step process is the only way to use AI that doesn't waste money. It takes patience upfront — building the foundation — but it makes every dollar spent on AI tasks actually buy results instead of loops.
