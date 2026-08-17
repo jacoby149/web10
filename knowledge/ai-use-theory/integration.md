@@ -7,7 +7,7 @@ It is a decision doc, not a writing-framework doc (unlike Why/How/What).
 
 ## The Problem
 
-The theory + refutations live in `knowledge/knowledge-theories/ai-use-theory/`.
+The theory + refutations live in `knowledge/ai-use-theory/`.
 Nothing in the agent flow points at them:
 
 - Not referenced in `AGENTS.md`, `CLAUDE.md`, or `plan.md`.
