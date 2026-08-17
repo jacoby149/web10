@@ -69,7 +69,7 @@ flowchart TD
 
     CHECK -->|"Yes"| ORIENTED["Foundation solid.\nProceed to Phase 2."]
 
-    CHECK -->|"Mismatch"| REPAIR["Repair KB, Code, or\nChangelog (human for KB)"]
+    CHECK -->|"Mismatch"| REPAIR["Repair KB, Code, or\nChangelog (human + AI for KB)"]
     REPAIR --> LOAD
 
     classDef prompt fill:#333,color:#fff,stroke:#fff,stroke-width:2px
@@ -86,7 +86,7 @@ flowchart TD
     class ORIENTED ok
 ```
 
-The AI loads three reference resources into its context window and checks them against each other. If they don't align, it repairs them *before* spending tokens on test runs — fix KB (human), fix code drift, fix changelog. Then re-check. This is a flavor of Phase 4 repair, but scoped to the three signals available. Only when the foundation is solid does it proceed to Phase 2.
+The AI loads three reference resources into its context window and checks them against each other. If they don't align, it repairs them *before* spending tokens on test runs — fix KB (human + AI, interactive), fix code drift, fix changelog. Then re-check. This is a flavor of Phase 4 repair, but scoped to the three signals available. Only when the foundation is solid does it proceed to Phase 2.
 
 ### Phase 2: Generate — run tests, produce logs
 
@@ -139,7 +139,7 @@ flowchart TD
     LOAD --> GATE{"All four\naligned?"}
 
     GATE -->|"Yes"| PR["PR to review"]
-    GATE -->|"No"| REPAIR["Repair KB, Code,\nLogs, write changelog\n(human for KB)"]
+    GATE -->|"No"| REPAIR["Repair KB, Code,\nLogs, write changelog\n(human + AI for KB)"]
     REPAIR --> GEN_DONE
 
     classDef orient fill:#1565c0,color:#fff,stroke:#fff,stroke-width:2px
@@ -161,7 +161,7 @@ Both Phase 1 and Phase 3 use this same repair order. Foundation before implement
 
 ```mermaid
 flowchart TD
-    KB{"KB needs\nrepair?"} -->|"Yes"| FIX_KB["Human: repair KB"]
+    KB{"KB needs\nrepair?"} -->|"Yes"| FIX_KB["Human + AI: repair KB\n(interactive loop)"]
     KB -->|"No"| CODE{"Code needs\nrepair?"}
     FIX_KB --> CODE
     CODE -->|"Yes"| FIX_CODE["Repair code"]
@@ -184,12 +184,12 @@ flowchart TD
     class CHANGELOG action
 ```
 
-1. **KB first** — if the knowledge base is wrong or incomplete, the human repairs it. The AI can't authoritatively write knowledge it doesn't understand.
+1. **KB first** — if the knowledge base is wrong or incomplete, it is repaired through an **AI-assisted interactive loop**, not a human editing alone: the AI audits the KB against the code, the other KB docs, and the business plan + manifesto, returns a small batch of doubts, the human resolves them, and the AI honestly checks whether they're resolved — iterating until the KB converges (see `human-assisted-kb-repair.md`). The AI does the exhaustive finding; the human is the authority on intent. The AI can't *authoritatively* write knowledge it doesn't understand, but it can surface every doubt for the human to resolve.
 2. **Code next** — with the KB right, the code fix is targeted. One change, not speculative.
 3. **Logs next** — if the logs were too thin to diagnose, add the missing logging so the next debug is cheaper.
 4. **Changelog last** — write the entry. It captures the intention of this fix, so the next AI that debugs this code has the signal.
 
-That process — forcing the AI to check signals before patching — is what saves the money. Because a code fix on a broken foundation is always temporary. Fixing the foundation makes the code fix permanent. And fixing the KB requires a human in the loop — the AI can flag the mismatch, but the human writes the knowledge.
+That process — forcing the AI to check signals before patching — is what saves the money. Because a code fix on a broken foundation is always temporary. Fixing the foundation makes the code fix permanent. And fixing the KB is a human-in-the-loop act — but an *AI-assisted* one: the AI surfaces every doubt, the human resolves intent, and the loop converges (see `human-assisted-kb-repair.md`).
 
 ## The Pyramid
 
@@ -214,7 +214,7 @@ The pyramid is a **setup order** for building a codebase that's debuggable by AI
 
 Before writing any code, the AI must understand what the code is supposed to do. Code → Knowledge base. Conversations → Knowledge base. The KB should read like it was written by a person, not generated lazily. If the KB is inaccurate, incomplete, or contradictory, the AI will build the wrong thing and you won't know until it's too late.
 
-The KB is **co-authored, and the human is always in the loop.** The operator supplies *intent* through interactive conversation — what the code is supposed to do is something only the human can say. The AI supplies the *reading*: it reads the code and the docs that already exist in the codebase and drafts the KB from both. Neither alone is enough — the human has the intent but not the time to read every file; the AI has the reading but not the intent. This is also why the cold start is a translation task, not an invention task: the AI never has to guess intent, it has to read and draft, which is exactly what it is good at.
+The KB is **co-authored, and the human is always in the loop.** The operator supplies *intent* through interactive conversation — what the code is supposed to do is something only the human can say. The AI supplies the *reading*: it reads the code and the docs that already exist in the codebase and drafts the KB from both. Neither alone is enough — the human has the intent but not the time to read every file; the AI has the reading but not the intent. This is also why the cold start is a translation task, not an invention task: the AI never has to guess intent, it has to read and draft, which is exactly what it is good at. Keeping the KB *right over time* is a separate, ongoing loop — the AI audits it, the human resolves the doubts, and it converges: see `human-assisted-kb-repair.md`.
 
 **This step is the foundation.** A shitty KB is the root cause of every "why did the AI do that" moment. Without it, the AI is guessing at intent — and guessing costs tokens.
 
