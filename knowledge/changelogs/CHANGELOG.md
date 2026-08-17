@@ -1,5 +1,5 @@
 3.0.54 || 17.08.2026
-docs(agents): new HELP / ORIENTATION section — when the user types `help`, give a tour: the knowledge base (`knowledge/knowledge-base/`, the web10 implementation-details docs, we're on v3), then AI Use Theory, then the doc tooling (theories/styles/voices/visual/editing), then strategy + changelog. Explicitly NOT a plan/phase dump — the KB is the root of the effort, so it leads.
+docs(agents): new HELP / ORIENTATION section — when the user types `help`, give a full repo map: agent docs (AGENTS.md + CLAUDE/QWEN redirects, README), top-level folders (api, ui, sdk, marketing, mobile, knowledge, ubuntu-deployment, e2e/scripts), the knowledge base (knowledge-base v3, ai-use-theory, how-to-write, strategy, changelogs), and the operator commands (web10web10!, unbrick!, imma rant). Explicitly NOT a plan/phase dump.
 
 3.0.53 || 17.08.2026
 docs(strategy): archive + reset the plan — `plan.md` and `parallel-execution.md` had gone out of date; moved to `archive/plan-17.08.2026.md` and `archive/parallel-execution-17.08.2026.md` (git mv, history preserved). New files are fresh skeletons: durable framing kept (docs-first rule, hierarchy of reliance, lane rules + status key), stale phase/lane item lists blanked. Fill in as work is re-scoped.

@@ -50,28 +50,44 @@ NO emojis unless the user uses them first.
 
 ## HELP / ORIENTATION
 
-When the user types `help` (or asks to be oriented), give them a tour of
-the **knowledge base** — not a plan/phase dump. The KB is the root of the
-whole effort, so orientation means showing what's in it and what each part
-is for. Lead with the KB content, then the methodology, then the doc
-tooling. Keep it scannable. Do NOT dump `plan.md` phases or
-`parallel-execution.md` lanes — that's execution state, not orientation.
-End by offering to go deep on any part.
+When the user types `help` (or asks to be oriented), give them a full map
+of the repo — not a plan/phase dump. Start with the top-level folders,
+then the knowledge base (the root of the effort), then the operator
+commands, then the agent docs. Keep it scannable. Do NOT dump `plan.md`
+phases or `parallel-execution.md` lanes — that's execution state, not
+orientation. End by offering to go deep on any part.
 
 The tour, in this order:
 
-1. **The knowledge base** — `knowledge/knowledge-base/`. The docs for the
-   web10 implementation details. We're on v3.
-2. **AI Use Theory** — `knowledge/ai-use-theory/`. The operating
-   methodology: the KB is the root of trust; the pyramid (KB → logs →
-   tests → features) and the four-phase flow (orient → generate → compare
-   → repair) are how AI tasks converge on the first pass.
-3. **How to write** — `knowledge/`. The tooling for producing docs:
-   knowledge-theories (Why/How/What layers), writing-styles, voices,
-   visual-styles, editing-styles.
-4. **Strategy** — `knowledge/strategy/`. The plan, decisions, design
-   standard, manifesto, timeline.
-5. **Memory** — `knowledge/changelogs/`. What shipped and why, newest first.
+1. **Top-level folders** — `api/` (FastAPI node: data, auth, billing,
+   media; `api/rtc/` WebRTC), `ui/` (React admin/consent UI), `sdk/`
+   (wapi.js), `marketing/` (web10-social killer app, marketing-ui site,
+   marketing-api), `mobile/` (encryptor, phone-as-keychain seed),
+   `knowledge/` (the docs — below), `ubuntu-deployment/` (server deploy),
+   `e2e/` + `scripts/` (tests + helpers).
+2. **The knowledge base** — `knowledge/`. The docs:
+   - `knowledge-base/` — the web10 implementation details. We're on v3.
+   - `ai-use-theory/` — the operating method: KB is the root of trust;
+     the pyramid (KB → logs → tests → features) + four-phase flow (orient
+     → generate → compare → repair).
+   - how to write — `knowledge-theories/` (Why/How/What),
+     `writing-styles/`, `voices/`, `visual-styles/`, `editing-styles/`.
+   - `strategy/` — the plan, decisions, design standard, manifesto,
+     timeline.
+   - `changelogs/` — what shipped and why, newest first.
+3. **Commands** —
+   - `web10web10!` — ship-first ritual: gather state, gate + promote
+     dev→main if clean, then plan, then emit copy-pastable kickoff blocks
+     for the fleet.
+   - `unbrick!` — a workspace broke (agent choked/stalled/burned it):
+     diagnose the failure class, fix the system (code/infra/tooling first,
+     docs as fallback).
+   - `imma rant` — complaints incoming: don't implement, file each as a
+     lane item (quote, diagnosis, acceptance bar, gates + bite sizing) on
+     one docs branch + PR.
+4. **Agent docs** — `AGENTS.md` is the operating manual (wake-up,
+   personality, conventions, PR checklist); `CLAUDE.md` and `QWEN.md`
+   redirect to it. `README.md` is the project readme.
 
 ## PERSONALITY
 
