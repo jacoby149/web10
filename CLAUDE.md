@@ -6,6 +6,16 @@ Read this first. Then read `knowledge/strategy/plan.md` (what/why) and `knowledg
 If your task touches ANY user-facing surface, also read `knowledge/strategy/design.md` — the
 UI/brand standard — before writing code (see conventions below).
 
+**Browse `knowledge/strategy/` before starting work.** It is the project's brain — the plan,
+the execution lanes, the design standard, the decisions, the manifesto, the timeline.
+These are root-level docs that define what the project is, where it's going, and how
+work is organized. Don't just read the files explicitly referenced above — scan the rest
+to understand the full picture.
+
+**Scan `knowledge/changelogs/CHANGELOG.md`.** It is the project's memory — the recent history
+of what changed and why. The top entries tell you what's been shipped. When debugging,
+the changelog is a signal: it captures the intention behind every change.
+
 ## What web10 is
 A system for users to **own their data**. Each user gets their own database
 collection; every record is `{service, body}`. Apps are stateless frontends
@@ -86,7 +96,7 @@ touches auth, the DB layer, or tokens, run those tests and keep them green.
 - **Check it isn't already done.** Before starting a plan/lane item, check
    the lane queues in `knowledge/strategy/parallel-execution.md` (`[✓ x.y.z]` = merged,
    `[~]` = in flight elsewhere), the `[✓]` ticks in knowledge/strategy/plan.md, and the top
-  of `CHANGELOG.md`. If it's done, say so and pick the next unticked item.
+  of `knowledge/changelogs/CHANGELOG.md`. If it's done, say so and pick the next unticked item.
 - **Stay in your lane.** `knowledge/strategy/parallel-execution.md` assigns directory
   ownership. Don't edit another lane's files; if you need a change there
   (e.g. `docker-compose.yml`, `settings`), leave a note, don't reach in.
@@ -102,13 +112,13 @@ touches auth, the DB layer, or tokens, run those tests and keep them green.
 - **Don't invent crypto or protocols.** Reuse: OIDC/JWKS for federation,
   Signal sender-keys / MLS for group keys, S3 API for blobs.
 - **Match the surrounding code** until a phase explicitly modernizes it.
-- **Update `CHANGELOG.md`.** Any improvement or change to the project gets a
+- **Update `knowledge/changelogs/CHANGELOG.md`.** Any improvement or change to the project gets a
   line in the changelog (newest entry at top, `version || DD.MM.YYYY`). This
   is a project rule, not a nicety — do it in the same branch as the change.
   If your work completes a `knowledge/strategy/plan.md` item, tick it there AND tick your
   lane item in `knowledge/strategy/parallel-execution.md` — that file is the parallel
   agents' task board and stale status there causes redone work.
-  Version collisions between parallel branches are expected: CHANGELOG.md
+  Version collisions between parallel branches are expected: knowledge/changelogs/CHANGELOG.md
   union-merges (`.gitattributes`), and after merging `origin/dev` you
   renumber your own entry past the highest — procedure in `AGENTS.md`.
 - **Keep the docs true.** If you change the stack, the data model, or the
@@ -143,7 +153,7 @@ detector that triggers it when a workspace stalls/bricks):
    (THE STORY at the top + the current priority block), `knowledge/strategy/manifesto.md`,
    `knowledge/strategy/outreach.md`, `knowledge/strategy/timeline.md`, recent `knowledge/strategy/decisions.md`, the lane queues
     + CURRENT CONDUCTOR BOARD in `knowledge/strategy/parallel-execution.md`, and the top
-   ~10 entries of `CHANGELOG.md`. PLUS the two live-state scans the
+   ~10 entries of `knowledge/changelogs/CHANGELOG.md`. PLUS the two live-state scans the
    docs alone can't give you:
    - **Dangling PRs:** `gh pr list --state open` — every open PR in ANY
      workspace, not just this one. For each: how old, mergeable or
@@ -216,7 +226,7 @@ window is for code, not prose.
   if you need another lane's file."
 - **The task:** the lane-queue text verbatim, its gates (what must be
   merged first), and the freshness check: confirm the item is still
-   `[ ]` in `knowledge/strategy/parallel-execution.md` AND not in the top of `CHANGELOG.md`
+   `[ ]` in `knowledge/strategy/parallel-execution.md` AND not in the top of `knowledge/changelogs/CHANGELOG.md`
   before writing code — if done, stop and say so.
 - **Acceptance bar:** tests green (`tsc -b`/build clean where relevant);
   for UI, the `knowledge/strategy/design.md` §12 definition of done — and since the agent
@@ -349,7 +359,7 @@ order: the audit (steps 1–4), then the promotion (steps 5–7).
    (`gh pr view --json mergeable,mergeStateStatus`), then merge with
    `gh pr merge --merge`. Squash-merging dev→main destroys the shared
    merge base, so every later promote hits add/add conflicts on the
-    union-merged files (CHANGELOG.md, knowledge/strategy/plan.md, workflows) — this
+    union-merged files (knowledge/changelogs/CHANGELOG.md, knowledge/strategy/plan.md, workflows) — this
    happened once and the cleanup (80378e92) was manual; don't repeat it.
    Known pre-existing red that does NOT block promotion: the e2e MinIO
    host-port checks (no host port mapping in e2e/docker-compose.yml,
