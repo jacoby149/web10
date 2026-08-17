@@ -1,25 +1,25 @@
-# Human-Assisted KB Repair
+# Human-Assisted Knowledge Base Repair
 
 [← back to overview](./overview.md)
 
-The KB is the root of trust — the one assumption the whole AI Use Theory rests on.
-But getting a KB 100% accurate is hard, because it is *so much to cover*. A human
-can't hold the whole codebase + the whole KB + the business plan in their head and
-keep all of it consistent. So the human does not repair the KB alone. The AI
+The knowledge base is the root of trust — the one assumption the whole AI Use Theory rests on.
+But getting a knowledge base 100% accurate is hard, because it is *so much to cover*. A human
+can't hold the whole codebase + the whole knowledge base + the business plan in their head and
+keep all of it consistent. So the human does not repair the knowledge base alone. The AI
 assists: it does the exhaustive *finding*, the human does the *judging*. This doc
 is the flow. It is the concrete "human at the base" procedure the theory points to.
 
 ## Why the AI is needed
 
-The KB is the base of the pyramid. If it's wrong, everything above it converges to
+The knowledge base is the base of the pyramid. If it's wrong, everything above it converges to
 the wrong target — and no downstream signal (logs, tests) catches it, because they
-all check *against* the KB. So the KB has to be right, and it has to *stay* right.
+all check *against* the knowledge base. So the knowledge base has to be right, and it has to *stay* right.
 But:
 
 - The surface area is large — every system, every seam, every decision.
 - It drifts as the code changes (staleness).
 - A human reviewing it alone will miss things; the AI won't, because it can read
-  the whole codebase and the whole KB in one pass.
+  the whole codebase and the whole knowledge base in one pass.
 
 The division of labor: **the AI is the exhaustive auditor** (it finds every
 misalignment, contradiction, and doubt); **the human is the authority** (intent,
@@ -28,17 +28,17 @@ can't judge intent, the human can't cover the surface area.
 
 ## The Flow
 
-### 1. The prompt — the AI audits the KB
+### 1. The prompt — the AI audits the knowledge base
 
-The operator gives the AI a prompt that makes it audit the KB across four
+The operator gives the AI a prompt that makes it audit the knowledge base across four
 dimensions:
 
-- **Code alignment.** Where does the KB not match the current code +
-  implementation? (KB says X, code does Y.)
-- **Internal consistency.** What is inconsistent *across* the KB, or doubtful on
+- **Code alignment.** Where does the knowledge base not match the current code +
+  implementation? (knowledge base says X, code does Y.)
+- **Internal consistency.** What is inconsistent *across* the knowledge base, or doubtful on
   its face? (Doc A says X, doc B says Y; or a claim that doesn't hold up.)
-- **Business alignment.** Is the KB aligned with the **business plan +
-  manifesto**? The KB should keep the product on track with them — flag where it
+- **Business alignment.** Is the knowledge base aligned with the **business plan +
+  manifesto**? The knowledge base should keep the product on track with them — flag where it
   has drifted from the strategy.
 - **Effectiveness.** Is each piece of knowledge using the *right* knowledge
   theory, writing style, and voice for what it actually is? The test is clarity for
@@ -46,7 +46,7 @@ dimensions:
   operator — *and* trust: does it read like a competent human expert, or like a
   robotic junior engineer trying too hard? The AI's default voice is the failure
   mode — flat, try-hard, cliché (the "You are an expert AI engineer" energy) — and
-  a KB that sounds like an AI kills the operator's trust in it. The conventions in
+  a knowledge base that sounds like an AI kills the operator's trust in it. The conventions in
   `knowledge/` are the *menu*: the Why/How/What theories answer "why does this doc
   exist" (and that grounding is what keeps the AI's writing from going generic),
   the writing style answers "how is it structured," the voice answers "who is
@@ -89,11 +89,11 @@ business plan + manifesto.
 
 ```mermaid
 flowchart TD
-    A["Operator: audit the KB"] --> B["AI audits KB vs\ncode + other docs +\nbusiness plan / manifesto"]
+    A["Operator: audit the\nknowledge base"] --> B["AI audits knowledge base vs\ncode + other docs +\nbusiness plan / manifesto"]
     B --> C["AI returns 6\nrefutations / reservations"]
     C --> D["Human operator\nanswers the 6"]
     D --> E{"AI honestly evaluates:\nwhich are resolved?"}
-    E -->|"all resolved"| F["KB converged —\nno remaining doubts"]
+    E -->|"all resolved"| F["Knowledge base converged —\nno remaining doubts"]
     E -->|"some open"| G["AI fixes the resolved ones,\nreturns sharper doubts\non the open ones"]
     G --> D
 
@@ -112,20 +112,20 @@ flowchart TD
 
 ## Why this is the "human at the base" flow
 
-The AI Use Theory says the human sits at the base (the KB) and the parallel agents
+The AI Use Theory says the human sits at the base (the knowledge base) and the parallel agents
 work above it. This is *how* the human holds the base: not by reading and editing
-the whole KB alone, but by running this audit-and-refine loop with the AI. The AI
+the whole knowledge base alone, but by running this audit-and-refine loop with the AI. The AI
 covers the surface area; the human supplies the judgment the AI can't. The loop
 converges because each round either resolves a doubt or sharpens it — the same
-target / altitude / gradient structure as debugging, pointed at the KB instead of
+target / altitude / gradient structure as debugging, pointed at the knowledge base instead of
 a bug.
 
 ## The prompt (starter)
 
 > Audit the knowledge base. For each of these, find concrete problems:
-> 1. Where the KB does not match the current code + implementation.
-> 2. What is inconsistent across the KB, or doubtful on its face.
-> 3. Where the KB has drifted from the business plan + manifesto.
+> 1. Where the knowledge base does not match the current code + implementation.
+> 2. What is inconsistent across the knowledge base, or doubtful on its face.
+> 3. Where the knowledge base has drifted from the business plan + manifesto.
 > 4. (Optional) Where a piece of knowledge is explained the wrong way — wrong
 >    knowledge theory or writing style for its content, or unclear to a human or
 >    AI reader.
