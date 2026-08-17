@@ -1,9 +1,9 @@
 # CLAUDE.md — orientation for agents working on web10
 
-Read this first. Then read `plan.md` (what/why) and `parallel-execution.md`
-(how work splits across parallel branches). `GLOSSARY.md` decodes the jargon;
-`decisions.md` records why big calls were made so you don't re-litigate them.
-If your task touches ANY user-facing surface, also read `design.md` — the
+Read this first. Then read `knowledge/strategy/plan.md` (what/why) and `knowledge/strategy/parallel-execution.md`
+(how work splits across parallel branches). `knowledge/strategy/GLOSSARY.md` decodes the jargon;
+`knowledge/strategy/decisions.md` records why big calls were made so you don't re-litigate them.
+If your task touches ANY user-facing surface, also read `knowledge/strategy/design.md` — the
 UI/brand standard — before writing code (see conventions below).
 
 ## What web10 is
@@ -21,11 +21,11 @@ shadow ban (100% delivery by architecture) — and the protocol exists to make
 that ownership possible. Protocol/feature decisions are judged by whether
 they make the creator platform better (the pitch truer, the creator P&L
 stronger, fan conversion higher); generality for its own sake goes to
-`later.md`. Read THE STORY at the top of `plan.md` before touching product
-surfaces; the fan-facing voice lives in `manifesto.md`, the creator pitch in
-`outreach.md`.
+`knowledge/strategy/later.md`. Read THE STORY at the top of `knowledge/strategy/plan.md` before touching product
+surfaces; the fan-facing voice lives in `knowledge/strategy/manifesto.md`, the creator pitch in
+`knowledge/strategy/outreach.md`.
 
-## The stack (as of now — being modernized, see plan.md phase 0)
+## The stack (as of now — being modernized, see knowledge/strategy/plan.md phase 0)
 - `api/` — FastAPI. The node. All data + auth + billing + media. Entry: `api/app/main.py`.
   - Layered (since 1.0.31): `main.py` app init + middleware + router includes;
     `models/` Pydantic schemas; `services/` business logic (auth, mongo, media,
@@ -61,7 +61,7 @@ surfaces; the fan-facing voice lives in `manifesto.md`, the creator pitch in
 - Federation: identity is `(username, provider)`, like email. A provider
   vouches for its own tokens; other providers verify via the provider's key.
 
-## SECURITY INVARIANTS — do not break these (see plan.md for detail)
+## SECURITY INVARIANTS — do not break these (see knowledge/strategy/plan.md for detail)
 These are enforced by the conformance/permission test suite. If your change
 touches auth, the DB layer, or tokens, run those tests and keep them green.
 - I1. A provider verifies ANY token's issuer cryptographically, without
@@ -76,18 +76,18 @@ touches auth, the DB layer, or tokens, run those tests and keep them green.
       revocable token. Least privilege.
 
 ## Working conventions for parallel agents
-- **UI work reads `design.md` first — every time, no exceptions.** Any
+- **UI work reads `knowledge/strategy/design.md` first — every time, no exceptions.** Any
   change under `ui/`, `marketing/marketing-ui/`, or `marketing/web10-social/`
-  (or any new user-facing surface) is judged against `design.md`: the
+  (or any new user-facing surface) is judged against `knowledge/strategy/design.md`: the
   quality bar (the screenshot test), the canonical brand assets (the files
-  named `logo*.png` are NOT the logos — design.md §3 names the real ones),
+  named `logo*.png` are NOT the logos — knowledge/strategy/design.md §3 names the real ones),
   the shared tokens (§13), and the UI definition of done (§12, PR
   screenshots included). Hardcoded colors/fonts are a review rejection.
 - **Check it isn't already done.** Before starting a plan/lane item, check
-   the lane queues in `parallel-execution.md` (`[✓ x.y.z]` = merged,
-   `[~]` = in flight elsewhere), the `[✓]` ticks in plan.md, and the top
+   the lane queues in `knowledge/strategy/parallel-execution.md` (`[✓ x.y.z]` = merged,
+   `[~]` = in flight elsewhere), the `[✓]` ticks in knowledge/strategy/plan.md, and the top
   of `CHANGELOG.md`. If it's done, say so and pick the next unticked item.
-- **Stay in your lane.** `parallel-execution.md` assigns directory
+- **Stay in your lane.** `knowledge/strategy/parallel-execution.md` assigns directory
   ownership. Don't edit another lane's files; if you need a change there
   (e.g. `docker-compose.yml`, `settings`), leave a note, don't reach in.
 - **Merge small, merge often.** Days-long branches, not weeks.
@@ -105,19 +105,19 @@ touches auth, the DB layer, or tokens, run those tests and keep them green.
 - **Update `CHANGELOG.md`.** Any improvement or change to the project gets a
   line in the changelog (newest entry at top, `version || DD.MM.YYYY`). This
   is a project rule, not a nicety — do it in the same branch as the change.
-  If your work completes a `plan.md` item, tick it there AND tick your
-  lane item in `parallel-execution.md` — that file is the parallel
+  If your work completes a `knowledge/strategy/plan.md` item, tick it there AND tick your
+  lane item in `knowledge/strategy/parallel-execution.md` — that file is the parallel
   agents' task board and stale status there causes redone work.
   Version collisions between parallel branches are expected: CHANGELOG.md
   union-merges (`.gitattributes`), and after merging `origin/dev` you
   renumber your own entry past the highest — procedure in `AGENTS.md`.
 - **Keep the docs true.** If you change the stack, the data model, or the
-  auth flow, update `CLAUDE.md`/`GLOSSARY.md` in the same branch. A big
-  architectural decision gets an entry in `decisions.md`. Stale orientation
+  auth flow, update `CLAUDE.md`/`knowledge/strategy/GLOSSARY.md` in the same branch. A big
+  architectural decision gets an entry in `knowledge/strategy/decisions.md`. Stale orientation
   docs are worse than none.
 - **Hand off the next task.** After your work merges (or the PR is up), end
   your final message with the next unticked item in your lane from
-   `parallel-execution.md` AND a paste-ready kickoff prompt for a fresh
+   `knowledge/strategy/parallel-execution.md` AND a paste-ready kickoff prompt for a fresh
   workspace: the task text verbatim, its gates (what must merge first —
   check the lane file), the directories that lane owns, and the acceptance
   bar. If the next item is gated on unmerged work, say so in the kickoff so
@@ -139,10 +139,10 @@ always (this one command absorbs the retired `should we do it?` and
 it is the fire alarm, not a planning ritual — D-night-owl is the smoke
 detector that triggers it when a workspace stalls/bricks):
 
-1. **Gather the state of the world.** `git fetch`; read `plan.md`
-   (THE STORY at the top + the current priority block), `manifesto.md`,
-   `outreach.md`, `timeline.md`, recent `decisions.md`, the lane queues
-    + CURRENT CONDUCTOR BOARD in `parallel-execution.md`, and the top
+1. **Gather the state of the world.** `git fetch`; read `knowledge/strategy/plan.md`
+   (THE STORY at the top + the current priority block), `knowledge/strategy/manifesto.md`,
+   `knowledge/strategy/outreach.md`, `knowledge/strategy/timeline.md`, recent `knowledge/strategy/decisions.md`, the lane queues
+    + CURRENT CONDUCTOR BOARD in `knowledge/strategy/parallel-execution.md`, and the top
    ~10 entries of `CHANGELOG.md`. PLUS the two live-state scans the
    docs alone can't give you:
    - **Dangling PRs:** `gh pr list --state open` — every open PR in ANY
@@ -159,7 +159,7 @@ detector that triggers it when a workspace stalls/bricks):
    under "The dev-batch gate + dev→main promotion", which this step
    executes): read the batch diffs, hunt for really-broken only
    (invariants I1–I5, auth/DB regressions, star protection, red checks,
-   seam collisions between merged PRs, design.md flunks, missing
+   seam collisions between merged PRs, knowledge/strategy/design.md flunks, missing
    CHANGELOG/lane ticks — style nitpicks are NOT findings). If broken:
    emit paste-ready fix kickoff blocks and DO NOT promote (unless the
    operator explicitly overrides — then restate what is broken first,
@@ -171,13 +171,13 @@ detector that triggers it when a workspace stalls/bricks):
 3. **Audit alignment — dead honest, no cheerleading.** Is the plan still
    aligned with the business (social platform first, protocol second —
    D20) and with the manifesto's promises? On target against
-   `timeline.md`? Anything on the board that reads as an infra company
+   `knowledge/strategy/timeline.md`? Anything on the board that reads as an infra company
    rather than a social platform gets flagged for parking. Concede to
-   evidence; don't re-litigate settled decisions (`decisions.md`).
+   evidence; don't re-litigate settled decisions (`knowledge/strategy/decisions.md`).
 4. **Audit parallelizability for small-window agents.** The workhorse
    agents are Qwen-class: ~27B, 256k context, sharp (olympiad-level),
     multimodal (they CAN look at app screenshots — use that in acceptance
-    bars). They cannot hold plan.md + CHANGELOG + a whole lane file at
+    bars). They cannot hold knowledge/strategy/plan.md + CHANGELOG + a whole lane file at
    once. Check every board item: self-contained? names exact files?
    gates and seams explicit? one sub-lane, no shared-seam collisions?
    Include the **board inventory + autonomy horizon** (this absorbs the
@@ -192,8 +192,8 @@ detector that triggers it when a workspace stalls/bricks):
    after a brick. Each Qwen PR costs far less than a mastermind pass,
    so markdown that buys independence is a win even when it means more
    markdown.
-5. **Refactor IF needed.** Docs-only changes to `plan.md` /
-    `parallel-execution.md` / this file, changelog entry, PR to dev per
+5. **Refactor IF needed.** Docs-only changes to `knowledge/strategy/plan.md` /
+    `knowledge/strategy/parallel-execution.md` / this file, changelog entry, PR to dev per
    `AGENTS.md`. If nothing needs changing, say so plainly and don't churn.
 6. **Then produce copy-pastable kickoff blocks**, one per Conductor
    workspace, per the spec below. Not before steps 1-5. ~5 is the
@@ -207,29 +207,29 @@ block names. Point at files; never inline what a file already says. The
 window is for code, not prose.
 
 - **Opening line:** "Read `AGENTS.md`, then `CLAUDE.md`. If this task
-  touches anything a user sees, read `design.md` before writing code."
+  touches anything a user sees, read `knowledge/strategy/design.md` before writing code."
   Then the SHORT list of extra reads: the item's own text in
-   `parallel-execution.md` (give the line range), and the specific
+   `knowledge/strategy/parallel-execution.md` (give the line range), and the specific
   source files in play.
 - **Lane + ownership:** the lane/sub-lane, the directories it owns, and
   one line restating "don't edit outside these; leave a `.context/` note
   if you need another lane's file."
 - **The task:** the lane-queue text verbatim, its gates (what must be
   merged first), and the freshness check: confirm the item is still
-   `[ ]` in `parallel-execution.md` AND not in the top of `CHANGELOG.md`
+   `[ ]` in `knowledge/strategy/parallel-execution.md` AND not in the top of `CHANGELOG.md`
   before writing code — if done, stop and say so.
 - **Acceptance bar:** tests green (`tsc -b`/build clean where relevant);
-  for UI, the `design.md` §12 definition of done — and since the agent
+  for UI, the `knowledge/strategy/design.md` §12 definition of done — and since the agent
   is multimodal, tell it to screenshot at desktop + 375px and LOOK at
   the screenshots before calling it done.
-- **Finish ritual:** CHANGELOG line, tick plan.md + the lane item,
+- **Finish ritual:** CHANGELOG line, tick knowledge/strategy/plan.md + the lane item,
   type-prefixed branch, PR to `dev`, then conflicts + ALL checks green
   per `AGENTS.md`.
 - **Selection rule:** the items must be truly parallel — different
   lanes/sub-lanes, no shared seams, all gates merged. The count follows
   the board, not a quota: fewer safe blocks beats a fixed number of
   colliding ones.
-- **Bite sizing (rule 5 in `parallel-execution.md`; operator, 27.07):**
+- **Bite sizing (rule 5 in `knowledge/strategy/parallel-execution.md`; operator, 27.07):**
   one kickoff = ONE BITE = one PR ≈ 20-40 focused minutes — a couple of
   files, one seam, one acceptance check the agent can hold in its head.
   Never hand an agent a whole chain or an item whose description needs
@@ -283,7 +283,7 @@ the fix targets every future workspace, not the dead one. Then:
     Structural unbricks are code: full finish ritual (tests green,
     checks green), often zero markdown touched. Fall back to a doc
     fix (an `AGENTS.md` checklist line, a bite-split or gate fix in
-     `parallel-execution.md`, a sharper kickoff bullet here, an
+     `knowledge/strategy/parallel-execution.md`, a sharper kickoff bullet here, an
     environment note next to the thing that bit) only when code
     genuinely can't encode the lesson.
 3. **Re-issue the kickoff block** for the bricked task, corrected —
@@ -306,7 +306,7 @@ stack another rule on top.
 `imma rant` means the operator is about to fire a stream of complaints
 (usually with screenshots). The full rule lives in AGENTS.md's code-word
 list; the short version: **file, don't build.** Every complaint becomes
-a lane item in `parallel-execution.md` + `plan.md` (verbatim quote,
+a lane item in `knowledge/strategy/parallel-execution.md` + `knowledge/strategy/plan.md` (verbatim quote,
 screenshot referenced, diagnosis if cheap, acceptance bar, sub-lane +
 gates, bite-sized per rule 5) on one docs branch with a CHANGELOG line
 — and NOTHING gets implemented in this workspace, however small the
@@ -329,7 +329,7 @@ order: the audit (steps 1–4), then the promotion (steps 5–7).
 2. **Look for really-broken, not nitpicks.** Security invariants I1–I5,
    auth/DB-layer regressions, star-record protection, broken builds or
    red/skipped checks, two merged PRs stepping on the same seam,
-    user-facing surfaces that flunk `design.md` (screenshot if runnable),
+    user-facing surfaces that flunk `knowledge/strategy/design.md` (screenshot if runnable),
    missing/wrong CHANGELOG or lane ticks that will cause redone work.
    Style preferences and could-be-nicer are NOT findings.
 3. **If nothing is broken, say so plainly** — one short paragraph, no
@@ -349,7 +349,7 @@ order: the audit (steps 1–4), then the promotion (steps 5–7).
    (`gh pr view --json mergeable,mergeStateStatus`), then merge with
    `gh pr merge --merge`. Squash-merging dev→main destroys the shared
    merge base, so every later promote hits add/add conflicts on the
-    union-merged files (CHANGELOG.md, plan.md, workflows) — this
+    union-merged files (CHANGELOG.md, knowledge/strategy/plan.md, workflows) — this
    happened once and the cleanup (80378e92) was manual; don't repeat it.
    Known pre-existing red that does NOT block promotion: the e2e MinIO
    host-port checks (no host port mapping in e2e/docker-compose.yml,
