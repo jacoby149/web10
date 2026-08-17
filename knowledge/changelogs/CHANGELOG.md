@@ -1,3 +1,6 @@
+3.0.50 || 17.08.2026
+docs: consolidate agent markdowns — AGENTS.md is now the single source. CLAUDE.md and QWEN.md are redirects. All load-bearing content (what web10 is, the stack, data model, auth model, security invariants, code words, debugging/AI Use Theory, UI rules, PR checklist, changelog handling, branch naming, screenshot workflow, parallel agent conventions) lives in AGENTS.md. Big rituals (`web10web10!`, `unbrick!`, `imma rant`, dev-batch gate, kickoff block spec) moved to `knowledge/strategy/AGENTS-RITUALS.md` — only the strong model runs these, no need at wake-up. Cross-references updated in `knowledge/strategy/SECURITY.md`, `knowledge/strategy/design.md`, `knowledge/ai-use-theory/integration.md`.
+
 3.0.49 || 17.08.2026
 chore: CHANGELOG.md first prune — 377 entries down to 50. Entries prior to v3.0.1 archived at commit `2ba7fa98`. New rule in AGENTS.md: keep last 50 entries detailed, when file exceeds 200 entries ask the operator then prune.
 
