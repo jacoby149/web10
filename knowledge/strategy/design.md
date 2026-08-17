@@ -3,7 +3,7 @@
 **If your change touches anything a user sees — `ui/`,
 `marketing/marketing-ui/`, `marketing/web10-social/`, any screen, any
 component, any color — you read this file first, every time, before
-writing code.** CLAUDE.md and AGENTS.md point here; PRs that touch UI
+writing code.** AGENTS.md points here; PRs that touch UI
 are judged against this document. It is the law for how web10 looks,
 the same way plan.txt is the law for what gets built.
 

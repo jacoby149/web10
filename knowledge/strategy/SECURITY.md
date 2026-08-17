@@ -57,4 +57,4 @@ completed. We'd rather say this plainly than have you find out the hard way.
 ## For contributors
 Security is end-to-end, not a phase. If your change touches auth, the DB
 layer, tokens, or federation, keep the permission/conformance test suite green
-— it mechanically enforces I1–I5. See `CLAUDE.md` for the working rules.
+— it mechanically enforces I1–I5. See `AGENTS.md` for the working rules.

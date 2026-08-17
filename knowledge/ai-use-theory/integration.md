@@ -12,7 +12,7 @@ It is a decision doc, not a writing-framework doc (unlike Why/How/What).
 The theory + refutations live in `knowledge/ai-use-theory/`.
 Nothing in the agent flow points at them:
 
-- Not referenced in `AGENTS.md`, `CLAUDE.md`, or `plan.md`.
+- Not referenced in `AGENTS.md` or `plan.md`.
 - The four-phase debugging flow (orient → generate → compare → repair) and the
   pyramid exist only in the theory doc — no agent is pointed at them.
 - The closest operational echo is `AGENTS.md`'s "Debugging: log everything"
@@ -29,7 +29,7 @@ enough that **context budget is not the constraint.**
 
 - The full theory + refutations is ~6–8k tokens — roughly 3% of the window.
   Trivial to load.
-- The baseline an agent already carries (`AGENTS.md` + `CLAUDE.md` + `plan.md`)
+- The baseline an agent already carries (`AGENTS.md` + `plan.md`)
   is ~15–20k tokens. Adding the theory is a rounding error.
 
 What this means:
@@ -53,11 +53,11 @@ theory in sessions that don't use it.
 | Surface | Read by | Always-on? | Notes |
 |---|---|---|---|
 | `AGENTS.md` | every agent, every session | yes | Has the "Debugging: log everything" section — the natural home for debugging rules. |
-| `CLAUDE.md` | every agent, read first | yes | Orientation + working conventions. Holds the kickoff-block spec. |
+| `CLAUDE.md` | redirect to AGENTS.md | — | Now a redirect; all content moved to AGENTS.md. |
 | `knowledge/AGENTS.md` | agents writing KB docs | yes (for KB work) | "Pick a knowledge theory" list (Why/How/What). The AI Use Theory is a *methodology*, not a writing framework — weak fit here. |
-| Code words (`web10web10!`, `unbrick!`, `imma rant`) | strong model, operator-triggered | no (opt-in) | Rituals, not per-task. Qwens don't run these. |
+| Code words (`web10web10!`, `unbrick!`, `imma rant`) | strong model, operator-triggered | no (opt-in) | Rituals live in `knowledge/strategy/AGENTS-RITUALS.md`. Qwens don't run these. |
 | A new code word (e.g. `debug!`) | strong model, operator-triggered | no (opt-in) | Would be a deliberate deep-debug ritual. |
-| Kickoff-block spec (in `CLAUDE.md`) | each Qwen workspace at start | per-workspace | The self-contained block handed to each parallel workspace. |
+| Kickoff-block spec (in `AGENTS-RITUALS.md`) | each Qwen workspace at start | per-workspace | The self-contained block handed to each parallel workspace. |
 | Tooling / script | on invocation | no | A concrete checklist or prompt template, not just prose. |
 | The theory doc itself | on demand | no | The canonical detail. Already written. |
 
@@ -123,7 +123,7 @@ task" → the pyramid setup order.
 
 ### Option 5 — Kickoff-block integration (per-workspace)
 
-Add a line to the `CLAUDE.md` kickoff-block spec so every Qwen workspace's
+Add a line to the kickoff-block spec in `AGENTS-RITUALS.md` so every Qwen workspace's
 kickoff block says: *"Read the AI Use Theory (`knowledge/.../ai-use-theory.md`);
 follow the four-phase flow when debugging; build the pyramid for new work."*
 
@@ -154,7 +154,7 @@ Layered, so each layer covers the gap the others leave:
    section. Always-on trigger + 2–3 load-bearing one-liners inline + link to the
    doc. This is the enforcement. **Implemented — this is the selected way right
    now**; layers 2–5 are the follow-on plan.
-2. **Reinforce — Option 5** (kickoff-block line) in `CLAUDE.md`. Every Qwen
+2. **Reinforce — Option 5** (kickoff-block line) in `AGENTS-RITUALS.md`. Every Qwen
    workspace is explicitly told to read the theory. Closes the new-workspace gap.
 3. **Weave — Option 4.** The load-bearing one-liners (knowledge base = root of trust;
     parallelize breadth not depth) land in the working-conventions sections where
