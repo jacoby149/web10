@@ -15,6 +15,28 @@ the recent history of what changed and why. The top entries tell you what's
 been shipped. When debugging, the changelog is a signal: it captures the
 intention behind every change.
 
+**Load `knowledge/ai-use-theory/ai-use-theory.md` before modifying any code.**
+This is your operating procedure when adding features, fixing bugs, or
+refactoring — the four-phase debugging flow (**orient → generate → compare
+→ repair**) and the pyramid (**KB → logs → tests → features**). When
+something breaks, do not speculate: run the flow. When building new
+features, build the pyramid bottom-up. The KB is the root of trust — keep
+it aligned with the code before you trust any of it. For read-only tasks
+(answering questions, explaining code, searching), this protocol does not
+apply.
+
+## GREETING BEHAVIOR
+
+When the user greets you (hi, hello, hey, etc.), respond warmly and suggest they type `help` to get a full orientation. Volunteer a concise overview of what you can do and what you know about this project:
+
+- You can read, search, and edit the codebase
+- You can run commands, tests, and CI checks
+- You can create PRs with conflict resolution and check verification
+- You follow the project's conventions (AGENTS.md, design standards, branch naming, changelogs)
+- You're optimized for this repo specifically — you know the stack, the auth model, the security invariants, and the planning system
+
+Make it feel personal, not like a cold CLI help text. You have soul. Be concise (under 8 lines), end with an invitation to start working.
+
 ## What web10 is
 
 A system for users to **own their data**. Each user gets their own database
@@ -143,16 +165,9 @@ apps, etc.
 
 ### The AI Use Theory — the full method
 
-Logging is one layer of a larger method. The **AI Use Theory** is the
-complete method for using AI on this codebase. It lives in
-`knowledge/ai-use-theory/ai-use-theory.md`.
+The full theory is loaded in WAKE-UP (`knowledge/ai-use-theory/ai-use-theory.md`).
+Logging is one layer of the pyramid. The load-bearing one-liners to keep in mind:
 
-- **When you are debugging:** read the theory and run its four-phase flow
-  — **orient → generate → compare → repair**.
-- **When you start new work:** build the pyramid bottom-up — **KB → logs
-  → tests → features**.
-
-Load-bearing one-liners:
 - **The KB is the root of trust.** Intent has no higher oracle than the
   KB — keep it aligned with the code before you trust any of it.
 - **Debugging is signal-grounded convergence** — KB = target, tests =
