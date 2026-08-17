@@ -1,6 +1,6 @@
 # Integration Possibilities: AI Use Theory
 
-[← back to overview](./overview.md) · [← AI Use Theory](./ai-use-theory.md)
+[← back to README](./README.md) · [← AI Use Theory](./ai-use-theory.md)
 
 The theory is built but not wired in. This doc lays out the options for
 integrating it into the agent flow — for a ~260k-context workhorse model (the
@@ -72,8 +72,8 @@ link), with the full detail staying in the doc, read on demand.
 `AGENTS.md`'s Debugging section gets a short always-on rule + a link: *"When
 debugging, run the AI Use Theory's four-phase flow (orient → generate → compare
 → repair) — `knowledge/.../ai-use-theory.md`. When starting new work, build the
-pyramid bottom-up (KB → logs → tests → features)."* Plus the 2–3 load-bearing
-one-liners inline (KB = root of trust; parallelize breadth not depth; debugging
+pyramid bottom-up (knowledge base → logs → tests → features)."* Plus the 2–3 load-bearing
+one-liners inline (knowledge base = root of trust; parallelize breadth not depth; debugging
 = convergence). The full detail stays in the doc, read when relevant.
 
 - **Pro:** lean `AGENTS.md`; always-on enforcement; the 260k window makes the
@@ -156,9 +156,9 @@ Layered, so each layer covers the gap the others leave:
    now**; layers 2–5 are the follow-on plan.
 2. **Reinforce — Option 5** (kickoff-block line) in `CLAUDE.md`. Every Qwen
    workspace is explicitly told to read the theory. Closes the new-workspace gap.
-3. **Weave — Option 4.** The load-bearing one-liners (KB = root of trust;
-   parallelize breadth not depth) land in the working-conventions sections where
-   they're already half-present.
+3. **Weave — Option 4.** The load-bearing one-liners (knowledge base = root of trust;
+    parallelize breadth not depth) land in the working-conventions sections where
+    they're already half-present.
 4. **Optional complement — Option 3** (`debug!` command) for the strong model, a
    deliberate deep-debug ritual. Not required; the always-on convention is the
    real integration.

@@ -1,6 +1,6 @@
 # AI Readiness Assessment
 
-[← back to overview](./overview.md)
+[← back to README](./README.md)
 
 Where we are today versus the ideal [AI Use Theory](./ai-use-theory.md) pyramid.
 
@@ -8,7 +8,7 @@ Where we are today versus the ideal [AI Use Theory](./ai-use-theory.md) pyramid.
 
 | Signal | Status | Notes |
 |--------|--------|-------|
-| **KB** | 🟡 Good, not perfect | 72 docs in `knowledge/knowledge-base/`, mostly v3. Covers media, DB, groups, social, encryption, SDK. Gaps: v4 areas, some newer features undocumented, social app internals. |
+| **Knowledge base** | 🟡 Good, not perfect | 72 docs in `knowledge/knowledge-base/`, mostly v3. Covers media, DB, groups, social, encryption, SDK. Gaps: v4 areas, some newer features undocumented, social app internals. |
 | **Logs** | 🔴 Incomplete | Some flows are dense (wapi popup auth has comprehensive logging per changelog). Most API endpoints, background jobs, and the social app are sparse. This is the biggest gap — if something breaks in an unlogged area, we're back to guessing. |
 | **Code** | 🟢 Modern | TypeScript, React, bun, Vite. Stack is current. No legacy pipenv or old frameworks dragging us down. |
 | **Changelog** | 🟢 Excellent | 2532 lines, detailed entries with intent captured. The changelog is one of our strongest signals — it reads like the AI understood what it built. |
@@ -23,7 +23,7 @@ Where we are today versus the ideal [AI Use Theory](./ai-use-theory.md) pyramid.
 
 **CI/CD is real.** Tests actually run. E2E gauntlet exists. The pipeline catches regressions.
 
-**The KB is substantial.** 72 docs covering the major systems. It's not perfect, but it's not empty.
+**The knowledge base is substantial.** 72 docs covering the major systems. It's not perfect, but it's not empty.
 
 ## The Gaps
 
@@ -31,19 +31,19 @@ Where we are today versus the ideal [AI Use Theory](./ai-use-theory.md) pyramid.
 
 **Tests are uneven.** The hot paths (auth, consent, groups) are covered. The cold paths (media pipeline, API internals, background jobs) are not. Tests in untested areas mean the AI can't verify fixes — it can only hope.
 
-**KB has v4 gaps.** The KB is mostly v3. v4 changes (ClickHouse v4, new SDK patterns, social app architecture) are partially documented. AKB that doesn't cover the current code is worse than no KB — it misleads the AI.
+**Knowledge base has v4 gaps.** The knowledge base is mostly v3. v4 changes (ClickHouse v4, new SDK patterns, social app architecture) are partially documented. A knowledge base that doesn't cover the current code is worse than no knowledge base — it misleads the AI.
 
 ## The Verdict
 
-We're at about **60% of the ideal** — a rough estimate, not a precise measurement. The method: each of the six signals (KB, logs, code, changelog, tests, CI/CD) is roughly equally weighted. Green = full credit, yellow = half credit, red = zero. Three greens (code, changelog, CI/CD) = 3/6. Two yellows (KB, tests) = 1/6. One red (logs) = 0/6. That's 4/6, or ~67%, rounded down because the yellow areas have significant gaps and the red area (logs) is the single most important signal for cheap debugging.
+We're at about **60% of the ideal** — a rough estimate, not a precise measurement. The method: each of the six signals (knowledge base, logs, code, changelog, tests, CI/CD) is roughly equally weighted. Green = full credit, yellow = half credit, red = zero. Three greens (code, changelog, CI/CD) = 3/6. Two yellows (knowledge base, tests) = 1/6. One red (logs) = 0/6. That's 4/6, or ~67%, rounded down because the yellow areas have significant gaps and the red area (logs) is the single most important signal for cheap debugging.
 
-The foundation exists — changelog, CI/CD, modern stack, decent KB, real tests. But the two signals that matter most for cheap debugging (logs and test coverage) are incomplete. We can debug cheaply in well-covered areas (auth flow, groups, consent) but still burn tokens in the gaps (media, API internals, social app internals).
+The foundation exists — changelog, CI/CD, modern stack, decent knowledge base, real tests. But the two signals that matter most for cheap debugging (logs and test coverage) are incomplete. We can debug cheaply in well-covered areas (auth flow, groups, consent) but still burn tokens in the gaps (media, API internals, social app internals).
 
 ## To Get to 100%
 
 1. **Max the logs** — every API endpoint, every background job, every message boundary. This is the single highest-ROI change for AI debugging cost.
 2. **Fill test gaps** — API layer, media pipeline, social app components. Prioritize areas that break often.
-3. **Update KB to v4** — document what changed, what's new, what's different. AKB that's partially wrong is dangerous.
+3. **Update knowledge base to v4** — document what changed, what's new, what's different. A knowledge base that's partially wrong is dangerous.
 
 ---
 
