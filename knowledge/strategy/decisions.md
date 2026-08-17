@@ -691,7 +691,7 @@ cross-collection stages, and capping resources. Rejects: staying at 4 verbs
 (bottleneck), and raw unrestricted queries (injection/scope-escape risk).
 
 ### D8 — Security invariants are end-to-end and machine-enforced [decided]
-Five invariants (I1–I5 in plan.txt) must hold every phase; the conformance
+Five invariants (I1–I5 in the v3 KB) must hold every phase; the conformance
 suite tests them so they can't silently rot. Prompted by finding the
 federation bug (D7). Rejects: security as a one-time checklist.
 
@@ -724,7 +724,7 @@ the primary model; programmatic ad networks as the foundation.
 Open self-hostable software + a managed-hosting/rails company (the Automattic
 shape). The customer is the creator/publisher, not the end user — sovereignty
 rides along invisibly. Rejects: leading the pitch with crypto comparisons
-(the old pitch.txt framing).
+(early web10 framing).
 
 ### D3 — DocumentDB/FerretDB as the open DB backend [decided]
 Keep the Mongo document model + wire protocol (load-bearing: web10's API IS

@@ -36,15 +36,11 @@ apps built on web10 (report those to their authors) and infrastructure we
 don't operate.
 
 ## Security model (for researchers)
-web10's guarantees are defined as invariants I1–I5 in `plan.txt` (cross-cutting
-security section). The most valuable reports are ones that break one of them:
-- I1: a provider verifying another provider's token without trusting the
-  token's own claims;
-- I2: any authorization decision made on unverified token data;
-- I3: any path that reaches a collection other than the addressed user's;
-- I4: the node operator reading content that should be end-to-end encrypted;
-- I5: a scoped token exceeding its scope, or a token that can't be revoked
-  when it should be.
+web10's guarantees are defined as invariants I1–I5 in the v3 knowledge base:
+`knowledge/knowledge-base/web10-v3/security/overview.md`. The most valuable
+reports are ones that break one of them. Read the full doc for the two-contract
+access model, how ClickHouse enforces I3, token security, blocking/sharing, and
+the known federation gap (HS256 → RS256 in flight).
 
 ## Project maturity — read this
 web10 is **pre-production and not yet independently audited.** There are known

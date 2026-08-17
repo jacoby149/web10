@@ -15,8 +15,10 @@ Work-in-progress ideas, alternatives, and explorations live in `web10-v3-brainst
 ```
 web10-v3/
 ├── README.md              ← you are here
-├── encryption/            ← authentication, tokens, security
+├── encryption/            ← authentication, tokens
 │   └── auth.md            ← JWT auth flow, token structure, ACR
+├── security/              ← security model, invariants, access control
+│   └── overview.md        ← invariants I1–I5, two-contract model, blocking
 ├── sdk/                   ← the JavaScript/TypeScript SDK
 │   ├── api.md             ← surface: CRUD, groups, $sort, $match
 │   ├── implementation.md  ← ClickHouse SQL behind every SDK call
@@ -43,6 +45,7 @@ web10-v3/
 
 - **SDK** — `sdk/api.md` (surface), `sdk/implementation.md` (SQL), `sdk/contracts.md` (contracts)
 - **DB** — `db/clickhouse.md` (tables, indexes, patterns)
+- **Security** — `security/overview.md` (invariants I1–I5, two-contract model, blocking)
 - **Groups** — `groups/overview.md` (primitive), `groups/identity.md` (profiles)
 - **Social** — `social/overview.md` (implementation), `social/cross-app-sharing.md` (patterns)
 - **Media** — `media/transcoding-foundation.md` (schema fields, HLS gap)

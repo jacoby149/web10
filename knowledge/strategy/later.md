@@ -252,8 +252,8 @@ why it's parked:
   from a partner node mirroring your entire public_feed).
 - the security surface is real: a "trusted for distribution" switch
   that lets another node READ your users' public_posts is a new
-  cross-collection surface, and I3 ("no cross-collection access,
-  ever") + the sandboxed aggregate were both tuned for the
+   cross-collection surface, and I3 (no query returns documents for an
+   `author_key` the token doesn't own) + the ClickHouse query layer were both tuned for the
   single-node case. the allowlist has to be enforced at the auth
   layer, not just the panel, and the contract test for it doesn't
   exist yet.

@@ -36,6 +36,7 @@ says what can happen **at the same time**.
 - [✓ 3.0.1] Social overview.md — social app architecture
 - [✓ 3.0.1] Encryption auth.md — auth flow sequence
 - [✓ 3.0.1] FAQ oltp-to-olap-patterns.md — OLTP vs OLAP architecture
+- [✓ 3.0.51] Security overview.md — invariants I1–I5 in v3 language, two-contract model, blocking, E2E/federation status
 
 ### Lane: Docs (Phase 1)
 **Owns:** `marketing/marketing-ui/public/docs/`

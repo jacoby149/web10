@@ -30,8 +30,8 @@ come before the kickoff blocks — always.
      but not yet shipped, for the gate in step 2.
 2. **Gate the dev batch, and SHIP it if clean** (the full rules live
    below under "The dev-batch gate + dev→main promotion"): read the batch
-   diffs, hunt for really-broken only (invariants I1–I5, auth/DB
-   regressions, star protection, red checks, seam collisions between
+    diffs, hunt for really-broken only (invariants I1–I5, auth/DB
+    regressions, red checks, seam collisions between
    merged PRs, `knowledge/strategy/design.md` flunks, missing CHANGELOG/lane
    ticks — style nitpicks are NOT findings). If broken: emit paste-ready
    fix kickoff blocks and DO NOT promote (unless the operator explicitly
@@ -166,7 +166,7 @@ the fix targets every future workspace, not the dead one. Then:
    the exact command that works) — so the operator can paste it into
    a fresh workspace immediately.
 4. **Log it:** CHANGELOG line (`docs: unbrick — <failure class>`),
-   and if the fix changed a rule, keep `AGENTS.md`/`knowledge/strategy/GLOSSARY.md` true in
+    and if the fix changed a rule, keep `AGENTS.md` true in
    the same branch. PR to dev per `AGENTS.md`.
 
 Rules of the ritual: no blaming the model in the docs (the docs
@@ -199,7 +199,7 @@ audit (steps 1–4), then the promotion (steps 5–7).
    --state merged` to map commits back to PRs. Read the diffs
    (`git diff origin/main...origin/dev` per area, or per-PR).
 2. **Look for really-broken, not nitpicks.** Security invariants I1–I5,
-   auth/DB-layer regressions, star-record protection, broken builds or
+    auth/DB-layer regressions, broken builds or
    red/skipped checks, two merged PRs stepping on the same seam,
    user-facing surfaces that flunk `knowledge/strategy/design.md`
    (screenshot if runnable), missing/wrong CHANGELOG or lane ticks that
