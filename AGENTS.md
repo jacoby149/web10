@@ -30,7 +30,7 @@ below, this is not optional.
 - `imma rant` → the operator is about to fire a stream of complaints
   (usually with screenshots). Do NOT implement ANY of them — rants are
   for capturing, the fleet is for building. File EACH complaint as a
-   lane item in `parallel-execution.md` + `plan.md` (the complaint-
+   lane item in `knowledge/strategy/parallel-execution.md` + `knowledge/strategy/plan.md` (the complaint-
   to-lane-item pipeline: verbatim quote, screenshot referenced,
   root-cause diagnosis if it's cheap to find, acceptance bar, sub-lane
   + gates + bite sizing per rule 5), one docs branch + PR with a
@@ -50,6 +50,12 @@ banter.
 Now read `CLAUDE.md`. Despite the name it is the orientation file for
 ALL agents working on this repo — architecture, security invariants,
 and working conventions. Everything there applies to you.
+
+## Browse the knowledge base before starting work
+
+`knowledge/strategy/` is the project's brain — the plan, the execution lanes, the design standard, the decisions, the manifesto, the timeline. Browse it before starting work. These are root-level docs that define what the project is, where it's going, and how work is organized.
+
+`knowledge/changelogs/CHANGELOG.md` is the project's memory — the recent history of what changed and why. Scan the top entries to understand what's been shipped. When debugging, the changelog is a signal: it captures the intention behind every change.
 
 ## Debugging: log everything, keep it in
 
@@ -102,7 +108,7 @@ Load-bearing one-liners (these hold even if you skip the doc):
 
 If your task touches anything a user sees — `ui/`,
 `marketing/marketing-ui/`, `marketing/web10-social/`, any screen or
-component — read `design.md` BEFORE writing code, every time. It is
+component — read `knowledge/strategy/design.md` BEFORE writing code, every time. It is
 the binding standard: the quality bar (the screenshot test), the
 canonical brand assets (the files named `logo*.png` are NOT the
 logos — §3 names the real ones), the shared design tokens (§13), and
@@ -131,11 +137,11 @@ login and redirect after (the D-url-routing pattern, 1.0.155).
 Task completion state lives in three places. Check all three before
 writing code — merged work must not be redone:
 
-1. `parallel-execution.md` — the lane queues carry live status:
+1. `knowledge/strategy/parallel-execution.md` — the lane queues carry live status:
    `[✓ x.y.z]` = merged (the x.y.z points at the CHANGELOG entry),
    `[~]` = in flight in another workspace, `[ ]` = open.
-2. `plan.md` — completed items are ticked `[✓]`.
-3. `CHANGELOG.md` — newest entry at top. Work merged after the lane
+2. `knowledge/strategy/plan.md` — completed items are ticked `[✓]`.
+3. `knowledge/changelogs/CHANGELOG.md` — newest entry at top. Work merged after the lane
    queues were last ticked shows up here first, so always scan the
    top few entries.
 
@@ -144,23 +150,23 @@ unticked item in the same lane instead of redoing it.
 
 ## When you finish a task
 
-In the SAME branch as the change: add a `CHANGELOG.md` line (newest at
-top, `version || DD.MM.YYYY`), tick the item in `plan.md`, and tick
-your lane item in `parallel-execution.md`. If you changed the stack,
-data model, or auth flow, keep `CLAUDE.md`/`GLOSSARY.md` true and
-record big calls in `decisions.md`.
+In the SAME branch as the change: add a `knowledge/changelogs/CHANGELOG.md` line (newest at
+top, `version || DD.MM.YYYY`), tick the item in `knowledge/strategy/plan.md`, and tick
+your lane item in `knowledge/strategy/parallel-execution.md`. If you changed the stack,
+data model, or auth flow, keep `CLAUDE.md`/`knowledge/strategy/GLOSSARY.md` true and
+record big calls in `knowledge/strategy/decisions.md`.
 
-## CHANGELOG.md in parallel branches: union-merge, then renumber
+## knowledge/changelogs/CHANGELOG.md in parallel branches: union-merge, then renumber
 
-Every branch prepends an entry to `CHANGELOG.md`, usually claiming the
+Every branch prepends an entry to `knowledge/changelogs/CHANGELOG.md`, usually claiming the
 same next version number — collisions are expected, not exceptional.
-`.gitattributes` sets `CHANGELOG.md merge=union`, so a local
+`.gitattributes` sets `knowledge/changelogs/CHANGELOG.md merge=union`, so a local
 `git merge origin/dev` keeps BOTH sides' entries instead of
 conflicting. (GitHub's merge button ignores custom merge drivers, so
 a conflicted PR is still resolved locally: merge `origin/dev` into
 your branch and push.)
 
-After ANY merge that touched `CHANGELOG.md`:
+After ANY merge that touched `knowledge/changelogs/CHANGELOG.md`:
 
 1. Look at the top of the file — all entries should be intact, none
    duplicated or interleaved. Union merge is line-based, and it dedupes
@@ -171,20 +177,20 @@ After ANY merge that touched `CHANGELOG.md`:
    highest anywhere in the file — the changelog CI check enforces
    this), restore the other entry's header and the blank line between
    entries, and update any `[✓ x.y.z]` / `[~]` refs you made in
-    `plan.md` and `parallel-execution.md` to match.
+    `knowledge/strategy/plan.md` and `knowledge/strategy/parallel-execution.md` to match.
 3. Never rewrite, reorder, or renumber someone else's entry.
 
-## CHANGELOG.md pruning
+## knowledge/changelogs/CHANGELOG.md pruning
 
-CHANGELOG.md keeps the last 50 entries detailed. When the file exceeds
+knowledge/changelogs/CHANGELOG.md keeps the last 50 entries detailed. When the file exceeds
 200 entries, ask the operator, then prune: keep the top 50 entries
-intact, copy the older entries into a file in `changelog-archives/`
+intact, copy the older entries into a file in `knowledge/changelogs/changelog-archives/`
 named `<commit-hash>-DD.MM.YYYY.md`, and replace everything older
 with a pointer line at the bottom:
 
 ```
 ---
-Entries prior to vX.Y.Z archived at `changelog-archives/abc1234-17.08.2026.md`. Full history available via `git show abc1234:CHANGELOG.md`.
+Entries prior to vX.Y.Z archived at `changelog-archives/abc1234-17.08.2026.md`. Full history available via `git show abc1234:knowledge/changelogs/CHANGELOG.md`.
 ```
 
 The commit hash is the HEAD commit at the time of pruning. The archive
@@ -272,7 +278,7 @@ Every branch must use a type prefix so the history is scannable:
 | `refactor/` | Code restructuring with no behavioral change |
 | `chore/` | Deps, CI, tooling, docs, config |
 | `test/` | Test additions or test infrastructure |
-| `docs/` | Documentation only (CLAUDE.md, plan.md, etc.) |
+| `docs/` | Documentation only (CLAUDE.md, knowledge/strategy/plan.md, etc.) |
 
 **Format:** `type/short-description` — e.g. `fix/auth-token-expiry`, `feature/social-feed`.
 
@@ -285,5 +291,5 @@ Existing `lane-x/` and `username/` branches are fine historically. New branches 
 The base branch for every PR is `dev`. `main` is only updated by an
 explicit, deliberate merge from `dev`. Merging to `main` directly
 causes conflicts when `dev` later merges into `main` because both
-branches diverge on shared files (CHANGELOG.md, CLAUDE.md, plan.md,
+branches diverge on shared files (knowledge/changelogs/CHANGELOG.md, CLAUDE.md, knowledge/strategy/plan.md,
 CI workflows). If you're unsure, target `dev`.
