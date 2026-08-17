@@ -13,12 +13,12 @@ The theory + refutations live in `knowledge/ai-use-theory/`.
 Nothing in the agent flow points at them:
 
 - Not referenced in `AGENTS.md` or `plan.md`.
-- The four-phase debugging flow (orient → generate → compare → repair) and the
+- The four-phase task flow (orient → generate → compare → repair) and the
   pyramid exist only in the theory doc — no agent is pointed at them.
 - The closest operational echo is `AGENTS.md`'s "Debugging: log everything"
   section — a partial (logs-only) version of the pyramid's Step 2, unlinked.
 
-So an agent debugging a bug follows "log everything" but has no idea the
+So an agent working on a task follows "log everything" but has no idea the
 four-phase flow or the pyramid exist. The theory needs a **trigger** — a place in
 the flow that says "do this."
 
@@ -70,10 +70,10 @@ Debugging section (the always-on trigger + the load-bearing one-liners + the
 link), with the full detail staying in the doc, read on demand.
 
 `AGENTS.md`'s Debugging section gets a short always-on rule + a link: *"When
-debugging, run the AI Use Theory's four-phase flow (orient → generate → compare
+modifying files, run the AI Use Theory's four-phase flow (orient → generate → compare
 → repair) — `knowledge/.../ai-use-theory.md`. When starting new work, build the
 pyramid bottom-up (knowledge base → logs → tests → features)."* Plus the 2–3 load-bearing
-one-liners inline (knowledge base = root of trust; parallelize breadth not depth; debugging
+one-liners inline (knowledge base = root of trust; parallelize breadth not depth; tasks
 = convergence). The full detail stays in the doc, read when relevant.
 
 - **Pro:** lean `AGENTS.md`; always-on enforcement; the 260k window makes the
@@ -157,14 +157,14 @@ Layered, so each layer covers the gap the others leave:
 2. **Reinforce — Option 5** (kickoff-block line) in `AGENTS-RITUALS.md`. Every Qwen
    workspace is explicitly told to read the theory. Closes the new-workspace gap.
 3. **Weave — Option 4.** The load-bearing one-liners (knowledge base = root of trust;
-    parallelize breadth not depth) land in the working-conventions sections where
-    they're already half-present.
+   parallelize breadth not depth) land in the working-conventions sections where
+   they're already half-present.
 4. **Optional complement — Option 3** (`debug!` command) for the strong model, a
    deliberate deep-debug ritual. Not required; the always-on convention is the
    real integration.
 5. **Harden later — Option 6.** Once 1–4 are in and you see where Qwens still
    fumble, make the mechanical parts concrete (`[llm-debug]` prefix, a
-   debug-flow checklist).
+   task-flow checklist).
 
 Why this shape: the 260k window means you don't need Option 2 (inline) — the
 on-demand read is cheap, so keep `AGENTS.md` lean. The always-on *trigger*
