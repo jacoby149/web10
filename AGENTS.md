@@ -60,18 +60,8 @@ End by offering to go deep on any part.
 
 The tour, in this order:
 
-1. **The knowledge base** — `knowledge/knowledge-base/`. The actual
-   content: architecture and protocol for web10.
-   - `web10-v3/` — the core we build first: ClickHouse, groups as the
-     primitive, CRUD with groups, auth, security invariants (I1–I5), the
-     social app.
-   - `web10-v4/` — beyond the core: media pipeline, federation, real-time,
-     advanced SDK, finance, monetization.
-   - `web10 vs solid, differences/` — web10 vs Tim Berners-Lee's Solid:
-     same problem (own your data), opposite answers (product-first vs
-     protocol-first).
-   - `web10-social-v3/` — the 11 screens of the killer social app.
-   - `web10-v2-to-v3/` — why the architecture switched (the reasoning).
+1. **The knowledge base** — `knowledge/knowledge-base/`. The docs for the
+   web10 implementation details. We're on v3.
 2. **AI Use Theory** — `knowledge/ai-use-theory/`. The operating
    methodology: the KB is the root of trust; the pyramid (KB → logs →
    tests → features) and the four-phase flow (orient → generate → compare
