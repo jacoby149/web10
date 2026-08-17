@@ -1,3 +1,6 @@
+3.0.47 || 17.08.2026
+docs: AI Use Theory — importance-of-knowledge-base.md expanded with introductory sections: why a knowledge base exists (human-language description of code), onboarding humans, onboarding AI (every agent wakes with no memory), detecting misalignment between code objectives and implementation.
+
 3.0.46 || 17.08.2026
 docs: AI Use Theory — overview.md → README.md (auto-displays in GitHub) + "← back to README" nav on every sub-doc.
 
