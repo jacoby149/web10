@@ -1,3 +1,6 @@
+3.0.54 || 17.08.2026
+docs(agents): new HELP / ORIENTATION section — when the user types `help`, give a tour of the knowledge base (web10-v3 core, v4, web10-vs-Solid, social screens, v2→v3 reasoning), then AI Use Theory, then the doc tooling (theories/styles/voices/visual/editing), then strategy + changelog. Explicitly NOT a plan/phase dump — the KB is the root of the effort, so it leads.
+
 3.0.53 || 17.08.2026
 docs(strategy): archive + reset the plan — `plan.md` and `parallel-execution.md` had gone out of date; moved to `archive/plan-17.08.2026.md` and `archive/parallel-execution-17.08.2026.md` (git mv, history preserved). New files are fresh skeletons: durable framing kept (docs-first rule, hierarchy of reliance, lane rules + status key), stale phase/lane item lists blanked. Fill in as work is re-scoped.
 
