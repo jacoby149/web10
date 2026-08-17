@@ -4,8 +4,10 @@ The strongest objections to the theory, and how it stands against them. A theory
 that can't survive its own refutations is a slogan. This is the stress test: each
 entry is a real objection, the answer, and the verdict — **Revised** (the theory
 changed) or **Holds** (the theory stood, often sharpened). When a refutation wins,
-`ai-use-theory.md` changes and this entry records why. New refutations are appended
+[`ai-use-theory.md`](./ai-use-theory.md) changes and this entry records why. New refutations are appended
 here as they get settled.
+
+[← back to overview](./overview.md)
 
 ---
 

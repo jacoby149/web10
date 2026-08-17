@@ -1,10 +1,14 @@
 # ArXiv Evidence: AI Use Theory
 
+[← back to overview](../overview.md) · [← AI Use Theory](../ai-use-theory.md)
+
 Peer-reviewed papers, benchmarks, and industry deployments backing every claim in the AI Use Theory.
 
 ---
 
 ## Claim 1: LLMs excel at code translation and refactoring
+
+See [AI Use Theory — "perfect translator" trait](../ai-use-theory.md#what-an-llm-actually-is).
 
 LLMs are nearly perfect at mapping one well-defined code space to another — language-to-language, framework-to-framework, old-to-new.
 

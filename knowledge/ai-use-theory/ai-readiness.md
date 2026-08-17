@@ -1,6 +1,8 @@
 # AI Readiness Assessment
 
-Where we are today versus the ideal AI Use Theory pyramid.
+[← back to overview](./overview.md)
+
+Where we are today versus the ideal [AI Use Theory](./ai-use-theory.md) pyramid.
 
 ## The Scorecard
 
