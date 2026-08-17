@@ -52,43 +52,17 @@ in `knowledge/strategy/outreach.md`.
   - `web10-social/` — the killer app: all-in-one social lens (instagram-
     shaped, video + streaming).
 
-## How the data model works (know this cold before touching mongo.py)
+## How the data model works
 
-- One MongoDB collection **per user**, named by username.
-- Every doc is `{service, body}`; `to_gui`/`to_db` translate for read/write.
-- Queries are scoped by `service`; `q_t`/`u_t` prefix user fields to
-  `body.` so user input can never name protected fields. This is a
-  security boundary.
-- The `services` service holds terms/ACL records. The `*` (star) record
-  holds the account (password hash, plan, phone, stripe ids). **Star
-  protection** stops CRUD from touching it — never weaken this.
+Single ClickHouse `documents` table, primary key `(author_key, doc_id)`. `doc_groups` maps documents to groups. `group_contracts` + `group_members` define access. Two contract types: app contracts (infrastructure trust, CORS-enforced) and group contracts (social access, role-enforced). Full model: `knowledge/knowledge-base/web10-v3/db/clickhouse.md`.
 
 ## Auth model
 
-- Tokens are JWTs carrying `username, site, target, provider, expires`.
-- `certify` verifies a token; `is_permitted` checks the terms records to
-  decide if a token may do an action on a user's service.
-- Federation: identity is `(username, provider)`, like email. A provider
-  vouches for its own tokens; other providers verify via the provider's
-  key.
+JWT tokens with `username, site, target, provider, expires`. Server verifies signature, checks app contracts + group membership. Full auth flow: `knowledge/knowledge-base/web10-v3/encryption/auth.md`.
 
-## SECURITY INVARIANTS — do not break these
+## Security invariants
 
-Enforced by the conformance/permission test suite. If your change touches
-auth, the DB layer, or tokens, run those tests and keep them green.
-
-- **I1.** A provider verifies ANY token's issuer cryptographically,
-  without trusting the token's own claims. (Currently broken: HS256 →
-  RS256 fix is in flight. Do not add code that deepens the HS256
-  assumption.)
-- **I2.** Authorization decisions use only VERIFIED token data — never an
-  unsigned decode.
-- **I3.** A request can only touch the addressed user's collection. No
-  cross-collection access, ever. (This is why aggregate is sandboxed.)
-- **I4.** Private content is unreadable by the node operator (e2e
-  encryption).
-- **I5.** Every actor (app, agent, llm) acts under a scoped, expiring,
-  revocable token. Least privilege.
+Defined in the KB: `knowledge/knowledge-base/web10-v3/security/overview.md`. Short version — I1: cryptographic issuer verification, I2: no unsigned decode, I3: no query returns documents for an `author_key` the token doesn't own (unless group membership grants access), I4: e2e encryption, I5: scoped/expiring/revocable tokens enforced by app contracts. Enforced by the conformance/permission test suite.
 
 ## Operator code words — recognize instantly, never treat as banter
 

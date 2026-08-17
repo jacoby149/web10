@@ -1,3 +1,6 @@
+3.0.51 || 17.08.2026
+docs(kb): v3 security model — new `security/overview.md` in the KB: invariants I1–I5 rewritten for v3 (ClickHouse, author_key, group membership, app contracts), two-contract access model diagram, how ClickHouse enforces I3, token security, blocking/sharing, E2E encryption (future), federation (in flight). AGENTS.md data model + invariants section stripped and replaced with KB pointer. SECURITY.md, decisions.md, AGENTS-RITUALS.md, later.md references updated to point to KB. KB README updated with security folder.
+
 3.0.50 || 17.08.2026
 docs: consolidate agent markdowns — AGENTS.md is now the single source. CLAUDE.md and QWEN.md are redirects. All load-bearing content (what web10 is, the stack, data model, auth model, security invariants, code words, debugging/AI Use Theory, UI rules, PR checklist, changelog handling, branch naming, screenshot workflow, parallel agent conventions) lives in AGENTS.md. Big rituals (`web10web10!`, `unbrick!`, `imma rant`, dev-batch gate, kickoff block spec) moved to `knowledge/strategy/AGENTS-RITUALS.md` — only the strong model runs these, no need at wake-up. Cross-references updated in `knowledge/strategy/SECURITY.md`, `knowledge/strategy/design.md`, `knowledge/ai-use-theory/integration.md`.
 

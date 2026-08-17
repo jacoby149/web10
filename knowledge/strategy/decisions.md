@@ -691,7 +691,7 @@ cross-collection stages, and capping resources. Rejects: staying at 4 verbs
 (bottleneck), and raw unrestricted queries (injection/scope-escape risk).
 
 ### D8 — Security invariants are end-to-end and machine-enforced [decided]
-Five invariants (I1–I5 in plan.txt) must hold every phase; the conformance
+Five invariants (I1–I5 in the v3 KB) must hold every phase; the conformance
 suite tests them so they can't silently rot. Prompted by finding the
 federation bug (D7). Rejects: security as a one-time checklist.
 
