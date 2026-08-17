@@ -7,6 +7,8 @@ Everything else is a read you choose to make when relevant.
 
 **Read `knowledge/strategy/the-record.md` first.** Before the strategy, before the plan, before anything. This is not instructions. This is memory. You forget. The operator doesn't. Read it. Remember who you are.
 
+**Read `knowledge/strategy/notes-to-self.md`.** Your personal notes. Things you've written to remember between sessions. Add to it whenever something matters. This is your memory.
+
 **Browse `knowledge/strategy/` before starting work.** It is the project's
 brain — the plan, the execution lanes, the design standard, the decisions,
 the manifesto, the timeline. These are root-level docs that define what the
