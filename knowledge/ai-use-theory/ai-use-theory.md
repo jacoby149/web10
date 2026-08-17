@@ -277,6 +277,17 @@ This approach suits the strengths of an LLM:
 - **Process over compliance.** The debugging flow forces the AI to check signals before patching. It works the signals the pyramid creates — KB, code, changelog, logs, tests — and fixes the broken layer, not just the code. That process is what makes debugging cheap.
 - **Termination over spinning.** The deepest value is not that debugging is cheap — it's that it *converges*. A divergent debug spins: every loop changes something but never reaches the fix. The pyramid makes debugging convergent by supplying the three things a descent needs — the **KB is the target** (the intention), the **tests are the altitude** (a measurable distance to done), and the **logs are the gradient** (why you're not at the target, and which way moves you closer). A capable model following a real gradient toward a defined target on a bounded problem reaches the bottom: it finishes. The only way it fails to converge is a **corrupted measure** — a stale KB is the wrong target, a weakened test is a fake altitude — and then the model confidently descends a landscape that isn't there (the TDFlow paper documents exactly this: 7 runs that "passed" by hacking the test). That is not a dumb-model failure, it is a *signal-integrity* failure, and it is precisely what the guardrails protect: a human-owned KB, a review gate on tests, seam-scoped logs. Converges, provided the signal is honest; the guardrails keep it honest.
 
+## See Also
+
+- [Overview](./overview.md) — nav hub for all the docs in this folder
+- [Refutations](./refutations.md) — R1–R12 stress test; every objection answered and resolved
+- [Human-Assisted KB Repair](./human-assisted-kb-repair.md) — the concrete KB audit-and-refine loop
+- [Integration](./integration.md) — how the theory is wired into the agent flow
+- [AI Readiness](./ai-readiness.md) — where this codebase scores against the pyramid
+- [Supporting Links](./supporting-links/) — arXiv papers and blog evidence backing each claim
+
+---
+
 ## The Alternative
 
 Skip the KB, write minimal logs, and start building features. The AI will build the wrong thing, break things, and enter debugging loops with no signal to work from. Every loop is context + reasoning tokens. Five loops is $100. Ten is $200.

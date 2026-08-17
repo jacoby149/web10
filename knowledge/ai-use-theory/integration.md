@@ -1,5 +1,7 @@
 # Integration Possibilities: AI Use Theory
 
+[← back to overview](./overview.md) · [← AI Use Theory](./ai-use-theory.md)
+
 The theory is built but not wired in. This doc lays out the options for
 integrating it into the agent flow — for a ~260k-context workhorse model (the
 Qwen-class agents that do most of the work) — and where each option makes sense.

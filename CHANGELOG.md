@@ -1,3 +1,6 @@
+3.0.44 || 17.08.2026
+docs: AI Use Theory — cross-link all docs + new overview.md nav hub. overview.md is the entry point: 1-2 sentence summary of each doc with links. Every doc links back to the overview. ai-use-theory.md links to refutations, KB repair, integration, readiness, and supporting links. Evidence docs link back to the theory and overview.
+
 3.0.43 || 17.08.2026
 docs: AI Use Theory — integrate Option 1 (the selected way) + tidy the folder. AGENTS.md's Debugging section now carries the always-on pointer to the theory: when debugging, read knowledge/ai-use-theory/ai-use-theory.md and run the four-phase flow (orient → generate → compare → repair); when starting new work, build the pyramid bottom-up (KB → logs → tests → features) — plus the load-bearing one-liners inline (KB = root of trust; debugging = signal-grounded convergence; parallelize breadth not depth). integration.md marks Option 1 as the selected/implemented way. Moved the two evidence docs (blog + arxiv) into a supporting-links/ subfolder.
 

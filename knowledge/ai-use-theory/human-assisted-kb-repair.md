@@ -1,5 +1,7 @@
 # Human-Assisted KB Repair
 
+[← back to overview](./overview.md)
+
 The KB is the root of trust — the one assumption the whole AI Use Theory rests on.
 But getting a KB 100% accurate is hard, because it is *so much to cover*. A human
 can't hold the whole codebase + the whole KB + the business plan in their head and

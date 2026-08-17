@@ -1,10 +1,14 @@
 # Blog & Community Evidence: AI Use Theory
 
+[← back to overview](../overview.md) · [← AI Use Theory](../ai-use-theory.md)
+
 The same patterns the papers show up everywhere developers talk to each other — HN threads, dev blogs, Reddit, Twitter. Not benchmarks, just people who've burned money and code.
 
 ---
 
 ## LLMs are great at translation, bad at debugging
+
+See [AI Use Theory — Claim 1: perfect translator](../ai-use-theory.md#what-an-llm-actually-is) and [Claim 2: relentless overtryer](../ai-use-theory.md#what-an-llm-actually-is).
 
 **Simon Willison — "Moonlight & Mayhem"** — Codex + GPT-5.6 built a full working game from a one-shot prompt ($23, 52 minutes). But shipped with every raccoon having a giant eyeball sphere floating over its head. Despite reviewing screenshots during development, Codex missed it entirely. Willison had to manually prompt "Why do the raccoons have huge black spheres?" then "Fix it." LLMs can build impressive things but miss obvious bugs. [simonwillison.net/2026/Aug/7/moonlight-mayhem/](https://simonwillison.net/2026/Aug/7/moonlight-mayhem/)
 
