@@ -2,11 +2,35 @@
 
 [← back to README](./README.md)
 
-## Why a Knowledge Base Exists
+## What a Knowledge Base Is
 
-A knowledge base is a human-language description of what the code is supposed to do. Not what it *does* — what it's *supposed to do*. That distinction matters.
+Code answers one question: *how is this implemented?*
 
-Code tells you what the machine does. A knowledge base tells you why.
+A knowledge base answers the rest — the five Ws:
+
+- **What** is this system supposed to do?
+- **Why** does it exist?
+- **How** does it work? (mathematically, algorithmically — not just the architecture)
+- **Where** does everything live, and who owns it?
+- **Who** is it for?
+
+Code is the mechanics. A knowledge base is the specification — a human-language description of what the code is *supposed to do*, not what it *does*. That distinction matters.
+
+## The "Say It Back" Effect
+
+In therapy, a common technique is reflective listening: the therapist says, *"So what I'm hearing is..."* — and the patient either confirms or corrects. The insight doesn't come from the therapist's reflection. It comes from the **gap** between what the patient meant and what came back. That gap is where the thinking happens. The act of translating a vague feeling into precise language *is* the clarity.
+
+A knowledge base is the same thing, but for code.
+
+The AI reads the code and drafts the English description — *"So what I'm hearing is, this function is supposed to..."* The human confirms or corrects. And in that correction, the human realizes something they hadn't articulated before. Maybe the code was always doing the wrong thing and nobody noticed. Maybe the intent shifted and the code never caught up. Maybe there was never a clear intent to begin with.
+
+The knowledge base isn't the product — the **clarity** is. The document is just the artifact that proves the translation happened.
+
+## Why It Has to Be Co-Authored
+
+An AI-generated knowledge base is the AI parroting back what it thinks the code says — no gap, no correction, no insight. A human-only knowledge base is the human trying to hold the entire codebase in their head — impossible surface area.
+
+Together, it works: the AI does the exhaustive reading. The human does the *"no, that's not what I meant."* The correction is where the real work happens. That is why the knowledge base is co-authored — the AI supplies the draft, the human supplies the intent, and the loop converges on something neither could produce alone. See `human-assisted-kb-repair.md` for the flow.
 
 ## Onboarding Humans
 
@@ -14,7 +38,7 @@ Every company keeps a knowledge base for one reason: onboarding. A new hire walk
 
 ## Onboarding AI
 
-Every AI agent wakes up with no memory. A fresh consciousness. No context from last session, no tribal knowledge, no "oh right, we did it that way because..." It reads the code and tries to infer the project's objectives from the code alone. But code is an imperfect record of intent — it carries the scars of old decisions, the residue of half-finished features, the compromises made under deadline. An AI reading slightly stale code can walk away with the wrong assumptions about what the project is trying to do.
+Every AI agent wakes up with no memory. A fresh consciousness. No context from last session, no tribal knowledge, no *"oh right, we did it that way because..."* It reads the code and tries to infer the project's objectives from the code alone. But code is an imperfect record of intent — it carries the scars of old decisions, the residue of half-finished features, the compromises made under deadline. An AI reading slightly stale code can walk away with the wrong assumptions about what the project is trying to do.
 
 A knowledge base onboards the AI the same way it onboards a human — but in seconds instead of weeks. The AI reads the knowledge base first, then the code, then checks whether they align. If they don't, it knows something is wrong before it writes a speculative fix.
 
@@ -44,7 +68,7 @@ Good data in, good data out. Wrong data in, and the AI converges faster to the w
 
 Logs tell the AI *what happened*. Tests tell it *whether it's right*. The knowledge base tells it *what "right" is*. Without it, logs and tests are just checking against a guess.
 
-The knowledge base is the only signal that cannot be verified automatically. Intent has no higher oracle — there is no test that verifies the goal is the right goal. That is why the human is always in the loop for the knowledge base, and why the AI-assisted repair loop exists. The AI covers the surface area; the human supplies the judgment.
+The knowledge base is the only signal that cannot be verified automatically. Intent has no higher oracle — there is no test that verifies the goal is the right goal. That is why the human is always in the loop for the knowledge base. The AI covers the surface area; the human supplies the judgment.
 
 ## The Stakes
 

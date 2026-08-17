@@ -1,3 +1,6 @@
+3.0.48 || 17.08.2026
+docs: AI Use Theory — importance-of-knowledge-base.md rewritten with full framing. Opens with the 5 Ws (code answers "how is this implemented," knowledge base answers what, why, how architecturally, where, who). New "Say It Back" section: the knowledge base is a reflective listening loop — the AI drafts the English description of the code, the human confirms or corrects, and the gap between them is where the insight happens. New co-authored section: why it can't be AI-only (no gap, no correction) or human-only (impossible surface area).
+
 3.0.47 || 17.08.2026
 docs: AI Use Theory — importance-of-knowledge-base.md expanded with introductory sections: why a knowledge base exists (human-language description of code), onboarding humans, onboarding AI (every agent wakes with no memory), detecting misalignment between code objectives and implementation.
 
