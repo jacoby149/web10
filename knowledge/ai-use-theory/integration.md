@@ -7,7 +7,7 @@ It is a decision doc, not a writing-framework doc (unlike Why/How/What).
 
 ## The Problem
 
-The theory + refutations live in `knowledge/knowledge-theories/ai-use-theory/`.
+The theory + refutations live in `knowledge/ai-use-theory/`.
 Nothing in the agent flow points at them:
 
 - Not referenced in `AGENTS.md`, `CLAUDE.md`, or `plan.md`.
@@ -61,7 +61,11 @@ theory in sessions that don't use it.
 
 ## The Options
 
-### Option 1 — Pointer + on-demand (always-on trigger, reference detail)
+### Option 1 — Pointer + on-demand (always-on trigger, reference detail) — ✅ SELECTED
+
+**This is the selected way right now** — it is implemented in `AGENTS.md`'s
+Debugging section (the always-on trigger + the load-bearing one-liners + the
+link), with the full detail staying in the doc, read on demand.
 
 `AGENTS.md`'s Debugging section gets a short always-on rule + a link: *"When
 debugging, run the AI Use Theory's four-phase flow (orient → generate → compare
@@ -75,7 +79,7 @@ one-liners inline (KB = root of trust; parallelize breadth not depth; debugging
 - **Con:** relies on the agent actually reading the linked doc (mitigated by the
   inline one-liners surviving even if it doesn't).
 - **Makes sense when:** you want always-on enforcement without bloating
-  `AGENTS.md`. *This is the default recommendation.*
+  `AGENTS.md`. *This is the selected way — implemented.*
 
 ### Option 2 — Inline (always-on, full theory in `AGENTS.md`)
 
@@ -146,7 +150,8 @@ Layered, so each layer covers the gap the others leave:
 
 1. **Primary — Option 1** (pointer + on-demand) in `AGENTS.md`'s Debugging
    section. Always-on trigger + 2–3 load-bearing one-liners inline + link to the
-   doc. This is the enforcement.
+   doc. This is the enforcement. **Implemented — this is the selected way right
+   now**; layers 2–5 are the follow-on plan.
 2. **Reinforce — Option 5** (kickoff-block line) in `CLAUDE.md`. Every Qwen
    workspace is explicitly told to read the theory. Closes the new-workspace gap.
 3. **Weave — Option 4.** The load-bearing one-liners (KB = root of trust;
