@@ -1,3 +1,9 @@
+3.0.54 || 17.08.2026
+docs(agents): new HELP / ORIENTATION section — when the user types `help`, give a full repo map: agent docs (AGENTS.md + CLAUDE/QWEN redirects, README), top-level folders (api, ui, sdk, marketing, mobile, knowledge, ubuntu-deployment, e2e/scripts), the knowledge base (knowledge-base v3, ai-use-theory, how-to-write, strategy, changelogs), and the operator commands (web10web10!, unbrick!, imma rant). Explicitly NOT a plan/phase dump.
+
+3.0.53 || 17.08.2026
+docs(strategy): archive + reset the plan — `plan.md` and `parallel-execution.md` had gone out of date; moved to `archive/plan-17.08.2026.md` and `archive/parallel-execution-17.08.2026.md` (git mv, history preserved). New files are fresh skeletons: durable framing kept (docs-first rule, hierarchy of reliance, lane rules + status key), stale phase/lane item lists blanked. Fill in as work is re-scoped.
+
 3.0.52 || 17.08.2026
 docs(ai-use-theory): reframe from "debugging methodology" to "task execution methodology" — the four-phase flow and pyramid apply to any file-modifying task (features, fixes, refactors), not just debugging. On debugging it saves doom loops; on features it saves reimplementation from misalignment. Updated: ai-use-theory.md (subtitle, flow section, pyramid framing, cost argument, closing), README.md (nav descriptions, "How to Read This"), integration.md (trigger language), AGENTS.md (WAKE-UP pointer, one-liners).
 
