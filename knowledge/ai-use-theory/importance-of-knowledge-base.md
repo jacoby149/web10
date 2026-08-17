@@ -1,5 +1,7 @@
 # Importance of the Knowledge Base
 
+[← back to README](./README.md)
+
 The knowledge base is the lynchpin. Every other signal in the pyramid — logs, tests, changelog — checks against it. It is the entry point in every debugging flow: the AI loads the knowledge base first, then everything else, then checks whether they align. If they don't, it repairs the knowledge base before touching code.
 
 ```

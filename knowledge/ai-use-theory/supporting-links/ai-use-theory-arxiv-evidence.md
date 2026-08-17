@@ -1,6 +1,6 @@
 # ArXiv Evidence: AI Use Theory
 
-[← back to overview](../overview.md) · [← AI Use Theory](../ai-use-theory.md)
+[← back to README](../README.md) · [← AI Use Theory](../ai-use-theory.md)
 
 Peer-reviewed papers, benchmarks, and industry deployments backing every claim in the AI Use Theory.
 

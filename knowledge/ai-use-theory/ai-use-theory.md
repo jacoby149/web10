@@ -1,5 +1,7 @@
 # AI Use Theory
 
+[← back to README](./README.md)
+
 How to use AI to build software without burning money on debugging loops.
 
 ## What an LLM Actually Is
@@ -279,7 +281,7 @@ This approach suits the strengths of an LLM:
 
 ## See Also
 
-- [Overview](./overview.md) — nav hub for all the docs in this folder
+- [README](./README.md) — nav hub for all the docs in this folder
 - [Importance of the Knowledge Base](./importance-of-knowledge-base.md) — why the knowledge base is the lynchpin
 - [Refutations](./refutations.md) — R1–R12 stress test; every objection answered and resolved
 - [Human-Assisted Knowledge Base Repair](./human-assisted-kb-repair.md) — the concrete knowledge base audit-and-refine loop

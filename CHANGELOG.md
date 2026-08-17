@@ -1,3 +1,6 @@
+3.0.46 || 17.08.2026
+docs: AI Use Theory — overview.md → README.md (auto-displays in GitHub) + "← back to README" nav on every sub-doc.
+
 3.0.45 || 17.08.2026
 docs: AI Use Theory — new importance-of-knowledge-base.md + KB → knowledge base everywhere. importance-of-knowledge-base.md: the knowledge base is the lynchpin, entry point of every debugging flow, the funnel where all signal flows through. Overview leads with the knowledge base, not the theory. All "KB" in prose, diagrams, and mermaid charts expanded to "knowledge base" for clarity.
 

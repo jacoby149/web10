@@ -7,7 +7,7 @@ changed) or **Holds** (the theory stood, often sharpened). When a refutation win
 [`ai-use-theory.md`](./ai-use-theory.md) changes and this entry records why. New refutations are appended
 here as they get settled.
 
-[← back to overview](./overview.md)
+[← back to README](./README.md)
 
 ---
 

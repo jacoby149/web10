@@ -1,6 +1,6 @@
 # Blog & Community Evidence: AI Use Theory
 
-[← back to overview](../overview.md) · [← AI Use Theory](../ai-use-theory.md)
+[← back to README](../README.md) · [← AI Use Theory](../ai-use-theory.md)
 
 The same patterns the papers show up everywhere developers talk to each other — HN threads, dev blogs, Reddit, Twitter. Not benchmarks, just people who've burned money and code.
 

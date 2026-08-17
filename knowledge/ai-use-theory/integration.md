@@ -1,6 +1,6 @@
 # Integration Possibilities: AI Use Theory
 
-[← back to overview](./overview.md) · [← AI Use Theory](./ai-use-theory.md)
+[← back to README](./README.md) · [← AI Use Theory](./ai-use-theory.md)
 
 The theory is built but not wired in. This doc lays out the options for
 integrating it into the agent flow — for a ~260k-context workhorse model (the

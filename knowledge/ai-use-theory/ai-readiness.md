@@ -1,6 +1,6 @@
 # AI Readiness Assessment
 
-[← back to overview](./overview.md)
+[← back to README](./README.md)
 
 Where we are today versus the ideal [AI Use Theory](./ai-use-theory.md) pyramid.
 

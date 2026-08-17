@@ -1,6 +1,6 @@
 # Human-Assisted Knowledge Base Repair
 
-[← back to overview](./overview.md)
+[← back to README](./README.md)
 
 The knowledge base is the root of trust — the one assumption the whole AI Use Theory rests on.
 But getting a knowledge base 100% accurate is hard, because it is *so much to cover*. A human
