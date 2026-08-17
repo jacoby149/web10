@@ -77,6 +77,27 @@ This is an open-source project — copious logging is a feature, not noise. When
 
 This is how the operator diagnoses problems remotely — the logs are the only signal.
 
+### The AI Use Theory — the full method (this is the one)
+
+Logging is one layer of a larger method. The **AI Use Theory** is the complete
+method for using AI on this codebase, and it is **the selected integration**
+(Option 1 in `knowledge/ai-use-theory/integration.md`). It lives in
+`knowledge/ai-use-theory/ai-use-theory.md` — an always-on trigger here, full
+detail read on demand.
+
+- **When you are debugging:** read `knowledge/ai-use-theory/ai-use-theory.md`
+  and run its four-phase flow — **orient → generate → compare → repair**.
+- **When you start new work:** build the pyramid bottom-up — **KB → logs →
+  tests → features**.
+
+Load-bearing one-liners (these hold even if you skip the doc):
+- **The KB is the root of trust.** Intent has no higher oracle than the KB —
+  keep it aligned with the code before you trust any of it.
+- **Debugging is signal-grounded convergence** — KB = target, tests = altitude,
+  logs = gradient; you close the gap between them.
+- **Parallelize breadth, not depth** — N threads on N independent problems, not
+  N threads on one bug.
+
 ## Before starting ANY UI task: read design.md
 
 If your task touches anything a user sees — `ui/`,
