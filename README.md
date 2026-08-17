@@ -96,7 +96,6 @@ at the box and the certificates provision themselves. See
 ## Learn more
 
 - **[`plan.txt`](plan.txt)** — the roadmap and the why.
-- **[`GLOSSARY.md`](GLOSSARY.md)** — the vocabulary (node, provider, service, record, token…).
 - **[`decisions.md`](decisions.md)** — why the big calls were made.
 - **[`manifesto.md`](manifesto.md)** — the fan-facing pitch that ships on every node.
 - **Developer docs** — protocol spec, conventions, schemas: `marketing/marketing-ui/public/docs/`.

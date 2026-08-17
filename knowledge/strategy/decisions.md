@@ -724,7 +724,7 @@ the primary model; programmatic ad networks as the foundation.
 Open self-hostable software + a managed-hosting/rails company (the Automattic
 shape). The customer is the creator/publisher, not the end user — sovereignty
 rides along invisibly. Rejects: leading the pitch with crypto comparisons
-(the old pitch.txt framing).
+(early web10 framing).
 
 ### D3 — DocumentDB/FerretDB as the open DB backend [decided]
 Keep the Mongo document model + wire protocol (load-bearing: web10's API IS

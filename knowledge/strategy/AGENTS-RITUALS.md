@@ -166,7 +166,7 @@ the fix targets every future workspace, not the dead one. Then:
    the exact command that works) — so the operator can paste it into
    a fresh workspace immediately.
 4. **Log it:** CHANGELOG line (`docs: unbrick — <failure class>`),
-   and if the fix changed a rule, keep `AGENTS.md`/`knowledge/strategy/GLOSSARY.md` true in
+    and if the fix changed a rule, keep `AGENTS.md` true in
    the same branch. PR to dev per `AGENTS.md`.
 
 Rules of the ritual: no blaming the model in the docs (the docs

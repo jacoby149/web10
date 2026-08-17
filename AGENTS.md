@@ -180,7 +180,7 @@ In the SAME branch as the change: add a `knowledge/changelogs/CHANGELOG.md`
 line (newest at top, `version || DD.MM.YYYY`), tick the item in
 `knowledge/strategy/plan.md`, and tick your lane item in
 `knowledge/strategy/parallel-execution.md`. If you changed the stack, data
-model, or auth flow, keep `AGENTS.md`/`knowledge/strategy/GLOSSARY.md` true
+model, or auth flow, keep `AGENTS.md` true
 and record big calls in `knowledge/strategy/decisions.md`.
 
 ## CHANGELOG.md in parallel branches: union-merge, then renumber
@@ -337,7 +337,7 @@ knowledge/strategy/plan.md, CI workflows). If you're unsure, target `dev`.
   Version collisions between parallel branches are expected — union-merge
   + renumber procedure above.
 - **Keep the docs true.** If you change the stack, data model, or auth
-  flow, update `AGENTS.md`/`knowledge/strategy/GLOSSARY.md` in the same
+  flow, update `AGENTS.md` in the same
   branch. A big architectural decision gets an entry in
   `knowledge/strategy/decisions.md`. Stale orientation docs are worse
   than none.
