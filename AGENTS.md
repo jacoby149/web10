@@ -174,6 +174,25 @@ After ANY merge that touched `CHANGELOG.md`:
     `plan.md` and `parallel-execution.md` to match.
 3. Never rewrite, reorder, or renumber someone else's entry.
 
+## CHANGELOG.md pruning
+
+CHANGELOG.md keeps the last 50 entries detailed. When the file exceeds
+200 entries, ask the operator, then prune: keep the top 50 entries
+intact, copy the older entries into a file in `changelog-archives/`
+named `<commit-hash>-DD.MM.YYYY.md`, and replace everything older
+with a pointer line at the bottom:
+
+```
+---
+Entries prior to vX.Y.Z archived at `changelog-archives/abc1234-17.08.2026.md`. Full history available via `git show abc1234:CHANGELOG.md`.
+```
+
+The commit hash is the HEAD commit at the time of pruning. The archive
+file is a local read — an agent can open it directly without running
+git commands. The pointer also links to git history as a fallback.
+Each archive creates a linked list: the oldest entry in an archive has
+its own pointer to the one before it.
+
 ## After opening a PR: conflicts first, then EVERY check green
 
 Creating the PR is not the end of the task. "Ready to go" with a
