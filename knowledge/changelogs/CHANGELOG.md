@@ -1,3 +1,9 @@
+3.0.56 || 17.08.2026
+fix(notes+hello demos): notes — createNote() now reads from #curr textarea (was undefined), removed closeAuthPopup() crash, added dense [notes-demo] logging, fixed displayNotes CSS classes + HTML escaping. hello — removed closeAuthPopup() crash, added dense [hello-demo] logging, added null-token guard. New gauntlet E2E tests: e2e/tests/notes-demo.spec.ts and e2e/tests/hello-demo.spec.ts — each captures console logs from BOTH the demo page AND the auth popup, verifying the full round-trip (demo sends contract → auth receives → auth logs in → auth approves → auth sends token → demo receives → demo does CRUD). Log sequence ordering asserted on both sides. Plus API-level CRUD + 403 tests. Plan updated: Phase 1 now includes hello demo.
+
+3.0.55 || 17.08.2026
+docs(strategy): Phase 1 scoped — demo apps (notes, messages, groups). Three lanes added to parallel-execution.md, one per demo. Acceptance bar: each demo runs end-to-end (auth → CRUD → persist), no console errors, clean UI, readable code.
+
 3.0.54 || 17.08.2026
 docs(agents): new HELP / ORIENTATION section — when the user types `help`, give a full repo map: agent docs (AGENTS.md + CLAUDE/QWEN redirects, README), top-level folders (api, ui, sdk, marketing, mobile, knowledge, ubuntu-deployment, e2e/scripts), the knowledge base (knowledge-base v3, ai-use-theory, how-to-write, strategy, changelogs), and the operator commands (web10web10!, unbrick!, imma rant). Explicitly NOT a plan/phase dump.
 

@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 import app.docs as docs
 import app.exceptions as exceptions
 from app.endpoints import auth, system
+from app.middleware import log_requests
 from app.v3 import endpoints as v3
 
 app = FastAPI(
@@ -34,6 +35,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.middleware("http")(log_requests)
 
 app.include_router(auth.router)
 app.include_router(system.router)

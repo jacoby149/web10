@@ -14,6 +14,19 @@ on:
       - api/**
       - docker-compose.yml
       - .github/workflows/e2e.yml
+  pull_request:
+    branches:
+      - dev
+      - main
+    paths:
+      - e2e/**
+      - sdk/**
+      - ui/**
+      - marketing/web10-social/**
+      - marketing/marketing-ui/**
+      - api/**
+      - docker-compose.yml
+      - .github/workflows/e2e.yml
 
 concurrency:
   group: e2e-${{ github.ref }}
