@@ -12,6 +12,8 @@ The knowledge base is the root of trust. Everything else in the pyramid — logs
 | [Refutations](./refutations.md) | Stress test — R1 through R12, each objection answered and resolved. When a refutation wins, the theory changes |
 | [Integration](./integration.md) | How the theory is wired into the agent flow — Option 1 (pointer + on-demand) is the selected integration |
 | [AI Readiness](./ai-readiness.md) | Where this codebase stands against the pyramid — ~60%, with logs as the biggest gap |
+| [Logging — The Signal Router](./logging.md) | How all signal flows into one queryable store — the compare phase reduced to a single SQL query |
+| [Testing — Anti-Tests and Repair Scope](./testing.md) | Anti-tests as the KB with teeth, the two pyramids (logic vs system), and how far repair reaches |
 | [Supporting Links](./supporting-links/) | Evidence — arXiv papers and blog posts backing each claim |
 
 ## How to Read This
@@ -20,6 +22,6 @@ The knowledge base is the root of trust. Everything else in the pyramid — logs
 - **Want to run the repair loop?** [Human-Assisted Knowledge Base Repair](./human-assisted-kb-repair.md) has the starter prompt.
 - **Want the full theory?** [AI Use Theory](./ai-use-theory.md) — the pyramid, the flow, the why.
 - **Stress-testing it?** Read [Refutations](./refutations.md) — the strongest objections and how the theory holds (or changes).
-- **Building a new codebase?** The pyramid in the main doc is your setup order: knowledge base → logs → tests → features.
-- **Debugging?** The four-phase flow (orient → generate → compare → repair) is enforced via `AGENTS.md`.
+- **Building a new codebase?** The pyramid in the main doc is your setup order: knowledge base → logs → tests → features. [Logging](./logging.md) has the signal router pattern. [Testing](./testing.md) has the anti-test approach.
+- **Debugging?** The four-phase flow (orient → generate → compare → repair) is enforced via `AGENTS.md`. [Logging](./logging.md) covers the compare phase — the diagnostic query that replaces docker exec archaeology.
 - **Building a feature?** Same flow — the knowledge base alignment (Phase 1) is what saves you from reimplementation due to misalignment.
