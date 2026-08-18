@@ -1,3 +1,6 @@
+3.0.58 || 18.08.2026
+fix(deploy): marketing site version pill showed commit hash instead of 3.0.x — build-status.sh, cd.yml, and deploy.yml all read CHANGELOG.md from the repo root, but the file moved to knowledge/changelogs/CHANGELOG.md. Updated all three to the correct path so STATUS_VERSION bakes properly into status.json.
+
 3.0.57 || 18.08.2026
 fix(auth-ui): SecurityError in Brave/production — `JSON.stringify(contract)` in approveContract was serializing `_windowSource` (a cross-origin Window ref), causing "Failed to read a named property 'toJSON' from 'Window'" when the auth popup and app are on different origins. Added the same Window-safe replacer already used on line 209.
 
