@@ -1,3 +1,6 @@
+3.0.57 || 18.08.2026
+fix(tests): align tombstone test assertions with actual SQL — 5 tests asserted `QUALIFY` and `now()` but the code uses `row_number() OVER(...)` subqueries and `now64(6)`. Fixes PR #643's api (lint + test) CI failure.
+
 3.0.56 || 17.08.2026
 fix(notes+hello demos): notes — createNote() now reads from #curr textarea (was undefined), removed closeAuthPopup() crash, added dense [notes-demo] logging, fixed displayNotes CSS classes + HTML escaping. hello — removed closeAuthPopup() crash, added dense [hello-demo] logging, added null-token guard. New gauntlet E2E tests: e2e/tests/notes-demo.spec.ts and e2e/tests/hello-demo.spec.ts — each captures console logs from BOTH the demo page AND the auth popup, verifying the full round-trip (demo sends contract → auth receives → auth logs in → auth approves → auth sends token → demo receives → demo does CRUD). Log sequence ordering asserted on both sides. Plus API-level CRUD + 403 tests. Plan updated: Phase 1 now includes hello demo.
 
