@@ -218,15 +218,20 @@ function useInterface() {
         console.log('[auth-ui] initAuthenticator — contract listener attached')
 
         // Signal readiness to the opener — once, not continuously.
-        // The app is already listening; it just needs to know the popup is
-        // mounted and ready to receive a contract.
+        // Deferred by one macrotask (setTimeout 0) so the message listener
+        // above is guaranteed to be active in the event loop before the
+        // opener receives auth_ready and fires back a contract. Without this,
+        // headless browsers can deliver the contract before the listener is
+        // ready to process it, and the popup shows "nothing to review".
         if (window.opener) {
-            try {
-                window.opener.postMessage({ type: 'auth_ready' }, '*');
-                console.log('[auth-ui] auth_ready sent to opener via postMessage')
-            } catch (err) {
-                console.error('[auth-ui] auth_ready postMessage failed:', err)
-            }
+            setTimeout(() => {
+                try {
+                    window.opener.postMessage({ type: 'auth_ready' }, '*');
+                    console.log('[auth-ui] auth_ready sent to opener via postMessage')
+                } catch (err) {
+                    console.error('[auth-ui] auth_ready postMessage failed:', err)
+                }
+            }, 0);
         } else {
             console.log('[auth-ui] no opener — not sending auth_ready (not opened as popup)')
         }
