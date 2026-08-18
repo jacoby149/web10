@@ -11,7 +11,7 @@ set -e
 # fall back gracefully when run from outside the full repo (local dev,
 # pre-repo-context images) so the script never hard-fails.
 REPO_ROOT="${STATUS_REPO_ROOT:-/app}"
-CHANGELOG="${REPO_ROOT}/CHANGELOG.md"
+CHANGELOG="${REPO_ROOT}/knowledge/changelogs/CHANGELOG.md"
 GIT_DIR="${REPO_ROOT}/.git"
 
 # Vite's default outDir is `dist` relative to its root — the build runs
