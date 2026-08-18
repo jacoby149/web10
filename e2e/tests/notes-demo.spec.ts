@@ -323,3 +323,236 @@ test.describe('Notes demo — API-level CRUD', () => {
     expect(createRes.status()).toBe(403);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Anti-tests: verify the security model actually works
+// ---------------------------------------------------------------------------
+
+test.describe('Notes demo anti-tests — broken contracts break the app', () => {
+  test('revoke contract → CRUD fails → fix access → CRUD works again', async ({ page, context, request }) => {
+    const logs = captureConsoleLogs(page, '[notes-demo]');
+    const { username, token } = await setupUser(page, context, request);
+
+    await page.goto(`${MARKETING_BASE}/docs/notes/`);
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('#editor')).toBeVisible();
+
+    // Verify CRUD works initially
+    const noteText = `before revoke ${Date.now()}`;
+    await page.locator('#curr').fill(noteText);
+    await page.locator('button:has-text("Create note")').click();
+    await expect(page.locator('.note').first()).toBeVisible({ timeout: 10000 });
+
+    // Revoke the app contract via API
+    const revokeRes = await request.post(`${API_BASE}/v3/app-contracts/revoke`, {
+      data: JSON.stringify({
+        token,
+        allowed_origin: 'http://marketing.localhost',
+      }),
+      headers: { 'Content-Type': 'application/json', Origin: AUTH_BASE },
+    });
+    expect(revokeRes.ok()).toBeTruthy();
+
+    // Now try to create a note — should fail with 403
+    const noteText2 = `after revoke ${Date.now()}`;
+    await page.locator('#curr').fill(noteText2);
+    await page.locator('button:has-text("Create note")').click();
+
+    // The "Fix access" button should appear
+    await expect(page.locator('#fixAccessBtn')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('#message')).toContainText('contract');
+
+    // Verify the note was NOT created (security model holds)
+    const readRes = await request.post(`${API_BASE}/v3/read`, {
+      data: JSON.stringify({ token, service: 'notes', groups: [] }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    // Read without groups won't work, but the key assertion is:
+    // the UI showed the error + fix button, not a silent success
+
+    // Click "Fix access" — opens auth popup to re-request contract
+    const popupPromise = context.waitForEvent('page', { timeout: 15000 });
+    await page.locator('#fixAccessBtn').click();
+    const popup = await popupPromise;
+
+    await popup.waitForLoadState('domcontentloaded', { timeout: 15000 });
+    // User is already authenticated (cookie set), so consent view should appear
+    await popup.getByTestId('consent-approve-all').waitFor({ timeout: 15000 });
+    await popup.getByTestId('consent-approve-all').click();
+
+    // Wait for the app to recover
+    await expect(page.locator('#message')).toContainText('Access restored', { timeout: 15000 });
+
+    // Now CRUD should work again
+    const noteText3 = `after fix ${Date.now()}`;
+    await page.locator('#curr').fill(noteText3);
+    await page.locator('button:has-text("Create note")').click();
+    await expect(page.locator('.note')).toHaveCount(2, { timeout: 10000 });
+
+    if (!popup.isClosed()) await popup.close();
+
+    // Verify logs show the fix flow
+    const logStr = logs.join('\n');
+    expect(logStr).toContain('[notes-demo] fixAccessBtn clicked');
+    expect(logStr).toContain('[notes-demo] fixAccess — contract re-approved');
+  });
+
+  test('revoke contract → read fails → fix button appears', async ({ page, context, request }) => {
+    const { token } = await setupUser(page, context, request);
+
+    await page.goto(`${MARKETING_BASE}/docs/notes/`);
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('#editor')).toBeVisible();
+
+    // Revoke the contract
+    await request.post(`${API_BASE}/v3/app-contracts/revoke`, {
+      data: JSON.stringify({ token, allowed_origin: 'http://marketing.localhost' }),
+      headers: { 'Content-Type': 'application/json', Origin: AUTH_BASE },
+    });
+
+    // Reload — readNotes will fail with 403, fix button should appear
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('#fixAccessBtn')).toBeVisible({ timeout: 10000 });
+  });
+
+  test('API: CRUD after contract revoke returns 403 (security holds)', async ({ request }) => {
+    const { username, token } = await signupFreshUser(request);
+
+    const groupName = `notes-${username}`;
+    await request.post(`${API_BASE}/v3/groups/create`, {
+      data: JSON.stringify({
+        token,
+        name: groupName,
+        join_policy: 'invite_only',
+        roles: [
+          { name: 'owner', services: ['*'], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn', 'manageRoles'] },
+        ],
+        members: [{ member_key: username, role: 'owner' }],
+      }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    // Create contract
+    await request.post(`${API_BASE}/v3/app-contracts/add`, {
+      data: JSON.stringify({
+        token,
+        allowed_origin: 'http://marketing.localhost',
+        permissions: { notes: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
+      }),
+      headers: { 'Content-Type': 'application/json', Origin: AUTH_BASE },
+    });
+
+    // Create doc WITH contract — works
+    const createRes1 = await request.post(`${API_BASE}/v3/create`, {
+      data: JSON.stringify({
+        token,
+        service: 'notes',
+        body: { note: 'with contract' },
+      }),
+      headers: { 'Content-Type': 'application/json', Origin: 'http://marketing.localhost' },
+    });
+    expect(createRes1.ok()).toBeTruthy();
+
+    // Revoke contract
+    await request.post(`${API_BASE}/v3/app-contracts/revoke`, {
+      data: JSON.stringify({ token, allowed_origin: 'http://marketing.localhost' }),
+      headers: { 'Content-Type': 'application/json', Origin: AUTH_BASE },
+    });
+
+    // Create doc WITHOUT contract — 403
+    const createRes2 = await request.post(`${API_BASE}/v3/create`, {
+      data: JSON.stringify({
+        token,
+        service: 'notes',
+        body: { note: 'without contract' },
+      }),
+      headers: { 'Content-Type': 'application/json', Origin: 'http://marketing.localhost' },
+    });
+    expect(createRes2.status()).toBe(403);
+
+    // Re-create contract
+    await request.post(`${API_BASE}/v3/app-contracts/add`, {
+      data: JSON.stringify({
+        token,
+        allowed_origin: 'http://marketing.localhost',
+        permissions: { notes: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
+      }),
+      headers: { 'Content-Type': 'application/json', Origin: AUTH_BASE },
+    });
+
+    // Create doc WITH contract again — works
+    const createRes3 = await request.post(`${API_BASE}/v3/create`, {
+      data: JSON.stringify({
+        token,
+        service: 'notes',
+        body: { note: 're-contracted' },
+      }),
+      headers: { 'Content-Type': 'application/json', Origin: 'http://marketing.localhost' },
+    });
+    expect(createRes3.ok()).toBeTruthy();
+  });
+
+  test('API: read with deleted group returns empty (group membership gate)', async ({ request }) => {
+    const { username, token } = await signupFreshUser(request);
+
+    const groupName = `notes-${username}`;
+    const createGroupRes = await request.post(`${API_BASE}/v3/groups/create`, {
+      data: JSON.stringify({
+        token,
+        name: groupName,
+        join_policy: 'invite_only',
+        roles: [
+          { name: 'owner', services: ['*'], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn', 'manageRoles'] },
+        ],
+        members: [{ member_key: username, role: 'owner' }],
+      }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const group = await createGroupRes.json();
+    const groupId = group.group_id;
+
+    await request.post(`${API_BASE}/v3/app-contracts/add`, {
+      data: JSON.stringify({
+        token,
+        allowed_origin: 'http://marketing.localhost',
+        permissions: { notes: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
+      }),
+      headers: { 'Content-Type': 'application/json', Origin: AUTH_BASE },
+    });
+
+    // Create a doc in the group
+    await request.post(`${API_BASE}/v3/create`, {
+      data: JSON.stringify({
+        token,
+        service: 'notes',
+        body: { note: 'in group' },
+        groups: [groupId],
+      }),
+      headers: { 'Content-Type': 'application/json', Origin: 'http://marketing.localhost' },
+    });
+
+    // Read with group — works
+    const readRes1 = await request.post(`${API_BASE}/v3/read`, {
+      data: JSON.stringify({ token, service: 'notes', groups: [groupId] }),
+      headers: { 'Content-Type': 'application/json', Origin: 'http://marketing.localhost' },
+    });
+    expect(readRes1.ok()).toBeTruthy();
+    const docs1 = await readRes1.json();
+    expect(docs1.length).toBe(1);
+
+    // Delete the group
+    await request.post(`${API_BASE}/v3/groups/delete`, {
+      data: JSON.stringify({ token, group_id: groupId }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    // Read with deleted group — should return empty
+    const readRes2 = await request.post(`${API_BASE}/v3/read`, {
+      data: JSON.stringify({ token, service: 'notes', groups: [groupId] }),
+      headers: { 'Content-Type': 'application/json', Origin: 'http://marketing.localhost' },
+    });
+    const docs2 = await readRes2.json();
+    expect(docs2.length).toBe(0);
+  });
+});

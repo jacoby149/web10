@@ -598,7 +598,7 @@ def revoke_app_contract(user_key: str, allowed_origin: str):
     """Tombstone one app contract (one row = one app)."""
     client.command(
         "INSERT INTO app_contracts (user_key, allowed_origin, permissions, created_at, updated_at, deleted) "
-        "SELECT user_key, allowed_origin, permissions, created_at, now(), 1 "
+        "SELECT user_key, allowed_origin, permissions, created_at, now64(6), 1 "
         "FROM app_contracts WHERE user_key = %(user_key)s AND allowed_origin = %(allowed_origin)s AND deleted = 0",
         {"user_key": user_key, "allowed_origin": allowed_origin},
     )
@@ -608,7 +608,7 @@ def revoke_all_app_contracts(user_key: str):
     """Tombstone all app contracts for a user."""
     client.command(
         "INSERT INTO app_contracts (user_key, allowed_origin, permissions, created_at, updated_at, deleted) "
-        "SELECT user_key, allowed_origin, permissions, created_at, now(), 1 "
+        "SELECT user_key, allowed_origin, permissions, created_at, now64(6), 1 "
         "FROM app_contracts WHERE user_key = %(user_key)s AND deleted = 0",
         {"user_key": user_key},
     )
@@ -622,7 +622,7 @@ def cleanup_stale_app_contracts(user_key: str) -> int:
     """
     result = client.command(
         "INSERT INTO app_contracts (user_key, allowed_origin, permissions, created_at, updated_at, deleted) "
-        "SELECT user_key, allowed_origin, permissions, created_at, now(), 1 "
+        "SELECT user_key, allowed_origin, permissions, created_at, now64(6), 1 "
         "FROM app_contracts "
         "WHERE user_key = %(user_key)s AND deleted = 0 "
         "AND allowed_origin NOT LIKE 'http://%%' AND allowed_origin NOT LIKE 'https://%%'",

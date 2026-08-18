@@ -136,7 +136,11 @@ async function readNotes() {
     displayNotes(docs)
   } catch (e) {
     LOG_ERR('readNotes FAILED:', e.name, e.message, 'status:', e.status)
-    message.innerHTML = `failed to read notes: ${e.message}`
+    if (isContractError(e)) {
+      showFixAccess('Access denied — your app contract may have been revoked.')
+    } else {
+      message.innerHTML = `failed to read notes: ${e.message}`
+    }
   }
 }
 
@@ -162,7 +166,11 @@ async function createNote() {
     readNotes()
   } catch (e) {
     LOG_ERR('createNote FAILED:', e.name, e.message, 'status:', e.status)
-    message.innerHTML = `failed to create note: ${e.message}`
+    if (isContractError(e)) {
+      showFixAccess('Cannot create — your app contract may have been revoked.')
+    } else {
+      message.innerHTML = `failed to create note: ${e.message}`
+    }
   }
 }
 
@@ -174,7 +182,11 @@ async function updateNote(docId, text) {
     readNotes()
   } catch (e) {
     LOG_ERR('updateNote FAILED:', e.name, e.message, 'status:', e.status)
-    message.innerHTML = `failed to update note: ${e.message}`
+    if (isContractError(e)) {
+      showFixAccess('Cannot update — your app contract may have been revoked.')
+    } else {
+      message.innerHTML = `failed to update note: ${e.message}`
+    }
   }
 }
 
@@ -186,8 +198,51 @@ async function deleteNote(docId) {
     readNotes()
   } catch (e) {
     LOG_ERR('deleteNote FAILED:', e.name, e.message, 'status:', e.status)
-    message.innerHTML = `failed to delete note: ${e.message}`
+    if (isContractError(e)) {
+      showFixAccess('Cannot delete — your app contract may have been revoked.')
+    } else {
+      message.innerHTML = `failed to delete note: ${e.message}`
+    }
   }
+}
+
+// ---------------------------------------------------------------------------
+// Fix access — re-request contract when it's been revoked
+// ---------------------------------------------------------------------------
+
+function isContractError(e) {
+  return e.status === 403 || (e.message && e.message.includes('contract'))
+}
+
+function showFixAccess(errorMsg) {
+  LOG('showFixAccess — showing fix button, error:', errorMsg)
+  fixAccessBtn.style.display = 'inline-block'
+  message.innerHTML = `<span style="color:#ef4444;">${errorMsg}</span><br><span style="color:var(--muted);font-size:0.75rem;">Your app contract may have been revoked. Click "Fix access" to re-request.</span>`
+}
+
+fixAccessBtn.onclick = () => {
+  LOG('fixAccessBtn clicked — opening auth portal to re-request contract')
+  fixAccessBtn.style.display = 'none'
+  window.web10.openAuthPortal(AUTH_ORIGIN)
+  const contract = [{
+    kind: 'app',
+    app_origin: window.location.origin,
+    permissions: {
+      [COLLECTION]: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+    },
+  }]
+  LOG('fixAccess — sending app contract:', JSON.stringify(contract, null, 2))
+  w.contractRequest(contract, AUTH_ORIGIN, (resp) => {
+    LOG('fixAccess — contractRequest callback, status:', resp.status)
+    if (resp.status === 'approved') {
+      LOG('fixAccess — contract re-approved, retrying readNotes')
+      message.innerHTML = `<span style="color:#22c55e;">Access restored.</span><br>`
+      readNotes()
+    } else {
+      LOG_ERR('fixAccess — contract request failed:', resp.status, resp.errors)
+      showFixAccess(`Fix access failed: ${resp.errors?.[0] || resp.status}`)
+    }
+  })
 }
 
 // ---------------------------------------------------------------------------
