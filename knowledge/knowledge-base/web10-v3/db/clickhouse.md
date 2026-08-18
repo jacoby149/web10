@@ -414,6 +414,33 @@ ORDER BY (user_key, group_id, blocked_key);
 | **TTL** | `TTL created_at + INTERVAL 90 DAY` on documents | Physical cleanup. Old data disappears automatically. |
 | **Background compaction** | Tables without TTL get a background job | Tombstones take space. Compact on schedule. |
 
+### Critical: Tombstone Read Invariant
+
+**All read paths over tombstoned tables must dedup-then-filter, never filter-then-dedup.**
+
+The tombstone pattern inserts a new row with `deleted = 1` and a higher `updated_at`. To read the "current" state, you must first identify the latest row per key, *then* check if it's deleted. If you filter `WHERE deleted = 0` first, the tombstone row is invisible and the old (still `deleted = 0`) row wins — the delete silently doesn't take effect.
+
+**Correct (dedup-then-filter):**
+```sql
+SELECT permissions FROM (
+    SELECT permissions, deleted,
+           row_number() OVER (PARTITION BY user_key, allowed_origin ORDER BY updated_at DESC) AS rn
+    FROM app_contracts
+    WHERE user_key = %(user_key)s
+) WHERE rn = 1 AND deleted = 0
+```
+
+**Wrong (filter-then-dedup) — the tombstone is invisible:**
+```sql
+SELECT permissions FROM app_contracts
+WHERE user_key = %(user_key)s AND deleted = 0
+ORDER BY updated_at DESC LIMIT 1
+```
+
+This applies to every table with a `deleted` column: `documents`, `doc_groups`, `group_contracts`, `group_members`, `app_contracts`, `provider_service_contracts`, `user_blacklist`, `group_blacklist`, `user_group_sharing`, `service_contracts`, `group_join_requests`, `group_hidden_docs`.
+
+**Timestamp precision:** tombstone inserts must use `now64(6)` (microsecond), not `now()` (second). If the original row and the tombstone share the same `updated_at`, the dedup can't distinguish them and either row may win non-deterministically.
+
 ## Indexes
 
 ClickHouse uses primary keys for indexing. No secondary indexes needed for the core patterns:

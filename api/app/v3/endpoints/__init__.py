@@ -10,6 +10,7 @@ from . import (
     contracts,
     documents,
     groups,
+    logs,
     media,
 )
 
@@ -38,6 +39,9 @@ router.include_router(contracts.router, prefix="/app-contracts")
 
 # App store
 router.include_router(appstore.router, prefix="/apps")
+
+# Logs (SDK/E2E forwarding)
+router.include_router(logs.router, prefix="")
 
 
 # Node stats

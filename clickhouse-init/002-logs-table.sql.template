@@ -1,0 +1,21 @@
+-- Unified signal router: all logs (API, SDK, E2E) land here.
+-- Append-only, no tombstones. Time is the primary axis.
+
+CREATE TABLE IF NOT EXISTS logs (
+    ts DateTime64(6),
+    service LowCardinality(String) DEFAULT 'api',
+    level LowCardinality(String) DEFAULT 'info',
+    method LowCardinality(String) DEFAULT '',
+    path LowCardinality(String) DEFAULT '',
+    status UInt16 DEFAULT 0,
+    latency_ms UInt32 DEFAULT 0,
+    user_key String DEFAULT '',
+    origin String DEFAULT '',
+    message String DEFAULT '',
+    request_body String DEFAULT '',
+    response_body String DEFAULT '',
+    meta String DEFAULT ''
+) ENGINE = MergeTree
+PARTITION BY toYYYYMMDD(ts)
+ORDER BY (ts)
+TTL ts + INTERVAL 30 DAY;
