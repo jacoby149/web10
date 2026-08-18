@@ -286,21 +286,21 @@ def delete_group(group_id: str):
     # Tombstone the group contract
     client.command(
         "INSERT INTO group_contracts (group_id, roles, join_policy, created_at, updated_at, deleted) "
-        "SELECT group_id, roles, join_policy, created_at, now(), 1 "
+        "SELECT group_id, roles, join_policy, created_at, now64(6), 1 "
         "FROM group_contracts WHERE group_id = %(group_id)s AND deleted = 0",
         {"group_id": group_id},
     )
     # Tombstone all members
     client.command(
         "INSERT INTO group_members (group_id, member_key, role, joined_at, updated_at, deleted) "
-        "SELECT group_id, member_key, role, joined_at, now(), 1 "
+        "SELECT group_id, member_key, role, joined_at, now64(6), 1 "
         "FROM group_members WHERE group_id = %(group_id)s AND deleted = 0",
         {"group_id": group_id},
     )
     # Tombstone all join requests
     client.command(
-        "INSERT INTO group_join_requests (group_id, requester_key, status, role, requested_at, resolved_at, updated_at, deleted) "
-        "SELECT group_id, requester_key, status, role, requested_at, resolved_at, now(), 1 "
+        "INSERT INTO group_join_requests (group_id, requester_key, status, requested_at, resolved_at, updated_at, deleted) "
+        "SELECT group_id, requester_key, status, requested_at, resolved_at, now64(6), 1 "
         "FROM group_join_requests WHERE group_id = %(group_id)s AND deleted = 0",
         {"group_id": group_id},
     )
@@ -547,8 +547,9 @@ def add_app_contract(user_key: str, allowed_origin: str, permissions: dict) -> d
 def get_app_contracts(user_key: str) -> list[dict]:
     """Get active app contracts for a user."""
     result = client.query(
-        "SELECT allowed_origin, permissions FROM app_contracts WHERE user_key = %(user_key)s AND deleted = 0 "
-        "QUALIFY row_number() OVER (PARTITION BY allowed_origin ORDER BY updated_at DESC) = 1",
+        "SELECT allowed_origin, permissions FROM (SELECT allowed_origin, permissions, deleted, "
+        "row_number() OVER (PARTITION BY allowed_origin ORDER BY updated_at DESC) as rn "
+        "FROM app_contracts WHERE user_key = %(user_key)s) WHERE rn = 1 AND deleted = 0",
         {"user_key": user_key},
     )
     return [
@@ -563,9 +564,9 @@ def get_app_contracts(user_key: str) -> list[dict]:
 def is_origin_allowed(user_key: str, allowed_origin: str) -> bool:
     """Check if an origin has an active contract for a user."""
     result = client.query(
-        "SELECT count() FROM (SELECT 1 FROM app_contracts "
-        "WHERE user_key = %(user_key)s AND allowed_origin = %(allowed_origin)s AND deleted = 0 "
-        "ORDER BY updated_at DESC LIMIT 1)",
+        "SELECT count() FROM (SELECT deleted FROM app_contracts "
+        "WHERE user_key = %(user_key)s AND allowed_origin = %(allowed_origin)s "
+        "ORDER BY updated_at DESC LIMIT 1) WHERE deleted = 0",
         {"user_key": user_key, "allowed_origin": allowed_origin},
     )
     return result.result_rows[0][0] > 0
@@ -574,9 +575,9 @@ def is_origin_allowed(user_key: str, allowed_origin: str) -> bool:
 def get_app_permissions(user_key: str, allowed_origin: str) -> dict:
     """Get the permissions dict for a user+origin contract. Returns {} if no contract."""
     result = client.query(
-        "SELECT permissions FROM app_contracts "
-        "WHERE user_key = %(user_key)s AND allowed_origin = %(allowed_origin)s AND deleted = 0 "
-        "ORDER BY updated_at DESC LIMIT 1",
+        "SELECT permissions FROM (SELECT permissions, deleted FROM app_contracts "
+        "WHERE user_key = %(user_key)s AND allowed_origin = %(allowed_origin)s "
+        "ORDER BY updated_at DESC LIMIT 1) WHERE deleted = 0",
         {"user_key": user_key, "allowed_origin": allowed_origin},
     )
     rows = result.result_rows
@@ -734,9 +735,10 @@ def read_documents_in_groups(
         "JOIN (SELECT doc_id, group_id FROM doc_groups WHERE deleted = 0 "
         "QUALIFY row_number() OVER (PARTITION BY doc_id, group_id ORDER BY updated_at DESC) = 1) pg "
         "ON p.doc_id = pg.doc_id "
-        "JOIN group_members gm ON pg.group_id = gm.group_id "
+        "JOIN (SELECT group_id, member_key, role FROM (SELECT group_id, member_key, role, deleted, "
+        "row_number() OVER (PARTITION BY group_id, member_key ORDER BY updated_at DESC) as rn "
+        "FROM group_members) WHERE rn = 1 AND deleted = 0) gm ON pg.group_id = gm.group_id "
         "WHERE gm.member_key = %(member_key)s "
-        "AND gm.deleted = 0 "
         "AND pg.group_id IN (%(g0)s" + "".join(f", %(g{i})s" for i in range(1, len(group_ids))) + ") "
         "AND NOT EXISTS ("
         "SELECT 1 FROM user_blacklist "
@@ -935,8 +937,9 @@ def add_provider_service_contract(provider_key: str, allowed_origin: str) -> dic
 def get_provider_service_contracts(provider_key: str) -> list[dict]:
     """Get active provider service contracts."""
     result = client.query(
-        "SELECT allowed_origin FROM provider_service_contracts WHERE provider_key = %(provider_key)s AND deleted = 0 "
-        "QUALIFY row_number() OVER (PARTITION BY allowed_origin ORDER BY updated_at DESC) = 1",
+        "SELECT allowed_origin FROM (SELECT allowed_origin, deleted, "
+        "row_number() OVER (PARTITION BY allowed_origin ORDER BY updated_at DESC) as rn "
+        "FROM provider_service_contracts WHERE provider_key = %(provider_key)s) WHERE rn = 1 AND deleted = 0",
         {"provider_key": provider_key},
     )
     return [{"allowed_origin": row[0]} for row in result.result_rows]
@@ -945,9 +948,9 @@ def get_provider_service_contracts(provider_key: str) -> list[dict]:
 def is_provider_origin_allowed(provider_key: str, allowed_origin: str) -> bool:
     """Check if an origin is allowed at the provider level."""
     result = client.query(
-        "SELECT count() FROM (SELECT 1 FROM provider_service_contracts "
-        "WHERE provider_key = %(provider_key)s AND allowed_origin = %(allowed_origin)s AND deleted = 0 "
-        "ORDER BY updated_at DESC LIMIT 1)",
+        "SELECT count() FROM (SELECT deleted FROM provider_service_contracts "
+        "WHERE provider_key = %(provider_key)s AND allowed_origin = %(allowed_origin)s "
+        "ORDER BY updated_at DESC LIMIT 1) WHERE deleted = 0",
         {"provider_key": provider_key, "allowed_origin": allowed_origin},
     )
     return result.result_rows[0][0] > 0
@@ -957,7 +960,7 @@ def revoke_provider_service_contract(provider_key: str, allowed_origin: str):
     """Tombstone a provider service contract."""
     client.command(
         "INSERT INTO provider_service_contracts (provider_key, allowed_origin, created_at, updated_at, deleted) "
-        "SELECT provider_key, allowed_origin, created_at, now(), 1 "
+        "SELECT provider_key, allowed_origin, created_at, now64(6), 1 "
         "FROM provider_service_contracts "
         "WHERE provider_key = %(provider_key)s AND allowed_origin = %(allowed_origin)s AND deleted = 0",
         {"provider_key": provider_key, "allowed_origin": allowed_origin},
