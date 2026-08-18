@@ -28,30 +28,42 @@ async def submit_logs(data: LogBatch):
     now = datetime.utcnow()
     rows = []
     for e in data.entries:
-        rows.append([
-            now,
-            data.service,
-            e.level,
-            "",
-            "",
-            0,
-            0,
-            data.user_key,
-            data.origin,
-            e.message,
-            "",
-            "",
-            e.meta,
-        ])
+        rows.append(
+            [
+                now,
+                data.service,
+                e.level,
+                "",
+                "",
+                0,
+                0,
+                data.user_key,
+                data.origin,
+                e.message,
+                "",
+                "",
+                e.meta,
+            ]
+        )
     if rows:
         try:
             ch.client.insert(
                 "logs",
                 rows,
                 column_names=[
-                    "ts", "service", "level", "method", "path", "status",
-                    "latency_ms", "user_key", "origin", "message",
-                    "request_body", "response_body", "meta",
+                    "ts",
+                    "service",
+                    "level",
+                    "method",
+                    "path",
+                    "status",
+                    "latency_ms",
+                    "user_key",
+                    "origin",
+                    "message",
+                    "request_body",
+                    "response_body",
+                    "meta",
                 ],
             )
         except Exception:

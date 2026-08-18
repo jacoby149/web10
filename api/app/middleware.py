@@ -36,9 +36,19 @@ async def _insert_log(row: dict):
                 ]
             ],
             column_names=[
-                "ts", "service", "level", "method", "path", "status",
-                "latency_ms", "user_key", "origin", "message",
-                "request_body", "response_body", "meta",
+                "ts",
+                "service",
+                "level",
+                "method",
+                "path",
+                "status",
+                "latency_ms",
+                "user_key",
+                "origin",
+                "message",
+                "request_body",
+                "response_body",
+                "meta",
             ],
         )
     except Exception:
@@ -109,20 +119,25 @@ async def log_requests(request: Request, call_next):
     )
 
     import asyncio
-    asyncio.create_task(_insert_log({
-        "ts": datetime.utcnow(),
-        "service": "api",
-        "level": level,
-        "method": request.method,
-        "path": str(request.url.path),
-        "status": status_code,
-        "latency_ms": latency_ms,
-        "user_key": user_key,
-        "origin": origin,
-        "message": message,
-        "request_body": body_str,
-        "response_body": resp_str,
-        "meta": meta_str,
-    }))
+
+    asyncio.create_task(
+        _insert_log(
+            {
+                "ts": datetime.utcnow(),
+                "service": "api",
+                "level": level,
+                "method": request.method,
+                "path": str(request.url.path),
+                "status": status_code,
+                "latency_ms": latency_ms,
+                "user_key": user_key,
+                "origin": origin,
+                "message": message,
+                "request_body": body_str,
+                "response_body": resp_str,
+                "meta": meta_str,
+            }
+        )
+    )
 
     return new_response
