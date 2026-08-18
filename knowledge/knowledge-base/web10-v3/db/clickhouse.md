@@ -403,6 +403,107 @@ CREATE TABLE group_blacklist (
 ORDER BY (user_key, group_id, blocked_key);
 ```
 
+## Logs (Signal Router)
+
+Unified log store. Every request, SDK event, and E2E test capture lands here. One table, one query, full incident timeline.
+
+```sql
+CREATE TABLE logs (
+    ts DateTime64(6),
+    service LowCardinality(String) DEFAULT 'api',
+    level LowCardinality(String) DEFAULT 'info',
+    method LowCardinality(String) DEFAULT '',
+    path LowCardinality(String) DEFAULT '',
+    status UInt16 DEFAULT 0,
+    latency_ms UInt32 DEFAULT 0,
+    user_key String DEFAULT '',
+    origin String DEFAULT '',
+    message String DEFAULT '',
+    request_body String DEFAULT '',
+    response_body String DEFAULT '',
+    meta String DEFAULT ''
+) ENGINE = MergeTree
+PARTITION BY toYYYYMMDD(ts)
+ORDER BY (ts)
+TTL ts + INTERVAL 30 DAY;
+```
+
+**Not tombstoned.** Append-only. TTL handles cleanup. No `deleted` column, no ReplacingMergeTree.
+
+### Sources
+
+| `service` | Source | How |
+|---|---|---|
+| `api` | API middleware (`app/middleware.py`) | Every HTTP request: method, path, status, latency, user_key, origin, truncated bodies (4KB), error detail in `message` |
+| `sdk` | Browser SDK via `POST /v3/logs` | Console logs tee'd from the demo app. Tagged with `user_key` + `origin` |
+| `e2e` | Playwright runner via `POST /v3/logs` | Captured browser console + network logs after each test. Tagged with `test_name` in `meta` |
+
+### The `POST /v3/logs` endpoint
+
+Lightweight, no auth. Accepts a batch of log entries:
+
+```json
+{
+  "service": "sdk",
+  "user_key": "api.localhost/alice",
+  "origin": "http://marketing.localhost",
+  "entries": [
+    { "level": "error", "message": "[notes-demo] readNotes FAILED: 403", "meta": "{\"status\":403}" },
+    { "level": "info", "message": "[notes-demo] showFixAccess — showing fix button" }
+  ]
+}
+```
+
+### Debugging queries
+
+**Full incident timeline for a user (the one that replaces four `docker exec` calls):**
+```sql
+SELECT ts, service, level, method, path, status, user_key, origin, message
+FROM logs
+WHERE user_key = 'api.localhost/alice'
+  AND ts > now() - INTERVAL 10 MINUTE
+ORDER BY ts;
+```
+
+**All 403s in the last hour (contract issues):**
+```sql
+SELECT ts, user_key, origin, message
+FROM logs
+WHERE status = 403 AND ts > now() - INTERVAL 1 HOUR
+ORDER BY ts DESC;
+```
+
+**Join logs with contract state (why was this origin denied?):**
+```sql
+SELECT l.ts, l.origin, l.message, c.deleted, c.updated_at
+FROM logs l
+LEFT JOIN (
+    SELECT allowed_origin, deleted, updated_at
+    FROM (SELECT *, row_number() OVER (PARTITION BY user_key, allowed_origin ORDER BY updated_at DESC) AS rn
+          FROM app_contracts WHERE user_key = 'api.localhost/alice')
+    WHERE rn = 1
+) c ON c.allowed_origin = l.origin
+WHERE l.user_key = 'api.localhost/alice' AND l.status = 403
+ORDER BY l.ts DESC;
+```
+
+**E2E test failures with browser console context:**
+```sql
+SELECT ts, level, message, meta
+FROM logs
+WHERE service = 'e2e' AND meta LIKE '%notes-demo%'
+  AND ts > now() - INTERVAL 1 HOUR
+ORDER BY ts;
+```
+
+### Design decisions
+
+- **API inserts directly.** No shipper, no logging driver, no extra container. The API already has a CH connection — one `INSERT` per request is negligible overhead.
+- **Fire-and-forget.** The middleware uses `asyncio.create_task` — if CH is down, the log is lost but the request still succeeds. Logging must never break the API.
+- **Truncated bodies.** Request/response bodies capped at 4KB. Media uploads go through S3 presigned URLs (not the API body), so this is safe.
+- **30-day TTL.** Enough for debugging, not enough to fill the disk. Old logs are gone — that's fine, they were signal, not state.
+- **`user_key` is the join key.** Every log row carries the user's key (extracted from the JWT, signature not verified — this is logging, not auth). That's what makes the JOIN queries possible.
+
 ## Patterns
 
 | Pattern | How | Why |
