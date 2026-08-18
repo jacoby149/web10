@@ -98,7 +98,7 @@ def read_documents(
     sort_desc: bool = True,
 ) -> list[dict]:
     """Read documents by author and service. Optional doc_id filter."""
-    conditions = ["deleted = 0", "collection_name = %(coll)s"]
+    conditions = ["collection_name = %(coll)s"]
     params = {"coll": service}
 
     if author_key:
@@ -115,9 +115,12 @@ def read_documents(
     result = client.query(
         f"""
         SELECT doc_id, author_key, collection_name, body, ref_value, tags, created_at, updated_at
-        FROM documents
-        WHERE {where}
-        QUALIFY row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) = 1
+        FROM (
+            SELECT *, row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn
+            FROM documents
+            WHERE {where}
+        )
+        WHERE rn = 1 AND deleted = 0
         ORDER BY {order}
         LIMIT %(limit)s OFFSET %(offset)s
     """,
@@ -170,7 +173,7 @@ def delete_document(doc_id: str, author_key: str, service: str):
     """Tombstone a document (insert deleted=1 version)."""
     client.command(
         "INSERT INTO documents (doc_id, author_key, collection_name, body, ref_value, tags, created_at, updated_at, deleted) "
-        "SELECT doc_id, author_key, collection_name, body, ref_value, tags, created_at, now(), 1 "
+        "SELECT doc_id, author_key, collection_name, body, ref_value, tags, created_at, now64(6), 1 "
         "FROM documents WHERE doc_id = %(doc_id)s AND author_key = %(author_key)s AND collection_name = %(service)s AND deleted = 0",
         {"doc_id": doc_id, "author_key": author_key, "service": service},
     )
@@ -724,9 +727,10 @@ def read_documents_in_groups(
 
     result = client.query(
         "SELECT p.doc_id, p.author_key, p.body, p.tags, p.created_at, p.ref_value "
-        "FROM (SELECT doc_id, author_key, body, tags, created_at, ref_value "
-        "FROM documents WHERE deleted = 0 AND collection_name = %(coll)s "
-        "QUALIFY row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) = 1) p "
+        "FROM (SELECT doc_id, author_key, body, tags, created_at, ref_value, deleted "
+        "FROM (SELECT *, row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
+        "FROM documents WHERE collection_name = %(coll)s) "
+        "WHERE rn = 1 AND deleted = 0) p "
         "JOIN (SELECT doc_id, group_id FROM doc_groups WHERE deleted = 0 "
         "QUALIFY row_number() OVER (PARTITION BY doc_id, group_id ORDER BY updated_at DESC) = 1) pg "
         "ON p.doc_id = pg.doc_id "
