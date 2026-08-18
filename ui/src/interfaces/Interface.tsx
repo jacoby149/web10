@@ -692,7 +692,7 @@ function useInterface() {
         const windowSource = contract._windowSource;
 
         if (contract.kind === 'group') {
-            console.log('[auth-ui] approveContract — applying GCR:', JSON.stringify(contract))
+            console.log('[auth-ui] approveContract — applying GCR:', JSON.stringify(contract, (_, v) => v && typeof v.postMessage === 'function' ? '[Window]' : v))
             I.setStatus("Creating group...");
             applyGCR(contract)
                 .then(() => {
