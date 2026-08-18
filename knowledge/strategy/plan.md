@@ -44,3 +44,20 @@ Format per phase:
 
 - [ ] **<area>** (`<file>`) — <the bite>
 -->
+
+## Phase 1 — Demo Apps: Hello, Notes, Messages, Groups
+
+**Where:** `marketing/marketing-ui/public/docs/{hello,notes,messages,groups}/`
+
+The demos are the first thing a developer sees. If they don't work
+flawlessly, the whole project looks broken. "Done" = each demo runs
+end-to-end (auth → CRUD → data persists across reload), the UI is clean
+and responsive, and the code is readable enough to copy-paste into a
+real app. No console errors, no dead buttons, no stale state. Every demo
+has a full E2E test that exercises the real auth popup flow and verifies
+the console log sequence.
+
+- [ ] **Hello demo** (`hello/`) — auth flow completes, greeting shows username, groups listed. No console errors. Full E2E with popup + log sequence verification.
+- [ ] **Notes demo** (`notes/`) — full CRUD works: create, read, update, delete a note. Auth flow completes. Data persists after reload. No console errors. Full E2E with popup + log sequence verification.
+- [ ] **Messages demo** (`messages/`) — send and receive messages between two identities. Auth flow completes. Messages persist after reload. No console errors.
+- [ ] **Groups demo** (`groups/`) — create a group, add members, post to group, read group posts. Auth flow completes. Data persists after reload. No console errors.
