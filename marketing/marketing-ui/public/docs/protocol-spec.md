@@ -261,7 +261,7 @@ POST /v3/media/delete    — delete media
 - **I1.** A provider can cryptographically verify who issued any token.
 - **I2.** Authorization decisions use only verified token data.
 - **I3.** A request can only touch the addressed user's data.
-- **I4.** Private content is unreadable by the node operator (e2e encryption, planned).
+- **I4.** The node is a readable, accountable broker — content is node-readable by design (discovery / search / auditability); access is terms-controlled and the operator is liable for hosted data (D41).
 - **I5.** Every actor acts under a scoped, expiring, revocable token.
 
 ## 11. App Contract Requests (ACR)

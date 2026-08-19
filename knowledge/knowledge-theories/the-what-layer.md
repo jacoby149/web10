@@ -26,7 +26,6 @@ Every top-level directory gets one line. What it is. What it does.
 | `marketing/marketing-api/` | Marketing API — ZIP import pipeline, analytics, feedback endpoint (FastAPI) |
 | `marketing/web10-social/` | Social app — posts, feed, DMs, profile, composer (Vite + React) |
 | `sdk/` | Client SDK — typed API client for building apps on the platform |
-| `mobile/` | Mobile apps — encryptor (Expo), keychain for device keys |
 | `e2e/` | E2E tests — Playwright harness against the full stack |
 | `knowledge/` | This — writing styles, knowledge theories, editing styles, scenarios |
 | `ubuntu-deployment/` | Deployment — compose files, runbooks, ops procedures |
@@ -50,7 +49,7 @@ Who touches what? This prevents cross-lane conflicts and tells you who to ask.
 
 - **Lane A** owns `api/`, `docker-compose`, settings
 - **Lane B** owns `ui/`
-- **Lane D** owns `marketing/`, `mobile/`, docs
+- **Lane D** owns `marketing/`, docs
 - **Lane C** owns `sdk/`, `e2e/`, new services
 - **Lane E** owns deployment infra, CI/CD, provisioning
 

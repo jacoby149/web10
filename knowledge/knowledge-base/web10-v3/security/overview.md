@@ -11,7 +11,7 @@ Five guarantees that must hold every phase. The conformance/permission test suit
 | **I1** | A provider verifies any token's issuer cryptographically, without trusting the token's own claims. |
 | **I2** | Authorization decisions use only verified token data — never an unsigned decode. |
 | **I3** | No query returns documents for an `author_key` the token doesn't own, unless group membership grants access. |
-| **I4** | Private content is unreadable by the node operator (end-to-end encryption). |
+| **I4** | The node is a readable, accountable broker: content is node-readable by design (discovery, search, auditability). Operator-blindness is explicitly **not** a goal (D41). Access is controlled by terms (I3); the operator is legally liable for hosted data. |
 | **I5** | Every actor (app, agent, LLM) acts under a scoped, expiring, revocable token enforced by app contracts. |
 
 **Known gap:** I1 is partially broken — symmetric HS256 signing means providers can't verify each other's tokens. The fix (RS256/EdDSA + JWKS, D7) is in flight. Do not add code that deepens the HS256 assumption.
@@ -102,9 +102,19 @@ Two levels of user-controlled blocking:
 
 **Sharing toggle** — per-user, per-group. "Pause sharing without leaving." You stay a member. You still see their content. They can't see yours. Stored in `user_group_sharing`.
 
-## E2E Encryption (I4 — future)
+## No E2E by design (D41)
 
-Planned but not implemented. The model: phone is the keychain (secure enclave). Node stores ciphertext. Two modes — wrapped-key (keys wrapped to each friend's pubkey, friends decrypt without your phone online) and live-handout (key handed out P2P per read). Key backup is passphrase-wrapped and escrowed with a party separate from the node (trust splitting).
+web10 is a data-policy platform, not a privacy platform (D41, `thesis.md`). The
+node is readable by design — discovery, search, and auditability all require it,
+and "discoverable" and "hidden from the node" are mutually exclusive. Access is
+controlled by the terms/permission model (I3), not by cryptography; trust in the
+operator is legal (they can be sued), not cryptographic.
+
+E2E is not banned — it is not the default and not our product. A user or third
+party may build their own e2e layer on the SDK + WebRTC. If a real creator asks
+for operator-blind DMs, that becomes an opt-in tier, never the default. The
+former e2e design (phone-as-keychain, wrapped keys, CP-ABE, MLS) was reversed in
+D41; the mobile encryptor app is deleted.
 
 ## Federation (I1 — in flight)
 
@@ -112,7 +122,7 @@ The federation signing weakness is being fixed: HS256 → RS256/EdDSA + JWKS. As
 
 ## See Also
 
-- `../encryption/auth.md` — auth flow, token structure, ACR
+- `../auth/auth.md` — auth flow, token structure, ACR
 - `../db/clickhouse.md` — schema: documents, doc_groups, group_contracts, group_members, app_contracts
 - `../groups/overview.md` — group contracts, roles, join policies
 - `../sdk/contracts.md` — app contracts, group contracts, blacklists
