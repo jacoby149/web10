@@ -134,6 +134,18 @@ The log tells you *when* and *what*. The JOIN tells you *why* (the contract was 
 - **30-day TTL.** Old logs are gone. That's fine — they were signal, not state.
 - **`docker logs` is the fallback.** For the 10% case where the container crashes before it can log. Primary signal is the SQL query.
 
+## Cross-Realm Logging Gotchas
+
+The seam is where logging pays off — and where it bites back. The highest-value logs sit at the boundary, but the boundary has rules the interior of a function doesn't.
+
+**You cannot serialize a cross-origin Window.** Boundary messages (a contract posted from the app to the auth popup) carry a reference to the opener `Window` so the response can be posted back. `JSON.stringify` cannot handle it: it reads `value.toJSON` *before* any replacer runs, and reading *any* property off a cross-origin `Window` throws a `SecurityError`. A "Window-safe replacer" is a no-op for the exact same reason — the `toJSON` check fires first, before your replacer ever sees the value. This is the bug that made the auth popup show "You're all set" with zero contracts: the log line threw, the handler aborted, and `setPendingContracts` never ran.
+
+The fix is not a cleverer replacer. It is to **strip the `Window` reference before you serialize** — log a summary (count, kinds, origins) or a copy with the `Window` field removed. The `Window` is for the runtime (post the response back); it is never for the log.
+
+**Detect a cross-origin Window with `postMessage`, not `instanceof`.** `x instanceof Window` is `false` for a cross-origin opener — its prototype is from a different realm, so it never matches the current realm's `Window.prototype`. `typeof x.postMessage === 'function'` is the reliable check, because `postMessage` is one of the few properties readable across origins. The `instanceof` version fails *silently* — the response is dropped with a "source is not a Window" warning and no error, which is the worst kind of seam break: no exception, just a message that never arrives.
+
+The general rule: **at a realm boundary, the object graph is not what it looks like.** A reference that is a plain object in your realm is a locked `WindowProxy` in theirs. Log *around* it (a summary, a stripped copy), never log *it*. And when a seam log throws, the throw is the signal — it means you reached a property the boundary won't let you read. That is the gradient telling you exactly where the realm edge is.
+
 ## What This Means for the Theory
 
 The pyramid's "logs" layer was always right but too vague. The signal router makes it a concrete architectural pattern: **all signal flows into one queryable store.** The compare phase goes from "docker exec into three containers and pray" to "one SELECT." That's not an incremental improvement. It's a different debugging paradigm.

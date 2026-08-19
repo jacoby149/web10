@@ -232,9 +232,19 @@ The reasoning is simple: if something breaks at a boundary, the seam log is the 
 
 Consider a dedicated **`[llm-debug]`** log level (or prefix) for signal added *specifically* to make code AI-debuggable. It sits alongside the normal `[wapi]`/`[auth-ui]`-style prefixes but is distinct on purpose: it marks logs that exist *for the debugger*, not for the user or the ops team. That makes them (a) trivially filterable when the AI is diagnosing, (b) self-documenting about *why* the line is there, and (c) toggleable as a class if you ever want to strip AI-debug signal from a production log without touching the rest. It is a proposal, not a settled spec — the exact mechanism (a log level, a prefix convention, a build flag) is still open — but the idea is that the signal the pyramid demands should be *labelled as such*, so the next AI knows which lines were written to help it.
 
+**The concrete pattern lives in [Logging](./logging.md)** — the signal router (all signal into one queryable store), the diagnostic query, and the cross-realm gotchas (why you can't serialize a cross-origin Window, and why `instanceof Window` lies at a boundary). Read it before you instrument a seam.
+
 ### Step 3: Make Tests for Everything
 
 Unit tests. E2E tests. Gauntlets. Tests give the AI a deterministic way to verify its work instead of guessing. A test that fails is a clearer signal than a log that's missing — and tests are cheaper to fix than debugging sessions. One failing test tells the AI exactly what's wrong. No loops.
+
+**A test must drive the seam it is named for.** The test name is a promise. If it is called "auth popup round-trip," it must actually open the popup, deliver the contract, capture the consent, and assert the token comes back. Pre-seeding the state under test — dropping a valid cookie, granting the contract via raw API — and then loading the page means the test passes while the flow it is named for is broken. That is not a test of the seam; it is a test that the seam can be skipped. A workaround that routes around the integration point (`popup.close()` plus a "fragile in headless" comment) is a red flag, not a pass. The moment a test stops touching the seam, it has become a corrupted measure, and a green corrupted measure is worse than no test: it teaches the operator to trust "green," and then a real green gets doubted and a real red gets dismissed.
+
+**The ladder: tests get gradually harder.** Build them in layers, easiest first. The floor is the fast, deterministic, stable layer — API-level calls, no browser, no timing. It is not a throwaway warm-up; it is the diagnostic anchor. Above it is the hard, slow, integration layer — a real browser driving the real UI and the real popup, asserting the round-trip end to end. The easy layer earns its place twice: it is fast enough to run on every commit, and it gives *resolution*. When the UI test goes red, the API layer tells you whether the break is in the data layer or in the seam — a UI test passing does not say *why*, and a UI test failing does not say *where*. You keep both layers because they are different resolutions of the same system, not redundant copies. The failure is never having the easy layer; the failure is *stopping* at the easy layer and letting the changelog claim the hard one is covered when it is not.
+
+**The trust rule.** The changelog must never claim coverage the code does not have. "Verifies the full round-trip, logs asserted on both sides" is a false line if the spec only captures the main page and never attaches to the popup. The review gate on tests is not "does it pass" — it is "does this test actually touch the seam it is named for?" A green that skips the seam is the single most trust-destroying signal in the pyramid, because it is the one the operator is supposed to be able to sleep on.
+
+**The concrete patterns live in [Testing](./testing.md)** — anti-tests (the KB with teeth), the two pyramids, the seam rule and corrupted measure with real examples, the test ladder, test rot (testing ghosts), and the diagnostic dump. Read it before you write or review a test.
 
 ### Step 4: Build New Features
 
@@ -282,6 +292,8 @@ This approach suits the strengths of an LLM:
 ## See Also
 
 - [README](./README.md) — nav hub for all the docs in this folder
+- [Testing](./testing.md) — anti-tests, the seam rule, the corrupted measure, the test ladder, test rot, the diagnostic dump
+- [Logging](./logging.md) — the signal router, the diagnostic query, cross-realm logging gotchas
 - [Importance of the Knowledge Base](./importance-of-knowledge-base.md) — why the knowledge base is the lynchpin
 - [Refutations](./refutations.md) — R1–R12 stress test; every objection answered and resolved
 - [Human-Assisted Knowledge Base Repair](./human-assisted-kb-repair.md) — the concrete knowledge base audit-and-refine loop

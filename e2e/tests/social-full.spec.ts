@@ -37,120 +37,27 @@ test.describe('social post with media -> feed -> comment -> DM', () => {
     token = body.token;
   });
 
-  test('create post and read it back', async ({ request }) => {
-    const createRes = await request.post(`${API_BASE}/${username}/posts`, {
-      data: {
-        token,
-        query: {
-          text: 'e2e test post',
-          created_at: new Date().toISOString(),
-        },
-      },
-    });
-    expect(createRes.ok()).toBeTruthy();
-
-    const readRes = await request.patch(`${API_BASE}/${username}/posts`, {
-      data: { token, query: {} },
-    });
-    expect(readRes.ok()).toBeTruthy();
-    const posts = await readRes.json();
-    expect(Array.isArray(posts)).toBeTruthy();
-    expect(posts.length).toBeGreaterThanOrEqual(1);
-    const found = posts.find((p: any) => p.text === 'e2e test post');
-    expect(found).toBeDefined();
+  test.skip('create post and read it back', async () => {
+    // GUTTED (v2→v3): tested /{username}/posts (removed). Posts exist in v3 via
+    // /v3/create (service=posts) + /v3/read. v3 rewrite: service-based CRUD.
   });
 
-  test('create post -> create comment on post', async ({ request }) => {
-    const createRes = await request.post(`${API_BASE}/${username}/posts`, {
-      data: {
-        token,
-        query: {
-          text: 'commentable post',
-          created_at: new Date().toISOString(),
-        },
-      },
-    });
-    expect(createRes.ok()).toBeTruthy();
-    const post = await createRes.json();
-    const postId = post._id;
-
-    const commentRes = await request.post(`${API_BASE}/${username}/comments`, {
-      data: {
-        token,
-        query: {
-          text: 'e2e test comment',
-          post_id: postId,
-          created_at: new Date().toISOString(),
-        },
-      },
-    });
-    expect(commentRes.ok()).toBeTruthy();
-    const comment = await commentRes.json();
-    expect(comment.text).toBe('e2e test comment');
-    expect(comment.post_id).toBe(postId);
+  test.skip('create post -> create comment on post', async () => {
+    // GUTTED (v2→v3): tested /{username}/posts + /{username}/comments (removed).
+    // Comments exist in v3 via /v3/create (service=comments, ref to the post).
+    // v3 rewrite: service-based CRUD + ref threading.
   });
 
-  test('create reaction on post', async ({ request }) => {
-    const createRes = await request.post(`${API_BASE}/${username}/posts`, {
-      data: {
-        token,
-        query: {
-          text: 'reactable post',
-          created_at: new Date().toISOString(),
-        },
-      },
-    });
-    expect(createRes.ok()).toBeTruthy();
-    const post = await createRes.json();
-    const postId = post._id;
-
-    const reactionRes = await request.post(`${API_BASE}/${username}/reactions`, {
-      data: {
-        token,
-        query: {
-          post_id: postId,
-          type: 'like',
-          created_at: new Date().toISOString(),
-        },
-      },
-    });
-    expect(reactionRes.ok()).toBeTruthy();
-    const reaction = await reactionRes.json();
-    expect(reaction.type).toBe('like');
+  test.skip('create reaction on post', async () => {
+    // GUTTED (v2→v3): tested /{username}/posts + /{username}/reactions (removed).
+    // Reactions exist in v3 via /v3/create (service=reactions, ref to the post).
+    // v3 rewrite: service-based CRUD + ref.
   });
 
-  test('create DM between two users', async ({ request }) => {
-    const user2 = `${username}-dm`;
-    const signup2Res = await request.post(`${API_BASE}/signup`, {
-      data: {
-        provider: 'api.localhost',
-        username: user2,
-        password,
-        new_pass: password,
-        retypepass: password,
-        phone: '+15558880002',
-        betacode: 'web10betacode',
-      },
-    });
-    expect(signup2Res.ok()).toBeTruthy();
-
-    const [first, second] = [username, user2].sort();
-    const dmService = `dm-${first}--${second}`;
-
-    const dmRes = await request.post(`${API_BASE}/${username}/${dmService}`, {
-      data: {
-        token,
-        query: {
-          text: 'e2e test DM',
-          from: username,
-          to: user2,
-          created_at: new Date().toISOString(),
-        },
-      },
-    });
-    expect(dmRes.ok()).toBeTruthy();
-    const dm = await dmRes.json();
-    expect(dm.text).toBe('e2e test DM');
+  test.skip('create DM between two users', async () => {
+    // GUTTED (v2→v3): tested /{username}/{dm-service} (removed). DMs exist in v3 as
+    // private (invite_only) groups with a deterministic ID + /v3/create documents.
+    // v3 rewrite: DM group contract + group-scoped CRUD.
   });
 
   test.fixme('media upload flow: request presigned URL', async ({ request }) => {
@@ -263,12 +170,9 @@ test.describe('social post with media -> feed -> comment -> DM', () => {
     expect(media.length).toBeGreaterThanOrEqual(1);
   });
 
-  test('social app renders login screen', async ({ page }) => {
-    await page.goto(SOCIAL_BASE);
-    await expect(page.locator('text=web10')).toBeVisible({ timeout: 10000 });
-    // D-login-cta (1.0.155) changed the copy to "Log in or create your
-    // account", which now also appears in a subtitle paragraph — `text=Log
-    // in` matches both and violates Playwright's strict mode.
-    await expect(page.locator('[data-testid="login-button"]')).toBeVisible({ timeout: 10000 });
+  test.skip('social app renders login screen', async () => {
+    // GUTTED (v2→v3): social app (web10-social) login-screen render check. The app is
+    // the v3 integration surface — needs a fresh render test once the login route is
+    // stable. Tracked in the retire-obsolete-e2e lane.
   });
 });

@@ -1,0 +1,234 @@
+import { test, expect, type APIRequestContext, type Page } from '@playwright/test';
+
+/**
+ * Auth popup round-trip — the INTEGRATION layer of the test ladder.
+ *
+ * This is the hard, slow, real-UI test that the API-level specs
+ * (notes-demo.spec.ts, hello-demo.spec.ts) deliberately do not cover.
+ * It drives the actual consent handshake: a signed-out demo opens the
+ * auth popup, the app contract is delivered to the popup, the user
+ * approves it in the popup, and the token comes back to the demo.
+ *
+ * The load-bearing assertion is that the contract RENDERS in the popup.
+ * Without it, a broken handshake shows "You're all set" (zero pending
+ * contracts) and every other check still passes — which is exactly how
+ * the "never asked to approve" bug shipped. A green that skips this seam
+ * is a corrupted measure.
+ *
+ * Setup is intentionally minimal:
+ *   - The POPUP (auth.localhost) is pre-authenticated so this test isolates
+ *     the contract handshake from the login form (a separate concern).
+ *   - The DEMO (marketing.localhost) starts SIGNED-OUT — no cookie.
+ *   - NO app contract is pre-granted — it must arrive through the popup.
+ */
+
+const port = process.env.E2E_HTTP_PORT || '80';
+const p = port === '80' ? '' : `:${port}`;
+const API_BASE = `http://api.localhost${p}`;
+const MARKETING_BASE = `http://marketing.localhost${p}`;
+
+const uniqueUser = (prefix: string) => `${prefix}${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+const password = 'TestPass123!';
+
+async function signupFreshUser(request: APIRequestContext): Promise<{ username: string; token: string }> {
+  const username = uniqueUser('rt');
+  await request.post(`${API_BASE}/v3/signup`, {
+    data: JSON.stringify({ username, password, phone: '+1555' + Math.floor(Math.random() * 10000000) }),
+    headers: { 'Content-Type': 'application/json' },
+  });
+  const res = await request.post(`${API_BASE}/v3/login`, {
+    data: JSON.stringify({ username, password }),
+    headers: { 'Content-Type': 'application/json' },
+  });
+  expect(res.ok()).toBeTruthy();
+  const token = (await res.json()).token as string;
+  return { username, token };
+}
+
+function captureConsoleLogs(page: Page, prefixes: string[]): string[] {
+  const logs: string[] = [];
+  page.on('console', (msg) => {
+    const text = msg.text();
+    if (prefixes.some((prefix) => text.includes(prefix))) {
+      logs.push(text);
+    }
+  });
+  return logs;
+}
+
+/**
+ * Capture EVERYTHING from a page — full console (all levels) plus uncaught
+ * exceptions (pageerror). This is the diagnostic net: a throw inside the
+ * message handler is an uncaught exception, and it is the single most likely
+ * reason a contract is received but never rendered.
+ */
+function captureFull(page: Page): { console: string[]; errors: string[] } {
+  const console: string[] = [];
+  const errors: string[] = [];
+  page.on('console', (msg) => {
+    console.push(`[${msg.type()}] ${msg.text()}`);
+  });
+  page.on('pageerror', (err) => {
+    errors.push(String(err));
+  });
+  return { console, errors };
+}
+
+function handshakeDiagnostics(demoLogs: string[], popup: { console: string[]; errors: string[] }): string {
+  return [
+    'The auth popup consent handshake is broken — see both sides below.',
+    '',
+    '--- DEMO logs ([notes-demo], [wapi]) ---',
+    demoLogs.join('\n') || '(none)',
+    '',
+    '--- POPUP uncaught exceptions (pageerror) ---',
+    popup.errors.join('\n') || '(none)',
+    '',
+    '--- POPUP full console ---',
+    popup.console.join('\n') || '(none)',
+  ].join('\n');
+}
+
+test.describe('Auth popup round-trip — real consent handshake', () => {
+  test('signed-out demo → login → contract renders in popup → approve → token lands → demo signed-in', async ({ context, request }) => {
+    const { token } = await signupFreshUser(request);
+
+    // Pre-auth ONLY the popup. The demo stays signed-out and gets no
+    // pre-granted contract — the handshake must do the work.
+    await context.addCookies([
+      { name: 'token', value: token, domain: 'auth.localhost', path: '/', secure: false, httpOnly: false },
+    ]);
+
+    const page = await context.newPage();
+    const demoLogs = captureConsoleLogs(page, ['[notes-demo]', '[wapi]']);
+
+    await page.goto(`${MARKETING_BASE}/docs/notes/`);
+    await page.waitForLoadState('networkidle');
+
+    // Demo starts signed-out.
+    await expect(page.locator('#authButton')).toHaveText('Log in');
+
+    // Open the real auth popup.
+    const popupPromise = context.waitForEvent('page', { timeout: 15000 });
+    await page.locator('#authButton').click();
+    const popup = await popupPromise;
+    const popupFull = captureFull(popup);
+    await popup.waitForLoadState('networkidle');
+
+    // THE seam assertion: the app contract must actually render in the popup.
+    // Wait for whichever consent state appears, then require it to be the
+    // contract row — not "You're all set".
+    await popup
+      .locator('[data-testid="consent-req-0"], [data-testid="consent-allset"]')
+      .first()
+      .waitFor({ state: 'visible', timeout: 15000 });
+    const contractRendered = await popup.locator('[data-testid="consent-req-0"]').isVisible();
+    if (!contractRendered) {
+      throw new Error(
+        'CONTRACT NEVER RENDERED in the auth popup — the popup showed "You\'re all set" ' +
+          '(zero pending contracts) instead of the app contract.\n\n' +
+          handshakeDiagnostics(demoLogs, popupFull),
+      );
+    }
+
+    // Approve it in the popup.
+    await popup.locator('[data-testid="consent-approve-0"]').click();
+
+    // Demo receives the approval.
+    try {
+      await expect(async () => {
+        expect(demoLogs.join('\n')).toContain('app contract APPROVED');
+      }).toPass({ timeout: 15000 });
+    } catch {
+      throw new Error('Approval did not complete — the demo never logged "app contract APPROVED".\n\n' + handshakeDiagnostics(demoLogs, popupFull));
+    }
+
+    // "Close window" makes the popup send the token; the demo receives it.
+    // (The demo only flips its button to "log out" after a second, group
+    // contract is approved — so we assert the token actually landed, which is
+    // the round-trip this spec exists to prove.)
+    await popup.locator('[data-testid="consent-close-window"]').click();
+    try {
+      await expect(async () => {
+        expect(demoLogs.join('\n')).toContain('authListen fired — user is signed in');
+      }).toPass({ timeout: 15000 });
+    } catch {
+      throw new Error('Token did not land on the demo after "Close window".\n\n' + handshakeDiagnostics(demoLogs, popupFull));
+    }
+
+    // Both sides logged the handshake — the round-trip is real, not assumed.
+    expect(popupFull.console.join('\n')).toContain('[auth-ui] auth_ready sent to opener');
+    expect(demoLogs.join('\n')).toContain('[wapi] auth_ready');
+
+    await popup.close().catch(() => {});
+  });
+
+  test('full sign-in: app contract + group contract + popup closes', async ({ context, request }) => {
+    const { token } = await signupFreshUser(request);
+    await context.addCookies([
+      { name: 'token', value: token, domain: 'auth.localhost', path: '/', secure: false, httpOnly: false },
+    ]);
+
+    const page = await context.newPage();
+    const demoLogs = captureConsoleLogs(page, ['[notes-demo]', '[wapi]']);
+    await page.goto(`${MARKETING_BASE}/docs/notes/`);
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('#authButton')).toHaveText('Log in');
+
+    const popupPromise = context.waitForEvent('page', { timeout: 15000 });
+    await page.locator('#authButton').click();
+    const popup = await popupPromise;
+    const popupFull = captureFull(popup);
+    await popup.waitForLoadState('networkidle');
+
+    // 1. Approve the app contract.
+    await popup.locator('[data-testid="consent-req-0"]').waitFor({ state: 'visible', timeout: 15000 });
+    await popup.locator('[data-testid="consent-approve-0"]').click();
+    await expect(async () => {
+      expect(demoLogs.join('\n')).toContain('app contract APPROVED');
+    }).toPass({ timeout: 15000 });
+
+    // 2. "Close window" sends the token; the demo signs in.
+    await popup.locator('[data-testid="consent-close-window"]').click();
+    await expect(async () => {
+      expect(demoLogs.join('\n')).toContain('authListen fired — user is signed in');
+    }).toPass({ timeout: 15000 });
+
+    // 3. The demo now requests the notes group contract — approve it.
+    await popup.locator('[data-testid="consent-req-0"]').waitFor({ state: 'visible', timeout: 15000 });
+    await popup.locator('[data-testid="consent-approve-0"]').click();
+
+    // 4. The demo is fully set up and closes the popup.
+    await popup.waitForEvent('close', { timeout: 15000 });
+  });
+
+  test('handshake logs are ordered: auth_ready before contract on the demo side', async ({ context, request }) => {
+    const { token } = await signupFreshUser(request);
+    await context.addCookies([
+      { name: 'token', value: token, domain: 'auth.localhost', path: '/', secure: false, httpOnly: false },
+    ]);
+
+    const page = await context.newPage();
+    const demoLogs = captureConsoleLogs(page, ['[wapi]']);
+
+    await page.goto(`${MARKETING_BASE}/docs/notes/`);
+    await page.waitForLoadState('networkidle');
+
+    const popupPromise = context.waitForEvent('page', { timeout: 15000 });
+    await page.locator('#authButton').click();
+    const popup = await popupPromise;
+    const popupFull = captureFull(popup);
+    await popup.waitForLoadState('networkidle');
+
+    // Give the handshake a moment to run, then assert ordering.
+    await page.waitForTimeout(3000);
+
+    const readyIdx = demoLogs.findIndex((l) => l.includes('[wapi] auth_ready'));
+    const sendIdx = demoLogs.findIndex((l) => l.includes('contractRequest — sending contract to popup'));
+    expect(readyIdx, handshakeDiagnostics(demoLogs, popupFull)).toBeGreaterThanOrEqual(0);
+    expect(sendIdx, handshakeDiagnostics(demoLogs, popupFull)).toBeGreaterThanOrEqual(0);
+    expect(readyIdx).toBeLessThan(sendIdx);
+
+    await popup.close().catch(() => {});
+  });
+});

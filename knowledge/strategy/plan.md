@@ -45,19 +45,27 @@ Format per phase:
 - [ ] **<area>** (`<file>`) — <the bite>
 -->
 
-## Phase 1 — Demo Apps: Hello, Notes, Messages, Groups
+## Phase 1 — Demo Apps: Platform Unit Tests
 
-**Where:** `marketing/marketing-ui/public/docs/{hello,notes,messages,groups}/`
+**Where:** `marketing/marketing-ui/public/docs/{hello,notes,messages,groups,media,comments,feed,sharing}/`
 
-The demos are the first thing a developer sees. If they don't work
-flawlessly, the whole project looks broken. "Done" = each demo runs
-end-to-end (auth → CRUD → data persists across reload), the UI is clean
-and responsive, and the code is readable enough to copy-paste into a
-real app. No console errors, no dead buttons, no stale state. Every demo
-has a full E2E test that exercises the real auth popup flow and verifies
-the console log sequence.
+The demos are the platform's unit tests. Each one tests 1–2 features in
+isolation. The social app is the integration test — it smashes the
+features together. When the social app breaks, the demos tell you which
+feature is broken. "Done" = each demo runs end-to-end (auth → feature →
+persist), no console errors, full E2E test with the real auth popup flow
+and log sequence verification.
 
-- [ ] **Hello demo** (`hello/`) — auth flow completes, greeting shows username, groups listed. No console errors. Full E2E with popup + log sequence verification.
-- [ ] **Notes demo** (`notes/`) — full CRUD works: create, read, update, delete a note. Auth flow completes. Data persists after reload. No console errors. Full E2E with popup + log sequence verification.
-- [ ] **Messages demo** (`messages/`) — send and receive messages between two identities. Auth flow completes. Messages persist after reload. No console errors.
-- [ ] **Groups demo** (`groups/`) — create a group, add members, post to group, read group posts. Auth flow completes. Data persists after reload. No console errors.
+**Simple demos (existing, done):**
+
+- [✓] **Hello** (`hello/`) — auth flow completes, greeting shows username, groups listed. E2E with popup + log sequence.
+- [✓] **Notes** (`notes/`) — full CRUD: create, read, update, delete. Data persists after reload. E2E with popup + log sequence.
+
+**Feature demos (new/upgraded):**
+
+- [ ] **Messages** (`messages/`) — DM group contract (invite_only, deterministic ID) + WebRTC P2P. Send/receive via CRUD and via data channel. E2E.
+- [ ] **Groups** (`groups/`) — group management: create, roles, join policies (open/request/invite_only), invite, join, leave, approve/deny. E2E.
+- [ ] **Media** (`media/`) — MinIO upload, `minio` type in document body, presigned URL on read, display. E2E.
+- [ ] **Comments** (`comments/`) — refs: comment on a post via `ref`, reply via `parent_ref` (threading), read the thread. E2E.
+- [ ] **Feed** (`feed/`) — discover group + followers groups, multi-group read. Post to discover, follow creators, read combined feed. E2E.
+- [ ] **Sharing** (`sharing/`) — block sharing per group, user-wide + per-group blacklists. E2E.
