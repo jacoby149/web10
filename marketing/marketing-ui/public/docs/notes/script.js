@@ -96,6 +96,11 @@ window.web10.authListen(() => {
     LOG('proceeding to initApp regardless of group creation result')
     editor.style.display = 'block'
     initApp()
+    // The popup has done its job (token + notes group). Close it — otherwise
+    // it sits open forever, because goToApp sends the token but waits for the
+    // opener to send close_popup.
+    LOG('handshake complete — closing auth popup')
+    window.web10.closeAuthPopup()
   })
 })
 

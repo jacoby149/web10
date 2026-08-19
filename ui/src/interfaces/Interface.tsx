@@ -37,6 +37,30 @@ async function v3Post(action: string, body: Record<string, any>) {
     return res.json();
 }
 
+/**
+ * JSON.stringify a value for logging, safely.
+ *
+ * Contract objects carry `_windowSource` — the cross-origin opener Window —
+ * so the response can be posted back to it. JSON.stringify cannot serialize a
+ * cross-origin Window: it reads `value.toJSON` BEFORE any replacer runs, and
+ * reading any property off a cross-origin Window throws a SecurityError. That
+ * SecurityError used to abort the contract message handler, so `setPendingContracts`
+ * never ran and the popup showed "You're all set" with zero contracts.
+ *
+ * Strip `_windowSource` (the only Window in the graph) before serializing.
+ */
+function toLogString(value: any): string {
+    try {
+        return JSON.stringify(value, (_key, val) =>
+            val && typeof val === 'object' && '_windowSource' in val
+                ? Object.fromEntries(Object.entries(val).filter(([k]) => k !== '_windowSource'))
+                : val,
+        );
+    } catch {
+        return '[unserializable]';
+    }
+}
+
 function useInterface() {
     const I = {} as Record<string, any>;
 
@@ -206,7 +230,7 @@ function useInterface() {
             if (e.data?.type === 'acr' || e.data?.type === 'contract') {
                 console.log('[auth-ui] contract message received — raw data:', JSON.stringify(e.data))
                 const normalized = normalizeContracts(e.data, e.source);
-                console.log('[auth-ui] normalized contracts:', JSON.stringify(normalized, (_, v) => v && typeof v.postMessage === 'function' ? '[Window]' : v))
+                console.log('[auth-ui] normalized contracts:', toLogString(normalized))
                 I.setPendingContracts(normalized);
                 console.log('[auth-ui] pendingContracts state set, count:', I.pendingContracts?.length)
             }
@@ -674,7 +698,11 @@ function useInterface() {
         }
         try {
             const target = '*';
-            if (windowSource instanceof Window) {
+            // `instanceof Window` is false for a cross-origin opener (its
+            // prototype is from a different realm), which silently dropped the
+            // response. `postMessage` is one of the few properties readable
+            // across origins, so it is the reliable Window check.
+            if (typeof windowSource.postMessage === 'function') {
                 const payload = { type: 'contract_response', status, errors }
                 console.log('[auth-ui] sendContractResponse — posting:', JSON.stringify(payload))
                 windowSource.postMessage(payload, target);
@@ -692,7 +720,7 @@ function useInterface() {
         const windowSource = contract._windowSource;
 
         if (contract.kind === 'group') {
-            console.log('[auth-ui] approveContract — applying GCR:', JSON.stringify(contract, (_, v) => v && typeof v.postMessage === 'function' ? '[Window]' : v))
+            console.log('[auth-ui] approveContract — applying GCR:', toLogString(contract))
             I.setStatus("Creating group...");
             applyGCR(contract)
                 .then(() => {
