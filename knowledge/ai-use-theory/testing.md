@@ -74,6 +74,40 @@ The test name is a promise. A test called "auth popup round-trip" must actually 
 
 The tell is a workaround that routes around the integration point. `popup.close()` plus a `// fragile in headless` comment is not a pass — it is the test admitting it can't reach the seam and choosing to look away. When you see that, the seam is untested, full stop. The "fragile" thing was never fragile; it was untested, and the workaround became the test.
 
+## The Fork Rule: One Goal, Many Paths
+
+The seam rule above is about the **wire seam** — the boundary between systems (client ↔ server, frontend ↔ popup). A UI feature has a second kind of seam that framing misses: the **fork seam**.
+
+The condition is not special — it is the default state of any real interface. A user goal is almost always reachable through more than one path. Approve a request: the button, "approve all," a keyboard shortcut, a right-click menu. Delete a note: the button, the trash, a swipe, the API. Navigate: the link, the keys, the URL. That redundancy is *good* UX — power users take the shortcut, casual users take the button. But each affordance is a separate code path that converges on the same wire seam. Two controls that "do the same thing" are two functions. Testing one path does not test the others, even though they look identical from the user's chair.
+
+The tell is two affordances that reach the same outcome through different code. "Allow" and "Approve all & continue" both approve a contract, but `approveContract` (single) and `approveAll` (batch) are two different functions sharing the postMessage round-trip. That is the *simplest* fork — two buttons on one screen. Real forks span modalities: the button vs. the keyboard shortcut vs. the context menu vs. the deep-link vs. the raw API call.
+
+This is exactly how the approve-all bug shipped. The round-trip E2E drove the seam through the single "Allow" button only. `approveAll` was a separate path that never got driven, and it had a real bug: the app-contract branch never sent the approval response back to the opener, so the opener's callback only fired late, mis-delivered from the group contract's response. The single-approve test could never see it, because the bug lives only in the approve-all code path. A green that drives one path and calls the feature "covered" is a corrupted measure wearing a fork's mask — it looks like seam coverage, but it is seam coverage for one path only.
+
+### The rule
+
+**A feature is tested when the seam is driven through every path that reaches it, not just the convenient one.** Before declaring a UI feature done, enumerate every affordance that reaches the goal — button, keyboard shortcut, context menu, drag, deep-link, API call, mobile equivalent, second tab — and drive each one through the seam at least once. The happy-path demo naturally exercises one affordance (the one its own flow leads to); the rest stay untested until you deliberately drive them.
+
+### How to enumerate the forks
+
+It is not a blind "click every button." It is a targeted question, the same shape as the repair-scope question below:
+
+- "What are the ways to reach this goal?" — every affordance: the buttons, the keyboard shortcuts, the context menus, the drags, the URLs, the API calls, the mobile equivalents.
+- "Which of them take a different code path?" — same outcome, different function. Those are the forks.
+- "Which forks does a test actually drive?" — the gap is the untested path.
+
+In practice:
+1. List the affordances on the surface (the `data-testid`s map the buttons; the shortcut handlers, menu items, and route params map the rest).
+2. For each, name the code path it takes (the handler → the function it calls).
+3. Mark which paths a test actually drives.
+4. The unmarked ones are the audit. Each gets a test that drives it through the real seam, with the diagnostic dump on failure.
+
+The approve-all fork got its test this way: `data-testid="consent-approve-all"` was on the surface, its handler (`approveAll`) was a different path than `consent-approve-0` (`approveContract`), and no test drove it. The test that drives it asserts the thing only that path can get wrong — that the app-contract response arrives *before* the group contract is even requested.
+
+### Fork rule vs. repair scope
+
+Repair scope (below) is *reactive*: you found a bug, so look for the pattern elsewhere. The fork rule is *proactive*: before you call a feature done, find the untested paths. They are the same instinct pointed at different times — "the code has more surface than the one spot you touched." Repair scope applies it after the break; the fork rule applies it before the claim of done.
+
 ## The Corrupted Measure: A Green That Skips the Seam
 
 A green test that doesn't touch the seam is worse than no test. It teaches the operator to trust "green" — and then a real green gets doubted and a real red gets dismissed. This is the "fake altitude" from the main theory, made concrete with two real examples:
@@ -137,4 +171,6 @@ The main theory's compare phase says "run the tests, read the signal." This doc 
 
 The main theory's repair phase says "make the fix, verify it." This doc adds: **the fix is not one function. It's the pattern. Look at the rest of the subsystem before calling it done.**
 
-Both additions come from the same root: the LLM is shy about scope. It fixes the thing that failed and stops. It doesn't naturally ask "is this broken elsewhere?" The process has to force it. AGENTS.md says: "when you find a bug pattern, check the rest of the subsystem." The anti-test suite says: "here are the invariants that must hold. If any of them fail, the repair isn't done."
+The main theory's seam rule says "the test must drive the seam it is named for." This doc adds: **the seam has forks. One goal is reachable through many paths, and a feature is tested only when the seam is driven through every path that reaches it — not just the one the happy path happens to take.**
+
+All three additions come from the same root: the LLM is shy about scope. It fixes the thing that failed and stops. It doesn't naturally ask "is this broken elsewhere?" or "did I test the other button?" The process has to force it. AGENTS.md says: "when you find a bug pattern, check the rest of the subsystem." The anti-test suite says: "here are the invariants that must hold. If any of them fail, the repair isn't done." The fork rule says: "here are the paths this feature has. If one of them has no test, the feature isn't done."
