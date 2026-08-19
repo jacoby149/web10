@@ -61,6 +61,20 @@ function toLogString(value: any): string {
     }
 }
 
+/**
+ * Runtime + type guard for "is this a postable Window".
+ *
+ * `instanceof Window` is false for a cross-origin opener (its prototype is
+ * from a different realm), which silently dropped the response. `postMessage`
+ * is one of the few properties readable across origins, so `typeof
+ * src.postMessage === 'function'` is the reliable runtime check; the `src is
+ * Window` signature also narrows the type for tsc (the MessageEventSource
+ * union's postMessage overload rejects a string targetOrigin).
+ */
+function isPostableWindow(src: MessageEventSource | null): src is Window {
+    return !!src && typeof (src as Window).postMessage === 'function';
+}
+
 function useInterface() {
     const I = {} as Record<string, any>;
 
@@ -698,11 +712,7 @@ function useInterface() {
         }
         try {
             const target = '*';
-            // `instanceof Window` is false for a cross-origin opener (its
-            // prototype is from a different realm), which silently dropped the
-            // response. `postMessage` is one of the few properties readable
-            // across origins, so it is the reliable Window check.
-            if (typeof windowSource.postMessage === 'function') {
+            if (isPostableWindow(windowSource)) {
                 const payload = { type: 'contract_response', status, errors }
                 console.log('[auth-ui] sendContractResponse — posting:', JSON.stringify(payload))
                 windowSource.postMessage(payload, target);
