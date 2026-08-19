@@ -68,6 +68,39 @@ Base is E2E anti-tests. Most system bugs are invisible to unit tests. The anti-t
 
 This project is a system. Security invariants, contract enforcement, tombstone semantics, group membership gates — all system properties. The test pyramid is inverted: the base is the E2E anti-test suite, not the unit tests.
 
+## The Seam Rule: A Test Must Drive What It's Named For
+
+The test name is a promise. A test called "auth popup round-trip" must actually open the popup, deliver the contract, capture the consent, and assert the token comes back. If it pre-seeds the state under test — drops a valid cookie, grants the contract via raw API — and then loads the page, it is not testing the seam. It is testing that the seam can be skipped.
+
+The tell is a workaround that routes around the integration point. `popup.close()` plus a `// fragile in headless` comment is not a pass — it is the test admitting it can't reach the seam and choosing to look away. When you see that, the seam is untested, full stop. The "fragile" thing was never fragile; it was untested, and the workaround became the test.
+
+## The Corrupted Measure: A Green That Skips the Seam
+
+A green test that doesn't touch the seam is worse than no test. It teaches the operator to trust "green" — and then a real green gets doubted and a real red gets dismissed. This is the "fake altitude" from the main theory, made concrete with two real examples:
+
+- The changelog said the round-trip was "verified, logs asserted on both sides." The spec only captured the main page and never attached to the popup. The memory claimed a coverage the code did not have.
+- A "fix" added a `JSON.stringify` replacer to mask a cross-origin `Window`. It was a no-op — `JSON.stringify` reads `value.toJSON` *before* any replacer runs, and that read throws a `SecurityError` cross-origin. The changelog line said "fixed." It was not. The next session inherited a false green and a broken flow.
+
+The review gate on tests is not "does it pass." It is "does this test actually touch the seam it is named for?" A green that skips the seam is the single most trust-destroying signal in the pyramid, because it is the one the operator is supposed to be able to sleep on.
+
+## The Test Ladder: Gradually Harder
+
+Build tests in layers, easiest first. The floor is the fast, deterministic, stable layer — API-level calls, no browser, no timing. It is not a throwaway warm-up; it is the diagnostic anchor. Above it is the hard, slow, integration layer — a real browser driving the real UI and the real popup, asserting the round-trip end to end.
+
+Keep both. They are different *resolutions* of the same system, not redundant copies. When the UI test goes red, the API layer tells you whether the break is in the data layer or in the seam — a UI test passing does not say *why*, and a UI test failing does not say *where*. The easy layer is also fast enough to run on every commit, which is what keeps the slow layer trustworthy. The failure is never having the easy layer. The failure is *stopping* at the easy layer and letting the changelog claim the hard one is covered when it is not.
+
+## Test Rot: Testing Ghosts
+
+The slow version of the corrupted measure. A test that hits a removed endpoint (404) or a stale payload shape (422) is no longer testing the current behavior — it is testing a ghost. The endpoint moved, the API changed, and the test kept knocking on the old door.
+
+A suite full of ghosts erodes trust the same way a false green does: the operator stops believing the signal, so a real red gets dismissed as "just the rot." The fix is the same as the seam rule — the test must touch the *current* seam. When an API endpoint is renamed or its payload changes, the tests that hit it are part of the change, not a separate cleanup. A suite that is red only because of ghosts is a corrupted measure wearing a red mask — it looks like a failure but is really a lie about what is being tested.
+
+## The Diagnostic Dump
+
+A failing integration test should hand you the break, not make you guess it. When the seam test fails, dump the signal from *both* sides of the boundary — the full console (all levels) plus uncaught exceptions (`pageerror`) from each page. That is what turned a "the contract never shows up" mystery into a one-line fix: the dump showed the contract *arriving* at the popup (`contract message received`) and then the handler dying on a `SecurityError` before `setPendingContracts`. No dump, you re-read both sides and speculate. With the dump, you read the break.
+
+The pattern: capture `page.on('console')` (all levels) and `page.on('pageerror')` on *every* page in the flow, and include them in the failure message. The durable part is not the payload — it is the *sequence* of communications across the seam, and that sequence is what localizes the break. A test that fails silently (a bare timeout) is a corrupted measure too: it tells you *that* it broke, not *where*.
+
 ## Repair Scope: Look at the Rest of the Subsystem
 
 You find a bug in `get_app_permissions`. The tombstone dedup is wrong — `WHERE deleted = 0` before `ORDER BY updated_at DESC LIMIT 1` makes the tombstone invisible.
