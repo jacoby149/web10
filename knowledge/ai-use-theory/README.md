@@ -13,7 +13,7 @@ The knowledge base is the root of trust. Everything else in the pyramid — logs
 | [Integration](./integration.md) | How the theory is wired into the agent flow — Option 1 (pointer + on-demand) is the selected integration |
 | [AI Readiness](./ai-readiness.md) | Where this codebase stands against the pyramid — ~60%, with logs as the biggest gap |
 | [Logging — The Signal Router](./logging.md) | How all signal flows into one queryable store — the compare phase reduced to a single SQL query, plus the cross-realm gotchas (why you can't serialize a cross-origin Window) |
-| [Testing — Anti-Tests and the Seam Rule](./testing.md) | Anti-tests as the KB with teeth, the two pyramids, the seam rule + corrupted measure, the test ladder, test rot (testing ghosts), and the diagnostic dump |
+| [Testing — Anti-Tests and the Seam Rule](./testing.md) | Anti-tests as the KB with teeth, the two pyramids, the seam rule + the fork rule (one goal, many paths) + corrupted measure, the test ladder, test rot (testing ghosts), and the diagnostic dump |
 | [Supporting Links](./supporting-links/) | Evidence — arXiv papers and blog posts backing each claim |
 
 ## How to Read This

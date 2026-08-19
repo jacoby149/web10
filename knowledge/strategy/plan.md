@@ -69,3 +69,7 @@ and log sequence verification.
 - [ ] **Comments** (`comments/`) — refs: comment on a post via `ref`, reply via `parent_ref` (threading), read the thread. E2E.
 - [ ] **Feed** (`feed/`) — discover group + followers groups, multi-group read. Post to discover, follow creators, read combined feed. E2E.
 - [ ] **Sharing** (`sharing/`) — block sharing per group, user-wide + per-group blacklists. E2E.
+
+**Authenticator consent forks (the shared seam every demo drives):**
+
+- [✓] **Approve-all fork** — drive "Approve all & continue" through the real popup (was untested; carried a real bug — the app-contract response was dropped, so the opener's callback fired late). Fixed via a shared `approveOne` helper. Full fork audit (deny/skip/logout/details/mixed/fix-access) lives in the `auth-consent-forks` lane.

@@ -62,6 +62,29 @@ Format per lane:
 - [✓] No console errors in any flow
 - [✓] Full E2E test with popup + log sequence verification
 
+### Lane: auth-consent-forks (Phase 1)
+**Owns:** `ui/src/components/Consent/`, `ui/src/interfaces/`, `e2e/tests/auth-popup-roundtrip.spec.ts`
+
+The authenticator consent screen is the shared seam every demo drives. The
+round-trip spec drove only the single "Allow" + "Close window" forks. The
+**approve-all** fork had a real bug — it dropped the app-contract response, so
+the opener's callback fired late, mis-delivered from the group's response —
+that no test could see, because the bug lived only in the `approveAll` code
+path. The **fork rule** in the AI Use Theory (`knowledge/ai-use-theory/testing.md`)
+is the fix: a feature is covered only when the seam is driven through *every*
+fork. This lane drives every remaining fork through the real popup.
+
+- [✓] Approve-all fork: app + group contract via "Approve all" (not single Allow) — fixed the dropped app-contract response (shared `approveOne` helper so the two forks can't diverge) + E2E with the bug-catcher assertion
+- [ ] Deny fork: single "Deny" (X) on the app contract → demo handles `denied` gracefully (message, no crash, fix-access appears)
+- [ ] Deny fork: single "Deny" on the group contract → demo proceeds (group is optional, `initApp` still runs)
+- [ ] Skip fork: "Continue without sharing" → token sent, no contracts granted, demo shows fix-access on first CRUD
+- [ ] All-set fork: already-granted ACR is filtered out → "You're all set" renders → "Close window" closes the popup
+- [ ] Logout fork: "Not you? Log out" → returns to login, pending contracts cleared, no stale state
+- [ ] Details fork: expand/collapse chevron renders the permission diff (added/removed/same chips) for a re-request
+- [ ] Mixed fork: approve app + deny group in one session (and the reverse) — each response matches its own contract
+- [ ] Edge fork: approve-all with zero pending contracts → `goToApp` early return, no crash
+- [ ] Fix-access fork: revoke → "Fix access" through the REAL popup (retire the `popup.close()` + raw-API workaround in `notes-demo.spec.ts` — a seam-rule violation the theory now names)
+
 ### Lane: messages-demo (Phase 1)
 **Owns:** `marketing/marketing-ui/public/docs/messages/`
 

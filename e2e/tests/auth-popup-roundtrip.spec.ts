@@ -202,6 +202,73 @@ test.describe('Auth popup round-trip — real consent handshake', () => {
     await popup.waitForEvent('close', { timeout: 15000 });
   });
 
+  /**
+   * The APPROVE-ALL fork.
+   *
+   * The two tests above drive the single "Allow" button (consent-approve-0).
+   * "Approve all & continue" (consent-approve-all) is a SEPARATE code path —
+   * I.approveAll — that shares the same wire seam but was never driven. That
+   * is exactly the fork-seam gap: testing the seam through one fork does not
+   * test the seam through the other. This test drives approve-all end to end.
+   *
+   * The load-bearing assertion is the bug-catcher: approve-all must send the
+   * app-contract approval response. The demo logs "app contract APPROVED" when
+   * that response arrives. Because the group contract is only requested AFTER
+   * the token lands (which is sent after the app approval), the app response
+   * must be in the logs by the time "authListen fired" appears. In the buggy
+   * approve-all the app branch never calls sendContractResponse, so that log
+   * only shows up later — mis-delivered from the group's response.
+   */
+  test('approve-all fork: app contract + group contract via "Approve all" (not single Allow)', async ({ context, request }) => {
+    const { token } = await signupFreshUser(request);
+    await context.addCookies([
+      { name: 'token', value: token, domain: 'auth.localhost', path: '/', secure: false, httpOnly: false },
+    ]);
+
+    const page = await context.newPage();
+    const demoLogs = captureConsoleLogs(page, ['[notes-demo]', '[wapi]']);
+    await page.goto(`${MARKETING_BASE}/docs/notes/`);
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('#authButton')).toHaveText('Log in');
+
+    const popupPromise = context.waitForEvent('page', { timeout: 15000 });
+    await page.locator('#authButton').click();
+    const popup = await popupPromise;
+    const popupFull = captureFull(popup);
+    await popup.waitForLoadState('networkidle');
+
+    // 1. App contract renders. Approve it via "Approve all" (NOT single Allow).
+    await popup.locator('[data-testid="consent-req-0"]').waitFor({ state: 'visible', timeout: 15000 });
+    await popup.locator('[data-testid="consent-approve-all"]').click();
+
+    // Token lands → demo signs in → requests the group contract.
+    await expect(async () => {
+      expect(demoLogs.join('\n')).toContain('authListen fired — user is signed in');
+    }).toPass({ timeout: 15000 });
+
+    // THE bug-catcher: the app-contract approval response must have arrived by
+    // now (before the group contract is even requested). A green that skips
+    // this is a corrupted measure — it would pass on the buggy approve-all.
+    expect(
+      demoLogs.join('\n'),
+      'approve-all did not send the app-contract approval response — the demo never logged ' +
+        '"app contract APPROVED" before the group contract was requested.\n\n' +
+        handshakeDiagnostics(demoLogs, popupFull),
+    ).toContain('app contract APPROVED');
+
+    // 2. Group contract renders (the demo requested it after signing in).
+    //    Approve it via "Approve all" again.
+    await expect(async () => {
+      expect(demoLogs.join('\n')).toContain('requesting group creation via contractRequest');
+    }).toPass({ timeout: 15000 });
+    await popup.locator('[data-testid="consent-req-0"]').waitFor({ state: 'visible', timeout: 15000 });
+    await popup.locator('[data-testid="consent-approve-all"]').click();
+
+    // 3. The demo is fully set up and closes the popup.
+    await popup.waitForEvent('close', { timeout: 15000 });
+    await expect(page.locator('#authButton')).toHaveText('log out', { timeout: 15000 });
+  });
+
   test('handshake logs are ordered: auth_ready before contract on the demo side', async ({ context, request }) => {
     const { token } = await signupFreshUser(request);
     await context.addCookies([
