@@ -724,47 +724,39 @@ function useInterface() {
         }
     }
 
+    // Apply a single contract (app or group) and send the response back to the
+    // opener. Shared by approveContract (single) and approveAll (batch) so the
+    // two forks can't diverge — approve-all used to drop the app-contract
+    // response entirely, so the opener's callback only fired late, mis-delivered
+    // from the group's response. Re-throws on failure so the caller can react.
+    function approveOne(contract: any): Promise<void> {
+        const windowSource = contract._windowSource;
+        const apply = contract.kind === 'group' ? applyGCR(contract) : applyACR(contract);
+        return apply
+            .then(() => {
+                sendContractResponse(windowSource, 'approved');
+            })
+            .catch((e: any) => {
+                sendContractResponse(windowSource, 'error', [e.message || String(e)]);
+                throw e;
+            });
+    }
+
     // Approve a single contract (app or group).
     I.approveContract = function (contract: any) {
         console.log('[auth-ui] approveContract — kind:', contract.kind, 'origin:', contract.app_origin)
-        const windowSource = contract._windowSource;
-
-        if (contract.kind === 'group') {
-            console.log('[auth-ui] approveContract — applying GCR:', toLogString(contract))
-            I.setStatus("Creating group...");
-            applyGCR(contract)
-                .then(() => {
-                    console.log('[auth-ui] approveContract — GCR applied successfully')
-                    I.setStatus("Group created!");
-                    I.removePendingContract(contract);
-                    sendContractResponse(windowSource, 'approved');
-                    setTimeout(() => I.setStatus(null), 2000);
-                })
-                .catch((e) => {
-                    console.error('[auth-ui] approveContract — GCR failed:', e)
-                    I.setStatus("Failed to create group: " + (e.message || String(e)));
-                    sendContractResponse(windowSource, 'error', [e.message || String(e)]);
-                });
-            return;
-        }
-
-        // App contract — always apply (may merge new permissions into existing)
-        const origin = contract.app_origin;
-        console.log('[auth-ui] approveContract — applying ACR for:', origin)
-        I.setStatus("Approving contract...");
-        applyACR(contract)
+        I.setStatus(contract.kind === 'group' ? "Creating group..." : "Approving contract...");
+        approveOne(contract)
             .then(() => {
-                console.log('[auth-ui] approveContract — ACR applied successfully')
-                I.setStatus("Contract granted!");
-                I.v3ContractsLoad?.();
+                console.log('[auth-ui] approveContract — applied successfully')
+                I.setStatus(contract.kind === 'group' ? "Group created!" : "Contract granted!");
+                if (contract.kind === 'app') I.v3ContractsLoad?.();
                 I.removePendingContract(contract);
-                sendContractResponse(windowSource, 'approved');
                 setTimeout(() => I.setStatus(null), 2000);
             })
             .catch((e) => {
-                console.error('[auth-ui] approveContract — ACR failed:', e)
-                I.setStatus("Failed to approve: " + (e.message || String(e)));
-                sendContractResponse(windowSource, 'error', [e.message || String(e)]);
+                console.error('[auth-ui] approveContract — failed:', e)
+                I.setStatus((contract.kind === 'group' ? "Failed to create group: " : "Failed to approve: ") + (e.message || String(e)));
             });
     }
 
@@ -795,15 +787,9 @@ function useInterface() {
     I.approveAll = function () {
         if (!I.pendingContracts || I.pendingContracts.length === 0) { I.goToApp(); return; }
         I.setStatus("Approving all…");
-        const ops: Promise<any>[] = I.pendingContracts.map((c: any) => {
-            const winSource = c._windowSource;
-            if (c.kind === 'group') {
-                return applyGCR(c)
-                    .then(() => sendContractResponse(winSource, 'approved'))
-                    .catch((e: any) => sendContractResponse(winSource, 'error', [e.message || String(e)]));
-            }
-            return applyACR(c);
-        });
+        // approveOne sends each contract's own response (approve-all used to
+        // drop the app-contract response — see the helper's comment).
+        const ops: Promise<any>[] = I.pendingContracts.map((c: any) => approveOne(c));
         Promise.allSettled(ops)
             .then(() => {
                 I.v3ContractsLoad?.();
