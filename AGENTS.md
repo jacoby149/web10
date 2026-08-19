@@ -62,9 +62,9 @@ The tour, in this order:
 1. **Top-level folders** — `api/` (FastAPI node: data, auth, billing,
    media; `api/rtc/` WebRTC), `ui/` (React admin/consent UI), `sdk/`
    (wapi.js), `marketing/` (web10-social killer app, marketing-ui site,
-   marketing-api), `mobile/` (encryptor, phone-as-keychain seed),
-   `knowledge/` (the docs — below), `ubuntu-deployment/` (server deploy),
-   `e2e/` + `scripts/` (tests + helpers).
+    marketing-api), `knowledge/` (the docs — below),
+    `ubuntu-deployment/` (server deploy), `e2e/` + `scripts/` (tests +
+    helpers).
 2. **The knowledge base** — `knowledge/`. The docs:
    - `knowledge-base/` — the web10 implementation details. We're on v3.
    - `ai-use-theory/` — the operating method: KB is the root of trust;
@@ -213,7 +213,11 @@ ownership possible. Protocol/feature decisions are judged by whether they
 make the creator platform better. Read THE STORY at the top of
 `knowledge/strategy/plan.md` before touching product surfaces; the fan-
 facing voice lives in `knowledge/strategy/manifesto.md`, the creator pitch
-in `knowledge/strategy/outreach.md`.
+in `knowledge/strategy/outreach.md`. **Read `knowledge/strategy/thesis.md`
+before any product or security call** — web10 is a data-policy platform,
+not a privacy platform (D41): the node is readable by design (discovery /
+search / auditability), there is no default e2e, and the client is a PWA,
+not a native app.
 
 ## The stack
 
@@ -223,9 +227,8 @@ in `knowledge/strategy/outreach.md`.
   `endpoints/` routers; `settings.py` config.
 - `ui/` — React admin/consent UI.
 - `sdk/` — `wapi.js`, the frontend library apps are built with.
-- `api/rtc/` — WebRTC signaling (merged into api, load-bearing for e2e
-  encryption).
-- `mobile/encryptor/` — Expo app, seed of the phone-as-keychain.
+- `api/rtc/` — WebRTC signaling (merged into api; used for P2P data
+  channels, e.g. the messages demo).
 - `marketing/` — everything that makes web10 accessible:
   - `marketing-ui/` — web10 Inc.'s site: landing + docs + App Store +
     Exporter UI. Vite + React 19 + TS + Bun + react-router.
@@ -239,11 +242,11 @@ Single ClickHouse `documents` table, primary key `(author_key, doc_id)`. `doc_gr
 
 ## Auth model
 
-JWT tokens with `username, site, target, provider, expires`. Server verifies signature, checks app contracts + group membership. Full auth flow: `knowledge/knowledge-base/web10-v3/encryption/auth.md`.
+JWT tokens with `username, site, target, provider, expires`. Server verifies signature, checks app contracts + group membership. Full auth flow: `knowledge/knowledge-base/web10-v3/auth/auth.md`.
 
 ## Security invariants
 
-Defined in the KB: `knowledge/knowledge-base/web10-v3/security/overview.md`. Short version — I1: cryptographic issuer verification, I2: no unsigned decode, I3: no query returns documents for an `author_key` the token doesn't own (unless group membership grants access), I4: e2e encryption, I5: scoped/expiring/revocable tokens enforced by app contracts. Enforced by the conformance/permission test suite.
+Defined in the KB: `knowledge/knowledge-base/web10-v3/security/overview.md`. Short version — I1: cryptographic issuer verification, I2: no unsigned decode, I3: no query returns documents for an `author_key` the token doesn't own (unless group membership grants access), I4: node-readable by design — operator-blindness is not a goal, access is terms-controlled (D41), I5: scoped/expiring/revocable tokens enforced by app contracts. Enforced by the conformance/permission test suite.
 
 ## Operator code words — recognize instantly, never treat as banter
 

@@ -13,16 +13,12 @@ web10_auth -> web10_api : login request
 web10_api -> web10_auth : app level token
 web10_auth -> web10_app : app level token
 user-> web10_app : interface with app
-web10_app-> mobile_encryptor : encryption request
-mobile_encryptor->web10_app : encryption response
 web10_app -> web10_api : CRUD request
 web10_api -> web10_app : response
 user -> web10_app : connect to friend
 web10_app -> web10rtc : authenticate with web10rtc
 web10rtc -> web10_app : peerid
 user -> web10_app : interact with friends
-web10_app-> mobile_encryptor : encryption request
-mobile_encryptor->web10_app : encryption response
 web10_app -> friend : send data
 friend -> web10_app : recieve data
 friend -> web10_api : CRUD request

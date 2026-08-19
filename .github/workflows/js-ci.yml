@@ -7,7 +7,6 @@ on:
       - sdk/**
       - marketing/web10-social/**
       - marketing/marketing-ui/**
-      - mobile/encryptor/**
       - api/rtc/**
       - .github/workflows/js-ci.yml
       - .github/workflows/js.yml
@@ -26,7 +25,6 @@ jobs:
       sdk: ${{ steps.filter.outputs.sdk }}
       web10-social: ${{ steps.filter.outputs.web10-social }}
       marketing-ui: ${{ steps.filter.outputs.marketing-ui }}
-      encryptor: ${{ steps.filter.outputs.encryptor }}
       rtc: ${{ steps.filter.outputs.rtc }}
       workflows: ${{ steps.filter.outputs.workflows }}
     steps:
@@ -39,7 +37,6 @@ jobs:
             sdk: sdk/**
             web10-social: marketing/web10-social/**
             marketing-ui: marketing/marketing-ui/**
-            encryptor: mobile/encryptor/**
             rtc: api/rtc/**
             workflows: .github/workflows/js-ci.yml, .github/workflows/js.yml
 
@@ -70,13 +67,6 @@ jobs:
     uses: ./.github/workflows/js.yml
     with:
       package: marketing/marketing-ui
-
-  encryptor:
-    if: ${{ always() && needs.paths-filter.outputs.encryptor == 'true' || needs.paths-filter.outputs.workflows == 'true' }}
-    needs: paths-filter
-    uses: ./.github/workflows/js.yml
-    with:
-      package: mobile/encryptor
 
   rtc:
     if: ${{ always() && needs.paths-filter.outputs.rtc == 'true' || needs.paths-filter.outputs.workflows == 'true' }}
