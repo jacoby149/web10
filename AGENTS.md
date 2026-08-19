@@ -354,11 +354,38 @@ unticked item in the same lane instead of redoing it.
 ## When you finish a task
 
 In the SAME branch as the change: add a `knowledge/changelogs/CHANGELOG.md`
-line (newest at top, `version || DD.MM.YYYY`), tick the item in
+line (newest at top, `version || DD.MM.YYYY` — pick the version per the
+semver rules in "CHANGELOG version numbers" below), tick the item in
 `knowledge/strategy/plan.md`, and tick your lane item in
 `knowledge/strategy/parallel-execution.md`. If you changed the stack, data
 model, or auth flow, keep `AGENTS.md` true
 and record big calls in `knowledge/strategy/decisions.md`.
+
+## CHANGELOG version numbers: semver, bump the level that changed
+
+The top entry's version in `knowledge/changelogs/CHANGELOG.md` is the
+project's release version — `deploy.yml`/`cd.yml` bake it into the status
+pill and `cd.yml` uses it for the GitHub release. Format:
+`MAJOR.MINOR.PATCH || DD.MM.YYYY`.
+
+- **PATCH (third)** — backward-compatible bug fixes.
+- **MINOR (second)** — new functionality, backward-compatible. Reset PATCH
+  to 0.
+- **MAJOR (first)** — breaking protocol/API changes. Reset MINOR and PATCH
+  to 0.
+
+Rules:
+
+1. Bump only the level that changed. Bugfix → +1 third. Feature → +1
+   second, zero the third. Breaking change → +1 first, zero both.
+2. When the patch counter gets high (double digits), let the next feature
+   be the minor bump — that is the reset, not a special event. Example:
+   `3.0.62` → `3.1.0`.
+3. The new number must be strictly above the highest version anywhere in
+   the file (the renumber procedure below handles collisions).
+4. Versions are monotonic — never reuse or go backwards. The number is a
+   human-readable signal, not machine-enforced; the deploy pill just reads
+   whatever is on line 1.
 
 ## CHANGELOG.md in parallel branches: union-merge, then renumber
 
