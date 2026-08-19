@@ -64,8 +64,10 @@ members are the reason it works.
   screen in the app — it IS the conversion moment).
 - the creator can edit it (it's their node), but this ships as the
   default. their voice on top of this skeleton beats a blank page.
-- add when shipped, not before: expiring-posts line (D16 user-facing
-  expiry), operator-can't-read-your-DMs line (phase 11 e2e).
+- add when shipped, not before: the "take it with you / leave the
+  provider" portability line (D41) once export + federation actually
+  ship. no e2e / "we can't read your DMs" copy — that is not the
+  product (D41, thesis.md).
 - a general web10.app version of this manifesto (not creator-
   templated) is marketing-ui copy — the "why" explanation pages in
   the docs plan already cover that slot; reuse this voice there.

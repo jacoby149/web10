@@ -15,7 +15,7 @@ Work-in-progress ideas, alternatives, and explorations live in `web10-v3-brainst
 ```
 web10-v3/
 ├── README.md              ← you are here
-├── encryption/            ← authentication, tokens
+├── auth/                ← authentication, tokens
 │   └── auth.md            ← JWT auth flow, token structure, ACR
 ├── security/              ← security model, invariants, access control
 │   └── overview.md        ← invariants I1–I5, two-contract model, blocking

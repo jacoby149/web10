@@ -16,7 +16,7 @@ class:
 
 A developer wants to add features to a messaging application they made.
 1. Instantly show new messages.
-2. Encrypt messages on the phone side.
+2. Keep message data portable (the user owns it).
 3. Charge for premium themes.
 
 
@@ -25,7 +25,7 @@ A developer wants to add features to a messaging application they made.
 # developer use case
 
 1. The developer uses web10RTC to show new messages instantly.
-2. The developer uses web10 encryption to encrypt messages.
+2. The developer keeps message data portable — the user owns it and can leave.
 3. The developer charges for premium themes with web10 devpay.
 
 ---
@@ -34,7 +34,7 @@ A developer wants to add features to a messaging application they made.
 # value added
 
 1. Instant messages make the app more usable.
-2. Encryption attracts privacy oriented users. 
+2. Data ownership attracts users who want to keep their stuff. 
 3. The developer is making money.
 
 ---
@@ -43,7 +43,7 @@ A developer wants to add features to a messaging application they made.
 
 These features of the web10 SDK enable the previous use case.
 1. web10RTC (webrtc via. peerjs)
-2. web10 encryption
+2. web10 data portability
 3. web10 devpay
 
 ---
@@ -57,7 +57,7 @@ These features of the web10 SDK enable the previous use case.
 
 ---
 
-# web10 encryption
+# web10 data portability
 
 ---
 

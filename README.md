@@ -35,7 +35,7 @@ paid for value delivered, not for permission granted.
 | **No shadow ban** | Every post reaches every follower, by construction (fan-out on write). The feed is chronological, because a feed should report — not editorialize. |
 | **Apps are just frontends** | An app earns access through a scoped, expiring, revocable token. It never owns what it touches. |
 | **Federated identity** | Identity is `(username, provider)`, like email. No central registry to petition, no account that can be taken from you. |
-| **Private, not permanent** | Unlike a blockchain, your data can be private, temporary, and deletable. E2E encryption (phone-as-keychain) is in progress — we don't claim what isn't built. |
+| **Private, not permanent** | Unlike a blockchain, your data can be private, temporary, and deletable. You set who sees it via terms — and delete means delete. |
 | **Self-hostable** | One `docker compose up` runs a node on hardware you own. The escape hatch is real, and that is what makes the ownership real. |
 
 ## Run a node locally
@@ -90,7 +90,6 @@ at the box and the certificates provision themselves. See
 | `marketing/marketing-ui/` | web10 Inc.'s site: landing page, docs, App Store, Exporter UI. |
 | `marketing/marketing-api/` | Backend for the marketing site: ZIP import pipeline (bring your Instagram/Facebook/YouTube data), analytics. |
 | `marketing/web10-cli/` | CLI tool for web10. |
-| `mobile/encryptor/` | Expo app — the seed of the phone-as-keychain (E2E encryption). |
 | `ubuntu-deployment/` | One-shot server deploy (Docker + Caddy + TLS). |
 
 ## Learn more

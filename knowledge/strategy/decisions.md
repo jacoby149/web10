@@ -9,6 +9,37 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D41 — web10 is a data-policy platform, not a privacy platform; no default E2E [decided]
+Reverses D6, D16, D17, D18, D19 and the e2e half of D27. The node is
+readable by design. Full reasoning: `thesis.md`.
+
+The old plan treated I4 as "the node operator cannot read your data" and
+built toward e2e encryption (phone-as-keychain, wrapped keys, CP-ABE,
+MLS). That was the wrong bet for this product, for three reasons:
+(1) **discovery** — feeds, trending, search, moderation — requires the
+node to read content, so "discoverable" and "hidden from the node" are
+mutually exclusive; (2) the real threat to a creator is the platform
+*owning* the audience/relationship/revenue and revoking it, not the
+platform *reading* public posts (YouTube reads your "private" videos —
+that's the norm); (3) **trust here is legal, not cryptographic** — a node
+operator who mishandles data can be sued, and you can't sue math.
+
+So: the node stores readable, searchable, auditable data. Access is
+controlled by the terms/permission model (I3), not by cryptography. The
+value prop is ownership + control + portability + no-shadow-ban, not
+operator-blindness. The mobile encryptor app (`mobile/encryptor/`) is
+deleted; the client is a PWA.
+
+E2E is not banned — it is not the default and not our job. A user or
+third party may build their own e2e layer on the SDK + WebRTC. If a real
+creator asks for "my DMs must be cryptographically blind to the node,"
+that becomes an **opt-in tier, never the default.**
+
+Rejects: e2e-by-default, phone-as-keychain, CP-ABE/MLS group crypto as a
+product feature, "the node can't read your data" as the trust story, and a
+native mobile app. The full "what this is / is not" statement lives in
+`thesis.md`.
+
 ### D40 — Feed + profile PULL directly; discovery board is Discover-only [decided]
 Operator, 31.07.2026: "it doesnt have to be on the discovery for me to see
 it… if i am on his page, it should hit his service directly. likewise on
@@ -327,13 +358,14 @@ data (dev nightmare), blockchain/append-only (no utility for this use case),
 and per-record visibility fields (terms + separate collections give bulk
 control and per-app permissions for free).
 
-### D27 — Posts are plaintext; E2E encryption is DMs only; visibility via separate collections [decided]
+### D27 — Posts are plaintext; visibility via separate collections [decided; e2e-DMs half superseded by D41]
 Posts and comments are plaintext on the node by design. They are discoverable,
 searchable, and sortable — the node reads content to power discovery feeds,
 trending, and search. The `encrypted` field on posts/comments/reactions schemas
-is dead weight for those services; it applies to `dms` only. The mobile
-encryptor's crypto core (ed25519 + xchacha20) stays for DMs. The node is the
-honest broker: it enforces terms, never leaks.
+is dead weight for those services. (D41 extends this: there is no default e2e at
+all — the node is readable by design, and the mobile encryptor that was to back
+the DMs-only e2e tier is deleted. "Posts plaintext" here stands and is
+reinforced.) The node is the honest broker: it enforces terms, never leaks.
 
 Visibility is controlled by **separate collections**, not per-record flags:
 `public_posts` (terms whitelist anon reads, discovery indexes it),
@@ -537,7 +569,7 @@ as the lead pitch, feed customizability as a launch feature, the
 consumer-demo wedge as primary distribution, and fediverse-adjacent
 positioning/aesthetics.
 
-### D19 — Chatbox LLM is BYOK-only; the key is a wallet secret the phone beams to chosen apps [decided]
+### D19 — Chatbox LLM is BYOK-only; the key is a wallet secret the phone beams to chosen apps [superseded by D41]
 The phase-8 lens chatbox never runs on operator-paid inference by default: a
 free-signup node exposing a server-side LLM endpoint is a free API proxy, and
 the abuse lands on the operator's bill — exactly the surprise cost that kills
@@ -558,7 +590,7 @@ proxying chat through the node, storing the key as a plaintext record, and
 routing every chat call through the phone (D15: the phone is the root of
 trust, not a proxy).
 
-### D18 — The keyring is generic like the record model: named keys, a small closed verb set [decided]
+### D18 — The keyring is generic like the record model: named keys, a small closed verb set [superseded by D41]
 The same discipline that made `{service, body}` survive: no hardcoded schema.
 Audiences are user-named keys (any string — a circle, a single record, an LLM
 agent, an HLS stream), minting is one cheap call (HKDF from the master seed),
@@ -579,7 +611,7 @@ phase 11 gates the design review. Rejects: enum'd circle types,
 username-bound grants, a backup-specific subsystem, unversioned wire formats,
 and a policy DSL inside the keyring.
 
-### D17 — Crypto suite is pinned to boring standards; no blockchain, no invented crypto [decided]
+### D17 — Crypto suite is pinned to boring standards; no blockchain, no invented crypto [superseded by D41]
 E2E encryption (phase 11) assembles existing, audited primitives: X25519 +
 Ed25519 (identity/devices, HKDF-derived from one master seed), HPKE (RFC 9180)
 for wrapping keys to people, XChaCha20-Poly1305 for content, Argon2id for
@@ -592,7 +624,7 @@ direction), and cryptographically self-expiring keys (without trusted
 hardware on every reader they don't exist — timed access is the node's job,
 see D16).
 
-### D16 — Revocation is layered: node gating (instant) + epoch rotation (forward) [decided]
+### D16 — Revocation is layered: node gating (instant) + epoch rotation (forward) [superseded by D41]
 Sharing is by **audience keys with epochs** — a symmetric key per circle per
 epoch, HPKE-wrapped to each member's public key and stored as a signed,
 terms-gated **grant** record in the owner's collection. Revoking someone is
@@ -703,7 +735,7 @@ public keys published at a well-known JWKS URL, offline verification — the
 OIDC model. Dual-verify during migration, then drop HS256. Rejects: the
 call-the-remote-and-trust-200 scheme.
 
-### D6 — E2E encryption: phone is the keychain, two modes [decided]
+### D6 — E2E encryption: phone is the keychain, two modes [superseded by D41]
 Node stores ciphertext; keys live on the user's phone (secure enclave).
 Default **wrapped-key mode** (keys wrapped to each friend's pubkey, stored;
 friends decrypt without your phone online — scales to thousands of friends).

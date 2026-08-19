@@ -620,7 +620,7 @@ On web10, peer ids look like 'provider/username/origin/label'
 1. *provider* is the web10 provider of a user of web10 P2P
 2. *username* is the web10 username of a user of web10 P2P
 3. *origin* is the origin of the site the user is using to make the web10 P2P connection
-   * when connecting to a mobile encryptor, *origin* is set to "mobile"
+    * when connecting from a mobile/PWA client, *origin* is set to "mobile"
 4. *label* is an extra string a developer can add to the peer id to handle single users being multipeer
 
 ### P2P messaging demo (Coming soon)
@@ -628,24 +628,19 @@ On web10, peer ids look like 'provider/username/origin/label'
 ```
 see https://mail.web10.app
 ```
+WebRTC P2P data channel (peerjs) — realtime, authenticated with web10 tokens. Not
+end-to-end encrypted by default (see below).
 
+## Encryption (not a default feature)
 
+web10 is a data-policy platform, not a privacy platform (D41,
+`knowledge/strategy/thesis.md`). The node is readable by design — discovery,
+search, and auditability require it — and access is controlled by your terms,
+not by cryptography. So web10 does **not** ship end-to-end encryption by
+default, and there is no phone-as-keychain / mobile encryptor app.
 
-## Encryption (Coming soon)
-
-web10 does the following to make encryption is as secure as possible : 
-
-1. Implements SEPC256K1 encryption for digital signatures, diffie helman, and assymetric encryption
-2. Has a mobile app client to store all of your web10 keys locally on your phone to keep the keys entirely secret.
-3. Creates a P2P tunnel between your phone and web10 using devices to keep your web10 apps secure.
-
-
-
-### E2E P2P messaging demo (Coming soon)
-
-```
-(Coming soon)
-```
+If you want e2e for your app, build it yourself on top of the SDK + WebRTC (the
+primitives are there); it stays your feature, not the platform's.
 
 
 
