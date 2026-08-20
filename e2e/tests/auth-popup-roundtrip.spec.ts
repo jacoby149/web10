@@ -365,6 +365,13 @@ test.describe('Auth popup round-trip — real consent handshake', () => {
     await expect(page.locator('#authButton')).toHaveText('Log in', { timeout: 15000 });
 
     // --- SECOND RUN (return run) ---
+    // The demo logged out, which scrubs its token cookie — so the SDK
+    // return-run fast path (which requires a token) does NOT apply here. The
+    // popup opens. The app contract is already approved, so the popup filters
+    // it out and shows "all set" (or the row if a new permission were
+    // requested). Close window → token lands → demo re-requests the group
+    // contract (group contracts are never filtered). Approve it; the popup
+    // closes.
     const popupPromise2 = context.waitForEvent('page', { timeout: 15000 });
     await page.locator('#authButton').click();
     const popup2 = await popupPromise2;
