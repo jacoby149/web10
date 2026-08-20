@@ -93,10 +93,12 @@ function createV3Client(options?: Parameters<typeof _createV3Client>[0]): V3Clie
   ): void {
     console.log('[wapi] contractRequest — called with', contracts.length, 'contract(s):', JSON.stringify(contracts))
 
-    // Return-run fast path: if all contracts already exist, skip the popup
-    // entirely. The user already consented — re-asking is a UX bug.
+    // Return-run fast path: if all contracts already exist AND no popup is
+    // open, skip the popup entirely. The user already consented — re-asking
+    // is a UX bug. If a popup IS open (from openAuthPortal), use the normal
+    // flow — the popup handles the existing session.
     const token = readTokenCookie()
-    if (token) {
+    if (token && !(_authPopup && !_authPopup.closed)) {
       checkExistingContracts(client, contracts, token).then((allExist) => {
         if (allExist) {
           console.log('[wapi] contractRequest — all contracts already exist, skipping popup')
