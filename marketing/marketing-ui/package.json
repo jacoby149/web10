@@ -25,7 +25,7 @@
     "lucide-react": "^1.25.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "react-router-dom": "^7.6.2",
+    "react-router-dom": "^7.18.2",
     "remark": "^15.0.1",
     "remark-gfm": "^4.0.1",
     "remark-html": "^16.0.1",
@@ -45,6 +45,12 @@
     "typescript": "~5.8.2",
     "vite": "^6.3.1",
     "vitest": "^3.2.4"
+  },
+  "overrides": {
+    "js-yaml": "^3.15.1",
+    "nanoid": "^3.3.18",
+    "postcss": "^8.5.23",
+    "undici": "^7.29.0"
   },
   "allowScripts": {
     "esbuild@0.25.12": true

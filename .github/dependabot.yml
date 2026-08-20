@@ -1,0 +1,49 @@
+version: 2
+updates:
+  # Bun (CI installs with `bun install --frozen-lockfile` — bun.lock is the source of truth)
+  - package-ecosystem: "bun"
+    directory: "/ui"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "bun"
+    directory: "/sdk"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "bun"
+    directory: "/marketing/web10-social"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "bun"
+    directory: "/marketing/marketing-ui"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "bun"
+    directory: "/api/rtc"
+    schedule:
+      interval: "weekly"
+
+  # npm
+  - package-ecosystem: "npm"
+    directory: "/e2e"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "npm"
+    directory: "/marketing/web10-cli"
+    schedule:
+      interval: "weekly"
+
+  # Python (uv-managed, `uv sync --frozen` in the Docker build)
+  - package-ecosystem: "pip"
+    directory: "/api"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "pip"
+    directory: "/marketing/marketing-api"
+    schedule:
+      interval: "weekly"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
