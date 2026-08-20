@@ -46,16 +46,24 @@ def _require_group_permission(group_id: str, user: str, permission: str):
 
 @router.post("/create")
 async def create_group(data: CreateGroup):
-    """Create a group with roles and initial members."""
+    """Create a group with roles and initial members.
+
+    Idempotent: re-creating an existing group does not append duplicate
+    group_contracts or group_members rows. Demo apps re-send the
+    group-creation contract on every login (the return run), so without this
+    guard each login appends a second row for the same group_id.
+    """
     creator = _user(data)
     decoded = decode_token(data.token, private_key=True)
     group_id = f"{data.name.lower().replace(' ', '-')}"
     group_id = f"{decoded.provider}/groups/users/{creator}/{group_id}"
 
-    ch.create_group(group_id, data.roles, data.join_policy)
+    if not ch.get_group(group_id):
+        ch.create_group(group_id, data.roles, data.join_policy)
 
     for m in data.members:
-        ch.add_group_member(group_id, m["member_key"], m.get("role", "member"))
+        if not ch.get_group_member(group_id, m["member_key"]):
+            ch.add_group_member(group_id, m["member_key"], m.get("role", "member"))
 
     creator_role = None
     for role_def in data.roles:
@@ -63,7 +71,7 @@ async def create_group(data: CreateGroup):
             creator_role = role_def
             break
 
-    if not creator_role:
+    if not creator_role and not ch.get_group_member(group_id, creator):
         ch.add_group_member(group_id, creator, "admin")
 
     return {"group_id": group_id}

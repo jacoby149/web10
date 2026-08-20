@@ -194,18 +194,55 @@ class TestDelete:
 
 class TestCreateGroup:
     def test_create(self, client, token):
-        resp = client.post(
-            "/v3/groups/create",
-            json={
-                "token": token,
-                "name": "Test Group",
-                "join_policy": "open",
-                "roles": [{"name": "member", "services": ["posts"], "permissions": ["readAll"]}],
-                "members": [{"member_key": "testuser", "role": "member"}],
-            },
-        )
+        with (
+            patch("app.v3.services.clickhouse.get_group", return_value=None),
+            patch("app.v3.services.clickhouse.get_group_member", return_value=None),
+        ):
+            resp = client.post(
+                "/v3/groups/create",
+                json={
+                    "token": token,
+                    "name": "Test Group",
+                    "join_policy": "open",
+                    "roles": [{"name": "member", "services": ["posts"], "permissions": ["readAll"]}],
+                    "members": [{"member_key": "testuser", "role": "member"}],
+                },
+            )
         assert resp.status_code == 200
         assert "group_id" in resp.json()
+
+    def test_create_is_idempotent(self, client, token):
+        """Re-creating an existing group must not re-insert its contract/members."""
+        created = {
+            "group_id": "g1",
+            "roles": [],
+            "join_policy": "open",
+            "created_at": "2026-01-01",
+            "updated_at": "2026-01-01",
+        }
+        with (
+            patch("app.v3.services.clickhouse.get_group", return_value=created),
+            patch(
+                "app.v3.services.clickhouse.get_group_member",
+                return_value={"member_key": "testuser", "role": "member", "joined_at": "2026-01-01"},
+            ),
+            patch("app.v3.services.clickhouse.create_group") as mock_create,
+            patch("app.v3.services.clickhouse.add_group_member") as mock_add,
+        ):
+            resp = client.post(
+                "/v3/groups/create",
+                json={
+                    "token": token,
+                    "name": "Test Group",
+                    "join_policy": "open",
+                    "roles": [{"name": "member", "services": ["posts"], "permissions": ["readAll"]}],
+                    "members": [{"member_key": "testuser", "role": "member"}],
+                },
+            )
+        assert resp.status_code == 200
+        assert resp.json()["group_id"].endswith("test-group")
+        mock_create.assert_not_called()
+        mock_add.assert_not_called()
 
     def test_missing_fields(self, client, token):
         resp = client.post("/v3/groups/create", json={"token": token, "name": "Test"})

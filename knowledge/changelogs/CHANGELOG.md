@@ -1,3 +1,6 @@
+3.1.2 || 19.08.2026
+fix(groups): make `create_group` idempotent — the return run (demo re-sends the group-creation contract on every login) was appending duplicate `group_contracts` and `group_members` rows for the same `group_id`. Now checks existence before inserting. New unit test (`TestCreateGroup`) + e2e return-run specs (`notes-demo.spec.ts`, `auth-popup-roundtrip.spec.ts`). docs(ai-use-theory): the **state rule** (cold start vs return run are different code paths) and the **worktree rule** (never stash in a Conductor worktree; the working tree is the deliverable). Added to `testing.md` + main theory + README.
+
 3.1.1 || 19.08.2026
 docs(agents): document the CHANGELOG version-bump rules in AGENTS.md so future agents pick versions consistently — semver `MAJOR.MINOR.PATCH`: bump only the level that changed (bugfix → patch, feature → minor with patch reset to 0, breaking change → major with both reset); a high patch counter resets on the next minor bump (`3.0.62` → `3.1.0`); versions are monotonic and strictly above the highest in the file. Pointer added from the "When you finish a task" section.
 

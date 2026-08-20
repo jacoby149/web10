@@ -244,7 +244,7 @@ Unit tests. E2E tests. Gauntlets. Tests give the AI a deterministic way to verif
 
 **The trust rule.** The changelog must never claim coverage the code does not have. "Verifies the full round-trip, logs asserted on both sides" is a false line if the spec only captures the main page and never attaches to the popup. The review gate on tests is not "does it pass" — it is "does this test actually touch the seam it is named for?" A green that skips the seam is the single most trust-destroying signal in the pyramid, because it is the one the operator is supposed to be able to sleep on.
 
-**The concrete patterns live in [Testing](./testing.md)** — anti-tests (the KB with teeth), the two pyramids, the seam rule, the fork rule (every branch is a seam), and the corrupted measure with real examples, the test ladder, test rot (testing ghosts), and the diagnostic dump. Read it before you write or review a test.
+**The concrete patterns live in [Testing](./testing.md)** — anti-tests (the KB with teeth), the two pyramids, the seam rule, the fork rule (every branch is a seam), the state rule (first run and return run are different code paths — a feature is tested only when the flow is driven in both states, not just the cold start), and the corrupted measure with real examples, the test ladder, test rot (testing ghosts), and the diagnostic dump. Read it before you write or review a test.
 
 ### Step 4: Build New Features
 

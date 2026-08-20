@@ -322,6 +322,90 @@ test.describe('Notes demo — API-level CRUD', () => {
     });
     expect(createRes.status()).toBe(403);
   });
+
+  /**
+   * The STATE RULE at the API floor — first run and return run are different
+   * code paths. The gauntlet above drives the cold start (fresh user, group
+   * created once). This test drives the RETURN RUN: the same user logs in
+   * again (a new token) and re-creates the notes group exactly the way the
+   * demo does on every login. The note written on the first run must survive.
+   *
+   * This is the fast, browser-less floor of the state rule: when the browser
+   * return-run test goes red, this test tells you whether the break is in the
+   * data layer (note gone here too) or in the seam (note survives here, so
+   * the break is in the browser flow).
+   */
+  test('return run: 2nd login re-creates group, note persists (state rule)', async ({ request }) => {
+    const { username, token } = await signupFreshUser(request);
+    const groupName = `notes-${username}`;
+    const groupId = `api.localhost/groups/users/${username}/${groupName}`;
+
+    const createGroup = (tok: string) =>
+      request.post(`${API_BASE}/v3/groups/create`, {
+        data: JSON.stringify({
+          token: tok,
+          name: groupName,
+          join_policy: 'invite_only',
+          roles: [
+            { name: 'owner', services: ['*'], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn', 'manageRoles'] },
+            { name: 'member', services: ['notes'], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
+          ],
+          members: [{ member_key: username, role: 'owner' }],
+        }),
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+    // --- FIRST RUN (cold start) ---
+    await createGroup(token);
+    await request.post(`${API_BASE}/v3/app-contracts/add`, {
+      data: JSON.stringify({
+        token,
+        allowed_origin: 'http://marketing.localhost',
+        permissions: { notes: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
+      }),
+      headers: { 'Content-Type': 'application/json', Origin: 'http://auth.localhost' },
+    });
+
+    const noteText = `return-run ${Date.now()}`;
+    const createRes = await request.post(`${API_BASE}/v3/create`, {
+      data: JSON.stringify({
+        token,
+        service: 'notes',
+        body: { note: noteText, date: new Date().toISOString() },
+        groups: [groupId],
+      }),
+      headers: { 'Content-Type': 'application/json', Origin: 'http://marketing.localhost' },
+    });
+    expect(createRes.ok()).toBeTruthy();
+
+    const read1 = await request.post(`${API_BASE}/v3/read`, {
+      data: JSON.stringify({ token, service: 'notes', groups: [groupId] }),
+      headers: { 'Content-Type': 'application/json', Origin: 'http://marketing.localhost' },
+    });
+    expect((await read1.json()).length).toBe(1);
+
+    // --- SECOND RUN (return run) ---
+    // Re-login: a fresh token for the same user.
+    const loginRes = await request.post(`${API_BASE}/v3/login`, {
+      data: JSON.stringify({ username, password }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    expect(loginRes.ok()).toBeTruthy();
+    const token2 = (await loginRes.json()).token as string;
+
+    // The demo re-sends the group-creation contract on every login.
+    const recreateRes = await createGroup(token2);
+    expect(recreateRes.ok()).toBeTruthy();
+
+    // The note written on the first run must survive the return run.
+    const read2 = await request.post(`${API_BASE}/v3/read`, {
+      data: JSON.stringify({ token: token2, service: 'notes', groups: [groupId] }),
+      headers: { 'Content-Type': 'application/json', Origin: 'http://marketing.localhost' },
+    });
+    const docs2 = await read2.json();
+    expect(docs2.length, 'note must survive the return run').toBe(1);
+    expect(docs2[0].body.note).toBe(noteText);
+  });
 });
 
 // ---------------------------------------------------------------------------
