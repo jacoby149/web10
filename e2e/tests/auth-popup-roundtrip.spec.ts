@@ -365,29 +365,12 @@ test.describe('Auth popup round-trip — real consent handshake', () => {
     await expect(page.locator('#authButton')).toHaveText('Log in', { timeout: 15000 });
 
     // --- SECOND RUN (return run) ---
-    const popupPromise2 = context.waitForEvent('page', { timeout: 15000 });
+    // With the SDK return-run fast path, contracts that already exist skip
+    // the popup entirely. The demo should go directly to signed-in state
+    // without opening a consent popup.
     await page.locator('#authButton').click();
-    const popup2 = await popupPromise2;
-    const popup2Full = captureFull(popup2);
-    await popup2.waitForLoadState('networkidle');
-
-    // The app contract is already approved, so the popup filters it out and
-    // shows "all set" (or, if a new permission were requested, the row).
-    // Close window → token lands → demo re-requests the group contract.
-    await popup2
-      .locator('[data-testid="consent-allset"], [data-testid="consent-req-0"]')
-      .first()
-      .waitFor({ state: 'visible', timeout: 15000 });
-    await popup2.locator('[data-testid="consent-close-window"]').click();
-    await expect(async () => {
-      expect(demoLogs.join('\n')).toContain('authListen fired — user is signed in');
-    }).toPass({ timeout: 15000 });
-
-    // The group contract is re-requested on every login (group contracts are
-    // never filtered). Approve it; the popup closes.
-    await popup2.locator('[data-testid="consent-req-0"]').waitFor({ state: 'visible', timeout: 15000 });
-    await popup2.locator('[data-testid="consent-approve-0"]').click();
-    await popup2.waitForEvent('close', { timeout: 15000 });
+    // No popup should open — the SDK detects existing contracts and skips.
+    // The demo should reach signed-in state directly.
     await expect(page.locator('#authButton')).toHaveText('log out', { timeout: 15000 });
 
     // THE state-rule assertion: the note from the first run must survive the
