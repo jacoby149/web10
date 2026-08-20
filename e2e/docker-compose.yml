@@ -49,8 +49,10 @@ services:
   api:
     build: ../api
     depends_on:
-      - ferretdb
-      - minio
+      ferretdb:
+        condition: service_started
+      minio:
+        condition: service_started
       clickhouse:
         condition: service_healthy
     volumes:
