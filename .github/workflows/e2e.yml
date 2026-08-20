@@ -50,6 +50,16 @@ jobs:
         env:
           TIMEOUT: 300
 
+      - name: Dump stack logs on failure
+        if: failure()
+        run: |
+          echo "=== ClickHouse logs ==="
+          docker compose -f e2e/docker-compose.yml logs clickhouse 2>&1 | tail -50
+          echo "=== API logs ==="
+          docker compose -f e2e/docker-compose.yml logs api 2>&1 | tail -50
+          echo "=== Container status ==="
+          docker compose -f e2e/docker-compose.yml ps
+
       - name: Setup Playwright
         working-directory: e2e
         run: |
