@@ -31,7 +31,7 @@ services:
       - e2e-net
 
   clickhouse:
-    image: clickhouse/clickhouse-server:24.8
+    image: clickhouse/clickhouse-server:24.3
     user: "101:101"
     command: ["clickhouse-server", "--config-file=/etc/clickhouse-server/config.xml"]
     ulimits:
