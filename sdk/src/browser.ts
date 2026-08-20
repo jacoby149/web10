@@ -92,6 +92,30 @@ function createV3Client(options?: Parameters<typeof _createV3Client>[0]): V3Clie
     callback?: (response: { status: string; errors?: string[] }) => void,
   ): void {
     console.log('[wapi] contractRequest — called with', contracts.length, 'contract(s):', JSON.stringify(contracts))
+
+    // Return-run fast path: if all contracts already exist AND no popup is
+    // open, skip the popup entirely. The user already consented — re-asking
+    // is a UX bug. If a popup IS open (from openAuthPortal), use the normal
+    // flow — the popup handles the existing session.
+    const token = readTokenCookie()
+    if (token && !(_authPopup && !_authPopup.closed)) {
+      checkExistingContracts(client, contracts, token).then((allExist) => {
+        if (allExist) {
+          console.log('[wapi] contractRequest — all contracts already exist, skipping popup')
+          callback?.({ status: 'approved' })
+          return
+        }
+        doContractRequest()
+      }).catch(() => {
+        // Check failed (network, etc.) — fall through to normal popup flow
+        doContractRequest()
+      })
+      return
+    }
+
+    doContractRequest()
+
+    function doContractRequest() {
     const popup = _authPopup
     if (popup && !popup.closed) {
       console.log('[wapi] contractRequest — reusing existing popup (not closed)')
@@ -162,10 +186,44 @@ function createV3Client(options?: Parameters<typeof _createV3Client>[0]): V3Clie
 
     // No existing popup — fall back to opening a new one
     console.log('[wapi] contractRequest — no existing popup, opening new one')
-    originalContractRequest.call(this, contracts, authOrigin, callback)
+    originalContractRequest(contracts, authOrigin, callback)
+    }
   }
 
   return client
+}
+
+/**
+ * Check if all contracts already exist (return-run fast path).
+ * Returns true if every contract is already on record — the user
+ * previously consented, so the popup can be skipped.
+ */
+async function checkExistingContracts(
+  client: V3Client,
+  contracts: V3CR[],
+  _token: string,
+): Promise<boolean> {
+  for (const c of contracts) {
+    if (c.kind === 'app') {
+      const list = await client.listAppContracts()
+      const origin = c.app_origin as string
+      if (!list.some((ac) => ac.allowed_origin === origin)) return false
+    } else if (c.kind === 'group') {
+      const token = readTokenCookie()
+      const decoded = token ? decodeJwt(token) : null
+      const username = decoded?.username as string | undefined
+      const provider = decoded?.provider as string | undefined
+      if (!username || !provider) return false
+      const groupName = c.name as string
+      const groupId = `${provider}/groups/users/${username}/${groupName.toLowerCase().replace(/ /g, '-')}`
+      try {
+        await client.getGroup(groupId)
+      } catch {
+        return false
+      }
+    }
+  }
+  return true
 }
 
 /**

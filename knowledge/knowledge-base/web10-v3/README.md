@@ -15,8 +15,9 @@ Work-in-progress ideas, alternatives, and explorations live in `web10-v3-brainst
 ```
 web10-v3/
 ├── README.md              ← you are here
-├── auth/                ← authentication, tokens
-│   └── auth.md            ← JWT auth flow, token structure, ACR
+├── auth/                ← authentication, tokens, consent
+│   ├── auth.md            ← JWT auth flow, token structure, ACR
+│   └── consent.md         ← the consent experience: two contract types, return run, ideal UX
 ├── security/              ← security model, invariants, access control
 │   └── overview.md        ← invariants I1–I5, two-contract model, blocking
 ├── sdk/                   ← the JavaScript/TypeScript SDK
@@ -28,7 +29,9 @@ web10-v3/
 │   └── clickhouse.md      ← complete schema: tables, indexes, patterns
 ├── groups/                ← groups as a platform primitive
 │   ├── overview.md        ← policy containers, roles, join policies
-│   └── identity.md        ← profiles, URLs, service-scoped roles
+│   ├── identity.md        ← profiles, URLs, service-scoped roles
+│   ├── requests.md        ← app→user group consent (GCR), auto-approve, bundling
+│   └── social-contracts.md ← the exact group contracts the social app creates
 ├── social/                ← web10-social implementation
 │   ├── overview.md        ← how social uses groups: discover, follows, communities
 │   ├── cross-app-sharing.md ← mailer pattern, DMs, comments
@@ -44,6 +47,7 @@ web10-v3/
 ## Quick Links
 
 - **SDK** — `sdk/api.md` (surface), `sdk/implementation.md` (SQL), `sdk/contracts.md` (contracts)
+- **Auth & Consent** — `auth/auth.md` (token flow), `auth/consent.md` (consent experience, ideal UX)
 - **DB** — `db/clickhouse.md` (tables, indexes, patterns)
 - **Security** — `security/overview.md` (invariants I1–I5, two-contract model, blocking)
 - **Groups** — `groups/overview.md` (primitive), `groups/identity.md` (profiles)
