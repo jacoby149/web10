@@ -53,12 +53,14 @@ jobs:
       - name: Dump stack logs on failure
         if: failure()
         run: |
-          echo "=== ClickHouse logs ==="
-          docker compose -f e2e/docker-compose.yml logs clickhouse 2>&1 | tail -50
+          echo "=== ClickHouse logs (stdout) ==="
+          docker compose -f e2e/docker-compose.yml logs clickhouse 2>&1 | tail -80
+          echo "=== ClickHouse err.log (via exec) ==="
+          docker compose -f e2e/docker-compose.yml exec -T clickhouse cat /var/log/clickhouse-server/clickhouse-server.err.log 2>&1 | tail -40 || true
           echo "=== API logs ==="
-          docker compose -f e2e/docker-compose.yml logs api 2>&1 | tail -50
+          docker compose -f e2e/docker-compose.yml logs api 2>&1 | tail -30
           echo "=== Container status ==="
-          docker compose -f e2e/docker-compose.yml ps
+          docker compose -f e2e/docker-compose.yml ps -a
 
       - name: Setup Playwright
         working-directory: e2e

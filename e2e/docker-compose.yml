@@ -34,6 +34,11 @@ services:
     image: clickhouse/clickhouse-server:24.3
     volumes:
       - ../clickhouse-init:/docker-entrypoint-initdb.d:ro
+      - ../clickhouse-config:/etc/clickhouse-server/config.d:ro
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
     environment:
       - CLICKHOUSE_DB=web10
       - CLICKHOUSE_USER=web10
