@@ -55,8 +55,10 @@ jobs:
         run: |
           echo "=== ClickHouse logs (stdout) ==="
           docker compose -f e2e/docker-compose.yml logs clickhouse 2>&1 | tail -80
-          echo "=== ClickHouse err.log (via exec) ==="
-          docker compose -f e2e/docker-compose.yml exec -T clickhouse cat /var/log/clickhouse-server/clickhouse-server.err.log 2>&1 | tail -40 || true
+          echo "=== ClickHouse err.log (via cp from stopped container) ==="
+          docker cp e2e-clickhouse-1:/var/log/clickhouse-server/clickhouse-server.err.log /tmp/ch-err.log 2>/dev/null && tail -40 /tmp/ch-err.log || echo "(could not extract)"
+          echo "=== ClickHouse main log ==="
+          docker cp e2e-clickhouse-1:/var/log/clickhouse-server/clickhouse-server.log /tmp/ch.log 2>/dev/null && tail -40 /tmp/ch.log || echo "(could not extract)"
           echo "=== API logs ==="
           docker compose -f e2e/docker-compose.yml logs api 2>&1 | tail -30
           echo "=== Container status ==="
