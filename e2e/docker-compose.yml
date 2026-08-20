@@ -31,9 +31,13 @@ services:
       - e2e-net
 
   clickhouse:
-    image: clickhouse/clickhouse-server:latest
-    volumes:
-      - ../clickhouse-init:/docker-entrypoint-initdb.d:ro
+    image: clickhouse/clickhouse-server:24.8
+    user: "101:101"
+    command: ["clickhouse-server", "--config-file=/etc/clickhouse-server/config.xml"]
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
     environment:
       - CLICKHOUSE_DB=web10
       - CLICKHOUSE_USER=web10

@@ -108,6 +108,43 @@ The approve-all fork got its test this way: `data-testid="consent-approve-all"` 
 
 Repair scope (below) is *reactive*: you found a bug, so look for the pattern elsewhere. The fork rule is *proactive*: before you call a feature done, find the untested paths. They are the same instinct pointed at different times — "the code has more surface than the one spot you touched." Repair scope applies it after the break; the fork rule applies it before the claim of done.
 
+## The State Rule: First Run and Return Run Are Different Code Paths
+
+The seam rule is about the **wire** — the boundary between systems. The fork rule is about the **paths** — one goal, many affordances. A feature has a third dimension the other two miss: the **state**. The same flow, the same wire, the same button — run once on an empty system and run again on a populated one — takes different code paths.
+
+The **first run** is the cold start: a fresh user, no cookie, no approved contracts, no data. Everything is empty, nothing conflicts, nothing has to be restored. It answers "can the system do the thing from scratch?"
+
+The **return run** is the warm start: the user comes back carrying a token cookie, already-approved contracts, groups they already created, and data they already wrote. Now the system has to *restore* the session, *not re-prompt* for consent it already gave, *not clobber* the group it already created, and *read back* the data it already wrote. It answers "does the system actually persist and respect state?"
+
+These are not the same path with different data. They are different branches. The cold start never calls the session-restore code; the return run never calls the first-time setup code. A test that only drives the cold start is a corrupted measure wearing a state's mask — it looks like coverage of the feature, but it only covers one of the two fundamental states the feature lives in.
+
+This is exactly the shape of the notes-app return bug. The gauntlet drove the cold start: a fresh user, a pre-seeded group and contract, create a note, reload, verify — every assertion green. But the *return* run — a user who has used the app, logs out, and logs back in through the real flow — was never driven. On the return run the demo re-sends the group-creation contract on every login, and `create_group` is not idempotent: it inserts a second `group_contracts` row and a second `group_members` row for the same `group_id`. The read query dedupes, so the note survives at the API level — but the duplicate rows are real, they accumulate on every single visit, and any query that does not dedupe (or any future change to the read) turns the return run into the "my notes disappeared" report. The cold-start test could never see it, because the cold start only ever creates the group once.
+
+### The rule
+
+**A feature is tested when the flow is driven in both states — first run (cold) and return run (warm) — not just the one the happy path happens to take.** The return run is where persistence, idempotency, and session restore actually live, and it is the state a real user is in almost all the time. A user who has used your app once is a returning user forever after; the cold start is the exception, not the rule. "It worked the first time, then it broke" is a return-run bug by definition — no cold-start test can produce it.
+
+### How to drive the return run
+
+It is not "run the test twice." It is a targeted question, the same shape as the fork enumeration:
+
+- "What state does the first run leave behind?" — the token cookie, the approved contracts, the created groups, the written documents.
+- "What does the second run do with that state?" — restore the session, re-request (or skip) the consent, re-create (or find) the group, read back the data.
+- "Which of those is a different code path?" — the restore branch, the idempotency branch, the already-approved branch. Those are the return-run seams.
+- "Does a test actually drive the second run?" — the gap is the untested state.
+
+In practice:
+1. Drive the first run to completion through the *real* flow (cold start).
+2. Leave the state it leaves behind — do not wipe it.
+3. Drive the second run through the *same* real flow (not a pre-seed; a pre-seeded cookie is the cold-start shortcut, not the return run).
+4. Assert the invariants the return run must hold: the data is still there, the consent is not re-prompted (or is auto-approved), the group is not duplicated, the session is restored without a fresh login.
+
+The return run is the harder test to write — it needs the first run to have actually run, and it needs the real flow. But it is the test that catches the class of bug the user actually hits.
+
+### State rule vs. fork rule
+
+The fork rule is about *breadth within a run*: the same goal through many paths. The state rule is about *depth across runs*: the same path through many states. A feature can have every fork tested and still be broken on the return run — the approve button works on first use, but the consent is re-prompted (or the data is clobbered) on every use after. They are the same instinct — "the code has more surface than the one spot you touched" — pointed at different axes. The fork rule asks "what other buttons reach this goal?" The state rule asks "what does this look like the second time?"
+
 ## The Corrupted Measure: A Green That Skips the Seam
 
 A green test that doesn't touch the seam is worse than no test. It teaches the operator to trust "green" — and then a real green gets doubted and a real red gets dismissed. This is the "fake altitude" from the main theory, made concrete with two real examples:
@@ -134,6 +171,24 @@ A suite full of ghosts erodes trust the same way a false green does: the operato
 A failing integration test should hand you the break, not make you guess it. When the seam test fails, dump the signal from *both* sides of the boundary — the full console (all levels) plus uncaught exceptions (`pageerror`) from each page. That is what turned a "the contract never shows up" mystery into a one-line fix: the dump showed the contract *arriving* at the popup (`contract message received`) and then the handler dying on a `SecurityError` before `setPendingContracts`. No dump, you re-read both sides and speculate. With the dump, you read the break.
 
 The pattern: capture `page.on('console')` (all levels) and `page.on('pageerror')` on *every* page in the flow, and include them in the failure message. The durable part is not the payload — it is the *sequence* of communications across the seam, and that sequence is what localizes the break. A test that fails silently (a bare timeout) is a corrupted measure too: it tells you *that* it broke, not *where*.
+
+## The Worktree Rule: The Working Tree Is the Deliverable
+
+Every rule above assumes you can run a test, read the signal, and try again on a clean slate. In a Conductor workspace you often can't. Each Conductor workspace is a single git worktree, and the working tree in it is not a scratchpad — it is the deliverable. The uncommitted changes sitting in it are the thing you ship. That changes what you are allowed to do to it while you test.
+
+The tell is a git command that mutates shared state or the working tree on the assumption you will undo it. `git stash` is the canonical one: it empties your working tree and writes the changes to the shared `refs/stash`, a ref that belongs to the repo, not to any worktree. If the session dies between the stash and the pop — a timeout, a crash, the operator closing the window — the changes are now in a ref no worktree is pointing at, and the deliverable is empty. The work is not lost (it is in the stash), but the session's ability to finish is, and the next agent inherits a half-messy tree and has to reconstruct what was where before it can do anything.
+
+The rule: **never `git stash` and never `git worktree add`/`remove` in a Conductor workspace.** More generally, never run a git command that mutates the deliverable's working tree, a shared ref, or the worktree structure on the assumption you will undo it. The session is not guaranteed to live long enough to undo it, and Conductor owns the worktree lifecycle.
+
+The compare phase's most common question is "is this failure pre-existing?" — and the instinct is to stash your changes, run the test on a clean tree, and pop. That instinct is exactly what bricks the deliverable. Two safe moves answer the same question without touching it:
+
+1. **The static check** — `git diff origin/dev -- <file>`. If the failing path is in a file your branch did not touch, the failure is pre-existing, done. No checkout, no mutation, nothing to undo. This is the fast path and it answers most of them.
+
+2. **The committed checkout** — for when the failure needs the test to actually run against a clean base. First, commit your work and push the branch (the remote branch is your backup). Then `git checkout origin/dev` in the same worktree → run the test → `git checkout <your-branch>` to come back. This is safe because your work lives in a commit on the remote, not in a fragile ref. If the session dies mid-checkout, the next agent runs `git checkout <your-branch>` and everything is where it was.
+
+**Never create or remove worktrees in a Conductor workspace.** Conductor owns the worktree lifecycle — each workspace is exactly one worktree, and `git worktree add` / `git worktree remove` corrupts that relationship. The committed checkout above gives you the same "run against a clean base" capability without touching the worktree structure.
+
+Both keep the deliverable intact. The stash does not.
 
 ## Repair Scope: Look at the Rest of the Subsystem
 
@@ -173,4 +228,6 @@ The main theory's repair phase says "make the fix, verify it." This doc adds: **
 
 The main theory's seam rule says "the test must drive the seam it is named for." This doc adds: **the seam has forks. One goal is reachable through many paths, and a feature is tested only when the seam is driven through every path that reaches it — not just the one the happy path happens to take.**
 
-All three additions come from the same root: the LLM is shy about scope. It fixes the thing that failed and stops. It doesn't naturally ask "is this broken elsewhere?" or "did I test the other button?" The process has to force it. AGENTS.md says: "when you find a bug pattern, check the rest of the subsystem." The anti-test suite says: "here are the invariants that must hold. If any of them fail, the repair isn't done." The fork rule says: "here are the paths this feature has. If one of them has no test, the feature isn't done."
+The main theory's test ladder says "build tests from the easy floor up." This doc adds: **the ladder has a second axis the floor does not cover — state. The cold start is the easy floor; the return run is where persistence, idempotency, and session restore live. A feature is tested only when the flow is driven in both states, not just the first.**
+
+All four additions come from the same root: the LLM is shy about scope. It fixes the thing that failed and stops. It doesn't naturally ask "is this broken elsewhere?", "did I test the other button?", or "what does this look like the second time?" The process has to force it. AGENTS.md says: "when you find a bug pattern, check the rest of the subsystem." The anti-test suite says: "here are the invariants that must hold. If any of them fail, the repair isn't done." The fork rule says: "here are the paths this feature has. If one of them has no test, the feature isn't done." The state rule says: "here are the states this feature lives in. If the return run has no test, the feature isn't done."

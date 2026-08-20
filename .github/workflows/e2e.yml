@@ -45,10 +45,44 @@ jobs:
         env:
           STRIPE_TEST_KEY: ${{ secrets.STRIPE_TEST_KEY }}
 
+      - name: Initialize ClickHouse schema
+        run: |
+          # Wait for CH to accept connections (bypassed entrypoint, so no auto-init)
+          for i in $(seq 1 60); do
+            if docker compose -f e2e/docker-compose.yml exec -T clickhouse clickhouse-client --user default --password "" -q "SELECT 1" 2>/dev/null; then
+              echo "ClickHouse ready (attempt $i)"
+              break
+            fi
+            sleep 2
+          done
+          # Create user + database
+          docker compose -f e2e/docker-compose.yml exec -T clickhouse clickhouse-client --user default --password "" \
+            -q "CREATE USER IF NOT EXISTS web10 IDENTIFIED BY 'web10'; CREATE DATABASE IF NOT EXISTS web10; GRANT ALL ON web10.* TO web10;"
+          # Apply schema
+          docker compose -f e2e/docker-compose.yml exec -T clickhouse clickhouse-client --user web10 --password web10 --database web10 \
+            < clickhouse-init/001-init-v3-schema.sql.template
+          docker compose -f e2e/docker-compose.yml exec -T clickhouse clickhouse-client --user web10 --password web10 --database web10 \
+            < clickhouse-init/002-logs-table.sql.template
+          echo "Schema initialized."
+
       - name: Wait for stack health
         run: bash e2e/wait-for-stack.sh
         env:
-          TIMEOUT: 180
+          TIMEOUT: 300
+
+      - name: Dump stack logs on failure
+        if: failure()
+        run: |
+          echo "=== ClickHouse logs (stdout) ==="
+          docker compose -f e2e/docker-compose.yml logs clickhouse 2>&1 | tail -80
+          echo "=== ClickHouse err.log (via cp from stopped container) ==="
+          docker cp e2e-clickhouse-1:/var/log/clickhouse-server/clickhouse-server.err.log /tmp/ch-err.log 2>/dev/null && tail -40 /tmp/ch-err.log || echo "(could not extract)"
+          echo "=== ClickHouse main log ==="
+          docker cp e2e-clickhouse-1:/var/log/clickhouse-server/clickhouse-server.log /tmp/ch.log 2>/dev/null && tail -40 /tmp/ch.log || echo "(could not extract)"
+          echo "=== API logs ==="
+          docker compose -f e2e/docker-compose.yml logs api 2>&1 | tail -30
+          echo "=== Container status ==="
+          docker compose -f e2e/docker-compose.yml ps -a
 
       - name: Setup Playwright
         working-directory: e2e

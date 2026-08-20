@@ -298,4 +298,110 @@ test.describe('Auth popup round-trip — real consent handshake', () => {
 
     await popup.close().catch(() => {});
   });
+
+  /**
+   * The STATE RULE — first run and return run are different code paths.
+   *
+   * Every test above drives the COLD START: a fresh user, no cookie, no
+   * approved contract, no data. This test drives the RETURN RUN: a user who
+   * has already used the app (approved the contracts, created a note), logs
+   * out, and logs back in through the real popup. The return run is where
+   * persistence, idempotency, and session restore actually live — and it is
+   * the state a real user is in almost all the time.
+   *
+   * The load-bearing assertion is the last one: the note created on the first
+   * run must still be there after the second run. If the return run clobbers
+   * the group, re-scopes the read, or drops the session, the note vanishes —
+   * which is exactly the "it worked the first time, then it broke" report no
+   * cold-start test can produce.
+   */
+  test('return run: 2nd login through real popup, note persists (state rule)', async ({ context, request }) => {
+    const { token } = await signupFreshUser(request);
+    // Pre-auth ONLY the popup (auth.localhost). The demo starts signed-out.
+    await context.addCookies([
+      { name: 'token', value: token, domain: 'auth.localhost', path: '/', secure: false, httpOnly: false },
+    ]);
+
+    const page = await context.newPage();
+    const demoLogs = captureConsoleLogs(page, ['[notes-demo]', '[wapi]']);
+    await page.goto(`${MARKETING_BASE}/docs/notes/`);
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('#authButton')).toHaveText('Log in');
+
+    // --- FIRST RUN (cold start) ---
+    const popupPromise1 = context.waitForEvent('page', { timeout: 15000 });
+    await page.locator('#authButton').click();
+    const popup1 = await popupPromise1;
+    const popup1Full = captureFull(popup1);
+    await popup1.waitForLoadState('networkidle');
+
+    // Approve the app contract.
+    await popup1.locator('[data-testid="consent-req-0"]').waitFor({ state: 'visible', timeout: 15000 });
+    await popup1.locator('[data-testid="consent-approve-0"]').click();
+    await expect(async () => {
+      expect(demoLogs.join('\n')).toContain('app contract APPROVED');
+    }).toPass({ timeout: 15000 });
+
+    // Close window → token lands → demo requests the group contract.
+    await popup1.locator('[data-testid="consent-close-window"]').click();
+    await expect(async () => {
+      expect(demoLogs.join('\n')).toContain('authListen fired — user is signed in');
+    }).toPass({ timeout: 15000 });
+
+    // Approve the group contract; the popup closes.
+    await popup1.locator('[data-testid="consent-req-0"]').waitFor({ state: 'visible', timeout: 15000 });
+    await popup1.locator('[data-testid="consent-approve-0"]').click();
+    await popup1.waitForEvent('close', { timeout: 15000 });
+    await expect(page.locator('#authButton')).toHaveText('log out', { timeout: 15000 });
+
+    // Create a note on the first run.
+    await page.locator('#curr').fill('return-run note');
+    await page.locator('button:has-text("Create note")').click();
+    await expect(page.locator('.note textarea').first()).toHaveValue('return-run note', { timeout: 10000 });
+
+    // --- LOG OUT (wipe the demo's session, keep the server state) ---
+    await page.locator('#authButton').click(); // now "log out"
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('#authButton')).toHaveText('Log in', { timeout: 15000 });
+
+    // --- SECOND RUN (return run) ---
+    const popupPromise2 = context.waitForEvent('page', { timeout: 15000 });
+    await page.locator('#authButton').click();
+    const popup2 = await popupPromise2;
+    const popup2Full = captureFull(popup2);
+    await popup2.waitForLoadState('networkidle');
+
+    // The app contract is already approved, so the popup filters it out and
+    // shows "all set" (or, if a new permission were requested, the row).
+    // Close window → token lands → demo re-requests the group contract.
+    await popup2
+      .locator('[data-testid="consent-allset"], [data-testid="consent-req-0"]')
+      .first()
+      .waitFor({ state: 'visible', timeout: 15000 });
+    await popup2.locator('[data-testid="consent-close-window"]').click();
+    await expect(async () => {
+      expect(demoLogs.join('\n')).toContain('authListen fired — user is signed in');
+    }).toPass({ timeout: 15000 });
+
+    // The group contract is re-requested on every login (group contracts are
+    // never filtered). Approve it; the popup closes.
+    await popup2.locator('[data-testid="consent-req-0"]').waitFor({ state: 'visible', timeout: 15000 });
+    await popup2.locator('[data-testid="consent-approve-0"]').click();
+    await popup2.waitForEvent('close', { timeout: 15000 });
+    await expect(page.locator('#authButton')).toHaveText('log out', { timeout: 15000 });
+
+    // THE state-rule assertion: the note from the first run must survive the
+    // return run. A red here is the "my notes disappeared" bug.
+    try {
+      await expect(page.locator('.note textarea').first()).toHaveValue('return-run note', { timeout: 15000 });
+    } catch {
+      throw new Error(
+        'NOTE DID NOT SURVIVE THE RETURN RUN — the note created on the first login was gone ' +
+          'after logging out and back in.\n\n' +
+        '--- DEMO logs ---\n' + demoLogs.join('\n') + '\n\n' +
+        '--- POPUP (2nd login) uncaught exceptions ---\n' + popup2Full.errors.join('\n') + '\n\n' +
+        '--- POPUP (2nd login) full console ---\n' + popup2Full.console.join('\n'),
+      );
+    }
+  });
 });

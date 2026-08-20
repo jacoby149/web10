@@ -81,7 +81,7 @@ class TestDocumentTombstone:
             assert result is None
 
     def test_read_documents_deduplicates(self):
-        """read_documents must deduplicate via QUALIFY."""
+        """read_documents must deduplicate via row_number() subquery."""
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
                 [
@@ -92,7 +92,7 @@ class TestDocumentTombstone:
             assert len(result) == 1
             assert result[0]["body"]["text"] == "new"
             call_args = mock_client.query.call_args[0][0]
-            assert "QUALIFY" in call_args
+            assert "row_number()" in call_args
 
     def test_read_document_by_id_returns_latest(self):
         """read_document_by_id must return the latest version."""
@@ -135,7 +135,7 @@ class TestGroupContractTombstone:
             calls = [c[0][0] for c in mock_client.command.call_args_list]
             for call in calls:
                 assert "deleted" in call.lower()
-                assert "now()" in call.lower()
+                assert "now64(6)" in call.lower()
 
 
 # ---------------------------------------------------------------------------
@@ -205,7 +205,7 @@ class TestAppContractTombstone:
             assert "ORDER BY updated_at DESC LIMIT 1" in call_args
 
     def test_get_app_contracts_deduplicates(self):
-        """get_app_contracts must deduplicate via QUALIFY."""
+        """get_app_contracts must deduplicate via row_number() subquery."""
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
                 [
@@ -215,7 +215,7 @@ class TestAppContractTombstone:
             result = ch.get_app_contracts("alice")
             assert len(result) == 1
             call_args = mock_client.query.call_args[0][0]
-            assert "QUALIFY" in call_args
+            assert "row_number()" in call_args
 
     def test_revoke_app_contract_tombstones(self):
         """revoke_app_contract must INSERT a tombstoned version."""
@@ -223,7 +223,7 @@ class TestAppContractTombstone:
             ch.revoke_app_contract("alice", "https://app.com")
             call_args = mock_client.command.call_args[0][0]
             assert "INSERT INTO app_contracts" in call_args
-            assert "now()" in call_args
+            assert "now64(6)" in call_args
             assert "deleted" in call_args
 
 
@@ -333,7 +333,7 @@ class TestProviderServiceContractTombstone:
             assert "ORDER BY updated_at DESC LIMIT 1" in call_args
 
     def test_get_provider_service_contracts_deduplicates(self):
-        """get_provider_service_contracts must deduplicate via QUALIFY."""
+        """get_provider_service_contracts must deduplicate via row_number() subquery."""
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
                 [
@@ -343,7 +343,7 @@ class TestProviderServiceContractTombstone:
             result = ch.get_provider_service_contracts("api.web10.app")
             assert len(result) == 1
             call_args = mock_client.query.call_args[0][0]
-            assert "QUALIFY" in call_args
+            assert "row_number()" in call_args
 
 
 # ---------------------------------------------------------------------------
