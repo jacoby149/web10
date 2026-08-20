@@ -1,9 +1,10 @@
 import { test, expect, type APIRequestContext } from '@playwright/test';
 import { v3Login, v3Signup, v3Post, API_BASE } from '../v3-helpers';
 
-const SOCIAL_BASE = `http://social.localhost${process.env.E2E_HTTP_PORT === '80' ? '' : `:${process.env.E2E_HTTP_PORT}`}`;
-const AUTH_BASE = `http://auth.localhost${process.env.E2E_HTTP_PORT === '80' ? '' : `:${process.env.E2E_HTTP_PORT}`}`;
-const MARKETING_BASE = `http://marketing.localhost${process.env.E2E_HTTP_PORT === '80' ? '' : `:${process.env.E2E_HTTP_PORT}`}`;
+const _port = process.env.E2E_HTTP_PORT && process.env.E2E_HTTP_PORT !== '80' ? `:${process.env.E2E_HTTP_PORT}` : '';
+const SOCIAL_BASE = `http://social.localhost${_port}`;
+const AUTH_BASE = `http://auth.localhost${_port}`;
+const MARKETING_BASE = `http://marketing.localhost${_port}`;
 
 const uniqueUser = (prefix: string) => `${prefix}${Date.now()}`;
 const password = 'TestPass123!';
