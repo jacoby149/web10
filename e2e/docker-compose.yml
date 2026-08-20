@@ -31,7 +31,7 @@ services:
       - e2e-net
 
   clickhouse:
-    image: clickhouse/clickhouse-server:24.3
+    image: clickhouse/clickhouse-server:24.8
     volumes:
       - ../clickhouse-init:/docker-entrypoint-initdb.d:ro
     ulimits:
