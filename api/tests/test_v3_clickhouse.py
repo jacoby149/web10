@@ -504,11 +504,11 @@ class TestReadDocumentsInGroups:
             assert "user_key = p.author_key" in sql
             assert "blocked_key = %(member_key)s" in sql
             # Verify blacklist filter includes deleted = 0 (tombstone-respecting)
-            assert "SELECT 1 FROM user_blacklist" in sql
-            blacklist_part = sql[sql.index("SELECT 1 FROM user_blacklist") :]
+            assert "LEFT ANTI JOIN user_blacklist" in sql
+            blacklist_part = sql[sql.index("LEFT ANTI JOIN user_blacklist") :]
             assert "deleted = 0" in blacklist_part
             # Verify hidden docs exclusion
-            assert "group_hidden_docs" in sql
+            assert "LEFT ANTI JOIN group_hidden_docs" in sql
 
 
 # ---------------------------------------------------------------------------
