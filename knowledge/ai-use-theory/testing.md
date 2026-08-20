@@ -178,13 +178,15 @@ Every rule above assumes you can run a test, read the signal, and try again on a
 
 The tell is a git command that mutates shared state or the working tree on the assumption you will undo it. `git stash` is the canonical one: it empties your working tree and writes the changes to the shared `refs/stash`, a ref that belongs to the repo, not to any worktree. If the session dies between the stash and the pop — a timeout, a crash, the operator closing the window — the changes are now in a ref no worktree is pointing at, and the deliverable is empty. The work is not lost (it is in the stash), but the session's ability to finish is, and the next agent inherits a half-messy tree and has to reconstruct what was where before it can do anything.
 
-The rule: **never `git stash` in a Conductor worktree.** More generally, never run a git command that mutates the deliverable's working tree or a shared ref on the assumption you will undo it. The session is not guaranteed to live long enough to undo it.
+The rule: **never `git stash` and never `git worktree add`/`remove` in a Conductor workspace.** More generally, never run a git command that mutates the deliverable's working tree, a shared ref, or the worktree structure on the assumption you will undo it. The session is not guaranteed to live long enough to undo it, and Conductor owns the worktree lifecycle.
 
 The compare phase's most common question is "is this failure pre-existing?" — and the instinct is to stash your changes, run the test on a clean tree, and pop. That instinct is exactly what bricks the deliverable. Two safe moves answer the same question without touching it:
 
 1. **The static check** — `git diff origin/dev -- <file>`. If the failing path is in a file your branch did not touch, the failure is pre-existing, done. No checkout, no mutation, nothing to undo. This is the fast path and it answers most of them.
 
-2. **The throwaway worktree** — for when the failure needs the test to actually run against a clean base. `git worktree add /tmp/base origin/dev` → run the test there → `git worktree remove /tmp/base`. The base checkout lives in `/tmp`, not in the deliverable. The deliverable's working tree is never touched, so there is nothing to restore and nothing to lose if the session dies.
+2. **The committed checkout** — for when the failure needs the test to actually run against a clean base. First, commit your work and push the branch (the remote branch is your backup). Then `git checkout origin/dev` in the same worktree → run the test → `git checkout <your-branch>` to come back. This is safe because your work lives in a commit on the remote, not in a fragile ref. If the session dies mid-checkout, the next agent runs `git checkout <your-branch>` and everything is where it was.
+
+**Never create or remove worktrees in a Conductor workspace.** Conductor owns the worktree lifecycle — each workspace is exactly one worktree, and `git worktree add` / `git worktree remove` corrupts that relationship. The committed checkout above gives you the same "run against a clean base" capability without touching the worktree structure.
 
 Both keep the deliverable intact. The stash does not.
 
