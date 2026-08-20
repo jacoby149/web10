@@ -48,7 +48,7 @@ jobs:
       - name: Wait for stack health
         run: bash e2e/wait-for-stack.sh
         env:
-          TIMEOUT: 180
+          TIMEOUT: 300
 
       - name: Setup Playwright
         working-directory: e2e
