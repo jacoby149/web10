@@ -184,7 +184,7 @@ function createV3Client(options?: Parameters<typeof _createV3Client>[0]): V3Clie
 
     // No existing popup — fall back to opening a new one
     console.log('[wapi] contractRequest — no existing popup, opening new one')
-    originalContractRequest.call(this, contracts, authOrigin, callback)
+    originalContractRequest(contracts, authOrigin, callback)
     }
   }
 

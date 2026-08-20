@@ -570,7 +570,7 @@
           return;
         }
         console.log("[wapi] contractRequest — no existing popup, opening new one");
-        originalContractRequest.call(this, contracts, authOrigin, callback);
+        originalContractRequest(contracts, authOrigin, callback);
       }
     };
     return client;
