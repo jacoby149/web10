@@ -31,7 +31,7 @@ services:
       - e2e-net
 
   clickhouse:
-    image: clickhouse/clickhouse-server:latest
+    image: clickhouse/clickhouse-server:24.3
     volumes:
       - ../clickhouse-init:/docker-entrypoint-initdb.d:ro
     environment:
@@ -39,7 +39,7 @@ services:
       - CLICKHOUSE_USER=web10
       - CLICKHOUSE_PASSWORD=web10
     healthcheck:
-      test: ["CMD-SHELL", "clickhouse client --user web10 --password web10 --database web10 --query 'SELECT 1'"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8123/ping"]
       interval: 3s
       timeout: 5s
       retries: 30
