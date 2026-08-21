@@ -99,13 +99,13 @@ fork. This lane drives every remaining fork through the real popup.
 ### Lane: groups-demo (Phase 1)
 **Owns:** `marketing/marketing-ui/public/docs/groups/`
 
-- [ ] Create group with roles
-- [ ] Join policy: open (instant join)
-- [ ] Join policy: request (approve/deny)
-- [ ] Invite member with role
-- [ ] Leave group
-- [ ] Remove member
-- [ ] E2E test: group lifecycle + join policies
+- [✓ 3.2.0] Create group with roles
+- [✓ 3.2.0] Join policy: open (instant join)
+- [✓ 3.2.0] Join policy: request (approve/deny)
+- [✓ 3.2.0] Invite member with role
+- [✓ 3.2.0] Leave group
+- [✓ 3.2.0] Remove member
+- [✓ 3.2.0] E2E test: group lifecycle + join policies
 
 ### Lane: media-demo (Phase 1)
 **Owns:** `marketing/marketing-ui/public/docs/media/`

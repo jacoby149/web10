@@ -221,6 +221,19 @@
           </div>
         </div>
         <button onclick="createGroup()" style="margin-top:0.5rem;">Create Group</button>
+
+        <div style="margin-top:1.5rem; padding-top:1rem; border-top:1px solid var(--border);">
+          <label class="field-label">Join an existing group</label>
+          <div class="row">
+            <div class="col">
+              <input id="joinGroupId" placeholder="api.localhost/groups/users/alice/my-community" />
+            </div>
+            <div style="flex:0 0 auto; align-self:flex-end;">
+              <button class="secondary" onclick="joinGroup()">Join</button>
+            </div>
+          </div>
+          <p style="font-size:0.7rem; color:var(--muted); margin-top:0.375rem;">Open groups join instantly. Request groups create a pending request the owner approves. Invite-only groups must invite you first.</p>
+        </div>
       </div>
 
       <!-- BOARD -->

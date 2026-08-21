@@ -262,11 +262,17 @@ def create_group(group_id: str, roles: list[dict], join_policy: str) -> dict:
 
 
 def get_group(group_id: str) -> dict | None:
-    """Get a group contract."""
+    """Get a group contract (latest version).
+
+    Dedup first (latest row wins, tombstones included) then filter deleted=0 —
+    a deleted group must not be found by its stale active row.
+    """
     result = client.query(
         "SELECT group_id, roles, join_policy, created_at, updated_at "
-        "FROM group_contracts WHERE group_id = %(group_id)s AND deleted = 0 "
-        "ORDER BY updated_at DESC LIMIT 1",
+        "FROM (SELECT group_id, roles, join_policy, created_at, updated_at, deleted, "
+        "row_number() OVER (PARTITION BY group_id ORDER BY updated_at DESC, deleted DESC) as rn "
+        "FROM group_contracts WHERE group_id = %(group_id)s) "
+        "WHERE rn = 1 AND deleted = 0",
         {"group_id": group_id},
     )
     if not result.result_rows:
@@ -347,24 +353,35 @@ def add_group_member(group_id: str, member_key: str, role: str) -> dict:
 
 
 def remove_group_member(group_id: str, member_key: str):
-    """Tombstone a group member."""
+    """Tombstone a group member.
+
+    now64(6) (microsecond) — not now() (second) — so the tombstone's
+    updated_at is never earlier than the active row it supersedes when both
+    land in the same second; the reader's row_number() keys off updated_at.
+    """
     client.command(
         "INSERT INTO group_members (group_id, member_key, role, joined_at, updated_at, deleted) "
-        "SELECT group_id, member_key, role, joined_at, now(), 1 "
+        "SELECT group_id, member_key, role, joined_at, now64(6), 1 "
         "FROM group_members WHERE group_id = %(group_id)s AND member_key = %(member_key)s AND deleted = 0",
         {"group_id": group_id, "member_key": member_key},
     )
 
 
 def get_group_members(group_id: str, limit: int = 100, offset: int = 0) -> list[dict]:
-    """Get active members of a group (deduplicated by latest version)."""
+    """Get active members of a group (deduplicated by latest version).
+
+    A remove/leave is a tombstone (deleted=1). We must dedup FIRST (latest
+    row per member_key wins, tombstones included) and only then filter
+    deleted=0 — filtering deleted=0 up front would let a stale active row
+    resurrect a member who was removed or left.
+    """
     result = client.query(
         "SELECT member_key, role, joined_at "
-        "FROM (SELECT member_key, role, joined_at, "
-        "row_number() OVER (PARTITION BY member_key ORDER BY updated_at DESC) as rn "
+        "FROM (SELECT member_key, role, joined_at, deleted, "
+        "row_number() OVER (PARTITION BY member_key ORDER BY updated_at DESC, deleted DESC) as rn "
         "FROM group_members "
-        "WHERE group_id = %(group_id)s AND deleted = 0) "
-        "WHERE rn = 1 "
+        "WHERE group_id = %(group_id)s) "
+        "WHERE rn = 1 AND deleted = 0 "
         "LIMIT %(limit)s OFFSET %(offset)s",
         {"group_id": group_id, "limit": limit, "offset": offset},
     )
@@ -372,11 +389,17 @@ def get_group_members(group_id: str, limit: int = 100, offset: int = 0) -> list[
 
 
 def get_group_member(group_id: str, member_key: str) -> dict | None:
-    """Get a specific member of a group."""
+    """Get a specific member of a group (latest version).
+
+    Dedups by updated_at (tombstones included) then filters deleted=0, so a
+    removed/left member resolves to their current state, not a stale row.
+    """
     result = client.query(
-        "SELECT member_key, role, joined_at FROM group_members "
-        "WHERE group_id = %(group_id)s AND member_key = %(member_key)s AND deleted = 0 "
-        "ORDER BY updated_at DESC LIMIT 1",
+        "SELECT member_key, role, joined_at FROM (SELECT member_key, role, joined_at, deleted, "
+        "row_number() OVER (PARTITION BY member_key ORDER BY updated_at DESC, deleted DESC) as rn "
+        "FROM group_members "
+        "WHERE group_id = %(group_id)s AND member_key = %(member_key)s) "
+        "WHERE rn = 1 AND deleted = 0",
         {"group_id": group_id, "member_key": member_key},
     )
     if not result.result_rows:
@@ -401,9 +424,10 @@ def _get_group_member_counts(group_ids: list[str]) -> dict[str, int]:
         return {}
     result = client.query(
         "SELECT group_id, count() AS cnt "
-        "FROM (SELECT group_id, member_key "
-        "FROM group_members WHERE deleted = 0 AND group_id IN %(group_ids)s "
-        "QUALIFY row_number() OVER (PARTITION BY group_id, member_key ORDER BY updated_at DESC) = 1) "
+        "FROM (SELECT group_id, member_key, deleted "
+        "FROM group_members WHERE group_id IN %(group_ids)s "
+        "QUALIFY row_number() OVER (PARTITION BY group_id, member_key ORDER BY updated_at DESC, deleted DESC) = 1) "
+        "WHERE deleted = 0 "
         "GROUP BY group_id",
         {"group_ids": group_ids},
     )
@@ -411,17 +435,21 @@ def _get_group_member_counts(group_ids: list[str]) -> dict[str, int]:
 
 
 def get_user_groups(member_key: str) -> list[dict]:
-    """Get all groups a user belongs to (deduplicated by latest version)."""
+    """Get all groups a user belongs to (deduplicated by latest version).
+
+    Dedup first (latest row wins, tombstones included) then filter deleted=0
+    on both sides — a left group's stale active row must not linger here.
+    """
     result = client.query(
         "SELECT gc.group_id, gc.join_policy, gm.role AS my_role "
-        "FROM (SELECT group_id, member_key, role, "
-        "row_number() OVER (PARTITION BY group_id, member_key ORDER BY updated_at DESC) as rn "
-        "FROM group_members WHERE deleted = 0) gm "
-        "JOIN (SELECT group_id, join_policy, "
-        "row_number() OVER (PARTITION BY group_id ORDER BY updated_at DESC) as rn "
-        "FROM group_contracts WHERE deleted = 0) gc "
+        "FROM (SELECT group_id, member_key, role, deleted, "
+        "row_number() OVER (PARTITION BY group_id, member_key ORDER BY updated_at DESC, deleted DESC) as rn "
+        "FROM group_members) gm "
+        "JOIN (SELECT group_id, join_policy, deleted, "
+        "row_number() OVER (PARTITION BY group_id ORDER BY updated_at DESC, deleted DESC) as rn "
+        "FROM group_contracts) gc "
         "ON gm.group_id = gc.group_id "
-        "WHERE gm.rn = 1 AND gc.rn = 1 AND gm.member_key = %(member_key)s",
+        "WHERE gm.rn = 1 AND gc.rn = 1 AND gm.deleted = 0 AND gc.deleted = 0 AND gm.member_key = %(member_key)s",
         {"member_key": member_key},
     )
     # Collect group ids for member-count lookup
@@ -452,9 +480,12 @@ def get_user_groups(member_key: str) -> list[dict]:
 def create_join_request(group_id: str, requester_key: str, status: str = "pending", role: str = "") -> dict:
     """Create a join request."""
     now = _now()
+    # Explicit column list (robust to table column order) + a zero-datetime
+    # sentinel for resolved_at (the column is non-Nullable; "not resolved yet").
     client.insert(
         "group_join_requests",
-        [[group_id, requester_key, status, role, now, None, now, 0]],
+        [[group_id, requester_key, status, role, now, datetime(1970, 1, 1), now, 0]],
+        column_names=["group_id", "requester_key", "status", "role", "requested_at", "resolved_at", "updated_at", "deleted"],
     )
     return {
         "group_id": group_id,
@@ -476,11 +507,18 @@ def resolve_join_request(group_id: str, requester_key: str, status: str):
 
 
 def get_pending_requests(group_id: str) -> list[dict]:
-    """Get pending join requests for a group."""
+    """Get pending join requests for a group.
+
+    Dedup first (latest request per requester wins) then filter to
+    pending/invited — a resolved request (approved/denied is a new row) must
+    not leave its old pending row showing.
+    """
     result = client.query(
-        "SELECT requester_key, status, role, requested_at FROM group_join_requests "
-        "WHERE group_id = %(group_id)s AND status IN ('pending', 'invited') AND deleted = 0 "
-        "QUALIFY row_number() OVER (PARTITION BY requester_key ORDER BY updated_at DESC) = 1",
+        "SELECT requester_key, status, role, requested_at "
+        "FROM (SELECT requester_key, status, role, requested_at, deleted, "
+        "row_number() OVER (PARTITION BY requester_key ORDER BY updated_at DESC, deleted DESC) as rn "
+        "FROM group_join_requests WHERE group_id = %(group_id)s) "
+        "WHERE rn = 1 AND status IN ('pending', 'invited') AND deleted = 0",
         {"group_id": group_id},
     )
     return [
@@ -490,11 +528,17 @@ def get_pending_requests(group_id: str) -> list[dict]:
 
 
 def has_pending_or_invited_request(group_id: str, requester_key: str) -> bool:
-    """Check if a user has a pending or invited join request for a group."""
+    """Check if a user has a pending or invited join request for a group.
+
+    Dedup first (latest request wins) then filter — a resolved request must
+    not still count as pending.
+    """
     result = client.query(
-        "SELECT count() FROM (SELECT 1 FROM group_join_requests "
-        "WHERE group_id = %(group_id)s AND requester_key = %(requester_key)s AND status IN ('pending', 'invited') AND deleted = 0 "
-        "ORDER BY updated_at DESC LIMIT 1)",
+        "SELECT count() FROM (SELECT 1 FROM (SELECT status, deleted, "
+        "row_number() OVER (PARTITION BY requester_key ORDER BY updated_at DESC, deleted DESC) as rn "
+        "FROM group_join_requests "
+        "WHERE group_id = %(group_id)s AND requester_key = %(requester_key)s) "
+        "WHERE rn = 1 AND status IN ('pending', 'invited') AND deleted = 0)",
         {"group_id": group_id, "requester_key": requester_key},
     )
     return result.result_rows[0][0] > 0
@@ -849,14 +893,14 @@ def get_groups_manages(member_key: str) -> list[dict]:
     """
     result = client.query(
         "SELECT gc.group_id, gc.join_policy, gc.roles, gm.role AS my_role "
-        "FROM (SELECT group_id, member_key, role, "
-        "row_number() OVER (PARTITION BY group_id, member_key ORDER BY updated_at DESC) as rn "
-        "FROM group_members WHERE deleted = 0) gm "
-        "JOIN (SELECT group_id, join_policy, roles, "
-        "row_number() OVER (PARTITION BY group_id ORDER BY updated_at DESC) as rn "
-        "FROM group_contracts WHERE deleted = 0) gc "
+        "FROM (SELECT group_id, member_key, role, deleted, "
+        "row_number() OVER (PARTITION BY group_id, member_key ORDER BY updated_at DESC, deleted DESC) as rn "
+        "FROM group_members) gm "
+        "JOIN (SELECT group_id, join_policy, roles, deleted, "
+        "row_number() OVER (PARTITION BY group_id ORDER BY updated_at DESC, deleted DESC) as rn "
+        "FROM group_contracts) gc "
         "ON gm.group_id = gc.group_id "
-        "WHERE gm.rn = 1 AND gc.rn = 1 AND gm.member_key = %(member_key)s",
+        "WHERE gm.rn = 1 AND gc.rn = 1 AND gm.deleted = 0 AND gc.deleted = 0 AND gm.member_key = %(member_key)s",
         {"member_key": member_key},
     )
     # Collect group ids for member-count lookup
