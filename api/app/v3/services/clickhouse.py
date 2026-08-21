@@ -506,10 +506,15 @@ def create_join_request(group_id: str, requester_key: str, status: str = "pendin
 
 
 def resolve_join_request(group_id: str, requester_key: str, status: str):
-    """Update a join request status (approved/denied)."""
+    """Update a join request status (approved/denied).
+
+    now64(6) (microsecond) — not now() (second) — so the resolved row's
+    updated_at is never earlier than the pending row it supersedes; the reader
+    dedups by updated_at, so a second-precision timestamp can lose the tie.
+    """
     client.command(
         "INSERT INTO group_join_requests (group_id, requester_key, status, role, requested_at, resolved_at, updated_at, deleted) "
-        "SELECT group_id, requester_key, %(status)s, role, requested_at, now(), now(), 0 "
+        "SELECT group_id, requester_key, %(status)s, role, requested_at, now64(6), now64(6), 0 "
         "FROM group_join_requests WHERE group_id = %(group_id)s AND requester_key = %(requester_key)s AND deleted = 0",
         {"group_id": group_id, "requester_key": requester_key, "status": status},
     )
