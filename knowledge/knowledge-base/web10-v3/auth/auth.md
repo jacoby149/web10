@@ -130,6 +130,12 @@ Body: {
 
 Inserts into `users` table: `INSERT INTO users VALUES (username, password_hash, phone, 0, '', 0, now(), now(), 0)`.
 
+**Validation** — enforced before the insert:
+
+- **Username:** `^[a-z0-9](?:[a-z0-9-]{0,28}[a-z0-9])?$` — lowercase letters, digits, hyphens; no leading/trailing hyphen; 1–30 chars. Violation → 401 `BAD_USERNAME`, no user created.
+- **Password:** must be non-empty (whitespace-only rejected). Violation → 401 `BAD_PASSWORD`, no user created. An empty password would otherwise hash fine and log in fine — the check is what keeps it out.
+- **Duplicate:** username already in `users` (non-deleted) → 401 `EXISTS`.
+
 ### Account Management
 
 ```

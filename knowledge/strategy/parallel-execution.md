@@ -75,15 +75,15 @@ is the fix: a feature is covered only when the seam is driven through *every*
 fork. This lane drives every remaining fork through the real popup.
 
 - [✓] Approve-all fork: app + group contract via "Approve all" (not single Allow) — fixed the dropped app-contract response (shared `approveOne` helper so the two forks can't diverge) + E2E with the bug-catcher assertion
-- [ ] Deny fork: single "Deny" (X) on the app contract → demo handles `denied` gracefully (message, no crash, fix-access appears)
-- [ ] Deny fork: single "Deny" on the group contract → demo proceeds (group is optional, `initApp` still runs)
-- [ ] Skip fork: "Continue without sharing" → token sent, no contracts granted, demo shows fix-access on first CRUD
-- [ ] All-set fork: already-granted ACR is filtered out → "You're all set" renders → "Close window" closes the popup
-- [ ] Logout fork: "Not you? Log out" → returns to login, pending contracts cleared, no stale state
-- [ ] Details fork: expand/collapse chevron renders the permission diff (added/removed/same chips) for a re-request
-- [ ] Mixed fork: approve app + deny group in one session (and the reverse) — each response matches its own contract
-- [ ] Edge fork: approve-all with zero pending contracts → `goToApp` early return, no crash
-- [ ] Fix-access fork: revoke → "Fix access" through the REAL popup (retire the `popup.close()` + raw-API workaround in `notes-demo.spec.ts` — a seam-rule violation the theory now names)
+- [✓ 3.3.0] Deny fork: single "Deny" (X) on the app contract → demo handles `denied` gracefully (message, no crash, fix-access appears)
+- [✓ 3.3.0] Deny fork: single "Deny" on the group contract → demo proceeds (group is optional, `initApp` still runs)
+- [✓ 3.3.0] Skip fork: "Continue without sharing" → token sent, no contracts granted, demo shows fix-access on first CRUD
+- [✓ 3.3.0] All-set fork: already-granted ACR is filtered out → "You're all set" renders → "Close window" closes the popup
+- [✓ 3.3.0] Logout fork: "Not you? Log out" → returns to login, pending contracts cleared, no stale state
+- [✓ 3.3.0] Details fork: expand/collapse chevron renders the permission diff (added/removed/same chips) for a re-request
+- [✓ 3.3.0] Mixed fork: approve app + deny group in one session (and the reverse) — each response matches its own contract
+- [✓ 3.3.0] Edge fork: approve-all with zero pending contracts → `goToApp` early return, no crash
+- [✓ 3.3.0] Fix-access fork: revoke → "Fix access" through the REAL popup (retire the `popup.close()` + raw-API workaround in `notes-demo.spec.ts` — a seam-rule violation the theory now names)
 
 ### Lane: messages-demo (Phase 1)
 **Owns:** `marketing/marketing-ui/public/docs/messages/`

@@ -425,7 +425,7 @@ const SetupWizard = ({ I }: { I: Record<string, any> }) => {
   const onChange = (key: string, value: any) => setFormData(prev => ({ ...prev, [key]: value }));
 
   const nextStep = () => {
-    if (step === 5) {
+    if (step === 4) {
       submitSetup();
     } else {
       setStep(step + 1);
@@ -440,7 +440,7 @@ const SetupWizard = ({ I }: { I: Record<string, any> }) => {
         ? formData.provider
         : `${window.location.protocol}//${formData.provider}`;
 
-      await axios.post(`${provider}/setup`, {
+      await axios.post(`${provider}/setup/configure`, {
         provider: formData.provider,
         admin_username: formData.admin_username,
         admin_password: formData.admin_password,
@@ -470,6 +470,11 @@ const SetupWizard = ({ I }: { I: Record<string, any> }) => {
       setStep(6);
     } catch (e: any) {
       setError(e.response?.data?.detail || String(e));
+      // Land on the Complete step — it carries the error UI ("Setup Failed"
+      // + the server detail + a way out). Staying on the current step left
+      // the error set but never rendered: a silent dead end.
+      setDone(true);
+      setStep(6);
     } finally {
       setLoading(false);
     }

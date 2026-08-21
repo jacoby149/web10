@@ -22,6 +22,8 @@ async def signup(data: Signup):
     """Create a user account."""
     if not kosher(data.username):
         raise exceptions.BAD_USERNAME
+    if not data.password or not data.password.strip():
+        raise exceptions.BAD_PASSWORD
     password_hash = get_password_hash(data.password)
     result = ch.create_user(
         username=data.username,

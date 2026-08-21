@@ -454,31 +454,23 @@ test.describe('Notes demo anti-tests — broken contracts break the app', () => 
     // Read without groups won't work, but the key assertion is:
     // the UI showed the error + fix button, not a silent success
 
-    // Click "Fix access" — opens auth popup to re-request contract
+    // Click "Fix access" — the REAL auth popup drives the re-consent.
+    // (The old version did popup.close() + raw-API contract create — a
+    // seam-rule violation: a green that skips the seam is a lie.)
     const popupPromise = context.waitForEvent('page', { timeout: 15000 });
     await page.locator('#fixAccessBtn').click();
     const popup = await popupPromise;
-    await popup.waitForLoadState('domcontentloaded', { timeout: 15000 });
+    await popup.waitForLoadState('networkidle', { timeout: 15000 });
 
-    // The postMessage contract flow is fragile in headless Chromium.
-    // Close the popup and create the contract directly via API to verify recovery.
-    await popup.close();
+    // The contract renders in the popup → approve it.
+    await popup.locator('[data-testid="consent-req-0"]').waitFor({ state: 'visible', timeout: 15000 });
+    await popup.locator('[data-testid="consent-approve-0"]').click();
 
-    // Re-create the contract (simulates what the auth popup consent would do)
-    const addContractRes = await request.post(`${API_BASE}/v3/app-contracts/add`, {
-      data: JSON.stringify({
-        token,
-        allowed_origin: 'http://marketing.localhost',
-        permissions: { notes: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
-      }),
-      headers: { 'Content-Type': 'application/json', Origin: AUTH_BASE },
-    });
-    expect(addContractRes.ok()).toBeTruthy();
-
-    // Reload the page — should recover
-    await page.reload();
-    await page.waitForLoadState('networkidle');
-    await expect(page.locator('#editor')).toBeVisible({ timeout: 10000 });
+    // The demo's callback fired from the popup's response — recovery.
+    await expect(async () => {
+      expect(logs.join('\n')).toContain('fixAccess — contract re-approved, retrying readNotes');
+    }).toPass({ timeout: 15000 });
+    await expect(page.locator('#message')).toContainText('Access restored.');
 
     // Now CRUD should work again
     const noteText3 = `after fix ${Date.now()}`;

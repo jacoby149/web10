@@ -125,7 +125,7 @@ function IconButton({
 
 function TopBar({ I }: TopBarProps) {
   const authed = I.isAuthenticated?.();
-  const username = I.wapi?.readToken?.()?.username as string | undefined;
+  const username = I.v3?.readToken?.()?.username as string | undefined;
   const showSearch = authed && SEARCHABLE.has(I.mode);
 
   return (

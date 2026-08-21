@@ -34,8 +34,13 @@ async def get_setup_status() -> SetupStatus:
 
 @router.post("/setup/configure", tags=["system"])
 async def post_setup(req: SetupRequest):
-    """First-run setup: generates JWT key, saves config, creates admin."""
-    if config_svc.admin_exists():
+    """First-run setup: generates JWT key, saves config, creates admin.
+
+    v3: the admin is a ClickHouse user (``ch.create_user``) — the only store
+    ``/v3/login`` reads — so the wizard's admin can actually log in. The
+    guard is ClickHouse too: a node with any user is already in use.
+    """
+    if ch.node_has_users():
         raise HTTPException(status_code=400, detail="Node already configured")
 
     # Generate JWT key
@@ -43,18 +48,17 @@ async def post_setup(req: SetupRequest):
     key_data["ts"] = __import__("datetime").datetime.utcnow().isoformat()
     config_svc.save_jwt_key(key_data)
 
-    # Build config body
+    # Build config body — the new admin is the node's admin (check_admin
+    # enforces the config admins list).
     config_body = req.model_dump(exclude_none=True)
     config_body["private_key"] = key_data["key"]
     config_body["algorithm"] = "HS256"
+    config_body["admins"] = [req.admin_username]
     config_svc.save_config(config_body)
 
-    # Create admin
-    config_svc.create_admin(
-        req.admin_username,
-        get_password_hash(req.admin_password),
-        phone="",
-    )
+    # Create the admin in ClickHouse.
+    if not ch.create_user(req.admin_username, get_password_hash(req.admin_password)):
+        raise HTTPException(status_code=400, detail="Admin user already exists")
 
     return {
         "status": "configured",

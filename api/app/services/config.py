@@ -74,31 +74,6 @@ def get_latest_jwt_key() -> dict | None:
     return docs[0] if docs else None
 
 
-def create_admin(username: str, password_hash: str, phone: str = "") -> str:
-    """Creates the first admin user. This is the setup completion step."""
-    from app.services import records
-    from app.services.documentdb import db, to_db
-
-    user_col = db[username]
-    new_user = records.star_record()
-    new_user["username"] = username
-    new_user["hashed_password"] = password_hash
-    new_user["admin"] = True
-    if phone:
-        new_user["phone_number"] = phone
-    new_user = to_db(new_user, "services")
-    user_col.insert_one(new_user)
-
-    services_terms = to_db(records.services_record(), "services")
-    user_col.insert_one(services_terms)
-
-    # Core app services terms — same as create_user
-    for ct in [to_db(t, "services") for t in records.core_services_terms()]:
-        user_col.insert_one(ct)
-
-    return "admin created"
-
-
 def list_admins() -> list:
     """Usernames allowed to read/write this node's config.
 
@@ -120,13 +95,10 @@ def is_admin(username: str) -> bool:
 
 
 def admin_exists() -> bool:
-    """Checks if any admin account exists."""
-    from app.services.documentdb import db
+    """Checks if the node has an admin account.
 
-    for coll_name in db.list_collection_names():
-        if coll_name in ("web10", "admin"):
-            continue
-        doc = db[coll_name].find_one({"service": "*", "body.admin": True})
-        if doc:
-            return True
-    return False
+    v3: setup is complete when it saved an admins list in the node config
+    (the v3 users table has no admin flag — admin-ness is the config list
+    that ``check_admin`` enforces).
+    """
+    return bool(get_config().get("admins"))

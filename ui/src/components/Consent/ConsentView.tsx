@@ -258,7 +258,7 @@ function ConsentView({ I }: { I: Record<string, any> }) {
     }
     return false;
   });
-  const username = I.wapi?.readToken?.()?.username as string | undefined;
+  const username = I.v3?.readToken?.()?.username as string | undefined;
 
   return (
     <div className="relative flex h-screen flex-col items-center justify-center overflow-hidden bg-background px-4 py-8 text-foreground">

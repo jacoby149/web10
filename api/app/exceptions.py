@@ -20,7 +20,13 @@ NO_PWA = HTTPException(
 
 BAD_USERNAME = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
-    detail="username must be 3-30 lowercase letters, digits, or hyphens (no leading/trailing hyphens)",
+    detail="username must be 1-30 lowercase letters, digits, or hyphens (no leading/trailing hyphens)",
+    headers={"WWW-Authenticate": "Basic"},
+)
+
+BAD_PASSWORD = HTTPException(
+    status_code=status.HTTP_401_UNAUTHORIZED,
+    detail="password must not be empty",
     headers={"WWW-Authenticate": "Basic"},
 )
 

@@ -45,7 +45,7 @@ function App() {
       setCheckingSetup(false);
       return;
     }
-    const decoded = I.wapi?.readToken?.();
+    const decoded = I.v3?.readToken?.();
     // Logged out, there's no token to name the provider — fall back to the
     // configured API host, NOT a hardcoded "api.localhost" (which made the
     // readiness probe hit the wrong API on prod). Mirror authAdapter's
