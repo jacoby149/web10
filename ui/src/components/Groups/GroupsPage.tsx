@@ -43,7 +43,7 @@ function CreateGroupDialog({ open, onOpenChange, I }: { open: boolean; onOpenCha
     }
   }, [open]);
 
-  const decoded = I.wapi?.readToken?.();
+  const decoded = I.v3?.readToken?.();
   const username = decoded?.username || decoded?.sub || '';
 
   const handleCreate = async () => {

@@ -666,7 +666,7 @@ function useInterface() {
     // Execute a group contract — the authenticator is the trusted party.
     function applyGCR(cr: any) {
         const action = cr.action || 'create_group';
-        const decoded = I.wapi?.readToken?.();
+        const decoded = I.v3?.readToken?.();
         const username = decoded?.username || decoded?.sub || '';
         const provider = decoded?.provider || '';
 

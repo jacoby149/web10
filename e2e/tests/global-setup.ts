@@ -7,8 +7,9 @@ const API_BASE = `http://api.localhost${p}`;
 export default async function globalSetup() {
   const req = await request.newContext();
 
-  // Configure the node (required: provider + admin)
-  const res = await req.post(`${API_BASE}/setup`, {
+  // Configure the node (required: provider + admin). /setup/configure is the
+  // first-run endpoint — /setup is status-only and ignores the body.
+  const res = await req.post(`${API_BASE}/setup/configure`, {
     data: {
       provider: 'api.localhost',
       admin_username: 'admin',
