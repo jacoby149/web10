@@ -485,7 +485,16 @@ def create_join_request(group_id: str, requester_key: str, status: str = "pendin
     client.insert(
         "group_join_requests",
         [[group_id, requester_key, status, role, now, datetime(1970, 1, 1), now, 0]],
-        column_names=["group_id", "requester_key", "status", "role", "requested_at", "resolved_at", "updated_at", "deleted"],
+        column_names=[
+            "group_id",
+            "requester_key",
+            "status",
+            "role",
+            "requested_at",
+            "resolved_at",
+            "updated_at",
+            "deleted",
+        ],
     )
     return {
         "group_id": group_id,
