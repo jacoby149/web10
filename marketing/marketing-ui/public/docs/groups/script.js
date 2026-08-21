@@ -44,12 +44,14 @@ let manageGroupsCache = []
 
 async function v3Post(action, params = {}) {
   const token = document.cookie.match(/token=([^;]+)/)?.[1]
+  console.log('[demo] v3Post —', action, 'token:', token ? 'present' : 'MISSING')
   if (!token) throw new Error('Not authenticated')
   const res = await fetch(`${API_ORIGIN}/v3/${action}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token, ...params }),
   })
+  console.log('[demo] v3Post —', action, 'res.status:', res.status)
   if (!res.ok) {
     const text = await res.text().catch(() => '')
     throw new Error(`v3 ${action}: ${res.status} ${text}`)
@@ -93,6 +95,8 @@ function initApp() {
   const t = w.readToken()
   message.innerHTML = `Signed in as <strong>${t["provider"]}/${t["username"]}</strong>`
   app.classList.remove('hidden')
+  loadMyGroups()
+  loadManageGroups()
 }
 
 // Self-register
@@ -161,7 +165,7 @@ function renderGroups(containerId, groups, canManage) {
       <h3>${escapeHtml(shortId)}</h3>
       <div class="meta">policy: ${escapeHtml(g.join_policy)} · role: ${escapeHtml(g.my_role)} · ${g.member_count} members</div>
       <div class="actions">
-        <button class="secondary" onclick="viewMembers('${escapeAttr(g.group_id)}')">Members</button>
+        <button class="secondary" onclick="viewMembers('${escapeAttr(g.group_id)}', ${canManage})">Members</button>
         ${canManage ? `<button class="secondary" onclick="inviteMember('${escapeAttr(g.group_id)}')">Invite</button>` : ''}
         ${canManage ? `<button class="secondary" onclick="checkJoinRequests('${escapeAttr(g.group_id)}')">Join Requests</button>` : ''}
         ${canManage && g.join_policy !== 'invite_only' ? `<button class="secondary" onclick="togglePolicy('${escapeAttr(g.group_id)}')">Toggle Policy</button>` : ''}
@@ -208,9 +212,28 @@ async function createGroup() {
   })
 }
 
-// ── Members ───────────────────────────────────────────────────────────
+// ── Join Group (open = instant, request = pending, invite_only = must be invited) ──
 
-async function viewMembers(groupId) {
+async function joinGroup() {
+  const groupId = joinGroupId.value.trim()
+  if (!groupId) return toast('Enter a group ID', 'err')
+  console.log('[demo] joinGroup — joining', groupId)
+  try {
+    const res = await v3Post('groups/join', { group_id: groupId })
+    if (res.status === 'pending') {
+      toast('Join requested — waiting for the owner to approve', 'ok')
+    } else {
+      toast('Joined!', 'ok')
+    }
+    joinGroupId.value = ''
+    loadMyGroups()
+    loadManageGroups()
+  } catch (e) { toast(ERROR_MSGS.join + ': ' + e.message, 'err') }
+}
+
+// ── Members ──────────────────────────────────────────────────────────
+
+async function viewMembers(groupId, canManage = false) {
   const detailId = 'detail-' + safeId(groupId)
   const detail = document.getElementById(detailId)
   detail.classList.remove('hidden')
@@ -218,9 +241,23 @@ async function viewMembers(groupId) {
   try {
     const members = await v3Post('groups/members/list', { group_id: groupId })
     detail.innerHTML = members.map(m =>
-      `<span class="member">${escapeHtml(m.member_key)} <span class="role">${escapeHtml(m.role)}</span></span>`
+      `<span class="member">${escapeHtml(m.member_key)} <span class="role">${escapeHtml(m.role)}</span>` +
+      (canManage ? ` <button class="danger" style="padding:0 5px;font-size:0.65rem;line-height:1;" onclick="removeMember('${escapeAttr(groupId)}','${escapeAttr(m.member_key)}')" title="Remove ${escapeAttr(m.member_key)}">✕</button>` : '') +
+      `</span>`
     ).join('') || '<span style="color:var(--muted);font-size:0.75rem;">no members</span>'
   } catch (e) { detail.innerHTML = `<span style="color:var(--danger);font-size:0.75rem;">${escapeHtml(e.message)}</span>` }
+}
+
+async function removeMember(groupId, memberKey) {
+  if (!confirm(`Remove ${memberKey} from the group?`)) return
+  console.log('[demo] removeMember —', memberKey, 'from', groupId)
+  try {
+    await v3Post('groups/members/remove', { group_id: groupId, member_key: memberKey })
+    toast(`Removed ${memberKey}`, 'ok')
+    viewMembers(groupId, true)
+    loadMyGroups()
+    loadManageGroups()
+  } catch (e) { toast('Failed to remove: ' + e.message, 'err') }
 }
 
 async function inviteMember(groupId) {

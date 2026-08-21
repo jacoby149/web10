@@ -215,7 +215,8 @@ Pending join requests for "request" join policy.
 CREATE TABLE group_join_requests (
     group_id String,
     requester_key String,
-    status String,             -- 'pending', 'approved', 'denied'
+    status String,             -- 'pending', 'approved', 'denied', 'invited', 'declined'
+    role String DEFAULT '',    -- role offered on an invite (empty for plain join requests)
     requested_at DateTime64(3),
     resolved_at DateTime64(3),
     updated_at DateTime64(3),

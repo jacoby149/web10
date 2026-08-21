@@ -125,7 +125,9 @@ class TestGroupContractTombstone:
             result = ch.get_group("grp-1")
             assert result["group_id"] == "grp-1"
             call_args = mock_client.query.call_args[0][0]
-            assert "ORDER BY updated_at DESC LIMIT 1" in call_args
+            # dedup-then-filter: latest row wins (tombstones included), then deleted=0
+            assert "row_number() OVER (PARTITION BY group_id ORDER BY updated_at DESC, deleted DESC)" in call_args
+            assert "WHERE rn = 1 AND deleted = 0" in call_args
 
     def test_delete_group_tombstones(self):
         """delete_group must INSERT tombstoned versions."""
@@ -155,7 +157,9 @@ class TestGroupMemberTombstone:
             result = ch.get_group_member("grp-1", "alice")
             assert result["role"] == "owner"
             call_args = mock_client.query.call_args[0][0]
-            assert "ORDER BY updated_at DESC LIMIT 1" in call_args
+            # dedup-then-filter: latest row wins (tombstones included), then deleted=0
+            assert "row_number() OVER (PARTITION BY member_key ORDER BY updated_at DESC, deleted DESC)" in call_args
+            assert "WHERE rn = 1 AND deleted = 0" in call_args
 
     def test_get_group_members_deduplicates(self):
         """get_group_members must deduplicate via window function."""
@@ -363,10 +367,12 @@ class TestGroupJoinRequestTombstone:
             result = ch.has_pending_or_invited_request("grp-1", "bob")
             assert result is True
             call_args = mock_client.query.call_args[0][0]
-            assert "ORDER BY updated_at DESC LIMIT 1" in call_args
+            # dedup-then-filter: latest request wins, then pending/invited + deleted=0
+            assert "row_number() OVER (PARTITION BY requester_key ORDER BY updated_at DESC, deleted DESC)" in call_args
+            assert "WHERE rn = 1 AND status IN ('pending', 'invited') AND deleted = 0" in call_args
 
     def test_get_pending_requests_deduplicates(self):
-        """get_pending_requests must deduplicate via QUALIFY."""
+        """get_pending_requests must deduplicate via window function."""
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
                 [
@@ -376,7 +382,9 @@ class TestGroupJoinRequestTombstone:
             result = ch.get_pending_requests("grp-1")
             assert len(result) == 1
             call_args = mock_client.query.call_args[0][0]
-            assert "QUALIFY" in call_args
+            # dedup-then-filter: latest request wins, then pending/invited + deleted=0
+            assert "row_number() OVER (PARTITION BY requester_key ORDER BY updated_at DESC, deleted DESC)" in call_args
+            assert "WHERE rn = 1 AND status IN ('pending', 'invited') AND deleted = 0" in call_args
 
 
 # ---------------------------------------------------------------------------
