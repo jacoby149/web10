@@ -31,11 +31,20 @@ function App() {
   const mock = queryParameters.get("mock")
   const auth = queryParameters.get("auth")
   const forgot = queryParameters.get("forgot")
+  // D42: the opener tells the popup who it is acting as, so the popup can
+  // detect a session mismatch (its own cookie's user ≠ the opener's user)
+  // instead of silently acting for the wrong user.
+  const as = queryParameters.get("as")
+  // D42: handoff=none marks a consent-only popup (the lazy group contract) —
+  // the opener already holds the token, so the popup closes without re-sending it.
+  const handoff = queryParameters.get("handoff")
   const mockI = useMockInterface();
   const realI = useInterface();
   const I = mock ? mockI : realI;
   I.isMock = mock;
   I.isAuth = auth;
+  I._expectedUser = as;
+  I._handoff = handoff;
   window.I = I;
 
   const [checkingSetup, setCheckingSetup] = React.useState(true);

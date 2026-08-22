@@ -9,6 +9,67 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D42 — The consent popup is an automatic handshake, not a tap-fest; group contracts are lazy [decided]
+Operator, 21.08.2026, after watching the notes demo re-prompt on every return run:
+"your all set just doesn't exist anymore, it sends the token and closes the popup,
+for you" · "each time there is a request is a distinct popup open" · "the app can
+tell if it gets an access denied it's pulling from a group it should have but
+doesn't… then the app gives a button to prompt the user to open the popup to
+approve the group contract" · "in limitations breed simplicity" · "the success of
+the request confirms the group" · "in a social media context, you start doing
+stuff to your groups only after you are logged in… the flows better suit the
+contracts themselves now."
+
+**Decided** — the return run is zero-friction, by four rules:
+
+1. **One popup per contract, each self-contained** (open → decide → close). The
+   single popup holding itself open in a "waiting for more contracts" limbo
+   between the app contract and the group contract is deleted. No more one window
+   doing two jobs.
+2. **"All set" as a *screen* is deleted.** The *detection* ("this contract needs
+   no approval") stays — expressed as **auto-complete**: the popup hands back the
+   token and closes itself, zero UI. No Close-window button. The button asked the
+   user to tap the one thing the popup already knew how to do.
+3. **Group contracts are lazy, not proactive.** The app does *not* send the group
+   contract on login. It just reads. **A successful read is the confirmation** —
+   no popup, no contract. A 403 ("a group I should have but don't") shows a
+   button; the click opens a second popup for the group contract. The click is a
+   user gesture → `window.open` is never blocked.
+4. **The app tells the two 403s apart** — app-contract-missing (→ re-request the
+   app contract) vs. group-missing (→ request the group contract) — and shows the
+   right button.
+
+**Return-run default:** one zero-UI popup (login/token) → read works → done.
+**Zero taps.** First-time setup is two popups (login/app-consent, then
+group-consent via the button) — two taps paid *once* to buy zero taps forever
+after, and it suits the contracts: the app contract (infrastructure trust, a
+one-time grant) is decided at login; the group contract (a social action on your
+groups) is decided only once you're logged in and actually touching a group.
+
+**Why:** the one-popup limbo (the popup can't know whether a group contract is
+coming, so it stays open waiting) is the root of the all-set dead-end, the
+Close-window tap, the messaging hell, *and* the group re-prompt. Self-contained
+popups + a lazy group contract delete the limbo and the re-prompt **by
+construction** — we never ask for the group unless a read fails. The browser's
+popup-blocker rule (a `window.open` must be a user gesture) stops being a
+limitation and becomes the design: the group popup is only ever opened from a
+button click.
+
+**Rejects:** the stay-open-waiting-for-more-contracts state · "all set" as a
+tappable screen · proactive group `contractRequest` on every login (the actual
+cause of the re-prompt) · no-op group-contract filtering as the *primary* fix
+(band-aid — it is demoted to a nice-to-have edge case inside the group popup,
+not the load-bearing wall). The postMessage handshake itself is kept unchanged —
+what changes is that each contract gets its own clean window instead of one
+window doing two jobs.
+
+**Separate, not subsumed:** D42 fixes *friction*. The *identity* bugs (the popup
+acting for its own cookie's user — the red cookie-torture e2e tests: identity
+hijack + the "all set" *lie*) are a distinct security fix: the popup must know
+who the app is acting for (the opener passes `?as=<username>`) and the SDK must
+verify the returned token's user before storing it. D42 + that check together =
+a reliable notes app.
+
 ### D41 — web10 is a data-policy platform, not a privacy platform; no default E2E [decided]
 Reverses D6, D16, D17, D18, D19 and the e2e half of D27. The node is
 readable by design. Full reasoning: `thesis.md`.

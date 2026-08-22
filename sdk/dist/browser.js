@@ -453,9 +453,13 @@
   var _authPopup = null;
   var _popupReady = false;
   var _readyListener = null;
-  function openAuthPortal(authOrigin) {
-    const url = `${authOrigin}?redirect=${encodeURIComponent(window.location.href)}`;
-    console.log("[wapi] openAuthPortal — opening popup:", url);
+  function openAuthPortal(authOrigin, options = {}) {
+    const token = readTokenCookie();
+    const decoded = token ? decodeJwt(token) : null;
+    const as = decoded?.username ? `&as=${encodeURIComponent(decoded.username)}` : "";
+    const handoff = options.handoff === "none" ? "&handoff=none" : "";
+    const url = `${authOrigin}?redirect=${encodeURIComponent(window.location.href)}${as}${handoff}`;
+    console.log("[wapi] openAuthPortal — opening popup:", url, "as:", decoded?.username || "(none)", "handoff:", options.handoff || "token");
     _authPopup = window.open(url, "web10-auth", "width=480,height=720,scrollbars=yes");
     console.log("[wapi] openAuthPortal — popup returned:", _authPopup ? "open" : "blocked/null");
     _popupReady = false;
@@ -477,6 +481,13 @@
   function authListen(onSignedIn) {
     const handler = (e) => {
       if (e.data?.type === "auth" && e.data?.token) {
+        const incoming = decodeJwt(e.data.token);
+        const current = readTokenCookie();
+        const currentDecoded = current ? decodeJwt(current) : null;
+        if (currentDecoded?.username && incoming?.username && currentDecoded.username !== incoming.username) {
+          console.warn("[wapi] auth event — token user mismatch (current:", currentDecoded.username, ", incoming:", incoming.username, ") — rejecting to prevent identity hijack");
+          return;
+        }
         console.log("[wapi] auth event received from popup, setting token cookie");
         setTokenCookie(e.data.token);
         onSignedIn(true);
@@ -491,7 +502,7 @@
     client.contractRequest = function(contracts, authOrigin, callback) {
       console.log("[wapi] contractRequest — called with", contracts.length, "contract(s):", JSON.stringify(contracts));
       const token = readTokenCookie();
-      if (token) {
+      if (token && !(_authPopup && !_authPopup.closed)) {
         checkExistingContracts(client, contracts, token).then((allExist) => {
           if (allExist) {
             console.log("[wapi] contractRequest — all contracts already exist, skipping popup");

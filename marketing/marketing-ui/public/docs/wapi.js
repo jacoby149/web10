@@ -453,9 +453,13 @@
   var _authPopup = null;
   var _popupReady = false;
   var _readyListener = null;
-  function openAuthPortal(authOrigin) {
-    const url = `${authOrigin}?redirect=${encodeURIComponent(window.location.href)}`;
-    console.log("[wapi] openAuthPortal — opening popup:", url);
+  function openAuthPortal(authOrigin, options = {}) {
+    const token = readTokenCookie();
+    const decoded = token ? decodeJwt(token) : null;
+    const as = decoded?.username ? `&as=${encodeURIComponent(decoded.username)}` : "";
+    const handoff = options.handoff === "none" ? "&handoff=none" : "";
+    const url = `${authOrigin}?redirect=${encodeURIComponent(window.location.href)}${as}${handoff}`;
+    console.log("[wapi] openAuthPortal — opening popup:", url, "as:", decoded?.username || "(none)", "handoff:", options.handoff || "token");
     _authPopup = window.open(url, "web10-auth", "width=480,height=720,scrollbars=yes");
     console.log("[wapi] openAuthPortal — popup returned:", _authPopup ? "open" : "blocked/null");
     _popupReady = false;
@@ -477,6 +481,13 @@
   function authListen(onSignedIn) {
     const handler = (e) => {
       if (e.data?.type === "auth" && e.data?.token) {
+        const incoming = decodeJwt(e.data.token);
+        const current = readTokenCookie();
+        const currentDecoded = current ? decodeJwt(current) : null;
+        if (currentDecoded?.username && incoming?.username && currentDecoded.username !== incoming.username) {
+          console.warn("[wapi] auth event — token user mismatch (current:", currentDecoded.username, ", incoming:", incoming.username, ") — rejecting to prevent identity hijack");
+          return;
+        }
         console.log("[wapi] auth event received from popup, setting token cookie");
         setTokenCookie(e.data.token);
         onSignedIn(true);
@@ -490,73 +501,115 @@
     const originalContractRequest = client.contractRequest;
     client.contractRequest = function(contracts, authOrigin, callback) {
       console.log("[wapi] contractRequest — called with", contracts.length, "contract(s):", JSON.stringify(contracts));
-      const popup = _authPopup;
-      if (popup && !popup.closed) {
-        console.log("[wapi] contractRequest — reusing existing popup (not closed)");
-        let contractSent = false;
-        let readyHandler = null;
-        let timeoutId = null;
-        const responseHandler = (e) => {
-          if (e.data?.type === "contract_response") {
-            console.log("[wapi] contract_response received:", e.data);
-            window.removeEventListener("message", responseHandler);
-            if (readyHandler)
-              window.removeEventListener("message", readyHandler);
-            if (timeoutId)
-              clearTimeout(timeoutId);
-            callback?.(e.data);
+      const token = readTokenCookie();
+      if (token && !(_authPopup && !_authPopup.closed)) {
+        checkExistingContracts(client, contracts, token).then((allExist) => {
+          if (allExist) {
+            console.log("[wapi] contractRequest — all contracts already exist, skipping popup");
+            callback?.({ status: "approved" });
+            return;
           }
-        };
-        window.addEventListener("message", responseHandler);
-        console.log("[wapi] contractRequest — contract_response listener attached");
-        const sendContract = () => {
-          contractSent = true;
-          if (readyHandler) {
-            const eh = readyHandler;
-            window.removeEventListener("message", eh);
-          }
-          if (timeoutId)
-            clearTimeout(timeoutId);
-          console.log("[wapi] contractRequest — sending contract to popup");
-          try {
-            popup.postMessage({ type: "contract", contracts }, "*");
-            console.log("[wapi] contractRequest — contract sent via postMessage");
-          } catch (err) {
-            console.error("[wapi] postMessage to popup failed:", err);
-            window.removeEventListener("message", responseHandler);
-            callback?.({ status: "error", errors: ["Failed to send contract to auth UI"] });
-          }
-        };
-        if (_popupReady) {
-          console.log("[wapi] contractRequest — popup already ready, sending immediately");
-          sendContract();
-          return;
-        }
-        readyHandler = (e) => {
-          if (e.data?.type === "auth_ready" && !contractSent) {
-            console.log("[wapi] auth_ready received, sending contract to popup");
-            sendContract();
-          }
-        };
-        window.addEventListener("message", readyHandler);
-        console.log("[wapi] contractRequest — auth_ready listener attached, waiting for popup signal");
-        timeoutId = setTimeout(() => {
-          console.warn("[wapi] contractRequest — 30s timeout reached, contractSent:", contractSent);
-          window.removeEventListener("message", responseHandler);
-          if (readyHandler) {
-            const eh = readyHandler;
-            window.removeEventListener("message", eh);
-          }
-          if (!contractSent) {
-            callback?.({ status: "error", errors: ["Auth popup closed — request cancelled"] });
-          }
-        }, 30000);
+          doContractRequest();
+        }).catch(() => {
+          doContractRequest();
+        });
         return;
       }
-      console.log("[wapi] contractRequest — no existing popup, opening new one");
-      originalContractRequest.call(this, contracts, authOrigin, callback);
+      doContractRequest();
+      function doContractRequest() {
+        const popup = _authPopup;
+        if (popup && !popup.closed) {
+          console.log("[wapi] contractRequest — reusing existing popup (not closed)");
+          let contractSent = false;
+          let readyHandler = null;
+          let timeoutId = null;
+          const responseHandler = (e) => {
+            if (e.data?.type === "contract_response") {
+              console.log("[wapi] contract_response received:", e.data);
+              window.removeEventListener("message", responseHandler);
+              if (readyHandler)
+                window.removeEventListener("message", readyHandler);
+              if (timeoutId)
+                clearTimeout(timeoutId);
+              callback?.(e.data);
+            }
+          };
+          window.addEventListener("message", responseHandler);
+          console.log("[wapi] contractRequest — contract_response listener attached");
+          const sendContract = () => {
+            contractSent = true;
+            if (readyHandler) {
+              const eh = readyHandler;
+              window.removeEventListener("message", eh);
+            }
+            if (timeoutId)
+              clearTimeout(timeoutId);
+            console.log("[wapi] contractRequest — sending contract to popup");
+            try {
+              popup.postMessage({ type: "contract", contracts }, "*");
+              console.log("[wapi] contractRequest — contract sent via postMessage");
+            } catch (err) {
+              console.error("[wapi] postMessage to popup failed:", err);
+              window.removeEventListener("message", responseHandler);
+              callback?.({ status: "error", errors: ["Failed to send contract to auth UI"] });
+            }
+          };
+          if (_popupReady) {
+            console.log("[wapi] contractRequest — popup already ready, sending immediately");
+            sendContract();
+            return;
+          }
+          readyHandler = (e) => {
+            if (e.data?.type === "auth_ready" && !contractSent) {
+              console.log("[wapi] auth_ready received, sending contract to popup");
+              sendContract();
+            }
+          };
+          window.addEventListener("message", readyHandler);
+          console.log("[wapi] contractRequest — auth_ready listener attached, waiting for popup signal");
+          timeoutId = setTimeout(() => {
+            console.warn("[wapi] contractRequest — 30s timeout reached, contractSent:", contractSent);
+            window.removeEventListener("message", responseHandler);
+            if (readyHandler) {
+              const eh = readyHandler;
+              window.removeEventListener("message", eh);
+            }
+            if (!contractSent) {
+              callback?.({ status: "error", errors: ["Auth popup closed — request cancelled"] });
+            }
+          }, 30000);
+          return;
+        }
+        console.log("[wapi] contractRequest — no existing popup, opening new one");
+        originalContractRequest(contracts, authOrigin, callback);
+      }
     };
     return client;
+  }
+  async function checkExistingContracts(client, contracts, _token) {
+    for (const c of contracts) {
+      if (c.kind === "app") {
+        const list = await client.listAppContracts();
+        const origin = c.app_origin;
+        if (!list.some((ac) => ac.allowed_origin === origin))
+          return false;
+      } else if (c.kind === "group") {
+        const token = readTokenCookie();
+        const decoded = token ? decodeJwt(token) : null;
+        const username = decoded?.username;
+        const provider = decoded?.provider;
+        if (!username || !provider)
+          return false;
+        const groupName = c.name;
+        const groupId = `${provider}/groups/users/${username}/${groupName.toLowerCase().replace(/ /g, "-")}`;
+        try {
+          await client.getGroup(groupId);
+        } catch {
+          return false;
+        }
+      }
+    }
+    return true;
   }
   function closeAuthPopup() {
     if (_authPopup && !_authPopup.closed) {

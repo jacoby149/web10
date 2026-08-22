@@ -67,41 +67,12 @@ window.web10.authListen(() => {
   NOTES_GROUP = groupId
   LOG('NOTES_GROUP set to:', groupId)
 
-  LOG('requesting group creation via contractRequest')
-  w.contractRequest([{
-    kind: 'group',
-    app_origin: window.location.origin,
-    action: 'create_group',
-    name: groupName,
-    join_policy: 'invite_only',
-    roles: [
-      { name: 'owner', services: ['*'], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn', 'manageRoles'] },
-      { name: 'member', services: [COLLECTION], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
-    ],
-    members: [{ member_key: t.username, role: 'owner' }],
-  }], AUTH_ORIGIN, (resp) => {
-    LOG('group contractRequest callback — status:', resp.status)
-    if (resp.errors) LOG('group contractRequest errors:', JSON.stringify(resp.errors))
-    if (resp.status === 'approved') {
-      LOG('notes group CREATED')
-      message.innerHTML += `<br><span style="color:#22c55e;">notes group created</span>`
-    } else if (resp.status === 'denied') {
-      LOG_ERR('group creation DENIED')
-      message.innerHTML += `<br><span style="color:#ef4444;">group creation denied</span>`
-    } else {
-      LOG_ERR('group creation FAILED:', resp.errors?.[0] || 'unknown')
-      message.innerHTML += `<br><span style="color:#ef4444;">group creation failed: ${resp.errors?.[0] || 'unknown'}</span>`
-    }
-    // Group might already exist — proceed either way
-    LOG('proceeding to initApp regardless of group creation result')
-    editor.style.display = 'block'
-    initApp()
-    // The popup has done its job (token + notes group). Close it — otherwise
-    // it sits open forever, because goToApp sends the token but waits for the
-    // opener to send close_popup.
-    LOG('handshake complete — closing auth popup')
-    window.web10.closeAuthPopup()
-  })
+  // D42: the group contract is LAZY — not sent on login. initApp() reads the
+  // notes; a successful read is the confirmation (group is fine, no popup). If
+  // the group is missing, the read 403s and a "Set up your notes group" button
+  // appears. No more proactive group re-prompt on every return run.
+  LOG('D42 — group contract is lazy; reading notes (the read is the test)')
+  initApp()
 })
 
 // ---------------------------------------------------------------------------
@@ -141,8 +112,10 @@ async function readNotes() {
     displayNotes(docs)
   } catch (e) {
     LOG_ERR('readNotes FAILED:', e.name, e.message, 'status:', e.status)
-    if (isContractError(e)) {
+    if (isAppContractError(e)) {
       showFixAccess('Access denied — your app contract may have been revoked.')
+    } else if (isGroupError(e)) {
+      showSetupGroup('Your notes group is missing — set it up to see your notes.')
     } else {
       message.innerHTML = `failed to read notes: ${e.message}`
     }
@@ -171,8 +144,10 @@ async function createNote() {
     readNotes()
   } catch (e) {
     LOG_ERR('createNote FAILED:', e.name, e.message, 'status:', e.status)
-    if (isContractError(e)) {
+    if (isAppContractError(e)) {
       showFixAccess('Cannot create — your app contract may have been revoked.')
+    } else if (isGroupError(e)) {
+      showSetupGroup('Cannot create — your notes group is missing.')
     } else {
       message.innerHTML = `failed to create note: ${e.message}`
     }
@@ -187,8 +162,10 @@ async function updateNote(docId, text) {
     readNotes()
   } catch (e) {
     LOG_ERR('updateNote FAILED:', e.name, e.message, 'status:', e.status)
-    if (isContractError(e)) {
+    if (isAppContractError(e)) {
       showFixAccess('Cannot update — your app contract may have been revoked.')
+    } else if (isGroupError(e)) {
+      showSetupGroup('Cannot update — your notes group is missing.')
     } else {
       message.innerHTML = `failed to update note: ${e.message}`
     }
@@ -203,8 +180,10 @@ async function deleteNote(docId) {
     readNotes()
   } catch (e) {
     LOG_ERR('deleteNote FAILED:', e.name, e.message, 'status:', e.status)
-    if (isContractError(e)) {
+    if (isAppContractError(e)) {
       showFixAccess('Cannot delete — your app contract may have been revoked.')
+    } else if (isGroupError(e)) {
+      showSetupGroup('Cannot delete — your notes group is missing.')
     } else {
       message.innerHTML = `failed to delete note: ${e.message}`
     }
@@ -215,14 +194,26 @@ async function deleteNote(docId) {
 // Fix access — re-request contract when it's been revoked
 // ---------------------------------------------------------------------------
 
-function isContractError(e) {
-  return e.status === 403 || (e.message && e.message.includes('contract'))
+// D42: the API returns distinguishable 403s so the demo shows the right button.
+// App contract missing → "No app contract for {origin} …" → Fix access.
+// Group missing / not a member → "not a member of the requested group" → Set up group.
+function isAppContractError(e) {
+  return e.status === 403 && /no app contract/i.test(e.message || '')
+}
+function isGroupError(e) {
+  return e.status === 403 && /not a member/i.test(e.message || '')
 }
 
 function showFixAccess(errorMsg) {
   LOG('showFixAccess — showing fix button, error:', errorMsg)
   fixAccessBtn.style.display = 'inline-block'
   message.innerHTML = `<span style="color:#ef4444;">${errorMsg}</span><br><span style="color:var(--muted);font-size:0.75rem;">Your app contract may have been revoked. Click "Fix access" to re-request.</span>`
+}
+
+function showSetupGroup(errorMsg) {
+  LOG('showSetupGroup — showing setup button, error:', errorMsg)
+  setupGroupBtn.style.display = 'inline-block'
+  message.innerHTML = `<span style="color:#ef4444;">${errorMsg}</span><br><span style="color:var(--muted);font-size:0.75rem;">Your notes group is missing. Click "Set up your notes group" to create it.</span>`
 }
 
 fixAccessBtn.onclick = () => {
@@ -246,6 +237,49 @@ fixAccessBtn.onclick = () => {
     } else {
       LOG_ERR('fixAccess — contract request failed:', resp.status, resp.errors)
       showFixAccess(`Fix access failed: ${resp.errors?.[0] || resp.status}`)
+    }
+  })
+}
+
+// D42: the group contract is LAZY — requested only when a read 403s with
+// "not a member". This button (a user gesture) opens a fresh, self-contained
+// popup for the group contract. The login popup already closed, so this is a
+// distinct window. handoff=none: the app already holds the token, so this
+// popup is consent-only (it approves the group contract and closes).
+setupGroupBtn.onclick = () => {
+  LOG('setupGroupBtn clicked — opening auth portal to create the notes group')
+  setupGroupBtn.style.display = 'none'
+  const t = w.readToken()
+  if (!t) {
+    LOG_ERR('setupGroupBtn — no token, cannot create group')
+    showSetupGroup('Not signed in — log in first.')
+    return
+  }
+  window.web10.openAuthPortal(AUTH_ORIGIN, { handoff: 'none' })
+  const groupName = `notes-${t.username}`
+  const contract = [{
+    kind: 'group',
+    app_origin: window.location.origin,
+    action: 'create_group',
+    name: groupName,
+    join_policy: 'invite_only',
+    roles: [
+      { name: 'owner', services: ['*'], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn', 'manageRoles'] },
+      { name: 'member', services: [COLLECTION], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
+    ],
+    members: [{ member_key: t.username, role: 'owner' }],
+  }]
+  LOG('setupGroup — sending group contract:', JSON.stringify(contract, null, 2))
+  w.contractRequest(contract, AUTH_ORIGIN, (resp) => {
+    LOG('setupGroup — contractRequest callback, status:', resp.status)
+    if (resp.errors) LOG('setupGroup — errors:', JSON.stringify(resp.errors))
+    if (resp.status === 'approved') {
+      LOG('setupGroup — group created, retrying readNotes')
+      message.innerHTML = `<span style="color:#22c55e;">Notes group ready.</span><br>`
+      readNotes()
+    } else {
+      LOG_ERR('setupGroup — contract request failed:', resp.status, resp.errors)
+      showSetupGroup(`Failed to set up your notes group: ${resp.errors?.[0] || resp.status}`)
     }
   })
 }
