@@ -17,7 +17,7 @@ router = APIRouter(tags=["app-store"])
 
 
 @router.post("/register")
-async def register_app(data: RegisterApp):
+def register_app(data: RegisterApp):
     """Register an app in the provider app store."""
     if not data.body.get("url"):
         raise exceptions.CRUD
@@ -25,13 +25,13 @@ async def register_app(data: RegisterApp):
 
 
 @router.post("/list")
-async def list_apps(data: TokenOnly):
+def list_apps(data: TokenOnly):
     """List approved apps."""
     return ch.list_apps(approved_only=True)
 
 
 @router.post("/rating")
-async def create_app_rating(data: CreateAppRating):
+def create_app_rating(data: CreateAppRating):
     """Submit a 1-5 star rating for an app."""
     decoded = decode_token(data.token, private_key=True)
     if not decoded.username or decoded.username == "anon":
@@ -50,7 +50,7 @@ async def create_app_rating(data: CreateAppRating):
 
 
 @router.post("/ratings")
-async def get_app_ratings(data: GetAppRatings):
+def get_app_ratings(data: GetAppRatings):
     """Get all ratings for an app."""
     if not data.body.get("target_app_id"):
         raise exceptions.CRUD
@@ -58,7 +58,7 @@ async def get_app_ratings(data: GetAppRatings):
 
 
 @router.post("/admin", tags=["admin"])
-async def apps_admin(data: AppsAdmin):
+def apps_admin(data: AppsAdmin):
     """List every registered app with its approval state (admin only)."""
     check_admin(Token(token=data.token))
     apps = ch.list_apps_admin()
@@ -67,7 +67,7 @@ async def apps_admin(data: AppsAdmin):
 
 
 @router.post("/approve", tags=["admin"])
-async def approve_app(data: ApproveApp):
+def approve_app(data: ApproveApp):
     """Approve or reject a registered app (admin only)."""
     check_admin(Token(token=data.token))
     review_state = "approved" if data.approved else "rejected"

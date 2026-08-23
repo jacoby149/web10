@@ -45,7 +45,7 @@ def _require_group_permission(group_id: str, user: str, permission: str):
 
 
 @router.post("/create")
-async def create_group(data: CreateGroup):
+def create_group(data: CreateGroup):
     """Create a group with roles and initial members.
 
     Idempotent: re-creating an existing group does not append duplicate
@@ -78,14 +78,14 @@ async def create_group(data: CreateGroup):
 
 
 @router.post("/list")
-async def get_my_groups(data: TokenOnly):
+def get_my_groups(data: TokenOnly):
     """Get all groups the user belongs to."""
     user = _user(data)
     return ch.get_user_groups(user)
 
 
 @router.post("/get")
-async def get_group(data: GetGroup):
+def get_group(data: GetGroup):
     """Get group details."""
     _user(data)
     group = ch.get_group(data.group_id)
@@ -95,7 +95,7 @@ async def get_group(data: GetGroup):
 
 
 @router.post("/update")
-async def update_group(data: UpdateGroup):
+def update_group(data: UpdateGroup):
     """Update group settings."""
     user = _user(data)
     member = ch.get_group_member(data.group_id, user)
@@ -115,7 +115,7 @@ async def update_group(data: UpdateGroup):
 
 
 @router.post("/members/list")
-async def get_group_members(data: ListGroupMembers):
+def get_group_members(data: ListGroupMembers):
     """Get group members."""
     user = _user(data)
     if not ch.is_group_member(data.group_id, user):
@@ -124,7 +124,7 @@ async def get_group_members(data: ListGroupMembers):
 
 
 @router.post("/members/add")
-async def add_group_member(data: AddGroupMember):
+def add_group_member(data: AddGroupMember):
     """Add a member to a group."""
     user = _user(data)
     requester = ch.get_group_member(data.group_id, user)
@@ -149,7 +149,7 @@ async def add_group_member(data: AddGroupMember):
 
 
 @router.post("/members/remove")
-async def remove_group_member(data: RemoveGroupMember):
+def remove_group_member(data: RemoveGroupMember):
     """Remove a member from a group."""
     user = _user(data)
     requester = ch.get_group_member(data.group_id, user)
@@ -174,7 +174,7 @@ async def remove_group_member(data: RemoveGroupMember):
 
 
 @router.post("/join")
-async def join_group(data: JoinGroup):
+def join_group(data: JoinGroup):
     """Join a group (open or request)."""
     user = _user(data)
     existing = ch.get_group(data.group_id)
@@ -192,7 +192,7 @@ async def join_group(data: JoinGroup):
 
 
 @router.post("/invite")
-async def invite_member(data: InviteMember):
+def invite_member(data: InviteMember):
     """Invite a member to a group."""
     user = _user(data)
     requester = ch.get_group_member(data.group_id, user)
@@ -217,7 +217,7 @@ async def invite_member(data: InviteMember):
 
 
 @router.post("/accept-invite")
-async def accept_invite(data: AcceptInvite):
+def accept_invite(data: AcceptInvite):
     """Accept a group invite or join request."""
     user = _user(data)
     if not ch.has_pending_or_invited_request(data.group_id, user):
@@ -231,7 +231,7 @@ async def accept_invite(data: AcceptInvite):
 
 
 @router.post("/decline-invite")
-async def decline_invite(data: DeclineInvite):
+def decline_invite(data: DeclineInvite):
     """Decline a group invite or join request."""
     user = _user(data)
     if not ch.has_pending_or_invited_request(data.group_id, user):
@@ -241,7 +241,7 @@ async def decline_invite(data: DeclineInvite):
 
 
 @router.post("/leave")
-async def leave_group(data: LeaveGroup):
+def leave_group(data: LeaveGroup):
     """Leave a group."""
     user = _user(data)
     ch.remove_group_member(data.group_id, user)
@@ -249,7 +249,7 @@ async def leave_group(data: LeaveGroup):
 
 
 @router.post("/requests/join/list")
-async def list_join_requests(data: ListJoinRequests):
+def list_join_requests(data: ListJoinRequests):
     """List pending join/invite requests for a group (owner/moderator only)."""
     user = _user(data)
     _require_group_permission(data.group_id, user, "assignRoles")
@@ -257,7 +257,7 @@ async def list_join_requests(data: ListJoinRequests):
 
 
 @router.post("/requests/join/approve")
-async def approve_join_request(data: JoinRequestOp):
+def approve_join_request(data: JoinRequestOp):
     """Approve a pending join or invite request (owner/moderator only)."""
     user = _user(data)
     _require_group_permission(data.group_id, user, "assignRoles")
@@ -272,7 +272,7 @@ async def approve_join_request(data: JoinRequestOp):
 
 
 @router.post("/requests/join/deny")
-async def deny_join_request(data: JoinRequestOp):
+def deny_join_request(data: JoinRequestOp):
     """Deny a pending join or invite request (owner/moderator only)."""
     user = _user(data)
     _require_group_permission(data.group_id, user, "assignRoles")
@@ -283,14 +283,14 @@ async def deny_join_request(data: JoinRequestOp):
 
 
 @router.post("/manages")
-async def get_groups_manages(data: TokenOnly):
+def get_groups_manages(data: TokenOnly):
     """Get groups where the user has management permissions."""
     user = _user(data)
     return ch.get_groups_manages(user)
 
 
 @router.post("/block")
-async def block_user_in_group(data: BlockUserInGroup):
+def block_user_in_group(data: BlockUserInGroup):
     """Block a user from seeing your content in this group."""
     user = _user(data)
     ch.block_user_in_group(user, data.group_id, data.blocked_key)
@@ -298,7 +298,7 @@ async def block_user_in_group(data: BlockUserInGroup):
 
 
 @router.post("/unblock")
-async def unblock_user_in_group(data: BlockUserInGroup):
+def unblock_user_in_group(data: BlockUserInGroup):
     """Unblock a user in a group."""
     user = _user(data)
     ch.unblock_user_in_group(user, data.group_id, data.blocked_key)
@@ -306,7 +306,7 @@ async def unblock_user_in_group(data: BlockUserInGroup):
 
 
 @router.post("/sharing/set")
-async def set_sharing(data: SetSharing):
+def set_sharing(data: SetSharing):
     """Set sharing toggle for a group."""
     user = _user(data)
     ch.set_user_group_sharing(user, data.group_id, data.enabled)
@@ -314,7 +314,7 @@ async def set_sharing(data: SetSharing):
 
 
 @router.post("/delete")
-async def delete_group(data: DeleteGroup):
+def delete_group(data: DeleteGroup):
     """Delete a group (requires deleteGroup permission)."""
     user = _user(data)
     _require_group_permission(data.group_id, user, "deleteGroup")

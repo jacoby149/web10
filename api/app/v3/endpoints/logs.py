@@ -22,7 +22,7 @@ class LogBatch(BaseModel):
 
 
 @router.post("/logs")
-async def submit_logs(data: LogBatch):
+def submit_logs(data: LogBatch):
     """Accept log entries from SDK, E2E runner, or any external source.
     Lightweight — no auth required. Logs are tagged with service + user_key."""
     now = datetime.utcnow()

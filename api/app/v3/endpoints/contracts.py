@@ -22,7 +22,7 @@ def _is_authenticator_origin(request: Request) -> bool:
 
 
 @router.post("/add")
-async def add_app_contract(request: Request, data: AddAppContract):
+def add_app_contract(request: Request, data: AddAppContract):
     """Add an app contract (one per app, permissions is JSON).
 
     Only callable from an authenticator origin — apps must go through
@@ -39,14 +39,14 @@ async def add_app_contract(request: Request, data: AddAppContract):
 
 
 @router.post("/list")
-async def get_app_contracts(data: TokenOnly):
+def get_app_contracts(data: TokenOnly):
     """Get active app contracts."""
     user = _user(data)
     return ch.get_app_contracts(user)
 
 
 @router.post("/revoke")
-async def revoke_app_contract(request: Request, data: RevokeAppContract):
+def revoke_app_contract(request: Request, data: RevokeAppContract):
     """Revoke one app contract (by origin) or all.
 
     Only callable from an authenticator origin — apps cannot revoke
@@ -66,7 +66,7 @@ async def revoke_app_contract(request: Request, data: RevokeAppContract):
 
 
 @router.post("/cleanup")
-async def cleanup_stale_contracts(request: Request, data: TokenOnly):
+def cleanup_stale_contracts(request: Request, data: TokenOnly):
     """Tombstone stale app contracts where allowed_origin is not a URL.
 
     Only callable from an authenticator origin.
