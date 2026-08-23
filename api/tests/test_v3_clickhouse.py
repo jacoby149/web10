@@ -743,9 +743,7 @@ class TestResolveMinioTypes:
         }
         with patch.object(ch, "get_s3_signing_client") as mock_signing:
             mock_client = MagicMock()
-            mock_client.generate_presigned_url.side_effect = (
-                lambda *a, **k: f"http://minio/{k['Params']['Key']}?sig=x"
-            )
+            mock_client.generate_presigned_url.side_effect = lambda *a, **k: f"http://minio/{k['Params']['Key']}?sig=x"
             mock_signing.return_value = mock_client
             result = ch.resolve_minio_types(body)
             assert result["cat-vids"][0]["url"] == "http://minio/alice/henry.mp4?sig=x"
