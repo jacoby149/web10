@@ -44,11 +44,11 @@ That's the user's entire data universe. Every record they own lives in `db["alic
 
 ```mermaid
 graph LR
-    App["Social App"] -->|"PATCH /alice/posts"| CRUD["CRUD\n/{user}/{service}"]
+    App["Social App"] -->|"PATCH /alice/posts"| CRUD["CRUD<br/>/{user}/{service}"]
     CRUD -->|"check contract"| Gate{"is_permitted?"}
-    Gate -->|"ALLOW"| VC["alice\n(virtual collection)"]
+    Gate -->|"ALLOW"| VC["alice<br/>(virtual collection)"]
     Gate -->|"DENY"| X["403"]
-    VC --> DB["Document Store\n(MongoDB / FerretDB)"]
+    VC --> DB["Document Store<br/>(MongoDB / FerretDB)"]
     
     style App fill:#f5f5f5,stroke:#333,color:#000
     style CRUD fill:#f5f5f5,stroke:#333,color:#000
@@ -105,13 +105,13 @@ The flow:
 
 ```mermaid
 flowchart TD
-    A["Request arrives\nPOST /bob/public_posts"] --> B["Decode token\nWho is asking?"]
-    B --> C["Certify token\nIs it valid?"]
+    A["Request arrives<br/>POST /bob/public_posts"] --> B["Decode token<br/>Who is asking?"]
+    B --> C["Certify token<br/>Is it valid?"]
     C -->|Invalid| D["DENY"]
-    C -->|Valid| E{"Is requester\nthe owner?"}
+    C -->|Valid| E{"Is requester<br/>the owner?"}
     E -->|Yes| F["ALLOW"]
-    E -->|No| G{"Check contract\nfor this service"}
-    G --> H{"On whitelist\nfor this action?"}
+    E -->|No| G{"Check contract<br/>for this service"}
+    G --> H{"On whitelist<br/>for this action?"}
     H -->|No| D
     H -->|Yes| I{"On blacklist?"}
     I -->|Yes| D

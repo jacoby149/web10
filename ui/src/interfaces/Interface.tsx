@@ -246,6 +246,11 @@ function useInterface() {
                 const normalized = normalizeContracts(e.data, e.source);
                 console.log('[auth-ui] normalized contracts:', toLogString(normalized))
                 I.setPendingContracts(normalized);
+                // D42: a contract was sent to this popup. The auto-complete
+                // (zero-UI token + close) only fires once a contract has been
+                // received AND needs no approval — never before the contract
+                // arrives.
+                I._contractReceived = true;
                 console.log('[auth-ui] pendingContracts state set, count:', I.pendingContracts?.length)
             }
             if (e.data?.type === 'close_popup') {
@@ -632,36 +637,40 @@ function useInterface() {
         return perms;
     }
 
-    // Merge the permissions object from an app contract into an existing contract's
-    // permissions (if any), then create the updated v3 contract.
-    function applyACR(cr: any) {
-        const origin = cr.app_origin;
-        const newPerms: Record<string, string[]> = cr.permissions || {};
+// Merge the permissions object from an app contract into an existing contract's
+// permissions (if any), then upsert the v3 contract in place.
+//
+// D42 fix: this used to do add → REVOKE (a tombstone dance) when a contract
+// already existed. After a revoke the latest row is the TOMBSTONE, so the
+// dedup-then-filter read (v3ContractsLoad — which the consent filter and the
+// auto-complete depend on) doesn't see the re-grant: the popup re-renders the
+// contract instead of settling, and the fix-access re-approve never restores
+// access. `add_app_contract` upserts in place (one row per app, latest
+// permissions win), so a re-grant is visible immediately — matching the API
+// floor path (app-contracts/add) the anti-tests drive.
+function applyACR(cr: any) {
+    const origin = cr.app_origin;
+    const newPerms: Record<string, string[]> = cr.permissions || {};
 
-        const existing = (I.v3Contracts || []).find(
-            (c: any) => c.allowed_origin === origin,
-        );
+    const existing = (I.v3Contracts || []).find(
+        (c: any) => c.allowed_origin === origin,
+    );
 
-        const mergedPerms: Record<string, string[]> = {};
-        if (existing) {
-            const existingPerms: Record<string, string[]> = existing.permissions || {};
-            for (const [svc, ops] of Object.entries(existingPerms)) {
-                if (!newPerms[svc]) mergedPerms[svc] = ops;
-            }
+    const mergedPerms: Record<string, string[]> = {};
+    if (existing) {
+        const existingPerms: Record<string, string[]> = existing.permissions || {};
+        for (const [svc, ops] of Object.entries(existingPerms)) {
+            if (!newPerms[svc]) mergedPerms[svc] = ops;
         }
-        for (const [svc, ops] of Object.entries(newPerms)) {
-            mergedPerms[svc] = ops;
-        }
-
-        const perms = existing ? mergedPerms : newPerms;
-
-        return I.addV3Contract(origin, perms)
-            .then(() => {
-                if (existing) {
-                    return I.revokeV3Contract(origin).catch(() => {});
-                }
-            });
     }
+    for (const [svc, ops] of Object.entries(newPerms)) {
+        mergedPerms[svc] = ops;
+    }
+
+    const perms = existing ? mergedPerms : newPerms;
+
+    return I.addV3Contract(origin, perms);
+}
 
     // Execute a group contract — the authenticator is the trusted party.
     function applyGCR(cr: any) {
@@ -811,23 +820,29 @@ function useInterface() {
 
     I.goToApp = function () {
         const token = I.v3.state?.token;
-        console.log('[auth-ui] goToApp — token:', token ? 'present' : 'none', 'window.opener:', window.opener ? 'present' : 'none')
-        if (token && window.opener) {
+        const handoffNone = I._handoff === 'none';
+        console.log('[auth-ui] goToApp — token:', token ? 'present' : 'none', 'handoff:', handoffNone ? 'none' : 'token', 'window.opener:', window.opener ? 'present' : 'none')
+        if (token && window.opener && !handoffNone) {
             try {
                 const referrer = document.referrer;
                 const target = referrer ? new URL(referrer).origin : '*';
                 console.log('[auth-ui] goToApp — sending auth token to opener, target:', target, 'referrer:', referrer)
                 I.setStatus("Connecting…");
                 window.opener.postMessage({ type: 'auth', token }, target);
-                console.log('[auth-ui] goToApp — auth token sent, NOT closing — waiting for contracts')
-                // Don't close — opener may send more contracts (e.g. group contracts)
-                // Opener can close us with postMessage({ type: 'close_popup' })
+                // D42: each popup is self-contained — after handing back the
+                // token, close. (The group contract, if needed, is a separate
+                // lazy popup opened from a button click.) The short delay lets
+                // the token message deliver before the window goes away.
+                console.log('[auth-ui] goToApp — auth token sent, closing popup (self-contained)')
+                setTimeout(() => window.close(), 300);
             } catch (err) {
                 console.error('[auth-ui] goToApp — postMessage failed:', err)
                 I.setStatus("Failed to connect to app.");
             }
         } else if (window.opener) {
-            console.log('[auth-ui] goToApp — no token, closing popup without sending auth')
+            // handoff=none (consent-only popup, e.g. the lazy group contract)
+            // or no token — the opener already has what it needs; just close.
+            console.log('[auth-ui] goToApp — closing popup (handoff:', handoffNone ? 'none' : 'no token', ')')
             window.close();
         } else {
             console.log('[auth-ui] goToApp — no opener, not closing')

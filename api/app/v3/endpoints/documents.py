@@ -60,6 +60,15 @@ async def read_documents(request: Request, data: ReadDocuments):
         group_ids = [g["group_id"] for g in user_groups]
     else:
         group_ids = data.groups
+        # D42: distinguish "group missing / not a member" from "no notes yet"
+        # (which returns an empty list). If the reader is a member of NONE of
+        # the explicitly requested groups, this is an access failure the app
+        # can act on (prompt for the group contract) — not an empty result.
+        if not any(ch.is_group_member(g, reader) for g in group_ids):
+            raise HTTPException(
+                status_code=403,
+                detail="not a member of the requested group",
+            )
 
     docs = ch.read_documents_in_groups(
         group_ids=group_ids,

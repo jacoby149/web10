@@ -33,9 +33,19 @@ let _readyListener: ((e: MessageEvent) => void) | null = null
  * Sets up the auth_ready listener immediately — the popup sends auth_ready
  * once on mount, then the app sends its contract.
  */
-function openAuthPortal(authOrigin: string): Window | null {
-  const url = `${authOrigin}?redirect=${encodeURIComponent(window.location.href)}`
-  console.log('[wapi] openAuthPortal — opening popup:', url)
+function openAuthPortal(authOrigin: string, options: { handoff?: 'token' | 'none' } = {}): Window | null {
+  // Tell the popup who the opener is acting as, so it can detect a session
+  // mismatch (its own cookie's user ≠ the opener's user) instead of silently
+  // acting for the wrong user. Only present when the opener has a token.
+  const token = readTokenCookie()
+  const decoded = token ? decodeJwt(token) : null
+  const as = decoded?.username ? `&as=${encodeURIComponent(decoded.username)}` : ''
+  // D42: handoff=none marks a consent-only popup (e.g. the lazy group contract)
+  // — the opener already holds the token, so the popup approves the contract
+  // and closes without re-sending the token.
+  const handoff = options.handoff === 'none' ? '&handoff=none' : ''
+  const url = `${authOrigin}?redirect=${encodeURIComponent(window.location.href)}${as}${handoff}`
+  console.log('[wapi] openAuthPortal — opening popup:', url, 'as:', decoded?.username || '(none)', 'handoff:', options.handoff || 'token')
   _authPopup = window.open(
     url,
     'web10-auth',
@@ -69,6 +79,28 @@ function authListen(
 ): () => void {
   const handler = (e: MessageEvent) => {
     if (e.data?.type === 'auth' && e.data?.token) {
+      // Identity check (D42 + the cookie-torture anti-tests): the popup acts for
+      // its OWN cookie's user. If that user differs from the one this app is
+      // already acting as, storing the token would silently hijack the app's
+      // identity. Reject it — the app keeps its current user. A first login
+      // (no current token) always accepts.
+      const incoming = decodeJwt(e.data.token)
+      const current = readTokenCookie()
+      const currentDecoded = current ? decodeJwt(current) : null
+      if (
+        currentDecoded?.username &&
+        incoming?.username &&
+        currentDecoded.username !== incoming.username
+      ) {
+        console.warn(
+          '[wapi] auth event — token user mismatch (current:',
+          currentDecoded.username,
+          ', incoming:',
+          incoming.username,
+          ') — rejecting to prevent identity hijack',
+        )
+        return
+      }
       console.log('[wapi] auth event received from popup, setting token cookie')
       setTokenCookie(e.data.token)
       onSignedIn(true)

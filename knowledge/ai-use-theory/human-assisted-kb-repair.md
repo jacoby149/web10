@@ -89,12 +89,12 @@ business plan + manifesto.
 
 ```mermaid
 flowchart TD
-    A["Operator: audit the\nknowledge base"] --> B["AI audits knowledge base vs\ncode + other docs +\nbusiness plan / manifesto"]
-    B --> C["AI returns 6\nrefutations / reservations"]
-    C --> D["Human operator\nanswers the 6"]
-    D --> E{"AI honestly evaluates:\nwhich are resolved?"}
-    E -->|"all resolved"| F["Knowledge base converged —\nno remaining doubts"]
-    E -->|"some open"| G["AI fixes the resolved ones,\nreturns sharper doubts\non the open ones"]
+    A["Operator: audit the<br/>knowledge base"] --> B["AI audits knowledge base vs<br/>code + other docs +<br/>business plan / manifesto"]
+    B --> C["AI returns 6<br/>refutations / reservations"]
+    C --> D["Human operator<br/>answers the 6"]
+    D --> E{"AI honestly evaluates:<br/>which are resolved?"}
+    E -->|"all resolved"| F["Knowledge base converged —<br/>no remaining doubts"]
+    E -->|"some open"| G["AI fixes the resolved ones,<br/>returns sharper doubts<br/>on the open ones"]
     G --> D
 
     classDef ai fill:#1565c0,color:#fff,stroke:#fff,stroke-width:2px

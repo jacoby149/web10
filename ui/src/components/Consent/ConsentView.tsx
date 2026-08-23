@@ -1,5 +1,5 @@
 import React from 'react';
-import { Globe, ShieldCheck, Check, X, ChevronDown, ChevronRight, ArrowRight, Plus, Minus, Users } from 'lucide-react';
+import { Globe, Check, X, ChevronDown, ChevronRight, ArrowRight, Plus, Minus, Users } from 'lucide-react';
 import Branding from '../shared/Branding';
 import LoginForm from '../CredentialPage/LoginForm';
 import SignupForm from '../CredentialPage/SignupForm';
@@ -225,15 +225,20 @@ function ConsentView({ I }: { I: Record<string, any> }) {
   const grantedOrigins = new Set(v3Contracts.map((c: any) => c.allowed_origin));
   // Unified pending list — ACRs and GCRs together
   const pendingContracts: any[] = I.pendingContracts || [];
-  console.log('[consent] pendingContracts:', pendingContracts, 'grantedOrigins:', grantedOrigins);
+  const username = I.v3?.readToken?.()?.username as string | undefined;
+  const expectedUser = I._expectedUser as string | undefined;
+  // D42 identity: the popup's session user ≠ the user the opener is acting for.
+  // On mismatch the popup must not treat "already granted" as "all set" (the
+  // grant is for the wrong user) and must not auto-complete.
+  const mismatch = !!(expectedUser && authed && username && username !== expectedUser);
+  console.log('[consent] pendingContracts:', pendingContracts, 'grantedOrigins:', grantedOrigins, 'mismatch:', mismatch, 'expectedUser:', expectedUser || '(none)');
 
-  // Filter out ACRs whose origin already has ALL requested permissions
-  const alreadyGrantedACRs = pendingContracts.filter((c: any) => {
+  // An ACR is "already granted" when its origin holds every requested permission.
+  const isAlreadyGranted = (c: any): boolean => {
     if (c.kind !== 'app') return false;
     const origin = c.app_origin || c.allowed_origin;
     const existing = v3Contracts.find((vc: any) => vc.allowed_origin === origin);
     if (!existing) return false;
-    // Check if all requested permissions are already granted
     const reqPerms = c.permissions || {};
     for (const service of Object.keys(reqPerms)) {
       const existingPerms = existing.permissions?.[service] || [];
@@ -242,23 +247,24 @@ function ConsentView({ I }: { I: Record<string, any> }) {
       }
     }
     return true;
-  });
-  const displayContracts = pendingContracts.filter((c: any) => {
-    if (c.kind !== 'app') return true;
-    const origin = c.app_origin || c.allowed_origin;
-    const existing = v3Contracts.find((vc: any) => vc.allowed_origin === origin);
-    if (!existing) return true;
-    // Check if there are new permissions to grant
-    const reqPerms = c.permissions || {};
-    for (const service of Object.keys(reqPerms)) {
-      const existingPerms = existing.permissions?.[service] || [];
-      for (const perm of reqPerms[service]) {
-        if (!existingPerms.includes(perm)) return true;
-      }
+  };
+  // On mismatch, show the requests unfiltered — "already granted" is for the
+  // wrong user, so presenting it as a request (not "all set") is the honest
+  // state. (The SDK rejects the returned token as a backstop.)
+  const displayContracts = mismatch
+    ? pendingContracts
+    : pendingContracts.filter((c: any) => c.kind !== 'app' || !isAlreadyGranted(c));
+
+  // D42 auto-complete: signed in, a contract was received, nothing needs
+  // approval, and no identity mismatch → hand back the token and close, zero UI.
+  const allSettled = !!(authed && I._contractReceived && displayContracts.length === 0 && !mismatch);
+
+  React.useEffect(() => {
+    if (allSettled) {
+      console.log('[consent] all settled — auto-completing (token + close, zero UI)');
+      I.goToApp();
     }
-    return false;
-  });
-  const username = I.v3?.readToken?.()?.username as string | undefined;
+  }, [allSettled]);
 
   return (
     <div className="relative flex h-screen flex-col items-center justify-center overflow-hidden bg-background px-4 py-8 text-foreground">
@@ -302,29 +308,25 @@ function ConsentView({ I }: { I: Record<string, any> }) {
                 <LoginForm I={I} embedded />
               )}
             </div>
-          ) : displayContracts.length === 0 ? (
-            <div className="flex flex-col items-center p-8 text-center" data-testid="consent-allset">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-brand-muted">
-                <ShieldCheck className="h-6 w-6 text-brand-300" strokeWidth={1.5} />
-              </div>
-              <h1 className="font-display text-xl font-semibold text-foreground">You're all set</h1>
-              <p className="mt-1.5 text-sm text-muted-foreground">
-                {alreadyGrantedACRs.length > 0 ? (
-                  <>
-                    <span className="text-foreground">{host}</span> already has access. Nothing new to review.
-                  </>
-                ) : (
-                  <>Nothing left to review.</>
-                )}
-              </p>
-              <div className="mt-6 w-full">
-                <Button variant="brand" className="w-full" onClick={() => I.goToApp()} data-testid="consent-close-window">
-                  Close window
-                </Button>
-              </div>
+          ) : allSettled ? (
+            // D42: nothing to review, no mismatch — the auto-complete effect
+            // hands back the token and closes the window. Brief "connecting"
+            // state until it does. (The old "You're all set" + Close-window
+            // button is gone: that tap asked the user to do the one thing the
+            // popup already knew how to do.)
+            <div className="flex flex-col items-center p-8 text-center" data-testid="consent-connecting">
+              <div className="mb-3 h-8 w-8 animate-spin rounded-full border-2 border-brand-300 border-t-transparent" />
+              <div className="text-sm text-muted-foreground">Connecting…</div>
             </div>
           ) : (
             <>
+              {mismatch && (
+                <div className="shrink-0 border-b border-danger/30 bg-danger/10 px-4 py-3 text-xs text-danger" data-testid="consent-mismatch">
+                  This window is signed in as <span className="font-medium text-foreground">{username}</span>,
+                  but {host} is asking on behalf of <span className="font-medium text-foreground">{expectedUser}</span>.
+                  If that&apos;s not right, use "Not you? Log out" below.
+                </div>
+              )}
               {/* header — fixed */}
               <div className="shrink-0 border-b border-border p-5 text-center">
                 <h1 className="font-display text-xl font-semibold text-foreground">
