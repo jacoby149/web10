@@ -17,7 +17,7 @@ router = APIRouter(tags=["account"])
 
 
 @router.post("/change-pass")
-async def change_pass(data: ChangePass):
+def change_pass(data: ChangePass):
     """Change password."""
     user = _user(data)
     if not ch.authenticate_user(user, data.password):
@@ -27,7 +27,7 @@ async def change_pass(data: ChangePass):
 
 
 @router.post("/change-phone")
-async def change_phone(data: ChangePhone):
+def change_phone(data: ChangePhone):
     """Change phone number."""
     user = _user(data)
     ch.change_phone(user, data.phone)
@@ -35,7 +35,7 @@ async def change_phone(data: ChangePhone):
 
 
 @router.post("/set-email")
-async def set_email(data: SetEmail):
+def set_email(data: SetEmail):
     """Set recovery email."""
     user = _user(data)
     ch.set_email(user, data.email)
@@ -43,7 +43,7 @@ async def set_email(data: SetEmail):
 
 
 @router.post("/verify-phone")
-async def verify_phone(data: VerifyCode):
+def verify_phone(data: VerifyCode):
     """Verify phone number with code."""
     user = _user(data)
     ch.verify_phone(user)
@@ -51,7 +51,7 @@ async def verify_phone(data: VerifyCode):
 
 
 @router.post("/verify-email")
-async def verify_email(data: VerifyCode):
+def verify_email(data: VerifyCode):
     """Verify email with code."""
     user = _user(data)
     ch.verify_email(user)
@@ -59,7 +59,7 @@ async def verify_email(data: VerifyCode):
 
 
 @router.post("/profile")
-async def get_profile(data: TokenOnly):
+def get_profile(data: TokenOnly):
     """Get user profile."""
     user = _user(data)
     profile = ch.get_user_profile(user)
@@ -69,7 +69,7 @@ async def get_profile(data: TokenOnly):
 
 
 @router.post("/send_code")
-async def send_code(data: TokenOnly):
+def send_code(data: TokenOnly):
     """Send a verification code to the user's phone."""
     user = _user(data)
     phone = ch.get_phone_number(user)
@@ -81,7 +81,7 @@ async def send_code(data: TokenOnly):
 
 
 @router.post("/set_recovery_phone")
-async def set_recovery_phone(data: SetRecoveryPhone):
+def set_recovery_phone(data: SetRecoveryPhone):
     """Set the recovery phone on the authenticated user's profile."""
     decoded = decode_token(data.token, private_key=True)
     if not decoded.username or decoded.username == "anon":

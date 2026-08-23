@@ -18,7 +18,7 @@ def kosher(s: str) -> bool:
 
 
 @router.post("/signup")
-async def signup(data: Signup):
+def signup(data: Signup):
     """Create a user account."""
     if not kosher(data.username):
         raise exceptions.BAD_USERNAME
@@ -37,7 +37,7 @@ async def signup(data: Signup):
 
 
 @router.post("/login")
-async def login(data: Login):
+def login(data: Login):
     """Verify credentials, return JWT."""
     if not ch.authenticate_user(data.username, data.password):
         raise exceptions.LOGIN
