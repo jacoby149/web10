@@ -31,13 +31,13 @@ In a conductor.build harness, every speculative debug loop is a fresh context wi
 ```mermaid
 flowchart TD
     A[Bug appears] --> B{Any logs?}
-    B -->|"No"| C[Re-read codebase + history\n~150K input tokens]
-    C --> D[Reason about the break\n~5K input tokens]
-    D --> E[Generate speculative fix\n~12.5K output tokens]
+    B -->|"No"| C[Re-read codebase + history<br/>~150K input tokens]
+    C --> D[Reason about the break<br/>~5K input tokens]
+    D --> E[Generate speculative fix<br/>~12.5K output tokens]
     E --> F{Still broken?}
     F -->|"Yes"| C
     F -->|"No"| G{Tests pass?}
-    G -->|"No tests to run"| H[Guess it works\nhope for the best]
+    G -->|"No tests to run"| H[Guess it works<br/>hope for the best]
     G -->|"Yes"| I[Done]
 
     C -.->|loop 2| C
@@ -65,13 +65,13 @@ The flow works in four phases: **orient, generate, compare, repair.** Each phase
 
 ```mermaid
 flowchart TD
-    START["You: debug this bug"] --> INSTRUCT["AI instructed to check signals\nfirst (via AGENTS.md / prompt)"]
-    INSTRUCT --> LOAD["Load knowledge base + Code +\nChangelog into context window"]
-    LOAD --> CHECK{"Do knowledge base, Code,\nand Changelog align?"}
+    START["You: debug this bug"] --> INSTRUCT["AI instructed to check signals<br/>first (via AGENTS.md / prompt)"]
+    INSTRUCT --> LOAD["Load knowledge base + Code +<br/>Changelog into context window"]
+    LOAD --> CHECK{"Do knowledge base, Code,<br/>and Changelog align?"}
 
-    CHECK -->|"Yes"| ORIENTED["Foundation solid.\nProceed to Phase 2."]
+    CHECK -->|"Yes"| ORIENTED["Foundation solid.<br/>Proceed to Phase 2."]
 
-    CHECK -->|"Mismatch"| REPAIR["Repair knowledge base, Code, or\nChangelog (human + AI for KB)"]
+    CHECK -->|"Mismatch"| REPAIR["Repair knowledge base, Code, or<br/>Changelog (human + AI for KB)"]
     REPAIR --> LOAD
 
     classDef prompt fill:#333,color:#fff,stroke:#fff,stroke-width:2px
@@ -96,10 +96,10 @@ The AI loads three reference resources into its context window and checks them a
 flowchart TD
     GEN_START["Oriented. Generate signal."] --> SOURCE{"Where are the logs?"}
 
-    SOURCE -->|"CI/CD has them"| PULL["Pull verbose logs from CI/CD\nbuild artifacts"]
-    SOURCE -->|"No logs yet"| RUN["Run tests locally\nor trigger CI build"]
+    SOURCE -->|"CI/CD has them"| PULL["Pull verbose logs from CI/CD<br/>build artifacts"]
+    SOURCE -->|"No logs yet"| RUN["Run tests locally<br/>or trigger CI build"]
 
-    PULL --> ENOUGH{"Are logs verbose\nenough to diagnose?"}
+    PULL --> ENOUGH{"Are logs verbose<br/>enough to diagnose?"}
     RUN --> ENOUGH
 
     ENOUGH -->|"Yes"| GENERATED["Logs ready. Proceed to compare."]
@@ -108,7 +108,7 @@ flowchart TD
     PR --> WATCH["Watch the build"]
     WATCH --> RUN
 
-    ENOUGH -->|"Missing test coverage"| ADD_TESTS["Add test gauntlet, unit test,\nor E2E test for the concern"]
+    ENOUGH -->|"Missing test coverage"| ADD_TESTS["Add test gauntlet, unit test,<br/>or E2E test for the concern"]
     ADD_TESTS --> RUN
 
     classDef orient fill:#1565c0,color:#fff,stroke:#fff,stroke-width:2px
@@ -137,11 +137,11 @@ Same alignment check as Phase 1, but now with a fourth input: the actual log out
 
 ```mermaid
 flowchart TD
-    GEN_DONE["Logs generated\nfrom Phase 2"] --> LOAD["Load knowledge base + Code +\nChangelog + Logs into context window"]
-    LOAD --> GATE{"All four\naligned?"}
+    GEN_DONE["Logs generated<br/>from Phase 2"] --> LOAD["Load knowledge base + Code +<br/>Changelog + Logs into context window"]
+    LOAD --> GATE{"All four<br/>aligned?"}
 
     GATE -->|"Yes"| PR["PR to review"]
-    GATE -->|"No"| REPAIR["Repair knowledge base, Code,\nLogs, write changelog\n(human + AI for KB)"]
+    GATE -->|"No"| REPAIR["Repair knowledge base, Code,<br/>logs + tests, write changelog<br/>(human + AI for KB)"]
     REPAIR --> GEN_DONE
 
     classDef orient fill:#1565c0,color:#fff,stroke:#fff,stroke-width:2px
@@ -163,13 +163,13 @@ Both Phase 1 and Phase 3 use this same repair order. Foundation before implement
 
 ```mermaid
 flowchart TD
-    KB{"Knowledge base needs\nrepair?"} -->|"Yes"| FIX_KB["Human + AI: repair\nknowledge base (interactive loop)"]
-    KB -->|"No"| CODE{"Code needs\nrepair?"}
+    KB{"Knowledge base needs<br/>repair?"} -->|"Yes"| FIX_KB["Human + AI: repair<br/>knowledge base (interactive loop)"]
+    KB -->|"No"| CODE{"Code needs<br/>repair?"}
     FIX_KB --> CODE
     CODE -->|"Yes"| FIX_CODE["Repair code"]
-    CODE -->|"No"| LOGS{"Logs need\nrepair?"}
+    CODE -->|"No"| LOGS{"Logs / tests need<br/>repair?"}
     FIX_CODE --> LOGS
-    LOGS -->|"Yes"| FIX_LOGS["Add or fix logging"]
+    LOGS -->|"Yes"| FIX_LOGS["Re-align logging<br/>+ tests to current behavior"]
     LOGS -->|"No"| CHANGELOG["Write changelog entry"]
     FIX_LOGS --> CHANGELOG
 
@@ -188,7 +188,11 @@ flowchart TD
 
 1. **knowledge base first** — if the knowledge base is wrong or incomplete, it is repaired through an **AI-assisted interactive loop**, not a human editing alone: the AI audits the knowledge base against the code, the other knowledge base docs, and the business plan + manifesto, returns a small batch of doubts, the human resolves them, and the AI honestly checks whether they're resolved — iterating until the knowledge base converges (see `human-assisted-kb-repair.md`). The AI does the exhaustive finding; the human is the authority on intent. The AI can't *authoritatively* write knowledge it doesn't understand, but it can surface every doubt for the human to resolve.
 2. **Code next** — with the knowledge base right, the code fix is targeted. One change, not speculative.
-3. **Logs next** — if the logs were too thin to diagnose, add the missing logging so the next debug is cheaper.
+3. **Logs + tests next** — the signal layer, and the two go hand in hand: a repair usually re-aligns both in the same pass. The key move is **re-alignment, not just addition.** Logs and tests are both *descriptions of the current behavior* — so after a code change, especially an intentional one, the ones that described the *old* behavior are now stale, and the repair is to bring them back in line with what the code actually does now.
+   - **Logs:** if they no longer match the new functionality — they log the old paths, or are silent on the new ones — update or add them. Stale logs are worse than no logs: they point the next debugger at behavior that no longer exists.
+   - **Tests:** triage the reds (see [Regressions](./regressions.md)). A test that regressed after an *intentional* change is often **correctly failing** — it was asserting the old behavior, and the failure is the signal that the change landed. The repair is to *update* it to the new intent, not to force it back to the old way. A test that regressed after an *unintentional* change is a real bug — fix the code, not the test.
+
+   The duality is the whole point: a failing test is *bad* when it is catching a bug you introduced, and *good* when it is detecting a change you intended. The log makes the current behavior *visible*; the test pins it so the next change can't silently break it. One without the other is a half-repair — logging with no test means the next break is found by a user, not a suite; a test with no logging means the next break is red but unlocalizable.
 4. **Changelog last** — write the entry. It captures the intention of this fix, so the next AI that debugs this code has the signal.
 
 That process — forcing the AI to check signals before patching — is what saves the money. Because a code fix on a broken foundation is always temporary. Fixing the foundation makes the code fix permanent. And fixing the knowledge base is a human-in-the-loop act — but an *AI-assisted* one: the AI surfaces every doubt, the human resolves intent, and the loop converges (see `human-assisted-kb-repair.md`).
@@ -293,6 +297,7 @@ This approach suits the strengths of an LLM:
 
 - [README](./README.md) — nav hub for all the docs in this folder
 - [Testing](./testing.md) — anti-tests, the seam rule, the corrupted measure, the test ladder, test rot, the diagnostic dump
+- [Regressions](./regressions.md) — why a red suite after an intentional change is expected; the two kinds of red (target moved → update the test, you broke it → fix the code), the triage question, and the corrupted measure in regression fixing
 - [Logging](./logging.md) — the signal router, the diagnostic query, cross-realm logging gotchas
 - [Importance of the Knowledge Base](./importance-of-knowledge-base.md) — why the knowledge base is the lynchpin
 - [Refutations](./refutations.md) — R1–R12 stress test; every objection answered and resolved

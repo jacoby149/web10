@@ -166,6 +166,8 @@ The slow version of the corrupted measure. A test that hits a removed endpoint (
 
 A suite full of ghosts erodes trust the same way a false green does: the operator stops believing the signal, so a real red gets dismissed as "just the rot." The fix is the same as the seam rule — the test must touch the *current* seam. When an API endpoint is renamed or its payload changes, the tests that hit it are part of the change, not a separate cleanup. A suite that is red only because of ghosts is a corrupted measure wearing a red mask — it looks like a failure but is really a lie about what is being tested.
 
+Test rot is the *accidental* version of a moved target — the endpoint drifted and the test wasn't updated. The *intentional* version — you deliberately changed the behavior and the tests that encoded the old one go red — is a different animal with its own discipline. See [Regressions](./regressions.md): there the reds are expected, and the move is triage (target moved → update the test, you broke it → fix the code), not cleanup.
+
 ## The Diagnostic Dump
 
 A failing integration test should hand you the break, not make you guess it. When the seam test fails, dump the signal from *both* sides of the boundary — the full console (all levels) plus uncaught exceptions (`pageerror`) from each page. That is what turned a "the contract never shows up" mystery into a one-line fix: the dump showed the contract *arriving* at the popup (`contract message received`) and then the handler dying on a `SecurityError` before `setPendingContracts`. No dump, you re-read both sides and speculate. With the dump, you read the break.
