@@ -1,183 +1,307 @@
-/* messages demo — script.js (v3 with groups) */
+/* messages demo — script.js (v3 with groups, D42 lazy DM) */
+
+const LOG = (...args) => console.log('[messages-demo]', ...args)
+const LOG_ERR = (...args) => console.error('[messages-demo]', ...args)
 
 const ERROR_MSGS = {
-  read: "Failed to read messages",
-  send: "Failed to send message",
-  delete: "Failed to delete message",
+  read: 'Failed to read messages',
+  send: 'Failed to send message',
+  delete: 'Failed to delete message',
 }
 
 const host = window.location.hostname
 const isDev = host === 'dev.web10.app' || host.endsWith('.dev.web10.app')
 const isLocal = host === 'localhost' || host === '127.0.0.1' || host.endsWith('.localhost')
 const AUTH_ORIGIN = isLocal ? 'http://auth.localhost' : isDev ? 'https://auth.dev.web10.app' : 'https://auth.web10.app'
-const w = window.web10.createV3Client({ apiOrigin: isLocal ? 'http://api.localhost' : isDev ? 'https://api.dev.web10.app' : 'https://api.web10.app' })
-
-// v3 API helpers — all v3 endpoints are POST with { token, ...params }
 const API_ORIGIN = isLocal ? 'http://api.localhost' : isDev ? 'https://api.dev.web10.app' : 'https://api.web10.app'
-const SERVICE = "web10-docs-message-demo"
+const SERVICE = 'web10-docs-message-demo'
 
-async function v3Post(action, params = {}) {
-  const token = document.cookie.match(/token=([^;]+)/)?.[1]
-  if (!token) throw new Error('Not authenticated')
-  const res = await fetch(`${API_ORIGIN}/v3/${action}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token, ...params }),
-  })
-  if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`v3 ${action}: ${res.status} ${text}`)
-  }
-  return res.json()
+LOG('init — host:', host, 'isLocal:', isLocal, 'isDev:', isDev)
+LOG('AUTH_ORIGIN:', AUTH_ORIGIN, 'API_ORIGIN:', API_ORIGIN)
+
+const w = window.web10.createV3Client({ apiOrigin: API_ORIGIN })
+
+// The textarea is id="msgText" (NOT "body" — a bare `body` resolves to
+// document.body, not the input).
+const msgText = document.getElementById('msgText')
+
+let ME = null // { username, provider } — set in initApp
+
+// ---------------------------------------------------------------------------
+// Auth flow
+// ---------------------------------------------------------------------------
+
+authButton.onclick = () => {
+  LOG('authButton clicked — opening auth portal')
+  window.web10.openAuthPortal(AUTH_ORIGIN)
+  requestAppContract()
 }
 
-authButton.onclick = () => window.web10.openAuthPortal(AUTH_ORIGIN)
-window.web10.authListen(() => initApp())
+window.web10.authListen(() => {
+  LOG('authListen fired — user is signed in')
+  initApp()
+})
 
-function initApp() {
-  authButton.innerHTML = "Log out"
-  authButton.onclick = () => {
-    w.signOut()
-    window.location.reload()
-  }
-  const t = w.readToken()
-  message.innerHTML = `Signed in as <strong>${t["provider"]}/${t["username"]}</strong>`
-  editor.style.display = "block"
-
-  // Default recipient: yourself, so the demo round-trips with one login
-  toUsername.value = t.username
-  toProvider.value = t.provider
-
-  // Request app contract for the messages service (App CR)
-  w.contractRequest([{
+// The app contract is a one-time grant. Requested on the login click (cold
+// start) — on a return run we don't re-request it, we just read; if it was
+// revoked the read 403s and "Fix access" appears (D42 lazy pattern).
+function requestAppContract() {
+  const contract = [{
     kind: 'app',
     app_origin: window.location.origin,
-    permissions: {
-      [SERVICE]: ['readAll', 'create', 'deleteOwn'],
-    },
-  }], AUTH_ORIGIN, (resp) => {
+    permissions: { [SERVICE]: ['readAll', 'create', 'deleteOwn'] },
+  }]
+  LOG('sending app contract:', JSON.stringify(contract))
+  w.contractRequest(contract, AUTH_ORIGIN, (resp) => {
+    LOG('app contract callback — status:', resp.status, resp.errors || '')
     if (resp.status === 'approved') {
-      message.innerHTML += ` · <span style="color:var(--ok);">app contract approved</span>`
-      readMessages()
+      message.innerHTML += ` · <span style="color:#22c55e;">app contract approved</span>`
     } else if (resp.status === 'denied') {
-      message.innerHTML += ` · <span style="color:var(--danger);">app contract denied</span>`
+      message.innerHTML += ` · <span style="color:#ef4444;">app contract denied</span>`
     } else {
-      message.innerHTML += ` · <span style="color:var(--danger);">contract error: ${resp.errors?.[0] || 'unknown'}</span>`
+      message.innerHTML += ` · <span style="color:#ef4444;">contract error: ${resp.errors?.[0] || 'unknown'}</span>`
     }
   })
 }
 
-// Self-register in the app store (no auth required)
-fetch(`${API_ORIGIN}/v3/apps/register`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    body: {
-      url: `${window.location.origin}${window.location.pathname}`,
-      name: 'Messages',
-      description: 'A DM-style demo: send messages between web10 nodes. Each conversation is a group.',
-    },
-  }),
-}).catch(() => {})
+function initApp() {
+  LOG('initApp — setting up signed-in state')
+  const t = w.readToken()
+  if (!t) {
+    LOG_ERR('initApp — readToken() is null, aborting')
+    return
+  }
+  ME = { username: t.username, provider: t.provider }
+  LOG('initApp — signed in as:', `${ME.provider}/${ME.username}`)
+  authButton.innerHTML = 'Log out'
+  authButton.onclick = () => {
+    LOG('signOut clicked')
+    w.signOut()
+    window.location.reload()
+  }
+  message.innerHTML = `Signed in as <strong>${ME.provider}/${ME.username}</strong>`
+  editor.style.display = 'block'
+  // Default recipient: yourself, so the demo round-trips with one login.
+  toUsername.value = ME.username
+  toProvider.value = ME.provider
 
-if (w.isSignedIn()) initApp()
+  // Load the inbox (the read is the test — a 403 means the contract was
+  // revoked, which surfaces "Fix access").
+  readMessages()
+}
 
-// v3: ensure a DM group exists between two users via Group CR
-function ensureDmGroup(myUsername, theirUsername, provider, callback) {
-  const sorted = [myUsername, theirUsername].sort()
-  const groupName = `dm-${sorted[0]}-${sorted[1]}`
-  const groupId = `${provider}/groups/users/${myUsername}/${groupName}`
+// ---------------------------------------------------------------------------
+// DM group — deterministic name, reuse existing, create only on first need
+// ---------------------------------------------------------------------------
 
-  w.contractRequest([{
+// The DM group name is symmetric (sorted), so alice→bob and bob→alice resolve
+// to the same name. The API derives the group_id from the CREATOR's token, so
+// the owner is whoever set the group up first — but the name is stable, which
+// is what lets the second party find and reuse the group instead of creating
+// a duplicate.
+function dmGroupName(a, b) {
+  const sorted = [a, b].sort()
+  return `dm-${sorted[0]}-${sorted[1]}`
+}
+
+/**
+ * Find an existing DM group with `them` among my groups (by deterministic
+ * name). Returns the group_id, or null if I'm not in one yet.
+ */
+async function findDmGroup(them) {
+  const name = dmGroupName(ME.username, them)
+  LOG('findDmGroup — looking for name:', name)
+  const myGroups = await w.getMyGroups()
+  LOG('findDmGroup — my groups:', JSON.stringify(myGroups.map((g) => g.group_id)))
+  const match = myGroups.find((g) => g.group_id.endsWith(`/${name}`))
+  if (match) {
+    LOG('findDmGroup — reusing existing group:', match.group_id)
+    return match.group_id
+  }
+  LOG('findDmGroup — no existing DM group with', them)
+  return null
+}
+
+/**
+ * Create the DM group via the consent popup (I become the owner). Called only
+ * when no existing DM group is found — i.e. the first message to this user.
+ * handoff=none: the app already holds the token, so this popup is consent-only.
+ */
+function createDmGroup(them, callback) {
+  const name = dmGroupName(ME.username, them)
+  const contract = [{
     kind: 'group',
     app_origin: window.location.origin,
     action: 'create_group',
-    name: groupName,
+    name,
     join_policy: 'invite_only',
     roles: [
       { name: 'owner', services: ['*'], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn', 'manageRoles'] },
       { name: 'member', services: [SERVICE], permissions: ['readAll', 'create', 'deleteOwn'] },
     ],
     members: [
-      { member_key: myUsername, role: 'owner' },
-      { member_key: theirUsername, role: 'owner' },
+      { member_key: ME.username, role: 'owner' },
+      { member_key: them, role: 'member' },
     ],
-  }], AUTH_ORIGIN, (resp) => {
-    if (resp.status === 'approved' || resp.status === 'denied') {
-      // Group created or already exists
+  }]
+  LOG('createDmGroup — opening consent popup + sending group contract:', JSON.stringify(contract))
+  window.web10.openAuthPortal(AUTH_ORIGIN, { handoff: 'none' })
+  w.contractRequest(contract, AUTH_ORIGIN, (resp) => {
+    LOG('createDmGroup — callback, status:', resp.status, resp.errors || '')
+    if (resp.status === 'approved') {
+      // The API derives group_id from the creator (me) + the deterministic name.
+      const groupId = `${ME.provider}/groups/users/${ME.username}/${name}`
+      LOG('createDmGroup — approved, group_id:', groupId)
       callback(groupId)
     } else {
-      // Error or group already exists — use the ID anyway
-      callback(groupId)
+      LOG_ERR('createDmGroup — failed:', resp.status, resp.errors)
+      message.innerHTML = `Failed to set up your DM with <strong>${escapeHtml(them)}</strong>: ${resp.errors?.[0] || resp.status}`
     }
   })
 }
 
-/* Send + Read (v3 with groups) */
+// ---------------------------------------------------------------------------
+// CRUD
+// ---------------------------------------------------------------------------
 
-function readMessages() {
-  // v3: read messages from the collection, scoped to groups the user belongs to
-  v3Post('read', {
-    service: SERVICE,
-    groups: ['me'],
-  })
-    .then(displayMessages)
-    .catch((err) => {
-      console.error(ERROR_MSGS.read, err)
+async function readMessages() {
+  LOG('readMessages — called')
+  try {
+    // groups: ['me'] = every group I'm a member of, scoped to this service —
+    // i.e. my DM inbox across all conversations.
+    const docs = await w.read(SERVICE, { groups: ['me'] })
+    LOG('readMessages — got', docs.length, 'docs')
+    displayMessages(docs)
+  } catch (e) {
+    LOG_ERR('readMessages FAILED:', e.name, e.message, 'status:', e.status, 'details:', e.details)
+    if (isAppContractError(e)) {
+      showFixAccess('Access denied — your app contract may have been revoked.')
+    } else {
       message.innerHTML = ERROR_MSGS.read
-    })
+    }
+  }
 }
 
-function sendMessage() {
+async function sendMessage() {
   const toUser = toUsername.value.trim()
   const toProv = toProvider.value.trim()
-  const text = document.getElementById('body').value.trim()
-  if (!toUser || !text) return
+  const text = msgText.value.trim()
+  LOG('sendMessage — called, to:', `${toProv}/${toUser}`, 'text length:', text.length)
+  if (!toUser || !text) {
+    LOG('sendMessage — missing recipient or text, aborting')
+    return
+  }
 
-  const t = w.readToken()
   const payload = {
-    from_username: t.username,
-    from_provider: t.provider,
+    from_username: ME.username,
+    from_provider: ME.provider,
     to_username: toUser,
     to_provider: toProv,
     text,
     date: new Date().toISOString(),
   }
 
-  // v3: ensure a DM group exists for this conversation (via Group CR)
-  ensureDmGroup(t.username, toUser, t.provider, (groupId) => {
-    // v3: create the message document, attached to the DM group
-    v3Post('create', {
-      service: SERVICE,
-      body: payload,
-      groups: groupId ? [groupId] : undefined,
-    })
-      .then(() => {
-        document.getElementById('body').value = ""
-        message.innerHTML = `Sent to <strong>${toUser}/${toProv}</strong>`
+  try {
+    // Reuse an existing DM group (no popup). Only the first message to a new
+    // user opens the consent popup to create the group.
+    const existing = await findDmGroup(toUser)
+    if (existing) {
+      LOG('sendMessage — creating message in existing group:', existing)
+      await w.create(SERVICE, payload, { groups: [existing] })
+      onSent(toUser, toProv)
+      return
+    }
 
-        // If you sent to yourself, your inbox just gained the message
-        if (toUser === t.username && toProv === t.provider) readMessages()
-      })
-      .catch((err) => {
-        console.error(ERROR_MSGS.send, err)
+    // No existing group — create it (popup), then send.
+    createDmGroup(toUser, async (groupId) => {
+      try {
+        LOG('sendMessage — creating message in new group:', groupId)
+        await w.create(SERVICE, payload, { groups: [groupId] })
+        onSent(toUser, toProv)
+      } catch (err) {
+        LOG_ERR('sendMessage — create FAILED:', err.name, err.message, 'status:', err.status)
         message.innerHTML = ERROR_MSGS.send
-      })
+      }
+    })
+  } catch (e) {
+    LOG_ERR('sendMessage FAILED:', e.name, e.message, 'status:', e.status, 'details:', e.details)
+    if (isAppContractError(e)) {
+      showFixAccess('Cannot send — your app contract may have been revoked.')
+    } else {
+      message.innerHTML = ERROR_MSGS.send
+    }
+  }
+}
+
+function onSent(toUser, toProv) {
+  msgText.value = ''
+  message.innerHTML = `Sent to <strong>${escapeHtml(toUser)}/${escapeHtml(toProv)}</strong>`
+  LOG('sendMessage — sent to', `${toProv}/${toUser}`)
+  // Refresh the inbox (if I sent to myself, the message is now in my inbox).
+  readMessages()
+}
+
+async function deleteMessage(docId) {
+  LOG('deleteMessage — called, docId:', docId)
+  try {
+    await w.delete(docId)
+    LOG('deleteMessage — success')
+    readMessages()
+  } catch (e) {
+    LOG_ERR('deleteMessage FAILED:', e.name, e.message, 'status:', e.status)
+    message.innerHTML = ERROR_MSGS.delete
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Fix access — re-request the app contract when it's been revoked
+// ---------------------------------------------------------------------------
+
+// The API returns a distinguishable 403 for a missing app contract
+// ("No app contract for {origin} …"). The SDK's Web10Error puts the API's
+// detail in `e.details` (e.message is the generic "Request failed: 403 …").
+function errorText(e) {
+  return `${e.message || ''} ${e.details || ''}`
+}
+function isAppContractError(e) {
+  return e.status === 403 && /no app contract/i.test(errorText(e))
+}
+
+function showFixAccess(errorMsg) {
+  LOG('showFixAccess — showing fix button, error:', errorMsg)
+  fixAccessBtn.style.display = 'inline-block'
+  message.innerHTML = `<span style="color:#ef4444;">${errorMsg}</span><br><span style="color:var(--muted);font-size:0.75rem;">Your app contract may have been revoked. Click "Fix access" to re-request.</span>`
+}
+
+fixAccessBtn.onclick = () => {
+  LOG('fixAccessBtn clicked — re-requesting app contract')
+  fixAccessBtn.style.display = 'none'
+  window.web10.openAuthPortal(AUTH_ORIGIN, { handoff: 'none' })
+  const contract = [{
+    kind: 'app',
+    app_origin: window.location.origin,
+    permissions: { [SERVICE]: ['readAll', 'create', 'deleteOwn'] },
+  }]
+  LOG('fixAccess — sending app contract:', JSON.stringify(contract))
+  w.contractRequest(contract, AUTH_ORIGIN, (resp) => {
+    LOG('fixAccess — callback, status:', resp.status, resp.errors || '')
+    if (resp.status === 'approved') {
+      LOG('fixAccess — contract re-approved, retrying readMessages')
+      message.innerHTML = `<span style="color:#22c55e;">Access restored.</span>`
+      readMessages()
+    } else {
+      LOG_ERR('fixAccess — failed:', resp.status, resp.errors)
+      showFixAccess(`Fix access failed: ${resp.errors?.[0] || resp.status}`)
+    }
   })
 }
 
-function deleteMessage(docId) {
-  v3Post('delete', { doc_id: docId })
-    .then(readMessages)
-    .catch(() => {
-      console.error(ERROR_MSGS.delete)
-      message.innerHTML = ERROR_MSGS.delete
-    })
-}
-
-/* Render */
+// ---------------------------------------------------------------------------
+// Render
+// ---------------------------------------------------------------------------
 
 function displayMessages(docs) {
+  LOG('displayMessages — rendering', docs ? docs.length : 0, 'messages')
   if (!docs || docs.length === 0) {
     messageview.innerHTML = '<p class="empty">No messages yet — send one above.</p>'
     return
@@ -186,23 +310,56 @@ function displayMessages(docs) {
     .slice()
     .sort((a, b) => new Date(b.body?.date) - new Date(a.body?.date))
     .map((doc) => {
-      const body = doc.body || {}
-      const date = body.date ? new Date(body.date).toLocaleString() : ""
-      const from = `${body.from_username || "?"}/${body.from_provider || "?"}`
-      return `<div class="message">
+      const b = doc.body || {}
+      const date = b.date ? new Date(b.date).toLocaleString() : ''
+      const from = `${b.from_username || '?'}/${b.from_provider || '?'}`
+      // Only the author can delete (the API scopes delete to the author), so
+      // the button renders only on my own messages.
+      const mine = doc.author_key === ME.username
+      const delBtn = mine
+        ? `<button class="danger" onclick="deleteMessage('${doc.doc_id}')">Delete</button>`
+        : ''
+      return `<div class="message" data-testid="message">
         <div class="message-meta">
           <span class="message-from">from ${escapeHtml(from)}</span>
           <span>${escapeHtml(date)}</span>
         </div>
-        <p class="message-text">${escapeHtml(body.text || "")}</p>
-        <div class="message-actions">
-          <button class="danger" onclick="deleteMessage('${doc.doc_id}')">Delete</button>
-        </div>
+        <p class="message-text" data-testid="message-text">${escapeHtml(b.text || '')}</p>
+        ${delBtn ? `<div class="message-actions">${delBtn}</div>` : ''}
       </div>`
     })
-    .join("")
+    .join('')
 }
 
 function escapeHtml(s) {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '"')
+}
+
+// ---------------------------------------------------------------------------
+// Self-register in the app store (no auth required)
+// ---------------------------------------------------------------------------
+fetch(`${API_ORIGIN}/v3/apps/register`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    body: {
+      url: `${window.location.origin}${window.location.pathname}`,
+      name: 'Messages',
+      description: 'A DM-style demo: send messages between web10 users. Each conversation is a group.',
+    },
+  }),
+}).catch(() => {})
+
+// ---------------------------------------------------------------------------
+// Restore session on page load
+// ---------------------------------------------------------------------------
+if (w.isSignedIn()) {
+  LOG('page load — already signed in')
+  initApp()
+} else {
+  LOG('page load — not signed in, showing login button')
 }

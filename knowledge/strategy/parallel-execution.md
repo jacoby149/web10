@@ -88,13 +88,13 @@ fork. This lane drives every remaining fork through the real popup.
 ### Lane: messages-demo (Phase 1)
 **Owns:** `marketing/marketing-ui/public/docs/messages/`
 
-- [ ] DM group contract: create invite_only group with deterministic ID
-- [ ] Send message via CRUD (attach to DM group)
-- [ ] Receive/read messages via group read
+- [✓ 3.5.0] DM group contract: create invite_only group with deterministic ID
+- [✓ 3.5.0] Send message via CRUD (attach to DM group)
+- [✓ 3.5.0] Receive/read messages via group read
 - [ ] WebRTC: initP2P with token, connect to peer
 - [ ] WebRTC: send data over P2P channel
 - [ ] WebRTC: receive data via onInbound callback
-- [ ] E2E test: DM CRUD + WebRTC P2P round-trip
+- [ ] E2E test: DM CRUD + WebRTC P2P round-trip (DM CRUD half done in 3.5.0; WebRTC P2P half open)
 
 ### Lane: groups-demo (Phase 1)
 **Owns:** `marketing/marketing-ui/public/docs/groups/`
