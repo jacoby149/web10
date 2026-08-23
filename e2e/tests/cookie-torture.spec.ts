@@ -209,11 +209,18 @@ test.describe('Cookie torture — persistent-state scenarios clean-context tests
     await page.locator('#fixAccessBtn').click();
     const popup = await popupPromise;
     await popup.waitForLoadState('networkidle');
-    await popup.locator('[data-testid="consent-req-0"], [data-testid="consent-allset"]').first().waitFor({ state: 'visible', timeout: 15000 });
+    // D42: the mismatch (popup's B ≠ opener's A) shows the request unfiltered
+    // plus a notice — never "all set", never the auto-complete.
+    await popup.locator('[data-testid="consent-req-0"], [data-testid="consent-mismatch"]').first().waitFor({ state: 'visible', timeout: 15000 });
     const row = popup.locator('[data-testid="consent-req-0"]');
     if (await row.count()) await row.locator('[data-testid="consent-approve-0"]').click();
-    await popup.locator('[data-testid="consent-close-window"]').click().catch(() => {});
-    await page.waitForTimeout(1500);
+    // D42: the Close-window button is gone. The token handoff — the seam the
+    // identity check guards — now happens on "continue": Approve all & continue
+    // calls goToApp, which posts the popup's (B's) token back to the demo and
+    // self-closes. The demo's authListen must reject B's token (it acts as A).
+    await popup.locator('[data-testid="consent-approve-all"]').click();
+    await popup.waitForEvent('close', { timeout: 5000 });
+    await page.waitForTimeout(500);
 
     // THE assertion: the demo must still be user A — the person using it.
     // (Red = the popup's stale B session hijacked the demo's identity.)
@@ -280,9 +287,13 @@ test.describe('Cookie torture — persistent-state scenarios clean-context tests
     await page.waitForLoadState('networkidle');
     await expect(page.locator('#authButton')).toHaveText('Log in', { timeout: 15000 });
 
-    // Log back in. Walk the full consent flow to completion: the app contract
-    // (or "all set" if already granted) → token lands → the group contract
-    // (never filtered) → approve → initApp.
+    // Log back in. D42: the login popup is an automatic handshake — the app
+    // contract is already granted (previousVisit), so the popup auto-completes:
+    // it hands back the token and closes itself, zero UI (no consent row, no
+    // Close-window button). The group contract is lazy — a successful read is
+    // the confirmation, so there is no second popup. The flow settles by the
+    // demo becoming signed-in and the popup closing. If a consent row DID
+    // appear (contract not yet granted), drive it to completion instead.
     let popupsSeen = 0;
     const onPopup = () => {
       popupsSeen++;
@@ -292,19 +303,19 @@ test.describe('Cookie torture — persistent-state scenarios clean-context tests
     const popupPromise = context.waitForEvent('page', { timeout: 15000 });
     await page.locator('#authButton').click();
     const popup = await popupPromise;
-    await popup.waitForLoadState('networkidle');
+    // Do NOT wait for the popup's networkidle — the auto-complete may close the
+    // popup first, and that is the expected D42 behavior.
 
-    for (let i = 0; i < 5; i++) {
-      await expect(page.locator('#authButton')).toHaveText('log out', { timeout: 3000 }).catch(() => {});
-      if ((await page.locator('#authButton').textContent())?.trim() === 'log out') break;
-      await popup.locator('[data-testid="consent-req-0"], [data-testid="consent-allset"]').first().waitFor({ state: 'visible', timeout: 15000 });
+    for (let i = 0; i < 20; i++) {
+      // Settled? (the auto-complete handed the token back — demo is signed in)
+      if ((await page.locator('#authButton').textContent().catch(() => ''))?.trim() === 'log out') break;
+      // Otherwise, is there a consent row to approve? (first-login path)
       const row = popup.locator('[data-testid="consent-req-0"]');
-      if (await row.count()) {
-        await row.locator('[data-testid="consent-approve-0"]').click();
-      } else {
-        await popup.locator('[data-testid="consent-close-window"]').click();
+      const rowCount = await row.count().catch(() => 0);
+      if (rowCount > 0) {
+        await row.locator('[data-testid="consent-approve-0"]').click().catch(() => {});
       }
-      await page.waitForTimeout(800);
+      await page.waitForTimeout(500);
     }
     context.off('page', onPopup);
 

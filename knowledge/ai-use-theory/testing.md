@@ -174,6 +174,31 @@ A failing integration test should hand you the break, not make you guess it. Whe
 
 The pattern: capture `page.on('console')` (all levels) and `page.on('pageerror')` on *every* page in the flow, and include them in the failure message. The durable part is not the payload — it is the *sequence* of communications across the seam, and that sequence is what localizes the break. A test that fails silently (a bare timeout) is a corrupted measure too: it tells you *that* it broke, not *where*.
 
+## Local Is the Gradient, CI Is the Gate
+
+The Diagnostic Dump above is about *what* to capture when a test fails. This is about *where* to run it — and the answer is: **locally, against the real stack, not just in CI.**
+
+The theory says "logs are the gradient." The gradient is only as good as the signal, and the signal is only as good as where you capture it. Locally you can attach to every page in the flow, capture the full console (all levels) plus `pageerror` from *both* sides of the seam, and — the part CI can never give you — add a temporary probe to the code and watch it fire in the same run. The fix → run → read loop is seconds. In CI the same loop is a build, a queue, a run, and a truncated artifact you have to reverse-engineer: minutes per iteration, and the log is a *lossy projection* of what actually happened.
+
+A debug session that needs five iterations is five local runs (minutes) or five CI round-trips (hours). That is the pyramid's cost argument applied to the *source* of the gradient: the local stack is where you read the break; CI is where you verify the fix holds in a clean environment. CI is the *altitude* check, not the *gradient* source.
+
+### The rule
+
+**Debug locally against the real stack; use CI to confirm, not to discover.** When a test is red, run it locally first and read the full two-sided dump (add probes if you need them). Only when the local run is green do you push to CI to confirm the fix holds in a clean environment — fresh state, no local drift, the real browser.
+
+### The caveat: local drift
+
+The local stack is not CI. It drifts: a stale container, leftover data from a previous run, a detached bind mount, a service rebuilt under you. A local green is not the same as a CI green — the local stack can sit in a state CI never sees, and a local red can be the *stack*, not the code. That is why you still push to CI to confirm. But the asymmetry is the point: **a local red with the full two-sided log is always more informative than a CI red with a truncated artifact.** When the two disagree, trust the local log for *where* the break is, and CI for *whether the fix holds*. (Telling a stack-red from a code-red is the same "is this pre-existing?" question the [Worktree Rule](#the-worktree-rule-the-working-tree-is-the-deliverable) answers — the static check and the committed checkout, not a guess.)
+
+### A broken stack is a fixable local state, not a reason to give up on local
+
+The drift above is not just a caveat to tolerate — it is part of the debugging surface, and you can usually figure out locally how to make the stack work again. A stack-red has the same shape as a code-red: a local signal that points at the break. The difference is *where* the break is — in the environment, not the code — and the local tools that find it are `docker inspect` (mounts, image, env), `docker logs` (the service's own traceback), and the container state (`Up` / `Exited` / the exit code). You read the signal, you find the broken piece, you fix it locally, and the same test goes green — no CI round-trip, no code change.
+
+The real case: the media e2e tests went red with a `500 DataNotFoundError: Unable to load data for: endpoints` on every presign. The code was innocent (the media endpoint and its `boto3`/`botocore` deps were unchanged — the static check said so). The local signal did the rest: the API traceback pointed at `boto3.client("s3")`, and `docker inspect` on the API container showed its bind mount pointed at a *different, now-deleted Conductor workspace* (`indianapolis/api -> /web10`) — a detached mount, so botocore's data lookup died. The fix was local and took no code: recreate the container against the correct workspace mount (and reset the in-memory ClickHouse, which had corrupted on the unclean restart). Same tests, green, all found and fixed on the local stack.
+
+The discipline: **when a test is red, the first question is not "is the code broken?" but "is the *stack* broken?"** Read the local signal (traceback, mounts, container state) before you touch the code. If the break is in the environment, fix the environment locally and re-run — the test was never a code bug, and a CI round-trip would have told you the same thing you could have read in the local log, an hour later.
+
+
 ## The Worktree Rule: The Working Tree Is the Deliverable
 
 Every rule above assumes you can run a test, read the signal, and try again on a clean slate. In a Conductor workspace you often can't. Each Conductor workspace is a single git worktree, and the working tree in it is not a scratchpad — it is the deliverable. The uncommitted changes sitting in it are the thing you ship. That changes what you are allowed to do to it while you test.
@@ -232,4 +257,6 @@ The main theory's seam rule says "the test must drive the seam it is named for."
 
 The main theory's test ladder says "build tests from the easy floor up." This doc adds: **the ladder has a second axis the floor does not cover — state. The cold start is the easy floor; the return run is where persistence, idempotency, and session restore live. A feature is tested only when the flow is driven in both states, not just the first.**
 
-All four additions come from the same root: the LLM is shy about scope. It fixes the thing that failed and stops. It doesn't naturally ask "is this broken elsewhere?", "did I test the other button?", or "what does this look like the second time?" The process has to force it. AGENTS.md says: "when you find a bug pattern, check the rest of the subsystem." The anti-test suite says: "here are the invariants that must hold. If any of them fail, the repair isn't done." The fork rule says: "here are the paths this feature has. If one of them has no test, the feature isn't done." The state rule says: "here are the states this feature lives in. If the return run has no test, the feature isn't done."
+The main theory says "logs are the gradient." This doc adds: **the gradient is captured locally, against the real stack — not discovered in CI. Local gives the full two-sided dump and same-run probes (seconds per iteration); CI is the clean-environment altitude check you confirm against, not the place you read the break.**
+
+All five additions come from the same root: the LLM is shy about scope. It fixes the thing that failed and stops. It doesn't naturally ask "is this broken elsewhere?", "did I test the other button?", "what does this look like the second time?", or "where is the actual signal?" The process has to force it. AGENTS.md says: "when you find a bug pattern, check the rest of the subsystem." The anti-test suite says: "here are the invariants that must hold. If any of them fail, the repair isn't done." The fork rule says: "here are the paths this feature has. If one of them has no test, the feature isn't done." The state rule says: "here are the states this feature lives in. If the return run has no test, the feature isn't done." The local-gradient rule says: "the break is in the local two-sided log, not in the CI artifact — go read it there."
