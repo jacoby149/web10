@@ -637,36 +637,40 @@ function useInterface() {
         return perms;
     }
 
-    // Merge the permissions object from an app contract into an existing contract's
-    // permissions (if any), then create the updated v3 contract.
-    function applyACR(cr: any) {
-        const origin = cr.app_origin;
-        const newPerms: Record<string, string[]> = cr.permissions || {};
+// Merge the permissions object from an app contract into an existing contract's
+// permissions (if any), then upsert the v3 contract in place.
+//
+// D42 fix: this used to do add → REVOKE (a tombstone dance) when a contract
+// already existed. After a revoke the latest row is the TOMBSTONE, so the
+// dedup-then-filter read (v3ContractsLoad — which the consent filter and the
+// auto-complete depend on) doesn't see the re-grant: the popup re-renders the
+// contract instead of settling, and the fix-access re-approve never restores
+// access. `add_app_contract` upserts in place (one row per app, latest
+// permissions win), so a re-grant is visible immediately — matching the API
+// floor path (app-contracts/add) the anti-tests drive.
+function applyACR(cr: any) {
+    const origin = cr.app_origin;
+    const newPerms: Record<string, string[]> = cr.permissions || {};
 
-        const existing = (I.v3Contracts || []).find(
-            (c: any) => c.allowed_origin === origin,
-        );
+    const existing = (I.v3Contracts || []).find(
+        (c: any) => c.allowed_origin === origin,
+    );
 
-        const mergedPerms: Record<string, string[]> = {};
-        if (existing) {
-            const existingPerms: Record<string, string[]> = existing.permissions || {};
-            for (const [svc, ops] of Object.entries(existingPerms)) {
-                if (!newPerms[svc]) mergedPerms[svc] = ops;
-            }
+    const mergedPerms: Record<string, string[]> = {};
+    if (existing) {
+        const existingPerms: Record<string, string[]> = existing.permissions || {};
+        for (const [svc, ops] of Object.entries(existingPerms)) {
+            if (!newPerms[svc]) mergedPerms[svc] = ops;
         }
-        for (const [svc, ops] of Object.entries(newPerms)) {
-            mergedPerms[svc] = ops;
-        }
-
-        const perms = existing ? mergedPerms : newPerms;
-
-        return I.addV3Contract(origin, perms)
-            .then(() => {
-                if (existing) {
-                    return I.revokeV3Contract(origin).catch(() => {});
-                }
-            });
     }
+    for (const [svc, ops] of Object.entries(newPerms)) {
+        mergedPerms[svc] = ops;
+    }
+
+    const perms = existing ? mergedPerms : newPerms;
+
+    return I.addV3Contract(origin, perms);
+}
 
     // Execute a group contract — the authenticator is the trusted party.
     function applyGCR(cr: any) {

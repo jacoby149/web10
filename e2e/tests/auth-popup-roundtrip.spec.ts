@@ -116,17 +116,16 @@ test.describe('Auth popup round-trip — real consent handshake', () => {
     await popup.waitForLoadState('networkidle');
 
     // THE seam assertion: the app contract must actually render in the popup.
-    // Wait for whichever consent state appears, then require it to be the
-    // contract row — not "You're all set".
+    // (D42: a fresh user has no contract, so the consent row renders — the old
+    // "You're all set" screen is gone, replaced by zero-UI auto-complete.)
     await popup
-      .locator('[data-testid="consent-req-0"], [data-testid="consent-allset"]')
-      .first()
+      .locator('[data-testid="consent-req-0"]')
       .waitFor({ state: 'visible', timeout: 15000 });
     const contractRendered = await popup.locator('[data-testid="consent-req-0"]').isVisible();
     if (!contractRendered) {
       throw new Error(
-        'CONTRACT NEVER RENDERED in the auth popup — the popup showed "You\'re all set" ' +
-          '(zero pending contracts) instead of the app contract.\n\n' +
+        'CONTRACT NEVER RENDERED in the auth popup — the popup showed no consent row ' +
+          'instead of the app contract.\n\n' +
           handshakeDiagnostics(demoLogs, popupFull),
       );
     }
@@ -143,17 +142,14 @@ test.describe('Auth popup round-trip — real consent handshake', () => {
       throw new Error('Approval did not complete — the demo never logged "app contract APPROVED".\n\n' + handshakeDiagnostics(demoLogs, popupFull));
     }
 
-    // "Close window" makes the popup send the token; the demo receives it.
-    // (The demo only flips its button to "log out" after a second, group
-    // contract is approved — so we assert the token actually landed, which is
-    // the round-trip this spec exists to prove.)
-    await popup.locator('[data-testid="consent-close-window"]').click();
+    // D42: the popup auto-completes (token + self-close) — no "Close window"
+    // tap. The token lands on the demo via the auto-complete.
     try {
       await expect(async () => {
         expect(demoLogs.join('\n')).toContain('authListen fired — user is signed in');
       }).toPass({ timeout: 15000 });
     } catch {
-      throw new Error('Token did not land on the demo after "Close window".\n\n' + handshakeDiagnostics(demoLogs, popupFull));
+      throw new Error('Token did not land on the demo after the auto-complete.\n\n' + handshakeDiagnostics(demoLogs, popupFull));
     }
 
     // Both sides logged the handshake — the round-trip is real, not assumed.
@@ -163,7 +159,7 @@ test.describe('Auth popup round-trip — real consent handshake', () => {
     await popup.close().catch(() => {});
   });
 
-  test('full sign-in: app contract + group contract + popup closes', async ({ context, request }) => {
+  test('full sign-in: app contract (login popup) + lazy group contract (setup button)', async ({ context, request }) => {
     const { token } = await signupFreshUser(request);
     await context.addCookies([
       { name: 'token', value: token, domain: 'auth.localhost', path: '/', secure: false, httpOnly: false },
@@ -175,31 +171,42 @@ test.describe('Auth popup round-trip — real consent handshake', () => {
     await page.waitForLoadState('networkidle');
     await expect(page.locator('#authButton')).toHaveText('Log in');
 
+    // 1. Login popup: approve the app contract.
     const popupPromise = context.waitForEvent('page', { timeout: 15000 });
     await page.locator('#authButton').click();
     const popup = await popupPromise;
     const popupFull = captureFull(popup);
     await popup.waitForLoadState('networkidle');
-
-    // 1. Approve the app contract.
     await popup.locator('[data-testid="consent-req-0"]').waitFor({ state: 'visible', timeout: 15000 });
     await popup.locator('[data-testid="consent-approve-0"]').click();
     await expect(async () => {
       expect(demoLogs.join('\n')).toContain('app contract APPROVED');
     }).toPass({ timeout: 15000 });
 
-    // 2. "Close window" sends the token; the demo signs in.
-    await popup.locator('[data-testid="consent-close-window"]').click();
+    // 2. D42: the login popup auto-completes (token + self-close). The demo signs in.
     await expect(async () => {
       expect(demoLogs.join('\n')).toContain('authListen fired — user is signed in');
     }).toPass({ timeout: 15000 });
+    await expect(page.locator('#authButton')).toHaveText('log out', { timeout: 15000 });
 
-    // 3. The demo now requests the notes group contract — approve it.
-    await popup.locator('[data-testid="consent-req-0"]').waitFor({ state: 'visible', timeout: 15000 });
-    await popup.locator('[data-testid="consent-approve-0"]').click();
+    // 3. D42: the group contract is LAZY — not sent on login. The demo reads,
+    //    the group is missing (fresh user), so the "Set up your notes group"
+    //    button appears.
+    await expect(page.locator('#setupGroupBtn')).toBeVisible({ timeout: 15000 });
 
-    // 4. The demo is fully set up and closes the popup.
-    await popup.waitForEvent('close', { timeout: 15000 });
+    // 4. Click the button (a user gesture) → the group popup opens.
+    const groupPopupPromise = context.waitForEvent('page', { timeout: 15000 });
+    await page.locator('#setupGroupBtn').click();
+    const groupPopup = await groupPopupPromise;
+    await groupPopup.waitForLoadState('networkidle');
+    await groupPopup.locator('[data-testid="consent-req-0"]').waitFor({ state: 'visible', timeout: 15000 });
+    await groupPopup.locator('[data-testid="consent-approve-0"]').click();
+
+    // 5. Group created → the demo re-reads → notes view is ready.
+    await expect(async () => {
+      expect(demoLogs.join('\n')).toContain('setupGroup — group created, retrying readNotes');
+    }).toPass({ timeout: 15000 });
+    await groupPopup.waitForEvent('close', { timeout: 15000 });
   });
 
   /**
@@ -219,7 +226,7 @@ test.describe('Auth popup round-trip — real consent handshake', () => {
    * approve-all the app branch never calls sendContractResponse, so that log
    * only shows up later — mis-delivered from the group's response.
    */
-  test('approve-all fork: app contract + group contract via "Approve all" (not single Allow)', async ({ context, request }) => {
+  test('approve-all fork: app contract via "Approve all" (not single Allow) + lazy group', async ({ context, request }) => {
     const { token } = await signupFreshUser(request);
     await context.addCookies([
       { name: 'token', value: token, domain: 'auth.localhost', path: '/', secure: false, httpOnly: false },
@@ -241,31 +248,36 @@ test.describe('Auth popup round-trip — real consent handshake', () => {
     await popup.locator('[data-testid="consent-req-0"]').waitFor({ state: 'visible', timeout: 15000 });
     await popup.locator('[data-testid="consent-approve-all"]').click();
 
-    // Token lands → demo signs in → requests the group contract.
+    // Token lands → demo signs in (D42: auto-complete, no Close window).
     await expect(async () => {
       expect(demoLogs.join('\n')).toContain('authListen fired — user is signed in');
     }).toPass({ timeout: 15000 });
 
     // THE bug-catcher: the app-contract approval response must have arrived by
-    // now (before the group contract is even requested). A green that skips
-    // this is a corrupted measure — it would pass on the buggy approve-all.
+    // now (before the group is even set up — it's lazy now).
     expect(
       demoLogs.join('\n'),
       'approve-all did not send the app-contract approval response — the demo never logged ' +
-        '"app contract APPROVED" before the group contract was requested.\n\n' +
+        '"app contract APPROVED" before the group was set up.\n\n' +
         handshakeDiagnostics(demoLogs, popupFull),
     ).toContain('app contract APPROVED');
 
-    // 2. Group contract renders (the demo requested it after signing in).
-    //    Approve it via "Approve all" again.
-    await expect(async () => {
-      expect(demoLogs.join('\n')).toContain('requesting group creation via contractRequest');
-    }).toPass({ timeout: 15000 });
-    await popup.locator('[data-testid="consent-req-0"]').waitFor({ state: 'visible', timeout: 15000 });
-    await popup.locator('[data-testid="consent-approve-all"]').click();
+    // 2. D42: the group contract is LAZY. The demo reads, the group is missing,
+    //    so the "Set up your notes group" button appears. Click it (a user
+    //    gesture) → the group popup opens. Approve via "Approve all".
+    await expect(page.locator('#setupGroupBtn')).toBeVisible({ timeout: 15000 });
+    const groupPopupPromise = context.waitForEvent('page', { timeout: 15000 });
+    await page.locator('#setupGroupBtn').click();
+    const groupPopup = await groupPopupPromise;
+    await groupPopup.waitForLoadState('networkidle');
+    await groupPopup.locator('[data-testid="consent-req-0"]').waitFor({ state: 'visible', timeout: 15000 });
+    await groupPopup.locator('[data-testid="consent-approve-all"]').click();
 
-    // 3. The demo is fully set up and closes the popup.
-    await popup.waitForEvent('close', { timeout: 15000 });
+    // 3. Group created → the demo re-reads → signed in.
+    await expect(async () => {
+      expect(demoLogs.join('\n')).toContain('setupGroup — group created, retrying readNotes');
+    }).toPass({ timeout: 15000 });
+    await groupPopup.waitForEvent('close', { timeout: 15000 });
     await expect(page.locator('#authButton')).toHaveText('log out', { timeout: 15000 });
   });
 
@@ -342,17 +354,26 @@ test.describe('Auth popup round-trip — real consent handshake', () => {
       expect(demoLogs.join('\n')).toContain('app contract APPROVED');
     }).toPass({ timeout: 15000 });
 
-    // Close window → token lands → demo requests the group contract.
-    await popup1.locator('[data-testid="consent-close-window"]').click();
+    // D42: the login popup auto-completes (token + self-close). The demo signs in.
     await expect(async () => {
       expect(demoLogs.join('\n')).toContain('authListen fired — user is signed in');
     }).toPass({ timeout: 15000 });
-
-    // Approve the group contract; the popup closes.
-    await popup1.locator('[data-testid="consent-req-0"]').waitFor({ state: 'visible', timeout: 15000 });
-    await popup1.locator('[data-testid="consent-approve-0"]').click();
-    await popup1.waitForEvent('close', { timeout: 15000 });
     await expect(page.locator('#authButton')).toHaveText('log out', { timeout: 15000 });
+
+    // D42: the group contract is LAZY. The demo reads, the group is missing, so
+    // the "Set up your notes group" button appears. Click it (a user gesture) →
+    // the group popup opens. Approve it; the group is created.
+    await expect(page.locator('#setupGroupBtn')).toBeVisible({ timeout: 15000 });
+    const groupPopupPromise1 = context.waitForEvent('page', { timeout: 15000 });
+    await page.locator('#setupGroupBtn').click();
+    const groupPopup1 = await groupPopupPromise1;
+    await groupPopup1.waitForLoadState('networkidle');
+    await groupPopup1.locator('[data-testid="consent-req-0"]').waitFor({ state: 'visible', timeout: 15000 });
+    await groupPopup1.locator('[data-testid="consent-approve-0"]').click();
+    await expect(async () => {
+      expect(demoLogs.join('\n')).toContain('setupGroup — group created, retrying readNotes');
+    }).toPass({ timeout: 15000 });
+    await groupPopup1.waitForEvent('close', { timeout: 15000 });
 
     // Create a note on the first run.
     await page.locator('#curr').fill('return-run note');
@@ -367,34 +388,22 @@ test.describe('Auth popup round-trip — real consent handshake', () => {
     // --- SECOND RUN (return run) ---
     // The demo logged out, which scrubs its token cookie — so the SDK
     // return-run fast path (which requires a token) does NOT apply here. The
-    // popup opens. The app contract is already approved, so the popup filters
-    // it out and shows "all set" (or the row if a new permission were
-    // requested). Close window → token lands → demo re-requests the group
-    // contract (group contracts are never filtered). Approve it; the popup
-    // closes.
+    // popup opens. The app contract is already approved, so the popup
+    // auto-completes (token + self-close, zero UI) — no "all set" screen, no
+    // Close window. The group already exists from the first run, so the demo
+    // re-reads and the note is there. No group contract on the return run.
     const popupPromise2 = context.waitForEvent('page', { timeout: 15000 });
     await page.locator('#authButton').click();
     const popup2 = await popupPromise2;
     const popup2Full = captureFull(popup2);
     await popup2.waitForLoadState('networkidle');
 
-    // The app contract is already approved, so the popup filters it out and
-    // shows "all set" (or, if a new permission were requested, the row).
-    // Close window → token lands → demo re-requests the group contract.
-    await popup2
-      .locator('[data-testid="consent-allset"], [data-testid="consent-req-0"]')
-      .first()
-      .waitFor({ state: 'visible', timeout: 15000 });
-    await popup2.locator('[data-testid="consent-close-window"]').click();
+    // D42: the app contract is already approved, so the popup auto-completes
+    // (token + self-close). The demo signs in and re-reads — the group already
+    // exists, so the note persists.
     await expect(async () => {
       expect(demoLogs.join('\n')).toContain('authListen fired — user is signed in');
     }).toPass({ timeout: 15000 });
-
-    // The group contract is re-requested on every login (group contracts are
-    // never filtered). Approve it; the popup closes.
-    await popup2.locator('[data-testid="consent-req-0"]').waitFor({ state: 'visible', timeout: 15000 });
-    await popup2.locator('[data-testid="consent-approve-0"]').click();
-    await popup2.waitForEvent('close', { timeout: 15000 });
     await expect(page.locator('#authButton')).toHaveText('log out', { timeout: 15000 });
 
     // THE state-rule assertion: the note from the first run must survive the

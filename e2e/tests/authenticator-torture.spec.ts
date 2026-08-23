@@ -424,8 +424,8 @@ test.describe('Browser — consent forks (real popup)', () => {
     await expect(page.locator('#message')).toContainText('app contract denied', { timeout: 15000 });
     expect(demoLogs.join('\n')).toContain('app contract DENIED');
 
-    // Pending list cleared → "all set".
-    await expect(popup.locator('[data-testid="consent-allset"]')).toBeVisible({ timeout: 10000 });
+    // D42: pending list cleared → the popup auto-completes (no "all set"
+    // screen). The denial response reached the demo; no crash.
     expect(popupFull.errors, handshakeDiagnostics(demoLogs, popupFull)).toEqual([]);
   });
 
@@ -439,25 +439,31 @@ test.describe('Browser — consent forks (real popup)', () => {
       expect(demoLogs.join('\n')).toContain('app contract APPROVED');
     }).toPass({ timeout: 15000 });
 
-    // 2. Close window → token lands.
-    await popup.locator('[data-testid="consent-close-window"]').click();
+    // 2. D42: the login popup auto-completes (token + self-close). The demo signs in.
     await expect(async () => {
       expect(demoLogs.join('\n')).toContain('authListen fired — user is signed in');
     }).toPass({ timeout: 15000 });
 
-    // 3. Group contract renders → deny it.
-    await popup.locator('[data-testid="consent-req-0"]').waitFor({ state: 'visible', timeout: 15000 });
-    await popup.locator('[data-testid="consent-deny-0"]').click();
+    // 3. D42: the group contract is LAZY. The demo reads, the group is missing,
+    //    so the "Set up your notes group" button appears. Click it (a user
+    //    gesture) → the group popup opens. Deny the group contract.
+    await expect(page.locator('#setupGroupBtn')).toBeVisible({ timeout: 15000 });
+    const groupPopupPromise = context.waitForEvent('page', { timeout: 15000 });
+    await page.locator('#setupGroupBtn').click();
+    const groupPopup = await groupPopupPromise;
+    await groupPopup.waitForLoadState('networkidle');
+    await groupPopup.locator('[data-testid="consent-req-0"]').waitFor({ state: 'visible', timeout: 15000 });
+    await groupPopup.locator('[data-testid="consent-deny-0"]').click();
 
     // Each response matched its own contract: app APPROVED, group DENIED.
-    // (Asserted on the demo's console — initApp rewrites #message after the
-    // group callback, so the DOM text of the denial doesn't survive.)
+    // (Asserted on the demo's console — the setup-group callback rewrites
+    // #message after the denial, so the DOM text doesn't survive.)
     expect(demoLogs.join('\n')).toContain('app contract APPROVED');
     await expect(async () => {
-      expect(demoLogs.join('\n')).toContain('group creation DENIED');
+      expect(demoLogs.join('\n')).toContain('setupGroup — contract request failed');
     }).toPass({ timeout: 15000 });
 
-    // The group denial did not break the app flow — initApp ran.
+    // The group denial did not break the app flow — the demo is still signed in.
     await expect(page.locator('#authButton')).toHaveText('log out', { timeout: 15000 });
     expect(popupFull.errors, handshakeDiagnostics(demoLogs, popupFull)).toEqual([]);
   });
@@ -480,20 +486,19 @@ test.describe('Browser — consent forks (real popup)', () => {
     );
     expect(consoleStr).not.toContain('target: *');
 
-    // Group contract renders → deny (no group either).
-    await popup.locator('[data-testid="consent-req-0"]').waitFor({ state: 'visible', timeout: 15000 });
-    await popup.locator('[data-testid="consent-deny-0"]').click();
-
-    // initApp runs; the first CRUD 403s (no app contract) → fix-access appears.
+    // D42: the group contract is LAZY (not sent on login). The app contract
+    // was skipped, so the first CRUD 403s with an app-contract error → the
+    // "Fix access" button appears (the group is also missing, but the
+    // app-contract error takes precedence in the demo's readNotes).
     await expect(page.locator('#authButton')).toHaveText('log out', { timeout: 15000 });
     await expect(page.locator('#fixAccessBtn')).toBeVisible({ timeout: 15000 });
     expect(popupFull.errors, handshakeDiagnostics(demoLogs, popupFull)).toEqual([]);
   });
 
-  test('all-set fork: pre-granted ACR filtered → "You\'re all set" → close → token lands', async ({ page, context, request }) => {
+  test('all-set fork: pre-granted ACR → zero-UI auto-complete → token lands (no "all set" screen)', async ({ page, context, request }) => {
     const { token } = await signupFreshUser(request);
     // Pre-grant the demo's app contract (full permissions) — the popup must
-    // filter it out and show "all set", not the contract row.
+    // filter it out and auto-complete (zero UI), not show the contract row.
     await request.post(`${API_BASE}/v3/app-contracts/add`, {
       data: JSON.stringify({
         token,
@@ -516,15 +521,14 @@ test.describe('Browser — consent forks (real popup)', () => {
     const popupFull = captureFull(popup);
     await popup.waitForLoadState('networkidle');
 
-    // THE all-set assertion: no contract row, "You're all set".
-    await expect(popup.locator('[data-testid="consent-allset"]')).toBeVisible({ timeout: 15000 });
-    expect(await popup.locator('[data-testid="consent-req-0"]').count()).toBe(0);
-
-    // Close window → token lands.
-    await popup.locator('[data-testid="consent-close-window"]').click();
+    // D42: the app contract is already granted, so the popup auto-completes
+    // (token + self-close, zero UI) — no "all set" screen, no Close window.
+    // The token lands on the demo via the auto-complete.
     await expect(async () => {
       expect(demoLogs.join('\n')).toContain('authListen fired — user is signed in');
     }).toPass({ timeout: 15000 });
+    // No contract row rendered (the pre-granted ACR was filtered out).
+    expect(await popup.locator('[data-testid="consent-req-0"]').count()).toBe(0);
 
     expect(popupFull.errors, handshakeDiagnostics(demoLogs, popupFull)).toEqual([]);
     expect(pageFull.errors).toEqual([]);
@@ -590,11 +594,17 @@ test.describe('Browser — consent forks (real popup)', () => {
     await expect(popup.locator('[data-testid="login-submit"]')).toBeVisible({ timeout: 10000 });
 
     // Re-login through the form. Logout cleared the pending list — after
-    // login the popup shows "all set", not the stale contract.
+    // login the popup auto-completes (D42: no "all set" screen), not the
+    // stale contract.
     await popup.locator('#username').fill(username);
     await popup.locator('#password').fill(password);
     await popup.locator('[data-testid="login-submit"]').click();
-    await expect(popup.locator('[data-testid="consent-allset"]')).toBeVisible({ timeout: 15000 });
+    // D42: after re-login, the popup auto-completes (token + self-close). The
+    // token lands on the demo.
+    await expect(async () => {
+      expect(demoLogs.join('\n')).toContain('authListen fired — user is signed in');
+    }).toPass({ timeout: 15000 });
+    // No stale contract row.
     expect(await popup.locator('[data-testid="consent-req-0"]').count()).toBe(0);
 
     expect(popupFull.errors, handshakeDiagnostics(demoLogs, popupFull)).toEqual([]);
@@ -666,17 +676,20 @@ test.describe('Browser — consent forks (real popup)', () => {
 
     const page = await context.newPage();
     const full = captureFull(page);
-    // Consent preview mode (no opener) — zero pending contracts.
+    // Consent preview mode (no opener) — zero pending contracts. D42: no
+    // "all set" screen; the consent list renders (empty — no contract row).
     await page.goto(`${AUTH_BASE}/?consent=1`);
     await page.waitForLoadState('networkidle');
-    await expect(page.locator('[data-testid="consent-allset"]')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="consent-approve-all"]')).toBeVisible({ timeout: 15000 });
+    expect(await page.locator('[data-testid="consent-req-0"]').count()).toBe(0);
 
     // Drive the defensive path directly: zero pending → goToApp → no opener
     // → "not closing". No crash, no navigation.
     await page.evaluate(() => (window as any).I.approveAll());
     await page.waitForTimeout(500);
     expect(full.errors).toEqual([]);
-    await expect(page.locator('[data-testid="consent-allset"]')).toBeVisible();
+    // Still on the consent screen (no navigation, no crash).
+    await expect(page.locator('[data-testid="consent-approve-all"]')).toBeVisible();
   });
 });
 
