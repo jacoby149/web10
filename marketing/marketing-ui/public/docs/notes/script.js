@@ -197,11 +197,16 @@ async function deleteNote(docId) {
 // D42: the API returns distinguishable 403s so the demo shows the right button.
 // App contract missing → "No app contract for {origin} …" → Fix access.
 // Group missing / not a member → "not a member of the requested group" → Set up group.
+// The SDK's Web10Error puts the API's detail in `e.details` (e.message is the
+// generic "Request failed: 403 Forbidden"), so check both.
+function errorText(e) {
+  return `${e.message || ''} ${e.details || ''}`
+}
 function isAppContractError(e) {
-  return e.status === 403 && /no app contract/i.test(e.message || '')
+  return e.status === 403 && /no app contract/i.test(errorText(e))
 }
 function isGroupError(e) {
-  return e.status === 403 && /not a member/i.test(e.message || '')
+  return e.status === 403 && /not a member/i.test(errorText(e))
 }
 
 function showFixAccess(errorMsg) {
