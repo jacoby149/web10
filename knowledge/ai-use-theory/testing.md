@@ -190,6 +190,14 @@ A debug session that needs five iterations is five local runs (minutes) or five 
 
 The local stack is not CI. It drifts: a stale container, leftover data from a previous run, a detached bind mount, a service rebuilt under you. A local green is not the same as a CI green — the local stack can sit in a state CI never sees, and a local red can be the *stack*, not the code. That is why you still push to CI to confirm. But the asymmetry is the point: **a local red with the full two-sided log is always more informative than a CI red with a truncated artifact.** When the two disagree, trust the local log for *where* the break is, and CI for *whether the fix holds*. (Telling a stack-red from a code-red is the same "is this pre-existing?" question the [Worktree Rule](#the-worktree-rule-the-working-tree-is-the-deliverable) answers — the static check and the committed checkout, not a guess.)
 
+### A broken stack is a fixable local state, not a reason to give up on local
+
+The drift above is not just a caveat to tolerate — it is part of the debugging surface, and you can usually figure out locally how to make the stack work again. A stack-red has the same shape as a code-red: a local signal that points at the break. The difference is *where* the break is — in the environment, not the code — and the local tools that find it are `docker inspect` (mounts, image, env), `docker logs` (the service's own traceback), and the container state (`Up` / `Exited` / the exit code). You read the signal, you find the broken piece, you fix it locally, and the same test goes green — no CI round-trip, no code change.
+
+The real case: the media e2e tests went red with a `500 DataNotFoundError: Unable to load data for: endpoints` on every presign. The code was innocent (the media endpoint and its `boto3`/`botocore` deps were unchanged — the static check said so). The local signal did the rest: the API traceback pointed at `boto3.client("s3")`, and `docker inspect` on the API container showed its bind mount pointed at a *different, now-deleted Conductor workspace* (`indianapolis/api -> /web10`) — a detached mount, so botocore's data lookup died. The fix was local and took no code: recreate the container against the correct workspace mount (and reset the in-memory ClickHouse, which had corrupted on the unclean restart). Same tests, green, all found and fixed on the local stack.
+
+The discipline: **when a test is red, the first question is not "is the code broken?" but "is the *stack* broken?"** Read the local signal (traceback, mounts, container state) before you touch the code. If the break is in the environment, fix the environment locally and re-run — the test was never a code bug, and a CI round-trip would have told you the same thing you could have read in the local log, an hour later.
+
 
 ## The Worktree Rule: The Working Tree Is the Deliverable
 
