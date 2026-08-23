@@ -21,7 +21,7 @@ def _check_app_permission(request: Request, user_key: str, service: str, operati
 
 
 @router.post("/create")
-async def create_document(request: Request, data: CreateDocument):
+def create_document(request: Request, data: CreateDocument):
     """Create a document in a service. User from JWT. Server generates doc_id."""
     author = _user(data)
     _check_app_permission(request, author, data.service, "create")
@@ -41,7 +41,7 @@ async def create_document(request: Request, data: CreateDocument):
 
 
 @router.post("/read")
-async def read_documents(request: Request, data: ReadDocuments):
+def read_documents(request: Request, data: ReadDocuments):
     """Read documents. doc_id for single read, groups for discover, 'me' for own docs."""
     reader = _user(data)
     _check_app_permission(request, reader, data.service, "readAll")
@@ -81,7 +81,7 @@ async def read_documents(request: Request, data: ReadDocuments):
 
 
 @router.post("/update")
-async def update_document(request: Request, data: UpdateDocument):
+def update_document(request: Request, data: UpdateDocument):
     """Update a document (new version + optional group changes)."""
     author = _user(data)
     existing = ch.get_document(data.doc_id, author)
@@ -108,7 +108,7 @@ async def update_document(request: Request, data: UpdateDocument):
 
 
 @router.post("/delete")
-async def delete_document(request: Request, data: DeleteDocument):
+def delete_document(request: Request, data: DeleteDocument):
     """Tombstone a document and its group attachments."""
     author = _user(data)
     existing = ch.get_document(data.doc_id, author)

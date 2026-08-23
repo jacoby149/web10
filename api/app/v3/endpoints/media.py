@@ -21,7 +21,7 @@ router = APIRouter(tags=["media"])
 
 
 @router.post("/upload-url")
-async def upload_url(data: UploadUrlRequest):
+def upload_url(data: UploadUrlRequest):
     """Request a presigned POST form for uploading a file to S3."""
     user = _user(data)
     filename = data.body.get("filename")
@@ -50,7 +50,7 @@ async def upload_url(data: UploadUrlRequest):
 
 
 @router.post("/read-url")
-async def read_url(data: ReadUrlRequest):
+def read_url(data: ReadUrlRequest):
     """Request a presigned GET URL for reading a file from S3."""
     _user(data)  # validate token
     object_key = data.body.get("object_key")
@@ -70,21 +70,21 @@ async def read_url(data: ReadUrlRequest):
 
 
 @router.post("/confirm")
-async def confirm_media(data: ConfirmMedia):
+def confirm_media(data: ConfirmMedia):
     """Confirm a media upload by storing metadata."""
     user = _user(data)
     return ch.confirm_media_upload(user, data.body)
 
 
 @router.post("/list")
-async def list_media(data: ListMedia):
+def list_media(data: ListMedia):
     """List media for the user."""
     user = _user(data)
     return ch.list_media(user, limit=data.limit, offset=data.offset)
 
 
 @router.post("/delete")
-async def delete_media(data: DeleteMedia):
+def delete_media(data: DeleteMedia):
     """Delete a media record."""
     user = _user(data)
     ch.delete_media(user, data.doc_id)

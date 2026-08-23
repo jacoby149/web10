@@ -46,6 +46,6 @@ router.include_router(logs.router, prefix="")
 
 # Node stats
 @router.post("/stats", tags=["system"])
-async def node_stats():
+def node_stats():
     """Get node-level stats: users, documents, groups."""
     return ch.get_node_stats()

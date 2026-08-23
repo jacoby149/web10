@@ -8,7 +8,7 @@ router = APIRouter(tags=["blocking"])
 
 
 @router.post("/block")
-async def block_user(data: BlockUser):
+def block_user(data: BlockUser):
     """Block a user (user-wide)."""
     user = _user(data)
     ch.block_user(user, data.blocked_key)
@@ -16,7 +16,7 @@ async def block_user(data: BlockUser):
 
 
 @router.post("/unblock")
-async def unblock_user(data: BlockUser):
+def unblock_user(data: BlockUser):
     """Unblock a user."""
     user = _user(data)
     ch.unblock_user(user, data.blocked_key)

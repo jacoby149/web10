@@ -1,5 +1,6 @@
 import json
 import logging
+import threading
 import uuid
 from datetime import datetime
 
@@ -11,27 +12,39 @@ from app.services.documentdb import total_s3_size
 
 log = logging.getLogger(__name__)
 
-_client = None
+# The ClickHouse client is created lazily, PER THREAD (thread-local), not as a
+# single global. The API endpoints are sync (run in FastAPI's thread pool) and
+# the client is a blocking, single-connection object — a shared global would be
+# a data race under concurrent requests. A thread-local gives each worker thread
+# its own connection (created once on first use, then reused), so concurrent
+# requests run in parallel without blocking the event loop or racing on a
+# shared connection.
+_thread_local = threading.local()
+
+
+def _get_client():
+    client = getattr(_thread_local, "client", None)
+    if client is None:
+        client = clickhouse_connect.get_client(
+            host=settings.CLICKHOUSE_HOST,
+            port=settings.CLICKHOUSE_PORT,
+            database=settings.CLICKHOUSE_DATABASE,
+            username=settings.CLICKHOUSE_USER,
+            password=settings.CLICKHOUSE_PASSWORD,
+            secure=settings.CLICKHOUSE_SECURE,
+        )
+        _thread_local.client = client
+    return client
 
 
 class _LazyClickHouse:
     """Lazy proxy — the actual ClickHouse connection is only created on first
-    use, so the API can start even when ClickHouse isn't available yet
-    (e.g., dev stack without a ClickHouse container, or during startup
-    before ClickHouse is ready)."""
+    use (per thread), so the API can start even when ClickHouse isn't
+    available yet (e.g., dev stack without a ClickHouse container, or during
+    startup before ClickHouse is ready)."""
 
     def __getattr__(self, name):
-        global _client
-        if _client is None:
-            _client = clickhouse_connect.get_client(
-                host=settings.CLICKHOUSE_HOST,
-                port=settings.CLICKHOUSE_PORT,
-                database=settings.CLICKHOUSE_DATABASE,
-                username=settings.CLICKHOUSE_USER,
-                password=settings.CLICKHOUSE_PASSWORD,
-                secure=settings.CLICKHOUSE_SECURE,
-            )
-        return getattr(_client, name)
+        return getattr(_get_client(), name)
 
 
 client = _LazyClickHouse()

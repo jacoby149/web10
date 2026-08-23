@@ -15,7 +15,7 @@ router = APIRouter()
 
 
 @router.post("/")
-async def root():
+def root():
     """A bare API host should look intentional, not broken."""
     return RedirectResponse(url="/docs")
 
@@ -24,7 +24,7 @@ async def root():
 
 
 @router.post("/setup", tags=["system"])
-async def get_setup_status() -> SetupStatus:
+def get_setup_status() -> SetupStatus:
     """Returns whether the node has been configured."""
     return SetupStatus(
         configured=config_svc.node_is_configured(),
@@ -33,7 +33,7 @@ async def get_setup_status() -> SetupStatus:
 
 
 @router.post("/setup/configure", tags=["system"])
-async def post_setup(req: SetupRequest):
+def post_setup(req: SetupRequest):
     """First-run setup: generates JWT key, saves config, creates admin.
 
     v3: the admin is a ClickHouse user (``ch.create_user``) — the only store
@@ -71,7 +71,7 @@ async def post_setup(req: SetupRequest):
 
 
 @router.post("/config", tags=["admin"])
-async def get_config(token: Token):
+def get_config(token: Token):
     """Returns the current node config (admin only).
 
     POST (not GET) because it carries a token in the body — GET bodies are an
@@ -99,7 +99,7 @@ async def get_config(token: Token):
 
 
 @router.post("/am_admin", tags=["admin"])
-async def am_admin(token: Token):
+def am_admin(token: Token):
     """Any authenticated user can ask whether THEY are an admin of this node.
 
     Lets the console show/hide the Node Config surface without leaking the
@@ -113,7 +113,7 @@ async def am_admin(token: Token):
 
 
 @router.post("/config/update", tags=["admin"])
-async def patch_config(token: Token, update: ConfigUpdate):
+def patch_config(token: Token, update: ConfigUpdate):
     """Partially update node config (admin only)."""
     check_admin(token)
     current = config_svc.get_config()
@@ -127,7 +127,7 @@ async def patch_config(token: Token, update: ConfigUpdate):
 
 
 @router.get("/ready", tags=["system"])
-async def ready():
+def ready():
     """Health check — returns 200 if ClickHouse is reachable."""
     try:
         ch.client.command("SELECT 1")
@@ -140,7 +140,7 @@ async def ready():
 
 
 @router.post("/bug_report", tags=["issue-tracking"])
-async def submit_bug_report(req: dict):
+def submit_bug_report(req: dict):
     """Submit a bug report. Public — no auth required.
 
     Accepts: description (required), email, page_url, app_version,
@@ -177,7 +177,7 @@ async def submit_bug_report(req: dict):
 
 
 @router.post("/admin/bug_reports", tags=["issue-tracking"])
-async def admin_bug_reports(req: Token, limit: int = 100, offset: int = 0):
+def admin_bug_reports(req: Token, limit: int = 100, offset: int = 0):
     """List bug reports (admin only). Screenshots excluded — too large."""
     check_admin(req)
     reports = ch.list_bug_reports(limit=limit, offset=offset)
@@ -185,7 +185,7 @@ async def admin_bug_reports(req: Token, limit: int = 100, offset: int = 0):
 
 
 @router.post("/admin/bug_reports/{report_id}", tags=["issue-tracking"])
-async def admin_bug_report_detail(report_id: str, req: Token):
+def admin_bug_report_detail(report_id: str, req: Token):
     """Get a single bug report with screenshots (admin only)."""
     check_admin(req)
     report = ch.get_bug_report(report_id)

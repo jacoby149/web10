@@ -286,21 +286,35 @@ function useInterface() {
         }
     }
 
+    // Debounce timers (useRef so they persist across re-renders). On load/login
+    // the services load is re-triggered several times in quick succession — by
+    // the [authTick] and [acrTick] effects AND by finishLogin — and checkAdmin
+    // is re-triggered too. Each trigger bursts a set of concurrent
+    // list/manages/profile/admin calls at the API, which serialize on the
+    // single-threaded event loop and stall the "Checking node status..." /ready
+    // probe. Collapsing each into one call (50ms window) cuts the burst.
+    const _servicesLoadTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+    const _checkAdminTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
     I.servicesLoad = function () {
         if (!I.auth) {
             I.setServices([]);
             return;
         }
-        I.v3ContractsLoad();
-        I.v3GroupsLoad();
-        I.v3GroupsManagesLoad();
+        if (_servicesLoadTimer.current) clearTimeout(_servicesLoadTimer.current);
+        _servicesLoadTimer.current = setTimeout(() => {
+            _servicesLoadTimer.current = null;
+            I.v3ContractsLoad();
+            I.v3GroupsLoad();
+            I.v3GroupsManagesLoad();
 
-        I.v3.getProfile()
-            .then((profile: any) => {
-                I.setPhone(profile?.phone || "");
-                if (profile?.phone_verified) I.setVerified(true);
-            })
-            .catch(console.error);
+            I.v3.getProfile()
+                .then((profile: any) => {
+                    I.setPhone(profile?.phone || "");
+                    if (profile?.phone_verified) I.setVerified(true);
+                })
+                .catch(console.error);
+        }, 50);
     }
 
     I.verificationChange = function (value) {
@@ -363,16 +377,21 @@ function useInterface() {
             I.setIsAdmin(false);
             return;
         }
-        fetch(`${origin}/v3/apps/admin`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token }),
-        })
-            .then((r) => {
-                if (r.ok) return r.json().then((d) => I.setIsAdmin(!!d));
-                I.setIsAdmin(false);
+        // Debounce: re-triggered on load/login; collapse into one call.
+        if (_checkAdminTimer.current) clearTimeout(_checkAdminTimer.current);
+        _checkAdminTimer.current = setTimeout(() => {
+            _checkAdminTimer.current = null;
+            fetch(`${origin}/v3/apps/admin`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token }),
             })
-            .catch(() => I.setIsAdmin(false));
+                .then((r) => {
+                    if (r.ok) return r.json().then((d) => I.setIsAdmin(!!d));
+                    I.setIsAdmin(false);
+                })
+                .catch(() => I.setIsAdmin(false));
+        }, 50);
     }
 
     I.finishLogin = function () {
