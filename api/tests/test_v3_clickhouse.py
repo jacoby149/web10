@@ -709,6 +709,68 @@ class TestResolveMediaUrls:
             assert result["media_refs"][1]["read_url"] == "http://b.jpg"
 
 
+class TestResolveMinioTypes:
+    def test_no_minio_types_unchanged(self):
+        body = {"text": "hello", "age": {"type": "number", "value": 5}}
+        with patch.object(ch, "get_s3_signing_client") as mock_signing:
+            result = ch.resolve_minio_types(body)
+            assert result == body
+            mock_signing.assert_not_called()
+
+    def test_resolves_minio_type(self):
+        body = {"image": {"type": "minio", "value": "alice/cat.png"}}
+        with patch.object(ch, "get_s3_signing_client") as mock_signing:
+            mock_client = MagicMock()
+            mock_client.generate_presigned_url.return_value = "http://minio/alice/cat.png?sig=abc"
+            mock_signing.return_value = mock_client
+            result = ch.resolve_minio_types(body)
+            # type + value are kept, a fresh presigned url is added
+            assert result["image"]["type"] == "minio"
+            assert result["image"]["value"] == "alice/cat.png"
+            assert result["image"]["url"] == "http://minio/alice/cat.png?sig=abc"
+            # the input body is not mutated
+            assert "url" not in body["image"]
+            mock_client.generate_presigned_url.assert_called_once()
+
+    def test_resolves_nested_and_array_minio_types(self):
+        body = {
+            "cat": {"type": "text", "value": "henry"},
+            "cat-vids": [
+                {"type": "minio", "value": "alice/henry.mp4"},
+                {"type": "minio", "value": "alice/henry2.mp4"},
+            ],
+            "nested": {"deep": {"pic": {"type": "minio", "value": "alice/pic.jpg"}}},
+        }
+        with patch.object(ch, "get_s3_signing_client") as mock_signing:
+            mock_client = MagicMock()
+            mock_client.generate_presigned_url.side_effect = (
+                lambda *a, **k: f"http://minio/{k['Params']['Key']}?sig=x"
+            )
+            mock_signing.return_value = mock_client
+            result = ch.resolve_minio_types(body)
+            assert result["cat-vids"][0]["url"] == "http://minio/alice/henry.mp4?sig=x"
+            assert result["cat-vids"][1]["url"] == "http://minio/alice/henry2.mp4?sig=x"
+            assert result["nested"]["deep"]["pic"]["url"] == "http://minio/alice/pic.jpg?sig=x"
+            # non-minio types are left alone
+            assert result["cat"] == {"type": "text", "value": "henry"}
+
+    def test_resolve_media_urls_in_docs_resolves_minio(self):
+        docs = [
+            {"doc_id": "d1", "author_key": "alice", "body": {"image": {"type": "minio", "value": "alice/a.png"}}},
+            {"doc_id": "d2", "author_key": "alice", "body": {"text": "no media"}},
+        ]
+        with patch.object(ch, "get_s3_signing_client") as mock_signing:
+            mock_client = MagicMock()
+            mock_client.generate_presigned_url.return_value = "http://minio/alice/a.png?sig=abc"
+            mock_signing.return_value = mock_client
+            result = ch.resolve_media_urls_in_docs(docs)
+            assert result[0]["body"]["image"]["url"] == "http://minio/alice/a.png?sig=abc"
+            # a doc with no minio types is passed through untouched
+            assert result[1]["body"] == {"text": "no media"}
+            # the input docs are not mutated
+            assert "url" not in docs[0]["body"]["image"]
+
+
 # ---------------------------------------------------------------------------
 # Node stats
 # ---------------------------------------------------------------------------
