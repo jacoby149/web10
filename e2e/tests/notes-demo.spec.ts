@@ -470,7 +470,10 @@ test.describe('Notes demo anti-tests — broken contracts break the app', () => 
     await expect(async () => {
       expect(logs.join('\n')).toContain('fixAccess — contract re-approved, retrying readNotes');
     }).toPass({ timeout: 15000 });
-    await expect(page.locator('#message')).toContainText('Access restored.');
+    // D42: the popup auto-completes after the re-approve (token + self-close),
+    // which re-inits the demo and rewrites #message — so the "Access restored."
+    // text doesn't survive. The real proof of recovery is that CRUD works again
+    // (below).
 
     // Now CRUD should work again
     const noteText3 = `after fix ${Date.now()}`;

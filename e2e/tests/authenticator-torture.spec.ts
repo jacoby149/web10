@@ -420,9 +420,13 @@ test.describe('Browser — consent forks (real popup)', () => {
     await popup.locator('[data-testid="consent-req-0"]').waitFor({ state: 'visible', timeout: 15000 });
     await popup.locator('[data-testid="consent-deny-0"]').click();
 
-    // The demo handles the denial gracefully — a message, not a crash.
-    await expect(page.locator('#message')).toContainText('app contract denied', { timeout: 15000 });
-    expect(demoLogs.join('\n')).toContain('app contract DENIED');
+    // The demo handles the denial gracefully — the denial response reached it
+    // (no crash). D42: the popup then auto-completes (token + self-close), which
+    // re-inits the demo and rewrites #message — so the user-facing "denied"
+    // message doesn't survive, but the response reaching the demo is the seam.
+    await expect(async () => {
+      expect(demoLogs.join('\n')).toContain('app contract DENIED');
+    }).toPass({ timeout: 15000 });
 
     // D42: pending list cleared → the popup auto-completes (no "all set"
     // screen). The denial response reached the demo; no crash.
@@ -519,7 +523,9 @@ test.describe('Browser — consent forks (real popup)', () => {
     await page.locator('#authButton').click();
     const popup = await popupPromise;
     const popupFull = captureFull(popup);
-    await popup.waitForLoadState('networkidle');
+    // D42: the app contract is already granted, so the popup auto-completes
+    // (token + self-close, zero UI) — it may close before reaching networkidle,
+    // so do NOT wait for its networkidle. The assertions below verify the flow.
 
     // D42: the app contract is already granted, so the popup auto-completes
     // (token + self-close, zero UI) — no "all set" screen, no Close window.
@@ -527,8 +533,9 @@ test.describe('Browser — consent forks (real popup)', () => {
     await expect(async () => {
       expect(demoLogs.join('\n')).toContain('authListen fired — user is signed in');
     }).toPass({ timeout: 15000 });
-    // No contract row rendered (the pre-granted ACR was filtered out).
-    expect(await popup.locator('[data-testid="consent-req-0"]').count()).toBe(0);
+    // No contract row rendered (the pre-granted ACR was filtered out). The
+    // popup may already be closed (auto-complete), so tolerate that.
+    expect(await popup.locator('[data-testid="consent-req-0"]').count().catch(() => 0)).toBe(0);
 
     expect(popupFull.errors, handshakeDiagnostics(demoLogs, popupFull)).toEqual([]);
     expect(pageFull.errors).toEqual([]);
@@ -666,7 +673,13 @@ test.describe('Browser — consent forks (real popup)', () => {
     await expect(async () => {
       expect(demoLogs.join('\n')).toContain('fixAccess — contract re-approved, retrying readNotes');
     }).toPass({ timeout: 15000 });
-    await expect(page.locator('#message')).toContainText('Access restored.');
+    // D42: the popup auto-completes after the re-approve (token + self-close),
+    // which re-inits the demo and rewrites #message — so the "Access restored."
+    // text doesn't survive. The real proof of recovery is that the read now
+    // succeeds (the contract was re-granted).
+    await expect(async () => {
+      expect(demoLogs.join('\n')).toMatch(/readNotes — got \d+ docs/);
+    }).toPass({ timeout: 15000 });
     expect(popupFull.errors, handshakeDiagnostics(demoLogs, popupFull)).toEqual([]);
   });
 

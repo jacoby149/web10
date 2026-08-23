@@ -416,7 +416,9 @@ test.describe('Auth popup round-trip — real consent handshake', () => {
     await page.locator('#authButton').click();
     const popup2 = await popupPromise2;
     const popup2Full = captureFull(popup2);
-    await popup2.waitForLoadState('networkidle');
+    // D42: the app contract is already approved, so the popup auto-completes
+    // (token + self-close, zero UI) — it may close before reaching networkidle,
+    // so do NOT wait for its networkidle. The assertions below verify the flow.
 
     // D42: the app contract is already approved, so the popup auto-completes
     // (token + self-close). The demo signs in and re-reads — the group already
