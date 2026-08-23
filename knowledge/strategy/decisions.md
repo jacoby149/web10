@@ -9,6 +9,41 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D43 — The API runs DB endpoints in a thread pool with a thread-local ClickHouse client [decided]
+Operator, 23.08.2026, after the auth popup's "Checking node status..." hung for
+seconds on login and login felt "inconsistent — sometimes instant, sometimes 5s,
+like ClickHouse is flaky" (it wasn't):
+
+**Decided** — the v3 API endpoints (and the `/ready` health check) are `def`
+(sync), so FastAPI runs them in a worker-thread pool, and the ClickHouse client
+is a **thread-local** (each worker thread gets its own `clickhouse_connect`
+connection, created once on first use). A burst of concurrent DB requests
+occupies worker threads, not the event loop.
+
+**Why:** the endpoints used to be `async def` doing a *blocking*
+`clickhouse_connect` call. On a single-threaded asyncio loop, each request held
+the loop for the duration of its ClickHouse round-trip, so a burst of concurrent
+requests (the auth popup fires ~6 on load) **serialized**: total time ≈ the *sum*
+of the round-trips, not the max. The `/ready` probe the popup waits on was stuck
+in that queue → the multi-second "Checking node status..." hang, and the
+"sometimes instant, sometimes 5s" feel (the sum varied with the network). Making
+the endpoints sync moves the blocking work off the loop into the thread pool; the
+thread-local client means concurrent requests run in parallel without racing on a
+shared single connection (a shared `clickhouse_connect` client is not
+thread-safe).
+
+**Rejects:** `async def` endpoints calling a blocking client (blocks the loop);
+a shared global ClickHouse client (data race under concurrency); an async
+ClickHouse client (`get_async_client`) — not needed once the work is off the loop
+in a thread, and it'd touch every call site.
+
+**Scale note:** at 100k users the bottleneck moves to ClickHouse itself (and the
+HTTP ~6-connections-per-host limit), not the event loop — so a *timing* test
+("parallel is faster than serialized") is not a robust local assertion (measured
+0.9–1.2× speedup at N=20–60). The concurrency anti-test asserts *correctness*
+under a burst (all requests succeed, no cross-user data leak), not speed. See
+`e2e/tests/concurrency-torture.spec.ts`.
+
 ### D42 — The consent popup is an automatic handshake, not a tap-fest; group contracts are lazy [decided]
 Operator, 21.08.2026, after watching the notes demo re-prompt on every return run:
 "your all set just doesn't exist anymore, it sends the token and closes the popup,
