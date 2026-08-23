@@ -255,9 +255,14 @@ function ConsentView({ I }: { I: Record<string, any> }) {
     ? pendingContracts
     : pendingContracts.filter((c: any) => c.kind !== 'app' || !isAlreadyGranted(c));
 
-  // D42 auto-complete: signed in, a contract was received, nothing needs
-  // approval, and no identity mismatch → hand back the token and close, zero UI.
+  // D42 auto-complete: signed in, a contract was received, nothing is left to
+  // show (every contract is either already granted — filtered out — or already
+  // resolved by the user), and no identity mismatch → hand back the token and
+  // close, zero UI. This replaces the old "all set" screen + Close-window tap:
+  // the return run (already granted) and the first login (after the user
+  // approves) both settle here with zero taps.
   const allSettled = !!(authed && I._contractReceived && displayContracts.length === 0 && !mismatch);
+  console.log('[consent] authed:', authed, 'contractReceived:', I._contractReceived, 'pending:', pendingContracts.length, 'displayContracts:', displayContracts.length, 'mismatch:', mismatch, 'username:', username || '(none)', 'allSettled:', allSettled);
 
   React.useEffect(() => {
     if (allSettled) {

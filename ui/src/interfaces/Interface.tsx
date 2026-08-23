@@ -130,6 +130,12 @@ function useInterface() {
     // ACR: { allowed_origin, permissions } — app contract (what can this app do)
     // GCR: { app_origin, action, params } — group contract (who can see my content)
     [I.pendingContracts, I.setPendingContracts] = React.useState<any[]>([]);
+    // D42: has this popup received a contract yet? React state, NOT a plain
+    // property — `I` is recreated every render, and the contract listener
+    // (attached once, capturing the first render's `I`) would set the flag on
+    // a stale object that ConsentView never reads. The auto-complete depends
+    // on this, so it must survive the re-render that setPendingContracts causes.
+    [I._contractReceived, I.setContractReceived] = React.useState(false);
 
     // v3 service contracts (ClickHouse-backed — simpler model: origin + service)
     [I.v3Contracts, I.setV3Contracts] = React.useState<any[]>([]);
@@ -250,7 +256,7 @@ function useInterface() {
                 // (zero-UI token + close) only fires once a contract has been
                 // received AND needs no approval — never before the contract
                 // arrives.
-                I._contractReceived = true;
+                I.setContractReceived(true);
                 console.log('[auth-ui] pendingContracts state set, count:', I.pendingContracts?.length)
             }
             if (e.data?.type === 'close_popup') {
