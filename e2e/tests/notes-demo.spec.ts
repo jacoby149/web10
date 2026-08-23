@@ -641,12 +641,17 @@ test.describe('Notes demo anti-tests — broken contracts break the app', () => 
     });
     expect(deleteRes.ok()).toBeTruthy();
 
-    // Read with deleted group — should return empty
+    // Read with deleted group — D42: the group-membership gate returns a
+    // distinguishable 403 ("not a member of the requested group"), NOT an empty
+    // array. This is the 403 the demo's isGroupError() matches to show "Set up
+    // your notes group" (vs the app-contract 403 → "Fix access"). A deleted
+    // group means no access — the gate holds.
     const readRes2 = await request.post(`${API_BASE}/v3/read`, {
       data: JSON.stringify({ token, service: 'notes', groups: [groupId] }),
       headers: { 'Content-Type': 'application/json', Origin: 'http://marketing.localhost' },
     });
-    const docs2 = await readRes2.json();
-    expect(docs2.length).toBe(0);
+    expect(readRes2.status()).toBe(403);
+    const err2 = await readRes2.json();
+    expect(err2.detail).toMatch(/not a member/i);
   });
 });
