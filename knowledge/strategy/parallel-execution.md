@@ -110,11 +110,11 @@ fork. This lane drives every remaining fork through the real popup.
 ### Lane: media-demo (Phase 1)
 **Owns:** `marketing/marketing-ui/public/docs/media/`
 
-- [ ] Upload image to MinIO (presigned URL)
-- [ ] Create document with minio type in body
-- [ ] Read document back, verify presigned URL resolved
-- [ ] Display image from presigned URL
-- [ ] E2E test: upload → create → read → display
+- [✓ 3.6.0] Upload image to MinIO (presigned URL)
+- [✓ 3.6.0] Create document with minio type in body
+- [✓ 3.6.0] Read document back, verify presigned URL resolved
+- [✓ 3.6.0] Display image from presigned URL
+- [✓ 3.6.0] E2E test: upload → create → read → display
 
 ### Lane: comments-demo (Phase 1)
 **Owns:** `marketing/marketing-ui/public/docs/comments/`
