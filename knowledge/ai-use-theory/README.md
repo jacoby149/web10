@@ -15,6 +15,7 @@ The knowledge base is the root of trust. Everything else in the pyramid — logs
 | [Logging — The Signal Router](./logging.md) | How all signal flows into one queryable store — the compare phase reduced to a single SQL query, plus the cross-realm gotchas (why you can't serialize a cross-origin Window) |
 | [Testing — Anti-Tests and the Seam Rule](./testing.md) | Anti-tests as the KB with teeth, the two pyramids, the seam rule + the fork rule (one goal, many paths) + the state rule (first run and return run are different code paths) + corrupted measure, the test ladder, test rot (testing ghosts), the diagnostic dump, and local-is-the-gradient (debug locally, CI confirms) |
 | [Regressions — When the Target Moves](./regressions.md) | Why a red suite after an intentional change is *expected*, not a surprise — the two kinds of red (target moved → update the test; you broke it → fix the code), the triage question, and the corrupted measure in regression fixing |
+| [A Real-World Example — The D42 Consent Redesign](./real-world-example.md) | The theory in action, one real session end to end — a decision moves the target, KB + code follow, the tests go red, you triage the reds, find a real bug in the local logs, discover the *environment* regressed, fix the env, and the suite goes green locally then in CI |
 | [Supporting Links](./supporting-links/) | Evidence — arXiv papers and blog posts backing each claim |
 
 ## How to Read This
@@ -26,4 +27,5 @@ The knowledge base is the root of trust. Everything else in the pyramid — logs
 - **Building a new codebase?** The pyramid in the main doc is your setup order: knowledge base → logs → tests → features. [Logging](./logging.md) has the signal router pattern. [Testing](./testing.md) has the anti-test approach.
 - **Debugging?** The four-phase flow (orient → generate → compare → repair) is enforced via `AGENTS.md`. [Logging](./logging.md) covers the compare phase — the diagnostic query that replaces docker exec archaeology.
 - **Shipped an intentional change and the suite went red?** [Regressions](./regressions.md) — the reds are expected; triage each one (target moved → update the test, you broke it → fix the code) before touching anything.
+- **Want to see it all in one real session?** [A Real-World Example](./real-world-example.md) — the D42 consent redesign end to end: target moves, KB + code follow, reds triaged, a real bug found in the local logs, the environment regressed and got fixed locally, suite green then CI-confirmed.
 - **Building a feature?** Same flow — the knowledge base alignment (Phase 1) is what saves you from reimplementation due to misalignment.

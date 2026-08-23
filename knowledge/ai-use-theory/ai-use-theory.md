@@ -298,6 +298,7 @@ This approach suits the strengths of an LLM:
 - [README](./README.md) — nav hub for all the docs in this folder
 - [Testing](./testing.md) — anti-tests, the seam rule, the corrupted measure, the test ladder, test rot, the diagnostic dump, and local-is-the-gradient (debug locally, CI confirms)
 - [Regressions](./regressions.md) — why a red suite after an intentional change is expected; the two kinds of red (target moved → update the test, you broke it → fix the code), the triage question, and the corrupted measure in regression fixing
+- [A Real-World Example](./real-world-example.md) — the theory in action, one real session end to end (the D42 consent redesign): target moves, KB + code follow, reds triaged, a real bug found in the local logs, the environment regressed and got fixed locally, suite green then CI-confirmed
 - [Logging](./logging.md) — the signal router, the diagnostic query, cross-realm logging gotchas
 - [Importance of the Knowledge Base](./importance-of-knowledge-base.md) — why the knowledge base is the lynchpin
 - [Refutations](./refutations.md) — R1–R12 stress test; every objection answered and resolved
