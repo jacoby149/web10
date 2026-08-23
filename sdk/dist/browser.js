@@ -460,7 +460,8 @@
     const handoff = options.handoff === "none" ? "&handoff=none" : "";
     const url = `${authOrigin}?redirect=${encodeURIComponent(window.location.href)}${as}${handoff}`;
     console.log("[wapi] openAuthPortal — opening popup:", url, "as:", decoded?.username || "(none)", "handoff:", options.handoff || "token");
-    _authPopup = window.open(url, "web10-auth", "width=480,height=720,scrollbars=yes");
+    const winName = `web10-auth-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    _authPopup = window.open(url, winName, "width=480,height=720,scrollbars=yes");
     console.log("[wapi] openAuthPortal — popup returned:", _authPopup ? "open" : "blocked/null");
     _popupReady = false;
     if (_readyListener) {

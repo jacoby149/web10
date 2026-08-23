@@ -46,9 +46,16 @@ function openAuthPortal(authOrigin: string, options: { handoff?: 'token' | 'none
   const handoff = options.handoff === 'none' ? '&handoff=none' : ''
   const url = `${authOrigin}?redirect=${encodeURIComponent(window.location.href)}${as}${handoff}`
   console.log('[wapi] openAuthPortal — opening popup:', url, 'as:', decoded?.username || '(none)', 'handoff:', options.handoff || 'token')
+  // D42: one self-contained popup per contract — each must be a DISTINCT
+  // window. A fixed window name ('web10-auth') makes the 2nd window.open
+  // (the lazy group popup) navigate the 1st window (the login popup) if it's
+  // still inside its 300ms self-close delay, instead of opening a new one.
+  // A unique name per call guarantees a fresh window. The SDK reuses the popup
+  // via the `_authPopup` reference (not the name), so this is safe.
+  const winName = `web10-auth-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
   _authPopup = window.open(
     url,
-    'web10-auth',
+    winName,
     'width=480,height=720,scrollbars=yes',
   )
   console.log('[wapi] openAuthPortal — popup returned:', _authPopup ? 'open' : 'blocked/null')

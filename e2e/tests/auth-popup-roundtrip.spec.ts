@@ -198,15 +198,27 @@ test.describe('Auth popup round-trip — real consent handshake', () => {
     const groupPopupPromise = context.waitForEvent('page', { timeout: 15000 });
     await page.locator('#setupGroupBtn').click();
     const groupPopup = await groupPopupPromise;
+    const groupPopupFull = captureFull(groupPopup);
     await groupPopup.waitForLoadState('networkidle');
     await groupPopup.locator('[data-testid="consent-req-0"]').waitFor({ state: 'visible', timeout: 15000 });
+    // D42: the group popup auto-completes (self-close) the moment the group is
+    // created — which races with the demo's "group created" log. Start listening
+    // for the close BEFORE the approve so the event isn't missed.
+    const groupClosePromise = groupPopup.waitForEvent('close', { timeout: 15000 });
     await groupPopup.locator('[data-testid="consent-approve-0"]').click();
 
     // 5. Group created → the demo re-reads → notes view is ready.
     await expect(async () => {
       expect(demoLogs.join('\n')).toContain('setupGroup — group created, retrying readNotes');
     }).toPass({ timeout: 15000 });
-    await groupPopup.waitForEvent('close', { timeout: 15000 });
+    try {
+      await groupClosePromise;
+    } catch {
+      throw new Error('GROUP POPUP DID NOT CLOSE after approve.\n\n' + [
+        '--- GROUP POPUP uncaught exceptions ---', groupPopupFull.errors.join('\n') || '(none)',
+        '--- GROUP POPUP full console ---', groupPopupFull.console.join('\n') || '(none)',
+      ].join('\n'));
+    }
   });
 
   /**
@@ -271,13 +283,17 @@ test.describe('Auth popup round-trip — real consent handshake', () => {
     const groupPopup = await groupPopupPromise;
     await groupPopup.waitForLoadState('networkidle');
     await groupPopup.locator('[data-testid="consent-req-0"]').waitFor({ state: 'visible', timeout: 15000 });
+    // D42: the group popup self-closes the moment the group is created (races
+    // with the demo's "group created" log) — listen for the close before the
+    // approve so the event isn't missed.
+    const groupClosePromise = groupPopup.waitForEvent('close', { timeout: 15000 });
     await groupPopup.locator('[data-testid="consent-approve-all"]').click();
 
     // 3. Group created → the demo re-reads → signed in.
     await expect(async () => {
       expect(demoLogs.join('\n')).toContain('setupGroup — group created, retrying readNotes');
     }).toPass({ timeout: 15000 });
-    await groupPopup.waitForEvent('close', { timeout: 15000 });
+    await groupClosePromise;
     await expect(page.locator('#authButton')).toHaveText('log out', { timeout: 15000 });
   });
 
@@ -369,11 +385,15 @@ test.describe('Auth popup round-trip — real consent handshake', () => {
     const groupPopup1 = await groupPopupPromise1;
     await groupPopup1.waitForLoadState('networkidle');
     await groupPopup1.locator('[data-testid="consent-req-0"]').waitFor({ state: 'visible', timeout: 15000 });
+    // D42: the group popup self-closes the moment the group is created (races
+    // with the demo's "group created" log) — listen for the close before the
+    // approve so the event isn't missed.
+    const groupClosePromise1 = groupPopup1.waitForEvent('close', { timeout: 15000 });
     await groupPopup1.locator('[data-testid="consent-approve-0"]').click();
     await expect(async () => {
       expect(demoLogs.join('\n')).toContain('setupGroup — group created, retrying readNotes');
     }).toPass({ timeout: 15000 });
-    await groupPopup1.waitForEvent('close', { timeout: 15000 });
+    await groupClosePromise1;
 
     // Create a note on the first run.
     await page.locator('#curr').fill('return-run note');
