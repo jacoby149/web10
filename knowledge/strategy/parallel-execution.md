@@ -116,15 +116,6 @@ fork. This lane drives every remaining fork through the real popup.
 - [✓ 3.6.0] Display image from presigned URL
 - [✓ 3.6.0] E2E test: upload → create → read → display
 
-### Lane: comments-demo (Phase 1)
-**Owns:** `marketing/marketing-ui/public/docs/comments/`
-
-- [ ] Create a post (parent document)
-- [ ] Comment on post via ref type
-- [ ] Reply to comment via parent_ref (threading)
-- [ ] Read full thread (resolve refs)
-- [ ] E2E test: post → comment → reply → read thread
-
 ### Lane: feed-demo (Phase 1)
 **Owns:** `marketing/marketing-ui/public/docs/feed/`
 
@@ -138,13 +129,13 @@ fork. This lane drives every remaining fork through the real popup.
 ### Lane: sharing-demo (Phase 1)
 **Owns:** `marketing/marketing-ui/public/docs/sharing/`
 
-- [ ] Create group, post to it
-- [ ] Block sharing per group (toggle off)
-- [ ] Verify posts hidden from members when sharing blocked
-- [ ] Unblock sharing (toggle on), verify posts reappear
-- [ ] User-wide blacklist: block a user
-- [ ] Per-group blacklist: block a user from one group
-- [ ] E2E test: share → block → verify hidden → unblock → verify visible
+- [✓ 3.7.0] Create group, post to it
+- [✓ 3.7.0] Block sharing per group (toggle off)
+- [✓ 3.7.0] Verify posts hidden from members when sharing blocked
+- [✓ 3.7.0] Unblock sharing (toggle on), verify posts reappear
+- [✓ 3.7.0] User-wide blacklist: block a user
+- [✓ 3.7.0] Per-group blacklist: block a user from one group
+- [✓ 3.7.0] E2E test: share → block → verify hidden → unblock → verify visible
 
 ### Lane: retire-obsolete-e2e (Phase 1)
 **Owns:** `e2e/tests/`

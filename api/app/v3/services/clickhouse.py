@@ -745,10 +745,15 @@ def block_user(user_key: str, blocked_key: str):
 
 
 def unblock_user(user_key: str, blocked_key: str):
-    """Remove a user block (tombstone via INSERT SELECT)."""
+    """Remove a user block (tombstone via INSERT SELECT).
+
+    now64(6) (microsecond) — not now() (second) — so the tombstone's
+    updated_at is never earlier than the active row it supersedes when both
+    land in the same second; the reader's row_number() keys off updated_at.
+    """
     client.command(
         "INSERT INTO user_blacklist (user_key, blocked_key, created_at, updated_at, deleted) "
-        "SELECT user_key, blocked_key, created_at, now(), 1 "
+        "SELECT user_key, blocked_key, created_at, now64(6), 1 "
         "FROM user_blacklist WHERE user_key = %(user_key)s AND blocked_key = %(blocked_key)s AND deleted = 0",
         {"user_key": user_key, "blocked_key": blocked_key},
     )
@@ -771,10 +776,15 @@ def block_user_in_group(user_key: str, group_id: str, blocked_key: str):
 
 
 def unblock_user_in_group(user_key: str, group_id: str, blocked_key: str):
-    """Remove a per-group block (tombstone via INSERT SELECT)."""
+    """Remove a per-group block (tombstone via INSERT SELECT).
+
+    now64(6) (microsecond) — not now() (second) — so the tombstone's
+    updated_at is never earlier than the active row it supersedes when both
+    land in the same second; the reader's row_number() keys off updated_at.
+    """
     client.command(
         "INSERT INTO group_blacklist (user_key, group_id, blocked_key, created_at, updated_at, deleted) "
-        "SELECT user_key, group_id, blocked_key, created_at, now(), 1 "
+        "SELECT user_key, group_id, blocked_key, created_at, now64(6), 1 "
         "FROM group_blacklist WHERE user_key = %(user_key)s AND group_id = %(group_id)s AND blocked_key = %(blocked_key)s AND deleted = 0",
         {"user_key": user_key, "group_id": group_id, "blocked_key": blocked_key},
     )
@@ -823,6 +833,26 @@ def read_documents_in_groups(
 
     This is the core v3 discover query: documents JOIN doc_groups JOIN group_members,
     filtered by membership, tombstones, blacklists, and hidden docs.
+
+    Blocking/sharing enforcement (KB: security/overview.md "Blocking and
+    Sharing", social/cross-app-sharing.md):
+    - user_blacklist — the author blocked the reader: the author's content
+      is hidden from the reader, everywhere.
+    - group_blacklist — the author blocked the reader in THIS group: the
+      author's content in this group is hidden from the reader; the reader
+      still sees everyone else's content, and the author still sees the
+      reader's content (the block is one-directional).
+    - user_group_sharing — the author paused sharing in THIS group: same
+      shape as a per-group block, but the author's own reads are exempt
+      (the author keeps seeing their own posts — "pause sharing without
+      leaving").
+
+    All three tables are ReplacingMergeTree: block/unblock/toggle append a
+    new version and the old row survives until a background merge. The
+    anti-joins therefore dedup first (latest row per key, tombstones
+    included) and then filter deleted = 0 — a raw `deleted = 0` join would
+    keep matching the stale pre-unblock row and the unblock would not take
+    effect until a merge happened (nondeterministic).
     """
     if not group_ids:
         return []
@@ -839,8 +869,19 @@ def read_documents_in_groups(
         "JOIN (SELECT group_id, member_key, role FROM (SELECT group_id, member_key, role, deleted, "
         "row_number() OVER (PARTITION BY group_id, member_key ORDER BY updated_at DESC) as rn "
         "FROM group_members) WHERE rn = 1 AND deleted = 0) gm ON pg.group_id = gm.group_id "
-        "LEFT ANTI JOIN user_blacklist ub "
-        "ON ub.user_key = p.author_key AND ub.blocked_key = %(member_key)s AND ub.deleted = 0 "
+        "LEFT ANTI JOIN (SELECT user_key, blocked_key FROM (SELECT user_key, blocked_key, deleted, "
+        "row_number() OVER (PARTITION BY user_key, blocked_key ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM user_blacklist) WHERE rn = 1 AND deleted = 0) ub "
+        "ON ub.user_key = p.author_key AND ub.blocked_key = %(member_key)s "
+        "LEFT ANTI JOIN (SELECT user_key, group_id, blocked_key FROM (SELECT user_key, group_id, blocked_key, deleted, "
+        "row_number() OVER (PARTITION BY user_key, group_id, blocked_key ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM group_blacklist) WHERE rn = 1 AND deleted = 0) gb "
+        "ON gb.user_key = p.author_key AND gb.group_id = pg.group_id AND gb.blocked_key = %(member_key)s "
+        "LEFT ANTI JOIN (SELECT user_key, group_id, sharing_enabled FROM (SELECT user_key, group_id, sharing_enabled, deleted, "
+        "row_number() OVER (PARTITION BY user_key, group_id ORDER BY updated_at DESC) AS rn "
+        "FROM user_group_sharing) WHERE rn = 1 AND deleted = 0) ugs "
+        "ON ugs.user_key = p.author_key AND ugs.group_id = pg.group_id AND ugs.sharing_enabled = 0 "
+        "AND p.author_key != %(member_key)s "
         "LEFT ANTI JOIN group_hidden_docs hd "
         "ON hd.doc_id = p.doc_id AND hd.group_id = pg.group_id AND hd.deleted = 0 "
         "WHERE gm.member_key = %(member_key)s "
@@ -905,7 +946,13 @@ def get_ref_counts(doc_ids: list[str], service: str = "reactions") -> dict[str, 
 
 
 def read_document_by_id(doc_id: str, member_key: str, service: str) -> dict | None:
-    """Read a single document by doc_id with group permission check."""
+    """Read a single document by doc_id with group permission check.
+
+    The user_blacklist anti-join dedups first (latest row per key,
+    tombstones included) then filters deleted = 0 — same reason as
+    read_documents_in_groups: a raw `deleted = 0` join keeps matching the
+    stale pre-unblock row until a background merge.
+    """
     result = client.query(
         "SELECT p.doc_id, p.author_key, p.body, p.tags, p.created_at, p.ref_value "
         "FROM documents p "
@@ -914,8 +961,10 @@ def read_document_by_id(doc_id: str, member_key: str, service: str) -> dict | No
         "JOIN group_members gm ON pg.group_id = gm.group_id "
         "WHERE gm.member_key = %(member_key)s AND pg.deleted = 0 AND gm.deleted = 0 "
         ") membership ON membership.doc_id = p.doc_id "
-        "LEFT ANTI JOIN user_blacklist ub "
-        "ON ub.user_key = p.author_key AND ub.blocked_key = %(member_key)s AND ub.deleted = 0 "
+        "LEFT ANTI JOIN (SELECT user_key, blocked_key FROM (SELECT user_key, blocked_key, deleted, "
+        "row_number() OVER (PARTITION BY user_key, blocked_key ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM user_blacklist) WHERE rn = 1 AND deleted = 0) ub "
+        "ON ub.user_key = p.author_key AND ub.blocked_key = %(member_key)s "
         "WHERE p.doc_id = %(doc_id)s "
         "AND p.deleted = 0 "
         "AND p.collection_name = %(coll)s "
