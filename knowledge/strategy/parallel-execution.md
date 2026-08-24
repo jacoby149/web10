@@ -116,15 +116,6 @@ fork. This lane drives every remaining fork through the real popup.
 - [✓ 3.6.0] Display image from presigned URL
 - [✓ 3.6.0] E2E test: upload → create → read → display
 
-### Lane: comments-demo (Phase 1)
-**Owns:** `marketing/marketing-ui/public/docs/comments/`
-
-- [ ] Create a post (parent document)
-- [ ] Comment on post via ref type
-- [ ] Reply to comment via parent_ref (threading)
-- [ ] Read full thread (resolve refs)
-- [ ] E2E test: post → comment → reply → read thread
-
 ### Lane: feed-demo (Phase 1)
 **Owns:** `marketing/marketing-ui/public/docs/feed/`
 
