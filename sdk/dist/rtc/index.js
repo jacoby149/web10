@@ -39,6 +39,18 @@ function createRTC(wapi) {
           conn.on("close", () => inbound.delete(conn.peer));
         });
       }
+      return new Promise((resolve) => {
+        if (!peer) {
+          resolve();
+          return;
+        }
+        if (peer.open) {
+          resolve();
+          return;
+        }
+        peer.on("open", () => resolve());
+        setTimeout(resolve, 1e4);
+      });
     },
     connect(provider, username, origin, label = "") {
       if (!peer)
