@@ -216,6 +216,35 @@ def get_document(doc_id: str, author_key: str) -> dict | None:
     }
 
 
+def get_document_any_author(doc_id: str) -> dict | None:
+    """Get a document by doc_id without knowing the author.
+
+    Used by the HLS manifest re-check (`services/hls.py`): the stream token
+    carries the reader's username, and the endpoint must find the document
+    to verify author/membership access — the caller already holds a
+    document-bound sig, so this is not an enumeration surface.
+    """
+    result = client.query(
+        "SELECT doc_id, author_key, collection_name, body, ref_value, tags, created_at, updated_at "
+        "FROM documents WHERE doc_id = %(doc_id)s AND deleted = 0 "
+        "ORDER BY updated_at DESC LIMIT 1",
+        {"doc_id": doc_id},
+    )
+    if not result.result_rows:
+        return None
+    row = result.result_rows[0]
+    return {
+        "doc_id": row[0],
+        "author_key": row[1],
+        "service": row[2],
+        "body": _parse_json(row[3]),
+        "ref_value": row[4],
+        "tags": list(row[5]),
+        "created_at": str(row[6]),
+        "updated_at": str(row[7]),
+    }
+
+
 # ---------------------------------------------------------------------------
 # Doc Groups
 # ---------------------------------------------------------------------------

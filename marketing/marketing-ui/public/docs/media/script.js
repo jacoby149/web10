@@ -10,6 +10,8 @@ const AUTH_ORIGIN = isLocal ? 'http://auth.localhost' : isDev ? 'https://auth.de
 const API_ORIGIN = isLocal ? 'http://api.localhost' : isDev ? 'https://api.dev.web10.app' : 'https://api.web10.app'
 
 const COLLECTION = 'media'
+const TRANSCODE_POLL_MS = 2500
+const TRANSCODE_POLL_MAX = 240 // ~10 minutes of polling
 
 LOG('init — host:', host, 'isLocal:', isLocal, 'isDev:', isDev)
 LOG('AUTH_ORIGIN:', AUTH_ORIGIN)
@@ -19,6 +21,8 @@ const w = window.web10.createV3Client({ apiOrigin: API_ORIGIN })
 
 let ME = null // { username, provider } — set in initApp
 let MEDIA_GROUP = null
+const hlsInstances = new Map() // doc_id -> Hls instance (destroyed on re-render)
+let pollCount = 0
 
 // ---------------------------------------------------------------------------
 // Auth flow
@@ -204,6 +208,130 @@ async function uploadImage() {
 }
 
 // ---------------------------------------------------------------------------
+// Video upload → HLS transcode → adaptive playback (D44)
+// ---------------------------------------------------------------------------
+
+async function uploadVideo() {
+  const file = videoInput.files[0]
+  LOG('uploadVideo — called, file:', file ? `${file.name} (${file.type}, ${file.size} bytes)` : 'none')
+  if (!file) {
+    LOG('uploadVideo — no file selected, aborting')
+    message.innerHTML = 'pick a video first'
+    return
+  }
+  if (!MEDIA_GROUP) {
+    LOG_ERR('uploadVideo — MEDIA_GROUP is null')
+    message.innerHTML = 'media group not ready yet'
+    return
+  }
+
+  videoUploadBtn.disabled = true
+  try {
+    // 1. Request a presigned POST form for the upload.
+    LOG('uploadVideo — requesting presigned upload URL for:', file.name)
+    const presigned = await w.requestMediaUploadUrl({
+      filename: file.name,
+      mimeType: file.type || 'video/mp4',
+      sizeBytes: file.size,
+    })
+    LOG('uploadVideo — presigned POST ok, object_key:', presigned.object_key)
+
+    // 2. Upload the file to MinIO via the presigned POST form.
+    const formData = new FormData()
+    for (const [key, value] of Object.entries(presigned.fields || {})) {
+      formData.append(key, value)
+    }
+    formData.append('file', file, file.name)
+    LOG('uploadVideo — POSTing file to MinIO')
+    const putRes = await fetch(presigned.upload_url, { method: 'POST', body: formData })
+    LOG('uploadVideo — MinIO response status:', putRes.status)
+    if (!putRes.ok) {
+      const text = await putRes.text().catch(() => '')
+      LOG_ERR('uploadVideo — MinIO upload FAILED:', putRes.status, text)
+      throw new Error(`MinIO upload failed: ${putRes.status}`)
+    }
+    LOG('uploadVideo — file uploaded to MinIO')
+
+    // 3. Create the document. body.video carries the minio type; the API
+    //    resolves it on read, and the transcode worker reads it from here.
+    const body = {
+      video: { type: 'minio', value: presigned.object_key },
+      filename: file.name,
+      mime_type: file.type || 'video/mp4',
+      size_bytes: file.size,
+      date: new Date().toISOString(),
+    }
+    LOG('uploadVideo — creating doc, body:', JSON.stringify(body))
+    const result = await w.create(COLLECTION, body, { groups: [MEDIA_GROUP] })
+    LOG('uploadVideo — doc created, doc_id:', result.doc_id)
+
+    // 4. Queue the HLS transcode (in-process ffmpeg worker on the node).
+    const token = window.web10.readTokenCookie()
+    LOG('uploadVideo — queueing transcode for doc_id:', result.doc_id)
+    const tcRes = await fetch(`${API_ORIGIN}/v3/media/transcode`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, doc_id: result.doc_id }),
+    })
+    LOG('uploadVideo — transcode response status:', tcRes.status, 'body:', JSON.stringify(await tcRes.clone().json().catch(() => ({}))))
+    if (!tcRes.ok) {
+      throw new Error(`transcode request failed: ${tcRes.status}`)
+    }
+
+    // 5. Poll the document until transcoding settles (done | failed).
+    videoInput.value = ''
+    pollCount = 0
+    readMedia()
+    pollTranscode()
+  } catch (e) {
+    LOG_ERR('uploadVideo FAILED:', e.name, e.message, 'status:', e.status, 'details:', e.details)
+    if (isAppContractError(e)) {
+      showFixAccess('Cannot upload — your app contract may have been revoked.')
+    } else if (isGroupError(e)) {
+      showSetupGroup('Cannot upload — your media group is missing.')
+    } else {
+      message.innerHTML = `failed to upload video: ${e.message}`
+    }
+  } finally {
+    videoUploadBtn.disabled = false
+  }
+}
+
+// Re-read the group and re-render while any video doc is still processing.
+// The document is the status surface (transcoding_settings.status) — the
+// worker updates it, we just watch.
+async function pollTranscode() {
+  if (!MEDIA_GROUP) return
+  pollCount += 1
+  if (pollCount > TRANSCODE_POLL_MAX) {
+    LOG('pollTranscode — giving up after', TRANSCODE_POLL_MAX, 'polls')
+    return
+  }
+  try {
+    const docs = await w.read(COLLECTION, { groups: [MEDIA_GROUP] })
+    // "Processing" = has a video ref and hasn't settled. A brand-new doc has
+    // no transcoding_settings yet (the worker marks it processing on pickup).
+    const processing = docs.filter((d) => {
+      if (!d.body?.video) return false
+      const ts = d.body.transcoding_settings
+      if (!ts) return true
+      return ts.status !== 'done' && ts.status !== 'failed'
+    })
+    LOG('pollTranscode — poll', pollCount, '— processing docs:', processing.length)
+    displayMedia(docs)
+    if (processing.length > 0) {
+      setTimeout(pollTranscode, TRANSCODE_POLL_MS)
+    } else {
+      LOG('pollTranscode — nothing processing, stopping')
+    }
+  } catch (e) {
+    LOG_ERR('pollTranscode FAILED:', e.name, e.message, 'status:', e.status)
+    // A failed poll (network blip, contract revoked) stops the loop; the
+    // next manual readMedia() restarts it if needed.
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Delete
 // ---------------------------------------------------------------------------
 
@@ -319,9 +447,14 @@ setupGroupBtn.onclick = () => {
 // ---------------------------------------------------------------------------
 
 function displayMedia(docs) {
-  LOG('displayMedia — rendering', docs ? docs.length : 0, 'images')
+  LOG('displayMedia — rendering', docs ? docs.length : 0, 'items')
+  // Tear down hls.js instances for cards that are going away.
+  for (const [docId, hls] of hlsInstances) {
+    hls.destroy()
+    hlsInstances.delete(docId)
+  }
   if (!docs || docs.length === 0) {
-    mediaview.innerHTML = '<p class="empty">No images yet — upload one above.</p>'
+    mediaview.innerHTML = '<p class="empty">No media yet — upload an image or a video above.</p>'
     return
   }
   mediaview.innerHTML = docs
@@ -329,26 +462,104 @@ function displayMedia(docs) {
     .sort((a, b) => new Date(b.body?.date) - new Date(a.body?.date))
     .map((doc) => {
       const b = doc.body || {}
-      const img = b.image || {}
-      // The API resolved the minio type to a fresh presigned URL on read.
-      const src = img.url || ''
-      const key = img.value || ''
       const date = b.date ? new Date(b.date).toLocaleString() : ''
       // Only the author can delete (the API scopes delete to the author).
       const mine = ME && doc.author_key === ME.username
       const delBtn = mine
         ? `<button class="danger" onclick="deleteMedia('${doc.doc_id}')">Delete</button>`
         : ''
+      const actions = delBtn ? `<div class="media-actions">${delBtn}</div>` : ''
+      if (b.video) {
+        return videoCard(doc, b, date, actions)
+      }
+      const img = b.image || {}
+      // The API resolved the minio type to a fresh presigned URL on read.
+      const src = img.url || ''
+      const key = img.value || ''
       return `<div class="media-card" data-testid="media-card">
         <img data-testid="media-image" src="${escapeAttr(src)}" alt="${escapeAttr(b.filename || 'image')}" />
         <div class="media-meta">
           <span class="media-key" data-testid="media-key">${escapeHtml(key)}</span>
           <span class="media-date">${escapeHtml(date)}</span>
         </div>
-        ${delBtn ? `<div class="media-actions">${delBtn}</div>` : ''}
+        ${actions}
       </div>`
     })
     .join('')
+  // Attach players after the DOM is in place.
+  for (const doc of docs) {
+    if (doc.body?.video) attachPlayer(doc)
+  }
+}
+
+function videoCard(doc, b, date, actions) {
+  const ts = b.transcoding_settings || {}
+  const key = b.video.value || ''
+  const meta = `<div class="media-meta">
+      <span class="media-key" data-testid="media-key">${escapeHtml(key)}</span>
+      <span class="media-date">${escapeHtml(date)}</span>
+    </div>`
+  if (ts.status === 'done' && ts.enabled) {
+    const levels = (ts.variants || []).map((v) => `${v.height}p`).join(' / ')
+    return `<div class="media-card" data-testid="media-card">
+      <video data-testid="video-player" controls playsinline></video>
+      ${meta}
+      <div class="transcode-status done" data-testid="transcode-status">HLS ready — adaptive: ${escapeHtml(levels)}</div>
+      ${actions}
+    </div>`
+  }
+  if (ts.status === 'failed') {
+    return `<div class="media-card" data-testid="media-card">
+      <div class="transcode-status failed" data-testid="transcode-status">transcode failed: ${escapeHtml(ts.error || 'unknown error')}</div>
+      ${meta}
+      ${actions}
+    </div>`
+  }
+  // processing / queued / not-yet-marked
+  return `<div class="media-card" data-testid="media-card">
+    <div class="transcode-status" data-testid="transcode-status">transcoding to HLS… (${escapeHtml(ts.status || 'queued')})</div>
+    ${meta}
+    ${actions}
+  </div>`
+}
+
+// hls.js for Chrome/Firefox, native HLS on Safari. The manifest_url comes
+// from the read (the API minted the 10-minute sig when it resolved the doc).
+function attachPlayer(doc) {
+  const ts = doc.body.transcoding_settings || {}
+  if (ts.status !== 'done' || !ts.enabled || !ts.manifest_url) return
+  // Cards render newest-first; find the card whose key matches this doc.
+  const cards = [...mediaview.querySelectorAll('.media-card')]
+  const card = cards.find((c) => c.querySelector('.media-key')?.textContent === (doc.body.video.value || ''))
+  const el = card ? card.querySelector('video[data-testid="video-player"]') : null
+  if (!el) {
+    LOG_ERR('attachPlayer — no video element found for doc', doc.doc_id)
+    return
+  }
+  const manifestUrl = new URL(ts.manifest_url, API_ORIGIN).href
+  LOG('attachPlayer — doc:', doc.doc_id, 'manifest:', manifestUrl)
+  if (el.canPlayType('application/vnd.apple.mpegurl')) {
+    LOG('attachPlayer — Safari native HLS')
+    el.src = manifestUrl
+    return
+  }
+  if (window.Hls && Hls.isSupported()) {
+    const hls = new Hls()
+    hlsInstances.set(doc.doc_id, hls)
+    hls.loadSource(manifestUrl)
+    hls.attachMedia(el)
+    hls.on(Hls.Events.MANIFEST_PARSED, (e, data) => {
+      LOG('hls — manifest parsed, levels:', data.levels.length, data.levels.map((l) => l.height + 'p').join('/'))
+    })
+    hls.on(Hls.Events.LEVEL_SWITCHED, (e, data) => {
+      LOG('hls — switched to level', data.level)
+    })
+    hls.on(Hls.Events.ERROR, (e, data) => {
+      LOG_ERR('hls error — type:', data.type, 'details:', data.details, 'fatal:', data.fatal)
+    })
+    return
+  }
+  LOG_ERR('attachPlayer — no HLS support in this browser')
 }
 
 function escapeHtml(s) {
@@ -371,8 +582,8 @@ fetch(`${API_ORIGIN}/v3/apps/register`, {
   body: JSON.stringify({
     body: {
       url: `${window.location.origin}${window.location.pathname}`,
-      name: 'Media',
-      description: 'Upload an image to MinIO, store it as a minio type in your document, and read it back as a presigned URL.',
+name: 'Media',
+    description: 'Upload an image (presigned URL on read) or a video (transcoded to HLS — adaptive bitrate, signed segments) to your node.',
     },
   }),
 }).catch(() => {})

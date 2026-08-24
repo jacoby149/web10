@@ -1,11 +1,37 @@
 from fastapi import APIRouter, HTTPException, Request
 
 import app.exceptions as exceptions
+from app.services.hls import hls_prefix, mint_sig
 from app.v3.endpoints.auth_helper import user as _user
 from app.v3.models import CreateDocument, DeleteDocument, ReadDocuments, UpdateDocument
 from app.v3.services import clickhouse as ch
 
 router = APIRouter(tags=["documents"])
+
+
+def _mint_hls_manifest_urls(docs: list[dict], reader_key: str) -> list[dict]:
+    """Inject `transcoding_settings.manifest_url` into transcoded docs.
+
+    The sig is bound to (reader, doc, hls prefix) with a 10-minute TTL — the
+    expiry is the group-membership re-check cadence (minio-auth-bifurcated).
+    A path-only URL: the client prepends its API origin.
+    """
+    out = []
+    for doc in docs:
+        body = doc.get("body") or {}
+        ts = body.get("transcoding_settings") or {}
+        video = body.get("video")
+        if ts.get("enabled") and isinstance(video, dict) and video.get("value"):
+            sig = mint_sig(reader_key, doc["doc_id"], hls_prefix(str(video["value"])))
+            body = dict(body)
+            body["transcoding_settings"] = {
+                **ts,
+                "manifest_url": f"/v3/media/hls/manifest?doc_id={doc['doc_id']}&sig={sig}",
+            }
+            doc = dict(doc)
+            doc["body"] = body
+        out.append(doc)
+    return out
 
 
 def _check_app_permission(request: Request, user_key: str, service: str, operation: str) -> None:
@@ -50,7 +76,7 @@ def read_documents(request: Request, data: ReadDocuments):
         doc = ch.read_document_by_id(data.doc_id, reader, data.service)
         if not doc:
             raise exceptions.ENTRY_NOT_FOUND
-        return ch.resolve_media_urls_in_docs([doc])[0]
+        return _mint_hls_manifest_urls(ch.resolve_media_urls_in_docs([doc]), reader)[0]
 
     if not data.groups:
         raise exceptions.CRUD
@@ -77,7 +103,7 @@ def read_documents(request: Request, data: ReadDocuments):
         limit=data.limit,
         offset=data.offset,
     )
-    return ch.resolve_media_urls_in_docs(docs)
+    return _mint_hls_manifest_urls(ch.resolve_media_urls_in_docs(docs), reader)
 
 
 @router.post("/update")

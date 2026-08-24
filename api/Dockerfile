@@ -1,5 +1,11 @@
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
 
+# ffmpeg + ffprobe — the in-process HLS transcode worker (D44) shells out to
+# them. --no-install-recommends keeps the image lean.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /web10
 
 COPY pyproject.toml uv.lock ./

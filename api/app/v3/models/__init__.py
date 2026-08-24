@@ -43,6 +43,7 @@ from app.v3.models.media import (
     DeleteMedia,
     ListMedia,
     ReadUrlRequest,
+    TranscodeRequest,
     UploadUrlRequest,
 )
 
@@ -88,6 +89,7 @@ __all__ = [
     "DeleteMedia",
     "UploadUrlRequest",
     "ReadUrlRequest",
+    "TranscodeRequest",
     # appstore
     "RegisterApp",
     "CreateAppRating",

@@ -43,6 +43,16 @@ app.include_router(system.router)
 app.include_router(v3.router)
 
 
+@app.on_event("startup")
+def _start_hls_workers():
+    # The in-process HLS transcode worker (D44). Daemon threads, bounded
+    # concurrency — started at boot so a misconfigured ffmpeg fails loudly
+    # in the boot log, not on the first upload.
+    from app.services import transcode
+
+    transcode.start_workers()
+
+
 # Map bare Exception strings (raised by auth.py / services) to HTTPExceptions.
 _EXCEPTION_MAP = {
     "LOGIN": exceptions.LOGIN,
