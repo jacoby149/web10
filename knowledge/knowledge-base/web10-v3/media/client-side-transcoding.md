@@ -2,7 +2,7 @@
 
 ## The Decision
 
-Users transcode their own videos in the browser before upload. The server receives a ready-to-stream file. No server-side ffmpeg. No transcoding queue. No compute cost.
+Users can transcode their own videos in the browser before upload. The server receives a ready-to-stream file. This is a **cost optimization, not a gate**: the server always segments to HLS (v3 standard — `transcoding.md`), but if the client pre-encodes to H.264, the server job is *segmentation* (fast, no re-encode), not *transcoding* (expensive).
 
 ## Why
 
@@ -54,12 +54,12 @@ The output is a 720p H.264 MP4 with faststart (moov atom at the front for progre
 1. User selects video (could be 4K ProRes, 2GB)
 2. ffmpeg.wasm transcodes → 720p H.264 @ 2Mbps (~150MB)
 3. Upload optimized file to MinIO
-4. Document created:
-   {"media": [{"type": "minio", "value": "alice/video/upload.mp4"}]}
-5. Progressive playback via range requests (MinIO native)
+4. Server segments to HLS (fast — already H.264, no re-encode)
+5. Document created with transcoding_settings (variants + thumbnails)
+6. Adaptive playback via hls.js (signed manifest + JWT-gated segments)
 ```
 
-No transcoding queue. No Celery workers. No ffmpeg on the server. The file is ready when it arrives.
+If the client does NOT pre-encode (direct upload of a raw file), the server transcodes the full pipeline (re-encode + segment) — slower, more CPU, same result. The document shape is identical either way.
 
 ## The Trade-offs
 
@@ -73,7 +73,7 @@ ffmpeg.wasm runs on the CPU. No hardware acceleration. A 5-minute 1080p video ta
 
 ffmpeg.wasm produces worse quality than server-side ffmpeg. No hardware presets. Slower encoding profiles. The output is "good enough" for social media, not broadcast quality.
 
-**Mitigation:** the pro feature (below) exists for users who care.
+**Mitigation:** skip pre-encode for quality-critical uploads — the server-side ffmpeg does a full re-encode anyway, so uploading the raw file directly loses nothing.
 
 ### Memory
 
@@ -87,7 +87,7 @@ ffmpeg.wasm works in Chrome, Firefox, Safari. Requires SharedArrayBuffer (needs 
 
 **Mitigation:** feature detect. If SharedArrayBuffer is missing, fall back to direct upload.
 
-## Progressive Playback (No HLS Yet)
+## Progressive Playback (Fallback)
 
 The uploaded file is a single MP4. MinIO supports range requests natively. The browser can start playing before the full file downloads.
 
@@ -95,42 +95,14 @@ The uploaded file is a single MP4. MinIO supports range requests natively. The b
 <video src={presignedUrl} controls />
 ```
 
-That's it. No HLS. No manifest. No segments. Range requests handle streaming. For files under 200MB, this works fine.
-
-When HLS becomes a priority (longer videos, adaptive bitrate), add server-side HLS segmentation as a background job. The file is already H.264 — segmentation is fast.
-
-## The Pro Feature: Server-Side Transcoding
-
-Client-side transcoding is the default. Server-side transcoding is a paid feature:
-
-| | Free | Pro |
-|---|---|---|
-| Transcoding | Client-side (ffmpeg.wasm) | Server-side (ffmpeg, hardware accel) |
-| Quality | Good enough | Best quality, multiple bitrates |
-| HLS | No (range requests) | Yes (adaptive bitrate) |
-| Max resolution | 720p | 4K |
-| Formats | H.264 | H.264, AV1, H.265 |
-| Upload size | 500MB raw | 4GB raw |
-
-The pro feature is the **server doing the work**. Upload raw, server transcodes to HLS with multiple bitrates, AV1, per-title encoding. The infrastructure cost is covered by the subscription.
-
-This is a clean monetization path. Free users get social media quality. Pro users get broadcast quality. The server only transcodes for paying users.
-
-## The Mobile App (Future)
-
-- **iOS:** `AVAssetExportSession` — hardware-accelerated, fast, high quality
-- **Android:** `MediaCodec` — hardware-accelerated, fast, high quality
-
-The mobile app transcodes in seconds, not minutes. The same upload flow applies: transcode → upload → done.
+That's the fallback: a file with no `transcoding_settings` (or `enabled: false`) plays progressive via range requests. Once the HLS pipeline has run, the player uses the signed manifest + hls.js instead — adaptive bitrate, no whole-file download.
 
 ## Summary
 
-ffmpeg.wasm transcodes in the browser. User's CPU does the work. Server receives a ready-to-stream 720p H.264 file. No transcoding queue. No server-side ffmpeg. No compute cost.
+ffmpeg.wasm transcodes in the browser. User's CPU does the work. Server receives a ready-to-stream 720p H.264 file and segments it to HLS (fast — no re-encode). The document carries `transcoding_settings` either way; the player doesn't care which path produced the file.
 
-**Default:** client-side transcoding, range request playback, 720p H.264. Good enough for social media.
+**Default:** server-side transcode + segment (works for any upload, any device).
 
-**Pro feature:** server-side transcoding, HLS adaptive bitrate, multiple resolutions, AV1, 4K. For users who care about quality.
+**Optimization:** client-side pre-encode (ffmpeg.wasm) — the server job drops from transcode to segment.
 
-**Mobile app:** platform encoders (AVAssetExportSession, MediaCodec). Hardware-accelerated. Fast.
-
-The server doesn't get screwed. The user pays with their CPU. The pro feature pays with their wallet.
+**Not a gate:** HLS is the v3 standard for all video. Client-side encoding saves server CPU; it doesn't unlock a feature.

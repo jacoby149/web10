@@ -12,31 +12,9 @@ Source video document
             └─ thumbnails [0s, 92s]
 ```
 
-## v3 — No Transcoding
+## v3 — Transcoded (HLS)
 
-v3 does not transcode. The `transcoding_settings` field exists but is `false`. The source video is the only thing:
-
-```json
-{
-  "doc_id": "doc-source-abc",
-  "collection_name": "media",
-  "body": {
-    "url": {
-      "type": "minio",
-      "value": "alice/video/vacation-raw.mp4",
-      "transcoding_settings": {
-        "enabled": false
-      }
-    }
-  }
-}
-```
-
-The `"url"` is a `minio` type — the API converts it to a presigned URL. That's it. One blob, one URL, no variants.
-
-## v4 — Transcoded
-
-When transcoding happens (v4), the settings expand. The source document becomes the manifest — it carries the array of variants and thumbnails:
+v3 transcodes. Video uploads go through the HLS pipeline: ffmpeg produces adaptive-bitrate variants + a master manifest, all stored in MinIO. The source document becomes the manifest — it carries the array of variants and thumbnails:
 
 ```json
 {
@@ -58,7 +36,7 @@ When transcoding happens (v4), the settings expand. The source document becomes 
             "duration_seconds": 185.3,
             "url": {
               "type": "minio",
-              "value": "alice/video/vacation-360p.mp4"
+              "value": "alice/video/vacation/360p/index.m3u8"
             }
           },
           {
@@ -70,7 +48,7 @@ When transcoding happens (v4), the settings expand. The source document becomes 
             "duration_seconds": 185.3,
             "url": {
               "type": "minio",
-              "value": "alice/video/vacation-720p.mp4"
+              "value": "alice/video/vacation/720p/index.m3u8"
             }
           },
           {
@@ -82,7 +60,7 @@ When transcoding happens (v4), the settings expand. The source document becomes 
             "duration_seconds": 185.3,
             "url": {
               "type": "minio",
-              "value": "alice/video/vacation-1080p.mp4"
+              "value": "alice/video/vacation/1080p/index.m3u8"
             }
           }
         ],
@@ -112,7 +90,9 @@ When transcoding happens (v4), the settings expand. The source document becomes 
 }
 ```
 
-Each variant `url` is itself a `minio` type. The API resolves all of them to presigned URLs — recursively. The player reads the variants array, starts at the lowest bitrate, adapts up as bandwidth allows. Like YouTube starting fuzzy and getting crispier.
+Each variant `url` is itself a `minio` type, pointing at that rendition's HLS variant manifest (`index.m3u8` + its `.ts` segments). The **master manifest is not stored as a separate source of truth** — the API synthesizes it from the `variants` array (it's just an `EXT-X-STREAM-INF` list) and signs it. The document is the source of truth; the manifest is a view over it. The player reads the variants array, starts at the lowest bitrate, adapts up as bandwidth allows. Like YouTube starting fuzzy and getting crispier.
+
+Non-video files never carry `transcoding_settings` — or carry it as `enabled: false`. One blob, one URL, no variants.
 
 ## How a Post References a Video
 
@@ -131,25 +111,28 @@ A post refs the source video document. The source carries the transcoding settin
 }
 ```
 
-On read: ref → source video doc → `transcoding_settings.variants` → presigned URLs. The player gets the adaptive bitrate array.
+On read: ref → source video doc → `transcoding_settings` → the player requests the signed manifest from the API (synthesized from `variants`) → hls.js adapts.
 
 ## Why `transcoding_settings` on the `minio` Type
 
 The `minio` type is the only type where transcoding matters. Text, numbers, bools — none of them get transcoded. By putting `transcoding_settings` on the `minio` object, the encoding details travel with the blob reference. The API sees a `minio` type, converts to presigned URL, and the settings come along as context.
 
-For v3, `enabled: false` — the field exists, nothing to resolve. For v4, `enabled: true` — the API recursively resolves all the nested `minio` types in the variants array.
+`enabled: true` — the video serves through the signed-manifest flow: the API synthesizes the master manifest from `variants`, and segments are JWT-gated (`minio-auth-bifurcated.md`). `enabled: false` — a plain `minio` ref, presigned as usual.
 
 ## What v3 Does Not Do
 
-- No ffmpeg. No transcoding queue. No Celery workers.
-- No automatic thumbnail extraction.
-- No video analysis.
+- No per-title encoding (Netflix-style per-content bitrate analysis).
+- No AV1 (H.264 only; AV1 is a background optimization for later).
+- No P2P delivery (WebRTC segment sharing — v4, `../../web10-v4/media/peertube-p2p-stack.md`).
+- No live streaming (real-time RTMP ingest transcoding).
+- No edge caching / CDN replication.
 
-`transcoding_settings.enabled` is `false`. The client uploads the raw file, that's what the user sees. v4 turns it on.
+The pipeline is: upload → in-process ffmpeg worker → HLS variants + master manifest → MinIO → signed manifest + JWT-gated segments → hls.js playback. Details: `transcoding.md` (the pipeline), `streaming.md` (the layers), `minio-auth-bifurcated.md` (the auth split), `client-side-transcoding.md` (optional pre-encode in the browser).
 
 ## Reference
 
-Full transcoding strategy: `../web10-v4/media/transcoding.md`
-Client-side transcoding: `../web10-v4/media/client-side-transcoding.md`
-Mobile transcoding: `../web10-v4/media/mobile-transcoding.md`
-Streaming approaches: `../web10-v4/media/streaming.md`
+- Full transcoding pipeline: `transcoding.md` (in this folder)
+- Streaming layers: `streaming.md` (in this folder)
+- Auth split (presigned vs JWT segments): `minio-auth-bifurcated.md` (in this folder)
+- Why the type stays `minio`: `why-minio-not-file-types.md`, `streaming-tension.md` (in this folder)
+- Client-side pre-encode: `client-side-transcoding.md` (in this folder)
