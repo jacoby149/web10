@@ -443,4 +443,121 @@ test.describe('Feed demo gauntlet — real flow + log sequence', () => {
     await expectFeedContains(page, myPost);
     await expect(page.locator('[data-testid="feed-post"]')).toHaveCount(1, { timeout: 10000 });
   });
+
+  // ---------------------------------------------------------------------
+  // Fork rule + anti-tests: every branch the UI exposes is driven, and the
+  // broken-state consequences are verified (not just a status code).
+  // ---------------------------------------------------------------------
+
+  test('anti-test: revoke contract → post fails → Fix access (real popup) → recovery', async ({ page, context, request }) => {
+    const logs = captureConsoleLogs(page, '[feed-demo]');
+
+    const viewer = await signupAndLogin(request, 'feedfix');
+    await setTokenCookie(context, 'marketing.localhost', viewer.token);
+    await setTokenCookie(context, 'auth.localhost', viewer.token);
+    await addAppContract(request, viewer.token);
+    // Pre-create the discover group via the API so the feed works without the
+    // setup popup — this test is about the fix-access seam, not discover setup.
+    await createGroup(request, viewer.token, viewer.username, 'discover', 'open', DISCOVER_ROLES, 'member');
+
+    await page.goto(`${MARKETING_BASE}/docs/feed/`);
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('#authButton')).toHaveText('Log out');
+    await expect(page.locator('#setupDiscoverBtn')).toBeHidden({ timeout: 10000 });
+
+    // The feed works initially (post to discover).
+    const beforePost = `before revoke ${Date.now()}`;
+    await page.locator('#postText').fill(beforePost);
+    await page.locator('[data-testid="post-button"]').click();
+    await expectFeedContains(page, beforePost);
+
+    // Revoke the app contract via the API.
+    const revoke = await request.post(`${API_BASE}/v3/app-contracts/revoke`, {
+      data: JSON.stringify({ token: viewer.token, allowed_origin: ORIGIN }),
+      headers: { 'Content-Type': 'application/json', Origin: AUTH_BASE },
+    });
+    expect(revoke.ok()).toBeTruthy();
+
+    // Now a post fails with 403 → the "Fix access" button appears.
+    const afterPost = `after revoke ${Date.now()}`;
+    await page.locator('#postText').fill(afterPost);
+    await page.locator('[data-testid="post-button"]').click();
+    await expect(page.locator('#fixAccessBtn')).toBeVisible({ timeout: 10000 });
+    // Consequence: the post was NOT created (the contract gate holds).
+    expect(await page.locator('[data-testid="feed-post-text"]').allTextContents()).not.toContain(afterPost);
+
+    // Click "Fix access" — the REAL auth popup drives the re-consent.
+    const popupPromise = context.waitForEvent('page', { timeout: 20000 });
+    await page.locator('#fixAccessBtn').click();
+    const popup = await popupPromise;
+    await popup.waitForLoadState('networkidle', { timeout: 20000 });
+    await popup.locator('[data-testid="consent-req-0"]').waitFor({ state: 'visible', timeout: 20000 });
+    await popup.locator('[data-testid="consent-approve-0"]').click();
+    await popup.waitForEvent('close', { timeout: 15000 }).catch(() => {});
+
+    // Recovery: the demo's callback re-approves and the feed works again.
+    await expect(async () => {
+      expect(logs.join('\n')).toContain('fixAccess — contract re-approved, retrying loadFeed');
+    }).toPass({ timeout: 15000 });
+    const recoveredPost = `after fix ${Date.now()}`;
+    await page.locator('#postText').fill(recoveredPost);
+    await page.locator('[data-testid="post-button"]').click();
+    await expectFeedContains(page, recoveredPost);
+
+    // The fix flow was triggered (log).
+    expect(logs.join('\n')).toContain('[feed-demo] fixAccessBtn clicked');
+  });
+
+  test('fork: delete own post (author-scoped) — it disappears from the feed', async ({ page, context, request }) => {
+    const viewer = await signupAndLogin(request, 'feeddel');
+    await setTokenCookie(context, 'marketing.localhost', viewer.token);
+    await setTokenCookie(context, 'auth.localhost', viewer.token);
+    await addAppContract(request, viewer.token);
+    await createGroup(request, viewer.token, viewer.username, 'discover', 'open', DISCOVER_ROLES, 'member');
+
+    await page.goto(`${MARKETING_BASE}/docs/feed/`);
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('#authButton')).toHaveText('Log out');
+    await expect(page.locator('#setupDiscoverBtn')).toBeHidden({ timeout: 10000 });
+
+    // Post to discover.
+    const postText = `to delete ${Date.now()}`;
+    await page.locator('#postText').fill(postText);
+    await page.locator('[data-testid="post-button"]').click();
+    await expectFeedContains(page, postText);
+
+    // My own post shows a Delete button; click it.
+    await expect(page.locator('[data-testid="delete-button"]')).toHaveCount(1, { timeout: 10000 });
+    await page.locator('[data-testid="delete-button"]').click();
+
+    // Consequence: the post is gone from the feed.
+    await expect(async () => {
+      expect(await page.locator('[data-testid="feed-post-text"]').allTextContents()).not.toContain(postText);
+    }).toPass({ timeout: 10000 });
+    await expect(page.locator('[data-testid="feed-post"]')).toHaveCount(0, { timeout: 10000 });
+  });
+
+  test('fork: follow a non-existent creator → error message, no crash', async ({ page, context, request }) => {
+    const viewer = await signupAndLogin(request, 'feedghost');
+    await setTokenCookie(context, 'marketing.localhost', viewer.token);
+    await setTokenCookie(context, 'auth.localhost', viewer.token);
+    await addAppContract(request, viewer.token);
+    await createGroup(request, viewer.token, viewer.username, 'discover', 'open', DISCOVER_ROLES, 'member');
+
+    await page.goto(`${MARKETING_BASE}/docs/feed/`);
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('#authButton')).toHaveText('Log out');
+    await expect(page.locator('#setupDiscoverBtn')).toBeHidden({ timeout: 10000 });
+
+    // Follow a creator that has no followers group (ghost).
+    const ghost = `ghost-creator-${Date.now()}`;
+    await page.locator('[data-testid="creator-input"]').fill(ghost);
+    await page.locator('[data-testid="follow-button"]').click();
+
+    // Consequence: a clear error message (not a crash / not a silent no-op).
+    await expect(page.locator('#message')).toContainText('no followers group', { timeout: 10000 });
+    // The demo is still functional — the feed still renders.
+    await expect(page.locator('[data-testid="feed-post"]')).toHaveCount(0, { timeout: 10000 });
+    await expect(page.locator('#feed')).toBeVisible();
+  });
 });
