@@ -9,6 +9,45 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D45 — `authListen` dedupes redundant same-user token deliveries [decided]
+Operator, 24.08.2026, after the sharing demo (#666) printed "sharing group
+ready" twice on a normal login.
+
+**Decided** — the SDK's `authListen` (browser.ts) no longer re-fires the
+signed-in callback when the delivered token decodes to the SAME user already
+in the cookie. It still refreshes the cookie (a same-user token can carry a
+newer expiry), but the "signed in" signal fires only on a real transition:
+first login (no current token). A user switch is still rejected by the D42
+identity check before the dedupe is even reached. The sharing demo's
+`initApp` is also idempotent (an `appInitialized` flag) as defense-in-depth.
+
+**Why:** the consent popup hands back the token on every "return to app"
+(`goToApp` → `postMessage({type:'auth'})`), and a normal D42 flow opens TWO
+popups (login + lazy group), so the same user's token is delivered twice.
+Every delivery re-fired the callback, so the app re-ran `initApp` and
+re-appended its "ready" line — user-visible duplicate UI state. The re-fire
+served no purpose: by the time a same-user token arrives, the cookie already
+proves the app is acting as that user, and every demo (and the documented
+`if (isSignedIn()) initApp() else authListen(initApp)` pattern) restores the
+session from the cookie on page load, so the app has already initialized. The
+one imagined benefit (re-init to pick up a refreshed token) is broken anyway:
+`v3Post` resolves `state.token ?? readTokenCookie()`, and `state.token` is
+frozen at client creation, so a re-init re-renders the UI (cookie-first
+`readToken()`) while API calls keep using the stale in-memory token.
+
+**Rejects:** per-demo guards as the only fix (the same latent bug is in every
+demo — hello/notes/messages/groups/media/tasks — a shared-component bug
+belongs in the shared component) · token-string-equality dedupe (would not
+suppress a same-user *refreshed* token, so it wouldn't guarantee the fix) ·
+changing `v3Post`'s `state.token ?? cookie` precedence to fix the refresh case
+(bigger behavior change, pinned by `v3.test.ts`; the refresh-reinit case is
+rare and already broken, so it's out of scope here).
+
+**Note (known wart, not fixed here):** `state.token` shadows the cookie in
+`v3Post`, so a same-user token *refresh* updates the cookie but not the
+in-memory token API calls use. Tracked for a follow-up; out of scope for this
+bug fix.
+
 ### D44 — HLS is v3; P2P delivery stays v4 [decided]
 Operator, 23.08.2026, after the media demo (#661) landed: "we should do hls in
 v3, that is like the one feature that makes this legit legit youtube vs bs" ·

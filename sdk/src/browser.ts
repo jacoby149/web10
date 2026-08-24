@@ -108,9 +108,24 @@ function authListen(
         )
         return
       }
-      console.log('[wapi] auth event received from popup, setting token cookie')
+      // Dedupe: the popup hands back the token on every "return to app" (the
+      // login popup AND the lazy group popup each send an `auth` message). If
+      // the app is already acting as this user, the cookie already proves it —
+      // re-firing the callback would make the app re-initialize for nothing
+      // (duplicate UI state, e.g. "sharing group ready" printed twice). The
+      // cookie is still refreshed (a same-user token can carry a newer
+      // expiry); the "signed in" signal fires only on a real transition. A
+      // user switch is rejected above, so the only fire is a first login.
+      const sameUser =
+        !!currentDecoded?.username &&
+        !!incoming?.username &&
+        currentDecoded.username === incoming.username
+      console.log(
+        '[wapi] auth event received from popup, setting token cookie' +
+          (sameUser ? ' (same user — skipping signed-in callback)' : ''),
+      )
       setTokenCookie(e.data.token)
-      onSignedIn(true)
+      if (!sameUser) onSignedIn(true)
     }
   }
   window.addEventListener('message', handler)
