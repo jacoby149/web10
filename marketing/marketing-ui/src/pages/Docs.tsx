@@ -21,6 +21,7 @@ const DEMO_APPS = [
   { slug: 'messages', title: 'Messages', url: '/docs/messages/index.html' },
   { slug: 'groups', title: 'Groups', url: '/docs/groups/index.html' },
   { slug: 'media', title: 'Media', url: '/docs/media/index.html' },
+  { slug: 'feed', title: 'Feed', url: '/docs/feed/index.html' },
   { slug: 'sharing', title: 'Sharing', url: '/docs/sharing/index.html' },
 ]
 

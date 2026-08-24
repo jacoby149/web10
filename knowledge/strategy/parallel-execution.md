@@ -119,12 +119,12 @@ fork. This lane drives every remaining fork through the real popup.
 ### Lane: feed-demo (Phase 1)
 **Owns:** `marketing/marketing-ui/public/docs/feed/`
 
-- [ ] Create/join discover group (open, auto-join)
-- [ ] Post to discover group
-- [ ] Create followers groups for 2-3 test users
-- [ ] Follow creators (join followers groups)
-- [ ] Read combined feed from discover + followers
-- [ ] E2E test: post → follow → read combined feed
+- [✓ 3.7.2] Create/join discover group (open, auto-join)
+- [✓ 3.7.2] Post to discover group
+- [✓ 3.7.2] Create followers groups for 2-3 test users
+- [✓ 3.7.2] Follow creators (join followers groups)
+- [✓ 3.7.2] Read combined feed from discover + followers
+- [✓ 3.7.2] E2E test: post → follow → read combined feed
 
 ### Lane: sharing-demo (Phase 1)
 **Owns:** `marketing/marketing-ui/public/docs/sharing/`
