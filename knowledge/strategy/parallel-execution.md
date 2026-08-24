@@ -145,6 +145,7 @@ fork. This lane drives every remaining fork through the real popup.
 - [✓ 3.7.0] User-wide blacklist: block a user
 - [✓ 3.7.0] Per-group blacklist: block a user from one group
 - [✓ 3.7.0] E2E test: share → block → verify hidden → unblock → verify visible
+- [✓ 3.7.1] Fix: "sharing group ready" printed twice (redundant `auth` token re-fired `initApp` — now idempotent + anti-test)
 
 ### Lane: retire-obsolete-e2e (Phase 1)
 **Owns:** `e2e/tests/`

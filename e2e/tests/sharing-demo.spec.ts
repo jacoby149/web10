@@ -470,6 +470,39 @@ test.describe('Sharing demo — browser gauntlet', () => {
     );
   });
 
+  test('redundant auth token does not re-init (no duplicate "sharing group ready")', async ({ page, context, request }) => {
+    // The consent popup hands back the token on every "return to app" — the
+    // login popup AND the lazy group popup each send an `auth` message, so the
+    // demo can receive the same token twice. Re-running initApp on the second
+    // delivery used to append "sharing group ready" a second time.
+    await setupSignedInDemo(page, context, request, true);
+    const full = captureFull(page);
+
+    await page.goto(`${MARKETING_BASE}/docs/sharing/`);
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('#message')).toContainText('sharing group ready', { timeout: 10000 });
+
+    // Simulate the duplicate delivery: post the current cookie's token as an
+    // `auth` message, exactly as the popup's goToApp would.
+    await page.evaluate(() => {
+      const m = document.cookie.match(/(?:^|;\s*)token=([^;]+)/);
+      window.postMessage({ type: 'auth', token: m ? m[1] : null }, '*');
+    });
+
+    // The demo skips the redundant init...
+    await expect
+      .poll(() => full.console.some((l) => l.includes('initApp — already initialized, skipping redundant auth event')))
+      .toBeTruthy();
+
+    // ...and "sharing group ready" appears exactly once.
+    const readyCount = await page.evaluate(
+      () => (document.querySelector('#message')?.textContent || '').split('sharing group ready').length - 1,
+    );
+    expect(readyCount, '"sharing group ready" must appear exactly once').toBe(1);
+
+    expect(full.errors, `pageerrors:\n${full.errors.join('\n')}`).toHaveLength(0);
+  });
+
   test('per-group block via UI: hidden from member, unblock restores', async ({ page, context, request }) => {
     const { username, token, groupId } = await setupSignedInDemo(page, context, request, true);
     const b = await signupFreshUser(request, 'shbgb');
