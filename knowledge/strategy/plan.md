@@ -65,7 +65,7 @@ and log sequence verification.
 
 - [✓] **Messages** (`messages/`) — DM group contract (invite_only, deterministic ID) + WebRTC P2P. Send/receive via CRUD and via data channel. E2E.
 - [✓] **Groups** (`groups/`) — group management: create, roles, join policies (open/request/invite_only), invite, join, leave, approve/deny. E2E.
-- [ ] **Media** (`media/`) — MinIO upload, `minio` type in document body, presigned URL on read, display. E2E.
+- [✓] **Media** (`media/`) — MinIO upload, `minio` type in document body, presigned URL on read, display. E2E.
 - [ ] **Comments** (`comments/`) — refs: comment on a post via `ref`, reply via `parent_ref` (threading), read the thread. E2E.
 - [ ] **Feed** (`feed/`) — discover group + followers groups, multi-group read. Post to discover, follow creators, read combined feed. E2E.
 - [ ] **Sharing** (`sharing/`) — block sharing per group, user-wide + per-group blacklists. E2E.
@@ -74,3 +74,18 @@ and log sequence verification.
 
 - [✓] **Approve-all fork** — drive "Approve all & continue" through the real popup (was untested; carried a real bug — the app-contract response was dropped, so the opener's callback fired late). Fixed via a shared `approveOne` helper.
 - [✓] **Full fork audit** — every remaining fork driven through the real popup (deny app / deny group / skip / all-set / logout / details diff / mixed / edge / fix-access), plus the core-core authenticator torture test (signup, login, state rule, config wizard, security-model anti-tests) — `e2e/tests/authenticator-torture.spec.ts` (36 tests). Caught 8 real bugs (wizard POSTed config to the status endpoint; v2 Mongo admin that can't log in; dead "already configured" guard; empty passwords accepted; wizard Storage→Welcome off-by-one; `I.wapi` never assigned so the desktop logout menu never rendered; wizard swallowed configure errors; fix-access e2e seam violation). All fixed. The `auth-consent-forks` lane is complete.
+
+## Phase 2 — HLS: The Video Spine
+
+**Where:** `api/app/v3/` (media endpoints + worker), `marketing/web10-social/` (player)
+
+HLS is v3 (D44) — "the one feature that makes this legit legit youtube vs
+bs." Adaptive bitrate is user-visible at every scale; P2P delivery is a
+bandwidth-economics play that only pays off at M2+ concurrent-viewer scale
+(and ships a security surface we don't need yet) — it stays v4. The KB is
+the spec: `knowledge/knowledge-base/web10-v3/media/`.
+
+- [ ] **Transcode worker** (`api/app/v3/endpoints/media.py`, `api/app/services/media.py`) — video upload → in-process ffmpeg worker (dedicated thread, bounded concurrency) → 360p/720p/1080p HLS renditions + master manifest + thumbnails → MinIO → document updated with `transcoding_settings`.
+- [ ] **Signed segments** (`api/app/v3/endpoints/media.py`) — API synthesizes the master manifest from `transcoding_settings.variants`; JWT sig on manifest + every segment (10-min TTL); middleware on video paths only; expiry → manifest re-fetch → group membership re-check.
+- [ ] **Player** (`marketing/web10-social/`) — hls.js (Safari native fallback) reading `transcoding_settings` from the document; progressive range-request fallback for non-transcoded files.
+- [ ] **E2E** (`e2e/tests/hls.spec.ts`) — upload small video → transcode completes → manifest + segments 200 with token; 403 without token / expired token (anti-tests).

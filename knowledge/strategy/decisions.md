@@ -9,6 +9,53 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D44 — HLS is v3; P2P delivery stays v4 [decided]
+Operator, 23.08.2026, after the media demo (#661) landed: "we should do hls in
+v3, that is like the one feature that makes this legit legit youtube vs bs" ·
+"fuck the peertube stuff! too complicated" · "also creates security questions,
+what if people send bullshit shards" · "we NEED to have 'a' platform!!!!" ·
+"can leave that p2p one in v4 folder"
+
+**Decided** — HLS transcoding is a v3 feature, not a v4 one. The pipeline:
+video upload → in-process ffmpeg worker (dedicated thread, bounded
+concurrency) → HLS renditions (360p/720p/1080p) + master manifest +
+thumbnails → MinIO → signed manifest + JWT on every segment (bifurcated auth)
+→ hls.js playback (Safari native). The document shape is
+`transcoding_settings.enabled: true` + variants + thumbnails on the `minio`
+type (the v3 schema that already existed, now actually used). P2P delivery
+(PeerTube's WebTorrent + P2P Media Loader stack) stays v4. The KB was
+reorganized to match: `web10-v3/media/` now holds the full pipeline
+(transcoding, streaming, minio-auth-bifurcated, streaming-tension,
+why-minio-not-file-types, client-side-transcoding, transcoding-foundation);
+`web10-v4/media/` holds only the scale layers (streaming-at-scale,
+peertube-p2p-stack). `mobile-transcoding.md` deleted (pre-D41 — the client is
+a PWA, not a native app).
+
+**Why:** adaptive bitrate is the difference between "video works" and "video
+is legit" — it's the YouTube bar, and it's user-visible at *every* scale (a
+3G phone, café Wi-Fi, a desktop on fiber). P2P is the opposite shape: an
+*economics* optimization (bandwidth cost scales sub-linearly with concurrent
+viewers), not a capability. At v3 audience size there are no concurrent
+viewers, so P2P saves nothing and ships a real security surface (untrusted
+peer shards — torrent piece-hashing makes corruption detectable, but the
+channel is still untrusted input from arbitrary peers) plus NAT/TURN
+operational pain, for zero demo value. D20 test — does it make the creator
+platform better? HLS: yes, it's the feature that makes the platform a real
+video platform. P2P: not until M2+ scale makes bandwidth cost a felt problem.
+
+**Rejects:** client-side-only transcoding as the whole story (ffmpeg.wasm is
+a cost optimization — the server always segments to HLS; pre-encoding just
+makes the server job cheaper, it's not a free-tier gate) · P2P in v3 (scale
++ security surface + ops pain, no user-visible capability) · native mobile
+transcoding (D41: PWA, not a native app) · Celery/Redis as the v3 transcoding
+queue (the node targets a one-container deploy; an in-process worker with a
+bounded ffmpeg subprocess is simpler and the job interface — in, manifest out
+— doesn't change if a node ever outgrows it).
+
+**Supersedes:** the "v3 — No Transcoding" position in the old
+`transcoding-foundation.md` (the field existed but was `false`; now video
+uploads are transcoded by default).
+
 ### D43 — The API runs DB endpoints in a thread pool with a thread-local ClickHouse client [decided]
 Operator, 23.08.2026, after the auth popup's "Checking node status..." hung for
 seconds on login and login felt "inconsistent — sometimes instant, sometimes 5s,

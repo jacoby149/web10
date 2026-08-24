@@ -15,15 +15,9 @@ v4 is everything that requires the foundation to be stable first:
 
 ## Media
 
-The full media pipeline — transcoding, streaming, P2P delivery:
+P2P delivery at scale. The working media pipeline (HLS transcoding, streaming layers, auth split) is v3 — `../web10-v3/media/`:
 
-- `media/streaming.md` — range requests, HLS transcoding, WebRTC P2P, edge caching, tile-based streaming
-- `media/transcoding.md` — ffmpeg pipeline, HLS segments, presigned URL auth for streaming
-- `media/client-side-transcoding.md` — ffmpeg.wasm in the browser. User's CPU does the work.
-- `media/mobile-transcoding.md` — React Native with hardware encoders (AVAssetExportSession, MediaCodec)
-- `media/streaming-tension.md` — when `minio` isn't enough. Type concern vs infrastructure concern.
-- `media/why-minio-not-file-types.md` — why one media type, not `video`/`audio`/`image`
-- `media/minio-auth-bifurcated.md` — presigned URLs for everything except video HLS (JWT + middleware)
+- `media/streaming.md` — streaming at scale: WebRTC P2P, edge caching, tile-based
 - `media/peertube-p2p-stack.md` — PeerTube's WebTorrent + P2P Media Loader + hls.js + Video.js stack
 
 ## Also in v3 files
@@ -36,5 +30,5 @@ Some v3 docs have sections that are v4 territory. The v3 files have been trimmed
 
 ## Summary
 
-v3 is: groups, CRUD, ClickHouse, auth, social app screens.
-v4 is: federation, media pipeline, real-time, finance, advanced SDK, monetization.
+v3 is: groups, CRUD, ClickHouse, auth, social app screens, HLS media pipeline.
+v4 is: federation, P2P delivery at scale, real-time, finance, advanced SDK, monetization.
