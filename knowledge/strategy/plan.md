@@ -76,7 +76,7 @@ and log sequence verification.
 
 ## Phase 2 — HLS: The Video Spine
 
-**Where:** `api/app/v3/` (media endpoints + worker), `marketing/web10-social/` (player)
+**Where:** `api/app/v3/` (media endpoints + worker), `marketing/marketing-ui/public/docs/media/` (demo player)
 
 HLS is v3 (D44) — "the one feature that makes this legit legit youtube vs
 bs." Adaptive bitrate is user-visible at every scale; P2P delivery is a
@@ -84,7 +84,7 @@ bandwidth-economics play that only pays off at M2+ concurrent-viewer scale
 (and ships a security surface we don't need yet) — it stays v4. The KB is
 the spec: `knowledge/knowledge-base/web10-v3/media/`.
 
-- [ ] **Transcode worker** (`api/app/v3/endpoints/media.py`, `api/app/services/media.py`) — video upload → in-process ffmpeg worker (dedicated thread, bounded concurrency) → 360p/720p/1080p HLS renditions + master manifest + thumbnails → MinIO → document updated with `transcoding_settings`.
-- [ ] **Signed segments** (`api/app/v3/endpoints/media.py`) — API synthesizes the master manifest from `transcoding_settings.variants`; JWT sig on manifest + every segment (10-min TTL); middleware on video paths only; expiry → manifest re-fetch → group membership re-check.
-- [ ] **Player** (`marketing/web10-social/`) — hls.js (Safari native fallback) reading `transcoding_settings` from the document; progressive range-request fallback for non-transcoded files.
-- [ ] **E2E** (`e2e/tests/hls.spec.ts`) — upload small video → transcode completes → manifest + segments 200 with token; 403 without token / expired token (anti-tests).
+- [✓] **Transcode worker** (`api/app/services/transcode.py`, `api/app/v3/endpoints/media.py`) — video upload → in-process ffmpeg worker (dedicated daemon threads, bounded concurrency, NOT the request pool) → 360p/720p/1080p HLS renditions + thumbnails → MinIO → document updated with `transcoding_settings` (status: processing → done|failed; the doc is the status surface).
+- [✓] **Signed segments** (`api/app/services/hls.py`, `api/app/v3/endpoints/media.py`) — a read of a transcoded doc mints a 10-min JWT (sig) bound to (reader, doc, hls prefix); the manifest endpoint verifies the sig AND re-checks access (author or group membership) — the expiry is the re-check cadence. Master manifest synthesized from `transcoding_settings.variants` (doc is source of truth, manifest is a view); variant manifests rewrite every segment to a signed URL; segments stream from MinIO sig-only (no DB, traversal rejected).
+- [✓] **Player** (`marketing/marketing-ui/public/docs/media/`) — the media demo gains a video flow: upload → queue transcode → poll the doc → hls.js playback (Safari native fallback, vendored hls.js). The demo is the HLS unit test; web10-social adoption is a follow-up.
+- [✓] **E2E** (`e2e/tests/hls.spec.ts`) — API floor (upload → transcode → manifest → variant → segment bytes, MPEG-TS sync byte) + anti-tests (no sig / EXPIRED sig / cross-doc sig / non-member sig / traversal) + browser gauntlet (real demo: upload → "HLS ready" → hls.js manifest parsed → video duration > 0, log sequence). 40 API unit tests in `api/tests/test_hls.py`.

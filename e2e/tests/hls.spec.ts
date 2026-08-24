@@ -19,8 +19,10 @@ const password = 'TestPass123!';
 
 // The committed 8s 320x240 H.264/AAC test video (e2e/fixtures/test-video.mp4).
 import { readFileSync } from 'fs';
-import { resolve } from 'path';
-const TEST_VIDEO = readFileSync(resolve(__dirname, '../fixtures/test-video.mp4'));
+import { dirname, resolve } from 'path';
+import { fileURLToPath } from 'url';
+const here = dirname(fileURLToPath(import.meta.url));
+const TEST_VIDEO = readFileSync(resolve(here, '../fixtures/test-video.mp4'));
 
 async function signupFreshUser(request: APIRequestContext): Promise<{ username: string; token: string }> {
   const username = uniqueUser('hls');

@@ -13,6 +13,12 @@ from app.endpoints import auth, system
 from app.middleware import log_requests
 from app.v3 import endpoints as v3
 
+# App loggers (web10-transcode, web10-media, ...) log at INFO — without a
+# root handler Python's last-resort handler drops everything below WARNING,
+# so the transcode worker's lifecycle (queued → ffmpeg → done) would be
+# invisible. Copious logging is a feature here (open-source project).
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+
 app = FastAPI(
     title="web10",
     openapi_tags=docs.tags_metadata,

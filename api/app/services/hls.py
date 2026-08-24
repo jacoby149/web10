@@ -100,13 +100,20 @@ def variant_tag(variant: dict) -> str:
 
 def synthesize_master_manifest(doc_id: str, sig: str, variants: list[dict]) -> str:
     """The master manifest is a VIEW over `transcoding_settings.variants` —
-    the document is the source of truth (transcoding-foundation.md)."""
+    the document is the source of truth (transcoding-foundation.md).
+
+    No CODECS attribute: it's optional (RFC 8216), and hls.js's M3U8 parser
+    splits attribute values on commas even inside quotes — a combined
+    'avc1.x,mp4a.x' value gets truncated into a malformed codec string and
+    every level is filtered as incompatible. Omitting it makes hls.js probe
+    the actual segments, which also avoids hardcoded profile/level drift.
+    """
     lines = ["#EXTM3U"]
     for v in variants:
         tag = variant_tag(v)
         lines.append(
             f"#EXT-X-STREAM-INF:BANDWIDTH={int(v['bitrate_kbps']) * 1000},"
-            f"RESOLUTION={v['width']}x{v['height']},CODECS='avc1.4d401e,mp4a.40.2'"
+            f"RESOLUTION={v['width']}x{v['height']}"
         )
         lines.append(f"/v3/media/hls/variant?doc_id={doc_id}&variant={tag}&sig={sig}")
     return "\n".join(lines) + "\n"

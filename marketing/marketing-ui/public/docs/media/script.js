@@ -538,11 +538,11 @@ function attachPlayer(doc) {
   }
   const manifestUrl = new URL(ts.manifest_url, API_ORIGIN).href
   LOG('attachPlayer — doc:', doc.doc_id, 'manifest:', manifestUrl)
-  if (el.canPlayType('application/vnd.apple.mpegurl')) {
-    LOG('attachPlayer — Safari native HLS')
-    el.src = manifestUrl
-    return
-  }
+  // hls.js first — it works on Chrome, Firefox, AND modern Safari (MSE).
+  // Native HLS is the fallback for older Safari only. (Chromium on macOS
+  // reports canPlayType('...mpegurl') as supported via AVFoundation, but
+  // headless Chromium can't actually play it — hls.js is the deterministic
+  // path everywhere.)
   if (window.Hls && Hls.isSupported()) {
     const hls = new Hls()
     hlsInstances.set(doc.doc_id, hls)
@@ -557,6 +557,11 @@ function attachPlayer(doc) {
     hls.on(Hls.Events.ERROR, (e, data) => {
       LOG_ERR('hls error — type:', data.type, 'details:', data.details, 'fatal:', data.fatal)
     })
+    return
+  }
+  if (el.canPlayType('application/vnd.apple.mpegurl')) {
+    LOG('attachPlayer — native HLS (older Safari)')
+    el.src = manifestUrl
     return
   }
   LOG_ERR('attachPlayer — no HLS support in this browser')

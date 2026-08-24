@@ -161,19 +161,20 @@ enforcement).
 - [~] `gauntlet.spec.ts` — 5 social-app render tests + 2 v3-API tests (join-approval, cross-user isolation I3) that were FAILING on correct v3 login → investigate (possible real bugs). (PR #648)
 
 ### Lane: hls (Phase 2)
-**Owns:** `api/app/v3/endpoints/media.py`, `api/app/services/media.py`, `marketing/web10-social/` (player + upload flow), `e2e/tests/hls.spec.ts`
+**Owns:** `api/app/v3/endpoints/media.py`, `api/app/services/{transcode,hls}.py`, `marketing/marketing-ui/public/docs/media/` (demo player), `e2e/tests/hls.spec.ts`
 
 HLS is v3 (D44) — "the one feature that makes this legit legit youtube vs
-bs." Upload → in-process ffmpeg worker (dedicated thread, NOT the FastAPI
-request pool, bounded concurrency 1–2) → HLS renditions (360p/720p/1080p) +
-master manifest + thumbnails → MinIO → signed manifest + JWT on every
-segment (bifurcated auth) → hls.js playback (Safari native). The KB is
-aligned and is the spec: `knowledge/knowledge-base/web10-v3/media/`
+bs." Upload → in-process ffmpeg worker (dedicated daemon threads, NOT the
+FastAPI request pool, bounded concurrency) → HLS renditions (360p/720p/
+1080p) + thumbnails → MinIO → signed manifest + JWT on every segment
+(bifurcated auth) → hls.js playback (Safari native). The KB is aligned and
+is the spec: `knowledge/knowledge-base/web10-v3/media/`
 (`transcoding-foundation.md` = the model, `transcoding.md` = the pipeline,
 `minio-auth-bifurcated.md` = the auth split, `streaming.md` = the layers).
 P2P stays v4 — do not build it here.
 
-- [ ] Transcode worker: video upload → ffmpeg (subprocess) → 360p/720p/1080p HLS renditions + master manifest + thumbnails → MinIO → document updated with `transcoding_settings` (enabled, variants, thumbnails)
-- [ ] Signed manifest + segment serving: API synthesizes the master manifest from `transcoding_settings.variants` (document is the source of truth), JWT sig on manifest + every segment (10-min TTL), middleware validates on video paths only, token expiry → manifest re-fetch → group membership re-check
-- [ ] hls.js player in web10-social (Safari native fallback), reads `transcoding_settings` from the document; progressive range-request fallback for non-transcoded files
-- [ ] E2E: upload a small video → transcode completes → manifest + segments 200 with token; 403 without token / with expired token (anti-tests, I3)
+- [✓ 3.7.2] Transcode worker: video upload → ffmpeg (subprocess) → 360p/720p/1080p HLS renditions + thumbnails → MinIO → document updated with `transcoding_settings` (status: processing → done|failed; the doc is the status surface) — `api/app/services/transcode.py` + `POST /v3/media/transcode`
+- [✓ 3.7.2] Signed manifest + segment serving: a read mints a 10-min JWT (sig) bound to (reader, doc, hls prefix); the manifest endpoint verifies the sig AND re-checks access (author or group membership) — the expiry is the re-check cadence. Master manifest synthesized from `transcoding_settings.variants` (doc is source of truth, manifest is a view); variant manifests rewrite every segment to a signed URL; segments stream from MinIO sig-only (no DB, traversal rejected) — `api/app/services/hls.py` + `GET /v3/media/hls/{manifest,variant,segment}`
+- [✓ 3.7.2] Player in the media demo (the HLS unit test): upload → queue transcode → poll the doc → hls.js playback (Safari native fallback, vendored hls.js) — `marketing/marketing-ui/public/docs/media/`
+- [✓ 3.7.2] E2E: API floor (upload → transcode → manifest → variant → segment bytes, MPEG-TS sync byte) + anti-tests (no sig / EXPIRED sig / cross-doc sig / non-member sig / traversal) + browser gauntlet (real demo: upload → "HLS ready" → hls.js manifest parsed → video duration > 0, log sequence) — `e2e/tests/hls.spec.ts` + 40 API unit tests in `api/tests/test_hls.py`
+- [ ] web10-social adoption: reuse the demo's hls.js player in the social app's video feed (follow-up — the demo proves the pipeline, the app is the integration test)
