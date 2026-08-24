@@ -91,10 +91,10 @@ fork. This lane drives every remaining fork through the real popup.
 - [✓ 3.5.0] DM group contract: create invite_only group with deterministic ID
 - [✓ 3.5.0] Send message via CRUD (attach to DM group)
 - [✓ 3.5.0] Receive/read messages via group read
-- [ ] WebRTC: initP2P with token, connect to peer
-- [ ] WebRTC: send data over P2P channel
-- [ ] WebRTC: receive data via onInbound callback
-- [ ] E2E test: DM CRUD + WebRTC P2P round-trip (DM CRUD half done in 3.5.0; WebRTC P2P half open)
+- [✓ 3.8.0] WebRTC: initP2P with token, connect to peer
+- [✓ 3.8.0] WebRTC: send data over P2P channel
+- [✓ 3.8.0] WebRTC: receive data via onInbound callback
+- [✓ 3.8.0] E2E test: DM CRUD + WebRTC P2P round-trip (DM CRUD half done in 3.5.0; WebRTC P2P half done in 3.8.0)
 
 ### Lane: groups-demo (Phase 1)
 **Owns:** `marketing/marketing-ui/public/docs/groups/`
@@ -119,12 +119,12 @@ fork. This lane drives every remaining fork through the real popup.
 ### Lane: feed-demo (Phase 1)
 **Owns:** `marketing/marketing-ui/public/docs/feed/`
 
-- [ ] Create/join discover group (open, auto-join)
-- [ ] Post to discover group
-- [ ] Create followers groups for 2-3 test users
-- [ ] Follow creators (join followers groups)
-- [ ] Read combined feed from discover + followers
-- [ ] E2E test: post → follow → read combined feed
+- [✓ 3.7.2] Create/join discover group (open, auto-join)
+- [✓ 3.7.2] Post to discover group
+- [✓ 3.7.2] Create followers groups for 2-3 test users
+- [✓ 3.7.2] Follow creators (join followers groups)
+- [✓ 3.7.2] Read combined feed from discover + followers
+- [✓ 3.7.2] E2E test: post → follow → read combined feed
 
 ### Lane: sharing-demo (Phase 1)
 **Owns:** `marketing/marketing-ui/public/docs/sharing/`

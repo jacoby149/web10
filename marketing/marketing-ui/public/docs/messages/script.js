@@ -14,18 +14,97 @@ const isDev = host === 'dev.web10.app' || host.endsWith('.dev.web10.app')
 const isLocal = host === 'localhost' || host === '127.0.0.1' || host.endsWith('.localhost')
 const AUTH_ORIGIN = isLocal ? 'http://auth.localhost' : isDev ? 'https://auth.dev.web10.app' : 'https://auth.web10.app'
 const API_ORIGIN = isLocal ? 'http://api.localhost' : isDev ? 'https://api.dev.web10.app' : 'https://api.web10.app'
+const RTC_SERVER = isLocal ? 'rtc.localhost' : isDev ? 'rtc.dev.web10.app' : 'rtc.web10.app'
 const SERVICE = 'web10-docs-message-demo'
+// P2P: the peer ID is `${provider} ${username} ${site} ${label}` (dots→underscores).
+// `site` is the token's `site` claim (node default "web10"); `label` scopes the
+// connection to this demo. Both parties must use the same label + site to match.
+const P2P_LABEL = 'messages-demo'
+let P2P_SITE = 'web10' // updated from the signed-in token in initApp
 
 LOG('init — host:', host, 'isLocal:', isLocal, 'isDev:', isDev)
-LOG('AUTH_ORIGIN:', AUTH_ORIGIN, 'API_ORIGIN:', API_ORIGIN)
+LOG('AUTH_ORIGIN:', AUTH_ORIGIN, 'API_ORIGIN:', API_ORIGIN, 'RTC_SERVER:', RTC_SERVER)
 
-const w = window.web10.createV3Client({ apiOrigin: API_ORIGIN })
+const w = window.web10.createV3Client({ apiOrigin: API_ORIGIN, rtcServer: RTC_SERVER })
 
 // The textarea is id="msgText" (NOT "body" — a bare `body` resolves to
 // document.body, not the input).
 const msgText = document.getElementById('msgText')
 
 let ME = null // { username, provider } — set in initApp
+
+// ---------------------------------------------------------------------------
+// WebRTC P2P — real-time delivery over a data channel (the group + CRUD is
+// the source of truth; P2P is the fast path that refreshes the recipient).
+// ---------------------------------------------------------------------------
+
+let rtc = null        // the RTC connector (createRTC(w))
+let p2pReady = false  // true once the local peer is open (signaling connected)
+
+if (window.web10rtc && window.Peer) {
+  window.web10rtc.setPeer(window.Peer)
+  rtc = window.web10rtc.createRTC(w)
+  LOG('RTC module + PeerJS loaded — P2P available, awaiting sign-in to init')
+  p2pStatus.textContent = 'P2P: standby'
+} else {
+  LOG_ERR('RTC module (web10rtc) or PeerJS (Peer) missing — P2P disabled, CRUD-only delivery')
+  p2pStatus.textContent = 'P2P: unavailable'
+}
+
+/**
+ * Initialize the P2P peer once signed in. Resolves when the local peer is
+ * open (its signaling connection is established) — only then can we connect
+ * to a remote peer without losing the first message.
+ */
+async function initP2P() {
+  if (!rtc) {
+    LOG('initP2P — rtc is null, skipping')
+    return
+  }
+  LOG('initP2P — initializing, secure:', !isLocal, 'rtcServer:', RTC_SERVER, 'label:', P2P_LABEL)
+  try {
+    await rtc.initP2P(onInbound, P2P_LABEL, !isLocal)
+    p2pReady = true
+    const localId = rtc.peerId(ME.provider, ME.username, P2P_SITE, P2P_LABEL)
+    LOG('initP2P — P2P READY, local peerId:', localId)
+    p2pStatus.textContent = 'P2P: ready'
+    p2pStatus.style.color = '#22c55e'
+  } catch (e) {
+    LOG_ERR('initP2P FAILED:', e.name, e.message)
+    p2pStatus.textContent = 'P2P: error'
+    p2pStatus.style.color = '#ef4444'
+  }
+}
+
+/**
+ * Inbound P2P data from a peer. The payload mirrors the CRUD message body.
+ * We re-read the inbox from the group (CRUD = source of truth) so the display
+ * stays consistent with the persisted messages and never duplicates.
+ */
+function onInbound(conn, data) {
+  LOG('onInbound — P2P message from peer:', conn.peer)
+  LOG('onInbound — data:', JSON.stringify(data))
+  readMessages()
+}
+
+/**
+ * Fire-and-forget P2P delivery of a just-persisted message to the recipient.
+ * Skipped (CRUD-only) if P2P isn't ready — the message still lands via the
+ * group, the recipient just won't get the real-time nudge.
+ */
+function sendP2P(toProv, toUser, payload) {
+  if (!rtc || !p2pReady) {
+    LOG('sendP2P — P2P not ready, skipping (CRUD-only delivery)')
+    return
+  }
+  LOG('sendP2P — sending over P2P to', `${toProv}/${toUser}`, 'site:', P2P_SITE, 'label:', P2P_LABEL)
+  try {
+    const result = rtc.send(toProv, toUser, P2P_SITE, P2P_LABEL, payload)
+    LOG('sendP2P — result:', JSON.stringify(result))
+  } catch (e) {
+    LOG_ERR('sendP2P FAILED:', e.name, e.message)
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Auth flow
@@ -72,7 +151,8 @@ function initApp() {
     return
   }
   ME = { username: t.username, provider: t.provider }
-  LOG('initApp — signed in as:', `${ME.provider}/${ME.username}`)
+  P2P_SITE = t.site || 'web10'
+  LOG('initApp — signed in as:', `${ME.provider}/${ME.username}`, 'site:', P2P_SITE)
   authButton.innerHTML = 'Log out'
   authButton.onclick = () => {
     LOG('signOut clicked')
@@ -84,6 +164,10 @@ function initApp() {
   // Default recipient: yourself, so the demo round-trips with one login.
   toUsername.value = ME.username
   toProvider.value = ME.provider
+
+  // Initialize P2P (resolves when the local peer is open). Runs alongside the
+  // inbox read — by the time a message is sent, the peer is ready.
+  initP2P()
 
   // Load the inbox (the read is the test — a 403 means the contract was
   // revoked, which surfaces "Fix access").
@@ -208,6 +292,7 @@ async function sendMessage() {
     if (existing) {
       LOG('sendMessage — creating message in existing group:', existing)
       await w.create(SERVICE, payload, { groups: [existing] })
+      sendP2P(toProv, toUser, payload)
       onSent(toUser, toProv)
       return
     }
@@ -217,6 +302,7 @@ async function sendMessage() {
       try {
         LOG('sendMessage — creating message in new group:', groupId)
         await w.create(SERVICE, payload, { groups: [groupId] })
+        sendP2P(toProv, toUser, payload)
         onSent(toUser, toProv)
       } catch (err) {
         LOG_ERR('sendMessage — create FAILED:', err.name, err.message, 'status:', err.status)

@@ -15,7 +15,9 @@ import { Web10Error } from './http';
  * Sets up the auth_ready listener immediately — the popup sends auth_ready
  * once on mount, then the app sends its contract.
  */
-declare function openAuthPortal(authOrigin: string): Window | null;
+declare function openAuthPortal(authOrigin: string, options?: {
+    handoff?: 'token' | 'none';
+}): Window | null;
 /**
  * Listen for auth events from the popup.
  */
@@ -25,10 +27,15 @@ declare function authListen(onSignedIn: (signedIn: boolean) => void): () => void
  * when it's still open (avoiding a second popup that gets blocked).
  */
 declare function createV3Client(options?: Parameters<typeof _createV3Client>[0]): V3Client;
+/**
+ * Close the auth popup (called by the app after all contracts are done).
+ */
+declare function closeAuthPopup(): void;
 declare const web10: {
     createV3Client: typeof createV3Client;
     openAuthPortal: typeof openAuthPortal;
     authListen: typeof authListen;
+    closeAuthPopup: typeof closeAuthPopup;
     cookieDict: typeof cookieDict;
     readTokenCookie: typeof readTokenCookie;
     setTokenCookie: typeof setTokenCookie;

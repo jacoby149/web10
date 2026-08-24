@@ -39,8 +39,8 @@ export declare function createRTC(wapi: V3Client): RTCConnector;
 export interface RTCConnector {
     /** Generate a peer ID */
     peerId(provider: string, user: string, origin: string, label?: string): string;
-    /** Initialize P2P */
-    initP2P(onInbound: ((conn: PeerConnection, data: unknown) => void) | null, label?: string, secure?: boolean): void;
+    /** Initialize P2P (resolves when the local peer is open) */
+    initP2P(onInbound: ((conn: PeerConnection, data: unknown) => void) | null, label?: string, secure?: boolean): Promise<void>;
     /** Get or create an outbound connection */
     connect(provider: string, username: string, origin: string, label?: string): PeerConnection;
     /** Send data to a peer */
@@ -63,6 +63,7 @@ interface PeerConnection {
 }
 interface PeerInstance {
     id: string;
+    open: boolean;
     on(event: string, handler: (...args: unknown[]) => void): void;
     connect(id: string): PeerConnection;
 }
