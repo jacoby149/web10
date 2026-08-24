@@ -21,6 +21,11 @@ const w = window.web10.createV3Client({ apiOrigin: API_ORIGIN })
 const SERVICE = 'web10-docs-sharing-demo'
 let SHARING_GROUP = null
 let MY_USERNAME = null
+// Set once initApp has run. The popup can hand back the token more than once
+// (every "return to app" sends an `auth` message), and a page-load restore can
+// race one — re-running initApp would re-append "sharing group ready".
+// signOut() does a full reload, so the flag never outlives a session.
+let appInitialized = false
 
 // ---------------------------------------------------------------------------
 // Auth flow
@@ -72,6 +77,11 @@ window.web10.authListen(() => {
 // ---------------------------------------------------------------------------
 
 function initApp() {
+  if (appInitialized) {
+    LOG('initApp — already initialized, skipping redundant auth event')
+    return
+  }
+  appInitialized = true
   LOG('initApp — setting up signed-in state')
   authButton.innerHTML = 'log out'
   authButton.onclick = () => {

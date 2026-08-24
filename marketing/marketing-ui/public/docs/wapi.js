@@ -489,9 +489,11 @@
           console.warn("[wapi] auth event — token user mismatch (current:", currentDecoded.username, ", incoming:", incoming.username, ") — rejecting to prevent identity hijack");
           return;
         }
-        console.log("[wapi] auth event received from popup, setting token cookie");
+        const sameUser = !!currentDecoded?.username && !!incoming?.username && currentDecoded.username === incoming.username;
+        console.log("[wapi] auth event received from popup, setting token cookie" + (sameUser ? " (same user — skipping signed-in callback)" : ""));
         setTokenCookie(e.data.token);
-        onSignedIn(true);
+        if (!sameUser)
+          onSignedIn(true);
       }
     };
     window.addEventListener("message", handler);
