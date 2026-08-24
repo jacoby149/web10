@@ -68,7 +68,7 @@ and log sequence verification.
 - [✓] **Media** (`media/`) — MinIO upload, `minio` type in document body, presigned URL on read, display. E2E.
 - [ ] **Comments** (`comments/`) — refs: comment on a post via `ref`, reply via `parent_ref` (threading), read the thread. E2E.
 - [ ] **Feed** (`feed/`) — discover group + followers groups, multi-group read. Post to discover, follow creators, read combined feed. E2E.
-- [ ] **Sharing** (`sharing/`) — block sharing per group, user-wide + per-group blacklists. E2E.
+- [✓] **Sharing** (`sharing/`) — block sharing per group, user-wide + per-group blacklists. E2E.
 
 **Authenticator consent forks (the shared seam every demo drives):**
 
