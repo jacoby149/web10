@@ -483,18 +483,21 @@ test.describe('Sharing demo — browser gauntlet', () => {
     await expect(page.locator('#message')).toContainText('sharing group ready', { timeout: 10000 });
 
     // Simulate the duplicate delivery: post the current cookie's token as an
-    // `auth` message, exactly as the popup's goToApp would.
+    // `auth` message, exactly as the popup's goToApp would on a second
+    // "return to app". The SDK dedupes it (same user already in the cookie) —
+    // it refreshes the cookie but does NOT re-fire the signed-in callback, so
+    // the demo never re-inits.
     await page.evaluate(() => {
       const m = document.cookie.match(/(?:^|;\s*)token=([^;]+)/);
       window.postMessage({ type: 'auth', token: m ? m[1] : null }, '*');
     });
 
-    // The demo skips the redundant init...
+    // The SDK receives the redundant event and skips the callback...
     await expect
-      .poll(() => full.console.some((l) => l.includes('initApp — already initialized, skipping redundant auth event')))
+      .poll(() => full.console.some((l) => l.includes('same user — skipping signed-in callback')))
       .toBeTruthy();
 
-    // ...and "sharing group ready" appears exactly once.
+    // ...so "sharing group ready" appears exactly once.
     const readyCount = await page.evaluate(
       () => (document.querySelector('#message')?.textContent || '').split('sharing group ready').length - 1,
     );
