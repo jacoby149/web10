@@ -13,7 +13,10 @@ function v3ApiOrigin(decoded: { provider?: string } | null): string {
     const isLocal = host === 'localhost' || host === '127.0.0.1' || host.endsWith('.localhost');
     const isDev = host.endsWith('.dev.web10.app');
     const provider = decoded?.provider || (isLocal ? 'api.localhost' : isDev ? 'api.dev.web10.app' : config.REACT_APP_DEFAULT_API);
-    return `${window.location.protocol}//${provider}`;
+    // Port-aware: isolated e2e stacks (E2E_HTTP_PORT) serve *.localhost on a
+    // non-80 port; the origin must carry the same port. Empty on :80.
+    const port = window.location.port ? `:${window.location.port}` : '';
+    return `${window.location.protocol}//${provider}${port}`;
 }
 
 /**
