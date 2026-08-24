@@ -20,6 +20,7 @@ const DEMO_APPS = [
   { slug: 'notes', title: 'Notes', url: '/docs/notes/index.html' },
   { slug: 'messages', title: 'Messages', url: '/docs/messages/index.html' },
   { slug: 'groups', title: 'Groups', url: '/docs/groups/index.html' },
+  { slug: 'sharing', title: 'Sharing', url: '/docs/sharing/index.html' },
 ]
 
 function DocsSidebar() {

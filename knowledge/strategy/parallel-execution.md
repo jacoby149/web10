@@ -138,13 +138,13 @@ fork. This lane drives every remaining fork through the real popup.
 ### Lane: sharing-demo (Phase 1)
 **Owns:** `marketing/marketing-ui/public/docs/sharing/`
 
-- [ ] Create group, post to it
-- [ ] Block sharing per group (toggle off)
-- [ ] Verify posts hidden from members when sharing blocked
-- [ ] Unblock sharing (toggle on), verify posts reappear
-- [ ] User-wide blacklist: block a user
-- [ ] Per-group blacklist: block a user from one group
-- [ ] E2E test: share → block → verify hidden → unblock → verify visible
+- [✓ 3.6.0] Create group, post to it
+- [✓ 3.6.0] Block sharing per group (toggle off)
+- [✓ 3.6.0] Verify posts hidden from members when sharing blocked
+- [✓ 3.6.0] Unblock sharing (toggle on), verify posts reappear
+- [✓ 3.6.0] User-wide blacklist: block a user
+- [✓ 3.6.0] Per-group blacklist: block a user from one group
+- [✓ 3.6.0] E2E test: share → block → verify hidden → unblock → verify visible
 
 ### Lane: retire-obsolete-e2e (Phase 1)
 **Owns:** `e2e/tests/`
