@@ -4,7 +4,7 @@ This folder holds the finalized, authoritative documentation for web10 v3.
 
 v3 is the core architecture switch: ClickHouse, groups as the primitive, CRUD with groups, auth, social app. Everything here is what we build first.
 
-Everything beyond the core is in `../web10-v4/` — media pipeline, federation, real-time, advanced SDK, finance, monetization.
+Everything beyond the core is in `../web10-v4/` — P2P delivery at scale, federation, real-time, advanced SDK, finance, monetization.
 
 ## Brainstorm
 
@@ -36,8 +36,14 @@ web10-v3/
 │   ├── overview.md        ← how social uses groups: discover, follows, communities
 │   ├── cross-app-sharing.md ← mailer pattern, DMs, comments
 │   └── group-policy-example.json.md ← concrete role/permission examples
-├── media/                 ← transcoding foundation (schema fields only)
-│   └── transcoding-foundation.md ← API fields for transcoded media, HLS gap
+├── media/                 ← the media pipeline: HLS transcoding, streaming, auth
+│   ├── transcoding-foundation.md ← the model: source doc, transcoding_settings, variants
+│   ├── transcoding.md         ← ffmpeg pipeline, HLS segments, storage, player
+│   ├── streaming.md           ← the layers: range requests (day 1) + HLS transcoding
+│   ├── minio-auth-bifurcated.md ← presigned URLs everywhere except video (JWT + middleware)
+│   ├── streaming-tension.md   ← why streaming is infrastructure, not a type
+│   ├── why-minio-not-file-types.md ← why one media type, not video/audio/image
+│   └── client-side-transcoding.md ← optional ffmpeg.wasm pre-encode (cost optimization)
 └── faq/                   ← common questions, skeptical points
     ├── skeptical-points-addressed.md ← real concerns from the v2→v3 transition
     ├── oltp-to-olap-patterns.md ← how every OLTP operation works with OLAP
@@ -52,17 +58,16 @@ web10-v3/
 - **Security** — `security/overview.md` (invariants I1–I5, two-contract model, blocking)
 - **Groups** — `groups/overview.md` (primitive), `groups/identity.md` (profiles)
 - **Social** — `social/overview.md` (implementation), `social/cross-app-sharing.md` (patterns)
-- **Media** — `media/transcoding-foundation.md` (schema fields, HLS gap)
+- **Media** — `media/transcoding-foundation.md` (the model), `media/transcoding.md` (the pipeline), `media/streaming.md` (the layers), `media/minio-auth-bifurcated.md` (the auth split)
 
 ## What's Not Here (v4)
 
-- **Media pipeline** — transcoding, streaming, P2P, mobile encoding → `../web10-v4/media/`
-- **Transcoding foundation** — schema fields for transcoded media → `media/transcoding-foundation.md` (in this folder)
+- **P2P delivery at scale** — WebRTC segment sharing, edge caching, tile-based streaming → `../web10-v4/media/`
 - **Federation** — cross-provider groups, ClickHouse `remote()` → `../web10-v4/future/`
 - **Real-time** — Redis + WebSocket push → `../web10-v4/future/`
 - **Advanced SDK** — `w.query()`, `powerMean` sorting, cross-node addressing, enforced schemas → `../web10-v4/sdk/advanced.md`
 - **Finance** — append-only ledgers, compute-on-read balances → `../web10-v4/faq/`
-- **Monetization** — ads, Pro features, server-side transcoding → v4
+- **Monetization** — ads, Pro features → v4
 
 ## Decisions
 

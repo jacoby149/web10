@@ -209,25 +209,6 @@ alice/video/123/
     ...
 ```
 
-## Storage in MinIO
-
-HLS segments are small files (6 seconds × bitrate). A 10-minute video at 3 Mbps produces ~200 segments of ~270KB each.
-
-```
-alice/video/123/
-  manifest.m3u8          (master manifest, 200 bytes)
-  360p/
-    index.m3u8           (variant manifest, 2KB)
-    seg000.ts            (270KB)
-    seg001.ts            (270KB)
-    ...
-  720p/
-    index.m3u8           (variant manifest, 2KB)
-    seg000.ts            (600KB)
-    seg001.ts            (600KB)
-    ...
-```
-
 MinIO handles millions of small files fine. The question is: how do presigned URLs work when a viewer fetches hundreds of segments over 10 minutes?
 
 ## Presigned URLs for Streaming
@@ -351,7 +332,7 @@ The UI doesn't need to know about bitrates. It loads the manifest, the player ad
 
 ## Viewing: Real-Time, No Queue
 
-**Transcoding needs a queue.** ffmpeg takes time. Celery (Python) or BullMQ (Node) handles the queue — job is enqueued, workers pick it up, ffmpeg runs, segments upload to MinIO, document is updated.
+**Transcoding needs a queue.** ffmpeg takes time. v3 runs the queue **in-process**: a dedicated worker thread (not the FastAPI request pool — a transcode must not starve request handling) runs ffmpeg as a subprocess, with bounded concurrency (1–2 at a time). Job is enqueued, the worker picks it up, ffmpeg runs, segments upload to MinIO, document is updated. No Redis, no extra container — the node targets a one-container deploy, and v3-scale upload volume doesn't need a distributed queue. If a node outgrows that, the queue becomes a separate service; the interface (job in, manifest out) doesn't change.
 
 **Viewing does not.** Segments are pre-transcoded and sitting in MinIO. The browser fetches them on demand via HTTP. No queue, no worker, no latency. It's just:
 
@@ -366,16 +347,16 @@ The only "queue" is hls.js's internal buffer — it pre-fetches a few segments a
 ```
 UPLOAD (queued):
   1. User uploads video → MinIO (raw file, temporary)
-  2. Celery job picks up upload
+  2. In-process worker picks up the job (dedicated thread, ffmpeg subprocess)
   3. ffmpeg transcodes → multiple HLS variants → MinIO
   4. Raw file deleted (or kept for re-encoding later)
-  5. Document updated with stream URL
-     {"stream": {"type": "minio", "value": "alice/video/123/manifest.m3u8"}}
+  5. Document updated with transcoding_settings
+     (variants + thumbnails — see transcoding-foundation.md)
 
 VIEWING (real-time):
   6. API returns document (permission check: group membership)
-  7. UI sees stream field → passes manifest URL to hls.js
-  8. hls.js fetches manifest → fetches segments → plays
+  7. UI reads transcoding_settings → requests the signed manifest from the API
+  8. hls.js fetches manifest → fetches segments (JWT-gated) → plays
      No queue. No worker. Just HTTP.
 ```
 
@@ -388,4 +369,4 @@ VIEWING (real-time):
 | Per-title encoding | Variable | Optimized | High | At scale |
 | AV1 encoding | 3-5 | 1.5-2.5x | Medium | Future-proof |
 
-**Recommendation:** Start with multiple bitrates (HLS). 360p, 720p, 1080p. ffmpeg single-pass. Store segments in MinIO. Presign the master manifest (30-min TTL, segments are relative). Celery for transcoding queue. hls.js for playback — it handles ABR, you don't. Add AV1 as a background optimization later. Add per-title encoding if storage costs become a problem.
+**Recommendation:** Start with multiple bitrates (HLS). 360p, 720p, 1080p. ffmpeg single-pass. Store segments in MinIO. Signed manifest + JWT on every segment (bifurcated auth — `minio-auth-bifurcated.md`). In-process worker for the transcoding queue. hls.js for playback — it handles ABR, you don't. Add AV1 as a background optimization later. Add per-title encoding if storage costs become a problem.
