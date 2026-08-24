@@ -58,7 +58,9 @@ class TestSig:
     def test_verify_rejects_foreign_token(self):
         # A valid node token (different secret shape is impossible — same
         # secret — but a token WITHOUT the hls claims must be rejected).
-        foreign = jwt.encode({"username": "alice", "doc_id": "doc-1"}, settings.PRIVATE_KEY, algorithm=settings.ALGORITHM)
+        foreign = jwt.encode(
+            {"username": "alice", "doc_id": "doc-1"}, settings.PRIVATE_KEY, algorithm=settings.ALGORITHM
+        )
         with pytest.raises(ValueError, match="malformed"):
             hls.verify_sig(foreign, "doc-1")
 
@@ -70,7 +72,12 @@ class TestSig:
 class TestManifestSynthesis:
     VARIANTS = [
         {"width": 640, "height": 360, "bitrate_kbps": 1000, "url": {"type": "minio", "value": "p/hls/360p/index.m3u8"}},
-        {"width": 1280, "height": 720, "bitrate_kbps": 3000, "url": {"type": "minio", "value": "p/hls/720p/index.m3u8"}},
+        {
+            "width": 1280,
+            "height": 720,
+            "bitrate_kbps": 3000,
+            "url": {"type": "minio", "value": "p/hls/720p/index.m3u8"},
+        },
     ]
 
     def test_master_manifest_lists_all_variants_with_sig(self):
@@ -222,9 +229,7 @@ class TestHlsSegmentEndpoint:
         assert s3.get_object.call_args.kwargs["Key"] == "alice/abc/hls/360p/seg001.ts"
 
     def test_400_traversal_segment(self, client):
-        res = client.get(
-            f"/v3/media/hls/segment?doc_id=doc-1&variant=360p&seg=..%2F..%2Fetc%2Fpasswd&sig={_sig()}"
-        )
+        res = client.get(f"/v3/media/hls/segment?doc_id=doc-1&variant=360p&seg=..%2F..%2Fetc%2Fpasswd&sig={_sig()}")
         assert res.status_code == 400
 
     def test_400_traversal_variant(self, client):
