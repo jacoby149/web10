@@ -63,7 +63,7 @@ and log sequence verification.
 
 **Feature demos (new/upgraded):**
 
-- [ ] **Messages** (`messages/`) — DM group contract (invite_only, deterministic ID) + WebRTC P2P. Send/receive via CRUD and via data channel. E2E.
+- [✓] **Messages** (`messages/`) — DM group contract (invite_only, deterministic ID) + WebRTC P2P. Send/receive via CRUD and via data channel. E2E.
 - [✓] **Groups** (`groups/`) — group management: create, roles, join policies (open/request/invite_only), invite, join, leave, approve/deny. E2E.
 - [ ] **Media** (`media/`) — MinIO upload, `minio` type in document body, presigned URL on read, display. E2E.
 - [ ] **Comments** (`comments/`) — refs: comment on a post via `ref`, reply via `parent_ref` (threading), read the thread. E2E.
