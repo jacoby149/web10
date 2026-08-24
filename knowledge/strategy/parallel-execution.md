@@ -110,11 +110,11 @@ fork. This lane drives every remaining fork through the real popup.
 ### Lane: media-demo (Phase 1)
 **Owns:** `marketing/marketing-ui/public/docs/media/`
 
-- [ ] Upload image to MinIO (presigned URL)
-- [ ] Create document with minio type in body
-- [ ] Read document back, verify presigned URL resolved
-- [ ] Display image from presigned URL
-- [ ] E2E test: upload → create → read → display
+- [✓ 3.6.0] Upload image to MinIO (presigned URL)
+- [✓ 3.6.0] Create document with minio type in body
+- [✓ 3.6.0] Read document back, verify presigned URL resolved
+- [✓ 3.6.0] Display image from presigned URL
+- [✓ 3.6.0] E2E test: upload → create → read → display
 
 ### Lane: comments-demo (Phase 1)
 **Owns:** `marketing/marketing-ui/public/docs/comments/`
@@ -138,13 +138,13 @@ fork. This lane drives every remaining fork through the real popup.
 ### Lane: sharing-demo (Phase 1)
 **Owns:** `marketing/marketing-ui/public/docs/sharing/`
 
-- [✓ 3.6.0] Create group, post to it
-- [✓ 3.6.0] Block sharing per group (toggle off)
-- [✓ 3.6.0] Verify posts hidden from members when sharing blocked
-- [✓ 3.6.0] Unblock sharing (toggle on), verify posts reappear
-- [✓ 3.6.0] User-wide blacklist: block a user
-- [✓ 3.6.0] Per-group blacklist: block a user from one group
-- [✓ 3.6.0] E2E test: share → block → verify hidden → unblock → verify visible
+- [✓ 3.7.0] Create group, post to it
+- [✓ 3.7.0] Block sharing per group (toggle off)
+- [✓ 3.7.0] Verify posts hidden from members when sharing blocked
+- [✓ 3.7.0] Unblock sharing (toggle on), verify posts reappear
+- [✓ 3.7.0] User-wide blacklist: block a user
+- [✓ 3.7.0] Per-group blacklist: block a user from one group
+- [✓ 3.7.0] E2E test: share → block → verify hidden → unblock → verify visible
 
 ### Lane: retire-obsolete-e2e (Phase 1)
 **Owns:** `e2e/tests/`
@@ -168,3 +168,21 @@ enforcement).
 - [~] `exporter.spec.ts` — marketing-api `/health` + `/import` pipeline (v2 node API). (PR #648)
 - [~] `social-full.spec.ts` — posts/comments/reactions/DM (v2 `/{username}/*`) → v3 service-based CRUD + DM groups; social render. (PR #648)
 - [~] `gauntlet.spec.ts` — 5 social-app render tests + 2 v3-API tests (join-approval, cross-user isolation I3) that were FAILING on correct v3 login → investigate (possible real bugs). (PR #648)
+
+### Lane: hls (Phase 2)
+**Owns:** `api/app/v3/endpoints/media.py`, `api/app/services/media.py`, `marketing/web10-social/` (player + upload flow), `e2e/tests/hls.spec.ts`
+
+HLS is v3 (D44) — "the one feature that makes this legit legit youtube vs
+bs." Upload → in-process ffmpeg worker (dedicated thread, NOT the FastAPI
+request pool, bounded concurrency 1–2) → HLS renditions (360p/720p/1080p) +
+master manifest + thumbnails → MinIO → signed manifest + JWT on every
+segment (bifurcated auth) → hls.js playback (Safari native). The KB is
+aligned and is the spec: `knowledge/knowledge-base/web10-v3/media/`
+(`transcoding-foundation.md` = the model, `transcoding.md` = the pipeline,
+`minio-auth-bifurcated.md` = the auth split, `streaming.md` = the layers).
+P2P stays v4 — do not build it here.
+
+- [ ] Transcode worker: video upload → ffmpeg (subprocess) → 360p/720p/1080p HLS renditions + master manifest + thumbnails → MinIO → document updated with `transcoding_settings` (enabled, variants, thumbnails)
+- [ ] Signed manifest + segment serving: API synthesizes the master manifest from `transcoding_settings.variants` (document is the source of truth), JWT sig on manifest + every segment (10-min TTL), middleware validates on video paths only, token expiry → manifest re-fetch → group membership re-check
+- [ ] hls.js player in web10-social (Safari native fallback), reads `transcoding_settings` from the document; progressive range-request fallback for non-transcoded files
+- [ ] E2E: upload a small video → transcode completes → manifest + segments 200 with token; 403 without token / with expired token (anti-tests, I3)

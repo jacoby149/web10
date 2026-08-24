@@ -9,6 +9,7 @@ from uuid6 import uuid7
 
 import app.settings as settings
 from app.services.documentdb import total_s3_size
+from app.services.media import get_s3_signing_client
 
 log = logging.getLogger(__name__)
 
@@ -1131,19 +1132,75 @@ def resolve_media_urls(doc_body: dict, user_key: str) -> dict:
     return doc_body
 
 
+def _collect_minio_keys(obj, keys: list):
+    """Collect object keys from every {type: 'minio', value} leaf value (recursive)."""
+    if isinstance(obj, dict):
+        if obj.get("type") == "minio" and obj.get("value"):
+            keys.append(str(obj["value"]))
+        else:
+            for v in obj.values():
+                _collect_minio_keys(v, keys)
+    elif isinstance(obj, list):
+        for item in obj:
+            _collect_minio_keys(item, keys)
+
+
+def _resolve_minio_types(obj, signing_client):
+    """Add a fresh presigned `url` to every {type: 'minio', value} leaf value.
+
+    Returns a new structure (does not mutate the input). The `value` (object
+    key) is kept; a time-limited presigned `url` is added alongside it, per the
+    document-typing KB: the API converts a minio type to a presigned URL on read.
+    """
+    if isinstance(obj, dict):
+        if obj.get("type") == "minio" and obj.get("value"):
+            object_key = str(obj["value"])
+            presigned = signing_client.generate_presigned_url(
+                "get_object",
+                Params={"Bucket": settings.S3_BUCKET, "Key": object_key},
+                ExpiresIn=settings.READ_URL_EXPIRY,
+            )
+            return {**obj, "url": presigned}
+        return {k: _resolve_minio_types(v, signing_client) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_resolve_minio_types(item, signing_client) for item in obj]
+    return obj
+
+
+def resolve_minio_types(doc_body: dict) -> dict:
+    """Resolve minio types in a document body to fresh presigned URLs.
+
+    A body with no minio types is returned unchanged (and no S3 client is
+    created). Presigned-URL generation is offline (no network call), so this is
+    cheap to run on every read.
+    """
+    keys: list = []
+    _collect_minio_keys(doc_body, keys)
+    if not keys:
+        return doc_body
+    return _resolve_minio_types(doc_body, get_s3_signing_client())
+
+
 def resolve_media_urls_in_docs(docs: list[dict]) -> list[dict]:
-    """Resolve media URLs in a list of documents."""
+    """Resolve media URLs in a list of documents.
+
+    Two mechanisms, both applied on read:
+    1. media_refs — an array of media_metadata doc_ids, resolved to
+       {object_key, mime_type, filename, size_bytes, read_url}.
+    2. minio types — {type: 'minio', value: object_key} leaf values anywhere in
+       the body, each converted to a fresh presigned `url` (the KB's document
+       typing: the API turns a minio type into a presigned URL on read).
+    """
     resolved = []
     for doc in docs:
         body = doc.get("body", {})
         if body.get("media_refs"):
             author = doc.get("author_key", "")
-            resolved_body = resolve_media_urls(body, author)
-            doc_with_media = dict(doc)
-            doc_with_media["body"] = resolved_body
-            resolved.append(doc_with_media)
-        else:
-            resolved.append(doc)
+            body = resolve_media_urls(body, author)
+        body = resolve_minio_types(body)
+        doc_with_media = dict(doc)
+        doc_with_media["body"] = body
+        resolved.append(doc_with_media)
     return resolved
 
 
