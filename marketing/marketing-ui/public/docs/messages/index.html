@@ -151,12 +151,13 @@
 <body>
   <div class="container">
     <h1>Messages</h1>
-    <p class="subtitle">A DM-style demo: send messages between web10 users. Each conversation is a group — the first message to someone sets up the DM group, after that it's reused (no popup). Messages are documents attached to the group; members discover them via membership.</p>
+    <p class="subtitle">A DM-style demo: send messages between web10 users. Each conversation is a group — the first message to someone sets up the DM group, after that it's reused (no popup). Messages are documents attached to the group; members discover them via membership. When both parties are online, a message is also delivered in real time over a WebRTC P2P data channel — the group stays the source of truth, P2P is the fast path.</p>
 
     <div class="auth-row">
       <button id="authButton" data-testid="auth-button">Log in</button>
       <button id="fixAccessBtn" class="secondary" style="display:none;" data-testid="fix-access">Fix access</button>
       <span id="message" data-testid="status">Not started — log in to begin.</span>
+      <span id="p2pStatus" data-testid="p2p-status" style="font-size:0.75rem;color:var(--muted);font-family:'JetBrains Mono',ui-monospace,monospace;">P2P: off</span>
     </div>
 
     <div id="editor" style="display:none;">
@@ -179,11 +180,17 @@
     <div id="messageview" data-testid="message-view"></div>
   </div>
 
-  <!-- web10 SDK: self-hosted (the old auth.web10.app/sdk/wapi.js path 404s
-       since the SDK moved to npm). Served from /docs/wapi.js on this site.
-       This file is a copy of sdk/dist/browser.js — keep it in sync (the
-       marketing-ui Dockerfile rebuilds it from sdk/src on every build). -->
+<!-- web10 SDK: self-hosted (the old auth.web10.app/sdk/wapi.js path 404s
+        since the SDK moved to npm). Served from /docs/wapi.js on this site.
+        This file is a copy of sdk/dist/browser.js — keep it in sync (the
+        marketing-ui Dockerfile rebuilds it from sdk/src on every build). -->
   <script src="../wapi.js"></script>
+  <!-- WebRTC P2P: PeerJS (global `Peer`) + the web10 RTC module (global
+        `web10rtc` = { createRTC, setPeer }). rtc.js is an IIFE build of
+        sdk/src/rtc/index.ts; peerjs.min.js is peerjs@1.5.5. Both are served
+        from /docs/ so the demo has no CDN dependency. -->
+  <script src="../peerjs.min.js"></script>
+  <script src="../rtc.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

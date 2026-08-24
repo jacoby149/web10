@@ -1,4 +1,4 @@
-import { test, expect, type APIRequestContext } from '@playwright/test';
+import { test, expect, chromium, type APIRequestContext } from '@playwright/test';
 
 const port = process.env.E2E_HTTP_PORT || '80';
 const p = port === '80' ? '' : `:${port}`;
@@ -332,5 +332,327 @@ test.describe('Messages demo gauntlet — two-user DM through the real popup', (
     // No errors in A's console.
     const errors = logsA.filter((l) => l.includes('FAILED') || l.includes('Error'));
     expect(errors).toEqual([]);
+  });
+
+  test('P2P round-trip: A sends, B receives in real time over the WebRTC data channel', { timeout: 90000 }, async ({ request }) => {
+    // Two users with app contracts. The DM group is PRE-CREATED via the API
+    // (A = owner, B = member, deterministic name) so this test isolates the
+    // P2P data channel from the group-creation popup (the popup flow is covered
+    // by the gauntlet test above). A's send reuses the existing group (no popup),
+    // persists the message (CRUD), and nudges B over P2P.
+    const A = await signupAndLogin(request, 'p2pa');
+    const B = await signupAndLogin(request, 'p2pb');
+    await addAppContract(request, A.token);
+    await addAppContract(request, B.token);
+    await createDmGroup(request, A.token, A.username, B.username);
+
+    // Two SEPARATE browser instances — WebRTC P2P completes across two browsers
+    // but NOT across two contexts in the same browser (Chromium isolates
+    // per-context network stacks, so the local ICE check never connects). Two
+    // browsers also matches the real scenario: two users in two browsers.
+    //
+    // The mDNS flag is REQUIRED: without it, Chromium hides local IPs behind
+    // mDNS .local names for ICE host candidates, which don't resolve in the
+    // headless environment, so the local ICE check fails (stuck at "checking").
+    // With the flag, host candidates are real IPs and the local connection works.
+    const rtcArgs = ['--disable-features=WebRtcHideLocalIpsWithMdns'];
+    const browserA = await chromium.launch({ args: rtcArgs });
+    const browserB = await chromium.launch({ args: rtcArgs });
+    try {
+      const contextA = await browserA.newContext();
+      const contextB = await browserB.newContext();
+      await setTokenCookie(contextA, 'marketing.localhost', A.token);
+      await setTokenCookie(contextA, 'auth.localhost', A.token);
+      await setTokenCookie(contextB, 'marketing.localhost', B.token);
+      await setTokenCookie(contextB, 'auth.localhost', B.token);
+      const pageA = await contextA.newPage();
+      const pageB = await contextB.newPage();
+
+      const logsA: string[] = [];
+      pageA.on('console', (m) => { if (m.text().includes('[messages-demo]')) logsA.push(m.text()); });
+      const logsB: string[] = [];
+      pageB.on('console', (m) => { if (m.text().includes('[messages-demo]')) logsB.push(m.text()); });
+      const pageErrorsA: string[] = [];
+      pageA.on('pageerror', (e) => pageErrorsA.push(e.message));
+      const pageErrorsB: string[] = [];
+      pageB.on('pageerror', (e) => pageErrorsB.push(e.message));
+
+      // --- Load both demos (pre-authed, no login popup) ---
+      await pageA.goto(`${MARKETING_BASE}/docs/messages/`);
+      await pageA.waitForLoadState('networkidle');
+      await pageB.goto(`${MARKETING_BASE}/docs/messages/`);
+      await pageB.waitForLoadState('networkidle');
+      await expect(pageA.locator('#authButton')).toHaveText('Log out');
+      await expect(pageB.locator('#authButton')).toHaveText('Log out');
+
+      // --- Wait for BOTH peers to be open (P2P ready) before A sends ---
+      // PeerJS drops a connect() issued before the local peer is open, so the
+      // demo gates sends on this. The status flips to "ready" when the peer opens.
+      await expect(pageA.locator('[data-testid="p2p-status"]')).toHaveText('P2P: ready', { timeout: 20000 });
+      await expect(pageB.locator('[data-testid="p2p-status"]')).toHaveText('P2P: ready', { timeout: 20000 });
+
+      // --- A sends to B (reuses the pre-created group → NO popup) ---
+      await pageA.locator('#toUsername').fill(B.username);
+      await pageA.locator('#toProvider').fill(PROVIDER);
+      await pageA.locator('#msgText').fill('p2p hello');
+      await pageA.locator('[data-testid="send-button"]').click();
+
+      // A's message lands in A's inbox (CRUD persist).
+      await expect(pageA.locator('[data-testid="message-text"]').first()).toHaveText('p2p hello', { timeout: 15000 });
+
+      // --- B receives it in REAL TIME over P2P (no reload, no polling) ---
+      await expectInboxContains(pageB, 'p2p hello', 20000);
+
+      // --- Verify the P2P seam fired on both sides (log sequence) ---
+      // A: the P2P send was attempted, and only AFTER the message was persisted.
+      const aCreateIdx = logsA.findIndex((l) => l.includes('creating message in existing group'));
+      const aSendIdx = logsA.findIndex((l) => l.includes('sendP2P — sending over P2P'));
+      expect(aCreateIdx, 'A must persist the message in the existing group').toBeGreaterThanOrEqual(0);
+      expect(aSendIdx, 'A must attempt the P2P send').toBeGreaterThanOrEqual(0);
+      expect(aSendIdx, 'A must send over P2P AFTER persisting the message').toBeGreaterThan(aCreateIdx);
+
+      // B: the inbound P2P fired with the payload, then re-read the inbox.
+      const bInboundIdx = logsB.findIndex((l) => l.includes('onInbound — P2P message from peer'));
+      const bDataIdx = logsB.findIndex((l) => l.includes('onInbound — data:') && l.includes('p2p hello'));
+      expect(bInboundIdx, 'B must receive the P2P nudge').toBeGreaterThanOrEqual(0);
+      expect(bDataIdx, 'B must receive the P2P payload').toBeGreaterThanOrEqual(0);
+      const bReRead = logsB.slice(bInboundIdx + 1).some((l) => l.includes('readMessages — got'));
+      expect(bReRead, 'B must re-read the inbox after the P2P nudge').toBeTruthy();
+
+      // --- No console errors / uncaught exceptions on either side ---
+      const errorsA = logsA.filter((l) => l.includes('FAILED') || l.includes('Error'));
+      const errorsB = logsB.filter((l) => l.includes('FAILED') || l.includes('Error'));
+      expect(errorsA).toEqual([]);
+      expect(errorsB).toEqual([]);
+      expect(pageErrorsA).toEqual([]);
+      expect(pageErrorsB).toEqual([]);
+    } finally {
+      await browserA.close();
+      await browserB.close();
+    }
+  });
+
+  test('P2P is best-effort: offline recipient still gets the message via CRUD (source of truth)', { timeout: 90000 }, async ({ request }) => {
+    // Anti-test for the core design: CRUD is the source of truth, P2P is the
+    // best-effort fast path. A sends to B while B is OFFLINE (no peer
+    // registered) — the P2P send fails (peer-unavailable) but the message must
+    // still land via the group. When B comes online, B's initial read sees it.
+    const A = await signupAndLogin(request, 'p2oc');
+    const B = await signupAndLogin(request, 'p2od');
+    await addAppContract(request, A.token);
+    await addAppContract(request, B.token);
+    await createDmGroup(request, A.token, A.username, B.username);
+
+    const rtcArgs = ['--disable-features=WebRtcHideLocalIpsWithMdns'];
+    const browserA = await chromium.launch({ args: rtcArgs });
+    const browserB = await chromium.launch({ args: rtcArgs });
+    try {
+      const contextA = await browserA.newContext();
+      const contextB = await browserB.newContext();
+      await setTokenCookie(contextA, 'marketing.localhost', A.token);
+      await setTokenCookie(contextA, 'auth.localhost', A.token);
+      // B's cookies are set but B's page is NOT loaded — B is offline.
+      await setTokenCookie(contextB, 'marketing.localhost', B.token);
+      await setTokenCookie(contextB, 'auth.localhost', B.token);
+      const pageA = await contextA.newPage();
+
+      const logsA: string[] = [];
+      pageA.on('console', (m) => { if (m.text().includes('[messages-demo]')) logsA.push(m.text()); });
+      const pageErrorsA: string[] = [];
+      pageA.on('pageerror', (e) => pageErrorsA.push(e.message));
+
+      await pageA.goto(`${MARKETING_BASE}/docs/messages/`);
+      await pageA.waitForLoadState('networkidle');
+      await expect(pageA.locator('#authButton')).toHaveText('Log out');
+      await expect(pageA.locator('[data-testid="p2p-status"]')).toHaveText('P2P: ready', { timeout: 20000 });
+
+      // A sends to offline B. The P2P send fails (no peer) but the CRUD
+      // persist already happened, so the message lands in the group.
+      await pageA.locator('#toUsername').fill(B.username);
+      await pageA.locator('#toProvider').fill(PROVIDER);
+      await pageA.locator('#msgText').fill('offline hello');
+      await pageA.locator('[data-testid="send-button"]').click();
+
+      // A's message lands in A's inbox (CRUD persist).
+      await expect(pageA.locator('[data-testid="message-text"]').first()).toHaveText('offline hello', { timeout: 15000 });
+
+      // The P2P send was attempted (and failed — B is offline). The demo must
+      // not crash or log an error; the message still landed via CRUD.
+      const aSendIdx = logsA.findIndex((l) => l.includes('sendP2P — sending over P2P'));
+      expect(aSendIdx, 'A must attempt the P2P send even when B is offline').toBeGreaterThanOrEqual(0);
+      const errorsA = logsA.filter((l) => l.includes('FAILED') || l.includes('Error'));
+      expect(errorsA, 'A must not log an error when the P2P send fails').toEqual([]);
+      expect(pageErrorsA, 'A must not throw when the P2P send fails').toEqual([]);
+
+      // B comes online (loads the demo). B's initial read sees the message
+      // (CRUD is the source of truth — it was persisted while B was offline).
+      const pageB = await contextB.newPage();
+      await pageB.goto(`${MARKETING_BASE}/docs/messages/`);
+      await pageB.waitForLoadState('networkidle');
+      await expect(pageB.locator('#authButton')).toHaveText('Log out');
+      await expectInboxContains(pageB, 'offline hello', 15000);
+    } finally {
+      await browserA.close();
+      await browserB.close();
+    }
+  });
+
+  test('first send: real popup creates the group AND the message delivers over P2P', { timeout: 120000 }, async ({ request }) => {
+    // The combined flow — the actual first-message experience. A's first send
+    // to B opens the REAL consent popup (group creation, A=owner B=member),
+    // then A persists the message (CRUD) AND nudges B over P2P. B receives in
+    // real time. This is the gauntlet's popup flow + the P2P round-trip, in one
+    // test — the composition the other two tests cover separately.
+    const A = await signupAndLogin(request, 'p2pe');
+    const B = await signupAndLogin(request, 'p2pf');
+    await addAppContract(request, A.token);
+    await addAppContract(request, B.token);
+    // NO group pre-created — A's first send creates it via the popup.
+
+    const rtcArgs = ['--disable-features=WebRtcHideLocalIpsWithMdns'];
+    const browserA = await chromium.launch({ args: rtcArgs });
+    const browserB = await chromium.launch({ args: rtcArgs });
+    try {
+      const contextA = await browserA.newContext();
+      const contextB = await browserB.newContext();
+      await setTokenCookie(contextA, 'marketing.localhost', A.token);
+      await setTokenCookie(contextA, 'auth.localhost', A.token);
+      await setTokenCookie(contextB, 'marketing.localhost', B.token);
+      await setTokenCookie(contextB, 'auth.localhost', B.token);
+      const pageA = await contextA.newPage();
+      const pageB = await contextB.newPage();
+
+      const logsA: string[] = [];
+      pageA.on('console', (m) => { if (m.text().includes('[messages-demo]')) logsA.push(m.text()); });
+      const logsB: string[] = [];
+      pageB.on('console', (m) => { if (m.text().includes('[messages-demo]')) logsB.push(m.text()); });
+      const pageErrorsA: string[] = [];
+      pageA.on('pageerror', (e) => pageErrorsA.push(e.message));
+      const pageErrorsB: string[] = [];
+      pageB.on('pageerror', (e) => pageErrorsB.push(e.message));
+
+      await pageA.goto(`${MARKETING_BASE}/docs/messages/`);
+      await pageA.waitForLoadState('networkidle');
+      await pageB.goto(`${MARKETING_BASE}/docs/messages/`);
+      await pageB.waitForLoadState('networkidle');
+      await expect(pageA.locator('#authButton')).toHaveText('Log out');
+      await expect(pageB.locator('#authButton')).toHaveText('Log out');
+      await expect(pageA.locator('[data-testid="p2p-status"]')).toHaveText('P2P: ready', { timeout: 20000 });
+      await expect(pageB.locator('[data-testid="p2p-status"]')).toHaveText('P2P: ready', { timeout: 20000 });
+
+      // A sends the FIRST message to B → opens the REAL consent popup.
+      await pageA.locator('#toUsername').fill(B.username);
+      await pageA.locator('#toProvider').fill(PROVIDER);
+      await pageA.locator('#msgText').fill('first p2p hello');
+
+      const popupPromise = contextA.waitForEvent('page', { timeout: 20000 });
+      await pageA.locator('[data-testid="send-button"]').click();
+      const popup = await popupPromise;
+      await popup.waitForLoadState('networkidle', { timeout: 20000 });
+      await popup.locator('[data-testid="consent-req-0"]').waitFor({ state: 'visible', timeout: 20000 });
+      await popup.locator('[data-testid="consent-approve-0"]').click();
+
+      // A's message lands in A's inbox (CRUD persist in the new group).
+      await expect(pageA.locator('[data-testid="message-text"]').first()).toHaveText('first p2p hello', { timeout: 15000 });
+
+      // B receives it in REAL TIME over P2P (no reload, no polling).
+      await expectInboxContains(pageB, 'first p2p hello', 20000);
+
+      // Log sequence: A creates the group (popup) THEN persists THEN sends P2P.
+      const aGroupIdx = logsA.findIndex((l) => l.includes('createDmGroup — approved'));
+      const aCreateIdx = logsA.findIndex((l) => l.includes('creating message in new group'));
+      const aSendIdx = logsA.findIndex((l) => l.includes('sendP2P — sending over P2P'));
+      expect(aGroupIdx, 'A must create the group via the popup').toBeGreaterThanOrEqual(0);
+      expect(aCreateIdx, 'A must persist the message in the new group').toBeGreaterThanOrEqual(0);
+      expect(aCreateIdx, 'A must persist AFTER creating the group').toBeGreaterThan(aGroupIdx);
+      expect(aSendIdx, 'A must send over P2P').toBeGreaterThanOrEqual(0);
+      expect(aSendIdx, 'A must send P2P AFTER persisting').toBeGreaterThan(aCreateIdx);
+
+      // B: onInbound with the payload, then re-read the inbox.
+      const bInboundIdx = logsB.findIndex((l) => l.includes('onInbound — P2P message from peer'));
+      const bDataIdx = logsB.findIndex((l) => l.includes('onInbound — data:') && l.includes('first p2p hello'));
+      expect(bInboundIdx, 'B must receive the P2P nudge').toBeGreaterThanOrEqual(0);
+      expect(bDataIdx, 'B must receive the P2P payload').toBeGreaterThanOrEqual(0);
+      const bReRead = logsB.slice(bInboundIdx + 1).some((l) => l.includes('readMessages — got'));
+      expect(bReRead, 'B must re-read the inbox after the P2P nudge').toBeTruthy();
+
+      const errorsA = logsA.filter((l) => l.includes('FAILED') || l.includes('Error'));
+      const errorsB = logsB.filter((l) => l.includes('FAILED') || l.includes('Error'));
+      expect(errorsA).toEqual([]);
+      expect(errorsB).toEqual([]);
+      expect(pageErrorsA).toEqual([]);
+      expect(pageErrorsB).toEqual([]);
+    } finally {
+      await browserA.close();
+      await browserB.close();
+    }
+  });
+
+  test('P2P survives a reload: peer re-inits and still delivers (return run)', { timeout: 120000 }, async ({ request }) => {
+    // State rule: cold start and return run are different code paths. A reloads
+    // — the demo re-runs initApp → initP2P (a NEW peer, the old one is gone).
+    // The message must persist (CRUD) AND P2P must still deliver after the
+    // reload (B sends a reply, A receives it in real time on the new peer).
+    const A = await signupAndLogin(request, 'p2pg');
+    const B = await signupAndLogin(request, 'p2ph');
+    await addAppContract(request, A.token);
+    await addAppContract(request, B.token);
+    await createDmGroup(request, A.token, A.username, B.username);
+
+    const rtcArgs = ['--disable-features=WebRtcHideLocalIpsWithMdns'];
+    const browserA = await chromium.launch({ args: rtcArgs });
+    const browserB = await chromium.launch({ args: rtcArgs });
+    try {
+      const contextA = await browserA.newContext();
+      const contextB = await browserB.newContext();
+      await setTokenCookie(contextA, 'marketing.localhost', A.token);
+      await setTokenCookie(contextA, 'auth.localhost', A.token);
+      await setTokenCookie(contextB, 'marketing.localhost', B.token);
+      await setTokenCookie(contextB, 'auth.localhost', B.token);
+      const pageA = await contextA.newPage();
+      const pageB = await contextB.newPage();
+
+      const logsA: string[] = [];
+      pageA.on('console', (m) => { if (m.text().includes('[messages-demo]')) logsA.push(m.text()); });
+      const logsB: string[] = [];
+      pageB.on('console', (m) => { if (m.text().includes('[messages-demo]')) logsB.push(m.text()); });
+
+      await pageA.goto(`${MARKETING_BASE}/docs/messages/`);
+      await pageA.waitForLoadState('networkidle');
+      await pageB.goto(`${MARKETING_BASE}/docs/messages/`);
+      await pageB.waitForLoadState('networkidle');
+      await expect(pageA.locator('[data-testid="p2p-status"]')).toHaveText('P2P: ready', { timeout: 20000 });
+      await expect(pageB.locator('[data-testid="p2p-status"]')).toHaveText('P2P: ready', { timeout: 20000 });
+
+      // Cold start: A sends to B (P2P delivers).
+      await pageA.locator('#toUsername').fill(B.username);
+      await pageA.locator('#toProvider').fill(PROVIDER);
+      await pageA.locator('#msgText').fill('before reload');
+      await pageA.locator('[data-testid="send-button"]').click();
+      await expectInboxContains(pageB, 'before reload', 20000);
+
+      // Return run: A reloads. The demo re-inits P2P (new peer).
+      await pageA.reload();
+      await pageA.waitForLoadState('networkidle');
+      // The message persists across the reload (CRUD is the source of truth).
+      await expectInboxContains(pageA, 'before reload', 15000);
+      // P2P re-inits and is ready again.
+      await expect(pageA.locator('[data-testid="p2p-status"]')).toHaveText('P2P: ready', { timeout: 20000 });
+
+      // P2P still works after the reload: B sends a reply, A receives it in
+      // real time on the NEW peer (no reload on A's side).
+      await pageB.locator('#toUsername').fill(A.username);
+      await pageB.locator('#toProvider').fill(PROVIDER);
+      await pageB.locator('#msgText').fill('reply after reload');
+      await pageB.locator('[data-testid="send-button"]').click();
+      await expectInboxContains(pageA, 'reply after reload', 20000);
+
+      // B's reply triggered A's onInbound (P2P delivered on the re-init peer).
+      const aInboundReply = logsA.some((l) => l.includes('onInbound — data:') && l.includes('reply after reload'));
+      expect(aInboundReply, 'A must receive B reply over P2P after the reload').toBeTruthy();
+    } finally {
+      await browserA.close();
+      await browserB.close();
+    }
   });
 });
