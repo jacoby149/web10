@@ -5,12 +5,11 @@ import app.settings as settings
 from app.services import transcode
 from app.services.hls import (
     can_view_doc,
-    hls_prefix,
+    rewrite_variant_manifest,
     segment_key,
     synthesize_master_manifest,
-    verify_sig,
     variant_tag,
-    rewrite_variant_manifest,
+    verify_sig,
 )
 from app.services.media import (
     ensure_bucket,

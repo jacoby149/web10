@@ -112,8 +112,7 @@ def synthesize_master_manifest(doc_id: str, sig: str, variants: list[dict]) -> s
     for v in variants:
         tag = variant_tag(v)
         lines.append(
-            f"#EXT-X-STREAM-INF:BANDWIDTH={int(v['bitrate_kbps']) * 1000},"
-            f"RESOLUTION={v['width']}x{v['height']}"
+            f"#EXT-X-STREAM-INF:BANDWIDTH={int(v['bitrate_kbps']) * 1000},RESOLUTION={v['width']}x{v['height']}"
         )
         lines.append(f"/v3/media/hls/variant?doc_id={doc_id}&variant={tag}&sig={sig}")
     return "\n".join(lines) + "\n"

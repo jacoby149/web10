@@ -99,7 +99,9 @@ def _mark_failed(doc_id: str, author_key: str, error: str) -> None:
     try:
         doc = ch.get_document(doc_id, author_key)
         if doc:
-            _set_transcoding_settings(doc_id, author_key, doc["body"], {"enabled": False, "status": "failed", "error": error})
+            _set_transcoding_settings(
+                doc_id, author_key, doc["body"], {"enabled": False, "status": "failed", "error": error}
+            )
     except Exception:
         logger.exception("[transcode] could not mark doc failed — doc_id=%s", doc_id)
 
@@ -128,7 +130,16 @@ def _run_ffmpeg(args: list[str], label: str) -> None:
 
 def _probe_duration(path: Path) -> float:
     proc = subprocess.run(
-        ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", str(path)],
+        [
+            "ffprobe",
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=noprint_wrappers=1:nokey=1",
+            str(path),
+        ],
         capture_output=True,
         text=True,
         timeout=30,
@@ -168,13 +179,28 @@ def _process_job(doc_id: str, author_key: str) -> None:
             out_dir.mkdir()
             _run_ffmpeg(
                 [
-                    "-i", str(raw_path),
-                    "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
-                    "-vf", f"scale={r['width']}:{r['height']}",
-                    "-b:v", r["bitrate"],
-                    "-c:a", "aac", "-b:a", "128k",
-                    "-hls_time", "6", "-hls_list_size", "0",
-                    "-hls_segment_filename", str(out_dir / "seg%d.ts"),
+                    "-i",
+                    str(raw_path),
+                    "-c:v",
+                    "libx264",
+                    "-preset",
+                    "veryfast",
+                    "-pix_fmt",
+                    "yuv420p",
+                    "-vf",
+                    f"scale={r['width']}:{r['height']}",
+                    "-b:v",
+                    r["bitrate"],
+                    "-c:a",
+                    "aac",
+                    "-b:a",
+                    "128k",
+                    "-hls_time",
+                    "6",
+                    "-hls_list_size",
+                    "0",
+                    "-hls_segment_filename",
+                    str(out_dir / "seg%d.ts"),
                     str(out_dir / "index.m3u8"),
                 ],
                 label=f"rendition {tag}",
@@ -201,12 +227,29 @@ def _process_job(doc_id: str, author_key: str) -> None:
             thumb_name = f"thumb-{ts}s.jpg"
             thumb_path = tmp / thumb_name
             _run_ffmpeg(
-                ["-ss", str(ts), "-i", str(raw_path), "-frames:v", "1", "-vf", "scale=640:360", "-q:v", "3", str(thumb_path)],
+                [
+                    "-ss",
+                    str(ts),
+                    "-i",
+                    str(raw_path),
+                    "-frames:v",
+                    "1",
+                    "-vf",
+                    "scale=640:360",
+                    "-q:v",
+                    "3",
+                    str(thumb_path),
+                ],
                 label=f"thumbnail {ts}s",
             )
             s3.upload_file(str(thumb_path), settings.S3_BUCKET, f"{prefix}/{thumb_name}")
             thumbnails.append(
-                {"width": 640, "height": 360, "timestamp_seconds": ts, "url": {"type": "minio", "value": f"{prefix}/{thumb_name}"}}
+                {
+                    "width": 640,
+                    "height": 360,
+                    "timestamp_seconds": ts,
+                    "url": {"type": "minio", "value": f"{prefix}/{thumb_name}"},
+                }
             )
 
         # 4. The document becomes the manifest (transcoding-foundation.md).

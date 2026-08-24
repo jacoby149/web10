@@ -17,7 +17,6 @@ import app.settings as settings
 from app.main import app as fastapi_app
 from app.services import hls
 
-
 # ---------------------------------------------------------------------------
 # Pure helpers
 # ---------------------------------------------------------------------------
@@ -78,8 +77,8 @@ class TestManifestSynthesis:
         body = hls.synthesize_master_manifest("doc-1", "SIG", self.VARIANTS)
         lines = body.splitlines()
         assert lines[0] == "#EXTM3U"
-        assert any(l.startswith("#EXT-X-STREAM-INF:BANDWIDTH=1000000,RESOLUTION=640x360") for l in lines)
-        assert any(l.startswith("#EXT-X-STREAM-INF:BANDWIDTH=3000000,RESOLUTION=1280x720") for l in lines)
+        assert any(line.startswith("#EXT-X-STREAM-INF:BANDWIDTH=1000000,RESOLUTION=640x360") for line in lines)
+        assert any(line.startswith("#EXT-X-STREAM-INF:BANDWIDTH=3000000,RESOLUTION=1280x720") for line in lines)
         assert "/v3/media/hls/variant?doc_id=doc-1&variant=360p&sig=SIG" in lines
         assert "/v3/media/hls/variant?doc_id=doc-1&variant=720p&sig=SIG" in lines
 
