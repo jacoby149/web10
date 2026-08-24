@@ -503,10 +503,29 @@ class TestReadDocumentsInGroups:
             sql = mock_client.query.call_args[0][0]
             assert "user_key = p.author_key" in sql
             assert "blocked_key = %(member_key)s" in sql
-            # Verify blacklist filter includes deleted = 0 (tombstone-respecting)
-            assert "LEFT ANTI JOIN user_blacklist" in sql
-            blacklist_part = sql[sql.index("LEFT ANTI JOIN user_blacklist") :]
-            assert "deleted = 0" in blacklist_part
+            # user-wide blacklist: dedup-then-filter anti-join (latest row
+            # wins, tombstones included, then deleted = 0) — a raw
+            # `deleted = 0` join would keep matching the stale pre-unblock
+            # row until a background merge
+            ub_part = sql[sql.index("LEFT ANTI JOIN (SELECT user_key, blocked_key") : sql.index(") ub ")]
+            assert "FROM user_blacklist" in ub_part
+            assert "rn = 1 AND deleted = 0" in ub_part
+            # per-group blacklist: the author's content in the group is
+            # hidden from the blocked member (one-directional)
+            gb_part = sql[sql.index("LEFT ANTI JOIN (SELECT user_key, group_id, blocked_key") : sql.index(") gb ")]
+            assert "FROM group_blacklist" in gb_part
+            assert "rn = 1 AND deleted = 0" in gb_part
+            assert "gb.group_id = pg.group_id" in sql
+            assert "gb.blocked_key = %(member_key)s" in sql
+            # sharing toggle: the author's content is hidden from members
+            # when sharing is off, but the author's own reads are exempt
+            ugs_part = sql[
+                sql.index("LEFT ANTI JOIN (SELECT user_key, group_id, sharing_enabled") : sql.index(") ugs ")
+            ]
+            assert "FROM user_group_sharing" in ugs_part
+            assert "rn = 1 AND deleted = 0" in ugs_part
+            assert "ugs.sharing_enabled = 0" in sql
+            assert "p.author_key != %(member_key)s" in sql
             # Verify hidden docs exclusion
             assert "LEFT ANTI JOIN group_hidden_docs" in sql
 
