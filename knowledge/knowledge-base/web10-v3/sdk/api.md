@@ -70,6 +70,8 @@ w.isSignedIn()
 w.signOut()
 ```
 
+`authListen` fires the callback only when the signed-in user appears or changes (D45). The popup can hand the token back more than once (every "return to app"); the SDK stores each delivery in the cookie but re-fires the callback only on a real transition (a first login). A delivery for a different user is rejected, not fired (D42).
+
 ## App Contracts
 
 Services are infinite. `posts`, `playlists`, `comments`, `notes`, `reactions` — any app can invent new ones. They're just data labels in the `collection_name` column. No schema migration. No limit. ClickHouse handles any number of services with its sieve of joins.

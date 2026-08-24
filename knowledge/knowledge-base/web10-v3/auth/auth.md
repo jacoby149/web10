@@ -62,6 +62,10 @@ sequenceDiagram
 
 Popup opens. User authenticates. Server mints a scoped JWT. Popup posts the token back to the opener. The app verifies the origin, stores it in a cookie, and is done. Every subsequent API call carries the token. The API certifies it before touching data.
 
+### The handoff is idempotent (D45)
+
+The popup hands the token back on every "return to app," and the app also restores the session from the cookie on page load — so `authListen` can receive a token for a user the app is already acting as. The SDK treats that repeat as a no-op for the callback: it always stores the delivered token in the cookie (a same-user token may carry a newer expiry), but fires the signed-in callback only on a real transition — a first login, when the cookie holds no token yet. A delivery for the user the app is already acting as re-stores the cookie and stops there; a delivery for a *different* user is rejected before that (the D42 identity check), so a stale popup can't hijack the app. Apps should read the callback as "the signed-in user appeared or changed," not "a token arrived."
+
 ### SDK Methods
 
 ```ts
