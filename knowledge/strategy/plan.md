@@ -47,7 +47,7 @@ Format per phase:
 
 ## Phase 1 — Demo Apps: Platform Unit Tests
 
-**Where:** `marketing/marketing-ui/public/docs/{hello,notes,messages,groups,media,comments,feed,sharing}/`
+**Where:** `marketing/marketing-ui/public/docs/{hello,notes,messages,groups,media,feed,sharing}/`
 
 The demos are the platform's unit tests. Each one tests 1–2 features in
 isolation. The social app is the integration test — it smashes the
@@ -66,7 +66,6 @@ and log sequence verification.
 - [✓] **Messages** (`messages/`) — DM group contract (invite_only, deterministic ID) + WebRTC P2P. Send/receive via CRUD and via data channel. E2E.
 - [✓] **Groups** (`groups/`) — group management: create, roles, join policies (open/request/invite_only), invite, join, leave, approve/deny. E2E.
 - [✓] **Media** (`media/`) — MinIO upload, `minio` type in document body, presigned URL on read, display. E2E.
-- [ ] **Comments** (`comments/`) — refs: comment on a post via `ref`, reply via `parent_ref` (threading), read the thread. E2E.
 - [ ] **Feed** (`feed/`) — discover group + followers groups, multi-group read. Post to discover, follow creators, read combined feed. E2E.
 - [✓] **Sharing** (`sharing/`) — block sharing per group, user-wide + per-group blacklists. E2E.
 
