@@ -519,7 +519,9 @@ class TestReadDocumentsInGroups:
             assert "gb.blocked_key = %(member_key)s" in sql
             # sharing toggle: the author's content is hidden from members
             # when sharing is off, but the author's own reads are exempt
-            ugs_part = sql[sql.index("LEFT ANTI JOIN (SELECT user_key, group_id, sharing_enabled") : sql.index(") ugs ")]
+            ugs_part = sql[
+                sql.index("LEFT ANTI JOIN (SELECT user_key, group_id, sharing_enabled") : sql.index(") ugs ")
+            ]
             assert "FROM user_group_sharing" in ugs_part
             assert "rn = 1 AND deleted = 0" in ugs_part
             assert "ugs.sharing_enabled = 0" in sql
