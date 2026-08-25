@@ -66,7 +66,6 @@ and log sequence verification.
 - [✓] **Messages** (`messages/`) — DM group contract (invite_only, deterministic ID) + WebRTC P2P. Send/receive via CRUD and via data channel. E2E.
 - [✓] **Groups** (`groups/`) — group management: create, roles, join policies (open/request/invite_only), invite, join, leave, approve/deny. E2E.
 - [✓] **Media** (`media/`) — MinIO upload, `minio` type in document body, presigned URL on read, display. E2E.
-- [ ] **Comments** (`comments/`) — refs: comment on a post via `ref`, reply to comment via `parent_ref` (threading), read the thread. E2E.
 - [✓] **Feed** (`feed/`) — discover group + followers groups, multi-group read. Post to discover, follow creators, read combined feed. E2E.
 - [✓] **Sharing** (`sharing/`) — block sharing per group, user-wide + per-group blacklists. E2E.
 
@@ -89,3 +88,26 @@ the spec: `knowledge/knowledge-base/web10-v3/media/`.
 - [✓] **Signed segments** (`api/app/services/hls.py`, `api/app/v3/endpoints/media.py`) — a read of a transcoded doc mints a 10-min JWT (sig) bound to (reader, doc, hls prefix); the manifest endpoint verifies the sig AND re-checks access (author or group membership) — the expiry is the re-check cadence. Master manifest synthesized from `transcoding_settings.variants` (doc is source of truth, manifest is a view); variant manifests rewrite every segment to a signed URL; segments stream from MinIO sig-only (no DB, traversal rejected).
 - [✓] **Player** (`marketing/marketing-ui/public/docs/media/`) — the media demo gains a video flow: upload → queue transcode → poll the doc → hls.js playback (Safari native fallback, vendored hls.js). The demo is the HLS unit test; web10-social adoption is a follow-up.
 - [✓] **E2E** (`e2e/tests/hls.spec.ts`) — API floor (upload → transcode → manifest → variant → segment bytes, MPEG-TS sync byte) + anti-tests (no sig / EXPIRED sig / cross-doc sig / non-member sig / traversal) + browser gauntlet (real demo: upload → "HLS ready" → hls.js manifest parsed → video duration > 0, log sequence). 40 API unit tests in `api/tests/test_hls.py`.
+
+## Phase 3 — web10-social: The Integration Test
+
+**Where:** `marketing/web10-social/`, `e2e/tests/`
+
+The demos (Phase 1) are the platform's unit tests, and they're green.
+The social app is the integration test — it smashes the features
+together — and it is the M0 gate's machine track (`timeline.md`: the
+slice must stand on its own before sends start). Today the app is
+v3-shaped on the inside (the hand-rolled `src/data/v3.ts` client hits
+`/v3/*` for all CRUD) but v1 on the door (auth still runs on
+`web10-npm@1.0.8`'s `wapiInit`, not the v3 SDK's D42 consent flow), and
+nothing proves it works end-to-end — the old social e2e specs were
+retired in 3.0.61 and never rewritten. "Done" = the app signs in
+through the real D42 popup, every screen works against the v3 API,
+video plays through the HLS pipeline, and a browser e2e gauntlet
+proves it.
+
+- [ ] **Decision: converge on the SDK** (`knowledge/strategy/decisions.md`) — the app runs on two legacy seams: `web10-npm@1.0.8` (v1 `wapiInit`) for auth and a hand-rolled `src/data/v3.ts` (raw fetch) for data, both because the app predates the current SDK. The demos already run the new SDK (`sdk/` → `wapi.js`) for BOTH auth (D42: `openAuthPortal` + `contractRequest` + `authListen`) and data (`createV3Client`) — the demos are the reference implementation. Record the convergence decision (retire both legacy seams, adopt the SDK), then execute. Docs first — this gates the auth + data items below.
+- [ ] **Auth on v3** (`src/interfaces/Web10SocialAdapter.ts`, `src/App.tsx`) — replace the v1 `wapiInit` adapter with the SDK's D42 flow (the same one the demos run): login through the real consent popup (the LoginScreen's one-tap survives via D42 auto-complete), token in the `token=` cookie, `authListen` dedupe (D45), sign-out scrubs.
+- [ ] **Data on the SDK** (`src/data/v3.ts`) — `getV3Client()` returns the SDK's `createV3Client`; retire the hand-rolled fetch client. The data modules (posts, feed, dms, comments, reactions, contacts, profile) keep their API — the swap is inside the seam.
+- [ ] **E2E gauntlet** (`e2e/tests/`) — rewrite the retired social specs (`social-post-feed`, `social-full`, `gauntlet`) against v3, per the demo specs' pattern: API floor (signup → post → feed → DM → profile + I3 cross-user isolation) + browser gauntlet (real D42 login → feed renders → post → reload persists → DM round-trip) with log-sequence verification.
+- [ ] **HLS in the feed** (`src/components/`) — adopt the media demo's hls.js player (Safari native fallback, vendored hls.js) for video posts. Moved here from the `hls` lane, which is otherwise complete.
