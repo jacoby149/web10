@@ -188,7 +188,7 @@ seams — `web10-npm@1.0.8` (v1 auth) and the hand-rolled `src/data/v3.ts`
 (data) — and the convergence is on the SDK the demos already run on.
 The decision bite gates the seam bites — docs first.
 
-- [ ] Decision: converge on the SDK (`knowledge/strategy/decisions.md`) — retire both legacy seams, adopt the SDK the demos already run on (the reference implementation). Ratification, not an open question.
+- [✓ 3.9.2] Decision: converge on the SDK (`knowledge/strategy/decisions.md`) — D46. Retire both legacy seams, adopt the SDK the demos already run on (the reference implementation).
 - [ ] Auth: D42 login through the real consent popup (the same flow the demos run) — the LoginScreen's one-tap survives via auto-complete
 - [ ] Auth: sign-out scrubs token + cookie; session restores on reload
 - [ ] Data: `getV3Client()` returns the SDK's `createV3Client` — retire the hand-rolled fetch client, data modules keep their API
