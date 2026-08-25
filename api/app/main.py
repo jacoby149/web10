@@ -13,6 +13,12 @@ from app.endpoints import auth, system
 from app.middleware import log_requests
 from app.v3 import endpoints as v3
 
+# App loggers (web10-transcode, web10-media, ...) log at INFO — without a
+# root handler Python's last-resort handler drops everything below WARNING,
+# so the transcode worker's lifecycle (queued → ffmpeg → done) would be
+# invisible. Copious logging is a feature here (open-source project).
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+
 app = FastAPI(
     title="web10",
     openapi_tags=docs.tags_metadata,
@@ -41,6 +47,16 @@ app.middleware("http")(log_requests)
 app.include_router(auth.router)
 app.include_router(system.router)
 app.include_router(v3.router)
+
+
+@app.on_event("startup")
+def _start_hls_workers():
+    # The in-process HLS transcode worker (D44). Daemon threads, bounded
+    # concurrency — started at boot so a misconfigured ffmpeg fails loudly
+    # in the boot log, not on the first upload.
+    from app.services import transcode
+
+    transcode.start_workers()
 
 
 # Map bare Exception strings (raised by auth.py / services) to HTTPExceptions.

@@ -25,3 +25,8 @@ class UploadUrlRequest(BaseModel):
 class ReadUrlRequest(BaseModel):
     token: str
     body: dict
+
+
+class TranscodeRequest(BaseModel):
+    token: str
+    doc_id: str

@@ -68,6 +68,9 @@ services:
       CLICKHOUSE_DATABASE: web10
       CLICKHOUSE_USER: web10
       CLICKHOUSE_PASSWORD: web10
+      # Two renditions (not three) — the e2e test video is 320x240, so the
+      # 1080p rendition would be pure upscale waste in a test.
+      HLS_RENDITIONS: 640x360@1M,1280x720@3M
     command: ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80", "--reload"]
     networks:
       - e2e-net

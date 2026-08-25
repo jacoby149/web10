@@ -95,6 +95,21 @@
       padding: 1rem;
       margin-bottom: 0.75rem;
     }
+    .media-card video {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      display: block;
+      border-radius: 0.5rem;
+      background: #000;
+    }
+    .transcode-status {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 0.5rem;
+      font-family: 'JetBrains Mono', ui-monospace, monospace;
+    }
+    .transcode-status.done { color: var(--success); }
+    .transcode-status.failed { color: var(--danger); }
     .media-card img {
       width: 100%;
       height: auto;
@@ -144,9 +159,9 @@
   </style>
 </head>
 <body>
-  <div class="container">
+<div class="container">
     <h1>Media</h1>
-    <p class="subtitle">Upload an image to MinIO, store it in your document as a <code>minio</code> type, and read it back as a fresh presigned URL. The blob lives in the object store; your document only carries the reference.</p>
+    <p class="subtitle">Upload an image to MinIO, store it in your document as a <code>minio</code> type, and read it back as a fresh presigned URL. Upload a video and it gets transcoded to HLS — adaptive bitrate, signed segments. The blob lives in the object store; your document only carries the reference.</p>
 
     <div class="auth-row">
       <button id="authButton">Log in</button>
@@ -158,7 +173,11 @@
     <div id="editor" style="display:none;">
       <div class="upload-row">
         <input type="file" id="fileInput" accept="image/*" data-testid="file-input" />
-        <button id="uploadBtn" onclick="uploadImage()" data-testid="upload-button">Upload &amp; post</button>
+        <button id="uploadBtn" onclick="uploadImage()" data-testid="upload-button">Upload & post</button>
+      </div>
+      <div class="upload-row">
+        <input type="file" id="videoInput" accept="video/*" data-testid="video-input" />
+        <button id="videoUploadBtn" onclick="uploadVideo()" data-testid="video-upload-button">Upload video (HLS)</button>
       </div>
     </div>
 
@@ -167,6 +186,8 @@
 
   <!-- web10 SDK: self-hosted (served from /docs/wapi.js on this site). -->
   <script src="../wapi.js"></script>
+  <!-- hls.js (vendored): adaptive-bitrate HLS playback for non-Safari browsers. -->
+  <script src="hls.min.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
