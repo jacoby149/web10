@@ -116,14 +116,17 @@ proves it.
 
 **Where:** `knowledge/knowledge-base/web10-v3/` (migration model), `api/` (migration tooling), `ubuntu-deployment/` (prod deploy)
 
-Prod runs **v2 on real MongoDB** — the live 208-account node at web10.app
-(D25: prod bootstraps on the host mongo, "zero migration risk"). v3 is a
-different data model, not a newer deploy: v2 is star records + services +
-terms/ACL + a discovery ledger; v3 is ClickHouse `documents` + `doc_groups`
-+ `group_contracts` + `group_members`. So the cutover is a genuine
-transformation of live user data, and the old v2 "migration endpoints" were
-already stripped when the v2 routes went. This phase is deliberately last
-and deliberately gated.
+Prod runs **v2 on real MongoDB** — the live 579-user node at web10.app,
+data in the docker volume (D25: prod bootstraps on the host mongo, "zero
+migration risk"). v3 is a different data model, not a newer deploy: v2 is
+star records + services + terms/ACL + a discovery ledger; v3 is ClickHouse
+`documents` + `doc_groups` + `group_contracts` + `group_members`. So the
+cutover is a genuine transformation of live user data, and the old v2
+"migration endpoints" were already stripped when the v2 routes went. Two
+practical consequences: (1) these are real, reachable users — we have every
+one's phone number, so the cutover includes an SMS to all of them saying
+they were migrated; (2) this phase is deliberately last and deliberately
+gated.
 
 **GATE (non-negotiable): main does not move until Phase 3 is SOLID** — the
 social app (the integration test) is green end-to-end, the e2e gauntlet
@@ -133,4 +136,5 @@ rehearsal, cutover steps) happens when the gate clears — one phase at a time,
 docs before code, per the rule at the top.
 
 - [ ] **KB: the v2→v3 data migration model** (`knowledge/knowledge-base/web10-v3/`) — docs first, and the only item that starts before the gate. What maps to what: v2 star records → v3 user docs; v2 services/collections → v3 collections; v2 terms/ACL → v3 group contracts; the v2 discovery ledger → dropped or re-derived (decide, with the D30/D32/D34/D35 public-by-default calls in mind); media blobs → re-pointed by object key, not copied. Name what is lossy, what is dropped, and what is re-derived. This doc is the spec the migration tooling implements — no tooling before it.
-- [ ] (scope when the gate clears) migration tooling + a rehearsal against a staging copy of the prod mongo, then the cutover and the dev→main merge.
+- [ ] (scope when the gate clears) migration tooling + a rehearsal against a staging copy of the prod mongo (docker volume), then the cutover and the dev→main merge.
+- [ ] (scope when the gate clears) SMS cutover notice — text all 579 users (phone numbers live in the v2 star records) that they were migrated, over the existing Twilio send path. Needs: the send list (deduped, verified numbers only), the message copy, and a delivery check. Runs after the data flip — the notice says "you're migrated," not "you will be." Copy can be drafted pre-gate.
