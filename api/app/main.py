@@ -58,6 +58,12 @@ def _start_hls_workers():
 
     transcode.start_workers()
 
+    # Self-heal the v3 apps table (visits column) on pre-existing volumes —
+    # the DDL template only runs on a fresh ClickHouse.
+    from app.v3.services import clickhouse as ch
+
+    ch.ensure_apps_schema()
+
 
 # Map bare Exception strings (raised by auth.py / services) to HTTPExceptions.
 _EXCEPTION_MAP = {

@@ -398,11 +398,12 @@ class TestAppTombstone:
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
                 [
-                    ("https://app.com", "MyApp", "desc", "", "", 1, "approved", 1),
+                    ("https://app.com", "MyApp", "desc", "", "", 1, "approved", 1, 47),
                 ]
             )
             result = ch.get_app("https://app.com")
             assert result["name"] == "MyApp"
+            assert result["visits"] == 47
             call_args = mock_client.query.call_args[0][0]
             assert "ORDER BY updated_at DESC LIMIT 1" in call_args
 

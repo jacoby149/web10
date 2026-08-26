@@ -100,6 +100,8 @@ describe('v3 client', () => {
     vi.spyOn(token, 'setTokenCookie').mockImplementation(() => {})
     vi.spyOn(token, 'scrubTokenCookie').mockImplementation(() => {})
     vi.spyOn(http, 'authPost').mockResolvedValue({})
+    // Keep the auto-register ping hermetic — no real network in tests.
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }))
 
     client = createV3Client({ apiOrigin: 'http://api.localhost' })
   })
@@ -192,6 +194,42 @@ describe('v3 client', () => {
 
     it('has null token when no cookie', () => {
       expect(client.state.token).toBeNull()
+    })
+
+    it('auto-registers the app with the node store on init (v2 parity)', () => {
+      // The store only knows what runs on the node because every client init
+      // pings the register endpoint — repeat inits count as visits.
+      const registerCalls = vi
+        .mocked(fetch)
+        .mock.calls.filter(([url]) => String(url).includes('/v3/apps/register'))
+      expect(registerCalls.length).toBe(1)
+      const [url, init] = registerCalls[0]
+      expect(String(url)).toBe('http://api.localhost/v3/apps/register')
+      expect(init?.method).toBe('POST')
+      const body = JSON.parse(init?.body as string)
+      expect(body.body.url).toBe(window.location.href.split(/[?#]/)[0])
+    })
+
+    it('auto-register identity is the full URL, path included — query and fragment stripped', () => {
+      // A path is an app (D47): /docs/notes/ registers as its own app.
+      // Query params and fragments are routing noise, not identity.
+      window.history.replaceState(null, '', '/docs/notes/?from=store#top')
+      try {
+        createV3Client({ apiOrigin: 'http://api.localhost' })
+        const registerCalls = vi
+          .mocked(fetch)
+          .mock.calls.filter(([url]) => String(url).includes('/v3/apps/register'))
+        const last = registerCalls[registerCalls.length - 1]
+        const body = JSON.parse(last[1].body as string)
+        expect(body.body.url).toBe('http://localhost:3000/docs/notes/')
+      } finally {
+        window.history.replaceState(null, '', '/')
+      }
+    })
+
+    it('auto-register failure never breaks client creation', () => {
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network down')))
+      expect(() => createV3Client({ apiOrigin: 'http://api.localhost' })).not.toThrow()
     })
   })
 
@@ -819,6 +857,18 @@ describe('v3 client', () => {
       expect(result.review_state).toBe('pending')
       const call = (vi.mocked(http.authPost).mock.calls[0][1] as any)
       expect(call.body).toEqual({ url: 'https://myapp.com', name: 'My App' })
+    })
+
+    it('registerApp works signed-out (anonymous — the API takes no token)', async () => {
+      client.scrubToken()
+      const mockResponse = { url: 'https://myapp.com', review_state: 'pending' }
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce(mockResponse as any)
+      const result = await client.registerApp({ url: 'https://myapp.com' })
+      expect(result.url).toBe('https://myapp.com')
+      // no token rides in the body — registration is anonymous by design
+      const [url, body] = vi.mocked(http.authPost).mock.calls[0] as any
+      expect(url).toBe('http://api.localhost/v3/apps/register')
+      expect(body).toEqual({ body: { url: 'https://myapp.com' } })
     })
 
     it('getApps', async () => {

@@ -50,6 +50,19 @@ function hostOf(url: string): string {
   }
 }
 
+// A known host at its ROOT is infrastructure (mapped to the curated plug
+// slots). A known host WITH a path is an app — a path is an app (D47): the
+// demo apps live under the marketing host, one per path, and belong in the
+// grid.
+function isHostRoot(url: string): boolean {
+  try {
+    const p = new URL(url).pathname
+    return p === '' || p === '/'
+  } catch {
+    return true
+  }
+}
+
 function appName(url: string): string {
   const h = hostOf(url)
   return h.replace(/^www\./, '')
@@ -194,7 +207,7 @@ function AppStore() {
     ]
 
     const registered: StoreApp[] = (stats?.apps ?? [])
-      .filter((a) => a.url && !KNOWN_HOSTS.includes(hostOf(a.url)))
+      .filter((a) => a.url && (!KNOWN_HOSTS.includes(hostOf(a.url)) || !isHostRoot(a.url)))
       .filter((a) => hostOf(a.url) !== '' && !hostOf(a.url).endsWith('.localhost'))
       .map((a) => ({
         name: a.pwaName || a.name || appName(a.url),

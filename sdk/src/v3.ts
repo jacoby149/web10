@@ -534,7 +534,9 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
     // ── App Store ─────────────────────────────────────────────────────────
 
     async registerApp(app: { url: string; name?: string; description?: string; icon_url?: string; screenshots?: unknown[] }): Promise<{ url: string; review_state: string }> {
-      return v3Post<{ url: string; review_state: string }>('apps/register', { body: app })
+      // Anonymous — the node's /v3/apps/register takes no token (the app
+      // identifies itself by url). Works signed-out, like v2.
+      return authPost<{ url: string; review_state: string }>(`${apiOrigin}/v3/apps/register`, { body: app })
     },
 
     async getApps(): Promise<{ url: string; name: string; description: string; icon_url: string; screenshots: unknown[]; review_state: string; metadata_version: number }[]> {
@@ -645,6 +647,25 @@ contracts: V3CR[],
         '*',
       )
     },
+  }
+
+  // Register this app with the node's app store (best-effort, anonymous).
+  // v2 parity: every client init pings the register endpoint, so the store
+  // knows what runs on the node — and repeat inits from a known app count
+  // as visits (the store's "sorted by visits" ordering). The identity is
+  // the full URL, path included (a path is an app, D47) — query and
+  // fragment stripped, so routing params never fork the identity.
+  // Fire-and-forget: registration must never block or break app init.
+  if (typeof window !== 'undefined' && typeof window.location !== 'undefined' && typeof window.location.href === 'string') {
+    try {
+      fetch(`${apiOrigin}/v3/apps/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body: { url: window.location.href.split(/[?#]/)[0] } }),
+      }).catch(() => {})
+    } catch {
+      // fetch not available (SSR, test env)
+    }
   }
 
   return client

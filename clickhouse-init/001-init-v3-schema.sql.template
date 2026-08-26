@@ -132,6 +132,7 @@ CREATE TABLE IF NOT EXISTS apps (
     description String DEFAULT '',
     icon_url String DEFAULT '',
     screenshots String DEFAULT '',
+    visits UInt64 DEFAULT 0,
     approved UInt8 DEFAULT 0,
     review_state String DEFAULT 'pending',
     metadata_version UInt32 DEFAULT 1,

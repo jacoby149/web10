@@ -1,6 +1,7 @@
 import json
 import logging
 import threading
+import time
 import uuid
 from datetime import datetime
 
@@ -8,8 +9,7 @@ import clickhouse_connect
 from uuid6 import uuid7
 
 import app.settings as settings
-from app.services.documentdb import total_s3_size
-from app.services.media import get_s3_signing_client
+from app.services.media import get_s3_client, get_s3_signing_client
 
 log = logging.getLogger(__name__)
 
@@ -68,6 +68,24 @@ def _parse_json(body: str) -> dict:
 def _gen_doc_id() -> str:
     """Generate a time-ordered UUID (UUIDv7) as hex. Better for ClickHouse merge trees than random UUIDv4."""
     return str(uuid7())
+
+
+def ensure_apps_schema():
+    """Self-heal the apps table on existing deployments.
+
+    The DDL template (clickhouse-init) only runs on a FRESH ClickHouse
+    volume; dev/prod volumes predate the `visits` column. This idempotent
+    ALTER adds it on boot so the visit tracker works everywhere. Safe to
+    run from every gunicorn worker — ADD COLUMN IF NOT EXISTS is a no-op
+    once the column exists.
+    """
+    try:
+        client.command("ALTER TABLE apps ADD COLUMN IF NOT EXISTS visits UInt64 DEFAULT 0")
+        log.info("[v3] apps schema ensured (visits column present)")
+    except Exception as e:
+        # ClickHouse not up yet, or table missing (fresh volume mid-init).
+        # The DDL template covers fresh volumes; log and move on.
+        log.warning(f"[v3] apps schema ensure skipped: {type(e).__name__}: {e}")
 
 
 # ---------------------------------------------------------------------------
@@ -1237,6 +1255,33 @@ def resolve_media_urls_in_docs(docs: list[dict]) -> list[dict]:
 # User stats (v3 equivalent of /stats)
 # ---------------------------------------------------------------------------
 
+# Object-store (MinIO/S3) media size — v3-native. The v2 implementation
+# scanned MongoDB metadata (body.size_bytes) for this number, but v3 has no
+# Mongo: media documents carry only {type:'minio', value: key} references,
+# so the object store IS the source of truth for blob bytes. A bucket scan
+# is a real cost, so it's cached with a short TTL — /stats is polled by the
+# marketing site, and the number only needs to be roughly right.
+_S3_SIZE_CACHE: int = 0
+_S3_SIZE_CACHE_TIME: float = 0.0
+_S3_SIZE_TTL = 60  # seconds — don't re-scan the bucket on every /stats
+
+
+def total_s3_size() -> int:
+    """Sum of object sizes in the media bucket (MinIO/S3)."""
+    global _S3_SIZE_CACHE, _S3_SIZE_CACHE_TIME
+    now = time.time()
+    if now - _S3_SIZE_CACHE_TIME < _S3_SIZE_TTL:
+        return _S3_SIZE_CACHE
+    total = 0
+    s3 = get_s3_client()
+    paginator = s3.get_paginator("list_objects_v2")
+    for page in paginator.paginate(Bucket=settings.S3_BUCKET):
+        for obj in page.get("Contents", []):
+            total += int(obj.get("Size", 0))
+    _S3_SIZE_CACHE = total
+    _S3_SIZE_CACHE_TIME = now
+    return total
+
 
 def get_node_stats() -> dict:
     """Get node-level stats: user count, doc count, group count, apps, storage."""
@@ -1247,9 +1292,11 @@ def get_node_stats() -> dict:
     group_result = client.query("SELECT count() FROM group_contracts WHERE deleted = 0")
     group_count = group_result.result_rows[0][0] if group_result.result_rows else 0
 
-    # Apps — approved only (marketing-ui expects an array of {url, visits, name, ...})
+    # Apps — approved only (marketing-ui expects an array of {url, visits, name, ...}).
+    # Visits are real: the SDK auto-registers on every app init, and
+    # register_app increments the counter on repeat registrations.
     apps = list_apps(approved_only=True)
-    apps_for_stats = [{**app, "visits": 0, "web10apps_post_id": ""} for app in apps]
+    apps_for_stats = [{**app, "web10apps_post_id": ""} for app in apps]
 
     # Storage — ClickHouse on-disk bytes + S3 media blob bytes
     try:
@@ -1472,20 +1519,55 @@ def delete_media(user_key: str, doc_id: str):
 
 
 def register_app(app_info: dict) -> dict:
-    """Register an app in the provider app store. Idempotent — returns existing if already registered."""
-    existing = get_app(app_info["url"])
+    """Register an app in the provider app store.
+
+    v2 parity: registration is the visit tracker. The SDK pings this on
+    every app init, so a NEW app starts at visits=1 and every repeat
+    registration from an already-known app increments visits. Metadata
+    fields (name/description/icon_url) update when provided non-empty on
+    a repeat registration; the auto-register ping sends only the url
+    (empty metadata), so it never clobbers a listing.
+    """
+    url = app_info["url"]
+    existing = get_app(url)
     if existing:
-        return {"url": app_info["url"], "review_state": existing["review_state"]}
+        # Visit bump on the latest row (dedup-then-filter house pattern;
+        # now64(6) so the new row always ranks latest in the dedup).
+        # Non-empty metadata in the body replaces the stored value; empty
+        # (the auto-register ping) keeps what's stored.
+        client.command(
+            "INSERT INTO apps (url, name, description, icon_url, screenshots, visits, approved, review_state, metadata_version, created_at, updated_at, deleted) "
+            "SELECT url, "
+            "if(%(name)s != '', %(name)s, name), "
+            "if(%(description)s != '', %(description)s, description), "
+            "if(%(icon_url)s != '', %(icon_url)s, icon_url), "
+            "screenshots, "
+            "visits + 1, approved, review_state, "
+            "if(%(name)s != '' OR %(description)s != '' OR %(icon_url)s != '', metadata_version + 1, metadata_version), "
+            "created_at, now64(6), 0 "
+            "FROM (SELECT url, name, description, icon_url, screenshots, visits, approved, review_state, "
+            "metadata_version, created_at, updated_at, deleted, "
+            "row_number() OVER (PARTITION BY url ORDER BY updated_at DESC, deleted DESC) AS rn "
+            "FROM apps) WHERE rn = 1 AND deleted = 0 AND url = %(url)s",
+            {
+                "url": url,
+                "name": app_info.get("name", ""),
+                "description": app_info.get("description", ""),
+                "icon_url": app_info.get("icon_url", ""),
+            },
+        )
+        return {"url": url, "review_state": existing["review_state"]}
     now = _now()
     client.insert(
         "apps",
         [
             [
-                app_info["url"],
+                url,
                 app_info.get("name", ""),
                 app_info.get("description", ""),
                 app_info.get("icon_url", ""),
                 _json(app_info.get("screenshots", [])),
+                1,  # visits — first registration is the first visit
                 0,
                 "pending",
                 1,
@@ -1495,15 +1577,23 @@ def register_app(app_info: dict) -> dict:
             ]
         ],
     )
-    return {"url": app_info["url"], "review_state": "pending"}
+    return {"url": url, "review_state": "pending"}
 
 
 def list_apps(approved_only: bool = True) -> list[dict]:
-    """List apps, optionally filtered by approval."""
+    """List apps, optionally filtered by approval.
+
+    Dedup-then-filter: the visits increment appends a new row per
+    registration, so the latest row per url wins (tombstones included in
+    the dedup, then deleted = 0).
+    """
     where = "AND approved = 1" if approved_only else ""
     result = client.query(
-        f"SELECT url, name, description, icon_url, screenshots, review_state, metadata_version "
-        f"FROM apps WHERE deleted = 0 {where} ORDER BY url",
+        f"SELECT url, name, description, icon_url, screenshots, visits, review_state, metadata_version "
+        f"FROM (SELECT url, name, description, icon_url, screenshots, visits, approved, review_state, "
+        f"metadata_version, updated_at, deleted, "
+        f"row_number() OVER (PARTITION BY url ORDER BY updated_at DESC, deleted DESC) AS rn "
+        f"FROM apps) WHERE rn = 1 AND deleted = 0 {where} ORDER BY url",
     )
     return [
         {
@@ -1512,8 +1602,9 @@ def list_apps(approved_only: bool = True) -> list[dict]:
             "description": row[2],
             "icon_url": row[3],
             "screenshots": _parse_json(row[4]),
-            "review_state": row[5],
-            "metadata_version": row[6],
+            "visits": row[5],
+            "review_state": row[6],
+            "metadata_version": row[7],
         }
         for row in result.result_rows
     ]
@@ -1523,8 +1614,11 @@ def list_apps_admin() -> list[dict]:
     """Admin-facing list of every registered app with full state."""
     result = client.query(
         "SELECT url, name, description, icon_url, screenshots, approved, review_state, "
-        "metadata_version, created_at, updated_at "
-        "FROM apps WHERE deleted = 0 ORDER BY created_at DESC",
+        "metadata_version, visits, created_at, updated_at "
+        "FROM (SELECT url, name, description, icon_url, screenshots, approved, review_state, "
+        "metadata_version, visits, created_at, updated_at, deleted, "
+        "row_number() OVER (PARTITION BY url ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM apps) WHERE rn = 1 AND deleted = 0 ORDER BY created_at DESC",
     )
     apps = []
     for row in result.result_rows:
@@ -1551,10 +1645,11 @@ def list_apps_admin() -> list[dict]:
                 "description": row[2],
                 "icon_url": row[3],
                 "screenshots": _parse_json(row[4]),
-                "registered_at": str(row[8]),
+                "registered_at": str(row[9]),
                 "review_state": row[6],
                 "metadata_version": row[7],
-                "last_reviewed_at": str(row[9]),
+                "visits": row[8],
+                "last_reviewed_at": str(row[10]),
                 "rating_average": round(weighted_sum / total_count, 1) if total_count else None,
                 "rating_count": total_count,
             }
@@ -1563,9 +1658,9 @@ def list_apps_admin() -> list[dict]:
 
 
 def get_app(url: str) -> dict | None:
-    """Get an app by URL."""
+    """Get an app by URL (latest row wins)."""
     result = client.query(
-        "SELECT url, name, description, icon_url, screenshots, approved, review_state, metadata_version "
+        "SELECT url, name, description, icon_url, screenshots, approved, review_state, metadata_version, visits "
         "FROM apps WHERE url = %(url)s AND deleted = 0 "
         "ORDER BY updated_at DESC LIMIT 1",
         {"url": url},
@@ -1582,15 +1677,23 @@ def get_app(url: str) -> dict | None:
         "approved": bool(row[5]),
         "review_state": row[6],
         "metadata_version": row[7],
+        "visits": row[8],
     }
 
 
 def approve_app(url: str, approved: bool, review_state: str):
-    """Approve or reject an app."""
+    """Approve or reject an app.
+
+    Dedup-then-filter: only the latest row per url is re-inserted — a raw
+    `WHERE url = ...` would re-insert every visit-bump version and
+    multiply rows. now64(6) so the new row ranks latest in the dedup.
+    """
     client.command(
-        "INSERT INTO apps (url, name, description, icon_url, screenshots, approved, review_state, metadata_version, created_at, updated_at, deleted) "
-        "SELECT url, name, description, icon_url, screenshots, %(approved)s, %(review_state)s, metadata_version, created_at, now(), 0 "
-        "FROM apps WHERE url = %(url)s AND deleted = 0",
+        "INSERT INTO apps (url, name, description, icon_url, screenshots, visits, approved, review_state, metadata_version, created_at, updated_at, deleted) "
+        "SELECT url, name, description, icon_url, screenshots, visits, %(approved)s, %(review_state)s, metadata_version, created_at, now64(6), 0 "
+        "FROM (SELECT url, name, description, icon_url, screenshots, visits, metadata_version, created_at, updated_at, deleted, "
+        "row_number() OVER (PARTITION BY url ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM apps) WHERE rn = 1 AND deleted = 0 AND url = %(url)s",
         {"url": url, "approved": 1 if approved else 0, "review_state": review_state},
     )
 

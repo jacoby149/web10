@@ -9,6 +9,64 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D47 — App registration: a path is an app; the demos register as first-party apps [decided]
+Operator, 25.08.2026 — the v3 app store was bricked (stats hung 30s, apps
+never showed) and the operator asked: "if that is really a web10 app it
+should be able to register, if it has all the pwa jazz, make all the demo
+apps register."
+
+**Decided** — the store's identity for an app is its **full URL, path
+included.** `www.web10.app/docs/notes/` is a different app from
+`www.web10.app/`. Consequences:
+
+1. **Registration is the visit tracker (v2 parity, restored).** The SDK
+   auto-registers on every `createV3Client()` — anonymous, fire-and-forget,
+   `POST /v3/apps/register {url: location.href minus query}`. First
+   registration → `visits: 1, pending`; every repeat → `visits + 1`. The
+   store sorts by visits. The v3 migration had dropped both the auto-
+   register ping and the visit counter (hardcoded 0) — that is why the
+   store looked dead. Both are back.
+2. **A known host with a path is an app; a known host at its root is
+   infrastructure.** The store's `KNOWN_HOSTS` filter (social/auth/api/www)
+   applies only to root URLs — those map to the curated plug slots. A path
+   on a known host (`/docs/notes/`) renders in the grid. `.localhost`
+   hosts stay filtered (dev hygiene — the store is a public surface).
+3. **The PWA manifest is the store's identity source.** Each app ships
+   `manifest.json` at its own path; the node proxies it via
+   `GET /pwa_listing?url=...` (manifest URL = `{url without trailing
+   slash}/manifest.json`, so paths with or without a trailing slash
+   resolve). The store renders the manifest's name + 192/512 icon, falling
+   back to the registered name, then the host. A service worker is NOT
+   required for listing — that is installability, per-app, later.
+4. **The demos are first-party apps.** All eight (`hello`, `notes`,
+   `messages`, `groups`, `media`, `feed`, `sharing`, `tasks`) ship a PWA
+   manifest and register like any other app — no hardcoded store entries,
+   no special-casing. Real visit counts, real grid presence.
+
+**Why:** the v3 store bricked on two independent drops from v2 — (a)
+`/v3/stats` still called the v2 Mongo `total_s3_size()` scan, but the v3
+stack runs no Mongo, so every stats call blocked ~30s on a dead
+`serverSelectionTimeout` (the marketing front page + store hung on load);
+(b) the registration/visit machinery was gutted (no auto-register, visits
+hardcoded 0, no `visits` column). Fixing (a) is a bugfix; (b) is a model
+call, and the model call is D47: registration identity is the full URL,
+so the demos — which live under the marketing host, one per path — are
+individually registrable, countable, and showable. The alternative
+(host-only identity) collapses all path apps on one host into one entry
+and makes the demos invisible; hardcoding each first-party app into the
+catalog means every new first-party app needs a code change.
+
+**Rejected:** host-only registration identity (collapses path apps);
+hardcoded first-party catalog entries for the demos (registration is the
+mechanism); browser-side manifest fetch (CORS — the node proxies, v2
+parity); requiring a service worker for store listing (installability ≠
+identity); porting v2's `pending_on_change` review state machine (the
+operator's approve/reject is the review — small node, operator's call).
+
+Full model: `knowledge-base/web10-v3/app-store/overview.md`.
+
+---
+
 ### D46 — web10-social converges on the SDK: retire the v1 auth seam and the hand-rolled v3 client [decided]
 Operator, 25.08.2026, during Phase 3 scoping (3.9.1) — after confirming the
 demos run the new SDK for BOTH auth and data.

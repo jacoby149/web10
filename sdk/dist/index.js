@@ -329,7 +329,7 @@ function createV3Client(options = {}) {
       return v3Post("stats", {});
     },
     async registerApp(app) {
-      return v3Post("apps/register", { body: app });
+      return authPost(`${apiOrigin}/v3/apps/register`, { body: app });
     },
     async getApps() {
       return v3Post("apps/list", {});
@@ -401,6 +401,15 @@ function createV3Client(options = {}) {
       window.opener.postMessage({ type: "contract", contracts }, "*");
     }
   };
+  if (typeof window !== "undefined" && typeof window.location !== "undefined" && typeof window.location.href === "string") {
+    try {
+      fetch(`${apiOrigin}/v3/apps/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body: { url: window.location.href.split(/[?#]/)[0] } })
+      }).catch(() => {});
+    } catch {}
+  }
   return client;
 }
 export {

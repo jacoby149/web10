@@ -6,8 +6,10 @@ const LOG_ERR = (...args) => console.error('[notes-demo]', ...args)
 const host = window.location.hostname
 const isDev = host === 'dev.web10.app' || host.endsWith('.dev.web10.app')
 const isLocal = host === 'localhost' || host === '127.0.0.1' || host.endsWith('.localhost')
-const AUTH_ORIGIN = isLocal ? 'http://auth.localhost' : isDev ? 'https://auth.dev.web10.app' : 'https://auth.web10.app'
-const API_ORIGIN = isLocal ? 'http://api.localhost' : isDev ? 'https://api.dev.web10.app' : 'https://api.web10.app'
+// non-80 port; the origins must carry the same port. Empty on :80.
+const portSuffix = window.location.port ? `:${window.location.port}` : ''
+const AUTH_ORIGIN = isLocal ? `http://auth.localhost${portSuffix}` : isDev ? 'https://auth.dev.web10.app' : 'https://auth.web10.app'
+const API_ORIGIN = isLocal ? `http://api.localhost${portSuffix}` : isDev ? 'https://api.dev.web10.app' : 'https://api.web10.app'
 
 LOG('init — host:', host, 'isLocal:', isLocal, 'isDev:', isDev)
 LOG('AUTH_ORIGIN:', AUTH_ORIGIN)
