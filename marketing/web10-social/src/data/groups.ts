@@ -31,10 +31,10 @@ export function dmGroupId(a: string, b: string): string {
 }
 
 // ── Role definitions ─────────────────────────────────────────────────────────
-// Each group contract declares a default_role — the role assigned when:
-// 1. Open join: someone joins an open group automatically
-// 2. Invite with role omitted: inviteMember(groupId, memberKey) without a role
-// 3. Invite with explicit role: overrides to that role (default_role is fallback)
+// Each group contract declares its roles. The API assigns 'member' on open
+// joins and on initial members without an explicit role (groups.py) — every
+// role set below defines a 'member' role, and initial members always carry
+// an explicit role.
 
 const FOLLOWER_ROLES = [
   {
@@ -128,7 +128,6 @@ export async function ensureFollowers(username: string): Promise<string> {
       'open',
       FOLLOWER_ROLES,
       [{ member_key: `web10.app/users/${username}`, role: 'owner' }],
-      'member', // default_role
     );
     return groupId;
   }
@@ -150,7 +149,6 @@ export async function ensureCloseFriends(username: string): Promise<string> {
       'request',
       CLOSE_FRIENDS_ROLES,
       [{ member_key: `web10.app/users/${username}`, role: 'owner' }],
-      'member', // default_role
     );
     return groupId;
   }
@@ -176,7 +174,6 @@ export async function ensureDmGroup(usernameA: string, usernameB: string): Promi
         { member_key: `web10.app/users/${usernameA}`, role: 'member' },
         { member_key: `web10.app/users/${usernameB}`, role: 'member' },
       ],
-      'member', // default_role
     );
     return groupId;
   }
@@ -201,7 +198,6 @@ export async function ensureCommunity(
       joinPolicy,
       COMMUNITY_ROLES,
       [{ member_key: `web10.app/users/${ownerUsername}`, role: 'owner' }],
-      'member', // default_role
     );
     return groupId;
   }

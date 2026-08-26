@@ -421,13 +421,13 @@ describe('v3 client', () => {
       expect(call.limit).toBe(20)
     })
 
-    it('readById calls read-by-id', async () => {
+    it('readById posts to read with doc_id (the API merged read-by-id into read, #537)', async () => {
       const mockResponse = { doc_id: 'abc', collection_name: 'notes', body: {} }
       vi.spyOn(http, 'authPost').mockResolvedValueOnce(mockResponse as any)
 
       await client.readById('abc', 'notes')
       expect(http.authPost).toHaveBeenCalledWith(
-        'http://api.localhost/v3/read-by-id',
+        'http://api.localhost/v3/read',
         expect.objectContaining({ doc_id: 'abc', service: 'notes', token: mockToken }),
       )
     })

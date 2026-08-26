@@ -11,11 +11,18 @@
 // (window.web10 — index.html loads it before the app bundle). The ESM
 // 'web10-npm' package provides the types; the runtime is the IIFE.
 //
+// Session sync (3.12.0): the data client's v3Post is state-first
+// (state.token ?? cookie — D45 rejected changing that precedence in the
+// SDK), so this seam keeps its state.token in step with the cookie on
+// every transition: setToken on login (authListen), scrubToken on
+// signOut. The token cookie remains the session's source of truth.
+//
 // One-tap survives via D42 auto-complete: on a return run the popup is
 // already signed in and the contract already granted, so it hands back the
 // token and closes itself with zero UI — no "all set" screen, no extra tap.
 
 import { API_ORIGIN, AUTH_ORIGIN } from '../lib/origins';
+import { getV3Client } from '../data/v3';
 import type { TokenPayload, V3AppCR, V3Client } from 'web10-npm';
 
 const LOG = (...args: unknown[]) => console.log('[social]', ...args);
@@ -134,6 +141,12 @@ function createSocialAuth(): SocialAuth {
     if (!web10) return;
     LOG('signOut — scrubbing token cookie');
     web10.scrubTokenCookie();
+    // The data client's v3Post is state-first (state.token ?? cookie — D45
+    // rejected changing that precedence in the SDK), so scrub its in-memory
+    // token too: otherwise a post-sign-out data call would still carry the
+    // previous user's token.
+    getV3Client().scrubToken();
+    LOG('signOut — data client token scrubbed');
   }
 
   function authListen(callback: () => void): void {
@@ -141,6 +154,16 @@ function createSocialAuth(): SocialAuth {
     LOG('authListen registered');
     web10.authListen(() => {
       LOG('authListen fired — signed in as', JSON.stringify(readToken()));
+      // The SDK's authListen set the cookie but not the data client's
+      // state.token (its v3Post is state-first). Re-sync state with the
+      // cookie so a same-session re-login acts as the NEW user, not the
+      // previous one — the successor to the old adapter's
+      // syncDataLayerToken mirror.
+      const token = web10.readTokenCookie();
+      if (token) {
+        getV3Client().setToken(token);
+        LOG('authListen — data client token re-synced from cookie');
+      }
       callback();
     });
   }

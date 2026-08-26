@@ -171,7 +171,7 @@ function createV3Client(options = {}) {
       return v3Post("read", payload);
     },
     async readById(docId, collection) {
-      return v3Post("read-by-id", { doc_id: docId, service: collection });
+      return v3Post("read", { doc_id: docId, service: collection });
     },
     async update(docId, body, opts) {
       const payload = { doc_id: docId, body };

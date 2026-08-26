@@ -184,15 +184,17 @@ P2P stays v4 — do not build it here.
 ### Lane: social-v3 (Phase 3)
 **Owns:** `marketing/web10-social/`
 
-The social app is the integration test (Phase 3). It runs on two legacy
+The social app is the integration test (Phase 3). It ran on two legacy
 seams — `web10-npm@1.0.8` (v1 auth) and the hand-rolled `src/data/v3.ts`
 (data) — and the convergence is on the SDK the demos already run on.
-The decision bite gates the seam bites — docs first.
+Both seams are now retired (3.11.0 auth, 3.12.0 data); what remains is
+the hls.js player and the e2e gauntlet that proves it end-to-end.
+The decision bite gated the seam bites — docs first.
 
 - [✓ 3.9.2] Decision: converge on the SDK (`knowledge/strategy/decisions.md`) — D46. Retire both legacy seams, adopt the SDK the demos already run on (the reference implementation).
 - [✓ 3.11.0] Auth: D42 login through the real consent popup (the same flow the demos run) — the LoginScreen's one-tap survives via auto-complete
 - [✓ 3.11.0] Auth: sign-out scrubs token + cookie; session restores on reload
-- [ ] Data: `getV3Client()` returns the SDK's `createV3Client` — retire the hand-rolled fetch client, data modules keep their API
+- [✓ 3.12.0] Data: `getV3Client()` returns the SDK's `createV3Client` — retire the hand-rolled fetch client, data modules keep their API
 - [ ] Video: hls.js player for video posts in the feed (Safari native fallback, vendored hls.js) — moved from the `hls` lane
 
 ### Lane: social-e2e (Phase 3)
