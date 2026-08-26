@@ -149,8 +149,12 @@ services:
 
   social:
     build:
-      context: ../marketing/web10-social
-      dockerfile: Dockerfile
+      # Repo-root context so the Dockerfile can COPY sdk/ + nginx.conf (the
+      # social app depends on the local web10-npm file: dependency since
+      # D46). Same pattern as the ui service — the Dockerfile's own header
+      # documents this requirement.
+      context: ..
+      dockerfile: marketing/web10-social/Dockerfile
       args:
         VITE_API_ORIGIN: ${API_ORIGIN}
         VITE_AUTH_ORIGIN: ${AUTH_ORIGIN}
