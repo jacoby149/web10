@@ -367,7 +367,8 @@ function useInterface() {
     }
 
     // Ask the node whether THIS account is an admin, to show/hide Node Config.
-    // Uses v3 endpoint — no more legacy /am_admin axios call (CORS issues).
+    // POST /am_admin is the purpose-built check (returns {admin: bool},
+    // never errors) — not /v3/apps/admin, which is the app-store admin list.
     I.checkAdmin = function () {
         const decoded = I.v3.readToken?.();
         if (!decoded) {
@@ -384,13 +385,13 @@ function useInterface() {
         if (_checkAdminTimer.current) clearTimeout(_checkAdminTimer.current);
         _checkAdminTimer.current = setTimeout(() => {
             _checkAdminTimer.current = null;
-            fetch(`${origin}/v3/apps/admin`, {
+            fetch(`${origin}/am_admin`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ token }),
             })
                 .then((r) => {
-                    if (r.ok) return r.json().then((d) => I.setIsAdmin(!!d));
+                    if (r.ok) return r.json().then((d) => I.setIsAdmin(!!d?.admin));
                     I.setIsAdmin(false);
                 })
                 .catch(() => I.setIsAdmin(false));
