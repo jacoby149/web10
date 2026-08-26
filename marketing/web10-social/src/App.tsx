@@ -1,7 +1,7 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import web10SocialAdapterInit from '@/interfaces/Web10SocialAdapter';
+import { getSocialAuth } from '@/interfaces/auth';
 import Layout from '@/components/Social/Layout';
 import FeedScreen from '@/components/Feed/FeedScreen';
 import ProfileScreen from '@/components/Bio/ProfileScreen';
@@ -14,11 +14,12 @@ import PostComposer from '@/components/Feed/PostComposer';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { ReportBug } from '@/components/shared/ReportBug';
 import { getWapi, getV3Client } from '@/data';
-import { registerDefaultSchemas } from '@/data/wapi';
 import { resolveMediaRefs } from '@/data/posts';
 import { trackEvent } from '@/lib/analytics';
 import { PostLightbox } from '@/components/Bio/PostLightbox';
 import type { PostRecord, MediaRecord, Visibility } from '@/data/types';
+
+const LOG = (...args: unknown[]) => console.log('[social]', ...args);
 
 function LoginScreen({ onLogin }: { onLogin: () => void }) {
   return (
@@ -209,21 +210,20 @@ function App() {
   const [signedIn, setSignedIn] = useState(false);
   const [showReportBug, setShowReportBug] = useState(false);
   const [reportTrigger, setReportTrigger] = useState<'button' | 'error-boundary'>('button');
-  const adapterRef = useRef<ReturnType<typeof web10SocialAdapterInit> | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const a = web10SocialAdapterInit();
-    adapterRef.current = a;
-
-    if (a.isSignedIn()) {
+    // D42 (D46): the auth seam talks to the SDK directly — the real consent
+    // popup, the same flow the demos run. isSignedIn is cookie-first, so a
+    // return visit restores the session with no popup; authListen (D45-
+    // deduped) fires on the one-tap login.
+    const auth = getSocialAuth();
+    LOG('app mount — isSignedIn:', auth.isSignedIn());
+    if (auth.isSignedIn()) {
       setSignedIn(true);
-      registerDefaultSchemas().catch(() => {});
     }
-
-    a.authListen(() => {
+    auth.authListen(() => {
       setSignedIn(true);
-      registerDefaultSchemas().catch(() => {});
       trackEvent('login');
     });
 
@@ -235,14 +235,14 @@ function App() {
     return () => {
       window.removeEventListener('navigate-user-profile', handler);
     };
-  }, []);
+  }, [navigate]);
 
   function handleLogin() {
-    adapterRef.current?.login();
+    getSocialAuth().login();
   }
 
   function handleLogout() {
-    adapterRef.current?.signOut();
+    getSocialAuth().signOut();
     setSignedIn(false);
   }
 

@@ -35,9 +35,11 @@ bun run test:run  # vitest, single run
   don't fork a parallel one.
 - `src/data/` — the data layer (one file per service), typed against
   `marketing/marketing-ui/public/docs/schemas/`.
-- `src/interfaces/` — legacy pre-D4 interface layer (`Interface.ts`,
-  `MockInterface.ts`, `PostInterface.ts`) kept alive by its own tests;
-  `Web10SocialAdapter.ts` is the real auth/session adapter `App.tsx` uses.
+- `src/interfaces/auth.ts` — the D42 auth seam (D46): `openAuthPortal` +
+  `contractRequest` + `authListen` against the SDK browser build
+  (`window.web10`, self-hosted at `public/wapi.js` — keep it in sync with
+  `sdk/dist/browser.js`). `App.tsx` talks to it directly; there is no
+  adapter layer.
 
 ## Design tokens
 

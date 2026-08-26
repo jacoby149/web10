@@ -13,6 +13,11 @@
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
+    <!-- web10 SDK browser build (the D42 auth flow: openAuthPortal +
+         contractRequest + authListen). Self-hosted, same pattern as the
+         demos' docs/wapi.js. KEEP IN SYNC with sdk/dist/browser.js —
+         the Dockerfile should rebuild it from source (see .context note). -->
+    <script src="/wapi.js"></script>
     <script type="module" src="/src/main.tsx"></script>
     <script src="/registerWorker.js"></script>
   </body>

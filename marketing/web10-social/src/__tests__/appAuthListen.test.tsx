@@ -3,10 +3,13 @@ import { render, waitFor, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import '@testing-library/jest-dom';
 
-// v3 stub: App renders without crashing. The authListen registration pattern
-// is handled by the v3 client's cookie-based token, not the v2 adapter callback.
+// App renders without crashing. The D42 auth seam (src/interfaces/auth)
+// reads the SDK browser global (window.web10) — the same surface the real
+// /wapi.js IIFE attaches — so the mock installs that global instead of
+// mocking the old v1 wapiInit.
 
 import { lucideMock } from './helpers/lucideMock';
+import { installWeb10Mock } from './helpers/web10Mock';
 vi.mock('lucide-react', () => lucideMock);
 
 vi.mock('@/data', async (importOriginal) => {
@@ -46,20 +49,14 @@ vi.mock('@/data/wapi', () => ({
   updateFollowNotify: vi.fn(),
 }));
 
-vi.mock('web10-npm', () => ({
-  wapiInit: vi.fn().mockReturnValue({
-    isSignedIn: vi.fn().mockReturnValue(false),
-    authListen: vi.fn(),
-    openAuthPortal: vi.fn(),
-    signOut: vi.fn(),
-    readToken: vi.fn().mockReturnValue({ provider: 'test.localhost', username: 'testuser' }),
-    contractOnReady: vi.fn(),
-  }),
-}));
-
 describe('App renders', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Fresh module registry per test — the auth seam is a per-module
+    // singleton (getSocialAuth), so each render sees the mock installed
+    // below, not a stale one from a previous test.
+    vi.resetModules();
+    installWeb10Mock();
   });
 
   it('renders without crashing when signed-out', async () => {
