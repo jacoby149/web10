@@ -13,7 +13,7 @@ export const API_ORIGIN: string = env?.VITE_API_ORIGIN || 'https://api.web10.app
 export const API_HOST: string = API_ORIGIN.replace(/^https?:\/\//, '');
 
 export const RTC_ORIGIN: string = env?.VITE_RTC_ORIGIN || 'https://rtc.web10.app';
-// wapiInit takes the rtc endpoint as a bare host
+// The RTC endpoint as a bare host (the SDK's rtc subpath takes a host, not a URL)
 export const RTC_HOST: string = RTC_ORIGIN.replace(/^https?:\/\//, '');
 
 // The marketing site (where the importer /import lives). The social app's

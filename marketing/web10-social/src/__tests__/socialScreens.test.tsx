@@ -68,20 +68,10 @@ vi.mock('@/data/wapi', () => ({
   updateFollowNotify: vi.fn(),
 }));
 
-// Mock web10-npm
-vi.mock('web10-npm', () => ({
-  wapiInit: vi.fn().mockReturnValue({
-    isSignedIn: vi.fn().mockReturnValue(false),
-    authListen: vi.fn(),
-    openAuthPortal: vi.fn(),
-    signOut: vi.fn(),
-    readToken: vi.fn().mockReturnValue({
-      provider: 'test.localhost',
-      username: 'testuser',
-    }),
-    contractOnReady: vi.fn(),
-  }),
-}));
+// (The old `vi.mock('web10-npm', ...)` block is gone with the v1 adapter —
+// the screens' graph no longer imports the npm package at runtime. The D42
+// auth seam lives in src/interfaces/auth and reads window.web10, which only
+// App-level tests need to install.)
 
 describe('FeedScreen', () => {
   beforeEach(() => {

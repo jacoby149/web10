@@ -1,8 +1,15 @@
+# Repo-root build context (see ubuntu-deployment/docker-compose.ecosystem.yml
+# — the social service needs `context: ..`, like the ui service). The context
+# must be the repo root because web10-npm is a local `file:../../sdk`
+# dependency: bun install needs sdk/ in the context (same pattern as ui/).
 FROM oven/bun:1-alpine AS build
 WORKDIR /app
-COPY package.json bun.lock* ./
+
+COPY marketing/web10-social/package.json marketing/web10-social/bun.lock* ./
+COPY sdk/package.json /sdk/package.json
+COPY sdk/dist/ /sdk/dist/
 RUN bun install --frozen-lockfile || bun install
-COPY . .
+COPY marketing/web10-social/ .
 
 # Backend origins are baked at build time (vite), passed by
 # ubuntu-deployment/docker-compose.ecosystem.yml per environment and
@@ -24,6 +31,6 @@ RUN bun run build
 
 FROM nginx:alpine
 COPY --from=build /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY marketing/web10-social/nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
