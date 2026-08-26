@@ -805,9 +805,11 @@ class TestNodeStats:
                 MagicMock(result_rows=[(100,)]),  # documents
                 MagicMock(result_rows=[(5,)]),  # groups
                 # list_apps — one approved app with 47 visits
-                MagicMock(result_rows=[
-                    ("https://myapp.com", "My App", "A web10 app", "", "[]", 47, "approved", 3),
-                ]),
+                MagicMock(
+                    result_rows=[
+                        ("https://myapp.com", "My App", "A web10 app", "", "[]", 47, "approved", 3),
+                    ]
+                ),
                 MagicMock(result_rows=[(1024,)]),  # storage
             ]
             with patch("app.v3.services.clickhouse.total_s3_size", return_value=0):
@@ -1098,9 +1100,11 @@ class TestAppsRegister:
         visit tracker behind the store's 'sorted by visits' ordering."""
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             # get_app finds the existing app (9 columns incl. visits)
-            mock_ch.query.return_value = MagicMock(result_rows=[
-                ("https://myapp.com", "My App", "A web10 app", "", "[]", 1, "approved", 3, 47),
-            ])
+            mock_ch.query.return_value = MagicMock(
+                result_rows=[
+                    ("https://myapp.com", "My App", "A web10 app", "", "[]", 1, "approved", 3, 47),
+                ]
+            )
             resp = client.post(
                 "/v3/apps/register",
                 json={"body": {"url": "https://myapp.com"}},
