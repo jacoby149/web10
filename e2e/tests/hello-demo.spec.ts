@@ -43,7 +43,7 @@ async function setupUser(
   await request.post(`${API_BASE}/v3/app-contracts/add`, {
     data: JSON.stringify({
       token,
-      allowed_origin: 'http://marketing.localhost',
+      allowed_origin: MARKETING_BASE,
       permissions: { profile: ['readAll'] },
     }),
     headers: { 'Content-Type': 'application/json', Origin: AUTH_BASE },

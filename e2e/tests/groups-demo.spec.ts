@@ -402,7 +402,7 @@ async function setupSignedInDemo(
   await request.post(`${API_BASE}/v3/app-contracts/add`, {
     data: JSON.stringify({
       token,
-      allowed_origin: 'http://marketing.localhost',
+      allowed_origin: MARKETING_BASE,
       permissions: {
         'web10-docs-groups-demo': ['readAll', 'create', 'updateOwn', 'deleteOwn'],
         posts: ['readAll', 'create', 'updateOwn', 'deleteOwn'],

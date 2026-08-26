@@ -486,7 +486,7 @@ test.describe('Browser — consent forks (real popup)', () => {
     // The token postMessage targeted the referrer origin, never '*'.
     const consoleStr = popupFull.console.join('\n');
     expect(consoleStr, handshakeDiagnostics(demoLogs, popupFull)).toContain(
-      'goToApp — sending auth token to opener, target: http://marketing.localhost',
+      `goToApp — sending auth token to opener, target: ${MARKETING_BASE}`,
     );
     expect(consoleStr).not.toContain('target: *');
 

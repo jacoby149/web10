@@ -7,7 +7,7 @@ const AUTH_BASE = `http://auth.localhost${p}`;
 const MARKETING_BASE = `http://marketing.localhost${p}`;
 const PROVIDER = 'api.localhost';
 const SERVICE = 'media';
-const ORIGIN = 'http://marketing.localhost';
+const ORIGIN = MARKETING_BASE;
 
 const uniqueUser = (prefix: string) => `${prefix}${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 const password = 'TestPass123!';
