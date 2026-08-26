@@ -107,17 +107,60 @@ def _mark_failed(doc_id: str, author_key: str, error: str) -> None:
 
 
 def _parse_renditions(spec: str) -> list[dict]:
+    """Parse HLS_RENDITIONS ("640x360@1M,1280x720@3M").
+
+    The HEIGHT is the target (renditions are named 360p/720p/1080p by it);
+    the width in the spec is nominal — the actual output width is derived
+    from the source aspect ratio in _plan_renditions (video-experience.md:
+    the node is ratio-agnostic, targeting is by height).
+    """
     renditions = []
     for part in spec.split(","):
         part = part.strip()
         if not part:
             continue
         size, _, bitrate = part.partition("@")
-        width_s, _, height_s = size.lower().partition("x")
-        renditions.append({"width": int(width_s), "height": int(height_s), "bitrate": bitrate or "1M"})
+        _, _, height_s = size.lower().partition("x")
+        renditions.append({"height": int(height_s), "bitrate": bitrate or "1M"})
     if not renditions:
         raise RuntimeError(f"no valid renditions in HLS_RENDITIONS={spec!r}")
     return renditions
+
+
+def _plan_renditions(src_w: int, src_h: int, spec: list[dict]) -> list[dict]:
+    """Plan the actual output renditions for a source of src_w x src_h.
+
+    Aspect-ratio policy (video-experience.md): preserve the source ratio,
+    target by height, never upscale, keep dimensions even (H.264). A 1080x1920
+    (9:16) source plans to 360x640 / 720x1280 / 1080x1920; a 1920x1080 source
+    to 640x360 / 1280x720 / 1920x1080. Renditions taller than the source are
+    dropped (upscaling is pure waste); a source smaller than every target
+    gets one rendition at its own (evened) resolution.
+    """
+    ratio = src_w / src_h
+    planned: list[dict] = []
+    for r in sorted(spec, key=lambda x: x["height"]):
+        th = r["height"]
+        if th > src_h:
+            continue  # no upscaling
+        tw = max(2, int(th * ratio // 2) * 2)
+        tw = min(tw, src_w // 2 * 2)
+        tag = f"{th}p"
+        if any(p["tag"] == tag for p in planned):
+            continue
+        planned.append({"tag": tag, "width": tw, "height": th, "bitrate": r["bitrate"]})
+    if not planned:
+        # Tiny source — one rendition at source resolution, lowest bitrate.
+        tw, th = src_w // 2 * 2, src_h // 2 * 2
+        planned.append({"tag": f"{th}p", "width": max(2, tw), "height": max(2, th), "bitrate": spec[0]["bitrate"]})
+    return planned
+
+
+def _thumbnail_dims(src_w: int, src_h: int, box_w: int = 640, box_h: int = 360) -> tuple[int, int]:
+    """Fit the source into the thumbnail box, preserving ratio (upscaling
+    allowed — thumbnails are small; soft beats cropped)."""
+    scale = min(box_w / src_w, box_h / src_h)
+    return max(2, int(src_w * scale // 2) * 2), max(2, int(src_h * scale // 2) * 2)
 
 
 def _run_ffmpeg(args: list[str], label: str) -> None:
@@ -129,15 +172,45 @@ def _run_ffmpeg(args: list[str], label: str) -> None:
 
 
 def _probe_duration(path: Path) -> float:
+    # Format duration first; webm (browser MediaRecorder output) often has
+    # format.duration = N/A — fall back to the video stream's duration.
+    for entries in ("format=duration", "stream=duration"):
+        proc = subprocess.run(
+            [
+                "ffprobe",
+                "-v",
+                "error",
+                "-show_entries",
+                entries,
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
+                str(path),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if proc.returncode != 0:
+            raise RuntimeError(f"ffprobe failed: {proc.stderr[-500:]}")
+        val = proc.stdout.strip().splitlines()[0].strip() if proc.stdout.strip() else ""
+        if val and val != "N/A":
+            return float(val)
+    return 0.0
+
+
+def _probe_dimensions(path: Path) -> tuple[int, int, float]:
+    """(width, height, fps) of the first video stream."""
     proc = subprocess.run(
         [
             "ffprobe",
             "-v",
             "error",
+            "-select_streams",
+            "v:0",
             "-show_entries",
-            "format=duration",
+            "stream=width,height,r_frame_rate",
             "-of",
-            "default=noprint_wrappers=1:nokey=1",
+            "csv=p=0",
             str(path),
         ],
         capture_output=True,
@@ -145,8 +218,12 @@ def _probe_duration(path: Path) -> float:
         timeout=30,
     )
     if proc.returncode != 0:
-        raise RuntimeError(f"ffprobe failed: {proc.stderr[-500:]}")
-    return float(proc.stdout.strip() or "0")
+        raise RuntimeError(f"ffprobe dimensions failed: {proc.stderr[-500:]}")
+    # csv=p=0 → "720,1280,15/1" (width,height,r_frame_rate) — three values.
+    w_s, h_s, fps_s = proc.stdout.strip().split(",")
+    num, _, den = fps_s.partition("/")
+    fps = float(num) / float(den or 1)
+    return int(w_s), int(h_s), round(fps) or 30
 
 
 def _process_job(doc_id: str, author_key: str) -> None:
@@ -169,12 +246,24 @@ def _process_job(doc_id: str, author_key: str) -> None:
         logger.info("[transcode] downloading raw — key=%s", object_key)
         s3.download_file(settings.S3_BUCKET, object_key, str(raw_path))
         duration = _probe_duration(raw_path)
-        logger.info("[transcode] raw downloaded — %s bytes, duration=%.2fs", raw_path.stat().st_size, duration)
+        src_w, src_h, fps = _probe_dimensions(raw_path)
+        logger.info(
+            "[transcode] raw downloaded — %s bytes, %sx%s@%sfps, duration=%.2fs",
+            raw_path.stat().st_size,
+            src_w,
+            src_h,
+            fps,
+            duration,
+        )
 
-        # 2. Transcode each rendition: HLS segments + variant manifest.
+        # 2. Transcode each planned rendition: HLS segments + variant manifest.
+        #    Dimensions come from _plan_renditions (source-ratio-preserving,
+        #    target-by-height, no upscaling) — never the nominal spec width.
+        planned = _plan_renditions(src_w, src_h, renditions)
+        logger.info("[transcode] planned renditions — %s", [(p["tag"], f"{p['width']}x{p['height']}") for p in planned])
         variants = []
-        for r in renditions:
-            tag = f"{r['height']}p"
+        for r in planned:
+            tag = r["tag"]
             out_dir = tmp / tag
             out_dir.mkdir()
             _run_ffmpeg(
@@ -213,7 +302,7 @@ def _process_job(doc_id: str, author_key: str) -> None:
                 {
                     "width": r["width"],
                     "height": r["height"],
-                    "fps": 30,
+                    "fps": fps,
                     "bitrate_kbps": int(r["bitrate"].rstrip("Mk")) * (1000 if r["bitrate"].endswith("M") else 1),
                     "codec": "h264",
                     "duration_seconds": round(duration, 1),
@@ -221,7 +310,10 @@ def _process_job(doc_id: str, author_key: str) -> None:
                 }
             )
 
-        # 3. Thumbnails (0s + mid-point) for the feed.
+        # 3. Thumbnails (0s + mid-point) for the feed — ratio-preserving fit
+        #    in the 640x360 box (a 9:16 video gets a 202x360-ish thumb, not a
+        #    squashed 640x360).
+        thumb_w, thumb_h = _thumbnail_dims(src_w, src_h)
         thumbnails = []
         for ts in sorted({0, int(duration // 2)}):
             thumb_name = f"thumb-{ts}s.jpg"
@@ -235,7 +327,7 @@ def _process_job(doc_id: str, author_key: str) -> None:
                     "-frames:v",
                     "1",
                     "-vf",
-                    "scale=640:360",
+                    f"scale={thumb_w}:{thumb_h}",
                     "-q:v",
                     "3",
                     str(thumb_path),
@@ -245,8 +337,8 @@ def _process_job(doc_id: str, author_key: str) -> None:
             s3.upload_file(str(thumb_path), settings.S3_BUCKET, f"{prefix}/{thumb_name}")
             thumbnails.append(
                 {
-                    "width": 640,
-                    "height": 360,
+                    "width": thumb_w,
+                    "height": thumb_h,
                     "timestamp_seconds": ts,
                     "url": {"type": "minio", "value": f"{prefix}/{thumb_name}"},
                 }

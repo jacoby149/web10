@@ -15,7 +15,7 @@ from fastapi.testclient import TestClient
 
 import app.settings as settings
 from app.main import app as fastapi_app
-from app.services import hls
+from app.services import hls, transcode
 
 # ---------------------------------------------------------------------------
 # Pure helpers
@@ -114,6 +114,67 @@ class TestSegmentKey:
     def test_bad_segment(self, seg):
         with pytest.raises(ValueError):
             hls.segment_key("p", "360p", seg)
+
+
+class TestPlanRenditions:
+    """The aspect-ratio policy (video-experience.md): preserve the source
+    ratio, target by height, never upscale, even dimensions."""
+
+    SPEC = [{"height": 360, "bitrate": "1M"}, {"height": 720, "bitrate": "3M"}, {"height": 1080, "bitrate": "6M"}]
+
+    def test_landscape_16_9(self):
+        planned = transcode._plan_renditions(1920, 1080, self.SPEC)
+        dims = [(p["width"], p["height"]) for p in planned]
+        assert dims == [(640, 360), (1280, 720), (1920, 1080)]
+
+    def test_vertical_9_16(self):
+        planned = transcode._plan_renditions(1080, 1920, self.SPEC)
+        dims = [(p["width"], p["height"]) for p in planned]
+        assert [h for _, h in dims] == [360, 720, 1080]
+        # 9:16 preserved at every target height — the phone-video case.
+        for w, h in dims:
+            assert abs(w / h - 1080 / 1920) < 0.01
+            assert w % 2 == 0 and h % 2 == 0
+
+    def test_square_1_1(self):
+        planned = transcode._plan_renditions(1080, 1080, self.SPEC)
+        for p in planned:
+            assert p["width"] == p["height"]
+
+    def test_no_upscaling(self):
+        # 404x720 source: the 1080p target is taller than the source → dropped.
+        planned = transcode._plan_renditions(404, 720, self.SPEC)
+        assert [p["height"] for p in planned] == [360, 720]
+
+    def test_tiny_source_gets_one_rendition(self):
+        # 320x240 source: smaller than every target → one rendition at source res.
+        planned = transcode._plan_renditions(320, 240, self.SPEC)
+        assert len(planned) == 1
+        assert (planned[0]["width"], planned[0]["height"]) == (320, 240)
+
+    def test_odd_source_dimensions_evened(self):
+        planned = transcode._plan_renditions(1081, 1921, self.SPEC)
+        for p in planned:
+            assert p["width"] % 2 == 0 and p["height"] % 2 == 0
+
+    def test_tags_are_height_p(self):
+        planned = transcode._plan_renditions(1920, 1080, self.SPEC)
+        assert [p["tag"] for p in planned] == ["360p", "720p", "1080p"]
+
+
+class TestThumbnailDims:
+    def test_landscape_fits_box(self):
+        assert transcode._thumbnail_dims(1920, 1080) == (640, 360)
+
+    def test_vertical_preserves_ratio(self):
+        w, h = transcode._thumbnail_dims(1080, 1920)
+        assert h == 360
+        assert abs(w / h - 1080 / 1920) < 0.02
+        assert w % 2 == 0 and h % 2 == 0
+
+    def test_small_source_upscales_to_box(self):
+        w, h = transcode._thumbnail_dims(320, 240)
+        assert (w, h) == (480, 360)
 
 
 # ---------------------------------------------------------------------------
