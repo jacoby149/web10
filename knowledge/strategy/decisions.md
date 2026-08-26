@@ -9,6 +9,44 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D46 — web10-social converges on the SDK: retire the v1 auth seam and the hand-rolled v3 client [decided]
+Operator, 25.08.2026, during Phase 3 scoping (3.9.1) — after confirming the
+demos run the new SDK for BOTH auth and data.
+
+**Decided** — web10-social converges on the SDK the demos already run. Both
+legacy seams are retired: (1) **auth** — `web10-npm@^1.0.8`'s v1 `wapiInit`
+(via `Web10SocialAdapter`) → the SDK's D42 flow (`openAuthPortal` +
+`contractRequest` + `authListen`, with D45's dedupe); (2) **data** — the
+hand-rolled `src/data/v3.ts` (raw fetch to `/v3/*`) → the SDK's
+`createV3Client`. The dependency follows the pattern `ui/` already uses: a
+local `file:` reference to `sdk/` (v2.0.0), not a registry pin. The data
+modules (posts, feed, dms, comments, reactions, contacts, profile) keep
+their API — the swap is inside the `getV3Client()` seam. The demos
+(`docs/hello/script.js` et al.) are the reference implementation.
+
+**Why:** the app predates the current SDK. When v3 landed, the npm package
+was still v1-only (`wapiInit` is the v1 API — 3.1.3: "v2 SDK can't be used
+yet"), so the app kept the old SDK for auth and hand-rolled a v3 data
+client. The SDK has since caught up fully (v3 API + D42 consent flow + D45),
+and all seven demos prove it for both auth and data. Two clients means two
+places where token handling, the distinguishable-403 shape (app-contract vs
+group — D42), and media resolution can drift — and the drift already
+happened once: a v1 door on a v3 body. The D42 consent flow is not a feature
+you bolt on; it IS the v3 auth model (lazy group contracts, zero-UI
+auto-complete, identity check). Re-implementing it per app is exactly how
+this divergence happened in the first place. D20 test — does it make the
+creator platform better? Yes: the M0 gate requires the slice to stand on its
+own, and the auth door is the first thing a real user touches.
+
+**Rejects:** keeping the hand-rolled `v3.ts` client (no dep churn, but the
+consent flow gets re-implemented per app; the drift already happened once) ·
+staying on a registry pin and waiting for a v2 publish (the repo's
+established consumption path for the current SDK is `file:` — `ui/` does
+this; a registry pin on the v1 line is the divergence itself) · a thin
+"adapter forever" (the current `Web10SocialAdapter` spreads the v1 `wapi`
+instance and patches methods onto it — that is the seam that rotted; it goes
+away and the app talks to the SDK directly).
+
 ### D45 — `authListen` dedupes redundant same-user token deliveries [decided]
 Operator, 24.08.2026, after the sharing demo (#666) printed "sharing group
 ready" twice on a normal login.

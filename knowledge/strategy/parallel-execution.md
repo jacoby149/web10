@@ -149,17 +149,17 @@ path); DELETE where the feature is gone in v3. Coverage absorbed by the Phase
 enforcement).
 
 **DELETED (whole spec — ghost location / removed endpoints):**
-- [~] `demo-cr-flow.spec.ts` — ghost `sdk.localhost/demos/` location (demos moved to `marketing.localhost/docs/`) + old `/v3/documents/*` paths. Groups browser flows → `groups-demo` lane. (PR #648)
-- [~] `consent-grant.spec.ts` — legacy `/signup` + removed `/certify`/`/posts`/`/services`. v3 consent → `auth-popup-roundtrip.spec.ts`. (PR #648)
-- [~] `terms-revoke.spec.ts` — removed `/posts`/`/services`. v3 contract-revoke → `auth-popup-roundtrip.spec.ts`. (PR #648)
+- [✓ 3.0.61] `demo-cr-flow.spec.ts` — ghost `sdk.localhost/demos/` location (demos moved to `marketing.localhost/docs/`) + old `/v3/documents/*` paths. Groups browser flows → `groups-demo` lane. (PR #648)
+- [✓ 3.0.61] `consent-grant.spec.ts` — legacy `/signup` + removed `/certify`/`/posts`/`/services`. v3 consent → `auth-popup-roundtrip.spec.ts`. (PR #648)
+- [✓ 3.0.61] `terms-revoke.spec.ts` — removed `/posts`/`/services`. v3 contract-revoke → `auth-popup-roundtrip.spec.ts`. (PR #648)
 
 **GUTTED + STUBBED (feature belongs in v3 — rewrite later):**
-- [~] `app-store.spec.ts` — "token handoff" (v2 `/certify` + `/{username}/posts`) → v3 app-contract + `/v3/create`. (PR #648)
-- [~] `social-post-feed.spec.ts` — "signup+token+CRUD" (v2 `/certify`) + social render. (PR #648)
-- [~] `studio-metering.spec.ts` — 3 metering tests (v2 star-record `credits_spent`) → v3 billing. "aggregate" DELETED (v2-only `/aggregate`, gone in ClickHouse). (PR #648)
-- [~] `exporter.spec.ts` — marketing-api `/health` + `/import` pipeline (v2 node API). (PR #648)
-- [~] `social-full.spec.ts` — posts/comments/reactions/DM (v2 `/{username}/*`) → v3 service-based CRUD + DM groups; social render. (PR #648)
-- [~] `gauntlet.spec.ts` — 5 social-app render tests + 2 v3-API tests (join-approval, cross-user isolation I3) that were FAILING on correct v3 login → investigate (possible real bugs). (PR #648)
+- [✓ 3.0.61] `app-store.spec.ts` — "token handoff" (v2 `/certify` + `/{username}/posts`) → v3 app-contract + `/v3/create`. (PR #648)
+- [✓ 3.0.61] `social-post-feed.spec.ts` — "signup+token+CRUD" (v2 `/certify`) + social render. (PR #648)
+- [✓ 3.0.61] `studio-metering.spec.ts` — 3 metering tests (v2 star-record `credits_spent`) → v3 billing. "aggregate" DELETED (v2-only `/aggregate`, gone in ClickHouse). (PR #648)
+- [✓ 3.0.61] `exporter.spec.ts` — marketing-api `/health` + `/import` pipeline (v2 node API). (PR #648)
+- [✓ 3.0.61] `social-full.spec.ts` — posts/comments/reactions/DM (v2 `/{username}/*`) → v3 service-based CRUD + DM groups; social render. (PR #648)
+- [✓ 3.0.61] `gauntlet.spec.ts` — 5 social-app render tests + 2 v3-API tests (join-approval, cross-user isolation I3) that were FAILING on correct v3 login → investigate (possible real bugs). (PR #648)
 
 ### Lane: hls (Phase 2)
 **Owns:** `api/app/v3/endpoints/media.py`, `api/app/services/{transcode,hls}.py`, `marketing/marketing-ui/public/docs/media/` (demo player), `e2e/tests/hls.spec.ts`
@@ -179,4 +179,30 @@ P2P stays v4 — do not build it here.
 - [✓ 3.9.0] Player in the media demo (the HLS unit test): upload → queue transcode → poll the doc → hls.js playback (Safari native fallback, vendored hls.js) — `marketing/marketing-ui/public/docs/media/`
 - [✓ 3.9.0] E2E: API floor (upload → transcode → manifest → variant → segment bytes, MPEG-TS sync byte) + anti-tests (no sig / EXPIRED sig / cross-doc sig / non-member sig / traversal) + browser gauntlet (real demo: upload → "HLS ready" → hls.js manifest parsed → video duration > 0, log sequence) — `e2e/tests/hls.spec.ts` + 40 API unit tests in `api/tests/test_hls.py`
 - [✓ 3.10.0] Aspect-ratio policy + social-style demo: renditions planned per-source (target by height, preserve source ratio, never upscale, even dims — the squashed-9:16 bug); thumbnails ratio-preserving; fps probed; two ffprobe bugs the new e2e caught (csv unpack, webm `format.duration = N/A` → stream fallback). Demo: upload-style toggle (Original / TikTok 9:16 / Instagram 4:5 / Square 1:1) + client-side reframe before upload (canvas cover-crop + MediaRecorder — node gets the finished file) + player spec (muted autoplay, quality dropdown via hls.js levels, speed, fullscreen, vertical layout). KB: new `video-experience.md`. E2E: vertical + landscape fixtures, ratio/no-upscale assertions, tiny-source test, style-toggle gauntlet — `api/app/services/transcode.py`, `marketing/marketing-ui/public/docs/media/`, `e2e/tests/hls.spec.ts`, `api/tests/test_hls.py`
-- [ ] web10-social adoption: reuse the demo's hls.js player in the social app's video feed (follow-up — the demo proves the pipeline, the app is the integration test)
+- [✓ 3.9.1] web10-social adoption: moved to the `social-v3` lane (Phase 3) — the demo proves the pipeline, the app is the integration test
+
+### Lane: social-v3 (Phase 3)
+**Owns:** `marketing/web10-social/`
+
+The social app is the integration test (Phase 3). It runs on two legacy
+seams — `web10-npm@1.0.8` (v1 auth) and the hand-rolled `src/data/v3.ts`
+(data) — and the convergence is on the SDK the demos already run on.
+The decision bite gates the seam bites — docs first.
+
+- [✓ 3.9.2] Decision: converge on the SDK (`knowledge/strategy/decisions.md`) — D46. Retire both legacy seams, adopt the SDK the demos already run on (the reference implementation).
+- [ ] Auth: D42 login through the real consent popup (the same flow the demos run) — the LoginScreen's one-tap survives via auto-complete
+- [ ] Auth: sign-out scrubs token + cookie; session restores on reload
+- [ ] Data: `getV3Client()` returns the SDK's `createV3Client` — retire the hand-rolled fetch client, data modules keep their API
+- [ ] Video: hls.js player for video posts in the feed (Safari native fallback, vendored hls.js) — moved from the `hls` lane
+
+### Lane: social-e2e (Phase 3)
+**Owns:** `e2e/tests/`
+
+The retired social specs (3.0.61) are the rewrite path. Same pattern as
+the demo specs: API floor + anti-tests + browser gauntlet with
+log-sequence verification. The browser gauntlet bites are gated on the
+`social-v3` auth bites — they drive the real D42 popup.
+
+- [ ] API floor: signup → login → post → feed → DM → profile + I3 cross-user isolation
+- [ ] Browser gauntlet: real D42 login → feed renders → post → reload persists (gated on `social-v3` auth)
+- [ ] Browser gauntlet: two-user DM round-trip (gated on `social-v3` auth)
