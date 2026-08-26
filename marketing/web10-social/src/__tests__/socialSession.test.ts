@@ -55,7 +55,11 @@ describe('data client session semantics (SDK client + seam sync)', () => {
     v3.setTokenCookie(JWT_A);
     const w = v3.getV3Client(); // state.token = JWT_A
     await w.read('posts', { groups: ['web10.app/groups/web10/discover'] });
-    const firstBody = JSON.parse((globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0][1].body);
+    // calls[0] is the SDK's store auto-register ping (v2 parity — fired at
+    // client creation, carries no token); the data call is the /v3/read one.
+    const calls = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls;
+    const readCall = calls.find(([url]) => String(url).includes('/v3/read'));
+    const firstBody = JSON.parse(readCall[1].body);
     expect(firstBody.token).toBe(JWT_A);
     // the wire field is `service` (the API's model field — the hand-rolled
     // client sent `collection`, which the API 422s since #537's rename)
@@ -67,7 +71,6 @@ describe('data client session semantics (SDK client + seam sync)', () => {
     w.scrubToken();
     w.setToken(JWT_B);
     await w.read('posts', { groups: ['web10.app/groups/web10/discover'] });
-    const calls = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls;
     const lastBody = JSON.parse(calls[calls.length - 1][1].body);
     expect(lastBody.token).toBe(JWT_B);
   });

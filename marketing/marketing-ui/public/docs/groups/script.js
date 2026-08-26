@@ -17,10 +17,12 @@ const ERROR_MSGS = {
 const host = window.location.hostname
 const isDev = host === 'dev.web10.app' || host.endsWith('.dev.web10.app')
 const isLocal = host === 'localhost' || host === '127.0.0.1' || host.endsWith('.localhost')
-const AUTH_ORIGIN = isLocal ? 'http://auth.localhost' : isDev ? 'https://auth.dev.web10.app' : 'https://auth.web10.app'
+// non-80 port; the origins must carry the same port. Empty on :80.
+const portSuffix = window.location.port ? `:${window.location.port}` : ''
+const AUTH_ORIGIN = isLocal ? `http://auth.localhost${portSuffix}` : isDev ? 'https://auth.dev.web10.app' : 'https://auth.web10.app'
 const w = window.web10.createV3Client({ apiOrigin: isLocal ? 'http://api.localhost' : isDev ? 'https://api.dev.web10.app' : 'https://api.web10.app' })
 
-const API_ORIGIN = isLocal ? 'http://api.localhost' : isDev ? 'https://api.dev.web10.app' : 'https://api.web10.app'
+const API_ORIGIN = isLocal ? `http://api.localhost${portSuffix}` : isDev ? 'https://api.dev.web10.app' : 'https://api.web10.app'
 const SERVICE = "web10-docs-groups-demo"
 
 const ROLE_PRESETS = {

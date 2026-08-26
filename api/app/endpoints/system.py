@@ -1,6 +1,8 @@
+import requests
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import RedirectResponse
 
+import app.exceptions as exceptions
 from app.models.auth import Token
 from app.models.config import (
     ConfigUpdate,
@@ -134,6 +136,28 @@ def ready():
         return {"status": "ok", "configured": config_svc.node_is_configured()}
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"DB unreachable: {e}")
+
+
+# --- App store listing ---
+
+
+@router.get("/pwa_listing", include_in_schema=False)
+def pwa_listing(url: str):
+    """Proxy a registered app's PWA manifest (icon + name for the store).
+
+    The marketing app store fetches the app's manifest through the node so
+    the storefront can show each app's real icon without a CORS round-trip
+    from the browser. Manifest URL = {url without trailing slash} +
+    /manifest.json — so a registered path with or without a trailing slash
+    resolves the same (a path IS an app, D47).
+    """
+    manifest_url = url.rstrip("/") + "/manifest.json"
+    try:
+        resp = requests.get(manifest_url, {"Accept": "application/json"}, timeout=1)
+        resp.raise_for_status()
+    except requests.exceptions.RequestException:
+        raise exceptions.NO_PWA
+    return resp.json()
 
 
 # --- Issue Tracking (bug reports) ---

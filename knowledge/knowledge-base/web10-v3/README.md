@@ -27,6 +27,8 @@ web10-v3/
 │   └── document-typing.md ← leaf-level type convention
 ├── db/                    ← ClickHouse implementation & setup
 │   └── clickhouse.md      ← complete schema: tables, indexes, patterns
+├── app-store/             ← the node's public storefront
+│   └── overview.md        ← registration (a path is an app), visits, PWA manifests, store UI
 ├── groups/                ← groups as a platform primitive
 │   ├── overview.md        ← policy containers, roles, join policies
 │   ├── identity.md        ← profiles, URLs, service-scoped roles
@@ -55,6 +57,7 @@ web10-v3/
 - **SDK** — `sdk/api.md` (surface), `sdk/implementation.md` (SQL), `sdk/contracts.md` (contracts)
 - **Auth & Consent** — `auth/auth.md` (token flow), `auth/consent.md` (consent experience, ideal UX)
 - **DB** — `db/clickhouse.md` (tables, indexes, patterns)
+- **App Store** — `app-store/overview.md` (registration, visits, PWA manifests)
 - **Security** — `security/overview.md` (invariants I1–I5, two-contract model, blocking)
 - **Groups** — `groups/overview.md` (primitive), `groups/identity.md` (profiles)
 - **Social** — `social/overview.md` (implementation), `social/cross-app-sharing.md` (patterns)

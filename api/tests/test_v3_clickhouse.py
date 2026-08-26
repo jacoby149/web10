@@ -800,7 +800,7 @@ class TestNodeStats:
                 _mock_result_rows([(42,)]),  # users
                 _mock_result_rows([(100,)]),  # documents
                 _mock_result_rows([(5,)]),  # groups
-                _mock_result_rows([("https://a.com", "App A", "", "", "[]", "approved", 1)]),  # list_apps
+                _mock_result_rows([("https://a.com", "App A", "", "", "[]", 47, "approved", 1)]),  # list_apps
                 _mock_result_rows([(1024,)]),  # storage (system.parts)
             ]
             with patch("app.v3.services.clickhouse.total_s3_size", return_value=512):
@@ -810,7 +810,7 @@ class TestNodeStats:
             assert stats["groups"] == 5
             assert len(stats["apps"]) == 1
             assert stats["apps"][0]["url"] == "https://a.com"
-            assert stats["apps"][0]["visits"] == 0
+            assert stats["apps"][0]["visits"] == 47  # real visits, not hardcoded 0
             assert stats["storage"] == 1536  # 1024 clickhouse + 512 s3
 
     def test_stats_no_apps_no_storage(self):
@@ -978,22 +978,36 @@ class TestRegisterApp:
     def test_register_duplicate(self):
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
-                [("https://myapp.com", "My App", "", "", "[]", 1, "approved", 1)]
+                [("https://myapp.com", "My App", "", "", "[]", 1, "approved", 1, 47)]
             )
             result = ch.register_app({"url": "https://myapp.com"})
             assert result["review_state"] == "approved"
             mock_client.insert.assert_not_called()
+            # repeat registration is the visit tracker — it bumps visits
+            # on the latest row, it does not re-insert the app
+            mock_client.command.assert_called_once()
+            sql = mock_client.command.call_args[0][0]
+            assert "visits + 1" in sql
+
+    def test_register_new_starts_at_one_visit(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([])
+            ch.register_app({"url": "https://myapp.com"})
+            mock_client.insert.assert_called_once()
+            row = mock_client.insert.call_args[0][1][0]
+            assert row[5] == 1  # visits
 
 
 class TestListApps:
     def test_list(self):
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
-                [("https://a.com", "App A", "", "", "[]", "approved", 1)]
+                [("https://a.com", "App A", "", "", "[]", 47, "approved", 1)]
             )
             result = ch.list_apps()
             assert len(result) == 1
             assert result[0]["url"] == "https://a.com"
+            assert result[0]["visits"] == 47
 
 
 class TestCreateAppRating:

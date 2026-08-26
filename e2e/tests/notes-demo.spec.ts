@@ -63,7 +63,7 @@ async function setupUser(
   await request.post(`${API_BASE}/v3/app-contracts/add`, {
     data: JSON.stringify({
       token,
-      allowed_origin: 'http://marketing.localhost',
+      allowed_origin: MARKETING_BASE,
       permissions: { notes: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
     }),
     headers: { 'Content-Type': 'application/json', Origin: AUTH_BASE },
@@ -231,7 +231,7 @@ test.describe('Notes demo — API-level CRUD', () => {
     await request.post(`${API_BASE}/v3/app-contracts/add`, {
       data: JSON.stringify({
         token,
-        allowed_origin: 'http://marketing.localhost',
+        allowed_origin: MARKETING_BASE,
         permissions: { notes: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
       }),
       headers: { 'Content-Type': 'application/json', Origin: AUTH_BASE },
@@ -245,7 +245,7 @@ test.describe('Notes demo — API-level CRUD', () => {
         body: { note: 'api test note', date: new Date().toISOString() },
         groups: [groupId],
       }),
-      headers: { 'Content-Type': 'application/json', Origin: 'http://marketing.localhost' },
+      headers: { 'Content-Type': 'application/json', Origin: MARKETING_BASE },
     });
     expect(createRes.ok()).toBeTruthy();
     const doc = await createRes.json();
@@ -255,7 +255,7 @@ test.describe('Notes demo — API-level CRUD', () => {
     // READ
     const readRes = await request.post(`${API_BASE}/v3/read`, {
       data: JSON.stringify({ token, service: 'notes', groups: [groupId] }),
-      headers: { 'Content-Type': 'application/json', Origin: 'http://marketing.localhost' },
+      headers: { 'Content-Type': 'application/json', Origin: MARKETING_BASE },
     });
     expect(readRes.ok()).toBeTruthy();
     const docs = await readRes.json();
@@ -269,13 +269,13 @@ test.describe('Notes demo — API-level CRUD', () => {
         doc_id: docId,
         body: { note: 'api test note updated' },
       }),
-      headers: { 'Content-Type': 'application/json', Origin: 'http://marketing.localhost' },
+      headers: { 'Content-Type': 'application/json', Origin: MARKETING_BASE },
     });
     expect(updateRes.ok()).toBeTruthy();
 
     const readRes2 = await request.post(`${API_BASE}/v3/read`, {
       data: JSON.stringify({ token, service: 'notes', groups: [groupId] }),
-      headers: { 'Content-Type': 'application/json', Origin: 'http://marketing.localhost' },
+      headers: { 'Content-Type': 'application/json', Origin: MARKETING_BASE },
     });
     const docs2 = await readRes2.json();
     expect(docs2[0].body.note).toBe('api test note updated');
@@ -283,13 +283,13 @@ test.describe('Notes demo — API-level CRUD', () => {
     // DELETE
     const deleteRes = await request.post(`${API_BASE}/v3/delete`, {
       data: JSON.stringify({ token, doc_id: docId }),
-      headers: { 'Content-Type': 'application/json', Origin: 'http://marketing.localhost' },
+      headers: { 'Content-Type': 'application/json', Origin: MARKETING_BASE },
     });
     expect(deleteRes.ok()).toBeTruthy();
 
     const readRes3 = await request.post(`${API_BASE}/v3/read`, {
       data: JSON.stringify({ token, service: 'notes', groups: [groupId] }),
-      headers: { 'Content-Type': 'application/json', Origin: 'http://marketing.localhost' },
+      headers: { 'Content-Type': 'application/json', Origin: MARKETING_BASE },
     });
     const docs3 = await readRes3.json();
     expect(docs3.length).toBe(0);
@@ -318,7 +318,7 @@ test.describe('Notes demo — API-level CRUD', () => {
         service: 'notes',
         body: { note: 'no contract', date: new Date().toISOString() },
       }),
-      headers: { 'Content-Type': 'application/json', Origin: 'http://marketing.localhost' },
+      headers: { 'Content-Type': 'application/json', Origin: MARKETING_BASE },
     });
     expect(createRes.status()).toBe(403);
   });
@@ -360,7 +360,7 @@ test.describe('Notes demo — API-level CRUD', () => {
     await request.post(`${API_BASE}/v3/app-contracts/add`, {
       data: JSON.stringify({
         token,
-        allowed_origin: 'http://marketing.localhost',
+        allowed_origin: MARKETING_BASE,
         permissions: { notes: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
       }),
       headers: { 'Content-Type': 'application/json', Origin: 'http://auth.localhost' },
@@ -374,13 +374,13 @@ test.describe('Notes demo — API-level CRUD', () => {
         body: { note: noteText, date: new Date().toISOString() },
         groups: [groupId],
       }),
-      headers: { 'Content-Type': 'application/json', Origin: 'http://marketing.localhost' },
+      headers: { 'Content-Type': 'application/json', Origin: MARKETING_BASE },
     });
     expect(createRes.ok()).toBeTruthy();
 
     const read1 = await request.post(`${API_BASE}/v3/read`, {
       data: JSON.stringify({ token, service: 'notes', groups: [groupId] }),
-      headers: { 'Content-Type': 'application/json', Origin: 'http://marketing.localhost' },
+      headers: { 'Content-Type': 'application/json', Origin: MARKETING_BASE },
     });
     expect((await read1.json()).length).toBe(1);
 
@@ -400,7 +400,7 @@ test.describe('Notes demo — API-level CRUD', () => {
     // The note written on the first run must survive the return run.
     const read2 = await request.post(`${API_BASE}/v3/read`, {
       data: JSON.stringify({ token: token2, service: 'notes', groups: [groupId] }),
-      headers: { 'Content-Type': 'application/json', Origin: 'http://marketing.localhost' },
+      headers: { 'Content-Type': 'application/json', Origin: MARKETING_BASE },
     });
     const docs2 = await read2.json();
     expect(docs2.length, 'note must survive the return run').toBe(1);
@@ -431,7 +431,7 @@ test.describe('Notes demo anti-tests — broken contracts break the app', () => 
     const revokeRes = await request.post(`${API_BASE}/v3/app-contracts/revoke`, {
       data: JSON.stringify({
         token,
-        allowed_origin: 'http://marketing.localhost',
+        allowed_origin: MARKETING_BASE,
       }),
       headers: { 'Content-Type': 'application/json', Origin: AUTH_BASE },
     });
@@ -496,7 +496,7 @@ test.describe('Notes demo anti-tests — broken contracts break the app', () => 
 
     // Revoke the contract
     await request.post(`${API_BASE}/v3/app-contracts/revoke`, {
-      data: JSON.stringify({ token, allowed_origin: 'http://marketing.localhost' }),
+      data: JSON.stringify({ token, allowed_origin: MARKETING_BASE }),
       headers: { 'Content-Type': 'application/json', Origin: AUTH_BASE },
     });
 
@@ -530,7 +530,7 @@ test.describe('Notes demo anti-tests — broken contracts break the app', () => 
     await request.post(`${API_BASE}/v3/app-contracts/add`, {
       data: JSON.stringify({
         token,
-        allowed_origin: 'http://marketing.localhost',
+        allowed_origin: MARKETING_BASE,
         permissions: { notes: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
       }),
       headers: { 'Content-Type': 'application/json', Origin: AUTH_BASE },
@@ -543,13 +543,13 @@ test.describe('Notes demo anti-tests — broken contracts break the app', () => 
         service: 'notes',
         body: { note: 'with contract' },
       }),
-      headers: { 'Content-Type': 'application/json', Origin: 'http://marketing.localhost' },
+      headers: { 'Content-Type': 'application/json', Origin: MARKETING_BASE },
     });
     expect(createRes1.ok()).toBeTruthy();
 
     // Revoke contract
     await request.post(`${API_BASE}/v3/app-contracts/revoke`, {
-      data: JSON.stringify({ token, allowed_origin: 'http://marketing.localhost' }),
+      data: JSON.stringify({ token, allowed_origin: MARKETING_BASE }),
       headers: { 'Content-Type': 'application/json', Origin: AUTH_BASE },
     });
 
@@ -560,7 +560,7 @@ test.describe('Notes demo anti-tests — broken contracts break the app', () => 
         service: 'notes',
         body: { note: 'without contract' },
       }),
-      headers: { 'Content-Type': 'application/json', Origin: 'http://marketing.localhost' },
+      headers: { 'Content-Type': 'application/json', Origin: MARKETING_BASE },
     });
     expect(createRes2.status()).toBe(403);
 
@@ -568,7 +568,7 @@ test.describe('Notes demo anti-tests — broken contracts break the app', () => 
     await request.post(`${API_BASE}/v3/app-contracts/add`, {
       data: JSON.stringify({
         token,
-        allowed_origin: 'http://marketing.localhost',
+        allowed_origin: MARKETING_BASE,
         permissions: { notes: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
       }),
       headers: { 'Content-Type': 'application/json', Origin: AUTH_BASE },
@@ -581,7 +581,7 @@ test.describe('Notes demo anti-tests — broken contracts break the app', () => 
         service: 'notes',
         body: { note: 're-contracted' },
       }),
-      headers: { 'Content-Type': 'application/json', Origin: 'http://marketing.localhost' },
+      headers: { 'Content-Type': 'application/json', Origin: MARKETING_BASE },
     });
     expect(createRes3.ok()).toBeTruthy();
   });
@@ -608,7 +608,7 @@ test.describe('Notes demo anti-tests — broken contracts break the app', () => 
     await request.post(`${API_BASE}/v3/app-contracts/add`, {
       data: JSON.stringify({
         token,
-        allowed_origin: 'http://marketing.localhost',
+        allowed_origin: MARKETING_BASE,
         permissions: { notes: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
       }),
       headers: { 'Content-Type': 'application/json', Origin: AUTH_BASE },
@@ -622,13 +622,13 @@ test.describe('Notes demo anti-tests — broken contracts break the app', () => 
         body: { note: 'in group' },
         groups: [groupId],
       }),
-      headers: { 'Content-Type': 'application/json', Origin: 'http://marketing.localhost' },
+      headers: { 'Content-Type': 'application/json', Origin: MARKETING_BASE },
     });
 
     // Read with group — works
     const readRes1 = await request.post(`${API_BASE}/v3/read`, {
       data: JSON.stringify({ token, service: 'notes', groups: [groupId] }),
-      headers: { 'Content-Type': 'application/json', Origin: 'http://marketing.localhost' },
+      headers: { 'Content-Type': 'application/json', Origin: MARKETING_BASE },
     });
     expect(readRes1.ok()).toBeTruthy();
     const docs1 = await readRes1.json();
@@ -648,7 +648,7 @@ test.describe('Notes demo anti-tests — broken contracts break the app', () => 
     // group means no access — the gate holds.
     const readRes2 = await request.post(`${API_BASE}/v3/read`, {
       data: JSON.stringify({ token, service: 'notes', groups: [groupId] }),
-      headers: { 'Content-Type': 'application/json', Origin: 'http://marketing.localhost' },
+      headers: { 'Content-Type': 'application/json', Origin: MARKETING_BASE },
     });
     expect(readRes2.status()).toBe(403);
     const err2 = await readRes2.json();

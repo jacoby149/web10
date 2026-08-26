@@ -7,7 +7,7 @@ const API_BASE = `http://api.localhost${p}`;
 const MARKETING_BASE = `http://marketing.localhost${p}`;
 const PROVIDER = 'api.localhost';
 const SERVICE = 'media';
-const ORIGIN = 'http://marketing.localhost';
+const ORIGIN = MARKETING_BASE;
 
 // The node's HS256 signing secret (api/app/settings.py dev default — the e2e
 // stack runs with it, and the repo is open source). Used to mint stream

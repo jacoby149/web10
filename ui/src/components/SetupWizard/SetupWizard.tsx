@@ -436,11 +436,20 @@ const SetupWizard = ({ I }: { I: Record<string, any> }) => {
     setLoading(true);
     setError(null);
     try {
-      const provider = formData.provider.startsWith("http")
+      // Port-aware: an isolated e2e stack (E2E_HTTP_PORT) serves *.localhost
+      // on a non-80 port, and the auth app + API share that proxy port.
+      // Carry the page's port when the provider is a local host without an
+      // explicit one. The provider value itself stays host-only — it is the
+      // node identity, not a URL.
+      const provUrl = formData.provider.startsWith("http")
         ? formData.provider
         : `${window.location.protocol}//${formData.provider}`;
+      const provHost = new URL(provUrl).hostname;
+      const provPort = new URL(provUrl).port;
+      const isLocalProv = provHost === "localhost" || provHost === "127.0.0.1" || provHost.endsWith(".localhost");
+      const portSuffix = isLocalProv && !provPort && window.location.port ? `:${window.location.port}` : "";
 
-      await axios.post(`${provider}/setup/configure`, {
+      await axios.post(`${provUrl}${portSuffix}/setup/configure`, {
         provider: formData.provider,
         admin_username: formData.admin_username,
         admin_password: formData.admin_password,
