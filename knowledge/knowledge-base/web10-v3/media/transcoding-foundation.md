@@ -131,6 +131,7 @@ The pipeline is: upload → in-process ffmpeg worker → HLS variants + master m
 
 ## Reference
 
+- The experience spec (aspect-ratio policy, upload styles, player, creator controls): `video-experience.md` (in this folder)
 - Full transcoding pipeline: `transcoding.md` (in this folder)
 - Streaming layers: `streaming.md` (in this folder)
 - Auth split (presigned vs JWT segments): `minio-auth-bifurcated.md` (in this folder)

@@ -75,6 +75,39 @@
       margin-bottom: 2rem;
       flex-wrap: wrap;
     }
+    select {
+      background: var(--elevated);
+      color: var(--fg);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    select:hover { background: var(--border); }
+    select:disabled { opacity: 0.5; cursor: not-allowed; }
+    .style-hint {
+      font-size: 0.75rem;
+      color: var(--muted);
+      width: 100%;
+      font-family: 'JetBrains Mono', ui-monospace, monospace;
+    }
+    .player-controls {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      margin-top: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .player-controls select { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
+    .player-controls button { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
+    .player-controls .ctl-label {
+      font-size: 0.6875rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
     #fileInput {
       font-size: 0.8125rem;
       color: var(--muted);
@@ -100,11 +133,11 @@
       margin-bottom: 0.75rem;
     }
     .media-card video {
-      width: 100%;
-      aspect-ratio: 16 / 9;
       display: block;
       border-radius: 0.5rem;
       background: #000;
+      margin: 0 auto;
+      width: 100%;
     }
     .transcode-status {
       font-size: 0.75rem;
@@ -165,7 +198,7 @@
 <body>
 <div class="container">
     <h1>Media</h1>
-    <p class="subtitle">Upload an image to MinIO, store it in your document as a <code>minio</code> type, and read it back as a fresh presigned URL. Upload a video and it gets transcoded to HLS — adaptive bitrate, signed segments. The blob lives in the object store; your document only carries the reference.</p>
+    <p class="subtitle">Upload an image to MinIO, store it in your document as a <code>minio</code> type, and read it back as a fresh presigned URL. Upload a video — pick a style (TikTok, Instagram, square, original) and it gets reframed in your browser, then transcoded to HLS on your node: adaptive bitrate, signed segments, any aspect ratio. The blob lives in the object store; your document only carries the reference.</p>
 
     <div class="auth-row">
       <button id="authButton">Log in</button>
@@ -181,7 +214,14 @@
       </div>
       <div class="upload-row">
         <input type="file" id="videoInput" accept="video/*" data-testid="video-input" />
+        <select id="styleSelect" data-testid="style-select" aria-label="upload style">
+          <option value="original">Original</option>
+          <option value="tiktok">TikTok (9:16)</option>
+          <option value="instagram">Instagram (4:5)</option>
+          <option value="square">Square (1:1)</option>
+        </select>
         <button id="videoUploadBtn" onclick="uploadVideo()" data-testid="video-upload-button">Upload video (HLS)</button>
+        <span class="style-hint" id="styleHint" data-testid="style-hint"></span>
       </div>
     </div>
 

@@ -193,19 +193,28 @@ export interface V3Client {
 // ── V3 client factory ────────────────────────────────────────────────────────
 
 function createV3ClientFactory(apiOrigin: string): V3Client {
+  // The token cookie is the session's source of truth (D46): the D42
+  // authListen sets it on login and signOut scrubs it — both without
+  // touching this client. So every request and every token read goes
+  // through the cookie. The closure below is vestigial (setToken compat
+  // only) — a request or read that trusted it would act as the PREVIOUS
+  // user after a same-session sign-out -> re-login (the old adapter's
+  // syncDataLayerToken mirror existed for exactly this; the cookie-first
+  // read replaces it).
   let token: string | null = readTokenCookie();
 
   async function v3Post<T>(action: string, body: V3Body): Promise<T> {
-    if (!token) throw new Error('No token available. Call login() or setToken() first.');
-    return authPost<T>(`${apiOrigin}/v3/${action}`, { ...body, token });
+    const t = readTokenCookie();
+    if (!t) throw new Error('No token available. Call login() or setToken() first.');
+    return authPost<T>(`${apiOrigin}/v3/${action}`, { ...body, token: t });
   }
 
   return {
-    get state() { return { apiOrigin, token }; },
+    get state() { return { apiOrigin, token: readTokenCookie() }; },
     setToken(t: string) { token = t; setTokenCookie(t); },
     scrubToken() { token = null; scrubTokenCookie(); },
-    readToken() { return decodeJwt(token); },
-    isSignedIn() { return token != null && token !== ''; },
+    readToken() { return decodeJwt(readTokenCookie()); },
+    isSignedIn() { return readTokenCookie() != null; },
     signOut() { this.scrubToken(); },
 
     async login(username: string, password: string, site?: string): Promise<{ token: string }> {

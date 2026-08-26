@@ -15,6 +15,16 @@ const COLLECTION = 'media'
 const TRANSCODE_POLL_MS = 2500
 const TRANSCODE_POLL_MAX = 240 // ~10 minutes of polling
 
+// Upload styles (video-experience.md): the ratio decision is CLIENT-side,
+// before upload. The node is ratio-agnostic — whatever ratio arrives gets
+// correct renditions. `ratio: null` = original (no reframe).
+const STYLES = {
+  original: { ratio: null, label: 'Original — source ratio, no reframe' },
+  tiktok: { ratio: 9 / 16, label: 'TikTok — fixed 9:16 frame, reframe' },
+  instagram: { ratio: 4 / 5, label: 'Instagram — 4:5 portrait, reframe' },
+  square: { ratio: 1, label: 'Square — 1:1, reframe' },
+}
+
 LOG('init — host:', host, 'isLocal:', isLocal, 'isDev:', isDev)
 LOG('AUTH_ORIGIN:', AUTH_ORIGIN)
 LOG('API_ORIGIN:', API_ORIGIN)
@@ -70,6 +80,120 @@ window.web10.authListen(() => {
   }
   initApp()
 })
+
+// ---------------------------------------------------------------------------
+// Upload style toggle — the hint explains what the style will do to the file
+// ---------------------------------------------------------------------------
+
+function updateStyleHint() {
+  const s = STYLES[styleSelect.value] || STYLES.original
+  styleHint.textContent = s.ratio ? `client-side reframe before upload → ${s.label}` : s.label
+  LOG('style hint —', styleSelect.value, ':', styleHint.textContent)
+}
+styleSelect.onchange = () => {
+  LOG('styleSelect changed:', styleSelect.value)
+  updateStyleHint()
+}
+updateStyleHint()
+
+// ---------------------------------------------------------------------------
+// Client-side reframe (video-experience.md) — the fixed-frame flavor: the
+// source is cover-cropped into the target ratio (center crop) and re-encoded
+// with canvas + MediaRecorder. The FINISHED file is what gets uploaded — the
+// node never sees the original. Real-time: an 8s clip takes ~8s.
+// ---------------------------------------------------------------------------
+
+async function reframeVideo(file, targetRatio) {
+  LOG('reframeVideo — start, file:', file.name, 'targetRatio:', targetRatio.toFixed(4))
+  const url = URL.createObjectURL(file)
+  const video = document.createElement('video')
+  video.muted = true
+  video.playsInline = true
+  video.src = url
+  await new Promise((res, rej) => {
+    video.onloadedmetadata = () => res()
+    video.onerror = () => rej(new Error('could not read video metadata'))
+  })
+  const vw = video.videoWidth
+  const vh = video.videoHeight
+  LOG('reframeVideo — source:', `${vw}x${vh}`, 'ratio:', (vw / vh).toFixed(4))
+
+  // Cover-crop: fill the target frame, crop the overflow (center).
+  const srcRatio = vw / vh
+  let cropW, cropH
+  if (srcRatio > targetRatio) {
+    cropH = vh
+    cropW = vh * targetRatio
+  } else {
+    cropW = vw
+    cropH = vw / targetRatio
+  }
+  // Output: target ratio, height = source height (no upscaling), even dims.
+  const outH = vh
+  const outW = Math.max(2, Math.round((outH * targetRatio) / 2) * 2)
+  LOG('reframeVideo — crop:', `${Math.round(cropW)}x${Math.round(cropH)}`, 'output:', `${outW}x${outH}`)
+
+  const canvas = document.createElement('canvas')
+  canvas.width = outW
+  canvas.height = outH
+  const ctx = canvas.getContext('2d')
+
+  const stream = canvas.captureStream(30)
+  let audioCtx = null
+  try {
+    audioCtx = new AudioContext()
+    const srcNode = audioCtx.createMediaElementSource(video)
+    const dest = audioCtx.createMediaStreamDestination()
+    srcNode.connect(dest)
+    const audioTrack = dest.stream.getAudioTracks()[0]
+    if (audioTrack) {
+      stream.addTrack(audioTrack)
+      LOG('reframeVideo — audio track attached')
+    } else {
+      LOG('reframeVideo — source has no audio track')
+    }
+  } catch (e) {
+    LOG('reframeVideo — no audio (silent reframe):', e.message)
+  }
+
+  const mime =
+    ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'].find((m) =>
+      MediaRecorder.isTypeSupported(m),
+    ) || 'video/webm'
+  const recorder = new MediaRecorder(stream, {
+    mimeType: mime,
+    videoBitsPerSecond: 2_500_000,
+    audioBitsPerSecond: 128_000,
+  })
+  const chunks = []
+  recorder.ondataavailable = (e) => {
+    if (e.data && e.data.size) chunks.push(e.data)
+  }
+  const stopped = new Promise((res) => {
+    recorder.onstop = res
+  })
+
+  const draw = () => {
+    ctx.drawImage(video, (vw - cropW) / 2, (vh - cropH) / 2, cropW, cropH, 0, 0, outW, outH)
+    if (!video.ended) requestAnimationFrame(draw)
+  }
+
+  draw()
+  recorder.start(1000)
+  const t0 = Date.now()
+  await new Promise((res, rej) => {
+    video.onended = () => res()
+    video.onerror = () => rej(new Error('video playback failed during reframe'))
+    video.play().catch(rej)
+  })
+  recorder.stop()
+  await stopped
+  if (audioCtx) audioCtx.close()
+  URL.revokeObjectURL(url)
+  const blob = new Blob(chunks, { type: recorder.mimeType || mime })
+  LOG('reframeVideo — done in', Date.now() - t0, 'ms, blob:', `${blob.type} ${blob.size} bytes`)
+  return { blob, outW, outH }
+}
 
 // ---------------------------------------------------------------------------
 // App init
@@ -215,7 +339,9 @@ async function uploadImage() {
 
 async function uploadVideo() {
   const file = videoInput.files[0]
-  LOG('uploadVideo — called, file:', file ? `${file.name} (${file.type}, ${file.size} bytes)` : 'none')
+  const styleKey = styleSelect.value
+  const style = STYLES[styleKey] || STYLES.original
+  LOG('uploadVideo — called, file:', file ? `${file.name} (${file.type}, ${file.size} bytes)` : 'none', 'style:', styleKey)
   if (!file) {
     LOG('uploadVideo — no file selected, aborting')
     message.innerHTML = 'pick a video first'
@@ -229,12 +355,29 @@ async function uploadVideo() {
 
   videoUploadBtn.disabled = true
   try {
+    // 0. Client-side reframe (video-experience.md): the style decides the
+    //    ratio; the node gets the finished file, never the original.
+    let uploadFile = file
+    let uploadName = file.name
+    let uploadMime = file.type || 'video/mp4'
+    let outDims = null
+    if (style.ratio) {
+      message.innerHTML = 'reframing in your browser… (real-time, ~1s per second of video)'
+      const t0 = Date.now()
+      const reframed = await reframeVideo(file, style.ratio)
+      uploadFile = reframed.blob
+      uploadName = `reframed-${styleKey}.webm`
+      uploadMime = reframed.blob.type
+      outDims = { width: reframed.outW, height: reframed.outH }
+      LOG('uploadVideo — reframe done in', Date.now() - t0, 'ms, output:', `${reframed.outW}x${reframed.outH}`)
+    }
+
     // 1. Request a presigned POST form for the upload.
-    LOG('uploadVideo — requesting presigned upload URL for:', file.name)
+    LOG('uploadVideo — requesting presigned upload URL for:', uploadName)
     const presigned = await w.requestMediaUploadUrl({
-      filename: file.name,
-      mimeType: file.type || 'video/mp4',
-      sizeBytes: file.size,
+      filename: uploadName,
+      mimeType: uploadMime,
+      sizeBytes: uploadFile.size,
     })
     LOG('uploadVideo — presigned POST ok, object_key:', presigned.object_key)
 
@@ -243,7 +386,7 @@ async function uploadVideo() {
     for (const [key, value] of Object.entries(presigned.fields || {})) {
       formData.append(key, value)
     }
-    formData.append('file', file, file.name)
+    formData.append('file', uploadFile, uploadName)
     LOG('uploadVideo — POSTing file to MinIO')
     const putRes = await fetch(presigned.upload_url, { method: 'POST', body: formData })
     LOG('uploadVideo — MinIO response status:', putRes.status)
@@ -256,11 +399,15 @@ async function uploadVideo() {
 
     // 3. Create the document. body.video carries the minio type; the API
     //    resolves it on read, and the transcode worker reads it from here.
+    //    body.style records which upload style was used (the feed lays the
+    //    card out the way the post was meant to be seen).
     const body = {
       video: { type: 'minio', value: presigned.object_key },
-      filename: file.name,
-      mime_type: file.type || 'video/mp4',
-      size_bytes: file.size,
+      filename: uploadName,
+      mime_type: uploadMime,
+      size_bytes: uploadFile.size,
+      style: styleKey,
+      output_dimensions: outDims,
       date: new Date().toISOString(),
     }
     LOG('uploadVideo — creating doc, body:', JSON.stringify(body))
@@ -503,10 +650,34 @@ function videoCard(doc, b, date, actions) {
     </div>`
   if (ts.status === 'done' && ts.enabled) {
     const levels = (ts.variants || []).map((v) => `${v.height}p`).join(' / ')
+    // Layout (video-experience.md): the ratio comes from the lowest variant
+    // (the source ratio, preserved by the node). Vertical videos get a
+    // phone-width column — the immersive feed feel; landscape goes full width.
+    const v0 = (ts.variants || [])[0] || {}
+    const ratio = v0.width && v0.height ? v0.width / v0.height : 16 / 9
+    const isVertical = ratio < 0.8
+    const videoStyle = isVertical
+      ? `max-width:280px; aspect-ratio:${v0.width}/${v0.height};`
+      : `aspect-ratio:${v0.width}/${v0.height};`
+    const styleTag =
+      b.style && b.style !== 'original'
+        ? ` · style: <span data-testid="post-style">${escapeHtml(b.style)}</span>`
+        : ''
     return `<div class="media-card" data-testid="media-card">
-      <video data-testid="video-player" controls playsinline></video>
+      <video data-testid="video-player" controls playsinline muted autoplay style="${videoStyle}"></video>
+      <div class="player-controls" data-testid="player-controls">
+        <span class="ctl-label">quality</span>
+        <select data-testid="quality-select" aria-label="quality"><option value="-1">Auto</option></select>
+        <span class="ctl-label">speed</span>
+        <select data-testid="speed-select" aria-label="speed">
+          <option value="1">1x</option>
+          <option value="1.5">1.5x</option>
+          <option value="2">2x</option>
+        </select>
+        <button data-testid="fullscreen-button" class="secondary">fullscreen</button>
+      </div>
       ${meta}
-      <div class="transcode-status done" data-testid="transcode-status">HLS ready — adaptive: ${escapeHtml(levels)}</div>
+      <div class="transcode-status done" data-testid="transcode-status">HLS ready — adaptive: ${escapeHtml(levels)}${styleTag}</div>
       ${actions}
     </div>`
   }
@@ -538,6 +709,28 @@ function attachPlayer(doc) {
     LOG_ERR('attachPlayer — no video element found for doc', doc.doc_id)
     return
   }
+  const qualitySel = card ? card.querySelector('[data-testid="quality-select"]') : null
+  const speedSel = card ? card.querySelector('[data-testid="speed-select"]') : null
+  const fsBtn = card ? card.querySelector('[data-testid="fullscreen-button"]') : null
+
+  // Speed + fullscreen work on every path (video-experience.md player spec).
+  if (speedSel) {
+    speedSel.onchange = () => {
+      el.playbackRate = parseFloat(speedSel.value)
+      LOG('player — speed set to', el.playbackRate)
+    }
+  }
+  if (fsBtn) {
+    fsBtn.onclick = () => {
+      LOG('player — fullscreen toggled')
+      if (document.fullscreenElement) {
+        document.exitFullscreen()
+      } else {
+        el.requestFullscreen().catch((e) => LOG_ERR('player — fullscreen failed:', e.message))
+      }
+    }
+  }
+
   const manifestUrl = new URL(ts.manifest_url, API_ORIGIN).href
   LOG('attachPlayer — doc:', doc.doc_id, 'manifest:', manifestUrl)
   // hls.js first — it works on Chrome, Firefox, AND modern Safari (MSE).
@@ -552,7 +745,23 @@ function attachPlayer(doc) {
     hls.attachMedia(el)
     hls.on(Hls.Events.MANIFEST_PARSED, (e, data) => {
       LOG('hls — manifest parsed, levels:', data.levels.length, data.levels.map((l) => l.height + 'p').join('/'))
+      // Manual quality selection (video-experience.md): Auto + each level.
+      if (qualitySel) {
+        data.levels.forEach((level, i) => {
+          const opt = document.createElement('option')
+          opt.value = String(i)
+          opt.textContent = `${level.height}p`
+          qualitySel.appendChild(opt)
+        })
+        LOG('player — quality options:', data.levels.map((l) => l.height + 'p').join('/'))
+      }
     })
+    if (qualitySel) {
+      qualitySel.onchange = () => {
+        hls.currentLevel = parseInt(qualitySel.value, 10)
+        LOG('player — quality set to level', hls.currentLevel, '(-1 = auto)')
+      }
+    }
     hls.on(Hls.Events.LEVEL_SWITCHED, (e, data) => {
       LOG('hls — switched to level', data.level)
     })
@@ -589,8 +798,9 @@ fetch(`${API_ORIGIN}/v3/apps/register`, {
   body: JSON.stringify({
     body: {
       url: `${window.location.origin}${window.location.pathname}`,
-name: 'Media',
-    description: 'Upload an image (presigned URL on read) or a video (transcoded to HLS — adaptive bitrate, signed segments) to your node.',
+    name: 'Media',
+    description:
+      'Upload an image (presigned URL on read) or a video — pick a style (TikTok 9:16, Instagram 4:5, square, original), it reframes in your browser, then your node transcodes it to HLS (adaptive bitrate, signed segments, any aspect ratio).',
     },
   }),
 }).catch(() => {})
