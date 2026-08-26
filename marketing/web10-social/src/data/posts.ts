@@ -227,8 +227,10 @@ export async function resolveMediaRefs(
   const w = getV3Client();
   const media = await w.listMedia({ limit: refs.length });
   const refSet = new Set(refs);
+  // The API returns doc_id (the hand-rolled client's phantom `_id?` field
+  // made this filter a silent no-op — media refs never resolved).
   return media
-    .filter((m) => m._id && refSet.has(m._id))
+    .filter((m) => m.doc_id && refSet.has(m.doc_id))
     .map(fromV3DocToMedia);
 }
 

@@ -287,7 +287,9 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       docId: string,
       collection: string,
     ): Promise<V3Document> {
-      return v3Post<V3Document>('read-by-id', { doc_id: docId, service: collection })
+      // The API merged read-by-id into read (optional doc_id param, #537) —
+      // the doc_id path returns a single document, not an array.
+      return v3Post<V3Document>('read', { doc_id: docId, service: collection })
     },
 
     async update(
