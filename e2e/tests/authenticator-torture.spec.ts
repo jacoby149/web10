@@ -407,6 +407,32 @@ test.describe('Browser — login (real LoginForm) + state rule', () => {
     const cookie = await page.evaluate(() => document.cookie);
     expect(cookie).not.toContain('token=');
   });
+
+  test('admin panel: Node Config visible to the node admin, hidden to a regular user', async ({ page, request }) => {
+    // The seam: checkAdmin → POST /am_admin → isAdmin → the adminOnly
+    // nav item renders. A config-read failure used to 500 this (v3 stacks
+    // run no Mongo, and the config lived in Mongo) — hiding the panel
+    // from the real admin.
+    const { username } = await signupFreshUser(request);
+    await page.goto(AUTH_BASE);
+    await page.waitForLoadState('networkidle');
+    await page.locator('#username').fill(username);
+    await page.locator('#password').fill(password);
+    await page.locator('[data-testid="login-submit"]').click();
+    await expect(page.locator('[data-testid="topbar-username"]')).toHaveText(username, { timeout: 20000 });
+    // regular user — the adminOnly item is filtered out
+    await expect(page.locator('[data-testid="sidebar-nav-config"]')).toHaveCount(0);
+
+    // switch to the node admin (global-setup's admin) — the item appears
+    await page.locator('[data-testid="topbar-account"]').click();
+    await page.locator('[data-testid="account-logout"]').click();
+    await expect(page.locator('[data-testid="login-submit"]')).toBeVisible({ timeout: 15000 });
+    await page.locator('#username').fill('admin');
+    await page.locator('#password').fill('admin123');
+    await page.locator('[data-testid="login-submit"]').click();
+    await expect(page.locator('[data-testid="topbar-username"]')).toHaveText('admin', { timeout: 20000 });
+    await expect(page.locator('[data-testid="sidebar-nav-config"]')).toBeVisible({ timeout: 20000 });
+  });
 });
 
 // ---------------------------------------------------------------------------

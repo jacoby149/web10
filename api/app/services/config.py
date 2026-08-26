@@ -3,18 +3,6 @@ import secrets
 import app.settings as settings
 
 
-def _get_config_col():
-    from app.services.documentdb import db
-
-    return db["web10"]["config"]
-
-
-def _get_key_col():
-    from app.services.documentdb import db
-
-    return db["web10"]["jwt_keys"]
-
-
 def node_is_configured() -> bool:
     """True if the node has been set up (has users in ClickHouse)."""
     from app.v3.services import clickhouse as ch
@@ -23,19 +11,20 @@ def node_is_configured() -> bool:
 
 
 def get_config() -> dict:
-    """Returns the persisted node config, or empty dict if not configured."""
-    col = _get_config_col()
-    doc = col.find_one({"_id": "node"})
-    if not doc:
-        return {}
-    return doc.get("body", {})
+    """Returns the persisted node config, or empty dict if not configured.
+
+    The config lives in ClickHouse (node_config table) — D48.
+    """
+    from app.v3.services import clickhouse as ch
+
+    return ch.get_node_config()
 
 
 def save_config(body: dict) -> dict:
-    """Upserts the node config document."""
-    col = _get_config_col()
-    col.update_one({"_id": "node"}, {"$set": {"body": body}}, upsert=True)
-    return body
+    """Appends a new version of the node config (latest row wins on read)."""
+    from app.v3.services import clickhouse as ch
+
+    return ch.save_node_config(body)
 
 
 def get_config_field(field: str, default=None):
@@ -55,23 +44,24 @@ def generate_jwt_keypair() -> dict:
 
 
 def save_jwt_key(key_data: dict) -> dict:
-    """Persists the node's JWT signing key."""
-    col = _get_key_col()
-    col.update_one({"_id": key_data["kid"]}, {"$set": key_data}, upsert=True)
-    return key_data
+    """Persists the node's JWT signing key (node_config, config_id='jwt:<kid>')."""
+    from app.v3.services import clickhouse as ch
+
+    return ch.save_jwt_key(key_data)
 
 
 def get_jwt_key() -> dict | None:
     """Returns the current JWT signing key, or None."""
-    col = _get_key_col()
-    return col.find_one_and_sort(sort=[("ts", -1)]) if col.find_one() else None
+    from app.v3.services import clickhouse as ch
+
+    return ch.get_latest_jwt_key()
 
 
 def get_latest_jwt_key() -> dict | None:
     """Returns the most recently saved JWT signing key."""
-    col = _get_key_col()
-    docs = list(col.find().sort("ts", -1))
-    return docs[0] if docs else None
+    from app.v3.services import clickhouse as ch
+
+    return ch.get_latest_jwt_key()
 
 
 def list_admins() -> list:

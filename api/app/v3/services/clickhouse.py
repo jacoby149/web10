@@ -71,21 +71,31 @@ def _gen_doc_id() -> str:
 
 
 def ensure_apps_schema():
-    """Self-heal the apps table on existing deployments.
+    """Self-heal the v3 schema on pre-existing deployments.
 
     The DDL template (clickhouse-init) only runs on a FRESH ClickHouse
-    volume; dev/prod volumes predate the `visits` column. This idempotent
-    ALTER adds it on boot so the visit tracker works everywhere. Safe to
-    run from every gunicorn worker — ADD COLUMN IF NOT EXISTS is a no-op
-    once the column exists.
+    volume; dev/prod volumes predate newer tables/columns. This idempotent
+    pass adds them on boot so the schema is complete everywhere. Safe to
+    run from every gunicorn worker — every statement is a no-op once the
+    object exists.
     """
     try:
+        # apps.visits — the visit tracker (app store). Pre-existing volumes
+        # have the apps table without the column; ADD COLUMN appends it at
+        # the end, which is why inserts must name their columns.
         client.command("ALTER TABLE apps ADD COLUMN IF NOT EXISTS visits UInt64 DEFAULT 0")
-        log.info("[v3] apps schema ensured (visits column present)")
+        # node_config — node-level config (the v2 Mongo web10.config
+        # collection, moved to ClickHouse: v3 stacks run no Mongo).
+        client.command(
+            "CREATE TABLE IF NOT EXISTS node_config ("
+            "config_id String, body String, updated_at DateTime64(3), deleted UInt8 DEFAULT 0"
+            ") ENGINE = ReplacingMergeTree(updated_at) ORDER BY config_id"
+        )
+        log.info("[v3] schema ensured (apps.visits + node_config present)")
     except Exception as e:
         # ClickHouse not up yet, or table missing (fresh volume mid-init).
         # The DDL template covers fresh volumes; log and move on.
-        log.warning(f"[v3] apps schema ensure skipped: {type(e).__name__}: {e}")
+        log.warning(f"[v3] schema ensure skipped: {type(e).__name__}: {e}")
 
 
 # ---------------------------------------------------------------------------
@@ -1328,6 +1338,60 @@ def node_has_users() -> bool:
     """True if the ClickHouse users table has any non-deleted records."""
     result = client.query("SELECT count() FROM users WHERE deleted = 0")
     return bool(result.result_rows[0][0] > 0)
+
+
+# ---------------------------------------------------------------------------
+# Node config (v3 has no Mongo — the v2 web10.config collection, moved here)
+# ---------------------------------------------------------------------------
+
+
+def get_node_config() -> dict:
+    """The node config document (config_id='node'), or {} if unset.
+
+    Dedup-then-filter: saves append a new row, so the latest row per
+    config_id wins (tombstones included in the dedup, then deleted = 0).
+    """
+    result = client.query(
+        "SELECT body FROM (SELECT body, config_id, deleted, "
+        "row_number() OVER (PARTITION BY config_id ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM node_config) WHERE rn = 1 AND deleted = 0 AND config_id = 'node'",
+    )
+    if not result.result_rows:
+        return {}
+    return _parse_json(result.result_rows[0][0])
+
+
+def save_node_config(body: dict) -> dict:
+    """Append a new version of the node config (latest row wins on read)."""
+    client.insert(
+        "node_config",
+        [["node", _json(body), _now(), 0]],
+        column_names=["config_id", "body", "updated_at", "deleted"],
+    )
+    return body
+
+
+def save_jwt_key(key_data: dict) -> dict:
+    """Persist a JWT signing key record under config_id='jwt:<kid>'."""
+    client.insert(
+        "node_config",
+        [[f"jwt:{key_data['kid']}", _json(key_data), _now(), 0]],
+        column_names=["config_id", "body", "updated_at", "deleted"],
+    )
+    return key_data
+
+
+def get_latest_jwt_key() -> dict | None:
+    """The most recently saved JWT signing key record, or None."""
+    result = client.query(
+        "SELECT body FROM (SELECT body, deleted, updated_at, "
+        "row_number() OVER (PARTITION BY config_id ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM node_config WHERE config_id LIKE 'jwt:%') WHERE rn = 1 AND deleted = 0 "
+        "ORDER BY updated_at DESC LIMIT 1",
+    )
+    if not result.result_rows:
+        return None
+    return _parse_json(result.result_rows[0][0])
 
 
 # ---------------------------------------------------------------------------

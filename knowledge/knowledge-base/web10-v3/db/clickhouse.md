@@ -307,6 +307,35 @@ ORDER BY username;
 
 **Phone/Email:** stored unverified by default. Verification codes sent via Twilio/email. `phone_verified` / `email_verified` set to 1 on code confirmation.
 
+## Node Config
+
+The node's operator configuration (D48) — admins list, provider
+identity, setup state, JWT key records. A key/value table:
+`config_id='node'` holds the node config JSON; `config_id='jwt:<kid>'`
+holds JWT signing key records.
+
+```sql
+CREATE TABLE node_config (
+    config_id String,
+    body String,
+    updated_at DateTime64(3),
+    deleted UInt8 DEFAULT 0
+) ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY config_id;
+```
+
+**Primary key:** `config_id` — one logical row per key.
+
+**Versions:** saves APPEND a new row (never UPDATE — the OLAP pattern);
+reads dedup to the latest row per `config_id` (the house
+dedup-then-filter pattern). `deleted` is reserved for the tombstone
+convention; config is currently never deleted.
+
+**Admins:** the config's `admins` list is the source of truth for
+`check_admin`, unioned with `settings.DEFAULT_ADMINS` (the lockout-proof
+baseline — the node is usable before setup saves a list). See
+`../setup/node-config.md`.
+
 ## Apps
 
 Registered apps in the provider app store.

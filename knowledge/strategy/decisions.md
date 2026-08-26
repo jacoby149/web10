@@ -9,6 +9,47 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D48 — Node config lives in ClickHouse: v3 stacks run no Mongo [decided]
+Operator, 26.08.2026 — "I am not seeing the admin panel … confirm I am
+admin … auth.dev.web10.app is broken, we need to fix the code so I see the
+admin panel + configuration."
+
+**Decided** — the node config (the admins list, setup state, JWT key
+records) moves to ClickHouse. The v2 config lived in the Mongo
+`web10.config` / `web10.jwt_keys` collections, but the v3 ecosystem stack
+runs **no Mongo** (removed in #526) — so on dev/prod every config read
+blocked ~30s on a dead pymongo server-selection timeout, then raised.
+`check_admin` 500'd, the auth UI's `checkAdmin` set `isAdmin=false`, and
+the Node Config panel never rendered for the node's admin. `/setup` status
+and `/setup/configure` were broken the same way. e2e never caught it
+because the e2e compose still runs FerretDB.
+
+New `node_config` table (ReplacingMergeTree, the house pattern):
+`config_id='node'` holds the node config JSON; `config_id='jwt:<kid>'`
+holds JWT key records. Reads dedup to the latest row; saves append.
+`config.py` keeps its interface and now delegates to ClickHouse. The auth
+UI's `checkAdmin` switches to the purpose-built `POST /am_admin`
+(returns `{admin: bool}`, never errors) instead of the app-store admin
+list. Pre-existing volumes get the table via the boot-time schema
+self-heal (idempotent `CREATE TABLE IF NOT EXISTS`, alongside the
+`apps.visits` ALTER).
+
+**Why:** ClickHouse is the only store in v3 (`faq/olap-only.md`); a config
+document that reads a database the stack doesn't run is a time bomb that
+only detonates off the e2e stack. Admin-ness stays the config `admins`
+list (unioned with `settings.DEFAULT_ADMINS` as the lockout-proof
+baseline) — the v3 users table has no admin flag.
+
+**Rejected:** re-adding a Mongo/FerretDB service to the v3 stack (defeats
+the one-store simplification); env-only config (no persistence — setup
+would be lost on redeploy); an admin flag on the users table (admin-ness
+is node-global operator config, not a user attribute).
+
+Full model: `knowledge-base/web10-v3/setup/node-config.md`; schema in
+`knowledge-base/web10-v3/db/clickhouse.md`.
+
+---
+
 ### D47 — App registration: a path is an app; the demos register as first-party apps [decided]
 Operator, 25.08.2026 — the v3 app store was bricked (stats hung 30s, apps
 never showed) and the operator asked: "if that is really a web10 app it

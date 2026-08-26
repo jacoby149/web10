@@ -126,6 +126,17 @@ CREATE TABLE IF NOT EXISTS users (
 ) ENGINE = ReplacingMergeTree(updated_at)
 ORDER BY username;
 
+-- Node-level key/value config (D48). config_id = 'node' holds the node
+-- config JSON; 'jwt:<kid>' holds JWT signing key records. Reads dedup to
+-- the latest row.
+CREATE TABLE IF NOT EXISTS node_config (
+    config_id String,
+    body String,
+    updated_at DateTime64(3),
+    deleted UInt8 DEFAULT 0
+) ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY config_id;
+
 CREATE TABLE IF NOT EXISTS apps (
     url String,
     name String DEFAULT '',
