@@ -1095,6 +1095,28 @@ class TestAppsRegister:
         assert row[0] == "https://myapp.com"
         assert row[5] == 1  # visits
 
+    def test_register_new_insert_names_its_columns(self, client, token):
+        """The insert must name its columns. Pre-existing volumes got the
+        visits column via ALTER (appended at the END); fresh volumes build
+        it mid-table from the DDL template. A positional insert misaligns
+        on the old layout — 'pending' landed in metadata_version (UInt32)
+        and every registration 500'd on dev."""
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.return_value = MagicMock(result_rows=[])
+            resp = client.post(
+                "/v3/apps/register",
+                json={"body": {"url": "https://myapp.com"}},
+            )
+        assert resp.status_code == 200
+        apps_inserts = [c for c in mock_ch.insert.call_args_list if c[0][0] == "apps"]
+        assert len(apps_inserts) == 1
+        kwargs = apps_inserts[0][1]
+        assert "column_names" in kwargs
+        cols = kwargs["column_names"]
+        assert cols[5] == "visits"
+        assert cols[7] == "review_state"
+        assert len(cols) == 12
+
     def test_register_repeat_increments_visits(self, client, token):
         """Repeat registration from a known app bumps visits — this is the
         visit tracker behind the store's 'sorted by visits' ordering."""

@@ -1558,6 +1558,10 @@ def register_app(app_info: dict) -> dict:
         )
         return {"url": url, "review_state": existing["review_state"]}
     now = _now()
+    # Explicit column list — NOT positional. Pre-existing volumes got the
+    # visits column via ALTER (appended at the END), while fresh volumes
+    # build it mid-table from the DDL template; a positional insert
+    # misaligns on the old layout ('pending' lands in metadata_version).
     client.insert(
         "apps",
         [
@@ -1575,6 +1579,20 @@ def register_app(app_info: dict) -> dict:
                 now,
                 0,
             ]
+        ],
+        column_names=[
+            "url",
+            "name",
+            "description",
+            "icon_url",
+            "screenshots",
+            "visits",
+            "approved",
+            "review_state",
+            "metadata_version",
+            "created_at",
+            "updated_at",
+            "deleted",
         ],
     )
     return {"url": url, "review_state": "pending"}

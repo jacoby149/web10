@@ -42,17 +42,22 @@ for env in dev prod; do
   check "apex marketing" 200 "https://$apex/"
   check "marketing-api" 200 "https://marketing-api.${pre}web10.app/docs"
 
-  # v3 smoke — full auth flow: signup → login → use token
+  # v3 smoke — full auth flow: signup → login → use token.
+  # DEV ONLY for now: prod is still v2 (1.0.302) until the Phase 4 cutover
+  # (gated — see knowledge/strategy/plan.md). Re-enable for both envs when
+  # the cutover lands; the HTTP checks above stay on both.
+  if [[ "$env" == dev ]]; then
   echo "  -- v3 --"
   APISRV="https://api.${pre}web10.app"
   U="smoke$(date +%s%N)"
   P="smoketest123"
 
-  # Sign up (no auth needed)
+  # Sign up (no auth needed). v3 echoes the created user back —
+  # {"username":...,"phone":"","email":""} — not v2's "status":"ok".
   SU=$(curl -s --max-time 15 -X POST "$APISRV/v3/signup" \
     -H 'Content-Type: application/json' \
     -d "{\"username\":\"$U\",\"password\":\"$P\"}")
-  SU_CODE=$(echo "$SU" | grep -o '"status":"ok"' || echo "")
+  SU_CODE=$(echo "$SU" | grep -o "\"username\":\"$U\"" || echo "")
   if [[ -n "$SU_CODE" ]]; then
     echo "  ok   v3 signup"
   else
@@ -74,11 +79,12 @@ for env in dev prod; do
   if [[ -n "$TOKEN" ]]; then
     check_post "v3 stats"              200 "$APISRV/v3/stats" "{\"token\":\"$TOKEN\"}"
     check_post "v3 profile"            200 "$APISRV/v3/profile" "{\"token\":\"$TOKEN\"}"
-    check_post "v3 documents read"     200 "$APISRV/v3/documents/read" "{\"token\":\"$TOKEN\",\"service\":\"web10\"}"
+    check_post "v3 documents read"     200 "$APISRV/v3/read" "{\"token\":\"$TOKEN\",\"service\":\"web10\"}"
     check_post "v3 groups list"        200 "$APISRV/v3/groups/list" "{\"token\":\"$TOKEN\"}"
     check_post "v3 appstore list"      200 "$APISRV/v3/apps/list" "{\"token\":\"$TOKEN\"}"
     check_post "v3 contracts list"     200 "$APISRV/v3/app-contracts/list" "{\"token\":\"$TOKEN\"}"
     check_post "v3 media list"         200 "$APISRV/v3/media/list" "{\"token\":\"$TOKEN\",\"limit\":1,\"offset\":0}"
+  fi
   fi
 done
 
