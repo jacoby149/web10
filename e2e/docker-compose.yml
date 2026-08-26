@@ -151,19 +151,21 @@ services:
 
   web10-social:
     build:
-      context: ../marketing/web10-social
-      dockerfile: ../../e2e/Dockerfile.social
+      # Repo-root context so the Dockerfile can COPY sdk/ (web10-npm is a
+      # local file: dependency since D46 — same pattern as the ui service).
+      context: ..
+      dockerfile: e2e/Dockerfile.social
     environment:
       VIRTUAL_HOST: social.localhost
       VIRTUAL_PORT: "3000"
       # Without these, src/lib/origins.ts's API_ORIGIN/AUTH_ORIGIN/
       # MARKETING_ORIGIN constants fall back to the production hosts
       # (https://api.web10.app etc.) — Vite dev server reads VITE_*  env
-      # vars at runtime, no rebuild needed. Only code going through
-      # Web10SocialAdapter's own wapiInit() client (CRUD) already
-      # auto-detects *.localhost; anything using these constants directly
-      # via a raw fetch() (discover/suggested-users, the public ledger)
-      # was silently calling the real internet instead of this stack.
+      # vars at runtime, no rebuild needed. The auth seam
+      # (src/interfaces/auth.ts) auto-detects *.localhost for the auth
+      # origin; anything using these constants directly via a raw fetch()
+      # (discover/suggested-users) was silently calling the real internet
+      # instead of this stack.
       VITE_API_ORIGIN: http://api.localhost
       VITE_AUTH_ORIGIN: http://auth.localhost
       VITE_MARKETING_ORIGIN: http://marketing.localhost
