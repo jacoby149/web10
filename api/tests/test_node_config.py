@@ -256,9 +256,7 @@ class TestGetConfigEndpoint:
 
     def test_saved_values_surface_to_admin(self, client, token):
         with patch("app.v3.services.clickhouse.client") as mock_ch:
-            mock_ch.query.return_value = _config_result(
-                {"admins": ["testuser"], "s3_bucket": "operator-bucket"}
-            )
+            mock_ch.query.return_value = _config_result({"admins": ["testuser"], "s3_bucket": "operator-bucket"})
             resp = client.post("/config", json={"token": token})
         assert resp.status_code == 200
         assert resp.json()["s3_bucket"] == "operator-bucket"
