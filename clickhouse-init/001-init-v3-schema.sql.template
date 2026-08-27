@@ -34,6 +34,26 @@ CREATE TABLE IF NOT EXISTS group_contracts (
 ) ENGINE = ReplacingMergeTree(updated_at)
 ORDER BY group_id;
 
+-- Group identity — public display metadata for a group (name, description,
+-- banner, avatar, website, tags). The single home for how a group presents
+-- itself in the directory and its detail. Public by design (readable by any
+-- principal, including anon — it is the group's "unlisted video" page), so it
+-- is a table, not an I3-gated documents collection. Append-only: an update is
+-- a new row, latest wins.
+CREATE TABLE IF NOT EXISTS group_identity (
+    group_id String,
+    name String DEFAULT '',
+    description String DEFAULT '',
+    banner_ref String DEFAULT '',
+    avatar_ref String DEFAULT '',
+    website String DEFAULT '',
+    tags Array(String),
+    created_at DateTime64(3),
+    updated_at DateTime64(3),
+    deleted UInt8 DEFAULT 0
+) ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY group_id;
+
 CREATE TABLE IF NOT EXISTS group_members (
     group_id String,
     member_key String,
