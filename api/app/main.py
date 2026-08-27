@@ -64,6 +64,12 @@ def _start_hls_workers():
 
     ch.ensure_apps_schema()
 
+    # The universal discover group is a node default (KB: social-contracts.md):
+    # create it if missing, enroll anon, and backfill existing users so every
+    # account is a member of the public board by default. Idempotent — safe
+    # from every gunicorn worker.
+    ch.ensure_discover_group()
+
 
 # Map bare Exception strings (raised by auth.py / services) to HTTPExceptions.
 _EXCEPTION_MAP = {

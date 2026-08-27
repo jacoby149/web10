@@ -202,6 +202,8 @@ The `default_role` must match one of the defined role names. Convention: list ro
 
 Group roles can include moderation permissions. A role with `hideAll` can hide content from the group's discover — hiding it from group members. Roles cannot edit content they don't own. Roles cannot escalate their own permissions.
 
+The **node admin** can also moderate ANY group — this is how the public board (the discover group, which has no moderator role) gets moderated. A takedown hides the doc from the group's discover via `group_hidden_docs`; the author's own copy is untouched and the doc is restorable.
+
 ```
 Moderation role can:
   ✓ Hide content from group discover
