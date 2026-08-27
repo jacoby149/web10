@@ -274,6 +274,32 @@ across all apps. The decision bite is done (D49); the build follows.
 - [✓ 3.17.3] D52 (build): UI — card → `/app-store/app/{urlencoded-url}`, AppDetail rewritten (metrics, reviews, rate form with token-cookie session + SDK auth popup, node context)
 - [✓ 3.17.3] D52 (build): tests — 12 API unit + AppDetail/AppCard unit rewrites + 4 e2e (detail payload, 404s, rating round-trip dedup, card → page seam)
 
+### Lane: groups-directory (D53)
+**Owns:** `api/app/v3/endpoints/groups.py`, `api/app/v3/services/clickhouse.py`, `clickhouse-init/`, `ui/src/components/` (group management), `marketing/marketing-ui/src/pages/` (or `web10-social/`), `e2e/tests/`
+
+The group store (D53): a public, anon-browsable directory of the groups that
+chose to be listed. Two orthogonal controls: a **`discoverable` boolean** on
+`group_contracts` (owner-set, default `false`) lists the group + makes its
+existence public; **`anon` membership** controls whether its posts are
+anon-readable. The discover group is the proof they come apart (anon-readable
+board, not a directory entry). The directory is a metadata-only read of the
+`discoverable` groups; the detail page adds posts only when `anon` is a
+member, else "join to view." Display metadata is derived from the URL in v0
+and read from `group-identity-service` when present. Two public endpoints
+(list + detail), mirroring the app store (D52). I3 holds end to end.
+**GATED — not essential now** (operator, 27.08): planned, deferred behind the
+social app's community surface. The KB is the spec:
+`knowledge-base/web10-v3/groups/discoverability.md`.
+
+- [✓] Decision: D53 — `discoverable` boolean (listing + existence, default `false`) is separate from `anon` membership (readability); directory = metadata-only read of the `discoverable` groups; detail forks on `anon` (posts vs "join to view"); 404 not 403 (`knowledge/strategy/decisions.md`)
+- [✓] KB: `groups/discoverability.md` — the two controls, orthogonality table, opt-in, directory contents, metadata tiers, endpoint surface + read fork, security invariants, the honest cost, relationship to the discover group
+- [ ] Schema: `discoverable UInt8 DEFAULT 0` on `group_contracts` (DDL template + boot-time `ALTER ... ADD COLUMN IF NOT EXISTS`) + `CreateGroup`/`UpdateGroup` models + create/update endpoints
+- [ ] API: `GET /v3/groups/directory` (anon, paginated, sorted by recent activity) — the `discoverable = true` groups + display metadata (metadata only, no posts)
+- [ ] API: `GET /v3/groups/detail?id=` (anon, pure read) — contract + metadata + member count, always; posts only if `anon` is a member (else "join to view"); 404 non-discoverable (no existence leak)
+- [ ] Opt-in toggle in the authenticator — "List in directory" = set `discoverable` + add/remove `anon` (common case); listed-but-private = boolean without `anon`
+- [ ] UI: the directory screen (grid + deep-linkable detail page, with the "join to view posts" state)
+- [ ] Tests: unit (directory = the `discoverable` groups, metadata only; I3 anti-test: non-discoverable absent + 404; discoverable-without-`anon` returns no posts; discover group anon-readable but NOT listed) + e2e (list → detail → anon reads on a public group; "join to view" on a listed-but-private group)
+
 ### Lane: admin-console (Phase 3)
 **Owns:** `ui/src/components/Config/`, `api/app/endpoints/system.py`, `api/app/services/config.py`
 

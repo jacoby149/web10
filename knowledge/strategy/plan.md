@@ -154,6 +154,30 @@ lane is `app-store-metrics` in `parallel-execution.md`.
 - [✓ 3.17.3] **UI** (`marketing/marketing-ui/src/`) — card links to `/app-store/app/{urlencoded-canonical-url}` (preserving `?api=`); `AppDetail` rewritten: detail endpoint, manifest-preferred identity, five metric blocks, reviews (aggregate + list + comments + empty state), rate form (token-cookie session: signed in → star picker + comment + submit; signed out → SDK auth popup), node context footer.
 - [✓ 3.17.3] **Tests** — 12 API unit tests (detail composition / 404s / pure-read / normalization; comment round-trip / cap; dedup read) + 3 stale `get_app` mocks re-aligned; AppDetail.test.tsx rewritten (17 tests) + AppCard route tests; 4 e2e tests (detail payload + pure-read, 404s, rating round-trip with re-rate dedup + cap, card → page browser seam).
 
+## Groups: Discoverable Directory (D53) — Platform
+
+Groups get a store: a public, anon-browsable directory of the groups that
+chose to be listed. Two orthogonal controls (D53): a **`discoverable`
+boolean** on `group_contracts` (owner-set, default `false`) lists the group
+and makes its existence public; **`anon` membership** controls whether its
+posts are anon-readable. The discover group is the proof they come apart —
+anon-readable board, not a directory entry (`discoverable: false` + `anon`
+member). The directory is a metadata-only read of the `discoverable` groups;
+the detail page adds posts only when `anon` is a member, else "join to view."
+Display metadata is derived from the URL in v0 and read from
+`group-identity-service` when present. Two public endpoints (list + detail),
+mirroring the app store (D52). I3 holds end to end. **Not essential now**
+(operator) — planned, gated behind the social app's community surface.
+
+- [✓] **Decision: D53** (`knowledge/strategy/decisions.md`) — `discoverable` boolean (listing + existence, default `false`) is separate from `anon` membership (content readability); directory = metadata-only read of the `discoverable` groups; detail page forks on `anon` membership (posts vs "join to view"); display metadata derived (v0) / `group-identity-service` (when present); list + detail endpoints (D52 shape); 404 not 403 for a non-discoverable group; I3 holds end to end.
+- [✓] **KB** (`knowledge-base/web10-v3/groups/discoverability.md`) — the two controls, the orthogonality table, opt-in (the "List in directory" toggle sets the boolean + adds `anon`), directory contents, display metadata tiers, endpoint surface + read fork, security invariants, the honest cost, relationship to the discover group.
+- [ ] **Schema: `discoverable` column** (`clickhouse-init/`, `api/app/v3/services/clickhouse.py`) — `discoverable UInt8 DEFAULT 0` on `group_contracts` (DDL template + idempotent boot-time `ALTER ... ADD COLUMN IF NOT EXISTS` for pre-existing volumes, the 3.2.0 house pattern); `CreateGroup`/`UpdateGroup` models + create/update endpoints accept it.
+- [ ] **API: `GET /v3/groups/directory`** (`api/app/v3/endpoints/groups.py`, `services/clickhouse.py`) — public, anon, paginated, sorted by recent activity; the `discoverable = true` groups + display metadata (derived, or `group-identity-service` when present). Metadata only — no posts.
+- [ ] **API: `GET /v3/groups/detail?id=`** — public, pure read: contract (join policy, roles summary) + display metadata + member count, always; recent posts only if `anon` is a member (else "join to view" state); 404 for a non-discoverable group (no existence leak).
+- [ ] **Opt-in toggle** (`ui/` authenticator group management) — "List in directory" = set `discoverable` + add/remove `anon` (the common case); the listed-but-private case is the boolean without `anon`.
+- [ ] **UI: the directory screen** (`marketing/marketing-ui/` or `web10-social/`) — the browse surface: grid + deep-linkable detail page (with the "join to view posts" state).
+- [ ] **Tests** — unit (directory = the `discoverable` groups, metadata only; I3 anti-test: a non-discoverable group is absent from the list + 404s on detail; a discoverable group without `anon` returns no posts; the discover group is anon-readable but NOT in the list) + e2e (list → detail → anon reads posts on a public group; "join to view" on a listed-but-private group).
+
 ## Phase 4 — Production Cutover: v2 → v3, then merge to main
 
 **Where:** `knowledge/knowledge-base/web10-v3/` (migration model), `api/` (migration tooling), `ubuntu-deployment/` (prod deploy)
