@@ -562,9 +562,7 @@ class TestReadDocumentsInGroups:
             # (latest row per (group_id, doc_id) wins, tombstones included,
             # then deleted = 0). A raw `deleted = 0` join would keep matching
             # the stale hide row after a restore (tombstone) until a merge.
-            hd_part = sql[
-                sql.index("LEFT ANTI JOIN (SELECT group_id, doc_id FROM") : sql.index(") hd ")
-            ]
+            hd_part = sql[sql.index("LEFT ANTI JOIN (SELECT group_id, doc_id FROM") : sql.index(") hd ")]
             assert "FROM group_hidden_docs" in hd_part
             assert "rn = 1 AND deleted = 0" in hd_part
             assert "hd.doc_id = p.doc_id" in sql
@@ -925,9 +923,7 @@ class TestCreateUser:
             assert "users" in insert_tables
             assert "group_members" in insert_tables
             # the membership row enrolls the new user in the discover group
-            member_insert = next(
-                c for c in mock_client.insert.call_args_list if c[0][0] == "group_members"
-            )
+            member_insert = next(c for c in mock_client.insert.call_args_list if c[0][0] == "group_members")
             row = member_insert[0][1][0]
             assert row[0] == ch.DISCOVER_GROUP_ID
             assert row[1] == "alice"
@@ -1001,9 +997,7 @@ class TestEnsureDiscoverGroup:
             # group contract created once
             assert insert_tables.count("group_contracts") == 1
             # anon + both users enrolled
-            member_rows = [
-                c[0][1][0] for c in mock_client.insert.call_args_list if c[0][0] == "group_members"
-            ]
+            member_rows = [c[0][1][0] for c in mock_client.insert.call_args_list if c[0][0] == "group_members"]
             enrolled = {r[1] for r in member_rows}
             assert enrolled == {"anon", "alice", "bob"}
 
@@ -1043,9 +1037,7 @@ class TestEnsureDiscoverGroup:
                 _mock_result_rows([("alice",), ("bob",)]),
             ]
             ch.ensure_discover_group()
-            member_rows = [
-                c[0][1][0] for c in mock_client.insert.call_args_list if c[0][0] == "group_members"
-            ]
+            member_rows = [c[0][1][0] for c in mock_client.insert.call_args_list if c[0][0] == "group_members"]
             # only bob is added — anon + alice are already members
             assert [r[1] for r in member_rows] == ["bob"]
 

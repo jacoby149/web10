@@ -1444,9 +1444,7 @@ class TestDiscoverBoardAnonRead:
 
     def test_board_anon_readable(self, client):
         """No token → reads as anon → the discover group's docs come back."""
-        mock_docs = [
-            ("doc-1", "alice", '{"text":"hello"}', [], datetime(2026, 1, 1), "")
-        ]
+        mock_docs = [("doc-1", "alice", '{"text":"hello"}', [], datetime(2026, 1, 1), "")]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             # read_documents_in_groups is a single query
             mock_ch.query.return_value = MagicMock(result_rows=mock_docs)
@@ -1485,10 +1483,10 @@ class TestDiscoverBoardAnonRead:
     def test_real_user_not_anon(self, client, token):
         """A token read uses the real username, not anon — the anon bypass
         only applies to token-less reads."""
-        with patch("app.v3.endpoints.documents._check_app_permission"), patch(
-            "app.v3.services.clickhouse.read_documents_in_groups", return_value=[]
-        ) as mock_read, patch(
-            "app.v3.services.clickhouse.resolve_media_urls_in_docs", return_value=[]
+        with (
+            patch("app.v3.endpoints.documents._check_app_permission"),
+            patch("app.v3.services.clickhouse.read_documents_in_groups", return_value=[]) as mock_read,
+            patch("app.v3.services.clickhouse.resolve_media_urls_in_docs", return_value=[]),
         ):
             resp = client.post(
                 "/v3/read",
@@ -1503,9 +1501,10 @@ class TestGroupModeration:
     (KB: groups/overview.md "Moderation"). Gated by `hideAll` OR node admin."""
 
     def test_hide(self, client, token):
-        with patch("app.v3.endpoints.groups._require_moderation"), patch(
-            "app.v3.services.clickhouse.hide_doc_from_group"
-        ) as mock_hide:
+        with (
+            patch("app.v3.endpoints.groups._require_moderation"),
+            patch("app.v3.services.clickhouse.hide_doc_from_group") as mock_hide,
+        ):
             resp = client.post(
                 "/v3/groups/hide",
                 json={"token": token, "group_id": "g1", "doc_id": "doc-1"},
@@ -1515,32 +1514,32 @@ class TestGroupModeration:
         assert mock_hide.call_args[0][1] == "doc-1"
 
     def test_unhide(self, client, token):
-        with patch("app.v3.endpoints.groups._require_moderation"), patch(
-            "app.v3.services.clickhouse.unhide_doc_from_group"
-        ) as mock_unhide:
-            resp = client.post(
-                "/v3/groups/unhide", json={"token": token, "group_id": "g1", "doc_id": "doc-1"}
-            )
+        with (
+            patch("app.v3.endpoints.groups._require_moderation"),
+            patch("app.v3.services.clickhouse.unhide_doc_from_group") as mock_unhide,
+        ):
+            resp = client.post("/v3/groups/unhide", json={"token": token, "group_id": "g1", "doc_id": "doc-1"})
         assert resp.status_code == 200
         assert resp.json()["status"] == "restored"
         assert mock_unhide.call_args[0][1] == "doc-1"
 
     def test_hidden_list(self, client, token):
-        with patch("app.v3.endpoints.groups._require_moderation"), patch(
-            "app.v3.services.clickhouse.get_hidden_docs",
-            return_value=[
-                {
-                    "doc_id": "doc-1",
-                    "moderator_key": "admin1",
-                    "hidden_at": "2026-01-02",
-                    "author_key": "alice",
-                    "body": {"text": "bad"},
-                }
-            ],
+        with (
+            patch("app.v3.endpoints.groups._require_moderation"),
+            patch(
+                "app.v3.services.clickhouse.get_hidden_docs",
+                return_value=[
+                    {
+                        "doc_id": "doc-1",
+                        "moderator_key": "admin1",
+                        "hidden_at": "2026-01-02",
+                        "author_key": "alice",
+                        "body": {"text": "bad"},
+                    }
+                ],
+            ),
         ):
-            resp = client.post(
-                "/v3/groups/hidden", json={"token": token, "group_id": "g1"}
-            )
+            resp = client.post("/v3/groups/hidden", json={"token": token, "group_id": "g1"})
         assert resp.status_code == 200
         hidden = resp.json()["hidden"]
         assert hidden[0]["doc_id"] == "doc-1"
@@ -1549,12 +1548,13 @@ class TestGroupModeration:
 
     def test_hide_requires_moderation(self, client, token):
         """The gate runs before the hide — a non-moderator never reaches it."""
-        with patch(
-            "app.v3.endpoints.groups._require_moderation",
-            side_effect=Exception("NOT_ADMIN"),
-        ) as mock_gate, patch(
-            "app.v3.services.clickhouse.hide_doc_from_group"
-        ) as mock_hide:
+        with (
+            patch(
+                "app.v3.endpoints.groups._require_moderation",
+                side_effect=Exception("NOT_ADMIN"),
+            ) as mock_gate,
+            patch("app.v3.services.clickhouse.hide_doc_from_group") as mock_hide,
+        ):
             with pytest.raises(Exception, match="NOT_ADMIN"):
                 client.post(
                     "/v3/groups/hide",
