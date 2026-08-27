@@ -3,6 +3,7 @@ from app.v3.models.appstore import (
     AppsAdmin,
     CreateAppRating,
     GetAppRatings,
+    ListStoreApps,
     RegisterApp,
 )
 from app.v3.models.auth import (
@@ -92,6 +93,7 @@ __all__ = [
     "TranscodeRequest",
     # appstore
     "RegisterApp",
+    "ListStoreApps",
     "CreateAppRating",
     "GetAppRatings",
     "AppsAdmin",
