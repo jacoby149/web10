@@ -1,7 +1,6 @@
 """Tests for v3 endpoints — all POST, action in URL."""
 
 from datetime import datetime
-from functools import partial
 from unittest.mock import MagicMock, patch
 
 import jwt
@@ -1630,75 +1629,96 @@ class TestPowerMeanScore:
 
 
 class TestPowerMeanRead:
-    """read_documents_in_groups with a `sort` config ranks the full group
-    membership by the feed knobs, then pages (the discover board's
-    "your algorithm" — D36)."""
+    """read_documents_in_groups with a `sort` config runs ONE ranked query:
+    the board base joined to exact engagement counts, scored in SQL, paged in
+    ClickHouse (the v1 scale-up). The ranking MATH is pinned by
+    TestPowerMeanScore (the Python reference) + the real-CH equivalence check;
+    these tests pin the query shape, params, and row mapping."""
 
-    def _fake_query(self, sql, params=None, posts=None, reactions=None, comments=None):
-        coll = params.get("coll") if params else None
-        if coll == "posts":
-            return MagicMock(result_rows=posts or [])
-        if coll == "reactions":
-            return MagicMock(result_rows=reactions or [])
-        if coll == "comments":
-            return MagicMock(result_rows=comments or [])
-        return MagicMock(result_rows=[])
+    def _capture_query(self, posts):
+        """Patch the client so a single query returns `posts` rows; return
+        (patch_ctx, mock_client) so the test can inspect the SQL + params."""
+        mock_ch = MagicMock()
+        mock_ch.query.return_value = MagicMock(result_rows=posts)
+        return patch("app.v3.services.clickhouse.client", mock_ch), mock_ch
 
-    def test_most_loved_ranks_by_engagement_not_age(self):
-        # doc-old is ancient but has 9999 reactions; doc-new is fresh with none.
-        # A "most loved" sort (likes only, no decay) puts doc-old first.
-        posts = [
-            ("doc-new", "bob", '{"text":"new"}', [], datetime(2026, 1, 1), ""),
-            ("doc-old", "alice", '{"text":"old"}', [], datetime(2025, 1, 1), ""),
-        ]
-        with patch("app.v3.services.clickhouse.client") as mock_ch:
-            mock_ch.query.side_effect = partial(
-                self._fake_query,
-                posts=posts,
-                reactions=[("doc-old", 9999)],
-                comments=[],
-            )
-            docs = read_documents_in_groups(
+    def test_sort_path_runs_single_ranked_query(self):
+        # A sort read is ONE query (board base + engagement joins + SQL score +
+        # SQL paging) — not the v0 three-query fetch-count-sort.
+        posts = [("doc-1", "bob", '{"text":"x"}', [], datetime(2026, 1, 1), "")]
+        ctx, mock_ch = self._capture_query(posts)
+        with ctx:
+            read_documents_in_groups(
                 group_ids=["web10.app/groups/web10/discover"],
                 member_key="anon",
                 service="posts",
                 limit=10,
                 sort={"recency": 0.0, "likes": 1.0, "comments": 0.0, "half_life_ms": 0, "character": 0.0},
             )
-        assert [d["doc_id"] for d in docs] == ["doc-old", "doc-new"]
+        assert mock_ch.query.call_count == 1
+        sql, params = mock_ch.query.call_args[0]
+        # Board base + the two engagement joins + a score ORDER BY + paging.
+        assert "collection_name = %(coll)s" in sql
+        assert "collection_name = 'reactions'" in sql
+        assert "collection_name = 'comments'" in sql
+        assert "ORDER BY" in sql and "LIMIT %(limit)s OFFSET %(offset)s" in sql
+        # The sort config rides as params (never interpolated into the SQL).
+        assert params["wr"] == 0.0 and params["wl"] == 1.0 and params["wc"] == 0.0
+        assert params["hl"] == 0 and params["p"] == 0.0
+        assert params["limit"] == 10 and params["offset"] == 0
+        assert params["g0"] == "web10.app/groups/web10/discover"
 
-    def test_newest_ranks_by_recency_not_engagement(self):
-        # A "newest" sort (recency only) puts the fresh post first regardless
-        # of the older post's huge engagement.
-        posts = [
-            ("doc-new", "bob", '{"text":"new"}', [], datetime(2026, 1, 1), ""),
-            ("doc-old", "alice", '{"text":"old"}', [], datetime(2025, 1, 1), ""),
-        ]
-        with patch("app.v3.services.clickhouse.client") as mock_ch:
-            mock_ch.query.side_effect = partial(
-                self._fake_query,
-                posts=posts,
-                reactions=[("doc-old", 9999)],
-                comments=[],
-            )
+    def test_sort_path_maps_rows_and_hides_score(self):
+        # Rows come back mapped (body parsed, service added) with no internal
+        # _score leaking into the response.
+        posts = [("doc-1", "bob", '{"text":"x"}', ["t1"], datetime(2026, 1, 1), "ref-9")]
+        ctx, _ = self._capture_query(posts)
+        with ctx:
             docs = read_documents_in_groups(
-                group_ids=["web10.app/groups/web10/discover"],
+                group_ids=["g"],
                 member_key="anon",
                 service="posts",
                 limit=10,
                 sort={"recency": 1.0, "likes": 0.0, "comments": 0.0, "half_life_ms": 0, "character": 0.0},
             )
-        assert [d["doc_id"] for d in docs] == ["doc-new", "doc-old"]
+        assert docs == [
+            {
+                "doc_id": "doc-1",
+                "author_key": "bob",
+                "body": {"text": "x"},
+                "tags": ["t1"],
+                "created_at": str(datetime(2026, 1, 1)),
+                "ref_value": "ref-9",
+                "service": "posts",
+            }
+        ]
+        assert "_score" not in docs[0]
+
+    def test_sort_all_zero_weights_is_chronological(self):
+        # A degenerate all-zero sort scores every post 0; v0's stable sort
+        # preserved the board's created_at DESC order, so the SQL falls back to
+        # a chronological ORDER BY (no power-mean score).
+        ctx, mock_ch = self._capture_query([])
+        with ctx:
+            read_documents_in_groups(
+                group_ids=["g"],
+                member_key="anon",
+                service="posts",
+                limit=10,
+                sort={"recency": 0.0, "likes": 0.0, "comments": 0.0, "half_life_ms": 0, "character": 0.0},
+            )
+        sql, _ = mock_ch.query.call_args[0]
+        assert "toUnixTimestamp64Milli(b.created_at) DESC" in sql
 
     def test_no_sort_is_chronological(self):
-        # Without a sort config, the read is chronological (newest first) —
-        # the existing behavior is unchanged.
+        # Without a sort config, the read is the no-sort board query (newest
+        # first) — unchanged behavior, and no engagement joins.
         posts = [
             ("doc-new", "bob", '{"text":"new"}', [], datetime(2026, 1, 1), ""),
             ("doc-old", "alice", '{"text":"old"}', [], datetime(2025, 1, 1), ""),
         ]
-        with patch("app.v3.services.clickhouse.client") as mock_ch:
-            mock_ch.query.side_effect = partial(self._fake_query, posts=posts)
+        ctx, mock_ch = self._capture_query(posts)
+        with ctx:
             docs = read_documents_in_groups(
                 group_ids=["web10.app/groups/web10/discover"],
                 member_key="anon",
@@ -1706,6 +1726,9 @@ class TestPowerMeanRead:
                 limit=10,
             )
         assert [d["doc_id"] for d in docs] == ["doc-new", "doc-old"]
+        sql, _ = mock_ch.query.call_args[0]
+        assert "collection_name = 'reactions'" not in sql
+        assert "ORDER BY p.created_at DESC" in sql
 
     def test_endpoint_passes_sort_to_ranking(self, client, token):
         # The /v3/read endpoint forwards the `sort` config to the ranking.
