@@ -1476,11 +1476,11 @@ def get_groups_manages(member_key: str) -> list[dict]:
     Deduplicates group_members and group_contracts by latest version.
     """
     result = client.query(
-        "SELECT gc.group_id, gc.join_policy, gc.roles, gm.role AS my_role "
+        "SELECT gc.group_id, gc.join_policy, gc.roles, gc.discoverable, gm.role AS my_role "
         "FROM (SELECT group_id, member_key, role, deleted, "
         "row_number() OVER (PARTITION BY group_id, member_key ORDER BY updated_at DESC, deleted DESC) as rn "
         "FROM group_members) gm "
-        "JOIN (SELECT group_id, join_policy, roles, deleted, "
+        "JOIN (SELECT group_id, join_policy, roles, discoverable, deleted, "
         "row_number() OVER (PARTITION BY group_id ORDER BY updated_at DESC, deleted DESC) as rn "
         "FROM group_contracts) gc "
         "ON gm.group_id = gc.group_id "
@@ -1494,7 +1494,7 @@ def get_groups_manages(member_key: str) -> list[dict]:
     out = []
     seen = set()
     for row in result.result_rows:
-        group_id, join_policy, roles_json, my_role = row
+        group_id, join_policy, roles_json, discoverable, my_role = row
         if group_id in seen:
             continue
         seen.add(group_id)
@@ -1511,6 +1511,7 @@ def get_groups_manages(member_key: str) -> list[dict]:
                     "group_id": group_id,
                     "join_policy": join_policy,
                     "roles": roles_list,
+                    "discoverable": bool(discoverable),
                     "my_role": my_role,
                     "member_count": counts.get(group_id, 0),
                 }

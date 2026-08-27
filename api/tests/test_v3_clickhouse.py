@@ -666,6 +666,7 @@ class TestGetGroupsManages:
                             "g1",
                             "open",
                             '[{"name": "admin", "services": ["*"], "permissions": ["readAll", "manageRoles"]}]',
+                            1,
                             "admin",
                         )
                     ]
@@ -680,12 +681,13 @@ class TestGetGroupsManages:
             assert len(groups) == 1
             assert groups[0]["group_id"] == "g1"
             assert groups[0]["member_count"] == 5
+            assert groups[0]["discoverable"] is True
 
     def test_no_manage(self):
         with _patch_client() as mock_client:
             mock_client.query.side_effect = [
                 _mock_result_rows(
-                    [("g1", "open", '[{"name": "admin", "services": ["*"], "permissions": ["readAll"]}]', "admin")]
+                    [("g1", "open", '[{"name": "admin", "services": ["*"], "permissions": ["readAll"]}]', 1, "admin")]
                 ),
                 _mock_result_rows([]),
             ]
@@ -702,7 +704,7 @@ class TestGetGroupsManages:
         """Backward compat: old dict-style roles still work."""
         with _patch_client() as mock_client:
             mock_client.query.side_effect = [
-                _mock_result_rows([("g1", "open", '{"admin": {"permissions": ["manageRoles"]}}', "admin")]),
+                _mock_result_rows([("g1", "open", '{"admin": {"permissions": ["manageRoles"]}}', 1, "admin")]),
                 _mock_result_rows(
                     [("g1", 3)],
                 ),
