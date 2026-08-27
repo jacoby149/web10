@@ -183,6 +183,29 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
     return authPost<T>(`${apiOrigin}/v3/${action}`, { ...body, token })
   }
 
+  // D49: register this app with the node's app store (best-effort). The
+  // identity is the full URL, path included (a path is an app, D47) — query
+  // and fragment stripped. The token rides along when present so the node can
+  // attribute the visit to a real user (anon pings are dropped at ingest).
+  // Fire-and-forget: registration must never block or break app init. The
+  // node gates to 1 counted visit per (app, user) per 3h, so re-firing on
+  // sign-in is safe (the server dedupes).
+  function pingAppRegister(): void {
+    if (typeof window === 'undefined' || typeof window.location?.href !== 'string') return
+    try {
+      const token = state.token ?? readTokenCookie()
+      const body: Record<string, unknown> = { url: window.location.href.split(/[?#]/)[0] }
+      if (token) body.token = token
+      fetch(`${apiOrigin}/v3/apps/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body }),
+      }).catch(() => {})
+    } catch {
+      // fetch not available (SSR, test env)
+    }
+  }
+
   const client: V3Client = {
     // ── Token management ──────────────────────────────────────────────────
 
@@ -193,6 +216,9 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
     setToken(token: string): void {
       state.token = token
       setTokenCookie(token)
+      // D49: re-fire the register ping now that a real user is signed in —
+      // the init ping may have been anon (pre-sign-in) and dropped at ingest.
+      pingAppRegister()
     },
 
     scrubToken(): void {
@@ -651,24 +677,10 @@ contracts: V3CR[],
     },
   }
 
-  // Register this app with the node's app store (best-effort, anonymous).
-  // v2 parity: every client init pings the register endpoint, so the store
-  // knows what runs on the node — and repeat inits from a known app count
-  // as visits (the store's "sorted by visits" ordering). The identity is
-  // the full URL, path included (a path is an app, D47) — query and
-  // fragment stripped, so routing params never fork the identity.
-  // Fire-and-forget: registration must never block or break app init.
-  if (typeof window !== 'undefined' && typeof window.location !== 'undefined' && typeof window.location.href === 'string') {
-    try {
-      fetch(`${apiOrigin}/v3/apps/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ body: { url: window.location.href.split(/[?#]/)[0] } }),
-      }).catch(() => {})
-    } catch {
-      // fetch not available (SSR, test env)
-    }
-  }
+  // D49: register on init. Covers return-runs (the cookie token is present,
+  // so the visit is attributed to the real user); a fresh pre-sign-in load
+  // pings anon (dropped at ingest) and re-fires on setToken at sign-in.
+  pingAppRegister()
 
   return client
 }

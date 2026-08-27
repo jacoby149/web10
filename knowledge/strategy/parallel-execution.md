@@ -208,3 +208,25 @@ log-sequence verification. The browser gauntlet bites are gated on the
 - [ ] API floor: signup → login → post → feed → DM → profile + I3 cross-user isolation
 - [ ] Browser gauntlet: real D42 login → feed renders → post → reload persists (gated on `social-v3` auth)
 - [ ] Browser gauntlet: two-user DM round-trip (gated on `social-v3` auth)
+
+### Lane: app-store-metrics (D49)
+**Owns:** `api/app/v3/services/clickhouse.py`, `api/app/endpoints/`, `api/app/services/config.py` (n/a — D48), `sdk/src/`, `marketing/marketing-ui/src/pages/`, `clickhouse-init/`, `e2e/tests/`
+
+The store's raw ping-count `visits` is retired as a metric (D49). Replaced
+with real-user activity: one `app_visits` table, gated at ingest (1 row per
+(app, real user) per 3h, anon dropped), metric-as-query (no counters to
+race or pile on). `apps` becomes a stable registration record. Headline +
+sort = `users_30d`. The `/stats` node macro shows the same active-user set
+across all apps. The decision bite is done (D49); the build follows.
+
+- [✓] Decision: D49 — real-user windowed metrics, anon dropped at ingest, `users_30d` headline, pagination, sign-in re-ping required (`knowledge/strategy/decisions.md`)
+- [✓ 3.15.0] Table: `app_visits (app_url, username, seen_at)` + DDL template + boot self-heal
+- [✓ 3.15.0] Ingest: gated append per (app, user) if latest `seen_at` > 3h (or first); anon dropped at ingest — verified token only (I2, no unsigned decode)
+- [✓ 3.15.0] `apps`: stop appending per ping — append on first registration or real metadata change only; retire the `visits` counter column as a store metric
+- [✓ 3.15.0] Metrics: `visits` (count of windowed rows) + `users_1d/30d/90d/1y` (distinct real users, trailing windows) — realtime over `app_visits`
+- [✓ 3.15.0] Store: paginated app list (`limit`/`offset`, sort `users_30d` desc, `visits` tiebreak); grid card shows `users_30d` headline, detail page shows the full set
+- [✓ 3.15.0] `/stats` macro: node-wide `users_1d/30d/90d/1y` (all apps, same query minus `GROUP BY`); homepage leads with `users_30d`
+- [✓ 3.15.0] SDK: token in the register ping + re-fire the ping on the sign-in transition (required — else the metric means "returning users")
+- [✓ 3.15.0] Hardening (folded in): #4 URL normalization in `register_app` (lowercase host, one trailing slash); #7 manifest byte cap in `/pwa_listing`
+- [✓ 3.15.0] Tests: unit (gated ingest, anon-drop, forged-token I2 anti-test, metrics, pagination) + e2e (real signed-in user → active count; pagination boundary)
+- [✓ 3.15.0] KB: `app-store/overview.md` metrics section + `db/clickhouse.md` `app_visits` table

@@ -302,11 +302,11 @@ describe('AppStore page', () => {
     expect(screen.getByText('The web10 App Store')).toBeInTheDocument();
   });
 
-  it('renders the subtitle about sorting by visits', async () => {
+  it('renders the subtitle about sorting by active users', async () => {
     const { default: AppStore } = await import('@/pages/AppStore');
     renderWithRouter(<AppStore />);
     expect(
-      screen.getByText(/Sorted by visits/)
+      screen.getByText(/Sorted by active users/)
     ).toBeInTheDocument();
   });
 

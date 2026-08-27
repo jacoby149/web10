@@ -100,8 +100,14 @@ erDiagram
         String description
         String icon_url
         String screenshots
+        "UInt64" visits
         "UInt8" approved
         String review_state
+    }
+    app_visits {
+        String app_url PK
+        String username PK
+        "DateTime64" seen_at PK
     }
     app_ratings {
         String target_app_id PK
@@ -121,9 +127,11 @@ erDiagram
     documents }o--|| group_hidden_docs : "hidden from group"
     app_ratings }o--|| apps : "rates"
     users ||--o{ app_ratings : "authors"
+    app_visits }o--|| apps : "usage of"
+    users ||--o{ app_visits : "used"
 ```
 
-One table for content. One table for visibility. Five tables for groups. One table for app trust. Two tables for blocking. One table for sharing control. One table for accounts. Two tables for the app store. **13 tables.** Everything else is a query.
+One table for content. One table for visibility. Five tables for groups. One table for app trust. Two tables for blocking. One table for sharing control. One table for accounts. Three tables for the app store. **14 tables.** Everything else is a query.
 
 ## Documents
 
@@ -339,7 +347,10 @@ baseline — the node is usable before setup saves a list). See
 
 ## Apps
 
-Registered apps in the provider app store.
+Registered apps in the provider app store. The **stable registration
+record** — a row is appended on first registration or a real metadata
+change only, never per ping (D49). The url is stored in canonical form
+(lowercase host, no `www.`, exactly one trailing slash, no query/fragment).
 
 ```sql
 CREATE TABLE apps (
@@ -348,6 +359,7 @@ CREATE TABLE apps (
     description String DEFAULT '',
     icon_url String DEFAULT '',
     screenshots String DEFAULT '',
+    visits UInt64 DEFAULT 0,
     approved UInt8 DEFAULT 0,
     review_state String DEFAULT 'pending',
     metadata_version UInt32 DEFAULT 1,
@@ -358,16 +370,49 @@ CREATE TABLE apps (
 ORDER BY url;
 ```
 
-**Primary key:** `url` — the app's full URL, path included (D47).
+**Primary key:** `url` — the app's full URL, path included (a path is an
+app, D47), in canonical form.
 
 **`review_state`:** `pending`, `approved`, `pending_on_change`, `rejected`.
 
 **`screenshots`:** JSON array of screenshot URLs.
 
+**`visits`:** retired as a store metric (D49) — the store's numbers are
+realtime queries over `app_visits`. Kept on the row for the admin view;
+not a counter the store shows.
+
+## App Visits
+
+The app usage log (D49). One row per **counted** ping: a real,
+token-verified web10 user used the app. Ingest is gated server-side — a
+row is inserted only if the `(app_url, username)` pair has no prior row
+or its latest `seen_at` is more than 3 hours old ("if >3h, insert").
+Anon pings (no token, or a token that fails signature verification — I2)
+never reach this table. The store's metrics are realtime queries over
+these rows: `visits` = `count()`, `users_Nd` = distinct usernames with a
+row in the trailing window. No maintained counters — nothing to race,
+lose, or pile on.
+
+```sql
+CREATE TABLE app_visits (
+    app_url String,
+    username String,
+    seen_at DateTime64(3)
+) ENGINE = MergeTree
+ORDER BY (app_url, username, seen_at)
+TTL toDateTime(seen_at) + INTERVAL 2 YEAR;
+```
+
+**Primary key:** `(app_url, username, seen_at)` — append-only event log,
+no tombstones. The `ORDER BY` puts each (app, user)'s rows in time
+order, so the ingest gate's `max(seen_at)` lookup is a primary-key
+suffix scan. The TTL is the compaction: rows older than 2 years (the
+longest metric window is 1y) drop out on merge.
+
 ## App Ratings
 
 Star ratings for apps. One per (author, target_app). A review is a rating
-with words — `comment` is optional text (D49).
+with words — `comment` is optional text (D50).
 
 ```sql
 CREATE TABLE app_ratings (

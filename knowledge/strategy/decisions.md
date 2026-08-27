@@ -9,7 +9,7 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
-### D49 — App store product page: the detail endpoint is keyed by the app's URL; `web10apps_post_id` is retired [decided]
+### D50 — App store product page: the detail endpoint is keyed by the app's URL; `web10apps_post_id` is retired [decided]
 Operator, 26.08.2026 — "in the apps would be cool if there was a little
 button that said to see more … it expands, has a deeper paragraph
 description from the manifest, and then has ALL the available stats, the
@@ -28,30 +28,33 @@ own endpoints."
    per the deep-link rule, and it is cramped for "everything in one
    screen."
 2. **A new `GET /v3/apps/detail?url=` serves the page.** Public, pure
-   read, one call: app + rating aggregate + rating list + stats. **No
-   visit bump** — a product-page view is not an app visit; visits are SDK
-   pings on the app's own pages, and the counter means what
-   `app-store/overview.md` says it means.
-3. **The URL is the key.** D47 made the full URL the app's identity; the
-   detail endpoint keys on it, and `web10apps_post_id` is retired (v2
-   vestige — the `#web10apps` discovery ledger, dropped in v3; the v3
-   `apps` table never had the column; `/v3/stats` stops blanking it; the
-   UI route param becomes the URL-encoded URL).
+   read, one call: app + rating aggregate + rating list + the full
+   five-metric breakdown + the node macro. **No visit bump** — a
+   product-page view is not an app visit; `app_visits` rows come only from
+   SDK pings carrying a verified token (D49). D49's item 5 assigns the
+   detail page the full breakdown ("the grid card shows the headline, the
+   app detail page shows the full breakdown") — this spec is what that
+   line points at.
+3. **The URL is the key.** D47 made the full URL the app's identity
+   (canonical form, D49 hardening #4); the detail endpoint keys on it, and
+   `web10apps_post_id` is retired (v2 vestige — the `#web10apps` discovery
+   ledger, dropped in v3; the v3 `apps` table never had the column;
+   `list_store_apps` still blanks it to `""` for the UI; the UI route
+   param becomes the URL-encoded canonical URL).
 4. **Reviews are a rating with words.** `app_ratings` gains a `comment`
    column; one voice per author (dedup key `(target_app_id, author)`),
    latest wins, no history. No separate reviews table.
-5. **The stats model is honest about what the node knows.** Per-app:
-   visits (anonymous pings) + `authorized_users` (distinct
-   `app_contracts` holders for the app's origin — origin-scoped because
-   contracts are CORS-scoped; two path-apps on one host share it).
-   Node-level: members + new members 30d/90d from `users.created_at`.
-   There is no per-app usage log — the store counts *runs* and *consents*,
-   not *users of app X* — and the page labels node numbers as context, not
-   app metrics.
+5. **The page shows D49's metric set, not an invention.** Per app:
+   `visits`, `users_1d`, `users_30d`, `users_90d`, `users_1y` — the same
+   realtime queries over `app_visits` the grid uses (`get_app_metrics`,
+   exact `countDistinct`). Node context: the `/v3/stats` macro (users,
+   app_count, active_users, storage). No consent-based user count
+   (`app_contracts` holders) — D49's metric set is the store's number, and
+   consent is a separate trust surface, not a store metric.
 
 **Why:** the product page was built (PR #426) against a phantom endpoint
 (`PATCH /discover/app/{id}` — no such route in the API, so every page 404s
-into "App not found") and a blanked ID (`/v3/stats` sets
+into "App not found") and a blanked ID (`list_store_apps` sets
 `web10apps_post_id: ""`, so the card never takes the internal-Link path
 and the tile opens the site directly). The root cause is an identity gap:
 the UI wanted a short ID for the route, but the store's identity is
@@ -63,11 +66,83 @@ full stats + reviews layout); a "see more" expander on the card (a third
 tap target on a small tile; inline expansion breaks grid row alignment); a
 parallel ID for the route (post_id / slug / numeric — D47: the URL is the
 identity, a second ID system is drift by construction); a separate
-`app_reviews` table (duplicates `app_ratings`' dedup semantics); per-app
-windowed user counts (would require a usage event the protocol does not
-have — v4 territory if it ever comes).
+`app_reviews` table (duplicates `app_ratings`' dedup semantics); a
+consent-based user count on the page (muddies D49's metric set — consent
+≠ usage).
 
 Full model: `knowledge-base/web10-v3/app-store/endpoints.md`.
+
+---
+
+### D49 — App store metrics: real-user activity, windowed at ingest, computed realtime [decided]
+Operator, 26.08.2026 — after the app store shipped (D47), the operator
+stress-tested the visit model: "what if an approved app changes its
+manifest," "it could rename itself on the next ping," "put on a cautious
+hat, think about stupid things," then specified the replacement metric
+set. The raw ping-count `visits` column is retired as a store metric.
+
+**Decided** — the store measures **real web10 user activity**, not page
+pings:
+
+1. **One usage table, `app_visits (app_url, username, seen_at)`.** A row
+   is appended per *counted* ping. **Anon pings are dropped at ingest** —
+   only a ping carrying a *verified* token (I2: signature checked, never
+   an unsigned decode) produces a row, keyed by the token's username. An
+   app can only grow its numbers by getting real logged-in users; its own
+   server pings are anon and count for nothing.
+2. **The ingest gate (operator's words): "if > 3h, insert."** Per
+   `(app_url, username)`: append a row only if there is no prior row or
+   the latest `seen_at` is > 3h old. 100 navigations in an hour = 1 row.
+   The table is bounded at ≤ 8 rows/user/app/day regardless of traffic —
+   this is the "doesn't pile on ClickHouse" property.
+3. **`apps` stops appending per ping.** It is a stable registration
+   record: a row is appended on first registration or a real metadata
+   change only. The v2-parity visit-increment-append (and the `visits`
+   counter column as a store metric) is retired — `apps` stays ~1 row per
+   app. Usage and registration are separate tables with separate growth
+   rules.
+4. **The metric set, all realtime queries over `app_visits`** (metric-as-
+   query, not a maintained counter — no increment races, no stale state):
+   - `visits` — `count()` of rows (each row is already a 3h-windowed,
+     anon-free counted session)
+   - `users_1d` / `users_30d` / `users_90d` / `users_1y` — distinct real
+     users with a row in the trailing window
+5. **Headline + sort = `users_30d`** — stable, fair to new apps, not spiky
+   like 1d, not tombstone-like like 1y. `users_1y` is a detail stat only,
+   never a headline or sort key. All five metrics are returned per app;
+   the grid card shows the headline, the app detail page shows the full
+   breakdown.
+6. **The store paginates** — `limit`/`offset` (sorted by `users_30d`
+   desc, `visits` tiebreak); the grid pages through instead of rendering
+   every app.
+7. **Required piece — the sign-in re-ping.** The auto-register ping fires
+   at `createV3Client()` (page load, often pre-sign-in → anon → dropped).
+   The SDK re-fires the ping on the sign-in transition so a user's usage
+   starts counting the moment they authenticate. Without this the metric
+   silently means "returning users," not "users."
+
+**Why:** a raw ping count is gameable (an app can loop its own
+registration) and means nothing concrete to a visitor. Distinct real
+users in a trailing window is un-gameable *by construction* (only the node
+mints tokens), is the number a visitor actually wants ("people are using
+this"), and is on-brand: the store prints "1,284 web10 users · last 30
+days," not a vague visit total. ClickHouse makes the whole set realtime-
+trivial (windowed `count`/`countDistinct` over one small table), so there
+is no counter to maintain, sync, or race.
+
+**Rejected:** IP-based rate-limiting (the node sits behind NPM —
+`request.client.host` is the proxy, and XFF is spoofable in a
+token-in-body, origin-untrusted model — the node can only honestly key on
+what it sees: the URL + the verified token); per-URL global windowing
+(every popular app saturates the same ceiling — the ranking loses its
+meaning at the top); lifetime `num_users` (tombstone metric — only goes
+up, a dead app outranks a hot one); maintaining counters in `apps`
+(append-per-ping piles on ClickHouse and races under concurrency);
+`users_1y` as a headline (drifts toward tombstone — a user idle 11 months
+still counts).
+
+Full model: `knowledge-base/web10-v3/app-store/overview.md` (metrics
+section); schema in `knowledge-base/web10-v3/db/clickhouse.md`.
 
 ---
 
