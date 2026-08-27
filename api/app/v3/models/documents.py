@@ -14,6 +14,24 @@ class CreateDocument(BaseModel):
     ref_value: str | None = None
 
 
+class PowerMeanSort(BaseModel):
+    """Power-mean ranking config (the feed knobs, server-side).
+
+    The same knobs the marketing /trending knob rack and the social app's
+    DiscoverScreen hold client-side (marketing-ui/src/lib/powerMean.ts), sent
+    to the node so ClickHouse does the ranking and returns pre-sorted results.
+    Weights are 0..1 (0 = that signal is ignored); half_life_ms is the recency
+    decay half-life (0 = all time, no decay); character is the power-mean
+    exponent p (negative = strict, 0 = geometric, positive = loose).
+    """
+
+    recency: float = 0.0
+    likes: float = 0.0
+    comments: float = 0.0
+    half_life_ms: float = 0.0
+    character: float = -1.0
+
+
 class ReadDocuments(BaseModel):
     """Read documents. doc_id for single read, groups for discover, 'me' for own docs.
 
@@ -21,6 +39,10 @@ class ReadDocuments(BaseModel):
     which is what makes the discover group (the public board) anon-readable
     through the normal group-read path. Discovery IS a group read in v3 —
     there is no separate discover endpoint.
+
+    `sort` (optional): a power-mean ranking config. When present, the read is
+    ranked by the feed knobs over the full group membership and returned
+    pre-sorted (the discover board's "your algorithm" — D36).
     """
 
     token: str | None = None
@@ -30,6 +52,7 @@ class ReadDocuments(BaseModel):
     limit: int = 50
     offset: int = 0
     match: dict | None = None
+    sort: PowerMeanSort | None = None
 
 
 class UpdateDocument(BaseModel):
