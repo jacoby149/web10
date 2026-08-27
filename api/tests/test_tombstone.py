@@ -398,7 +398,7 @@ class TestAppTombstone:
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
                 [
-                    ("https://app.com", "MyApp", "desc", "", "", 1, "approved", 1, 47),
+                    ("https://app.com", "MyApp", "desc", "", "", 1, "approved", 1, 47, "2026-01-01 00:00:00"),
                 ]
             )
             result = ch.get_app("https://app.com")

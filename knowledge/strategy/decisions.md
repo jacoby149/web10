@@ -9,6 +9,71 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D52 — App store product page: the detail endpoint is keyed by the app's URL; `web10apps_post_id` is retired [decided]
+Operator, 26.08.2026 — "in the apps would be cool if there was a little
+button that said to see more … it expands, has a deeper paragraph
+description from the manifest, and then has ALL the available stats, the
+90d users, the visits, the 30d users, you get what i mean, everything in
+one screen, and the apps reviews comments kind of thing" — then "clicking
+the tile opens this modal or whatever it is" — then "in the knowledge base
+we need to talk about how the app store is going to work, it will need its
+own endpoints."
+
+**Decided** —
+
+1. **The product page is a page, not a modal.** The existing
+   `/app-store/app/:id` route (PR #426) is the surface. Tap tile → page;
+   the Open button → launch. Deep-linkable and shareable — the address bar
+   is part of the product. A modal with no URL state is a review rejection
+   per the deep-link rule, and it is cramped for "everything in one
+   screen."
+2. **A new `GET /v3/apps/detail?url=` serves the page.** Public, pure
+   read, one call: app + rating aggregate + rating list + the full
+   five-metric breakdown + the node macro. **No visit bump** — a
+   product-page view is not an app visit; `app_visits` rows come only from
+   SDK pings carrying a verified token (D49). D49's item 5 assigns the
+   detail page the full breakdown ("the grid card shows the headline, the
+   app detail page shows the full breakdown") — this spec is what that
+   line points at.
+3. **The URL is the key.** D47 made the full URL the app's identity
+   (canonical form, D49 hardening #4); the detail endpoint keys on it, and
+   `web10apps_post_id` is retired (v2 vestige — the `#web10apps` discovery
+   ledger, dropped in v3; the v3 `apps` table never had the column;
+   `list_store_apps` still blanks it to `""` for the UI; the UI route
+   param becomes the URL-encoded canonical URL).
+4. **Reviews are a rating with words.** `app_ratings` gains a `comment`
+   column; one voice per author (dedup key `(target_app_id, author)`),
+   latest wins, no history. No separate reviews table.
+5. **The page shows D49's metric set, not an invention.** Per app:
+   `visits`, `users_1d`, `users_30d`, `users_90d`, `users_1y` — the same
+   realtime queries over `app_visits` the grid uses (`get_app_metrics`,
+   exact `countDistinct`). Node context: the `/v3/stats` macro (users,
+   app_count, active_users, storage). No consent-based user count
+   (`app_contracts` holders) — D49's metric set is the store's number, and
+   consent is a separate trust surface, not a store metric.
+
+**Why:** the product page was built (PR #426) against a phantom endpoint
+(`PATCH /discover/app/{id}` — no such route in the API, so every page 404s
+into "App not found") and a blanked ID (`list_store_apps` sets
+`web10apps_post_id: ""`, so the card never takes the internal-Link path
+and the tile opens the site directly). The root cause is an identity gap:
+the UI wanted a short ID for the route, but the store's identity is
+already the URL. Keying on the URL deletes the gap instead of papering
+over it with a second ID system.
+
+**Rejected:** a modal (no URL state — review rejection; cramped for the
+full stats + reviews layout); a "see more" expander on the card (a third
+tap target on a small tile; inline expansion breaks grid row alignment); a
+parallel ID for the route (post_id / slug / numeric — D47: the URL is the
+identity, a second ID system is drift by construction); a separate
+`app_reviews` table (duplicates `app_ratings`' dedup semantics); a
+consent-based user count on the page (muddies D49's metric set — consent
+≠ usage).
+
+Full model: `knowledge-base/web10-v3/app-store/endpoints.md`.
+
+---
+
 ### D51 — Ad dissemination is a per-creator setting; curation is a shared SDK helper [decided]
 Operator, 26.08.2026 — building on D50: "i am pulling feed, or something, you can use
 clickhouse join feed with arbitrary ads per user, so you pull posts per your feed,

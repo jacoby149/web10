@@ -28,7 +28,6 @@ interface RegisteredApp {
   description?: string
   icon_url?: string
   screenshots?: string[]
-  web10apps_post_id?: string
   pwaIcon?: string
   pwaName?: string
 }
@@ -197,7 +196,8 @@ function AppStore() {
         iconSrc: a.icon_url || a.pwaIcon,
         users_30d: a.users_30d ?? 0,
         visits: a.visits ?? 0,
-        appId: a.web10apps_post_id,
+        // D52: the app's URL is the detail-page key (the store's identity).
+        appId: a.url,
       }))
     setApps((prev) => (append ? [...prev, ...mapped] : mapped))
     setTotal(typeof data.total === 'number' ? data.total : mapped.length)

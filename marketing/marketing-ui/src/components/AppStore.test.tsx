@@ -228,7 +228,7 @@ describe('AppCard', () => {
     expect(screen.getByTestId('my-app-card')).toBeInTheDocument();
   });
 
-  it('navigates to product page when appId is provided', async () => {
+  it('navigates to product page when appId is provided (D52: the app URL is the key)', async () => {
     const { AppCard } = await import('@/components/AppCard');
     renderWithRouter(
       <AppCard
@@ -236,11 +236,11 @@ describe('AppCard', () => {
         description="Desc"
         href="https://test.web10.app"
         visits={10}
-        appId="app-123"
+        appId="https://test.web10.app/"
       />
     );
     const card = screen.getByTestId('app-card');
-    expect(card).toHaveAttribute('href', '/app-store/app/app-123');
+    expect(card).toHaveAttribute('href', '/app-store/app/https%3A%2F%2Ftest.web10.app%2F');
   });
 
   it('opens externally when no appId is provided', async () => {
@@ -264,15 +264,15 @@ describe('AppCard', () => {
       <AppCard
         name="Test App"
         description="Desc"
-        href="https://test.web10.app"
+        href="https://plug.web10.app"
         visits={10}
         size="plug"
         badge="Flagship"
-        appId="app-456"
+        appId="https://plug.web10.app/"
       />
     );
     const card = screen.getByTestId('app-card');
-    expect(card).toHaveAttribute('href', '/app-store/app/app-456');
+    expect(card).toHaveAttribute('href', '/app-store/app/https%3A%2F%2Fplug.web10.app%2F');
     expect(screen.getByText('Flagship')).toBeInTheDocument();
   });
 });

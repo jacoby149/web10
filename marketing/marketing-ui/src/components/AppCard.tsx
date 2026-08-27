@@ -4,6 +4,15 @@ import { cn } from '@/lib/utils'
 
 export type AppCardSize = 'default' | 'plug' | 'browse'
 
+// The `?api=` override (isolated e2e stacks on a non-80 port) must survive
+// the card → product-page navigation — the detail page derives its API
+// origin the same way the store does.
+function apiQuery(): string {
+  if (typeof window === 'undefined') return ''
+  const api = new URLSearchParams(window.location.search).get('api')
+  return api ? `?api=${encodeURIComponent(api)}` : ''
+}
+
 export interface AppCardProps {
   iconSrc?: string
   iconLetter?: string
@@ -215,7 +224,7 @@ export function AppCard({
   if (appId) {
     return (
       <Link
-        to={`/app-store/app/${appId}`}
+        to={`/app-store/app/${encodeURIComponent(appId)}${apiQuery()}`}
         className="group block"
         data-testid={testId ?? 'app-card'}
       >

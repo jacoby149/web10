@@ -1174,7 +1174,7 @@ class TestRegisterApp:
         stable registration record, not a per-ping log."""
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
-                [("https://myapp.com/", "My App", "", "", "[]", 1, "approved", 1, 47)]
+                [("https://myapp.com/", "My App", "", "", "[]", 1, "approved", 1, 47, "2026-01-01 00:00:00")]
             )
             result = ch.register_app({"url": "https://myapp.com/"})
             assert result["review_state"] == "approved"
@@ -1187,7 +1187,7 @@ class TestRegisterApp:
         (metadata_version bumped) — the only repeat case that touches apps."""
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
-                [("https://myapp.com/", "Old", "", "", "[]", 1, "approved", 1, 47)]
+                [("https://myapp.com/", "Old", "", "", "[]", 1, "approved", 1, 47, "2026-01-01 00:00:00")]
             )
             ch.register_app({"url": "https://myapp.com/", "name": "New"})
             mock_client.command.assert_called_once()
@@ -1280,7 +1280,20 @@ class TestMigrateFileIndexAppRows:
             mock_client.query.side_effect = [
                 _mock_result_rows([self.FILE_ROW]),
                 _mock_result_rows(
-                    [("https://dev.web10.app/docs/media/", "Media (HLS)", "", "", "[]", 1, "approved", 1, 47)]
+                    [
+                        (
+                            "https://dev.web10.app/docs/media/",
+                            "Media (HLS)",
+                            "",
+                            "",
+                            "[]",
+                            1,
+                            "approved",
+                            1,
+                            47,
+                            "2026-01-01T00:00:00",
+                        )
+                    ]
                 ),
             ]
             ch._migrate_file_index_app_rows()
@@ -1341,11 +1354,75 @@ class TestCreateAppRating:
             assert result["rating"] == 5
             mock_client.insert.assert_called_once()
 
+    def test_rating_with_comment_uses_named_columns(self):
+        """D52: the comment column was appended by ALTER on pre-existing
+        volumes — the insert must name its columns, and carry the comment."""
+        with _patch_client() as mock_client:
+            result = ch.create_app_rating("alice", "https://a.com", 5, "api.web10.app", comment="fast.")
+            assert result["comment"] == "fast."
+            args, kwargs = mock_client.insert.call_args
+            assert kwargs["column_names"] == [
+                "author",
+                "target_app_id",
+                "rating",
+                "comment",
+                "provider",
+                "created_at",
+                "updated_at",
+                "deleted",
+            ]
+            row = args[1][0]
+            assert row[3] == "fast."  # comment sits after rating
+
 
 class TestGetAppRatings:
     def test_ratings(self):
         with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows([("alice", 5, "api.web10.app", datetime(2026, 1, 1))])
+            mock_client.query.return_value = _mock_result_rows(
+                [("alice", 5, "fast.", "api.web10.app", datetime(2026, 1, 1))]
+            )
             result = ch.get_app_ratings("https://a.com")
             assert len(result) == 1
             assert result[0]["rating"] == 5
+            assert result[0]["comment"] == "fast."
+
+
+class TestGetAppDetail:
+    """The product page payload (D52) — composition + the approved-only gate."""
+
+    # The canonical form of https://a.com is https://a.com/ (one trailing
+    # slash, D49 / hardening #4) — the detail lookup runs on the canonical.
+    _APP_ROW = ("https://a.com/", "App A", "desc", "", "[]", 1, "approved", 1, 47, "2026-01-01 00:00:00")
+    _NODE = {
+        "users": 579,
+        "documents": 100,
+        "groups": 5,
+        "app_count": 12,
+        "active_users": {"users_1d": 1, "users_30d": 10, "users_90d": 20, "users_1y": 30},
+        "storage": 1234,
+    }
+
+    def test_detail_composes(self):
+        with _patch_client() as mock_client, patch.object(ch, "get_node_stats", return_value=self._NODE):
+            mock_client.query.side_effect = [
+                _mock_result_rows([self._APP_ROW]),  # get_app
+                _mock_result_rows([("https://a.com/", 47, 4, 128, 301, 512)]),  # metrics
+                _mock_result_rows([("alice", 5, "fast.", "api.web10.app", "2026-01-02 00:00:00")]),  # ratings
+            ]
+            result = ch.get_app_detail("https://a.com")
+        assert result["url"] == "https://a.com/"
+        assert result["metrics"]["users_30d"] == 128
+        assert result["rating"] == {"average": 5.0, "count": 1}
+        assert result["ratings"][0]["comment"] == "fast."
+        assert result["node"]["users"] == 579
+
+    def test_detail_unknown_app_none(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([])
+            assert ch.get_app_detail("https://nowhere.com") is None
+
+    def test_detail_unapproved_none(self):
+        row = ("https://a.com/", "App A", "desc", "", "[]", 0, "pending", 1, 47, "2026-01-01 00:00:00")
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([row])
+            assert ch.get_app_detail("https://a.com") is None

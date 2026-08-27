@@ -242,6 +242,118 @@ test.describe('app store (v3, D49)', () => {
     await expect(page.getByText('E2E Path App', { exact: true })).toBeVisible({ timeout: 15000 });
   });
 
+  test('detail endpoint: the product page payload (D52)', async ({ request }) => {
+    // The product page is one public read: app + full metric breakdown +
+    // ratings + node macro. Pure read — a product-page view writes no
+    // app_visits row (usage rows come only from SDK pings with a token).
+    const ts = Date.now();
+    const url = `http://e2e-detail-${ts}.localhost/`;
+    const reg = await v3Post(request, `${API_BASE}/v3/apps/register`, { body: { url, name: 'E2E Detail App' } });
+    expect(reg.ok()).toBeTruthy();
+    await approve(request, url);
+
+    const { token } = await signupAndLogin(request, 'e2e-detail');
+    const ping = await v3Post(request, `${API_BASE}/v3/apps/register`, { body: { url, token } });
+    expect(ping.ok()).toBeTruthy();
+
+    const res = await request.get(`${API_BASE}/v3/apps/detail`, { params: { url } });
+    expect(res.ok()).toBeTruthy();
+    const data = await res.json();
+    expect(data.url).toBe(url);
+    expect(data.name).toBe('E2E Detail App');
+    expect(data.metrics.users_30d).toBeGreaterThanOrEqual(1);
+    expect(data.rating).toEqual({ average: null, count: 0 });
+    expect(data.ratings).toEqual([]);
+    expect(data.node).toHaveProperty('users');
+    expect(data.node).toHaveProperty('app_count');
+
+    // Pure read — viewing the page again does not grow the visit count.
+    const visits1 = data.metrics.visits;
+    const res2 = await request.get(`${API_BASE}/v3/apps/detail`, { params: { url } });
+    expect((await res2.json()).metrics.visits).toBe(visits1);
+  });
+
+  test('detail endpoint: 404 for unknown and unapproved apps (D52)', async ({ request }) => {
+    const unknown = await request.get(`${API_BASE}/v3/apps/detail`, { params: { url: 'http://e2e-nowhere-xyz.localhost/' } });
+    expect(unknown.status()).toBe(404);
+
+    // Pending — the product page is a store surface, and the store lists
+    // approved only.
+    const ts = Date.now();
+    const url = `http://e2e-pending-${ts}.localhost/`;
+    const reg = await v3Post(request, `${API_BASE}/v3/apps/register`, { body: { url, name: 'E2E Pending App' } });
+    expect(reg.ok()).toBeTruthy();
+    const res = await request.get(`${API_BASE}/v3/apps/detail`, { params: { url } });
+    expect(res.status()).toBe(404);
+  });
+
+  test('rating round-trip: stars + comment, one voice per user (D52)', async ({ request }) => {
+    const ts = Date.now();
+    const url = `http://e2e-rate-${ts}.localhost/`;
+    const reg = await v3Post(request, `${API_BASE}/v3/apps/register`, { body: { url, name: 'E2E Rate App' } });
+    expect(reg.ok()).toBeTruthy();
+    await approve(request, url);
+
+    const { token, username } = await signupAndLogin(request, 'e2e-rate');
+    const rate = await v3Post(request, `${API_BASE}/v3/apps/rating`, {
+      token,
+      body: { target_app_id: url, rating: 5, comment: 'fast.' },
+    });
+    expect(rate.ok()).toBeTruthy();
+
+    const data = await (await request.get(`${API_BASE}/v3/apps/detail`, { params: { url } })).json();
+    expect(data.rating).toEqual({ average: 5, count: 1 });
+    expect(data.ratings[0]).toMatchObject({ author: username, rating: 5, comment: 'fast.' });
+
+    // Re-rating replaces (one voice per user) — the count stays 1.
+    const reRate = await v3Post(request, `${API_BASE}/v3/apps/rating`, {
+      token,
+      body: { target_app_id: url, rating: 4, comment: 'still good' },
+    });
+    expect(reRate.ok()).toBeTruthy();
+    const data2 = await (await request.get(`${API_BASE}/v3/apps/detail`, { params: { url } })).json();
+    expect(data2.rating.count).toBe(1);
+    expect(data2.rating.average).toBe(4);
+    expect(data2.ratings[0].comment).toBe('still good');
+
+    // The cap: a review is a paragraph, not a document.
+    const tooLong = await v3Post(request, `${API_BASE}/v3/apps/rating`, {
+      token,
+      body: { target_app_id: url, rating: 5, comment: 'a'.repeat(1001) },
+    });
+    expect(tooLong.ok()).toBeFalsy();
+  });
+
+  test('card → product page: metrics, reviews, sign-in state (D52 browser seam)', async ({ page, request }) => {
+    // A path on a known host (D47) — .localhost urls are filtered out of the
+    // grid (dev hygiene), so the card only renders for a real host. The
+    // manifest 404s on the real site, so the registered name shows.
+    const ts = Date.now();
+    const url = `https://www.web10.app/docs/e2e-card-app-${ts}/`;
+    const canonical = `https://web10.app/docs/e2e-card-app-${ts}/`;
+    const name = `E2E Card App ${ts}`;
+    const reg = await v3Post(request, `${API_BASE}/v3/apps/register`, { body: { url, name } });
+    expect(reg.ok()).toBeTruthy();
+    await approve(request, url);
+    const { token } = await signupAndLogin(request, 'e2e-card');
+    const ping = await v3Post(request, `${API_BASE}/v3/apps/register`, { body: { url: canonical, token } });
+    expect(ping.ok()).toBeTruthy();
+
+    await page.goto(`${MARKETING_BASE}/app-store?api=${encodeURIComponent(API_BASE)}`);
+    const card = page.getByText(name, { exact: true });
+    await expect(card).toBeVisible({ timeout: 15000 });
+    await card.click();
+
+    // The product page: the app's name, the full metric breakdown, the
+    // reviews section — and the URL holds the state (deep link).
+    await expect(page.getByTestId('app-detail-name')).toHaveText(name, { timeout: 15000 });
+    await expect(page.getByTestId('metrics-section')).toBeVisible();
+    await expect(page.getByTestId('reviews-section')).toBeVisible();
+    // Signed out → the sign-in state, not the rate form.
+    await expect(page.getByTestId('sign-in-to-rate')).toBeVisible();
+    expect(page.url()).toContain(`/app-store/app/${encodeURIComponent(canonical)}`);
+  });
+
   test.skip('app store -> token handoff flow', async () => {
     // GUTTED (v2→v3): tested removed endpoints (/certify, /{username}/posts) and the
     // legacy /signup. The token-handoff feature still exists in v3 — an app gets an
