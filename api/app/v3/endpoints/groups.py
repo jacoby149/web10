@@ -1,9 +1,12 @@
+from types import SimpleNamespace
+
 from fastapi import APIRouter
 
 import app.exceptions as exceptions
 from app.models.auth import Token
 from app.services.auth import check_admin, decode_token
 from app.v3.endpoints.auth_helper import user as _user
+from app.v3.endpoints.auth_helper import user_or_anon
 from app.v3.models import (
     AcceptInvite,
     AddGroupMember,
@@ -61,6 +64,36 @@ def _require_moderation(group_id: str, user: str, token: str):
     except Exception:
         pass
     check_admin(Token(token=token))
+
+
+def _parse_group_id(group_id: str) -> tuple[str, str]:
+    """Extract (owner, slug) from a group_id like 'web10.app/groups/{owner}/{slug}'.
+
+    The slug is the group's fallback display name (when it has no identity
+    record). Robust to the well-known shapes (discover board, DM groups).
+    """
+    parts = group_id.split("/")
+    if "groups" in parts:
+        idx = parts.index("groups")
+        if idx + 2 < len(parts):
+            return parts[idx + 1], parts[idx + 2]
+    if len(parts) >= 2:
+        return parts[-2], parts[-1]
+    return "", group_id
+
+
+def _permission_summary(roles: list[dict]) -> str:
+    """A short digest of what a baseline member can do, for the directory card.
+
+    Uses the least-privileged role (the last entry, by convention — the role a
+    new member gets), so the card describes the member experience, not the
+    owner's.
+    """
+    if not roles:
+        return ""
+    base = roles[-1]
+    perms = base.get("permissions", [])
+    return f"{base.get('name', 'member')}: {', '.join(perms)}" if perms else base.get("name", "member")
 
 
 @router.post("/create")
@@ -310,6 +343,92 @@ def get_groups_manages(data: TokenOnly):
     """Get groups where the user has management permissions."""
     user = _user(data)
     return ch.get_groups_manages(user)
+
+
+# ---------------------------------------------------------------------------
+# The group directory + detail (D53). The directory is the minimal, canonical,
+# anon-browsable list of discoverable groups. The detail is the flexible,
+# principal-based read of a group by ID (unlisted-model: reachable for any
+# existing group; posts gated by the reader's membership).
+# ---------------------------------------------------------------------------
+
+
+@router.get("/directory")
+def list_directory(limit: int = 50, offset: int = 0):
+    """The public group directory: the minimal list of discoverable groups.
+
+    Anon (no token needed). Returns id, name (identity record, else slug),
+    owner, join policy, member count, tags, and a permission summary. No posts.
+    A view over group_contracts ⋈ group_members ⋈ group_identity.
+    """
+    groups = ch.list_discoverable_groups(limit=limit, offset=offset)
+    group_ids = [g["group_id"] for g in groups]
+    counts = ch._get_group_member_counts(group_ids)
+    identities = ch.get_group_identities(group_ids)
+    out = []
+    for g in groups:
+        gid = g["group_id"]
+        identity = identities.get(gid) or {}
+        owner, slug = _parse_group_id(gid)
+        out.append(
+            {
+                "group_id": gid,
+                "name": identity.get("name") or slug,
+                "owner": owner,
+                "slug": slug,
+                "join_policy": g["join_policy"],
+                "member_count": counts.get(gid, 0),
+                "tags": identity.get("tags", []),
+                "permission_summary": _permission_summary(g["roles"]),
+            }
+        )
+    return {"groups": out, "limit": limit, "offset": offset}
+
+
+@router.get("/detail")
+def group_detail(group_id: str, token: str | None = None):
+    """The flexible group detail (by ID). Unlisted-model (D53).
+
+    Principal-based: reads as the token's user, or `anon` with no token. Only a
+    non-existent group 404s — a non-discoverable group is still reachable (like
+    an unlisted video). Metadata (contract + identity + member count) is always
+    returned; posts are returned only if the reader is a member (I3), else a
+    "join to view" state.
+    """
+    principal = user_or_anon(SimpleNamespace(token=token or ""))
+    group = ch.get_group(group_id)
+    if not group:
+        raise exceptions.ENTRY_NOT_FOUND  # only a non-existent group 404s
+
+    identity = ch.get_group_identity(group_id) or {}
+    counts = ch._get_group_member_counts([group_id])
+    owner, slug = _parse_group_id(group_id)
+    is_member = ch.is_group_member(group_id, principal)
+
+    out = {
+        "group_id": group_id,
+        "name": identity.get("name") or slug,
+        "owner": owner,
+        "slug": slug,
+        "join_policy": group["join_policy"],
+        "discoverable": group["discoverable"],
+        "member_count": counts.get(group_id, 0),
+        "roles": group["roles"],
+        "permission_summary": _permission_summary(group["roles"]),
+        "description": identity.get("description", ""),
+        "banner_ref": identity.get("banner_ref", ""),
+        "avatar_ref": identity.get("avatar_ref", ""),
+        "website": identity.get("website", ""),
+        "tags": identity.get("tags", []),
+        "is_member": is_member,
+        "posts_state": "ok" if is_member else "join_to_view",
+        "posts": [],
+    }
+    if is_member:
+        out["posts"] = ch.read_documents_in_groups(
+            group_ids=[group_id], member_key=principal, service="posts", limit=20
+        )
+    return out
 
 
 @router.post("/block")
