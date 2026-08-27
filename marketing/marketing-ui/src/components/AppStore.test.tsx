@@ -373,4 +373,60 @@ describe('AppStore page', () => {
       expect(screen.getByTestId('browse-section')).toBeInTheDocument();
     });
   });
+
+  it('renders a registered app icon from its PWA manifest — SVG preferred over raster', async () => {
+    const { default: AppStore } = await import('@/pages/AppStore');
+    // The demos carry their own icon (icon.svg + 192/512 PNGs for PWA
+    // install). The store picks the SVG — it scales crisply to any card
+    // size — and resolves it against the app's URL.
+    const fetchMock = vi.fn((input: any) => {
+      const url = String(input);
+      if (url.includes('/v3/stats')) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              users: 3,
+              storage: 1024,
+              apps: [
+                {
+                  url: 'https://www.web10.app/docs/hello/',
+                  name: '',
+                  description: '',
+                  icon_url: '',
+                  screenshots: [],
+                  visits: 5,
+                  review_state: 'approved',
+                  web10apps_post_id: '',
+                },
+              ],
+            }),
+        } as Response);
+      }
+      if (url.includes('/pwa_listing')) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              name: 'Hello — web10 Demo',
+              short_name: 'Hello',
+              icons: [
+                { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml' },
+                { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
+                { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
+              ],
+            }),
+        } as Response);
+      }
+      return Promise.reject(new Error('offline'));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    renderWithRouter(<AppStore />);
+    await vi.waitFor(() => {
+      // short_name wins for the card label (constrained display)
+      expect(screen.getByAltText('Hello')).toBeInTheDocument();
+    });
+    const img = screen.getByAltText('Hello');
+    expect(img).toHaveAttribute('src', 'https://www.web10.app/docs/hello/icon.svg');
+  });
 });

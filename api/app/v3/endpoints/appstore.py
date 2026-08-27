@@ -19,8 +19,16 @@ router = APIRouter(tags=["app-store"])
 @router.post("/register")
 def register_app(data: RegisterApp):
     """Register an app in the provider app store."""
-    if not data.body.get("url"):
+    url = (data.body.get("url") or "").strip()
+    if not url:
         raise exceptions.CRUD
+    # Canonical app identity (D47): a trailing /index.html collapses to the
+    # directory — the directory IS the app (index.html is just how the
+    # server serves it). Without this, an app loaded via its index.html
+    # link forks into a second store entry whose manifest lookup 404s.
+    if url.endswith("/index.html"):
+        url = url[: -len("index.html")]
+    data.body["url"] = url
     return ch.register_app(data.body)
 
 

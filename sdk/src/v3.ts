@@ -660,10 +660,17 @@ contracts: V3CR[],
   // Fire-and-forget: registration must never block or break app init.
   if (typeof window !== 'undefined' && typeof window.location !== 'undefined' && typeof window.location.href === 'string') {
     try {
+      // Canonical app identity (D47): the full URL minus query/fragment,
+      // with a trailing /index.html collapsed to the directory — the
+      // directory IS the app (index.html is just how the server serves it).
+      // Without the collapse, loading a demo via its /index.html link forks
+      // the identity into a second store entry whose manifest lookup 404s.
+      const rawUrl = window.location.href.split(/[?#]/)[0]
+      const appUrl = rawUrl.replace(/\/index\.html$/, '/')
       fetch(`${apiOrigin}/v3/apps/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ body: { url: window.location.href.split(/[?#]/)[0] } }),
+        body: JSON.stringify({ body: { url: appUrl } }),
       }).catch(() => {})
     } catch {
       // fetch not available (SSR, test env)

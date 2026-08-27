@@ -1078,6 +1078,35 @@ class TestAppsRegister:
         assert resp.status_code == 200
         assert resp.json()["url"] == "https://myapp.com"
 
+    def test_register_collapses_index_html_to_directory(self, client):
+        """Canonical app identity (D47): a trailing /index.html is the
+        server's way of serving the directory app, not a distinct app.
+        Loading a demo via its /index.html link must not fork the identity
+        into a second store entry whose manifest lookup 404s (icon-less,
+        name-less card in the store)."""
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.return_value = MagicMock(result_rows=[])
+            resp = client.post(
+                "/v3/apps/register",
+                json={"body": {"url": "https://myapp.com/docs/notes/index.html"}},
+            )
+        assert resp.status_code == 200
+        assert resp.json()["url"] == "https://myapp.com/docs/notes/"
+        apps_inserts = [c for c in mock_ch.insert.call_args_list if c[0][0] == "apps"]
+        assert apps_inserts[0][0][1][0][0] == "https://myapp.com/docs/notes/"
+
+    def test_register_plain_url_unchanged(self, client):
+        """Normalization only touches the /index.html suffix — everything
+        else registers byte-for-byte as sent."""
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.return_value = MagicMock(result_rows=[])
+            resp = client.post(
+                "/v3/apps/register",
+                json={"body": {"url": "https://myapp.com/docs/notes/"}},
+            )
+        assert resp.status_code == 200
+        assert resp.json()["url"] == "https://myapp.com/docs/notes/"
+
     def test_register_new_starts_at_one_visit(self, client, token):
         """First registration is the first visit (v2 parity)."""
         with patch("app.v3.services.clickhouse.client") as mock_ch:

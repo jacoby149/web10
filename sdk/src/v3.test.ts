@@ -231,6 +231,25 @@ describe('v3 client', () => {
       vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network down')))
       expect(() => createV3Client({ apiOrigin: 'http://api.localhost' })).not.toThrow()
     })
+
+    it('auto-register identity collapses /index.html to the directory (D47 — the directory IS the app)', () => {
+      // Loading a demo via its /index.html link must not fork the identity
+      // into a second store entry — the manifest lookup for
+      // .../index.html/manifest.json would 404, so the forked entry would
+      // show up icon-less and name-less in the store.
+      window.history.replaceState(null, '', '/docs/notes/index.html?from=store')
+      try {
+        createV3Client({ apiOrigin: 'http://api.localhost' })
+        const registerCalls = vi
+          .mocked(fetch)
+          .mock.calls.filter(([url]) => String(url).includes('/v3/apps/register'))
+        const last = registerCalls[registerCalls.length - 1]
+        const body = JSON.parse(last[1].body as string)
+        expect(body.body.url).toBe('http://localhost:3000/docs/notes/')
+      } finally {
+        window.history.replaceState(null, '', '/')
+      }
+    })
   })
 
   // ── Token management ──────────────────────────────────────────────────

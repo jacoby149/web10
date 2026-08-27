@@ -448,10 +448,12 @@
     };
     if (typeof window !== "undefined" && typeof window.location !== "undefined" && typeof window.location.href === "string") {
       try {
+        const rawUrl = window.location.href.split(/[?#]/)[0];
+        const appUrl = rawUrl.replace(/\/index\.html$/, "/");
         fetch(`${apiOrigin}/v3/apps/register`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ body: { url: window.location.href.split(/[?#]/)[0] } })
+          body: JSON.stringify({ body: { url: appUrl } })
         }).catch(() => {});
       } catch {}
     }
