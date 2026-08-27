@@ -17,18 +17,22 @@ that are readable by anon, kind of a thing not totally sure how" — then
 groups, good thing it isnt totally essential." — then, on the first draft
 (which equated discoverability with `anon` membership): "idk, shouldnt the
 groups discoverability be a different boolean? that it is on this groups
-directory?"
+directory?" — then, on implementing it: "lets implement it discoverable by
+default."
 
 **Decided** —
 
 1. **Two controls, two decisions.** Listing a group in the directory and
    letting `anon` read its posts are *different* decisions, so they get
    *different* controls:
-   - **`discoverable`** — a boolean on `group_contracts`, owner-set, default
-     `false`. Controls **listing + existence**: `true` = the group appears in
-     the directory and its existence/metadata is public; `false` = not listed,
-     direct URL 404s (no existence leak). This is the "is it on the directory"
-     switch.
+    - **`discoverable`** — a boolean on `group_contracts`, owner-set.
+      **Defaults to `true`** (discoverable by default, per the operator) —
+      *except* `invite_only` groups, which default to `false` (inherently
+      private: DMs, private circles), and the node-default discover group,
+      which is explicitly `false` (a board, not a directory entry). Controls
+      **listing + existence**: `true` = the group appears in the directory and
+      its existence/metadata is public; `false` = not listed, direct URL 404s
+      (no existence leak). This is the "is it on the directory" switch.
    - **`anon` membership** — on `group_members`. Controls **content
      readability**: `anon` a member with `readAll` = token-less readers can
      read the group's posts. Independent of `discoverable`.
@@ -60,11 +64,14 @@ directory?"
 
 **Why:** "readable by anon" and "on the directory" are two decisions, and the
 discover group proves they come apart. The boolean separates them cleanly:
-listing is an owner choice about *visibility* (a new field, default off),
-readability is a *membership* permission (the machinery that already enforces
-I3 for every other member). I3 still holds end to end — the directory exposes
-only metadata for groups the owner chose to list, and posts remain gated by
-membership on the detail page. This is the groups analog of the app store
+listing is an owner choice about *visibility* (a new field, default on —
+discoverable by default), readability is a *membership* permission (the
+machinery that already enforces I3 for every other member). I3 still holds end
+to end — the directory exposes only metadata for groups that are listed, and
+posts remain gated by membership on the detail page. The default-on choice
+matches the node-readable-by-design stance (D41) and the public-by-default
+posts: a new group is findable unless its owner (or its `invite_only` nature)
+says otherwise. This is the groups analog of the app store
 (D47/D49/D52): a public, anon-browsable store surface where the listed thing
 (a group) is identified by its URL and read through the same permission-
 gated read path everything else uses.

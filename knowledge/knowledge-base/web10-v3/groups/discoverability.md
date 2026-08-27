@@ -2,6 +2,8 @@
 
 A group is **discoverable** when it is listed in the public, anon-browsable group directory. Discoverability is an owner choice about **visibility** — it is a `discoverable` boolean on the group's contract, and it is a *separate* decision from whether `anon` can read the group's posts.
 
+**Groups are discoverable by default.** A new group is listed in the directory unless its owner sets `discoverable = false` — or unless the group is `invite_only` (which defaults to `false`, since invite-only groups are inherently private: DMs, private circles). The node-default discover group is explicitly `discoverable: false` (it's a board, not a directory entry). This matches the node-readable-by-design stance (D41) and the public-by-default posts.
+
 Two things are easy to conflate, and they are not the same:
 
 - **Listed in the directory** — strangers can see the group *exists* (its name, description, member count). Controlled by the `discoverable` boolean.
@@ -50,17 +52,22 @@ The directory is a **view** over data that already exists, plus one new boolean.
 
 ## How a Group Gets Listed
 
-The owner sets `discoverable = true` on the group (through the existing group-update path — no dedicated opt-in endpoint). In the authenticator that is a "List in directory" toggle.
+Groups are **discoverable by default** — a new `open` or `request` group is listed in the directory the moment it's created. The owner can delist it by setting `discoverable = false` (through the existing group-update path — no dedicated opt-in endpoint). In the authenticator that is a "List in directory" toggle (on by default).
 
-The toggle is a **convenience for the common case**: it sets `discoverable = true` *and* adds `anon` as a member (default role), so the group is listed and its posts are anon-readable in one action. The advanced case — listed but content-private — is `discoverable = true` *without* adding `anon`.
+Two defaults keep private groups out automatically, with no owner action:
+
+- **`invite_only` groups default to `discoverable = false`** — DMs and private circles are inherently private, so they never appear in the directory unless the owner explicitly lists them.
+- **The discover group is `discoverable = false`** — `ensure_discover_group()` enrolls `anon` (anon-readable board) but sets `discoverable: false` (not a directory entry).
+
+The "List in directory" toggle is a **convenience for the common case**: turning it on sets `discoverable = true` *and* adds `anon` as a member (default role), so the group is listed and its posts are anon-readable in one action. The advanced case — listed but content-private — is `discoverable = true` *without* adding `anon`.
 
 | Action | `discoverable` | `anon` member | Directory effect |
 |---|---|---|---|
+| Create an `open`/`request` group (default) | `true` | (as created) | group appears |
+| Create an `invite_only` group (default) | `false` | (as created) | group does not appear |
 | "List in directory" (common) | `true` | added | group appears, posts anon-readable |
 | List, keep content private | `true` | not added | group appears, "join to view posts" |
 | Remove from directory | `false` | (unchanged) | group disappears |
-
-The discover group is the node's own use of the controls: `ensure_discover_group()` enrolls `anon` (anon-readable board) but leaves `discoverable: false` (not a directory entry).
 
 ## What the Directory Shows
 
@@ -99,7 +106,7 @@ Both are **pure reads** — a directory view writes nothing. The detail page's r
 
 ## Security Invariants
 
-- **I3 holds end to end.** The directory exposes *metadata only*, and only for groups the owner set `discoverable = true` (an explicit choice to be public). The detail page returns *posts* only when `anon` is a member — the same membership gate that enforces I3 for every other reader. No new access surface.
+- **I3 holds end to end.** The directory exposes *metadata only*, and only for groups that are discoverable (the default for `open`/`request` groups; `invite_only` and the discover group are `false`). The detail page returns *posts* only when `anon` is a member — the same membership gate that enforces I3 for every other reader. No new access surface.
 - **No existence leak.** A group with `discoverable = false` is indistinguishable from a non-existent group to an anon reader (absent from the list, 404 on detail).
 - **Listing is revocable.** Setting `discoverable = false` delists immediately. Removing `anon` stops anon readability immediately. Each control revokes its own concern.
 
@@ -113,6 +120,6 @@ The discover group (`web10.app/groups/web10/discover`) is anon-readable but **no
 
 ## Summary
 
-A group is listed in the directory when its owner sets `discoverable = true`; its posts are anon-readable when `anon` is a member. The two are orthogonal — the discover group (anon-readable board, not listed) is the proof. The directory is a public, metadata-only read of the `discoverable` groups; the detail page adds posts only when `anon` is a member, else "join to view." Display metadata is derived from the URL in v0 and read from `group-identity-service` when present. I3 holds end to end: metadata is public by the owner's choice, posts stay gated by membership.
+A group is listed in the directory when `discoverable = true` — the default for `open`/`request` groups, `false` by default for `invite_only` groups and the discover group. Its posts are anon-readable when `anon` is a member. The two are orthogonal — the discover group (anon-readable board, not listed) is the proof. The directory is a public, metadata-only read of the `discoverable` groups; the detail page adds posts only when `anon` is a member, else "join to view." Display metadata is derived from the URL in v0 and read from `group-identity-service` when present. I3 holds end to end: metadata is public by default (or the owner's choice), posts stay gated by membership.
 
 For the generic group model, see `overview.md`. For the discover group contract, see `social-contracts.md` §1. For the identity record the directory reads, see `identity.md`.

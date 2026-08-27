@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS group_contracts (
     group_id String,
     roles String,
     join_policy String,
+    discoverable UInt8 DEFAULT 1,
     created_at DateTime64(3),
     updated_at DateTime64(3),
     deleted UInt8 DEFAULT 0

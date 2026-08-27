@@ -157,21 +157,22 @@ lane is `app-store-metrics` in `parallel-execution.md`.
 ## Groups: Discoverable Directory (D53) — Platform
 
 Groups get a store: a public, anon-browsable directory of the groups that
-chose to be listed. Two orthogonal controls (D53): a **`discoverable`
-boolean** on `group_contracts` (owner-set, default `false`) lists the group
-and makes its existence public; **`anon` membership** controls whether its
-posts are anon-readable. The discover group is the proof they come apart —
-anon-readable board, not a directory entry (`discoverable: false` + `anon`
-member). The directory is a metadata-only read of the `discoverable` groups;
-the detail page adds posts only when `anon` is a member, else "join to view."
-Display metadata is derived from the URL in v0 and read from
-`group-identity-service` when present. Two public endpoints (list + detail),
-mirroring the app store (D52). I3 holds end to end. **Not essential now**
-(operator) — planned, gated behind the social app's community surface.
+are listed. Two orthogonal controls (D53): a **`discoverable` boolean** on
+`group_contracts` lists the group and makes its existence public —
+**discoverable by default** (default `true`), except `invite_only` groups
+(default `false`, inherently private) and the discover group (explicit
+`false`, a board not a directory entry); **`anon` membership** controls
+whether its posts are anon-readable. The discover group is the proof they
+come apart — anon-readable board, not a directory entry (`discoverable:
+false` + `anon` member). The directory is a metadata-only read of the
+`discoverable` groups; the detail page adds posts only when `anon` is a
+member, else "join to view." Display metadata is derived from the URL in v0
+and read from `group-identity-service` when present. Two public endpoints
+(list + detail), mirroring the app store (D52). I3 holds end to end.
 
-- [✓] **Decision: D53** (`knowledge/strategy/decisions.md`) — `discoverable` boolean (listing + existence, default `false`) is separate from `anon` membership (content readability); directory = metadata-only read of the `discoverable` groups; detail page forks on `anon` membership (posts vs "join to view"); display metadata derived (v0) / `group-identity-service` (when present); list + detail endpoints (D52 shape); 404 not 403 for a non-discoverable group; I3 holds end to end.
-- [✓] **KB** (`knowledge-base/web10-v3/groups/discoverability.md`) — the two controls, the orthogonality table, opt-in (the "List in directory" toggle sets the boolean + adds `anon`), directory contents, display metadata tiers, endpoint surface + read fork, security invariants, the honest cost, relationship to the discover group.
-- [ ] **Schema: `discoverable` column** (`clickhouse-init/`, `api/app/v3/services/clickhouse.py`) — `discoverable UInt8 DEFAULT 0` on `group_contracts` (DDL template + idempotent boot-time `ALTER ... ADD COLUMN IF NOT EXISTS` for pre-existing volumes, the 3.2.0 house pattern); `CreateGroup`/`UpdateGroup` models + create/update endpoints accept it.
+- [✓] **Decision: D53** (`knowledge/strategy/decisions.md`) — `discoverable` boolean (listing + existence, **default `true`** / discoverable by default, `invite_only` + discover group `false`) is separate from `anon` membership (content readability); directory = metadata-only read of the `discoverable` groups; detail page forks on `anon` membership (posts vs "join to view"); display metadata derived (v0) / `group-identity-service` (when present); list + detail endpoints (D52 shape); 404 not 403 for a non-discoverable group; I3 holds end to end.
+- [✓] **KB** (`knowledge-base/web10-v3/groups/discoverability.md`) — the two controls, the orthogonality table, the discoverable-by-default rule (open/request listed, invite_only + discover group not), the "List in directory" toggle (sets the boolean + adds `anon`), directory contents, display metadata tiers, endpoint surface + read fork, security invariants, the honest cost, relationship to the discover group.
+- [✓] **Schema: `discoverable` column** (`clickhouse-init/`, `api/app/v3/services/clickhouse.py`) — `discoverable UInt8 DEFAULT 1` on `group_contracts` (DDL template + idempotent boot-time `ALTER ... ADD COLUMN IF NOT EXISTS` for pre-existing volumes, the 3.2.0 house pattern); `create_group` defaults `discoverable` to `True` except `invite_only` (→ `False`), named-column insert; `get_group` returns it; `update_group`/`delete_group` carry it; `CreateGroup`/`UpdateGroup` models + create/update endpoints accept it; the discover group is created `discoverable=False`.
 - [ ] **API: `GET /v3/groups/directory`** (`api/app/v3/endpoints/groups.py`, `services/clickhouse.py`) — public, anon, paginated, sorted by recent activity; the `discoverable = true` groups + display metadata (derived, or `group-identity-service` when present). Metadata only — no posts.
 - [ ] **API: `GET /v3/groups/detail?id=`** — public, pure read: contract (join policy, roles summary) + display metadata + member count, always; recent posts only if `anon` is a member (else "join to view" state); 404 for a non-discoverable group (no existence leak).
 - [ ] **Opt-in toggle** (`ui/` authenticator group management) — "List in directory" = set `discoverable` + add/remove `anon` (the common case); the listed-but-private case is the boolean without `anon`.
