@@ -11,6 +11,7 @@ export interface AppCardProps {
   description: string
   href: string
   visits?: number
+  metricLabel?: string
   flagship?: boolean
   skeleton?: boolean
   size?: AppCardSize
@@ -25,6 +26,7 @@ function CardContent({
   name,
   description,
   visits,
+  metricLabel,
   badge,
   flagship,
   size,
@@ -35,6 +37,7 @@ function CardContent({
   name: string
   description: string
   visits?: number
+  metricLabel?: string
   badge?: string
   flagship?: boolean
   size: AppCardSize
@@ -80,7 +83,7 @@ function CardContent({
   const visitsEl =
     visits !== undefined && visits >= 0 ? (
       <span className="text-xs text-muted-foreground">
-        {visits.toLocaleString()} {visits === 1 ? 'visit' : 'visits'}
+        {visits.toLocaleString()} {metricLabel ?? (visits === 1 ? 'visit' : 'visits')}
       </span>
     ) : null
 
@@ -159,6 +162,7 @@ export function AppCard({
   description,
   href,
   visits,
+  metricLabel,
   flagship,
   skeleton,
   size = 'default',
@@ -200,6 +204,7 @@ export function AppCard({
       name={name}
       description={description}
       visits={visits}
+      metricLabel={metricLabel}
       badge={badge}
       flagship={flagship}
       size={size}

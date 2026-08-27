@@ -1,3 +1,5 @@
+import json
+
 import requests
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import RedirectResponse
@@ -148,12 +150,23 @@ def pwa_listing(url: str):
     resolves the same (a path IS an app, D47).
     """
     manifest_url = url.rstrip("/") + "/manifest.json"
+    # Hard cap on manifest size (hardening #7): a real PWA manifest is a few
+    # KB; an unbounded read is a memory spike the store would absorb on every
+    # render. Over the cap → treat as no manifest.
+    _MANIFEST_MAX_BYTES = 256 * 1024
     try:
-        resp = requests.get(manifest_url, {"Accept": "application/json"}, timeout=1)
-        resp.raise_for_status()
+        with requests.get(manifest_url, {"Accept": "application/json"}, timeout=1, stream=True) as resp:
+            resp.raise_for_status()
+            chunks = []
+            total = 0
+            for chunk in resp.iter_content(chunk_size=8192):
+                total += len(chunk)
+                if total > _MANIFEST_MAX_BYTES:
+                    raise exceptions.NO_PWA
+                chunks.append(chunk)
+            return json.loads(b"".join(chunks))
     except requests.exceptions.RequestException:
         raise exceptions.NO_PWA
-    return resp.json()
 
 
 # --- Issue Tracking (bug reports) ---

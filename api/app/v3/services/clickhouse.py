@@ -91,7 +91,16 @@ def ensure_apps_schema():
             "config_id String, body String, updated_at DateTime64(3), deleted UInt8 DEFAULT 0"
             ") ENGINE = ReplacingMergeTree(updated_at) ORDER BY config_id"
         )
-        log.info("[v3] schema ensured (apps.visits + node_config present)")
+        # app_visits — the app usage log (D49). Pre-existing volumes predate
+        # the table; without it the ingest gate and the /v3/stats macro
+        # query a missing table on the first ping.
+        client.command(
+            "CREATE TABLE IF NOT EXISTS app_visits ("
+            "app_url String, username String, seen_at DateTime64(3)"
+            ") ENGINE = MergeTree ORDER BY (app_url, username, seen_at)"
+            " TTL toDateTime(seen_at) + INTERVAL 2 YEAR"
+        )
+        log.info("[v3] schema ensured (apps.visits + node_config + app_visits present)")
     except Exception as e:
         # ClickHouse not up yet, or table missing (fresh volume mid-init).
         # The DDL template covers fresh volumes; log and move on.
@@ -1293,20 +1302,81 @@ def total_s3_size() -> int:
     return total
 
 
+def get_app_metrics(app_urls: list[str]) -> dict:
+    """Realtime store metrics per app (D49): `visits` (count of the windowed,
+    anon-free rows) + `users_1d/30d/90d/1y` (distinct real users in the
+    trailing window). Apps with no rows are absent — the caller merges zeros.
+    countDistinct* is exact (not the approximate uniq()), so the numbers a
+    visitor sees are trustworthy."""
+    if not app_urls:
+        return {}
+    placeholders = ", ".join(f"%(u{i})s" for i in range(len(app_urls)))
+    params = {f"u{i}": u for i, u in enumerate(app_urls)}
+    result = client.query(
+        f"SELECT app_url, count() AS visits, "
+        f"countDistinctIf(username, seen_at > now() - INTERVAL 1 DAY) AS users_1d, "
+        f"countDistinctIf(username, seen_at > now() - INTERVAL 30 DAY) AS users_30d, "
+        f"countDistinctIf(username, seen_at > now() - INTERVAL 90 DAY) AS users_90d, "
+        f"countDistinctIf(username, seen_at > now() - INTERVAL 365 DAY) AS users_1y "
+        f"FROM app_visits WHERE app_url IN ({placeholders}) GROUP BY app_url",
+        params,
+    )
+    return {
+        row[0]: {
+            "visits": int(row[1]),
+            "users_1d": int(row[2]),
+            "users_30d": int(row[3]),
+            "users_90d": int(row[4]),
+            "users_1y": int(row[5]),
+        }
+        for row in result.result_rows
+    }
+
+
+def get_node_active_users() -> dict:
+    """Node-wide active users across all apps (D49 `/stats` macro): the same
+    active-user set as the store, minus the per-app grouping. The homepage
+    leads with users_30d."""
+    result = client.query(
+        "SELECT "
+        "countDistinctIf(username, seen_at > now() - INTERVAL 1 DAY) AS users_1d, "
+        "countDistinctIf(username, seen_at > now() - INTERVAL 30 DAY) AS users_30d, "
+        "countDistinctIf(username, seen_at > now() - INTERVAL 90 DAY) AS users_90d, "
+        "countDistinctIf(username, seen_at > now() - INTERVAL 365 DAY) AS users_1y "
+        "FROM app_visits"
+    )
+    row = result.result_rows[0] if result.result_rows else (0, 0, 0, 0)
+    return {"users_1d": int(row[0]), "users_30d": int(row[1]), "users_90d": int(row[2]), "users_1y": int(row[3])}
+
+
+def list_store_apps(limit: int = 20, offset: int = 0) -> dict:
+    """The public store list (D49): approved apps with realtime metrics,
+    sorted by users_30d desc (visits tiebreak), paginated. Returns
+    {apps: [...], total: N}."""
+    apps = list_apps(approved_only=True)
+    metrics = get_app_metrics([a["url"] for a in apps])
+    zero = {"visits": 0, "users_1d": 0, "users_30d": 0, "users_90d": 0, "users_1y": 0}
+    enriched = []
+    for a in apps:
+        m = metrics.get(a["url"], zero)
+        enriched.append({**a, **m, "web10apps_post_id": ""})
+    enriched.sort(key=lambda a: (a["users_30d"], a["visits"]), reverse=True)
+    total = len(enriched)
+    return {"apps": enriched[offset : offset + limit], "total": total}
+
+
 def get_node_stats() -> dict:
-    """Get node-level stats: user count, doc count, group count, apps, storage."""
+    """Node-level stats (D49): user/doc/group counts, storage, the approved-
+    app count, and the node-wide active-user set (the store's metric, macro).
+    The per-app array moved to list_store_apps (paginated)."""
     user_result = client.query("SELECT count(DISTINCT author_key) FROM documents WHERE deleted = 0")
     user_count = user_result.result_rows[0][0] if user_result.result_rows else 0
     doc_result = client.query("SELECT count() FROM documents WHERE deleted = 0")
     doc_count = doc_result.result_rows[0][0] if doc_result.result_rows else 0
     group_result = client.query("SELECT count() FROM group_contracts WHERE deleted = 0")
     group_count = group_result.result_rows[0][0] if group_result.result_rows else 0
-
-    # Apps — approved only (marketing-ui expects an array of {url, visits, name, ...}).
-    # Visits are real: the SDK auto-registers on every app init, and
-    # register_app increments the counter on repeat registrations.
-    apps = list_apps(approved_only=True)
-    apps_for_stats = [{**app, "web10apps_post_id": ""} for app in apps]
+    app_count_result = client.query("SELECT count(DISTINCT url) FROM apps WHERE deleted = 0 AND approved = 1")
+    app_count = app_count_result.result_rows[0][0] if app_count_result.result_rows else 0
 
     # Storage — ClickHouse on-disk bytes + S3 media blob bytes
     try:
@@ -1318,8 +1388,6 @@ def get_node_stats() -> dict:
         )
     except Exception:
         storage = 0
-
-    # Add S3 object-store bytes (media blobs — photos, videos, imports)
     try:
         storage += total_s3_size()
     except Exception:
@@ -1329,7 +1397,8 @@ def get_node_stats() -> dict:
         "users": user_count,
         "documents": doc_count,
         "groups": group_count,
-        "apps": apps_for_stats,
+        "app_count": app_count,
+        "active_users": get_node_active_users(),
         "storage": storage,
     }
 
@@ -1582,84 +1651,152 @@ def delete_media(user_key: str, doc_id: str):
 # ---------------------------------------------------------------------------
 
 
-def register_app(app_info: dict) -> dict:
-    """Register an app in the provider app store.
+def _canonical_app_url(url: str) -> str:
+    """Canonical app identity (D49 / hardening #4): lowercase host, no
+    leading www., exactly one trailing slash, no query/fragment. `app.com`,
+    `app.com/`, `WWW.App.com`, `app.com?x=1` all → `https://app.com/`. One
+    row per app, not per URL spelling."""
+    from urllib.parse import urlparse, urlunparse
 
-    v2 parity: registration is the visit tracker. The SDK pings this on
-    every app init, so a NEW app starts at visits=1 and every repeat
-    registration from an already-known app increments visits. Metadata
-    fields (name/description/icon_url) update when provided non-empty on
-    a repeat registration; the auto-register ping sends only the url
-    (empty metadata), so it never clobbers a listing.
+    raw = url.strip()
+    if not raw.startswith(("http://", "https://")):
+        raw = "https://" + raw
+    p = urlparse(raw)
+    scheme = p.scheme.lower()
+    host = (p.hostname or "").lower()
+    if host.startswith("www."):
+        host = host[4:]
+    netloc = host
+    port = p.port
+    if port and not (scheme == "http" and port == 80) and not (scheme == "https" and port == 443):
+        netloc = f"{host}:{port}"
+    path = p.path or "/"
+    if not path.endswith("/"):
+        path += "/"
+    return urlunparse((scheme, netloc, path, "", "", ""))
+
+
+def _verified_username(token: str | None) -> str | None:
+    """The real user behind a ping, or None (D49). I2: the signature is
+    verified — an unsigned/forged/expired token yields None (anon), never a
+    username. Only the node mints these tokens, at login, so an app cannot
+    fake another user's visit."""
+    if not token:
+        return None
+    try:
+        from app.services.auth import decode_token
+
+        decoded = decode_token(token, private_key=True)
+        return decoded.username or None
+    except Exception:
+        return None
+
+
+# D49 ingest gate: one counted visit per (app, user) per this window.
+_APP_VISIT_WINDOW_SECONDS = 3 * 3600
+
+
+def _count_app_visit(app_url: str, username: str) -> None:
+    """Append an app_visits row if the (app, user) gate allows: no prior row,
+    or the latest seen_at is older than the window. Bounded growth — a user
+    navigating 100x in an hour produces one row (D49: 'if >3h, insert')."""
+    result = client.query(
+        "SELECT max(seen_at) FROM app_visits WHERE app_url = %(u)s AND username = %(x)s",
+        {"u": app_url, "x": username},
+    )
+    last = result.result_rows[0][0] if result.result_rows else None
+    if last is not None:
+        last_dt = last if isinstance(last, datetime) else datetime.fromisoformat(str(last))
+        if (datetime.utcnow() - last_dt).total_seconds() < _APP_VISIT_WINDOW_SECONDS:
+            return  # within the window — gated out, no row
+    client.insert(
+        "app_visits",
+        [[app_url, username, datetime.utcnow()]],
+        column_names=["app_url", "username", "seen_at"],
+    )
+
+
+def register_app(app_info: dict) -> dict:
+    """Register an app + record a counted visit (D49).
+
+    Two separate writes with separate growth rules:
+    - `apps` — the registration record. Appended on first registration or a
+      real metadata change only. NOT per ping (that piled on ClickHouse).
+    - `app_visits` — the usage log. One row per (app, real user) per 3h;
+      anon pings are dropped at ingest. The store's metrics are realtime
+      queries over this table — no maintained counters.
     """
-    url = app_info["url"]
+    url = _canonical_app_url(app_info["url"])
+    username = _verified_username(app_info.get("token"))
+
     existing = get_app(url)
     if existing:
-        # Visit bump on the latest row (dedup-then-filter house pattern;
-        # now64(6) so the new row always ranks latest in the dedup).
-        # Non-empty metadata in the body replaces the stored value; empty
-        # (the auto-register ping) keeps what's stored.
-        client.command(
-            "INSERT INTO apps (url, name, description, icon_url, screenshots, visits, approved, review_state, metadata_version, created_at, updated_at, deleted) "
-            "SELECT url, "
-            "if(%(name)s != '', %(name)s, name), "
-            "if(%(description)s != '', %(description)s, description), "
-            "if(%(icon_url)s != '', %(icon_url)s, icon_url), "
-            "screenshots, "
-            "visits + 1, approved, review_state, "
-            "if(%(name)s != '' OR %(description)s != '' OR %(icon_url)s != '', metadata_version + 1, metadata_version), "
-            "created_at, now64(6), 0 "
-            "FROM (SELECT url, name, description, icon_url, screenshots, visits, approved, review_state, "
-            "metadata_version, created_at, updated_at, deleted, "
-            "row_number() OVER (PARTITION BY url ORDER BY updated_at DESC, deleted DESC) AS rn "
-            "FROM apps) WHERE rn = 1 AND deleted = 0 AND url = %(url)s",
-            {
-                "url": url,
-                "name": app_info.get("name", ""),
-                "description": app_info.get("description", ""),
-                "icon_url": app_info.get("icon_url", ""),
-            },
+        # Append a new apps row ONLY if metadata actually changed. A plain
+        # repeat ping (url only — the auto-register shape) is a no-op here.
+        name = app_info.get("name", "")
+        description = app_info.get("description", "")
+        icon_url = app_info.get("icon_url", "")
+        metadata_changed = (
+            (name and name != existing["name"])
+            or (description and description != existing["description"])
+            or (icon_url and icon_url != existing["icon_url"])
         )
-        return {"url": url, "review_state": existing["review_state"]}
-    now = _now()
-    # Explicit column list — NOT positional. Pre-existing volumes got the
-    # visits column via ALTER (appended at the END), while fresh volumes
-    # build it mid-table from the DDL template; a positional insert
-    # misaligns on the old layout ('pending' lands in metadata_version).
-    client.insert(
-        "apps",
-        [
+        if metadata_changed:
+            client.command(
+                "INSERT INTO apps (url, name, description, icon_url, screenshots, visits, approved, review_state, metadata_version, created_at, updated_at, deleted) "
+                "SELECT url, "
+                "if(%(name)s != '', %(name)s, name), "
+                "if(%(description)s != '', %(description)s, description), "
+                "if(%(icon_url)s != '', %(icon_url)s, icon_url), "
+                "screenshots, visits, approved, review_state, metadata_version + 1, "
+                "created_at, now64(6), 0 "
+                "FROM (SELECT url, name, description, icon_url, screenshots, visits, approved, review_state, "
+                "metadata_version, created_at, updated_at, deleted, "
+                "row_number() OVER (PARTITION BY url ORDER BY updated_at DESC, deleted DESC) AS rn "
+                "FROM apps) WHERE rn = 1 AND deleted = 0 AND url = %(url)s",
+                {"url": url, "name": name, "description": description, "icon_url": icon_url},
+            )
+    else:
+        now = _now()
+        client.insert(
+            "apps",
             [
-                url,
-                app_info.get("name", ""),
-                app_info.get("description", ""),
-                app_info.get("icon_url", ""),
-                _json(app_info.get("screenshots", [])),
-                1,  # visits — first registration is the first visit
-                0,
-                "pending",
-                1,
-                now,
-                now,
-                0,
-            ]
-        ],
-        column_names=[
-            "url",
-            "name",
-            "description",
-            "icon_url",
-            "screenshots",
-            "visits",
-            "approved",
-            "review_state",
-            "metadata_version",
-            "created_at",
-            "updated_at",
-            "deleted",
-        ],
-    )
-    return {"url": url, "review_state": "pending"}
+                [
+                    url,
+                    app_info.get("name", ""),
+                    app_info.get("description", ""),
+                    app_info.get("icon_url", ""),
+                    _json(app_info.get("screenshots", [])),
+                    0,  # visits — retired as a store metric (D49); app_visits is the source
+                    0,
+                    "pending",
+                    1,
+                    now,
+                    now,
+                    0,
+                ]
+            ],
+            column_names=[
+                "url",
+                "name",
+                "description",
+                "icon_url",
+                "screenshots",
+                "visits",
+                "approved",
+                "review_state",
+                "metadata_version",
+                "created_at",
+                "updated_at",
+                "deleted",
+            ],
+        )
+
+    # The usage log — real, verified users only, gated to 1 per 3h.
+    if username:
+        _count_app_visit(url, username)
+
+    return {"url": url, "review_state": existing["review_state"] if existing else "pending"}
 
 
 def list_apps(approved_only: bool = True) -> list[dict]:
@@ -1740,7 +1877,9 @@ def list_apps_admin() -> list[dict]:
 
 
 def get_app(url: str) -> dict | None:
-    """Get an app by URL (latest row wins)."""
+    """Get an app by URL (latest row wins). Normalized — rows are stored in
+    canonical form (D49 / hardening #4), so lookups must be too."""
+    url = _canonical_app_url(url)
     result = client.query(
         "SELECT url, name, description, icon_url, screenshots, approved, review_state, metadata_version, visits "
         "FROM apps WHERE url = %(url)s AND deleted = 0 "
@@ -1769,7 +1908,10 @@ def approve_app(url: str, approved: bool, review_state: str):
     Dedup-then-filter: only the latest row per url is re-inserted — a raw
     `WHERE url = ...` would re-insert every visit-bump version and
     multiply rows. now64(6) so the new row ranks latest in the dedup.
+    The url is normalized (rows are stored in canonical form, D49 /
+    hardening #4) — approving `www.app.com/x` hits the `app.com/x` row.
     """
+    url = _canonical_app_url(url)
     client.command(
         "INSERT INTO apps (url, name, description, icon_url, screenshots, visits, approved, review_state, metadata_version, created_at, updated_at, deleted) "
         "SELECT url, name, description, icon_url, screenshots, visits, %(approved)s, %(review_state)s, metadata_version, created_at, now64(6), 0 "
