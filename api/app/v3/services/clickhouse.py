@@ -105,7 +105,13 @@ def ensure_apps_schema():
             ") ENGINE = MergeTree ORDER BY (app_url, username, seen_at)"
             " TTL toDateTime(seen_at) + INTERVAL 2 YEAR"
         )
-        log.info("[v3] schema ensured (apps.visits + app_ratings.comment + node_config + app_visits present)")
+        # group_contracts.discoverable — the group directory listing switch
+        # (D53). Pre-existing volumes predate the column; ADD COLUMN appends
+        # it at the end, which is why group inserts name their columns.
+        client.command("ALTER TABLE group_contracts ADD COLUMN IF NOT EXISTS discoverable UInt8 DEFAULT 1")
+        log.info(
+            "[v3] schema ensured (apps.visits + app_ratings.comment + node_config + app_visits + group_contracts.discoverable present)"
+        )
         # Data migration (idempotent): re-home demo apps registered under
         # their directory-index file URLs onto their directory URLs.
         _migrate_file_index_app_rows()
@@ -223,7 +229,9 @@ def _ensure_discover_group_contract() -> None:
     enrolling the new user, not the full anon + backfill pass.
     """
     if not get_group(DISCOVER_GROUP_ID):
-        create_group(DISCOVER_GROUP_ID, DISCOVER_ROLES, "open")
+        # discoverable=False (D53): the board is anon-readable (anon is a
+        # member) but NOT a directory entry — it's a board, not a community.
+        create_group(DISCOVER_GROUP_ID, DISCOVER_ROLES, "open", discoverable=False)
         log.info("[v3] discover group created: %s", DISCOVER_GROUP_ID)
 
 
@@ -481,17 +489,27 @@ def get_doc_groups(doc_id: str) -> list[str]:
 # ---------------------------------------------------------------------------
 
 
-def create_group(group_id: str, roles: list[dict], join_policy: str) -> dict:
-    """Create a group contract."""
+def create_group(group_id: str, roles: list[dict], join_policy: str, discoverable: bool | None = None) -> dict:
+    """Create a group contract.
+
+    ``discoverable`` (D53) lists the group in the public directory. It
+    defaults to ``True`` — groups are discoverable by default — except
+    ``invite_only`` groups, which default to ``False`` (inherently private:
+    DMs, private circles). Pass ``discoverable`` explicitly to override.
+    """
+    if discoverable is None:
+        discoverable = join_policy != "invite_only"
     now = _now()
     client.insert(
         "group_contracts",
-        [[group_id, _json(roles), join_policy, now, now, 0]],
+        [[group_id, _json(roles), join_policy, int(discoverable), now, now, 0]],
+        column_names=["group_id", "roles", "join_policy", "discoverable", "created_at", "updated_at", "deleted"],
     )
     return {
         "group_id": group_id,
         "roles": roles,
         "join_policy": join_policy,
+        "discoverable": discoverable,
         "created_at": now.isoformat(),
     }
 
@@ -503,8 +521,8 @@ def get_group(group_id: str) -> dict | None:
     a deleted group must not be found by its stale active row.
     """
     result = client.query(
-        "SELECT group_id, roles, join_policy, created_at, updated_at "
-        "FROM (SELECT group_id, roles, join_policy, created_at, updated_at, deleted, "
+        "SELECT group_id, roles, join_policy, discoverable, created_at, updated_at "
+        "FROM (SELECT group_id, roles, join_policy, discoverable, created_at, updated_at, deleted, "
         "row_number() OVER (PARTITION BY group_id ORDER BY updated_at DESC, deleted DESC) as rn "
         "FROM group_contracts WHERE group_id = %(group_id)s) "
         "WHERE rn = 1 AND deleted = 0",
@@ -517,8 +535,9 @@ def get_group(group_id: str) -> dict | None:
         "group_id": row[0],
         "roles": _parse_json(row[1]),
         "join_policy": row[2],
-        "created_at": str(row[3]),
-        "updated_at": str(row[4]),
+        "discoverable": bool(row[3]),
+        "created_at": str(row[4]),
+        "updated_at": str(row[5]),
     }
 
 
@@ -526,8 +545,8 @@ def delete_group(group_id: str):
     """Tombstone a group contract and all its members."""
     # Tombstone the group contract
     client.command(
-        "INSERT INTO group_contracts (group_id, roles, join_policy, created_at, updated_at, deleted) "
-        "SELECT group_id, roles, join_policy, created_at, now64(6), 1 "
+        "INSERT INTO group_contracts (group_id, roles, join_policy, discoverable, created_at, updated_at, deleted) "
+        "SELECT group_id, roles, join_policy, discoverable, created_at, now64(6), 1 "
         "FROM group_contracts WHERE group_id = %(group_id)s AND deleted = 0",
         {"group_id": group_id},
     )
@@ -554,15 +573,18 @@ def update_group(group_id: str, **kwargs):
         return None
     roles = kwargs.get("roles", existing["roles"])
     join_policy = kwargs.get("join_policy", existing["join_policy"])
+    discoverable = kwargs.get("discoverable", existing["discoverable"])
     now = _now()
     client.insert(
         "group_contracts",
-        [[group_id, _json(roles), join_policy, existing["created_at"], now, 0]],
+        [[group_id, _json(roles), join_policy, int(discoverable), existing["created_at"], now, 0]],
+        column_names=["group_id", "roles", "join_policy", "discoverable", "created_at", "updated_at", "deleted"],
     )
     return {
         "group_id": group_id,
         "roles": roles,
         "join_policy": join_policy,
+        "discoverable": discoverable,
         "updated_at": now.isoformat(),
     }
 

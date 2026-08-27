@@ -271,6 +271,77 @@ class TestCreateGroup:
         resp = client.post("/v3/groups/create", json={"token": token, "name": "Test"})
         assert resp.status_code == 422
 
+    def test_create_passes_discoverable(self, client, token):
+        with (
+            patch("app.v3.services.clickhouse.get_group", return_value=None),
+            patch("app.v3.services.clickhouse.get_group_member", return_value=None),
+            patch("app.v3.services.clickhouse.create_group") as mock_create,
+            patch("app.v3.services.clickhouse.add_group_member"),
+        ):
+            resp = client.post(
+                "/v3/groups/create",
+                json={
+                    "token": token,
+                    "name": "Test Group",
+                    "join_policy": "invite_only",
+                    "roles": [{"name": "member", "services": ["posts"], "permissions": ["readAll"]}],
+                    "members": [{"member_key": "testuser", "role": "member"}],
+                    "discoverable": True,
+                },
+            )
+        assert resp.status_code == 200
+        # the explicit discoverable is passed through (4th positional arg).
+        assert mock_create.call_args[0][3] is True
+
+
+class TestUpdateGroup:
+    def test_set_discoverable(self, client, token):
+        existing = {
+            "group_id": "g1",
+            "roles": [],
+            "join_policy": "open",
+            "discoverable": True,
+            "created_at": "2026-01-01",
+            "updated_at": "2026-01-01",
+        }
+        with (
+            patch(
+                "app.v3.services.clickhouse.get_group_member", return_value={"member_key": "testuser", "role": "admin"}
+            ),
+            patch("app.v3.services.clickhouse.get_group", return_value=existing),
+            patch("app.v3.services.clickhouse.update_group") as mock_update,
+        ):
+            resp = client.post(
+                "/v3/groups/update",
+                json={"token": token, "group_id": "g1", "discoverable": False},
+            )
+        assert resp.status_code == 200
+        assert mock_update.call_args[1]["discoverable"] is False
+
+    def test_discoverable_none_leaves_unchanged(self, client, token):
+        existing = {
+            "group_id": "g1",
+            "roles": [],
+            "join_policy": "open",
+            "discoverable": True,
+            "created_at": "2026-01-01",
+            "updated_at": "2026-01-01",
+        }
+        with (
+            patch(
+                "app.v3.services.clickhouse.get_group_member", return_value={"member_key": "testuser", "role": "admin"}
+            ),
+            patch("app.v3.services.clickhouse.get_group", return_value=existing),
+            patch("app.v3.services.clickhouse.update_group") as mock_update,
+        ):
+            resp = client.post(
+                "/v3/groups/update",
+                json={"token": token, "group_id": "g1", "join_policy": "request"},
+            )
+        assert resp.status_code == 200
+        # discoverable omitted → the existing value is preserved.
+        assert mock_update.call_args[1]["discoverable"] is True
+
 
 class TestListGroups:
     def test_get(self, client, token):
@@ -284,7 +355,7 @@ class TestListGroups:
 
 class TestJoinGroup:
     def test_open_join(self, client, token):
-        mock_rows = [("g1", '{"roles":[]}', "open", datetime(2026, 1, 1), datetime(2026, 1, 1))]
+        mock_rows = [("g1", '{"roles":[]}', "open", 1, datetime(2026, 1, 1), datetime(2026, 1, 1))]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = MagicMock(result_rows=mock_rows)
             resp = client.post("/v3/groups/join", json={"token": token, "group_id": "g1"})
@@ -292,7 +363,7 @@ class TestJoinGroup:
         assert resp.json()["role"] == "member"
 
     def test_request_join(self, client, token):
-        mock_rows = [("g1", '{"roles":[]}', "request", datetime(2026, 1, 1), datetime(2026, 1, 1))]
+        mock_rows = [("g1", '{"roles":[]}', "request", 1, datetime(2026, 1, 1), datetime(2026, 1, 1))]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = MagicMock(result_rows=mock_rows)
             resp = client.post("/v3/groups/join", json={"token": token, "group_id": "g1"})
@@ -300,7 +371,7 @@ class TestJoinGroup:
         assert resp.json()["status"] == "pending"
 
     def test_invite_only_join(self, client, token):
-        mock_rows = [("g1", '{"roles":[]}', "invite_only", datetime(2026, 1, 1), datetime(2026, 1, 1))]
+        mock_rows = [("g1", '{"roles":[]}', "invite_only", 0, datetime(2026, 1, 1), datetime(2026, 1, 1))]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = MagicMock(result_rows=mock_rows)
             resp = client.post("/v3/groups/join", json={"token": token, "group_id": "g1"})
@@ -372,6 +443,7 @@ class TestJoinRequests:
                 "g1",
                 '[{"name":"admin","permissions":["assignRoles"]}]',
                 "open",
+                1,
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
@@ -394,6 +466,7 @@ class TestJoinRequests:
                 "g1",
                 '[{"name":"member","permissions":["readAll"]}]',
                 "open",
+                1,
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
@@ -413,6 +486,7 @@ class TestJoinRequests:
                 "g1",
                 '[{"name":"admin","permissions":["assignRoles"]}]',
                 "open",
+                1,
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
@@ -446,6 +520,7 @@ class TestJoinRequests:
                 "g1",
                 '[{"name":"admin","permissions":["assignRoles"]}]',
                 "open",
+                1,
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
@@ -469,6 +544,7 @@ class TestJoinRequests:
                 "g1",
                 '[{"name":"admin","permissions":["assignRoles"]}]',
                 "open",
+                1,
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
@@ -493,6 +569,7 @@ class TestJoinRequests:
                 "g1",
                 '[{"name":"admin","permissions":["assignRoles"]}]',
                 "open",
+                1,
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
@@ -518,6 +595,7 @@ class TestInviteMember:
                 "g1",
                 '[{"name":"admin","permissions":["assignRoles"]}]',
                 "open",
+                1,
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
@@ -544,7 +622,7 @@ class TestInviteMember:
     def test_invite_no_permission(self, client, token):
         mock_member = [("testuser", "member", datetime(2026, 1, 1))]
         mock_group = [
-            ("g1", '[{"name":"member","permissions":[]}]', "open", datetime(2026, 1, 1), datetime(2026, 1, 1))
+            ("g1", '[{"name":"member","permissions":[]}]', "open", 1, datetime(2026, 1, 1), datetime(2026, 1, 1))
         ]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.side_effect = [
@@ -874,6 +952,7 @@ class TestSignup:
                 "web10.app/groups/web10/discover",
                 "[]",
                 "open",
+                1,
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
