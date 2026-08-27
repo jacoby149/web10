@@ -413,6 +413,26 @@ class TestGroupDirectory:
         assert g["owner"] == "bob"
         assert g["tags"] == []
 
+    def test_created_group_shape_parses_owner_and_slug(self, client):
+        """Created groups are {provider}/groups/users/{creator}/{slug} — the
+        owner is the creator (after the 'users' segment), not 'users'."""
+        with (
+            patch(
+                "app.v3.services.clickhouse.list_discoverable_groups",
+                return_value=[
+                    {"group_id": "api.localhost/groups/users/alice123/jazz-club", "join_policy": "open", "roles": []}
+                ],
+            ),
+            patch("app.v3.services.clickhouse._get_group_member_counts", return_value={}),
+            patch("app.v3.services.clickhouse.get_group_identities", return_value={}),
+        ):
+            resp = client.get("/v3/groups/directory")
+        assert resp.status_code == 200
+        g = resp.json()["groups"][0]
+        assert g["owner"] == "alice123"
+        assert g["slug"] == "jazz-club"
+        assert g["name"] == "jazz-club"  # slug fallback
+
     def test_empty(self, client):
         with (
             patch("app.v3.services.clickhouse.list_discoverable_groups", return_value=[]),

@@ -453,7 +453,7 @@ test.describe('Groups directory + detail — API floor (D53)', () => {
     const groupId = await createGroupDiscoverable(request, a.token, a.username, `post-${a.username}`, 'open', true);
 
     // a (owner) posts to the group
-    const post = await v3Post(request, 'documents/create', {
+    const post = await v3Post(request, 'create', {
       token: a.token, service: 'posts', body: { text: 'hello group' }, groups: [groupId],
     });
     expect(post.ok, `post failed: ${JSON.stringify(post.body)}`).toBeTruthy();

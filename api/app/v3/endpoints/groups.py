@@ -67,14 +67,20 @@ def _require_moderation(group_id: str, user: str, token: str):
 
 
 def _parse_group_id(group_id: str) -> tuple[str, str]:
-    """Extract (owner, slug) from a group_id like 'web10.app/groups/{owner}/{slug}'.
+    """Extract (owner, slug) from a group_id.
 
-    The slug is the group's fallback display name (when it has no identity
-    record). Robust to the well-known shapes (discover board, DM groups).
+    Two shapes: created groups are ``{provider}/groups/users/{creator}/{slug}``
+    (the creator is the owner); the well-known groups (discover board, DMs) are
+    ``{provider}/groups/{owner}/{slug}``. The slug is the fallback display name
+    (when a group has no identity record).
     """
     parts = group_id.split("/")
     if "groups" in parts:
         idx = parts.index("groups")
+        # {provider}/groups/users/{creator}/{slug} — created groups
+        if idx + 3 < len(parts) and parts[idx + 1] == "users":
+            return parts[idx + 2], parts[idx + 3]
+        # {provider}/groups/{owner}/{slug} — discover board, DM groups
         if idx + 2 < len(parts):
             return parts[idx + 1], parts[idx + 2]
     if len(parts) >= 2:
