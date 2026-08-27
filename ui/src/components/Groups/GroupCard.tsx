@@ -25,11 +25,14 @@ function GroupCard({ I, group, isManaged }: { I: Record<string, any>; group: any
   const [rolesOpen, setRolesOpen] = React.useState(false);
   const [members, setMembers] = React.useState<any[]>([]);
   const [loadingMembers, setLoadingMembers] = React.useState(false);
+  const [toggling, setToggling] = React.useState(false);
 
   const name = groupDisplayName(group.group_id);
   const policy = group.join_policy || 'open';
   const myRole = group.my_role || 'member';
   const memberCount = group.member_count || 0;
+  // Discoverable by default (D53) — treat undefined as listed.
+  const isDiscoverable = group.discoverable !== false;
 
   const loadMembers = async () => {
     setLoadingMembers(true);
@@ -89,6 +92,23 @@ function GroupCard({ I, group, isManaged }: { I: Record<string, any>; group: any
     }
   };
 
+  // "List in directory" — the discoverable (blasting) flag. Controls whether the
+  // group is advertised in the public directory (D53). Content readability is a
+  // separate concern (anon membership), so this toggle only sets discoverable.
+  const handleToggleDiscoverable = async () => {
+    setToggling(true);
+    try {
+      const next = !isDiscoverable;
+      await I.v3UpdateGroup(group.group_id, { discoverable: next });
+      I.setStatus?.(next ? 'Group listed in the directory' : 'Group removed from the directory');
+      I.v3GroupsManagesLoad?.();
+    } catch (e: any) {
+      I.setStatus?.('Failed to update directory listing');
+    } finally {
+      setToggling(false);
+    }
+  };
+
   return (
     <>
       <div className="mx-auto max-w-[800px]">
@@ -97,6 +117,7 @@ function GroupCard({ I, group, isManaged }: { I: Record<string, any>; group: any
             type="button"
             onClick={() => setHide(!hide)}
             aria-expanded={!hide}
+            data-testid="group-card-header"
             className="flex w-full items-center gap-4 px-4 py-3 text-left transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
           >
             <div className="min-w-0 flex-1">
@@ -149,6 +170,28 @@ function GroupCard({ I, group, isManaged }: { I: Record<string, any>; group: any
                   <span className="text-sm font-medium text-muted-foreground">Join policy:</span>
                   <div className="mt-1">{joinPolicyBadge(policy)}</div>
                 </div>
+                {isManaged && (
+                  <div>
+                    <span className="text-sm font-medium text-muted-foreground">List in directory:</span>
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={isDiscoverable}
+                        aria-label="List in directory"
+                        onClick={handleToggleDiscoverable}
+                        disabled={toggling}
+                        className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:opacity-50 ${isDiscoverable ? 'bg-brand' : 'bg-elevated'}`}
+                        data-testid="discoverable-toggle"
+                      >
+                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${isDiscoverable ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                      </button>
+                      <span className="text-xs text-muted-foreground">
+                        {toggling ? 'Updating…' : isDiscoverable ? 'Listed in the public directory' : 'Not listed (unlisted)'}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="flex flex-wrap gap-2 border-t border-border px-4 py-2.5 mt-4">
                 {isManaged ? (
