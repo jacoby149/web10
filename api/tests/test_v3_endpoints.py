@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 
 import app.settings as settings
 from app.main import app as fastapi_app
+from app.v3.services.clickhouse import _power_mean_score, read_documents_in_groups
 
 
 def _make_token(username="testuser", **extra):
@@ -269,6 +270,77 @@ class TestCreateGroup:
         resp = client.post("/v3/groups/create", json={"token": token, "name": "Test"})
         assert resp.status_code == 422
 
+    def test_create_passes_discoverable(self, client, token):
+        with (
+            patch("app.v3.services.clickhouse.get_group", return_value=None),
+            patch("app.v3.services.clickhouse.get_group_member", return_value=None),
+            patch("app.v3.services.clickhouse.create_group") as mock_create,
+            patch("app.v3.services.clickhouse.add_group_member"),
+        ):
+            resp = client.post(
+                "/v3/groups/create",
+                json={
+                    "token": token,
+                    "name": "Test Group",
+                    "join_policy": "invite_only",
+                    "roles": [{"name": "member", "services": ["posts"], "permissions": ["readAll"]}],
+                    "members": [{"member_key": "testuser", "role": "member"}],
+                    "discoverable": True,
+                },
+            )
+        assert resp.status_code == 200
+        # the explicit discoverable is passed through (4th positional arg).
+        assert mock_create.call_args[0][3] is True
+
+
+class TestUpdateGroup:
+    def test_set_discoverable(self, client, token):
+        existing = {
+            "group_id": "g1",
+            "roles": [],
+            "join_policy": "open",
+            "discoverable": True,
+            "created_at": "2026-01-01",
+            "updated_at": "2026-01-01",
+        }
+        with (
+            patch(
+                "app.v3.services.clickhouse.get_group_member", return_value={"member_key": "testuser", "role": "admin"}
+            ),
+            patch("app.v3.services.clickhouse.get_group", return_value=existing),
+            patch("app.v3.services.clickhouse.update_group") as mock_update,
+        ):
+            resp = client.post(
+                "/v3/groups/update",
+                json={"token": token, "group_id": "g1", "discoverable": False},
+            )
+        assert resp.status_code == 200
+        assert mock_update.call_args[1]["discoverable"] is False
+
+    def test_discoverable_none_leaves_unchanged(self, client, token):
+        existing = {
+            "group_id": "g1",
+            "roles": [],
+            "join_policy": "open",
+            "discoverable": True,
+            "created_at": "2026-01-01",
+            "updated_at": "2026-01-01",
+        }
+        with (
+            patch(
+                "app.v3.services.clickhouse.get_group_member", return_value={"member_key": "testuser", "role": "admin"}
+            ),
+            patch("app.v3.services.clickhouse.get_group", return_value=existing),
+            patch("app.v3.services.clickhouse.update_group") as mock_update,
+        ):
+            resp = client.post(
+                "/v3/groups/update",
+                json={"token": token, "group_id": "g1", "join_policy": "request"},
+            )
+        assert resp.status_code == 200
+        # discoverable omitted → the existing value is preserved.
+        assert mock_update.call_args[1]["discoverable"] is True
+
 
 class TestListGroups:
     def test_get(self, client, token):
@@ -280,9 +352,172 @@ class TestListGroups:
         assert len(resp.json()) == 1
 
 
+class TestGroupDirectory:
+    """The public, minimal directory of discoverable groups (D53)."""
+
+    def test_lists_discoverable_groups(self, client):
+        with (
+            patch(
+                "app.v3.services.clickhouse.list_discoverable_groups",
+                return_value=[
+                    {
+                        "group_id": "web10.app/groups/alice/jazz",
+                        "join_policy": "open",
+                        "roles": [{"name": "member", "permissions": ["readAll", "create"]}],
+                    },
+                ],
+            ),
+            patch(
+                "app.v3.services.clickhouse._get_group_member_counts", return_value={"web10.app/groups/alice/jazz": 42}
+            ),
+            patch(
+                "app.v3.services.clickhouse.get_group_identities",
+                return_value={
+                    "web10.app/groups/alice/jazz": {
+                        "name": "Jazz Collectors",
+                        "tags": ["jazz", "vinyl"],
+                        "description": "",
+                        "banner_ref": "",
+                        "avatar_ref": "",
+                        "website": "",
+                    }
+                },
+            ),
+        ):
+            resp = client.get("/v3/groups/directory")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data["groups"]) == 1
+        g = data["groups"][0]
+        assert g["group_id"] == "web10.app/groups/alice/jazz"
+        assert g["name"] == "Jazz Collectors"  # from identity
+        assert g["owner"] == "alice"
+        assert g["slug"] == "jazz"
+        assert g["join_policy"] == "open"
+        assert g["member_count"] == 42
+        assert g["tags"] == ["jazz", "vinyl"]
+        assert "readAll" in g["permission_summary"]
+
+    def test_name_falls_back_to_slug(self, client):
+        with (
+            patch(
+                "app.v3.services.clickhouse.list_discoverable_groups",
+                return_value=[{"group_id": "web10.app/groups/bob/chess", "join_policy": "request", "roles": []}],
+            ),
+            patch("app.v3.services.clickhouse._get_group_member_counts", return_value={}),
+            patch("app.v3.services.clickhouse.get_group_identities", return_value={}),  # no identity record
+        ):
+            resp = client.get("/v3/groups/directory")
+        assert resp.status_code == 200
+        g = resp.json()["groups"][0]
+        assert g["name"] == "chess"  # slug fallback
+        assert g["owner"] == "bob"
+        assert g["tags"] == []
+
+    def test_created_group_shape_parses_owner_and_slug(self, client):
+        """Created groups are {provider}/groups/users/{creator}/{slug} — the
+        owner is the creator (after the 'users' segment), not 'users'."""
+        with (
+            patch(
+                "app.v3.services.clickhouse.list_discoverable_groups",
+                return_value=[
+                    {"group_id": "api.localhost/groups/users/alice123/jazz-club", "join_policy": "open", "roles": []}
+                ],
+            ),
+            patch("app.v3.services.clickhouse._get_group_member_counts", return_value={}),
+            patch("app.v3.services.clickhouse.get_group_identities", return_value={}),
+        ):
+            resp = client.get("/v3/groups/directory")
+        assert resp.status_code == 200
+        g = resp.json()["groups"][0]
+        assert g["owner"] == "alice123"
+        assert g["slug"] == "jazz-club"
+        assert g["name"] == "jazz-club"  # slug fallback
+
+    def test_empty(self, client):
+        with (
+            patch("app.v3.services.clickhouse.list_discoverable_groups", return_value=[]),
+            patch("app.v3.services.clickhouse._get_group_member_counts", return_value={}),
+            patch("app.v3.services.clickhouse.get_group_identities", return_value={}),
+        ):
+            resp = client.get("/v3/groups/directory")
+        assert resp.status_code == 200
+        assert resp.json()["groups"] == []
+
+
+class TestGroupDetail:
+    """The flexible, principal-based group detail (D53, unlisted-model)."""
+
+    _GROUP = {
+        "group_id": "web10.app/groups/alice/jazz",
+        "roles": [{"name": "member", "permissions": ["readAll"]}],
+        "join_policy": "open",
+        "discoverable": False,  # non-discoverable on purpose — the unlisted case
+        "created_at": "2026-01-01",
+        "updated_at": "2026-01-01",
+    }
+    _ID = "web10.app/groups/alice/jazz"
+
+    def _apply(self, is_member, posts=None):
+        return (
+            patch("app.v3.services.clickhouse.get_group", return_value=self._GROUP),
+            patch(
+                "app.v3.services.clickhouse.get_group_identity",
+                return_value={
+                    "name": "Jazz Collectors",
+                    "tags": ["jazz"],
+                    "description": "d",
+                    "banner_ref": "b",
+                    "avatar_ref": "a",
+                    "website": "w",
+                },
+            ),
+            patch("app.v3.services.clickhouse._get_group_member_counts", return_value={self._ID: 7}),
+            patch("app.v3.services.clickhouse.is_group_member", return_value=is_member),
+            patch("app.v3.services.clickhouse.read_documents_in_groups", return_value=posts or []),
+        )
+
+    def test_nonexistent_group_404s(self, client):
+        with patch("app.v3.services.clickhouse.get_group", return_value=None):
+            resp = client.get("/v3/groups/detail", params={"group_id": "web10.app/groups/nobody/nope"})
+        assert resp.status_code == 404
+
+    def test_non_discoverable_group_is_reachable(self, client):
+        """Unlisted-model: a discoverable=False group does NOT 404."""
+        p1, p2, p3, p4, p5 = self._apply(is_member=False)
+        with p1, p2, p3, p4, p5:
+            resp = client.get("/v3/groups/detail", params={"group_id": self._ID})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["discoverable"] is False
+        assert data["name"] == "Jazz Collectors"
+        assert data["member_count"] == 7
+        assert data["posts_state"] == "join_to_view"
+        assert data["posts"] == []
+
+    def test_member_sees_posts(self, client, token):
+        posts = [{"doc_id": "p1", "author_key": "web10.app/users/alice", "body": {"text": "hi"}}]
+        p1, p2, p3, p4, p5 = self._apply(is_member=True, posts=posts)
+        with p1, p2, p3, p4, p5:
+            resp = client.get("/v3/groups/detail", params={"group_id": self._ID, "token": token})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["is_member"] is True
+        assert data["posts_state"] == "ok"
+        assert data["posts"] == posts
+
+    def test_anon_reads_as_anon(self, client):
+        """No token → principal is anon; a non-member anon gets "join to view"."""
+        p1, p2, p3, p4, p5 = self._apply(is_member=False)
+        with p1, p2, p3, p4, p5:
+            resp = client.get("/v3/groups/detail", params={"group_id": self._ID})
+        assert resp.status_code == 200
+        assert resp.json()["posts_state"] == "join_to_view"
+
+
 class TestJoinGroup:
     def test_open_join(self, client, token):
-        mock_rows = [("g1", '{"roles":[]}', "open", datetime(2026, 1, 1), datetime(2026, 1, 1))]
+        mock_rows = [("g1", '{"roles":[]}', "open", 1, datetime(2026, 1, 1), datetime(2026, 1, 1))]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = MagicMock(result_rows=mock_rows)
             resp = client.post("/v3/groups/join", json={"token": token, "group_id": "g1"})
@@ -290,7 +525,7 @@ class TestJoinGroup:
         assert resp.json()["role"] == "member"
 
     def test_request_join(self, client, token):
-        mock_rows = [("g1", '{"roles":[]}', "request", datetime(2026, 1, 1), datetime(2026, 1, 1))]
+        mock_rows = [("g1", '{"roles":[]}', "request", 1, datetime(2026, 1, 1), datetime(2026, 1, 1))]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = MagicMock(result_rows=mock_rows)
             resp = client.post("/v3/groups/join", json={"token": token, "group_id": "g1"})
@@ -298,7 +533,7 @@ class TestJoinGroup:
         assert resp.json()["status"] == "pending"
 
     def test_invite_only_join(self, client, token):
-        mock_rows = [("g1", '{"roles":[]}', "invite_only", datetime(2026, 1, 1), datetime(2026, 1, 1))]
+        mock_rows = [("g1", '{"roles":[]}', "invite_only", 0, datetime(2026, 1, 1), datetime(2026, 1, 1))]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = MagicMock(result_rows=mock_rows)
             resp = client.post("/v3/groups/join", json={"token": token, "group_id": "g1"})
@@ -370,6 +605,7 @@ class TestJoinRequests:
                 "g1",
                 '[{"name":"admin","permissions":["assignRoles"]}]',
                 "open",
+                1,
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
@@ -392,6 +628,7 @@ class TestJoinRequests:
                 "g1",
                 '[{"name":"member","permissions":["readAll"]}]',
                 "open",
+                1,
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
@@ -411,6 +648,7 @@ class TestJoinRequests:
                 "g1",
                 '[{"name":"admin","permissions":["assignRoles"]}]',
                 "open",
+                1,
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
@@ -444,6 +682,7 @@ class TestJoinRequests:
                 "g1",
                 '[{"name":"admin","permissions":["assignRoles"]}]',
                 "open",
+                1,
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
@@ -467,6 +706,7 @@ class TestJoinRequests:
                 "g1",
                 '[{"name":"admin","permissions":["assignRoles"]}]',
                 "open",
+                1,
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
@@ -491,6 +731,7 @@ class TestJoinRequests:
                 "g1",
                 '[{"name":"admin","permissions":["assignRoles"]}]',
                 "open",
+                1,
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
@@ -516,6 +757,7 @@ class TestInviteMember:
                 "g1",
                 '[{"name":"admin","permissions":["assignRoles"]}]',
                 "open",
+                1,
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
@@ -542,7 +784,7 @@ class TestInviteMember:
     def test_invite_no_permission(self, client, token):
         mock_member = [("testuser", "member", datetime(2026, 1, 1))]
         mock_group = [
-            ("g1", '[{"name":"member","permissions":[]}]', "open", datetime(2026, 1, 1), datetime(2026, 1, 1))
+            ("g1", '[{"name":"member","permissions":[]}]', "open", 1, datetime(2026, 1, 1), datetime(2026, 1, 1))
         ]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.side_effect = [
@@ -728,6 +970,7 @@ class TestGroupsManages:
                 "g1",
                 "open",
                 '[{"name": "admin", "services": ["*"], "permissions": ["readAll", "manageRoles"]}]',
+                1,
                 "admin",
             )
         ]
@@ -739,6 +982,7 @@ class TestGroupsManages:
             resp = client.post("/v3/groups/manages", json={"token": token})
         assert resp.status_code == 200
         assert len(resp.json()) == 1
+        assert resp.json()[0]["discoverable"] is True
 
 
 # ---------------------------------------------------------------------------
@@ -872,6 +1116,7 @@ class TestSignup:
                 "web10.app/groups/web10/discover",
                 "[]",
                 "open",
+                1,
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
@@ -1494,6 +1739,186 @@ class TestDiscoverBoardAnonRead:
             )
         assert resp.status_code == 200
         assert mock_read.call_args[1]["member_key"] == "testuser"
+
+
+# ---------------------------------------------------------------------------
+# Power-mean ranking — the feed knobs, server-side (D36, feed-lens-integration)
+# ---------------------------------------------------------------------------
+
+
+class TestPowerMeanScore:
+    """The scoring math mirrors marketing-ui/src/lib/powerMean.ts so client
+    and server rank identically. Pure function — no I/O, no mocks."""
+
+    def test_recency_only_shortcut_is_reverse_chron(self):
+        # "Newest" preset: recency weight only → pure reverse-chron, so a newer
+        # post wins regardless of engagement.
+        sort = {"recency": 1.0, "likes": 0.0, "comments": 0.0, "half_life_ms": 0, "character": 0.0}
+        newer = _power_mean_score(1_000, 9999, 9999, sort)  # 1s old, huge engagement
+        older = _power_mean_score(100_000, 0, 0, sort)  # 100s old, no engagement
+        assert newer > older
+
+    def test_most_loved_ignores_age(self):
+        # "Most loved · all time": likes weight only, half_life 0 (no decay) →
+        # an ancient post with huge likes beats a new post with one like.
+        sort = {"recency": 0.0, "likes": 1.0, "comments": 0.0, "half_life_ms": 0, "character": 0.0}
+        loved_old = _power_mean_score(10**12, 9999, 0, sort)
+        unloved_new = _power_mean_score(1_000, 1, 0, sort)
+        assert loved_old > unloved_new
+
+    def test_geometric_mean_at_p_zero(self):
+        # p = 0 → weighted geometric mean: a post with a dead signal scores
+        # lower than one where every weighted signal is high.
+        sort = {"recency": 1.0, "likes": 1.0, "comments": 0.0, "half_life_ms": 10**9, "character": 0.0}
+        balanced = _power_mean_score(0, 9999, 9999, sort)
+        one_dead = _power_mean_score(0, 9999, 0, sort)  # comments dead (but weight 0)
+        # recency=1 for both (age 0); likes high for both; the dead comment is
+        # weight-0 so it's excluded — scores are equal.
+        assert balanced == one_dead
+
+    def test_strict_p_penalizes_dead_weighted_signal(self):
+        # p = -5 (strict): a post with a dead WEIGHTED signal scores lower than
+        # one where every weighted signal is high.
+        sort = {"recency": 1.0, "likes": 1.0, "comments": 1.0, "half_life_ms": 10**9, "character": -5.0}
+        all_high = _power_mean_score(0, 9999, 9999, sort)
+        dead_comments = _power_mean_score(0, 9999, 0, sort)
+        assert all_high > dead_comments
+
+    def test_zero_weight_signal_excluded(self):
+        # A zero-weighted signal is excluded from both numerator and
+        # denominator — it can't drag the score down even at strict p.
+        sort = {"recency": 0.0, "likes": 1.0, "comments": 0.0, "half_life_ms": 0, "character": -5.0}
+        with_dead_comments = _power_mean_score(0, 9999, 0, sort)
+        with_comments = _power_mean_score(0, 9999, 9999, sort)
+        assert with_dead_comments == with_comments
+
+
+class TestPowerMeanRead:
+    """read_documents_in_groups with a `sort` config runs ONE ranked query:
+    the board base joined to exact engagement counts, scored in SQL, paged in
+    ClickHouse (the v1 scale-up). The ranking MATH is pinned by
+    TestPowerMeanScore (the Python reference) + the real-CH equivalence check;
+    these tests pin the query shape, params, and row mapping."""
+
+    def _capture_query(self, posts):
+        """Patch the client so a single query returns `posts` rows; return
+        (patch_ctx, mock_client) so the test can inspect the SQL + params."""
+        mock_ch = MagicMock()
+        mock_ch.query.return_value = MagicMock(result_rows=posts)
+        return patch("app.v3.services.clickhouse.client", mock_ch), mock_ch
+
+    def test_sort_path_runs_single_ranked_query(self):
+        # A sort read is ONE query (board base + engagement joins + SQL score +
+        # SQL paging) — not the v0 three-query fetch-count-sort.
+        posts = [("doc-1", "bob", '{"text":"x"}', [], datetime(2026, 1, 1), "")]
+        ctx, mock_ch = self._capture_query(posts)
+        with ctx:
+            read_documents_in_groups(
+                group_ids=["web10.app/groups/web10/discover"],
+                member_key="anon",
+                service="posts",
+                limit=10,
+                sort={"recency": 0.0, "likes": 1.0, "comments": 0.0, "half_life_ms": 0, "character": 0.0},
+            )
+        assert mock_ch.query.call_count == 1
+        sql, params = mock_ch.query.call_args[0]
+        # Board base + the two engagement joins + a score ORDER BY + paging.
+        assert "collection_name = %(coll)s" in sql
+        assert "collection_name = 'reactions'" in sql
+        assert "collection_name = 'comments'" in sql
+        assert "ORDER BY" in sql and "LIMIT %(limit)s OFFSET %(offset)s" in sql
+        # The sort config rides as params (never interpolated into the SQL).
+        assert params["wr"] == 0.0 and params["wl"] == 1.0 and params["wc"] == 0.0
+        assert params["hl"] == 0 and params["p"] == 0.0
+        assert params["limit"] == 10 and params["offset"] == 0
+        assert params["g0"] == "web10.app/groups/web10/discover"
+
+    def test_sort_path_maps_rows_and_hides_score(self):
+        # Rows come back mapped (body parsed, service added) with no internal
+        # _score leaking into the response.
+        posts = [("doc-1", "bob", '{"text":"x"}', ["t1"], datetime(2026, 1, 1), "ref-9")]
+        ctx, _ = self._capture_query(posts)
+        with ctx:
+            docs = read_documents_in_groups(
+                group_ids=["g"],
+                member_key="anon",
+                service="posts",
+                limit=10,
+                sort={"recency": 1.0, "likes": 0.0, "comments": 0.0, "half_life_ms": 0, "character": 0.0},
+            )
+        assert docs == [
+            {
+                "doc_id": "doc-1",
+                "author_key": "bob",
+                "body": {"text": "x"},
+                "tags": ["t1"],
+                "created_at": str(datetime(2026, 1, 1)),
+                "ref_value": "ref-9",
+                "service": "posts",
+            }
+        ]
+        assert "_score" not in docs[0]
+
+    def test_sort_all_zero_weights_is_chronological(self):
+        # A degenerate all-zero sort scores every post 0; v0's stable sort
+        # preserved the board's created_at DESC order, so the SQL falls back to
+        # a chronological ORDER BY (no power-mean score).
+        ctx, mock_ch = self._capture_query([])
+        with ctx:
+            read_documents_in_groups(
+                group_ids=["g"],
+                member_key="anon",
+                service="posts",
+                limit=10,
+                sort={"recency": 0.0, "likes": 0.0, "comments": 0.0, "half_life_ms": 0, "character": 0.0},
+            )
+        sql, _ = mock_ch.query.call_args[0]
+        assert "toUnixTimestamp64Milli(b.created_at) DESC" in sql
+
+    def test_no_sort_is_chronological(self):
+        # Without a sort config, the read is the no-sort board query (newest
+        # first) — unchanged behavior, and no engagement joins.
+        posts = [
+            ("doc-new", "bob", '{"text":"new"}', [], datetime(2026, 1, 1), ""),
+            ("doc-old", "alice", '{"text":"old"}', [], datetime(2025, 1, 1), ""),
+        ]
+        ctx, mock_ch = self._capture_query(posts)
+        with ctx:
+            docs = read_documents_in_groups(
+                group_ids=["web10.app/groups/web10/discover"],
+                member_key="anon",
+                service="posts",
+                limit=10,
+            )
+        assert [d["doc_id"] for d in docs] == ["doc-new", "doc-old"]
+        sql, _ = mock_ch.query.call_args[0]
+        assert "collection_name = 'reactions'" not in sql
+        assert "ORDER BY p.created_at DESC" in sql
+
+    def test_endpoint_passes_sort_to_ranking(self, client, token):
+        # The /v3/read endpoint forwards the `sort` config to the ranking.
+        with (
+            patch("app.v3.endpoints.documents._check_app_permission"),
+            patch("app.v3.services.clickhouse.read_documents_in_groups", return_value=[]) as mock_read,
+            patch("app.v3.services.clickhouse.resolve_media_urls_in_docs", return_value=[]),
+        ):
+            resp = client.post(
+                "/v3/read",
+                json={
+                    "token": token,
+                    "service": "posts",
+                    "groups": ["web10.app/groups/web10/discover"],
+                    "sort": {"recency": 1.0, "likes": 1.0, "half_life_ms": 86_400_000, "character": -1.0},
+                },
+            )
+        assert resp.status_code == 200
+        assert mock_read.call_args[1]["sort"] == {
+            "recency": 1.0,
+            "likes": 1.0,
+            "comments": 0.0,
+            "half_life_ms": 86_400_000,
+            "character": -1.0,
+        }
 
 
 class TestGroupModeration:

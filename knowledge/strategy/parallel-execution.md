@@ -228,6 +228,8 @@ look alive.
 - [✓ 3.16.2] Board moderation as a group op: `POST /v3/groups/{hide,unhide,hidden}` (gated by `hideAll` OR node admin — the public board has no moderator role), `get_hidden_docs`, anti-join dedup-then-filter
 - [✓ 3.16.2] Persona seeding for v3: `seed_personas.py` rewritten off v2 (terms/schemas/ledger) onto groups — posts + reactions/comments via `ref_value`, idempotent, `--verify`
 - [✓ 3.16.2] Marketing trending + admin board rewired to the normal group read (anon); trending computes engagement client-side from the reactions/comments groups
+- [✓ 3.18.2] Power-mean ranking in the backend (D36, feed-lens-integration) — `/v3/read` gains an optional `sort` config (recency/likes/comments weights, `half_life_ms`, `character` p); the node computes the score over the full group membership and returns pre-sorted results (mirrors `marketing-ui/src/lib/powerMean.ts` so client + server rank identically). Also un-reds the 12 stale `Trending.test.tsx` reds (the mock was still on the v2 `/discover/posts` shape — re-aligned to the v3 `/v3/read` discover-group shape)
+- [✓ 3.21.1] Power-mean ranking v1 scale-up — the sort path moves from Python (full membership fetch + in-process sort) into ClickHouse: shared `_board_base_sql` fragment, exact engagement counts via one grouped scan of reactions + comments (option B, no counter table — operator: "this is clickhouse"), SQL power-mean score, `ORDER BY` + `LIMIT`/`OFFSET` in the DB. Real-CH equivalence check proves the SQL score matches the Python reference to ≤1e-9
 - [ ] E2E: board gauntlet — seed → anon reads the board → a real user's post appears → remove/restore round-trip (gated on the social-e2e stack)
 
 ### Lane: ads (monetization)
@@ -279,27 +281,28 @@ across all apps. The decision bite is done (D49); the build follows.
 **Owns:** `api/app/v3/endpoints/groups.py`, `api/app/v3/services/clickhouse.py`, `clickhouse-init/`, `ui/src/components/` (group management), `marketing/marketing-ui/src/pages/` (or `web10-social/`), `e2e/tests/`
 
 The group store (D53): a public, anon-browsable directory of the groups that
-chose to be listed. Two orthogonal controls: a **`discoverable` boolean** on
-`group_contracts` (owner-set, default `false`) lists the group + makes its
-existence public; **`anon` membership** controls whether its posts are
-anon-readable. The discover group is the proof they come apart (anon-readable
-board, not a directory entry). The directory is a metadata-only read of the
-`discoverable` groups; the detail page adds posts only when `anon` is a
-member, else "join to view." Display metadata is derived from the URL in v0
-and read from `group-identity-service` when present. Two public endpoints
-(list + detail), mirroring the app store (D52). I3 holds end to end.
-**GATED — not essential now** (operator, 27.08): planned, deferred behind the
-social app's community surface. The KB is the spec:
-`knowledge-base/web10-v3/groups/discoverability.md`.
+are listed, plus a flexible by-ID detail. Two orthogonal controls: a
+**`discoverable` boolean** on `group_contracts` is the *blasting* flag (listed
+or not) — **discoverable by default** (default `true`), except `invite_only`
+groups (default `false`) and the discover group (explicit `false`);
+**membership** controls whether a reader can see the posts (I3). The
+directory is a **minimal, canonical view** (no table) over `group_contracts`
+⋈ `group_members` ⋈ `group-identity-service`; tags + rich display live in
+`group-identity-service`; topic search is a composition. The **detail** is a
+flexible, principal-based read (unlisted-model): any existing group reachable
+by ID, posts gated by the *reader's* membership, only a non-existent group
+404s. I3 holds end to end. The KB is the spec:
+`knowledge-base/web10-v3/groups/discoverability.md` + `detail.md`.
 
-- [✓] Decision: D53 — `discoverable` boolean (listing + existence, default `false`) is separate from `anon` membership (readability); directory = metadata-only read of the `discoverable` groups; detail forks on `anon` (posts vs "join to view"); 404 not 403 (`knowledge/strategy/decisions.md`)
-- [✓] KB: `groups/discoverability.md` — the two controls, orthogonality table, opt-in, directory contents, metadata tiers, endpoint surface + read fork, security invariants, the honest cost, relationship to the discover group
-- [ ] Schema: `discoverable UInt8 DEFAULT 0` on `group_contracts` (DDL template + boot-time `ALTER ... ADD COLUMN IF NOT EXISTS`) + `CreateGroup`/`UpdateGroup` models + create/update endpoints
-- [ ] API: `GET /v3/groups/directory` (anon, paginated, sorted by recent activity) — the `discoverable = true` groups + display metadata (metadata only, no posts)
-- [ ] API: `GET /v3/groups/detail?id=` (anon, pure read) — contract + metadata + member count, always; posts only if `anon` is a member (else "join to view"); 404 non-discoverable (no existence leak)
-- [ ] Opt-in toggle in the authenticator — "List in directory" = set `discoverable` + add/remove `anon` (common case); listed-but-private = boolean without `anon`
-- [ ] UI: the directory screen (grid + deep-linkable detail page, with the "join to view posts" state)
-- [ ] Tests: unit (directory = the `discoverable` groups, metadata only; I3 anti-test: non-discoverable absent + 404; discoverable-without-`anon` returns no posts; discover group anon-readable but NOT listed) + e2e (list → detail → anon reads on a public group; "join to view" on a listed-but-private group)
+- [✓] Decision: D53 — `discoverable` boolean (blasting flag, **default `true`**, `invite_only` + discover group `false`) separate from membership (readability); directory = minimal view (no table); detail = flexible principal-based read (unlisted-model, no 404 for non-discoverable); tags in `group-identity-service`; search by composition (`knowledge/strategy/decisions.md`)
+- [✓] KB: `groups/discoverability.md` (two controls, discoverable-by-default, minimal directory view, `group-identity-service` + tags, composition search, invariants) + `groups/detail.md` (unlisted model, listing/reachability/content split, principal-based read, metadata vs posts, why no constrained detail, invariants)
+- [✓] Schema: `discoverable UInt8 DEFAULT 1` on `group_contracts` (DDL template + boot-time `ALTER ... ADD COLUMN IF NOT EXISTS`) + `create_group` default logic (True except `invite_only`→False, named-column insert) + `get_group`/`update_group`/`delete_group` carry it + `CreateGroup`/`UpdateGroup` models + create/update endpoints + discover group created `discoverable=False` + unit tests (default logic, named-column insert, discover-group non-discoverable, endpoint pass-through)
+- [✓] API: `GET /v3/groups/directory` (anon, paginated) — the **minimal** list of `discoverable = true` groups: id, name (identity, else slug), owner, join policy, member count, tags, permission summary. No posts. View over `group_contracts` ⋈ `group_members` ⋈ `group_identity`
+- [✓] `group_identity` table + read path — public display metadata (name, description, banner, avatar, website, tags), group-keyed, append-only; a table (not an I3-gated documents collection) because it's public; `get_group_identity` + `get_group_identities` (batch) feed the directory name + detail display
+- [✓] API: the group detail (`GET /v3/groups/detail?group_id=`) — public, principal-based (token optional, `user_or_anon`): metadata always for an existing group; posts only if the *reader* is a member (else "join to view"); only a non-existent group 404s (unlisted-model)
+- [✓] Opt-in toggle in the authenticator — "List in directory" switch on each managed group card, controls `discoverable` only (anon readability stays a separate Manage-members action); `get_groups_manages` returns `discoverable`, `v3UpdateGroup` accepts it; unit tests (API manages shape + UI toggle on/off/managed-only)
+- [✓] UI: the directory screen (`marketing/marketing-ui/`) — `/groups` grid (from `GET /v3/groups/directory`, search + tag filter) + `/groups/:id` detail (from `GET /v3/groups/detail`, posts when member else "join to view", 404 state); `GroupCard` + Navbar link; 14 UI tests (card, directory, detail)
+- [✓] Tests: unit (identity read + slug fallback, directory query filters `discoverable=1`, directory endpoint shape, detail: ghost 404 / non-discoverable reachable / member sees posts / non-member "join to view" / anon reads as anon) + e2e (`groups-demo.spec.ts`: directory lists discoverable + excludes non-discoverable; detail 404s ghost / reaches non-discoverable; member sees posts, non-member "join to view")
 
 ### Lane: admin-console (Phase 3)
 **Owns:** `ui/src/components/Config/`, `api/app/endpoints/system.py`, `api/app/services/config.py`

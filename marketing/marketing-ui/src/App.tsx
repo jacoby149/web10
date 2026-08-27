@@ -8,6 +8,8 @@ import Join from './pages/Join'
 import Docs from './pages/Docs'
 import AppStore from './pages/AppStore'
 import AppDetail from './pages/AppDetail'
+import GroupDirectory from './pages/GroupDirectory'
+import GroupDetail from './pages/GroupDetail'
 import Freedom from './pages/Freedom'
 import Exporter from './pages/Exporter'
 import Links from './pages/Links'
@@ -28,6 +30,8 @@ function App({ onReportBug }: { onReportBug: () => void }) {
         <Route path="/docs/:page" element={<Docs />} />
         <Route path="/app-store" element={<AppStore />} />
         <Route path="/app-store/app/:id" element={<AppDetail />} />
+        <Route path="/groups" element={<GroupDirectory />} />
+        <Route path="/groups/:id" element={<GroupDetail />} />
         <Route path="/import" element={<Exporter />} />
       </Routes>
       <DeployStatus />
