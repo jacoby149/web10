@@ -75,8 +75,12 @@ function appName(url: string): string {
 }
 
 function pickIcon(manifest: any): string | undefined {
-  const icons: { src: string; sizes?: string }[] = manifest?.icons
+  const icons: { src: string; sizes?: string; type?: string }[] = manifest?.icons
   if (!Array.isArray(icons) || icons.length === 0) return undefined
+  // SVG first — it scales crisply to any card size (browse 64px → plug 44px →
+  // detail 96px) without a raster step.
+  const svg = icons.find((ic) => ic.type === 'image/svg+xml')
+  if (svg) return svg.src
   const target = icons.find((ic) => ic.sizes?.includes('192') || ic.sizes?.includes('512'))
   return target?.src ?? icons[0]?.src
 }
@@ -129,7 +133,9 @@ async function enrichWithManifest(app: RegisteredApp, api: string): Promise<Regi
       return {
         ...app,
         pwaIcon: icon ? resolveIcon(app.url, icon) : undefined,
-        pwaName: manifest?.name || manifest?.short_name,
+        // short_name first — it's the PWA field for constrained display
+        // (store cards, taskbars); name is the long form.
+        pwaName: manifest?.short_name || manifest?.name,
       }
     }
   } catch {

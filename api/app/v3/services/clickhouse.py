@@ -1671,6 +1671,12 @@ def _canonical_app_url(url: str) -> str:
     if port and not (scheme == "http" and port == 80) and not (scheme == "https" and port == 443):
         netloc = f"{host}:{port}"
     path = p.path or "/"
+    # A trailing /index.html is the server's way of serving the directory
+    # app — the directory IS the app (D47). Fold it, or a demo loaded via
+    # its index.html link forks into a second store entry whose manifest
+    # lookup (.../index.html/manifest.json) 404s: icon-less, name-less card.
+    if path.endswith("/index.html"):
+        path = path[: -len("index.html")]
     if not path.endswith("/"):
         path += "/"
     return urlunparse((scheme, netloc, path, "", "", ""))

@@ -151,7 +151,9 @@
         return;
       try {
         const token = state.token ?? readTokenCookie();
-        const body = { url: window.location.href.split(/[?#]/)[0] };
+        const rawUrl = window.location.href.split(/[?#]/)[0];
+        const url = rawUrl.replace(/\/index\.html$/, "/");
+        const body = { url };
         if (token)
           body.token = token;
         fetch(`${apiOrigin}/v3/apps/register`, {
