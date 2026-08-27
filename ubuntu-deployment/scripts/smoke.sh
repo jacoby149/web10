@@ -79,7 +79,9 @@ for env in dev prod; do
   if [[ -n "$TOKEN" ]]; then
     check_post "v3 stats"              200 "$APISRV/v3/stats" "{\"token\":\"$TOKEN\"}"
     check_post "v3 profile"            200 "$APISRV/v3/profile" "{\"token\":\"$TOKEN\"}"
-    check_post "v3 documents read"     200 "$APISRV/v3/read" "{\"token\":\"$TOKEN\",\"service\":\"web10\"}"
+    # /v3/read is always group-scoped (KB: sdk/api.md) — a bare {token,service}
+    # body hits the no-groups guard (CRUD/401). "me" = the user's own docs.
+    check_post "v3 documents read"     200 "$APISRV/v3/read" "{\"token\":\"$TOKEN\",\"service\":\"web10\",\"groups\":[\"me\"]}"
     check_post "v3 groups list"        200 "$APISRV/v3/groups/list" "{\"token\":\"$TOKEN\"}"
     check_post "v3 appstore list"      200 "$APISRV/v3/apps/list" "{\"token\":\"$TOKEN\"}"
     check_post "v3 contracts list"     200 "$APISRV/v3/app-contracts/list" "{\"token\":\"$TOKEN\"}"
