@@ -302,11 +302,11 @@ describe('AppStore page', () => {
     expect(screen.getByText('The web10 App Store')).toBeInTheDocument();
   });
 
-  it('renders the subtitle about sorting by visits', async () => {
+  it('renders the subtitle about sorting by active users', async () => {
     const { default: AppStore } = await import('@/pages/AppStore');
     renderWithRouter(<AppStore />);
     expect(
-      screen.getByText(/Sorted by visits/)
+      screen.getByText(/Sorted by active users/)
     ).toBeInTheDocument();
   });
 
@@ -387,7 +387,17 @@ describe('AppStore page', () => {
           json: () =>
             Promise.resolve({
               users: 3,
+              app_count: 1,
+              active_users: { users_1d: 1, users_30d: 1, users_90d: 1, users_1y: 1 },
               storage: 1024,
+            }),
+        } as Response);
+      }
+      if (url.includes('/v3/apps/list')) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
               apps: [
                 {
                   url: 'https://www.web10.app/docs/hello/',
@@ -396,10 +406,12 @@ describe('AppStore page', () => {
                   icon_url: '',
                   screenshots: [],
                   visits: 5,
+                  users_30d: 5,
                   review_state: 'approved',
                   web10apps_post_id: '',
                 },
               ],
+              total: 1,
             }),
         } as Response);
       }

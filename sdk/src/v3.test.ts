@@ -250,6 +250,22 @@ describe('v3 client', () => {
         window.history.replaceState(null, '', '/')
       }
     })
+
+    it('sign-in (setToken) re-fires the register ping with the token (D49)', () => {
+      // The init ping may be anon (pre-sign-in) and dropped at ingest. On
+      // sign-in the SDK re-pings with the token so the visit is attributed
+      // to the real user.
+      const before = vi
+        .mocked(fetch)
+        .mock.calls.filter(([url]) => String(url).includes('/v3/apps/register')).length
+      client.setToken('a.real.token')
+      const registerCalls = vi
+        .mocked(fetch)
+        .mock.calls.filter(([url]) => String(url).includes('/v3/apps/register'))
+      expect(registerCalls.length).toBe(before + 1)
+      const body = JSON.parse(registerCalls[registerCalls.length - 1][1].body as string)
+      expect(body.body.token).toBe('a.real.token')
+    })
   })
 
   // ── Token management ──────────────────────────────────────────────────

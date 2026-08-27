@@ -8,9 +8,9 @@ from app.v3.models import (
     AppsAdmin,
     CreateAppRating,
     GetAppRatings,
+    ListStoreApps,
     RegisterApp,
 )
-from app.v3.models.common import TokenOnly
 from app.v3.services import clickhouse as ch
 
 router = APIRouter(tags=["app-store"])
@@ -19,23 +19,18 @@ router = APIRouter(tags=["app-store"])
 @router.post("/register")
 def register_app(data: RegisterApp):
     """Register an app in the provider app store."""
-    url = (data.body.get("url") or "").strip()
-    if not url:
+    if not data.body.get("url"):
         raise exceptions.CRUD
-    # Canonical app identity (D47): a trailing /index.html collapses to the
-    # directory — the directory IS the app (index.html is just how the
-    # server serves it). Without this, an app loaded via its index.html
-    # link forks into a second store entry whose manifest lookup 404s.
-    if url.endswith("/index.html"):
-        url = url[: -len("index.html")]
-    data.body["url"] = url
     return ch.register_app(data.body)
 
 
 @router.post("/list")
-def list_apps(data: TokenOnly):
-    """List approved apps."""
-    return ch.list_apps(approved_only=True)
+def list_apps(data: ListStoreApps):
+    """The public store list (D49): approved apps with realtime metrics
+    (visits + users_1d/30d/90d/1y), sorted by users_30d desc, paginated."""
+    limit = max(1, min(data.limit, 100))
+    offset = max(0, data.offset)
+    return ch.list_store_apps(limit=limit, offset=offset)
 
 
 @router.post("/rating")
