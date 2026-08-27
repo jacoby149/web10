@@ -63,6 +63,20 @@ class TestInsertDocument:
             assert len(result["doc_id"]) == 36  # uuid7 string
             mock_client.insert.assert_called_once()
 
+    def test_insert_with_ref_value(self):
+        """The ref pattern: a reaction/comment points at its target via ref_value."""
+        with _patch_client() as mock_client:
+            result = ch.insert_document(
+                author_key="bob",
+                service="reactions",
+                body={"type": "like"},
+                ref_value="target-post-id",
+            )
+            assert result["ref_value"] == "target-post-id"
+            row = mock_client.insert.call_args[0][1][0]
+            # documents row: [doc_id, author, service, body, ref_value, tags, ...]
+            assert row[4] == "target-post-id"
+
 
 class TestGetDocument:
     def test_found(self):
@@ -526,8 +540,17 @@ class TestReadDocumentsInGroups:
             assert "rn = 1 AND deleted = 0" in ugs_part
             assert "ugs.sharing_enabled = 0" in sql
             assert "p.author_key != %(member_key)s" in sql
-            # Verify hidden docs exclusion
-            assert "LEFT ANTI JOIN group_hidden_docs" in sql
+            # Verify hidden docs exclusion — dedup-then-filter anti-join
+            # (latest row per (group_id, doc_id) wins, tombstones included,
+            # then deleted = 0). A raw `deleted = 0` join would keep matching
+            # the stale hide row after a restore (tombstone) until a merge.
+            hd_part = sql[
+                sql.index("LEFT ANTI JOIN (SELECT group_id, doc_id FROM") : sql.index(") hd ")
+            ]
+            assert "FROM group_hidden_docs" in hd_part
+            assert "rn = 1 AND deleted = 0" in hd_part
+            assert "hd.doc_id = p.doc_id" in sql
+            assert "hd.group_id = pg.group_id" in sql
 
 
 # ---------------------------------------------------------------------------
@@ -867,15 +890,169 @@ class TestNodeStats:
 class TestCreateUser:
     def test_create(self):
         with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows([(0,)])
+            # query 1: existing-user count (0 = new); query 2: get_group
+            # (empty = group missing, so the contract is created first).
+            mock_client.query.side_effect = [
+                _mock_result_rows([(0,)]),
+                _mock_result_rows([]),
+            ]
             result = ch.create_user("alice", "hash123", phone="+1234")
             assert result["username"] == "alice"
-            mock_client.insert.assert_called_once()
+            # inserts: users row, then the discover-group auto-enrollment
+            # (group contract + membership).
+            insert_tables = [c[0][0] for c in mock_client.insert.call_args_list]
+            assert "users" in insert_tables
+            assert "group_members" in insert_tables
+            # the membership row enrolls the new user in the discover group
+            member_insert = next(
+                c for c in mock_client.insert.call_args_list if c[0][0] == "group_members"
+            )
+            row = member_insert[0][1][0]
+            assert row[0] == ch.DISCOVER_GROUP_ID
+            assert row[1] == "alice"
+            assert row[2] == "member"
+
+    def test_create_group_already_exists(self):
+        with _patch_client() as mock_client:
+            # group contract already present (boot pass ran) — no re-create.
+            group_row = (
+                ch.DISCOVER_GROUP_ID,
+                "[]",
+                "open",
+                datetime(2026, 1, 1),
+                datetime(2026, 1, 1),
+            )
+            mock_client.query.side_effect = [
+                _mock_result_rows([(0,)]),
+                _mock_result_rows([group_row]),
+            ]
+            ch.create_user("alice", "hash123")
+            insert_tables = [c[0][0] for c in mock_client.insert.call_args_list]
+            assert "group_contracts" not in insert_tables  # not re-created
+            assert "group_members" in insert_tables  # still enrolled
 
     def test_duplicate(self):
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows([(1,)])
             assert ch.create_user("alice", "hash123") is None
+            mock_client.insert.assert_not_called()
+
+
+class TestListUsers:
+    def test_list(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([("alice",), ("bob",)])
+            users = ch.list_users()
+            assert users == [{"username": "alice"}, {"username": "bob"}]
+
+    def test_empty(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([])
+            assert ch.list_users() == []
+
+
+class TestGetGroupMemberKeys:
+    def test_keys(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([("anon",), ("alice",)])
+            assert ch.get_group_member_keys("g") == ["anon", "alice"]
+
+    def test_empty(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([])
+            assert ch.get_group_member_keys("g") == []
+
+
+class TestEnsureDiscoverGroup:
+    """The node-default universal public board (KB: social-contracts.md §1)."""
+
+    def test_creates_group_anon_and_backfills(self):
+        with _patch_client() as mock_client:
+            # query sequence: get_group (missing), member keys (empty),
+            # list_users (two pre-existing accounts).
+            mock_client.query.side_effect = [
+                _mock_result_rows([]),  # get_group → missing
+                _mock_result_rows([]),  # get_group_member_keys → nobody yet
+                _mock_result_rows([("alice",), ("bob",)]),  # list_users
+            ]
+            ch.ensure_discover_group()
+            insert_tables = [c[0][0] for c in mock_client.insert.call_args_list]
+            # group contract created once
+            assert insert_tables.count("group_contracts") == 1
+            # anon + both users enrolled
+            member_rows = [
+                c[0][1][0] for c in mock_client.insert.call_args_list if c[0][0] == "group_members"
+            ]
+            enrolled = {r[1] for r in member_rows}
+            assert enrolled == {"anon", "alice", "bob"}
+
+    def test_idempotent_when_populated(self):
+        with _patch_client() as mock_client:
+            group_row = (
+                ch.DISCOVER_GROUP_ID,
+                "[]",
+                "open",
+                datetime(2026, 1, 1),
+                datetime(2026, 1, 1),
+            )
+            # get_group → exists; member keys → anon + alice already in;
+            # list_users → alice (already a member, no re-add).
+            mock_client.query.side_effect = [
+                _mock_result_rows([group_row]),
+                _mock_result_rows([("anon",), ("alice",)]),
+                _mock_result_rows([("alice",)]),
+            ]
+            ch.ensure_discover_group()
+            # nothing to do — no inserts at all
+            mock_client.insert.assert_not_called()
+
+    def test_backfills_only_missing_users(self):
+        with _patch_client() as mock_client:
+            group_row = (
+                ch.DISCOVER_GROUP_ID,
+                "[]",
+                "open",
+                datetime(2026, 1, 1),
+                datetime(2026, 1, 1),
+            )
+            # group exists; anon + alice already members; bob is new.
+            mock_client.query.side_effect = [
+                _mock_result_rows([group_row]),
+                _mock_result_rows([("anon",), ("alice",)]),
+                _mock_result_rows([("alice",), ("bob",)]),
+            ]
+            ch.ensure_discover_group()
+            member_rows = [
+                c[0][1][0] for c in mock_client.insert.call_args_list if c[0][0] == "group_members"
+            ]
+            # only bob is added — anon + alice are already members
+            assert [r[1] for r in member_rows] == ["bob"]
+
+
+class TestGetHiddenDocs:
+    def test_lists_hidden_with_author(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows(
+                [
+                    (
+                        "doc-1",
+                        "admin1",
+                        datetime(2026, 1, 2),
+                        "alice",
+                        '{"text":"bad post"}',
+                    ),
+                ]
+            )
+            rows = ch.get_hidden_docs("g")
+            assert rows[0]["doc_id"] == "doc-1"
+            assert rows[0]["author_key"] == "alice"
+            assert rows[0]["moderator_key"] == "admin1"
+            assert rows[0]["body"]["text"] == "bad post"
+
+    def test_empty(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([])
+            assert ch.get_hidden_docs("g") == []
 
 
 class TestGetUser:

@@ -73,6 +73,27 @@ class TestCreate:
         resp = client.post("/v3/create", json={"token": token, "service": "posts"})
         assert resp.status_code == 422
 
+    def test_create_with_ref_value(self, client, token):
+        """A reaction/comment references its target post via ref_value."""
+        captured = {}
+
+        def fake_insert(author_key, service, body, ref_value="", tags=None, doc_id=None):
+            captured["ref_value"] = ref_value
+            return {"doc_id": "doc-3", "ref_value": ref_value}
+
+        with patch("app.v3.services.clickhouse.insert_document", side_effect=fake_insert):
+            resp = client.post(
+                "/v3/create",
+                json={
+                    "token": token,
+                    "service": "reactions",
+                    "body": {"type": "like"},
+                    "ref_value": "target-post",
+                },
+            )
+        assert resp.status_code == 200
+        assert captured["ref_value"] == "target-post"
+
 
 class TestRead:
     def test_personal_read(self, client, token):
@@ -848,7 +869,20 @@ class TestNodeStats:
 class TestSignup:
     def test_signup(self, client):
         with patch("app.v3.services.clickhouse.client") as mock_ch:
-            mock_ch.query.return_value = MagicMock(result_rows=[(0,)])
+            # create_user makes two queries: the existing-user count, then
+            # get_group (the discover-group auto-enroll guard). Return a valid
+            # group row for the second so the contract is treated as present.
+            group_row = (
+                "web10.app/groups/web10/discover",
+                "[]",
+                "open",
+                datetime(2026, 1, 1),
+                datetime(2026, 1, 1),
+            )
+            mock_ch.query.side_effect = [
+                MagicMock(result_rows=[(0,)]),
+                MagicMock(result_rows=[group_row]),
+            ]
             with patch("app.v3.endpoints.auth.get_password_hash", return_value="hash123"):
                 resp = client.post(
                     "/v3/signup",
@@ -1182,3 +1216,135 @@ class TestAppsRatings:
             },
         )
         assert resp.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Discover board — the universal public board (anon-readable)
+# ---------------------------------------------------------------------------
+
+
+class TestDiscoverBoardAnonRead:
+    """The public board is the discover group, read via the normal /v3/read
+    path as anon (no token). Discovery IS a group read in v3 — no separate
+    discover endpoint."""
+
+    def test_board_anon_readable(self, client):
+        """No token → reads as anon → the discover group's docs come back."""
+        mock_docs = [
+            ("doc-1", "alice", '{"text":"hello"}', [], datetime(2026, 1, 1), "")
+        ]
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            # read_documents_in_groups is a single query
+            mock_ch.query.return_value = MagicMock(result_rows=mock_docs)
+            resp = client.post(
+                "/v3/read",
+                json={
+                    "service": "posts",
+                    "groups": ["web10.app/groups/web10/discover"],
+                    "limit": 10,
+                },
+            )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert len(body) == 1
+        assert body[0]["doc_id"] == "doc-1"
+        assert body[0]["author_key"] == "alice"
+        # the read ran as anon (member_key = "anon") — first query is the
+        # group read; params are positional (call_args[0][1]).
+        read_params = mock_ch.query.call_args_list[0][0][1]
+        assert read_params["member_key"] == "anon"
+
+    def test_board_anon_empty_is_ok(self, client):
+        """An empty board is a valid (empty) result for anon, not a 403."""
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.return_value = MagicMock(result_rows=[])
+            resp = client.post(
+                "/v3/read",
+                json={
+                    "service": "posts",
+                    "groups": ["web10.app/groups/web10/discover"],
+                },
+            )
+        assert resp.status_code == 200
+        assert resp.json() == []
+
+    def test_real_user_not_anon(self, client, token):
+        """A token read uses the real username, not anon — the anon bypass
+        only applies to token-less reads."""
+        with patch("app.v3.endpoints.documents._check_app_permission"), patch(
+            "app.v3.services.clickhouse.read_documents_in_groups", return_value=[]
+        ) as mock_read, patch(
+            "app.v3.services.clickhouse.resolve_media_urls_in_docs", return_value=[]
+        ):
+            resp = client.post(
+                "/v3/read",
+                json={"token": token, "service": "posts", "groups": ["g"]},
+            )
+        assert resp.status_code == 200
+        assert mock_read.call_args[1]["member_key"] == "testuser"
+
+
+class TestGroupModeration:
+    """Board moderation as a group op — hide content from a group's discover
+    (KB: groups/overview.md "Moderation"). Gated by `hideAll` OR node admin."""
+
+    def test_hide(self, client, token):
+        with patch("app.v3.endpoints.groups._require_moderation"), patch(
+            "app.v3.services.clickhouse.hide_doc_from_group"
+        ) as mock_hide:
+            resp = client.post(
+                "/v3/groups/hide",
+                json={"token": token, "group_id": "g1", "doc_id": "doc-1"},
+            )
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "hidden"
+        assert mock_hide.call_args[0][1] == "doc-1"
+
+    def test_unhide(self, client, token):
+        with patch("app.v3.endpoints.groups._require_moderation"), patch(
+            "app.v3.services.clickhouse.unhide_doc_from_group"
+        ) as mock_unhide:
+            resp = client.post(
+                "/v3/groups/unhide", json={"token": token, "group_id": "g1", "doc_id": "doc-1"}
+            )
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "restored"
+        assert mock_unhide.call_args[0][1] == "doc-1"
+
+    def test_hidden_list(self, client, token):
+        with patch("app.v3.endpoints.groups._require_moderation"), patch(
+            "app.v3.services.clickhouse.get_hidden_docs",
+            return_value=[
+                {
+                    "doc_id": "doc-1",
+                    "moderator_key": "admin1",
+                    "hidden_at": "2026-01-02",
+                    "author_key": "alice",
+                    "body": {"text": "bad"},
+                }
+            ],
+        ):
+            resp = client.post(
+                "/v3/groups/hidden", json={"token": token, "group_id": "g1"}
+            )
+        assert resp.status_code == 200
+        hidden = resp.json()["hidden"]
+        assert hidden[0]["doc_id"] == "doc-1"
+        assert hidden[0]["author_key"] == "alice"
+        assert hidden[0]["body"]["text"] == "bad"
+
+    def test_hide_requires_moderation(self, client, token):
+        """The gate runs before the hide — a non-moderator never reaches it."""
+        with patch(
+            "app.v3.endpoints.groups._require_moderation",
+            side_effect=Exception("NOT_ADMIN"),
+        ) as mock_gate, patch(
+            "app.v3.services.clickhouse.hide_doc_from_group"
+        ) as mock_hide:
+            with pytest.raises(Exception, match="NOT_ADMIN"):
+                client.post(
+                    "/v3/groups/hide",
+                    json={"token": token, "group_id": "g1", "doc_id": "doc-1"},
+                )
+        mock_gate.assert_called_once()
+        mock_hide.assert_not_called()

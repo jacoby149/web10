@@ -29,13 +29,16 @@ from app.v3.models.groups import (
     DeclineInvite,
     DeleteGroup,
     GetGroup,
+    HideDoc,
     InviteMember,
     JoinGroup,
     JoinRequestOp,
     LeaveGroup,
     ListGroupMembers,
+    ListHiddenDocs,
     ListJoinRequests,
     RemoveGroupMember,
+    UnhideDoc,
     UpdateGroup,
 )
 from app.v3.models.media import (
@@ -83,6 +86,9 @@ __all__ = [
     "ListJoinRequests",
     "JoinRequestOp",
     "DeleteGroup",
+    "HideDoc",
+    "UnhideDoc",
+    "ListHiddenDocs",
     # media
     "ConfirmMedia",
     "ListMedia",
