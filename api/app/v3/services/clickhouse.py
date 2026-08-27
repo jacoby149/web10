@@ -167,9 +167,18 @@ def _migrate_file_index_app_rows() -> None:
                 "apps",
                 [[new_url, row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9], _now(), 0]],
                 column_names=[
-                    "url", "name", "description", "icon_url", "screenshots", "visits",
-                    "approved", "review_state", "metadata_version", "created_at",
-                    "updated_at", "deleted",
+                    "url",
+                    "name",
+                    "description",
+                    "icon_url",
+                    "screenshots",
+                    "visits",
+                    "approved",
+                    "review_state",
+                    "metadata_version",
+                    "created_at",
+                    "updated_at",
+                    "deleted",
                 ],
             )
         _tombstone_app_row(old_url)

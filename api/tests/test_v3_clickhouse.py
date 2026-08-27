@@ -1033,14 +1033,12 @@ class TestCanonicalAppUrlIndexHtml:
 
     def test_bare_index_html(self):
         assert (
-            ch._canonical_app_url("https://dev.web10.app/docs/media/index.html")
-            == "https://dev.web10.app/docs/media/"
+            ch._canonical_app_url("https://dev.web10.app/docs/media/index.html") == "https://dev.web10.app/docs/media/"
         )
 
     def test_index_html_with_trailing_slash(self):
         assert (
-            ch._canonical_app_url("https://dev.web10.app/docs/media/index.html/")
-            == "https://dev.web10.app/docs/media/"
+            ch._canonical_app_url("https://dev.web10.app/docs/media/index.html/") == "https://dev.web10.app/docs/media/"
         )
 
     def test_root_index_html(self):
@@ -1049,10 +1047,7 @@ class TestCanonicalAppUrlIndexHtml:
     def test_real_file_not_stripped(self):
         """Only a TRAILING index.html is a server detail — a non-index file
         keeps its name."""
-        assert (
-            ch._canonical_app_url("https://myapp.com/docs/notes.html")
-            == "https://myapp.com/docs/notes.html/"
-        )
+        assert ch._canonical_app_url("https://myapp.com/docs/notes.html") == "https://myapp.com/docs/notes.html/"
 
 
 class TestMigrateFileIndexAppRows:
