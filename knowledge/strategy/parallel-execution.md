@@ -208,3 +208,12 @@ log-sequence verification. The browser gauntlet bites are gated on the
 - [ ] API floor: signup → login → post → feed → DM → profile + I3 cross-user isolation
 - [ ] Browser gauntlet: real D42 login → feed renders → post → reload persists (gated on `social-v3` auth)
 - [ ] Browser gauntlet: two-user DM round-trip (gated on `social-v3` auth)
+
+### Lane: admin-console (Phase 3)
+**Owns:** `ui/src/components/Config/`, `api/app/endpoints/system.py`, `api/app/services/config.py`
+
+The node console's operator surfaces (Node Config panel first). The
+panel is the node's control surface — it must show what the node
+actually runs, and every control on it must work.
+
+- [✓ 3.15.0] Node Config: effective config in the form (settings defaults ← saved overlay — no more blanks; ClickHouse URL + MinIO values default to the docker-network settings) + field trimming (Node Identity → provider/CORS/token-expiry; Stripe → mode + keys) + the dead Save button fixed (PATCH /config 405 → POST /config/update)
