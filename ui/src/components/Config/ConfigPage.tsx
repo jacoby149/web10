@@ -249,11 +249,9 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
   };
 
   // Only send fields that actually changed from the loaded snapshot.
-  // The /config GET response strips secrets (private_key, s3_secret_key,
-  // twilio_auth_token, stripe keys); a naive "send everything" save would
-  // overwrite those with empty strings and wipe the node's credentials.
-  // Diffing against the loaded snapshot keeps untouched (and stripped)
-  // fields off the wire entirely.
+  // Keeps the payload to real edits — unchanged values (including the
+  // billing fields this form no longer shows) stay off the wire, so a save
+  // can never clobber a field the operator didn't touch.
   const saveConfig = async () => {
     setSaving(true);
     setError(null);
@@ -266,13 +264,7 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
         if (JSON.stringify(next) === JSON.stringify(prev)) continue;
         payload[key] = next;
       }
-      const decoded = I.v3.readToken();
-      const protocol = window.location.protocol;
-      await axios.patch(
-        `${protocol}//${decoded.provider}/config`,
-        payload,
-        { headers: { "Content-Type": "application/json" } }
-      );
+      await nodePost("/config/update", payload);
       setLoadedConfig({ ...config });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -643,23 +635,11 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
               <Field label="Provider Domain">
                 <Input value={config?.provider || ""} onChange={e => updateField("provider", e.target.value)} data-testid="config-provider" />
               </Field>
-              <Field label="Brand Name">
-                <Input value={config?.brand_text || ""} onChange={e => updateField("brand_text", e.target.value)} data-testid="config-brand-text" />
-              </Field>
-              <Field label="Logo (dark surfaces)" description="Path or URL for the logo used on dark backgrounds">
-                <Input value={config?.logo_dark || ""} onChange={e => updateField("logo_dark", e.target.value)} data-testid="config-logo-dark" />
-              </Field>
-              <Field label="Logo (light surfaces)" description="Path or URL for the logo used on light backgrounds">
-                <Input value={config?.logo_light || ""} onChange={e => updateField("logo_light", e.target.value)} data-testid="config-logo-light" />
-              </Field>
               <Field label="CORS Service Managers" description="Comma-separated list of allowed authenticator domains">
                 <Input value={config?.cors_service_managers || ""} onChange={e => updateField("cors_service_managers", e.target.value)} data-testid="config-cors" />
               </Field>
               <Field label="Token Expiry (minutes)">
                 <Input type="number" value={config?.token_expire_minutes || 87840} onChange={e => updateField("token_expire_minutes", parseInt(e.target.value) || 0)} data-testid="config-token-expiry" />
-              </Field>
-              <Field label="Signing Algorithm" description="Read-only — RS256 migration is tracked separately (security invariant I1)">
-                <Input value={config?.algorithm || "HS256"} disabled data-testid="config-algorithm" />
               </Field>
             </CardContent>
           </Card>
@@ -670,7 +650,7 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
             </CardHeader>
             <CardContent className="space-y-4">
               <Field label="ClickHouse URL" description="Connection string the node uses at startup. A change here is persisted for reference, but a running node will not reconnect until restarted.">
-                <Input type="password" value={config?.db_url || ""} onChange={e => updateField("db_url", e.target.value)} data-testid="config-db-url" />
+                <Input value={config?.db_url || ""} onChange={e => updateField("db_url", e.target.value)} data-testid="config-db-url" />
               </Field>
               <Field label="Database Name">
                 <Input value={config?.db_name || "web10"} onChange={e => updateField("db_name", e.target.value)} data-testid="config-db-name" />
@@ -743,7 +723,7 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
                 <Input value={config?.s3_access_key || ""} onChange={e => updateField("s3_access_key", e.target.value)} data-testid="config-s3-access-key" />
               </Field>
               <Field label="Secret Key">
-                <Input type="password" value={config?.s3_secret_key || ""} onChange={e => updateField("s3_secret_key", e.target.value)} data-testid="config-s3-secret-key" />
+                <Input value={config?.s3_secret_key || ""} onChange={e => updateField("s3_secret_key", e.target.value)} data-testid="config-s3-secret-key" />
               </Field>
               <Field label="Region">
                 <Input value={config?.s3_region || "us-east-1"} onChange={e => updateField("s3_region", e.target.value)} data-testid="config-s3-region" />
@@ -773,7 +753,7 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
                 <Input value={config?.twilio_account_sid || ""} onChange={e => updateField("twilio_account_sid", e.target.value)} data-testid="config-twilio-account-sid" />
               </Field>
               <Field label="Auth Token">
-                <Input type="password" value={config?.twilio_auth_token || ""} onChange={e => updateField("twilio_auth_token", e.target.value)} data-testid="config-twilio-auth-token" />
+                <Input value={config?.twilio_auth_token || ""} onChange={e => updateField("twilio_auth_token", e.target.value)} data-testid="config-twilio-auth-token" />
               </Field>
               <Field label="Phone Number">
                 <Input value={config?.twilio_number || ""} onChange={e => updateField("twilio_number", e.target.value)} data-testid="config-twilio-number" />
@@ -798,25 +778,10 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
                 </select>
               </Field>
               <Field label="Test API Key">
-                <Input type="password" value={config?.stripe_test_key || ""} onChange={e => updateField("stripe_test_key", e.target.value)} data-testid="config-stripe-test-key" />
+                <Input value={config?.stripe_test_key || ""} onChange={e => updateField("stripe_test_key", e.target.value)} data-testid="config-stripe-test-key" />
               </Field>
               <Field label="Live API Key">
-                <Input type="password" value={config?.stripe_live_key || ""} onChange={e => updateField("stripe_live_key", e.target.value)} data-testid="config-stripe-live-key" />
-              </Field>
-              <Field label="Test Subscription — Credits">
-                <Input value={config?.stripe_test_credit_sub_id || ""} onChange={e => updateField("stripe_test_credit_sub_id", e.target.value)} data-testid="config-stripe-test-credit-sub" />
-              </Field>
-              <Field label="Test Subscription — Space">
-                <Input value={config?.stripe_test_space_sub_id || ""} onChange={e => updateField("stripe_test_space_sub_id", e.target.value)} data-testid="config-stripe-test-space-sub" />
-              </Field>
-              <Field label="Live Subscription — Credits">
-                <Input value={config?.stripe_live_credit_sub_id || ""} onChange={e => updateField("stripe_live_credit_sub_id", e.target.value)} data-testid="config-stripe-live-credit-sub" />
-              </Field>
-              <Field label="Live Subscription — Space">
-                <Input value={config?.stripe_live_space_sub_id || ""} onChange={e => updateField("stripe_live_space_sub_id", e.target.value)} data-testid="config-stripe-live-space-sub" />
-              </Field>
-              <Field label="Dev Pay Split (%)" description="Percentage of revenue that goes to the developer">
-                <Input type="number" value={config?.dev_pay_pct || 98} onChange={e => updateField("dev_pay_pct", parseInt(e.target.value) || 98)} data-testid="config-dev-pay-pct" />
+                <Input value={config?.stripe_live_key || ""} onChange={e => updateField("stripe_live_key", e.target.value)} data-testid="config-stripe-live-key" />
               </Field>
             </CardContent>
           </Card>
