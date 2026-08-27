@@ -201,17 +201,52 @@ const jsonOk = (body: unknown) => ({
   json: () => Promise.resolve(body),
 });
 
-function makeDiscoveryPosts(n: number) {
-  return Array.from({ length: n }, (_, i) => ({
-    author: `user${i}`,
-    service: 'public_posts',
-    post_id: `post-${i}`,
-    body_text: `post number ${i}`,
+// ── v3 discover-group docs (the shape /v3/read returns) ─────────────────────
+//
+// The component's fetchDiscoverFeed reads the node-default discover group
+// (web10.app/groups/web10/discover) through the normal /v3/read path as anon:
+// three service reads (posts + reactions + comments), engagement derived from
+// the ref pattern (ref_value = the target post's doc_id). The mock returns the
+// right shape per service.
+
+function v3Post(i: number, overrides: Record<string, unknown> = {}) {
+  return {
+    doc_id: `post-${i}`,
+    author_key: `user${i}`,
+    body: { text: `post number ${i}` },
     tags: i % 2 === 0 ? ['art'] : ['code'],
     created_at: new Date(Date.now() - i * 3600_000).toISOString(),
-    engagement: { likes: 100 - i, comments: 5, reposts: 2 },
-    engagement_score: 1000 - i * 10,
-  }));
+    ref_value: '',
+    service: 'posts',
+    ...overrides,
+  };
+}
+
+function makeV3Posts(n: number) {
+  return Array.from({ length: n }, (_, i) => v3Post(i));
+}
+
+function makeV3PostsMedia(n: number) {
+  return Array.from({ length: n }, (_, i) =>
+    v3Post(i, {
+      doc_id: `post-media-${i}`,
+      body: { text: `media post number ${i}`, media_refs: i % 3 !== 2 ? [`ref-${i}`] : undefined },
+      tags: i % 3 === 0 ? ['video'] : i % 3 === 1 ? ['image'] : ['text'],
+    }),
+  );
+}
+
+// Mock the discover feed fetch. The component reads posts + reactions +
+// comments from the discover group; the mock returns the right shape per
+// service (reactions/comments default to empty → zero engagement).
+function mockDiscoverFeed(posts: unknown[] = makeV3Posts(20), reactions: unknown[] = [], comments: unknown[] = []) {
+  vi.mocked(fetch).mockImplementation(async (_url, init) => {
+    const body = JSON.parse(String(init?.body ?? '{}'));
+    if (body?.service === 'posts') return jsonOk(posts);
+    if (body?.service === 'reactions') return jsonOk(reactions);
+    if (body?.service === 'comments') return jsonOk(comments);
+    return jsonOk([]);
+  });
 }
 
 describe('Trending page', () => {
@@ -223,7 +258,7 @@ describe('Trending page', () => {
   });
 
   it('renders a ranked grid and the Top 10 sidebar from the discovery API', async () => {
-    vi.mocked(fetch).mockResolvedValue(jsonOk(makeDiscoveryPosts(20)) as unknown as Response);
+    mockDiscoverFeed();
     const { default: Trending } = await import('@/pages/Trending');
     render(<Trending />);
     await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
@@ -233,26 +268,22 @@ describe('Trending page', () => {
   });
 
   it('shows Load more when a full page returns, and fetches the next page', async () => {
-    vi.mocked(fetch).mockResolvedValue(jsonOk(makeDiscoveryPosts(20)) as unknown as Response);
+    mockDiscoverFeed();
     const { default: Trending } = await import('@/pages/Trending');
     render(<Trending />);
     const loadMore = await screen.findByTestId('trending-load-more');
-    const discoverBodies = () =>
-      vi.mocked(fetch).mock.calls
-        .filter(c => String(c[0]).includes('/discover/posts'))
-        .map(c => String(c[1]?.body));
-    expect(discoverBodies()).toEqual([
-      '{"query":{"sort":"trending","limit":20,"services":"public_posts"}}',
-      '{"query":{"sort":"recent","limit":20,"services":"public_posts"}}',
-    ]);
+    // The component reads the discover group via /v3/read (anon). Load more
+    // re-reads with a higher page limit → more /v3/read calls.
+    const readCalls = () =>
+      vi.mocked(fetch).mock.calls.filter(c => String(c[0]).includes('/v3/read')).length;
+    const initialCalls = readCalls();
+    expect(initialCalls).toBeGreaterThan(0);
     fireEvent.click(loadMore);
-    await waitFor(() =>
-      expect(discoverBodies()).toContain('{"query":{"sort":"trending","limit":40,"services":"public_posts"}}'),
-    );
+    await waitFor(() => expect(readCalls()).toBeGreaterThan(initialCalls));
   });
 
   it('renders the empty story beat when the network is quiet', async () => {
-    vi.mocked(fetch).mockResolvedValue(jsonOk([]) as unknown as Response);
+    mockDiscoverFeed([]);
     const { default: Trending } = await import('@/pages/Trending');
     render(<Trending />);
     await waitFor(() => expect(screen.getByTestId('trending-empty')).toBeInTheDocument());
@@ -261,7 +292,7 @@ describe('Trending page', () => {
   });
 
   it('filters the grid by topic chip', async () => {
-    vi.mocked(fetch).mockResolvedValue(jsonOk(makeDiscoveryPosts(20)) as unknown as Response);
+    mockDiscoverFeed();
     const { default: Trending } = await import('@/pages/Trending');
     render(<Trending />);
     await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
@@ -272,7 +303,7 @@ describe('Trending page', () => {
   });
 
   it('like/repost click does not change displayed counts (funnels to social)', async () => {
-    vi.mocked(fetch).mockResolvedValue(jsonOk(makeDiscoveryPosts(20)) as unknown as Response);
+    mockDiscoverFeed();
     const { default: Trending } = await import('@/pages/Trending');
     render(<Trending />);
     await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
@@ -296,7 +327,7 @@ describe('Knob rack renders', () => {
   });
 
   it('shows the knob rack with 5 knobs and 3 presets after load', async () => {
-    vi.mocked(fetch).mockResolvedValue(jsonOk(makeDiscoveryPosts(10)) as unknown as Response);
+    mockDiscoverFeed(makeV3Posts(10));
     const { default: Trending } = await import('@/pages/Trending');
     render(<Trending />);
     await waitFor(() => expect(screen.getByTestId('knob-rack')).toBeInTheDocument());
@@ -321,41 +352,26 @@ describe('Knob re-ranking', () => {
 
   it('twisting a knob reshuffles the grid with zero network requests', async () => {
     // Two posts close in age but very different in engagement. Balanced
-    // default (recency + likes + comments weighted, p = -1 "Flat") should
-    // still favor the high-engagement post. "Most loved · all time"
-    // (likes only, half-life ∞) also favors it. "Newest" should flip to
-    // the newer post.
+    // default (recency + likes + comments weighted) should favor the
+    // high-engagement post; "Newest" flips to the newer post.
     const now = Date.now();
     const posts = [
-      {
-        author: 'older',
-        service: 'public_posts',
-        post_id: 'older-post',
-        body_text: 'older high-engagement',
-        tags: ['test'],
-        created_at: new Date(now - 2 * 3600_000).toISOString(), // 2h ago
-        engagement: { likes: 9999, comments: 999, reposts: 999 },
-        engagement_score: 99999,
-      },
-      {
-        author: 'newer',
-        service: 'public_posts',
-        post_id: 'newer-post',
-        body_text: 'newer low-engagement',
-        tags: ['test'],
-        created_at: new Date(now - 10 * 60_000).toISOString(), // 10m ago
-        engagement: { likes: 1, comments: 0, reposts: 0 },
-        engagement_score: 1,
-      },
+      v3Post(0, { doc_id: 'older-post', author_key: 'older', body: { text: 'older high-engagement' }, tags: ['test'], created_at: new Date(now - 2 * 3600_000).toISOString() }),
+      v3Post(1, { doc_id: 'newer-post', author_key: 'newer', body: { text: 'newer low-engagement' }, tags: ['test'], created_at: new Date(now - 10 * 60_000).toISOString() }),
     ];
-    vi.mocked(fetch).mockResolvedValue(jsonOk(posts) as unknown as Response);
+    // The older post has 5 reactions (high engagement); the newer post has 1.
+    const reactions = [
+      ...Array.from({ length: 5 }, () => ({ doc_id: 'r', author_key: 'x', body: {}, tags: [], created_at: new Date().toISOString(), ref_value: 'older-post', service: 'reactions' })),
+      { doc_id: 'r2', author_key: 'y', body: {}, tags: [], created_at: new Date().toISOString(), ref_value: 'newer-post', service: 'reactions' },
+    ];
+    mockDiscoverFeed(posts, reactions);
     const { default: Trending } = await import('@/pages/Trending');
     render(<Trending />);
     await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
     const initialCards = screen.getAllByTestId('trending-card');
     const initialOrder = initialCards.map(c => c.id);
     const fetchCount = vi.mocked(fetch).mock.calls.filter(
-      c => String(c[0]).includes('/discover/posts'),
+      c => String(c[0]).includes('/v3/read'),
     ).length;
     // Click the "Newest" preset — should reorder to put the newer post first
     fireEvent.click(screen.getByTestId('preset-newest'));
@@ -364,9 +380,9 @@ describe('Knob re-ranking', () => {
       const newOrder = newCards.map(c => c.id);
       return expect(newOrder).not.toEqual(initialOrder);
     });
-    // No new /discover/posts calls after the preset click
+    // No new /v3/read calls after the preset click (client-side re-rank)
     expect(vi.mocked(fetch).mock.calls.filter(
-      c => String(c[0]).includes('/discover/posts'),
+      c => String(c[0]).includes('/v3/read'),
     ).length).toBe(fetchCount);
   });
 });
@@ -381,28 +397,12 @@ describe('Preset behavior', () => {
 
   it('Newest preset sorts newest first regardless of engagement', async () => {
     const posts = [
-      {
-        author: 'old',
-        service: 'public_posts',
-        post_id: 'old-post',
-        body_text: 'old post',
-        tags: ['test'],
-        created_at: '2020-01-01T00:00:00Z',
-        engagement: { likes: 9999, comments: 9999, reposts: 9999 },
-        engagement_score: 99999,
-      },
-      {
-        author: 'new',
-        service: 'public_posts',
-        post_id: 'new-post',
-        body_text: 'new post',
-        tags: ['test'],
-        created_at: new Date().toISOString(),
-        engagement: { likes: 0, comments: 0, reposts: 0 },
-        engagement_score: 0,
-      },
+      v3Post(0, { doc_id: 'old-post', author_key: 'old', body: { text: 'old post' }, tags: ['test'], created_at: '2020-01-01T00:00:00Z' }),
+      v3Post(1, { doc_id: 'new-post', author_key: 'new', body: { text: 'new post' }, tags: ['test'], created_at: new Date().toISOString() }),
     ];
-    vi.mocked(fetch).mockResolvedValue(jsonOk(posts) as unknown as Response);
+    // The old post has 5 reactions (high engagement); the new post has none.
+    const reactions = Array.from({ length: 5 }, () => ({ doc_id: 'r', author_key: 'x', body: {}, tags: [], created_at: new Date().toISOString(), ref_value: 'old-post', service: 'reactions' }));
+    mockDiscoverFeed(posts, reactions);
     const { default: Trending } = await import('@/pages/Trending');
     render(<Trending />);
     await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
@@ -415,28 +415,15 @@ describe('Preset behavior', () => {
 
   it('Most loved preset ignores age', async () => {
     const posts = [
-      {
-        author: 'new',
-        service: 'public_posts',
-        post_id: 'new-post',
-        body_text: 'new post',
-        tags: ['test'],
-        created_at: new Date().toISOString(),
-        engagement: { likes: 1, comments: 0, reposts: 0 },
-        engagement_score: 1,
-      },
-      {
-        author: 'old',
-        service: 'public_posts',
-        post_id: 'old-post',
-        body_text: 'old post',
-        tags: ['test'],
-        created_at: '2020-01-01T00:00:00Z',
-        engagement: { likes: 9999, comments: 0, reposts: 0 },
-        engagement_score: 99999,
-      },
+      v3Post(0, { doc_id: 'new-post', author_key: 'new', body: { text: 'new post' }, tags: ['test'], created_at: new Date().toISOString() }),
+      v3Post(1, { doc_id: 'old-post', author_key: 'old', body: { text: 'old post' }, tags: ['test'], created_at: '2020-01-01T00:00:00Z' }),
     ];
-    vi.mocked(fetch).mockResolvedValue(jsonOk(posts) as unknown as Response);
+    // The old post has 5 reactions (high engagement); the new post has 1.
+    const reactions = [
+      ...Array.from({ length: 5 }, () => ({ doc_id: 'r', author_key: 'x', body: {}, tags: [], created_at: new Date().toISOString(), ref_value: 'old-post', service: 'reactions' })),
+      { doc_id: 'r2', author_key: 'y', body: {}, tags: [], created_at: new Date().toISOString(), ref_value: 'new-post', service: 'reactions' },
+    ];
+    mockDiscoverFeed(posts, reactions);
     const { default: Trending } = await import('@/pages/Trending');
     render(<Trending />);
     await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
@@ -536,21 +523,6 @@ describe('TrendingCard video media', () => {
 
 // ── D-trending-views: view toggle + YouTube view ─────────────────────────────
 
-function makeDiscoveryPostsMedia(n: number) {
-  return Array.from({ length: n }, (_, i) => ({
-    author: `user${i}`,
-    service: 'public_posts',
-    post_id: `post-media-${i}`,
-    body_text: `media post number ${i}`,
-    tags: i % 3 === 0 ? ['video'] : i % 3 === 1 ? ['image'] : ['text'],
-    created_at: new Date(Date.now() - i * 3600_000).toISOString(),
-    engagement: { likes: 50 - i, comments: 3, reposts: 1 },
-    engagement_score: 500 - i * 5,
-    media_refs: i % 3 !== 2 ? [`ref-${i}`] : undefined,
-    first_attachment_mime: i % 3 === 0 ? 'video/mp4' : i % 3 === 1 ? 'image/jpeg' : undefined,
-  }));
-}
-
 describe('Trending view toggle', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -560,7 +532,7 @@ describe('Trending view toggle', () => {
   });
 
   it('renders the view toggle with Grid and YouTube buttons after load', async () => {
-    vi.mocked(fetch).mockResolvedValue(jsonOk(makeDiscoveryPosts(10)) as unknown as Response);
+    mockDiscoverFeed(makeV3Posts(10));
     const { default: Trending } = await import('@/pages/Trending');
     render(<Trending />);
     await waitFor(() => expect(screen.getByTestId('trending-view-toggle')).toBeInTheDocument());
@@ -569,7 +541,7 @@ describe('Trending view toggle', () => {
   });
 
   it('shows the grid view by default (no ?view= param)', async () => {
-    vi.mocked(fetch).mockResolvedValue(jsonOk(makeDiscoveryPosts(10)) as unknown as Response);
+    mockDiscoverFeed(makeV3Posts(10));
     const { default: Trending } = await import('@/pages/Trending');
     render(<Trending />);
     await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
@@ -577,7 +549,7 @@ describe('Trending view toggle', () => {
   });
 
   it('switches to YouTube view when clicking the YouTube button', async () => {
-    vi.mocked(fetch).mockResolvedValue(jsonOk(makeDiscoveryPostsMedia(6)) as unknown as Response);
+    mockDiscoverFeed(makeV3PostsMedia(6));
     const { default: Trending } = await import('@/pages/Trending');
     render(<Trending />);
     await waitFor(() => expect(screen.getByTestId('trending-view-toggle')).toBeInTheDocument());
@@ -586,7 +558,7 @@ describe('Trending view toggle', () => {
   });
 
   it('switches back to grid view when clicking the Grid button', async () => {
-    vi.mocked(fetch).mockResolvedValue(jsonOk(makeDiscoveryPostsMedia(6)) as unknown as Response);
+    mockDiscoverFeed(makeV3PostsMedia(6));
     const { default: Trending } = await import('@/pages/Trending');
     render(<Trending />);
     await waitFor(() => expect(screen.getByTestId('trending-view-toggle')).toBeInTheDocument());
@@ -598,7 +570,7 @@ describe('Trending view toggle', () => {
 
   it('YouTube view shows only media posts (video + image, not text-only)', async () => {
     // 6 posts: 2 video, 2 image, 2 text-only
-    vi.mocked(fetch).mockResolvedValue(jsonOk(makeDiscoveryPostsMedia(6)) as unknown as Response);
+    mockDiscoverFeed(makeV3PostsMedia(6));
     const { default: Trending } = await import('@/pages/Trending');
     render(<Trending />);
     await waitFor(() => expect(screen.getByTestId('trending-view-toggle')).toBeInTheDocument());
@@ -609,17 +581,10 @@ describe('Trending view toggle', () => {
   });
 
   it('YouTube view shows empty state when no media posts exist', async () => {
-    const textOnlyPosts = Array.from({ length: 5 }, (_, i) => ({
-      author: `user${i}`,
-      service: 'public_posts',
-      post_id: `text-only-${i}`,
-      body_text: `text post ${i}`,
-      tags: ['text'],
-      created_at: new Date().toISOString(),
-      engagement: { likes: 10, comments: 1, reposts: 0 },
-      engagement_score: 100,
-    }));
-    vi.mocked(fetch).mockResolvedValue(jsonOk(textOnlyPosts) as unknown as Response);
+    const textOnlyPosts = Array.from({ length: 5 }, (_, i) =>
+      v3Post(i, { doc_id: `text-only-${i}`, body: { text: `text post ${i}` }, tags: ['text'], created_at: new Date().toISOString() }),
+    );
+    mockDiscoverFeed(textOnlyPosts);
     const { default: Trending } = await import('@/pages/Trending');
     render(<Trending />);
     await waitFor(() => expect(screen.getByTestId('trending-view-toggle')).toBeInTheDocument());

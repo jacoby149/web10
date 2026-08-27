@@ -115,6 +115,7 @@ def read_documents(request: Request, data: ReadDocuments):
         service=data.service,
         limit=data.limit,
         offset=data.offset,
+        sort=data.sort.model_dump() if data.sort else None,
     )
     return _mint_hls_manifest_urls(ch.resolve_media_urls_in_docs(docs), reader)
 
