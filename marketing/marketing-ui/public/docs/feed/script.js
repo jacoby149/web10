@@ -1,4 +1,4 @@
-/* script.js — feed demo (v3, D42 lazy discover group) */
+/* script.js — feed demo (v3, node-default discover group) */
 
 const LOG = (...args) => console.log('[feed-demo]', ...args)
 const LOG_ERR = (...args) => console.error('[feed-demo]', ...args)
@@ -10,7 +10,10 @@ const isLocal = host === 'localhost' || host === '127.0.0.1' || host.endsWith('.
 const portSuffix = window.location.port ? `:${window.location.port}` : ''
 const AUTH_ORIGIN = isLocal ? `http://auth.localhost${portSuffix}` : isDev ? 'https://auth.dev.web10.app' : 'https://auth.web10.app'
 const API_ORIGIN = isLocal ? `http://api.localhost${portSuffix}` : isDev ? 'https://api.dev.web10.app' : 'https://api.web10.app'
-const SERVICE = 'web10-docs-feed-demo'
+// The demo posts to the node-default discover group (the universal public
+// board) under the `posts` service — the same service + group the social app
+// and the marketing site read, so a demo post lands on the real board.
+const SERVICE = 'posts'
 
 LOG('init — host:', host, 'isLocal:', isLocal, 'isDev:', isDev)
 LOG('AUTH_ORIGIN:', AUTH_ORIGIN, 'API_ORIGIN:', API_ORIGIN, 'SERVICE:', SERVICE)
@@ -19,7 +22,6 @@ const w = window.web10.createV3Client({ apiOrigin: API_ORIGIN })
 
 // DOM refs (explicit ids — a bare `body`/`message` would resolve to globals).
 const authButton = document.getElementById('authButton')
-const setupDiscoverBtn = document.getElementById('setupDiscoverBtn')
 const fixAccessBtn = document.getElementById('fixAccessBtn')
 const message = document.getElementById('message')
 const editor = document.getElementById('editor')
@@ -32,13 +34,13 @@ const creatorUsername = document.getElementById('creatorUsername')
 const followBtn = document.getElementById('followBtn')
 
 let ME = null // { username, provider } — set in initApp
-let DISCOVER_GROUP = null // {provider}/groups/users/{me}/discover — set in ensureDiscoverGroup
 
-// The discover group is the public board. Its id is derived by the API from the
-// creator's token + the deterministic name "discover", so it is stable per user.
-function discoverGroupId() {
-  return `${ME.provider}/groups/users/${ME.username}/discover`
-}
+// The discover group is a NODE DEFAULT (KB: social-contracts.md §1): a
+// well-known constant, created at boot, with every user (and anon) auto-
+// joined. There is no per-user discover group and no setup step — the board
+// just exists, and you're already a member. A post is public when its author
+// attaches it here.
+const DISCOVER_GROUP_ID = 'web10.app/groups/web10/discover'
 
 // A creator's followers group — "following" is just joining this open group.
 function followersGroupId(creator) {
@@ -100,65 +102,7 @@ async function initApp() {
   message.innerHTML = `Signed in as <strong>${ME.provider}/${ME.username}</strong>`
   editor.style.display = 'block'
   feed.style.display = 'block'
-  await ensureDiscoverGroup()
   loadFeed()
-}
-
-// ---------------------------------------------------------------------------
-// Discover group — the public board. D42 lazy: set up through the real consent
-// popup only when it's missing (first login). Idempotent on return runs.
-// ---------------------------------------------------------------------------
-
-async function ensureDiscoverGroup() {
-  LOG('ensureDiscoverGroup — checking for an existing discover group')
-  try {
-    const myGroups = await w.getMyGroups()
-    LOG('ensureDiscoverGroup — my groups:', JSON.stringify(myGroups.map((g) => g.group_id)))
-    const existing = myGroups.find((g) => g.group_id === discoverGroupId())
-    if (existing) {
-      DISCOVER_GROUP = existing.group_id
-      LOG('ensureDiscoverGroup — reusing existing discover group:', DISCOVER_GROUP)
-    } else {
-      DISCOVER_GROUP = null
-      LOG('ensureDiscoverGroup — no discover group yet, showing setup button')
-      setupDiscoverBtn.style.display = 'inline-block'
-    }
-  } catch (e) {
-    LOG_ERR('ensureDiscoverGroup — getMyGroups FAILED:', e.name, e.message, 'status:', e.status, 'details:', e.details)
-    if (isAppContractError(e)) showFixAccess('Access denied — your app contract may have been revoked.')
-  }
-}
-
-setupDiscoverBtn.onclick = () => {
-  LOG('setupDiscoverBtn clicked — opening auth portal to create the discover group')
-  setupDiscoverBtn.style.display = 'none'
-  window.web10.openAuthPortal(AUTH_ORIGIN, { handoff: 'none' })
-  const contract = [{
-    kind: 'group',
-    app_origin: window.location.origin,
-    action: 'create_group',
-    name: 'discover',
-    join_policy: 'open',
-    roles: [
-      { name: 'member', services: [SERVICE], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
-    ],
-    members: [{ member_key: ME.username, role: 'member' }],
-  }]
-  LOG('setupDiscover — sending group contract:', JSON.stringify(contract, null, 2))
-  w.contractRequest(contract, AUTH_ORIGIN, (resp) => {
-    LOG('setupDiscover — contractRequest callback, status:', resp.status)
-    if (resp.errors) LOG('setupDiscover — errors:', JSON.stringify(resp.errors))
-    if (resp.status === 'approved') {
-      DISCOVER_GROUP = discoverGroupId()
-      LOG('setupDiscover — discover group created:', DISCOVER_GROUP)
-      message.innerHTML = `<span style="color:var(--ok);">Discover group ready.</span>`
-      loadFeed()
-    } else {
-      LOG_ERR('setupDiscover — contract request failed:', resp.status, resp.errors)
-      setupDiscoverBtn.style.display = 'inline-block'
-      message.innerHTML = `Failed to set up your discover group: ${resp.errors?.[0] || resp.status}`
-    }
-  })
 }
 
 // ---------------------------------------------------------------------------
@@ -203,15 +147,10 @@ async function postToDiscover() {
     LOG('postToDiscover — empty text, aborting')
     return
   }
-  if (!DISCOVER_GROUP) {
-    LOG_ERR('postToDiscover — DISCOVER_GROUP is null, set it up first')
-    message.innerHTML = 'Set up your discover group first.'
-    return
-  }
   const body = { text, date: new Date().toISOString() }
-  LOG('postToDiscover — body:', JSON.stringify(body), 'group:', DISCOVER_GROUP)
+  LOG('postToDiscover — body:', JSON.stringify(body), 'group:', DISCOVER_GROUP_ID)
   try {
-    const result = await w.create(SERVICE, body, { groups: [DISCOVER_GROUP] })
+    const result = await w.create(SERVICE, body, { groups: [DISCOVER_GROUP_ID] })
     LOG('postToDiscover — success, doc_id:', result.doc_id)
     postText.value = ''
     loadFeed()
@@ -244,17 +183,10 @@ async function loadFeed() {
     LOG_ERR('loadFeed — getMyGroups FAILED:', e.name, e.message, 'status:', e.status, 'details:', e.details)
   }
 
-  const groups = []
-  if (DISCOVER_GROUP) groups.push(DISCOVER_GROUP)
-  groups.push(...followersGroups)
+  // The discover group is always present (node default) — the feed is at least
+  // the public board, plus every followed followers group.
+  const groups = [DISCOVER_GROUP_ID, ...followersGroups]
   LOG('loadFeed — reading groups:', JSON.stringify(groups))
-
-  if (!groups.length) {
-    LOG('loadFeed — no groups to read yet')
-    feedMeta.textContent = 'No groups yet.'
-    feedList.innerHTML = '<p class="empty">No feed yet — set up your discover group above.</p>'
-    return
-  }
 
   try {
     const docs = await w.read(SERVICE, { groups })
