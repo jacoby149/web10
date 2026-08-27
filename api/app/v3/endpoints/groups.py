@@ -78,7 +78,7 @@ def create_group(data: CreateGroup):
     group_id = f"{decoded.provider}/groups/users/{creator}/{group_id}"
 
     if not ch.get_group(group_id):
-        ch.create_group(group_id, data.roles, data.join_policy)
+        ch.create_group(group_id, data.roles, data.join_policy, data.discoverable)
 
     for m in data.members:
         if not ch.get_group_member(group_id, m["member_key"]):
@@ -125,10 +125,14 @@ def update_group(data: UpdateGroup):
     if not existing:
         raise exceptions.ENTRY_NOT_FOUND
 
+    # discoverable follows the same gate as the rest of the update (a member);
+    # None leaves it unchanged.
+    discoverable = data.discoverable if data.discoverable is not None else existing["discoverable"]
     result = ch.update_group(
         data.group_id,
         roles=data.roles or existing["roles"],
         join_policy=data.join_policy or existing["join_policy"],
+        discoverable=discoverable,
     )
     return result
 

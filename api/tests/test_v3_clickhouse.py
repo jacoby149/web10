@@ -230,18 +230,48 @@ class TestCreateGroup:
             assert result["join_policy"] == "open"
             mock_client.insert.assert_called_once()
 
+    # D53: discoverable by default, except invite_only (inherently private).
+    def test_default_discoverable_open(self):
+        with _patch_client():
+            assert ch.create_group("g", [{"name": "member"}], "open")["discoverable"] is True
+
+    def test_default_discoverable_request(self):
+        with _patch_client():
+            assert ch.create_group("g", [{"name": "member"}], "request")["discoverable"] is True
+
+    def test_default_not_discoverable_invite_only(self):
+        with _patch_client():
+            assert ch.create_group("g", [{"name": "member"}], "invite_only")["discoverable"] is False
+
+    def test_explicit_override(self):
+        # invite_only can be forced discoverable; open can be forced private.
+        with _patch_client():
+            assert ch.create_group("g", [{"name": "member"}], "invite_only", discoverable=True)["discoverable"] is True
+        with _patch_client():
+            assert ch.create_group("g", [{"name": "member"}], "open", discoverable=False)["discoverable"] is False
+
+    def test_insert_uses_named_columns(self):
+        # The discoverable column appends at the end on pre-existing volumes
+        # (boot ALTER), so the insert must name its columns (3.13.2 pattern).
+        with _patch_client() as mock_client:
+            ch.create_group("g", [{"name": "member"}], "open")
+            args, kwargs = mock_client.insert.call_args
+            assert "column_names" in kwargs
+            assert "discoverable" in kwargs["column_names"]
+
 
 class TestGetGroup:
     def test_found(self):
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
                 [
-                    ("g1", '{"roles":[]}', "open", datetime(2026, 1, 1), datetime(2026, 1, 1)),
+                    ("g1", '{"roles":[]}', "open", 1, datetime(2026, 1, 1), datetime(2026, 1, 1)),
                 ]
             )
             result = ch.get_group("g1")
             assert result["group_id"] == "g1"
             assert result["join_policy"] == "open"
+            assert result["discoverable"] is True
 
     def test_not_found(self):
         with _patch_client() as mock_client:
@@ -936,6 +966,7 @@ class TestCreateUser:
                 ch.DISCOVER_GROUP_ID,
                 "[]",
                 "open",
+                0,
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
@@ -996,6 +1027,10 @@ class TestEnsureDiscoverGroup:
             insert_tables = [c[0][0] for c in mock_client.insert.call_args_list]
             # group contract created once
             assert insert_tables.count("group_contracts") == 1
+            # the discover group is NOT discoverable (a board, not a directory
+            # entry) — discoverable is the 4th value in the named insert.
+            contract_insert = next(c for c in mock_client.insert.call_args_list if c[0][0] == "group_contracts")
+            assert contract_insert[0][1][0][3] == 0
             # anon + both users enrolled
             member_rows = [c[0][1][0] for c in mock_client.insert.call_args_list if c[0][0] == "group_members"]
             enrolled = {r[1] for r in member_rows}
@@ -1007,6 +1042,7 @@ class TestEnsureDiscoverGroup:
                 ch.DISCOVER_GROUP_ID,
                 "[]",
                 "open",
+                0,
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )
@@ -1027,6 +1063,7 @@ class TestEnsureDiscoverGroup:
                 ch.DISCOVER_GROUP_ID,
                 "[]",
                 "open",
+                0,
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 1),
             )

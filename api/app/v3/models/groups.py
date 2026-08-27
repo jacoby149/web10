@@ -7,6 +7,10 @@ class CreateGroup(BaseModel):
     join_policy: str = "open"
     roles: list[dict]
     members: list[dict]
+    # D53: list the group in the public directory. Defaults to True (discoverable
+    # by default) except invite_only groups, which default to False. None = use
+    # the default.
+    discoverable: bool | None = None
 
 
 class GetGroup(BaseModel):
@@ -19,6 +23,8 @@ class UpdateGroup(BaseModel):
     group_id: str
     roles: list[dict] | None = None
     join_policy: str | None = None
+    # D53: None = leave unchanged; True/False = set.
+    discoverable: bool | None = None
 
 
 class ListGroupMembers(BaseModel):
