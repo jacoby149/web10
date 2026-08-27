@@ -66,8 +66,13 @@ sequenceDiagram
   + config (ClickHouse) and creates the admin as a **ClickHouse user** —
   the only store `/v3/login` reads, so the wizard's admin can actually
   log in.
-- **`POST /config`** / **`POST /config/update`** — admin-gated read
-  (secrets stripped) / partial update.
+- **`POST /config`** / **`POST /config/update`** — admin-gated read /
+  partial update. The read returns the **effective config**: `settings.py`
+  (env-overridden — what the node actually runs) overlaid with the saved
+  `node_config`, so a fresh node's admin panel shows its live values
+  (provider, ClickHouse URL, MinIO) instead of blanks. Only
+  `private_key` is stripped — the panel is the operator's own surface, and
+  its job is to show what the node runs.
 
 ## The admin panel gate
 

@@ -20,6 +20,82 @@ def get_config() -> dict:
     return ch.get_node_config()
 
 
+def _as_bool(value) -> bool:
+    """Env overrides arrive as raw strings (settings.py's override loop)."""
+    return str(value).strip().lower() == "true"
+
+
+def _as_int(value) -> int:
+    return int(float(str(value)))
+
+
+def _as_float(value) -> float:
+    return float(str(value))
+
+
+def clickhouse_url() -> str:
+    """The effective ClickHouse connection string, composed from the
+    CLICKHOUSE_* settings. The node connects with those parts (host/port/
+    user/password/database — see v3/services/clickhouse.py), not a URL; this
+    is the human-readable form the Node Config UI shows and persists for
+    reference."""
+    s = settings
+    scheme = "clickhouse+https" if _as_bool(s.CLICKHOUSE_SECURE) else "clickhouse"
+    return (
+        f"{scheme}://{s.CLICKHOUSE_USER}:{s.CLICKHOUSE_PASSWORD}"
+        f"@{s.CLICKHOUSE_HOST}:{s.CLICKHOUSE_PORT}/{s.CLICKHOUSE_DATABASE}"
+    )
+
+
+def effective_config() -> dict:
+    """The config the node is actually running.
+
+    settings.py (env-overridden) is the base — what the node connects with
+    and enforces at boot; the saved node_config overlays it field by field.
+    The Node Config UI reads this, so a fresh node (no saved config yet)
+    shows its live values — provider domain, ClickHouse URL, MinIO — instead
+    of a blank form.
+    """
+    s = settings
+    defaults = {
+        "provider": s.PROVIDER,
+        "db_url": clickhouse_url(),
+        "db_name": s.CLICKHOUSE_DATABASE,
+        "algorithm": s.ALGORITHM,
+        "token_expire_minutes": _as_int(s.TOKEN_EXPIRE_MINUTES),
+        "beta_required": _as_bool(s.BETA_REQUIRED),
+        "verify_required": _as_bool(s.VERIFY_REQUIRED),
+        "pay_required": False,
+        "beta_code": s.BETA_CODE,
+        "free_credits": _as_float(s.FREE_CREDITS),
+        "free_space": _as_int(s.FREE_SPACE),
+        "cors_service_managers": ", ".join(s.CORS_SERVICE_MANAGERS),
+        "s3_endpoint": s.S3_ENDPOINT,
+        "s3_bucket": s.S3_BUCKET,
+        "s3_access_key": s.S3_ACCESS_KEY,
+        "s3_secret_key": s.S3_SECRET_KEY,
+        "s3_region": s.S3_REGION,
+        "s3_use_ssl": _as_bool(s.S3_USE_SSL),
+        "max_upload_size": _as_int(s.MAX_UPLOAD_SIZE),
+        "twilio_service": s.TWILIO_SERVICE,
+        "twilio_account_sid": s.TWILIO_ACCOUNT_SID,
+        "twilio_auth_token": s.TWILIO_AUTH_TOKEN,
+        "twilio_number": s.TWILIO_NUMBER,
+        "stripe_status": s.STRIPE_STATUS,
+        "stripe_test_key": s.STRIPE_TEST_KEY,
+        "stripe_live_key": s.STRIPE_LIVE_KEY,
+        "dev_pay_pct": _as_int(s.DEV_PAY_PCT),
+        "brand_text": "web10",
+        "logo_dark": "",
+        "logo_light": "",
+    }
+    saved = get_config()
+    for key, value in saved.items():
+        if value is not None:
+            defaults[key] = value
+    return defaults
+
+
 def save_config(body: dict) -> dict:
     """Appends a new version of the node config (latest row wins on read)."""
     from app.v3.services import clickhouse as ch
