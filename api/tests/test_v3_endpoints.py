@@ -1064,6 +1064,22 @@ class TestPwaListing:
             resp = client.get("/pwa_listing", params={"url": "https://host/docs/notes/"})
         assert resp.status_code == 401  # NO_PWA — the store falls back to the registered name
 
+    def test_non_json_200_body_returns_no_pwa(self, client):
+        """A 200 with a non-JSON body (SPA fallback HTML) is NO_PWA, not a 500.
+
+        Regression: a registered file URL (.../index.html) makes the manifest
+        lookup hit <file>/manifest.json, which the static server's SPA
+        fallback answers with HTML + 200 — json.loads used to 500 on it.
+        """
+        fake = MagicMock()
+        fake.__enter__ = MagicMock(return_value=fake)
+        fake.__exit__ = MagicMock(return_value=False)
+        fake.raise_for_status = MagicMock()
+        fake.iter_content = MagicMock(return_value=iter([b"<!DOCTYPE html><html></html>"]))
+        with patch("app.endpoints.system.requests.get", return_value=fake):
+            resp = client.get("/pwa_listing", params={"url": "https://host/docs/media/index.html"})
+        assert resp.status_code == 401  # NO_PWA — never a 500
+
 
 class TestAppsRegister:
     def test_register_normalizes_url(self, client, token):
