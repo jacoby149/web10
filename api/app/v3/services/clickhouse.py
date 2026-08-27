@@ -1,9 +1,10 @@
 import json
 import logging
+import math
 import threading
 import time
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 
 import clickhouse_connect
 from uuid6 import uuid7
@@ -1180,41 +1181,101 @@ def is_sharing_enabled(user_key: str, group_id: str) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def read_documents_in_groups(
+def _parse_created_ms(created_at: str) -> float:
+    """Parse a created_at timestamp (ISO or epoch) to epoch milliseconds."""
+    s = str(created_at).strip()
+    if s.isdigit():
+        n = int(s)
+        # Heuristic: 13+ digits is already ms, 10 digits is seconds.
+        return float(n) if n > 10_000_000_000 else float(n) * 1000.0
+    try:
+        from datetime import datetime
+
+        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=UTC)
+        return dt.timestamp() * 1000.0
+    except ValueError:
+        return 0.0
+
+
+def _power_mean_score(age_ms: float, likes: int, comments: int, sort: dict) -> float:
+    """Compute the power-mean score for one post (the feed knobs, server-side).
+
+    Mirrors marketing-ui/src/lib/powerMean.ts exactly so client and server
+    score identically: the normalizers are set-independent saturating curves
+    (recency = exp decay, likes/comments = log1p then saturate), signals are
+    floored to epsilon so p <= 0 never nukes a post for one dead signal, and
+    the weighted power mean is (Σ wᵢ·xᵢ^p / Σ wᵢ)^(1/p) with p = 0 the
+    weighted geometric mean. Recency-only (the "Newest" preset) short-circuits
+    to pure reverse-chron.
+    """
+    wr = float(sort.get("recency", 0.0))
+    wl = float(sort.get("likes", 0.0))
+    wc = float(sort.get("comments", 0.0))
+    half_life = float(sort.get("half_life_ms", 0.0))
+    p = float(sort.get("character", -1.0))
+
+    # Recency-only shortcut: the "Newest" preset guarantees this regardless of
+    # engagement — return negative age so newer posts score higher.
+    if wr > 0 and wl <= 0 and wc <= 0:
+        return -age_ms
+
+    # Normalizers (set-independent, saturating).
+    r = 1.0 if half_life <= 0 else math.exp(-age_ms / half_life)
+    likes_n = math.log1p(likes) / (1 + math.log1p(likes))
+    c = (0.5 * math.log1p(comments)) / (1 + 0.5 * math.log1p(comments))
+
+    # Floor to epsilon so p <= 0 never nukes a post for one dead signal.
+    EPSILON = 1e-12
+    r = max(EPSILON, min(1.0, r))
+    likes_n = max(EPSILON, min(1.0, likes_n))
+    c = max(EPSILON, min(1.0, c))
+
+    # Weighted power mean. Zero-weighted signals are excluded from both the
+    # numerator and the denominator.
+    signals = (r, likes_n, c)
+    weights = (wr, wl, wc)
+    total_weight = 0.0
+    total = 0.0
+    for i in range(3):
+        if weights[i] <= 0:
+            continue
+        total_weight += weights[i]
+        if abs(p) < 1e-9:
+            total += weights[i] * math.log(signals[i])
+        else:
+            total += weights[i] * (signals[i] ** p)
+
+    if total_weight <= 0:
+        return 0.0
+    if abs(p) < 1e-9:
+        return math.exp(total / total_weight)
+    return (total / total_weight) ** (1.0 / p)
+
+
+def _group_docs_query(
     group_ids: list[str],
     member_key: str,
     service: str,
-    limit: int = 50,
-    offset: int = 0,
+    limit: int | None,
+    offset: int,
 ) -> list[dict]:
-    """Read documents attached to groups where the user is a member.
+    """The core v3 discover query (no ranking).
 
-    This is the core v3 discover query: documents JOIN doc_groups JOIN group_members,
-    filtered by membership, tombstones, blacklists, and hidden docs.
-
-    Blocking/sharing enforcement (KB: security/overview.md "Blocking and
-    Sharing", social/cross-app-sharing.md):
-    - user_blacklist — the author blocked the reader: the author's content
-      is hidden from the reader, everywhere.
-    - group_blacklist — the author blocked the reader in THIS group: the
-      author's content in this group is hidden from the reader; the reader
-      still sees everyone else's content, and the author still sees the
-      reader's content (the block is one-directional).
-    - user_group_sharing — the author paused sharing in THIS group: same
-      shape as a per-group block, but the author's own reads are exempt
-      (the author keeps seeing their own posts — "pause sharing without
-      leaving").
-
-    All three tables are ReplacingMergeTree: block/unblock/toggle append a
-    new version and the old row survives until a background merge. The
-    anti-joins therefore dedup first (latest row per key, tombstones
-    included) and then filter deleted = 0 — a raw `deleted = 0` join would
-    keep matching the stale pre-unblock row and the unblock would not take
-    effect until a merge happened (nondeterministic).
+    documents JOIN doc_groups JOIN group_members, filtered by membership,
+    tombstones, blacklists, and hidden docs. `limit=None` fetches the full
+    membership (used by the power-mean ranking, which pages in Python).
     """
-    if not group_ids:
-        return []
-
+    limit_clause = "LIMIT %(limit)s OFFSET %(offset)s" if limit is not None else ""
+    params: dict = {
+        "member_key": member_key,
+        "coll": service,
+        "offset": offset,
+        **{f"g{i}": gid for i, gid in enumerate(group_ids)},
+    }
+    if limit is not None:
+        params["limit"] = limit
     result = client.query(
         "SELECT p.doc_id, p.author_key, p.body, p.tags, p.created_at, p.ref_value "
         "FROM (SELECT doc_id, author_key, body, tags, created_at, ref_value, deleted "
@@ -1246,17 +1307,9 @@ def read_documents_in_groups(
         "ON hd.doc_id = p.doc_id AND hd.group_id = pg.group_id "
         "WHERE gm.member_key = %(member_key)s "
         "AND pg.group_id IN (%(g0)s" + "".join(f", %(g{i})s" for i in range(1, len(group_ids))) + ") "
-        "ORDER BY p.created_at DESC "
-        "LIMIT %(limit)s OFFSET %(offset)s",
-        {
-            "member_key": member_key,
-            "coll": service,
-            "limit": limit,
-            "offset": offset,
-            **{f"g{i}": gid for i, gid in enumerate(group_ids)},
-        },
+        "ORDER BY p.created_at DESC " + limit_clause,
+        params,
     )
-
     return [
         {
             "doc_id": row[0],
@@ -1269,6 +1322,71 @@ def read_documents_in_groups(
         }
         for row in result.result_rows
     ]
+
+
+def read_documents_in_groups(
+    group_ids: list[str],
+    member_key: str,
+    service: str,
+    limit: int = 50,
+    offset: int = 0,
+    sort: dict | None = None,
+) -> list[dict]:
+    """Read documents attached to groups where the user is a member.
+
+    This is the core v3 discover query: documents JOIN doc_groups JOIN group_members,
+    filtered by membership, tombstones, blacklists, and hidden docs.
+
+    Blocking/sharing enforcement (KB: security/overview.md "Blocking and
+    Sharing", social/cross-app-sharing.md):
+    - user_blacklist — the author blocked the reader: the author's content
+      is hidden from the reader, everywhere.
+    - group_blacklist — the author blocked the reader in THIS group: the
+      author's content in this group is hidden from the reader; the reader
+      still sees everyone else's content, and the author still sees the
+      reader's content (the block is one-directional).
+    - user_group_sharing — the author paused sharing in THIS group: same
+      shape as a per-group block, but the author's own reads are exempt
+      (the author keeps seeing their own posts — "pause sharing without
+      leaving").
+
+    All three tables are ReplacingMergeTree: block/unblock/toggle append a
+    new version and the old row survives until a background merge. The
+    anti-joins therefore dedup first (latest row per key, tombstones
+    included) and then filter deleted = 0 — a raw `deleted = 0` join would
+    keep matching the stale pre-unblock row and the unblock would not take
+    effect until a merge happened (nondeterministic).
+    """
+    if not group_ids:
+        return []
+
+    # Power-mean ranking (the feed knobs, server-side): fetch the FULL group
+    # membership, rank in Python (reusing the client-side normalizers so
+    # client and server score identically), then page. The discover board is
+    # small (v0), so fetching the full set is fine; a counter table + SQL-side
+    # score is the v1 scale-up (feed-lens-integration.md).
+    docs = _group_docs_query(group_ids, member_key, service, None if sort else limit, offset)
+
+    if sort:
+        if docs:
+            doc_ids = [d["doc_id"] for d in docs]
+            reaction_counts = get_ref_counts(doc_ids, "reactions")
+            comment_counts = get_ref_counts(doc_ids, "comments")
+            now_ms = time.time() * 1000.0
+            for d in docs:
+                age_ms = max(0.0, now_ms - _parse_created_ms(d["created_at"]))
+                d["_score"] = _power_mean_score(
+                    age_ms,
+                    reaction_counts.get(d["doc_id"], 0),
+                    comment_counts.get(d["doc_id"], 0),
+                    sort,
+                )
+            docs.sort(key=lambda d: d["_score"], reverse=True)
+        docs = docs[offset : offset + limit]
+        for d in docs:
+            d.pop("_score", None)
+
+    return docs
 
 
 # ---------------------------------------------------------------------------

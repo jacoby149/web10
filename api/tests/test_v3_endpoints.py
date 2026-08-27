@@ -1,6 +1,7 @@
 """Tests for v3 endpoints — all POST, action in URL."""
 
 from datetime import datetime
+from functools import partial
 from unittest.mock import MagicMock, patch
 
 import jwt
@@ -9,6 +10,7 @@ from fastapi.testclient import TestClient
 
 import app.settings as settings
 from app.main import app as fastapi_app
+from app.v3.services.clickhouse import _power_mean_score, read_documents_in_groups
 
 
 def _make_token(username="testuser", **extra):
@@ -1736,6 +1738,162 @@ class TestDiscoverBoardAnonRead:
             )
         assert resp.status_code == 200
         assert mock_read.call_args[1]["member_key"] == "testuser"
+
+
+# ---------------------------------------------------------------------------
+# Power-mean ranking — the feed knobs, server-side (D36, feed-lens-integration)
+# ---------------------------------------------------------------------------
+
+
+class TestPowerMeanScore:
+    """The scoring math mirrors marketing-ui/src/lib/powerMean.ts so client
+    and server rank identically. Pure function — no I/O, no mocks."""
+
+    def test_recency_only_shortcut_is_reverse_chron(self):
+        # "Newest" preset: recency weight only → pure reverse-chron, so a newer
+        # post wins regardless of engagement.
+        sort = {"recency": 1.0, "likes": 0.0, "comments": 0.0, "half_life_ms": 0, "character": 0.0}
+        newer = _power_mean_score(1_000, 9999, 9999, sort)  # 1s old, huge engagement
+        older = _power_mean_score(100_000, 0, 0, sort)  # 100s old, no engagement
+        assert newer > older
+
+    def test_most_loved_ignores_age(self):
+        # "Most loved · all time": likes weight only, half_life 0 (no decay) →
+        # an ancient post with huge likes beats a new post with one like.
+        sort = {"recency": 0.0, "likes": 1.0, "comments": 0.0, "half_life_ms": 0, "character": 0.0}
+        loved_old = _power_mean_score(10**12, 9999, 0, sort)
+        unloved_new = _power_mean_score(1_000, 1, 0, sort)
+        assert loved_old > unloved_new
+
+    def test_geometric_mean_at_p_zero(self):
+        # p = 0 → weighted geometric mean: a post with a dead signal scores
+        # lower than one where every weighted signal is high.
+        sort = {"recency": 1.0, "likes": 1.0, "comments": 0.0, "half_life_ms": 10**9, "character": 0.0}
+        balanced = _power_mean_score(0, 9999, 9999, sort)
+        one_dead = _power_mean_score(0, 9999, 0, sort)  # comments dead (but weight 0)
+        # recency=1 for both (age 0); likes high for both; the dead comment is
+        # weight-0 so it's excluded — scores are equal.
+        assert balanced == one_dead
+
+    def test_strict_p_penalizes_dead_weighted_signal(self):
+        # p = -5 (strict): a post with a dead WEIGHTED signal scores lower than
+        # one where every weighted signal is high.
+        sort = {"recency": 1.0, "likes": 1.0, "comments": 1.0, "half_life_ms": 10**9, "character": -5.0}
+        all_high = _power_mean_score(0, 9999, 9999, sort)
+        dead_comments = _power_mean_score(0, 9999, 0, sort)
+        assert all_high > dead_comments
+
+    def test_zero_weight_signal_excluded(self):
+        # A zero-weighted signal is excluded from both numerator and
+        # denominator — it can't drag the score down even at strict p.
+        sort = {"recency": 0.0, "likes": 1.0, "comments": 0.0, "half_life_ms": 0, "character": -5.0}
+        with_dead_comments = _power_mean_score(0, 9999, 0, sort)
+        with_comments = _power_mean_score(0, 9999, 9999, sort)
+        assert with_dead_comments == with_comments
+
+
+class TestPowerMeanRead:
+    """read_documents_in_groups with a `sort` config ranks the full group
+    membership by the feed knobs, then pages (the discover board's
+    "your algorithm" — D36)."""
+
+    def _fake_query(self, sql, params=None, posts=None, reactions=None, comments=None):
+        coll = params.get("coll") if params else None
+        if coll == "posts":
+            return MagicMock(result_rows=posts or [])
+        if coll == "reactions":
+            return MagicMock(result_rows=reactions or [])
+        if coll == "comments":
+            return MagicMock(result_rows=comments or [])
+        return MagicMock(result_rows=[])
+
+    def test_most_loved_ranks_by_engagement_not_age(self):
+        # doc-old is ancient but has 9999 reactions; doc-new is fresh with none.
+        # A "most loved" sort (likes only, no decay) puts doc-old first.
+        posts = [
+            ("doc-new", "bob", '{"text":"new"}', [], datetime(2026, 1, 1), ""),
+            ("doc-old", "alice", '{"text":"old"}', [], datetime(2025, 1, 1), ""),
+        ]
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.side_effect = partial(
+                self._fake_query,
+                posts=posts,
+                reactions=[("doc-old", 9999)],
+                comments=[],
+            )
+            docs = read_documents_in_groups(
+                group_ids=["web10.app/groups/web10/discover"],
+                member_key="anon",
+                service="posts",
+                limit=10,
+                sort={"recency": 0.0, "likes": 1.0, "comments": 0.0, "half_life_ms": 0, "character": 0.0},
+            )
+        assert [d["doc_id"] for d in docs] == ["doc-old", "doc-new"]
+
+    def test_newest_ranks_by_recency_not_engagement(self):
+        # A "newest" sort (recency only) puts the fresh post first regardless
+        # of the older post's huge engagement.
+        posts = [
+            ("doc-new", "bob", '{"text":"new"}', [], datetime(2026, 1, 1), ""),
+            ("doc-old", "alice", '{"text":"old"}', [], datetime(2025, 1, 1), ""),
+        ]
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.side_effect = partial(
+                self._fake_query,
+                posts=posts,
+                reactions=[("doc-old", 9999)],
+                comments=[],
+            )
+            docs = read_documents_in_groups(
+                group_ids=["web10.app/groups/web10/discover"],
+                member_key="anon",
+                service="posts",
+                limit=10,
+                sort={"recency": 1.0, "likes": 0.0, "comments": 0.0, "half_life_ms": 0, "character": 0.0},
+            )
+        assert [d["doc_id"] for d in docs] == ["doc-new", "doc-old"]
+
+    def test_no_sort_is_chronological(self):
+        # Without a sort config, the read is chronological (newest first) —
+        # the existing behavior is unchanged.
+        posts = [
+            ("doc-new", "bob", '{"text":"new"}', [], datetime(2026, 1, 1), ""),
+            ("doc-old", "alice", '{"text":"old"}', [], datetime(2025, 1, 1), ""),
+        ]
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.side_effect = partial(self._fake_query, posts=posts)
+            docs = read_documents_in_groups(
+                group_ids=["web10.app/groups/web10/discover"],
+                member_key="anon",
+                service="posts",
+                limit=10,
+            )
+        assert [d["doc_id"] for d in docs] == ["doc-new", "doc-old"]
+
+    def test_endpoint_passes_sort_to_ranking(self, client, token):
+        # The /v3/read endpoint forwards the `sort` config to the ranking.
+        with (
+            patch("app.v3.endpoints.documents._check_app_permission"),
+            patch("app.v3.services.clickhouse.read_documents_in_groups", return_value=[]) as mock_read,
+            patch("app.v3.services.clickhouse.resolve_media_urls_in_docs", return_value=[]),
+        ):
+            resp = client.post(
+                "/v3/read",
+                json={
+                    "token": token,
+                    "service": "posts",
+                    "groups": ["web10.app/groups/web10/discover"],
+                    "sort": {"recency": 1.0, "likes": 1.0, "half_life_ms": 86_400_000, "character": -1.0},
+                },
+            )
+        assert resp.status_code == 200
+        assert mock_read.call_args[1]["sort"] == {
+            "recency": 1.0,
+            "likes": 1.0,
+            "comments": 0.0,
+            "half_life_ms": 86_400_000,
+            "character": -1.0,
+        }
 
 
 class TestGroupModeration:
