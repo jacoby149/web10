@@ -278,28 +278,28 @@ across all apps. The decision bite is done (D49); the build follows.
 **Owns:** `api/app/v3/endpoints/groups.py`, `api/app/v3/services/clickhouse.py`, `clickhouse-init/`, `ui/src/components/` (group management), `marketing/marketing-ui/src/pages/` (or `web10-social/`), `e2e/tests/`
 
 The group store (D53): a public, anon-browsable directory of the groups that
-are listed. Two orthogonal controls: a **`discoverable` boolean** on
-`group_contracts` lists the group + makes its existence public —
-**discoverable by default** (default `true`), except `invite_only` groups
-(default `false`, inherently private) and the discover group (explicit
-`false`, a board not a directory entry); **`anon` membership** controls
-whether its posts are anon-readable. The discover group is the proof they
-come apart (anon-readable board, not a directory entry). The directory is a
-metadata-only read of the `discoverable` groups; the detail page adds posts
-only when `anon` is a member, else "join to view." Display metadata is
-derived from the URL in v0 and read from `group-identity-service` when
-present. Two public endpoints (list + detail), mirroring the app store (D52).
-I3 holds end to end. The KB is the spec:
-`knowledge-base/web10-v3/groups/discoverability.md`.
+are listed, plus a flexible by-ID detail. Two orthogonal controls: a
+**`discoverable` boolean** on `group_contracts` is the *blasting* flag (listed
+or not) — **discoverable by default** (default `true`), except `invite_only`
+groups (default `false`) and the discover group (explicit `false`);
+**membership** controls whether a reader can see the posts (I3). The
+directory is a **minimal, canonical view** (no table) over `group_contracts`
+⋈ `group_members` ⋈ `group-identity-service`; tags + rich display live in
+`group-identity-service`; topic search is a composition. The **detail** is a
+flexible, principal-based read (unlisted-model): any existing group reachable
+by ID, posts gated by the *reader's* membership, only a non-existent group
+404s. I3 holds end to end. The KB is the spec:
+`knowledge-base/web10-v3/groups/discoverability.md` + `detail.md`.
 
-- [✓] Decision: D53 — `discoverable` boolean (listing + existence, **default `true`** / discoverable by default, `invite_only` + discover group `false`) is separate from `anon` membership (readability); directory = metadata-only read of the `discoverable` groups; detail forks on `anon` (posts vs "join to view"); 404 not 403 (`knowledge/strategy/decisions.md`)
-- [✓] KB: `groups/discoverability.md` — the two controls, orthogonality table, the discoverable-by-default rule, directory contents, metadata tiers, endpoint surface + read fork, security invariants, the honest cost, relationship to the discover group
+- [✓] Decision: D53 — `discoverable` boolean (blasting flag, **default `true`**, `invite_only` + discover group `false`) separate from membership (readability); directory = minimal view (no table); detail = flexible principal-based read (unlisted-model, no 404 for non-discoverable); tags in `group-identity-service`; search by composition (`knowledge/strategy/decisions.md`)
+- [✓] KB: `groups/discoverability.md` (two controls, discoverable-by-default, minimal directory view, `group-identity-service` + tags, composition search, invariants) + `groups/detail.md` (unlisted model, listing/reachability/content split, principal-based read, metadata vs posts, why no constrained detail, invariants)
 - [✓] Schema: `discoverable UInt8 DEFAULT 1` on `group_contracts` (DDL template + boot-time `ALTER ... ADD COLUMN IF NOT EXISTS`) + `create_group` default logic (True except `invite_only`→False, named-column insert) + `get_group`/`update_group`/`delete_group` carry it + `CreateGroup`/`UpdateGroup` models + create/update endpoints + discover group created `discoverable=False` + unit tests (default logic, named-column insert, discover-group non-discoverable, endpoint pass-through)
-- [ ] API: `GET /v3/groups/directory` (anon, paginated, sorted by recent activity) — the `discoverable = true` groups + display metadata (metadata only, no posts)
-- [ ] API: `GET /v3/groups/detail?id=` (anon, pure read) — contract + metadata + member count, always; posts only if `anon` is a member (else "join to view"); 404 non-discoverable (no existence leak)
+- [ ] API: `GET /v3/groups/directory` (anon, paginated) — the **minimal** list of `discoverable = true` groups: id, name (identity, else slug), owner, join policy, member count, permission summary. No tags, no posts. View over `group_contracts` ⋈ `group_members` ⋈ `group-identity-service`
+- [ ] `group-identity-service` read path — read a group's identity record (name, description, banner, avatar, website, tags) from the documents collection (append-only, latest wins); source for the directory name + detail display + app enrichment
+- [ ] API: the group detail (by ID) — public, principal-based (token optional, `user_or_anon`): metadata always for an existing group; posts only if the *reader* is a member (else "join to view"); only a non-existent group 404s (unlisted-model)
 - [ ] Opt-in toggle in the authenticator — "List in directory" = set `discoverable` + add/remove `anon` (common case); listed-but-private = boolean without `anon`
-- [ ] UI: the directory screen (grid + deep-linkable detail page, with the "join to view posts" state)
-- [ ] Tests: unit (directory = the `discoverable` groups, metadata only; I3 anti-test: non-discoverable absent + 404; discoverable-without-`anon` returns no posts; discover group anon-readable but NOT listed) + e2e (list → detail → anon reads on a public group; "join to view" on a listed-but-private group)
+- [ ] UI: the directory screen (minimal grid, apps enrich + deep-linkable detail with "join to view"; topic search by composing the directory with an identity query)
+- [ ] Tests: unit (directory = the `discoverable` groups, minimal fields; non-discoverable absent from list; detail returns a non-discoverable group — no 404; detail posts gated on the *reader's* membership: member sees, non-member "join to view", anon only if `anon` is a member; discover group anon-readable but NOT listed; identity read + slug fallback) + e2e (list → detail → anon reads on a public group; "join to view" on a listed-but-private group; a signed-in member reads a non-discoverable group's detail)
 
 ### Lane: admin-console (Phase 3)
 **Owns:** `ui/src/components/Config/`, `api/app/endpoints/system.py`, `api/app/services/config.py`
