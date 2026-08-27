@@ -40,13 +40,14 @@ The directory is a **canonical, minimal list** — the smallest thing that lets 
 | Field | Source |
 |---|---|
 | `group_id` | `group_contracts` |
-| name | `group-identity-service` record, else derived from the slug |
+| name | `group_identity` record, else derived from the slug |
 | owner | the username in the group_id |
 | join policy | `group_contracts.join_policy` |
 | member count | `count(group_members)` |
+| tags | `group_identity.tags` (topic — for client-side filtering) |
 | permission summary | `group_contracts.roles` (a short digest) |
 
-That's it. **No tags, no banner, no description in the minimal list.** Those live in `group-identity-service` (below), and apps pull them in as they want.
+That's it. **No banner, no description, no posts in the minimal list.** Those live in `group_identity` (below) and the detail, and apps pull them in as they want. Tags *are* included so an app can filter the list by topic client-side (the zero-extra-call search path).
 
 **Why minimal:** the node provides the canonical list; apps are stateless frontends that compose the API. A rich, node-baked directory would freeze the card shape and duplicate the identity data. Minimal keeps the node dumb and lets "apps go crazy enriching the minimal thing."
 
@@ -57,14 +58,14 @@ The directory is a **view** over data that already exists — no dedicated `grou
 ```
 directory  =  group_contracts (WHERE discoverable = 1)
            ⋈  group_members  (member count)
-           ⋈  group-identity-service  (name, when present — else slug)
+           ⋈  group_identity  (name + tags, when present — else slug)
 ```
 
-The apps-store precedent (a dedicated `apps` table) does **not** transfer: apps are *external* entities with a node-side lifecycle (register, approve, visit-count), so the node keeps a store record of things it doesn't own. Groups are *core internal* entities that already have their structures (`group_contracts`, `group_members`). A `group_directory` table would duplicate the name/banner that belongs in `group-identity-service` — two sources of truth, guaranteed drift.
+The apps-store precedent (a dedicated `apps` table) does **not** transfer: apps are *external* entities with a node-side lifecycle (register, approve, visit-count), so the node keeps a store record of things it doesn't own. Groups are *core internal* entities that already have their structures (`group_contracts`, `group_members`, `group_identity`). A `group_directory` table would duplicate the name/banner that belongs in `group_identity` — two sources of truth, guaranteed drift.
 
-## Group Identity: `group-identity-service`
+## Group Identity: the `group_identity` table
 
-The rich display metadata for a group — name, description, banner, avatar, website, **tags** — lives in `group-identity-service`, a documents collection (one record per group). It is the **single home** for group display metadata: the directory, the group detail, and every app read it from here.
+The rich display metadata for a group — name, description, banner, avatar, website, **tags** — lives in the **`group_identity` table** (one row per group, append-only, latest wins). It is the **single home** for group display metadata: the directory, the group detail, and every app read it from here.
 
 ```json
 {
@@ -75,31 +76,21 @@ The rich display metadata for a group — name, description, banner, avatar, web
 }
 ```
 
-- **Append-only** (per `identity.md`): curators add records, they don't overwrite; readers see the most recent.
-- **Managed by the `page-curator` role** (or the owner) — the role that exists for exactly this.
-- **Queryable**: it's a normal documents collection, so the SDK's `.query` / `$match` / `$sort` work on it.
+- **A table, not a documents collection.** The identity is *public* display metadata (the directory shows the name to anon), so it must be readable by any principal — including anon. The `documents` table is I3-gated (a read returns docs only for an `author_key` the reader owns or a group they're in), which would block anon from reading a group's name. A dedicated public table sidesteps that: it's group-keyed metadata, not user content. This is the same reason the `apps` table exists (public store records, not I3-gated docs).
+- **Append-only**: an update is a new row, latest wins (the house dedup-then-filter pattern).
+- **Managed by the owner / `page-curator` role** — the role that exists for exactly this. The write path is a normal owner action (a fast-follow; this bite builds the read path).
 
-`tags` is how a group's **topic** is expressed. Tags are deliberately *not* in the minimal directory — they're in the identity record, and topic search happens by querying it (below).
+`tags` is how a group's **topic** is expressed.
 
-## Topic Search: Composition, Not a Baked Filter
+## Topic Search
 
-The node does **not** bake search into the directory. It provides two canonical things — the minimal directory (the list) and the queryable identity docs — and **apps compose them** to search.
-
-An app that wants "jazz groups":
-
-1. `GET /v3/groups/directory` → the minimal list of discoverable groups.
-2. `w.query('group-identity-service', { $match: { tags: 'jazz' } })` → the identity records tagged jazz.
-3. Join on `group_id` → the jazz groups.
-
-Different apps can search by tag, by description substring, by whatever — the node stays minimal, the search is as flexible as the app wants. Baking a `?tag=` filter into the directory would freeze the search shape into the node; keeping it in the composition keeps it open.
-
-If the directory ever grows large enough that client-side joining is costly, the node can add an *optional* server-side `?tag=` filter as a pure optimization — it shortcuts the composition without replacing it, so nothing is painted into a corner.
+`tags` live in `group_identity`. For topic search, the directory response **includes each group's tags**, so an app can filter the list client-side (the minimal, zero-extra-call path). A server-side `?tag=` filter on the directory is a possible fast-follow that shortcuts the client-side filter — it does not change the model. (The earlier "apps `.query` the identity collection" framing assumed a documents collection; because the identity is a public table, the practical search path is the directory's tags.)
 
 ## The Endpoint Surface
 
 | Endpoint | Auth | Returns |
 |---|---|---|
-| `GET /v3/groups/directory` | none (anon) | the minimal list of `discoverable = true` groups (fields above). Paginated. **Metadata only, no posts, no tags.** |
+| `GET /v3/groups/directory` | none (anon) | the minimal list of `discoverable = true` groups (fields above, incl. tags). Paginated. **Metadata only — no posts.** |
 | group detail (by ID) | token optional | the flexible, principal-based read — see `detail.md`. Unlisted-model: reachable for any existing group; posts gated by the reader's membership. |
 
 Both are **pure reads** — a directory view writes nothing.
@@ -116,6 +107,6 @@ The discover group (`web10.app/groups/web10/discover`) is anon-readable but **no
 
 ## Summary
 
-A group is listed in the directory when `discoverable = true` — the default for `open`/`request` groups, `false` by default for `invite_only` groups and the discover group. The directory is a **minimal, canonical view** over `group_contracts` + `group_members` + `group-identity-service` (no dedicated table). Rich display metadata — including **tags** for topic — lives in `group-identity-service`, and topic search is a **composition** (the app joins the directory with an identity query), not a node-baked filter. The **detail** is a separate, flexible, principal-based read (unlisted-model) — see `detail.md`. `discoverable` is a blasting flag; membership is the read switch; the two are orthogonal.
+A group is listed in the directory when `discoverable = true` — the default for `open`/`request` groups, `false` by default for `invite_only` groups and the discover group. The directory is a **minimal, canonical view** over `group_contracts` + `group_members` + `group_identity` (no dedicated directory table). Rich display metadata — including **tags** for topic — lives in the public `group_identity` table; the directory includes each group's tags so apps can filter by topic client-side (a server-side `?tag=` filter is a possible fast-follow). The **detail** is a separate, flexible, principal-based read (unlisted-model) — see `detail.md`. `discoverable` is a blasting flag; membership is the read switch; the two are orthogonal.
 
-For the detail (the by-ID read), see `detail.md`. For the generic group model, see `overview.md`. For the discover group contract, see `social-contracts.md` §1. For the identity record, see `identity.md`.
+For the detail (the by-ID read), see `detail.md`. For the generic group model, see `overview.md`. For the discover group contract, see `social-contracts.md` §1. For the group-identity role, see `identity.md`.

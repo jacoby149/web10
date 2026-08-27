@@ -109,8 +109,19 @@ def ensure_apps_schema():
         # (D53). Pre-existing volumes predate the column; ADD COLUMN appends
         # it at the end, which is why group inserts name their columns.
         client.command("ALTER TABLE group_contracts ADD COLUMN IF NOT EXISTS discoverable UInt8 DEFAULT 1")
+        # group_identity — public display metadata for a group (D53). The
+        # single home for how a group presents itself in the directory and its
+        # detail (name, description, banner, avatar, website, tags). Pre-existing
+        # volumes predate the table.
+        client.command(
+            "CREATE TABLE IF NOT EXISTS group_identity ("
+            "group_id String, name String DEFAULT '', description String DEFAULT '', "
+            "banner_ref String DEFAULT '', avatar_ref String DEFAULT '', website String DEFAULT '', "
+            "tags Array(String), created_at DateTime64(3), updated_at DateTime64(3), deleted UInt8 DEFAULT 0"
+            ") ENGINE = ReplacingMergeTree(updated_at) ORDER BY group_id"
+        )
         log.info(
-            "[v3] schema ensured (apps.visits + app_ratings.comment + node_config + app_visits + group_contracts.discoverable present)"
+            "[v3] schema ensured (apps.visits + app_ratings.comment + node_config + app_visits + group_contracts.discoverable + group_identity present)"
         )
         # Data migration (idempotent): re-home demo apps registered under
         # their directory-index file URLs onto their directory URLs.
@@ -705,6 +716,85 @@ def _get_group_member_counts(group_ids: list[str]) -> dict[str, int]:
         {"group_ids": group_ids},
     )
     return {row[0]: row[1] for row in result.result_rows}
+
+
+# ---------------------------------------------------------------------------
+# Group identity — public display metadata (D53)
+# ---------------------------------------------------------------------------
+# The single home for how a group presents itself in the directory and its
+# detail: name, description, banner, avatar, website, tags. Public by design
+# (readable by any principal, including anon — the group's "unlisted video"
+# page), so it is a table, not an I3-gated documents collection. Append-only:
+# an update is a new row, latest wins (the house dedup-then-filter pattern).
+
+
+def get_group_identity(group_id: str) -> dict | None:
+    """Get a group's identity record (latest version). Public display metadata."""
+    result = client.query(
+        "SELECT name, description, banner_ref, avatar_ref, website, tags "
+        "FROM (SELECT name, description, banner_ref, avatar_ref, website, tags, deleted, "
+        "row_number() OVER (PARTITION BY group_id ORDER BY updated_at DESC, deleted DESC) as rn "
+        "FROM group_identity WHERE group_id = %(group_id)s) "
+        "WHERE rn = 1 AND deleted = 0",
+        {"group_id": group_id},
+    )
+    if not result.result_rows:
+        return None
+    row = result.result_rows[0]
+    return {
+        "name": row[0],
+        "description": row[1],
+        "banner_ref": row[2],
+        "avatar_ref": row[3],
+        "website": row[4],
+        "tags": list(row[5]),
+    }
+
+
+def get_group_identities(group_ids: list[str]) -> dict[str, dict]:
+    """Get identity records for a batch of groups. Returns {group_id: identity}.
+
+    One query so the directory can name its cards without an N+1. Groups with
+    no identity record are simply absent from the result (the caller falls
+    back to the slug).
+    """
+    if not group_ids:
+        return {}
+    result = client.query(
+        "SELECT group_id, name, description, banner_ref, avatar_ref, website, tags "
+        "FROM (SELECT group_id, name, description, banner_ref, avatar_ref, website, tags, deleted, "
+        "row_number() OVER (PARTITION BY group_id ORDER BY updated_at DESC, deleted DESC) as rn "
+        "FROM group_identity WHERE group_id IN %(group_ids)s) "
+        "WHERE rn = 1 AND deleted = 0",
+        {"group_ids": group_ids},
+    )
+    out: dict[str, dict] = {}
+    for row in result.result_rows:
+        out[row[0]] = {
+            "name": row[1],
+            "description": row[2],
+            "banner_ref": row[3],
+            "avatar_ref": row[4],
+            "website": row[5],
+            "tags": list(row[6]),
+        }
+    return out
+
+
+def list_discoverable_groups(limit: int = 50, offset: int = 0) -> list[dict]:
+    """List the discoverable groups (the directory). Minimal: id, join_policy,
+    roles. The endpoint layers on member count + identity (name, tags)."""
+    result = client.query(
+        "SELECT group_id, join_policy, roles "
+        "FROM (SELECT group_id, join_policy, roles, discoverable, deleted, "
+        "row_number() OVER (PARTITION BY group_id ORDER BY updated_at DESC, deleted DESC) as rn "
+        "FROM group_contracts) "
+        "WHERE rn = 1 AND deleted = 0 AND discoverable = 1 "
+        "ORDER BY group_id "
+        "LIMIT %(limit)s OFFSET %(offset)s",
+        {"limit": limit, "offset": offset},
+    )
+    return [{"group_id": row[0], "join_policy": row[1], "roles": _parse_json(row[2])} for row in result.result_rows]
 
 
 def get_user_groups(member_key: str) -> list[dict]:

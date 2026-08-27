@@ -46,7 +46,7 @@ Two layers, with different gates:
 - `group_id`, owner (the username in the ID), `join_policy`
 - a roles / permission summary (from `group_contracts.roles`)
 - member count (`count(group_members)`)
-- display metadata from `group-identity-service` when present (name, description, banner, avatar, website, tags) — else derived from the slug
+- display metadata from the `group_identity` table when present (name, description, banner, avatar, website, tags) — else derived from the slug
 
 **Posts — gated by the reader's membership (I3):**
 - The reader is a **member** with `readAll` on the service → recent posts are returned (the same group read the Discover screen and marketing trending use, scoped to one group).

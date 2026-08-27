@@ -353,6 +353,169 @@ class TestListGroups:
         assert len(resp.json()) == 1
 
 
+class TestGroupDirectory:
+    """The public, minimal directory of discoverable groups (D53)."""
+
+    def test_lists_discoverable_groups(self, client):
+        with (
+            patch(
+                "app.v3.services.clickhouse.list_discoverable_groups",
+                return_value=[
+                    {
+                        "group_id": "web10.app/groups/alice/jazz",
+                        "join_policy": "open",
+                        "roles": [{"name": "member", "permissions": ["readAll", "create"]}],
+                    },
+                ],
+            ),
+            patch(
+                "app.v3.services.clickhouse._get_group_member_counts", return_value={"web10.app/groups/alice/jazz": 42}
+            ),
+            patch(
+                "app.v3.services.clickhouse.get_group_identities",
+                return_value={
+                    "web10.app/groups/alice/jazz": {
+                        "name": "Jazz Collectors",
+                        "tags": ["jazz", "vinyl"],
+                        "description": "",
+                        "banner_ref": "",
+                        "avatar_ref": "",
+                        "website": "",
+                    }
+                },
+            ),
+        ):
+            resp = client.get("/v3/groups/directory")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data["groups"]) == 1
+        g = data["groups"][0]
+        assert g["group_id"] == "web10.app/groups/alice/jazz"
+        assert g["name"] == "Jazz Collectors"  # from identity
+        assert g["owner"] == "alice"
+        assert g["slug"] == "jazz"
+        assert g["join_policy"] == "open"
+        assert g["member_count"] == 42
+        assert g["tags"] == ["jazz", "vinyl"]
+        assert "readAll" in g["permission_summary"]
+
+    def test_name_falls_back_to_slug(self, client):
+        with (
+            patch(
+                "app.v3.services.clickhouse.list_discoverable_groups",
+                return_value=[{"group_id": "web10.app/groups/bob/chess", "join_policy": "request", "roles": []}],
+            ),
+            patch("app.v3.services.clickhouse._get_group_member_counts", return_value={}),
+            patch("app.v3.services.clickhouse.get_group_identities", return_value={}),  # no identity record
+        ):
+            resp = client.get("/v3/groups/directory")
+        assert resp.status_code == 200
+        g = resp.json()["groups"][0]
+        assert g["name"] == "chess"  # slug fallback
+        assert g["owner"] == "bob"
+        assert g["tags"] == []
+
+    def test_created_group_shape_parses_owner_and_slug(self, client):
+        """Created groups are {provider}/groups/users/{creator}/{slug} — the
+        owner is the creator (after the 'users' segment), not 'users'."""
+        with (
+            patch(
+                "app.v3.services.clickhouse.list_discoverable_groups",
+                return_value=[
+                    {"group_id": "api.localhost/groups/users/alice123/jazz-club", "join_policy": "open", "roles": []}
+                ],
+            ),
+            patch("app.v3.services.clickhouse._get_group_member_counts", return_value={}),
+            patch("app.v3.services.clickhouse.get_group_identities", return_value={}),
+        ):
+            resp = client.get("/v3/groups/directory")
+        assert resp.status_code == 200
+        g = resp.json()["groups"][0]
+        assert g["owner"] == "alice123"
+        assert g["slug"] == "jazz-club"
+        assert g["name"] == "jazz-club"  # slug fallback
+
+    def test_empty(self, client):
+        with (
+            patch("app.v3.services.clickhouse.list_discoverable_groups", return_value=[]),
+            patch("app.v3.services.clickhouse._get_group_member_counts", return_value={}),
+            patch("app.v3.services.clickhouse.get_group_identities", return_value={}),
+        ):
+            resp = client.get("/v3/groups/directory")
+        assert resp.status_code == 200
+        assert resp.json()["groups"] == []
+
+
+class TestGroupDetail:
+    """The flexible, principal-based group detail (D53, unlisted-model)."""
+
+    _GROUP = {
+        "group_id": "web10.app/groups/alice/jazz",
+        "roles": [{"name": "member", "permissions": ["readAll"]}],
+        "join_policy": "open",
+        "discoverable": False,  # non-discoverable on purpose — the unlisted case
+        "created_at": "2026-01-01",
+        "updated_at": "2026-01-01",
+    }
+    _ID = "web10.app/groups/alice/jazz"
+
+    def _apply(self, is_member, posts=None):
+        return (
+            patch("app.v3.services.clickhouse.get_group", return_value=self._GROUP),
+            patch(
+                "app.v3.services.clickhouse.get_group_identity",
+                return_value={
+                    "name": "Jazz Collectors",
+                    "tags": ["jazz"],
+                    "description": "d",
+                    "banner_ref": "b",
+                    "avatar_ref": "a",
+                    "website": "w",
+                },
+            ),
+            patch("app.v3.services.clickhouse._get_group_member_counts", return_value={self._ID: 7}),
+            patch("app.v3.services.clickhouse.is_group_member", return_value=is_member),
+            patch("app.v3.services.clickhouse.read_documents_in_groups", return_value=posts or []),
+        )
+
+    def test_nonexistent_group_404s(self, client):
+        with patch("app.v3.services.clickhouse.get_group", return_value=None):
+            resp = client.get("/v3/groups/detail", params={"group_id": "web10.app/groups/nobody/nope"})
+        assert resp.status_code == 404
+
+    def test_non_discoverable_group_is_reachable(self, client):
+        """Unlisted-model: a discoverable=False group does NOT 404."""
+        p1, p2, p3, p4, p5 = self._apply(is_member=False)
+        with p1, p2, p3, p4, p5:
+            resp = client.get("/v3/groups/detail", params={"group_id": self._ID})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["discoverable"] is False
+        assert data["name"] == "Jazz Collectors"
+        assert data["member_count"] == 7
+        assert data["posts_state"] == "join_to_view"
+        assert data["posts"] == []
+
+    def test_member_sees_posts(self, client, token):
+        posts = [{"doc_id": "p1", "author_key": "web10.app/users/alice", "body": {"text": "hi"}}]
+        p1, p2, p3, p4, p5 = self._apply(is_member=True, posts=posts)
+        with p1, p2, p3, p4, p5:
+            resp = client.get("/v3/groups/detail", params={"group_id": self._ID, "token": token})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["is_member"] is True
+        assert data["posts_state"] == "ok"
+        assert data["posts"] == posts
+
+    def test_anon_reads_as_anon(self, client):
+        """No token → principal is anon; a non-member anon gets "join to view"."""
+        p1, p2, p3, p4, p5 = self._apply(is_member=False)
+        with p1, p2, p3, p4, p5:
+            resp = client.get("/v3/groups/detail", params={"group_id": self._ID})
+        assert resp.status_code == 200
+        assert resp.json()["posts_state"] == "join_to_view"
+
+
 class TestJoinGroup:
     def test_open_join(self, client, token):
         mock_rows = [("g1", '{"roles":[]}', "open", 1, datetime(2026, 1, 1), datetime(2026, 1, 1))]
