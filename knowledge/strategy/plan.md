@@ -137,6 +137,23 @@ across all apps. Decision done (D49); lane is `app-store-metrics` in
 - [✓ 3.15.0] **Tests** — unit (gated ingest, anon-drop, forged-token I2 anti-test, metrics, pagination) + e2e (real signed-in user → active count; pagination boundary).
 - [✓ 3.15.0] **KB** — `app-store/overview.md` metrics section + `db/clickhouse.md` `app_visits` table.
 
+## App Store: Product Page (D50) — Platform
+
+The store's product page is real (D50): tap a tile → a shareable page with
+the full manifest description, the complete metric breakdown, and reviews
+(rating + comment). The URL is the key — `web10apps_post_id` is retired.
+Spec'd in `knowledge-base/web10-v3/app-store/endpoints.md` (D50, PR #682);
+lane is `app-store-metrics` in `parallel-execution.md`.
+
+- [✓ 3.16.1] **Decision: D50** (`knowledge/strategy/decisions.md`) — page not modal (deep-link rule), `GET /v3/apps/detail?url=` (public, pure read, no visit bump), URL is the key, reviews = rating + optional comment, D49's metric set + node macro.
+- [✓ 3.16.1] **KB** — `app-store/endpoints.md`: the full endpoint surface, auth split, detail response shape, product-page flow, logistics table.
+- [✓ 3.17.0] **`GET /v3/apps/detail`** (`api/app/v3/endpoints/appstore.py`, `services/clickhouse.py`) — app + `get_app_metrics` breakdown + rating aggregate + rating list + `/v3/stats` node macro; 404 for unknown AND unapproved apps; pure read (no `app_visits` row).
+- [✓ 3.17.0] **`app_ratings.comment`** (`clickhouse-init/`, `services/clickhouse.py`, `endpoints/appstore.py`) — DDL template + boot-time ALTER (named-column insert); `POST /v3/apps/rating` accepts an optional comment (1000-char cap); rating list + detail return it; ratings key on the canonical url (hardening #4).
+- [✓ 3.17.0] **Dedup fix** (`services/clickhouse.py`) — re-rate appends; a plain `deleted = 0` read sees both rows until a background merge. Dedup-then-filter (`row_number() OVER (PARTITION BY target_app_id, author ORDER BY updated_at DESC, deleted DESC)`) in `get_app_ratings` + the admin aggregate (same latent bug).
+- [✓ 3.17.0] **`list_store_apps`** — stops blanking `web10apps_post_id` (field dropped from the response).
+- [✓ 3.17.0] **UI** (`marketing/marketing-ui/src/`) — card links to `/app-store/app/{urlencoded-canonical-url}` (preserving `?api=`); `AppDetail` rewritten: detail endpoint, manifest-preferred identity, five metric blocks, reviews (aggregate + list + comments + empty state), rate form (token-cookie session: signed in → star picker + comment + submit; signed out → SDK auth popup), node context footer.
+- [✓ 3.17.0] **Tests** — 12 API unit tests (detail composition / 404s / pure-read / normalization; comment round-trip / cap; dedup read) + 3 stale `get_app` mocks re-aligned; AppDetail.test.tsx rewritten (17 tests) + AppCard route tests; 4 e2e tests (detail payload + pure-read, 404s, rating round-trip with re-rate dedup + cap, card → page browser seam).
+
 ## Phase 4 — Production Cutover: v2 → v3, then merge to main
 
 **Where:** `knowledge/knowledge-base/web10-v3/` (migration model), `api/` (migration tooling), `ubuntu-deployment/` (prod deploy)

@@ -157,6 +157,7 @@ CREATE TABLE IF NOT EXISTS app_ratings (
     author String,
     target_app_id String,
     rating UInt8,
+    comment String DEFAULT '',
     provider String,
     created_at DateTime64(3),
     updated_at DateTime64(3),

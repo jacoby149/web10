@@ -84,6 +84,10 @@ def ensure_apps_schema():
         # have the apps table without the column; ADD COLUMN appends it at
         # the end, which is why inserts must name their columns.
         client.command("ALTER TABLE apps ADD COLUMN IF NOT EXISTS visits UInt64 DEFAULT 0")
+        # app_ratings.comment — reviews are a rating with words (D50).
+        # Pre-existing volumes predate the column; ADD COLUMN appends it at
+        # the end, which is why inserts must name their columns.
+        client.command("ALTER TABLE app_ratings ADD COLUMN IF NOT EXISTS comment String DEFAULT ''")
         # node_config — node-level config (the v2 Mongo web10.config
         # collection, moved to ClickHouse: v3 stacks run no Mongo).
         client.command(
@@ -100,7 +104,7 @@ def ensure_apps_schema():
             ") ENGINE = MergeTree ORDER BY (app_url, username, seen_at)"
             " TTL toDateTime(seen_at) + INTERVAL 2 YEAR"
         )
-        log.info("[v3] schema ensured (apps.visits + node_config + app_visits present)")
+        log.info("[v3] schema ensured (apps.visits + app_ratings.comment + node_config + app_visits present)")
     except Exception as e:
         # ClickHouse not up yet, or table missing (fresh volume mid-init).
         # The DDL template covers fresh volumes; log and move on.
@@ -1359,7 +1363,7 @@ def list_store_apps(limit: int = 20, offset: int = 0) -> dict:
     enriched = []
     for a in apps:
         m = metrics.get(a["url"], zero)
-        enriched.append({**a, **m, "web10apps_post_id": ""})
+        enriched.append({**a, **m})
     enriched.sort(key=lambda a: (a["users_30d"], a["visits"]), reverse=True)
     total = len(enriched)
     return {"apps": enriched[offset : offset + limit], "total": total}
@@ -1842,10 +1846,14 @@ def list_apps_admin() -> list[dict]:
     apps = []
     for row in result.result_rows:
         url = row[0]
-        # Fetch ratings for this app
+        # Fetch ratings for this app — dedup-then-filter (a re-rate appends;
+        # the latest row per (app, author) wins, not the pre-merge pile).
         ratings_result = client.query(
-            "SELECT rating, count() as cnt FROM app_ratings "
-            "WHERE target_app_id = %(url)s AND deleted = 0 "
+            "SELECT rating, count() as cnt FROM ("
+            "SELECT rating, deleted, "
+            "row_number() OVER (PARTITION BY target_app_id, author ORDER BY updated_at DESC, deleted DESC) AS rn "
+            "FROM app_ratings WHERE target_app_id = %(url)s"
+            ") WHERE rn = 1 AND deleted = 0 "
             "GROUP BY rating WITH ROLLUP ORDER BY rating",
             {"url": url},
         )
@@ -1881,7 +1889,7 @@ def get_app(url: str) -> dict | None:
     canonical form (D49 / hardening #4), so lookups must be too."""
     url = _canonical_app_url(url)
     result = client.query(
-        "SELECT url, name, description, icon_url, screenshots, approved, review_state, metadata_version, visits "
+        "SELECT url, name, description, icon_url, screenshots, approved, review_state, metadata_version, visits, created_at "
         "FROM apps WHERE url = %(url)s AND deleted = 0 "
         "ORDER BY updated_at DESC LIMIT 1",
         {"url": url},
@@ -1899,6 +1907,49 @@ def get_app(url: str) -> dict | None:
         "review_state": row[6],
         "metadata_version": row[7],
         "visits": row[8],
+        "registered_at": str(row[9]),
+    }
+
+
+def get_app_detail(url: str) -> dict | None:
+    """The product page payload (D50): the app record + the full realtime
+    metric breakdown + rating aggregate + rating list + the node macro.
+
+    Pure read — no app_visits row is written (a product-page view is not an
+    app visit; usage rows come only from SDK pings with a verified token).
+    Returns None for unknown urls and for apps that are not approved — the
+    product page is a store surface, and the store lists approved only.
+    """
+    url = _canonical_app_url(url)
+    app = get_app(url)
+    if app is None or not app["approved"]:
+        return None
+
+    metrics = get_app_metrics([url]).get(
+        url,
+        {"visits": 0, "users_1d": 0, "users_30d": 0, "users_90d": 0, "users_1y": 0},
+    )
+    ratings = get_app_ratings(url)
+    rating_count = len(ratings)
+    rating_average = round(sum(r["rating"] for r in ratings) / rating_count, 1) if rating_count else None
+    node = get_node_stats()
+    return {
+        "url": app["url"],
+        "name": app["name"],
+        "description": app["description"],
+        "icon_url": app["icon_url"],
+        "screenshots": app["screenshots"],
+        "review_state": app["review_state"],
+        "registered_at": app["registered_at"],
+        "metrics": metrics,
+        "rating": {"average": rating_average, "count": rating_count},
+        "ratings": ratings,
+        "node": {
+            "users": node["users"],
+            "app_count": node["app_count"],
+            "active_users": node["active_users"],
+            "storage": node["storage"],
+        },
     }
 
 
@@ -1922,21 +1973,44 @@ def approve_app(url: str, approved: bool, review_state: str):
     )
 
 
-def create_app_rating(author: str, target_app_id: str, rating: int, provider: str) -> dict:
-    """Submit a 1-5 star rating for an app."""
+def create_app_rating(author: str, target_app_id: str, rating: int, provider: str, comment: str = "") -> dict:
+    """Submit a 1-5 star rating for an app, with an optional review comment
+    (D50: a review is a rating with words). Named columns — the comment
+    column was appended by ALTER on pre-existing volumes. The target is
+    canonicalized (hardening #4) so a client can't fork an identity by
+    spelling — the detail page queries the canonical url."""
+    target_app_id = _canonical_app_url(target_app_id)
     now = _now()
     client.insert(
         "app_ratings",
-        [[author, target_app_id, rating, provider, now, now, 0]],
+        [[author, target_app_id, rating, comment, provider, now, now, 0]],
+        column_names=[
+            "author",
+            "target_app_id",
+            "rating",
+            "comment",
+            "provider",
+            "created_at",
+            "updated_at",
+            "deleted",
+        ],
     )
-    return {"author": author, "target_app_id": target_app_id, "rating": rating}
+    return {"author": author, "target_app_id": target_app_id, "rating": rating, "comment": comment}
 
 
 def get_app_ratings(target_app_id: str) -> list[dict]:
-    """Get all ratings for an app."""
+    """Get all ratings for an app (newest first), including review comments.
+    The target is canonicalized (hardening #4) — reads and writes key on
+    the same identity. Dedup-then-filter: a re-rate appends a new row, and
+    ReplacingMergeTree collapses it only on a background merge — the
+    window function makes the latest row per (app, author) win on read."""
+    target_app_id = _canonical_app_url(target_app_id)
     result = client.query(
-        "SELECT author, rating, provider, created_at FROM app_ratings "
-        "WHERE target_app_id = %(target_app_id)s AND deleted = 0 "
+        "SELECT author, rating, comment, provider, created_at FROM ("
+        "SELECT author, rating, comment, provider, created_at, deleted, "
+        "row_number() OVER (PARTITION BY target_app_id, author ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM app_ratings WHERE target_app_id = %(target_app_id)s"
+        ") WHERE rn = 1 AND deleted = 0 "
         "ORDER BY created_at DESC",
         {"target_app_id": target_app_id},
     )
@@ -1944,8 +2018,9 @@ def get_app_ratings(target_app_id: str) -> list[dict]:
         {
             "author": row[0],
             "rating": row[1],
-            "provider": row[2],
-            "created_at": str(row[3]),
+            "comment": row[2],
+            "provider": row[3],
+            "created_at": str(row[4]),
         }
         for row in result.result_rows
     ]

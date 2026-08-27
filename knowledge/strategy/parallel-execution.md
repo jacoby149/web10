@@ -230,6 +230,12 @@ across all apps. The decision bite is done (D49); the build follows.
 - [✓ 3.15.0] Hardening (folded in): #4 URL normalization in `register_app` (lowercase host, one trailing slash); #7 manifest byte cap in `/pwa_listing`
 - [✓ 3.15.0] Tests: unit (gated ingest, anon-drop, forged-token I2 anti-test, metrics, pagination) + e2e (real signed-in user → active count; pagination boundary)
 - [✓ 3.15.0] KB: `app-store/overview.md` metrics section + `db/clickhouse.md` `app_visits` table
+- [✓ 3.16.1] D50 (spec, PR #682): decision + `app-store/endpoints.md` — page not modal, `GET /v3/apps/detail?url=` (public, pure read), URL is the key, reviews = rating + comment, D49's metric set + node macro
+- [✓ 3.17.0] D50 (build): `GET /v3/apps/detail` (app + metrics + ratings + node macro; 404 unknown/unapproved; pure read)
+- [✓ 3.17.0] D50 (build): `app_ratings.comment` (DDL + boot ALTER, named-column insert, 1000-char cap, canonical-url keying) + dedup-then-filter read in `get_app_ratings` + admin aggregate
+- [✓ 3.17.0] D50 (build): `list_store_apps` drops the blanked `web10apps_post_id`
+- [✓ 3.17.0] D50 (build): UI — card → `/app-store/app/{urlencoded-url}`, AppDetail rewritten (metrics, reviews, rate form with token-cookie session + SDK auth popup, node context)
+- [✓ 3.17.0] D50 (build): tests — 12 API unit + AppDetail/AppCard unit rewrites + 4 e2e (detail payload, 404s, rating round-trip dedup, card → page seam)
 
 ### Lane: admin-console (Phase 3)
 **Owns:** `ui/src/components/Config/`, `api/app/endpoints/system.py`, `api/app/services/config.py`

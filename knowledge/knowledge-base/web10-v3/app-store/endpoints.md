@@ -253,6 +253,6 @@ the page prefers it for identity and falls back to the stored values.
 | register (stable record + `app_visits` gate) / list (paginated) / rating / ratings / admin / approve | built (D49) |
 | `/pwa_listing` manifest proxy | built |
 | `/v3/stats` (the node macro) | built |
-| `GET /v3/apps/detail` | **missing** — the product page is built against a phantom endpoint and 404s for every app; this doc is the spec. The metric queries it needs already exist (`get_app_metrics`) — the endpoint composes them |
-| `app_ratings.comment` column; comment in rating / ratings / detail | scoped here, not built |
-| UI: card → page wiring (URL-keyed route, drop `web10apps_post_id`) | not built — `list_store_apps` still blanks `web10apps_post_id` to `""`, which is why the card opens the site instead of the page today |
+| `GET /v3/apps/detail` | built — composes `get_app` + `get_app_metrics` + the rating list + the `/v3/stats` macro; 404 for unknown or unapproved apps; pure read (no `app_visits` row) |
+| `app_ratings.comment` column; comment in rating / ratings / detail | built — DDL template + boot-time ALTER (named-column insert), 1000-char cap at the endpoint, the rating list and detail return it. **Dedup note:** a re-rate appends a new row and ReplacingMergeTree collapses it only on a background merge — `get_app_ratings` and the admin aggregate read dedup-then-filter (the house pattern) so the latest row per (app, author) wins on read |
+| UI: card → page wiring (URL-keyed route, drop `web10apps_post_id`) | built — the card links to `/app-store/app/{urlencoded-canonical-url}` (preserving the `?api=` override for isolated stacks); the product page renders the manifest-preferred identity, the full metric breakdown, the reviews (stars + comment), the rate form (token-cookie session; the SDK's auth popup when signed out), and the node context |
