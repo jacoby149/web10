@@ -1,3 +1,5 @@
+import json
+
 import requests
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import RedirectResponse
@@ -74,27 +76,23 @@ def post_setup(req: SetupRequest):
 
 @router.post("/config", tags=["admin"])
 def get_config(token: Token):
-    """Returns the current node config (admin only).
+    """Returns the node's EFFECTIVE config (admin only): the settings.py
+    defaults (env-overridden — what the node actually runs) overlaid with
+    the saved node_config. The Node Config UI reads this, so a fresh node
+    shows its live values (provider, ClickHouse, MinIO) instead of blanks.
 
     POST (not GET) because it carries a token in the body — GET bodies are an
     anti-pattern and get stripped by proxies. Matches the sibling system
     endpoints (/setup, /stats) which are all POST.
+
+    Only ``private_key`` is stripped — it is the node's signing secret and
+    the UI has no field for it. Everything else is shown: this is the node
+    operator's own admin surface (check_admin: node-signed JWT + admin
+    list), and the panel's job is to show what the node runs.
     """
     check_admin(token)
-    cfg = config_svc.get_config()
-    # Strip sensitive fields
-    safe = {
-        k: v
-        for k, v in cfg.items()
-        if k
-        not in (
-            "private_key",
-            "s3_secret_key",
-            "twilio_auth_token",
-            "stripe_test_key",
-            "stripe_live_key",
-        )
-    }
+    cfg = config_svc.effective_config()
+    safe = {k: v for k, v in cfg.items() if k != "private_key"}
     # the effective admin list (saved list, or the bootstrap default)
     safe["admins"] = config_svc.list_admins()
     return safe
@@ -152,12 +150,23 @@ def pwa_listing(url: str):
     resolves the same (a path IS an app, D47).
     """
     manifest_url = url.rstrip("/") + "/manifest.json"
+    # Hard cap on manifest size (hardening #7): a real PWA manifest is a few
+    # KB; an unbounded read is a memory spike the store would absorb on every
+    # render. Over the cap → treat as no manifest.
+    _MANIFEST_MAX_BYTES = 256 * 1024
     try:
-        resp = requests.get(manifest_url, {"Accept": "application/json"}, timeout=1)
-        resp.raise_for_status()
+        with requests.get(manifest_url, {"Accept": "application/json"}, timeout=1, stream=True) as resp:
+            resp.raise_for_status()
+            chunks = []
+            total = 0
+            for chunk in resp.iter_content(chunk_size=8192):
+                total += len(chunk)
+                if total > _MANIFEST_MAX_BYTES:
+                    raise exceptions.NO_PWA
+                chunks.append(chunk)
+            return json.loads(b"".join(chunks))
     except requests.exceptions.RequestException:
         raise exceptions.NO_PWA
-    return resp.json()
 
 
 # --- Issue Tracking (bug reports) ---

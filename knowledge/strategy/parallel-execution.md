@@ -221,10 +221,58 @@ discover endpoint — the v2 `/discover/posts` is not resurrected). Persona
 seeding posts to the group so the marketing trending page + in-app Discover
 look alive.
 
-- [✓ 3.15.0] Node-default discover group: boot-time `ensure_discover_group()` (create + anon + backfill), auto-enroll in `create_user`, idempotent
-- [✓ 3.15.0] Anon-capable `/v3/read`: missing token reads as `anon` (the board), app-contract gate for real users only, I3 holds (anon can't read non-member groups)
-- [✓ 3.15.0] `ref_value` on create (the ref pattern was broken on the write path — reactions/comments couldn't reference their target)
-- [✓ 3.15.0] Board moderation as a group op: `POST /v3/groups/{hide,unhide,hidden}` (gated by `hideAll` OR node admin — the public board has no moderator role), `get_hidden_docs`, anti-join dedup-then-filter
-- [✓ 3.15.0] Persona seeding for v3: `seed_personas.py` rewritten off v2 (terms/schemas/ledger) onto groups — posts + reactions/comments via `ref_value`, idempotent, `--verify`
-- [✓ 3.15.0] Marketing trending + admin board rewired to the normal group read (anon); trending computes engagement client-side from the reactions/comments groups
+- [✓ 3.16.2] Node-default discover group: boot-time `ensure_discover_group()` (create + anon + backfill), auto-enroll in `create_user`, idempotent
+- [✓ 3.16.2] Anon-capable `/v3/read`: missing token reads as `anon` (the board), app-contract gate for real users only, I3 holds (anon can't read non-member groups)
+- [✓ 3.16.2] `ref_value` on create (the ref pattern was broken on the write path — reactions/comments couldn't reference their target)
+- [✓ 3.16.2] Board moderation as a group op: `POST /v3/groups/{hide,unhide,hidden}` (gated by `hideAll` OR node admin — the public board has no moderator role), `get_hidden_docs`, anti-join dedup-then-filter
+- [✓ 3.16.2] Persona seeding for v3: `seed_personas.py` rewritten off v2 (terms/schemas/ledger) onto groups — posts + reactions/comments via `ref_value`, idempotent, `--verify`
+- [✓ 3.16.2] Marketing trending + admin board rewired to the normal group read (anon); trending computes engagement client-side from the reactions/comments groups
 - [ ] E2E: board gauntlet — seed → anon reads the board → a real user's post appears → remove/restore round-trip (gated on the social-e2e stack)
+
+### Lane: ads (monetization)
+**Owns:** `ui/src/components/Studio/`, `api/tests/test_ads.py`, `e2e/tests/ads.spec.ts`
+
+The creator-owned ads layer (D50 + D51): the `ads` default service — content + a
+monetizable link (the offer), owned by the creator, delivered to followers
+by architecture. Any app with `ads: [readAll]` picks up ads per viewer with
+the same multi-group read the feed uses (`w.read('ads', { groups: [...] })`
+— no new endpoint, rides the existing CRUD + read + media machinery). The
+Partner Links card (was "Amazon Associates" + "Direct Deals") is the ingest.
+The KB is the spec — read it first: `knowledge/knowledge-base/web10-v3/social/ads.md`.
+
+- [✓ 3.16.1] KB: the standard ad object + the per-user query + the Dissemination section (per-creator setting + feed+ads join + `curateAds` SDK helper) + the two-layer note (`social/ads.md`) + D50 + D51
+- [ ] Dissemination (SDK): the `curateAds(creatorAds, creatorSetting)` helper — `round_robin` / `greedy` / `pinned` / `frequency_capped`, deterministic + per-creator so every app curates identically; the per-creator setting is a field on the `settings` doc
+- [ ] Partner Links card (UI): collapse "Amazon Associates" (`AmazonTagCard.tsx`) + "Direct Deals" (`DirectDealsCard.tsx`) into one "Partner Links" card in the Studio monetization screen — `offer.kind` = `affiliate` | `direct` | `own_store` + the dissemination picker; update `studio-data.ts` + `studio.test.tsx`
+- [ ] The `ads` service (API conformance): the ad object through the existing CRUD + the multi-group per-user read — no new endpoint; verify + pin with `api/tests/test_ads.py` (I3: a non-follower can't read the ad)
+- [ ] E2E: create ad → attach to followers group → viewer reads per-user → I3 (non-follower can't see) — `e2e/tests/ads.spec.ts`
+
+### Lane: app-store-metrics (D49)
+**Owns:** `api/app/v3/services/clickhouse.py`, `api/app/endpoints/`, `api/app/services/config.py` (n/a — D48), `sdk/src/`, `marketing/marketing-ui/src/pages/`, `clickhouse-init/`, `e2e/tests/`
+
+The store's raw ping-count `visits` is retired as a metric (D49). Replaced
+with real-user activity: one `app_visits` table, gated at ingest (1 row per
+(app, real user) per 3h, anon dropped), metric-as-query (no counters to
+race or pile on). `apps` becomes a stable registration record. Headline +
+sort = `users_30d`. The `/stats` node macro shows the same active-user set
+across all apps. The decision bite is done (D49); the build follows.
+
+- [✓] Decision: D49 — real-user windowed metrics, anon dropped at ingest, `users_30d` headline, pagination, sign-in re-ping required (`knowledge/strategy/decisions.md`)
+- [✓ 3.15.0] Table: `app_visits (app_url, username, seen_at)` + DDL template + boot self-heal
+- [✓ 3.15.0] Ingest: gated append per (app, user) if latest `seen_at` > 3h (or first); anon dropped at ingest — verified token only (I2, no unsigned decode)
+- [✓ 3.15.0] `apps`: stop appending per ping — append on first registration or real metadata change only; retire the `visits` counter column as a store metric
+- [✓ 3.15.0] Metrics: `visits` (count of windowed rows) + `users_1d/30d/90d/1y` (distinct real users, trailing windows) — realtime over `app_visits`
+- [✓ 3.15.0] Store: paginated app list (`limit`/`offset`, sort `users_30d` desc, `visits` tiebreak); grid card shows `users_30d` headline, detail page shows the full set
+- [✓ 3.15.0] `/stats` macro: node-wide `users_1d/30d/90d/1y` (all apps, same query minus `GROUP BY`); homepage leads with `users_30d`
+- [✓ 3.15.0] SDK: token in the register ping + re-fire the ping on the sign-in transition (required — else the metric means "returning users")
+- [✓ 3.15.0] Hardening (folded in): #4 URL normalization in `register_app` (lowercase host, one trailing slash); #7 manifest byte cap in `/pwa_listing`
+- [✓ 3.15.0] Tests: unit (gated ingest, anon-drop, forged-token I2 anti-test, metrics, pagination) + e2e (real signed-in user → active count; pagination boundary)
+- [✓ 3.15.0] KB: `app-store/overview.md` metrics section + `db/clickhouse.md` `app_visits` table
+
+### Lane: admin-console (Phase 3)
+**Owns:** `ui/src/components/Config/`, `api/app/endpoints/system.py`, `api/app/services/config.py`
+
+The node console's operator surfaces (Node Config panel first). The
+panel is the node's control surface — it must show what the node
+actually runs, and every control on it must work.
+
+- [✓ 3.16.0] Node Config: effective config in the form (settings defaults ← saved overlay — no more blanks; ClickHouse URL + MinIO values default to the docker-network settings) + field trimming (Node Identity → provider/CORS/token-expiry; Stripe → mode + keys) + the dead Save button fixed (PATCH /config 405 → POST /config/update)

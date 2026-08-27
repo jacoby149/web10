@@ -798,13 +798,17 @@ class TestBlockInGroup:
 
 class TestNodeStats:
     def test_stats(self, client, token):
+        """D49 shape: user/doc/group counts, storage, app_count, and the
+        node-wide active-user set (the store's metric, macro). No per-app
+        array — that moved to /v3/apps/list (paginated)."""
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.side_effect = [
                 MagicMock(result_rows=[(42,)]),  # users
                 MagicMock(result_rows=[(100,)]),  # documents
                 MagicMock(result_rows=[(5,)]),  # groups
-                MagicMock(result_rows=[]),  # list_apps — empty
+                MagicMock(result_rows=[(3,)]),  # app_count
                 MagicMock(result_rows=[(1024,)]),  # storage
+                MagicMock(result_rows=[(7, 40, 90, 120)]),  # active_users 1d/30d/90d/1y
             ]
             with patch("app.v3.services.clickhouse.total_s3_size", return_value=512):
                 resp = client.post("/v3/stats", json={"token": token})
@@ -813,52 +817,44 @@ class TestNodeStats:
         assert data["users"] == 42
         assert data["documents"] == 100
         assert data["groups"] == 5
-        assert data["apps"] == []
+        assert data["app_count"] == 3
+        assert data["active_users"] == {"users_1d": 7, "users_30d": 40, "users_90d": 90, "users_1y": 120}
         assert data["storage"] == 1536  # 1024 clickhouse + 512 s3
+        assert "apps" not in data  # per-app list moved to /v3/apps/list
 
-    def test_stats_reports_real_visits(self, client, token):
-        """Apps carry their real visit count — the SDK auto-register ping
-        increments it, and the store sorts by it. Hardcoding 0 here is the
-        v3 regression that made the store look dead."""
+    def test_stats_macro_active_users_all_zero_when_no_visits(self, client, token):
+        """No app_visits rows → the macro active-user set is all zeros (not an error)."""
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.side_effect = [
-                MagicMock(result_rows=[(42,)]),  # users
-                MagicMock(result_rows=[(100,)]),  # documents
-                MagicMock(result_rows=[(5,)]),  # groups
-                # list_apps — one approved app with 47 visits
-                MagicMock(
-                    result_rows=[
-                        ("https://myapp.com", "My App", "A web10 app", "", "[]", 47, "approved", 3),
-                    ]
-                ),
-                MagicMock(result_rows=[(1024,)]),  # storage
+                MagicMock(result_rows=[(1,)]),  # users
+                MagicMock(result_rows=[(1,)]),  # documents
+                MagicMock(result_rows=[(1,)]),  # groups
+                MagicMock(result_rows=[(0,)]),  # app_count
+                MagicMock(result_rows=[(0,)]),  # storage
+                MagicMock(result_rows=[]),  # active_users — no rows
             ]
             with patch("app.v3.services.clickhouse.total_s3_size", return_value=0):
                 resp = client.post("/v3/stats", json={"token": token})
         assert resp.status_code == 200
-        data = resp.json()
-        assert len(data["apps"]) == 1
-        assert data["apps"][0]["url"] == "https://myapp.com"
-        assert data["apps"][0]["visits"] == 47
+        assert resp.json()["active_users"] == {"users_1d": 0, "users_30d": 0, "users_90d": 0, "users_1y": 0}
 
     def test_stats_survives_object_store_outage(self, client, token):
         """Anti-test for the v3 brick: /v3/stats must not hang or 500 when
-        the object store is unreachable. v3 storage = ClickHouse bytes +
-        MinIO scan; the scan failing degrades to ClickHouse-only, and the
-        response still lands (the marketing front page polls this on load)."""
+        the object store is unreachable. storage = ClickHouse bytes + MinIO
+        scan; the scan failing degrades to ClickHouse-only, response still lands."""
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.side_effect = [
                 MagicMock(result_rows=[(42,)]),  # users
                 MagicMock(result_rows=[(100,)]),  # documents
                 MagicMock(result_rows=[(5,)]),  # groups
-                MagicMock(result_rows=[]),  # list_apps — empty
+                MagicMock(result_rows=[(3,)]),  # app_count
                 MagicMock(result_rows=[(1024,)]),  # storage
+                MagicMock(result_rows=[(0, 0, 0, 0)]),  # active_users
             ]
             with patch("app.v3.services.clickhouse.total_s3_size", side_effect=ConnectionError("minio down")):
                 resp = client.post("/v3/stats", json={"token": token})
         assert resp.status_code == 200
-        data = resp.json()
-        assert data["storage"] == 1024  # ClickHouse bytes only
+        assert resp.json()["storage"] == 1024  # ClickHouse bytes only
 
 
 # ---------------------------------------------------------------------------
@@ -1045,9 +1041,16 @@ class TestMediaDelete:
 class TestPwaListing:
     """GET /pwa_listing — the store's manifest proxy (D47: a path is an app)."""
 
-    def _ok_manifest(self):
+    def _ok_manifest(self, payload: dict | None = None):
+        import json as _json
+
         fake = MagicMock()
-        fake.json.return_value = {"name": "Notes"}
+        # pwa_listing uses requests.get(..., stream=True) as a context manager
+        # and reads via iter_content (hardening #7 byte cap).
+        fake.__enter__ = MagicMock(return_value=fake)
+        fake.__exit__ = MagicMock(return_value=False)
+        fake.raise_for_status = MagicMock()
+        fake.iter_content = MagicMock(return_value=iter([_json.dumps(payload or {"name": "Notes"}).encode()]))
         return fake
 
     def test_manifest_url_with_trailing_slash(self, client):
@@ -1070,6 +1073,21 @@ class TestPwaListing:
         assert resp.status_code == 200
         assert mock_get.call_args[0][0] == "https://host.example.com/manifest.json"
 
+    def test_oversized_manifest_rejected(self, client):
+        """Hardening #7: a manifest over the byte cap → NO_PWA (no memory spike)."""
+        import json as _json
+
+        fake = MagicMock()
+        fake.__enter__ = MagicMock(return_value=fake)
+        fake.__exit__ = MagicMock(return_value=False)
+        fake.raise_for_status = MagicMock()
+        # two chunks that together exceed the 256 KiB cap
+        big = _json.dumps({"name": "x", "pad": "a" * (140 * 1024)}).encode()
+        fake.iter_content = MagicMock(return_value=iter([big, big]))
+        with patch("app.endpoints.system.requests.get", return_value=fake):
+            resp = client.get("/pwa_listing", params={"url": "https://host/docs/notes/"})
+        assert resp.status_code == 401  # NO_PWA
+
     def test_no_manifest_returns_no_pwa(self, client):
         import requests as req
 
@@ -1082,99 +1100,118 @@ class TestPwaListing:
 
 
 class TestAppsRegister:
-    def test_register(self, client, token):
+    def test_register_normalizes_url(self, client, token):
+        """D49 / hardening #4: identity is canonical — one trailing slash,
+        lowercase host, no query/fragment. app.com / app.com/ / APP.com → one row."""
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = MagicMock(result_rows=[])
-            resp = client.post(
-                "/v3/apps/register",
-                json={
-                    "token": token,
-                    "body": {
-                        "url": "https://myapp.com",
-                        "name": "My App",
-                        "description": "A web10 app",
-                    },
-                },
-            )
+            resp = client.post("/v3/apps/register", json={"body": {"url": "https://myapp.com"}})
         assert resp.status_code == 200
-        assert resp.json()["url"] == "https://myapp.com"
+        assert resp.json()["url"] == "https://myapp.com/"
 
-    def test_register_anonymous(self, client):
-        """v2 parity — registration takes no token. The SDK auto-register
-        ping fires on every app init, signed-out or not; gating it on a
-        token is what left the v3 store empty."""
+    def test_register_anonymous_creates_app_no_visit(self, client):
+        """Anon ping (no token) registers the app but records NO visit —
+        anon is dropped at ingest (D49). The app row is created; app_visits is not touched."""
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = MagicMock(result_rows=[])
-            resp = client.post(
-                "/v3/apps/register",
-                json={"body": {"url": "https://myapp.com"}},
-            )
+            resp = client.post("/v3/apps/register", json={"body": {"url": "https://myapp.com"}})
         assert resp.status_code == 200
-        assert resp.json()["url"] == "https://myapp.com"
+        tables = [c[0][0] for c in mock_ch.insert.call_args_list]
+        assert "apps" in tables
+        assert "app_visits" not in tables
 
-    def test_register_new_starts_at_one_visit(self, client, token):
-        """First registration is the first visit (v2 parity)."""
+    def test_register_verified_user_counts_visit(self, client, token):
+        """A verified token records a counted visit in app_visits (D49), keyed
+        by the canonical url + the token's username."""
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = MagicMock(result_rows=[])
             resp = client.post(
                 "/v3/apps/register",
-                json={"body": {"url": "https://myapp.com"}},
+                json={"body": {"url": "https://myapp.com", "token": token}},
             )
         assert resp.status_code == 200
-        # (the request-logging middleware also inserts — filter to the apps table)
+        visit_inserts = [c for c in mock_ch.insert.call_args_list if c[0][0] == "app_visits"]
+        assert len(visit_inserts) == 1
+        row = visit_inserts[0][0][1][0]
+        assert row[0] == "https://myapp.com/"  # canonical url
+        assert row[1] == "testuser"  # the token's username
+
+    def test_register_forged_token_is_anon(self, client):
+        """I2: a forged/unsigned token yields no username → no visit row.
+        An app cannot fake another user's visit."""
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.return_value = MagicMock(result_rows=[])
+            resp = client.post(
+                "/v3/apps/register",
+                json={"body": {"url": "https://myapp.com", "token": "garbage.not.a.jwt"}},
+            )
+        assert resp.status_code == 200
+        tables = [c[0][0] for c in mock_ch.insert.call_args_list]
+        assert "app_visits" not in tables
+
+    def test_register_collapses_index_html_to_directory(self, client):
+        """Canonical app identity (D47): a trailing /index.html is the
+        server's way of serving the directory app, not a distinct app.
+        Loading a demo via its /index.html link must not fork the identity
+        into a second store entry whose manifest lookup 404s (icon-less,
+        name-less card in the store)."""
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.return_value = MagicMock(result_rows=[])
+            resp = client.post(
+                "/v3/apps/register",
+                json={"body": {"url": "https://myapp.com/docs/notes/index.html"}},
+            )
+        assert resp.status_code == 200
+        assert resp.json()["url"] == "https://myapp.com/docs/notes/"
         apps_inserts = [c for c in mock_ch.insert.call_args_list if c[0][0] == "apps"]
-        assert len(apps_inserts) == 1
-        args = apps_inserts[0][0]
-        row = args[1][0]
-        assert row[0] == "https://myapp.com"
-        assert row[5] == 1  # visits
+        assert apps_inserts[0][0][1][0][0] == "https://myapp.com/docs/notes/"
 
-    def test_register_new_insert_names_its_columns(self, client, token):
-        """The insert must name its columns. Pre-existing volumes got the
-        visits column via ALTER (appended at the END); fresh volumes build
-        it mid-table from the DDL template. A positional insert misaligns
-        on the old layout — 'pending' landed in metadata_version (UInt32)
-        and every registration 500'd on dev."""
+    def test_register_plain_url_unchanged(self, client):
+        """Normalization only touches the /index.html suffix — everything
+        else registers byte-for-byte as sent."""
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = MagicMock(result_rows=[])
             resp = client.post(
                 "/v3/apps/register",
-                json={"body": {"url": "https://myapp.com"}},
+                json={"body": {"url": "https://myapp.com/docs/notes/"}},
             )
         assert resp.status_code == 200
-        apps_inserts = [c for c in mock_ch.insert.call_args_list if c[0][0] == "apps"]
-        assert len(apps_inserts) == 1
-        kwargs = apps_inserts[0][1]
-        assert "column_names" in kwargs
-        cols = kwargs["column_names"]
-        assert cols[5] == "visits"
-        assert cols[7] == "review_state"
-        assert len(cols) == 12
+        assert resp.json()["url"] == "https://myapp.com/docs/notes/"
 
-    def test_register_repeat_increments_visits(self, client, token):
-        """Repeat registration from a known app bumps visits — this is the
-        visit tracker behind the store's 'sorted by visits' ordering."""
+    def test_register_repeat_no_metadata_no_append(self, client, token):
+        """D49: a repeat url-only ping does NOT append to apps — apps is a
+        stable registration record, not a per-ping log (that piled on ClickHouse)."""
         with patch("app.v3.services.clickhouse.client") as mock_ch:
-            # get_app finds the existing app (9 columns incl. visits)
             mock_ch.query.return_value = MagicMock(
                 result_rows=[
-                    ("https://myapp.com", "My App", "A web10 app", "", "[]", 1, "approved", 3, 47),
+                    ("https://myapp.com/", "My App", "A web10 app", "", "[]", 1, "approved", 3, 47),
+                ]
+            )
+            resp = client.post("/v3/apps/register", json={"body": {"url": "https://myapp.com/"}})
+        assert resp.status_code == 200
+        assert resp.json()["review_state"] == "approved"
+        mock_ch.command.assert_not_called()  # no metadata-change append
+        tables = [c[0][0] for c in mock_ch.insert.call_args_list]
+        assert "apps" not in tables  # no new apps row
+
+    def test_register_metadata_change_appends(self, client, token):
+        """A repeat ping WITH changed metadata appends a new apps row
+        (metadata_version bumped) — the only repeat case that touches apps."""
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.return_value = MagicMock(
+                result_rows=[
+                    ("https://myapp.com/", "Old Name", "A web10 app", "", "[]", 1, "approved", 3, 47),
                 ]
             )
             resp = client.post(
                 "/v3/apps/register",
-                json={"body": {"url": "https://myapp.com"}},
+                json={"body": {"url": "https://myapp.com/", "name": "New Name"}},
             )
         assert resp.status_code == 200
-        assert resp.json()["review_state"] == "approved"
-        mock_ch.command.assert_called_once()
+        mock_ch.command.assert_called_once()  # the metadata-change append
         sql = mock_ch.command.call_args[0][0]
-        assert "visits + 1" in sql
-        # the auto-register ping sends no metadata — it must not clobber
-        # the stored listing
-        params = mock_ch.command.call_args[0][1]
-        assert params["name"] == ""
-        assert params["description"] == ""
+        assert "metadata_version + 1" in sql
+        assert "visits + 1" not in sql  # D49: no per-ping visit bump on apps
 
 
 class TestAppsList:

@@ -8,9 +8,9 @@ from app.v3.models import (
     AppsAdmin,
     CreateAppRating,
     GetAppRatings,
+    ListStoreApps,
     RegisterApp,
 )
-from app.v3.models.common import TokenOnly
 from app.v3.services import clickhouse as ch
 
 router = APIRouter(tags=["app-store"])
@@ -25,9 +25,12 @@ def register_app(data: RegisterApp):
 
 
 @router.post("/list")
-def list_apps(data: TokenOnly):
-    """List approved apps."""
-    return ch.list_apps(approved_only=True)
+def list_apps(data: ListStoreApps):
+    """The public store list (D49): approved apps with realtime metrics
+    (visits + users_1d/30d/90d/1y), sorted by users_30d desc, paginated."""
+    limit = max(1, min(data.limit, 100))
+    offset = max(0, data.offset)
+    return ch.list_store_apps(limit=limit, offset=offset)
 
 
 @router.post("/rating")

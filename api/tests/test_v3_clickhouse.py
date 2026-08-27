@@ -3,7 +3,7 @@
 Uses mocked clickhouse-connect client — no real ClickHouse needed.
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 from app.v3.services import clickhouse as ch
@@ -24,6 +24,24 @@ def _patch_client():
     """Patch the clickhouse client for the duration of the test."""
     mock_client = MagicMock()
     return patch.object(ch, "client", mock_client)
+
+
+# ---------------------------------------------------------------------------
+# Schema self-heal
+# ---------------------------------------------------------------------------
+
+
+class TestEnsureAppsSchema:
+    def test_creates_app_visits_for_pre_existing_volumes(self):
+        # Pre-existing dev/prod volumes predate the app_visits table (D49);
+        # without the self-heal, the ingest gate and the /v3/stats macro
+        # query a missing table on the first ping.
+        with _patch_client() as mock_client:
+            ch.ensure_apps_schema()
+        commands = [c[0][0] for c in mock_client.command.call_args_list]
+        assert any("CREATE TABLE IF NOT EXISTS app_visits" in c for c in commands)
+        assert any("ALTER TABLE apps ADD COLUMN IF NOT EXISTS visits" in c for c in commands)
+        assert any("CREATE TABLE IF NOT EXISTS node_config" in c for c in commands)
 
 
 # ---------------------------------------------------------------------------
@@ -823,34 +841,35 @@ class TestNodeStats:
                 _mock_result_rows([(42,)]),  # users
                 _mock_result_rows([(100,)]),  # documents
                 _mock_result_rows([(5,)]),  # groups
-                _mock_result_rows([("https://a.com", "App A", "", "", "[]", 47, "approved", 1)]),  # list_apps
+                _mock_result_rows([(3,)]),  # app_count
                 _mock_result_rows([(1024,)]),  # storage (system.parts)
+                _mock_result_rows([(7, 40, 90, 120)]),  # active_users 1d/30d/90d/1y
             ]
             with patch("app.v3.services.clickhouse.total_s3_size", return_value=512):
                 stats = ch.get_node_stats()
             assert stats["users"] == 42
             assert stats["documents"] == 100
             assert stats["groups"] == 5
-            assert len(stats["apps"]) == 1
-            assert stats["apps"][0]["url"] == "https://a.com"
-            assert stats["apps"][0]["visits"] == 47  # real visits, not hardcoded 0
+            assert stats["app_count"] == 3
+            assert stats["active_users"] == {"users_1d": 7, "users_30d": 40, "users_90d": 90, "users_1y": 120}
             assert stats["storage"] == 1536  # 1024 clickhouse + 512 s3
+            assert "apps" not in stats  # per-app list moved to list_store_apps
 
-    def test_stats_no_apps_no_storage(self):
+    def test_stats_no_visits_no_storage(self):
         with _patch_client() as mock_client:
             mock_client.query.side_effect = [
                 _mock_result_rows([(10,)]),  # users
                 _mock_result_rows([(50,)]),  # documents
                 _mock_result_rows([(2,)]),  # groups
-                _mock_result_rows([]),  # list_apps — empty
+                _mock_result_rows([(0,)]),  # app_count
                 _mock_result_rows([(None,)]),  # storage — null
+                _mock_result_rows([]),  # active_users — no rows
             ]
             with patch("app.v3.services.clickhouse.total_s3_size", return_value=0):
                 stats = ch.get_node_stats()
             assert stats["users"] == 10
-            assert stats["documents"] == 50
-            assert stats["groups"] == 2
-            assert stats["apps"] == []
+            assert stats["app_count"] == 0
+            assert stats["active_users"] == {"users_1d": 0, "users_30d": 0, "users_90d": 0, "users_1y": 0}
             assert stats["storage"] == 0
 
     def test_stats_storage_exception(self):
@@ -859,8 +878,9 @@ class TestNodeStats:
                 _mock_result_rows([(1,)]),  # users
                 _mock_result_rows([(1,)]),  # documents
                 _mock_result_rows([(1,)]),  # groups
-                _mock_result_rows([]),  # list_apps — empty
+                _mock_result_rows([(0,)]),  # app_count
                 Exception("ClickHouse unavailable"),  # storage — error
+                _mock_result_rows([(0, 0, 0, 0)]),  # active_users
             ]
             with patch("app.v3.services.clickhouse.total_s3_size", return_value=256):
                 stats = ch.get_node_stats()
@@ -873,8 +893,9 @@ class TestNodeStats:
                 _mock_result_rows([(1,)]),  # users
                 _mock_result_rows([(1,)]),  # documents
                 _mock_result_rows([(1,)]),  # groups
-                _mock_result_rows([]),  # list_apps — empty
+                _mock_result_rows([(0,)]),  # app_count
                 _mock_result_rows([(2048,)]),  # storage
+                _mock_result_rows([(0, 0, 0, 0)]),  # active_users
             ]
             with patch("app.v3.services.clickhouse.total_s3_size", side_effect=Exception("S3 down")):
                 stats = ch.get_node_stats()
@@ -1145,34 +1166,63 @@ class TestMedia:
 
 
 class TestRegisterApp:
-    def test_register(self):
+    def test_register_normalizes_url_anon_no_visit(self):
+        """D49 / #4: canonical url; anon (no token) creates the apps row but
+        records NO visit (anon dropped at ingest)."""
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows([])
             result = ch.register_app({"url": "https://myapp.com", "name": "My App"})
-            assert result["url"] == "https://myapp.com"
-            mock_client.insert.assert_called_once()
+            assert result["url"] == "https://myapp.com/"  # canonical
+            tables = [c[0][0] for c in mock_client.insert.call_args_list]
+            assert "apps" in tables
+            assert "app_visits" not in tables
 
-    def test_register_duplicate(self):
+    def test_register_repeat_no_metadata_no_append(self):
+        """D49: a repeat url-only ping does NOT append to apps — apps is a
+        stable registration record, not a per-ping log."""
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
-                [("https://myapp.com", "My App", "", "", "[]", 1, "approved", 1, 47)]
+                [("https://myapp.com/", "My App", "", "", "[]", 1, "approved", 1, 47)]
             )
-            result = ch.register_app({"url": "https://myapp.com"})
+            result = ch.register_app({"url": "https://myapp.com/"})
             assert result["review_state"] == "approved"
-            mock_client.insert.assert_not_called()
-            # repeat registration is the visit tracker — it bumps visits
-            # on the latest row, it does not re-insert the app
-            mock_client.command.assert_called_once()
-            sql = mock_client.command.call_args[0][0]
-            assert "visits + 1" in sql
+            mock_client.command.assert_not_called()
+            tables = [c[0][0] for c in mock_client.insert.call_args_list]
+            assert "apps" not in tables
 
-    def test_register_new_starts_at_one_visit(self):
+    def test_register_metadata_change_appends(self):
+        """A repeat ping with changed metadata appends a new apps row
+        (metadata_version bumped) — the only repeat case that touches apps."""
         with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows([])
-            ch.register_app({"url": "https://myapp.com"})
+            mock_client.query.return_value = _mock_result_rows(
+                [("https://myapp.com/", "Old", "", "", "[]", 1, "approved", 1, 47)]
+            )
+            ch.register_app({"url": "https://myapp.com/", "name": "New"})
+            mock_client.command.assert_called_once()
+            assert "metadata_version + 1" in mock_client.command.call_args[0][0]
+
+
+class TestCountAppVisit:
+    """The D49 ingest gate: one counted visit per (app, user) per 3h."""
+
+    def test_first_visit_inserts(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([])  # no prior row
+            ch._count_app_visit("https://a.com/", "alice")
             mock_client.insert.assert_called_once()
-            row = mock_client.insert.call_args[0][1][0]
-            assert row[5] == 1  # visits
+            assert mock_client.insert.call_args[0][0] == "app_visits"
+
+    def test_within_window_gated(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([(datetime.utcnow() - timedelta(hours=1),)])
+            ch._count_app_visit("https://a.com/", "alice")
+            mock_client.insert.assert_not_called()  # within 3h — gated out
+
+    def test_outside_window_inserts(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([(datetime.utcnow() - timedelta(hours=4),)])
+            ch._count_app_visit("https://a.com/", "alice")
+            mock_client.insert.assert_called_once()  # >3h — counted
 
 
 class TestListApps:
