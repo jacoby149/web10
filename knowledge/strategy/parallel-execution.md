@@ -209,6 +209,26 @@ log-sequence verification. The browser gauntlet bites are gated on the
 - [ ] Browser gauntlet: real D42 login → feed renders → post → reload persists (gated on `social-v3` auth)
 - [ ] Browser gauntlet: two-user DM round-trip (gated on `social-v3` auth)
 
+### Lane: discover-board (Phase 3)
+**Owns:** `api/app/v3/` (discover group + board read + admin discovery), `persona-orchestration/`, `marketing/marketing-ui/src/components/FeedPreview.tsx` + `src/pages/Trending.tsx`, `ui/src/components/Config/ConfigPage.tsx`
+
+The node-default universal public board. The discover group
+(`web10.app/groups/web10/discover`) is a NODE DEFAULT — created at boot,
+anon + every user a member, auto-enroll at signup, backfill pre-existing
+users. Discovery IS a group read: the board is the discover group in the
+`groups` list, read anon through the anon-capable `/v3/read` (no separate
+discover endpoint — the v2 `/discover/posts` is not resurrected). Persona
+seeding posts to the group so the marketing trending page + in-app Discover
+look alive.
+
+- [✓ 3.16.2] Node-default discover group: boot-time `ensure_discover_group()` (create + anon + backfill), auto-enroll in `create_user`, idempotent
+- [✓ 3.16.2] Anon-capable `/v3/read`: missing token reads as `anon` (the board), app-contract gate for real users only, I3 holds (anon can't read non-member groups)
+- [✓ 3.16.2] `ref_value` on create (the ref pattern was broken on the write path — reactions/comments couldn't reference their target)
+- [✓ 3.16.2] Board moderation as a group op: `POST /v3/groups/{hide,unhide,hidden}` (gated by `hideAll` OR node admin — the public board has no moderator role), `get_hidden_docs`, anti-join dedup-then-filter
+- [✓ 3.16.2] Persona seeding for v3: `seed_personas.py` rewritten off v2 (terms/schemas/ledger) onto groups — posts + reactions/comments via `ref_value`, idempotent, `--verify`
+- [✓ 3.16.2] Marketing trending + admin board rewired to the normal group read (anon); trending computes engagement client-side from the reactions/comments groups
+- [ ] E2E: board gauntlet — seed → anon reads the board → a real user's post appears → remove/restore round-trip (gated on the social-e2e stack)
+
 ### Lane: ads (monetization)
 **Owns:** `ui/src/components/Studio/`, `api/tests/test_ads.py`, `e2e/tests/ads.spec.ts`
 
@@ -256,4 +276,3 @@ panel is the node's control surface — it must show what the node
 actually runs, and every control on it must work.
 
 - [✓ 3.16.0] Node Config: effective config in the form (settings defaults ← saved overlay — no more blanks; ClickHouse URL + MinIO values default to the docker-network settings) + field trimming (Node Identity → provider/CORS/token-expiry; Stripe → mode + keys) + the dead Save button fixed (PATCH /config 405 → POST /config/update)
-

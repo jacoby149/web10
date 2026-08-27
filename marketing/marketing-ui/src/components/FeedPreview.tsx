@@ -851,14 +851,78 @@ function TrendingSkeleton({ featured = false }: { featured?: boolean }) {
   );
 }
 
-async function fetchDiscoverFeed(sort: 'recent' | 'trending', limit = 6): Promise<DiscoveryPost[]> {
-  const resp = await fetch(`${API_ORIGIN}/discover/posts`, {
-    method: 'PATCH',
+// The node-default universal public board (matches the API's DISCOVER_GROUP_ID
+// and the social app's DISCOVER_GROUP). In v3 discovery IS a group read — the
+// board is just this group, read anon through the normal /v3/read path.
+const DISCOVER_GROUP = 'web10.app/groups/web10/discover';
+
+interface V3Doc {
+  doc_id: string;
+  author_key: string;
+  body: Record<string, any>;
+  tags: string[];
+  created_at: string;
+  ref_value: string;
+  service: string;
+}
+
+async function readGroup(service: string, limit: number): Promise<V3Doc[]> {
+  const resp = await fetch(`${API_ORIGIN}/v3/read`, {
+    method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query: { sort, limit, services: 'public_posts' } }),
+    // No token — anon reads the public board (the discover group).
+    body: JSON.stringify({ service, groups: [DISCOVER_GROUP], limit }),
   });
   if (!resp.ok) return [];
   return resp.json();
+}
+
+async function fetchDiscoverFeed(sort: 'recent' | 'trending', limit = 6): Promise<DiscoveryPost[]> {
+  // v3: the public board is the node-default discover group. Read it through
+  // the normal group-read path as anon (no token). Engagement comes from the
+  // reactions + comments groups (the ref pattern: ref_value = the post id).
+  const [posts, reactions, comments] = await Promise.all([
+    readGroup('posts', 200),
+    readGroup('reactions', 500),
+    readGroup('comments', 500),
+  ]);
+
+  const likesByPost: Record<string, number> = {};
+  for (const r of reactions) {
+    if (r.ref_value) likesByPost[r.ref_value] = (likesByPost[r.ref_value] || 0) + 1;
+  }
+  const commentsByPost: Record<string, number> = {};
+  for (const c of comments) {
+    if (c.ref_value) commentsByPost[c.ref_value] = (commentsByPost[c.ref_value] || 0) + 1;
+  }
+
+  let mapped: DiscoveryPost[] = posts.map((p) => {
+    const mediaRefs: string[] = p.body?.media_refs || [];
+    return {
+      author: p.author_key,
+      service: p.service,
+      post_id: p.doc_id,
+      body_text: p.body?.text || '',
+      tags: p.tags || [],
+      created_at: p.created_at,
+      engagement: {
+        likes: likesByPost[p.doc_id] || 0,
+        comments: commentsByPost[p.doc_id] || 0,
+        reposts: 0,
+      },
+      engagement_score: (likesByPost[p.doc_id] || 0) + (commentsByPost[p.doc_id] || 0),
+      media_refs: mediaRefs,
+      has_media: mediaRefs.length > 0,
+      first_attachment_mime: undefined,
+    };
+  });
+
+  if (sort === 'trending') {
+    mapped.sort((a, b) => b.engagement_score - a.engagement_score || b.created_at.localeCompare(a.created_at));
+  } else {
+    mapped.sort((a, b) => b.created_at.localeCompare(a.created_at));
+  }
+  return mapped.slice(0, limit);
 }
 
 // ── YouTubeCard (D-trending-views) ──────────────────────────────────────────

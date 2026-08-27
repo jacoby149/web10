@@ -1,7 +1,8 @@
 from fastapi import APIRouter
 
 import app.exceptions as exceptions
-from app.services.auth import decode_token
+from app.models.auth import Token
+from app.services.auth import check_admin, decode_token
 from app.v3.endpoints.auth_helper import user as _user
 from app.v3.models import (
     AcceptInvite,
@@ -11,14 +12,17 @@ from app.v3.models import (
     DeclineInvite,
     DeleteGroup,
     GetGroup,
+    HideDoc,
     InviteMember,
     JoinGroup,
     JoinRequestOp,
     LeaveGroup,
     ListGroupMembers,
+    ListHiddenDocs,
     ListJoinRequests,
     RemoveGroupMember,
     SetSharing,
+    UnhideDoc,
     UpdateGroup,
 )
 from app.v3.models.common import TokenOnly
@@ -42,6 +46,21 @@ def _require_group_permission(group_id: str, user: str, permission: str):
             break
     if not role_def or permission not in role_def.get("permissions", []):
         raise exceptions.CRUD
+
+
+def _require_moderation(group_id: str, user: str, token: str):
+    """Gate for hiding/unhiding content from a group's discover.
+
+    A member whose role has `hideAll` can moderate their group (KB:
+    groups/overview.md "Moderation"). The node admin can moderate ANY group —
+    this is how the public board (which has no moderator role) gets moderated.
+    """
+    try:
+        _require_group_permission(group_id, user, "hideAll")
+        return
+    except Exception:
+        pass
+    check_admin(Token(token=token))
 
 
 @router.post("/create")
@@ -320,3 +339,37 @@ def delete_group(data: DeleteGroup):
     _require_group_permission(data.group_id, user, "deleteGroup")
     ch.delete_group(data.group_id)
     return {"group_id": data.group_id, "status": "deleted"}
+
+
+# ---------------------------------------------------------------------------
+# Moderation — hide content from a group's discover (KB: groups/overview.md
+# "Moderation"). Board-level takedown: the author's own copy is untouched and
+# the doc is restorable. Gated by the `hideAll` role permission OR the node
+# admin (the public board has no moderator role).
+# ---------------------------------------------------------------------------
+
+
+@router.post("/hide")
+def hide_doc(data: HideDoc):
+    """Hide a document from a group's discover (moderator or node admin)."""
+    user = _user(data)
+    _require_moderation(data.group_id, user, data.token)
+    ch.hide_doc_from_group(data.group_id, data.doc_id, user)
+    return {"group_id": data.group_id, "doc_id": data.doc_id, "status": "hidden"}
+
+
+@router.post("/unhide")
+def unhide_doc(data: UnhideDoc):
+    """Restore a previously hidden document to a group's discover."""
+    user = _user(data)
+    _require_moderation(data.group_id, user, data.token)
+    ch.unhide_doc_from_group(data.group_id, data.doc_id)
+    return {"group_id": data.group_id, "doc_id": data.doc_id, "status": "restored"}
+
+
+@router.post("/hidden")
+def list_hidden_docs(data: ListHiddenDocs):
+    """List the documents currently hidden from a group's discover."""
+    user = _user(data)
+    _require_moderation(data.group_id, user, data.token)
+    return {"hidden": ch.get_hidden_docs(data.group_id)}
