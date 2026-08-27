@@ -9,7 +9,7 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
-### D49 — Ads are a v3 default service, creator-owned; the rung-0 card is "Partner Links" [decided]
+### D50 — Ads are a v3 default service, creator-owned; the rung-0 card is "Partner Links" [decided]
 Operator, 26.08.2026 — the Studio's rung-0 monetization screen showed
 "Memberships & Tips" + "Amazon Associates" (+ a Direct Deals card).
 Operator: "direct deals and affiliate link are the same kind of right?" —
@@ -55,6 +55,78 @@ ads specifically and keeps the feed's `posts` read clean).
 
 Full model: `knowledge-base/web10-v3/social/ads.md`. The v4 ad-network
 layer (the separate concern): `knowledge-base/web10-v4/db/clickhouse-v4.md`.
+
+---
+
+### D49 — App store metrics: real-user activity, windowed at ingest, computed realtime [decided]
+Operator, 26.08.2026 — after the app store shipped (D47), the operator
+stress-tested the visit model: "what if an approved app changes its
+manifest," "it could rename itself on the next ping," "put on a cautious
+hat, think about stupid things," then specified the replacement metric
+set. The raw ping-count `visits` column is retired as a store metric.
+
+**Decided** — the store measures **real web10 user activity**, not page
+pings:
+
+1. **One usage table, `app_visits (app_url, username, seen_at)`.** A row
+   is appended per *counted* ping. **Anon pings are dropped at ingest** —
+   only a ping carrying a *verified* token (I2: signature checked, never
+   an unsigned decode) produces a row, keyed by the token's username. An
+   app can only grow its numbers by getting real logged-in users; its own
+   server pings are anon and count for nothing.
+2. **The ingest gate (operator's words): "if > 3h, insert."** Per
+   `(app_url, username)`: append a row only if there is no prior row or
+   the latest `seen_at` is > 3h old. 100 navigations in an hour = 1 row.
+   The table is bounded at ≤ 8 rows/user/app/day regardless of traffic —
+   this is the "doesn't pile on ClickHouse" property.
+3. **`apps` stops appending per ping.** It is a stable registration
+   record: a row is appended on first registration or a real metadata
+   change only. The v2-parity visit-increment-append (and the `visits`
+   counter column as a store metric) is retired — `apps` stays ~1 row per
+   app. Usage and registration are separate tables with separate growth
+   rules.
+4. **The metric set, all realtime queries over `app_visits`** (metric-as-
+   query, not a maintained counter — no increment races, no stale state):
+   - `visits` — `count()` of rows (each row is already a 3h-windowed,
+     anon-free counted session)
+   - `users_1d` / `users_30d` / `users_90d` / `users_1y` — distinct real
+     users with a row in the trailing window
+5. **Headline + sort = `users_30d`** — stable, fair to new apps, not spiky
+   like 1d, not tombstone-like like 1y. `users_1y` is a detail stat only,
+   never a headline or sort key. All five metrics are returned per app;
+   the grid card shows the headline, the app detail page shows the full
+   breakdown.
+6. **The store paginates** — `limit`/`offset` (sorted by `users_30d`
+   desc, `visits` tiebreak); the grid pages through instead of rendering
+   every app.
+7. **Required piece — the sign-in re-ping.** The auto-register ping fires
+   at `createV3Client()` (page load, often pre-sign-in → anon → dropped).
+   The SDK re-fires the ping on the sign-in transition so a user's usage
+   starts counting the moment they authenticate. Without this the metric
+   silently means "returning users," not "users."
+
+**Why:** a raw ping count is gameable (an app can loop its own
+registration) and means nothing concrete to a visitor. Distinct real
+users in a trailing window is un-gameable *by construction* (only the node
+mints tokens), is the number a visitor actually wants ("people are using
+this"), and is on-brand: the store prints "1,284 web10 users · last 30
+days," not a vague visit total. ClickHouse makes the whole set realtime-
+trivial (windowed `count`/`countDistinct` over one small table), so there
+is no counter to maintain, sync, or race.
+
+**Rejected:** IP-based rate-limiting (the node sits behind NPM —
+`request.client.host` is the proxy, and XFF is spoofable in a
+token-in-body, origin-untrusted model — the node can only honestly key on
+what it sees: the URL + the verified token); per-URL global windowing
+(every popular app saturates the same ceiling — the ranking loses its
+meaning at the top); lifetime `num_users` (tombstone metric — only goes
+up, a dead app outranks a hot one); maintaining counters in `apps`
+(append-per-ping piles on ClickHouse and races under concurrency);
+`users_1y` as a headline (drifts toward tombstone — a user idle 11 months
+still counts).
+
+Full model: `knowledge-base/web10-v3/app-store/overview.md` (metrics
+section); schema in `knowledge-base/web10-v3/db/clickhouse.md`.
 
 ---
 

@@ -164,6 +164,19 @@ CREATE TABLE IF NOT EXISTS app_ratings (
 ) ENGINE = ReplacingMergeTree(updated_at)
 ORDER BY (target_app_id, author);
 
+-- App usage log (D49). One row per COUNTED ping: a real, token-verified
+-- web10 user used the app, gated to 1 row per (app, user) per 3h at ingest
+-- (anon pings never reach this table). The store's metrics are realtime
+-- queries over these rows — no maintained counters. `visits` = count();
+-- `users_Nd` = distinct usernames with a row in the trailing window.
+CREATE TABLE IF NOT EXISTS app_visits (
+    app_url String,
+    username String,
+    seen_at DateTime64(3)
+) ENGINE = MergeTree
+ORDER BY (app_url, username, seen_at)
+TTL toDateTime(seen_at) + INTERVAL 2 YEAR;
+
 CREATE TABLE IF NOT EXISTS app_contracts (
     user_key String,
     allowed_origin String,

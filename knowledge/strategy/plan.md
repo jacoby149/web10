@@ -113,6 +113,30 @@ proves it.
 - [ ] **E2E gauntlet** (`e2e/tests/`) — rewrite the retired social specs (`social-post-feed`, `social-full`, `gauntlet`) against v3, per the demo specs' pattern: API floor (signup → post → feed → DM → profile + I3 cross-user isolation) + browser gauntlet (real D42 login → feed renders → post → reload persists → DM round-trip) with log-sequence verification.
 - [ ] **HLS in the feed** (`src/components/`) — adopt the media demo's hls.js player (Safari native fallback, vendored hls.js) for video posts. Moved here from the `hls` lane, which is otherwise complete.
 
+## App Store: Real-User Metrics (D49) — Platform
+
+The store's raw ping-count `visits` is retired as a metric. Replaced with
+**real web10 user activity**, un-gameable by construction (only the node
+mints tokens, so an app can only grow its numbers with real logged-in
+users). One `app_visits (app_url, username, seen_at)` table, gated at
+ingest (1 row per (app, real user) per 3h, anon dropped), metric-as-query
+(no counters to race or pile on ClickHouse). `apps` becomes a stable
+registration record (append on create/metadata-change only). Headline +
+sort = `users_30d`. The `/stats` node macro shows the same active-user set
+across all apps. Decision done (D49); lane is `app-store-metrics` in
+`parallel-execution.md`.
+
+- [✓] **Decision: D49** (`knowledge/strategy/decisions.md`) — real-user windowed metrics (`visits` + `users_1d/30d/90d/1y`), anon dropped at ingest, `users_30d` headline/sort, pagination, sign-in re-ping required, `apps` stops appending per ping.
+- [✓ 3.15.0] **`app_visits` table** (`clickhouse-init/`, `api/app/v3/services/clickhouse.py`) — DDL + boot self-heal.
+- [✓ 3.15.0] **Gated ingest** (`register_app`) — append per (app, user) if latest `seen_at` > 3h (or first); anon dropped at ingest (verified token only, I2); #4 URL normalization folded in.
+- [✓ 3.15.0] **`apps` stable** — stop appending per ping; retire the `visits` counter column as a store metric.
+- [✓ 3.15.0] **Metrics + pagination** (`/v3/apps/list`) — `visits` + `users_1d/30d/90d/1y` realtime; `limit`/`offset`, sort `users_30d` desc, `visits` tiebreak; store grid + detail UI.
+- [✓ 3.15.0] **`/stats` macro** — node-wide `users_1d/30d/90d/1y` (all apps); homepage leads with `users_30d`.
+- [✓ 3.15.0] **SDK** — token in the register ping + re-fire on the sign-in transition (required).
+- [✓ 3.15.0] **Hardening** — #7 manifest byte cap in `/pwa_listing`.
+- [✓ 3.15.0] **Tests** — unit (gated ingest, anon-drop, forged-token I2 anti-test, metrics, pagination) + e2e (real signed-in user → active count; pagination boundary).
+- [✓ 3.15.0] **KB** — `app-store/overview.md` metrics section + `db/clickhouse.md` `app_visits` table.
+
 ## Phase 4 — Production Cutover: v2 → v3, then merge to main
 
 **Where:** `knowledge/knowledge-base/web10-v3/` (migration model), `api/` (migration tooling), `ubuntu-deployment/` (prod deploy)
