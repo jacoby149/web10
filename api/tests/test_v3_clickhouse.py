@@ -562,9 +562,7 @@ class TestReadDocumentsInGroups:
             # (latest row per (group_id, doc_id) wins, tombstones included,
             # then deleted = 0). A raw `deleted = 0` join would keep matching
             # the stale hide row after a restore (tombstone) until a merge.
-            hd_part = sql[
-                sql.index("LEFT ANTI JOIN (SELECT group_id, doc_id FROM") : sql.index(") hd ")
-            ]
+            hd_part = sql[sql.index("LEFT ANTI JOIN (SELECT group_id, doc_id FROM") : sql.index(") hd ")]
             assert "FROM group_hidden_docs" in hd_part
             assert "rn = 1 AND deleted = 0" in hd_part
             assert "hd.doc_id = p.doc_id" in sql
@@ -925,9 +923,7 @@ class TestCreateUser:
             assert "users" in insert_tables
             assert "group_members" in insert_tables
             # the membership row enrolls the new user in the discover group
-            member_insert = next(
-                c for c in mock_client.insert.call_args_list if c[0][0] == "group_members"
-            )
+            member_insert = next(c for c in mock_client.insert.call_args_list if c[0][0] == "group_members")
             row = member_insert[0][1][0]
             assert row[0] == ch.DISCOVER_GROUP_ID
             assert row[1] == "alice"
@@ -1001,9 +997,7 @@ class TestEnsureDiscoverGroup:
             # group contract created once
             assert insert_tables.count("group_contracts") == 1
             # anon + both users enrolled
-            member_rows = [
-                c[0][1][0] for c in mock_client.insert.call_args_list if c[0][0] == "group_members"
-            ]
+            member_rows = [c[0][1][0] for c in mock_client.insert.call_args_list if c[0][0] == "group_members"]
             enrolled = {r[1] for r in member_rows}
             assert enrolled == {"anon", "alice", "bob"}
 
@@ -1043,9 +1037,7 @@ class TestEnsureDiscoverGroup:
                 _mock_result_rows([("alice",), ("bob",)]),
             ]
             ch.ensure_discover_group()
-            member_rows = [
-                c[0][1][0] for c in mock_client.insert.call_args_list if c[0][0] == "group_members"
-            ]
+            member_rows = [c[0][1][0] for c in mock_client.insert.call_args_list if c[0][0] == "group_members"]
             # only bob is added — anon + alice are already members
             assert [r[1] for r in member_rows] == ["bob"]
 
@@ -1200,6 +1192,111 @@ class TestRegisterApp:
             ch.register_app({"url": "https://myapp.com/", "name": "New"})
             mock_client.command.assert_called_once()
             assert "metadata_version + 1" in mock_client.command.call_args[0][0]
+
+
+class TestCanonicalAppUrlIndexHtml:
+    """D47: the canonicalizer folds a trailing /index.html to the directory.
+    #683 covers the bare form; this pins the trailing-slash form (.../index.html/)
+    that rows registered between hardening #4 and #683 carry — the migration
+    relies on it to re-home every stored spelling."""
+
+    def test_bare_index_html(self):
+        assert (
+            ch._canonical_app_url("https://dev.web10.app/docs/media/index.html") == "https://dev.web10.app/docs/media/"
+        )
+
+    def test_index_html_with_trailing_slash(self):
+        assert (
+            ch._canonical_app_url("https://dev.web10.app/docs/media/index.html/") == "https://dev.web10.app/docs/media/"
+        )
+
+    def test_root_index_html(self):
+        assert ch._canonical_app_url("https://myapp.com/index.html") == "https://myapp.com/"
+
+    def test_real_file_not_stripped(self):
+        """Only a TRAILING index.html is a server detail — a non-index file
+        keeps its name."""
+        assert ch._canonical_app_url("https://myapp.com/docs/notes.html") == "https://myapp.com/docs/notes.html/"
+
+
+class TestMigrateFileIndexAppRows:
+    """The one-time boot migration: re-home demo apps registered under their
+    directory-index file URLs onto their directory URLs (preserving approval),
+    and tombstone the file rows. #683 fixed NEW registrations; this cleans the
+    rows already stored under file URLs (icon-less duplicate store cards).
+    Idempotent + safe under concurrent workers."""
+
+    # Source-query row shape: url, name, description, icon_url, screenshots,
+    # visits, approved, review_state, metadata_version, created_at
+    FILE_ROW = (
+        "https://dev.web10.app/docs/media/index.html",
+        "Media (HLS)",
+        "desc",
+        "",
+        "[]",
+        0,
+        1,  # approved
+        "approved",
+        3,
+        "2026-01-01T00:00:00",
+    )
+
+    def test_no_file_index_rows_noop(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([])
+            ch._migrate_file_index_app_rows()
+        mock_client.insert.assert_not_called()
+        mock_client.command.assert_not_called()
+
+    def test_rehomes_file_row_to_directory_and_tombstones(self):
+        """A live file-index row with no directory counterpart is re-homed
+        (state carried over) and the file row is tombstoned."""
+        with _patch_client() as mock_client:
+            # call 1 = source query (the file row), call 2 = get_app(directory)
+            # → no live directory row yet.
+            mock_client.query.side_effect = [
+                _mock_result_rows([self.FILE_ROW]),
+                _mock_result_rows([]),
+            ]
+            ch._migrate_file_index_app_rows()
+        # Re-home insert under the directory URL, approval carried over.
+        mock_client.insert.assert_called_once()
+        args = mock_client.insert.call_args[0]
+        assert args[0] == "apps"
+        values = args[1][0]
+        assert values[0] == "https://dev.web10.app/docs/media/"  # url
+        assert values[1] == "Media (HLS)"  # name carried over
+        assert values[6] == 1  # approved carried over
+        assert values[11] == 0  # deleted = 0
+        # Tombstone the file row.
+        mock_client.command.assert_called_once()
+        assert "deleted" in mock_client.command.call_args[0][0]
+        assert mock_client.command.call_args[0][1]["url"] == self.FILE_ROW[0]
+
+    def test_directory_row_exists_skips_insert_but_tombstones(self):
+        """If a live directory row already exists (a post-#683 visit
+        registered it), keep that row — just drop the stale file row."""
+        with _patch_client() as mock_client:
+            mock_client.query.side_effect = [
+                _mock_result_rows([self.FILE_ROW]),
+                _mock_result_rows(
+                    [("https://dev.web10.app/docs/media/", "Media (HLS)", "", "", "[]", 1, "approved", 1, 47)]
+                ),
+            ]
+            ch._migrate_file_index_app_rows()
+        mock_client.insert.assert_not_called()  # no duplicate directory row
+        mock_client.command.assert_called_once()  # file row still tombstoned
+
+    def test_source_query_only_considers_live_rows(self):
+        """Idempotency hinge: the source query filters rn=1 AND deleted=0, so
+        once the file rows are tombstoned the migration finds nothing on the
+        next boot."""
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([])
+            ch._migrate_file_index_app_rows()
+        source_sql = mock_client.query.call_args[0][0]
+        assert "rn = 1 AND deleted = 0" in source_sql
+        assert "LIKE '%/index.html'" in source_sql
 
 
 class TestCountAppVisit:
