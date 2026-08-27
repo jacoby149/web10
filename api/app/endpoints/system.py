@@ -157,9 +157,7 @@ def pwa_listing(url: str):
     # render. Over the cap → treat as no manifest.
     _MANIFEST_MAX_BYTES = 256 * 1024
     try:
-        with requests.get(
-            manifest_url, headers={"Accept": "application/json"}, timeout=1, stream=True
-        ) as resp:
+        with requests.get(manifest_url, headers={"Accept": "application/json"}, timeout=1, stream=True) as resp:
             resp.raise_for_status()
             chunks = []
             total = 0
