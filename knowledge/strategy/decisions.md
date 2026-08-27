@@ -9,6 +9,55 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D49 — Ads are a v3 default service, creator-owned; the rung-0 card is "Partner Links" [decided]
+Operator, 26.08.2026 — the Studio's rung-0 monetization screen showed
+"Memberships & Tips" + "Amazon Associates" (+ a Direct Deals card).
+Operator: "direct deals and affiliate link are the same kind of right?" —
+collapse them; "people should upload HLS videos, photographs, some kind of
+web10 social style content, with a custom affiliate link, doesnt need to be
+amazon affiliate link"; "there needs to be a standards ad object that holds
+ad data that is in the web10 docs, then the social app or any app can pick
+up the ads per user to display them! clickhouse is great for this"; "ads
+would be a default service, web10 users manage that they put their ads
+into! scoped to them!"
+
+**Decided** — (1) The rung-0 card "Amazon Associates" + "Direct Deals"
+collapses into one card: **Partner Links**. They are the same primitive — a
+link that pays the creator when someone clicks and buys. The counterparty
+(Amazon, a brand the creator DM'd, the creator's own store) does not change
+the shape, so one card, one object, `offer.kind` = `affiliate` | `direct` |
+`own_store`. (2) **An ad is a document in the `ads` default service** —
+`collection_name = 'ads'`, `author_key` = the creator. It is content (a
+video, a photo, a post) that carries a monetizable link (the offer). The
+creator owns it, scopes it to their followers group, and it is delivered by
+architecture (100% of followers) — the same delivery as a post. (3) **Any
+app** that holds `ads: [readAll]` in its contract picks up the ads per
+viewer with the same multi-group read the feed uses, and renders creative +
+offer + disclosure. (4) The **Partner Links UI** (the Studio card) is the
+ingest: the creator sets up their offers and attaches one to content.
+
+**Why:** the thesis is creator ownership + no ad network ("the only
+sponsors you'll ever see are ones the creator chose" — `manifesto.md`). An
+ad as a creator-owned document in a default service is the mechanical
+expression of that: no exchange, no bidding, no third-party targeting, the
+creator's link is the link. It ships on v3 with zero new tables (it is a
+document), rides the existing delivery + media + read machinery, and is the
+concrete, demonstrable difference vs. the paved platforms — every piece of
+content carries its own money link, not one clunky bio link.
+
+**Rejected:** a separate `partner_links` + `ads` table pair (over-engineered
+— the offer embeds in the ad doc); building the v4 ad-network tables
+(`ad_campaigns`, `ad_targeting`, `ad_partners` with dsp/ssp/exchange,
+bidding) to serve creator ads (that is the paved exchange layer, a later
+M3 milestone — the wrong layer for creator-owned ads); making the ad a
+`posts` document with an ad flag (a separate `ads` service lets apps query
+ads specifically and keeps the feed's `posts` read clean).
+
+Full model: `knowledge-base/web10-v3/social/ads.md`. The v4 ad-network
+layer (the separate concern): `knowledge-base/web10-v4/db/clickhouse-v4.md`.
+
+---
+
 ### D48 — Node config lives in ClickHouse: v3 stacks run no Mongo [decided]
 Operator, 26.08.2026 — "I am not seeing the admin panel … confirm I am
 admin … auth.dev.web10.app is broken, we need to fix the code so I see the

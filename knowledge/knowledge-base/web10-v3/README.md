@@ -39,7 +39,8 @@ web10-v3/
 ├── social/                ← web10-social implementation
 │   ├── overview.md        ← how social uses groups: discover, follows, communities
 │   ├── cross-app-sharing.md ← mailer pattern, DMs, comments
-│   └── group-policy-example.json.md ← concrete role/permission examples
+│   ├── group-policy-example.json.md ← concrete role/permission examples
+│   └── ads.md             ← the creator-owned ads service: the standard ad object, per-user read
 ├── media/                 ← the media pipeline: HLS transcoding, streaming, auth
 │   ├── transcoding-foundation.md ← the model: source doc, transcoding_settings, variants
 │   ├── transcoding.md         ← ffmpeg pipeline, HLS segments, storage, player
@@ -63,7 +64,7 @@ web10-v3/
 - **App Store** — `app-store/overview.md` (registration, visits, PWA manifests)
 - **Security** — `security/overview.md` (invariants I1–I5, two-contract model, blocking)
 - **Groups** — `groups/overview.md` (primitive), `groups/identity.md` (profiles)
-- **Social** — `social/overview.md` (implementation), `social/cross-app-sharing.md` (patterns)
+- **Social** — `social/overview.md` (implementation), `social/cross-app-sharing.md` (patterns), `social/ads.md` (the creator-owned ads service)
 - **Media** — `media/transcoding-foundation.md` (the model), `media/transcoding.md` (the pipeline), `media/streaming.md` (the layers), `media/minio-auth-bifurcated.md` (the auth split)
 
 ## What's Not Here (v4)
@@ -73,7 +74,8 @@ web10-v3/
 - **Real-time** — Redis + WebSocket push → `../web10-v4/future/`
 - **Advanced SDK** — `w.query()`, `powerMean` sorting, cross-node addressing, enforced schemas → `../web10-v4/sdk/advanced.md`
 - **Finance** — append-only ledgers, compute-on-read balances → `../web10-v4/faq/`
-- **Monetization** — ads, Pro features → v4
+- **Ad network** — the exchange layer: campaigns, targeting, DSP/SSP, revenue split → `../web10-v4/db/clickhouse-v4.md` (the creator-owned `ads` service is v3 — `social/ads.md`)
+- **Monetization** — Pro features → v4
 
 ## Decisions
 
