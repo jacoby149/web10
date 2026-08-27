@@ -31,7 +31,7 @@ Two defaults keep private groups out automatically, with no owner action:
 - **`invite_only` groups default to `discoverable = false`** — DMs and private circles are inherently private, so they never appear in the directory unless the owner explicitly lists them.
 - **The discover group is `discoverable = false`** — `ensure_discover_group()` enrolls `anon` (anon-readable board) but sets `discoverable: false` (not a directory entry).
 
-The "List in directory" toggle is a **convenience for the common case**: turning it on sets `discoverable = true` *and* adds `anon` as a member (default role), so the group is listed and its posts are anon-readable in one action. The advanced case — listed but content-private — is `discoverable = true` *without* adding `anon`.
+The "List in directory" toggle (in the authenticator's group management) controls **`discoverable` only** — the blasting flag. It does *not* touch `anon` membership: content readability is a separate action (the owner adds `anon` via Manage members). Keeping the two controls separate in the UI matches the two-controls model — one switch for "is it advertised," one for "can anon read it."
 
 ## The Directory Is Minimal
 

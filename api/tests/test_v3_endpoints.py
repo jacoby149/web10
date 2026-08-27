@@ -971,6 +971,7 @@ class TestGroupsManages:
                 "g1",
                 "open",
                 '[{"name": "admin", "services": ["*"], "permissions": ["readAll", "manageRoles"]}]',
+                1,
                 "admin",
             )
         ]
@@ -982,6 +983,7 @@ class TestGroupsManages:
             resp = client.post("/v3/groups/manages", json={"token": token})
         assert resp.status_code == 200
         assert len(resp.json()) == 1
+        assert resp.json()[0]["discoverable"] is True
 
 
 # ---------------------------------------------------------------------------
