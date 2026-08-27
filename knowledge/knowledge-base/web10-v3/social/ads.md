@@ -7,10 +7,10 @@ This is the **creator-owned** ad layer. It is not an ad network — no exchange,
 ## The Model
 
 ```mermaid
-graph LR
-    A["Partner Links UI<br/>(the ingest)"] -->|creator sets up<br/>offers + content| B["ads service<br/>documents table<br/>collection_name = 'ads'"]
-    B -->|attached to the<br/>creator's followers group| C["delivered by architecture<br/>100% of followers"]
-    C -->|multi-group read<br/>same as the feed| D["any app<br/>reads ads per viewer<br/>renders creative + offer"]
+graph TD
+    A["Partner Links UI<br/>the ingest"] -->|creator adds offers + content| B["ads service<br/>a document the creator owns"]
+    B -->|attached to the followers group| C["delivered by architecture<br/>100% of followers"]
+    C -->|the feed's multi-group read| D["any app<br/>reads ads per viewer"]
 
     style A fill:#fff9c4,stroke:#f57f17,color:#000
     style B fill:#e3f2fd,stroke:#1565c0,color:#000
