@@ -125,7 +125,7 @@ fork. This lane drives every remaining fork through the real popup.
 - [✓ 3.7.2] Follow creators (join followers groups)
 - [✓ 3.7.2] Read combined feed from discover + followers
 - [✓ 3.7.2] E2E test: post → follow → read combined feed
-- [✓ 3.17.4] Fix: use the node-default discover group — the demo was still on the stale per-user model from 3.7.2 (it asked users to "set up your discover group" through the consent popup). Now it reads the universal board `web10.app/groups/web10/discover` under the `posts` service (the same service + group the social app and marketing site use), no setup step; e2e re-aligned (contains-assertions, since the board is a shared node default)
+- [✓ 3.17.6] Fix: use the node-default discover group — the demo was still on the stale per-user model from 3.7.2 (it asked users to "set up your discover group" through the consent popup). Now it reads the universal board `web10.app/groups/web10/discover` under the `posts` service (the same service + group the social app and marketing site use), no setup step; e2e re-aligned (contains-assertions, since the board is a shared node default)
 
 ### Lane: sharing-demo (Phase 1)
 **Owns:** `marketing/marketing-ui/public/docs/sharing/`
