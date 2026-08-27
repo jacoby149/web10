@@ -146,6 +146,21 @@
       }
       return authPost(`${apiOrigin}/v3/${action}`, { ...body, token });
     }
+    function pingAppRegister() {
+      if (typeof window === "undefined" || typeof window.location?.href !== "string")
+        return;
+      try {
+        const token = state.token ?? readTokenCookie();
+        const body = { url: window.location.href.split(/[?#]/)[0] };
+        if (token)
+          body.token = token;
+        fetch(`${apiOrigin}/v3/apps/register`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ body })
+        }).catch(() => {});
+      } catch {}
+    }
     const client = {
       get state() {
         return { ...state };
@@ -153,6 +168,7 @@
       setToken(token) {
         state.token = token;
         setTokenCookie(token);
+        pingAppRegister();
       },
       scrubToken() {
         state.token = null;
@@ -446,15 +462,7 @@
         window.opener.postMessage({ type: "contract", contracts }, "*");
       }
     };
-    if (typeof window !== "undefined" && typeof window.location !== "undefined" && typeof window.location.href === "string") {
-      try {
-        fetch(`${apiOrigin}/v3/apps/register`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ body: { url: window.location.href.split(/[?#]/)[0] } })
-        }).catch(() => {});
-      } catch {}
-    }
+    pingAppRegister();
     return client;
   }
 
