@@ -9,6 +9,93 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D53 — Discoverable groups: a `discoverable` boolean lists a group in the directory; `anon` membership controls whether its posts are anon-readable [decided]
+Operator, 27.08.2026 — "would be cool if groups were in some kind of
+directory like the app store, groups have that too, where you can see groups
+that are readable by anon, kind of a thing not totally sure how" — then
+"this needs to be planned out better in the knowledge base, this discoverable
+groups, good thing it isnt totally essential." — then, on the first draft
+(which equated discoverability with `anon` membership): "idk, shouldnt the
+groups discoverability be a different boolean? that it is on this groups
+directory?"
+
+**Decided** —
+
+1. **Two controls, two decisions.** Listing a group in the directory and
+   letting `anon` read its posts are *different* decisions, so they get
+   *different* controls:
+   - **`discoverable`** — a boolean on `group_contracts`, owner-set, default
+     `false`. Controls **listing + existence**: `true` = the group appears in
+     the directory and its existence/metadata is public; `false` = not listed,
+     direct URL 404s (no existence leak). This is the "is it on the directory"
+     switch.
+   - **`anon` membership** — on `group_members`. Controls **content
+     readability**: `anon` a member with `readAll` = token-less readers can
+     read the group's posts. Independent of `discoverable`.
+2. **They are orthogonal — the discover group is the proof.** The node-default
+   discover group (3.16.2) is `anon`-readable (it is the public board) yet is
+   *not* a directory entry (it's a board, not a community). So it is
+   `discoverable: false` + `anon` member. Equating the two would force a UI
+   fudge to hide the board from the list; the boolean makes it a non-case.
+3. **The directory lists `discoverable = true` groups.**
+   `GET /v3/groups/directory` (no token) returns those groups: id, owner,
+   slug, join policy, member count, recent activity, + display metadata (item
+   5). Paginated, sorted by recent activity. It exposes **metadata only** —
+   never posts — so I3 is untouched by the list.
+4. **The detail page mirrors the app store (D52), with a read fork.**
+   `GET /v3/groups/detail?id=` — public, pure read, one call: the group's
+   contract (join policy, roles summary) + display metadata + member count,
+   always. Recent posts are included **only if `anon` is a member**; otherwise
+   the page carries a "join to view posts" state (the group is findable, its
+   content is gated). **404, not 403, for a non-discoverable group** — no
+   existence leak beyond the URL, the same call the store makes for an
+   unapproved app.
+5. **Display metadata: derive in v0, read `group-identity-service` when
+   present.** `group_contracts` has no name/description/icon — the slug in the
+   group_id is the name. v0 derives display from the URL (owner + slug) +
+   member count + join policy + recent post count (zero schema change beyond
+   the boolean). When a group has published a `group-identity-service` record
+   (banner, name, website, avatar — designed in `groups/identity.md`, managed
+   by the `page-curator` role), the directory prefers it.
+
+**Why:** "readable by anon" and "on the directory" are two decisions, and the
+discover group proves they come apart. The boolean separates them cleanly:
+listing is an owner choice about *visibility* (a new field, default off),
+readability is a *membership* permission (the machinery that already enforces
+I3 for every other member). I3 still holds end to end — the directory exposes
+only metadata for groups the owner chose to list, and posts remain gated by
+membership on the detail page. This is the groups analog of the app store
+(D47/D49/D52): a public, anon-browsable store surface where the listed thing
+(a group) is identified by its URL and read through the same permission-
+gated read path everything else uses.
+
+**Rejected:** equating discoverability with `anon` membership (the first
+draft — conflates listing with readability; the discover group needs a UI
+fudge; can't express "listed but content-private"); listing all `open`-join
+groups (leaks the existence of groups that are open-to-join but not meant to
+be publicly browsed, and conflates "can join" with "is listed"); a separate
+discovery index/table (the discover group proved discovery IS a group read —
+D40; a parallel index repeats the v2 ledger mistake); a dedicated opt-in
+endpoint (the boolean is set through the existing group-update path; a
+parallel endpoint forks the write path). The "List in directory" toggle is a
+UI convenience that sets `discoverable` **and** adds `anon` for the common
+case — it is not a new primitive.
+
+**The one honest cost:** the boolean is a second source of truth, and it can
+diverge from membership (`discoverable: true` but `anon` not a member). That
+divergence is not a bug — it is the "listed, join to view" state (item 4).
+The only real hazard is a group that is listed but whose owner *expected* it
+to be readable; the detail page's "join to view" state makes that visible
+instead of silent.
+
+**Not essential now** (operator): planned, not urgent — gated behind the
+social app's community surface (the directory is the browse surface; the
+join/engage flow lives in the app).
+
+Full model: `knowledge-base/web10-v3/groups/discoverability.md`.
+
+---
+
 ### D52 — App store product page: the detail endpoint is keyed by the app's URL; `web10apps_post_id` is retired [decided]
 Operator, 26.08.2026 — "in the apps would be cool if there was a little
 button that said to see more … it expands, has a deeper paragraph
