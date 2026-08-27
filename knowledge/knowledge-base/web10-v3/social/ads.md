@@ -93,6 +93,48 @@ LIMIT $limit
 
 Because the read is group-scoped, an ad is only ever visible to the creator's audience (or the public, if attached to discover). I3 holds: a viewer who does not follow the creator never sees the ad.
 
+## Dissemination (per-creator)
+
+How a creator's ads get mixed into a viewer's feed is a **per-creator choice**, not a platform decision. Each creator sets how *their own* ads rotate to *their own* audience — that's ownership, not an ad network. No global algorithm, no per-viewer logic: for each creator the viewer follows, the feed curates *that* creator's ads per *that* creator's setting.
+
+**The setting** lives on the creator's `settings` doc (the service the social app already uses):
+
+```json
+{
+  "ads": {
+    "dissemination": { "type": "text", "value": "round_robin" },
+    "cap":           { "type": "number", "value": 3 }
+  }
+}
+```
+
+`dissemination` is `round_robin` | `greedy` | `pinned` | `frequency_capped` (+ params like `cap`). The creator picks it in the Partner Links card.
+
+**The feed + ads join.** Ads and posts are the same `documents` table with the same group delivery, so "posts + the ads from the users you follow" is one ClickHouse query — the feed read with `collection_name IN ('posts', 'ads')` over the viewer's groups:
+
+```sql
+WHERE d.collection_name IN ('posts', 'ads')
+  AND d.doc_id IN (
+    SELECT doc_id FROM doc_groups
+    WHERE group_id IN (<viewer's discover + followed followers groups>)
+  )
+```
+
+One combined stream, each row tagged with its `collection_name` so the app knows how to render it. A post can also `ref` an ad directly (`ref_value` — the universal link), so a post can *be* the ad, *carry* one, or *link* to one.
+
+**Where the curation happens — a shared SDK helper, not the SQL.** The stateful algorithms (round-robin needs "which ad showed last," greedy needs the performance numbers) don't belong in a query. The server serves the per-creator read — creator X's ads + X's setting, a plain read. The curation is a deterministic SDK helper:
+
+```
+curateAds(creatorAds, creatorSetting) → the ordered subset to show
+```
+
+- **round_robin** — rotate the creator's active ads so each gets equal exposure (state in the app: memory/localStorage)
+- **greedy** — weight by performance (clicks/impressions from the ad doc's `stats`)
+- **pinned** — the creator picks which ad is live
+- **frequency_capped** — don't show the same ad more than `cap`× per session
+
+Because the helper is shared and deterministic, every app curates a given creator's ads identically — consistent across apps, no stateful ClickHouse logic.
+
 ## The Partner Links UI (the ingest)
 
 The Studio's monetization screen has one card for this: **Partner Links** (it was "Amazon Associates" + "Direct Deals" — collapsed, because they are the same primitive: a link that pays the creator). The card is the ingest:

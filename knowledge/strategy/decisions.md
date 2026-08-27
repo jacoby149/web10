@@ -9,6 +9,48 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D51 — Ad dissemination is a per-creator setting; curation is a shared SDK helper [decided]
+Operator, 26.08.2026 — building on D50: "i am pulling feed, or something, you can use
+clickhouse join feed with arbitrary ads per user, so you pull posts per your feed,
+with the ads from your users. OR posts in the feed can directly reference an ad";
+"can have ad algorithms, round robin, greedy, idk maybe all kinds of different ad
+things. in the settings for ads for creators on how their ads get disseminated";
+"the pick happens per creator! each creator chooses! their ads are curated
+accordingly."
+
+**Decided** — (1) How a creator's ads get mixed into a viewer's feed is a
+**per-creator choice**, not a platform decision. Each creator sets how *their
+own* ads rotate to *their own* audience (ownership, not an ad network). No
+global algorithm, no per-viewer logic: for each followed creator, the feed
+curates that creator's ads per that creator's setting. (2) **The setting** is a
+field on the creator's `settings` doc: `dissemination` = `round_robin` |
+`greedy` | `pinned` | `frequency_capped` (+ params like `cap`), chosen in the
+Partner Links card. (3) **The feed + ads join** is one ClickHouse query — the
+feed read with `collection_name IN ('posts','ads')` over the viewer's groups
+(ads and posts are the same table, same group delivery). A post can also `ref`
+an ad directly (`ref_value`), so a post can be the ad, carry one, or link to
+one. (4) **The curation is a shared SDK helper** (`curateAds(creatorAds,
+creatorSetting)`), not SQL — the stateful algorithms (round-robin's "last
+shown," greedy's performance weighting) don't belong in a query. The server
+serves the per-creator ads + setting (a plain read); the helper deterministically
+orders the subset to show, so every app curates a creator's ads identically.
+
+**Why:** the pick being per-creator keeps it thesis-aligned — the creator
+controls their own ad mix, the platform never injects or auctions. And because
+ads + posts are the same table with the same delivery, "feed with ads" is a
+query filter, not a new subsystem. The SDK-helper split (server serves, helper
+curates) gives cross-app consistency without stateful ClickHouse logic.
+
+**Rejected:** a platform-side ad auction/injection (that's the v4 exchange
+layer, the paved model — D50's two-layer note); encoding the curation
+algorithms in the feed query (stateful round-robin/greedy is awkward in SQL and
+couples curation to the read); a per-viewer dissemination (the setting is the
+creator's, applied to their ads — not the viewer's).
+
+Full model: `knowledge-base/web10-v3/social/ads.md` (the Dissemination section).
+
+---
+
 ### D50 — Ads are a v3 default service, creator-owned; the rung-0 card is "Partner Links" [decided]
 Operator, 26.08.2026 — the Studio's rung-0 monetization screen showed
 "Memberships & Tips" + "Amazon Associates" (+ a Direct Deals card).

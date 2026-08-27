@@ -212,7 +212,7 @@ log-sequence verification. The browser gauntlet bites are gated on the
 ### Lane: ads (monetization)
 **Owns:** `ui/src/components/Studio/`, `api/tests/test_ads.py`, `e2e/tests/ads.spec.ts`
 
-The creator-owned ads layer (D50): the `ads` default service — content + a
+The creator-owned ads layer (D50 + D51): the `ads` default service — content + a
 monetizable link (the offer), owned by the creator, delivered to followers
 by architecture. Any app with `ads: [readAll]` picks up ads per viewer with
 the same multi-group read the feed uses (`w.read('ads', { groups: [...] })`
@@ -220,8 +220,9 @@ the same multi-group read the feed uses (`w.read('ads', { groups: [...] })`
 Partner Links card (was "Amazon Associates" + "Direct Deals") is the ingest.
 The KB is the spec — read it first: `knowledge/knowledge-base/web10-v3/social/ads.md`.
 
-- [✓ 3.15.1] KB: the standard ad object + the per-user query + the two-layer note (`social/ads.md`) + D50
-- [ ] Partner Links card (UI): collapse "Amazon Associates" (`AmazonTagCard.tsx`) + "Direct Deals" (`DirectDealsCard.tsx`) into one "Partner Links" card in the Studio monetization screen — `offer.kind` = `affiliate` | `direct` | `own_store`; update `studio-data.ts` + `studio.test.tsx`
+- [✓ 3.16.1] KB: the standard ad object + the per-user query + the Dissemination section (per-creator setting + feed+ads join + `curateAds` SDK helper) + the two-layer note (`social/ads.md`) + D50 + D51
+- [ ] Dissemination (SDK): the `curateAds(creatorAds, creatorSetting)` helper — `round_robin` / `greedy` / `pinned` / `frequency_capped`, deterministic + per-creator so every app curates identically; the per-creator setting is a field on the `settings` doc
+- [ ] Partner Links card (UI): collapse "Amazon Associates" (`AmazonTagCard.tsx`) + "Direct Deals" (`DirectDealsCard.tsx`) into one "Partner Links" card in the Studio monetization screen — `offer.kind` = `affiliate` | `direct` | `own_store` + the dissemination picker; update `studio-data.ts` + `studio.test.tsx`
 - [ ] The `ads` service (API conformance): the ad object through the existing CRUD + the multi-group per-user read — no new endpoint; verify + pin with `api/tests/test_ads.py` (I3: a non-follower can't read the ad)
 - [ ] E2E: create ad → attach to followers group → viewer reads per-user → I3 (non-follower can't see) — `e2e/tests/ads.spec.ts`
 
