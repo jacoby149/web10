@@ -16,13 +16,13 @@ const DOC_PAGES = [
 ]
 
 const DEMO_APPS = [
-  { slug: 'hello', title: 'Hello', url: '/docs/hello/index.html' },
-  { slug: 'notes', title: 'Notes', url: '/docs/notes/index.html' },
-  { slug: 'messages', title: 'Messages', url: '/docs/messages/index.html' },
-  { slug: 'groups', title: 'Groups', url: '/docs/groups/index.html' },
-  { slug: 'media', title: 'Media (HLS)', url: '/docs/media/index.html' },
-  { slug: 'feed', title: 'Feed', url: '/docs/feed/index.html' },
-  { slug: 'sharing', title: 'Sharing', url: '/docs/sharing/index.html' },
+  { slug: 'hello', title: 'Hello', url: '/docs/hello/' },
+  { slug: 'notes', title: 'Notes', url: '/docs/notes/' },
+  { slug: 'messages', title: 'Messages', url: '/docs/messages/' },
+  { slug: 'groups', title: 'Groups', url: '/docs/groups/' },
+  { slug: 'media', title: 'Media (HLS)', url: '/docs/media/' },
+  { slug: 'feed', title: 'Feed', url: '/docs/feed/' },
+  { slug: 'sharing', title: 'Sharing', url: '/docs/sharing/' },
 ]
 
 function DocsSidebar() {

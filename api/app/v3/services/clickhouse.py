@@ -105,10 +105,88 @@ def ensure_apps_schema():
             " TTL toDateTime(seen_at) + INTERVAL 2 YEAR"
         )
         log.info("[v3] schema ensured (apps.visits + app_ratings.comment + node_config + app_visits present)")
+        # Data migration (idempotent): re-home demo apps registered under
+        # their directory-index file URLs onto their directory URLs.
+        _migrate_file_index_app_rows()
     except Exception as e:
         # ClickHouse not up yet, or table missing (fresh volume mid-init).
         # The DDL template covers fresh volumes; log and move on.
         log.warning(f"[v3] schema ensure skipped: {type(e).__name__}: {e}")
+
+
+def _tombstone_app_row(url: str) -> None:
+    """Mark the latest live row for ``url`` as deleted (the dedup-then-filter
+    house pattern — a tombstone row ranks latest, so the app leaves the store)."""
+    client.command(
+        "INSERT INTO apps (url, name, description, icon_url, screenshots, visits, approved, review_state, metadata_version, created_at, updated_at, deleted) "
+        "SELECT url, name, description, icon_url, screenshots, visits, approved, review_state, metadata_version, created_at, now64(6), 1 "
+        "FROM (SELECT url, name, description, icon_url, screenshots, visits, approved, review_state, metadata_version, created_at, updated_at, deleted, "
+        "row_number() OVER (PARTITION BY url ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM apps) WHERE rn = 1 AND deleted = 0 AND url = %(url)s",
+        {"url": url},
+    )
+
+
+def _migrate_file_index_app_rows() -> None:
+    """One-time, idempotent data migration.
+
+    The store's demo apps were registered under their directory-index file
+    URLs (``.../docs/media/index.html``) because the docs page linked the
+    explicit ``index.html`` and the SDK registered ``window.location.href``.
+    #683 fixed the identity fork for NEW registrations (the canonicalizer
+    and the SDK now collapse ``/index.html`` to the directory), but the rows
+    already stored under file URLs remain — icon-less, name-less duplicate
+    cards whose manifest lookup (``.../index.html/manifest.json``) can never
+    resolve.
+
+    Re-home each live file-index row under its directory URL (carrying over
+    name/description/approval so the demos stay approved and keep their
+    icons) and tombstone the file row. Idempotent: once the file rows are
+    tombstoned the source query returns nothing on later boots, and the
+    canonicalizer now strips ``/index.html`` so no new file-index rows can be
+    created. Safe under concurrent gunicorn workers — duplicate re-home rows
+    carry identical state and the dedup hides all but one.
+    """
+    result = client.query(
+        "SELECT url, name, description, icon_url, screenshots, visits, approved, review_state, "
+        "metadata_version, created_at "
+        "FROM (SELECT url, name, description, icon_url, screenshots, visits, approved, review_state, "
+        "metadata_version, created_at, updated_at, deleted, "
+        "row_number() OVER (PARTITION BY url ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM apps) WHERE rn = 1 AND deleted = 0 "
+        "AND (url LIKE '%/index.html' OR url LIKE '%/index.html/')"
+    )
+    if not result.result_rows:
+        return
+    for row in result.result_rows:
+        old_url = row[0]
+        new_url = _canonical_app_url(old_url)
+        if new_url == old_url:
+            continue
+        # A live row already exists under the directory URL (e.g. a
+        # post-#683 visit registered it) — keep that row, just drop the
+        # stale file row.
+        if not get_app(new_url):
+            client.insert(
+                "apps",
+                [[new_url, row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9], _now(), 0]],
+                column_names=[
+                    "url",
+                    "name",
+                    "description",
+                    "icon_url",
+                    "screenshots",
+                    "visits",
+                    "approved",
+                    "review_state",
+                    "metadata_version",
+                    "created_at",
+                    "updated_at",
+                    "deleted",
+                ],
+            )
+        _tombstone_app_row(old_url)
+        log.info(f"[v3] re-homed app {old_url} -> {new_url}")
 
 
 # ---------------------------------------------------------------------------
@@ -1827,7 +1905,11 @@ def _canonical_app_url(url: str) -> str:
     # app — the directory IS the app (D47). Fold it, or a demo loaded via
     # its index.html link forks into a second store entry whose manifest
     # lookup (.../index.html/manifest.json) 404s: icon-less, name-less card.
-    if path.endswith("/index.html"):
+    # The trailing-slash form (.../index.html/) is handled too — rows
+    # registered between hardening #4 and this fix carry it.
+    if path.endswith("/index.html/"):
+        path = path[: -len("index.html/")]
+    elif path.endswith("/index.html"):
         path = path[: -len("index.html")]
     if not path.endswith("/"):
         path += "/"
