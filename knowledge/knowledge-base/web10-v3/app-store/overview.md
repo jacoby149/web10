@@ -7,7 +7,8 @@ visits, no algorithm, no promotion.**
 This doc is the v3 model: what an app *is* to the store, how it gets there,
 how it gets counted, and how it gets shown. The data model (the `apps`
 table) lives in `../db/clickhouse.md`; the SDK surface (`registerApp`,
-`getApps`, `rateApp`) in `../sdk/api.md`.
+`getApps`, `rateApp`) in `../sdk/api.md`; the endpoint surface — every
+route the storefront and the product page talk to — in `endpoints.md`.
 
 ## An App Is a URL — Including the Path
 
@@ -156,8 +157,9 @@ Ratings live in `app_ratings` (1–5 stars, per author, per app).
 ## What This Is Not
 
 - **Not a discovery feed.** v2 had a `web10apps` post ledger for social
-  discovery of apps; v3 drops it (`web10apps_post_id` is a vestigial empty
-  field). The store is the surface.
+  discovery of apps; v3 drops it (`web10apps_post_id` is retired — D49;
+  the URL is the key, and the product page is keyed on it). The store is
+  the surface.
 - **Not moderated content.** There is no v2 `pending_on_change` review
   state machine — an approved app's listing updates on repeat
   registration, and the operator's approve/reject is the review. Small

@@ -107,6 +107,7 @@ erDiagram
         String target_app_id PK
         String author PK
         "UInt8" rating
+        String comment
         String provider
     }
 
@@ -357,7 +358,7 @@ CREATE TABLE apps (
 ORDER BY url;
 ```
 
-**Primary key:** `url` — the app's origin.
+**Primary key:** `url` — the app's full URL, path included (D47).
 
 **`review_state`:** `pending`, `approved`, `pending_on_change`, `rejected`.
 
@@ -365,13 +366,15 @@ ORDER BY url;
 
 ## App Ratings
 
-Star ratings for apps. One per (author, target_app).
+Star ratings for apps. One per (author, target_app). A review is a rating
+with words — `comment` is optional text (D49).
 
 ```sql
 CREATE TABLE app_ratings (
     author String,
     target_app_id String,
     rating UInt8,
+    comment String DEFAULT '',
     provider String,
     created_at DateTime64(3),
     updated_at DateTime64(3),

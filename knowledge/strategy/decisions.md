@@ -9,6 +9,68 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D49 — App store product page: the detail endpoint is keyed by the app's URL; `web10apps_post_id` is retired [decided]
+Operator, 26.08.2026 — "in the apps would be cool if there was a little
+button that said to see more … it expands, has a deeper paragraph
+description from the manifest, and then has ALL the available stats, the
+90d users, the visits, the 30d users, you get what i mean, everything in
+one screen, and the apps reviews comments kind of thing" — then "clicking
+the tile opens this modal or whatever it is" — then "in the knowledge base
+we need to talk about how the app store is going to work, it will need its
+own endpoints."
+
+**Decided** —
+
+1. **The product page is a page, not a modal.** The existing
+   `/app-store/app/:id` route (PR #426) is the surface. Tap tile → page;
+   the Open button → launch. Deep-linkable and shareable — the address bar
+   is part of the product. A modal with no URL state is a review rejection
+   per the deep-link rule, and it is cramped for "everything in one
+   screen."
+2. **A new `GET /v3/apps/detail?url=` serves the page.** Public, pure
+   read, one call: app + rating aggregate + rating list + stats. **No
+   visit bump** — a product-page view is not an app visit; visits are SDK
+   pings on the app's own pages, and the counter means what
+   `app-store/overview.md` says it means.
+3. **The URL is the key.** D47 made the full URL the app's identity; the
+   detail endpoint keys on it, and `web10apps_post_id` is retired (v2
+   vestige — the `#web10apps` discovery ledger, dropped in v3; the v3
+   `apps` table never had the column; `/v3/stats` stops blanking it; the
+   UI route param becomes the URL-encoded URL).
+4. **Reviews are a rating with words.** `app_ratings` gains a `comment`
+   column; one voice per author (dedup key `(target_app_id, author)`),
+   latest wins, no history. No separate reviews table.
+5. **The stats model is honest about what the node knows.** Per-app:
+   visits (anonymous pings) + `authorized_users` (distinct
+   `app_contracts` holders for the app's origin — origin-scoped because
+   contracts are CORS-scoped; two path-apps on one host share it).
+   Node-level: members + new members 30d/90d from `users.created_at`.
+   There is no per-app usage log — the store counts *runs* and *consents*,
+   not *users of app X* — and the page labels node numbers as context, not
+   app metrics.
+
+**Why:** the product page was built (PR #426) against a phantom endpoint
+(`PATCH /discover/app/{id}` — no such route in the API, so every page 404s
+into "App not found") and a blanked ID (`/v3/stats` sets
+`web10apps_post_id: ""`, so the card never takes the internal-Link path
+and the tile opens the site directly). The root cause is an identity gap:
+the UI wanted a short ID for the route, but the store's identity is
+already the URL. Keying on the URL deletes the gap instead of papering
+over it with a second ID system.
+
+**Rejected:** a modal (no URL state — review rejection; cramped for the
+full stats + reviews layout); a "see more" expander on the card (a third
+tap target on a small tile; inline expansion breaks grid row alignment); a
+parallel ID for the route (post_id / slug / numeric — D47: the URL is the
+identity, a second ID system is drift by construction); a separate
+`app_reviews` table (duplicates `app_ratings`' dedup semantics); per-app
+windowed user counts (would require a usage event the protocol does not
+have — v4 territory if it ever comes).
+
+Full model: `knowledge-base/web10-v3/app-store/endpoints.md`.
+
+---
+
 ### D48 — Node config lives in ClickHouse: v3 stacks run no Mongo [decided]
 Operator, 26.08.2026 — "I am not seeing the admin panel … confirm I am
 admin … auth.dev.web10.app is broken, we need to fix the code so I see the

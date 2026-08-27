@@ -30,7 +30,8 @@ web10-v3/
 ├── setup/                 ← node setup & operator config
 │   └── node-config.md     ← the node_config table, admins model, setup flow, /am_admin gate
 ├── app-store/             ← the node's public storefront
-│   └── overview.md        ← registration (a path is an app), visits, PWA manifests, store UI
+│   ├── overview.md        ← registration (a path is an app), visits, PWA manifests, store UI
+│   └── endpoints.md       ← the store's endpoint surface: the product page, ratings, stats
 ├── groups/                ← groups as a platform primitive
 │   ├── overview.md        ← policy containers, roles, join policies
 │   ├── identity.md        ← profiles, URLs, service-scoped roles
@@ -60,7 +61,7 @@ web10-v3/
 - **Auth & Consent** — `auth/auth.md` (token flow), `auth/consent.md` (consent experience, ideal UX)
 - **DB** — `db/clickhouse.md` (tables, indexes, patterns)
 - **Setup & Config** — `setup/node-config.md` (node_config table, admins, /am_admin)
-- **App Store** — `app-store/overview.md` (registration, visits, PWA manifests)
+- **App Store** — `app-store/overview.md` (registration, visits, PWA manifests), `app-store/endpoints.md` (the endpoint surface: product page, ratings, stats)
 - **Security** — `security/overview.md` (invariants I1–I5, two-contract model, blocking)
 - **Groups** — `groups/overview.md` (primitive), `groups/identity.md` (profiles)
 - **Social** — `social/overview.md` (implementation), `social/cross-app-sharing.md` (patterns)
