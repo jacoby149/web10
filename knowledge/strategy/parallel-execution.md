@@ -209,6 +209,43 @@ log-sequence verification. The browser gauntlet bites are gated on the
 - [ ] Browser gauntlet: real D42 login → feed renders → post → reload persists (gated on `social-v3` auth)
 - [ ] Browser gauntlet: two-user DM round-trip (gated on `social-v3` auth)
 
+### Lane: discover-board (Phase 3)
+**Owns:** `api/app/v3/` (discover group + board read + admin discovery), `persona-orchestration/`, `marketing/marketing-ui/src/components/FeedPreview.tsx` + `src/pages/Trending.tsx`, `ui/src/components/Config/ConfigPage.tsx`
+
+The node-default universal public board. The discover group
+(`web10.app/groups/web10/discover`) is a NODE DEFAULT — created at boot,
+anon + every user a member, auto-enroll at signup, backfill pre-existing
+users. Discovery IS a group read: the board is the discover group in the
+`groups` list, read anon through the anon-capable `/v3/read` (no separate
+discover endpoint — the v2 `/discover/posts` is not resurrected). Persona
+seeding posts to the group so the marketing trending page + in-app Discover
+look alive.
+
+- [✓ 3.16.2] Node-default discover group: boot-time `ensure_discover_group()` (create + anon + backfill), auto-enroll in `create_user`, idempotent
+- [✓ 3.16.2] Anon-capable `/v3/read`: missing token reads as `anon` (the board), app-contract gate for real users only, I3 holds (anon can't read non-member groups)
+- [✓ 3.16.2] `ref_value` on create (the ref pattern was broken on the write path — reactions/comments couldn't reference their target)
+- [✓ 3.16.2] Board moderation as a group op: `POST /v3/groups/{hide,unhide,hidden}` (gated by `hideAll` OR node admin — the public board has no moderator role), `get_hidden_docs`, anti-join dedup-then-filter
+- [✓ 3.16.2] Persona seeding for v3: `seed_personas.py` rewritten off v2 (terms/schemas/ledger) onto groups — posts + reactions/comments via `ref_value`, idempotent, `--verify`
+- [✓ 3.16.2] Marketing trending + admin board rewired to the normal group read (anon); trending computes engagement client-side from the reactions/comments groups
+- [ ] E2E: board gauntlet — seed → anon reads the board → a real user's post appears → remove/restore round-trip (gated on the social-e2e stack)
+
+### Lane: ads (monetization)
+**Owns:** `ui/src/components/Studio/`, `api/tests/test_ads.py`, `e2e/tests/ads.spec.ts`
+
+The creator-owned ads layer (D50 + D51): the `ads` default service — content + a
+monetizable link (the offer), owned by the creator, delivered to followers
+by architecture. Any app with `ads: [readAll]` picks up ads per viewer with
+the same multi-group read the feed uses (`w.read('ads', { groups: [...] })`
+— no new endpoint, rides the existing CRUD + read + media machinery). The
+Partner Links card (was "Amazon Associates" + "Direct Deals") is the ingest.
+The KB is the spec — read it first: `knowledge/knowledge-base/web10-v3/social/ads.md`.
+
+- [✓ 3.16.1] KB: the standard ad object + the per-user query + the Dissemination section (per-creator setting + feed+ads join + `curateAds` SDK helper) + the two-layer note (`social/ads.md`) + D50 + D51
+- [ ] Dissemination (SDK): the `curateAds(creatorAds, creatorSetting)` helper — `round_robin` / `greedy` / `pinned` / `frequency_capped`, deterministic + per-creator so every app curates identically; the per-creator setting is a field on the `settings` doc
+- [ ] Partner Links card (UI): collapse "Amazon Associates" (`AmazonTagCard.tsx`) + "Direct Deals" (`DirectDealsCard.tsx`) into one "Partner Links" card in the Studio monetization screen — `offer.kind` = `affiliate` | `direct` | `own_store` + the dissemination picker; update `studio-data.ts` + `studio.test.tsx`
+- [ ] The `ads` service (API conformance): the ad object through the existing CRUD + the multi-group per-user read — no new endpoint; verify + pin with `api/tests/test_ads.py` (I3: a non-follower can't read the ad)
+- [ ] E2E: create ad → attach to followers group → viewer reads per-user → I3 (non-follower can't see) — `e2e/tests/ads.spec.ts`
+
 ### Lane: app-store-metrics (D49)
 **Owns:** `api/app/v3/services/clickhouse.py`, `api/app/endpoints/`, `api/app/services/config.py` (n/a — D48), `sdk/src/`, `marketing/marketing-ui/src/pages/`, `clickhouse-init/`, `e2e/tests/`
 
@@ -230,12 +267,12 @@ across all apps. The decision bite is done (D49); the build follows.
 - [✓ 3.15.0] Hardening (folded in): #4 URL normalization in `register_app` (lowercase host, one trailing slash); #7 manifest byte cap in `/pwa_listing`
 - [✓ 3.15.0] Tests: unit (gated ingest, anon-drop, forged-token I2 anti-test, metrics, pagination) + e2e (real signed-in user → active count; pagination boundary)
 - [✓ 3.15.0] KB: `app-store/overview.md` metrics section + `db/clickhouse.md` `app_visits` table
-- [✓ 3.16.1] D50 (spec, PR #682): decision + `app-store/endpoints.md` — page not modal, `GET /v3/apps/detail?url=` (public, pure read), URL is the key, reviews = rating + comment, D49's metric set + node macro
-- [✓ 3.17.0] D50 (build): `GET /v3/apps/detail` (app + metrics + ratings + node macro; 404 unknown/unapproved; pure read)
-- [✓ 3.17.0] D50 (build): `app_ratings.comment` (DDL + boot ALTER, named-column insert, 1000-char cap, canonical-url keying) + dedup-then-filter read in `get_app_ratings` + admin aggregate
-- [✓ 3.17.0] D50 (build): `list_store_apps` drops the blanked `web10apps_post_id`
-- [✓ 3.17.0] D50 (build): UI — card → `/app-store/app/{urlencoded-url}`, AppDetail rewritten (metrics, reviews, rate form with token-cookie session + SDK auth popup, node context)
-- [✓ 3.17.0] D50 (build): tests — 12 API unit + AppDetail/AppCard unit rewrites + 4 e2e (detail payload, 404s, rating round-trip dedup, card → page seam)
+- [✓ 3.16.1] D52 (spec, PR #682): decision + `app-store/endpoints.md` — page not modal, `GET /v3/apps/detail?url=` (public, pure read), URL is the key, reviews = rating + comment, D49's metric set + node macro
+- [✓ 3.17.0] D52 (build): `GET /v3/apps/detail` (app + metrics + ratings + node macro; 404 unknown/unapproved; pure read)
+- [✓ 3.17.0] D52 (build): `app_ratings.comment` (DDL + boot ALTER, named-column insert, 1000-char cap, canonical-url keying) + dedup-then-filter read in `get_app_ratings` + admin aggregate
+- [✓ 3.17.0] D52 (build): `list_store_apps` drops the blanked `web10apps_post_id`
+- [✓ 3.17.0] D52 (build): UI — card → `/app-store/app/{urlencoded-url}`, AppDetail rewritten (metrics, reviews, rate form with token-cookie session + SDK auth popup, node context)
+- [✓ 3.17.0] D52 (build): tests — 12 API unit + AppDetail/AppCard unit rewrites + 4 e2e (detail payload, 404s, rating round-trip dedup, card → page seam)
 
 ### Lane: admin-console (Phase 3)
 **Owns:** `ui/src/components/Config/`, `api/app/endpoints/system.py`, `api/app/services/config.py`
@@ -245,4 +282,3 @@ panel is the node's control surface — it must show what the node
 actually runs, and every control on it must work.
 
 - [✓ 3.16.0] Node Config: effective config in the form (settings defaults ← saved overlay — no more blanks; ClickHouse URL + MinIO values default to the docker-network settings) + field trimming (Node Identity → provider/CORS/token-expiry; Stripe → mode + keys) + the dead Save button fixed (PATCH /config 405 → POST /config/update)
-

@@ -84,7 +84,7 @@ def ensure_apps_schema():
         # have the apps table without the column; ADD COLUMN appends it at
         # the end, which is why inserts must name their columns.
         client.command("ALTER TABLE apps ADD COLUMN IF NOT EXISTS visits UInt64 DEFAULT 0")
-        # app_ratings.comment — reviews are a rating with words (D50).
+        # app_ratings.comment — reviews are a rating with words (D52).
         # Pre-existing volumes predate the column; ADD COLUMN appends it at
         # the end, which is why inserts must name their columns.
         client.command("ALTER TABLE app_ratings ADD COLUMN IF NOT EXISTS comment String DEFAULT ''")
@@ -109,6 +109,78 @@ def ensure_apps_schema():
         # ClickHouse not up yet, or table missing (fresh volume mid-init).
         # The DDL template covers fresh volumes; log and move on.
         log.warning(f"[v3] schema ensure skipped: {type(e).__name__}: {e}")
+
+
+# ---------------------------------------------------------------------------
+# Discover group — the node-default universal public board
+# ---------------------------------------------------------------------------
+#
+# The discover group is a NODE DEFAULT, not an app-created group (KB:
+# web10-v3/groups/social-contracts.md §1 — owner "System", members "Everyone
+# (auto-join)"; web10-social-v3/discover.md — "every user (including anon) is
+# a member"). It is the universal public board: a read of the group IS the
+# board, and a post is public when its author attaches it here. The group id
+# is a well-known constant (not provider-derived) so every app — and the
+# marketing site, which reads it as anon — addresses the same board.
+
+DISCOVER_GROUP_ID = "web10.app/groups/web10/discover"
+
+# One role. Everyone shares it (social-contracts.md §1): read the board, post
+# to it, manage your own posts. No owners, no moderators.
+DISCOVER_ROLES = [
+    {
+        "name": "member",
+        "services": ["posts"],
+        "permissions": ["readAll", "create", "updateOwn", "deleteOwn"],
+    }
+]
+
+
+def _ensure_discover_group_contract() -> None:
+    """Create the discover group contract if missing (no membership work).
+
+    The lightweight half of ensure_discover_group — safe to call from the
+    signup path (create_user) where we only need the contract to exist before
+    enrolling the new user, not the full anon + backfill pass.
+    """
+    if not get_group(DISCOVER_GROUP_ID):
+        create_group(DISCOVER_GROUP_ID, DISCOVER_ROLES, "open")
+        log.info("[v3] discover group created: %s", DISCOVER_GROUP_ID)
+
+
+def ensure_discover_group() -> None:
+    """Ensure the node-default discover group exists and is populated.
+
+    Idempotent boot pass (safe from every gunicorn worker):
+      1. create the group contract if missing,
+      2. ensure `anon` is a member — the public surface reads the board as
+         anon, so anon membership is what makes it anon-readable,
+      3. backfill every existing user as a member (auto-enrollment for
+         accounts created before the group existed).
+    New users are enrolled at signup (see create_user), so the backfill only
+    adds pre-existing accounts.
+
+    Resilient like ensure_apps_schema: ClickHouse may not be ready at boot
+    (or a test may run this against a stub), so a failure is logged and
+    deferred to the next boot / the signup auto-enroll, not fatal.
+    """
+    try:
+        _ensure_discover_group_contract()
+
+        members = set(get_group_member_keys(DISCOVER_GROUP_ID))
+        if "anon" not in members:
+            add_group_member(DISCOVER_GROUP_ID, "anon", "member")
+            log.info("[v3] discover group: anon enrolled")
+
+        added = 0
+        for user in list_users():
+            if user["username"] not in members:
+                add_group_member(DISCOVER_GROUP_ID, user["username"], "member")
+                added += 1
+        if added:
+            log.info("[v3] discover group: backfilled %d user(s)", added)
+    except Exception as e:
+        log.warning(f"[v3] discover group ensure skipped: {type(e).__name__}: {e}")
 
 
 # ---------------------------------------------------------------------------
@@ -497,6 +569,22 @@ def is_group_member(group_id: str, member_key: str) -> bool:
     return get_group_member(group_id, member_key) is not None
 
 
+def get_group_member_keys(group_id: str) -> list[str]:
+    """All active member keys of a group (deduplicated, no limit).
+
+    Used by the discover-group backfill to know who is already enrolled —
+    one query instead of one membership check per user.
+    """
+    result = client.query(
+        "SELECT member_key FROM (SELECT member_key, deleted, "
+        "row_number() OVER (PARTITION BY member_key ORDER BY updated_at DESC, deleted DESC) as rn "
+        "FROM group_members WHERE group_id = %(group_id)s) "
+        "WHERE rn = 1 AND deleted = 0",
+        {"group_id": group_id},
+    )
+    return [row[0] for row in result.result_rows]
+
+
 def _get_group_member_counts(group_ids: list[str]) -> dict[str, int]:
     """Get deduplicated active member counts for a batch of groups.
 
@@ -657,13 +745,52 @@ def hide_doc_from_group(group_id: str, doc_id: str, moderator_key: str):
 
 
 def unhide_doc_from_group(group_id: str, doc_id: str):
-    """Unhide a document from a group's discover."""
+    """Unhide a document from a group's discover.
+
+    now64(6) (microsecond) — not now() (second) — so the tombstone's
+    updated_at is never earlier than the active hide row it supersedes when
+    both land in the same second; the reader's dedup keys off updated_at, so
+    a second-precision tombstone would rank earlier and the restore would be
+    invisible until a background merge (same house pattern as the unblock
+    tombstones).
+    """
     client.command(
         "INSERT INTO group_hidden_docs (group_id, doc_id, moderator_key, hidden_at, updated_at, deleted) "
-        "SELECT group_id, doc_id, moderator_key, hidden_at, now(), 1 "
+        "SELECT group_id, doc_id, moderator_key, hidden_at, now64(6), 1 "
         "FROM group_hidden_docs WHERE group_id = %(group_id)s AND doc_id = %(doc_id)s AND deleted = 0",
         {"group_id": group_id, "doc_id": doc_id},
     )
+
+
+def get_hidden_docs(group_id: str) -> list[dict]:
+    """List documents hidden from a group (the moderation takedown list).
+
+    Joins the documents table to surface author + body for the admin's
+    restore list. Dedup first (latest row per doc, tombstones included) then
+    filter deleted=0 — a restored doc's stale hidden row must not linger.
+    """
+    result = client.query(
+        "SELECT hd.doc_id, hd.moderator_key, hd.hidden_at, d.author_key, d.body "
+        "FROM (SELECT doc_id, moderator_key, hidden_at, deleted, "
+        "row_number() OVER (PARTITION BY doc_id ORDER BY updated_at DESC, deleted DESC) as rn "
+        "FROM group_hidden_docs WHERE group_id = %(group_id)s) hd "
+        "LEFT JOIN (SELECT doc_id, author_key, body FROM (SELECT doc_id, author_key, body, deleted, "
+        "row_number() OVER (PARTITION BY doc_id ORDER BY updated_at DESC) as rn "
+        "FROM documents) WHERE rn = 1 AND deleted = 0) d ON d.doc_id = hd.doc_id "
+        "WHERE hd.rn = 1 AND hd.deleted = 0 "
+        "ORDER BY hd.hidden_at DESC",
+        {"group_id": group_id},
+    )
+    return [
+        {
+            "doc_id": row[0],
+            "moderator_key": row[1],
+            "hidden_at": str(row[2]),
+            "author_key": row[3] or "",
+            "body": _parse_json(row[4]) if row[4] else {},
+        }
+        for row in result.result_rows
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -923,8 +1050,10 @@ def read_documents_in_groups(
         "FROM user_group_sharing) WHERE rn = 1 AND deleted = 0) ugs "
         "ON ugs.user_key = p.author_key AND ugs.group_id = pg.group_id AND ugs.sharing_enabled = 0 "
         "AND p.author_key != %(member_key)s "
-        "LEFT ANTI JOIN group_hidden_docs hd "
-        "ON hd.doc_id = p.doc_id AND hd.group_id = pg.group_id AND hd.deleted = 0 "
+        "LEFT ANTI JOIN (SELECT group_id, doc_id FROM (SELECT group_id, doc_id, deleted, "
+        "row_number() OVER (PARTITION BY group_id, doc_id ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM group_hidden_docs) WHERE rn = 1 AND deleted = 0) hd "
+        "ON hd.doc_id = p.doc_id AND hd.group_id = pg.group_id "
         "WHERE gm.member_key = %(member_key)s "
         "AND pg.group_id IN (%(g0)s" + "".join(f", %(g{i})s" for i in range(1, len(group_ids))) + ") "
         "ORDER BY p.created_at DESC "
@@ -1473,7 +1602,14 @@ def get_latest_jwt_key() -> dict | None:
 
 
 def create_user(username: str, password_hash: str, phone: str = "", email: str = "") -> dict:
-    """Create a user account."""
+    """Create a user account and auto-enroll them in the discover group.
+
+    Auto-enrollment (KB: social-contracts.md — "Everyone (auto-join)"): every
+    account is a member of the universal public board by default, so their
+    posts are discoverable the moment they attach one to the group. The group
+    contract is created at boot (ensure_discover_group); the lightweight
+    guard here covers the edge where a signup races the boot pass.
+    """
     existing = client.query(
         "SELECT count() FROM (SELECT 1 FROM users WHERE username = %(username)s AND deleted = 0 "
         "ORDER BY updated_at DESC LIMIT 1)",
@@ -1486,7 +1622,19 @@ def create_user(username: str, password_hash: str, phone: str = "", email: str =
         "users",
         [[username, password_hash, phone, 0, email, 0, now, now, 0]],
     )
+    _ensure_discover_group_contract()
+    add_group_member(DISCOVER_GROUP_ID, username, "member")
     return {"username": username, "phone": phone, "email": email}
+
+
+def list_users() -> list[dict]:
+    """All active users (deduplicated to the latest row per username)."""
+    result = client.query(
+        "SELECT username FROM (SELECT username, deleted, "
+        "row_number() OVER (PARTITION BY username ORDER BY updated_at DESC, deleted DESC) as rn "
+        "FROM users) WHERE rn = 1 AND deleted = 0",
+    )
+    return [{"username": row[0]} for row in result.result_rows]
 
 
 def get_user(username: str) -> dict | None:
@@ -1675,6 +1823,12 @@ def _canonical_app_url(url: str) -> str:
     if port and not (scheme == "http" and port == 80) and not (scheme == "https" and port == 443):
         netloc = f"{host}:{port}"
     path = p.path or "/"
+    # A trailing /index.html is the server's way of serving the directory
+    # app — the directory IS the app (D47). Fold it, or a demo loaded via
+    # its index.html link forks into a second store entry whose manifest
+    # lookup (.../index.html/manifest.json) 404s: icon-less, name-less card.
+    if path.endswith("/index.html"):
+        path = path[: -len("index.html")]
     if not path.endswith("/"):
         path += "/"
     return urlunparse((scheme, netloc, path, "", "", ""))
@@ -1912,7 +2066,7 @@ def get_app(url: str) -> dict | None:
 
 
 def get_app_detail(url: str) -> dict | None:
-    """The product page payload (D50): the app record + the full realtime
+    """The product page payload (D52): the app record + the full realtime
     metric breakdown + rating aggregate + rating list + the node macro.
 
     Pure read — no app_visits row is written (a product-page view is not an
@@ -1975,7 +2129,7 @@ def approve_app(url: str, approved: bool, review_state: str):
 
 def create_app_rating(author: str, target_app_id: str, rating: int, provider: str, comment: str = "") -> dict:
     """Submit a 1-5 star rating for an app, with an optional review comment
-    (D50: a review is a rating with words). Named columns — the comment
+    (D52: a review is a rating with words). Named columns — the comment
     column was appended by ALTER on pre-existing volumes. The target is
     canonicalized (hardening #4) so a client can't fork an identity by
     spelling — the detail page queries the canonical url."""

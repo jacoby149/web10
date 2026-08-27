@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException, Request
 import app.exceptions as exceptions
 from app.services.hls import hls_prefix, mint_sig
 from app.v3.endpoints.auth_helper import user as _user
+from app.v3.endpoints.auth_helper import user_or_anon
 from app.v3.models import CreateDocument, DeleteDocument, ReadDocuments, UpdateDocument
 from app.v3.services import clickhouse as ch
 
@@ -55,6 +56,7 @@ def create_document(request: Request, data: CreateDocument):
         author_key=author,
         service=data.service,
         body=data.body,
+        ref_value=data.ref_value or "",
         tags=data.body.get("tags", []),
     )
     doc_id = result["doc_id"]
@@ -68,9 +70,18 @@ def create_document(request: Request, data: CreateDocument):
 
 @router.post("/read")
 def read_documents(request: Request, data: ReadDocuments):
-    """Read documents. doc_id for single read, groups for discover, 'me' for own docs."""
-    reader = _user(data)
-    _check_app_permission(request, reader, data.service, "readAll")
+    """Read documents. doc_id for single read, groups for discover, 'me' for own docs.
+
+    Anon-capable: a missing token reads as the node's `anon` member. This is
+    what makes the discover group (the public board) readable without a token
+    — discovery IS a group read in v3, so the board is just the discover group
+    in the `groups` list. Anon's access stays bounded by group membership (I3).
+    The app-contract gate applies to real users only; the public board is
+    anon-readable by design (D41: the node is readable by design).
+    """
+    reader = user_or_anon(data)
+    if reader != "anon":
+        _check_app_permission(request, reader, data.service, "readAll")
 
     if data.doc_id:
         doc = ch.read_document_by_id(data.doc_id, reader, data.service)
@@ -90,7 +101,9 @@ def read_documents(request: Request, data: ReadDocuments):
         # (which returns an empty list). If the reader is a member of NONE of
         # the explicitly requested groups, this is an access failure the app
         # can act on (prompt for the group contract) — not an empty result.
-        if not any(ch.is_group_member(g, reader) for g in group_ids):
+        # Anon is exempt: it reads the public board, and an empty board is a
+        # valid (empty) result, not an access failure.
+        if reader != "anon" and not any(ch.is_group_member(g, reader) for g in group_ids):
             raise HTTPException(
                 status_code=403,
                 detail="not a member of the requested group",

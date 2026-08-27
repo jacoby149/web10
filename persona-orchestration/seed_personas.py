@@ -1,40 +1,29 @@
 #!/usr/bin/env python3
 """
-Seed 5 persona accounts for live testing the web10 social platform.
-Creates accounts, sets profiles, establishes cross-follows, and seeds
-content that actually reaches the discovery feed.
+Seed 5 persona accounts for live-testing the web10 social platform (v3).
 
-IDEMPOTENT (ws-G2 fix, 23.07.2026): re-running on top of existing data is a
-no-op (or an upsert). Every create path reads first and skips (or updates)
-if the record already exists, keyed by a stable `origin_id` (posts + DMs)
-or a natural key (contacts/follows by username+provider, ledger entries by
-target+author+payload). The previous script created a fresh duplicate on
-every run — 5 runs = 5 copies of every post/contact/follow/DM, which made
-the feed demo as broken (gauntlet step 8). Use `--cleanup` once to remove
-duplicates from prior buggy runs; subsequent normal runs are safe.
+Creates accounts, sets profiles, and posts to the node-default discover group
+(the universal public board) so the marketing trending page and the in-app
+Discover look alive. Reactions and comments are seeded too, so the board has
+real engagement (the trending sort keys off it).
 
-Post-D5.5 (public/private discovery split, landed 1.0.92) contract:
-  * Public posts go to the `public_posts` service (visibility "public").
-  * A post is indexed into discovery ONLY if the user's `public_posts`
-    term record whitelists `anon`. Signup does NOT set this by default
-    (services_record() ships an empty whitelist), so this seeder writes
-    the anon-whitelist term record explicitly before posting.
-  * Reactions and comments are structured, validated interactions written
-    to the PUBLIC LEDGER via `POST /public/entries` (not a per-user
-    `reactions`/`comments` service). They reference a registered schema
-    (Reaction / Comment) and target the post via the key the discovery
-    engine reads: "{author}/public_posts/{post_id}". Engagement counts on
-    the discovery index are derived from the ledger's `payload.action`.
+v3 model (groups, not v2 terms/ledger):
+  * The discover group `web10.app/groups/web10/discover` is a NODE DEFAULT —
+    the node creates it at boot and auto-enrolls every user (including anon).
+    A post is public when its author attaches it to this group.
+  * Posts live in the `posts` service, attached to the discover group.
+  * Reactions/comments live in the `reactions`/`comments` services and point
+    at their target post via `ref_value` (the ref pattern). The board's
+    engagement counts (get_ref_counts) key off ref_value.
 
-The provider/site are DERIVED from the --api host (never hardcoded), so
-seeding dev populates dev and seeding prod populates prod. See README.md.
+IDEMPOTENT: a local state file (`.seed-state.json`) maps each seeded doc to a
+stable key, so re-running skips what's already there. If you WIPE the node,
+delete the state file too (or the script will skip docs that no longer exist).
 
 Usage:
-    python seed_personas.py --api http://api.localhost:6000
-    python seed_personas.py --api https://api.dev.web10.app
-    python seed_personas.py --api https://api.dev.web10.app --provider api.dev.web10.app --site social.dev.web10.app
-    python seed_personas.py --api https://api.dev.web10.app --cleanup   # remove dups from prior buggy runs
-    python seed_personas.py --api https://api.dev.web10.app --verify    # report-only, no writes
+    python3 seed_personas.py --api http://api.localhost:6000
+    python3 seed_personas.py --api https://api.dev.web10.app
+    python3 seed_personas.py --api https://api.dev.web10.app --verify
 """
 
 import argparse
@@ -53,8 +42,10 @@ except ImportError:
 
 PASSWORD = "web10test!2026"
 
-# State file for schema-id reuse across runs (avoids re-registering the
-# Reaction/Comment schemas every run — register_schema has no dedup).
+# The node-default universal public board (matches the API's DISCOVER_GROUP_ID
+# and the social app's DISCOVER_GROUP).
+DISCOVER_GROUP = "web10.app/groups/web10/discover"
+
 STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".seed-state.json")
 
 PERSONAS = [
@@ -238,8 +229,8 @@ POSTS = {
     ],
 }
 
+# "poster_username": [(commenter, text), ...]
 COMMENTS = {
-    # "poster_username": [commenter, text]
     "solar-flare-69": [
         ("noodle-empress", "I fall asleep during podcasts too but at least I have ramen as a snack \U0001f35c"),
         ("disco-donkey", "47 MINUTES?? That's like 3 dance songs. You need to tighten the show up my friend \U0001f573"),
@@ -267,30 +258,8 @@ COMMENTS = {
     ],
 }
 
-DMS = [
-    {"from": "disco-donkey", "to": "solar-flare-69", "message": "yo heard you need a hype man for the podcast. i'm available. my rate is 3 dance breaks per episode"},
-    {"from": "solar-flare-69", "to": "disco-donkey", "message": "honestly the chat loves when you show up. you're on. first episode free though, i'm not crazy"},
-    {"from": "noodle-empress", "to": "butterfly-mechanic", "message": "hey i saw your workshop pics and i have a question. do you think you could help me fix my rice cooker? it's making a weird noise and i'm scared"},
-    {"from": "butterfly-mechanic", "to": "noodle-empress", "message": "send me a video of the noise. if it's the heating element i can fix it for like $5 in parts. also what brand is it?"},
-    {"from": "void-walker", "to": "noodle-empress", "message": "your 3am ramen posts are the only thing keeping me awake past 2am and for that i am both grateful and disturbed"},
-    {"from": "noodle-empress", "to": "void-walker", "message": "that's the most romantic thing anyone has ever said to me. also i made extra miso soup. come over. it's 3:17am."},
-    {"from": "disco-donkey", "to": "void-walker", "message": "hey void walker i need you to write a eulogy for my left sneaker. it fell apart during a moonwalk. it deserved better than the trash"},
-    {"from": "void-walker", "to": "disco-donkey", "message": "\"Here lies a shoe that dared to dream of the moon. It was rubber-soled but spirit-winged.\" You're welcome. Charge: one library book."},
-    {"from": "solar-flare-69", "to": "butterfly-mechanic", "message": "bro i need you to look at my mic stand. it's wobbling during recordings and the audio guys are losing it"},
-    {"from": "butterfly-mechanic", "to": "solar-flare-69", "message": "send me a pic of the base. bet it's a loose bolt. i'll DM you a fix in 5 minutes"},
-    {"from": "disco-donkey", "to": "noodle-empress", "message": "ok real talk. if i cook you a 3am meal can you teach me to make ramen from scratch? i'll bring the donkey energy you bring the noodle wisdom"},
-    {"from": "noodle-empress", "to": "disco-donkey", "message": "only if you promise not to dance while stirring the broth. last time someone danced in my kitchen the cat knocked over the soy sauce. trauma."},
-    # Reply threads (gauntlet step 5: "persona DMs are one-directional —
-    # opening a thread shows only one side. add replies so it reads like a
-    # conversation, not a monologue."):
-    {"from": "butterfly-mechanic", "to": "noodle-empress", "message": "update: it was the heating element. $4.27 in parts from the electronics store. your rice cooker is reborn. you owe me a bowl."},
-    {"from": "noodle-empress", "to": "butterfly-mechanic", "message": "DEAL. come over friday. i'm making the tonkotsu. bring your own chopsticks though, i learned my lesson last time."},
-    {"from": "disco-donkey", "to": "solar-flare-69", "message": "just did a 3-minute dance break during the ad read. the chat went WILD. i think this is the start of something beautiful"},
-    {"from": "solar-flare-69", "to": "disco-donkey", "message": "the numbers don't lie. you're officially the podcast hype dancer. i'm putting you in the credits. title: 'Minister of Vibes.'"},
-]
-
+# (reactor, poster, post_index_0-based, reaction_type)
 REACTIONS = [
-    # (reactor, poster, post_index_0-based, reaction_type)
     ("noodle-empress", "solar-flare-69", 0, "\u2764\ufe0f"),
     ("disco-donkey", "solar-flare-69", 4, "\U0001f525"),
     ("void-walker", "noodle-empress", 0, "\u2764\ufe0f"),
@@ -316,56 +285,7 @@ REACTIONS = [
 ]
 
 
-# ── Discovery service + public-ledger contract ─────────────────────────────
-POST_SERVICE = "public_posts"  # D5.5: discoverable posts live here.
-
-# Public-ledger schemas the app registers by default (see web10-social
-# feed.ts DEFAULT_SCHEMAS). Reactions/comments reference these by _id.
-# `action` is added to the payload so the discovery engine can count
-# engagement (documentdb._ledger_engagement_for_post groups on
-# payload.action: like/reaction -> likes, comment -> comments, repost).
-REACTION_SCHEMA = {
-    "name": "Reaction",
-    "schema": {
-        "type": "object",
-        "required": ["type", "target"],
-        "properties": {
-            "type": {"type": "string"},
-            "target": {"type": "string", "description": "post_id or comment_id"},
-            "action": {"type": "string"},
-            "author_username": {"type": "string"},
-            "author_provider": {"type": "string"},
-        },
-    },
-}
-COMMENT_SCHEMA = {
-    "name": "Comment",
-    "schema": {
-        "type": "object",
-        "required": ["text", "target"],
-        "properties": {
-            "text": {"type": "string"},
-            "target": {"type": "string", "description": "post_id being commented on"},
-            "action": {"type": "string"},
-            "author_username": {"type": "string"},
-            "author_provider": {"type": "string"},
-        },
-    },
-}
-FOLLOW_SCHEMA = {
-    "name": "Follow",
-    "schema": {
-        "type": "object",
-        "required": ["action", "target_username"],
-        "properties": {
-            "action": {"type": "string", "enum": ["follow"]},
-            "target_username": {"type": "string", "description": "username of the followed user"},
-            "target_provider": {"type": "string"},
-            "author_username": {"type": "string"},
-            "author_provider": {"type": "string"},
-        },
-    },
-}
+# ── v3 API helpers ───────────────────────────────────────────────────────────
 
 
 def derive_provider(api_url):
@@ -397,54 +317,15 @@ def api(base, method, path, data=None):
 
 
 def _is_already_exists(status, body):
-    """Signup is idempotent: an existing user (EXISTS, 401) is success."""
+    """Signup is idempotent: an existing user (EXISTS) is success."""
     if status == 200:
         return False
     text = str(body).lower()
-    return "already exist" in text or "reserved" in text
+    return "already exist" in text or "reserved" in text or "exists" in text
 
 
-# ── Read helpers (PATCH = read in web10 CRUD) ──────────────────────────────
+# ── State file (idempotency) ─────────────────────────────────────────────────
 
-def read_records(base, username, service, token, query=None):
-    """PATCH /{user}/{service} returns matching records (list). Returns []."""
-    status, body = api(base, "PATCH", f"/{username}/{service}", {
-        "token": token,
-        "query": query or {},
-    })
-    if status == 200 and isinstance(body, list):
-        return body
-    return []
-
-
-def query_ledger(base, token, target=None, author=None, schema_id=None, limit=200):
-    """PATCH /public/entries — query the public ledger (anon OK, token OK).
-    Filter by target / author / schema_id. Returns list of entries."""
-    from urllib.parse import urlencode
-    q = {"limit": limit}
-    if target:
-        q["target"] = target
-    if author:
-        q["author"] = author
-    if schema_id:
-        q["schema_id"] = schema_id
-    status, body = api(base, "PATCH", f"/public/entries?{urlencode(q)}")
-    if status == 200 and isinstance(body, list):
-        return body
-    return []
-
-
-def delete_record(base, username, service, token, query):
-    """DELETE /{user}/{service} — delete matching records from a collection."""
-    return api(base, "DELETE", f"/{username}/{service}", {"token": token, "query": query})
-
-
-def delete_ledger_entry(base, token, entry_id):
-    """DELETE /public/entries/{id} — delete a ledger entry (author only)."""
-    return api(base, "DELETE", f"/public/entries/{entry_id}", {"token": token})
-
-
-# ── Schema-id reuse (avoids re-registering every run) ───────────────────────
 
 def load_state():
     if os.path.exists(STATE_FILE):
@@ -464,531 +345,175 @@ def save_state(state):
         pass
 
 
-def schema_exists(base, schema_id):
-    """PATCH /schemas/{id} — check if a schema is still registered."""
-    status, body = api(base, "PATCH", f"/schemas/{schema_id}", {"token": None, "query": {}})
-    return status == 200 and isinstance(body, dict)
+def state_key(provider, kind, *parts):
+    return f"{provider}:{kind}:{':'.join(parts)}"
 
 
-def get_or_register_schema(base, token, schema, provider, state):
-    """Reuse an existing schema_id if it's still valid; else register + save."""
-    provider_state = state.setdefault("providers", {}).setdefault(provider, {})
-    key = "reaction_schema_id" if schema["name"] == "Reaction" else "comment_schema_id" if schema["name"] == "Comment" else "follow_schema_id"
-    existing_id = provider_state.get(key)
-    if existing_id and schema_exists(base, existing_id):
-        return existing_id
-    status, sid, body = register_schema(base, token, schema)
-    if sid:
-        provider_state[key] = sid
-        save_state(state)
-    return sid
+# ── v3 write helpers ─────────────────────────────────────────────────────────
 
-
-# ── Write helpers (now idempotent: read-before-write) ───────────────────────
 
 def signup(base, persona):
-    return api(base, "POST", "/signup", {
+    return api(base, "POST", "/v3/signup", {
         "username": persona["username"],
         "password": PASSWORD,
     })
 
 
 def login(base, username, site):
-    status, body = api(base, "POST", "/web10token", {
+    status, body = api(base, "POST", "/v3/login", {
         "username": username,
         "password": PASSWORD,
         "site": site,
-        "target": "",
     })
     token = body.get("token") if isinstance(body, dict) else None
     return status, token, body
 
 
-def set_public_posts_terms(base, username, token):
-    """D5.5 gate: index a post into discovery only if its service whitelists
-    anon. Signup ships an empty whitelist, so create the term record here.
-    Idempotent: a duplicate services record returns 400 (DUPLICATE_SERVICE)."""
-    return api(base, "POST", f"/{username}/services", {
+def set_profile(base, username, token, persona, state, provider):
+    """Create the persona's profile doc (service `profile`). Idempotent via
+    the state file."""
+    key = state_key(provider, "profile", username)
+    if key in state:
+        return 200, {"skipped": True}
+    status, body = api(base, "POST", "/v3/create", {
         "token": token,
-        "query": {
-            "service": POST_SERVICE,
-            "whitelist": [{"username": "anon", "provider": ".*", "read": True}],
-            "blacklist": [],
+        "service": "profile",
+        "body": {
+            "display_name": persona["display_name"],
+            "bio": persona["bio"],
+            "updated_at": datetime.now(timezone.utc).isoformat(),
         },
     })
+    if status == 200 and isinstance(body, dict) and body.get("doc_id"):
+        state[key] = body["doc_id"]
+        save_state(state)
+    return status, body
 
 
-def register_schema(base, token, schema):
-    status, body = api(base, "POST", "/schemas/register", {
+def create_post(base, username, token, post_data, idx, state, provider):
+    """Post to the discover group (service `posts`). Idempotent via the state
+    file keyed by (username, idx)."""
+    key = state_key(provider, "post", username, f"{idx:02d}")
+    if key in state:
+        return 200, {"skipped": True, "doc_id": state[key]}
+    status, body = api(base, "POST", "/v3/create", {
         "token": token,
-        "query": {"name": schema["name"], "schema": schema["schema"]},
-    })
-    sid = body.get("_id") if isinstance(body, dict) else None
-    return status, sid, body
-
-
-def set_profile(base, username, token, persona):
-    """Upsert: if a profile record exists, PUT-update it; else POST-create.
-    The old script always POSTed, leaving N profile records after N runs."""
-    existing = read_records(base, username, "profile", token)
-    payload = {
-        "display_name": persona["display_name"],
-        "bio": persona["bio"],
-        "updated_at": datetime.now(timezone.utc).isoformat(),
-    }
-    if existing and isinstance(existing, list) and existing[0].get("_id"):
-        pid = existing[0]["_id"]
-        return api(base, "PUT", f"/{username}/profile", {
-            "token": token,
-            "query": {"_id": pid},
-            "update": {"$set": payload},
-        })
-    return api(base, "POST", f"/{username}/profile", {
-        "token": token,
-        "query": payload,
-    })
-
-
-def post_origin_id(username, idx):
-    """Stable key per seeded post — survives re-runs without duplication."""
-    return f"seed-{username}-{idx:02d}"
-
-
-def create_post(base, username, token, post_data, idx):
-    """Idempotent: read public_posts by origin_id first. If a record exists,
-    reuse its _id (don't re-create). Else create with the stable origin_id."""
-    oid = post_origin_id(username, idx)
-    existing = read_records(base, username, POST_SERVICE, token, {"origin_id": oid})
-    if existing and isinstance(existing, list) and existing[0].get("_id"):
-        rec = existing[0]
-        rec["skipped"] = True
-        return 200, rec
-    return api(base, "POST", f"/{username}/{POST_SERVICE}", {
-        "token": token,
-        "query": {
-            **post_data,
+        "service": "posts",
+        "body": {
+            "text": post_data["text"],
+            "tags": post_data["tags"],
+            "origin": "web10",
+            "origin_id": f"seed-{username}-{idx:02d}",
             "created_at": datetime.now(timezone.utc).isoformat(),
-            "visibility": "public",
-            "origin": "web10",
-            "origin_id": oid,
         },
+        "groups": [DISCOVER_GROUP],
     })
+    if status == 200 and isinstance(body, dict) and body.get("doc_id"):
+        state[key] = body["doc_id"]
+        save_state(state)
+    return status, body
 
 
-def post_target_key(username, post_id):
-    """The ledger target the discovery engine reads for engagement."""
-    return f"{username}/{POST_SERVICE}/{post_id}"
-
-
-def add_contact(base, username, token, target_username, provider):
-    """Idempotent: skip if a contact with this (username, provider) exists."""
-    existing = read_records(base, username, "contacts", token, {
-        "username": target_username, "provider": provider,
-    })
-    if existing:
-        return 200, {"_id": existing[0].get("_id"), "skipped": True}
-    return api(base, "POST", f"/{username}/contacts", {
-        "token": token,
-        "query": {
-            "username": target_username,
-            "provider": provider,
-            "added_at": datetime.now(timezone.utc).isoformat(),
-        },
-    })
-
-
-def follow_user(base, username, token, target_username, provider):
-    """Idempotent: if a follow with this (username, provider) exists and is
-    active, skip. If it exists but isn't active, PUT-update to active.
-    Else create. Mirrors the social app's follows.ts:followUser pattern."""
-    existing = read_records(base, username, "follows", token, {
-        "username": target_username, "provider": provider,
-    })
-    if existing and isinstance(existing, list) and existing[0].get("_id"):
-        rec = existing[0]
-        if rec.get("body", rec).get("status") == "active":
-            return 200, {"_id": rec.get("_id"), "skipped": True}
-        return api(base, "PUT", f"/{username}/follows", {
-            "token": token,
-            "query": {"_id": rec.get("_id")},
-            "update": {"$set": {"status": "active", "followed_at": datetime.now(timezone.utc).isoformat()}},
-        })
-    return api(base, "POST", f"/{username}/follows", {
-        "token": token,
-        "query": {
-            "username": target_username,
-            "provider": provider,
-            "status": "active",
-            "followed_at": datetime.now(timezone.utc).isoformat(),
-        },
-    })
-
-
-def mirror_follow_to_ledger(base, follower, token, target_username, provider, follow_schema_id):
-    """Mirror a follow to the public ledger (D34). Idempotent: query for an
-    existing entry by this author targeting this user. Skip if found; else create."""
-    target = f"follow:{target_username}@{provider}"
-    entries = query_ledger(base, token, target=target, author=follower)
-    for e in entries:
-        payload = e.get("payload", e.get("body", {}).get("payload", {})) if isinstance(e, dict) else {}
-        if isinstance(payload, dict) and payload.get("action") == "follow":
-            return 200, {"skipped": True}
-    return api(base, "POST", "/public/entries", {
-        "token": token,
-        "query": {
-            "schema_id": follow_schema_id,
-            "target": target,
-            "payload": {
-                "action": "follow",
-                "target_username": target_username,
-                "target_provider": provider,
-                "author_username": follower,
-                "author_provider": provider,
-            },
-        },
-    })
-
-
-def deliver_to_inbox(base, target_user, token, author_username, post_id, post_body, provider):
-    """Idempotent fan-out: skip if an inbox record with this post_id already
-    exists for the target user."""
-    existing = read_records(base, target_user, "inbox", token, {"post_id": post_id})
-    if existing:
+def add_reaction(base, reactor, token, poster, post_doc_id, reaction_type, state, provider, idx):
+    """A reaction in the `reactions` service pointing at the post via ref_value."""
+    key = state_key(provider, "reaction", reactor, poster, f"{idx:02d}", reaction_type)
+    if key in state:
         return 200, {"skipped": True}
-    return api(base, "POST", f"/{target_user}/inbox", {
+    status, body = api(base, "POST", "/v3/create", {
         "token": token,
-        "query": {
-            "author_username": author_username,
-            "author_provider": provider,
-            "post_id": post_id,
-            "delivered_at": datetime.now(timezone.utc).isoformat(),
-            "post_body": post_body,
-            "origin": "web10",
+        "service": "reactions",
+        "body": {
+            "type": reaction_type,
+            "target_service": "posts",
+            "target_id": post_doc_id,
+            "author_username": reactor,
         },
+        "groups": [DISCOVER_GROUP],
+        "ref_value": post_doc_id,
     })
+    if status == 200 and isinstance(body, dict) and body.get("doc_id"):
+        state[key] = body["doc_id"]
+        save_state(state)
+    return status, body
 
 
-def dm_origin_id(from_user, to_user, idx):
-    return f"seed-dm-{from_user}-{to_user}-{idx:02d}"
-
-
-def send_dm(base, from_user, to_user, token, message, provider, idx):
-    """Idempotent: read dms by origin_id; skip if exists; else create.
-    DMs live in a single `dms` service (see web10-social dms.ts) with
-    sender/recipient fields. Written to the sender's own collection."""
-    oid = dm_origin_id(from_user, to_user, idx)
-    existing = read_records(base, from_user, "dms", token, {"origin_id": oid})
-    if existing:
+def add_comment(base, commenter, token, poster, post_doc_id, text, state, provider, idx):
+    """A comment in the `comments` service pointing at the post via ref_value."""
+    key = state_key(provider, "comment", commenter, poster, f"{idx:02d}")
+    if key in state:
         return 200, {"skipped": True}
-    return api(base, "POST", f"/{from_user}/dms", {
+    status, body = api(base, "POST", "/v3/create", {
         "token": token,
-        "query": {
-            "message": message,
-            "sent_at": datetime.now(timezone.utc).isoformat(),
-            "sender_username": from_user,
-            "sender_provider": provider,
-            "recipient_username": to_user,
-            "recipient_provider": provider,
-            "media_refs": [],
-            "origin_id": oid,
+        "service": "comments",
+        "body": {
+            "text": text,
+            "target_service": "posts",
+            "target_id": post_doc_id,
+            "author_username": commenter,
         },
+        "groups": [DISCOVER_GROUP],
+        "ref_value": post_doc_id,
     })
+    if status == 200 and isinstance(body, dict) and body.get("doc_id"):
+        state[key] = body["doc_id"]
+        save_state(state)
+    return status, body
 
 
-def add_reaction(base, reactor, token, schema_id, poster, post_id, reaction_type, provider):
-    """Idempotent: query the ledger for an existing reaction by this author
-    on this target with this type. Skip if found; else create."""
-    target = post_target_key(poster, post_id)
-    entries = query_ledger(base, token, target=target, author=reactor)
-    for e in entries:
-        payload = e.get("payload", e.get("body", {}).get("payload", {})) if isinstance(e, dict) else {}
-        if isinstance(payload, dict) and payload.get("type") == reaction_type:
-            return 200, {"skipped": True}
-    return api(base, "POST", "/public/entries", {
-        "token": token,
-        "query": {
-            "schema_id": schema_id,
-            "target": target,
-            "payload": {
-                "type": reaction_type,
-                "target": post_id,
-                "action": "like",
-                "author_username": reactor,
-                "author_provider": provider,
-            },
-        },
+def read_board(base, limit=100):
+    """Read the public board (anon-readable). The board is the discover group,
+    read through the normal group-read path (no token). Returns the posts."""
+    status, body = api(base, "POST", "/v3/read", {
+        "service": "posts",
+        "groups": [DISCOVER_GROUP],
+        "limit": limit,
     })
+    if status == 200 and isinstance(body, list):
+        return body
+    return []
 
-
-def add_comment(base, commenter, token, schema_id, poster, post_id, text, provider):
-    """Idempotent: query the ledger for an existing comment by this author
-    on this target with this text. Skip if found; else create."""
-    target = post_target_key(poster, post_id)
-    entries = query_ledger(base, token, target=target, author=commenter)
-    for e in entries:
-        payload = e.get("payload", e.get("body", {}).get("payload", {})) if isinstance(e, dict) else {}
-        if isinstance(payload, dict) and payload.get("text") == text:
-            return 200, {"skipped": True}
-    return api(base, "POST", "/public/entries", {
-        "token": token,
-        "query": {
-            "schema_id": schema_id,
-            "target": target,
-            "payload": {
-                "text": text,
-                "target": post_id,
-                "action": "comment",
-                "author_username": commenter,
-                "author_provider": provider,
-            },
-        },
-    })
-
-
-# ── Cleanup: remove duplicates from prior buggy (non-idempotent) runs ──────
-
-def _record_field(rec, field):
-    """Extract a field from a to_gui-shaped record (body fields at top level
-    after to_gui, or nested under body for raw db docs)."""
-    if not isinstance(rec, dict):
-        return None
-    if field in rec:
-        return rec[field]
-    body = rec.get("body", {})
-    if isinstance(body, dict) and field in body:
-        return body[field]
-    return None
-
-
-def cleanup_duplicates(base, tokens, provider):
-    """Remove duplicate records from prior non-idempotent runs. For each
-    collection, group by the natural dedup key, keep the oldest (smallest
-    _id ObjectId), delete the rest. Reports what it removes."""
-    print("=== CLEANUP: removing duplicates from prior buggy runs ===")
-    total_deleted = 0
-
-    for uname, token in tokens.items():
-        # Posts: dedup by origin_id (new) or text (old records without origin_id)
-        posts = read_records(base, uname, POST_SERVICE, token)
-        seen = {}
-        for p in posts:
-            oid = _record_field(p, "origin_id")
-            text = _record_field(p, "text")
-            key = oid or f"text::{text}"
-            pid = p.get("_id") if isinstance(p, dict) else None
-            if not pid:
-                continue
-            if key in seen:
-                # duplicate — delete this one
-                delete_record(base, uname, POST_SERVICE, token, {"_id": pid})
-                total_deleted += 1
-            else:
-                seen[key] = pid
-        dup_posts = len(posts) - len(seen)
-        if dup_posts:
-            print(f"  {uname}: removed {dup_posts} duplicate posts (kept {len(seen)})")
-
-        # Contacts: dedup by (username, provider)
-        contacts = read_records(base, uname, "contacts", token)
-        seen = {}
-        for c in contacts:
-            cu = _record_field(c, "username")
-            cp = _record_field(c, "provider")
-            cid = c.get("_id") if isinstance(c, dict) else None
-            if not cid:
-                continue
-            key = f"{cu}::{cp}"
-            if key in seen:
-                delete_record(base, uname, "contacts", token, {"_id": cid})
-                total_deleted += 1
-            else:
-                seen[key] = cid
-        dup_contacts = len(contacts) - len(seen)
-        if dup_contacts:
-            print(f"  {uname}: removed {dup_contacts} duplicate contacts")
-
-        # Follows: dedup by (username, provider)
-        follows = read_records(base, uname, "follows", token)
-        seen = {}
-        for f in follows:
-            fu = _record_field(f, "username")
-            fp = _record_field(f, "provider")
-            fid = f.get("_id") if isinstance(f, dict) else None
-            if not fid:
-                continue
-            key = f"{fu}::{fp}"
-            if key in seen:
-                delete_record(base, uname, "follows", token, {"_id": fid})
-                total_deleted += 1
-            else:
-                seen[key] = fid
-        dup_follows = len(follows) - len(seen)
-        if dup_follows:
-            print(f"  {uname}: removed {dup_follows} duplicate follows")
-
-        # DMs: dedup by origin_id (new) or (sender, recipient, message) (old)
-        dms = read_records(base, uname, "dms", token)
-        seen = {}
-        for d in dms:
-            oid = _record_field(d, "origin_id")
-            msg = _record_field(d, "message")
-            su = _record_field(d, "sender_username")
-            ru = _record_field(d, "recipient_username")
-            key = oid or f"{su}::{ru}::{msg}"
-            did = d.get("_id") if isinstance(d, dict) else None
-            if not did:
-                continue
-            if key in seen:
-                delete_record(base, uname, "dms", token, {"_id": did})
-                total_deleted += 1
-            else:
-                seen[key] = did
-        dup_dms = len(dms) - len(seen)
-        if dup_dms:
-            print(f"  {uname}: removed {dup_dms} duplicate DMs")
-
-        # Inbox: dedup by post_id
-        inbox = read_records(base, uname, "inbox", token)
-        seen = {}
-        for i in inbox:
-            pid = _record_field(i, "post_id")
-            iid = i.get("_id") if isinstance(i, dict) else None
-            if not iid:
-                continue
-            if pid and pid in seen:
-                delete_record(base, uname, "inbox", token, {"_id": iid})
-                total_deleted += 1
-            else:
-                if pid:
-                    seen[pid] = iid
-        dup_inbox = len(inbox) - len(seen)
-        if dup_inbox:
-            print(f"  {uname}: removed {dup_inbox} duplicate inbox records")
-
-        # Ledger entries: dedup reactions by (target, type), comments by (target, text), follows by (target, author)
-        entries = query_ledger(base, token, author=uname, limit=500)
-        seen_reactions = {}
-        seen_comments = {}
-        seen_follows = {}
-        for e in entries:
-            eid = e.get("_id") if isinstance(e, dict) else None
-            if not eid:
-                continue
-            payload = e.get("payload", {}) if isinstance(e, dict) else {}
-            if not isinstance(payload, dict):
-                payload = e.get("body", {}).get("payload", {}) if isinstance(e, dict) else {}
-            action = payload.get("action", "")
-            target = e.get("target", e.get("body", {}).get("target", "")) if isinstance(e, dict) else ""
-            if action == "comment":
-                key = f"{target}::{payload.get('text', '')}"
-                if key in seen_comments:
-                    delete_ledger_entry(base, token, eid)
-                    total_deleted += 1
-                else:
-                    seen_comments[key] = eid
-            elif action == "follow":
-                key = f"follow::{target}"
-                if key in seen_follows:
-                    delete_ledger_entry(base, token, eid)
-                    total_deleted += 1
-                else:
-                    seen_follows[key] = eid
-            else:
-                key = f"{target}::{payload.get('type', '')}"
-                if key in seen_reactions:
-                    delete_ledger_entry(base, token, eid)
-                    total_deleted += 1
-                else:
-                    seen_reactions[key] = eid
-        dup_ledger = len(entries) - len(seen_reactions) - len(seen_comments) - len(seen_follows)
-        if dup_ledger:
-            print(f"  {uname}: removed {dup_ledger} duplicate ledger entries")
-
-    print(f"\n  TOTAL: {total_deleted} duplicate records removed")
-
-    # Backfill origin_id on old posts (pre-idempotency) by matching text, so
-    # the re-seed recognizes them instead of creating new duplicates.
-    backfilled = 0
-    for uname, token in tokens.items():
-        if uname not in POSTS:
-            continue
-        posts = read_records(base, uname, POST_SERVICE, token)
-        text_to_oid = {}
-        for idx, pd in enumerate(POSTS[uname]):
-            text_to_oid[pd["text"]] = post_origin_id(uname, idx)
-        for p in posts:
-            if not isinstance(p, dict):
-                continue
-            existing_oid = _record_field(p, "origin_id")
-            if existing_oid:
-                continue
-            text = _record_field(p, "text")
-            oid = text_to_oid.get(text)
-            pid = p.get("_id")
-            if oid and pid:
-                api(base, "PUT", f"/{uname}/{POST_SERVICE}", {
-                    "token": token,
-                    "query": {"_id": pid},
-                    "update": {"$set": {"origin_id": oid, "origin": "web10"}},
-                })
-                backfilled += 1
-    if backfilled:
-        print(f"  Backfilled origin_id on {backfilled} old posts (text-matched)")
-
-    return total_deleted
-
-
-# ── Verify: report-only, no writes ──────────────────────────────────────────
 
 def verify_state(base, tokens, provider):
-    """Report the current state of persona data: counts per collection +
-    any duplicates found. Non-mutating."""
-    print("=== VERIFY: reporting persona data state (no writes) ===")
-    for uname, token in tokens.items():
-        posts = read_records(base, uname, POST_SERVICE, token)
-        contacts = read_records(base, uname, "contacts", token)
-        follows = read_records(base, uname, "follows", token)
-        dms = read_records(base, uname, "dms", token)
-        inbox = read_records(base, uname, "inbox", token)
-        ledger = query_ledger(base, token, author=uname, limit=500)
+    """Report the current board state (no writes)."""
+    board = read_board(base)
+    print(f"=== VERIFY: public board has {len(board)} post(s) ===")
+    for p in board:
+        body = p.get("body") or {}
+        print(f"  [{p['author_key']}] {body.get('text', '')[:60]!r}")
+    # Per-persona post counts
+    print("\nPer-persona post counts (on the board):")
+    counts = {}
+    for p in board:
+        counts[p["author_key"]] = counts.get(p["author_key"], 0) + 1
+    for p in PERSONAS:
+        print(f"  {p['username']}: {counts.get(p['username'], 0)}")
 
-        # Check for duplicate posts (by text)
-        texts = [_record_field(p, "text") for p in posts if isinstance(p, dict)]
-        dup_texts = len(texts) - len(set(texts))
-
-        print(f"  {uname}: {len(posts)} posts, {len(contacts)} contacts, "
-              f"{len(follows)} follows, {len(dms)} DMs, {len(inbox)} inbox, "
-              f"{len(ledger)} ledger entries"
-              + (f"  ⚠ {dup_texts} duplicate posts!" if dup_texts else ""))
-
-
-# ── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
-    parser = argparse.ArgumentParser(description="Seed persona accounts for web10 social testing")
+    parser = argparse.ArgumentParser(description="Seed persona accounts for web10 social testing (v3)")
     parser.add_argument("--api", default="http://api.localhost:6000", help="API base URL")
     parser.add_argument("--provider", default=None, help="Override node provider (default: derived from --api host)")
     parser.add_argument("--site", default=None, help="Override login site (default: social.<api-host>)")
-    parser.add_argument("--skip-content", action="store_true", help="Only create accounts, skip posts/DMs/comments")
-    parser.add_argument("--cleanup", action="store_true", help="Remove duplicate records from prior non-idempotent runs, then exit")
-    parser.add_argument("--verify", action="store_true", help="Report current data state (no writes), then exit")
+    parser.add_argument("--skip-content", action="store_true", help="Only create accounts + profiles, skip posts/reactions/comments")
+    parser.add_argument("--verify", action="store_true", help="Report current board state (no writes), then exit")
     args = parser.parse_args()
 
     base = args.api.rstrip("/")
     provider = args.provider or derive_provider(base)
     site = args.site or derive_site(base)
+    state = load_state()
     print(f"Target API: {base}")
     print(f"Provider:   {provider}")
     print(f"Login site: {site}")
+    print(f"Discover:   {DISCOVER_GROUP}")
     print(f"Personas:   {len(PERSONAS)}")
     print()
 
-    # Login all personas first (needed for cleanup + verify + seed)
-    print("=== Logging in ===")
+    # Signup + login all personas
+    print("=== Signup + login ===")
     tokens = {}
     for p in PERSONAS:
         uname = p["username"]
-        # Ensure account exists (signup is idempotent)
         status, body = signup(base, p)
         if status == 200:
             print(f"  {uname}: signup 200")
@@ -1009,192 +534,70 @@ def main():
         print("ERROR: No tokens obtained. Check API connectivity and credentials.")
         sys.exit(1)
 
-    # --cleanup: remove duplicates from prior buggy runs, then exit
-    if args.cleanup:
-        cleanup_duplicates(base, tokens, provider)
-        print("\nCleanup complete. Run again without --cleanup to seed (now idempotent).")
-        return
-
-    # --verify: report-only, then exit
     if args.verify:
         verify_state(base, tokens, provider)
         return
 
-    # Step 1: Set discovery terms (whitelist anon on public_posts)
-    print("=== Step 1: Whitelisting anon on public_posts (discovery gate) ===")
-    for uname in tokens:
-        status, body = set_public_posts_terms(base, uname, tokens[uname])
-        note = "ok" if status == 200 else ("already set — ok" if status == 409 else f"FAILED: {body}")
-        print(f"  {uname}: POST /{uname}/services {status} ({note})")
-    print()
-
-    # Step 2: Register public-ledger schemas (idempotent: reuse via state file)
-    print("=== Step 2: Registering public-ledger schemas (idempotent) ===")
-    state = load_state()
-    schema_token = tokens[next(iter(tokens))]
-    reaction_schema_id = get_or_register_schema(base, schema_token, REACTION_SCHEMA, provider, state)
-    comment_schema_id = get_or_register_schema(base, schema_token, COMMENT_SCHEMA, provider, state)
-    follow_schema_id = get_or_register_schema(base, schema_token, FOLLOW_SCHEMA, provider, state)
-    print(f"  Reaction schema: {reaction_schema_id or 'FAILED'}")
-    print(f"  Comment schema:  {comment_schema_id or 'FAILED'}")
-    print(f"  Follow schema:   {follow_schema_id or 'FAILED'}")
-    print()
-
-    # Step 3: Set profiles (upsert: update if exists, create if not)
-    print("=== Step 3: Setting profiles (upsert) ===")
+    # Step 1: profiles
+    print("=== Step 1: profiles ===")
     for p in PERSONAS:
         uname = p["username"]
-        if uname in tokens:
-            status, _ = set_profile(base, uname, tokens[uname], p)
-            print(f"  {uname}: profile {status}")
+        status, body = set_profile(base, uname, tokens[uname], p, state, provider)
+        print(f"  {uname}: profile {'skipped' if isinstance(body, dict) and body.get('skipped') else status}")
     print()
 
     if args.skip_content:
-        print("Content seeding skipped (--skip-content).")
-        print("\nTokens saved. Use them to log in as each persona.")
+        print("--skip-content: stopping after accounts + profiles.")
         return
 
-    # Step 4: Cross-follow everyone (idempotent: skip if active, update if stale)
-    print("=== Step 4: Cross-following (idempotent) ===")
-    usernames = [p["username"] for p in PERSONAS if p["username"] in tokens]
-    follow_new = 0
-    follow_skip = 0
-    follow_ledger_new = 0
-    follow_ledger_skip = 0
-    for uname in usernames:
-        for target in usernames:
-            if target != uname:
-                s1, _ = add_contact(base, uname, tokens[uname], target, provider)
-                s2, b2 = follow_user(base, uname, tokens[uname], target, provider)
-                if isinstance(b2, dict) and b2.get("skipped"):
-                    follow_skip += 1
-                elif s2 == 200:
-                    follow_new += 1
-                # Mirror to public ledger (D34: follows are public)
-                if follow_schema_id:
-                    sl, bl = mirror_follow_to_ledger(base, uname, tokens[uname], target, provider, follow_schema_id)
-                    if isinstance(bl, dict) and bl.get("skipped"):
-                        follow_ledger_skip += 1
-                    elif sl == 200:
-                        follow_ledger_new += 1
-        print(f"  {uname}: following {len(usernames) - 1} personas")
-    print(f"  ({follow_new} new follows, {follow_skip} already active)")
-    print(f"  ({follow_ledger_new} ledger entries new, {follow_ledger_skip} already existed)")
-    print()
-
-    # Step 5: Create posts (idempotent: reuse by origin_id) + fan-out to inbox
-    print("=== Step 5: Creating posts (idempotent by origin_id) ===")
-    post_ids = {}
-    post_new = 0
-    post_reused = 0
-    for uname, posts in POSTS.items():
-        if uname not in tokens:
-            continue
-        post_ids[uname] = []
-        p_new = p_reused = 0
-        for idx, post_data in enumerate(posts):
-            status, body = create_post(base, uname, tokens[uname], post_data, idx)
-            pid = body.get("_id", "") if isinstance(body, dict) else ""
-            post_ids[uname].append(pid)
+    # Step 2: posts to the discover group
+    print("=== Step 2: posts to the discover group ===")
+    created_posts = 0
+    for p in PERSONAS:
+        uname = p["username"]
+        for idx, post in enumerate(POSTS.get(uname, [])):
+            status, body = create_post(base, uname, tokens[uname], post, idx, state, provider)
             if isinstance(body, dict) and body.get("skipped"):
-                post_reused += 1
-                p_reused += 1
-            elif status == 200 and pid:
-                post_new += 1
-                p_new += 1
-            else:
-                print(f"    ! {uname} post {idx} {status}: {body}")
-            # Fan-out to followers' inboxes (idempotent: skip if post_id exists)
-            for follower in usernames:
-                if follower != uname and follower in tokens:
-                    deliver_to_inbox(base, follower, tokens[follower], uname, pid, post_data, provider)
-            time.sleep(0.1)
-        print(f"  {uname}: {len(post_ids[uname])} posts ({p_new} new, {p_reused} reused)")
-    print()
-
-    # Step 6: Reactions -> public ledger (idempotent: skip if target+author+type exists)
-    print("=== Step 6: Adding reactions (idempotent) ===")
-    reaction_new = 0
-    reaction_skip = 0
-    if reaction_schema_id:
-        for reactor, poster, post_idx, rtype in REACTIONS:
-            if reactor in tokens and poster in post_ids and post_idx < len(post_ids[poster]):
-                target_id = post_ids[poster][post_idx]
-                if target_id:
-                    status, body = add_reaction(
-                        base, reactor, tokens[reactor], reaction_schema_id,
-                        poster, target_id, rtype, provider,
-                    )
-                    if isinstance(body, dict) and body.get("skipped"):
-                        reaction_skip += 1
-                    elif status == 200:
-                        reaction_new += 1
-                    else:
-                        print(f"    ! reaction {status}: {body}")
-        print(f"  {reaction_new} new reactions, {reaction_skip} already existed")
-    else:
-        print("  SKIPPED: Reaction schema not registered")
-    print()
-
-    # Step 7: Comments -> public ledger (idempotent: skip if target+author+text exists)
-    print("=== Step 7: Adding comments (idempotent) ===")
-    comment_total = sum(len(v) for v in COMMENTS.values())
-    comment_new = 0
-    comment_skip = 0
-    if comment_schema_id:
-        for poster, comments in COMMENTS.items():
-            if poster not in post_ids or not post_ids[poster] or not post_ids[poster][0]:
                 continue
-            target_post_id = post_ids[poster][0]  # comment on the first post
-            for commenter, text in comments:
-                if commenter in tokens:
-                    status, body = add_comment(
-                        base, commenter, tokens[commenter], comment_schema_id,
-                        poster, target_post_id, text, provider,
-                    )
-                    if isinstance(body, dict) and body.get("skipped"):
-                        comment_skip += 1
-                    elif status == 200:
-                        comment_new += 1
-                    else:
-                        print(f"    ! comment {status}: {body}")
-        print(f"  {comment_new} new comments, {comment_skip} already existed")
-    else:
-        print("  SKIPPED: Comment schema not registered")
+            created_posts += 1
+            time.sleep(0.05)
+        print(f"  {uname}: {len(POSTS.get(uname, []))} posts")
+    print(f"  ({created_posts} new post(s) created)")
     print()
 
-    # Step 8: DMs (idempotent: skip if origin_id exists)
-    print("=== Step 8: Sending DMs (idempotent by origin_id) ===")
-    dm_new = 0
-    dm_skip = 0
-    for idx, dm in enumerate(DMS):
-        frm = dm["from"]
-        if frm in tokens:
-            status, body = send_dm(base, frm, dm["to"], tokens[frm], dm["message"], provider, idx)
-            if isinstance(body, dict) and body.get("skipped"):
-                dm_skip += 1
-            elif status == 200:
-                dm_new += 1
-    print(f"  {dm_new} new DMs, {dm_skip} already existed")
+    # Step 3: reactions + comments (engagement for the trending sort)
+    print("=== Step 3: reactions + comments ===")
+    created_engagement = 0
+    for reactor, poster, post_idx, rtype in REACTIONS:
+        if reactor not in tokens or poster not in tokens:
+            continue
+        post_doc_id = state.get(state_key(provider, "post", poster, f"{post_idx:02d}"))
+        if not post_doc_id:
+            continue
+        status, body = add_reaction(base, reactor, tokens[reactor], poster, post_doc_id, rtype, state, provider, post_idx)
+        if not (isinstance(body, dict) and body.get("skipped")):
+            created_engagement += 1
+    for poster, comments in COMMENTS.items():
+        if poster not in tokens:
+            continue
+        for idx, (commenter, text) in enumerate(comments):
+            if commenter not in tokens:
+                continue
+            # Comments target the poster's first post (index 0) by default.
+            post_doc_id = state.get(state_key(provider, "post", poster, "00"))
+            if not post_doc_id:
+                continue
+            status, body = add_comment(base, commenter, tokens[commenter], poster, post_doc_id, text, state, provider, idx)
+            if not (isinstance(body, dict) and body.get("skipped")):
+                created_engagement += 1
+    print(f"  ({created_engagement} new reaction/comment(s) created)")
     print()
 
     # Summary
-    print("=" * 50)
-    print("SEED COMPLETE (idempotent)")
-    print("=" * 50)
-    print(f"\nAll personas use password: {PASSWORD}")
-    print(f"Provider: {provider}  |  Site: {site}")
-    print("\nResults (new / already-existed):")
-    print(f"  Posts (public_posts): {post_new} new / {post_reused} reused")
-    print(f"  Reactions (ledger):   {reaction_new} new / {reaction_skip} existed")
-    print(f"  Comments (ledger):    {comment_new} new / {comment_skip} existed")
-    print(f"  DMs:                  {dm_new} new / {dm_skip} existed")
-    print(f"  Follows:              {follow_new} new / {follow_skip} existed")
-    print(
-        "\nRe-running this script is a no-op on existing data (skips or upserts).\n"
-        "If you see duplicates from prior buggy runs, use --cleanup to remove them:\n"
-        "  python3 seed_personas.py --api <url> --cleanup"
-    )
+    board = read_board(base)
+    print(f"=== DONE: public board now has {len(board)} post(s) ===")
+    print(f"  All personas use password: {PASSWORD}")
+    print(f"  State file: {STATE_FILE}")
 
 
 if __name__ == "__main__":

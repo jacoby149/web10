@@ -1,5 +1,5 @@
 {
-  "name": "Notes — web10 Demo",
+  "name": "Notes \u2014 web10 Demo",
   "short_name": "Notes",
   "description": "Create, read, update, and delete notes stored in your own web10 collection.",
   "start_url": "./",
@@ -8,12 +8,18 @@
   "theme_color": "#09090b",
   "icons": [
     {
-      "src": "/brand/icon-192.png",
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/brand/icon-512.png",
+      "src": "icon-512.png",
       "sizes": "512x512",
       "type": "image/png"
     }

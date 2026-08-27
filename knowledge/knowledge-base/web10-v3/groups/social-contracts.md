@@ -39,7 +39,12 @@ The `default_role` must match one of the defined role names. It defaults to the 
 
 ## 1. Discover (Public Board)
 
-The public board. Every post attached here is visible to everyone. Every user is auto-enrolled on signup.
+The public board. Every post attached here is visible to everyone. This is a
+**node default**, not an app-created group: the node creates it at boot
+(`ensure_discover_group()`) and auto-enrolls every user — including `anon` —
+as a member. A token-less read of the group runs as `anon`, which is what
+makes the board anon-readable (the marketing trending page, any public
+surface). Discovery IS a group read — there is no separate discover endpoint.
 
 ```json
 {
@@ -56,7 +61,7 @@ The public board. Every post attached here is visible to everyone. Every user is
 ```
 
 **How it works:**
-- `join_policy: "open"` + auto-enrollment = everyone is a member by default
+- Node default + auto-enrollment = everyone (including anon) is a member by default
 - `readAll` = anyone can see anything posted here. This **is** the public board.
 - `create`, `updateOwn`, `deleteOwn` = you can post to it and manage your own stuff
 - No moderators. No owners. One role. Everyone shares it.

@@ -225,7 +225,7 @@ Ratings live in `app_ratings` (1–5 stars, per author, per app).
 ## What This Is Not
 
 - **Not a discovery feed.** v2 had a `web10apps` post ledger for social
-  discovery of apps; v3 drops it (`web10apps_post_id` is retired — D50;
+  discovery of apps; v3 drops it (`web10apps_post_id` is retired — D52;
   the URL is the key, and the product page is keyed on it). The store is
   the surface.
 - **Not moderated content.** There is no v2 `pending_on_change` review

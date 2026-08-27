@@ -68,6 +68,10 @@ interface BoardPost {
   removal_reason?: string;
 }
 
+// The node-default universal public board (matches the API's DISCOVER_GROUP_ID).
+// The board is a group read; moderation is a group op on this group.
+const DISCOVER_GROUP = "web10.app/groups/web10/discover";
+
 function ConfigPage({ I }: { I: Record<string, any> }) {
   const [config, setConfig] = React.useState<Record<string, any> | null>(null);
   const [loadedConfig, setLoadedConfig] = React.useState<Record<string, any>>({});
@@ -128,20 +132,20 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
     setBoardLoading(true);
     setBoardError(null);
     try {
-      const decoded = I.v3.readToken();
-      const protocol = window.location.protocol;
+      // v3: the public board is the node-default discover group, read anon
+      // through the normal group-read path (no token, no app contract).
+      // Discovery IS a group read — there is no separate discover endpoint.
       const resp = await nodePost("/v3/read", {
-        token: I.v3.state.token,
-        service: "public_posts",
-        groups: ["web10.app/groups/web10/discover"],
+        service: "posts",
+        groups: [DISCOVER_GROUP],
         limit: 50,
       });
       setBoard((resp.data ?? []).map((d: any) => ({
-        author: d.author,
+        author: d.author_key,
         service: d.service,
         post_id: d.doc_id,
         body_text: d.body?.text || "",
-        tags: d.body?.tags || [],
+        tags: d.tags || [],
         created_at: d.created_at,
       })));
     } catch (e: any) {
@@ -153,8 +157,24 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
 
   const loadRemoved = async () => {
     try {
-      const resp = await nodePost("/admin/discovery/removed", { token: I.v3.state.token });
-      setRemovedPosts(resp.data?.removed ?? []);
+      // Board moderation is a group op: list the docs hidden from the
+      // discover group (the public board).
+      const resp = await nodePost("/v3/groups/hidden", {
+        token: I.v3.state.token,
+        group_id: DISCOVER_GROUP,
+      });
+      const hidden: any[] = resp.data?.hidden ?? [];
+      setRemovedPosts(hidden.map((d: any) => ({
+        author: d.author_key,
+        service: "posts",
+        post_id: d.doc_id,
+        body_text: d.body?.text || "",
+        tags: d.body?.tags || [],
+        created_at: d.hidden_at,
+        removed_by: d.moderator_key,
+        removed_at: d.hidden_at,
+        removal_reason: "",
+      })));
     } catch {
       // the removed list is secondary — don't overwrite the board error
     }
@@ -164,11 +184,10 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
     setModeratingId(post.post_id);
     setBoardError(null);
     try {
-      await nodePost("/admin/discovery/remove", {
+      await nodePost("/v3/groups/hide", {
         token: I.v3.state.token,
-        author: post.author,
-        service: post.service,
-        post_id: post.post_id,
+        group_id: DISCOVER_GROUP,
+        doc_id: post.post_id,
         reason: removeReason.trim(),
       });
       setBoard(prev => prev.filter(p => p.post_id !== post.post_id));
@@ -186,11 +205,10 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
     setModeratingId(post.post_id);
     setBoardError(null);
     try {
-      await nodePost("/admin/discovery/restore", {
+      await nodePost("/v3/groups/unhide", {
         token: I.v3.state.token,
-        author: post.author,
-        service: post.service,
-        post_id: post.post_id,
+        group_id: DISCOVER_GROUP,
+        doc_id: post.post_id,
       });
       setRemovedPosts(prev => prev.filter(p => p.post_id !== post.post_id));
       loadBoard();

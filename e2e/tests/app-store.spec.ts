@@ -242,7 +242,7 @@ test.describe('app store (v3, D49)', () => {
     await expect(page.getByText('E2E Path App', { exact: true })).toBeVisible({ timeout: 15000 });
   });
 
-  test('detail endpoint: the product page payload (D50)', async ({ request }) => {
+  test('detail endpoint: the product page payload (D52)', async ({ request }) => {
     // The product page is one public read: app + full metric breakdown +
     // ratings + node macro. Pure read — a product-page view writes no
     // app_visits row (usage rows come only from SDK pings with a token).
@@ -273,7 +273,7 @@ test.describe('app store (v3, D49)', () => {
     expect((await res2.json()).metrics.visits).toBe(visits1);
   });
 
-  test('detail endpoint: 404 for unknown and unapproved apps (D50)', async ({ request }) => {
+  test('detail endpoint: 404 for unknown and unapproved apps (D52)', async ({ request }) => {
     const unknown = await request.get(`${API_BASE}/v3/apps/detail`, { params: { url: 'http://e2e-nowhere-xyz.localhost/' } });
     expect(unknown.status()).toBe(404);
 
@@ -287,7 +287,7 @@ test.describe('app store (v3, D49)', () => {
     expect(res.status()).toBe(404);
   });
 
-  test('rating round-trip: stars + comment, one voice per user (D50)', async ({ request }) => {
+  test('rating round-trip: stars + comment, one voice per user (D52)', async ({ request }) => {
     const ts = Date.now();
     const url = `http://e2e-rate-${ts}.localhost/`;
     const reg = await v3Post(request, `${API_BASE}/v3/apps/register`, { body: { url, name: 'E2E Rate App' } });
@@ -324,7 +324,7 @@ test.describe('app store (v3, D49)', () => {
     expect(tooLong.ok()).toBeFalsy();
   });
 
-  test('card → product page: metrics, reviews, sign-in state (D50 browser seam)', async ({ page, request }) => {
+  test('card → product page: metrics, reviews, sign-in state (D52 browser seam)', async ({ page, request }) => {
     // A path on a known host (D47) — .localhost urls are filtered out of the
     // grid (dev hygiene), so the card only renders for a real host. The
     // manifest 404s on the real site, so the registered name shows.

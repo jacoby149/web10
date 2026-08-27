@@ -15,7 +15,7 @@ from app.v3.services import clickhouse as ch
 
 router = APIRouter(tags=["app-store"])
 
-# Review comment cap (D50) — a review is a paragraph, not a document.
+# Review comment cap (D52) — a review is a paragraph, not a document.
 MAX_RATING_COMMENT_LEN = 1000
 
 
@@ -29,7 +29,7 @@ def register_app(data: RegisterApp):
 
 @router.get("/detail")
 def get_app_detail(url: str = Query(..., description="The app's full URL (canonical form)")):
-    """The product page payload (D50): app + full metric breakdown + rating
+    """The product page payload (D52): app + full metric breakdown + rating
     aggregate + rating list + node macro. Public, pure read — no visit
     bump. 404 for unknown or unapproved apps."""
     detail = ch.get_app_detail(url)

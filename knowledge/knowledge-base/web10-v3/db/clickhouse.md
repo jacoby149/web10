@@ -412,7 +412,7 @@ longest metric window is 1y) drop out on merge.
 ## App Ratings
 
 Star ratings for apps. One per (author, target_app). A review is a rating
-with words — `comment` is optional text (D50).
+with words — `comment` is optional text (D52).
 
 ```sql
 CREATE TABLE app_ratings (
