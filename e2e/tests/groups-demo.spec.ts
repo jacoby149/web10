@@ -498,7 +498,7 @@ test.describe('Groups demo — browser gauntlet', () => {
   });
 
   test('state rule: a created group persists across a reload (the return run)', async ({ page, context, request }) => {
-    const { groupId } = await setupSignedInDemo(page, context, request);
+    const { username, groupId } = await setupSignedInDemo(page, context, request);
 
     // First run (warm): the group is already there and shows.
     await page.goto(`${MARKETING_BASE}/docs/groups/`);
@@ -514,8 +514,11 @@ test.describe('Groups demo — browser gauntlet', () => {
     await expect(page.locator('#authButton')).toHaveText('Log out');
     const cards = page.locator('#myGroups .group-card');
     await expect(cards.first()).toBeVisible({ timeout: 10000 });
-    // exactly one card for the pre-created group (no duplication on re-load)
-    await expect(cards).toHaveCount(1, { timeout: 10000 });
+    // Two cards: the node-default discover group (auto-enrolled at signup,
+    // #686) + the pre-created group. No duplication on re-load.
+    await expect(cards).toHaveCount(2, { timeout: 10000 });
+    // the pre-created group's card is among them (not clobbered)
+    await expect(cards.filter({ hasText: `ui-${username}` }).first()).toBeVisible();
     void groupId;
   });
 });
