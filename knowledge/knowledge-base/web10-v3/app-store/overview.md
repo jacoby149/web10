@@ -28,11 +28,23 @@ the SDK, it does CRUD, it has a PWA manifest — it belongs in the store.
 
 The identity is stored in **canonical form** (hardening #4, folded into
 D49): lowercase host, `www.` stripped, exactly one trailing slash, no
-query or fragment. `APP.com`, `app.com`, `www.app.com/`, and
-`app.com?x=1` are all the same app: `https://app.com/`. Normalization is
-server-side, in `register_app` — and in every URL-taking entry point
-(`approve`, `get_app`), so a client can't fork an identity by spelling.
-The tables were empty when this landed; there was nothing to migrate.
+query or fragment, and a trailing directory-index file collapsed to its
+directory. `APP.com`, `app.com`, `www.app.com/`, `app.com?x=1`, and
+`/docs/notes/index.html` are all the same app as their directory form:
+`https://app.com/` and `https://dev.web10.app/docs/notes/`. The index-file
+collapse is the file-URL version of D47's "a path is an app" — a demo
+served at `/docs/notes/index.html` IS the `/docs/notes/` app (same content,
+same `manifest.json`); without the fold, loading a demo via its explicit
+`index.html` link forks the identity into a second store entry whose
+manifest lookup (`.../index.html/manifest.json`) can never resolve.
+Normalization is server-side, in `register_app` — and in every URL-taking
+entry point (`approve`, `get_app`) — and in the SDK's auto-register ping,
+so a client can't fork an identity by spelling. When the fold landed the
+tables already held file-URL rows (the docs page linked the explicit
+`index.html`), so an idempotent boot-time migration re-homes each live
+file-index row onto its directory URL (carrying over name/approval) and
+tombstones the file row — the demos keep their approval and icons, and the
+icon-less duplicate cards leave the store.
 
 ## Registration Is the Door, Not the Counter
 
@@ -201,7 +213,7 @@ registered itself.
 
 | Column | Meaning |
 |---|---|
-| `url` | Identity — canonical form (lowercase host, no `www.`, one trailing slash) |
+| `url` | Identity — canonical form (lowercase host, no `www.`, one trailing slash, trailing `/index.html` folded to the directory) |
 | `name`, `description`, `icon_url`, `screenshots` | Listing metadata (manifest is preferred by the UI) |
 | `visits` | Retired as a store metric (D49) — kept for the admin view, not a counter the store shows |
 | `approved` | Public-store gate (operator-set) |
