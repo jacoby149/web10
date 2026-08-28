@@ -9,6 +9,129 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D55 — An ad is a `posts` document tagged `ad`, not a service; the object is locked; `html_template` is v4 [decided]
+Operator, 27.08.2026 — after the D54 catalog/composer plan: "ads shouldnt be
+some kind of a service, they should be locked in what they are.... stuck in
+their ways, inflexible, a piece of media a link to the affiliate thing, maybe
+that is it? i mean, would be great to have more of an html control over the
+ads, what should it be in your opinion?" — then, on the HTML question: "well
+the ad object could have html_template eventually! :) but not this iteration,
+that could be a v4 thing :)"
+
+**Decided** — (1) **An ad is a `posts` document tagged `ad`, not a service.**
+D50's "ads default service" framing (its own collection, its own
+`ads: [readAll]` contract permission, its own provisioning) is superseded.
+An ad is content + a link — that is a post with an extra field. Consequences:
+the "feed + ads join" disappears (the feed read already returns ad posts —
+`read_documents_in_groups` reads one collection per call, so the join was
+aspirational anyway); the contract surface disappears (the social app already
+reads `posts` — no new permission, no provisioning); the catalog is a
+tag-filtered read of the creator's own posts (`tags ∋ 'ad'`, client-side
+filter — a creator's own posts are a bounded set), not a separate collection
+read. (2) **The object is locked** — the ad post body is the post's normal
+fields (`text` + `media_refs`, the creative) plus a leaf-typed `offer`
+(`kind` = `affiliate` | `direct` | `own_store`, `partner`, `link`, `cta`,
+`disclosure`) plus a `status` (`active` | `paused`). No `stats` counters in
+the doc (a counter is a write on a read path; revenue settlement + impression
+verification are the v4 layer). No `creative.format` discriminator (the media
+refs carry their own type). (3) **The creative is data; the HTML is the
+app's.** "More HTML control over the ads" is a split, not a new protocol
+type: the doc carries the content (text, media refs, offer); the app renders
+the ad block (layout, CTA, partner badge, disclosure) as a designed component,
+the way the feed card is for posts. There is no `html` leaf type
+(`document-typing.md`: `text | minio | number | bool | datetime | ref`), and
+adding one is rejected — it is protocol-wide, it puts XSS sanitization on the
+node, and it breaks "the app owns the schema, the API is just a scanner."
+(4) **`html_template` is the v4 escape hatch** — in the enforced-schema era
+(v4's `$schema` per doc, validation at write), a creator brings their own
+layout: a template the node validates and the app renders in a sandbox. Not
+this iteration. (5) **Carrying an ad** (D54) is now post → post: the post's
+`ref_value` = the ad post's `doc_id` (the universal link, same collection —
+cleaner than the service model's cross-collection ref). A post has one
+`ref_value`, so in v0 a post either carries an ad or is a reply, not both.
+
+**Why:** the operator's instinct is the thesis made mechanical — the ads are
+the creator's content, so they are the creator's *posts*, delivered by the
+same architecture, read by the same feed, with no parallel namespace to
+provision, contract, or reason about. The service framing had invented
+machinery (a collection, a permission, a provisioning bite, a feed join) for
+a distinction that does not exist: an ad is a post with a link. Locking the
+object ("stuck in its ways, inflexible") keeps it portable and testable — the
+"torture" surface (the catalog) exercises exactly this shape. The HTML split
+keeps the node out of rendering (no XSS surface) and keeps the creative
+portable (data in, HTML out).
+
+**Rejected:** the `ads` default service (D50's framing — superseded); a
+`creative` wrapper + `format` discriminator (redundant with the post's own
+`text`/`media_refs`); `stats` counters in the v0 doc (write-on-read-path;
+v4); an `html` leaf type in the v3 protocol (protocol-wide, node-side XSS
+sanitization, breaks the schema-ownership doctrine); `html_template` in v3
+(operator: v4 — the enforced-schema era is where a creator's own layout
+belongs).
+
+Full model: `knowledge-base/web10-v3/social/ads.md` (rewritten). The catalog
++ composer surfaces: `knowledge-base/web10-v3/social/ads-catalog.md` (D54,
+updated to the tagged-post model). Supersedes D50's service framing; D50's
+ad-object + Partner Links ingest + D51 dissemination survive.
+
+---
+
+### D54 — The Ad Catalog lives in the authenticator's Studio; the composer attaches ads by ref, or rotates per the D51 setting [decided]
+Operator, 27.08.2026 — after the ads backend status check: "i want the ads to
+work in the authenticator, i.e. torture the ads, where there is an ad catalog
+kind of thing for the user, that has their ads. then in the web10 social
+experience when you make a post, you can pick from your ad catalog an
+ad/ads to put, or round robin your ads."
+
+**Decided** — (1) **The Ad Catalog is a surface of the Studio**
+(`ui/src/components/Studio/`), the authenticator's monetization screen —
+the Partner Links card (D50) is the *ingest* (offers), the catalog is the
+*inventory* (the ads built from them). The catalog is the canonical
+per-viewer read of `ads` run by the owner: `w.read('ads', { groups:
+[followers group] })` — no owner special-case, no new endpoint; what's in
+the catalog is exactly what gets delivered. Rows: creative, offer, status
+(`active` | `paused`, a `body.status` field curation filters on), numbers
+(`body.stats`), attached posts (reverse `ref_value`). Actions: new (the
+ingest flow), edit, pause/resume, retire (tombstone). (2) **The composer
+attaches an ad by the universal link** — the post's `ref` → `ref_value` =
+the ad's `doc_id` (the 3.16.2 write path). The post *carries* the ad, does
+not copy it: the ad keeps its identity, its numbers, its lifecycle (pause
+the ad → it stops rendering on every post that carries it, checked at
+render time). The ad block (creative + offer + disclosure) renders under
+the post; the disclosure is never optional. (3) **Round-robin is the D51
+dissemination setting applied at render time** — the composer's "Rotate my
+ads" is a per-post opt-in to the creator's `settings`-doc dissemination
+(`round_robin` / `pinned` / `greedy` / `frequency_capped`), curated by the
+shared `curateAds` SDK helper with app-local state. Explicit pick beats
+automatic rotation. (4) **No new tables, no new endpoints, no new SDK
+surface** — the only new code is UI (catalog screen, composer control,
+ad block) + the `status` field on the ad object.
+
+**Why:** the thesis is creator ownership — the ads are the creator's
+documents, so the creator's own authenticator (the app they already trust
+for tokens, contracts, groups) is where the inventory lives, and the
+"torture" is deliberate: the catalog exercises the ad object end to end by
+its owner before any third-party app renders it. The composer integration
+makes the ad *useful in the product* — a post that carries its own money
+link is the concrete difference vs. the paved platforms' one clunky bio
+link. Both surfaces ride the existing machinery (group-scoped read, house
+write path, `ref_value`, D51 curation), so the surface ships without
+touching the data model.
+
+**Rejected:** a dedicated ads endpoint or owner read path (the group read
+already is the owner read — a special case is a second source of truth);
+copying the ad's creative into the post (forks the identity — numbers and
+lifecycle would diverge per post); making round-robin server-side (D51:
+stateful curation is a shared deterministic SDK helper, not ClickHouse
+logic); scheduled ads / per-ad targeting in v0 (targeting is the audience,
+by architecture; scheduling is a v1 field on the same doc).
+
+Full model: `knowledge-base/web10-v3/social/ads-catalog.md`. The ad object
++ per-viewer read + dissemination: `knowledge-base/web10-v3/social/ads.md`
+(D50 + D51).
+
+---
+
 ### D53 — Discoverable groups: a `discoverable` boolean lists a group in the directory; `anon` membership controls whether its posts are anon-readable [decided]
 Operator, 27.08.2026 — "would be cool if groups were in some kind of
 directory like the app store, groups have that too, where you can see groups

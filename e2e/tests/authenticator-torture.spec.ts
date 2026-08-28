@@ -637,8 +637,15 @@ test.describe('Browser — consent forks (real popup)', () => {
     await expect(async () => {
       expect(demoLogs.join('\n')).toContain('authListen fired — user is signed in');
     }).toPass({ timeout: 15000 });
-    // No stale contract row.
-    expect(await popup.locator('[data-testid="consent-req-0"]').count()).toBe(0);
+    // No stale contract row. The popup may have already self-closed (D42
+    // auto-complete fires the moment the token is delivered — the demo log
+    // above is the proof it delivered), so guard the query: a closed popup
+    // means the auto-complete path ran, which only happens when no contract
+    // was pending (a stale contract would have kept the popup open on the
+    // consent screen).
+    if (!popup.isClosed()) {
+      expect(await popup.locator('[data-testid="consent-req-0"]').count()).toBe(0);
+    }
 
     expect(popupFull.errors, handshakeDiagnostics(demoLogs, popupFull)).toEqual([]);
   });
