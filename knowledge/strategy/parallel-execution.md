@@ -251,31 +251,29 @@ look alive.
 - [ ] E2E: board gauntlet — seed → anon reads the board → a real user's post appears → remove/restore round-trip (gated on the social-e2e stack)
 
 ### Lane: ads (monetization)
-**Owns:** `ui/src/components/Studio/`, `api/tests/test_ads.py`, `e2e/tests/ads.spec.ts`, `marketing/web10-social/src/components/Feed/PostComposer.tsx` + the ad block (carved out of the `social-v3` lane for D54 — the composer's ad control + the post's ad block)
+**Owns:** `ui/src/components/Studio/`, `api/app/v3/services/clickhouse.py` + `api/app/v3/endpoints/documents.py` + `api/tests/test_ads.py`, `e2e/tests/ads.spec.ts`, `marketing/web10-social/src/components/Feed/PostComposer.tsx` + the ad block
 
-The creator-owned ads layer (D50 + D51 + D54 + D55): an ad is a **`posts`
-document tagged `ad`** (D55 — not a service): the post's own text + media
-(the creative) + a leaf-typed `offer` (the link that pays) + a `status`.
-Delivered to followers by the same group architecture as every post; picked
-up by the same feed read (`w.read('posts', { groups: [...] })` — the ad posts
-are already in it, the renderer styles the ones tagged `ad`). The Partner
-Links card (was "Amazon Associates" + "Direct Deals") is the ingest; the
-**Ad Catalog** (D54) is the inventory — the owner's posts filtered to
-`tags ∋ 'ad'`, in the Studio. The composer (D54) attaches an ad to a post by
-`ref_value` (post → post) or rotates per the D51 setting. The KB is the spec
-— read it first: `knowledge/knowledge-base/web10-v3/social/ads.md` (the
-object + feed read + dissemination) and `social/ads-catalog.md` (the catalog
-+ composer).
+The creator-owned ads layer (D55 + the v3/v4 dissemination split): an ad is a
+**`posts` document tagged `ad`** (the post's own text + media + a leaf-typed
+`offer` + a `status`). **v3 is mad simple** — a document's `ad_preference` (a
+column on `documents`) is `pinned` | `none`: the creator pins a specific ad to a
+post, and the **read serves the doc with the pinned ad inline** (100% of the
+time, I3-checked). Ads are organized into **albums** (Apple-Photos-style,
+first-class; an ad in a few via a tag-like field). The full curation engine
+(`round_robin` / `greedy` / `random`, the node-level density, the `signal` ×
+`strategy` enums) is the **v4 vision**. The KB is the spec — read it first:
+`web10-v3/social/ads.md` (the object), `web10-v3/social/ads-dissemination.md`
+(the v3 design), and `web10-v4/social/ads-dissemination.md` (the v4 engine).
 
-- [✓ 3.16.1] KB: the standard ad object + the per-user query + the Dissemination section (per-creator setting + feed+ads join + `curateAds` SDK helper) + the two-layer note (`social/ads.md`) + D50 + D51
-- [✓ 3.22.0] KB: the Ad Catalog + the composer integration (`social/ads-catalog.md`) + D54 — catalog = the canonical per-viewer read run by the owner (no special-case); post carries ad by `ref_value` (no copy); `body.status` = `active` | `paused`; round-robin = D51 setting at render time; no new tables/endpoints/SDK surface
-- [✓ 3.23.0] KB: D55 — an ad is a `posts` doc tagged `ad`, not a service (`social/ads.md` rewritten + `ads-catalog.md` updated) — the feed join + the `ads: [readAll]` contract + the provisioning all disappear; the object is locked (post fields + leaf-typed `offer` + `status`, no `stats`, no `creative.format`); the creative is data + the HTML is the app's renderer (no `html` leaf type); `html_template` is v4; carrying is post → post
-- [ ] Dissemination (SDK): the `curateAds(creatorAds, creatorSetting)` helper — `round_robin` / `greedy` / `pinned` / `frequency_capped`, deterministic + per-creator so every app curates identically; the per-creator setting is a field on the `settings` doc; filters on `body.status === 'active'` (D54)
-- [ ] Partner Links card (UI): collapse "Amazon Associates" (`AmazonTagCard.tsx`) + "Direct Deals" (`DirectDealsCard.tsx`) into one "Partner Links" card in the Studio monetization screen — `offer.kind` = `affiliate` | `direct` | `own_store` + the dissemination picker; update `studio-data.ts` + `studio.test.tsx`
-- [✓ 3.25.0] The tagged-post ad (API conformance): the ad object (a `posts` doc tagged `ad` with the `offer` + `status`) through the existing posts CRUD + the feed read returns it + I3 (a non-follower can't read the ad post) — no service to provision, no new endpoint; verify + pin with `api/tests/test_ads.py`. Gates the catalog + composer (both read this)
-- [ ] Ad Catalog (authenticator): the Studio's inventory screen — the owner's posts filtered to `tags ∋ 'ad'` (creative / offer / status / attached posts via reverse `ref_value`), new-ad ingest flow (offer + content → one `posts` doc tagged `ad` on the followers group), edit / pause / retire, all states designed (empty → CTA, skeleton, error, active/paused rows). `ui/src/components/Studio/`
-- [ ] Composer ad control (web10-social): the "Attach ad" control in `PostComposer` — the catalog picker sheet (active first, empty + loading states), attach writes the post's `ref` → `ref_value` (post → post), the ad block renders under the post (creative + offer + disclosure, disclosure never hidden), "Rotate my ads" per-post opt-in to the D51 setting. `marketing/web10-social/src/components/Feed/`
-- [ ] E2E: the torture gauntlet — create ad in the catalog → attach to a post → follower sees the post with the ad block + disclosure → pause the ad → it stops rendering → non-follower never sees the ad (I3) — `e2e/tests/ads.spec.ts`
+- [✓ 3.16.1] KB: the standard ad object + the Dissemination section + the two-layer note (`social/ads.md`) + D50 + D51
+- [✓ 3.22.0] KB: the Ad Catalog + the composer integration (`social/ads-catalog.md`) + D54
+- [✓ 3.23.0] KB: D55 — an ad is a `posts` doc tagged `ad`, not a service
+- [✓ 3.25.0] The tagged-post ad (API conformance): the ad object through the existing posts CRUD + the feed read returns it + I3 — pinned by `api/tests/test_ads.py`
+- [✓ 3.26.1] KB: the v3/v4 dissemination split — v3 is `pinned` | `none` (data-layer, the read serves the pinned ad inline, I3-checked, 100% density), the curation engine is the v4 vision; the three v3 questions resolved (`ad_preference` column on `documents`, albums first-class + tag-like ad→album link, inline read)
+- [ ] **v3 API: the read serves the pinned ad** — the `ad_preference` column on `documents` (`pinned` | `none` + `target`); the feed read joins to the pinned ad and returns the doc **with** the ad inline (100% of the time); the **I3 check** (serve the pinned ad only if the reader is a member of the ad's group, else no ad); the **albums** (first-class, an ad in a few via a tag-like field). Pinned by `api/tests/test_ads.py`. The foundation — gates the UI
+- [ ] **Ads tab (authenticator)** — the Studio's new Ads surface: **ads upload** (the ingest — create ads: media + offer + status → a `posts` doc tagged `ad`), **album making** (Apple-Photos-style: make albums, sort by album or all, add an ad to a few albums), **pin an ad to a post** (pick an ad → set the post's `ad_preference`). All states designed (empty → CTA, skeleton, error). `ui/src/components/Studio/`
+- [ ] **Composer pin control (web10-social)** — the "Pin an ad" control in `PostComposer`: pick an ad (from an album or all) to pin to the post, or none (sets the post's `ad_preference`); the ad block renders under the post (creative + offer + disclosure, disclosure never hidden). `marketing/web10-social/src/components/Feed/`
+- [ ] **E2E: the torture gauntlet** — create an ad → pin it to a post → follower sees the post with the ad block + disclosure → unpin → it's gone → non-follower never sees the ad (I3) → an ad in two albums shows in both. `e2e/tests/ads.spec.ts`
 
 ### Lane: app-store-metrics (D49)
 **Owns:** `api/app/v3/services/clickhouse.py`, `api/app/endpoints/`, `api/app/services/config.py` (n/a — D48), `sdk/src/`, `marketing/marketing-ui/src/pages/`, `clickhouse-init/`, `e2e/tests/`

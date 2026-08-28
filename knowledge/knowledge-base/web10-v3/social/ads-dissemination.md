@@ -30,15 +30,27 @@ doesn't). Every pinned post shows its ad, every time.
 
 **What stays in v3:**
 
-- **The ad catalogs** — the Spotify-playlist model (the master list of the
-  creator's ads, organized into named catalogs; an ad in several). The
-  authenticator's Ads tab manages them. v3 pins a specific ad; v4 curates from a
-  catalog. The structure is built now so v4 is an enum expansion, not a rebuild.
+- **The ad albums** — Apple-Photos-style albums: first-class, named, manageable
+  (make an album, sort by album or "all"). An ad carries a **tag-like field**
+  saying which albums it's in — an ad can be in a few (a photo in multiple
+  albums). The authenticator's Ads tab manages them. v3 pins a specific ad; v4
+  curates from an album. The structure is built now so v4 is an enum expansion,
+  not a rebuild.
 - **The I3 check** — the pinned ad is a doc with its own group attachments. The
   read serves it **only if the reader is a member of the ad's group** (the ad
   rides the reader's access, not just the doc's). A pinned ad the reader can't
   see → the doc comes back with no ad. This is required, not optional — it's a
   security invariant, not a nicety.
+
+**Locked (the three open questions, resolved):**
+
+- **`ad_preference` lives in a column on `documents`** — not a body field. The
+  query filters/joins on it directly (the "ClickHouse-y" way).
+- **Albums are first-class, the ad→album link is tag-like** — an album is a
+  named, manageable entity (the UI); each ad carries a tag-like field listing
+  the albums it's in (the query filters ads by album). An ad in a few albums.
+- **The read returns the docs *and* the ads inline** — no ref. The pinned ad's
+  full body comes back with the doc, so any app gets the ad for free.
 
 **Why this is the right v3 cut:** it delivers the core value (a creator pins
 their monetized link to their content, served by the data, free for all apps)
@@ -98,16 +110,15 @@ owned by the creator, so there's nothing to block.
 
 - **v3 modes** → `pinned` | `none`. Creators pin ads on their posts.
 - **v3 density** → 100% (every pinned post shows its ad).
-- **Catalogs** → kept (the structure + the authenticator Ads tab), so v4 is an
-  enum expansion, not a rebuild.
+- **`ad_preference` lives in a column on `documents`** (not a body field) — the
+  query filters/joins on it directly.
+- **Albums are first-class, the ad→album link is tag-like** — an album is a
+  named, manageable entity (the UI); each ad carries a tag-like field listing
+  the albums it's in (the query filters ads by album); an ad in a few albums.
+- **The read returns the docs *and* the ads inline** — no ref.
+- **Catalogs/albums** → kept (the structure + the authenticator Ads tab), so v4
+  is an enum expansion, not a rebuild.
 
 **Still open (v3):**
 
-1. **Where does `ad_preference` live?** A column on `documents` (queryable — the
-   "ClickHouse-y" way) vs. a body field (no schema change). Leaning column.
-2. **The catalog representation.** A catalog doc (first-class, for the UI, but
-   the query parses JSON) vs. tags on the ads (clean for the query, weak for the
-   UI). In tension.
-3. **The read's shape.** Doc + ad **inline** (the full ad body) vs. doc + ad
-   **ref** (the app resolves it). Inline is "free for all apps."
-4. **Scope.** v3 on `posts`; the universal-documents vision is later.
+1. **Scope.** v3 on `posts`; the universal-documents vision is later.
