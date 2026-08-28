@@ -1,4 +1,5 @@
 import { getV3Client } from './v3';
+import { followersGroupId } from './groups';
 import { fromV3DocToProfile, type ProfileRecord } from './types';
 
 // ── Profile data layer (v3) ──────────────────────────────────────────────────
@@ -15,7 +16,7 @@ export async function readProfile(): Promise<ProfileRecord | null> {
   // Try reading from profile collection
   try {
     const docs = await w.read('profile', {
-      groups: [`web10.app/groups/${token.username}/followers`],
+      groups: [followersGroupId(token.username)],
     });
     if (docs.length > 0) {
       return fromV3DocToProfile(docs[0]);
@@ -58,7 +59,7 @@ export async function saveProfile(profile: Partial<ProfileRecord>): Promise<Prof
   }
 
   // Create new
-  const groups = [`web10.app/groups/${token.username}/followers`];
+  const groups = [followersGroupId(token.username)];
   const doc = await w.create('profile', body, { groups });
   return fromV3DocToProfile(doc);
 }
@@ -79,10 +80,6 @@ export async function readUserProfile(username: string): Promise<ProfileRecord |
     // User has no profile
   }
   return null;
-}
-
-function followersGroupId(username: string): string {
-  return `web10.app/groups/${username}/followers`;
 }
 
 /**
