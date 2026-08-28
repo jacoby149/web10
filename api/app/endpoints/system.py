@@ -1,4 +1,5 @@
 import json
+import logging
 
 import requests
 from fastapi import APIRouter, HTTPException
@@ -16,6 +17,7 @@ from app.services.auth import check_admin, decode_token, get_password_hash
 from app.v3.services import clickhouse as ch
 
 router = APIRouter()
+log = logging.getLogger(__name__)
 
 
 @router.post("/")
@@ -155,7 +157,7 @@ def pwa_listing(url: str):
     # render. Over the cap → treat as no manifest.
     _MANIFEST_MAX_BYTES = 256 * 1024
     try:
-        with requests.get(manifest_url, {"Accept": "application/json"}, timeout=1, stream=True) as resp:
+        with requests.get(manifest_url, headers={"Accept": "application/json"}, timeout=1, stream=True) as resp:
             resp.raise_for_status()
             chunks = []
             total = 0
@@ -166,6 +168,13 @@ def pwa_listing(url: str):
                 chunks.append(chunk)
             return json.loads(b"".join(chunks))
     except requests.exceptions.RequestException:
+        log.info("[pwa_listing] fetch failed for %s — NO_PWA", manifest_url)
+        raise exceptions.NO_PWA
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        # A 200 with a non-JSON body (an SPA fallback returning HTML, a text
+        # file, ...) means there is no manifest at that path — the store
+        # falls back to the registered name. Not a server error.
+        log.info("[pwa_listing] non-JSON manifest body at %s — NO_PWA", manifest_url)
         raise exceptions.NO_PWA
 
 

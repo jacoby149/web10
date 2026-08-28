@@ -1,16 +1,21 @@
 import { test, expect, type APIRequestContext, type Page } from '@playwright/test';
 
 /**
- * Feed demo — the platform unit test for the social feed: a discover group
- * (open, auto-join public board) + per-creator followers groups, read as ONE
- * combined multi-group feed (`/v3/read` over a list of groups).
+ * Feed demo — the platform unit test for the social feed: the node-default
+ * discover group (the universal public board — created at boot, every user
+ * auto-joined) + per-creator followers groups, read as ONE combined
+ * multi-group feed (`/v3/read` over a list of groups).
  *
  * The API floor proves the multi-group read primitive (the load-bearing part —
  * it needs several users, so it exercises the membership scoping the
  * single-user demos never touch). The browser gauntlet drives the real demo
- * flow end to end: auth → set up the discover group through the REAL consent
- * popup → post to discover → follow creators → read the combined feed — with
- * console log-sequence verification.
+ * flow end to end: auth → post to discover (no setup — the board already
+ * exists) → follow creators → read the combined feed — with console
+ * log-sequence verification.
+ *
+ * The discover board is a SHARED node default, so tests assert the specific
+ * posts they post are present (contains), not exact feed counts — other
+ * tests' posts on the board are expected.
  */
 
 const port = process.env.E2E_HTTP_PORT || '80';
@@ -19,16 +24,17 @@ const API_BASE = `http://api.localhost${p}`;
 const AUTH_BASE = `http://auth.localhost${p}`;
 const MARKETING_BASE = `http://marketing.localhost${p}`;
 const PROVIDER = 'api.localhost';
-const SERVICE = 'web10-docs-feed-demo';
+// The demo posts under the `posts` service to the node-default discover group
+// (the same service + group the social app and the marketing site read).
+const SERVICE = 'posts';
+// The node-default discover group — a well-known constant, created at boot,
+// every user (and anon) auto-joined. Not per-user, not app-created.
+const DISCOVER_GROUP_ID = 'web10.app/groups/web10/discover';
 const ORIGIN = MARKETING_BASE;
 
 const uniqueUser = (prefix: string) => `${prefix}${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 const password = 'TestPass123!';
 
-// The discover group is a public board: one role, members can post + read.
-const DISCOVER_ROLES = [
-  { name: 'member', services: [SERVICE], permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn'] },
-];
 // A followers group: the creator (owner) posts; followers (member) are read-only.
 const FOLLOWERS_ROLES = [
   { name: 'owner', services: ['*'], permissions: ['readAll', 'create', 'updateOwn', 'updateAll', 'deleteOwn', 'deleteAll', 'hideAll', 'manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup'] },
@@ -146,9 +152,9 @@ test.describe('Feed demo — API floor (multi-group read)', () => {
     await addAppContract(request, c1.token);
     await addAppContract(request, c2.token);
 
-    // Viewer's discover group (open, public board).
-    const discoverId = await createGroup(request, viewer.token, viewer.username, 'discover', 'open', DISCOVER_ROLES, 'member');
-    expect(discoverId).toBe(`${PROVIDER}/groups/users/${viewer.username}/discover`);
+    // The discover group is a NODE DEFAULT — it exists at boot and the viewer
+    // is auto-enrolled at signup. No create, no setup.
+    const discoverId = DISCOVER_GROUP_ID;
 
     // Creators' followers groups (open — following is an instant join).
     const f1 = await createGroup(request, c1.token, c1.username, 'followers', 'open', FOLLOWERS_ROLES);
@@ -165,11 +171,17 @@ test.describe('Feed demo — API floor (multi-group read)', () => {
     await postDoc(request, c1.token, f1, 'c1 post');
     await postDoc(request, c2.token, f2, 'c2 post');
 
-    // ONE multi-group read over discover + both followers groups.
+    // ONE multi-group read over discover + both followers groups. The discover
+    // board is a shared node default, so assert the three specific posts are
+    // present (not an exact count). The followers posts come from isolated
+    // groups, so each appears exactly once.
     const docs = await readGroups(request, viewer.token, [discoverId, f1, f2]);
-    expect(docs.length).toBe(3);
-    expect(docs.map((d) => d.body.text).sort()).toEqual(['c1 post', 'c2 post', 'viewer on discover']);
-    expect(docs.map((d) => d.author_key).sort()).toEqual([c1.username, c2.username, viewer.username].sort());
+    const texts = docs.map((d) => d.body.text);
+    expect(texts).toContain('viewer on discover');
+    expect(texts).toContain('c1 post');
+    expect(texts).toContain('c2 post');
+    expect(texts.filter((t) => t === 'c1 post').length).toBe(1);
+    expect(texts.filter((t) => t === 'c2 post').length).toBe(1);
   });
 
   test('anti-test: a viewer who follows only C1 does NOT see C2\'s posts (membership scoping)', async ({ request }) => {
@@ -259,11 +271,12 @@ test.describe('Feed demo — API floor (multi-group read)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Browser gauntlet — the real feed flow through the real consent popup
+// Browser gauntlet — the real feed flow (discover needs no setup; the only
+// consent popup left is the fix-access re-consent)
 // ---------------------------------------------------------------------------
 
 test.describe('Feed demo gauntlet — real flow + log sequence', () => {
-  test('auth → set up discover (real popup) → post → follow → combined feed', async ({ page, context, request }) => {
+  test('auth → post → follow → combined feed', async ({ page, context, request }) => {
     const logs = captureConsoleLogs(page, '[feed-demo]');
 
     // Viewer (pre-authed) + two creators (set up via API — they're "other users").
@@ -285,37 +298,14 @@ test.describe('Feed demo gauntlet — real flow + log sequence', () => {
     await postDoc(request, c1.token, f1, c1Post);
     await postDoc(request, c2.token, f2, c2Post);
 
-    // --- Viewer loads the demo (signed in, discover group NOT yet set up) ---
+    // --- Viewer loads the demo (signed in; the discover board already exists) ---
     await page.goto(`${MARKETING_BASE}/docs/feed/`);
     await page.waitForLoadState('networkidle');
     await expect(page.locator('#authButton')).toHaveText('Log out');
     await expect(page.locator('#editor')).toBeVisible();
-    // Discover group missing → the setup button is the D42 lazy seam.
-    await expect(page.locator('#setupDiscoverBtn')).toBeVisible({ timeout: 10000 });
-
-    // --- Set up the discover group through the REAL consent popup ---
-    const popupPromise = context.waitForEvent('page', { timeout: 20000 });
-    await page.locator('#setupDiscoverBtn').click();
-    const popup = await popupPromise;
-    const popupLogs: string[] = [];
-    popup.on('console', (m) => popupLogs.push(m.text()));
-    popup.on('pageerror', (e) => popupLogs.push(`[pageerror] ${e.message}`));
-    await popup.waitForLoadState('networkidle', { timeout: 20000 });
-    // The group contract must render (not "all set") — the load-bearing seam.
-    try {
-      await popup.locator('[data-testid="consent-req-0"]').waitFor({ state: 'visible', timeout: 20000 });
-    } catch (err) {
-      const body = await popup.locator('body').innerText().catch(() => '(unreadable)');
-      throw new Error(`consent-req-0 never rendered.\n--- popup body ---\n${body}\n--- popup console ---\n${popupLogs.join('\n')}\n--- demo console ---\n${logs.join('\n')}`);
-    }
-    await popup.locator('[data-testid="consent-approve-0"]').click();
-    await popup.waitForEvent('close', { timeout: 15000 }).catch(() => {});
-
-    // Discover group ready → setup button hidden, feed visible.
-    await expect(page.locator('#setupDiscoverBtn')).toBeHidden({ timeout: 10000 });
     await expect(page.locator('#feed')).toBeVisible();
 
-    // --- Post to discover ---
+    // --- Post to discover (no setup — the node-default board is already there) ---
     const myPost = `my discover post ${Date.now()}`;
     await page.locator('#postText').fill(myPost);
     await page.locator('[data-testid="post-button"]').click();
@@ -332,7 +322,12 @@ test.describe('Feed demo gauntlet — real flow + log sequence', () => {
     await page.locator('[data-testid="creator-input"]').fill(c2.username);
     await page.locator('[data-testid="follow-button"]').click();
     await expectFeedContains(page, c2Post);
-    await expect(page.locator('[data-testid="feed-post"]')).toHaveCount(3, { timeout: 10000 });
+    // The discover board is a shared node default, so assert the three specific
+    // posts are present (not an exact feed count).
+    const texts = await page.locator('[data-testid="feed-post-text"]').allTextContents();
+    expect(texts).toContain(myPost);
+    expect(texts).toContain(c1Post);
+    expect(texts).toContain(c2Post);
 
     // The feed meta reflects the multi-group read (discover + 2 followers).
     await expect(page.locator('#feedMeta')).toContainText('3 groups');
@@ -341,9 +336,6 @@ test.describe('Feed demo gauntlet — real flow + log sequence', () => {
     const logStr = logs.join('\n');
     expect(logStr).toContain('[feed-demo] init — host:');
     expect(logStr).toContain('[feed-demo] initApp — setting up signed-in state');
-    expect(logStr).toContain('[feed-demo] ensureDiscoverGroup — no discover group yet');
-    expect(logStr).toContain('[feed-demo] setupDiscoverBtn clicked');
-    expect(logStr).toContain('[feed-demo] setupDiscover — discover group created');
     expect(logStr).toContain('[feed-demo] postToDiscover — success');
     expect(logStr).toContain('[feed-demo] followCreator — joined');
     expect(logStr).toContain('[feed-demo] loadFeed — got');
@@ -364,50 +356,36 @@ test.describe('Feed demo gauntlet — real flow + log sequence', () => {
     const c1 = await signupAndLogin(request, 'feedseqc1');
     await addAppContract(request, c1.token);
     const f1 = await createGroup(request, c1.token, c1.username, 'followers', 'open', FOLLOWERS_ROLES);
-    await postDoc(request, c1.token, f1, 'seq c1 post');
+    const c1Post = `seq c1 post ${Date.now()}`;
+    await postDoc(request, c1.token, f1, c1Post);
 
     await page.goto(`${MARKETING_BASE}/docs/feed/`);
     await page.waitForLoadState('networkidle');
-    await expect(page.locator('#setupDiscoverBtn')).toBeVisible({ timeout: 10000 });
-
-    // Set up discover through the real popup.
-    const popupPromise = context.waitForEvent('page', { timeout: 20000 });
-    await page.locator('#setupDiscoverBtn').click();
-    const popup = await popupPromise;
-    await popup.waitForLoadState('networkidle', { timeout: 20000 });
-    await popup.locator('[data-testid="consent-req-0"]').waitFor({ state: 'visible', timeout: 20000 });
-    await popup.locator('[data-testid="consent-approve-0"]').click();
-    await popup.waitForEvent('close', { timeout: 15000 }).catch(() => {});
-    await expect(page.locator('#setupDiscoverBtn')).toBeHidden({ timeout: 10000 });
+    await expect(page.locator('#feed')).toBeVisible();
 
     // Post + follow to generate the full log sequence.
-    await page.locator('#postText').fill('seq post');
+    const myPost = `seq post ${Date.now()}`;
+    await page.locator('#postText').fill(myPost);
     await page.locator('[data-testid="post-button"]').click();
-    await expect(page.locator('[data-testid="feed-post-text"]').first()).toBeVisible({ timeout: 10000 });
+    await expectFeedContains(page, myPost);
     await page.locator('[data-testid="creator-input"]').fill(c1.username);
     await page.locator('[data-testid="follow-button"]').click();
-    await expect(page.locator('[data-testid="feed-post"]')).toHaveCount(2, { timeout: 10000 });
+    await expectFeedContains(page, c1Post);
 
     const initIdx = logs.findIndex((l) => l.includes('init — host:'));
     const initAppIdx = logs.findIndex((l) => l.includes('initApp — setting up signed-in state'));
-    const ensureIdx = logs.findIndex((l) => l.includes('ensureDiscoverGroup — no discover group yet'));
-    const setupClickIdx = logs.findIndex((l) => l.includes('setupDiscoverBtn clicked'));
-    const setupOkIdx = logs.findIndex((l) => l.includes('setupDiscover — discover group created'));
     const postIdx = logs.findIndex((l) => l.includes('postToDiscover — success'));
     const followIdx = logs.findIndex((l) => l.includes('followCreator — joined'));
 
-    for (const idx of [initIdx, initAppIdx, ensureIdx, setupClickIdx, setupOkIdx, postIdx, followIdx]) {
+    for (const idx of [initIdx, initAppIdx, postIdx, followIdx]) {
       expect(idx, 'missing expected log line').toBeGreaterThanOrEqual(0);
     }
     expect(initIdx).toBeLessThan(initAppIdx);
-    expect(initAppIdx).toBeLessThan(ensureIdx);
-    expect(ensureIdx).toBeLessThan(setupClickIdx);
-    expect(setupClickIdx).toBeLessThan(setupOkIdx);
-    expect(setupOkIdx).toBeLessThan(postIdx);
+    expect(initAppIdx).toBeLessThan(postIdx);
     expect(postIdx).toBeLessThan(followIdx);
   });
 
-  test('state rule: the discover group persists across a reload (return run)', async ({ page, context, request }) => {
+  test('state rule: a post persists across a reload (return run)', async ({ page, context, request }) => {
     const viewer = await signupAndLogin(request, 'feedrr');
     await setTokenCookie(context, 'marketing.localhost', viewer.token);
     await setTokenCookie(context, 'auth.localhost', viewer.token);
@@ -415,17 +393,7 @@ test.describe('Feed demo gauntlet — real flow + log sequence', () => {
 
     await page.goto(`${MARKETING_BASE}/docs/feed/`);
     await page.waitForLoadState('networkidle');
-    await expect(page.locator('#setupDiscoverBtn')).toBeVisible({ timeout: 10000 });
-
-    // First run: set up the discover group through the real popup.
-    const popupPromise = context.waitForEvent('page', { timeout: 20000 });
-    await page.locator('#setupDiscoverBtn').click();
-    const popup = await popupPromise;
-    await popup.waitForLoadState('networkidle', { timeout: 20000 });
-    await popup.locator('[data-testid="consent-req-0"]').waitFor({ state: 'visible', timeout: 20000 });
-    await popup.locator('[data-testid="consent-approve-0"]').click();
-    await popup.waitForEvent('close', { timeout: 15000 }).catch(() => {});
-    await expect(page.locator('#setupDiscoverBtn')).toBeHidden({ timeout: 10000 });
+    await expect(page.locator('#feed')).toBeVisible();
 
     // Post so there's something to persist.
     const myPost = `return-run post ${Date.now()}`;
@@ -434,14 +402,13 @@ test.describe('Feed demo gauntlet — real flow + log sequence', () => {
     await expectFeedContains(page, myPost);
 
     // Return run: reload. The token cookie persists, initApp re-runs, and the
-    // discover group must still be there — the setup button stays hidden and
-    // the post survives (not clobbered, not duplicated, not gone).
+    // post survives (not clobbered, not duplicated, not gone). The discover
+    // board is a shared node default, so assert the post is present (not an
+    // exact feed count).
     await page.reload();
     await page.waitForLoadState('networkidle');
     await expect(page.locator('#authButton')).toHaveText('Log out');
-    await expect(page.locator('#setupDiscoverBtn')).toBeHidden({ timeout: 10000 });
     await expectFeedContains(page, myPost);
-    await expect(page.locator('[data-testid="feed-post"]')).toHaveCount(1, { timeout: 10000 });
   });
 
   // ---------------------------------------------------------------------
@@ -456,14 +423,11 @@ test.describe('Feed demo gauntlet — real flow + log sequence', () => {
     await setTokenCookie(context, 'marketing.localhost', viewer.token);
     await setTokenCookie(context, 'auth.localhost', viewer.token);
     await addAppContract(request, viewer.token);
-    // Pre-create the discover group via the API so the feed works without the
-    // setup popup — this test is about the fix-access seam, not discover setup.
-    await createGroup(request, viewer.token, viewer.username, 'discover', 'open', DISCOVER_ROLES, 'member');
 
     await page.goto(`${MARKETING_BASE}/docs/feed/`);
     await page.waitForLoadState('networkidle');
     await expect(page.locator('#authButton')).toHaveText('Log out');
-    await expect(page.locator('#setupDiscoverBtn')).toBeHidden({ timeout: 10000 });
+    await expect(page.locator('#feed')).toBeVisible();
 
     // The feed works initially (post to discover).
     const beforePost = `before revoke ${Date.now()}`;
@@ -513,12 +477,11 @@ test.describe('Feed demo gauntlet — real flow + log sequence', () => {
     await setTokenCookie(context, 'marketing.localhost', viewer.token);
     await setTokenCookie(context, 'auth.localhost', viewer.token);
     await addAppContract(request, viewer.token);
-    await createGroup(request, viewer.token, viewer.username, 'discover', 'open', DISCOVER_ROLES, 'member');
 
     await page.goto(`${MARKETING_BASE}/docs/feed/`);
     await page.waitForLoadState('networkidle');
     await expect(page.locator('#authButton')).toHaveText('Log out');
-    await expect(page.locator('#setupDiscoverBtn')).toBeHidden({ timeout: 10000 });
+    await expect(page.locator('#feed')).toBeVisible();
 
     // Post to discover.
     const postText = `to delete ${Date.now()}`;
@@ -530,11 +493,12 @@ test.describe('Feed demo gauntlet — real flow + log sequence', () => {
     await expect(page.locator('[data-testid="delete-button"]')).toHaveCount(1, { timeout: 10000 });
     await page.locator('[data-testid="delete-button"]').click();
 
-    // Consequence: the post is gone from the feed.
+    // Consequence: the post is gone from the feed. The discover board is a
+    // shared node default, so assert the specific post is absent (not an exact
+    // feed count of 0).
     await expect(async () => {
       expect(await page.locator('[data-testid="feed-post-text"]').allTextContents()).not.toContain(postText);
     }).toPass({ timeout: 10000 });
-    await expect(page.locator('[data-testid="feed-post"]')).toHaveCount(0, { timeout: 10000 });
   });
 
   test('fork: follow a non-existent creator → error message, no crash', async ({ page, context, request }) => {
@@ -542,12 +506,11 @@ test.describe('Feed demo gauntlet — real flow + log sequence', () => {
     await setTokenCookie(context, 'marketing.localhost', viewer.token);
     await setTokenCookie(context, 'auth.localhost', viewer.token);
     await addAppContract(request, viewer.token);
-    await createGroup(request, viewer.token, viewer.username, 'discover', 'open', DISCOVER_ROLES, 'member');
 
     await page.goto(`${MARKETING_BASE}/docs/feed/`);
     await page.waitForLoadState('networkidle');
     await expect(page.locator('#authButton')).toHaveText('Log out');
-    await expect(page.locator('#setupDiscoverBtn')).toBeHidden({ timeout: 10000 });
+    await expect(page.locator('#feed')).toBeVisible();
 
     // Follow a creator that has no followers group (ghost).
     const ghost = `ghost-creator-${Date.now()}`;
@@ -557,7 +520,6 @@ test.describe('Feed demo gauntlet — real flow + log sequence', () => {
     // Consequence: a clear error message (not a crash / not a silent no-op).
     await expect(page.locator('#message')).toContainText('no followers group', { timeout: 10000 });
     // The demo is still functional — the feed still renders.
-    await expect(page.locator('[data-testid="feed-post"]')).toHaveCount(0, { timeout: 10000 });
     await expect(page.locator('#feed')).toBeVisible();
   });
 });
