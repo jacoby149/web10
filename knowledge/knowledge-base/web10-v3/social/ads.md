@@ -87,6 +87,14 @@ Because the read is group-scoped, an ad is only ever visible to the creator's au
 
 ## Dissemination (per-creator)
 
+> **Under discussion (27.08.2026):** *where* the curation lives is being
+> re-examined. The current design below (a client-side `curateAds` SDK helper)
+> is being challenged in favor of the curation being **on the data** — the read
+> returning opted-in posts *with* their curated ad, so any app gets ads for
+> free. See [`ads-dissemination.md`](./ads-dissemination.md) (the reframe, the
+> stateful-curation wall, the options, the open questions) before building on
+> this section.
+
 How a creator's ads get shown is a **per-creator choice**, not a platform decision (D51). The setting lives on the creator's `settings` doc:
 
 ```json
