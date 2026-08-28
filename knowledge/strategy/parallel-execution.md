@@ -235,25 +235,28 @@ look alive.
 ### Lane: ads (monetization)
 **Owns:** `ui/src/components/Studio/`, `api/tests/test_ads.py`, `e2e/tests/ads.spec.ts`, `marketing/web10-social/src/components/Feed/PostComposer.tsx` + the ad block (carved out of the `social-v3` lane for D54 — the composer's ad control + the post's ad block)
 
-The creator-owned ads layer (D50 + D51 + D54): the `ads` default service — content + a
-monetizable link (the offer), owned by the creator, delivered to followers
-by architecture. Any app with `ads: [readAll]` picks up ads per viewer with
-the same multi-group read the feed uses (`w.read('ads', { groups: [...] })`
-— no new endpoint, rides the existing CRUD + read + media machinery). The
-Partner Links card (was "Amazon Associates" + "Direct Deals") is the ingest;
-the **Ad Catalog** (D54) is the inventory — the same read, run by the owner,
-in the Studio. The composer (D54) attaches an ad to a post by `ref_value`
-or rotates per the D51 setting. The KB is the spec — read it first:
-`knowledge/knowledge-base/web10-v3/social/ads.md` (the object + read +
-dissemination) and `social/ads-catalog.md` (the catalog + composer).
+The creator-owned ads layer (D50 + D51 + D54 + D55): an ad is a **`posts`
+document tagged `ad`** (D55 — not a service): the post's own text + media
+(the creative) + a leaf-typed `offer` (the link that pays) + a `status`.
+Delivered to followers by the same group architecture as every post; picked
+up by the same feed read (`w.read('posts', { groups: [...] })` — the ad posts
+are already in it, the renderer styles the ones tagged `ad`). The Partner
+Links card (was "Amazon Associates" + "Direct Deals") is the ingest; the
+**Ad Catalog** (D54) is the inventory — the owner's posts filtered to
+`tags ∋ 'ad'`, in the Studio. The composer (D54) attaches an ad to a post by
+`ref_value` (post → post) or rotates per the D51 setting. The KB is the spec
+— read it first: `knowledge/knowledge-base/web10-v3/social/ads.md` (the
+object + feed read + dissemination) and `social/ads-catalog.md` (the catalog
++ composer).
 
 - [✓ 3.16.1] KB: the standard ad object + the per-user query + the Dissemination section (per-creator setting + feed+ads join + `curateAds` SDK helper) + the two-layer note (`social/ads.md`) + D50 + D51
 - [✓ 3.22.0] KB: the Ad Catalog + the composer integration (`social/ads-catalog.md`) + D54 — catalog = the canonical per-viewer read run by the owner (no special-case); post carries ad by `ref_value` (no copy); `body.status` = `active` | `paused`; round-robin = D51 setting at render time; no new tables/endpoints/SDK surface
+- [✓ 3.23.0] KB: D55 — an ad is a `posts` doc tagged `ad`, not a service (`social/ads.md` rewritten + `ads-catalog.md` updated) — the feed join + the `ads: [readAll]` contract + the provisioning all disappear; the object is locked (post fields + leaf-typed `offer` + `status`, no `stats`, no `creative.format`); the creative is data + the HTML is the app's renderer (no `html` leaf type); `html_template` is v4; carrying is post → post
 - [ ] Dissemination (SDK): the `curateAds(creatorAds, creatorSetting)` helper — `round_robin` / `greedy` / `pinned` / `frequency_capped`, deterministic + per-creator so every app curates identically; the per-creator setting is a field on the `settings` doc; filters on `body.status === 'active'` (D54)
 - [ ] Partner Links card (UI): collapse "Amazon Associates" (`AmazonTagCard.tsx`) + "Direct Deals" (`DirectDealsCard.tsx`) into one "Partner Links" card in the Studio monetization screen — `offer.kind` = `affiliate` | `direct` | `own_store` + the dissemination picker; update `studio-data.ts` + `studio.test.tsx`
-- [ ] The `ads` service (API conformance): the ad object through the existing CRUD + the multi-group per-user read — no new endpoint; verify + pin with `api/tests/test_ads.py` (I3: a non-follower can't read the ad). Gates the catalog + composer (both read this)
-- [ ] Ad Catalog (authenticator): the Studio's inventory screen — the owner's `ads` read (creative / offer / status / numbers / attached posts via reverse `ref_value`), new-ad ingest flow (offer + content → one `ads` doc on the followers group), edit / pause / retire, all states designed (empty → CTA, skeleton, error, active/paused rows). `ui/src/components/Studio/`
-- [ ] Composer ad control (web10-social): the "Attach ad" control in `PostComposer` — the catalog picker sheet (active first, empty + loading states), attach writes the post's `ref` → `ref_value`, the ad block renders under the post (creative + offer + disclosure, disclosure never hidden), "Rotate my ads" per-post opt-in to the D51 setting. `marketing/web10-social/src/components/Feed/`
+- [ ] The tagged-post ad (API conformance): the ad object (a `posts` doc tagged `ad` with the `offer` + `status`) through the existing posts CRUD + the feed read returns it + I3 (a non-follower can't read the ad post) — no service to provision, no new endpoint; verify + pin with `api/tests/test_ads.py`. Gates the catalog + composer (both read this)
+- [ ] Ad Catalog (authenticator): the Studio's inventory screen — the owner's posts filtered to `tags ∋ 'ad'` (creative / offer / status / attached posts via reverse `ref_value`), new-ad ingest flow (offer + content → one `posts` doc tagged `ad` on the followers group), edit / pause / retire, all states designed (empty → CTA, skeleton, error, active/paused rows). `ui/src/components/Studio/`
+- [ ] Composer ad control (web10-social): the "Attach ad" control in `PostComposer` — the catalog picker sheet (active first, empty + loading states), attach writes the post's `ref` → `ref_value` (post → post), the ad block renders under the post (creative + offer + disclosure, disclosure never hidden), "Rotate my ads" per-post opt-in to the D51 setting. `marketing/web10-social/src/components/Feed/`
 - [ ] E2E: the torture gauntlet — create ad in the catalog → attach to a post → follower sees the post with the ad block + disclosure → pause the ad → it stops rendering → non-follower never sees the ad (I3) — `e2e/tests/ads.spec.ts`
 
 ### Lane: app-store-metrics (D49)
