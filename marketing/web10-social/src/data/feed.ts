@@ -113,17 +113,24 @@ export async function readFeed(sort: FeedSort = 'newest', limit = 50): Promise<P
   const feedGroups = groups
     .filter((g) => g.group_id !== getDiscoverGroupId())
     .map((g) => g.group_id);
+  console.log('[social-feed] readFeed — my groups:', JSON.stringify(groups.map((g) => g.group_id)));
+  console.log('[social-feed] readFeed — feed groups (minus discover):', JSON.stringify(feedGroups));
 
-  if (!feedGroups.length) return [];
+  if (!feedGroups.length) {
+    console.log('[social-feed] readFeed — no feed groups yet, returning []');
+    return [];
+  }
 
   const docs = await w.read('posts', {
     groups: feedGroups,
     limit,
   });
+  console.log('[social-feed] readFeed — got', docs.length, 'docs from', feedGroups.length, 'groups');
 
   const posts = docs.map(fromV3DocToPost);
   const direction = sort === 'newest' ? -1 : 1;
   posts.sort((a, b) => (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * direction);
+  console.log('[social-feed] readFeed — sorted', posts.length, 'posts by', sort);
   return posts;
 }
 
