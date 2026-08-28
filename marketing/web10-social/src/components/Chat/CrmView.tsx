@@ -692,8 +692,12 @@ function ContactDetail({
             <div className="space-y-3">
               {messages.map((msg) => {
                 const token = getWapi().readToken();
+                // Username-based: v3 DMs are same-node (bare-username member
+                // keys), and the sender_provider derived from a bare
+                // author_key is not the node's provider, so a
+                // provider-qualified comparison never matches.
                 const isMe = token
-                  ? `${token.provider}/${token.username}` === `${msg.sender_provider}/${msg.sender_username}`
+                  ? msg.sender_username === token.username
                   : false;
                 return (
                   <div

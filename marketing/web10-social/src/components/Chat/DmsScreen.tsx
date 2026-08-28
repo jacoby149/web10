@@ -520,7 +520,10 @@ function MessageBubble({
   }
 
   return (
-    <div className={cn('flex items-end gap-1.5', isMe ? 'justify-end' : 'justify-start')}>
+    <div
+      data-testid="dm-message"
+      className={cn('flex items-end gap-1.5', isMe ? 'justify-end' : 'justify-start')}
+    >
       <div
         className={cn(
           'group max-w-[75%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed transition-shadow duration-150 relative',
@@ -940,7 +943,11 @@ export default function DmsScreen() {
                 msg={msg}
                 isMe={
                   token
-                    ? `${token.provider}/${token.username}` === `${msg.sender_provider}/${msg.sender_username}`
+                    // Username-based: v3 DMs are same-node (bare-username
+                    // member keys), and the sender_provider derived from a
+                    // bare author_key is not the node's provider, so a
+                    // provider-qualified comparison never matches.
+                    ? msg.sender_username === token.username
                     : false
                 }
                 onDelete={handleDeleteMessage}
