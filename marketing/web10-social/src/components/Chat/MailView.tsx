@@ -200,7 +200,6 @@ function ThreadDetail({
   onSent: (msg: DmRecord) => void;
 }) {
   const token = getWapi().readToken();
-  const myKey = token ? `${token.provider}/${token.username}` : '';
   const myUsername = token?.username || '';
   const [input, setInput] = useState('');
   const [subject, setSubject] = useState('');
@@ -218,9 +217,10 @@ function ThreadDetail({
   const threadSubject = thread.messages.find((m) => m.subject)?.subject || '';
 
   function formatFromTo(msg: DmRecord) {
-    const senderKey = `${msg.sender_provider}/${msg.sender_username}`;
-    const recipientKey = `${msg.recipient_provider}/${msg.recipient_username}`;
-    const isMe = myKey === senderKey;
+    // Username-based: v3 DMs are same-node (bare-username member keys), and
+    // the sender_provider derived from a bare author_key is not the node's
+    // provider, so a provider-qualified comparison never matches.
+    const isMe = msg.sender_username === myUsername;
     const fromName = isMe ? myUsername : msg.sender_username;
     const toName = isMe ? msg.recipient_username : myUsername;
     return { fromName, toName, isMe };
@@ -409,7 +409,7 @@ function ThreadDetail({
           </div>
         ) : (
           thread.messages.map((msg) => {
-            const isMe = myKey === `${msg.sender_provider}/${msg.sender_username}`;
+            const isMe = msg.sender_username === myUsername;
             const { fromName, toName } = formatFromTo(msg);
             return (
               <div

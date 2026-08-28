@@ -1,10 +1,75 @@
 import { getV3Client } from './v3';
-import { dmGroupId, ensureDmGroup, getMyGroups } from './groups';
-import { fromV3DocToDm, type DmRecord, type DmRecipient, extractUsername } from './types';
+import { getMyGroups } from './groups';
+import { fromV3DocToDm, type DmRecord, type DmRecipient } from './types';
 
 // ── DMs data layer (v3) ──────────────────────────────────────────────────────
 // DMs use groups: each conversation is a group. Messages are posts in that group.
 // No sender/recipient fields needed — the group membership defines who can read.
+//
+// Group ID model (the API's constraint): /v3/groups/create derives
+// group_id = {provider}/groups/users/{creator}/{name} from the caller's token,
+// so the creator is embedded in the ID — the ID is NOT symmetric (whoever
+// sends first owns it). The symmetric, deterministic identifier is the group
+// NAME: dm-{sorted}. Both parties derive the same name and find the group by
+// name suffix in their own group list (the messages-demo's findDmGroup
+// pattern). Member keys are bare usernames — the node's user-key form (the
+// JWT's username claim); a provider-qualified key would not match the real
+// user and the recipient would never be a member.
+
+/**
+ * The deterministic DM group NAME for a pair of users (sorted, so both
+ * parties derive the same name).
+ */
+export function dmGroupName(a: string, b: string): string {
+  return `dm-${[a, b].sort().join('-')}`;
+}
+
+// The DM group contract (KB: groups/social-contracts.md §5): invite_only,
+// one role, both participants equal members.
+const DM_ROLES = [
+  {
+    name: 'member',
+    services: ['posts', 'comments'],
+    permissions: ['readAll', 'create', 'updateOwn', 'deleteOwn'],
+  },
+];
+
+/**
+ * Find the DM group between me and other in my group list (by deterministic
+ * name suffix — the creator-embedded group_id is not derivable by the
+ * recipient). Null when no DM group exists yet.
+ */
+async function findDmGroup(me: string, other: string): Promise<string | null> {
+  const w = getV3Client();
+  const suffix = `/${dmGroupName(me, other)}`;
+  const groups = await w.getMyGroups();
+  const match = groups.find((g) => g.group_id.endsWith(suffix));
+  console.log(
+    '[social-dms] findDmGroup — me:', me,
+    'other:', other, 'suffix:', suffix,
+    'match:', match ? match.group_id : null,
+  );
+  return match ? match.group_id : null;
+}
+
+/**
+ * Ensure the DM group between me and other exists. Returns the group_id.
+ * Finds an existing group by the deterministic name (either party may have
+ * created it); creates it (invite_only, both as members) when absent.
+ */
+async function ensureDmGroup(me: string, other: string): Promise<string> {
+  const existing = await findDmGroup(me, other);
+  if (existing) return existing;
+  const w = getV3Client();
+  const name = dmGroupName(me, other);
+  console.log('[social-dms] ensureDmGroup — no group yet, creating', name);
+  const res = await w.createGroup(name, 'invite_only', DM_ROLES, [
+    { member_key: me, role: 'member' },
+    { member_key: other, role: 'member' },
+  ]);
+  console.log('[social-dms] ensureDmGroup — created', res.group_id);
+  return res.group_id;
+}
 
 /**
  * Derive a deterministic conversation key for a pair of users.
@@ -32,8 +97,15 @@ export async function readDms(conversation: string): Promise<DmRecord[]> {
   const themKey = parts.find((p) => p !== meKey) || parts[0];
   const [, otherUsername] = themKey.split('/');
 
-  const groupId = dmGroupId(token.username, otherUsername);
+  const groupId = await findDmGroup(token.username, otherUsername);
+  if (!groupId) {
+    // No DM group yet (nothing sent either way) — an empty conversation,
+    // not an error (a group read by a non-member would 403).
+    console.log('[social-dms] readDms — no DM group yet for', otherUsername, '— empty');
+    return [];
+  }
   const docs = await w.read('posts', { groups: [groupId] });
+  console.log('[social-dms] readDms — got', docs.length, 'messages from', groupId);
   return docs.map(fromV3DocToDm).sort(
     (a, b) => new Date(a.sent_at).getTime() - new Date(b.sent_at).getTime(),
   );
@@ -70,6 +142,7 @@ export async function sendDm(
   if (opts?.subject) body.subject = opts.subject;
 
   const doc = await w.create('posts', body, { groups: [groupId] });
+  console.log('[social-dms] sendDm — sent', doc.doc_id, 'in', groupId);
   return fromV3DocToDm(doc);
 }
 
@@ -92,7 +165,10 @@ export async function updateDm(id: string, message: string): Promise<DmRecord> {
 
 /**
  * List all conversations the current user participates in.
- * DM groups are groups with names containing 'dm-'.
+ * DM groups are the 2-member groups whose slug is the deterministic name
+ * dm-{first}-{second}. The creator is embedded in the group_id, so the other
+ * party is resolved from membership (the name alone is ambiguous — usernames
+ * may contain dashes).
  */
 export async function listConversations(): Promise<string[]> {
   const w = getV3Client();
@@ -103,20 +179,19 @@ export async function listConversations(): Promise<string[]> {
   const conversations = new Set<string>();
 
   for (const g of groups) {
-    if (g.group_id.includes('/dm-')) {
-      // Extract the other user's username from the group ID
-      const match = g.group_id.match(/dm-(.+)$/);
-      if (match) {
-        const otherUsername = match[1];
-        const otherProvider = g.group_id.split('/')[0] || 'web10';
-        conversations.add(conversationKey(
-          { provider: token.provider, username: token.username },
-          { provider: otherProvider, username: otherUsername },
-        ));
-      }
-    }
+    const slug = g.group_id.split('/').pop() || '';
+    if (!slug.startsWith('dm-') || g.member_count !== 2) continue;
+    const members = await w.getGroupMembers(g.group_id);
+    const other = members.find((m) => m.member_key !== token.username);
+    if (!other) continue;
+    const otherProvider = g.group_id.split('/')[0] || token.provider;
+    conversations.add(conversationKey(
+      { provider: token.provider, username: token.username },
+      { provider: otherProvider, username: other.member_key },
+    ));
   }
 
+  console.log('[social-dms] listConversations —', conversations.size, 'conversations');
   return [...conversations];
 }
 
@@ -168,9 +243,11 @@ export function classifyThread(
   _otherSpamFlagged: boolean,
 ): DmFolder {
   if (!lastMsg) return 'inbox';
-  const senderKey = `${lastMsg.sender_provider}/${lastMsg.sender_username}`;
-  const meKey = `${me.provider}/${me.username}`;
-  return senderKey === meKey ? 'sent' : 'inbox';
+  // Compare by username: v3 DMs are same-node (member keys are bare
+  // usernames), and the sender_provider derived from a bare author_key is
+  // not the node's provider, so a provider-qualified comparison never
+  // matches.
+  return lastMsg.sender_username === me.username ? 'sent' : 'inbox';
 }
 
 // ── Backward compat ──────────────────────────────────────────────────────────
@@ -224,9 +301,12 @@ export function replyAllTargets(
   if (msg.cc) msg.cc.forEach(add);
 
   if (!msg.to?.length) {
-    const senderKey = `${msg.sender_provider}/${msg.sender_username}`;
-    const recipientKey = `${msg.recipient_provider}/${msg.recipient_username}`;
-    const otherKey = senderKey === meKey ? recipientKey : senderKey;
+    // Username-based: the sender_provider on a v3 doc is derived from the
+    // bare author_key, so a provider-qualified comparison never matches.
+    const isSenderMe = msg.sender_username === me.username;
+    const otherKey = isSenderMe
+      ? `${msg.recipient_provider}/${msg.recipient_username}`
+      : `${msg.sender_provider}/${msg.sender_username}`;
     const [provider, username] = otherKey.split('/');
     add({ username, provider });
   }
