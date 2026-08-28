@@ -13,6 +13,8 @@ import {
   followUser,
   unfollowUser,
   readFollow,
+  getV3Client,
+  getDiscoverGroupId,
 } from '@/data';
 import { getWapi } from '@/data/wapi';
 import type {
@@ -43,6 +45,42 @@ import { cn } from '@/lib/utils';
 import { MARKETING_ORIGIN } from '@/lib/origins';
 import { rankPosts, PRESETS, getPreset, type PresetId, type KnobState, defaultKnobState } from '@/lib/powerMean';
 import { KnobRack } from './KnobRack';
+
+const LOG = (...args: unknown[]) => console.log('[social:discover]', ...args);
+
+// ── Knob state ↔ URL (the deep-linkable ranking, D36) ───────────────────────
+// The knob state is screen state, so the URL holds it (the deep-link rule:
+// refresh restores the ranking, a shared link carries it) — same rule as
+// ?tag= / ?q= / ?view=. The URL is the single source of truth; the state
+// derives from it. ?knobs= is the five detent indices, comma-joined
+// (recency,likes,comments,halfLife,character), omitted when at default.
+
+const KNOB_KEYS: (keyof KnobState)[] = ['recency', 'likes', 'comments', 'halfLife', 'character'];
+
+function encodeKnobState(state: KnobState): string {
+  return KNOB_KEYS.map((k) => String(state[k])).join(',');
+}
+
+function parseKnobParam(raw: string | null): KnobState | null {
+  if (!raw) return null;
+  const parts = raw.split(',');
+  if (parts.length !== KNOB_KEYS.length) return null;
+  const state = {} as KnobState;
+  for (let i = 0; i < KNOB_KEYS.length; i++) {
+    const n = Number(parts[i]);
+    if (!Number.isInteger(n) || n < 0 || n > 5) return null;
+    state[KNOB_KEYS[i]] = n;
+  }
+  return state;
+}
+
+/** The preset whose state matches exactly, or null (a custom tuning). */
+function presetIdForState(state: KnobState): PresetId | null {
+  const match = PRESETS.find((p) => KNOB_KEYS.every((k) => p.state[k] === state[k]));
+  return match ? match.id : null;
+}
+
+const DEFAULT_KNOB_ENCODING = encodeKnobState(defaultKnobState());
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -422,24 +460,24 @@ function DiscoverCard({
         <div className="mt-3 flex items-center gap-6 border-t border-border pt-3">
           <span
             className="flex items-center gap-1.5 text-muted-foreground"
-            aria-label={`${post.likes} likes`}
+            aria-label={`${post.likes ?? 0} likes`}
           >
             <Heart className="h-4 w-4" strokeWidth={1.5} />
-            <span className="text-xs tabular-nums">{formatCount(post.likes)}</span>
+            <span className="text-xs tabular-nums">{formatCount(post.likes ?? 0)}</span>
           </span>
           <span
             className="flex items-center gap-1.5 text-muted-foreground"
-            aria-label={`${post.comments} comments`}
+            aria-label={`${post.comments ?? 0} comments`}
           >
             <MessageCircle className="h-4 w-4" strokeWidth={1.5} />
-            <span className="text-xs tabular-nums">{formatCount(post.comments)}</span>
+            <span className="text-xs tabular-nums">{formatCount(post.comments ?? 0)}</span>
           </span>
           <span
             className="flex items-center gap-1.5 text-muted-foreground"
-            aria-label={`${post.reposts} reposts`}
+            aria-label={`${post.reposts ?? 0} reposts`}
           >
             <Repeat2 className="h-4 w-4" strokeWidth={1.5} />
-            <span className="text-xs tabular-nums">{formatCount(post.reposts)}</span>
+            <span className="text-xs tabular-nums">{formatCount(post.reposts ?? 0)}</span>
           </span>
           <span className="ml-auto text-muted-foreground" aria-label="Share">
             <Share2 className="h-4 w-4" strokeWidth={1.5} />
@@ -640,11 +678,11 @@ function DiscoverYouTubeCard({
           <div className="mt-0.5 flex items-center gap-3 text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
               <Heart className="h-3 w-3" strokeWidth={1.5} />
-              {formatCount(post.likes)}
+              {formatCount(post.likes ?? 0)}
             </span>
             <span className="flex items-center gap-1">
               <MessageCircle className="h-3 w-3" strokeWidth={1.5} />
-              {formatCount(post.comments)}
+              {formatCount(post.comments ?? 0)}
             </span>
           </div>
         </div>
@@ -760,9 +798,23 @@ export default function DiscoverScreen() {
     }
   }, [searchParams]);
 
-  // Knob state — starts at Balanced preset, knobs re-rank client-side live
-  const [knobState, setKnobState] = useState<KnobState>(defaultKnobState());
-  const [activePreset, setActivePreset] = useState<PresetId | null>('balanced');
+  // Knob state — deep-linkable: the URL holds the ranking (?knobs=), so a
+  // refresh restores it and a shared link carries it. The URL is the single
+  // source of truth (the deep-link rule); the state derives from it. Starts
+  // at the Balanced preset (the default) when the URL carries no knobs.
+  const knobState = useMemo<KnobState>(() => {
+    return parseKnobParam(searchParams.get('knobs')) ?? defaultKnobState();
+  }, [searchParams]);
+  const activePreset = useMemo<PresetId | null>(() => presetIdForState(knobState), [knobState]);
+
+  // Log the deep-link restore once on mount (the URL held the ranking).
+  useEffect(() => {
+    const raw = searchParams.get('knobs');
+    if (raw) {
+      LOG('deep-link — knob state restored from URL:', raw);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // People-to-follow rail
   const [suggested, setSuggested] = useState<SuggestedUser[]>([]);
@@ -772,13 +824,52 @@ export default function DiscoverScreen() {
 
   const loadDiscover = useCallback(async () => {
     setLoading(true);
+    LOG('loadDiscover — start');
     try {
       // Fetch a large set from the API (both trending + recent merged)
       // so client-side re-ranking has material to work with.
       const results = await readDiscoverFeed('trending', 50);
-      setPosts(results);
+      LOG('loadDiscover — got', results.length, 'posts');
 
       const token = getWapi().readToken();
+
+      // Engagement counts (the ref pattern): one read of the reactions +
+      // comments collections over the discover group, counted client-side by
+      // ref_value (the target post's doc_id) — the same pattern the marketing
+      // trending page runs. Without this the knobs only ever see recency.
+      if (token) {
+        try {
+          const w = getV3Client();
+          const discoverId = getDiscoverGroupId();
+          const [reactionDocs, commentDocs] = await Promise.all([
+            w.read('reactions', { groups: [discoverId], limit: 500 }),
+            w.read('comments', { groups: [discoverId], limit: 500 }),
+          ]);
+          const likesByPost: Record<string, number> = {};
+          const commentsByPost: Record<string, number> = {};
+          for (const d of reactionDocs) {
+            if (d.ref_value) likesByPost[d.ref_value] = (likesByPost[d.ref_value] || 0) + 1;
+          }
+          for (const d of commentDocs) {
+            if (d.ref_value) commentsByPost[d.ref_value] = (commentsByPost[d.ref_value] || 0) + 1;
+          }
+          for (const p of results) {
+            p.likes = likesByPost[p._id || ''] || 0;
+            p.comments = commentsByPost[p._id || ''] || 0;
+            p.reposts = 0;
+          }
+          LOG(
+            'engagement — counted',
+            Object.values(likesByPost).reduce((a, b) => a + b, 0), 'reactions +',
+            Object.values(commentsByPost).reduce((a, b) => a + b, 0), 'comments',
+          );
+        } catch (e) {
+          LOG('engagement — failed (degrading to zero counts):', e);
+        }
+      }
+
+      setPosts(results);
+
       if (!token) {
         setLoading(false);
         return;
@@ -844,7 +935,8 @@ export default function DiscoverScreen() {
           // Media resolution failed — degrade gracefully
         }
       }
-    } catch {
+    } catch (e) {
+      LOG('loadDiscover — failed:', e);
       setPosts([]);
     } finally {
       setLoading(false);
@@ -911,20 +1003,34 @@ export default function DiscoverScreen() {
     }
   }, []);
 
-  // Knob change handler — clears active preset (custom tuning)
-  const handleKnobChange = useCallback((key: keyof KnobState, value: number) => {
-    setKnobState(prev => ({ ...prev, [key]: value }));
-    setActivePreset(null);
-  }, []);
+  // Write a knob state to the URL (the deep-linkable ranking). The param is
+  // omitted when the state is the default, so the default URL stays clean.
+  const setKnobUrl = useCallback((next: KnobState) => {
+    const params = new URLSearchParams(searchParams);
+    const encoded = encodeKnobState(next);
+    if (encoded === DEFAULT_KNOB_ENCODING) {
+      params.delete('knobs');
+    } else {
+      params.set('knobs', encoded);
+    }
+    setSearchParams(params);
+    const preset = presetIdForState(next);
+    LOG('knob state —', encoded, preset ? `(preset: ${preset})` : '(custom)');
+  }, [searchParams, setSearchParams]);
 
-  // Preset handler — updates knob state to preset defaults
+  // Knob change handler — writes the new state to the URL (the preset
+  // highlight clears itself when the state stops matching a preset)
+  const handleKnobChange = useCallback((key: keyof KnobState, value: number) => {
+    setKnobUrl({ ...knobState, [key]: value });
+  }, [knobState, setKnobUrl]);
+
+  // Preset handler — updates the knob state to preset defaults
   const handlePreset = useCallback((id: PresetId) => {
     const presetDef = getPreset(id);
     if (presetDef) {
-      setKnobState(presetDef.state);
-      setActivePreset(id);
+      setKnobUrl(presetDef.state);
     }
-  }, []);
+  }, [setKnobUrl]);
 
   // Client-side re-ranking via knob state (zero network calls per twist)
   const rankedPosts = useMemo(() => {

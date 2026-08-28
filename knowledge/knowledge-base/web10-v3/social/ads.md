@@ -87,13 +87,15 @@ Because the read is group-scoped, an ad is only ever visible to the creator's au
 
 ## Dissemination (per-creator)
 
-> **Under discussion (27.08.2026):** *where* the curation lives is being
-> re-examined. The current design below (a client-side `curateAds` SDK helper)
-> is being challenged in favor of the curation being **on the data** — the read
-> returning opted-in posts *with* their curated ad, so any app gets ads for
-> free. See [`ads-dissemination.md`](./ads-dissemination.md) (the reframe, the
-> stateful-curation wall, the options, the open questions) before building on
-> this section.
+> **Dissemination is re-scoped (27.08.2026):** the curation lives **on the
+> data** — the read serves opted-in posts *with* their ad, so any app gets ads
+> for free. **v3 is mad simple** (`pinned` | `none` — the creator pins an ad to
+> a post, or doesn't): see
+> [`ads-dissemination.md`](./ads-dissemination.md). The full curation engine
+> (`round_robin` / `greedy` / `random`, the node-level density, the `signal` ×
+> `strategy` enums) is the **v4 vision**: see
+> [`../../web10-v4/social/ads-dissemination.md`](../../web10-v4/social/ads-dissemination.md).
+> The client-side `curateAds` helper below is superseded by this.
 
 How a creator's ads get shown is a **per-creator choice**, not a platform decision (D51). The setting lives on the creator's `settings` doc:
 
