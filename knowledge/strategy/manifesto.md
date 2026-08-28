@@ -26,10 +26,12 @@ time.** There is no algorithm between you and them. Nothing is
 promoted into your feed, nothing is buried out of it. Newest
 first. That's it.
 
-**Here, nobody is mining you.** Your data isn't scanned, sold, or
-fed to an ad machine. The only sponsors you'll ever see are ones
-[CREATOR] chose and vouches for — and that's how they keep this
-place running without selling you.
+**Here, nobody is mining you.** What you post and what you message
+is never scanned, sold, or fed to an ad machine. The only sponsors
+you'll ever see are ones [CREATOR] chose and vouches for — and that's
+how they keep this place running without selling you. (We do watch
+how people use the place, the way any serious product does — that's
+how it stays this good. Your words and pictures are never part of it.)
 
 **Here, delete means delete.** Your stuff is yours. Take it with
 you, wipe it, export it to your own drive. This isn't a permanent

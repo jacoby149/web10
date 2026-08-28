@@ -52,6 +52,11 @@ class NodeConfig(BaseModel):
     # Dev pay
     dev_pay_pct: int = 98
 
+    # Telemetry (D56) — public analytics IDs, admin-set in the Node Config
+    # UI. Served to every surface at runtime via GET /telemetry. Empty = off.
+    ga4_measurement_id: str = ""
+    hotjar_site_id: str = ""
+
     # Branding
     brand_text: str = "web10"
     logo_dark: str = ""
@@ -161,6 +166,8 @@ class ConfigUpdate(BaseModel):
     stripe_live_credit_sub_id: str | None = None
     stripe_live_space_sub_id: str | None = None
     dev_pay_pct: int | None = None
+    ga4_measurement_id: str | None = None
+    hotjar_site_id: str | None = None
     brand_text: str | None = None
     logo_dark: str | None = None
     logo_light: str | None = None

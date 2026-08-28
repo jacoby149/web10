@@ -103,6 +103,14 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
     });
   };
 
+  // /config/update takes TWO body models — `token: Token` (a nested object
+  // carrying the JWT) and `update: ConfigUpdate` (the field changes). FastAPI
+  // therefore expects { token: { token }, update: {...} }, NOT a flat
+  // { token, ...fields }. This helper builds the correct shape so every save
+  // path (main Save + Admins) persists instead of 422ing.
+  const configUpdate = (fields: Record<string, any>) =>
+    nodePost("/config/update", { token: { token: I.v3.state.token }, update: fields });
+
   const loadConfig = async () => {
     try {
       const resp = await nodePost("/config", { token: I.v3.state.token });
@@ -240,9 +248,7 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
     setSaving(true);
     setError(null);
     try {
-      const decoded = I.v3.readToken();
-      const protocol = window.location.protocol;
-      await nodePost("/config/update", { token: I.v3.state.token, admins: next });
+      await configUpdate({ admins: next });
       setConfig(prev => ({ ...prev, admins: next }));
       setLoadedConfig(prev => ({ ...prev, admins: next }));
     } catch (e: any) {
@@ -274,15 +280,15 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
     setSaving(true);
     setError(null);
     try {
-      const payload: Record<string, any> = { token: I.v3.state.token };
+      const update: Record<string, any> = {};
       for (const key of Object.keys(config || {})) {
-        if (key === "admins") continue; // admins saved via /admins above
+        if (key === "admins") continue; // admins saved via the Admins card
         const next = (config as any)[key];
         const prev = loadedConfig[key];
         if (JSON.stringify(next) === JSON.stringify(prev)) continue;
-        payload[key] = next;
+        update[key] = next;
       }
-      await nodePost("/config/update", payload);
+      await configUpdate(update);
       setLoadedConfig({ ...config });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -658,6 +664,27 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
               </Field>
               <Field label="Token Expiry (minutes)">
                 <Input type="number" value={config?.token_expire_minutes || 87840} onChange={e => updateField("token_expire_minutes", parseInt(e.target.value) || 0)} data-testid="config-token-expiry" />
+              </Field>
+            </CardContent>
+          </Card>
+
+          <Card data-testid="config-telemetry-card">
+            <CardHeader>
+              <CardTitle>Telemetry (D56)</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-xs text-muted-foreground">
+                Usage analytics for the whole platform — GA4 (pageviews + events)
+                and Hotjar (session recordings, content-masked). Set an ID to turn
+                that instrument on; leave blank to turn it off. Changes apply live
+                on the next page load — no rebuild. These are public identifiers,
+                not secrets.
+              </p>
+              <Field label="GA4 Measurement ID" description="e.g. G-XXXXXXXXXX. Blank = GA4 off.">
+                <Input value={config?.ga4_measurement_id || ""} onChange={e => updateField("ga4_measurement_id", e.target.value)} placeholder="G-XXXXXXXXXX" data-testid="config-ga4-id" />
+              </Field>
+              <Field label="Hotjar Site ID" description="e.g. 123456. Blank = Hotjar off.">
+                <Input value={config?.hotjar_site_id || ""} onChange={e => updateField("hotjar_site_id", e.target.value)} placeholder="123456" data-testid="config-hotjar-id" />
               </Field>
             </CardContent>
           </Card>

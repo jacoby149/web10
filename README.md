@@ -33,6 +33,7 @@ paid for value delivered, not for permission granted.
 | --- | --- |
 | **You own your data** | One collection per user — the record of your own life, held by you. Export it, move it, erase it. Delete means delete. |
 | **No shadow ban** | Every post reaches every follower, by construction (fan-out on write). The feed is chronological, because a feed should report — not editorialize. |
+| **Built like the best, owned like yours** | web10 tracks hard — GA4 + Hotjar, content masked — to compete with Meta and TikTok on user experience. Your content is never tracked, sold, or fed to an ad machine; the trade is stated in the terms, not hidden (D56). |
 | **Apps are just frontends** | An app earns access through a scoped, expiring, revocable token. It never owns what it touches. |
 | **Federated identity** | Identity is `(username, provider)`, like email. No central registry to petition, no account that can be taken from you. |
 | **Private, not permanent** | Unlike a blockchain, your data can be private, temporary, and deletable. You set who sees it via terms — and delete means delete. |

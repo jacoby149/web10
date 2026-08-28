@@ -219,6 +219,20 @@ not a privacy platform (D41): the node is readable by design (discovery /
 search / auditability), there is no default e2e, and the client is a PWA,
 not a native app.
 
+**Telemetry (D56):** web10 tracks hard — GA4 + Hotjar on every user-facing
+surface (marketing site, social app, authenticator) — because it competes
+with Meta and TikTok on user experience, and their UX is the output of a
+decade of aggressive telemetry. The recording is content-blind by
+construction (Hotjar `maskAllText` + `blockAllImages` — text blurred,
+images blocked), and GA4 events are content-free by convention. **Content
+is never tracked** — posts, DMs, media are not in the recordings, not in
+the events, not sold, not fed to any ad machine (GA4 advertising features
+stay off; the only sponsors a fan sees are the creator's, D50/D55). The
+trade is terms-level, not a consent popup: "it is the wrong platform for
+you if you arent ok with that." Full model:
+`knowledge/knowledge-base/web10-v3/telemetry.md`. Do not "tighten" or
+"privacy-wash" tracking without re-reading D56.
+
 ## The stack
 
 - `api/` — FastAPI. The node. All data + auth + billing + media. Entry:

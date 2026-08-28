@@ -43,7 +43,8 @@ web10-v3/
 │   ├── group-policy-example.json.md ← concrete role/permission examples
 │   ├── ads.md             ← the creator-owned ads: a post tagged `ad` (the locked object, feed read, dissemination)
 │   └── ads-catalog.md     ← the Ad Catalog (Studio) + the composer integration (attach by ref, round-robin)
-├── media/                 ← the media pipeline: HLS transcoding, streaming, auth
+ ├── telemetry.md           ← why web10 tracks hard (GA4 + masked Hotjar, platform-wide) and the line it doesn't cross
+ ├── media/                 ← the media pipeline: HLS transcoding, streaming, auth
 │   ├── transcoding-foundation.md ← the model: source doc, transcoding_settings, variants
 │   ├── transcoding.md         ← ffmpeg pipeline, HLS segments, storage, player
 │   ├── streaming.md           ← the layers: range requests (day 1) + HLS transcoding
@@ -68,6 +69,7 @@ web10-v3/
 - **Groups** — `groups/overview.md` (primitive), `groups/identity.md` (profiles)
 - **Social** — `social/overview.md` (implementation), `social/cross-app-sharing.md` (patterns), `social/ads.md` (the creator-owned ads — a post tagged `ad`), `social/ads-catalog.md` (the catalog + composer)
 - **Media** — `media/transcoding-foundation.md` (the model), `media/transcoding.md` (the pipeline), `media/streaming.md` (the layers), `media/minio-auth-bifurcated.md` (the auth split)
+- **Telemetry** — `telemetry.md` (why web10 tracks hard: GA4 + masked Hotjar, the content line, the terms trade — D56)
 
 ## What's Not Here (v4)
 
