@@ -44,52 +44,82 @@ describe('follows v3 data layer', () => {
   });
 
   describe('followersGroupId', () => {
-    it('produces the correct group ID pattern', () => {
-      expect(groups.followersGroupId('bob')).toBe('web10.app/groups/bob/followers');
+    it('produces the deterministic created-group ID (provider/users/username/followers)', () => {
+      // The mock token's provider is web10.app — the ID must use it (the API
+      // derives created-group IDs from the token's provider claim).
+      expect(groups.followersGroupId('bob')).toBe('web10.app/groups/users/bob/followers');
+    });
+
+    it('honors an explicit provider override', () => {
+      expect(groups.followersGroupId('bob', 'api.localhost')).toBe('api.localhost/groups/users/bob/followers');
     });
   });
 
   describe('followUser (v3: join followers group)', () => {
     it('joins the target users followers group', async () => {
-      mock.joinGroup.mockResolvedValue({ member_key: 'web10.app/users/alice', role: 'member' });
+      mock.joinGroup.mockResolvedValue({ member_key: 'alice', role: 'member' });
       await follows.followUser('bob');
-      expect(mock.joinGroup).toHaveBeenCalledWith('web10.app/groups/bob/followers');
+      expect(mock.joinGroup).toHaveBeenCalledWith('web10.app/groups/users/bob/followers');
     });
   });
 
   describe('unfollowUser (v3: leave followers group)', () => {
     it('leaves the target users followers group', async () => {
-      mock.leaveGroup.mockResolvedValue({ member_key: 'web10.app/users/alice', role: 'member' });
+      mock.leaveGroup.mockResolvedValue({ member_key: 'alice', role: 'member' });
       await follows.unfollowUser('bob');
-      expect(mock.leaveGroup).toHaveBeenCalledWith('web10.app/groups/bob/followers');
+      expect(mock.leaveGroup).toHaveBeenCalledWith('web10.app/groups/users/bob/followers');
+    });
+  });
+
+  describe('isFollowing (v3: membership in the followers group)', () => {
+    it('true when the followers group is in the user group list', async () => {
+      mock.getMyGroups.mockResolvedValue([
+        { group_id: 'web10.app/groups/web10/discover', my_role: 'member' },
+        { group_id: 'web10.app/groups/users/bob/followers', my_role: 'member' },
+      ]);
+      await expect(follows.isFollowing('bob')).resolves.toBe(true);
+    });
+
+    it('false when the followers group is absent from the list', async () => {
+      mock.getMyGroups.mockResolvedValue([
+        { group_id: 'web10.app/groups/web10/discover', my_role: 'member' },
+      ]);
+      await expect(follows.isFollowing('bob')).resolves.toBe(false);
     });
   });
 
   describe('readFollows (v3: get followers groups)', () => {
     it('returns followers groups the user belongs to', async () => {
       mock.getMyGroups.mockResolvedValue([
-        { group_id: 'web10.app/groups/bob/followers', my_role: 'member' },
-        { group_id: 'web10.app/groups/carol/followers', my_role: 'member' },
+        { group_id: 'web10.app/groups/users/bob/followers', my_role: 'member' },
+        { group_id: 'web10.app/groups/users/carol/followers', my_role: 'member' },
       ]);
       const result = await groups.getFollowersGroups();
-      expect(result).toContain('web10.app/groups/bob/followers');
-      expect(result).toContain('web10.app/groups/carol/followers');
+      expect(result).toContain('web10.app/groups/users/bob/followers');
+      expect(result).toContain('web10.app/groups/users/carol/followers');
     });
   });
 
   describe('ensureFollowers', () => {
     it('creates followers group if it does not exist', async () => {
       mock.getGroup.mockRejectedValue(new Error('not found'));
-      mock.createGroup = vi.fn().mockResolvedValue({ group_id: 'web10.app/groups/alice/followers' });
+      mock.createGroup = vi.fn().mockResolvedValue({ group_id: 'web10.app/groups/users/alice/followers' });
       const groupId = await groups.ensureFollowers('alice');
-      expect(mock.createGroup).toHaveBeenCalled();
-      expect(groupId).toBe('web10.app/groups/alice/followers');
+      // Created under the bare slug `followers` (the API embeds the creator)
+      // with the bare username as the owner member_key.
+      expect(mock.createGroup).toHaveBeenCalledWith(
+        'followers',
+        'open',
+        expect.anything(),
+        [{ member_key: 'alice', role: 'owner' }],
+      );
+      expect(groupId).toBe('web10.app/groups/users/alice/followers');
     });
 
     it('returns existing group if it exists', async () => {
-      mock.getGroup.mockResolvedValue({ group_id: 'web10.app/groups/alice/followers' });
+      mock.getGroup.mockResolvedValue({ group_id: 'web10.app/groups/users/alice/followers' });
       const groupId = await groups.ensureFollowers('alice');
-      expect(groupId).toBe('web10.app/groups/alice/followers');
+      expect(groupId).toBe('web10.app/groups/users/alice/followers');
     });
   });
 });
