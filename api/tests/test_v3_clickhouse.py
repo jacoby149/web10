@@ -110,6 +110,8 @@ class TestGetDocument:
                         ["test"],
                         datetime(2026, 1, 1),
                         datetime(2026, 1, 1),
+                        "none",
+                        "",
                     ),
                 ]
             )
@@ -139,6 +141,8 @@ class TestUpdateDocument:
                         [],
                         original_created,
                         datetime(2026, 1, 1, 12, 0, 0),
+                        "none",
+                        "",
                     ),
                 ]
             )
@@ -550,7 +554,7 @@ class TestReadDocumentsInGroups:
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
                 [
-                    ("doc-1", "bob", '{"text":"hello"}', ["test"], datetime(2026, 1, 1), ""),
+                    ("doc-1", "bob", '{"text":"hello"}', ["test"], datetime(2026, 1, 1), "", "none", ""),
                 ]
             )
             results = ch.read_documents_in_groups(
@@ -638,7 +642,7 @@ class TestReadDocumentById:
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
                 [
-                    ("doc-1", "bob", '{"text":"hello"}', ["tag1"], datetime(2026, 1, 1), ""),
+                    ("doc-1", "bob", '{"text":"hello"}', ["tag1"], datetime(2026, 1, 1), "", "none", ""),
                 ]
             )
             doc = ch.read_document_by_id("doc-1", "alice", "posts")

@@ -45,12 +45,19 @@ doesn't). Every pinned post shows its ad, every time.
 **Locked (the three open questions, resolved):**
 
 - **`ad_preference` lives in a column on `documents`** — not a body field. The
-  query filters/joins on it directly (the "ClickHouse-y" way).
+  query filters/joins on it directly (the "ClickHouse-y" way). Two columns:
+  `ad_mode String DEFAULT 'none'` + `ad_target String DEFAULT ''` (the target
+  ad's `doc_id`). The boot self-heal `ADD COLUMN IF NOT EXISTS`'s them onto
+  pre-existing volumes.
 - **Albums are first-class, the ad→album link is tag-like** — an album is a
-  named, manageable entity (the UI); each ad carries a tag-like field listing
-  the albums it's in (the query filters ads by album). An ad in a few albums.
+  `posts` doc tagged `ad_album` (the name in the body); each ad carries an
+  `album:<album doc_id>` tag per album it's in (the house `tags` column — the
+  query filters ads by album with `has(tags, 'album:<id>')`). An ad in a few
+  albums.
 - **The read returns the docs *and* the ads inline** — no ref. The pinned ad's
-  full body comes back with the doc, so any app gets the ad for free.
+  full body comes back with the doc (`doc.ad`), so any app gets the ad for
+  free. The single-doc read (the post detail deep link) serves it too — a read
+  is a read.
 
 **Why this is the right v3 cut:** it delivers the core value (a creator pins
 their monetized link to their content, served by the data, free for all apps)

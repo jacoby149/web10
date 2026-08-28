@@ -58,6 +58,8 @@ def create_document(request: Request, data: CreateDocument):
         body=data.body,
         ref_value=data.ref_value or "",
         tags=data.body.get("tags", []),
+        ad_mode=data.ad_preference.mode if data.ad_preference else "none",
+        ad_target=(data.ad_preference.target or "") if data.ad_preference else "",
     )
     doc_id = result["doc_id"]
 
@@ -87,6 +89,9 @@ def read_documents(request: Request, data: ReadDocuments):
         doc = ch.read_document_by_id(data.doc_id, reader, data.service)
         if not doc:
             raise exceptions.ENTRY_NOT_FOUND
+        # v3 ad preference: the single-doc read serves the pinned ad inline
+        # too (the post detail deep link is a read, I3-checked).
+        doc = ch.attach_pinned_ads([doc], reader)[0]
         return _mint_hls_manifest_urls(ch.resolve_media_urls_in_docs([doc]), reader)[0]
 
     if not data.groups:
@@ -117,6 +122,8 @@ def read_documents(request: Request, data: ReadDocuments):
         offset=data.offset,
         sort=data.sort.model_dump() if data.sort else None,
     )
+    # v3 ad preference: serve each pinned doc with its ad inline (I3-checked).
+    docs = ch.attach_pinned_ads(docs, reader)
     return _mint_hls_manifest_urls(ch.resolve_media_urls_in_docs(docs), reader)
 
 
@@ -130,12 +137,17 @@ def update_document(request: Request, data: UpdateDocument):
     _check_app_permission(request, author, existing["service"], "updateOwn")
 
     merged_body = {**existing["body"], **data.body}
+    # Preserve the existing ad preference unless the update sets one.
+    ad_mode = data.ad_preference.mode if data.ad_preference else existing.get("ad_mode", "none")
+    ad_target = (data.ad_preference.target or "") if data.ad_preference else existing.get("ad_target", "")
     result = ch.update_document(
         doc_id=data.doc_id,
         author_key=author,
         service=existing["service"],
         body=merged_body,
         tags=merged_body.get("tags", []),
+        ad_mode=ad_mode,
+        ad_target=ad_target,
     )
 
     if data.groups is not None:

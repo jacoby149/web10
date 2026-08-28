@@ -1,6 +1,18 @@
 from pydantic import BaseModel
 
 
+class AdPreference(BaseModel):
+    """A document's ad preference (ads-dissemination.md, v3).
+
+    `mode` is `none` (no ad) or `pinned` (a specific ad, by `target` doc_id).
+    The read serves a pinned doc with its ad inline, I3-checked. v4 grows this
+    to a curation engine (catalog + signal × strategy + scope).
+    """
+
+    mode: str = "none"
+    target: str | None = None
+
+
 class CreateDocument(BaseModel):
     """Create a document in a service. User from JWT. Server generates doc_id."""
 
@@ -12,6 +24,9 @@ class CreateDocument(BaseModel):
     # ref_value (the target's doc_id). Discovery engagement (get_ref_counts)
     # and the social app's reaction/comment reads both key off this column.
     ref_value: str | None = None
+    # The v3 ad preference (pinned | none). Stored in the ad_mode/ad_target
+    # columns; the read serves a pinned doc with its ad inline.
+    ad_preference: AdPreference | None = None
 
 
 class PowerMeanSort(BaseModel):
@@ -62,6 +77,9 @@ class UpdateDocument(BaseModel):
     doc_id: str
     body: dict
     groups: list[str] | None = None
+    # The v3 ad preference (pinned | none). If omitted, the existing
+    # ad_mode/ad_target are preserved (the update passes them through).
+    ad_preference: AdPreference | None = None
 
 
 class DeleteDocument(BaseModel):
