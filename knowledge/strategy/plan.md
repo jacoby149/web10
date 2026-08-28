@@ -181,6 +181,32 @@ identity query). The **detail** is a flexible, principal-based read
 - [✓] **UI: the directory screen** (`marketing/marketing-ui/`) — the browse surface: `/groups` (grid of discoverable groups from `GET /v3/groups/directory`, search by name/owner + topic filter by tag chips) + `/groups/:id` (deep-linkable detail from `GET /v3/groups/detail` — metadata always, posts when the reader is a member else "join to view", 404 not-found state). `GroupCard` component + Navbar "Groups" link. 14 new UI tests (card render/link/skeleton, directory headline/cards/empty/search/tag-filter, detail name/posts/join-to-view/404/skeleton).
 - [✓] **Tests** — unit (identity read + slug fallback, directory query filters `discoverable=1`, directory endpoint shape, detail: non-existent 404s / non-discoverable reachable / member sees posts / non-member "join to view" / anon reads as anon) + e2e (`groups-demo.spec.ts`: directory lists discoverable + excludes non-discoverable; detail 404s ghost / reaches non-discoverable; member sees posts, non-member "join to view").
 
+## Ads: The Catalog + Composer (D54) — Platform
+
+The creator's ads get the two surfaces they're actually touched in (D54):
+the **Ad Catalog** in the authenticator's Studio (the inventory — every ad,
+its offer, status, numbers, attached posts; new / edit / pause / retire)
+and the **composer** in web10-social (attach an ad from the catalog to a
+post, or turn on round-robin so the creator's ads rotate). The catalog is
+the canonical per-viewer read of `ads` run by the owner — no owner
+special-case, no new endpoint. A post *carries* an ad by the universal
+link (`ref_value` = the ad's `doc_id`); the ad keeps its identity, numbers,
+and lifecycle (pause the ad → it stops rendering everywhere it's carried).
+Round-robin is the D51 dissemination setting applied at render time by the
+shared `curateAds` helper — explicit pick beats automatic rotation. No new
+tables, no new endpoints, no new SDK surface. Spec'd in
+`knowledge-base/web10-v3/social/ads-catalog.md`; the ad object + per-viewer
+read + dissemination are in `social/ads.md` (D50 + D51). Lane is `ads` in
+`parallel-execution.md`.
+
+- [✓ 3.22.0] **Decision: D54** (`knowledge/strategy/decisions.md`) — catalog is a Studio surface (Partner Links = ingest, catalog = inventory); catalog read = the canonical per-viewer read run by the owner; post carries ad by `ref_value` (no copy); `body.status` = `active` | `paused` (curation filters on it); round-robin = D51 setting at render time, per-post opt-in; disclosure never optional; no new tables/endpoints/SDK surface.
+- [✓ 3.22.0] **KB** (`knowledge-base/web10-v3/social/ads-catalog.md`) — the two surfaces, the catalog read + row fields + actions + states, the composer picker + attach-by-ref + ad block + round-robin, the data-model map, the security invariants (I3/I5 hold), v0 scope.
+- [ ] **Foundation: the `ads` service conformance** — the `ads` default service provisioned + the ad object through the existing CRUD + the multi-group per-user read, pinned by `api/tests/test_ads.py` (I3: a non-follower can't read the ad). The catalog and the composer both read this, so it gates both surfaces.
+- [ ] **Foundation: `curateAds` (SDK)** — the D51 helper (`round_robin` / `greedy` / `pinned` / `frequency_capped`), deterministic + per-creator, filters on `body.status === 'active'`. The composer's rotation + the feed's ad join call it.
+- [ ] **Ad Catalog (authenticator)** — the Studio's inventory screen: the owner's `ads` read (creative / offer / status / numbers / attached posts via reverse `ref_value`), new-ad ingest flow (offer + content → one `ads` doc on the followers group), edit / pause / retire, all states designed (empty → CTA to ingest, skeleton, error, active/paused rows). `ui/src/components/Studio/`.
+- [ ] **Composer ad control (web10-social)** — the "Attach ad" control in `PostComposer`: the catalog picker sheet (active first, empty + loading states), attach writes the post's `ref` → `ref_value`, the ad block renders under the post (creative + offer + disclosure, disclosure never hidden), "Rotate my ads" per-post opt-in to the D51 setting. `marketing/web10-social/src/components/Feed/`.
+- [ ] **E2E** — the torture gauntlet: create ad in the catalog → attach to a post → follower sees the post with the ad block + disclosure → pause the ad → it stops rendering → non-follower never sees the ad (I3). `e2e/tests/ads.spec.ts`.
+
 ## Phase 4 — Production Cutover: v2 → v3, then merge to main
 
 **Where:** `knowledge/knowledge-base/web10-v3/` (migration model), `api/` (migration tooling), `ubuntu-deployment/` (prod deploy)

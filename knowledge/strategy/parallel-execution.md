@@ -232,21 +232,28 @@ look alive.
 - [ ] E2E: board gauntlet — seed → anon reads the board → a real user's post appears → remove/restore round-trip (gated on the social-e2e stack)
 
 ### Lane: ads (monetization)
-**Owns:** `ui/src/components/Studio/`, `api/tests/test_ads.py`, `e2e/tests/ads.spec.ts`
+**Owns:** `ui/src/components/Studio/`, `api/tests/test_ads.py`, `e2e/tests/ads.spec.ts`, `marketing/web10-social/src/components/Feed/PostComposer.tsx` + the ad block (carved out of the `social-v3` lane for D54 — the composer's ad control + the post's ad block)
 
-The creator-owned ads layer (D50 + D51): the `ads` default service — content + a
+The creator-owned ads layer (D50 + D51 + D54): the `ads` default service — content + a
 monetizable link (the offer), owned by the creator, delivered to followers
 by architecture. Any app with `ads: [readAll]` picks up ads per viewer with
 the same multi-group read the feed uses (`w.read('ads', { groups: [...] })`
 — no new endpoint, rides the existing CRUD + read + media machinery). The
-Partner Links card (was "Amazon Associates" + "Direct Deals") is the ingest.
-The KB is the spec — read it first: `knowledge/knowledge-base/web10-v3/social/ads.md`.
+Partner Links card (was "Amazon Associates" + "Direct Deals") is the ingest;
+the **Ad Catalog** (D54) is the inventory — the same read, run by the owner,
+in the Studio. The composer (D54) attaches an ad to a post by `ref_value`
+or rotates per the D51 setting. The KB is the spec — read it first:
+`knowledge/knowledge-base/web10-v3/social/ads.md` (the object + read +
+dissemination) and `social/ads-catalog.md` (the catalog + composer).
 
 - [✓ 3.16.1] KB: the standard ad object + the per-user query + the Dissemination section (per-creator setting + feed+ads join + `curateAds` SDK helper) + the two-layer note (`social/ads.md`) + D50 + D51
-- [ ] Dissemination (SDK): the `curateAds(creatorAds, creatorSetting)` helper — `round_robin` / `greedy` / `pinned` / `frequency_capped`, deterministic + per-creator so every app curates identically; the per-creator setting is a field on the `settings` doc
+- [✓ 3.22.0] KB: the Ad Catalog + the composer integration (`social/ads-catalog.md`) + D54 — catalog = the canonical per-viewer read run by the owner (no special-case); post carries ad by `ref_value` (no copy); `body.status` = `active` | `paused`; round-robin = D51 setting at render time; no new tables/endpoints/SDK surface
+- [ ] Dissemination (SDK): the `curateAds(creatorAds, creatorSetting)` helper — `round_robin` / `greedy` / `pinned` / `frequency_capped`, deterministic + per-creator so every app curates identically; the per-creator setting is a field on the `settings` doc; filters on `body.status === 'active'` (D54)
 - [ ] Partner Links card (UI): collapse "Amazon Associates" (`AmazonTagCard.tsx`) + "Direct Deals" (`DirectDealsCard.tsx`) into one "Partner Links" card in the Studio monetization screen — `offer.kind` = `affiliate` | `direct` | `own_store` + the dissemination picker; update `studio-data.ts` + `studio.test.tsx`
-- [ ] The `ads` service (API conformance): the ad object through the existing CRUD + the multi-group per-user read — no new endpoint; verify + pin with `api/tests/test_ads.py` (I3: a non-follower can't read the ad)
-- [ ] E2E: create ad → attach to followers group → viewer reads per-user → I3 (non-follower can't see) — `e2e/tests/ads.spec.ts`
+- [ ] The `ads` service (API conformance): the ad object through the existing CRUD + the multi-group per-user read — no new endpoint; verify + pin with `api/tests/test_ads.py` (I3: a non-follower can't read the ad). Gates the catalog + composer (both read this)
+- [ ] Ad Catalog (authenticator): the Studio's inventory screen — the owner's `ads` read (creative / offer / status / numbers / attached posts via reverse `ref_value`), new-ad ingest flow (offer + content → one `ads` doc on the followers group), edit / pause / retire, all states designed (empty → CTA, skeleton, error, active/paused rows). `ui/src/components/Studio/`
+- [ ] Composer ad control (web10-social): the "Attach ad" control in `PostComposer` — the catalog picker sheet (active first, empty + loading states), attach writes the post's `ref` → `ref_value`, the ad block renders under the post (creative + offer + disclosure, disclosure never hidden), "Rotate my ads" per-post opt-in to the D51 setting. `marketing/web10-social/src/components/Feed/`
+- [ ] E2E: the torture gauntlet — create ad in the catalog → attach to a post → follower sees the post with the ad block + disclosure → pause the ad → it stops rendering → non-follower never sees the ad (I3) — `e2e/tests/ads.spec.ts`
 
 ### Lane: app-store-metrics (D49)
 **Owns:** `api/app/v3/services/clickhouse.py`, `api/app/endpoints/`, `api/app/services/config.py` (n/a — D48), `sdk/src/`, `marketing/marketing-ui/src/pages/`, `clickhouse-init/`, `e2e/tests/`
