@@ -1,157 +1,160 @@
-# Ad Dissemination: Where the Curation Lives
+# Ad Dissemination: The Ad Preference on the Document
 
-> **Design under discussion** (27.08.2026). This doc captures a reframe of how a
-> post's ad gets chosen, and the tension it creates. It is **not** a locked
-> decision — it is the KB-side starting point for the discussion. The open
-> `curateAds` PR (the client-side SDK helper, 3.26.0) is **Option A** below. Read `ads.md` (the ad object, D55) and `ads-catalog.md` (the catalog +
-> composer) first.
+> **Design under discussion** (converging, 27.08.2026). This doc captures how a
+> document's ad gets chosen — and it has converged on a concrete shape. It is
+> **not** a locked decision; the serious questions at the bottom are open. The
+> open `curateAds` PR (the client-side SDK helper, 3.26.0) is largely
+> superseded by this. Read `ads.md` (the ad object, D55) and `ads-catalog.md`
+> (the catalog + composer) first.
 
-## The Reframe
+## The Design
 
-The ad is not a client-side computation. It is a **property of the post read**.
-When you read posts, each opted-in post comes back *with* its ad — curated from
-the post's author's ad catalog, per the author's ad preference. The curation is
-**on the data** (the read), not in the app.
+**Every document has an `ad_preference`.** It says which **catalog** to curate
+from and a **mode** (+ a target, for `pinned`):
 
-Why this matters: it makes the ad a **platform capability**. Any dev — web10
-social, or any app that reads `posts` — gets the ads for free, with no per-app
-curation logic. That is "100% delivery by architecture" applied to the ad: the
-read delivers the post *and* its ad, the way it delivers every other post.
+```
+ad_preference: { catalog: <catalog>, mode: none | pinned | round_robin | greedy | frequency_capped, target?: <ad doc_id> }
+```
 
-The model, end to end:
+**A user has multiple ad catalogs** — the Spotify-playlist model. The master
+list is all their ads (their `posts` tagged `ad`, D55). They organize ads into
+named **catalogs** (playlists); an ad can be in several catalogs at once (a
+song in multiple playlists). A doc points at one catalog + a mode.
 
-- **Per creator:** an ad catalog (their `posts` tagged `ad`) + an ad preference
-  (the D51 dissemination setting: `round_robin` / `greedy` / `pinned` /
-  `frequency_capped`).
-- **Per post:** an opt-in — does this post carry an ad, and under which mode?
-- **The read:** for each post that opted in, attach the curated ad from the
-  author's catalog. The post comes back *with* its ad.
+**On read, ClickHouse curates the ad and serves it with the doc.** For each doc
+in the reader's groups, the read looks at its `ad_preference`, pulls the
+author's ads from the chosen catalog, selects one per the mode, and returns the
+doc **with** its ad. `none` → the doc comes back with no ad.
 
-## What the KB Says Today (and why)
+The modes, and how the data picks the ad from the catalog:
 
-The current design splits the carrying two ways:
-
-- **Explicit:** the post's `ref_value` = the ad's `doc_id` (write-time). This
-  *is* on the data — the post carries a specific ad.
-- **Round-robin:** the post has no `ref`; the **client** picks which ad to show
-  via the `curateAds` SDK helper, with app-local state (last-shown, session
-  counts). This is *not* on the data — it is computed at render time.
-
-`ads.md` (Dissemination) explicitly says the curation is "a shared,
-deterministic SDK helper, not SQL" and "not server logic." The reasoning: the
-stateful algorithms (round-robin needs "which ad showed last," greedy needs the
-performance numbers) "do not belong in a query."
-
-That reasoning is sound **for the stateful modes**. It is the source of the
-tension below.
-
-## The Strong Argument for the Reframe: the Read Already Projects
-
-The KB's doctrine is "the API is just a scanner, the app owns the schema." But
-the read was never a *pure* scanner — it already does read-time projections:
-
-- **media-URL resolution** — a `minio` leaf becomes a fresh presigned URL on
-  read (`resolve_minio_types`).
-- **HLS manifest minting** — a transcoded video gets a signed `manifest_url`
-  bound to the reader on read.
-- **power-mean ranking** — when `sort` is requested, the read joins exact
-  engagement counts and scores in SQL (3.18.2 / 3.21.1).
-
-So "the read computes a projection of the data at read time" is already the
-house pattern. **Attaching the curated ad to an opted-in post is the same
-category** — a read-time projection, not a violation of the scanner doctrine.
-This is the strongest case for the reframe, and it undercuts the main "against"
-in Option B.
-
-## The Wall: Stateful Curation vs. a Stateless Query
-
-A ClickHouse query is stateless — it computes a function of the current data. It
-has no memory of "what was shown last" or "how many times this session." So the
-curation modes split cleanly:
-
-| mode | state needed? | data-layer-able? |
+| mode | the pick | needs state? |
 |---|---|---|
-| `pinned` | none — the pinned ad is a field on the settings doc | **yes** |
-| `round_robin` | "which ad showed last" (per viewer) | **no** — unless redefined as a deterministic rotation |
-| `frequency_capped` | per-session show counts | **no** |
-| `greedy` | performance numbers (v0 has none — D55) | **no** in v0 |
+| `none` | no ad | — |
+| `pinned` | the specific ad (`target`) | no |
+| `round_robin` | the catalog's **least-loved** active ad | no — love is data |
+| `greedy` | the catalog's **most-loved** active ad | no — love is data |
+| `frequency_capped` | TBD (see questions) | the open one |
 
-"More ClickHouse-y" works cleanly for `pinned` and a *deterministic*
-`round_robin`, but the stateful modes hit the wall. It is the same wall D55 hit
-with the `stats` counters: a per-view, per-session fact is a write on a read
-path, and the node does not want that.
+**"Love" is the engagement on the ad** — its reactions/comments, the same
+ref-count machinery the feed's power-mean ranking already reads. It is a
+property of the data, not of the viewer.
 
-## The Options
+## The Shape of It
 
-**A. Client-side curation (the current KB + the `curateAds` helper).**
-The app reads the posts, reads the author's catalog + settings, calls
-`curateAds`, attaches the ad.
-- *For:* no server logic, no stateful ClickHouse, the API stays closest to a
-  scanner.
-- *Against:* not "on the data" — the ad is computed, not delivered. Every app
-  replicates the logic. It is the opposite of "free for all apps."
+```mermaid
+flowchart TD
+    subgraph FEED["The feed read (the reader's groups)"]
+        D["doc<br/>ad_preference: { catalog, mode, target? }"]
+    end
 
-**B. Data-layer curation (the reframe).**
-The read returns posts *with* their ads, curated in ClickHouse.
-- *For:* on the data, delivered by the architecture, free for all apps. The
-  read already projects (media URLs, ranking) — this is the same category.
-- *Against:* the stateful modes don't fit a stateless query (the wall). The
-  query is more complex (join to the author's catalog + settings).
+    D --> M{"mode?"}
 
-**C. Hybrid.**
-The data layer does the *deterministic* curation (`pinned`, a deterministic
-`round_robin`) — the ad comes with the post. The stateful modes
-(`frequency_capped`, true per-viewer `round_robin`) either degrade to the
-deterministic version or stay client-side.
-- *For:* the common case (pinned, rotation) is on the data and free for all
-  apps; the exotic stateful modes don't force a write-on-read.
-- *Against:* two mechanisms. The line between "deterministic" and "stateful"
-  has to be drawn and kept honest.
+    M -->|none| N["serve doc only"]
 
-## My Honest Take (for the discussion, not a decision)
+    M -->|pinned| P["ad = the pinned ad<br/>(target, in the catalog)"]
 
-The reframe is right in spirit: the ad should be **delivered by the
-architecture, not computed by the app.** Option A is the weakest — it makes the
-ad an app responsibility, which is exactly what the thesis says no to. And the
-"read already projects" precedent (media URLs, ranking) means data-layer
-curation is not a doctrine break.
+    M -->|round_robin| R["the catalog's active ads<br/>ranked by love ASC<br/>ad = least loved"]
 
-The wall is real, but it is a wall around the *stateful* modes, not around
-curation in general. The clean resolution is to make the curation a
-**deterministic function of the data** (no state) — which is precisely what
-makes it data-layer-able:
+    M -->|greedy| G["the catalog's active ads<br/>ranked by love DESC<br/>ad = most loved"]
 
-- `pinned` — already deterministic (a field on the settings doc).
-- `round_robin` — **redefined** as a deterministic rotation, not "which ad
-  showed last." E.g. the ad at position `floor(now / interval) % count` in the
-  author's catalog (a time-bucket rotation — stateless, changes over time so
-  each ad gets exposure), or hashed with the viewer for per-viewer rotation.
-- `frequency_capped` — genuinely stateful; defer to v4 (or approximate with a
-  time-bucket).
-- `greedy` — needs performance data; v4 (degrades to the rotation in v0, as the
-  current helper already does).
+    M -->|frequency_capped| F["TBD"]
 
-That lands on **Option C leaning B**: the read attaches the deterministic ad
-(pinned / rotation) to opted-in posts, on the data, free for all apps; the
-stateful modes are v4. The cost is that "round-robin" stops meaning "per-viewer
-sequential" and starts meaning "deterministic rotation" — a real semantic change
-to D51 that needs sign-off before it is locked.
+    P --> S["serve doc + ad"]
+    R --> S
+    G --> S
+```
 
-## Open Questions
+## Why "Love" Dissolves the Wall
 
-1. **The state fork** — is the curation a *deterministic function of the data*
-   (no state → data-layer), or does it need *state* (last-shown / session
-   counts → client-side, or a write-on-read the node rejects)? This is the whole
-   ballgame.
-2. **The opt-in location** — per-post field (the post says "I carry an ad, mode
-   X") or per-creator (the settings doc says "all my posts carry ads")? The
-   reframe reads per-post.
-3. **The round-robin semantics** — if deterministic: a time-bucket rotation
-   (same ad for everyone in a bucket) or a per-viewer hash (each viewer sees a
-   different rotation)?
-4. **The read's shape** — does the read return the ad *inline* on the post (a
-   resolved ad object), or as a *ref* the app resolves? Inline is "free for all
-   apps"; a ref keeps the read leaner.
-5. **What happens to `curateAds`** — does it die (Option B/C), stay for the
-   stateful modes (hybrid), or become the reference implementation the data
-   layer mirrors?
+The earlier objection (this doc's first draft) was that round-robin and
+frequency-capping need **per-viewer state** — "which ad showed last," "how many
+times this session" — and a stateless ClickHouse query can't hold that. That is
+the same wall D55 hit with the `stats` counters (a per-view fact is a write on a
+read path).
+
+The resolution is to stop tracking the viewer and start reading the data:
+**least-loved / most-loved is a deterministic function of current engagement.**
+No state, no write-on-read, no per-viewer memory. `round_robin` means "show the
+ad that has gotten the least love" (so exposure equalizes as an ad's love
+rises); `greedy` means "show the ad that has gotten the most love." Both are
+computed from the engagement the node already stores.
+
+This is not a new capability — it is **the power-mean ranking pattern** (3.18.2 /
+3.21.1) turned onto the ad catalog. That query already joins exact
+reaction/comment counts and ranks in SQL. Curation is the same join, pointed at
+the author's ads, ordered by love per the doc's mode.
+
+## ClickHouse Feasibility (the honest engineering read)
+
+**Yes, this is very doable, and it is the house pattern.** The read already does
+read-time projections (media-URL resolution, HLS manifest minting, power-mean
+ranking), so "the read curates the ad" is the same category — not a
+scanner-doctrine break.
+
+Concretely, the selection is a per-doc pick from the author's catalog, which is
+a window-function + join (not a correlated scalar subquery — ClickHouse can't
+decorrelate those, and the codebase already works around it with `QUALIFY` +
+`row_number()`):
+
+1. Rank the author's active ads in the chosen catalog by love
+   (`row_number() OVER (PARTITION BY author, catalog ORDER BY love ASC/DESC)`).
+2. Join the feed docs to that ranking on `(author, catalog)`, selecting the row
+   where `rn = 1` (round_robin/greedy) or `ad_doc_id = target` (pinned).
+3. Serve the doc + the ad's body.
+
+The one real cost: the read query gets heavier (an extra join to the ad catalog
++ engagement). That is the same cost the ranked feed already pays, so it is
+accepted, not novel.
+
+## The Value Proposition (why this is big)
+
+This is **for advertising, a lot.** Any piece of content an influencer creates
+can carry their monetized link, curated automatically by the data and scoped to
+a catalog. The influencer sets a preference once — "this catalog, round-robin"
+— and every post in it monetizes with zero per-post effort. No platform ad
+network, no bidding, no shadow ban: the creator owns the audience *and* the
+monetization, and the link is theirs (D55). That is the influencer value prop,
+made mechanical.
+
+## The Serious Questions
+
+1. **Where does `ad_preference` live?** A column on `documents` (queryable, the
+   query filters/joins on it directly — the "ClickHouse-y" way) vs. a body field
+   (no schema change, but the query parses JSON). Leaning column.
+2. **How is a catalog represented?** The Spotify many-to-many (an ad in several
+   catalogs). Options: **tags on the ads** (each ad tagged with the catalogs it
+   is in — simplest, tags are the house primitive) vs. **a catalog doc** (a
+   `posts` doc tagged `ad_catalog` that lists its ads — first-class, can carry
+   name/description/order) vs. a group (reuses the primitive, but groups are for
+   social access, not content organization). Tags for v0, catalog-doc as the
+   upgrade if catalogs need metadata?
+3. **What exactly is "love"?** Reactions only? Reactions + comments? A
+   power-mean composite (the feed's existing score)? This sets the
+   round_robin/greedy ordering.
+4. **`frequency_capped` — what does it mean here?** The original was per-session
+   (stateful). In the data-layer model it doesn't fit cleanly. Options: drop it
+   (v4), redefine it (cap the number of ads per feed read, not per ad), or
+   approximate it. Needs a decision.
+5. **Cold start.** `greedy` (most-loved) never shows a new ad (0 love) — new ads
+   starve. `round_robin` (least-loved) always shows a new ad until it gets love
+   — a new ad can monopolize the slot. Do we want a minimum-exposure floor, a
+   recency boost, or a blend?
+6. **Scope.** "Every document in all of web10" is the vision. Does v0 start with
+   `posts` (social content) and generalize, or is the preference a universal
+   `documents` field from day one?
+7. **Determinism across viewers.** The pick is a function of the data, so every
+   viewer sees the same ad for a doc at a given time (no per-viewer variety).
+   Fine for equalizing exposure; if we want variety, hash the viewer into the
+   pick. Which do we want?
+8. **The read's shape.** Doc + ad **inline** (the full ad body: offer, status,
+   media) vs. doc + ad **ref** (the app resolves it). Inline is "free for all
+   apps"; a ref keeps the read leaner. The reframe reads inline.
+9. **I3 / group scoping.** The ad is the author's. Is it served only to readers
+   who can see the doc (the doc's group)? (I believe yes — the ad rides the doc's
+   visibility.) Confirm.
+10. **The write path.** The composer control: pick a catalog + a mode (+ the
+    target ad for `pinned`). This is the web10-social composer integration.
+11. **What happens to `curateAds` (3.26.0)?** The curation moves to the data
+    layer. Does the client-side helper die, stay as a reference implementation
+    the query mirrors, or get repurposed for the stateful modes?
