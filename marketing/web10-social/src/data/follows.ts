@@ -9,32 +9,37 @@ import { extractUsername } from './types';
 /**
  * Follow a user (join their followers group).
  * @param username - the user to follow
- * @param _provider - v2 compat, ignored
+ * @param provider - the node provider (defaults to the token's provider)
  */
-export async function followUser(username: string, _provider?: string): Promise<{ username: string; status: 'active' }> {
+export async function followUser(username: string, provider?: string): Promise<{ username: string; status: 'active' }> {
   const w = getV3Client();
-  await w.joinGroup(followersGroupId(username));
+  await w.joinGroup(followersGroupId(username, provider));
   return { username, status: 'active' };
 }
 
 /**
  * Unfollow a user (leave their followers group).
  * @param username - the user to unfollow
- * @param _provider - v2 compat, ignored
+ * @param provider - the node provider (defaults to the token's provider)
  */
-export async function unfollowUser(username: string, _provider?: string): Promise<void> {
+export async function unfollowUser(username: string, provider?: string): Promise<void> {
   const w = getV3Client();
-  await w.leaveGroup(followersGroupId(username));
+  await w.leaveGroup(followersGroupId(username, provider));
 }
 
 /**
  * Check if the current user follows a given user.
+ *
+ * Following IS group membership, so the check is: is the user's followers
+ * group in the current user's group list? (The API's `groups/get` does not
+ * return `my_role`, so a per-group lookup can't answer this — `groups/list`
+ * is the membership surface the feed itself reads.)
  */
-export async function isFollowing(username: string): Promise<boolean> {
+export async function isFollowing(username: string, provider?: string): Promise<boolean> {
   const w = getV3Client();
   try {
-    const group = await w.getGroup(followersGroupId(username));
-    return group.my_role !== undefined && group.my_role !== '';
+    const groups = await w.getMyGroups();
+    return groups.some((g) => g.group_id === followersGroupId(username, provider));
   } catch {
     return false;
   }
