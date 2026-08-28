@@ -1,4 +1,5 @@
 import { getV3Client } from './v3';
+import { followersGroupId, ensureFollowers } from './groups';
 import { type AppSettings } from './types';
 export type { AppSettings } from './types';
 
@@ -7,6 +8,12 @@ export type { AppSettings } from './types';
 // the user's OWN followers group — the one group the user owns. The owner
 // role holds every permission (services `*`); the member role is scoped to
 // `posts`, so followers can read the profile/posts but not the settings doc.
+//
+// The group ID comes from groups.ts (followersGroupId — the deterministic ID
+// the API derives: {provider}/groups/users/{username}/followers, provider
+// from the token). A hardcoded provider prefix (or a missing `users/`
+// segment) points at a group the API can never create, so every write would
+// land in a phantom group and the next read 403s.
 
 const LOG = (...args: unknown[]) => console.log('[settings]', ...args);
 const LOG_ERR = (...args: unknown[]) => console.error('[settings]', ...args);
@@ -16,56 +23,6 @@ const defaultSettings: AppSettings = {
 };
 
 let cachedSettings: AppSettings | null = null;
-
-// The API derives created-group IDs as {provider}/groups/users/{creator}/{name}
-// (api/app/v3/endpoints/groups.py create_group) — provider from the token,
-// creator = the bare username. A hardcoded provider prefix (or a missing
-// `users/` segment) points at a group the API can never create, so every
-// write lands in a phantom group and the next read 403s.
-function followersGroup(token: { provider: string; username: string }): string {
-  return `${token.provider}/groups/users/${token.username}/followers`;
-}
-
-// The canonical followers roles (mirrors src/data/groups.ts FOLLOWER_ROLES —
-// the settings surface may create the group before any other surface has, so
-// it must create it with the canonical shape).
-const FOLLOWER_ROLES = [
-  {
-    name: 'owner',
-    services: ['*'],
-    permissions: ['readAll', 'create', 'updateOwn', 'updateAll', 'deleteOwn', 'deleteAll', 'hideAll', 'manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup'],
-  },
-  {
-    name: 'member',
-    services: ['posts'],
-    permissions: ['readAll'],
-  },
-];
-
-/**
- * Ensure the user's followers group exists (open join, the user is the
- * owner). Membership is keyed by the bare username — the same key the read
- * path checks (api/app/v3/endpoints/documents.py → user_or_anon).
- */
-async function ensureFollowersGroup(token: { provider: string; username: string }): Promise<string> {
-  const w = getV3Client();
-  const groupId = followersGroup(token);
-  try {
-    const group = await w.getGroup(groupId);
-    LOG('ensureFollowersGroup — exists:', group.group_id);
-    return group.group_id;
-  } catch {
-    LOG('ensureFollowersGroup — missing, creating:', groupId);
-    await w.createGroup(
-      'followers',
-      'open',
-      FOLLOWER_ROLES,
-      [{ member_key: token.username, role: 'owner' }],
-    );
-    LOG('ensureFollowersGroup — created:', groupId);
-    return groupId;
-  }
-}
 
 export async function readSettings(): Promise<AppSettings> {
   if (cachedSettings) {
@@ -79,7 +36,7 @@ export async function readSettings(): Promise<AppSettings> {
     return defaultSettings;
   }
 
-  const groupId = followersGroup(token);
+  const groupId = followersGroupId(token.username, token.provider);
   try {
     const docs = await w.read('settings', { groups: [groupId] });
     LOG('readSettings — got', docs.length, 'doc(s) from', groupId);
@@ -115,7 +72,11 @@ export async function saveSettings(settings: Partial<AppSettings>): Promise<AppS
   // The settings doc is only readable while attached to a group the user is
   // a member of — ensure the home group exists before writing (a write to a
   // missing group would 200 but be unreadable: the read path 403s).
-  const groupId = await ensureFollowersGroup(token);
+  // ensureFollowers (groups.ts) creates it with the canonical shape: name
+  // `followers` (the API derives {provider}/groups/users/{creator}/followers),
+  // open join, owner = the bare username.
+  const groupId = await ensureFollowers(token.username, token.provider);
+  LOG('saveSettings — followers group ready:', groupId);
 
   try {
     // Try to read existing settings doc
