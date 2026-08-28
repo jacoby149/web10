@@ -42,8 +42,10 @@ export async function createPost(
 
   // Default groups based on visibility
   const targetGroups = groups || determinePostGroups(post.visibility || 'public', token.username);
+  console.log('[social-feed] createPost — visibility:', post.visibility || 'public', 'target groups:', JSON.stringify(targetGroups));
 
   const doc = await w.create('posts', body, { groups: targetGroups });
+  console.log('[social-feed] createPost — success, doc_id:', doc.doc_id);
   return fromV3DocToPost(doc);
 }
 
