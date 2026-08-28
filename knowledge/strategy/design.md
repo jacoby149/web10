@@ -222,10 +222,14 @@ numbers ONLY — everything else in the Studio stays neutral + brand.
 ## 5. Typography
 
 Three families, self-hosted via `@fontsource-variable/*` packages.
-**Never load fonts from Google's CDN** — a privacy-first product does
-not leak its users' IPs to a tracking company for a font. Today all
-three apps silently fall back to system-ui (social declares Inter but
-never loads it); actually loading the fonts is part of the level-up.
+**Never load fonts from Google's CDN** — the app's own face is a core
+rendering dependency, and it does not depend on a third party for it
+(reliability + control, no external request on the critical path).
+Telemetry scripts (GA4/Hotjar, D56) are a different category: an
+intentional, disclosed, env-gated product decision — not a rendering
+dependency. Today all three apps silently fall back to system-ui
+(social declares Inter but never loads it); actually loading the fonts
+is part of the level-up.
 
 | Family | Package | Role |
 |---|---|---|
@@ -314,9 +318,9 @@ Motion confirms causality; it never performs.
   per component. No CSS-in-JS (rejected in D22).
 - **Icons: Lucide only.** `lucide-react`, 16/20/24px, `stroke-width`
   1.5–2, colored via `currentColor`. **FontAwesome is retired** —
-  social loads a FA kit script from a third-party CDN (privacy leak +
-  render-blocking) and marketing-ui uses `fa` classes without loading
-  FA at all (invisible icons). Both go.
+  social loads a FA kit script from a third-party CDN (render-blocking
+  + an uncontrolled third-party dependency) and marketing-ui uses `fa`
+  classes without loading FA at all (invisible icons). Both go.
 - **Focus**: every interactive element shows `focus-visible` as a 2px
   `--color-ring` (brand) ring with 2px offset. Keyboard users see
   exactly where they are on every screen.
