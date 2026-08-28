@@ -189,15 +189,18 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
     if (followLoading) return;
     setFollowLoading(true);
     setFollowError(null);
+    console.log('[social] handleFollow — toggling follow for', username, '— currently following:', following);
     try {
       if (following) {
         await unfollowUser(username, provider);
         setFollowing(false);
         setFollowRecord(null);
+        console.log('[social] handleFollow — no longer following', username);
       } else {
         const rec = await followUser(username, provider);
         setFollowRecord({ ...rec, provider, username });
         setFollowing(true);
+        console.log('[social] handleFollow — now following', username);
       }
     } catch (e) {
       console.error('Failed to toggle follow:', e);
