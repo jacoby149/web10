@@ -103,7 +103,7 @@ How a creator's ads get shown is a **per-creator choice**, not a platform decisi
 The curation is a **shared, deterministic SDK helper**, not SQL (the stateful algorithms — round-robin needs "which ad showed last," greedy needs the performance numbers — do not belong in a query):
 
 ```
-curateAds(creatorAds, creatorSetting) → the ordered subset to show
+curateAds(creatorAds, creatorSetting, state) → the ordered active subset to show
 ```
 
 - **round_robin** — rotate the creator's active ads so each gets equal exposure (state in the app: memory/localStorage)
@@ -112,6 +112,8 @@ curateAds(creatorAds, creatorSetting) → the ordered subset to show
 - **frequency_capped** — don't show the same ad more than `cap`× per session
 
 The helper filters on `status === 'active'`. Because it is shared and deterministic, every app curates a given creator's ads identically. It is used where a creator's ads are *selected* — the composer's "Rotate my ads" (which ad a post carries, `ads-catalog.md`) and any app surfacing a curated subset. The feed's ad *posts* need no curation: they are posts, they render, 100% delivery by architecture.
+
+**v0 note — `greedy` has no data yet.** `greedy` weights by offer performance (clicks/conversions), but the v0 ad object carries no `stats` (above — a counter is a write on a read path; revenue settlement + impression verification are the v4 layer). So in v0, `curateAds` degrades `greedy` to `round_robin` (equal exposure) whenever no `performance` is supplied: no ad is starved, and the mode becomes true greedy the instant the v4 metrics layer feeds per-ad scores into the helper's `state`. The other three modes need no metrics at all — `round_robin` and `frequency_capped` run on app-local state (last-shown / session counts), and `pinned` is just the creator's pick.
 
 ## The Partner Links UI (the ingest)
 
