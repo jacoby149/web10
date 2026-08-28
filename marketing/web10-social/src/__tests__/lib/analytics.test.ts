@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { installGa4, trackPageview, trackEvent } from '../../lib/analytics';
+import { installGa4, installHotjar, trackPageview, trackEvent, hotjarIdentify } from '../../lib/analytics';
 
 describe('analytics', () => {
   let appendChildSpy: ReturnType<typeof vi.spyOn>;
@@ -7,9 +7,12 @@ describe('analytics', () => {
   beforeEach(() => {
     delete (window as any).dataLayer;
     delete (window as any).gtag;
+    delete (window as any).hj;
     document.head.querySelectorAll('script[src*="googletagmanager"]').forEach((s) => s.remove());
+    document.head.querySelectorAll('script[src*="hotjar"]').forEach((s) => s.remove());
     appendChildSpy = vi.spyOn(document.head, 'appendChild');
     vi.stubEnv('VITE_GA4_MEASUREMENT_ID', undefined);
+    vi.stubEnv('VITE_HOTJAR_SITE_ID', undefined);
   });
 
   afterEach(() => {
@@ -126,6 +129,66 @@ describe('analytics', () => {
     it('is a no-op when gtag is not installed', () => {
       delete (window as any).gtag;
       expect(() => trackEvent('login')).not.toThrow();
+    });
+  });
+
+  describe('installHotjar', () => {
+    it('is a no-op when VITE_HOTJAR_SITE_ID is not set', () => {
+      const result = installHotjar();
+      expect(result).toBeNull();
+      expect((window as any).hj).toBeUndefined();
+      expect(appendChildSpy).not.toHaveBeenCalled();
+    });
+
+    it('is a no-op for a non-numeric site ID', () => {
+      vi.stubEnv('VITE_HOTJAR_SITE_ID', 'not-a-number');
+      const result = installHotjar();
+      expect(result).toBeNull();
+      expect((window as any).hj).toBeUndefined();
+    });
+
+    it('loads the Hotjar script when the site ID is set', () => {
+      vi.stubEnv('VITE_HOTJAR_SITE_ID', '123456');
+      const result = installHotjar();
+      expect(result).toBe(123456);
+      expect(appendChildSpy).toHaveBeenCalledTimes(1);
+      const script = appendChildSpy.mock.calls[0][0] as HTMLScriptElement;
+      expect(script.src).toBe('https://static.hotjar.com/c/hotjar-123456.js?sv=6');
+      expect(script.async).toBe(true);
+    });
+
+    it('initialises with full content masking (D56: text blurred, images blocked)', () => {
+      vi.stubEnv('VITE_HOTJAR_SITE_ID', '123456');
+      installHotjar();
+      // The init call is queued for the real script to drain (hj.q).
+      const q = (window as any).hj.q as unknown[][];
+      expect(q).toHaveLength(1);
+      expect(q[0]).toEqual([
+        'init',
+        { hjid: 123456, maskAllText: true, blockAllImages: true },
+      ]);
+    });
+
+    it('only installs once (idempotent)', () => {
+      vi.stubEnv('VITE_HOTJAR_SITE_ID', '123456');
+      installHotjar();
+      const second = installHotjar();
+      expect(second).toBeNull();
+      expect(appendChildSpy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('hotjarIdentify', () => {
+    it('queues an identify call when Hotjar is installed', () => {
+      vi.stubEnv('VITE_HOTJAR_SITE_ID', '123456');
+      installHotjar();
+      hotjarIdentify('alice', { plan: 'pro' });
+      const q = (window as any).hj.q as unknown[][];
+      expect(q[q.length - 1]).toEqual(['identify', 'alice', { plan: 'pro' }]);
+    });
+
+    it('is a no-op when Hotjar is not installed', () => {
+      expect(() => hotjarIdentify('alice')).not.toThrow();
     });
   });
 });

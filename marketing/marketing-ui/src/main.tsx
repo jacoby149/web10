@@ -5,13 +5,14 @@ import App from './App.tsx'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ReportBug } from './components/ReportBug'
 import { Button } from './components/ui/button'
-import { trackPageview, installErrorBeacon, installHotjar } from './lib/analytics'
+import { trackPageview, installErrorBeacon, installGa4, installHotjar } from './lib/analytics'
 import './index.css'
 
 // Install JS error beacon (window.onerror + unhandledrejection)
 installErrorBeacon()
 
-// Install Hotjar session recording (marketing-ui only — platform surfaces stay recording-free)
+// D56: full-platform telemetry — GA4 + masked Hotjar (content-blind).
+installGa4()
 installHotjar()
 
 function AnalyticsTracker() {

@@ -221,6 +221,31 @@ the ad object + feed read + dissemination are in `social/ads.md` (D50 + D51
 - [ ] **Composer ad control (web10-social)** — the "Attach ad" control in `PostComposer`: the catalog picker sheet (active first, empty + loading states), attach writes the post's `ref` → `ref_value` (post → post), the ad block renders under the post (creative + offer + disclosure, disclosure never hidden), "Rotate my ads" per-post opt-in to the D51 setting. `marketing/web10-social/src/components/Feed/`.
 - [ ] **E2E** — the torture gauntlet: create ad in the catalog → attach to a post → follower sees the post with the ad block + disclosure → pause the ad → it stops rendering → non-follower never sees the ad (I3). `e2e/tests/ads.spec.ts`.
 
+## Platform Telemetry (D56) — Platform
+
+web10 tracks hard — GA4 + Hotjar on **every** user-facing surface
+(marketing-ui, web10-social, the authenticator `ui/`) — because web10
+competes with Meta and TikTok for the same attention, and their UX is
+the output of a decade of aggressive telemetry. The recording is
+**content-blind by construction**: Hotjar runs `maskAllText: true` +
+`blockAllImages: true` (text blurred, images blocked — the operator
+sees cursor + layout + timing, never words or pictures), and GA4 events
+are content-free by convention (paths, actions, counts — never post
+text, media URLs, or PII). Max tracking, one exception: GA4
+`advertising_id: 'OFF'` — we do not feed Google's ad network (the only
+sponsors a fan sees are the creator's, D50/D55). The trade is
+terms-level, not a consent popup: "it is the wrong platform for you if
+you arent ok with that." Supersedes the old "platform surfaces stay
+recording-free" rule. Spec'd in `knowledge-base/web10-v3/telemetry.md`;
+the decision is D56. Lane is `platform-telemetry` in
+`parallel-execution.md`.
+
+- [✓ 3.26.0] **Decision: D56** (`knowledge/strategy/decisions.md`) — every surface tracked (GA4 + Hotjar); recording content-blind by construction (maskAllText + blockAllImages); GA4 events content-free by convention; max tracking with `advertising_id: 'OFF'` as the single kept flag; the trade is terms-level, not a consent popup.
+- [✓ 3.26.0] **KB** (`knowledge-base/web10-v3/telemetry.md`) — the why (compete with Meta/TikTok on UX), the specific use case (the operator who can't see bounces), the technical how (GA4 + masked Hotjar, env-gated, per-app `src/lib/analytics.ts`), the line it does not cross (content never tracked, not sold, trade stated), logistics.
+- [✓ 3.26.0] **Build: all three surfaces** — web10-social gains masked Hotjar (GA4 already there, max-tracking config); marketing-ui gains GA4 (in-house beacon + Hotjar already there, Hotjar moved to the canonical masked init); the authenticator gains both (new `ui/src/lib/analytics.ts` + initial pageview — it's query-parameter-driven, no router). `hotjarIdentify(username)` on login in web10-social. Unit tests per app (no-op without env, script load, masking config pinned, idempotency, identify).
+- [✓ 3.26.0] **Deploy wiring** — `VITE_GA4_MEASUREMENT_ID` + `VITE_HOTJAR_SITE_ID` baked at build time: Dockerfile ARG/ENV on all three frontends, compose passes `GA4_MEASUREMENT_ID` / `HOTJAR_SITE_ID` per environment (empty = tracking off), env examples updated.
+- [ ] **Terms copy** — the tracking disclosure on the marketing site (the "wrong platform for you if you arent ok with that" line, verbatim or close). Gated on a terms surface existing — there is no terms page yet.
+
 ## Phase 4 — Production Cutover: v2 → v3, then merge to main
 
 **Where:** `knowledge/knowledge-base/web10-v3/` (migration model), `api/` (migration tooling), `ubuntu-deployment/` (prod deploy)

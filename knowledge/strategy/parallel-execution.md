@@ -344,3 +344,20 @@ panel is the node's control surface — it must show what the node
 actually runs, and every control on it must work.
 
 - [✓ 3.16.0] Node Config: effective config in the form (settings defaults ← saved overlay — no more blanks; ClickHouse URL + MinIO values default to the docker-network settings) + field trimming (Node Identity → provider/CORS/token-expiry; Stripe → mode + keys) + the dead Save button fixed (PATCH /config 405 → POST /config/update)
+
+### Lane: platform-telemetry (D56)
+**Owns:** `marketing/marketing-ui/src/lib/analytics.ts`, `marketing/web10-social/src/lib/analytics.ts`, `ui/src/lib/analytics.ts`, the three frontends' `main.tsx` + `Dockerfile`, `ubuntu-deployment/docker-compose.ecosystem.yml` (frontend build args), `knowledge/knowledge-base/web10-v3/telemetry.md`
+
+Full-platform telemetry (D56): GA4 + Hotjar on every user-facing
+surface, the recording content-blind by construction (maskAllText +
+blockAllImages), GA4 events content-free by convention, max tracking
+with `advertising_id: 'OFF'` as the single kept flag. The trade is
+terms-level, not a consent popup. Supersedes the old "platform surfaces
+stay recording-free" rule. The KB is the spec — read it first:
+`knowledge/knowledge-base/web10-v3/telemetry.md`.
+
+- [✓ 3.26.0] Decision: D56 (`knowledge/strategy/decisions.md`) — every surface tracked; recording content-blind by construction; GA4 events content-free by convention; `advertising_id: 'OFF'` kept; the trade is terms-level
+- [✓ 3.26.0] KB: `knowledge-base/web10-v3/telemetry.md` — the why (compete with Meta/TikTok on UX), the use case, the technical how (GA4 + masked Hotjar, env-gated, per-app `src/lib/analytics.ts`), the line it does not cross, logistics
+- [✓ 3.26.0] Build: all three surfaces — web10-social gains masked Hotjar (GA4 already there, max-tracking config); marketing-ui gains GA4 (in-house beacon + Hotjar already there, Hotjar moved to the canonical masked init); the authenticator gains both (new `ui/src/lib/analytics.ts` + initial pageview — query-parameter-driven, no router); `hotjarIdentify(username)` on login in web10-social; unit tests per app (no-op without env, script load, masking config pinned, idempotency, identify)
+- [✓ 3.26.0] Deploy wiring: `VITE_GA4_MEASUREMENT_ID` + `VITE_HOTJAR_SITE_ID` baked at build time — Dockerfile ARG/ENV on all three frontends, compose passes `GA4_MEASUREMENT_ID` / `HOTJAR_SITE_ID` per environment (empty = tracking off), env examples updated
+- [ ] Terms copy: the tracking disclosure on the marketing site (the "wrong platform for you if you arent ok with that" line) — gated on a terms surface existing (there is no terms page yet)

@@ -6,10 +6,11 @@ import '@fontsource-variable/inter/standard.css';
 import '@fontsource-variable/space-grotesk';
 import './index.css';
 import App from './App';
-import { installGa4, trackPageview } from './lib/analytics';
+import { installGa4, installHotjar, trackPageview } from './lib/analytics';
 
-// Install GA4 (aggregate-only, anonymous, content-free — no recording)
+// D56: full-platform telemetry — GA4 + masked Hotjar (content-blind).
 installGa4();
+installHotjar();
 
 function AnalyticsTracker() {
   const location = useLocation();

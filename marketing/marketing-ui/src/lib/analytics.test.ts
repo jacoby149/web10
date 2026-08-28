@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { trackPageview, trackFunnel, reportError, installErrorBeacon, installHotjar, hotjarIdentify } from './analytics'
+import { trackPageview, trackFunnel, reportError, installErrorBeacon, installGa4, installHotjar, hotjarIdentify } from './analytics'
 
 describe('analytics', () => {
   beforeEach(() => {
@@ -104,16 +104,64 @@ describe('analytics', () => {
     })
   })
 
+  describe('installGa4', () => {
+    let appendChildSpy: ReturnType<typeof vi.spyOn>
+
+    beforeEach(() => {
+      delete (window as any).dataLayer
+      delete (window as any).gtag
+      document.head.querySelectorAll('script[src*="googletagmanager"]').forEach((s) => s.remove())
+      appendChildSpy = vi.spyOn(document.head, 'appendChild')
+      vi.stubEnv('VITE_GA4_MEASUREMENT_ID', undefined)
+    })
+
+    afterEach(() => {
+      appendChildSpy.mockRestore()
+      vi.unstubAllEnvs()
+      delete (window as any).dataLayer
+      delete (window as any).gtag
+    })
+
+    it('is a no-op when VITE_GA4_MEASUREMENT_ID is not set', () => {
+      installGa4()
+      expect(appendChildSpy).not.toHaveBeenCalled()
+      expect((window as any).gtag).toBeUndefined()
+    })
+
+    it('loads the GA4 script when the measurement ID is set', () => {
+      vi.stubEnv('VITE_GA4_MEASUREMENT_ID', 'G-MKT123')
+      installGa4()
+      expect(appendChildSpy).toHaveBeenCalledTimes(1)
+      const script = appendChildSpy.mock.calls[0][0] as HTMLScriptElement
+      expect(script.src).toBe('https://www.googletagmanager.com/gtag/js?id=G-MKT123')
+      expect(script.async).toBe(true)
+    })
+
+    it('sets up dataLayer and gtag', () => {
+      vi.stubEnv('VITE_GA4_MEASUREMENT_ID', 'G-MKT456')
+      installGa4()
+      expect((window as any).gtag).toBeDefined()
+      expect(Array.isArray((window as any).dataLayer)).toBe(true)
+    })
+
+    it('only installs once (idempotent)', () => {
+      vi.stubEnv('VITE_GA4_MEASUREMENT_ID', 'G-MKT789')
+      installGa4()
+      installGa4()
+      expect(appendChildSpy).toHaveBeenCalledTimes(1)
+    })
+  })
+
   describe('installHotjar', () => {
     let appendChildSpy: ReturnType<typeof vi.spyOn>
 
     beforeEach(() => {
       delete (window as any).hj
       delete (window as any).hjs
+      document.head.querySelectorAll('script[src*="hotjar"]').forEach((s) => s.remove())
       appendChildSpy = vi.spyOn(document.head, 'appendChild')
       // Clear env before each test
       vi.stubEnv('VITE_HOTJAR_SITE_ID', undefined)
-      vi.stubEnv('VITE_HOTJAR_VERSION', undefined)
     })
 
     afterEach(() => {
@@ -132,27 +180,27 @@ describe('analytics', () => {
       installHotjar()
       expect(appendChildSpy).toHaveBeenCalledTimes(1)
       const script = appendChildSpy.mock.calls[0][0] as HTMLScriptElement
-      expect(script.src).toBe('https://script.hotjar.com/12345.js')
+      expect(script.src).toBe('https://static.hotjar.com/c/hotjar-12345.js?sv=6')
       expect(script.async).toBe(true)
     })
 
-    it('initialises Hotjar with site ID and default version', () => {
+    it('initialises with full content masking (D56: text blurred, images blocked)', () => {
       vi.stubEnv('VITE_HOTJAR_SITE_ID', '12345')
       installHotjar()
-      expect((window as any).hjs).toContainEqual(['initialize', 12345, 1])
+      expect((window as any).hj.q).toContainEqual(['init', { hjid: 12345, maskAllText: true, blockAllImages: true }])
     })
 
-    it('uses VITE_HOTJAR_VERSION when provided', () => {
+    it('sets up the hj.q queue array', () => {
       vi.stubEnv('VITE_HOTJAR_SITE_ID', '12345')
-      vi.stubEnv('VITE_HOTJAR_VERSION', '3')
       installHotjar()
-      expect((window as any).hjs).toContainEqual(['initialize', 12345, 3])
+      expect(Array.isArray((window as any).hj.q)).toBe(true)
     })
 
-    it('sets up the hjs queue array', () => {
+    it('only installs once (idempotent)', () => {
       vi.stubEnv('VITE_HOTJAR_SITE_ID', '12345')
       installHotjar()
-      expect(Array.isArray((window as any).hjs)).toBe(true)
+      installHotjar()
+      expect(appendChildSpy).toHaveBeenCalledTimes(1)
     })
   })
 
@@ -177,11 +225,11 @@ describe('analytics', () => {
       expect(mockHj).toHaveBeenCalledWith('identify', 'user-123', { plan: 'pro' })
     })
 
-    it('calls hj identify with minimal args when no props given', () => {
+    it('calls hj identify without a props arg when no props given', () => {
       const mockHj = vi.fn()
       ;(window as any).hj = mockHj
       hotjarIdentify('user-456')
-      expect(mockHj).toHaveBeenCalledWith('identify', 'user-456', undefined)
+      expect(mockHj).toHaveBeenCalledWith('identify', 'user-456')
     })
   })
 })

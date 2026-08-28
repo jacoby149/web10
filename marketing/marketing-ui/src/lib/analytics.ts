@@ -1,6 +1,8 @@
-// Centralized analytics for marketing-ui.
-// Full funnel analytics + JS error beacon — marketing-ui is pre-signup,
-// so full tracking is fair game (plan.txt ux telemetry spec).
+// Centralized analytics for marketing-ui (D56: full-platform telemetry).
+// In-house funnel analytics + JS error beacon (first-party, to the
+// marketing-api) + GA4 + masked Hotjar (session replay + heatmaps,
+// content-blind: text blurred, images blocked). See
+// knowledge-base/web10-v3/telemetry.md.
 
 const MARKETING_API =
   (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('marketing_api')) ||
@@ -90,36 +92,93 @@ export function installErrorBeacon() {
 }
 
 // ---------------------------------------------------------------------------
-// Hotjar — session replay + heatmaps (marketing-ui ONLY).
-// Platform surfaces (ui/ + web10-social) remain recording-free.
-// Site ID is required: VITE_HOTJAR_SITE_ID. Version defaults to 1.
+// GA4 — pageviews + content-free structural events (D56: full-platform
+// telemetry). Max tracking, one exception: advertising_id OFF (we don't
+// feed the ad machine). No-op when VITE_GA4_MEASUREMENT_ID is not set.
+// ---------------------------------------------------------------------------
+
+interface GtagQueue {
+  (command: 'config', measurementId: string, config?: Record<string, unknown>): void;
+  (command: 'event', eventName: string, params?: Record<string, unknown>): void;
+  (command: 'js', timestamp: number): void;
+}
+
+declare global {
+  interface Window {
+    dataLayer?: unknown[][];
+    gtag?: GtagQueue;
+  }
+}
+
+/**
+ * Load the GA4 snippet dynamically and initialise it.
+ * No-op when VITE_GA4_MEASUREMENT_ID is not set (dev without env vars)
+ * or when gtag is already present (already installed, SSR, etc.).
+ */
+export function installGa4(): string | null {
+  if (typeof document === 'undefined') return null;
+  if ((window as any).gtag) return null;
+
+  const measurementId = import.meta.env?.VITE_GA4_MEASUREMENT_ID;
+  if (!measurementId || typeof measurementId !== 'string' || !measurementId.trim()) return null;
+
+  window.dataLayer = window.dataLayer || [];
+  window.gtag = function (...args: unknown[]) {
+    window.dataLayer!.push(args as unknown[]);
+  } as GtagQueue;
+  window.gtag('js', new Date().getTime());
+  window.gtag('config', measurementId, {
+    // D56: max tracking, one exception — we do not feed Google's ad
+    // network. The only sponsors a fan sees are the creator's (D50/D55).
+    advertising_id: 'OFF',
+  });
+
+  const s = document.createElement('script');
+  s.src = `https://www.googletagmanager.com/gtag/js?id=${measurementId}`;
+  s.async = true;
+  document.head.appendChild(s);
+
+  return measurementId;
+}
+
+// ---------------------------------------------------------------------------
+// Hotjar — session replay + heatmaps (D56: every surface, content-blind).
+// Initialised with maskAllText + blockAllImages: all text blurred, all
+// images blocked. The operator sees cursor + layout + timing, never words
+// or pictures. Site ID required: VITE_HOTJAR_SITE_ID. No-op when unset.
 // ---------------------------------------------------------------------------
 
 /**
- * Load the Hotjar snippet dynamically and initialise it.
- * No-op when VITE_HOTJAR_SITE_ID is not set (dev without env vars).
+ * Load the Hotjar snippet dynamically and initialise it with full content
+ * masking. No-op when VITE_HOTJAR_SITE_ID is not set (dev without env
+ * vars) or when Hotjar is already installed.
  */
-export function installHotjar() {
-  if (typeof window === 'undefined') return
+export function installHotjar(): number | null {
+  if (typeof window === 'undefined') return null;
+  if ((window as any).hj) return null;
+
   const siteIdRaw = import.meta.env?.VITE_HOTJAR_SITE_ID
   const siteId = siteIdRaw ? parseInt(siteIdRaw, 10) : 0
-  if (!siteId || isNaN(siteId)) return
+  if (!siteId || isNaN(siteId)) return null
 
-  const versionRaw = import.meta.env?.VITE_HOTJAR_VERSION
-  const version = versionRaw ? parseInt(versionRaw, 10) : 1
-
-  // Standard Hotjar queue pattern
-  ;(window as any).hjs = (window as any).hjs || []
-  ;(window as any).hj = function (...args: unknown[]) {
-    ;(window as any).hjs.push(args)
+  // Canonical Hotjar queue pattern (the real script drains hj.q on load).
+  ;(window as any).hj = (window as any).hj || function (...args: unknown[]) {
+    ;((window as any).hj.q = (window as any).hj.q || []).push(args)
   }
 
   const s = document.createElement('script')
-  s.src = `https://script.hotjar.com/${siteId}.js`
+  s.src = `https://static.hotjar.com/c/hotjar-${siteId}.js?sv=6`
   s.async = true
   document.head.appendChild(s)
 
-  ;(window as any).hj('initialize', siteId, version)
+  // D56: the recording is content-blind — blur all text, block all images.
+  ;(window as any).hj('init', {
+    hjid: siteId,
+    maskAllText: true,
+    blockAllImages: true,
+  })
+
+  return siteId
 }
 
 /**
@@ -128,5 +187,9 @@ export function installHotjar() {
  */
 export function hotjarIdentify(userId: string, props?: Record<string, unknown>) {
   if (typeof window === 'undefined' || !(window as any).hj) return
-  ;(window as any).hj('identify', userId, props)
+  if (props) {
+    ;(window as any).hj('identify', userId, props)
+  } else {
+    ;(window as any).hj('identify', userId)
+  }
 }
