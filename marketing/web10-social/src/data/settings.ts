@@ -3,7 +3,13 @@ import { type AppSettings } from './types';
 export type { AppSettings } from './types';
 
 // ── Settings data layer (v3) ─────────────────────────────────────────────────
-// Settings persist as a document in the `settings` collection.
+// Settings persist as a document in the `settings` collection, attached to
+// the user's OWN followers group — the one group the user owns. The owner
+// role holds every permission (services `*`); the member role is scoped to
+// `posts`, so followers can read the profile/posts but not the settings doc.
+
+const LOG = (...args: unknown[]) => console.log('[settings]', ...args);
+const LOG_ERR = (...args: unknown[]) => console.error('[settings]', ...args);
 
 const defaultSettings: AppSettings = {
   defaultVisibility: 'public',
@@ -11,25 +17,84 @@ const defaultSettings: AppSettings = {
 
 let cachedSettings: AppSettings | null = null;
 
+// The API derives created-group IDs as {provider}/groups/users/{creator}/{name}
+// (api/app/v3/endpoints/groups.py create_group) — provider from the token,
+// creator = the bare username. A hardcoded provider prefix (or a missing
+// `users/` segment) points at a group the API can never create, so every
+// write lands in a phantom group and the next read 403s.
+function followersGroup(token: { provider: string; username: string }): string {
+  return `${token.provider}/groups/users/${token.username}/followers`;
+}
+
+// The canonical followers roles (mirrors src/data/groups.ts FOLLOWER_ROLES —
+// the settings surface may create the group before any other surface has, so
+// it must create it with the canonical shape).
+const FOLLOWER_ROLES = [
+  {
+    name: 'owner',
+    services: ['*'],
+    permissions: ['readAll', 'create', 'updateOwn', 'updateAll', 'deleteOwn', 'deleteAll', 'hideAll', 'manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup'],
+  },
+  {
+    name: 'member',
+    services: ['posts'],
+    permissions: ['readAll'],
+  },
+];
+
+/**
+ * Ensure the user's followers group exists (open join, the user is the
+ * owner). Membership is keyed by the bare username — the same key the read
+ * path checks (api/app/v3/endpoints/documents.py → user_or_anon).
+ */
+async function ensureFollowersGroup(token: { provider: string; username: string }): Promise<string> {
+  const w = getV3Client();
+  const groupId = followersGroup(token);
+  try {
+    const group = await w.getGroup(groupId);
+    LOG('ensureFollowersGroup — exists:', group.group_id);
+    return group.group_id;
+  } catch {
+    LOG('ensureFollowersGroup — missing, creating:', groupId);
+    await w.createGroup(
+      'followers',
+      'open',
+      FOLLOWER_ROLES,
+      [{ member_key: token.username, role: 'owner' }],
+    );
+    LOG('ensureFollowersGroup — created:', groupId);
+    return groupId;
+  }
+}
+
 export async function readSettings(): Promise<AppSettings> {
-  if (cachedSettings) return cachedSettings;
+  if (cachedSettings) {
+    LOG('readSettings — cache hit:', JSON.stringify(cachedSettings));
+    return cachedSettings;
+  }
   const w = getV3Client();
   const token = w.readToken();
-  if (!token) return defaultSettings;
+  if (!token) {
+    LOG('readSettings — no token, returning defaults');
+    return defaultSettings;
+  }
 
+  const groupId = followersGroup(token);
   try {
-    const docs = await w.read('settings', {
-      groups: [`web10.app/groups/${token.username}/followers`],
-    });
+    const docs = await w.read('settings', { groups: [groupId] });
+    LOG('readSettings — got', docs.length, 'doc(s) from', groupId);
     if (docs.length > 0) {
+      // Reads are created_at DESC — docs[0] is the latest settings doc.
       const body = docs[0].body as Record<string, unknown>;
       cachedSettings = {
         defaultVisibility: (body.defaultVisibility as AppSettings['defaultVisibility']) || defaultSettings.defaultVisibility,
       };
+      LOG('readSettings — resolved:', JSON.stringify(cachedSettings));
       return cachedSettings;
     }
-  } catch {
-    // No settings record yet
+  } catch (e) {
+    // No settings record yet (or no followers group yet) — defaults.
+    LOG('readSettings — no settings record yet:', groupId, String(e));
   }
   return defaultSettings;
 }
@@ -41,28 +106,33 @@ export async function saveSettings(settings: Partial<AppSettings>): Promise<AppS
 
   const current = await readSettings();
   const merged = { ...current, ...settings };
+  LOG('saveSettings — merging', JSON.stringify(settings), 'into', JSON.stringify(current), '→', JSON.stringify(merged));
 
   const body: Record<string, unknown> = {
     defaultVisibility: merged.defaultVisibility,
   };
 
+  // The settings doc is only readable while attached to a group the user is
+  // a member of — ensure the home group exists before writing (a write to a
+  // missing group would 200 but be unreadable: the read path 403s).
+  const groupId = await ensureFollowersGroup(token);
+
   try {
     // Try to read existing settings doc
-    const docs = await w.read('settings', {
-      groups: [`web10.app/groups/${token.username}/followers`],
-    });
+    const docs = await w.read('settings', { groups: [groupId] });
     if (docs.length > 0 && docs[0].doc_id) {
+      LOG('saveSettings — updating existing doc:', docs[0].doc_id, JSON.stringify(body));
       await w.update(docs[0].doc_id, body);
+      LOG('saveSettings — updated');
     } else {
-      await w.create('settings', body, {
-        groups: [`web10.app/groups/${token.username}/followers`],
-      });
+      LOG('saveSettings — creating new doc in', groupId, JSON.stringify(body));
+      await w.create('settings', body, { groups: [groupId] });
+      LOG('saveSettings — created');
     }
-  } catch {
-    // Create if doesn't exist
-    await w.create('settings', body, {
-      groups: [`web10.app/groups/${token.username}/followers`],
-    });
+  } catch (e) {
+    LOG_ERR('saveSettings — read/update path failed, falling back to create:', e);
+    await w.create('settings', body, { groups: [groupId] });
+    LOG('saveSettings — created (fallback)');
   }
 
   cachedSettings = merged;
