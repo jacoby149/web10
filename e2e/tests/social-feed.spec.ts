@@ -20,19 +20,13 @@ import { API_BASE, v3Login, v3Signup } from '../v3-helpers';
  * The discover board is a SHARED node default, so where it intersects the feed
  * the assertions are contains/absent, never exact counts.
  *
- * NOTE (group-ID scheme): the app addresses a user's OWN followers group as the
- * well-known `web10.app/groups/{username}/followers` (src/data/groups.ts
- * followersGroupId), but the node's /v3/groups/create only mints
- * `{provider}/groups/users/{creator}/{slug}` — the well-known shape is
- * unreachable through the API, and the app never provisions a user's own
- * followers group (ensureFollowers is defined but never called at runtime).
- * Consequence: a user's OWN public post (attached to discover + own followers
- * group) does not surface in their OWN /feed (the feed drops discover, and the
- * own followers group is not a member group). The gauntlet therefore verifies
- * the posted content persists by reading it back from the discover group, and
- * exercises the feed read through a followed creator's posts. The own-followers
- * provisioning / ID-scheme alignment is the groups surface's concern (lane 224),
- * not this spec's.
+ * NOTE (own-followers provisioning): a user's OWN public post attaches to
+ * discover + their OWN followers group. For it to surface in their OWN /feed
+ * (which drops discover), the user must be a member of their own followers
+ * group. `createPost` provisions it (ensureFollowers, user as owner) before
+ * attaching — so the gauntlet asserts the user's own post appears in their
+ * own feed, and persists across reload. (The followers-group ID is the node's
+ * minted shape, `{provider}/groups/users/{u}/followers` — see groups.ts.)
  */
 
 const port = process.env.E2E_HTTP_PORT || '80';
@@ -326,10 +320,13 @@ test.describe('Social feed gauntlet — render → post → reload persists', ()
     await page.locator('[data-testid="post-composer"] textarea').fill(myPost);
     await page.locator('[data-testid="post-submit"]').click();
 
-    // The composer succeeded (no error surfaced). The post is created on the
-    // node — it lands on the discover board (a public post is attached there),
-    // which is where the persistence check reads it back from.
+    // The composer succeeded (no error surfaced). The user's OWN post surfaces
+    // in their OWN feed: createPost provisions the user's own followers group
+    // (user as owner) before attaching, so readFeed (the user's groups minus
+    // discover) includes it. The remount re-reads the feed after the post.
     await expect(page.locator('[data-testid="composer-error"]')).toHaveCount(0);
+    await expectFeedShowsPost(page, myPost);
+    // It also landed on the discover board (a public post is attached there).
     await expectGroupContainsPost(request, viewer.token, DISCOVER_GROUP_ID, myPost);
 
     // --- Reload: the session + the feed + the post persist ---
@@ -338,8 +335,8 @@ test.describe('Social feed gauntlet — render → post → reload persists', ()
     await expect(page.locator('[data-testid="post-composer"]')).toBeVisible();
     // The feed still renders the followed creator's post across the reload.
     await expectFeedShowsPost(page, creatorPost);
-    // The viewer's own post persisted on the node (read back from discover).
-    await expectGroupContainsPost(request, viewer.token, DISCOVER_GROUP_ID, myPost);
+    // The viewer's OWN post persists in their OWN feed across the reload.
+    await expectFeedShowsPost(page, myPost);
 
     // --- Console log sequence (the real flow, in order) ---
     const firstReadIdx = logs.findIndex((l) => l.includes('readFeed — my groups'));

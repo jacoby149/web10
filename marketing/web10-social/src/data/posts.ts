@@ -5,6 +5,7 @@ import {
   closeFriendsGroupId,
   getMyGroups,
   getFeedGroups,
+  ensureFollowers,
 } from './groups';
 import type { PostRecord, MediaRecord, MediaUploadRequest, Visibility } from './types';
 import { fromV3DocToPost, fromV3DocToMedia } from './types';
@@ -41,8 +42,22 @@ export async function createPost(
   };
 
   // Default groups based on visibility
-  const targetGroups = groups || determinePostGroups(post.visibility || 'public', token.username);
-  console.log('[social-feed] createPost — visibility:', post.visibility || 'public', 'target groups:', JSON.stringify(targetGroups));
+  const visibility = post.visibility || 'public';
+  let targetGroups = groups || determinePostGroups(visibility, token.username);
+
+  // Public/friends posts attach to the user's OWN followers group — ensure it
+  // exists (user as owner) so the post surfaces in the user's own feed (the
+  // feed reads the user's groups minus discover). Best-effort: a failure here
+  // must not block the post (it still lands on discover for public).
+  if (!groups && visibility !== 'private') {
+    try {
+      await ensureFollowers(token.username);
+    } catch (e) {
+      console.warn('[social-feed] createPost — ensureFollowers failed (non-fatal):', e);
+    }
+  }
+
+  console.log('[social-feed] createPost — visibility:', visibility, 'target groups:', JSON.stringify(targetGroups));
 
   const doc = await w.create('posts', body, { groups: targetGroups });
   console.log('[social-feed] createPost — success, doc_id:', doc.doc_id);

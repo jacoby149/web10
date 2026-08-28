@@ -10,9 +10,16 @@ const DISCOVER_GROUP = 'web10.app/groups/web10/discover';
 
 /**
  * Get the followers group ID for a user.
+ *
+ * The node's /v3/groups/create mints `{provider}/groups/users/{creator}/{slug}`
+ * — so a user's followers group (name "followers", creator = the user) is
+ * `{provider}/groups/users/{username}/followers`. The provider is the node's
+ * (from the token); it is NOT the hardcoded `web10.app` (that's only the
+ * discover board's well-known prefix).
  */
 export function followersGroupId(username: string): string {
-  return `web10.app/groups/${username}/followers`;
+  const provider = getV3Client().readToken()?.provider ?? 'web10.app';
+  return `${provider}/groups/users/${username}/followers`;
 }
 
 /**
@@ -114,6 +121,11 @@ export async function ensureDiscover(): Promise<string> {
 /**
  * Ensure the current user's followers group exists.
  * Open join policy — anyone can follow instantly.
+ *
+ * The user is the OWNER of their own followers group, so their own posts
+ * (attached to it) surface in their own feed (readFeed reads the user's groups
+ * minus discover). Must be called with the CURRENT user's username — the API
+ * mints the group under the token's creator, so creator must equal username.
  */
 export async function ensureFollowers(username: string): Promise<string> {
   const w = getV3Client();
@@ -122,12 +134,15 @@ export async function ensureFollowers(username: string): Promise<string> {
     const group = await w.getGroup(groupId);
     return group.group_id;
   } catch {
-    // Group doesn't exist — create it
+    // Group doesn't exist — create it. Name "followers" → the API mints
+    // {provider}/groups/users/{creator}/followers, matching followersGroupId
+    // (creator == username). The owner's member_key is the BARE username —
+    // the API compares member_key to the JWT username, not a user_key.
     await w.createGroup(
-      `${username}/followers`,
+      'followers',
       'open',
       FOLLOWER_ROLES,
-      [{ member_key: `web10.app/users/${username}`, role: 'owner' }],
+      [{ member_key: username, role: 'owner' }],
     );
     return groupId;
   }
