@@ -36,6 +36,15 @@ export {
   isTokenExpired,
 } from './token'
 
+// Ad curation (D51) — the shared, deterministic dissemination helper
+export {
+  curateAds,
+  type AdDisseminationSetting,
+  type CurationState,
+  type CuratableAd,
+  type DisseminationMode,
+} from './curate'
+
 // HTTP
 export { Web10Error } from './http'
 

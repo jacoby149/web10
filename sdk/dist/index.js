@@ -106,7 +106,9 @@ function createV3Client(options = {}) {
       return;
     try {
       const token = state.token ?? readTokenCookie();
-      const body = { url: window.location.href.split(/[?#]/)[0] };
+      const rawUrl = window.location.href.split(/[?#]/)[0];
+      const url = rawUrl.replace(/\/index\.html$/, "/");
+      const body = { url };
       if (token)
         body.token = token;
       fetch(`${apiOrigin}/v3/apps/register`, {
@@ -420,12 +422,59 @@ function createV3Client(options = {}) {
   pingAppRegister();
   return client;
 }
+// src/curate.ts
+function curateAds(creatorAds, setting, state = {}) {
+  const active = creatorAds.filter((ad) => (ad.body?.status ?? "active") !== "paused");
+  if (active.length === 0)
+    return [];
+  const canonical = [...active].sort((a, b) => compareDocIds(a.doc_id, b.doc_id));
+  switch (setting.dissemination) {
+    case "pinned": {
+      const pinned = canonical.find((ad) => ad.doc_id === setting.pinnedDocId);
+      return pinned ? [pinned] : [];
+    }
+    case "frequency_capped": {
+      const cap = setting.cap ?? Number.POSITIVE_INFINITY;
+      const counts = state.shownCounts ?? {};
+      return canonical.filter((ad) => (counts[ad.doc_id] ?? 0) < cap);
+    }
+    case "greedy": {
+      const perf = state.performance;
+      const hasPerf = perf !== undefined && Object.keys(perf).length > 0;
+      if (!hasPerf) {
+        return rotate(canonical, state.lastShownDocId);
+      }
+      return [...canonical].sort((a, b) => {
+        const pa = perf[a.doc_id] ?? 0;
+        const pb = perf[b.doc_id] ?? 0;
+        if (pb !== pa)
+          return pb - pa;
+        return compareDocIds(a.doc_id, b.doc_id);
+      });
+    }
+    case "round_robin":
+    default:
+      return rotate(canonical, state.lastShownDocId);
+  }
+}
+function rotate(list, lastShownDocId) {
+  if (!lastShownDocId || list.length === 0)
+    return list;
+  const idx = list.findIndex((ad) => ad.doc_id === lastShownDocId);
+  if (idx === -1)
+    return list;
+  return list.slice(idx + 1).concat(list.slice(0, idx + 1));
+}
+function compareDocIds(a, b) {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
 export {
   setTokenCookie,
   scrubTokenCookie,
   readTokenCookie,
   isTokenExpired,
   decodeJwt,
+  curateAds,
   createV3Client,
   cookieDict,
   Web10Error
