@@ -340,7 +340,7 @@ test.describe('Profiles gauntlet — real flow + log sequence', () => {
     await createDoc(request, owner.token, 'posts', { text: postText, date: new Date().toISOString() }, [groupId, DISCOVER_GROUP_ID]);
 
     // The viewer follows the owner (joins the followers group) → can read.
-    const viewer = await signupAndLogin(request, 'profpubviewer');
+    const viewer = await signupAndLogin(request, 'profpubv');
     await addSocialAppContract(request, viewer.token);
     await joinGroup(request, viewer.token, groupId);
     await setTokenCookie(context, 'social.localhost', viewer.token);
@@ -371,7 +371,7 @@ test.describe('Profiles gauntlet — real flow + log sequence', () => {
     const postText = `deep link post ${Date.now()}`;
     const postId = await createDoc(request, owner.token, 'posts', { text: postText, date: new Date().toISOString() }, [groupId, DISCOVER_GROUP_ID]);
 
-    const viewer = await signupAndLogin(request, 'profdeepviewer');
+    const viewer = await signupAndLogin(request, 'profdeepv');
     await addSocialAppContract(request, viewer.token);
     await joinGroup(request, viewer.token, groupId);
     await setTokenCookie(context, 'social.localhost', viewer.token);
