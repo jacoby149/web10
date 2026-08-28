@@ -61,7 +61,16 @@ authenticator and social app are now tracked, masked); e2e /
 popups / opt-in tracking (the trade is terms-level: wrong platform if
 you're not ok with that); GA4 advertising features (feeds the ad
 machine — the one line we don't cross); selling telemetry to third
-parties (first-party properties only).
+ parties (first-party properties only).
+
+**Addendum (3.27.0) — the IDs are runtime-configurable, not baked in.**
+The GA4 measurement ID + Hotjar site ID live in `node_config`
+(ClickHouse), set in the Node Config UI (authenticator, admin-only).
+Each surface resolves them at page load via a public `GET /telemetry`
+endpoint (no token — the IDs are public identifiers, not secrets); the
+node is authoritative when reachable, the build-time env is the dev
+fallback. An operator changes the IDs live; it applies on the next
+page load, no rebuild. Blank = off.
 
 Full model: `knowledge-base/web10-v3/telemetry.md`.
 

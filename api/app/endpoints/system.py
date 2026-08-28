@@ -125,6 +125,28 @@ def patch_config(token: Token, update: ConfigUpdate):
     return {"status": "updated", "changed": list(changes.keys())}
 
 
+@router.get("/telemetry", tags=["system"])
+def telemetry_config():
+    """The node's telemetry IDs, for the frontends to install at runtime (D56).
+
+    Public — no token. GA4 measurement IDs and Hotjar site IDs are public
+    identifiers (they are embedded in every page's HTML for the scripts to
+    load); there is no secret here. CORS is wildcard on this node (the
+    security boundary is the token, not the origin), so every surface —
+    marketing site, social app, authenticator — can read this pre-login from
+    any origin.
+
+    The Node Config UI (admin) is where these are set; this endpoint is how
+    the values reach the client at runtime, so an operator can change the
+    IDs live without a rebuild. Empty string = that instrument is off.
+    """
+    cfg = config_svc.effective_config()
+    return {
+        "ga4_measurement_id": cfg.get("ga4_measurement_id") or "",
+        "hotjar_site_id": cfg.get("hotjar_site_id") or "",
+    }
+
+
 # --- Health ---
 
 

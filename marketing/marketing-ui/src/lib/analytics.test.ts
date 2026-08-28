@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { trackPageview, trackFunnel, reportError, installErrorBeacon, installGa4, installHotjar, hotjarIdentify } from './analytics'
+import { trackPageview, trackFunnel, reportError, installErrorBeacon, loadGa4, loadHotjar, resolveTelemetryIds, installTelemetry, hotjarIdentify } from './analytics'
 
 describe('analytics', () => {
   beforeEach(() => {
@@ -104,7 +104,7 @@ describe('analytics', () => {
     })
   })
 
-  describe('installGa4', () => {
+  describe('loadGa4', () => {
     let appendChildSpy: ReturnType<typeof vi.spyOn>
 
     beforeEach(() => {
@@ -112,25 +112,22 @@ describe('analytics', () => {
       delete (window as any).gtag
       document.head.querySelectorAll('script[src*="googletagmanager"]').forEach((s) => s.remove())
       appendChildSpy = vi.spyOn(document.head, 'appendChild')
-      vi.stubEnv('VITE_GA4_MEASUREMENT_ID', undefined)
     })
 
     afterEach(() => {
       appendChildSpy.mockRestore()
-      vi.unstubAllEnvs()
       delete (window as any).dataLayer
       delete (window as any).gtag
     })
 
-    it('is a no-op when VITE_GA4_MEASUREMENT_ID is not set', () => {
-      installGa4()
+    it('is a no-op for an empty measurement ID', () => {
+      loadGa4('')
       expect(appendChildSpy).not.toHaveBeenCalled()
       expect((window as any).gtag).toBeUndefined()
     })
 
-    it('loads the GA4 script when the measurement ID is set', () => {
-      vi.stubEnv('VITE_GA4_MEASUREMENT_ID', 'G-MKT123')
-      installGa4()
+    it('loads the GA4 script for the given ID', () => {
+      loadGa4('G-MKT123')
       expect(appendChildSpy).toHaveBeenCalledTimes(1)
       const script = appendChildSpy.mock.calls[0][0] as HTMLScriptElement
       expect(script.src).toBe('https://www.googletagmanager.com/gtag/js?id=G-MKT123')
@@ -138,46 +135,40 @@ describe('analytics', () => {
     })
 
     it('sets up dataLayer and gtag', () => {
-      vi.stubEnv('VITE_GA4_MEASUREMENT_ID', 'G-MKT456')
-      installGa4()
+      loadGa4('G-MKT456')
       expect((window as any).gtag).toBeDefined()
       expect(Array.isArray((window as any).dataLayer)).toBe(true)
     })
 
     it('only installs once (idempotent)', () => {
-      vi.stubEnv('VITE_GA4_MEASUREMENT_ID', 'G-MKT789')
-      installGa4()
-      installGa4()
+      loadGa4('G-MKT789')
+      loadGa4('G-OTHER')
       expect(appendChildSpy).toHaveBeenCalledTimes(1)
     })
   })
 
-  describe('installHotjar', () => {
+  describe('loadHotjar', () => {
     let appendChildSpy: ReturnType<typeof vi.spyOn>
 
     beforeEach(() => {
       delete (window as any).hj
-      delete (window as any).hjs
       document.head.querySelectorAll('script[src*="hotjar"]').forEach((s) => s.remove())
       appendChildSpy = vi.spyOn(document.head, 'appendChild')
-      // Clear env before each test
-      vi.stubEnv('VITE_HOTJAR_SITE_ID', undefined)
     })
 
     afterEach(() => {
       appendChildSpy.mockRestore()
-      vi.unstubAllEnvs()
+      delete (window as any).hj
     })
 
-    it('is a no-op when VITE_HOTJAR_SITE_ID is not set', () => {
-      installHotjar()
+    it('is a no-op for a zero site ID', () => {
+      loadHotjar(0)
       expect(appendChildSpy).not.toHaveBeenCalled()
       expect((window as any).hj).toBeUndefined()
     })
 
-    it('loads the Hotjar script when site ID is set', () => {
-      vi.stubEnv('VITE_HOTJAR_SITE_ID', '12345')
-      installHotjar()
+    it('loads the Hotjar script for the given ID', () => {
+      loadHotjar(12345)
       expect(appendChildSpy).toHaveBeenCalledTimes(1)
       const script = appendChildSpy.mock.calls[0][0] as HTMLScriptElement
       expect(script.src).toBe('https://static.hotjar.com/c/hotjar-12345.js?sv=6')
@@ -185,22 +176,66 @@ describe('analytics', () => {
     })
 
     it('initialises with full content masking (D56: text blurred, images blocked)', () => {
-      vi.stubEnv('VITE_HOTJAR_SITE_ID', '12345')
-      installHotjar()
+      loadHotjar(12345)
       expect((window as any).hj.q).toContainEqual(['init', { hjid: 12345, maskAllText: true, blockAllImages: true }])
     })
 
-    it('sets up the hj.q queue array', () => {
-      vi.stubEnv('VITE_HOTJAR_SITE_ID', '12345')
-      installHotjar()
-      expect(Array.isArray((window as any).hj.q)).toBe(true)
+    it('only installs once (idempotent)', () => {
+      loadHotjar(12345)
+      loadHotjar(99999)
+      expect(appendChildSpy).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  describe('resolveTelemetryIds', () => {
+    afterEach(() => {
+      vi.unstubAllGlobals()
+      vi.unstubAllEnvs()
     })
 
-    it('only installs once (idempotent)', () => {
-      vi.stubEnv('VITE_HOTJAR_SITE_ID', '12345')
-      installHotjar()
-      installHotjar()
-      expect(appendChildSpy).toHaveBeenCalledTimes(1)
+    it('prefers the node config when the node is reachable', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ ga4_measurement_id: 'G-NODE', hotjar_site_id: '777' }),
+      }))
+      vi.stubEnv('VITE_GA4_MEASUREMENT_ID', 'G-ENV')
+      vi.stubEnv('VITE_HOTJAR_SITE_ID', '555')
+      const ids = await resolveTelemetryIds()
+      expect(ids).toEqual({ ga4: 'G-NODE', hotjar: 777 })
+    })
+
+    it('falls back to env when the node is unreachable', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+      vi.stubEnv('VITE_GA4_MEASUREMENT_ID', 'G-ENV')
+      vi.stubEnv('VITE_HOTJAR_SITE_ID', '555')
+      const ids = await resolveTelemetryIds()
+      expect(ids).toEqual({ ga4: 'G-ENV', hotjar: 555 })
+    })
+
+    it('returns empty IDs when neither node nor env configure them', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+      const ids = await resolveTelemetryIds()
+      expect(ids).toEqual({ ga4: '', hotjar: 0 })
+    })
+  })
+
+  describe('installTelemetry', () => {
+    afterEach(() => {
+      vi.unstubAllGlobals()
+      delete (window as any).gtag
+      delete (window as any).hj
+      delete (window as any).dataLayer
+    })
+
+    it('loads both instruments when the node configures them', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ ga4_measurement_id: 'G-NODE', hotjar_site_id: '777' }),
+      }))
+      installTelemetry()
+      await new Promise((r) => setTimeout(r, 0))
+      expect((window as any).gtag).toBeDefined()
+      expect((window as any).hj).toBeDefined()
     })
   })
 

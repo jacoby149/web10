@@ -5,15 +5,15 @@ import App from './App.tsx'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ReportBug } from './components/ReportBug'
 import { Button } from './components/ui/button'
-import { trackPageview, installErrorBeacon, installGa4, installHotjar } from './lib/analytics'
+import { trackPageview, installErrorBeacon, installTelemetry } from './lib/analytics'
 import './index.css'
 
 // Install JS error beacon (window.onerror + unhandledrejection)
 installErrorBeacon()
 
-// D56: full-platform telemetry — GA4 + masked Hotjar (content-blind).
-installGa4()
-installHotjar()
+// D56: full-platform telemetry — GA4 + masked Hotjar (content-blind). IDs
+// resolved at runtime from the node (GET /telemetry), env fallback in dev.
+installTelemetry()
 
 function AnalyticsTracker() {
   const location = useLocation()

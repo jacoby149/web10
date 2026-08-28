@@ -6,11 +6,11 @@ import '@fontsource-variable/inter/standard.css';
 import '@fontsource-variable/space-grotesk';
 import './index.css';
 import App from './App';
-import { installGa4, installHotjar, trackPageview } from './lib/analytics';
+import { installTelemetry, trackPageview } from './lib/analytics';
 
-// D56: full-platform telemetry — GA4 + masked Hotjar (content-blind).
-installGa4();
-installHotjar();
+// D56: full-platform telemetry — GA4 + masked Hotjar (content-blind). IDs
+// resolved at runtime from the node (GET /telemetry), env fallback in dev.
+installTelemetry();
 
 function AnalyticsTracker() {
   const location = useLocation();

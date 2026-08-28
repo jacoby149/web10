@@ -85,6 +85,11 @@ def effective_config() -> dict:
         "stripe_test_key": s.STRIPE_TEST_KEY,
         "stripe_live_key": s.STRIPE_LIVE_KEY,
         "dev_pay_pct": _as_int(s.DEV_PAY_PCT),
+        # Telemetry (D56) — public analytics IDs, admin-set in the Node
+        # Config UI. No settings.py default (empty = tracking off); the
+        # saved node_config is the only source. Served via GET /telemetry.
+        "ga4_measurement_id": "",
+        "hotjar_site_id": "",
         "brand_text": "web10",
         "logo_dark": "",
         "logo_light": "",
