@@ -199,16 +199,34 @@ The decision bite gated the seam bites — docs first.
 - [ ] Video: hls.js player for video posts in the feed (Safari native fallback, vendored hls.js) — moved from the `hls` lane
 
 ### Lane: social-e2e (Phase 3)
-**Owns:** `e2e/tests/`
+**Owns:** `e2e/tests/` — each bite owns its own spec file, so the bites
+parallelize across workspaces (breadth, not depth).
 
-The retired social specs (3.0.61) are the rewrite path. Same pattern as
-the demo specs: API floor + anti-tests + browser gauntlet with
-log-sequence verification. The browser gauntlet bites are gated on the
-`social-v3` auth bites — they drive the real D42 popup.
+The social app is the integration test (Phase 3). The retired social specs
+(3.0.61: `social-post-feed`, `social-full`, `gauntlet`) are the rewrite
+path. Same pattern as the demo specs: API floor + anti-tests + browser
+gauntlet with log-sequence verification. **Organized by surface, not by
+test layer** — each surface is an independent spec (separate route,
+separate `src/data/` module, no shared code under test), so six workspaces
+can run six specs at once. The only shared seam is login (the D42 popup) —
+already torture-tested by `authenticator-torture` + `auth-popup-roundtrip`
+(gate cleared, 3.11.0); each spec uses it as infrastructure, never
+re-tests it. The platform-primitive API floors already live in the demo
+specs (`feed-demo` = multi-group read, `groups-demo` = group lifecycle,
+`messages-demo` = DM CRUD, `sharing-demo` = block/share) — the social API
+floors stay thin: they pin the app's exact read pattern (what the app
+actually queries), not a re-proof of the primitive. I3 anti-tests are
+per-surface: each spec proves isolation for its own surface. The discover
+board is a shared node default — posts to it get contains-assertions, not
+exact counts (the `feed-demo` pattern).
 
-- [ ] API floor: signup → login → post → feed → DM → profile + I3 cross-user isolation
-- [ ] Browser gauntlet: real D42 login → feed renders → post → reload persists (gated on `social-v3` auth)
-- [ ] Browser gauntlet: two-user DM round-trip (gated on `social-v3` auth)
+- [ ] Feed (`e2e/tests/social-feed.spec.ts`) — API floor: the app's exact feed read (discover + followers multi-group, sort config) + I3 (a non-follower's group post is absent). Browser gauntlet: real D42 login → feed renders → post → reload persists.
+- [ ] Groups (`e2e/tests/social-groups.spec.ts`) — the app's groups surface: follows (followers groups) as the app drives them — follow → the creator's posts enter the feed → unfollow → they leave. API floor: the follow/unfollow group ops + the feed-read delta. Browser gauntlet: follow/unfollow through the app, feed reflects it. (Group *management* — create/roles/invite — is the authenticator + marketing directory surface; its floors live in `groups-demo`.)
+- [ ] Profiles (`e2e/tests/social-profile.spec.ts`) — API floor: profile doc + posts read + follower count; I3 (a stranger's private data is not readable). Browser gauntlet: own profile (edit persists) + another user's public profile + the `/u/:username/p/:postId` deep link.
+- [ ] Messages (`e2e/tests/social-messages.spec.ts`) — API floor: DM group contract + CRUD (deterministic DM group ID). Browser gauntlet: two-user DM round-trip through the app (send → receive → reply).
+- [ ] Settings (`e2e/tests/social-settings.spec.ts`) — API floor: settings doc read/write round-trip. Browser gauntlet: change a setting → persists across reload + sign-out/sign-in.
+- [ ] Trending (`e2e/tests/social-trending.spec.ts`) — the `/discover` board surface (the in-app trending: D36 knobs over the node-default discover group). API floor: anon board read + engagement counts. Browser gauntlet: the board renders seeded posts, the knobs re-rank, deep-linkable state. (Complements the `discover-board` lane's board gauntlet — that one owns the moderation ops: seed → anon read → hide/restore round-trip.)
+- [ ] Capstone gauntlet (`e2e/tests/social-gauntlet.spec.ts`) — one journey across all screens (login → feed → post → profile → DM → follow → settings → reload), log-sequence verified. **Gated on all six surface specs above.**
 
 ### Lane: discover-board (Phase 3)
 **Owns:** `api/app/v3/` (discover group + board read + admin discovery), `persona-orchestration/`, `marketing/marketing-ui/src/components/FeedPreview.tsx` + `src/pages/Trending.tsx`, `ui/src/components/Config/ConfigPage.tsx`
