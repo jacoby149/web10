@@ -378,9 +378,12 @@ test.describe('Profiles gauntlet — real flow + log sequence', () => {
     await setTokenCookie(context, 'auth.localhost', viewer.token);
     await settle();
 
-    // Deep link straight to the post — the lightbox opens on the post.
+    // Deep link straight to the post — the lightbox opens on the post. Scope the
+    // post-text check to the lightbox (the post also appears in the profile grid
+    // behind it, which would trip strict mode).
     await page.goto(`${SOCIAL_BASE}/u/${owner.username}/p/${postId}`);
     await page.waitForLoadState('networkidle');
-    await expect(page.getByText(postText, { exact: false })).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="post-lightbox"]')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="post-lightbox"]').getByText(postText, { exact: false })).toBeVisible();
   });
 });
