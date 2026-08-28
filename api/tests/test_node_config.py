@@ -345,10 +345,7 @@ class TestTelemetryConfigFields:
         assert set(resp.json()["changed"]) == {"ga4_measurement_id", "hotjar_site_id"}
         # the merged body was persisted with the new IDs — find the
         # node_config insert and check its body column (index 1 of the row).
-        node_inserts = [
-            c for c in mock_ch.insert.call_args_list
-            if c[0] and c[0][0] == "node_config"
-        ]
+        node_inserts = [c for c in mock_ch.insert.call_args_list if c[0] and c[0][0] == "node_config"]
         assert node_inserts, "expected a node_config insert"
         row = node_inserts[-1][0][1][0]
         inserted = json.loads(row[1])
