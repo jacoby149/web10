@@ -160,10 +160,12 @@ lane is `app-store-metrics` in `parallel-execution.md`.
 Groups get a store: a public, anon-browsable directory of the groups that
 are listed, plus a flexible by-ID detail. Two orthogonal controls (D53): a
 **`discoverable` boolean** on `group_contracts` is the *blasting* flag (listed
-in the directory or not) — **discoverable by default** (default `true`),
-except `invite_only` groups (default `false`, inherently private) and the
-discover group (explicit `false`, a board not a directory entry);
-**membership** controls whether a reader can see the posts (I3). The
+in the directory or not) — **NOT discoverable by default** (default `false`,
+the D53 amendment: listing is an opt-in; app-backend groups stay out unless an
+owner blasts them) — the discover group is explicitly `false` (a board, not a
+directory entry); **membership** controls whether a reader can see the posts
+(I3). A one-time, sentinel-gated backfill delists groups created under the
+earlier discoverable-by-default rule. The
 directory is a **minimal, canonical view** (no dedicated table) over
 `group_contracts` ⋈ `group_members` ⋈ `group-identity-service`; rich display
 metadata — including **tags** for topic — lives in `group-identity-service`,
@@ -171,6 +173,11 @@ and topic search is a **composition** (the app joins the directory with an
 identity query). The **detail** is a flexible, principal-based read
 (unlisted-model): reachable for any existing group, posts gated by the
 *reader's* membership, only a non-existent group 404s. I3 holds end to end.
+
+- [✓] **D53 amendment: NOT discoverable by default** (`api/app/v3/services/clickhouse.py`, `clickhouse-init/`, `knowledge/strategy/decisions.md`, `groups/discoverability.md`) — `create_group` defaults `discoverable` to `False` for every join policy (listing is an opt-in; the `invite_only` special-case is subsumed); DDL default flips to `0` (template + boot `ALTER`); the node stays readable-by-design (the detail is still unlisted-model — only the browse surface is opt-in).
+- [✓] **Backfill (one-time, sentinel-gated)** (`api/app/v3/services/clickhouse.py`) — `_migrate_discoverable_default_flip` delists groups created under the earlier discoverable-by-default rule (appends a `discoverable = 0` row per live listed group); runs exactly once (a `node_config` sentinel `migration:discoverable_default_flip`); only ever moves groups OUT of the directory (membership untouched); concurrent-safe (duplicate rows dedup to one).
+- [✓] **Contract policy editors work (authenticator)** (`ui/src/components/Groups/`) — the "Settings" TODO becomes a real `GroupSettingsDialog` join-policy editor (Open/Request/Invite-only → `v3UpdateGroup({join_policy})`); the roles editor (`GroupRolesDialog`) + "List in directory" (`discoverable`) toggle verified end-to-end. All three contract controls (roles, join_policy, discoverable) work through the real UI → `POST /v3/groups/update` → persisted. `groupDisplayName` bug fixed (returned `users/<username>`, now the slug).
+- [✓] **Torture tests** (`e2e/tests/group-contract-editors.spec.ts`, 11 tests) — API floor (join_policy/roles/discoverable update persists; I3 anti-test: non-member update rejected, the `CRUD` 401) + browser gauntlet (join-policy change → persisted + badge; cancel fork; save-failure fork → status-bar error, no crash; roles add → persisted; empty-role-name anti-test; discoverable toggle ON → listed / OFF → delisted in the anon directory). Every browser test asserts no pageerror.
 
 - [✓] **Decision: D53** (`knowledge/strategy/decisions.md`) — `discoverable` boolean (blasting flag, **default `true`**, `invite_only` + discover group `false`) is separate from membership (content readability); directory = minimal canonical view (no table); detail = flexible principal-based read (unlisted-model, no 404 for non-discoverable); display metadata + tags in `group-identity-service`; topic search by composition; I3 holds end to end.
 - [✓] **KB** (`knowledge-base/web10-v3/groups/discoverability.md` + `detail.md`) — discoverability.md: the two controls, the discoverable-by-default rule, the minimal directory (view, not table), `group-identity-service` (name/banner/tags), composition-based topic search, security invariants. detail.md: the unlisted model, the listing/reachability/content split, the principal-based read, metadata vs posts, why no constrained detail, security invariants.

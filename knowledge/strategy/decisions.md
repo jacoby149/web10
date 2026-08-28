@@ -146,21 +146,27 @@ policy, it is just if the group is blasted is the discover. kind of like
 unlisted youtube video." — then, on the directory shape: "the apps can go
 crazy with it, enriching the minimal thing… the group dir could be joined
 with the .query to the social group identity service stuff and then the
-search could happen, making it more flexible."
+search could happen, making it more flexible." — then, **amending the default**
+after seeing every app-backend group (notes, messages, DMs) flood the
+directory: "in the group discover i am seeing all the groups. i think groups
+sshould default not discover, in these demo apps like notes etc, messages,
+where it is a backend thing for an app, why should that be in the discover
+tab."
 
 **Decided** —
 
 1. **Two controls, two decisions.** Listing a group in the directory and
    letting a reader read its posts are *different* decisions, so they get
    *different* controls:
-   - **`discoverable`** — a boolean on `group_contracts`, owner-set.
-     **Defaults to `true`** (discoverable by default, per the operator) —
-     *except* `invite_only` groups, which default to `false` (inherently
-     private: DMs, private circles), and the node-default discover group,
-     which is explicitly `false` (a board, not a directory entry). It is a
-     **blasting** flag — it controls **listing only** (whether the group is
-     advertised in the directory). It never gates the detail and never gates
-     content.
+- **`discoverable`** — a boolean on `group_contracts`, owner-set.
+      **Defaults to `false`** (NOT discoverable by default, per the operator's
+      amendment) — a group is listed in the directory only when its owner
+      explicitly opts it in (`discoverable = true`). This subsumes the earlier
+      `invite_only` special-case (DMs, private circles are now out by the same
+      default), and the node-default discover group is explicitly `false`
+      (a board, not a directory entry). It is a **blasting** flag — it
+      controls **listing only** (whether the group is advertised in the
+      directory). It never gates the detail and never gates content.
    - **membership** — on `group_members`. Controls **content readability**:
      a reader with `readAll` on the service sees the group's posts.
      Independent of `discoverable`. (For the anon reader specifically, this is
@@ -207,10 +213,13 @@ listing is an owner choice about *visibility* (a new field, default on —
 discoverable by default), readability is a *membership* permission (the
 machinery that already enforces I3 for every other member). I3 still holds end
 to end — the directory exposes only metadata for groups that are listed, and
-the detail returns posts only to a reader who is a member. The default-on
-choice matches the node-readable-by-design stance (D41) and the
-public-by-default posts: a new group is findable unless its owner (or its
-`invite_only` nature) says otherwise. The detail is deliberately *looser* than
+the detail returns posts only to a reader who is a member. The default-off
+choice (the amendment) keeps the directory a curated surface: app-backend
+groups (notes, messages, DMs) are infrastructure the apps create on the user's
+behalf, not communities meant to be browsed, so they stay out unless an owner
+deliberately blasts them. The node stays readable-by-design (D41) — the detail
+is still a principal-based read any app can use for any group (unlisted-model)
+— but the *browse* surface is opt-in. The detail is deliberately *looser* than
 the app store's (which 404s unapproved apps): a group's content is already
 membership-gated, so the detail is a principal-based read any app can use for
 any group — unlisted-model, like an unlisted video. And the directory stays

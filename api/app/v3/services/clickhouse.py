@@ -106,9 +106,10 @@ def ensure_apps_schema():
             " TTL toDateTime(seen_at) + INTERVAL 2 YEAR"
         )
         # group_contracts.discoverable — the group directory listing switch
-        # (D53). Pre-existing volumes predate the column; ADD COLUMN appends
-        # it at the end, which is why group inserts name their columns.
-        client.command("ALTER TABLE group_contracts ADD COLUMN IF NOT EXISTS discoverable UInt8 DEFAULT 1")
+        # (D53, amended: NOT discoverable by default). Pre-existing volumes
+        # predate the column; ADD COLUMN appends it at the end, which is why
+        # group inserts name their columns.
+        client.command("ALTER TABLE group_contracts ADD COLUMN IF NOT EXISTS discoverable UInt8 DEFAULT 0")
         # group_identity — public display metadata for a group (D53). The
         # single home for how a group presents itself in the directory and its
         # detail (name, description, banner, avatar, website, tags). Pre-existing
@@ -126,6 +127,9 @@ def ensure_apps_schema():
         # Data migration (idempotent): re-home demo apps registered under
         # their directory-index file URLs onto their directory URLs.
         _migrate_file_index_app_rows()
+        # Data migration (one-time, sentinel-gated): delist groups created
+        # under the earlier discoverable-by-default rule (D53 amendment).
+        _migrate_discoverable_default_flip()
     except Exception as e:
         # ClickHouse not up yet, or table missing (fresh volume mid-init).
         # The DDL template covers fresh volumes; log and move on.
@@ -205,6 +209,52 @@ def _migrate_file_index_app_rows() -> None:
             )
         _tombstone_app_row(old_url)
         log.info(f"[v3] re-homed app {old_url} -> {new_url}")
+
+
+# Sentinel config_id in node_config marking the discoverable-default flip
+# backfill as done (D53 amendment).
+_DISCOVERABLE_FLIP_SENTINEL = "migration:discoverable_default_flip"
+
+
+def _migrate_discoverable_default_flip() -> None:
+    """One-time, sentinel-gated data migration (D53 amendment).
+
+    Groups created under the earlier discoverable-by-default rule carry
+    ``discoverable = 1``. The amendment makes listing an opt-in (default
+    ``False``), so those pre-existing groups are delisted to match. This
+    appends a ``discoverable = 0`` row for every live group currently listed
+    (the ReplacingMergeTree dedup-then-filter read picks the newer row).
+
+    Runs exactly once: a ``node_config`` sentinel marks completion, so later
+    boots never re-run it — and never nuke a group an owner has explicitly
+    opted in *after* the flip. Safe under concurrent gunicorn workers: a
+    duplicate run appends identical ``discoverable = 0`` rows (dedup hides all
+    but one) and duplicate sentinel rows (dedup hides all but one). Only ever
+    moves groups OUT of the directory — membership (content access) is
+    untouched.
+    """
+    done = client.query(
+        "SELECT 1 FROM node_config WHERE config_id = %(sentinel)s AND deleted = 0 LIMIT 1",
+        {"sentinel": _DISCOVERABLE_FLIP_SENTINEL},
+    )
+    if done.result_rows:
+        return
+    # Delist every live group currently listed (discoverable = 1).
+    client.command(
+        "INSERT INTO group_contracts (group_id, roles, join_policy, discoverable, created_at, updated_at, deleted) "
+        "SELECT group_id, roles, join_policy, 0, created_at, now64(6), 0 "
+        "FROM (SELECT group_id, roles, join_policy, discoverable, created_at, updated_at, deleted, "
+        "row_number() OVER (PARTITION BY group_id ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM group_contracts) "
+        "WHERE rn = 1 AND deleted = 0 AND discoverable = 1"
+    )
+    # Set the sentinel so this never runs again.
+    client.insert(
+        "node_config",
+        [[_DISCOVERABLE_FLIP_SENTINEL, _json({"done": True}), _now(), 0]],
+        column_names=["config_id", "body", "updated_at", "deleted"],
+    )
+    log.info("[v3] discoverable-default flip backfill applied (pre-existing groups delisted)")
 
 
 # ---------------------------------------------------------------------------
@@ -503,13 +553,13 @@ def get_doc_groups(doc_id: str) -> list[str]:
 def create_group(group_id: str, roles: list[dict], join_policy: str, discoverable: bool | None = None) -> dict:
     """Create a group contract.
 
-    ``discoverable`` (D53) lists the group in the public directory. It
-    defaults to ``True`` — groups are discoverable by default — except
-    ``invite_only`` groups, which default to ``False`` (inherently private:
-    DMs, private circles). Pass ``discoverable`` explicitly to override.
+    ``discoverable`` (D53, amended) lists the group in the public directory.
+    It defaults to ``False`` — groups are NOT discoverable by default; listing
+    is an opt-in the owner makes explicitly. Pass ``discoverable=True`` to list
+    the group in the directory.
     """
     if discoverable is None:
-        discoverable = join_policy != "invite_only"
+        discoverable = False
     now = _now()
     client.insert(
         "group_contracts",

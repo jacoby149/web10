@@ -2,7 +2,7 @@
 
 A group is **discoverable** when it is listed in the public, anon-browsable group directory. Discoverability is an owner choice about **visibility** — it is a `discoverable` boolean on the group's contract, and it is a *separate* decision from whether a reader can see the group's posts.
 
-**Groups are discoverable by default.** A new group is listed in the directory unless its owner sets `discoverable = false` — or unless the group is `invite_only` (which defaults to `false`, since invite-only groups are inherently private: DMs, private circles). The node-default discover group is explicitly `discoverable: false` (it's a board, not a directory entry). This matches the node-readable-by-design stance (D41) and the public-by-default posts.
+**Groups are NOT discoverable by default.** A new group is *not* listed in the directory unless its owner explicitly opts it in (`discoverable = true`). This is the operator's amendment to D53: app-backend groups (notes, messages, DMs, private circles) are infrastructure the apps create on the user's behalf, not communities meant to be browsed, so they stay out of the directory by default. The node-default discover group is explicitly `discoverable: false` (it's a board, not a directory entry). The node stays readable-by-design (D41) — the *detail* (by-ID read) is still open to any principal (unlisted-model, `detail.md`) — but the *browse* surface (the directory) is opt-in.
 
 This doc is about the **directory** (the list) and the `discoverable` flag. The **detail** (reading a specific group by ID) is a separate, flexible surface — see `detail.md`. The two share the flag only in that the directory *filters on it*; the detail ignores it.
 
@@ -24,12 +24,9 @@ reader can read posts ⟺  reader ∈ members(group)   (with readAll)   — see 
 
 ## How a Group Gets Listed
 
-Groups are **discoverable by default** — a new `open` or `request` group is listed in the directory the moment it's created. The owner can delist it by setting `discoverable = false` (through the existing group-update path — no dedicated opt-in endpoint). In the authenticator that is a "List in directory" toggle (on by default).
+Groups are **NOT discoverable by default** — a new group (any join policy) is *not* listed in the directory the moment it's created. Listing is an **opt-in**: the owner sets `discoverable = true` (through the existing group-update path — no dedicated opt-in endpoint). In the authenticator that is a "List in directory" toggle (off by default).
 
-Two defaults keep private groups out automatically, with no owner action:
-
-- **`invite_only` groups default to `discoverable = false`** — DMs and private circles are inherently private, so they never appear in the directory unless the owner explicitly lists them.
-- **The discover group is `discoverable = false`** — `ensure_discover_group()` enrolls `anon` (anon-readable board) but sets `discoverable: false` (not a directory entry).
+There is no longer a separate `invite_only` special-case: *all* groups default to `discoverable = false`, so private groups (DMs, circles) are out by the same default. The discover group is also explicitly `discoverable = false` — `ensure_discover_group()` enrolls `anon` (anon-readable board) but the board is not a directory entry.
 
 The "List in directory" toggle (in the authenticator's group management) controls **`discoverable` only** — the blasting flag. It does *not* touch `anon` membership: content readability is a separate action (the owner adds `anon` via Manage members). Keeping the two controls separate in the UI matches the two-controls model — one switch for "is it advertised," one for "can anon read it."
 
@@ -107,6 +104,8 @@ The discover group (`web10.app/groups/web10/discover`) is anon-readable but **no
 
 ## Summary
 
-A group is listed in the directory when `discoverable = true` — the default for `open`/`request` groups, `false` by default for `invite_only` groups and the discover group. The directory is a **minimal, canonical view** over `group_contracts` + `group_members` + `group_identity` (no dedicated directory table). Rich display metadata — including **tags** for topic — lives in the public `group_identity` table; the directory includes each group's tags so apps can filter by topic client-side (a server-side `?tag=` filter is a possible fast-follow). The **detail** is a separate, flexible, principal-based read (unlisted-model) — see `detail.md`. `discoverable` is a blasting flag; membership is the read switch; the two are orthogonal.
+A group is listed in the directory when `discoverable = true` — an **opt-in** (the default is `false` for every group, including the discover group). The directory is a **minimal, canonical view** over `group_contracts` + `group_members` + `group_identity` (no dedicated directory table). Rich display metadata — including **tags** for topic — lives in the public `group_identity` table; the directory includes each group's tags so apps can filter by topic client-side (a server-side `?tag=` filter is a possible fast-follow). The **detail** is a separate, flexible, principal-based read (unlisted-model) — see `detail.md`. `discoverable` is a blasting flag; membership is the read switch; the two are orthogonal.
+
+**Backfill (one-time):** groups created under the earlier discoverable-by-default rule (D53, before the amendment) carry `discoverable = 1`. A one-time, sentinel-gated boot migration delists them (appends a `discoverable = 0` row per live group) so the directory reflects the opt-in model. It runs exactly once (a `node_config` sentinel marks completion) and only ever moves groups *out* of the directory — it never breaks content access (membership is untouched).
 
 For the detail (the by-ID read), see `detail.md`. For the generic group model, see `overview.md`. For the discover group contract, see `social-contracts.md` §1. For the group-identity role, see `identity.md`.
