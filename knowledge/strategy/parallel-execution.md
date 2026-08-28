@@ -222,7 +222,7 @@ exact counts (the `feed-demo` pattern).
 
 - [✓ 3.26.0] Feed (`e2e/tests/social-feed.spec.ts`) — API floor: the app's exact feed read (discover + followers multi-group, sort config) + I3 (a non-follower's group post is absent). Browser gauntlet: real D42 login → feed renders → post → reload persists.
 - [✓ 3.25.1] Groups (`e2e/tests/social-groups.spec.ts`) — the app's groups surface: follows (followers groups) as the app drives them — follow → the creator's posts enter the feed → unfollow → they leave. API floor: the follow/unfollow group ops + the feed-read delta. Browser gauntlet: follow/unfollow through the app, feed reflects it. (Group *management* — create/roles/invite — is the authenticator + marketing directory surface; its floors live in `groups-demo`.)
-- [ ] Profiles (`e2e/tests/social-profile.spec.ts`) — API floor: profile doc + posts read + follower count; I3 (a stranger's private data is not readable). Browser gauntlet: own profile (edit persists) + another user's public profile + the `/u/:username/p/:postId` deep link.
+- [✓ 3.26.3] Profiles (`e2e/tests/social-profile.spec.ts`) — API floor: profile doc + posts read + follower count; I3 (a stranger's private data is not readable). Browser gauntlet: own profile (edit persists) + another user's public profile + the `/u/:username/p/:postId` deep link.
 - [✓ 3.25.2] Messages (`e2e/tests/social-messages.spec.ts`) — API floor: DM group contract + CRUD (deterministic DM group ID). Browser gauntlet: two-user DM round-trip through the app (send → receive → reply).
 - [✓ 3.25.3] Settings (`e2e/tests/social-settings.spec.ts`) — API floor: settings doc read/write round-trip. Browser gauntlet: change a setting → persists across reload + sign-out/sign-in.
 - [✓ 3.26.2] Trending (`e2e/tests/social-trending.spec.ts`) — the `/discover` board surface (the in-app trending: D36 knobs over the node-default discover group). API floor: anon board read + engagement counts. Browser gauntlet: the board renders seeded posts, the knobs re-rank, deep-linkable state. (Complements the `discover-board` lane's board gauntlet — that one owns the moderation ops: seed → anon read → hide/restore round-trip.)
@@ -342,3 +342,22 @@ panel is the node's control surface — it must show what the node
 actually runs, and every control on it must work.
 
 - [✓ 3.16.0] Node Config: effective config in the form (settings defaults ← saved overlay — no more blanks; ClickHouse URL + MinIO values default to the docker-network settings) + field trimming (Node Identity → provider/CORS/token-expiry; Stripe → mode + keys) + the dead Save button fixed (PATCH /config 405 → POST /config/update)
+
+### Lane: platform-telemetry (D56)
+**Owns:** `marketing/marketing-ui/src/lib/analytics.ts`, `marketing/web10-social/src/lib/analytics.ts`, `ui/src/lib/analytics.ts`, the three frontends' `main.tsx` + `Dockerfile`, `ubuntu-deployment/docker-compose.ecosystem.yml` (frontend build args), `knowledge/knowledge-base/web10-v3/telemetry.md`
+
+Full-platform telemetry (D56): GA4 + Hotjar on every user-facing
+surface, the recording content-blind by construction (maskAllText +
+blockAllImages), GA4 events content-free by convention, max tracking
+with `advertising_id: 'OFF'` as the single kept flag. The trade is
+terms-level, not a consent popup. Supersedes the old "platform surfaces
+stay recording-free" rule. The KB is the spec — read it first:
+`knowledge/knowledge-base/web10-v3/telemetry.md`.
+
+- [✓ 3.27.1] Decision: D56 (`knowledge/strategy/decisions.md`) — every surface tracked; recording content-blind by construction; GA4 events content-free by convention; `advertising_id: 'OFF'` kept; the trade is terms-level
+- [✓ 3.27.1] KB: `knowledge-base/web10-v3/telemetry.md` — the why (compete with Meta/TikTok on UX), the use case, the technical how (GA4 + masked Hotjar, env-gated, per-app `src/lib/analytics.ts`), the line it does not cross, logistics
+- [✓ 3.27.1] Build: all three surfaces — web10-social gains masked Hotjar (GA4 already there, max-tracking config); marketing-ui gains GA4 (in-house beacon + Hotjar already there, Hotjar moved to the canonical masked init); the authenticator gains both (new `ui/src/lib/analytics.ts` + initial pageview — query-parameter-driven, no router); `hotjarIdentify(username)` on login in web10-social; unit tests per app (no-op without env, script load, masking config pinned, idempotency, identify)
+- [✓ 3.27.1] Deploy wiring: `VITE_GA4_MEASUREMENT_ID` + `VITE_HOTJAR_SITE_ID` baked at build time — Dockerfile ARG/ENV on all three frontends, compose passes `GA4_MEASUREMENT_ID` / `HOTJAR_SITE_ID` per environment (empty = tracking off), env examples updated
+- [✓ 3.27.2] Positioning realignment: the docs stop reading "anti-analytics" — thesis.md gains the "and it tracks hard (D56)" section; the manifesto's "nobody is mining you" is narrowed to content (never scanned/sold/fed to the ad machine) + the candid telemetry parenthetical; AGENTS.md gains the Telemetry (D56) operating rule; the README premise table gains the "Built like the best, owned like yours" row; design.md drops the stale "privacy-first" justifications
+- [✓ 3.27.3] Runtime-configurable IDs: the GA4/Hotjar IDs live in `node_config` (ClickHouse), set in the Node Config UI (Telemetry card), resolved at page load via a public `GET /telemetry` (node authoritative, build-time env is the dev fallback) — no rebuild to change them. Also fixed the Node Config save (flat body vs the API's `{token:{token}, update:{...}}` — every save 422'd)
+- [ ] Terms copy: the tracking disclosure on the marketing site (the "wrong platform for you if you arent ok with that" line) — gated on a terms surface existing (there is no terms page yet)

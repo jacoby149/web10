@@ -270,3 +270,84 @@ class TestGetConfigEndpoint:
                 resp = tc.post("/config", json={"token": token})
         assert resp.status_code == 403
         assert "s3_secret_key" not in (resp.json() or {})
+
+
+class TestTelemetryEndpoint:
+    """GET /telemetry — the node's telemetry IDs (D56), served to every
+    surface at runtime so the admin can change them live without a rebuild.
+    Public: GA4/Hotjar IDs are public identifiers, no token, no secret."""
+
+    def test_public_no_token(self, client):
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.return_value = _config_result(None)
+            resp = client.get("/telemetry")
+        assert resp.status_code == 200
+        assert resp.json() == {"ga4_measurement_id": "", "hotjar_site_id": ""}
+
+    def test_returns_saved_ids(self, client):
+        saved = {
+            "admins": ["jacoby149"],
+            "ga4_measurement_id": "G-ABC123",
+            "hotjar_site_id": "123456",
+        }
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.return_value = _config_result(saved)
+            resp = client.get("/telemetry")
+        assert resp.status_code == 200
+        assert resp.json() == {"ga4_measurement_id": "G-ABC123", "hotjar_site_id": "123456"}
+
+    def test_partial_save_only_returns_that_id(self, client):
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.return_value = _config_result({"ga4_measurement_id": "G-ONLY"})
+            resp = client.get("/telemetry")
+        assert resp.json() == {"ga4_measurement_id": "G-ONLY", "hotjar_site_id": ""}
+
+
+class TestTelemetryConfigFields:
+    """The two telemetry fields flow through effective_config (the Node
+    Config UI read) and /config/update (the admin write)."""
+
+    def test_effective_config_defaults_empty(self, client):
+        from app.services import config as config_svc
+
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.return_value = _config_result(None)
+            cfg = config_svc.effective_config()
+        assert cfg["ga4_measurement_id"] == ""
+        assert cfg["hotjar_site_id"] == ""
+
+    def test_saved_ids_surface_in_effective_config(self, client):
+        from app.services import config as config_svc
+
+        saved = {"ga4_measurement_id": "G-XYZ", "hotjar_site_id": "999"}
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.return_value = _config_result(saved)
+            cfg = config_svc.effective_config()
+        assert cfg["ga4_measurement_id"] == "G-XYZ"
+        assert cfg["hotjar_site_id"] == "999"
+
+    def test_config_update_accepts_telemetry_fields(self, client, token):
+        """An admin can set the IDs via /config/update; they persist and
+        surface on the next /telemetry read. The endpoint takes two body
+        models — token (nested) + update (the field changes)."""
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            # /config/update reads current, merges, saves (one query read).
+            mock_ch.query.return_value = _config_result({"admins": ["testuser"]})
+            resp = client.post(
+                "/config/update",
+                json={
+                    "token": {"token": token},
+                    "update": {"ga4_measurement_id": "G-NEW", "hotjar_site_id": "42"},
+                },
+            )
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "updated"
+        assert set(resp.json()["changed"]) == {"ga4_measurement_id", "hotjar_site_id"}
+        # the merged body was persisted with the new IDs — find the
+        # node_config insert and check its body column (index 1 of the row).
+        node_inserts = [c for c in mock_ch.insert.call_args_list if c[0] and c[0][0] == "node_config"]
+        assert node_inserts, "expected a node_config insert"
+        row = node_inserts[-1][0][1][0]
+        inserted = json.loads(row[1])
+        assert inserted["ga4_measurement_id"] == "G-NEW"
+        assert inserted["hotjar_site_id"] == "42"

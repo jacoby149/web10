@@ -15,7 +15,7 @@ import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { ReportBug } from '@/components/shared/ReportBug';
 import { getWapi, getV3Client } from '@/data';
 import { resolveMediaRefs } from '@/data/posts';
-import { trackEvent } from '@/lib/analytics';
+import { trackEvent, hotjarIdentify } from '@/lib/analytics';
 import { PostLightbox } from '@/components/Bio/PostLightbox';
 import type { PostRecord, MediaRecord, Visibility } from '@/data/types';
 
@@ -225,6 +225,8 @@ function App() {
     auth.authListen(() => {
       setSignedIn(true);
       trackEvent('login');
+      const who = auth.readToken();
+      if (who) hotjarIdentify(who.username);
     });
 
     const handler = (e: Event) => {

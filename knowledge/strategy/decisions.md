@@ -9,6 +9,73 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D56 — Full-platform telemetry: GA4 + Hotjar on every surface, content masked [decided]
+Operator, 28.08.2026 — "ultimate privacy isnt what web10 is about, we arent
+encrypting like whatsapp, we are doing analytics for influencers tracking,
+we should just put on max tracking like hotjar the shit out of the whole
+platform, we can blur photos and text, but so we can improve the platform,
+nothing wrong about hotjaring the shit out of this, it is the wrong platform
+for you if you arent ok with that" — then: "hotjar and google analytics" —
+then: "we should talk about the telemetry in the kb in a good way, we do
+alot of telemetry to compete with meta tik tok, to have the most competitive
+user experience."
+
+**Decided** — (1) **Every user-facing surface is tracked**: GA4 + Hotjar
+on marketing-ui, web10-social, AND the authenticator (`ui/`). This
+supersedes the old "platform surfaces stay recording-free" rule (the
+comment that lived in the analytics modules) — the authenticator and
+the social app are now recorded, masked, like everything else. (2)
+**The recording is content-blind by construction**: Hotjar initialises
+with `maskAllText: true` + `blockAllImages: true` — all text blurred,
+all images blocked. The operator sees cursor + layout + timing, never
+words or pictures. GA4 events stay content-free by convention (paths,
+actions, counts — never post text, media URLs, or PII). (3) **Max
+tracking, one exception**: no privacy flags on GA4 (no IP
+anonymization — the operator asked for max, and the trade is stated in
+the terms). The single kept flag is `advertising_id: 'OFF'`: we do not
+feed Google's ad network. The manifesto's "nobody is mining you / not
+fed to an ad machine" is a promise about the *ad machine*, and the only
+sponsors a fan ever sees are the creator's (D50/D55). (4) **The trade
+is a terms-level statement, not a consent popup**: "it is the wrong
+platform for you if you arent ok with that." D41's data-policy model:
+the terms say what we do with your usage; the node is readable by
+design; this is usage telemetry, disclosed. (5) **Why**: web10
+competes with Meta and TikTok for the same attention. Their UX is the
+output of a decade of aggressive telemetry; a node that cannot see its
+own usage is a blog from 2003. The telemetry exists to build the most
+competitive user experience — for the fan, and for the influencer whose
+audience it holds.
+
+**Why:** the thesis already killed "privacy platform" (D41). What this
+adds is the positive claim: tracking is a *feature* — the engine of UX
+competitiveness. The masking is what keeps it compatible with the
+manifesto: we watch the hands, never the words. Content (posts, DMs,
+media) stays out of telemetry by construction (masking + the
+content-free event convention), so "your data isn't scanned, sold, or
+fed to an ad machine" remains true of the data that matters — the
+creator's content and the fan's.
+
+**Rejected:** recording-free platform surfaces (the old rule — the
+authenticator and social app are now tracked, masked); e2e /
+"we can't read it" framing (D41 — that is not the product); consent
+popups / opt-in tracking (the trade is terms-level: wrong platform if
+you're not ok with that); GA4 advertising features (feeds the ad
+machine — the one line we don't cross); selling telemetry to third
+ parties (first-party properties only).
+
+**Addendum (3.27.0) — the IDs are runtime-configurable, not baked in.**
+The GA4 measurement ID + Hotjar site ID live in `node_config`
+(ClickHouse), set in the Node Config UI (authenticator, admin-only).
+Each surface resolves them at page load via a public `GET /telemetry`
+endpoint (no token — the IDs are public identifiers, not secrets); the
+node is authoritative when reachable, the build-time env is the dev
+fallback. An operator changes the IDs live; it applies on the next
+page load, no rebuild. Blank = off.
+
+Full model: `knowledge-base/web10-v3/telemetry.md`.
+
+---
+
 ### D55 — An ad is a `posts` document tagged `ad`, not a service; the object is locked; `html_template` is v4 [decided]
 Operator, 27.08.2026 — after the D54 catalog/composer plan: "ads shouldnt be
 some kind of a service, they should be locked in what they are.... stuck in
