@@ -9,10 +9,26 @@ import { extractUsername } from './types';
 const DISCOVER_GROUP = 'web10.app/groups/web10/discover';
 
 /**
+ * The current node's provider, read from the active token (falls back to the
+ * production host when signed out). Group IDs are node-scoped, so every
+ * well-known group the app derives must use the node it is actually talking
+ * to — not a hardcoded production host.
+ */
+export function nodeProvider(): string {
+  return getV3Client().readToken()?.provider || 'web10.app';
+}
+
+/**
  * Get the followers group ID for a user.
+ *
+ * The API derives created-group IDs as `{provider}/groups/users/{creator}/{name}`
+ * (groups.py create_group), so a followers group created with name "followers"
+ * lands at `{provider}/groups/users/{username}/followers`. This must match that
+ * derivation exactly or the app's group-scoped reads 403 (the reader is a
+ * member of the created group, not of a hardcoded production-host ID).
  */
 export function followersGroupId(username: string): string {
-  return `web10.app/groups/${username}/followers`;
+  return `${nodeProvider()}/groups/users/${username}/followers`;
 }
 
 /**
@@ -122,12 +138,14 @@ export async function ensureFollowers(username: string): Promise<string> {
     const group = await w.getGroup(groupId);
     return group.group_id;
   } catch {
-    // Group doesn't exist — create it
+    // Group doesn't exist — create it. The API derives the ID as
+    // `{provider}/groups/users/{creator}/{name}`, so name must be "followers"
+    // (not "{username}/followers") for the created ID to equal followersGroupId.
     await w.createGroup(
-      `${username}/followers`,
+      'followers',
       'open',
       FOLLOWER_ROLES,
-      [{ member_key: `web10.app/users/${username}`, role: 'owner' }],
+      [{ member_key: username, role: 'owner' }],
     );
     return groupId;
   }
