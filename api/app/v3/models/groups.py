@@ -7,6 +7,10 @@ class CreateGroup(BaseModel):
     join_policy: str = "open"
     roles: list[dict]
     members: list[dict]
+    # D53: list the group in the public directory. Defaults to True (discoverable
+    # by default) except invite_only groups, which default to False. None = use
+    # the default.
+    discoverable: bool | None = None
 
 
 class GetGroup(BaseModel):
@@ -19,6 +23,8 @@ class UpdateGroup(BaseModel):
     group_id: str
     roles: list[dict] | None = None
     join_policy: str | None = None
+    # D53: None = leave unchanged; True/False = set.
+    discoverable: bool | None = None
 
 
 class ListGroupMembers(BaseModel):
@@ -78,5 +84,30 @@ class JoinRequestOp(BaseModel):
 
 
 class DeleteGroup(BaseModel):
+    token: str
+    group_id: str
+
+
+# ── Moderation (hide content from a group's discover) ───────────────────────
+# The KB (groups/overview.md "Moderation"): a role with `hideAll` can hide
+# content from the group's discover. The node admin can also moderate any
+# group (the public board has no moderator role). Hiding is board-level
+# takedown — the author's own copy is untouched and the doc is restorable.
+
+
+class HideDoc(BaseModel):
+    token: str
+    group_id: str
+    doc_id: str
+    reason: str | None = None
+
+
+class UnhideDoc(BaseModel):
+    token: str
+    group_id: str
+    doc_id: str
+
+
+class ListHiddenDocs(BaseModel):
     token: str
     group_id: str

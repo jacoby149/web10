@@ -81,6 +81,20 @@ class TestInsertDocument:
             assert len(result["doc_id"]) == 36  # uuid7 string
             mock_client.insert.assert_called_once()
 
+    def test_insert_with_ref_value(self):
+        """The ref pattern: a reaction/comment points at its target via ref_value."""
+        with _patch_client() as mock_client:
+            result = ch.insert_document(
+                author_key="bob",
+                service="reactions",
+                body={"type": "like"},
+                ref_value="target-post-id",
+            )
+            assert result["ref_value"] == "target-post-id"
+            row = mock_client.insert.call_args[0][1][0]
+            # documents row: [doc_id, author, service, body, ref_value, tags, ...]
+            assert row[4] == "target-post-id"
+
 
 class TestGetDocument:
     def test_found(self):
@@ -216,18 +230,48 @@ class TestCreateGroup:
             assert result["join_policy"] == "open"
             mock_client.insert.assert_called_once()
 
+    # D53: discoverable by default, except invite_only (inherently private).
+    def test_default_discoverable_open(self):
+        with _patch_client():
+            assert ch.create_group("g", [{"name": "member"}], "open")["discoverable"] is True
+
+    def test_default_discoverable_request(self):
+        with _patch_client():
+            assert ch.create_group("g", [{"name": "member"}], "request")["discoverable"] is True
+
+    def test_default_not_discoverable_invite_only(self):
+        with _patch_client():
+            assert ch.create_group("g", [{"name": "member"}], "invite_only")["discoverable"] is False
+
+    def test_explicit_override(self):
+        # invite_only can be forced discoverable; open can be forced private.
+        with _patch_client():
+            assert ch.create_group("g", [{"name": "member"}], "invite_only", discoverable=True)["discoverable"] is True
+        with _patch_client():
+            assert ch.create_group("g", [{"name": "member"}], "open", discoverable=False)["discoverable"] is False
+
+    def test_insert_uses_named_columns(self):
+        # The discoverable column appends at the end on pre-existing volumes
+        # (boot ALTER), so the insert must name its columns (3.13.2 pattern).
+        with _patch_client() as mock_client:
+            ch.create_group("g", [{"name": "member"}], "open")
+            args, kwargs = mock_client.insert.call_args
+            assert "column_names" in kwargs
+            assert "discoverable" in kwargs["column_names"]
+
 
 class TestGetGroup:
     def test_found(self):
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
                 [
-                    ("g1", '{"roles":[]}', "open", datetime(2026, 1, 1), datetime(2026, 1, 1)),
+                    ("g1", '{"roles":[]}', "open", 1, datetime(2026, 1, 1), datetime(2026, 1, 1)),
                 ]
             )
             result = ch.get_group("g1")
             assert result["group_id"] == "g1"
             assert result["join_policy"] == "open"
+            assert result["discoverable"] is True
 
     def test_not_found(self):
         with _patch_client() as mock_client:
@@ -544,8 +588,15 @@ class TestReadDocumentsInGroups:
             assert "rn = 1 AND deleted = 0" in ugs_part
             assert "ugs.sharing_enabled = 0" in sql
             assert "p.author_key != %(member_key)s" in sql
-            # Verify hidden docs exclusion
-            assert "LEFT ANTI JOIN group_hidden_docs" in sql
+            # Verify hidden docs exclusion — dedup-then-filter anti-join
+            # (latest row per (group_id, doc_id) wins, tombstones included,
+            # then deleted = 0). A raw `deleted = 0` join would keep matching
+            # the stale hide row after a restore (tombstone) until a merge.
+            hd_part = sql[sql.index("LEFT ANTI JOIN (SELECT group_id, doc_id FROM") : sql.index(") hd ")]
+            assert "FROM group_hidden_docs" in hd_part
+            assert "rn = 1 AND deleted = 0" in hd_part
+            assert "hd.doc_id = p.doc_id" in sql
+            assert "hd.group_id = pg.group_id" in sql
 
 
 # ---------------------------------------------------------------------------
@@ -615,6 +666,7 @@ class TestGetGroupsManages:
                             "g1",
                             "open",
                             '[{"name": "admin", "services": ["*"], "permissions": ["readAll", "manageRoles"]}]',
+                            1,
                             "admin",
                         )
                     ]
@@ -629,12 +681,13 @@ class TestGetGroupsManages:
             assert len(groups) == 1
             assert groups[0]["group_id"] == "g1"
             assert groups[0]["member_count"] == 5
+            assert groups[0]["discoverable"] is True
 
     def test_no_manage(self):
         with _patch_client() as mock_client:
             mock_client.query.side_effect = [
                 _mock_result_rows(
-                    [("g1", "open", '[{"name": "admin", "services": ["*"], "permissions": ["readAll"]}]', "admin")]
+                    [("g1", "open", '[{"name": "admin", "services": ["*"], "permissions": ["readAll"]}]', 1, "admin")]
                 ),
                 _mock_result_rows([]),
             ]
@@ -651,7 +704,7 @@ class TestGetGroupsManages:
         """Backward compat: old dict-style roles still work."""
         with _patch_client() as mock_client:
             mock_client.query.side_effect = [
-                _mock_result_rows([("g1", "open", '{"admin": {"permissions": ["manageRoles"]}}', "admin")]),
+                _mock_result_rows([("g1", "open", '{"admin": {"permissions": ["manageRoles"]}}', 1, "admin")]),
                 _mock_result_rows(
                     [("g1", 3)],
                 ),
@@ -888,15 +941,239 @@ class TestNodeStats:
 class TestCreateUser:
     def test_create(self):
         with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows([(0,)])
+            # query 1: existing-user count (0 = new); query 2: get_group
+            # (empty = group missing, so the contract is created first).
+            mock_client.query.side_effect = [
+                _mock_result_rows([(0,)]),
+                _mock_result_rows([]),
+            ]
             result = ch.create_user("alice", "hash123", phone="+1234")
             assert result["username"] == "alice"
-            mock_client.insert.assert_called_once()
+            # inserts: users row, then the discover-group auto-enrollment
+            # (group contract + membership).
+            insert_tables = [c[0][0] for c in mock_client.insert.call_args_list]
+            assert "users" in insert_tables
+            assert "group_members" in insert_tables
+            # the membership row enrolls the new user in the discover group
+            member_insert = next(c for c in mock_client.insert.call_args_list if c[0][0] == "group_members")
+            row = member_insert[0][1][0]
+            assert row[0] == ch.DISCOVER_GROUP_ID
+            assert row[1] == "alice"
+            assert row[2] == "member"
+
+    def test_create_group_already_exists(self):
+        with _patch_client() as mock_client:
+            # group contract already present (boot pass ran) — no re-create.
+            group_row = (
+                ch.DISCOVER_GROUP_ID,
+                "[]",
+                "open",
+                0,
+                datetime(2026, 1, 1),
+                datetime(2026, 1, 1),
+            )
+            mock_client.query.side_effect = [
+                _mock_result_rows([(0,)]),
+                _mock_result_rows([group_row]),
+            ]
+            ch.create_user("alice", "hash123")
+            insert_tables = [c[0][0] for c in mock_client.insert.call_args_list]
+            assert "group_contracts" not in insert_tables  # not re-created
+            assert "group_members" in insert_tables  # still enrolled
 
     def test_duplicate(self):
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows([(1,)])
             assert ch.create_user("alice", "hash123") is None
+            mock_client.insert.assert_not_called()
+
+
+class TestListUsers:
+    def test_list(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([("alice",), ("bob",)])
+            users = ch.list_users()
+            assert users == [{"username": "alice"}, {"username": "bob"}]
+
+    def test_empty(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([])
+            assert ch.list_users() == []
+
+
+class TestGetGroupMemberKeys:
+    def test_keys(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([("anon",), ("alice",)])
+            assert ch.get_group_member_keys("g") == ["anon", "alice"]
+
+    def test_empty(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([])
+            assert ch.get_group_member_keys("g") == []
+
+
+class TestGroupIdentity:
+    """Public display metadata for a group (D53) — the directory/detail name source."""
+
+    def test_found(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows(
+                [("Jazz Collectors", "Vinyl-first", "banner-1", "avatar-1", "https://jazz.example", ("jazz", "vinyl"))]
+            )
+            result = ch.get_group_identity("web10.app/groups/alice/jazz")
+            assert result["name"] == "Jazz Collectors"
+            assert result["description"] == "Vinyl-first"
+            assert result["banner_ref"] == "banner-1"
+            assert result["avatar_ref"] == "avatar-1"
+            assert result["website"] == "https://jazz.example"
+            assert result["tags"] == ["jazz", "vinyl"]
+
+    def test_not_found(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([])
+            assert ch.get_group_identity("g") is None
+
+    def test_batch(self):
+        with _patch_client() as mock_client:
+            # (group_id, name, description, banner_ref, avatar_ref, website, tags)
+            mock_client.query.return_value = _mock_result_rows(
+                [
+                    ("g1", "One", "", "", "", "", ("a",)),
+                    ("g2", "Two", "", "", "", "", ()),
+                ]
+            )
+            result = ch.get_group_identities(["g1", "g2", "g3"])
+            assert set(result.keys()) == {"g1", "g2"}  # g3 has no identity record
+            assert result["g1"]["name"] == "One"
+            assert result["g1"]["tags"] == ["a"]
+            assert result["g2"]["tags"] == []
+
+    def test_batch_empty(self):
+        with _patch_client() as mock_client:
+            assert ch.get_group_identities([]) == {}
+            mock_client.query.assert_not_called()
+
+
+class TestListDiscoverableGroups:
+    """The directory's source query — discoverable groups only (D53)."""
+
+    def test_lists_discoverable(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows(
+                [
+                    ("web10.app/groups/alice/jazz", "open", '[{"name": "member", "permissions": ["readAll"]}]'),
+                    ("web10.app/groups/bob/chess", "request", "[]"),
+                ]
+            )
+            result = ch.list_discoverable_groups()
+            assert [g["group_id"] for g in result] == [
+                "web10.app/groups/alice/jazz",
+                "web10.app/groups/bob/chess",
+            ]
+            assert result[0]["join_policy"] == "open"
+            assert result[0]["roles"][0]["name"] == "member"
+            # the query filters on discoverable = 1
+            assert "discoverable = 1" in mock_client.query.call_args[0][0]
+
+    def test_empty(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([])
+            assert ch.list_discoverable_groups() == []
+
+
+class TestEnsureDiscoverGroup:
+    """The node-default universal public board (KB: social-contracts.md §1)."""
+
+    def test_creates_group_anon_and_backfills(self):
+        with _patch_client() as mock_client:
+            # query sequence: get_group (missing), member keys (empty),
+            # list_users (two pre-existing accounts).
+            mock_client.query.side_effect = [
+                _mock_result_rows([]),  # get_group → missing
+                _mock_result_rows([]),  # get_group_member_keys → nobody yet
+                _mock_result_rows([("alice",), ("bob",)]),  # list_users
+            ]
+            ch.ensure_discover_group()
+            insert_tables = [c[0][0] for c in mock_client.insert.call_args_list]
+            # group contract created once
+            assert insert_tables.count("group_contracts") == 1
+            # the discover group is NOT discoverable (a board, not a directory
+            # entry) — discoverable is the 4th value in the named insert.
+            contract_insert = next(c for c in mock_client.insert.call_args_list if c[0][0] == "group_contracts")
+            assert contract_insert[0][1][0][3] == 0
+            # anon + both users enrolled
+            member_rows = [c[0][1][0] for c in mock_client.insert.call_args_list if c[0][0] == "group_members"]
+            enrolled = {r[1] for r in member_rows}
+            assert enrolled == {"anon", "alice", "bob"}
+
+    def test_idempotent_when_populated(self):
+        with _patch_client() as mock_client:
+            group_row = (
+                ch.DISCOVER_GROUP_ID,
+                "[]",
+                "open",
+                0,
+                datetime(2026, 1, 1),
+                datetime(2026, 1, 1),
+            )
+            # get_group → exists; member keys → anon + alice already in;
+            # list_users → alice (already a member, no re-add).
+            mock_client.query.side_effect = [
+                _mock_result_rows([group_row]),
+                _mock_result_rows([("anon",), ("alice",)]),
+                _mock_result_rows([("alice",)]),
+            ]
+            ch.ensure_discover_group()
+            # nothing to do — no inserts at all
+            mock_client.insert.assert_not_called()
+
+    def test_backfills_only_missing_users(self):
+        with _patch_client() as mock_client:
+            group_row = (
+                ch.DISCOVER_GROUP_ID,
+                "[]",
+                "open",
+                0,
+                datetime(2026, 1, 1),
+                datetime(2026, 1, 1),
+            )
+            # group exists; anon + alice already members; bob is new.
+            mock_client.query.side_effect = [
+                _mock_result_rows([group_row]),
+                _mock_result_rows([("anon",), ("alice",)]),
+                _mock_result_rows([("alice",), ("bob",)]),
+            ]
+            ch.ensure_discover_group()
+            member_rows = [c[0][1][0] for c in mock_client.insert.call_args_list if c[0][0] == "group_members"]
+            # only bob is added — anon + alice are already members
+            assert [r[1] for r in member_rows] == ["bob"]
+
+
+class TestGetHiddenDocs:
+    def test_lists_hidden_with_author(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows(
+                [
+                    (
+                        "doc-1",
+                        "admin1",
+                        datetime(2026, 1, 2),
+                        "alice",
+                        '{"text":"bad post"}',
+                    ),
+                ]
+            )
+            rows = ch.get_hidden_docs("g")
+            assert rows[0]["doc_id"] == "doc-1"
+            assert rows[0]["author_key"] == "alice"
+            assert rows[0]["moderator_key"] == "admin1"
+            assert rows[0]["body"]["text"] == "bad post"
+
+    def test_empty(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([])
+            assert ch.get_hidden_docs("g") == []
 
 
 class TestGetUser:
@@ -1005,7 +1282,7 @@ class TestRegisterApp:
         stable registration record, not a per-ping log."""
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
-                [("https://myapp.com/", "My App", "", "", "[]", 1, "approved", 1, 47)]
+                [("https://myapp.com/", "My App", "", "", "[]", 1, "approved", 1, 47, "2026-01-01 00:00:00")]
             )
             result = ch.register_app({"url": "https://myapp.com/"})
             assert result["review_state"] == "approved"
@@ -1018,11 +1295,129 @@ class TestRegisterApp:
         (metadata_version bumped) — the only repeat case that touches apps."""
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
-                [("https://myapp.com/", "Old", "", "", "[]", 1, "approved", 1, 47)]
+                [("https://myapp.com/", "Old", "", "", "[]", 1, "approved", 1, 47, "2026-01-01 00:00:00")]
             )
             ch.register_app({"url": "https://myapp.com/", "name": "New"})
             mock_client.command.assert_called_once()
             assert "metadata_version + 1" in mock_client.command.call_args[0][0]
+
+
+class TestCanonicalAppUrlIndexHtml:
+    """D47: the canonicalizer folds a trailing /index.html to the directory.
+    #683 covers the bare form; this pins the trailing-slash form (.../index.html/)
+    that rows registered between hardening #4 and #683 carry — the migration
+    relies on it to re-home every stored spelling."""
+
+    def test_bare_index_html(self):
+        assert (
+            ch._canonical_app_url("https://dev.web10.app/docs/media/index.html") == "https://dev.web10.app/docs/media/"
+        )
+
+    def test_index_html_with_trailing_slash(self):
+        assert (
+            ch._canonical_app_url("https://dev.web10.app/docs/media/index.html/") == "https://dev.web10.app/docs/media/"
+        )
+
+    def test_root_index_html(self):
+        assert ch._canonical_app_url("https://myapp.com/index.html") == "https://myapp.com/"
+
+    def test_real_file_not_stripped(self):
+        """Only a TRAILING index.html is a server detail — a non-index file
+        keeps its name."""
+        assert ch._canonical_app_url("https://myapp.com/docs/notes.html") == "https://myapp.com/docs/notes.html/"
+
+
+class TestMigrateFileIndexAppRows:
+    """The one-time boot migration: re-home demo apps registered under their
+    directory-index file URLs onto their directory URLs (preserving approval),
+    and tombstone the file rows. #683 fixed NEW registrations; this cleans the
+    rows already stored under file URLs (icon-less duplicate store cards).
+    Idempotent + safe under concurrent workers."""
+
+    # Source-query row shape: url, name, description, icon_url, screenshots,
+    # visits, approved, review_state, metadata_version, created_at
+    FILE_ROW = (
+        "https://dev.web10.app/docs/media/index.html",
+        "Media (HLS)",
+        "desc",
+        "",
+        "[]",
+        0,
+        1,  # approved
+        "approved",
+        3,
+        "2026-01-01T00:00:00",
+    )
+
+    def test_no_file_index_rows_noop(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([])
+            ch._migrate_file_index_app_rows()
+        mock_client.insert.assert_not_called()
+        mock_client.command.assert_not_called()
+
+    def test_rehomes_file_row_to_directory_and_tombstones(self):
+        """A live file-index row with no directory counterpart is re-homed
+        (state carried over) and the file row is tombstoned."""
+        with _patch_client() as mock_client:
+            # call 1 = source query (the file row), call 2 = get_app(directory)
+            # → no live directory row yet.
+            mock_client.query.side_effect = [
+                _mock_result_rows([self.FILE_ROW]),
+                _mock_result_rows([]),
+            ]
+            ch._migrate_file_index_app_rows()
+        # Re-home insert under the directory URL, approval carried over.
+        mock_client.insert.assert_called_once()
+        args = mock_client.insert.call_args[0]
+        assert args[0] == "apps"
+        values = args[1][0]
+        assert values[0] == "https://dev.web10.app/docs/media/"  # url
+        assert values[1] == "Media (HLS)"  # name carried over
+        assert values[6] == 1  # approved carried over
+        assert values[11] == 0  # deleted = 0
+        # Tombstone the file row.
+        mock_client.command.assert_called_once()
+        assert "deleted" in mock_client.command.call_args[0][0]
+        assert mock_client.command.call_args[0][1]["url"] == self.FILE_ROW[0]
+
+    def test_directory_row_exists_skips_insert_but_tombstones(self):
+        """If a live directory row already exists (a post-#683 visit
+        registered it), keep that row — just drop the stale file row."""
+        with _patch_client() as mock_client:
+            mock_client.query.side_effect = [
+                _mock_result_rows([self.FILE_ROW]),
+                _mock_result_rows(
+                    [
+                        (
+                            "https://dev.web10.app/docs/media/",
+                            "Media (HLS)",
+                            "",
+                            "",
+                            "[]",
+                            1,
+                            "approved",
+                            1,
+                            47,
+                            "2026-01-01T00:00:00",
+                        )
+                    ]
+                ),
+            ]
+            ch._migrate_file_index_app_rows()
+        mock_client.insert.assert_not_called()  # no duplicate directory row
+        mock_client.command.assert_called_once()  # file row still tombstoned
+
+    def test_source_query_only_considers_live_rows(self):
+        """Idempotency hinge: the source query filters rn=1 AND deleted=0, so
+        once the file rows are tombstoned the migration finds nothing on the
+        next boot."""
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([])
+            ch._migrate_file_index_app_rows()
+        source_sql = mock_client.query.call_args[0][0]
+        assert "rn = 1 AND deleted = 0" in source_sql
+        assert "LIKE '%/index.html'" in source_sql
 
 
 class TestCountAppVisit:
@@ -1067,11 +1462,75 @@ class TestCreateAppRating:
             assert result["rating"] == 5
             mock_client.insert.assert_called_once()
 
+    def test_rating_with_comment_uses_named_columns(self):
+        """D52: the comment column was appended by ALTER on pre-existing
+        volumes — the insert must name its columns, and carry the comment."""
+        with _patch_client() as mock_client:
+            result = ch.create_app_rating("alice", "https://a.com", 5, "api.web10.app", comment="fast.")
+            assert result["comment"] == "fast."
+            args, kwargs = mock_client.insert.call_args
+            assert kwargs["column_names"] == [
+                "author",
+                "target_app_id",
+                "rating",
+                "comment",
+                "provider",
+                "created_at",
+                "updated_at",
+                "deleted",
+            ]
+            row = args[1][0]
+            assert row[3] == "fast."  # comment sits after rating
+
 
 class TestGetAppRatings:
     def test_ratings(self):
         with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows([("alice", 5, "api.web10.app", datetime(2026, 1, 1))])
+            mock_client.query.return_value = _mock_result_rows(
+                [("alice", 5, "fast.", "api.web10.app", datetime(2026, 1, 1))]
+            )
             result = ch.get_app_ratings("https://a.com")
             assert len(result) == 1
             assert result[0]["rating"] == 5
+            assert result[0]["comment"] == "fast."
+
+
+class TestGetAppDetail:
+    """The product page payload (D52) — composition + the approved-only gate."""
+
+    # The canonical form of https://a.com is https://a.com/ (one trailing
+    # slash, D49 / hardening #4) — the detail lookup runs on the canonical.
+    _APP_ROW = ("https://a.com/", "App A", "desc", "", "[]", 1, "approved", 1, 47, "2026-01-01 00:00:00")
+    _NODE = {
+        "users": 579,
+        "documents": 100,
+        "groups": 5,
+        "app_count": 12,
+        "active_users": {"users_1d": 1, "users_30d": 10, "users_90d": 20, "users_1y": 30},
+        "storage": 1234,
+    }
+
+    def test_detail_composes(self):
+        with _patch_client() as mock_client, patch.object(ch, "get_node_stats", return_value=self._NODE):
+            mock_client.query.side_effect = [
+                _mock_result_rows([self._APP_ROW]),  # get_app
+                _mock_result_rows([("https://a.com/", 47, 4, 128, 301, 512)]),  # metrics
+                _mock_result_rows([("alice", 5, "fast.", "api.web10.app", "2026-01-02 00:00:00")]),  # ratings
+            ]
+            result = ch.get_app_detail("https://a.com")
+        assert result["url"] == "https://a.com/"
+        assert result["metrics"]["users_30d"] == 128
+        assert result["rating"] == {"average": 5.0, "count": 1}
+        assert result["ratings"][0]["comment"] == "fast."
+        assert result["node"]["users"] == 579
+
+    def test_detail_unknown_app_none(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([])
+            assert ch.get_app_detail("https://nowhere.com") is None
+
+    def test_detail_unapproved_none(self):
+        row = ("https://a.com/", "App A", "desc", "", "[]", 0, "pending", 1, 47, "2026-01-01 00:00:00")
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([row])
+            assert ch.get_app_detail("https://a.com") is None

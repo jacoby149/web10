@@ -64,6 +64,27 @@ async function createGroup(request: APIRequestContext, token: string, creator: s
   return res.body.group_id as string;
 }
 
+/** Create a group with an explicit discoverable flag (D53). */
+async function createGroupDiscoverable(request: APIRequestContext, token: string, creator: string, name: string, joinPolicy: string, discoverable: boolean): Promise<string> {
+  const res = await v3Post(request, 'groups/create', {
+    token, name, join_policy: joinPolicy, roles: ROLES,
+    members: [{ member_key: creator, role: 'owner' }],
+    discoverable,
+  });
+  expect(res.ok, `create group "${name}" failed (${res.status}): ${JSON.stringify(res.body)}`).toBeTruthy();
+  return res.body.group_id as string;
+}
+
+/** GET a v3 endpoint with query params (the directory + detail are public GETs). */
+async function v3Get(request: APIRequestContext, action: string, params: Record<string, string> = {}): Promise<{ ok: boolean; status: number; body: any }> {
+  const qs = new URLSearchParams(params).toString();
+  const res = await request.get(`${API_BASE}/v3/${action}${qs ? `?${qs}` : ''}`);
+  const text = await res.text().catch(() => '');
+  let parsed: any = null;
+  try { parsed = text ? JSON.parse(text) : null; } catch { parsed = text; }
+  return { ok: res.ok(), status: res.status(), body: parsed };
+}
+
 /** Member keys of a group, as seen by a member (the owner). */
 async function memberKeys(request: APIRequestContext, token: string, groupId: string): Promise<string[]> {
   const res = await v3Post(request, 'groups/members/list', { token, group_id: groupId });
@@ -385,6 +406,75 @@ test.describe('Groups — anti-tests (the KB with teeth)', () => {
 });
 
 // ---------------------------------------------------------------------------
+// The group directory + detail (D53) — real SQL against ClickHouse. The
+// directory is the minimal list of discoverable groups; the detail is the
+// flexible, principal-based read (unlisted-model).
+// ---------------------------------------------------------------------------
+
+test.describe('Groups directory + detail — API floor (D53)', () => {
+  test('directory: discoverable groups listed, non-discoverable absent', async ({ request }) => {
+    const a = await signupFreshUser(request, 'grpd');
+    const listedId = await createGroupDiscoverable(request, a.token, a.username, `listed-${a.username}`, 'open', true);
+    const hiddenId = await createGroupDiscoverable(request, a.token, a.username, `hidden-${a.username}`, 'open', false);
+
+    const dir = await v3Get(request, 'groups/directory', { limit: '500' });
+    expect(dir.ok, `directory failed: ${JSON.stringify(dir.body)}`).toBeTruthy();
+    const ids = (dir.body.groups as any[]).map((g) => g.group_id);
+    expect(ids).toContain(listedId);
+    expect(ids).not.toContain(hiddenId);
+
+    // the listed group carries the minimal fields (name falls back to slug)
+    const listed = (dir.body.groups as any[]).find((g) => g.group_id === listedId);
+    expect(listed.owner).toBe(a.username);
+    expect(listed.name).toBeTruthy();
+    expect(listed.join_policy).toBe('open');
+    expect(listed.member_count).toBe(1);
+    expect(Array.isArray(listed.tags)).toBeTruthy();
+  });
+
+  test('detail: a non-existent group 404s', async ({ request }) => {
+    const res = await v3Get(request, 'groups/detail', { group_id: 'api.localhost/groups/users/nobody/ghost' });
+    expect(res.status).toBe(404);
+  });
+
+  test('detail: a non-discoverable group is reachable (unlisted-model)', async ({ request }) => {
+    const a = await signupFreshUser(request, 'grpdet');
+    const hiddenId = await createGroupDiscoverable(request, a.token, a.username, `det-${a.username}`, 'open', false);
+    const res = await v3Get(request, 'groups/detail', { group_id: hiddenId });
+    expect(res.ok, `non-discoverable detail should not 404 (got ${res.status})`).toBeTruthy();
+    expect(res.body.discoverable).toBe(false);
+    expect(res.body.name).toBeTruthy();
+    expect(res.body.owner).toBe(a.username);
+  });
+
+  test('detail: a member sees posts, a non-member gets "join to view"', async ({ request }) => {
+    const a = await signupFreshUser(request, 'grppost');
+    const b = await signupFreshUser(request, 'grppostb');
+    const groupId = await createGroupDiscoverable(request, a.token, a.username, `post-${a.username}`, 'open', true);
+
+    // a (owner) posts to the group
+    const post = await v3Post(request, 'create', {
+      token: a.token, service: 'posts', body: { text: 'hello group' }, groups: [groupId],
+    });
+    expect(post.ok, `post failed: ${JSON.stringify(post.body)}`).toBeTruthy();
+
+    // a (member) sees the post
+    const asMember = await v3Get(request, 'groups/detail', { group_id: groupId, token: a.token });
+    expect(asMember.ok).toBeTruthy();
+    expect(asMember.body.is_member).toBe(true);
+    expect(asMember.body.posts_state).toBe('ok');
+    expect((asMember.body.posts as any[]).length).toBe(1);
+
+    // b (non-member) gets "join to view" — no posts
+    const asOutsider = await v3Get(request, 'groups/detail', { group_id: groupId, token: b.token });
+    expect(asOutsider.ok).toBeTruthy();
+    expect(asOutsider.body.is_member).toBe(false);
+    expect(asOutsider.body.posts_state).toBe('join_to_view');
+    expect(asOutsider.body.posts).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Browser gauntlet — drive the demo UI
 // ---------------------------------------------------------------------------
 
@@ -498,7 +588,7 @@ test.describe('Groups demo — browser gauntlet', () => {
   });
 
   test('state rule: a created group persists across a reload (the return run)', async ({ page, context, request }) => {
-    const { groupId } = await setupSignedInDemo(page, context, request);
+    const { username, groupId } = await setupSignedInDemo(page, context, request);
 
     // First run (warm): the group is already there and shows.
     await page.goto(`${MARKETING_BASE}/docs/groups/`);
@@ -514,8 +604,11 @@ test.describe('Groups demo — browser gauntlet', () => {
     await expect(page.locator('#authButton')).toHaveText('Log out');
     const cards = page.locator('#myGroups .group-card');
     await expect(cards.first()).toBeVisible({ timeout: 10000 });
-    // exactly one card for the pre-created group (no duplication on re-load)
-    await expect(cards).toHaveCount(1, { timeout: 10000 });
+    // Two cards: the node-default discover group (auto-enrolled at signup,
+    // #686) + the pre-created group. No duplication on re-load.
+    await expect(cards).toHaveCount(2, { timeout: 10000 });
+    // the pre-created group's card is among them (not clobbered)
+    await expect(cards.filter({ hasText: `ui-${username}` }).first()).toBeVisible();
     void groupId;
   });
 });

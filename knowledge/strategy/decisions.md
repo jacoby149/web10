@@ -9,6 +9,194 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D53 — Discoverable groups: a `discoverable` boolean lists a group in the directory; `anon` membership controls whether its posts are anon-readable [decided]
+Operator, 27.08.2026 — "would be cool if groups were in some kind of
+directory like the app store, groups have that too, where you can see groups
+that are readable by anon, kind of a thing not totally sure how" — then
+"this needs to be planned out better in the knowledge base, this discoverable
+groups, good thing it isnt totally essential." — then, on the first draft
+(which equated discoverability with `anon` membership): "idk, shouldnt the
+groups discoverability be a different boolean? that it is on this groups
+directory?" — then, on implementing it: "lets implement it discoverable by
+default." — then, on the detail: "no 404… like you said governed by the
+policy, it is just if the group is blasted is the discover. kind of like
+unlisted youtube video." — then, on the directory shape: "the apps can go
+crazy with it, enriching the minimal thing… the group dir could be joined
+with the .query to the social group identity service stuff and then the
+search could happen, making it more flexible."
+
+**Decided** —
+
+1. **Two controls, two decisions.** Listing a group in the directory and
+   letting a reader read its posts are *different* decisions, so they get
+   *different* controls:
+   - **`discoverable`** — a boolean on `group_contracts`, owner-set.
+     **Defaults to `true`** (discoverable by default, per the operator) —
+     *except* `invite_only` groups, which default to `false` (inherently
+     private: DMs, private circles), and the node-default discover group,
+     which is explicitly `false` (a board, not a directory entry). It is a
+     **blasting** flag — it controls **listing only** (whether the group is
+     advertised in the directory). It never gates the detail and never gates
+     content.
+   - **membership** — on `group_members`. Controls **content readability**:
+     a reader with `readAll` on the service sees the group's posts.
+     Independent of `discoverable`. (For the anon reader specifically, this is
+     "`anon` is a member.")
+2. **They are orthogonal — the discover group is the proof.** The node-default
+   discover group (3.16.2) is `anon`-readable (it is the public board) yet is
+   *not* a directory entry (it's a board, not a community). So it is
+   `discoverable: false` + `anon` member. Equating the two would force a UI
+   fudge to hide the board from the list; the boolean makes it a non-case.
+3. **The directory is a minimal, canonical view.**
+   `GET /v3/groups/directory` (no token) returns the `discoverable = true`
+   groups as a **minimal list**: id, name (identity record, else slug), owner,
+   join policy, member count, permission summary. **No tags, no banner, no
+   description, no posts** in the minimal list — apps enrich it. It is a
+   **view** over existing data (`group_contracts` ⋈ `group_members` ⋈
+   `group-identity-service`), **not** a dedicated `group_directory` table:
+   apps are external entities with a node-side lifecycle (hence the `apps`
+   table); groups are core internal entities that already have their
+   structures, so a directory table would duplicate the identity data.
+4. **The detail is a flexible, principal-based read — unlisted-model.**
+   Reading a group by ID is **not** gated by `discoverable` (like an unlisted
+   YouTube video: not in the browse, but open if you have the link). It takes
+   a token (optional) and reads as that principal (`user_or_anon`): metadata
+   (contract, member count, identity) is always returned for an existing
+   group; **posts are returned only if the *reader* is a member** (I3), else a
+   "join to view posts" state. **Only a non-existent group 404s** — a
+   non-discoverable group does *not*. This is the flexibility: any app can
+   grab any group it has a principal for. Full model: `groups/detail.md`.
+5. **Display metadata + tags live in `group-identity-service`.** One
+   documents record per group — name, description, banner, avatar, website,
+   **tags** (the topic). Append-only, managed by the `page-curator` role
+   (designed in `groups/identity.md`). It is the single home for group display
+   metadata; the directory, the detail, and every app read it from here.
+   `group_contracts` carries no name/icon — the slug is the fallback.
+6. **Topic search is a composition, not a node-baked filter.** The node
+   provides the minimal directory + the queryable identity docs; apps join
+   them (e.g. `directory` ⋈ `query('group-identity-service', {tags: …})`) to
+   search by topic. A server-side `?tag=` filter is a possible future
+   optimization that shortcuts — never replaces — the composition.
+
+**Why:** "readable by anon" and "on the directory" are two decisions, and the
+discover group proves they come apart. The boolean separates them cleanly:
+listing is an owner choice about *visibility* (a new field, default on —
+discoverable by default), readability is a *membership* permission (the
+machinery that already enforces I3 for every other member). I3 still holds end
+to end — the directory exposes only metadata for groups that are listed, and
+the detail returns posts only to a reader who is a member. The default-on
+choice matches the node-readable-by-design stance (D41) and the
+public-by-default posts: a new group is findable unless its owner (or its
+`invite_only` nature) says otherwise. The detail is deliberately *looser* than
+the app store's (which 404s unapproved apps): a group's content is already
+membership-gated, so the detail is a principal-based read any app can use for
+any group — unlisted-model, like an unlisted video. And the directory stays
+minimal (a view, not a table) so apps can enrich it and compose topic search
+themselves. This is the groups analog of the app store (D47/D49/D52): a
+public, anon-browsable store surface where the listed thing (a group) is
+identified by its URL and read through the same permission-gated read path
+everything else uses.
+
+**Rejected:** equating discoverability with `anon` membership (the first
+draft — conflates listing with readability; the discover group needs a UI
+fudge; can't express "listed but content-private"); a **constrained detail**
+(404 for non-discoverable groups, posts only for `anon` — the second draft:
+uses a *listing* flag to gate *reachability*, and blocks a signed-in member
+from reading their own group through it); listing all `open`-join groups
+(leaks the existence of groups that are open-to-join but not meant to be
+publicly browsed, and conflates "can join" with "is listed"); a dedicated
+`group_directory` table (duplicates the identity data that belongs in
+`group-identity-service` — two sources of truth; the `apps` table precedent
+doesn't transfer because groups are core internal entities, not external
+registrations); a node-baked `?tag=` search filter (freezes the search shape
+into the node; composition keeps it flexible); a separate discovery index
+(the discover group proved discovery IS a group read — D40); a dedicated
+opt-in endpoint (the boolean is set through the existing group-update path).
+The "List in directory" toggle is a UI convenience that sets `discoverable`
+**and** adds `anon` for the common case — it is not a new primitive.
+
+**The one honest cost:** the boolean is a second source of truth, and it can
+diverge from membership (`discoverable: true` but `anon` not a member). That
+divergence is not a bug — it is the "listed, join to view" state (item 4).
+The only real hazard is a group that is listed but whose owner *expected* it
+to be readable; the detail page's "join to view" state makes that visible
+instead of silent.
+
+**Not essential now** (operator): planned, not urgent — gated behind the
+social app's community surface (the directory is the browse surface; the
+join/engage flow lives in the app).
+
+Full model: `knowledge-base/web10-v3/groups/discoverability.md` (the
+directory + the flag) and `knowledge-base/web10-v3/groups/detail.md` (the
+flexible by-ID read).
+
+---
+
+### D52 — App store product page: the detail endpoint is keyed by the app's URL; `web10apps_post_id` is retired [decided]
+Operator, 26.08.2026 — "in the apps would be cool if there was a little
+button that said to see more … it expands, has a deeper paragraph
+description from the manifest, and then has ALL the available stats, the
+90d users, the visits, the 30d users, you get what i mean, everything in
+one screen, and the apps reviews comments kind of thing" — then "clicking
+the tile opens this modal or whatever it is" — then "in the knowledge base
+we need to talk about how the app store is going to work, it will need its
+own endpoints."
+
+**Decided** —
+
+1. **The product page is a page, not a modal.** The existing
+   `/app-store/app/:id` route (PR #426) is the surface. Tap tile → page;
+   the Open button → launch. Deep-linkable and shareable — the address bar
+   is part of the product. A modal with no URL state is a review rejection
+   per the deep-link rule, and it is cramped for "everything in one
+   screen."
+2. **A new `GET /v3/apps/detail?url=` serves the page.** Public, pure
+   read, one call: app + rating aggregate + rating list + the full
+   five-metric breakdown + the node macro. **No visit bump** — a
+   product-page view is not an app visit; `app_visits` rows come only from
+   SDK pings carrying a verified token (D49). D49's item 5 assigns the
+   detail page the full breakdown ("the grid card shows the headline, the
+   app detail page shows the full breakdown") — this spec is what that
+   line points at.
+3. **The URL is the key.** D47 made the full URL the app's identity
+   (canonical form, D49 hardening #4); the detail endpoint keys on it, and
+   `web10apps_post_id` is retired (v2 vestige — the `#web10apps` discovery
+   ledger, dropped in v3; the v3 `apps` table never had the column;
+   `list_store_apps` still blanks it to `""` for the UI; the UI route
+   param becomes the URL-encoded canonical URL).
+4. **Reviews are a rating with words.** `app_ratings` gains a `comment`
+   column; one voice per author (dedup key `(target_app_id, author)`),
+   latest wins, no history. No separate reviews table.
+5. **The page shows D49's metric set, not an invention.** Per app:
+   `visits`, `users_1d`, `users_30d`, `users_90d`, `users_1y` — the same
+   realtime queries over `app_visits` the grid uses (`get_app_metrics`,
+   exact `countDistinct`). Node context: the `/v3/stats` macro (users,
+   app_count, active_users, storage). No consent-based user count
+   (`app_contracts` holders) — D49's metric set is the store's number, and
+   consent is a separate trust surface, not a store metric.
+
+**Why:** the product page was built (PR #426) against a phantom endpoint
+(`PATCH /discover/app/{id}` — no such route in the API, so every page 404s
+into "App not found") and a blanked ID (`list_store_apps` sets
+`web10apps_post_id: ""`, so the card never takes the internal-Link path
+and the tile opens the site directly). The root cause is an identity gap:
+the UI wanted a short ID for the route, but the store's identity is
+already the URL. Keying on the URL deletes the gap instead of papering
+over it with a second ID system.
+
+**Rejected:** a modal (no URL state — review rejection; cramped for the
+full stats + reviews layout); a "see more" expander on the card (a third
+tap target on a small tile; inline expansion breaks grid row alignment); a
+parallel ID for the route (post_id / slug / numeric — D47: the URL is the
+identity, a second ID system is drift by construction); a separate
+`app_reviews` table (duplicates `app_ratings`' dedup semantics); a
+consent-based user count on the page (muddies D49's metric set — consent
+≠ usage).
+
+Full model: `knowledge-base/web10-v3/app-store/endpoints.md`.
+
+---
+
 ### D51 — Ad dissemination is a per-creator setting; curation is a shared SDK helper [decided]
 Operator, 26.08.2026 — building on D50: "i am pulling feed, or something, you can use
 clickhouse join feed with arbitrary ads per user, so you pull posts per your feed,

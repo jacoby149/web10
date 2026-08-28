@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import React from 'react'
 import GroupRolesDialog from '../components/Groups/GroupRolesDialog'
+import GroupCard from '../components/Groups/GroupCard'
 
 const mockI = {
   v3UpdateGroup: vi.fn(),
@@ -68,5 +69,67 @@ describe('GroupRolesDialog', () => {
     expect(roleInputs).toHaveLength(2)
     fireEvent.change(roleInputs[0], { target: { value: 'admin_edited' } })
     expect(roleInputs[0]).toHaveValue('admin_edited')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// GroupCard — "List in directory" toggle (the discoverable flag, D53)
+// ---------------------------------------------------------------------------
+
+const cardI = {
+  v3UpdateGroup: vi.fn(),
+  v3GroupsManagesLoad: vi.fn(),
+  v3GetGroupMembers: vi.fn(),
+  setStatus: vi.fn(),
+}
+
+const managedGroup = {
+  group_id: 'web10.app/groups/users/alice/jazz',
+  join_policy: 'open',
+  my_role: 'owner',
+  member_count: 3,
+  discoverable: true,
+  roles: [{ name: 'owner', permissions: ['manageRoles'], services: ['*'] }],
+}
+
+function expandCard() {
+  fireEvent.click(screen.getByTestId('group-card-header'))
+}
+
+describe('GroupCard — List in directory toggle', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    cardI.v3UpdateGroup.mockResolvedValue({})
+  })
+
+  it('shows the toggle (expanded, managed) reflecting the discoverable state', () => {
+    render(<GroupCard I={cardI} group={managedGroup} isManaged={true} />)
+    expandCard()
+    expect(screen.getByTestId('discoverable-toggle')).toHaveAttribute('aria-checked', 'true')
+  })
+
+  it('toggling off calls v3UpdateGroup with discoverable: false', async () => {
+    render(<GroupCard I={cardI} group={managedGroup} isManaged={true} />)
+    expandCard()
+    fireEvent.click(screen.getByTestId('discoverable-toggle'))
+    await waitFor(() => {
+      expect(cardI.v3UpdateGroup).toHaveBeenCalledWith('web10.app/groups/users/alice/jazz', { discoverable: false })
+    })
+  })
+
+  it('toggling on (from false) calls v3UpdateGroup with discoverable: true', async () => {
+    render(<GroupCard I={cardI} group={{ ...managedGroup, discoverable: false }} isManaged={true} />)
+    expandCard()
+    expect(screen.getByTestId('discoverable-toggle')).toHaveAttribute('aria-checked', 'false')
+    fireEvent.click(screen.getByTestId('discoverable-toggle'))
+    await waitFor(() => {
+      expect(cardI.v3UpdateGroup).toHaveBeenCalledWith('web10.app/groups/users/alice/jazz', { discoverable: true })
+    })
+  })
+
+  it('does not show the toggle for a non-managed group', () => {
+    render(<GroupCard I={cardI} group={managedGroup} isManaged={false} />)
+    expandCard()
+    expect(screen.queryByTestId('discoverable-toggle')).toBeNull()
   })
 })

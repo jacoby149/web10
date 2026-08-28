@@ -4,6 +4,7 @@
 # dependencies — never commit installed packages
 node_modules/
 package-lock.json
+bun.lock
 
 # python
 __pycache__/

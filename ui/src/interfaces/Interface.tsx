@@ -609,11 +609,12 @@ function useInterface() {
         return v3Post('groups/decline-invite', { group_id: groupId });
     }
 
-    // Update group settings (join policy, roles).
-    I.v3UpdateGroup = function (groupId: string, opts?: { join_policy?: string; roles?: Record<string, unknown>[] }) {
+    // Update group settings (join policy, roles, discoverable).
+    I.v3UpdateGroup = function (groupId: string, opts?: { join_policy?: string; roles?: Record<string, unknown>[]; discoverable?: boolean }) {
         const payload: Record<string, any> = { group_id: groupId };
         if (opts?.join_policy) payload.join_policy = opts.join_policy;
         if (opts?.roles) payload.roles = opts.roles;
+        if (opts?.discoverable !== undefined) payload.discoverable = opts.discoverable;
         return v3Post('groups/update', payload);
     }
 

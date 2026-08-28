@@ -1,5 +1,6 @@
 import json
 import logging
+import math
 import threading
 import time
 import uuid
@@ -84,6 +85,10 @@ def ensure_apps_schema():
         # have the apps table without the column; ADD COLUMN appends it at
         # the end, which is why inserts must name their columns.
         client.command("ALTER TABLE apps ADD COLUMN IF NOT EXISTS visits UInt64 DEFAULT 0")
+        # app_ratings.comment — reviews are a rating with words (D52).
+        # Pre-existing volumes predate the column; ADD COLUMN appends it at
+        # the end, which is why inserts must name their columns.
+        client.command("ALTER TABLE app_ratings ADD COLUMN IF NOT EXISTS comment String DEFAULT ''")
         # node_config — node-level config (the v2 Mongo web10.config
         # collection, moved to ClickHouse: v3 stacks run no Mongo).
         client.command(
@@ -100,11 +105,180 @@ def ensure_apps_schema():
             ") ENGINE = MergeTree ORDER BY (app_url, username, seen_at)"
             " TTL toDateTime(seen_at) + INTERVAL 2 YEAR"
         )
-        log.info("[v3] schema ensured (apps.visits + node_config + app_visits present)")
+        # group_contracts.discoverable — the group directory listing switch
+        # (D53). Pre-existing volumes predate the column; ADD COLUMN appends
+        # it at the end, which is why group inserts name their columns.
+        client.command("ALTER TABLE group_contracts ADD COLUMN IF NOT EXISTS discoverable UInt8 DEFAULT 1")
+        # group_identity — public display metadata for a group (D53). The
+        # single home for how a group presents itself in the directory and its
+        # detail (name, description, banner, avatar, website, tags). Pre-existing
+        # volumes predate the table.
+        client.command(
+            "CREATE TABLE IF NOT EXISTS group_identity ("
+            "group_id String, name String DEFAULT '', description String DEFAULT '', "
+            "banner_ref String DEFAULT '', avatar_ref String DEFAULT '', website String DEFAULT '', "
+            "tags Array(String), created_at DateTime64(3), updated_at DateTime64(3), deleted UInt8 DEFAULT 0"
+            ") ENGINE = ReplacingMergeTree(updated_at) ORDER BY group_id"
+        )
+        log.info(
+            "[v3] schema ensured (apps.visits + app_ratings.comment + node_config + app_visits + group_contracts.discoverable + group_identity present)"
+        )
+        # Data migration (idempotent): re-home demo apps registered under
+        # their directory-index file URLs onto their directory URLs.
+        _migrate_file_index_app_rows()
     except Exception as e:
         # ClickHouse not up yet, or table missing (fresh volume mid-init).
         # The DDL template covers fresh volumes; log and move on.
         log.warning(f"[v3] schema ensure skipped: {type(e).__name__}: {e}")
+
+
+def _tombstone_app_row(url: str) -> None:
+    """Mark the latest live row for ``url`` as deleted (the dedup-then-filter
+    house pattern — a tombstone row ranks latest, so the app leaves the store)."""
+    client.command(
+        "INSERT INTO apps (url, name, description, icon_url, screenshots, visits, approved, review_state, metadata_version, created_at, updated_at, deleted) "
+        "SELECT url, name, description, icon_url, screenshots, visits, approved, review_state, metadata_version, created_at, now64(6), 1 "
+        "FROM (SELECT url, name, description, icon_url, screenshots, visits, approved, review_state, metadata_version, created_at, updated_at, deleted, "
+        "row_number() OVER (PARTITION BY url ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM apps) WHERE rn = 1 AND deleted = 0 AND url = %(url)s",
+        {"url": url},
+    )
+
+
+def _migrate_file_index_app_rows() -> None:
+    """One-time, idempotent data migration.
+
+    The store's demo apps were registered under their directory-index file
+    URLs (``.../docs/media/index.html``) because the docs page linked the
+    explicit ``index.html`` and the SDK registered ``window.location.href``.
+    #683 fixed the identity fork for NEW registrations (the canonicalizer
+    and the SDK now collapse ``/index.html`` to the directory), but the rows
+    already stored under file URLs remain — icon-less, name-less duplicate
+    cards whose manifest lookup (``.../index.html/manifest.json``) can never
+    resolve.
+
+    Re-home each live file-index row under its directory URL (carrying over
+    name/description/approval so the demos stay approved and keep their
+    icons) and tombstone the file row. Idempotent: once the file rows are
+    tombstoned the source query returns nothing on later boots, and the
+    canonicalizer now strips ``/index.html`` so no new file-index rows can be
+    created. Safe under concurrent gunicorn workers — duplicate re-home rows
+    carry identical state and the dedup hides all but one.
+    """
+    result = client.query(
+        "SELECT url, name, description, icon_url, screenshots, visits, approved, review_state, "
+        "metadata_version, created_at "
+        "FROM (SELECT url, name, description, icon_url, screenshots, visits, approved, review_state, "
+        "metadata_version, created_at, updated_at, deleted, "
+        "row_number() OVER (PARTITION BY url ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM apps) WHERE rn = 1 AND deleted = 0 "
+        "AND (url LIKE '%/index.html' OR url LIKE '%/index.html/')"
+    )
+    if not result.result_rows:
+        return
+    for row in result.result_rows:
+        old_url = row[0]
+        new_url = _canonical_app_url(old_url)
+        if new_url == old_url:
+            continue
+        # A live row already exists under the directory URL (e.g. a
+        # post-#683 visit registered it) — keep that row, just drop the
+        # stale file row.
+        if not get_app(new_url):
+            client.insert(
+                "apps",
+                [[new_url, row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9], _now(), 0]],
+                column_names=[
+                    "url",
+                    "name",
+                    "description",
+                    "icon_url",
+                    "screenshots",
+                    "visits",
+                    "approved",
+                    "review_state",
+                    "metadata_version",
+                    "created_at",
+                    "updated_at",
+                    "deleted",
+                ],
+            )
+        _tombstone_app_row(old_url)
+        log.info(f"[v3] re-homed app {old_url} -> {new_url}")
+
+
+# ---------------------------------------------------------------------------
+# Discover group — the node-default universal public board
+# ---------------------------------------------------------------------------
+#
+# The discover group is a NODE DEFAULT, not an app-created group (KB:
+# web10-v3/groups/social-contracts.md §1 — owner "System", members "Everyone
+# (auto-join)"; web10-social-v3/discover.md — "every user (including anon) is
+# a member"). It is the universal public board: a read of the group IS the
+# board, and a post is public when its author attaches it here. The group id
+# is a well-known constant (not provider-derived) so every app — and the
+# marketing site, which reads it as anon — addresses the same board.
+
+DISCOVER_GROUP_ID = "web10.app/groups/web10/discover"
+
+# One role. Everyone shares it (social-contracts.md §1): read the board, post
+# to it, manage your own posts. No owners, no moderators.
+DISCOVER_ROLES = [
+    {
+        "name": "member",
+        "services": ["posts"],
+        "permissions": ["readAll", "create", "updateOwn", "deleteOwn"],
+    }
+]
+
+
+def _ensure_discover_group_contract() -> None:
+    """Create the discover group contract if missing (no membership work).
+
+    The lightweight half of ensure_discover_group — safe to call from the
+    signup path (create_user) where we only need the contract to exist before
+    enrolling the new user, not the full anon + backfill pass.
+    """
+    if not get_group(DISCOVER_GROUP_ID):
+        # discoverable=False (D53): the board is anon-readable (anon is a
+        # member) but NOT a directory entry — it's a board, not a community.
+        create_group(DISCOVER_GROUP_ID, DISCOVER_ROLES, "open", discoverable=False)
+        log.info("[v3] discover group created: %s", DISCOVER_GROUP_ID)
+
+
+def ensure_discover_group() -> None:
+    """Ensure the node-default discover group exists and is populated.
+
+    Idempotent boot pass (safe from every gunicorn worker):
+      1. create the group contract if missing,
+      2. ensure `anon` is a member — the public surface reads the board as
+         anon, so anon membership is what makes it anon-readable,
+      3. backfill every existing user as a member (auto-enrollment for
+         accounts created before the group existed).
+    New users are enrolled at signup (see create_user), so the backfill only
+    adds pre-existing accounts.
+
+    Resilient like ensure_apps_schema: ClickHouse may not be ready at boot
+    (or a test may run this against a stub), so a failure is logged and
+    deferred to the next boot / the signup auto-enroll, not fatal.
+    """
+    try:
+        _ensure_discover_group_contract()
+
+        members = set(get_group_member_keys(DISCOVER_GROUP_ID))
+        if "anon" not in members:
+            add_group_member(DISCOVER_GROUP_ID, "anon", "member")
+            log.info("[v3] discover group: anon enrolled")
+
+        added = 0
+        for user in list_users():
+            if user["username"] not in members:
+                add_group_member(DISCOVER_GROUP_ID, user["username"], "member")
+                added += 1
+        if added:
+            log.info("[v3] discover group: backfilled %d user(s)", added)
+    except Exception as e:
+        log.warning(f"[v3] discover group ensure skipped: {type(e).__name__}: {e}")
 
 
 # ---------------------------------------------------------------------------
@@ -326,17 +500,27 @@ def get_doc_groups(doc_id: str) -> list[str]:
 # ---------------------------------------------------------------------------
 
 
-def create_group(group_id: str, roles: list[dict], join_policy: str) -> dict:
-    """Create a group contract."""
+def create_group(group_id: str, roles: list[dict], join_policy: str, discoverable: bool | None = None) -> dict:
+    """Create a group contract.
+
+    ``discoverable`` (D53) lists the group in the public directory. It
+    defaults to ``True`` — groups are discoverable by default — except
+    ``invite_only`` groups, which default to ``False`` (inherently private:
+    DMs, private circles). Pass ``discoverable`` explicitly to override.
+    """
+    if discoverable is None:
+        discoverable = join_policy != "invite_only"
     now = _now()
     client.insert(
         "group_contracts",
-        [[group_id, _json(roles), join_policy, now, now, 0]],
+        [[group_id, _json(roles), join_policy, int(discoverable), now, now, 0]],
+        column_names=["group_id", "roles", "join_policy", "discoverable", "created_at", "updated_at", "deleted"],
     )
     return {
         "group_id": group_id,
         "roles": roles,
         "join_policy": join_policy,
+        "discoverable": discoverable,
         "created_at": now.isoformat(),
     }
 
@@ -348,8 +532,8 @@ def get_group(group_id: str) -> dict | None:
     a deleted group must not be found by its stale active row.
     """
     result = client.query(
-        "SELECT group_id, roles, join_policy, created_at, updated_at "
-        "FROM (SELECT group_id, roles, join_policy, created_at, updated_at, deleted, "
+        "SELECT group_id, roles, join_policy, discoverable, created_at, updated_at "
+        "FROM (SELECT group_id, roles, join_policy, discoverable, created_at, updated_at, deleted, "
         "row_number() OVER (PARTITION BY group_id ORDER BY updated_at DESC, deleted DESC) as rn "
         "FROM group_contracts WHERE group_id = %(group_id)s) "
         "WHERE rn = 1 AND deleted = 0",
@@ -362,8 +546,9 @@ def get_group(group_id: str) -> dict | None:
         "group_id": row[0],
         "roles": _parse_json(row[1]),
         "join_policy": row[2],
-        "created_at": str(row[3]),
-        "updated_at": str(row[4]),
+        "discoverable": bool(row[3]),
+        "created_at": str(row[4]),
+        "updated_at": str(row[5]),
     }
 
 
@@ -371,8 +556,8 @@ def delete_group(group_id: str):
     """Tombstone a group contract and all its members."""
     # Tombstone the group contract
     client.command(
-        "INSERT INTO group_contracts (group_id, roles, join_policy, created_at, updated_at, deleted) "
-        "SELECT group_id, roles, join_policy, created_at, now64(6), 1 "
+        "INSERT INTO group_contracts (group_id, roles, join_policy, discoverable, created_at, updated_at, deleted) "
+        "SELECT group_id, roles, join_policy, discoverable, created_at, now64(6), 1 "
         "FROM group_contracts WHERE group_id = %(group_id)s AND deleted = 0",
         {"group_id": group_id},
     )
@@ -399,15 +584,18 @@ def update_group(group_id: str, **kwargs):
         return None
     roles = kwargs.get("roles", existing["roles"])
     join_policy = kwargs.get("join_policy", existing["join_policy"])
+    discoverable = kwargs.get("discoverable", existing["discoverable"])
     now = _now()
     client.insert(
         "group_contracts",
-        [[group_id, _json(roles), join_policy, existing["created_at"], now, 0]],
+        [[group_id, _json(roles), join_policy, int(discoverable), existing["created_at"], now, 0]],
+        column_names=["group_id", "roles", "join_policy", "discoverable", "created_at", "updated_at", "deleted"],
     )
     return {
         "group_id": group_id,
         "roles": roles,
         "join_policy": join_policy,
+        "discoverable": discoverable,
         "updated_at": now.isoformat(),
     }
 
@@ -493,6 +681,22 @@ def is_group_member(group_id: str, member_key: str) -> bool:
     return get_group_member(group_id, member_key) is not None
 
 
+def get_group_member_keys(group_id: str) -> list[str]:
+    """All active member keys of a group (deduplicated, no limit).
+
+    Used by the discover-group backfill to know who is already enrolled —
+    one query instead of one membership check per user.
+    """
+    result = client.query(
+        "SELECT member_key FROM (SELECT member_key, deleted, "
+        "row_number() OVER (PARTITION BY member_key ORDER BY updated_at DESC, deleted DESC) as rn "
+        "FROM group_members WHERE group_id = %(group_id)s) "
+        "WHERE rn = 1 AND deleted = 0",
+        {"group_id": group_id},
+    )
+    return [row[0] for row in result.result_rows]
+
+
 def _get_group_member_counts(group_ids: list[str]) -> dict[str, int]:
     """Get deduplicated active member counts for a batch of groups.
 
@@ -512,6 +716,85 @@ def _get_group_member_counts(group_ids: list[str]) -> dict[str, int]:
         {"group_ids": group_ids},
     )
     return {row[0]: row[1] for row in result.result_rows}
+
+
+# ---------------------------------------------------------------------------
+# Group identity — public display metadata (D53)
+# ---------------------------------------------------------------------------
+# The single home for how a group presents itself in the directory and its
+# detail: name, description, banner, avatar, website, tags. Public by design
+# (readable by any principal, including anon — the group's "unlisted video"
+# page), so it is a table, not an I3-gated documents collection. Append-only:
+# an update is a new row, latest wins (the house dedup-then-filter pattern).
+
+
+def get_group_identity(group_id: str) -> dict | None:
+    """Get a group's identity record (latest version). Public display metadata."""
+    result = client.query(
+        "SELECT name, description, banner_ref, avatar_ref, website, tags "
+        "FROM (SELECT name, description, banner_ref, avatar_ref, website, tags, deleted, "
+        "row_number() OVER (PARTITION BY group_id ORDER BY updated_at DESC, deleted DESC) as rn "
+        "FROM group_identity WHERE group_id = %(group_id)s) "
+        "WHERE rn = 1 AND deleted = 0",
+        {"group_id": group_id},
+    )
+    if not result.result_rows:
+        return None
+    row = result.result_rows[0]
+    return {
+        "name": row[0],
+        "description": row[1],
+        "banner_ref": row[2],
+        "avatar_ref": row[3],
+        "website": row[4],
+        "tags": list(row[5]),
+    }
+
+
+def get_group_identities(group_ids: list[str]) -> dict[str, dict]:
+    """Get identity records for a batch of groups. Returns {group_id: identity}.
+
+    One query so the directory can name its cards without an N+1. Groups with
+    no identity record are simply absent from the result (the caller falls
+    back to the slug).
+    """
+    if not group_ids:
+        return {}
+    result = client.query(
+        "SELECT group_id, name, description, banner_ref, avatar_ref, website, tags "
+        "FROM (SELECT group_id, name, description, banner_ref, avatar_ref, website, tags, deleted, "
+        "row_number() OVER (PARTITION BY group_id ORDER BY updated_at DESC, deleted DESC) as rn "
+        "FROM group_identity WHERE group_id IN %(group_ids)s) "
+        "WHERE rn = 1 AND deleted = 0",
+        {"group_ids": group_ids},
+    )
+    out: dict[str, dict] = {}
+    for row in result.result_rows:
+        out[row[0]] = {
+            "name": row[1],
+            "description": row[2],
+            "banner_ref": row[3],
+            "avatar_ref": row[4],
+            "website": row[5],
+            "tags": list(row[6]),
+        }
+    return out
+
+
+def list_discoverable_groups(limit: int = 50, offset: int = 0) -> list[dict]:
+    """List the discoverable groups (the directory). Minimal: id, join_policy,
+    roles. The endpoint layers on member count + identity (name, tags)."""
+    result = client.query(
+        "SELECT group_id, join_policy, roles "
+        "FROM (SELECT group_id, join_policy, roles, discoverable, deleted, "
+        "row_number() OVER (PARTITION BY group_id ORDER BY updated_at DESC, deleted DESC) as rn "
+        "FROM group_contracts) "
+        "WHERE rn = 1 AND deleted = 0 AND discoverable = 1 "
+        "ORDER BY group_id "
+        "LIMIT %(limit)s OFFSET %(offset)s",
+        {"limit": limit, "offset": offset},
+    )
+    return [{"group_id": row[0], "join_policy": row[1], "roles": _parse_json(row[2])} for row in result.result_rows]
 
 
 def get_user_groups(member_key: str) -> list[dict]:
@@ -653,13 +936,52 @@ def hide_doc_from_group(group_id: str, doc_id: str, moderator_key: str):
 
 
 def unhide_doc_from_group(group_id: str, doc_id: str):
-    """Unhide a document from a group's discover."""
+    """Unhide a document from a group's discover.
+
+    now64(6) (microsecond) — not now() (second) — so the tombstone's
+    updated_at is never earlier than the active hide row it supersedes when
+    both land in the same second; the reader's dedup keys off updated_at, so
+    a second-precision tombstone would rank earlier and the restore would be
+    invisible until a background merge (same house pattern as the unblock
+    tombstones).
+    """
     client.command(
         "INSERT INTO group_hidden_docs (group_id, doc_id, moderator_key, hidden_at, updated_at, deleted) "
-        "SELECT group_id, doc_id, moderator_key, hidden_at, now(), 1 "
+        "SELECT group_id, doc_id, moderator_key, hidden_at, now64(6), 1 "
         "FROM group_hidden_docs WHERE group_id = %(group_id)s AND doc_id = %(doc_id)s AND deleted = 0",
         {"group_id": group_id, "doc_id": doc_id},
     )
+
+
+def get_hidden_docs(group_id: str) -> list[dict]:
+    """List documents hidden from a group (the moderation takedown list).
+
+    Joins the documents table to surface author + body for the admin's
+    restore list. Dedup first (latest row per doc, tombstones included) then
+    filter deleted=0 — a restored doc's stale hidden row must not linger.
+    """
+    result = client.query(
+        "SELECT hd.doc_id, hd.moderator_key, hd.hidden_at, d.author_key, d.body "
+        "FROM (SELECT doc_id, moderator_key, hidden_at, deleted, "
+        "row_number() OVER (PARTITION BY doc_id ORDER BY updated_at DESC, deleted DESC) as rn "
+        "FROM group_hidden_docs WHERE group_id = %(group_id)s) hd "
+        "LEFT JOIN (SELECT doc_id, author_key, body FROM (SELECT doc_id, author_key, body, deleted, "
+        "row_number() OVER (PARTITION BY doc_id ORDER BY updated_at DESC) as rn "
+        "FROM documents) WHERE rn = 1 AND deleted = 0) d ON d.doc_id = hd.doc_id "
+        "WHERE hd.rn = 1 AND hd.deleted = 0 "
+        "ORDER BY hd.hidden_at DESC",
+        {"group_id": group_id},
+    )
+    return [
+        {
+            "doc_id": row[0],
+            "moderator_key": row[1],
+            "hidden_at": str(row[2]),
+            "author_key": row[3] or "",
+            "body": _parse_json(row[4]) if row[4] else {},
+        }
+        for row in result.result_rows
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -859,12 +1181,271 @@ def is_sharing_enabled(user_key: str, group_id: str) -> bool:
 # ---------------------------------------------------------------------------
 
 
+def _power_mean_score(age_ms: float, likes: int, comments: int, sort: dict) -> float:
+    """Compute the power-mean score for one post (the feed knobs, server-side).
+
+    Mirrors marketing-ui/src/lib/powerMean.ts exactly so client and server
+    score identically: the normalizers are set-independent saturating curves
+    (recency = exp decay, likes/comments = log1p then saturate), signals are
+    floored to epsilon so p <= 0 never nukes a post for one dead signal, and
+    the weighted power mean is (Σ wᵢ·xᵢ^p / Σ wᵢ)^(1/p) with p = 0 the
+    weighted geometric mean. Recency-only (the "Newest" preset) short-circuits
+    to pure reverse-chron.
+    """
+    wr = float(sort.get("recency", 0.0))
+    wl = float(sort.get("likes", 0.0))
+    wc = float(sort.get("comments", 0.0))
+    half_life = float(sort.get("half_life_ms", 0.0))
+    p = float(sort.get("character", -1.0))
+
+    # Recency-only shortcut: the "Newest" preset guarantees this regardless of
+    # engagement — return negative age so newer posts score higher.
+    if wr > 0 and wl <= 0 and wc <= 0:
+        return -age_ms
+
+    # Normalizers (set-independent, saturating).
+    r = 1.0 if half_life <= 0 else math.exp(-age_ms / half_life)
+    likes_n = math.log1p(likes) / (1 + math.log1p(likes))
+    c = (0.5 * math.log1p(comments)) / (1 + 0.5 * math.log1p(comments))
+
+    # Floor to epsilon so p <= 0 never nukes a post for one dead signal.
+    EPSILON = 1e-12
+    r = max(EPSILON, min(1.0, r))
+    likes_n = max(EPSILON, min(1.0, likes_n))
+    c = max(EPSILON, min(1.0, c))
+
+    # Weighted power mean. Zero-weighted signals are excluded from both the
+    # numerator and the denominator.
+    signals = (r, likes_n, c)
+    weights = (wr, wl, wc)
+    total_weight = 0.0
+    total = 0.0
+    for i in range(3):
+        if weights[i] <= 0:
+            continue
+        total_weight += weights[i]
+        if abs(p) < 1e-9:
+            total += weights[i] * math.log(signals[i])
+        else:
+            total += weights[i] * (signals[i] ** p)
+
+    if total_weight <= 0:
+        return 0.0
+    if abs(p) < 1e-9:
+        return math.exp(total / total_weight)
+    return (total / total_weight) ** (1.0 / p)
+
+
+def _power_mean_score_sql(
+    created_ms: str, reactions: str, comments: str, sort: dict, now_expr: str = "now64(3)"
+) -> str:
+    """SQL expression for the power-mean score (the v1 scale-up).
+
+    Mirrors `_power_mean_score` (and marketing-ui/src/lib/powerMean.ts) exactly
+    so the node ranks identically to the client: the same saturating
+    normalizers (recency = exp decay, likes/comments = log1p then saturate),
+    the same epsilon floor, p = 0 the weighted geometric mean, and the
+    recency-only reverse-chron shortcut. `created_ms` / `reactions` /
+    `comments` are SQL expressions for the post's created_at (a DateTime64
+    column), its reaction count, and its comment count. `now_expr` defaults to
+    the query time; a fixed value makes the age deterministic (tests).
+    """
+    wr = float(sort.get("recency", 0.0))
+    wl = float(sort.get("likes", 0.0))
+    wc = float(sort.get("comments", 0.0))
+    p = float(sort.get("character", -1.0))
+
+    age = f"greatest(0, toUnixTimestamp64Milli({now_expr}) - toUnixTimestamp64Milli({created_ms}))"
+
+    # Recency-only shortcut: the "Newest" preset → pure reverse-chron.
+    if wr > 0 and wl <= 0 and wc <= 0:
+        return f"-({age})"
+    # No weighted signal at all → score 0 (the caller falls back to chronological).
+    if wr <= 0 and wl <= 0 and wc <= 0:
+        return "0"
+
+    eps = 1e-12
+    r = f"least(1, greatest({eps}, if(%(hl)s <= 0, 1, exp(-({age}) / %(hl)s))))"
+    likes_n = f"least(1, greatest({eps}, ln(1 + ({reactions})) / (1 + ln(1 + ({reactions})))))"
+    c = f"least(1, greatest({eps}, 0.5 * ln(1 + ({comments})) / (1 + 0.5 * ln(1 + ({comments})))))"
+
+    tw = "(if(%(wr)s > 0, %(wr)s, 0) + if(%(wl)s > 0, %(wl)s, 0) + if(%(wc)s > 0, %(wc)s, 0))"
+    if abs(p) < 1e-9:
+        num = (
+            f"(if(%(wr)s > 0, %(wr)s * ln({r}), 0) "
+            f"+ if(%(wl)s > 0, %(wl)s * ln({likes_n}), 0) "
+            f"+ if(%(wc)s > 0, %(wc)s * ln({c}), 0))"
+        )
+        return f"exp({num} / {tw})"
+    num = (
+        f"(if(%(wr)s > 0, %(wr)s * pow({r}, %(p)s), 0) "
+        f"+ if(%(wl)s > 0, %(wl)s * pow({likes_n}, %(p)s), 0) "
+        f"+ if(%(wc)s > 0, %(wc)s * pow({c}, %(p)s), 0))"
+    )
+    return f"pow({num} / {tw}, 1 / %(p)s)"
+
+
+def _board_base_sql(group_ids: list[str]) -> str:
+    """Board base SQL (shared by the no-sort and ranked read paths).
+
+    documents JOIN doc_groups JOIN group_members, filtered by membership,
+    tombstones, blacklists, sharing, and hidden docs. Selects
+    (doc_id, author_key, body, tags, created_at, ref_value). Placeholders:
+    %(coll)s, %(member_key)s, %(g0)s..%(gN)s.
+    """
+    return (
+        "SELECT p.doc_id AS doc_id, p.author_key, p.body, p.tags, p.created_at, p.ref_value "
+        "FROM (SELECT doc_id, author_key, body, tags, created_at, ref_value, deleted "
+        "FROM (SELECT *, row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
+        "FROM documents WHERE collection_name = %(coll)s) "
+        "WHERE rn = 1 AND deleted = 0) p "
+        "JOIN (SELECT doc_id, group_id FROM doc_groups WHERE deleted = 0 "
+        "QUALIFY row_number() OVER (PARTITION BY doc_id, group_id ORDER BY updated_at DESC) = 1) pg "
+        "ON p.doc_id = pg.doc_id "
+        "JOIN (SELECT group_id, member_key, role FROM (SELECT group_id, member_key, role, deleted, "
+        "row_number() OVER (PARTITION BY group_id, member_key ORDER BY updated_at DESC) as rn "
+        "FROM group_members) WHERE rn = 1 AND deleted = 0) gm ON pg.group_id = gm.group_id "
+        "LEFT ANTI JOIN (SELECT user_key, blocked_key FROM (SELECT user_key, blocked_key, deleted, "
+        "row_number() OVER (PARTITION BY user_key, blocked_key ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM user_blacklist) WHERE rn = 1 AND deleted = 0) ub "
+        "ON ub.user_key = p.author_key AND ub.blocked_key = %(member_key)s "
+        "LEFT ANTI JOIN (SELECT user_key, group_id, blocked_key FROM (SELECT user_key, group_id, blocked_key, deleted, "
+        "row_number() OVER (PARTITION BY user_key, group_id, blocked_key ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM group_blacklist) WHERE rn = 1 AND deleted = 0) gb "
+        "ON gb.user_key = p.author_key AND gb.group_id = pg.group_id AND gb.blocked_key = %(member_key)s "
+        "LEFT ANTI JOIN (SELECT user_key, group_id, sharing_enabled FROM (SELECT user_key, group_id, sharing_enabled, deleted, "
+        "row_number() OVER (PARTITION BY user_key, group_id ORDER BY updated_at DESC) AS rn "
+        "FROM user_group_sharing) WHERE rn = 1 AND deleted = 0) ugs "
+        "ON ugs.user_key = p.author_key AND ugs.group_id = pg.group_id AND ugs.sharing_enabled = 0 "
+        "AND p.author_key != %(member_key)s "
+        "LEFT ANTI JOIN (SELECT group_id, doc_id FROM (SELECT group_id, doc_id, deleted, "
+        "row_number() OVER (PARTITION BY group_id, doc_id ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM group_hidden_docs) WHERE rn = 1 AND deleted = 0) hd "
+        "ON hd.doc_id = p.doc_id AND hd.group_id = pg.group_id "
+        "WHERE gm.member_key = %(member_key)s "
+        "AND pg.group_id IN (%(g0)s" + "".join(f", %(g{i})s" for i in range(1, len(group_ids))) + ")"
+    )
+
+
+def _group_docs_query(
+    group_ids: list[str],
+    member_key: str,
+    service: str,
+    limit: int | None,
+    offset: int,
+) -> list[dict]:
+    """The core v3 discover query (no ranking).
+
+    documents JOIN doc_groups JOIN group_members, filtered by membership,
+    tombstones, blacklists, and hidden docs. `limit=None` fetches the full
+    membership (no LIMIT clause).
+    """
+    limit_clause = "LIMIT %(limit)s OFFSET %(offset)s" if limit is not None else ""
+    params: dict = {
+        "member_key": member_key,
+        "coll": service,
+        "offset": offset,
+        **{f"g{i}": gid for i, gid in enumerate(group_ids)},
+    }
+    if limit is not None:
+        params["limit"] = limit
+    result = client.query(_board_base_sql(group_ids) + " ORDER BY p.created_at DESC " + limit_clause, params)
+    return [
+        {
+            "doc_id": row[0],
+            "author_key": row[1],
+            "body": _parse_json(row[2]),
+            "tags": list(row[3]),
+            "created_at": str(row[4]),
+            "ref_value": row[5],
+            "service": service,
+        }
+        for row in result.result_rows
+    ]
+
+
+def _group_docs_ranked_query(
+    group_ids: list[str],
+    member_key: str,
+    service: str,
+    sort: dict,
+    limit: int,
+    offset: int,
+) -> list[dict]:
+    """The v3 discover query with power-mean ranking in SQL (the v1 scale-up).
+
+    The board base (documents JOIN doc_groups JOIN group_members + the
+    block/share/hidden anti-joins) is joined to EXACT engagement counts — one
+    grouped scan of the reactions and comments collections, no per-row
+    subquery, no maintained counter table (feed-lens-integration.md, option
+    B). The power-mean score is computed in SQL (mirroring
+    `_power_mean_score`), and ORDER BY + LIMIT/OFFSET happen in ClickHouse —
+    no full membership fetch into Python, no in-process sort.
+    """
+    wr = float(sort.get("recency", 0.0))
+    wl = float(sort.get("likes", 0.0))
+    wc = float(sort.get("comments", 0.0))
+
+    score = _power_mean_score_sql(
+        "b.created_at",
+        "coalesce(eng.reaction_count, 0)",
+        "coalesce(cmt.comment_count, 0)",
+        sort,
+    )
+
+    # Degenerate all-zero config: v0 scored every post 0 and the stable sort
+    # preserved the board's created_at DESC order — match it (chronological).
+    order_by = f"{score} DESC" if (wr > 0 or wl > 0 or wc > 0) else "toUnixTimestamp64Milli(b.created_at) DESC"
+
+    params: dict = {
+        "member_key": member_key,
+        "coll": service,
+        "limit": limit,
+        "offset": offset,
+        "wr": wr,
+        "wl": wl,
+        "wc": wc,
+        "hl": float(sort.get("half_life_ms", 0.0)),
+        "p": float(sort.get("character", -1.0)),
+        **{f"g{i}": gid for i, gid in enumerate(group_ids)},
+    }
+
+    sql = (
+        "SELECT b.doc_id, b.author_key, b.body, b.tags, b.created_at, b.ref_value "
+        "FROM (" + _board_base_sql(group_ids) + ") b "
+        "LEFT JOIN (SELECT ref_value, count() AS reaction_count FROM (SELECT ref_value FROM documents "
+        "WHERE deleted = 0 AND collection_name = 'reactions' "
+        "QUALIFY row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) = 1) "
+        "WHERE ref_value != '' GROUP BY ref_value) eng ON eng.ref_value = b.doc_id "
+        "LEFT JOIN (SELECT ref_value, count() AS comment_count FROM (SELECT ref_value FROM documents "
+        "WHERE deleted = 0 AND collection_name = 'comments' "
+        "QUALIFY row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) = 1) "
+        "WHERE ref_value != '' GROUP BY ref_value) cmt ON cmt.ref_value = b.doc_id "
+        "ORDER BY " + order_by + " "
+        "LIMIT %(limit)s OFFSET %(offset)s"
+    )
+    result = client.query(sql, params)
+    return [
+        {
+            "doc_id": row[0],
+            "author_key": row[1],
+            "body": _parse_json(row[2]),
+            "tags": list(row[3]),
+            "created_at": str(row[4]),
+            "ref_value": row[5],
+            "service": service,
+        }
+        for row in result.result_rows
+    ]
+
+
 def read_documents_in_groups(
     group_ids: list[str],
     member_key: str,
     service: str,
     limit: int = 50,
     offset: int = 0,
+    sort: dict | None = None,
 ) -> list[dict]:
     """Read documents attached to groups where the user is a member.
 
@@ -894,58 +1475,14 @@ def read_documents_in_groups(
     if not group_ids:
         return []
 
-    result = client.query(
-        "SELECT p.doc_id, p.author_key, p.body, p.tags, p.created_at, p.ref_value "
-        "FROM (SELECT doc_id, author_key, body, tags, created_at, ref_value, deleted "
-        "FROM (SELECT *, row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
-        "FROM documents WHERE collection_name = %(coll)s) "
-        "WHERE rn = 1 AND deleted = 0) p "
-        "JOIN (SELECT doc_id, group_id FROM doc_groups WHERE deleted = 0 "
-        "QUALIFY row_number() OVER (PARTITION BY doc_id, group_id ORDER BY updated_at DESC) = 1) pg "
-        "ON p.doc_id = pg.doc_id "
-        "JOIN (SELECT group_id, member_key, role FROM (SELECT group_id, member_key, role, deleted, "
-        "row_number() OVER (PARTITION BY group_id, member_key ORDER BY updated_at DESC) as rn "
-        "FROM group_members) WHERE rn = 1 AND deleted = 0) gm ON pg.group_id = gm.group_id "
-        "LEFT ANTI JOIN (SELECT user_key, blocked_key FROM (SELECT user_key, blocked_key, deleted, "
-        "row_number() OVER (PARTITION BY user_key, blocked_key ORDER BY updated_at DESC, deleted DESC) AS rn "
-        "FROM user_blacklist) WHERE rn = 1 AND deleted = 0) ub "
-        "ON ub.user_key = p.author_key AND ub.blocked_key = %(member_key)s "
-        "LEFT ANTI JOIN (SELECT user_key, group_id, blocked_key FROM (SELECT user_key, group_id, blocked_key, deleted, "
-        "row_number() OVER (PARTITION BY user_key, group_id, blocked_key ORDER BY updated_at DESC, deleted DESC) AS rn "
-        "FROM group_blacklist) WHERE rn = 1 AND deleted = 0) gb "
-        "ON gb.user_key = p.author_key AND gb.group_id = pg.group_id AND gb.blocked_key = %(member_key)s "
-        "LEFT ANTI JOIN (SELECT user_key, group_id, sharing_enabled FROM (SELECT user_key, group_id, sharing_enabled, deleted, "
-        "row_number() OVER (PARTITION BY user_key, group_id ORDER BY updated_at DESC) AS rn "
-        "FROM user_group_sharing) WHERE rn = 1 AND deleted = 0) ugs "
-        "ON ugs.user_key = p.author_key AND ugs.group_id = pg.group_id AND ugs.sharing_enabled = 0 "
-        "AND p.author_key != %(member_key)s "
-        "LEFT ANTI JOIN group_hidden_docs hd "
-        "ON hd.doc_id = p.doc_id AND hd.group_id = pg.group_id AND hd.deleted = 0 "
-        "WHERE gm.member_key = %(member_key)s "
-        "AND pg.group_id IN (%(g0)s" + "".join(f", %(g{i})s" for i in range(1, len(group_ids))) + ") "
-        "ORDER BY p.created_at DESC "
-        "LIMIT %(limit)s OFFSET %(offset)s",
-        {
-            "member_key": member_key,
-            "coll": service,
-            "limit": limit,
-            "offset": offset,
-            **{f"g{i}": gid for i, gid in enumerate(group_ids)},
-        },
-    )
+    if sort:
+        # Power-mean ranking in SQL (the v1 scale-up): the board base is joined
+        # to exact engagement counts, scored in SQL (mirroring the client), and
+        # paged in ClickHouse — no full membership fetch into Python
+        # (feed-lens-integration.md, option B).
+        return _group_docs_ranked_query(group_ids, member_key, service, sort, limit, offset)
 
-    return [
-        {
-            "doc_id": row[0],
-            "author_key": row[1],
-            "body": _parse_json(row[2]),
-            "tags": list(row[3]),
-            "created_at": str(row[4]),
-            "ref_value": row[5],
-            "service": service,
-        }
-        for row in result.result_rows
-    ]
+    return _group_docs_query(group_ids, member_key, service, limit, offset)
 
 
 # ---------------------------------------------------------------------------
@@ -1035,11 +1572,11 @@ def get_groups_manages(member_key: str) -> list[dict]:
     Deduplicates group_members and group_contracts by latest version.
     """
     result = client.query(
-        "SELECT gc.group_id, gc.join_policy, gc.roles, gm.role AS my_role "
+        "SELECT gc.group_id, gc.join_policy, gc.roles, gc.discoverable, gm.role AS my_role "
         "FROM (SELECT group_id, member_key, role, deleted, "
         "row_number() OVER (PARTITION BY group_id, member_key ORDER BY updated_at DESC, deleted DESC) as rn "
         "FROM group_members) gm "
-        "JOIN (SELECT group_id, join_policy, roles, deleted, "
+        "JOIN (SELECT group_id, join_policy, roles, discoverable, deleted, "
         "row_number() OVER (PARTITION BY group_id ORDER BY updated_at DESC, deleted DESC) as rn "
         "FROM group_contracts) gc "
         "ON gm.group_id = gc.group_id "
@@ -1053,7 +1590,7 @@ def get_groups_manages(member_key: str) -> list[dict]:
     out = []
     seen = set()
     for row in result.result_rows:
-        group_id, join_policy, roles_json, my_role = row
+        group_id, join_policy, roles_json, discoverable, my_role = row
         if group_id in seen:
             continue
         seen.add(group_id)
@@ -1070,6 +1607,7 @@ def get_groups_manages(member_key: str) -> list[dict]:
                     "group_id": group_id,
                     "join_policy": join_policy,
                     "roles": roles_list,
+                    "discoverable": bool(discoverable),
                     "my_role": my_role,
                     "member_count": counts.get(group_id, 0),
                 }
@@ -1359,7 +1897,7 @@ def list_store_apps(limit: int = 20, offset: int = 0) -> dict:
     enriched = []
     for a in apps:
         m = metrics.get(a["url"], zero)
-        enriched.append({**a, **m, "web10apps_post_id": ""})
+        enriched.append({**a, **m})
     enriched.sort(key=lambda a: (a["users_30d"], a["visits"]), reverse=True)
     total = len(enriched)
     return {"apps": enriched[offset : offset + limit], "total": total}
@@ -1469,7 +2007,14 @@ def get_latest_jwt_key() -> dict | None:
 
 
 def create_user(username: str, password_hash: str, phone: str = "", email: str = "") -> dict:
-    """Create a user account."""
+    """Create a user account and auto-enroll them in the discover group.
+
+    Auto-enrollment (KB: social-contracts.md — "Everyone (auto-join)"): every
+    account is a member of the universal public board by default, so their
+    posts are discoverable the moment they attach one to the group. The group
+    contract is created at boot (ensure_discover_group); the lightweight
+    guard here covers the edge where a signup races the boot pass.
+    """
     existing = client.query(
         "SELECT count() FROM (SELECT 1 FROM users WHERE username = %(username)s AND deleted = 0 "
         "ORDER BY updated_at DESC LIMIT 1)",
@@ -1482,7 +2027,19 @@ def create_user(username: str, password_hash: str, phone: str = "", email: str =
         "users",
         [[username, password_hash, phone, 0, email, 0, now, now, 0]],
     )
+    _ensure_discover_group_contract()
+    add_group_member(DISCOVER_GROUP_ID, username, "member")
     return {"username": username, "phone": phone, "email": email}
+
+
+def list_users() -> list[dict]:
+    """All active users (deduplicated to the latest row per username)."""
+    result = client.query(
+        "SELECT username FROM (SELECT username, deleted, "
+        "row_number() OVER (PARTITION BY username ORDER BY updated_at DESC, deleted DESC) as rn "
+        "FROM users) WHERE rn = 1 AND deleted = 0",
+    )
+    return [{"username": row[0]} for row in result.result_rows]
 
 
 def get_user(username: str) -> dict | None:
@@ -1671,6 +2228,16 @@ def _canonical_app_url(url: str) -> str:
     if port and not (scheme == "http" and port == 80) and not (scheme == "https" and port == 443):
         netloc = f"{host}:{port}"
     path = p.path or "/"
+    # A trailing /index.html is the server's way of serving the directory
+    # app — the directory IS the app (D47). Fold it, or a demo loaded via
+    # its index.html link forks into a second store entry whose manifest
+    # lookup (.../index.html/manifest.json) 404s: icon-less, name-less card.
+    # The trailing-slash form (.../index.html/) is handled too — rows
+    # registered between hardening #4 and this fix carry it.
+    if path.endswith("/index.html/"):
+        path = path[: -len("index.html/")]
+    elif path.endswith("/index.html"):
+        path = path[: -len("index.html")]
     if not path.endswith("/"):
         path += "/"
     return urlunparse((scheme, netloc, path, "", "", ""))
@@ -1842,10 +2409,14 @@ def list_apps_admin() -> list[dict]:
     apps = []
     for row in result.result_rows:
         url = row[0]
-        # Fetch ratings for this app
+        # Fetch ratings for this app — dedup-then-filter (a re-rate appends;
+        # the latest row per (app, author) wins, not the pre-merge pile).
         ratings_result = client.query(
-            "SELECT rating, count() as cnt FROM app_ratings "
-            "WHERE target_app_id = %(url)s AND deleted = 0 "
+            "SELECT rating, count() as cnt FROM ("
+            "SELECT rating, deleted, "
+            "row_number() OVER (PARTITION BY target_app_id, author ORDER BY updated_at DESC, deleted DESC) AS rn "
+            "FROM app_ratings WHERE target_app_id = %(url)s"
+            ") WHERE rn = 1 AND deleted = 0 "
             "GROUP BY rating WITH ROLLUP ORDER BY rating",
             {"url": url},
         )
@@ -1881,7 +2452,7 @@ def get_app(url: str) -> dict | None:
     canonical form (D49 / hardening #4), so lookups must be too."""
     url = _canonical_app_url(url)
     result = client.query(
-        "SELECT url, name, description, icon_url, screenshots, approved, review_state, metadata_version, visits "
+        "SELECT url, name, description, icon_url, screenshots, approved, review_state, metadata_version, visits, created_at "
         "FROM apps WHERE url = %(url)s AND deleted = 0 "
         "ORDER BY updated_at DESC LIMIT 1",
         {"url": url},
@@ -1899,6 +2470,49 @@ def get_app(url: str) -> dict | None:
         "review_state": row[6],
         "metadata_version": row[7],
         "visits": row[8],
+        "registered_at": str(row[9]),
+    }
+
+
+def get_app_detail(url: str) -> dict | None:
+    """The product page payload (D52): the app record + the full realtime
+    metric breakdown + rating aggregate + rating list + the node macro.
+
+    Pure read — no app_visits row is written (a product-page view is not an
+    app visit; usage rows come only from SDK pings with a verified token).
+    Returns None for unknown urls and for apps that are not approved — the
+    product page is a store surface, and the store lists approved only.
+    """
+    url = _canonical_app_url(url)
+    app = get_app(url)
+    if app is None or not app["approved"]:
+        return None
+
+    metrics = get_app_metrics([url]).get(
+        url,
+        {"visits": 0, "users_1d": 0, "users_30d": 0, "users_90d": 0, "users_1y": 0},
+    )
+    ratings = get_app_ratings(url)
+    rating_count = len(ratings)
+    rating_average = round(sum(r["rating"] for r in ratings) / rating_count, 1) if rating_count else None
+    node = get_node_stats()
+    return {
+        "url": app["url"],
+        "name": app["name"],
+        "description": app["description"],
+        "icon_url": app["icon_url"],
+        "screenshots": app["screenshots"],
+        "review_state": app["review_state"],
+        "registered_at": app["registered_at"],
+        "metrics": metrics,
+        "rating": {"average": rating_average, "count": rating_count},
+        "ratings": ratings,
+        "node": {
+            "users": node["users"],
+            "app_count": node["app_count"],
+            "active_users": node["active_users"],
+            "storage": node["storage"],
+        },
     }
 
 
@@ -1922,21 +2536,44 @@ def approve_app(url: str, approved: bool, review_state: str):
     )
 
 
-def create_app_rating(author: str, target_app_id: str, rating: int, provider: str) -> dict:
-    """Submit a 1-5 star rating for an app."""
+def create_app_rating(author: str, target_app_id: str, rating: int, provider: str, comment: str = "") -> dict:
+    """Submit a 1-5 star rating for an app, with an optional review comment
+    (D52: a review is a rating with words). Named columns — the comment
+    column was appended by ALTER on pre-existing volumes. The target is
+    canonicalized (hardening #4) so a client can't fork an identity by
+    spelling — the detail page queries the canonical url."""
+    target_app_id = _canonical_app_url(target_app_id)
     now = _now()
     client.insert(
         "app_ratings",
-        [[author, target_app_id, rating, provider, now, now, 0]],
+        [[author, target_app_id, rating, comment, provider, now, now, 0]],
+        column_names=[
+            "author",
+            "target_app_id",
+            "rating",
+            "comment",
+            "provider",
+            "created_at",
+            "updated_at",
+            "deleted",
+        ],
     )
-    return {"author": author, "target_app_id": target_app_id, "rating": rating}
+    return {"author": author, "target_app_id": target_app_id, "rating": rating, "comment": comment}
 
 
 def get_app_ratings(target_app_id: str) -> list[dict]:
-    """Get all ratings for an app."""
+    """Get all ratings for an app (newest first), including review comments.
+    The target is canonicalized (hardening #4) — reads and writes key on
+    the same identity. Dedup-then-filter: a re-rate appends a new row, and
+    ReplacingMergeTree collapses it only on a background merge — the
+    window function makes the latest row per (app, author) win on read."""
+    target_app_id = _canonical_app_url(target_app_id)
     result = client.query(
-        "SELECT author, rating, provider, created_at FROM app_ratings "
-        "WHERE target_app_id = %(target_app_id)s AND deleted = 0 "
+        "SELECT author, rating, comment, provider, created_at FROM ("
+        "SELECT author, rating, comment, provider, created_at, deleted, "
+        "row_number() OVER (PARTITION BY target_app_id, author ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM app_ratings WHERE target_app_id = %(target_app_id)s"
+        ") WHERE rn = 1 AND deleted = 0 "
         "ORDER BY created_at DESC",
         {"target_app_id": target_app_id},
     )
@@ -1944,8 +2581,9 @@ def get_app_ratings(target_app_id: str) -> list[dict]:
         {
             "author": row[0],
             "rating": row[1],
-            "provider": row[2],
-            "created_at": str(row[3]),
+            "comment": row[2],
+            "provider": row[3],
+            "created_at": str(row[4]),
         }
         for row in result.result_rows
     ]

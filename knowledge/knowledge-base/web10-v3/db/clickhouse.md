@@ -113,6 +113,7 @@ erDiagram
         String target_app_id PK
         String author PK
         "UInt8" rating
+        String comment
         String provider
     }
 
@@ -410,13 +411,15 @@ longest metric window is 1y) drop out on merge.
 
 ## App Ratings
 
-Star ratings for apps. One per (author, target_app).
+Star ratings for apps. One per (author, target_app). A review is a rating
+with words — `comment` is optional text (D52).
 
 ```sql
 CREATE TABLE app_ratings (
     author String,
     target_app_id String,
     rating UInt8,
+    comment String DEFAULT '',
     provider String,
     created_at DateTime64(3),
     updated_at DateTime64(3),

@@ -199,6 +199,11 @@ ENTRY_NOT_FOUND = HTTPException(
     detail="entry not found",
 )
 
+APP_NOT_FOUND = HTTPException(
+    status_code=status.HTTP_404_NOT_FOUND,
+    detail="app not found",
+)
+
 RATE_LIMIT = HTTPException(
     status_code=status.HTTP_429_TOO_MANY_REQUESTS,
     detail="too many requests — try again later",

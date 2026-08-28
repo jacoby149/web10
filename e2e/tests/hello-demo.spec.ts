@@ -176,7 +176,7 @@ test.describe('Hello demo gauntlet — auth state + groups + console logs', () =
 // ---------------------------------------------------------------------------
 
 test.describe('Hello demo — API-level', () => {
-  test('getMyGroups returns empty for fresh user, populated after group create', async ({ request }) => {
+  test('getMyGroups returns only the discover group for fresh user, populated after group create', async ({ request }) => {
     const { username, token } = await signupFreshUser(request);
 
     const listRes1 = await request.post(`${API_BASE}/v3/groups/list`, {
@@ -185,7 +185,10 @@ test.describe('Hello demo — API-level', () => {
     });
     expect(listRes1.ok()).toBeTruthy();
     const groups1 = await listRes1.json();
-    expect(groups1).toEqual([]);
+    // A fresh user is auto-enrolled in the node-default discover group (#686)
+    // — that is the ONLY group they start with.
+    expect(groups1.length).toBe(1);
+    expect(groups1[0].group_id).toBe('web10.app/groups/web10/discover');
 
     await request.post(`${API_BASE}/v3/groups/create`, {
       data: JSON.stringify({
@@ -206,7 +209,9 @@ test.describe('Hello demo — API-level', () => {
     });
     expect(listRes2.ok()).toBeTruthy();
     const groups2 = await listRes2.json();
-    expect(groups2.length).toBe(1);
-    expect(groups2[0].group_id).toContain('api-hello-group');
+    // discover + the created group
+    expect(groups2.length).toBe(2);
+    const created = groups2.find((g: { group_id: string }) => g.group_id.includes('api-hello-group'));
+    expect(created, 'created group missing from groups/list').toBeTruthy();
   });
 });

@@ -194,7 +194,14 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
     if (typeof window === 'undefined' || typeof window.location?.href !== 'string') return
     try {
       const token = state.token ?? readTokenCookie()
-      const body: Record<string, unknown> = { url: window.location.href.split(/[?#]/)[0] }
+      // Canonical app identity (D47): the full URL minus query/fragment,
+      // with a trailing /index.html collapsed to the directory — the
+      // directory IS the app (index.html is just how the server serves it).
+      // Without the collapse, loading a demo via its /index.html link forks
+      // the identity into a second store entry whose manifest lookup 404s.
+      const rawUrl = window.location.href.split(/[?#]/)[0]
+      const url = rawUrl.replace(/\/index\.html$/, '/')
+      const body: Record<string, unknown> = { url }
       if (token) body.token = token
       fetch(`${apiOrigin}/v3/apps/register`, {
         method: 'POST',
