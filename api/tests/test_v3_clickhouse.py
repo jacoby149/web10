@@ -1107,7 +1107,11 @@ class TestMigrateDiscoverableDefaultFlip:
             # the delist is an INSERT...SELECT command
             mock_client.command.assert_called_once()
             # the sentinel is written to node_config
-            insert_table, insert_rows, insert_kwargs = mock_client.insert.call_args[0][0], mock_client.insert.call_args[0][1], mock_client.insert.call_args[1]
+            insert_table, insert_rows, insert_kwargs = (
+                mock_client.insert.call_args[0][0],
+                mock_client.insert.call_args[0][1],
+                mock_client.insert.call_args[1],
+            )
             assert insert_table == "node_config"
             assert insert_rows[0][0] == ch._DISCOVERABLE_FLIP_SENTINEL
             assert "config_id" in insert_kwargs["column_names"]
