@@ -27,7 +27,8 @@ CREATE TABLE IF NOT EXISTS group_contracts (
     group_id String,
     roles String,
     join_policy String,
-    discoverable UInt8 DEFAULT 1,
+    -- D53 (amended): NOT discoverable by default — listing is an opt-in.
+    discoverable UInt8 DEFAULT 0,
     created_at DateTime64(3),
     updated_at DateTime64(3),
     deleted UInt8 DEFAULT 0

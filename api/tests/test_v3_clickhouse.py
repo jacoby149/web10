@@ -230,23 +230,24 @@ class TestCreateGroup:
             assert result["join_policy"] == "open"
             mock_client.insert.assert_called_once()
 
-    # D53: discoverable by default, except invite_only (inherently private).
-    def test_default_discoverable_open(self):
+    # D53 (amended): NOT discoverable by default — listing is an opt-in for
+    # every join policy.
+    def test_default_not_discoverable_open(self):
         with _patch_client():
-            assert ch.create_group("g", [{"name": "member"}], "open")["discoverable"] is True
+            assert ch.create_group("g", [{"name": "member"}], "open")["discoverable"] is False
 
-    def test_default_discoverable_request(self):
+    def test_default_not_discoverable_request(self):
         with _patch_client():
-            assert ch.create_group("g", [{"name": "member"}], "request")["discoverable"] is True
+            assert ch.create_group("g", [{"name": "member"}], "request")["discoverable"] is False
 
     def test_default_not_discoverable_invite_only(self):
         with _patch_client():
             assert ch.create_group("g", [{"name": "member"}], "invite_only")["discoverable"] is False
 
     def test_explicit_override(self):
-        # invite_only can be forced discoverable; open can be forced private.
+        # any join policy can be forced discoverable; the default is private.
         with _patch_client():
-            assert ch.create_group("g", [{"name": "member"}], "invite_only", discoverable=True)["discoverable"] is True
+            assert ch.create_group("g", [{"name": "member"}], "open", discoverable=True)["discoverable"] is True
         with _patch_client():
             assert ch.create_group("g", [{"name": "member"}], "open", discoverable=False)["discoverable"] is False
 
@@ -1080,6 +1081,47 @@ class TestListDiscoverableGroups:
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows([])
             assert ch.list_discoverable_groups() == []
+
+
+class TestMigrateDiscoverableDefaultFlip:
+    """The one-time, sentinel-gated backfill (D53 amendment).
+
+    Groups created under the earlier discoverable-by-default rule carry
+    ``discoverable = 1``; the amendment delists them. Runs exactly once
+    (a node_config sentinel marks completion).
+    """
+
+    def test_skips_when_sentinel_present(self):
+        # Sentinel row exists → the migration is a no-op (no delist, no insert).
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([(1,)])
+            ch._migrate_discoverable_default_flip()
+            mock_client.command.assert_not_called()
+            mock_client.insert.assert_not_called()
+
+    def test_delists_and_sets_sentinel_when_absent(self):
+        # No sentinel → the delist command runs and the sentinel is set.
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([])
+            ch._migrate_discoverable_default_flip()
+            # the delist is an INSERT...SELECT command
+            mock_client.command.assert_called_once()
+            # the sentinel is written to node_config
+            insert_table, insert_rows, insert_kwargs = mock_client.insert.call_args[0][0], mock_client.insert.call_args[0][1], mock_client.insert.call_args[1]
+            assert insert_table == "node_config"
+            assert insert_rows[0][0] == ch._DISCOVERABLE_FLIP_SENTINEL
+            assert "config_id" in insert_kwargs["column_names"]
+
+    def test_delist_query_filters_discoverable_1(self):
+        # The delist only touches live groups currently listed (discoverable = 1).
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([])
+            ch._migrate_discoverable_default_flip()
+            sql = mock_client.command.call_args[0][0]
+            assert "discoverable = 1" in sql
+            assert "deleted = 0" in sql
+            # it appends a discoverable = 0 row (delist), never deletes
+            assert ", 0, created_at, now64(6), 0" in sql
 
 
 class TestEnsureDiscoverGroup:

@@ -7,9 +7,9 @@ class CreateGroup(BaseModel):
     join_policy: str = "open"
     roles: list[dict]
     members: list[dict]
-    # D53: list the group in the public directory. Defaults to True (discoverable
-    # by default) except invite_only groups, which default to False. None = use
-    # the default.
+    # D53 (amended): list the group in the public directory. Defaults to False
+    # (NOT discoverable by default — listing is an opt-in). None = use the
+    # default.
     discoverable: bool | None = None
 
 

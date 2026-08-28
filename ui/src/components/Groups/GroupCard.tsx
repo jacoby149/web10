@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { groupDisplayName } from '@/lib/group-utils';
 import GroupMembersDialog from './GroupMembersDialog';
 import GroupRolesDialog from './GroupRolesDialog';
+import GroupSettingsDialog from './GroupSettingsDialog';
 
 function joinPolicyBadge(policy: string) {
   switch (policy) {
@@ -23,6 +24,7 @@ function GroupCard({ I, group, isManaged }: { I: Record<string, any>; group: any
   const [hide, setHide] = React.useState(true);
   const [membersOpen, setMembersOpen] = React.useState(false);
   const [rolesOpen, setRolesOpen] = React.useState(false);
+  const [settingsOpen, setSettingsOpen] = React.useState(false);
   const [members, setMembers] = React.useState<any[]>([]);
   const [loadingMembers, setLoadingMembers] = React.useState(false);
   const [toggling, setToggling] = React.useState(false);
@@ -31,8 +33,9 @@ function GroupCard({ I, group, isManaged }: { I: Record<string, any>; group: any
   const policy = group.join_policy || 'open';
   const myRole = group.my_role || 'member';
   const memberCount = group.member_count || 0;
-  // Discoverable by default (D53) — treat undefined as listed.
-  const isDiscoverable = group.discoverable !== false;
+  // NOT discoverable by default (D53, amended) — listing is an opt-in, so
+  // treat undefined as not listed (matches the backend default).
+  const isDiscoverable = group.discoverable === true;
 
   const loadMembers = async () => {
     setLoadingMembers(true);
@@ -221,10 +224,8 @@ function GroupCard({ I, group, isManaged }: { I: Record<string, any>; group: any
                       variant="ghost"
                       size="sm"
                       className="text-muted-foreground hover:text-foreground"
-                      onClick={() => {
-                        // TODO: show join policy editor
-                        I.setStatus?.('Join policy editor coming soon');
-                      }}
+                      onClick={() => setSettingsOpen(true)}
+                      data-testid="group-settings-btn"
                     >
                       <Settings className="mr-1.5 h-4 w-4" strokeWidth={1.5} />
                       Settings
@@ -292,6 +293,12 @@ function GroupCard({ I, group, isManaged }: { I: Record<string, any>; group: any
       <GroupRolesDialog
         open={rolesOpen}
         onOpenChange={setRolesOpen}
+        group={group}
+        I={I}
+      />
+      <GroupSettingsDialog
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
         group={group}
         I={I}
       />

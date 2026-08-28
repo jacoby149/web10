@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import React from 'react'
 import GroupRolesDialog from '../components/Groups/GroupRolesDialog'
 import GroupCard from '../components/Groups/GroupCard'
+import GroupSettingsDialog from '../components/Groups/GroupSettingsDialog'
 
 const mockI = {
   v3UpdateGroup: vi.fn(),
@@ -127,9 +128,74 @@ describe('GroupCard — List in directory toggle', () => {
     })
   })
 
+  it('treats a group with no discoverable field as not listed (the new default)', () => {
+    const { group_id, join_policy, my_role, member_count, roles } = managedGroup
+    render(<GroupCard I={cardI} group={{ group_id, join_policy, my_role, member_count, roles }} isManaged={true} />)
+    expandCard()
+    expect(screen.getByTestId('discoverable-toggle')).toHaveAttribute('aria-checked', 'false')
+  })
+
   it('does not show the toggle for a non-managed group', () => {
     render(<GroupCard I={cardI} group={managedGroup} isManaged={false} />)
     expandCard()
     expect(screen.queryByTestId('discoverable-toggle')).toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// GroupSettingsDialog — join policy editor (the contract policy editor, D53)
+// ---------------------------------------------------------------------------
+
+const settingsI = {
+  v3UpdateGroup: vi.fn(),
+  v3GroupsManagesLoad: vi.fn(),
+  setStatus: vi.fn(),
+}
+
+const settingsGroup = {
+  group_id: 'web10.app/groups/users/alice/jazz',
+  join_policy: 'open',
+  roles: [{ name: 'owner', permissions: ['manageRoles'], services: ['*'] }],
+}
+
+describe('GroupSettingsDialog — join policy editor', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    settingsI.v3UpdateGroup.mockResolvedValue({})
+  })
+
+  it('renders the group current policy as selected', () => {
+    render(<GroupSettingsDialog open={true} onOpenChange={vi.fn()} group={settingsGroup} I={settingsI} />)
+    expect(screen.getByTestId('join-policy-open')).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByTestId('join-policy-request')).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByTestId('join-policy-invite_only')).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('picking a policy + save calls v3UpdateGroup with the new join_policy', async () => {
+    render(<GroupSettingsDialog open={true} onOpenChange={vi.fn()} group={settingsGroup} I={settingsI} />)
+    fireEvent.click(screen.getByTestId('join-policy-invite_only'))
+    expect(screen.getByTestId('join-policy-invite_only')).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(screen.getByRole('button', { name: 'Save settings' }))
+    await waitFor(() => {
+      expect(settingsI.v3UpdateGroup).toHaveBeenCalledWith('web10.app/groups/users/alice/jazz', { join_policy: 'invite_only' })
+    })
+  })
+
+  it('save failure → error status, no successful update', async () => {
+    settingsI.v3UpdateGroup.mockRejectedValueOnce(new Error('boom'))
+    render(<GroupSettingsDialog open={true} onOpenChange={vi.fn()} group={settingsGroup} I={settingsI} />)
+    fireEvent.click(screen.getByTestId('join-policy-request'))
+    fireEvent.click(screen.getByRole('button', { name: 'Save settings' }))
+    await waitFor(() => {
+      expect(settingsI.setStatus).toHaveBeenCalledWith('Failed to update join policy')
+    })
+  })
+
+  it('cancel closes without saving', () => {
+    const onOpenChange = vi.fn()
+    render(<GroupSettingsDialog open={true} onOpenChange={onOpenChange} group={settingsGroup} I={settingsI} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+    expect(settingsI.v3UpdateGroup).not.toHaveBeenCalled()
   })
 })
