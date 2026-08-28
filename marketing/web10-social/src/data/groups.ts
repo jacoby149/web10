@@ -1,5 +1,6 @@
 import { getV3Client, type V3Group } from './v3';
 import { extractUsername } from './types';
+import { API_HOST } from '../lib/origins';
 
 // ── Group helpers ────────────────────────────────────────────────────────────
 // v3 groups are the core primitive. Every social pattern (follows, discover,
@@ -9,26 +10,35 @@ import { extractUsername } from './types';
 const DISCOVER_GROUP = 'web10.app/groups/web10/discover';
 
 /**
- * The current node's provider, read from the active token (falls back to the
- * production host when signed out). Group IDs are node-scoped, so every
- * well-known group the app derives must use the node it is actually talking
- * to — not a hardcoded production host.
+ * The provider that mints this node's group IDs. The API derives a created
+ * group's ID from the token's `provider` claim (`{provider}/groups/users/
+ * {creator}/{slug}`), so the client must use the same provider to address a
+ * group. The token's provider is the source of truth (it is exactly what the
+ * API embeds); `API_HOST` is the fallback when no token is loaded yet (the
+ * two always agree — the token's provider is the API's own hostname).
  */
-export function nodeProvider(): string {
-  return getV3Client().readToken()?.provider || 'web10.app';
+function currentProvider(): string {
+  try {
+    const token = getV3Client().readToken();
+    if (token?.provider) return token.provider;
+  } catch {
+    // No token yet — fall through to the API host.
+  }
+  return API_HOST;
 }
 
 /**
  * Get the followers group ID for a user.
  *
- * The API derives created-group IDs as `{provider}/groups/users/{creator}/{name}`
- * (groups.py create_group), so a followers group created with name "followers"
- * lands at `{provider}/groups/users/{username}/followers`. This must match that
- * derivation exactly or the app's group-scoped reads 403 (the reader is a
- * member of the created group, not of a hardcoded production-host ID).
+ * The deterministic ID the API derives for a user's followers group:
+ * `{provider}/groups/users/{username}/followers`. The `provider` is the node's
+ * (the token's provider), NOT a hardcoded host — followers groups are
+ * user-created groups, so they live under the provider, unlike the well-known
+ * discover board (`web10.app/groups/web10/discover`).
  */
-export function followersGroupId(username: string): string {
-  return `${nodeProvider()}/groups/users/${username}/followers`;
+export function followersGroupId(username: string, provider?: string): string {
+  const p = provider || currentProvider();
+  return `${p}/groups/users/${username}/followers`;
 }
 
 /**
@@ -130,17 +140,22 @@ export async function ensureDiscover(): Promise<string> {
 /**
  * Ensure the current user's followers group exists.
  * Open join policy — anyone can follow instantly.
+ *
+ * The group is created under the name `followers` (the API embeds the creator
+ * in the derived ID: `{provider}/groups/users/{creator}/followers`), so the
+ * result matches `followersGroupId(username)`. The owner's member_key is the
+ * bare username — the same key format the API uses for joins and discover
+ * auto-enrollment — so the owner is found by the membership checks the read
+ * path runs.
  */
-export async function ensureFollowers(username: string): Promise<string> {
+export async function ensureFollowers(username: string, provider?: string): Promise<string> {
   const w = getV3Client();
-  const groupId = followersGroupId(username);
+  const groupId = followersGroupId(username, provider);
   try {
     const group = await w.getGroup(groupId);
     return group.group_id;
   } catch {
-    // Group doesn't exist — create it. The API derives the ID as
-    // `{provider}/groups/users/{creator}/{name}`, so name must be "followers"
-    // (not "{username}/followers") for the created ID to equal followersGroupId.
+    // Group doesn't exist — create it
     await w.createGroup(
       'followers',
       'open',

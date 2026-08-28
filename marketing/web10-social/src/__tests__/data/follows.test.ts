@@ -44,16 +44,20 @@ describe('follows v3 data layer', () => {
   });
 
   describe('followersGroupId', () => {
-    it('produces the node-scoped created-group ID pattern', () => {
-      // nodeProvider() reads the active token's provider (mocked to web10.app);
-      // the API derives created groups as {provider}/groups/users/{creator}/{name}.
+    it('produces the deterministic created-group ID (provider/users/username/followers)', () => {
+      // The mock token's provider is web10.app — the ID must use it (the API
+      // derives created-group IDs from the token's provider claim).
       expect(groups.followersGroupId('bob')).toBe('web10.app/groups/users/bob/followers');
+    });
+
+    it('honors an explicit provider override', () => {
+      expect(groups.followersGroupId('bob', 'api.localhost')).toBe('api.localhost/groups/users/bob/followers');
     });
   });
 
   describe('followUser (v3: join followers group)', () => {
     it('joins the target users followers group', async () => {
-      mock.joinGroup.mockResolvedValue({ member_key: 'web10.app/users/alice', role: 'member' });
+      mock.joinGroup.mockResolvedValue({ member_key: 'alice', role: 'member' });
       await follows.followUser('bob');
       expect(mock.joinGroup).toHaveBeenCalledWith('web10.app/groups/users/bob/followers');
     });
@@ -61,9 +65,26 @@ describe('follows v3 data layer', () => {
 
   describe('unfollowUser (v3: leave followers group)', () => {
     it('leaves the target users followers group', async () => {
-      mock.leaveGroup.mockResolvedValue({ member_key: 'web10.app/users/alice', role: 'member' });
+      mock.leaveGroup.mockResolvedValue({ member_key: 'alice', role: 'member' });
       await follows.unfollowUser('bob');
       expect(mock.leaveGroup).toHaveBeenCalledWith('web10.app/groups/users/bob/followers');
+    });
+  });
+
+  describe('isFollowing (v3: membership in the followers group)', () => {
+    it('true when the followers group is in the user group list', async () => {
+      mock.getMyGroups.mockResolvedValue([
+        { group_id: 'web10.app/groups/web10/discover', my_role: 'member' },
+        { group_id: 'web10.app/groups/users/bob/followers', my_role: 'member' },
+      ]);
+      await expect(follows.isFollowing('bob')).resolves.toBe(true);
+    });
+
+    it('false when the followers group is absent from the list', async () => {
+      mock.getMyGroups.mockResolvedValue([
+        { group_id: 'web10.app/groups/web10/discover', my_role: 'member' },
+      ]);
+      await expect(follows.isFollowing('bob')).resolves.toBe(false);
     });
   });
 
@@ -84,7 +105,14 @@ describe('follows v3 data layer', () => {
       mock.getGroup.mockRejectedValue(new Error('not found'));
       mock.createGroup = vi.fn().mockResolvedValue({ group_id: 'web10.app/groups/users/alice/followers' });
       const groupId = await groups.ensureFollowers('alice');
-      expect(mock.createGroup).toHaveBeenCalled();
+      // Created under the bare slug `followers` (the API embeds the creator)
+      // with the bare username as the owner member_key.
+      expect(mock.createGroup).toHaveBeenCalledWith(
+        'followers',
+        'open',
+        expect.anything(),
+        [{ member_key: 'alice', role: 'owner' }],
+      );
       expect(groupId).toBe('web10.app/groups/users/alice/followers');
     });
 
