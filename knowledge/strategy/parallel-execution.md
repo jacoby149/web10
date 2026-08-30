@@ -368,6 +368,7 @@ by ID, posts gated by the *reader's* membership, only a non-existent group
 
 ### Lane: d58-backend (Stage 0 — the keystone, sequential)
 **Owns:** `api/app/v3/endpoints/groups.py` + `services/clickhouse.py` + `models/` (role shape + gates + backfill + identity write), `api/tests/` (conformance re-pin).
+**Task blocks + kickoffs:** `strategy/v3-groups-overhaul/stage-0.md` (umbrella: `strategy/v3-groups-overhaul.md`).
 
 D58 replaces the group permission model the KB described but the code never
 built. Roles become **per-service permission maps** (the `services` array was
@@ -397,6 +398,7 @@ re-base off dev before starting.
 
 ### Lane: d58-demos (Stage 1 — parallel, one workspace per demo)
 **Owns:** `marketing/marketing-ui/public/docs/<demo>/` — each demo owns its own dir, so the lanes never touch each other.
+**Task blocks + kickoffs:** `strategy/v3-groups-overhaul/stage-1.md`.
 
 **Gated on `d58-backend`.** The demos are the reference implementation (D46) —
 they run the real SDK consent flow, so getting them green proves the backend
@@ -418,6 +420,7 @@ and drive a **public/private + identity fork** in its e2e (set the group's face
 
 ### Lane: d58-social (Stage 2 — parallel, one workspace per feature)
 **Owns:** `marketing/web10-social/` (fan-facing) + `ui/src/components/Groups/` (admin-facing) + `sdk/src/` (role type). Each feature below is an **independent lane** — different files, so they run in parallel.
+**Task blocks + kickoffs:** `strategy/v3-groups-overhaul/stage-2.md`.
 
 **Gated on `d58-backend`** (and ideally `d58-demos` green as the proven
 reference). The social app is the integration test — it wires up what the
