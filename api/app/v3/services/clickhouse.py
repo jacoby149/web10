@@ -4,7 +4,7 @@ import math
 import threading
 import time
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 
 import clickhouse_connect
 from uuid6 import uuid7
@@ -54,6 +54,36 @@ client = _LazyClickHouse()
 
 def _now() -> datetime:
     return datetime.utcnow()
+
+
+def _iso_utc(dt) -> str:
+    """Serialize a datetime as ISO 8601 UTC with an explicit 'Z'.
+
+    The clickhouse-connect client uses the default tz_mode ("naive_utc"), so
+    DateTime/DateTime64 columns come back as naive UTC wall-clocks. str(dt)
+    emits 'YYYY-MM-DD HH:MM:SS.ffffff' (space-separated, no timezone), which
+    browsers parse as LOCAL time — shifting recent rows into the future for
+    west-of-UTC clocks (a negative "time ago"). Emit explicit UTC instead so
+    every client (marketing, social, SDK) parses the same instant.
+    """
+    if dt is None:
+        return ""
+    if not isinstance(dt, datetime):
+        return str(dt)
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(UTC).replace(tzinfo=None)
+    return dt.isoformat() + "Z"
+
+
+def _from_iso_utc(s) -> datetime:
+    """Parse an ISO 8601 string (with or without a 'Z') to a naive UTC datetime."""
+    if isinstance(s, datetime):
+        dt = s
+    else:
+        dt = datetime.fromisoformat(str(s).replace("Z", "+00:00"))
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(UTC).replace(tzinfo=None)
+    return dt
 
 
 def _json(body: dict) -> str:
@@ -384,8 +414,8 @@ def insert_document(
         "tags": tags or [],
         "ad_mode": ad_mode or "none",
         "ad_target": ad_target or "",
-        "created_at": now.isoformat(),
-        "updated_at": now.isoformat(),
+        "created_at": _iso_utc(now),
+        "updated_at": _iso_utc(now),
     }
 
 
@@ -437,8 +467,8 @@ def read_documents(
                 "body": _parse_json(row[3]),
                 "ref_value": row[4],
                 "tags": list(row[5]),
-                "created_at": str(row[6]),
-                "updated_at": str(row[7]),
+                "created_at": _iso_utc(row[6]),
+                "updated_at": _iso_utc(row[7]),
             }
         )
     return rows
@@ -459,7 +489,7 @@ def update_document(
     if not existing:
         return None
     now = _now()
-    created_at = datetime.fromisoformat(existing["created_at"])
+    created_at = _from_iso_utc(existing["created_at"])
     client.insert(
         "documents",
         [
@@ -488,7 +518,7 @@ def update_document(
         "ad_mode": ad_mode or "none",
         "ad_target": ad_target or "",
         "created_at": existing["created_at"],
-        "updated_at": now.isoformat(),
+        "updated_at": _iso_utc(now),
     }
 
 
@@ -520,8 +550,8 @@ def get_document(doc_id: str, author_key: str) -> dict | None:
         "body": _parse_json(row[3]),
         "ref_value": row[4],
         "tags": list(row[5]),
-        "created_at": str(row[6]),
-        "updated_at": str(row[7]),
+        "created_at": _iso_utc(row[6]),
+        "updated_at": _iso_utc(row[7]),
         "ad_mode": row[8] or "none",
         "ad_target": row[9] or "",
     }
@@ -551,8 +581,8 @@ def get_document_any_author(doc_id: str) -> dict | None:
         "body": _parse_json(row[3]),
         "ref_value": row[4],
         "tags": list(row[5]),
-        "created_at": str(row[6]),
-        "updated_at": str(row[7]),
+        "created_at": _iso_utc(row[6]),
+        "updated_at": _iso_utc(row[7]),
     }
 
 
@@ -621,7 +651,7 @@ def create_group(group_id: str, roles: list[dict], join_policy: str, discoverabl
         "roles": roles,
         "join_policy": join_policy,
         "discoverable": discoverable,
-        "created_at": now.isoformat(),
+        "created_at": _iso_utc(now),
     }
 
 
@@ -647,8 +677,8 @@ def get_group(group_id: str) -> dict | None:
         "roles": _parse_json(row[1]),
         "join_policy": row[2],
         "discoverable": bool(row[3]),
-        "created_at": str(row[4]),
-        "updated_at": str(row[5]),
+        "created_at": _iso_utc(row[4]),
+        "updated_at": _iso_utc(row[5]),
     }
 
 
@@ -696,7 +726,7 @@ def update_group(group_id: str, **kwargs):
         "roles": roles,
         "join_policy": join_policy,
         "discoverable": discoverable,
-        "updated_at": now.isoformat(),
+        "updated_at": _iso_utc(now),
     }
 
 
@@ -716,7 +746,7 @@ def add_group_member(group_id: str, member_key: str, role: str) -> dict:
         "group_id": group_id,
         "member_key": member_key,
         "role": role,
-        "joined_at": now.isoformat(),
+        "joined_at": _iso_utc(now),
     }
 
 
@@ -753,7 +783,7 @@ def get_group_members(group_id: str, limit: int = 100, offset: int = 0) -> list[
         "LIMIT %(limit)s OFFSET %(offset)s",
         {"group_id": group_id, "limit": limit, "offset": offset},
     )
-    return [{"member_key": row[0], "role": row[1], "joined_at": str(row[2])} for row in result.result_rows]
+    return [{"member_key": row[0], "role": row[1], "joined_at": _iso_utc(row[2])} for row in result.result_rows]
 
 
 def get_group_member(group_id: str, member_key: str) -> dict | None:
@@ -773,7 +803,7 @@ def get_group_member(group_id: str, member_key: str) -> dict | None:
     if not result.result_rows:
         return None
     row = result.result_rows[0]
-    return {"member_key": row[0], "role": row[1], "joined_at": str(row[2])}
+    return {"member_key": row[0], "role": row[1], "joined_at": _iso_utc(row[2])}
 
 
 def is_group_member(group_id: str, member_key: str) -> bool:
@@ -964,7 +994,7 @@ def create_join_request(group_id: str, requester_key: str, status: str = "pendin
         "requester_key": requester_key,
         "status": status,
         "role": role,
-        "requested_at": now.isoformat(),
+        "requested_at": _iso_utc(now),
     }
 
 
@@ -999,7 +1029,7 @@ def get_pending_requests(group_id: str) -> list[dict]:
         {"group_id": group_id},
     )
     return [
-        {"requester_key": row[0], "status": row[1], "role": row[2], "requested_at": str(row[3])}
+        {"requester_key": row[0], "status": row[1], "role": row[2], "requested_at": _iso_utc(row[3])}
         for row in result.result_rows
     ]
 
@@ -1076,7 +1106,7 @@ def get_hidden_docs(group_id: str) -> list[dict]:
         {
             "doc_id": row[0],
             "moderator_key": row[1],
-            "hidden_at": str(row[2]),
+            "hidden_at": _iso_utc(row[2]),
             "author_key": row[3] or "",
             "body": _parse_json(row[4]) if row[4] else {},
         }
@@ -1100,7 +1130,7 @@ def add_app_contract(user_key: str, allowed_origin: str, permissions: dict) -> d
         "user_key": user_key,
         "allowed_origin": allowed_origin,
         "permissions": permissions,
-        "created_at": now.isoformat(),
+        "created_at": _iso_utc(now),
     }
 
 
@@ -1456,7 +1486,7 @@ def _group_docs_query(
             "author_key": row[1],
             "body": _parse_json(row[2]),
             "tags": list(row[3]),
-            "created_at": str(row[4]),
+            "created_at": _iso_utc(row[4]),
             "ref_value": row[5],
             "ad_mode": row[6] or "none",
             "ad_target": row[7] or "",
@@ -1533,7 +1563,7 @@ def _group_docs_ranked_query(
             "author_key": row[1],
             "body": _parse_json(row[2]),
             "tags": list(row[3]),
-            "created_at": str(row[4]),
+            "created_at": _iso_utc(row[4]),
             "ref_value": row[5],
             "ad_mode": row[6] or "none",
             "ad_target": row[7] or "",
@@ -1660,7 +1690,7 @@ def read_document_by_id(doc_id: str, member_key: str, service: str) -> dict | No
         "author_key": row[1],
         "body": _parse_json(row[2]),
         "tags": list(row[3]),
-        "created_at": str(row[4]),
+        "created_at": _iso_utc(row[4]),
         "ref_value": row[5],
         "ad_mode": row[6] or "none",
         "ad_target": row[7] or "",
@@ -1896,7 +1926,7 @@ def add_provider_service_contract(provider_key: str, allowed_origin: str) -> dic
     return {
         "provider_key": provider_key,
         "allowed_origin": allowed_origin,
-        "created_at": now.isoformat(),
+        "created_at": _iso_utc(now),
     }
 
 
@@ -2403,7 +2433,7 @@ def get_user(username: str) -> dict | None:
         "phone_verified": bool(row[3]),
         "email": row[4],
         "email_verified": bool(row[5]),
-        "created_at": str(row[6]),
+        "created_at": _iso_utc(row[6]),
     }
 
 
@@ -2528,8 +2558,8 @@ def confirm_media_upload(user_key: str, metadata: dict) -> dict:
         "body": metadata,
         "ref_value": "",
         "tags": [],
-        "created_at": now.isoformat(),
-        "updated_at": now.isoformat(),
+        "created_at": _iso_utc(now),
+        "updated_at": _iso_utc(now),
     }
 
 
@@ -2568,8 +2598,8 @@ def list_media(
             "body": _parse_json(row[3]),
             "ref_value": row[4],
             "tags": list(row[5]),
-            "created_at": str(row[6]),
-            "updated_at": str(row[7]),
+            "created_at": _iso_utc(row[6]),
+            "updated_at": _iso_utc(row[7]),
         }
         for row in result.result_rows
     ]
@@ -2655,7 +2685,7 @@ def _count_app_visit(app_url: str, username: str) -> None:
     )
     last = result.result_rows[0][0] if result.result_rows else None
     if last is not None:
-        last_dt = last if isinstance(last, datetime) else datetime.fromisoformat(str(last))
+        last_dt = last if isinstance(last, datetime) else _from_iso_utc(last)
         if (datetime.utcnow() - last_dt).total_seconds() < _APP_VISIT_WINDOW_SECONDS:
             return  # within the window — gated out, no row
     client.insert(
@@ -2817,11 +2847,11 @@ def list_apps_admin() -> list[dict]:
                 "description": row[2],
                 "icon_url": row[3],
                 "screenshots": _parse_json(row[4]),
-                "registered_at": str(row[9]),
+                "registered_at": _iso_utc(row[9]),
                 "review_state": row[6],
                 "metadata_version": row[7],
                 "visits": row[8],
-                "last_reviewed_at": str(row[10]),
+                "last_reviewed_at": _iso_utc(row[10]),
                 "rating_average": round(weighted_sum / total_count, 1) if total_count else None,
                 "rating_count": total_count,
             }
@@ -2852,7 +2882,7 @@ def get_app(url: str) -> dict | None:
         "review_state": row[6],
         "metadata_version": row[7],
         "visits": row[8],
-        "registered_at": str(row[9]),
+        "registered_at": _iso_utc(row[9]),
     }
 
 
@@ -2965,7 +2995,7 @@ def get_app_ratings(target_app_id: str) -> list[dict]:
             "rating": row[1],
             "comment": row[2],
             "provider": row[3],
-            "created_at": str(row[4]),
+            "created_at": _iso_utc(row[4]),
         }
         for row in result.result_rows
     ]
@@ -3015,7 +3045,7 @@ def submit_bug_report(
     return {
         "report_id": report_id,
         "status": "submitted",
-        "created_at": now.isoformat(),
+        "created_at": _iso_utc(now),
     }
 
 
@@ -3041,7 +3071,7 @@ def list_bug_reports(limit: int = 100, offset: int = 0) -> list[dict]:
             "browser_info": row[7],
             "error_message": row[8],
             "stack_trace": row[9],
-            "created_at": str(row[10]),
+            "created_at": _iso_utc(row[10]),
         }
         for row in result.result_rows
     ]
@@ -3071,5 +3101,5 @@ def get_bug_report(report_id: str) -> dict | None:
         "error_message": row[8],
         "stack_trace": row[9],
         "screenshots": _parse_json(row[10]),
-        "created_at": str(row[11]),
+        "created_at": _iso_utc(row[11]),
     }
