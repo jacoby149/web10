@@ -149,15 +149,23 @@ export async function ensureDiscover(): Promise<string> {
  * bare username — the same key format the API uses for joins and discover
  * auto-enrollment — so the owner is found by the membership checks the read
  * path runs.
+ *
+ * HEAL: a group created by the pre-3.25.1 code has a phantom member key
+ * (`web10.app/users/{username}`) that the membership checks never match — the
+ * group exists but its owner is NOT a member, so every group-scoped read of
+ * it 403s (the profile screen's "nothing persists" state on real nodes).
+ * getGroup doesn't require membership, so "the group exists" is not "I can
+ * read it": after confirming existence, check membership via getMyGroups and
+ * join if missing (open policy; join is idempotent — duplicate member rows
+ * dedupe in the ReplacingMergeTree).
  */
 export async function ensureFollowers(username: string, provider?: string): Promise<string> {
   const w = getV3Client();
   const groupId = followersGroupId(username, provider);
   try {
-    const group = await w.getGroup(groupId);
-    return group.group_id;
+    await w.getGroup(groupId);
   } catch {
-    // Group doesn't exist — create it
+    // Group doesn't exist — create it (the creator is the owner member)
     await w.createGroup(
       'followers',
       'open',
@@ -166,6 +174,13 @@ export async function ensureFollowers(username: string, provider?: string): Prom
     );
     return groupId;
   }
+  // Group exists — make sure the user is actually a member of it.
+  const myGroups = await w.getMyGroups();
+  if (!myGroups.some((g) => g.group_id === groupId)) {
+    console.log('[groups] ensureFollowers — group exists but user is not a member; joining:', groupId);
+    await w.joinGroup(groupId);
+  }
+  return groupId;
 }
 
 /**

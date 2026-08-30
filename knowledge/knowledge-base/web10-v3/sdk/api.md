@@ -96,6 +96,55 @@ await w.revokeAppContract('music.web10.com')
 
 This is infrastructure trust — "what can this app do with my data?" Per-service, per-operation. Groups control who sees data. The contract is with the app, not the service.
 
+## Session Health (verifySession)
+
+The confirmatory session check. Instead of an app guessing from status codes (a `401` on this node means "bad token" **or** "no permission" **or** "user not found" — the information is destroyed at the boundary), the server runs the ACTUAL checks it would run on a real request and reports each as a stable code, plus the ordered recovery `actions` the client should execute. The app's SessionGuard executes those actions — the client never reverse-engineers a status code.
+
+```ts
+const verdict = await w.verifySession({ services: ['posts', 'profile'] })
+// → {
+//     status: 'ok' | 'degraded' | 'invalid' | 'inconclusive',
+//     token:    'valid' | 'expired' | 'invalid' | 'missing',
+//     user:     'exists' | 'not_found' | 'unknown',
+//     contract: { state: 'granted' | 'partial' | 'missing' | 'unknown' | 'not_checked',
+//                 missing_services: string[] },
+//     groups:   { followers: 'ok' | 'not_member' | 'missing' | 'unknown' },
+//     actions:  ('reauth' | 'heal_followers_group' | 'signout')[],
+//     username: string | null,
+//     provider: string | null,
+//   }
+```
+
+Read-only and idempotent — safe to call at mount and after any failure. The app declares the `services` it needs (the signal is platform-level, the policy is per-app); omit them for a health probe.
+
+### The load-bearing rule: definite NO vs. UNKNOWN
+
+Every store-backed field separates a **decisive** answer (the check ran clean and found nothing) from **`unknown`** (the check couldn't run — the store was unreadable). Only decisive negatives drive `actions`; `unknown` never does. A failed health *check* must not be handled like a failed health *answer*: a deploy window that takes the contract store down yields `contract: unknown` + `status: inconclusive` + `actions: []` — **not** `contract: missing`. That is what keeps a transient blip from churning every user into a re-auth loop.
+
+### `status` (precedence: invalid > degraded > inconclusive > ok)
+
+| status | means |
+|---|---|
+| `invalid` | the session itself is dead — `token` is `expired`/`invalid`/`missing`, or `user` is `not_found` |
+| `degraded` | session alive but can't do work — `contract` is `missing`/`partial`, or `groups.followers` is `not_member`/`missing` |
+| `inconclusive` | a check couldn't run (some field `unknown`) and nothing is decisively wrong — take no action, retry later |
+| `ok` | every check decisive + healthy |
+
+### `actions` (ordered, decisive problems only)
+
+| action | when | what the client does |
+|---|---|---|
+| `reauth` | `token` dead, or `contract` `missing`/`partial` | re-derive the session through the rooted authenticator (fresh token + contract). Near-silent when the authenticator already has the root session; degrades to a login otherwise. **Replace-on-arrival** — the handed-back token overwrites the stale cookie; never clear-then-restore (a blocked popup must not strand the user signed-out) |
+| `heal_followers_group` | `groups.followers` `not_member`/`missing` | local join/create of the followers group (the 3.30.1 heal). Needs a live session, so it comes **after** `reauth` |
+| `signout` | `user` `not_found` | terminal — a deleted account can't be re-authed. Clear the session, show login. The only action that is a true sign-out |
+
+`reauth` is first when both it and `heal_followers_group` are present (the heal needs a working session). A dead token can't check the group, so `heal_followers_group` is never emitted alongside a dead token — re-auth first, the next verify re-checks the group.
+
+### What it is not
+
+- Not a new auth system — it reuses `jwt.decode`, the users lookup, the app-contract check, and the group-membership check. All the logic exists; this stops throwing it away.
+- Not a substitute for the reactive path — a verdict is a snapshot; state can change before the next real operation. The reactive path carries its own typed reason (see `Web10Error.code`), so you never fall back to status-code guessing there either.
+
 ## CRUD With Groups
 
 The four verbs. Groups change everything.

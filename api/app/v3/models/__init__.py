@@ -51,6 +51,8 @@ from app.v3.models.media import (
     TranscodeRequest,
     UploadUrlRequest,
 )
+from app.v3.models.moderation import ModerationAutoHide, ModerationFlags
+from app.v3.models.session import VerifySession
 
 __all__ = [
     # auth
@@ -99,6 +101,8 @@ __all__ = [
     "UploadUrlRequest",
     "ReadUrlRequest",
     "TranscodeRequest",
+    # session
+    "VerifySession",
     # appstore
     "RegisterApp",
     "ListStoreApps",
@@ -106,4 +110,7 @@ __all__ = [
     "GetAppRatings",
     "AppsAdmin",
     "ApproveApp",
+    # moderation
+    "ModerationFlags",
+    "ModerationAutoHide",
 ]

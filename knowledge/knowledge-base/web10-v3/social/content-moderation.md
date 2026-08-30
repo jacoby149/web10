@@ -1,6 +1,6 @@
 # Content Moderation: Sensitive Language Detection + Discover Suppression
 
-**Status:** design-under-discussion. Not yet a decision.
+**Status:** decided (D59) + built (3.37.0). The detection layer, the write-path auto-hide, the `moderation_flags` review queue, the `auto_hide_users` list, and the Node Config Moderation card are all in. The open questions below are resolved by the v0 build: whole-word matching, forward-only (no retroactive scan), profile name/bio are flagged-only (not scanned on the post path), and the queue is human-in-the-loop (the operator suppresses; the machine only flags).
 
 ## The Problem
 
@@ -153,7 +153,7 @@ All set in the Node Config UI. Changes apply immediately (read on each write, no
 
 ## Build Bites (proposed)
 
-1. **KB + decision** — this doc finalized + D57 in `decisions.md`
+1. **KB + decision** — this doc finalized + D59 in `decisions.md`
 2. **`node_config` fields** — `sensitive_words`, `auto_moderate`, `moderation_enabled`, `auto_hide_users` (DDL + boot ALTER + `effective_config` defaults + `ConfigUpdate` model)
 3. **Detection service** — `api/app/v3/services/moderation.py`: `check_text(text, words) -> list[str]` (whole-word, case-insensitive)
 4. **Write-path hook** — on `/v3/create` (posts): if `moderation_enabled` AND (match OR username in `auto_hide_users`) AND `auto_moderate` → hide from discover group + insert flag

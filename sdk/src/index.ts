@@ -25,6 +25,14 @@ export type {
   V3GroupMemberCR,
   V3User,
   V3LoginResponse,
+  SessionVerdict,
+  VerifySessionOptions,
+  SessionStatus,
+  SessionTokenState,
+  SessionUserState,
+  SessionContractState,
+  SessionFollowersState,
+  SessionAction,
 } from './v3'
 
 // Token utilities
