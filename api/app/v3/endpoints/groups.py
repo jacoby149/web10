@@ -27,6 +27,7 @@ from app.v3.models import (
     SetSharing,
     UnhideDoc,
     UpdateGroup,
+    UpdateGroupIdentity,
 )
 from app.v3.models.common import TokenOnly
 from app.v3.services import clickhouse as ch
@@ -35,19 +36,13 @@ router = APIRouter(tags=["group-contracts"])
 
 
 def _require_group_permission(group_id: str, user: str, permission: str):
-    """Check that the user is a group member with the given permission. Raises CRUD if not."""
-    member = ch.get_group_member(group_id, user)
-    if not member:
-        raise exceptions.CRUD
-    existing = ch.get_group(group_id)
-    if not existing:
+    """Check that the user's effective role grants the management `permission`
+    (D58 — management ops live under the reserved 'group' key; the legacy flat
+    shape is checked via the '*' wildcard during the transition). Raises CRUD
+    if not granted, ENTRY_NOT_FOUND if the group doesn't exist."""
+    if not ch.get_group(group_id):
         raise exceptions.ENTRY_NOT_FOUND
-    role_def = None
-    for rd in existing["roles"]:
-        if rd["name"] == member["role"]:
-            role_def = rd
-            break
-    if not role_def or permission not in role_def.get("permissions", []):
+    if not ch.has_mgmt_permission(group_id, user, permission):
         raise exceptions.CRUD
 
 
@@ -98,8 +93,16 @@ def _permission_summary(roles: list[dict]) -> str:
     if not roles:
         return ""
     base = roles[-1]
-    perms = base.get("permissions", [])
-    return f"{base.get('name', 'member')}: {', '.join(perms)}" if perms else base.get("name", "member")
+    # D58: handle both the per-service map shape {service: [ops]} and the
+    # legacy flat list — flatten to a deduped op digest either way.
+    perms = base.get("permissions")
+    if isinstance(perms, dict):
+        ops = [op for svc_ops in perms.values() for op in svc_ops]
+    else:
+        ops = list(perms or [])
+    seen = set()
+    uniq = [o for o in ops if not (o in seen or seen.add(o))]
+    return f"{base.get('name', 'member')}: {', '.join(uniq)}" if uniq else base.get("name", "member")
 
 
 @router.post("/create")
@@ -176,6 +179,31 @@ def update_group(data: UpdateGroup):
     return result
 
 
+@router.post("/identity")
+def update_group_identity(data: UpdateGroupIdentity):
+    """Write the group's face (D58) — name, description, banner, avatar,
+    website, tags. Gated by a role grant on ``group-identity-service`` (owner /
+    page-curator). Append-only: each write appends a new ``group_identity``
+    row (latest wins). The read stays public — the face is public metadata."""
+    user = _user(data)
+    if not ch.get_group(data.group_id):
+        raise exceptions.ENTRY_NOT_FOUND
+    if not ch.can_write_group(data.group_id, user, "group-identity-service"):
+        raise exceptions.CRUD
+    result = ch.upsert_group_identity(
+        data.group_id,
+        {
+            "name": data.name,
+            "description": data.description,
+            "banner_ref": data.banner_ref,
+            "avatar_ref": data.avatar_ref,
+            "website": data.website,
+            "tags": data.tags,
+        },
+    )
+    return {**result, "status": "saved"}
+
+
 @router.post("/members/list")
 def get_group_members(data: ListGroupMembers):
     """Get group members."""
@@ -189,23 +217,7 @@ def get_group_members(data: ListGroupMembers):
 def add_group_member(data: AddGroupMember):
     """Add a member to a group."""
     user = _user(data)
-    requester = ch.get_group_member(data.group_id, user)
-    if not requester:
-        raise exceptions.CRUD
-
-    existing = ch.get_group(data.group_id)
-    if not existing:
-        raise exceptions.ENTRY_NOT_FOUND
-
-    requester_role_def = None
-    for rd in existing["roles"]:
-        if rd["name"] == requester["role"]:
-            requester_role_def = rd
-            break
-
-    if requester_role_def and "assignRoles" not in requester_role_def.get("permissions", []):
-        raise exceptions.CRUD
-
+    _require_group_permission(data.group_id, user, "assignRoles")
     ch.add_group_member(data.group_id, data.member_key, data.role)
     return {"group_id": data.group_id, "member_key": data.member_key, "role": data.role}
 
@@ -214,23 +226,7 @@ def add_group_member(data: AddGroupMember):
 def remove_group_member(data: RemoveGroupMember):
     """Remove a member from a group."""
     user = _user(data)
-    requester = ch.get_group_member(data.group_id, user)
-    if not requester:
-        raise exceptions.CRUD
-
-    existing = ch.get_group(data.group_id)
-    if not existing:
-        raise exceptions.ENTRY_NOT_FOUND
-
-    requester_role_def = None
-    for rd in existing["roles"]:
-        if rd["name"] == requester["role"]:
-            requester_role_def = rd
-            break
-
-    if requester_role_def and "revokeRoles" not in requester_role_def.get("permissions", []):
-        raise exceptions.CRUD
-
+    _require_group_permission(data.group_id, user, "revokeRoles")
     ch.remove_group_member(data.group_id, data.member_key)
     return {"group_id": data.group_id, "member_key": data.member_key, "status": "removed"}
 
@@ -257,23 +253,7 @@ def join_group(data: JoinGroup):
 def invite_member(data: InviteMember):
     """Invite a member to a group."""
     user = _user(data)
-    requester = ch.get_group_member(data.group_id, user)
-    if not requester:
-        raise exceptions.CRUD
-
-    existing = ch.get_group(data.group_id)
-    if not existing:
-        raise exceptions.ENTRY_NOT_FOUND
-
-    requester_role_def = None
-    for rd in existing["roles"]:
-        if rd["name"] == requester["role"]:
-            requester_role_def = rd
-            break
-
-    if requester_role_def and "assignRoles" not in requester_role_def.get("permissions", []):
-        raise exceptions.CRUD
-
+    _require_group_permission(data.group_id, user, "assignRoles")
     ch.create_join_request(data.group_id, data.member_key, "invited", data.role)
     return {"group_id": data.group_id, "invited_key": data.member_key, "status": "invited"}
 

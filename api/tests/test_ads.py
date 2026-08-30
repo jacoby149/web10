@@ -130,6 +130,7 @@ class TestAdCreate:
         with (
             patch("app.v3.services.clickhouse.insert_document", side_effect=fake_insert),
             patch("app.v3.services.clickhouse.attach_doc_to_groups") as mock_attach,
+            patch("app.v3.services.clickhouse.can_write_group", return_value=True),
         ):
             resp = client.post(
                 "/v3/create",
@@ -170,7 +171,7 @@ class TestAdFeedRead:
         ad_doc = _doc("ad-1", "alice", _ad_body(), ["ad"], "2026-01-02 00:00:00")
         post_doc = _doc("post-1", "alice", _normal_body(), [], "2026-01-01 00:00:00")
         with (
-            patch("app.v3.services.clickhouse.is_group_member", return_value=True),
+            patch("app.v3.services.clickhouse.readable_groups", side_effect=lambda p, s, a, c: c),
             patch(
                 "app.v3.services.clickhouse.read_documents_in_groups",
                 return_value=[ad_doc, post_doc],
@@ -211,7 +212,7 @@ class TestAdI3:
         The read is group-scoped — a non-member of the followers group is an
         access failure (D42), and the document query is never run."""
         with (
-            patch("app.v3.services.clickhouse.is_group_member", return_value=False),
+            patch("app.v3.services.clickhouse.readable_groups", side_effect=lambda p, s, a, c: []),
             patch(
                 "app.v3.services.clickhouse.read_documents_in_groups",
                 return_value=[_doc("ad-1", "alice", _ad_body(), ["ad"], "2026-01-02 00:00:00")],
@@ -239,7 +240,7 @@ class TestAdStatus:
         back from the feed read exactly like an active one."""
         paused_doc = _doc("ad-2", "alice", _ad_body(status="paused"), ["ad"], "2026-01-03 00:00:00")
         with (
-            patch("app.v3.services.clickhouse.is_group_member", return_value=True),
+            patch("app.v3.services.clickhouse.readable_groups", side_effect=lambda p, s, a, c: c),
             patch(
                 "app.v3.services.clickhouse.read_documents_in_groups",
                 return_value=[paused_doc],
@@ -317,7 +318,7 @@ class TestPinnedAdRead:
         pinned = _pinned_doc()
         ad = _doc("ad-1", "alice", _ad_body(), ["ad"], "2026-01-02 00:00:00")
         with (
-            patch("app.v3.services.clickhouse.is_group_member", return_value=True),
+            patch("app.v3.services.clickhouse.readable_groups", side_effect=lambda p, s, a, c: c),
             patch("app.v3.services.clickhouse.read_documents_in_groups", return_value=[pinned]),
             patch("app.v3.services.clickhouse.resolve_pinned_ads", return_value={"ad-1": ad}),
         ):
@@ -341,7 +342,7 @@ class TestPinnedAdRead:
         nothing for an ad the reader lacks access to."""
         pinned = _pinned_doc()
         with (
-            patch("app.v3.services.clickhouse.is_group_member", return_value=True),
+            patch("app.v3.services.clickhouse.readable_groups", side_effect=lambda p, s, a, c: c),
             patch("app.v3.services.clickhouse.read_documents_in_groups", return_value=[pinned]),
             patch("app.v3.services.clickhouse.resolve_pinned_ads", return_value={}),
         ):
@@ -361,7 +362,7 @@ class TestPinnedAdRead:
         """A doc with ad_mode='none' (the default) comes back with no ad."""
         plain = _doc("post-1", "alice", _normal_body(), [], "2026-01-01 00:00:00", ad_mode="none", ad_target="")
         with (
-            patch("app.v3.services.clickhouse.is_group_member", return_value=True),
+            patch("app.v3.services.clickhouse.readable_groups", side_effect=lambda p, s, a, c: c),
             patch("app.v3.services.clickhouse.read_documents_in_groups", return_value=[plain]),
         ):
             resp = client.post(
@@ -447,6 +448,7 @@ class TestAlbumsDataModel:
         with (
             patch("app.v3.services.clickhouse.insert_document", side_effect=fake_insert),
             patch("app.v3.services.clickhouse.attach_doc_to_groups"),
+            patch("app.v3.services.clickhouse.can_write_group", return_value=True),
         ):
             resp = client.post(
                 "/v3/create",
@@ -490,6 +492,7 @@ class TestAlbumsDataModel:
         with (
             patch("app.v3.services.clickhouse.insert_document", side_effect=fake_insert),
             patch("app.v3.services.clickhouse.attach_doc_to_groups"),
+            patch("app.v3.services.clickhouse.can_write_group", return_value=True),
         ):
             resp = client.post(
                 "/v3/create",
@@ -530,6 +533,7 @@ class TestAdPreferenceWrite:
         with (
             patch("app.v3.services.clickhouse.insert_document", side_effect=fake_insert),
             patch("app.v3.services.clickhouse.attach_doc_to_groups"),
+            patch("app.v3.services.clickhouse.can_write_group", return_value=True),
         ):
             resp = client.post(
                 "/v3/create",

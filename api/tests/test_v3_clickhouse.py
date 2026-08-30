@@ -1222,6 +1222,75 @@ class TestMigrateDiscoverableDefaultFlip:
             assert ", 0, created_at, now64(6), 0" in sql
 
 
+class TestMigrateD58RoleShape:
+    """The one-time, sentinel-gated backfill (D58). Re-shapes pre-existing
+    group roles from the legacy flat shape to the per-service map. Decoupled
+    from the gates (the API normalizes both shapes on read) — cleanup only."""
+
+    def test_transform_role_new_shape_passthrough(self):
+        role = {"name": "member", "permissions": {"posts": ["readAll"]}}
+        assert ch._transform_role(role) == role
+
+    def test_transform_role_legacy_fans_out(self):
+        role = {"name": "member", "services": ["posts", "comments"], "permissions": ["readAll", "create"]}
+        assert ch._transform_role(role) == {
+            "name": "member",
+            "permissions": {"posts": ["readAll", "create"], "comments": ["readAll", "create"]},
+        }
+
+    def test_transform_role_legacy_no_services_defaults_wildcard(self):
+        role = {"name": "owner", "permissions": ["readAll", "create"]}
+        assert ch._transform_role(role) == {
+            "name": "owner",
+            "permissions": {"*": ["readAll", "create"]},
+        }
+
+    def test_skips_when_sentinel_present(self):
+        # Sentinel row exists → no-op (no group fetch, no insert).
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([(1,)])
+            ch._migrate_d58_role_shape()
+            mock_client.insert.assert_not_called()
+
+    def test_reshapes_legacy_groups_and_sets_sentinel(self):
+        # No sentinel → legacy-shape groups are re-shaped (insert), sentinel set.
+        legacy_roles = '[{"name":"member","services":["posts"],"permissions":["readAll"]}]'
+        group_rows = [("g1", legacy_roles, "open", 0, "2026-01-01T00:00:00")]
+        with _patch_client() as mock_client:
+            # query #1 = sentinel check (absent), query #2 = the group fetch.
+            mock_client.query.side_effect = [
+                _mock_result_rows([]),
+                _mock_result_rows(group_rows),
+            ]
+            ch._migrate_d58_role_shape()
+            inserts = mock_client.insert.call_args_list
+            # one group_contracts row (the re-shaped roles) + one node_config sentinel.
+            tables = [c[0][0] for c in inserts]
+            assert "group_contracts" in tables
+            assert "node_config" in tables
+            # the re-shaped role is the per-service map.
+            gc_insert = next(c for c in inserts if c[0][0] == "group_contracts")
+            new_roles_json = gc_insert[0][1][0][1]
+            assert '"posts": ["readAll"]' in new_roles_json
+            assert "services" not in new_roles_json
+
+    def test_skips_new_shape_groups(self):
+        # No sentinel, but the group is already in the new shape → no rewrite
+        # (only the sentinel is written).
+        new_roles = '[{"name":"member","permissions":{"posts":["readAll"]}}]'
+        group_rows = [("g1", new_roles, "open", 0, "2026-01-01T00:00:00")]
+        with _patch_client() as mock_client:
+            mock_client.query.side_effect = [
+                _mock_result_rows([]),
+                _mock_result_rows(group_rows),
+            ]
+            ch._migrate_d58_role_shape()
+            inserts = mock_client.insert.call_args_list
+            tables = [c[0][0] for c in inserts]
+            # only the sentinel — no group_contracts rewrite.
+            assert tables == ["node_config"]
+
+
 class TestEnsureDiscoverGroup:
     """The node-default universal public board (KB: social-contracts.md §1)."""
 

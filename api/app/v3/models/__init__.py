@@ -42,6 +42,7 @@ from app.v3.models.groups import (
     RemoveGroupMember,
     UnhideDoc,
     UpdateGroup,
+    UpdateGroupIdentity,
 )
 from app.v3.models.media import (
     ConfirmMedia,
@@ -80,6 +81,7 @@ __all__ = [
     "CreateGroup",
     "GetGroup",
     "UpdateGroup",
+    "UpdateGroupIdentity",
     "ListGroupMembers",
     "AddGroupMember",
     "RemoveGroupMember",
