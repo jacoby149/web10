@@ -21,6 +21,7 @@
 // inbound nudge + fires the outbound one on send.
 
 import { getV3Client } from './v3';
+import { API_ORIGIN } from '../lib/origins';
 import { createRTC, setPeer as sdkSetPeer, type RTCConnector } from 'web10-npm/rtc';
 
 const LOG = (...args: unknown[]) => console.log('[p2p]', ...args);
@@ -129,9 +130,12 @@ export async function initP2P(): Promise<boolean> {
   LOG('initP2P — initializing, rtcServer:', w.state.rtcServer, 'label:', P2P_LABEL, 'site:', site);
   try {
     rtc = createRTC(w);
-    // secure: the signaling server is https in prod; the SDK picks the port
-    // from this flag. Local dev (http) passes false.
-    const secure = typeof window !== 'undefined' && window.location.protocol === 'https:';
+    // secure: the signaling server's protocol matches the API origin's (the RTC
+    // host tracks the API host — http://api.localhost → ws://rtc.localhost,
+    // https://api.web10.app → wss://rtc.web10.app). Deriving it from the page
+    // protocol would be wrong when the app is served over http but the node is
+    // https (or vice versa).
+    const secure = API_ORIGIN.startsWith('https');
     await rtc.initP2P((conn, data) => dispatchInbound(conn as P2PInboundConn, data), P2P_LABEL, secure);
     p2pReady = true;
     const id = rtc.peerId(token.provider, token.username, site, P2P_LABEL);
