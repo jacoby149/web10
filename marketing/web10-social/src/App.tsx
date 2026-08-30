@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation, useParams, useSearchParams } from 'react-router-dom';
+import Peer from 'peerjs';
 import { Button } from '@/components/ui/button';
 import { getSocialAuth } from '@/interfaces/auth';
 import Layout from '@/components/Social/Layout';
@@ -17,11 +18,14 @@ import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { ReportBug } from '@/components/shared/ReportBug';
 import { getWapi, getV3Client } from '@/data';
 import { resolveMediaRefs } from '@/data/posts';
+import { readSettings } from '@/data/settings';
+import { initP2P, teardownP2P, setPeer } from '@/data/p2p';
 import { trackEvent, hotjarIdentify } from '@/lib/analytics';
 import { PostLightbox } from '@/components/Bio/PostLightbox';
 import type { PostRecord, MediaRecord, Visibility } from '@/data/types';
 
 const LOG = (...args: unknown[]) => console.log('[social]', ...args);
+const LOG_ERR = (...args: unknown[]) => console.error('[social]', ...args);
 
 function LoginScreen({ onLogin }: { onLogin: () => void }) {
   return (
@@ -245,6 +249,46 @@ function App() {
       window.removeEventListener('navigate-user-profile', handler);
     };
   }, [navigate]);
+
+  // P2P lifecycle (real-time messages): open the peer on sign-in when the
+  // user's `p2pEnabled` setting is on, tear it down on sign-out. Re-applies
+  // when the toggle changes (SettingsScreen fires `settings-changed`). The
+  // peer connection IS the presence — online while open, offline when torn
+  // down (opted out or not signed in).
+  const applyP2P = useCallback(async () => {
+    const auth = getSocialAuth();
+    if (!auth.isSignedIn()) {
+      teardownP2P();
+      return;
+    }
+    try {
+      const s = await readSettings();
+      LOG('applyP2P — p2pEnabled:', s.p2pEnabled);
+      if (s.p2pEnabled) {
+        setPeer(Peer);
+        await initP2P();
+      } else {
+        teardownP2P();
+      }
+    } catch (e) {
+      LOG_ERR('applyP2P — failed:', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (signedIn) {
+      applyP2P();
+    } else {
+      teardownP2P();
+    }
+    const onSettingsChanged = () => {
+      if (getSocialAuth().isSignedIn()) applyP2P();
+    };
+    window.addEventListener('settings-changed', onSettingsChanged);
+    return () => {
+      window.removeEventListener('settings-changed', onSettingsChanged);
+    };
+  }, [signedIn, applyP2P]);
 
   function handleLogin() {
     getSocialAuth().login();

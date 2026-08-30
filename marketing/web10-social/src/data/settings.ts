@@ -21,6 +21,9 @@ const LOG_ERR = (...args: unknown[]) => console.error('[settings]', ...args);
 
 const defaultSettings: AppSettings = {
   defaultVisibility: 'public',
+  // Real-time (P2P) is on by default — instant delivery + online presence out
+  // of the box. A user opts OUT via the settings toggle.
+  p2pEnabled: true,
 };
 
 const KNOB_KEYS: (keyof KnobState)[] = ['recency', 'likes', 'comments', 'halfLife', 'character'];
@@ -68,6 +71,8 @@ export async function readSettings(): Promise<AppSettings> {
       const feedKnobs = sanitizeFeedKnobs(body.feedKnobs);
       cachedSettings = {
         defaultVisibility: (body.defaultVisibility as AppSettings['defaultVisibility']) || defaultSettings.defaultVisibility,
+        // Absent field (a doc written before the toggle existed) → default on.
+        p2pEnabled: body.p2pEnabled === undefined ? defaultSettings.p2pEnabled : Boolean(body.p2pEnabled),
         ...(feedKnobs ? { feedKnobs } : {}),
       };
       LOG('readSettings — resolved:', JSON.stringify(cachedSettings));
@@ -91,6 +96,7 @@ export async function saveSettings(settings: Partial<AppSettings>): Promise<AppS
 
   const body: Record<string, unknown> = {
     defaultVisibility: merged.defaultVisibility,
+    p2pEnabled: merged.p2pEnabled ?? defaultSettings.p2pEnabled,
   };
   // Persist the feed tuning when present (a visibility-only save must not
   // clobber a previously saved knob state — merged carries it forward).
