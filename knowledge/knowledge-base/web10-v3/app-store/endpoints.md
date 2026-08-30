@@ -200,7 +200,7 @@ plug-slot filter, the manifest proxy, the metric). The division of labor:
   `/v3/apps/list` (pagination); the macro is the same metric query minus
   the `GROUP BY app_url`, so the App Store header's "N web10 users · 30d"
   and the per-app numbers are consistent by construction. The homepage
-  stat bar leads with the all-time `users` count (3.27.4 — operator
+  stat bar leads with the all-time `users` count (3.27.5 — operator
   preference: all-time, not the 30d window).
 - **`/pwa_listing`** serves identity — the manifest proxy.
 
