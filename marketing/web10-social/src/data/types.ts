@@ -399,6 +399,14 @@ export type DiscoverSort = 'recent' | 'trending';
 
 export interface AppSettings {
   defaultVisibility?: 'public' | 'private';
+  /**
+   * Real-time messages (WebRTC P2P). When on, the app opens a P2P peer on
+   * sign-in: messages are delivered instantly over a data channel when both
+   * parties are online, and the user shows as online. When off, no P2P peer
+   * is opened — messages still work via CRUD (poll/read), but there's no
+   * instant nudge and the user shows as offline. Default: on.
+   */
+  p2pEnabled?: boolean;
   /** The feed's knob tuning (the D36 power-mean state) — persisted so the
    *  app remembers how the user tuned their feed across sessions/devices. */
   feedKnobs?: KnobState;
