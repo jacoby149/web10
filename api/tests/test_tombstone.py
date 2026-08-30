@@ -47,7 +47,7 @@ class TestDocumentTombstone:
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
                 [
-                    ("doc-1", "alice", "posts", '{"text":"latest"}', "", [], OLD, NEW),
+                    ("doc-1", "alice", "posts", '{"text":"latest"}', "", [], OLD, NEW, "none", ""),
                 ]
             )
             result = ch.get_document("doc-1", "alice")
@@ -99,7 +99,7 @@ class TestDocumentTombstone:
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
                 [
-                    ("doc-1", "alice", '{"text":"new"}', [], OLD, ""),
+                    ("doc-1", "alice", '{"text":"new"}', [], OLD, "", "none", ""),
                 ]
             )
             result = ch.read_document_by_id("doc-1", "alice", "posts")
@@ -474,7 +474,7 @@ class TestReadDocumentsInGroupsTombstone:
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
                 [
-                    ("doc-1", "alice", '{"text":"hello"}', [], OLD, ""),
+                    ("doc-1", "alice", '{"text":"hello"}', [], OLD, "", "none", ""),
                 ]
             )
             result = ch.read_documents_in_groups(["grp-1"], "bob", "posts")

@@ -79,7 +79,7 @@ def _normal_body():
     return {"text": "just a post", "tags": []}
 
 
-def _doc(doc_id, author, body, tags, created_at, ref_value=""):
+def _doc(doc_id, author, body, tags, created_at, ref_value="", ad_mode="none", ad_target=""):
     """A document in the shape the house read returns it."""
     return {
         "doc_id": doc_id,
@@ -88,6 +88,8 @@ def _doc(doc_id, author, body, tags, created_at, ref_value=""):
         "tags": list(tags),
         "created_at": created_at,
         "ref_value": ref_value,
+        "ad_mode": ad_mode,
+        "ad_target": ad_target,
         "service": "posts",
     }
 
@@ -105,11 +107,13 @@ class TestAdCreate:
         followers group (delivery by architecture)."""
         captured = {}
 
-        def fake_insert(author_key, service, body, ref_value="", tags=None, doc_id=None):
+        def fake_insert(author_key, service, body, ref_value="", tags=None, doc_id=None, ad_mode="none", ad_target=""):
             captured["author_key"] = author_key
             captured["service"] = service
             captured["body"] = body
             captured["tags"] = tags
+            captured["ad_mode"] = ad_mode
+            captured["ad_target"] = ad_target
             return {
                 "doc_id": "ad-1",
                 "author_key": author_key,
@@ -117,6 +121,8 @@ class TestAdCreate:
                 "body": body,
                 "ref_value": ref_value,
                 "tags": tags or [],
+                "ad_mode": ad_mode,
+                "ad_target": ad_target,
                 "created_at": "2026-01-01T00:00:00",
                 "updated_at": "2026-01-01T00:00:00",
             }
@@ -266,8 +272,17 @@ class TestFeedReadQueryIsAdAgnostic:
         cannot be filtered in SQL at all; the tag filter is the renderer's
         job (D51)."""
         rows = [
-            ("ad-1", "alice", '{"text":"ad","tags":["ad"],"status":"active"}', ["ad"], datetime(2026, 1, 2), ""),
-            ("post-1", "alice", '{"text":"post"}', [], datetime(2026, 1, 1), ""),
+            (
+                "ad-1",
+                "alice",
+                '{"text":"ad","tags":["ad"],"status":"active"}',
+                ["ad"],
+                datetime(2026, 1, 2),
+                "",
+                "none",
+                "",
+            ),
+            ("post-1", "alice", '{"text":"post"}', [], datetime(2026, 1, 1), "", "none", ""),
         ]
         with patch.object(ch, "client") as mock_ch:
             mock_ch.query.return_value = MagicMock(result_rows=rows)
@@ -283,3 +298,250 @@ class TestFeedReadQueryIsAdAgnostic:
         assert "p.tags" in sql
         assert "has(tags" not in sql
         assert "tags =" not in sql
+
+
+# ---------------------------------------------------------------------------
+# (5) v3 ad preference — the read serves the pinned ad inline (I3-checked)
+# ---------------------------------------------------------------------------
+
+
+def _pinned_doc(doc_id="post-1", target="ad-1"):
+    """A post with a pinned ad preference."""
+    return _doc(doc_id, "alice", _normal_body(), [], "2026-01-01 00:00:00", ad_mode="pinned", ad_target=target)
+
+
+class TestPinnedAdRead:
+    def test_pinned_ad_served_inline(self, client, follower_token):
+        """A doc with ad_mode='pinned' comes back WITH its ad inline (the v3
+        read serves doc + ad, 100% of the time)."""
+        pinned = _pinned_doc()
+        ad = _doc("ad-1", "alice", _ad_body(), ["ad"], "2026-01-02 00:00:00")
+        with (
+            patch("app.v3.services.clickhouse.is_group_member", return_value=True),
+            patch("app.v3.services.clickhouse.read_documents_in_groups", return_value=[pinned]),
+            patch("app.v3.services.clickhouse.resolve_pinned_ads", return_value={"ad-1": ad}),
+        ):
+            resp = client.post(
+                "/v3/read",
+                json={"token": follower_token, "service": "posts", "groups": [FOLLOWERS]},
+            )
+
+        assert resp.status_code == 200
+        docs = resp.json()
+        assert len(docs) == 1
+        # the doc comes back with its ad inline
+        assert docs[0]["doc_id"] == "post-1"
+        assert docs[0]["ad_mode"] == "pinned"
+        assert docs[0]["ad"]["doc_id"] == "ad-1"
+        assert docs[0]["ad"]["body"]["offer"]["link"]["value"] == "https://amzn.to/abc?tag=alice-20"
+
+    def test_pinned_ad_i3_check(self, client, stranger_token):
+        """I3: a pinned ad the reader can't see (not in the ad's group) is not
+        served — the doc comes back with no ad. `resolve_pinned_ads` returns
+        nothing for an ad the reader lacks access to."""
+        pinned = _pinned_doc()
+        with (
+            patch("app.v3.services.clickhouse.is_group_member", return_value=True),
+            patch("app.v3.services.clickhouse.read_documents_in_groups", return_value=[pinned]),
+            patch("app.v3.services.clickhouse.resolve_pinned_ads", return_value={}),
+        ):
+            resp = client.post(
+                "/v3/read",
+                json={"token": stranger_token, "service": "posts", "groups": [FOLLOWERS]},
+            )
+
+        assert resp.status_code == 200
+        docs = resp.json()
+        assert len(docs) == 1
+        # the doc comes back, but with no ad (the reader can't see it)
+        assert docs[0]["doc_id"] == "post-1"
+        assert "ad" not in docs[0]
+
+    def test_none_mode_no_ad(self, client, follower_token):
+        """A doc with ad_mode='none' (the default) comes back with no ad."""
+        plain = _doc("post-1", "alice", _normal_body(), [], "2026-01-01 00:00:00", ad_mode="none", ad_target="")
+        with (
+            patch("app.v3.services.clickhouse.is_group_member", return_value=True),
+            patch("app.v3.services.clickhouse.read_documents_in_groups", return_value=[plain]),
+        ):
+            resp = client.post(
+                "/v3/read",
+                json={"token": follower_token, "service": "posts", "groups": [FOLLOWERS]},
+            )
+
+        assert resp.status_code == 200
+        docs = resp.json()
+        assert len(docs) == 1
+        assert docs[0]["doc_id"] == "post-1"
+        assert "ad" not in docs[0]
+
+    def test_single_doc_read_serves_pinned_ad(self, client, follower_token):
+        """The single-doc read (the post detail deep link, `doc_id` path)
+        serves the pinned ad inline too — a read is a read."""
+        pinned = _pinned_doc()
+        ad = _doc("ad-1", "alice", _ad_body(), ["ad"], "2026-01-02 00:00:00")
+        with (
+            patch("app.v3.services.clickhouse.read_document_by_id", return_value=pinned),
+            patch("app.v3.services.clickhouse.resolve_pinned_ads", return_value={"ad-1": ad}),
+        ):
+            resp = client.post(
+                "/v3/read",
+                json={"token": follower_token, "service": "posts", "doc_id": "post-1"},
+            )
+
+        assert resp.status_code == 200
+        doc = resp.json()
+        assert doc["doc_id"] == "post-1"
+        assert doc["ad_mode"] == "pinned"
+        assert doc["ad"]["doc_id"] == "ad-1"
+        assert doc["ad"]["body"]["offer"]["link"]["value"] == "https://amzn.to/abc?tag=alice-20"
+
+    def test_single_doc_read_i3_check(self, client, stranger_token):
+        """I3 holds on the single-doc read too: a pinned ad the reader can't
+        see is not served — the doc comes back with no ad."""
+        pinned = _pinned_doc()
+        with (
+            patch("app.v3.services.clickhouse.read_document_by_id", return_value=pinned),
+            patch("app.v3.services.clickhouse.resolve_pinned_ads", return_value={}),
+        ):
+            resp = client.post(
+                "/v3/read",
+                json={"token": stranger_token, "service": "posts", "doc_id": "post-1"},
+            )
+
+        assert resp.status_code == 200
+        doc = resp.json()
+        assert doc["doc_id"] == "post-1"
+        assert "ad" not in doc
+
+
+# ---------------------------------------------------------------------------
+# (6) v3 albums — the data model (the API is a scanner: no album branches)
+# ---------------------------------------------------------------------------
+
+
+class TestAlbumsDataModel:
+    def test_album_is_a_posts_doc_tagged_ad_album(self, client, creator_token):
+        """An album is a `posts` doc tagged `ad_album` (the name in the body)
+        — first-class, made through the standard CRUD. No `albums` service,
+        no new endpoint (the API is a scanner)."""
+        captured = {}
+
+        def fake_insert(author_key, service, body, ref_value="", tags=None, doc_id=None, ad_mode="none", ad_target=""):
+            captured["service"] = service
+            captured["body"] = body
+            captured["tags"] = tags
+            return {
+                "doc_id": "album-1",
+                "author_key": author_key,
+                "service": service,
+                "body": body,
+                "ref_value": ref_value,
+                "tags": tags or [],
+                "ad_mode": ad_mode,
+                "ad_target": ad_target,
+                "created_at": "2026-01-01T00:00:00",
+                "updated_at": "2026-01-01T00:00:00",
+            }
+
+        with (
+            patch("app.v3.services.clickhouse.insert_document", side_effect=fake_insert),
+            patch("app.v3.services.clickhouse.attach_doc_to_groups"),
+        ):
+            resp = client.post(
+                "/v3/create",
+                json={
+                    "token": creator_token,
+                    "service": "posts",
+                    "body": {"name": "Summer 2026", "tags": ["ad_album"]},
+                    "groups": [FOLLOWERS],
+                },
+            )
+
+        assert resp.status_code == 200
+        assert captured["service"] == "posts"
+        assert "ad_album" in captured["tags"]
+        assert captured["body"]["name"] == "Summer 2026"
+
+    def test_ad_carries_its_albums_as_tags(self, client, creator_token):
+        """The ad→album link is tag-like: each album an ad is in is an
+        `album:<album doc_id>` tag on the ad (an ad in a few albums). The API
+        stores it as plain tags (the scanner); the Ads tab filters on it
+        client-side."""
+        captured = {}
+
+        def fake_insert(author_key, service, body, ref_value="", tags=None, doc_id=None, ad_mode="none", ad_target=""):
+            captured["tags"] = tags
+            return {
+                "doc_id": "ad-1",
+                "author_key": author_key,
+                "service": service,
+                "body": body,
+                "ref_value": ref_value,
+                "tags": tags or [],
+                "ad_mode": ad_mode,
+                "ad_target": ad_target,
+                "created_at": "2026-01-01T00:00:00",
+                "updated_at": "2026-01-01T00:00:00",
+            }
+
+        body = _ad_body()
+        body["tags"] = ["ad", "album:album-1", "album:album-2"]
+        with (
+            patch("app.v3.services.clickhouse.insert_document", side_effect=fake_insert),
+            patch("app.v3.services.clickhouse.attach_doc_to_groups"),
+        ):
+            resp = client.post(
+                "/v3/create",
+                json={
+                    "token": creator_token,
+                    "service": "posts",
+                    "body": body,
+                    "groups": [FOLLOWERS],
+                },
+            )
+
+        assert resp.status_code == 200
+        assert captured["tags"] == ["ad", "album:album-1", "album:album-2"]
+
+
+class TestAdPreferenceWrite:
+    def test_create_with_ad_preference(self, client, creator_token):
+        """A doc created with an ad_preference is stored with ad_mode +
+        ad_target (the v3 ad preference columns)."""
+        captured = {}
+
+        def fake_insert(author_key, service, body, ref_value="", tags=None, doc_id=None, ad_mode="none", ad_target=""):
+            captured["ad_mode"] = ad_mode
+            captured["ad_target"] = ad_target
+            return {
+                "doc_id": "post-1",
+                "author_key": author_key,
+                "service": service,
+                "body": body,
+                "ref_value": ref_value,
+                "tags": tags or [],
+                "ad_mode": ad_mode,
+                "ad_target": ad_target,
+                "created_at": "2026-01-01T00:00:00",
+                "updated_at": "2026-01-01T00:00:00",
+            }
+
+        with (
+            patch("app.v3.services.clickhouse.insert_document", side_effect=fake_insert),
+            patch("app.v3.services.clickhouse.attach_doc_to_groups"),
+        ):
+            resp = client.post(
+                "/v3/create",
+                json={
+                    "token": creator_token,
+                    "service": "posts",
+                    "body": _normal_body(),
+                    "groups": [FOLLOWERS],
+                    "ad_preference": {"mode": "pinned", "target": "ad-1"},
+                },
+            )
+
+        assert resp.status_code == 200
+        assert captured["ad_mode"] == "pinned"
+        assert captured["ad_target"] == "ad-1"

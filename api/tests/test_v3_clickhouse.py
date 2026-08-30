@@ -110,6 +110,8 @@ class TestGetDocument:
                         ["test"],
                         datetime(2026, 1, 1),
                         datetime(2026, 1, 1),
+                        "none",
+                        "",
                     ),
                 ]
             )
@@ -139,6 +141,8 @@ class TestUpdateDocument:
                         [],
                         original_created,
                         datetime(2026, 1, 1, 12, 0, 0),
+                        "none",
+                        "",
                     ),
                 ]
             )
@@ -550,7 +554,7 @@ class TestReadDocumentsInGroups:
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
                 [
-                    ("doc-1", "bob", '{"text":"hello"}', ["test"], datetime(2026, 1, 1), ""),
+                    ("doc-1", "bob", '{"text":"hello"}', ["test"], datetime(2026, 1, 1), "", "none", ""),
                 ]
             )
             results = ch.read_documents_in_groups(
@@ -638,7 +642,7 @@ class TestReadDocumentById:
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
                 [
-                    ("doc-1", "bob", '{"text":"hello"}', ["tag1"], datetime(2026, 1, 1), ""),
+                    ("doc-1", "bob", '{"text":"hello"}', ["tag1"], datetime(2026, 1, 1), "", "none", ""),
                 ]
             )
             doc = ch.read_document_by_id("doc-1", "alice", "posts")
@@ -1290,6 +1294,14 @@ class TestMedia:
             result = ch.confirm_media_upload("alice", {"url": "http://x", "filename": "a.png"})
             assert result["filename"] == "a.png"
             mock_client.insert.assert_called_once()
+            # Positional insert must match the documents column count (11,
+            # including the v3 ad_preference columns ad_mode/ad_target) — a
+            # short row makes ClickHouse reject the insert (the e2e media
+            # confirm 500'd when the columns were added without this update).
+            row = mock_client.insert.call_args[0][1][0]
+            assert len(row) == 11
+            assert row[9] == "none"  # ad_mode
+            assert row[10] == ""  # ad_target
 
     def test_list_media(self):
         with _patch_client() as mock_client:

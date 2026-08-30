@@ -78,7 +78,7 @@ class TestCreate:
         """A reaction/comment references its target post via ref_value."""
         captured = {}
 
-        def fake_insert(author_key, service, body, ref_value="", tags=None, doc_id=None):
+        def fake_insert(author_key, service, body, ref_value="", tags=None, doc_id=None, ad_mode="none", ad_target=""):
             captured["ref_value"] = ref_value
             return {"doc_id": "doc-3", "ref_value": ref_value}
 
@@ -100,7 +100,7 @@ class TestRead:
     def test_personal_read(self, client, token):
         mock_groups = [("g1", "open", "member")]
         mock_counts = [("g1", 3)]
-        mock_docs = [("doc-1", "bob", '{"text":"mine"}', [], datetime(2026, 1, 1), "")]
+        mock_docs = [("doc-1", "bob", '{"text":"mine"}', [], datetime(2026, 1, 1), "", "none", "")]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.side_effect = [
                 MagicMock(result_rows=mock_groups),
@@ -121,7 +121,7 @@ class TestRead:
 
     def test_group_read(self, client, token):
         mock_rows = [
-            ("doc-1", "bob", '{"text":"shared"}', [], datetime(2026, 1, 1), ""),
+            ("doc-1", "bob", '{"text":"shared"}', [], datetime(2026, 1, 1), "", "none", ""),
         ]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = MagicMock(result_rows=mock_rows)
@@ -143,7 +143,7 @@ class TestRead:
     def test_me_shorthand(self, client, token):
         mock_groups = [("g1", "open", "member")]
         mock_counts = [("g1", 3)]
-        mock_docs = [("doc-1", "bob", '{"text":"hello"}', [], datetime(2026, 1, 1), "")]
+        mock_docs = [("doc-1", "bob", '{"text":"hello"}', [], datetime(2026, 1, 1), "", "none", "")]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.side_effect = [
                 MagicMock(result_rows=mock_groups),
@@ -166,7 +166,7 @@ class TestUpdate:
     def test_update_preserves_created_at(self, client, token):
         original_created = datetime(2026, 1, 1)
         mock_rows = [
-            ("doc-1", "testuser", "posts", '{"text":"old"}', "", [], original_created, original_created),
+            ("doc-1", "testuser", "posts", '{"text":"old"}', "", [], original_created, original_created, "none", ""),
         ]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = MagicMock(result_rows=mock_rows)
@@ -200,7 +200,18 @@ class TestUpdate:
 class TestDelete:
     def test_delete(self, client, token):
         mock_rows = [
-            ("doc-1", "testuser", "posts", '{"text":"x"}', "", [], datetime(2026, 1, 1), datetime(2026, 1, 1)),
+            (
+                "doc-1",
+                "testuser",
+                "posts",
+                '{"text":"x"}',
+                "",
+                [],
+                datetime(2026, 1, 1),
+                datetime(2026, 1, 1),
+                "none",
+                "",
+            ),
         ]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = MagicMock(result_rows=mock_rows)
@@ -929,7 +940,7 @@ class TestSharing:
 class TestReadById:
     def test_read_by_id(self, client, token):
         mock_rows = [
-            ("doc-1", "bob", '{"text":"hello"}', [], datetime(2026, 1, 1), ""),
+            ("doc-1", "bob", '{"text":"hello"}', [], datetime(2026, 1, 1), "", "none", ""),
         ]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = MagicMock(result_rows=mock_rows)
@@ -1705,7 +1716,7 @@ class TestDiscoverBoardAnonRead:
 
     def test_board_anon_readable(self, client):
         """No token → reads as anon → the discover group's docs come back."""
-        mock_docs = [("doc-1", "alice", '{"text":"hello"}', [], datetime(2026, 1, 1), "")]
+        mock_docs = [("doc-1", "alice", '{"text":"hello"}', [], datetime(2026, 1, 1), "", "none", "")]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             # read_documents_in_groups is a single query
             mock_ch.query.return_value = MagicMock(result_rows=mock_docs)
@@ -1826,7 +1837,7 @@ class TestPowerMeanRead:
     def test_sort_path_runs_single_ranked_query(self):
         # A sort read is ONE query (board base + engagement joins + SQL score +
         # SQL paging) — not the v0 three-query fetch-count-sort.
-        posts = [("doc-1", "bob", '{"text":"x"}', [], datetime(2026, 1, 1), "")]
+        posts = [("doc-1", "bob", '{"text":"x"}', [], datetime(2026, 1, 1), "", "none", "")]
         ctx, mock_ch = self._capture_query(posts)
         with ctx:
             read_documents_in_groups(
@@ -1852,7 +1863,7 @@ class TestPowerMeanRead:
     def test_sort_path_maps_rows_and_hides_score(self):
         # Rows come back mapped (body parsed, service added) with no internal
         # _score leaking into the response.
-        posts = [("doc-1", "bob", '{"text":"x"}', ["t1"], datetime(2026, 1, 1), "ref-9")]
+        posts = [("doc-1", "bob", '{"text":"x"}', ["t1"], datetime(2026, 1, 1), "ref-9", "none", "")]
         ctx, _ = self._capture_query(posts)
         with ctx:
             docs = read_documents_in_groups(
@@ -1870,6 +1881,8 @@ class TestPowerMeanRead:
                 "tags": ["t1"],
                 "created_at": str(datetime(2026, 1, 1)),
                 "ref_value": "ref-9",
+                "ad_mode": "none",
+                "ad_target": "",
                 "service": "posts",
             }
         ]
@@ -1895,8 +1908,8 @@ class TestPowerMeanRead:
         # Without a sort config, the read is the no-sort board query (newest
         # first) — unchanged behavior, and no engagement joins.
         posts = [
-            ("doc-new", "bob", '{"text":"new"}', [], datetime(2026, 1, 1), ""),
-            ("doc-old", "alice", '{"text":"old"}', [], datetime(2025, 1, 1), ""),
+            ("doc-new", "bob", '{"text":"new"}', [], datetime(2026, 1, 1), "", "none", ""),
+            ("doc-old", "alice", '{"text":"old"}', [], datetime(2025, 1, 1), "", "none", ""),
         ]
         ctx, mock_ch = self._capture_query(posts)
         with ctx:
