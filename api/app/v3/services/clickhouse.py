@@ -1722,6 +1722,94 @@ def attach_pinned_ads(docs: list[dict], reader: str) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
+# Node ads (D57) — the operator's ad inventory, read-time attachment
+# ---------------------------------------------------------------------------
+
+
+def get_active_node_ads() -> list[dict]:
+    """Fetch active node ads from the discover group (bounded, D57).
+
+    A node ad is a `posts` doc tagged `ad` + `node_ad`, on the discover
+    group, with `status = 'active'` in the body. Bounded at 20 (the
+    operator can't have 1000 active node ads). Returns [] on any error
+    (node ads are an enhancement, not a critical path — the feed works
+    without them).
+    """
+    from app.services import config as cfg
+
+    try:
+        discover_group = f"{cfg.get_config_field('provider', 'api.localhost')}/groups/web10/discover"
+        result = client.query(
+            "SELECT doc_id, author_key, body, tags "
+            "FROM (SELECT doc_id, author_key, body, tags, deleted, "
+            "row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
+            "FROM documents "
+            "WHERE collection_name = 'posts' AND has(tags, 'node_ad') AND deleted = 0) "
+            "WHERE rn = 1 "
+            "AND doc_id IN (SELECT pg.doc_id FROM doc_groups pg "
+            "WHERE pg.group_id = %(discover)s AND pg.deleted = 0) "
+            "ORDER BY updated_at DESC LIMIT 20",
+            {"discover": discover_group},
+        )
+        ads = []
+        for row in result.result_rows:
+            body = _parse_json(row[2])
+            if body.get("status") == "active":
+                ads.append(
+                    {
+                        "doc_id": row[0],
+                        "author_key": row[1],
+                        "body": body,
+                        "tags": list(row[3]),
+                    }
+                )
+        return ads
+    except Exception:
+        return []
+
+
+def _node_ad_hash(doc_id: str, reader: str) -> int:
+    """Deterministic hash of (doc_id, reader) → [0, 100).
+
+    The same user sees the same node ads on refresh; different users see
+    different posts with node ads.
+    """
+    import hashlib
+
+    h = hashlib.sha256(f"{doc_id}:{reader}".encode()).digest()
+    return int.from_bytes(h[:4], "big") % 100
+
+
+def attach_node_ads(docs: list[dict], reader: str) -> list[dict]:
+    """Attach node ads to docs at the configured percentage (D57, the third join).
+
+    For each doc, if the deterministic hash of (doc_id, reader) is below the
+    configured `node_ad_percentage`, attach a node ad as `doc['node_ad']`
+    (round-robin through active node ads). The creator's `ad_mode` column is
+    never modified. Both `doc['ad']` (creator's pinned ad) and `doc['node_ad']`
+    (node's ad) can be present on the same post. Returns docs unchanged on
+    any error (node ads are an enhancement, not a critical path).
+    """
+    try:
+        from app.services import config as cfg
+
+        percentage = cfg.get_config_field("node_ad_percentage", 10)
+        if not percentage or percentage <= 0:
+            return docs
+
+        node_ads = get_active_node_ads()
+        if not node_ads:
+            return docs
+
+        for i, doc in enumerate(docs):
+            if _node_ad_hash(doc.get("doc_id", ""), reader) < percentage:
+                doc["node_ad"] = node_ads[i % len(node_ads)]
+        return docs
+    except Exception:
+        return docs
+
+
+# ---------------------------------------------------------------------------
 # Groups: manages
 # ---------------------------------------------------------------------------
 
@@ -2004,6 +2092,15 @@ def resolve_media_urls_in_docs(docs: list[dict]) -> list[dict]:
                 ad_body = resolve_media_urls(ad_body, ad.get("author_key", ""))
             ad_body = resolve_minio_types(ad_body)
             doc_with_media["ad"] = {**ad, "body": ad_body}
+        # The node ad (D57, `doc["node_ad"]`) is also a posts doc — resolve
+        # its media the same way.
+        node_ad = doc.get("node_ad")
+        if node_ad:
+            na_body = node_ad.get("body", {})
+            if na_body.get("media_refs"):
+                na_body = resolve_media_urls(na_body, node_ad.get("author_key", ""))
+            na_body = resolve_minio_types(na_body)
+            doc_with_media["node_ad"] = {**node_ad, "body": na_body}
         resolved.append(doc_with_media)
     return resolved
 
