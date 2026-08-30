@@ -21,10 +21,15 @@ import { fromV3DocToPost, fromV3DocToMedia } from './types';
  * Create a new post record.
  * Media files should be uploaded first via uploadMedia(), then referenced
  * through media_refs.
+ *
+ * `adPreference` (the v3 ad preference, ads-dissemination.md): when set, the
+ * post is created with its `ad_preference` column (`pinned` + the ad's doc_id,
+ * or `none`). The read then serves the post with the pinned ad inline.
  */
 export async function createPost(
   post: Omit<PostRecord, '_id'>,
   groups?: string[],
+  adPreference?: { mode: 'none' | 'pinned'; target?: string },
 ): Promise<PostRecord> {
   const w = getV3Client();
   const token = w.readToken();
@@ -57,9 +62,12 @@ export async function createPost(
     }
   }
 
-  console.log('[social-feed] createPost — visibility:', visibility, 'target groups:', JSON.stringify(targetGroups));
+  console.log('[social-feed] createPost — visibility:', visibility, 'target groups:', JSON.stringify(targetGroups), 'ad_preference:', JSON.stringify(adPreference ?? null));
 
-  const doc = await w.create('posts', body, { groups: targetGroups });
+  const doc = await w.create('posts', body, {
+    groups: targetGroups,
+    ...(adPreference ? { ad_preference: adPreference } : {}),
+  });
   console.log('[social-feed] createPost — success, doc_id:', doc.doc_id);
   return fromV3DocToPost(doc);
 }
