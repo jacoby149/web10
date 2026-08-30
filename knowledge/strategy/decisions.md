@@ -1468,7 +1468,7 @@ powerMean — copied per the verbatim-copies rule, not shared) ported to
 web10-social's DiscoverScreen. Rejects: knobs on the chronological feed
 (still rejected); a shared knobs package (premature).
 
-**Amendment (30.08.2026, 3.35.0):** the operator lifted the feed reject —
+**Amendment (30.08.2026, 3.38.0):** the operator lifted the feed reject —
 "the feed could have the same sorting knobs as the trending page right? also
 the social app should save your feed settings in a web10 service, in the
 backend, so it remembers how you tuned your feed." The feed now carries the
