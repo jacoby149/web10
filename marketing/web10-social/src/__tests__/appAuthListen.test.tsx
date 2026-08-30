@@ -17,6 +17,10 @@ vi.mock('@/data', async (importOriginal) => {
   return {
     ...original,
     readFeed: vi.fn().mockResolvedValue([]),
+    getFeedGroups: vi.fn().mockResolvedValue([]),
+    readFeedEngagement: vi.fn().mockResolvedValue({ likes: {}, comments: {} }),
+    readSettings: vi.fn().mockResolvedValue({ defaultVisibility: 'public' }),
+    saveSettings: vi.fn().mockResolvedValue({ defaultVisibility: 'public' }),
     readPullFeed: vi.fn().mockResolvedValue([]),
     readProfile: vi.fn().mockResolvedValue(null),
     readMyPosts: vi.fn().mockResolvedValue([]),
