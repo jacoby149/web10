@@ -16,7 +16,7 @@ import SettingsScreen from '@/components/Settings/SettingsScreen';
 import PostComposer from '@/components/Feed/PostComposer';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { ReportBug } from '@/components/shared/ReportBug';
-import { getWapi, getV3Client } from '@/data';
+import { getWapi, getV3Client, verifyAndRecover, Web10Error } from '@/data';
 import { resolveMediaRefs } from '@/data/posts';
 import { readSettings } from '@/data/settings';
 import { initP2P, teardownP2P, setPeer } from '@/data/p2p';
@@ -26,6 +26,16 @@ import type { PostRecord, MediaRecord, Visibility } from '@/data/types';
 
 const LOG = (...args: unknown[]) => console.log('[social]', ...args);
 const LOG_ERR = (...args: unknown[]) => console.error('[social]', ...args);
+
+// The manual "Log in again" message, keyed by the guard's needs_manual reason.
+function sessionAlertMessage(reason: string): string {
+  if (reason === 'user_not_found' || reason.startsWith('action_failed:signout')) {
+    return 'This account is no longer available. Log in again to continue.';
+  }
+  // reauth_deferred / cooldown:reauth / action_failed:reauth / not_signed_in —
+  // the session needs a re-derive; the user triggers it (or a failure will).
+  return 'Your session needs to be refreshed. Log in again to continue.';
+}
 
 function LoginScreen({ onLogin }: { onLogin: () => void }) {
   return (
@@ -221,7 +231,26 @@ function App() {
   const [signedIn, setSignedIn] = useState(false);
   const [showReportBug, setShowReportBug] = useState(false);
   const [reportTrigger, setReportTrigger] = useState<'button' | 'error-boundary'>('button');
+  // The SessionGuard's manual-fallback banner (set when a recovery is in
+  // cooldown or an action failed — the loop-breaker hands the user the wheel).
+  const [sessionAlert, setSessionAlert] = useState<string | null>(null);
   const navigate = useNavigate();
+
+  // Run the SessionGuard: verify the session and execute the verdict's
+  // recovery actions (reauth / heal_followers_group / signout), honoring the
+  // cooldown. On mount / after a fresh token, reauth (the popup) is deferred
+  // to an actual failure; the safe local actions (heal, signout) still run.
+  const runSessionGuard = useCallback((allowReauth: boolean) => {
+    verifyAndRecover({ allowReauth })
+      .then((res) => {
+        if (res.outcome === 'needs_manual') {
+          setSessionAlert(sessionAlertMessage(res.reason));
+        } else if (res.outcome === 'recovered') {
+          setSessionAlert(null);
+        }
+      })
+      .catch((e) => LOG_ERR('session guard failed:', e));
+  }, []);
 
   useEffect(() => {
     // D42 (D46): the auth seam talks to the SDK directly — the real consent
@@ -232,13 +261,41 @@ function App() {
     LOG('app mount — isSignedIn:', auth.isSignedIn());
     if (auth.isSignedIn()) {
       setSignedIn(true);
+      runSessionGuard(false);
     }
     auth.authListen(() => {
       setSignedIn(true);
+      setSessionAlert(null);
       trackEvent('login');
       const who = auth.readToken();
       if (who) hotjarIdentify(who.username);
+      // The sign-in (or a reauth) IS the recovery — no need to re-verify here.
+      // Verifying during the sign-in transition hits a "Failed to fetch" (the
+      // session is mid-handoff). The mount + reactive-failure paths cover it.
     });
+
+    // The guard's terminal signout (user not found) clears the cookie and
+    // signals us to show the login screen.
+    const onSignedOut = () => {
+      setSignedIn(false);
+      setSessionAlert(null);
+    };
+    window.addEventListener('session:signed-out', onSignedOut);
+
+    // Reactive path: when a data op fails with an auth-class error (401/403),
+    // re-ask the oracle (verifyAndRecover) and act on the definitive verdict —
+    // the client never guesses from the status code. The guard's cooldown
+    // prevents a loop, and a transient 403 (a deploy window) yields an
+    // inconclusive verdict → no action (definite-NO-vs-UNKNOWN).
+    const onAuthError = (e: Event) => {
+      const err = e instanceof PromiseRejectionEvent ? e.reason : (e as ErrorEvent).error;
+      if (err instanceof Web10Error && (err.status === 401 || err.status === 403)) {
+        LOG('reactive session check — auth-class error', err.status, err.details);
+        runSessionGuard(true);
+      }
+    };
+    window.addEventListener('unhandledrejection', onAuthError);
+    window.addEventListener('error', onAuthError);
 
     const handler = (e: Event) => {
       const customEvent = e as CustomEvent<{ username: string; provider: string }>;
@@ -246,9 +303,12 @@ function App() {
     };
     window.addEventListener('navigate-user-profile', handler);
     return () => {
+      window.removeEventListener('session:signed-out', onSignedOut);
+      window.removeEventListener('unhandledrejection', onAuthError);
+      window.removeEventListener('error', onAuthError);
       window.removeEventListener('navigate-user-profile', handler);
     };
-  }, [navigate]);
+  }, [navigate, runSessionGuard]);
 
   // P2P lifecycle (real-time messages): open the peer on sign-in when the
   // user's `p2pEnabled` setting is on, tear it down on sign-out. Re-applies
@@ -324,6 +384,18 @@ function App() {
 
   return (
     <ErrorBoundary fallback={handleBoundaryFallback}>
+      {sessionAlert && (
+        <div
+          role="alert"
+          data-testid="session-alert"
+          className="flex items-center justify-between gap-3 px-4 py-2.5 bg-danger-muted border-b border-danger/30 text-sm text-danger"
+        >
+          <span>{sessionAlert}</span>
+          <Button size="sm" variant="brand" data-testid="session-relogin-button" onClick={handleLogin}>
+            Log in again
+          </Button>
+        </div>
+      )}
       <Routes>
         <Route element={<Layout onLogout={handleLogout} onReportBug={() => handleReportBug('button')} />}>
           <Route path="/feed" element={<FeedRoute onAuthorClick={handleAuthorClick} />} />
